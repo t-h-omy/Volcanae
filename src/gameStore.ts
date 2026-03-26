@@ -6,6 +6,7 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { generateInitialGameState } from './mapGenerator';
+import { resolveAttack } from './combatSystem';
 import type { GameState, UnitType, Position } from './types';
 
 // ============================================================================
@@ -95,9 +96,10 @@ export const useGameStore = create<GameStore>()(
       // Stub - logic to be implemented in later prompts
     },
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    attackUnit: (_attackerId: string, _targetId: string) => {
-      // Stub - logic to be implemented in later prompts
+    attackUnit: (attackerId: string, targetId: string) => {
+      set((state) => {
+        resolveAttack(state, attackerId, targetId);
+      });
     },
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
