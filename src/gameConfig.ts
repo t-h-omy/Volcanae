@@ -64,6 +64,8 @@ export const BUILDINGS = {
   BUILDING_CAPTURE_TURNS: 1,
   /** Number of turns specialist assignment is disabled after use */
   SPECIALIST_ASSIGN_DISABLE_TURNS: 1,
+  /** Probability of spawning a WATCHTOWER in each zone (0.0 to 1.0) */
+  WATCHTOWER_SPAWN_CHANCE: 0.5,
 } as const;
 
 // ============================================================================
