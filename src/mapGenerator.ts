@@ -181,11 +181,16 @@ function generateBuildingsForZone(
 ): Building[] {
   const buildings: Building[] = [];
 
-  // Determine faction: Zone 1 STRONGHOLD is PLAYER, all other buildings are null (neutral)
-  // Buildings in all zones (including zones 2-5) start as neutral/uncaptured
+  // Determine faction based on zone:
+  // - Zone 1 STRONGHOLD: PLAYER faction (already captured)
+  // - Zone 1 other buildings and Zone 2: null (neutral/uncaptured)
+  // - Zones 3-5: ENEMY faction
   const getFaction = (isStronghold: boolean): Faction | null => {
     if (zone === 1 && isStronghold) {
       return Faction.PLAYER;
+    }
+    if (zone >= 3) {
+      return Faction.ENEMY;
     }
     return null;
   };
