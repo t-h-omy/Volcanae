@@ -801,6 +801,7 @@ export function runEnemyTurn(state: Draft<GameState>): void {
     Object.values(state.buildings)
       .filter(b =>
         b.faction === Faction.PLAYER &&
+        b.wasEnemyOwnedBeforeCapture === true &&
         b.turnCapturedByPlayer !== null &&
         state.turn - b.turnCapturedByPlayer <= AI_SCORING.RECENTLY_LOST_WINDOW_TURNS
       )

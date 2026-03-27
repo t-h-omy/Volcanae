@@ -145,6 +145,7 @@ export interface Building {
   recruitmentQueue: UnitType | null;
   discoverRadius: number;
   turnCapturedByPlayer: number | null;
+  wasEnemyOwnedBeforeCapture: boolean;
 }
 
 /** A tile on the game grid */

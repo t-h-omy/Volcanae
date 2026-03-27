@@ -133,6 +133,7 @@ function createBuilding(
     recruitmentQueue: null,
     discoverRadius: BUILDINGS.DISCOVER_RADIUS[type],
     turnCapturedByPlayer: null,
+    wasEnemyOwnedBeforeCapture: false,
   };
 }
 
