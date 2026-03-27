@@ -132,6 +132,7 @@ function createBuilding(
     lavaBoostEnabled: false,
     recruitmentQueue: null,
     discoverRadius: BUILDINGS.DISCOVER_RADIUS[type],
+    turnCapturedByPlayer: null,
   };
 }
 

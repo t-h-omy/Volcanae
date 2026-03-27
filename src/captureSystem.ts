@@ -221,6 +221,13 @@ export function resolveCaptures(state: Draft<GameState>): void {
     const previousFaction = building.faction;
     building.faction = capturingUnit.faction;
 
+    // Track when building was captured by player (for enemy AI retake logic)
+    if (capturingUnit.faction === Faction.PLAYER) {
+      building.turnCapturedByPlayer = state.turn;
+    } else {
+      building.turnCapturedByPlayer = null;
+    }
+
     // If building had an enemy specialist, remove it
     if (building.specialistSlot && previousFaction !== capturingUnit.faction) {
       const specialistId = building.specialistSlot;

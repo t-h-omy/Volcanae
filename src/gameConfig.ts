@@ -112,6 +112,61 @@ export const ENEMY = {
 } as const;
 
 // ============================================================================
+// AI SCORING CONFIGURATION
+// ============================================================================
+
+export const AI_SCORING = {
+  // Base scores per action type
+  BASE_INTERCEPT_CAPTOR: 90,
+  BASE_CAPTURE_BUILDING: 85,
+  BASE_CONTEST_BUILDING: 80,
+  BASE_ATTACK_UNIT: 70,
+  BASE_RANGED_ATTACK_UNIT: 65,
+  BASE_RETAKE_BUILDING: 65,
+  BASE_PROTECT_SPAWNER: 58,
+  BASE_PUSH_TO_STRONGHOLD: 52,
+  BASE_DEFEND_ENEMY_BUILDING: 48,
+  BASE_MOVE_TO_PLAYER_BUILDING: 42,
+  BASE_MOVE_TO_NEUTRAL_BUILDING: 38,
+  BASE_MOVE_TO_UNIT: 32,
+  BASE_ADVANCE_WITH_LAVA: 28,
+  BASE_PUSH_TO_ZONE_EDGE: 25,
+  BASE_FLANK_UNIT: 20,
+  BASE_ADVANCE_SOUTH: 18,
+  BASE_SACRIFICE_TO_LAVA: 12,
+  BASE_HOLD_POSITION: 3,
+
+  // Distance
+  DISTANCE_PENALTY_PER_TILE: 4,
+
+  // Combat outcome modifiers
+  KILL_BONUS: 45,
+  DEATH_RISK_PENALTY: 30,
+  LOW_HP_RISK_FACTOR: 0.7,
+
+  // Building strategic value multipliers
+  BUILDING_VALUE_STRONGHOLD: 2.0,
+  BUILDING_VALUE_SPAWNER: 1.6,
+  BUILDING_VALUE_RESOURCE: 1.2,
+  BUILDING_VALUE_DEFAULT: 1.0,
+
+  // Saturation
+  SATURATION_PENALTY_PER_ALLY: 18,
+
+  // Context bonuses
+  BONUS_PLAYER_ON_BUILDING: 25,
+  BONUS_PLAYER_CAPTURING: 30,
+  BONUS_UNDEFENDED_BUILDING: 15,
+  BONUS_RECENT_LOSS: 28,
+  RECENTLY_LOST_WINDOW_TURNS: 3,
+  BONUS_RANGED_SAFE_ATTACK: 15,
+
+  // Lava-specific
+  BONUS_LAVA_BOOST_AGGRESSION: 25,
+  BONUS_SACRIFICE_PER_THREAT_BELOW_5: 3,
+} as const;
+
+// ============================================================================
 // UNIT COST CONFIGURATION
 // ============================================================================
 
@@ -171,6 +226,7 @@ export const GAME_CONFIG = {
   BUILDINGS,
   RESOURCES,
   ENEMY,
+  AI_SCORING,
   UNIT_COSTS,
   RENDER,
 } as const;

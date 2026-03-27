@@ -144,6 +144,7 @@ export interface Building {
   lavaBoostEnabled: boolean;
   recruitmentQueue: UnitType | null;
   discoverRadius: number;
+  turnCapturedByPlayer: number | null;
 }
 
 /** A tile on the game grid */
