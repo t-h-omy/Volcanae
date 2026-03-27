@@ -7,6 +7,7 @@ import type { GameState, Position } from './types';
 import type { Draft } from 'immer';
 import { BuildingType, UnitTag, Faction } from './types';
 import { MAP } from './gameConfig';
+import { increaseThreatOnStrongholdCapture } from './enemySystem';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -233,9 +234,14 @@ export function resolveCaptures(state: Draft<GameState>): void {
     building.isBeingCapturedBy = null;
     building.captureProgress = 0;
 
-    // If it's a stronghold, update zones
+    // If it's a stronghold, update zones and threat level
     if (building.type === BuildingType.STRONGHOLD) {
       updateZonesUnlocked(state, capturingUnit.faction);
+
+      // Increase threat level when player captures a stronghold
+      if (capturingUnit.faction === Faction.PLAYER) {
+        increaseThreatOnStrongholdCapture(state);
+      }
     }
   }
 }

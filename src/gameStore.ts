@@ -12,6 +12,19 @@ import {
   initiateCapture as initiateCaptureLogic,
   resolveCaptures,
 } from './captureSystem';
+import { updateFogOfWar } from './fogOfWarSystem';
+import { tickLava } from './lavaSystem';
+import {
+  collectResources,
+  recruitUnit as recruitUnitLogic,
+  spawnQueuedUnits,
+} from './resourceSystem';
+import { runEnemyTurn, updateThreatFromTurn } from './enemySystem';
+import {
+  assignSpecialist as assignSpecialistLogic,
+  unassignSpecialist as unassignSpecialistLogic,
+} from './specialistSystem';
+import { Faction } from './types';
 import type { GameState, UnitType, Position } from './types';
 
 // ============================================================================
@@ -74,6 +87,8 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         const newState = generateInitialGameState();
         Object.assign(state, newState);
+        // Update fog of war based on initial unit/building positions
+        updateFogOfWar(state);
       });
     },
 
@@ -99,41 +114,79 @@ export const useGameStore = create<GameStore>()(
     moveUnit: (unitId: string, targetPosition: Position) => {
       set((state) => {
         moveUnitLogic(state, unitId, targetPosition);
+        // Update fog of war after player action
+        updateFogOfWar(state);
       });
     },
 
     attackUnit: (attackerId: string, targetId: string) => {
       set((state) => {
         resolveAttack(state, attackerId, targetId);
+        // Update fog of war after player action
+        updateFogOfWar(state);
       });
     },
 
     captureBuilding: (unitId: string, buildingId: string) => {
       set((state) => {
         initiateCaptureLogic(state, unitId, buildingId);
+        // Update fog of war after player action
+        updateFogOfWar(state);
       });
     },
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    recruitUnit: (_buildingId: string, _unitType: UnitType) => {
-      // Stub - logic to be implemented in later prompts
+    recruitUnit: (buildingId: string, unitType: UnitType) => {
+      set((state) => {
+        recruitUnitLogic(state, buildingId, unitType);
+      });
     },
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    assignSpecialist: (_specialistId: string, _buildingId: string) => {
-      // Stub - logic to be implemented in later prompts
+    assignSpecialist: (specialistId: string, buildingId: string) => {
+      set((state) => {
+        assignSpecialistLogic(state, specialistId, buildingId);
+      });
     },
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    unassignSpecialist: (_buildingId: string) => {
-      // Stub - logic to be implemented in later prompts
+    unassignSpecialist: (buildingId: string) => {
+      set((state) => {
+        unassignSpecialistLogic(state, buildingId);
+      });
     },
 
     endPlayerTurn: () => {
       set((state) => {
         // Resolve all pending captures at end of player turn
         resolveCaptures(state);
-        // Note: Enemy turn and lava phase will be implemented in later prompts
+
+        // Run enemy turn (spawning and AI)
+        runEnemyTurn(state);
+
+        // Tick lava system (lava phase happens between turns, before the next player turn starts)
+        tickLava(state);
+
+        // Increment turn counter
+        state.turn += 1;
+
+        // Update threat level based on turn count (every 10 turns)
+        updateThreatFromTurn(state);
+
+        // Turn start sequence:
+        // 1. Spawn queued units from recruitment buildings
+        spawnQueuedUnits(state);
+        // 2. Collect resources from player-owned resource buildings
+        collectResources(state);
+
+        // Reset player unit action flags for new turn
+        for (const unit of Object.values(state.units)) {
+          if (unit.faction === Faction.PLAYER) {
+            unit.hasMovedThisTurn = false;
+            unit.hasActedThisTurn = false;
+            unit.hasCapturedThisTurn = false;
+          }
+        }
+
+        // Update fog of war after turn resolution
+        updateFogOfWar(state);
       });
     },
 

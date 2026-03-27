@@ -18,6 +18,7 @@ import type {
   Tile,
   GameState,
 } from './types';
+import { createInitialSpecialists } from './specialistSystem';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -377,7 +378,7 @@ export function generateInitialGameState(): GameState {
     grid,
     units,
     buildings,
-    specialists: {},
+    specialists: createInitialSpecialists(),
     globalSpecialistStorage: [],
     resources: {
       iron: 1,
