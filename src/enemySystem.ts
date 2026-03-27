@@ -24,6 +24,18 @@ function generateEnemyId(): string {
 }
 
 // ============================================================================
+// BUILDING → UNIT TYPE MAPPING
+// ============================================================================
+
+/** Maps each enemy recruitment building type to the unit type it spawns. */
+const BUILDING_SPAWN_UNIT_TYPE: Partial<Record<BuildingType, UnitType>> = {
+  [BuildingType.BARRACKS]: UnitType.LAVA_GRUNT,
+  [BuildingType.ARCHER_CAMP]: UnitType.LAVA_ARCHER,
+  [BuildingType.RIDER_CAMP]: UnitType.LAVA_RIDER,
+  [BuildingType.SIEGE_CAMP]: UnitType.LAVA_SIEGE,
+};
+
+// ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
 
@@ -89,6 +101,43 @@ function getSpawnCount(threatLevel: number): number {
 }
 
 /**
+ * Returns true if any player unit is within the building's discover radius.
+ */
+function isPlayerUnitInDiscoverRadius(
+  state: Draft<GameState>,
+  building: Building
+): boolean {
+  for (const unit of Object.values(state.units)) {
+    if (unit.faction !== Faction.PLAYER) continue;
+    const inRange = isTileWithinEdgeCircleRange(
+      building.position.x,
+      building.position.y,
+      unit.position.x,
+      unit.position.y,
+      building.discoverRadius
+    );
+    if (inRange) return true;
+  }
+  return false;
+}
+
+/**
+ * Calculates the spawn probability for a recruitment building this turn.
+ * - 100% if a player unit is within the building's discover radius.
+ * - Otherwise: baseSpawnProbability + maxThreatBonus * (threatLevel / maxThreat)
+ */
+function getSpawnProbability(
+  state: Draft<GameState>,
+  building: Building
+): number {
+  if (isPlayerUnitInDiscoverRadius(state, building)) {
+    return 1.0;
+  }
+  const threatRatio = Math.min(state.threatLevel / ENEMY.MAX_THREAT, 1);
+  return ENEMY.BASE_SPAWN_PROBABILITY + ENEMY.MAX_THREAT_BONUS * threatRatio;
+}
+
+/**
  * Finds all adjacent positions (4-directional).
  */
 function getAdjacentPositions(pos: Position): Position[] {
@@ -134,10 +183,11 @@ function getNextStepToward(
 // ============================================================================
 
 /**
- * Creates an enemy unit at the specified position with optional lava boost.
+ * Creates an enemy unit of the specified type at the given position with optional lava boost.
  */
 function createEnemyUnit(
   position: Position,
+  unitType: UnitType,
   lavaBoostEnabled: boolean,
   lavaFrontRow: number,
   buildingPosition: Position
@@ -160,7 +210,7 @@ function createEnemyUnit(
 
   return {
     id: generateEnemyId(),
-    type: UnitType.LAVA_GRUNT,
+    type: unitType,
     faction: Faction.ENEMY,
     position: { ...position },
     stats: {
@@ -183,7 +233,8 @@ function createEnemyUnit(
 
 /**
  * Spawns enemy units from all enemy-owned recruitment buildings.
- * Each building spawns units based on threat level if not already occupied.
+ * Each building uses a spawn probability roll; on success, spawns units based
+ * on threat level. The unit type spawned depends on the building type.
  */
 function spawnEnemyUnits(state: Draft<GameState>): void {
   const spawnCount = getSpawnCount(state.threatLevel);
@@ -195,6 +246,15 @@ function spawnEnemyUnits(state: Draft<GameState>): void {
     }
 
     if (!isRecruitmentBuilding(building)) {
+      continue;
+    }
+
+    // Determine unit type for this building
+    const unitType: UnitType = BUILDING_SPAWN_UNIT_TYPE[building.type] ?? UnitType.LAVA_GRUNT;
+
+    // Roll spawn probability
+    const spawnProbability = getSpawnProbability(state, building);
+    if (Math.random() >= spawnProbability) {
       continue;
     }
 
@@ -227,6 +287,7 @@ function spawnEnemyUnits(state: Draft<GameState>): void {
       // Create and place the unit
       const unit = createEnemyUnit(
         spawnPosition,
+        unitType,
         building.lavaBoostEnabled,
         state.lavaFrontRow,
         building.position
