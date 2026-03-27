@@ -35,22 +35,93 @@ export const LAVA = {
 // ============================================================================
 
 export const UNITS = {
-  /** Default maximum HP for units */
-  UNIT_MAX_HP: 100,
-  /** Default attack power for units */
-  UNIT_ATTACK: 50,
-  /** Default defense value for units */
-  UNIT_DEFENSE: 50,
-  /** Number of movement actions per turn */
-  UNIT_MOVEMENT_ACTIONS: 1,
-  /** Movement range in cells */
-  UNIT_MOVE_RANGE: 2,
-  /** Attack range (edge-circle distance) */
-  UNIT_ATTACK_RANGE: 1,
-  /** Discover radius (edge-circle distance) */
-  UNIT_DISCOVER_RADIUS: 2,
-  /** Trigger range for enemy units only (edge-circle distance) */
-  UNIT_TRIGGER_RANGE: 3,
+  INFANTRY: {
+    maxHp: 100,
+    attack: 50,
+    defense: 50,
+    movementActions: 1,
+    moveRange: 2,
+    attackRange: 1,
+    discoverRadius: 2,
+    triggerRange: 0,
+  },
+
+  ARCHER: {
+    maxHp: 100,
+    attack: 50,
+    defense: 20,
+    movementActions: 1,
+    moveRange: 2,
+    attackRange: 2,
+    discoverRadius: 2,
+    triggerRange: 0,
+  },
+
+  RIDER: {
+    maxHp: 100,
+    attack: 65,
+    defense: 40,
+    movementActions: 1,
+    moveRange: 3,
+    attackRange: 1,
+    discoverRadius: 2,
+    triggerRange: 0,
+  },
+
+  SIEGE: {
+    maxHp: 100,
+    attack: 65,
+    defense: 0,
+    movementActions: 1,
+    moveRange: 1,
+    attackRange: 3,
+    discoverRadius: 2,
+    triggerRange: 0,
+  },
+
+  LAVA_GRUNT: {
+    maxHp: 100,
+    attack: 50,
+    defense: 50,
+    movementActions: 1,
+    moveRange: 2,
+    attackRange: 1,
+    discoverRadius: 2,
+    triggerRange: 0,
+  },
+
+  LAVA_ARCHER: {
+    maxHp: 100,
+    attack: 50,
+    defense: 20,
+    movementActions: 1,
+    moveRange: 2,
+    attackRange: 2,
+    discoverRadius: 2,
+    triggerRange: 3,
+  },
+
+  LAVA_RIDER: {
+    maxHp: 100,
+    attack: 65,
+    defense: 40,
+    movementActions: 1,
+    moveRange: 3,
+    attackRange: 1,
+    discoverRadius: 2,
+    triggerRange: 3,
+  },
+
+  LAVA_SIEGE: {
+    maxHp: 100,
+    attack: 65,
+    defense: 0,
+    movementActions: 1,
+    moveRange: 1,
+    attackRange: 3,
+    discoverRadius: 2,
+    triggerRange: 4,
+  },
 } as const;
 
 // ============================================================================
