@@ -198,8 +198,8 @@ function createEnemyUnit(
   lavaFrontRow: number,
   buildingPosition: Position
 ): Unit {
-  const baseHp: number = UNITS.UNIT_MAX_HP;
-  const baseAttack: number = UNITS.UNIT_ATTACK;
+  const baseHp: number = UNITS[unitType].maxHp;
+  const baseAttack: number = UNITS[unitType].attack;
 
   let finalHp: number = baseHp;
   let finalAttack: number = baseAttack;
@@ -223,12 +223,12 @@ function createEnemyUnit(
       maxHp: finalHp,
       currentHp: finalHp,
       attack: finalAttack,
-      defense: UNITS.UNIT_DEFENSE,
-      moveRange: UNITS.UNIT_MOVE_RANGE,
-      discoverRadius: UNITS.UNIT_DISCOVER_RADIUS,
-      triggerRange: UNITS.UNIT_TRIGGER_RANGE,
-      movementActions: UNITS.UNIT_MOVEMENT_ACTIONS,
-      attackRange: UNITS.UNIT_ATTACK_RANGE,
+      defense: UNITS[unitType].defense,
+      moveRange: UNITS[unitType].moveRange,
+      discoverRadius: UNITS[unitType].discoverRadius,
+      triggerRange: UNITS[unitType].triggerRange,
+      movementActions: UNITS[unitType].movementActions,
+      attackRange: UNITS[unitType].attackRange,
     },
     tags,
     hasMovedThisTurn: false,
