@@ -104,9 +104,9 @@ export const ENEMY = {
   /** Bonus enemy spawn per 3 threat levels */
   ENEMY_THREAT_SPAWN_BONUS: 1,
   /** Base probability (0.0–1.0) of spawning a unit per recruitment building per turn when no player unit is in discover radius and threat is 0 */
-  BASE_SPAWN_PROBABILITY: 0.20,
+  BASE_SPAWN_PROBABILITY: 0.10,
   /** Maximum additional probability granted at max threat (0.0–1.0) */
-  MAX_THREAT_BONUS: 0.30,
+  MAX_THREAT_BONUS: 0.60,
   /** Threat level at which the full MAX_THREAT_BONUS is reached */
   MAX_THREAT: 10,
 } as const;
