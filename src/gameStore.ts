@@ -13,6 +13,7 @@ import {
   resolveCaptures,
 } from './captureSystem';
 import { updateFogOfWar } from './fogOfWarSystem';
+import { tickLava } from './lavaSystem';
 import type { GameState, UnitType, Position } from './types';
 
 // ============================================================================
@@ -142,8 +143,10 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         // Resolve all pending captures at end of player turn
         resolveCaptures(state);
-        // Note: Enemy turn and lava phase will be implemented in later prompts
-        // Update fog of war after enemy turn resolves
+        // Note: Enemy turn will be implemented in later prompts
+        // Tick lava system (lava phase happens between turns, before the next player turn starts)
+        tickLava(state);
+        // Update fog of war after turn resolution
         updateFogOfWar(state);
       });
     },
