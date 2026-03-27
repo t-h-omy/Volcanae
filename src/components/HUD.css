@@ -288,6 +288,31 @@
   cursor: not-allowed;
 }
 
+/* ── Capture button ── */
+
+.hud-capture-btn {
+  padding: 6px 12px;
+  min-height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  background: rgba(46, 204, 113, 0.3);
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 0.15s;
+  margin-top: 4px;
+}
+
+.hud-capture-btn:hover:not(:disabled) {
+  background: rgba(46, 204, 113, 0.5);
+}
+
+.hud-capture-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .hud-cost {
   opacity: 0.7;
   font-size: 11px;
