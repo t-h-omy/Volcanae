@@ -10,7 +10,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       strategies: 'generateSW',
-      includeAssets: ['favicon.svg'],
+      includeAssets: ['favicon.svg', 'assets/icon_*.png'],
       manifest: {
         name: 'Volcanae',
         short_name: 'Volcanae',
@@ -21,20 +21,50 @@ export default defineConfig({
         orientation: 'any',
         icons: [
           {
-            src: 'pwa-192x192.png',
+            src: 'assets/icon_72x72.png',
+            sizes: '72x72',
+            type: 'image/png'
+          },
+          {
+            src: 'assets/icon_96x96.png',
+            sizes: '96x96',
+            type: 'image/png'
+          },
+          {
+            src: 'assets/icon_128x128.png',
+            sizes: '128x128',
+            type: 'image/png'
+          },
+          {
+            src: 'assets/icon_144x144.png',
+            sizes: '144x144',
+            type: 'image/png'
+          },
+          {
+            src: 'assets/icon_152x152.png',
+            sizes: '152x152',
+            type: 'image/png'
+          },
+          {
+            src: 'assets/icon_192x192.png',
             sizes: '192x192',
             type: 'image/png'
           },
           {
-            src: 'pwa-512x512.png',
+            src: 'assets/icon_256x256.png',
+            sizes: '256x256',
+            type: 'image/png'
+          },
+          {
+            src: 'assets/icon_512x512.png',
             sizes: '512x512',
             type: 'image/png'
           },
           {
-            src: 'pwa-512x512.png',
+            src: 'assets/icon_512x512.png',
             sizes: '512x512',
             type: 'image/png',
-            purpose: 'any maskable'
+            purpose: 'maskable'
           }
         ]
       },
