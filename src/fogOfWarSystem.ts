@@ -4,7 +4,7 @@
  *
  * Rules:
  * - Each tile has isRevealed (ever seen before) and isInFogOfWar (currently not visible)
- * - Vision is calculated using manhattan distance
+ * - Vision is calculated using the edge-circle range system
  * - Player units reveal tiles within their visionRange
  * - Player buildings reveal tiles within their visionRange
  * - Enemy units and buildings do NOT reveal fog for the player
@@ -18,20 +18,11 @@ import type { GameState, Position } from './types';
 import type { Draft } from 'immer';
 import { Faction } from './types';
 import { MAP, BUILDINGS } from './gameConfig';
+import { getTilesWithinEdgeCircleRange } from './rangeUtils';
 
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
-
-/**
- * Calculates the manhattan distance between two positions.
- * @param a - First position
- * @param b - Second position
- * @returns Manhattan distance between the two positions
- */
-function manhattanDistance(a: Position, b: Position): number {
-  return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-}
 
 /**
  * Converts a position to a string key for Set storage.
@@ -50,6 +41,7 @@ function positionToKey(x: number, y: number): string {
 /**
  * Gets all tiles currently visible to the player.
  * A tile is visible if it is within the vision range of any player unit or player building.
+ * Vision range is determined using the edge-circle range system.
  *
  * @param state - Current game state
  * @returns Set of "x,y" string keys representing currently visible tiles
@@ -82,32 +74,21 @@ export function getVisibleTiles(
     }
   }
 
-  // Calculate visible tiles for each vision source
+  // Calculate visible tiles for each vision source using edge-circle range
   for (const source of visionSources) {
     const { position, visionRange } = source;
-
-    // Check all tiles within vision range (manhattan distance)
-    for (let dx = -visionRange; dx <= visionRange; dx++) {
-      for (let dy = -visionRange; dy <= visionRange; dy++) {
-        const targetX = position.x + dx;
-        const targetY = position.y + dy;
-
-        // Check bounds
-        if (
-          targetX < 0 ||
-          targetX >= MAP.GRID_WIDTH ||
-          targetY < 0 ||
-          targetY >= MAP.GRID_HEIGHT
-        ) {
-          continue;
-        }
-
-        // Check manhattan distance
-        const targetPos: Position = { x: targetX, y: targetY };
-        if (manhattanDistance(position, targetPos) <= visionRange) {
-          visibleTiles.add(positionToKey(targetX, targetY));
-        }
-      }
+    // Include the source tile itself
+    visibleTiles.add(positionToKey(position.x, position.y));
+    // Include all tiles within edge-circle range
+    const tilesInRange = getTilesWithinEdgeCircleRange(
+      position.x,
+      position.y,
+      visionRange,
+      MAP.GRID_WIDTH,
+      MAP.GRID_HEIGHT,
+    );
+    for (const { x, y } of tilesInRange) {
+      visibleTiles.add(positionToKey(x, y));
     }
   }
 

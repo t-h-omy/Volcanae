@@ -6,34 +6,7 @@
 import type { GameState, Position } from './types';
 import type { Draft } from 'immer';
 import { MAP } from './gameConfig';
-
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
-
-/**
- * Calculates the manhattan distance between two positions.
- * @param a - First position
- * @param b - Second position
- * @returns Manhattan distance between the two positions
- */
-function manhattanDistance(a: Position, b: Position): number {
-  return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-}
-
-/**
- * Checks if a position is within the grid bounds.
- * @param pos - Position to check
- * @returns True if position is within bounds
- */
-function isWithinBounds(pos: Position): boolean {
-  return (
-    pos.x >= 0 &&
-    pos.x < MAP.GRID_WIDTH &&
-    pos.y >= 0 &&
-    pos.y < MAP.GRID_HEIGHT
-  );
-}
+import { getTilesWithinEdgeCircleRange } from './rangeUtils';
 
 // ============================================================================
 // MOVEMENT CALCULATIONS
@@ -42,7 +15,7 @@ function isWithinBounds(pos: Position): boolean {
 /**
  * Gets all tiles that a unit can reach from its current position.
  * A tile is reachable if:
- * - It is within the unit's move range (manhattan distance)
+ * - It is within the unit's move range (edge-circle range)
  * - It is not a lava tile
  * - It is not occupied by another unit
  * - The unit has not already moved this turn
@@ -66,43 +39,34 @@ export function getReachableTiles(
   const unitPosition = unit.position;
   const moveRange = unit.stats.moveRange;
 
-  // Check all tiles within move range
-  for (let dx = -moveRange; dx <= moveRange; dx++) {
-    for (let dy = -moveRange; dy <= moveRange; dy++) {
-      // Skip the unit's current position
-      if (dx === 0 && dy === 0) {
-        continue;
-      }
+  // Get candidate tiles using the edge-circle range system
+  const candidates = getTilesWithinEdgeCircleRange(
+    unitPosition.x,
+    unitPosition.y,
+    moveRange,
+    MAP.GRID_WIDTH,
+    MAP.GRID_HEIGHT,
+  );
 
-      const targetPos: Position = {
-        x: unitPosition.x + dx,
-        y: unitPosition.y + dy,
-      };
-
-      // Check if within bounds
-      if (!isWithinBounds(targetPos)) {
-        continue;
-      }
-
-      // Check manhattan distance
-      if (manhattanDistance(unitPosition, targetPos) > moveRange) {
-        continue;
-      }
-
-      const tile = state.grid[targetPos.y][targetPos.x];
-
-      // Cannot move into lava tiles
-      if (tile.isLava) {
-        continue;
-      }
-
-      // Cannot move onto tiles occupied by another unit
-      if (tile.unitId !== null) {
-        continue;
-      }
-
-      reachableTiles.push(targetPos);
+  for (const { x: tx, y: ty } of candidates) {
+    // Skip the unit's current position (source tile is included by getTilesWithinEdgeCircleRange)
+    if (tx === unitPosition.x && ty === unitPosition.y) {
+      continue;
     }
+
+    const tile = state.grid[ty][tx];
+
+    // Cannot move into lava tiles
+    if (tile.isLava) {
+      continue;
+    }
+
+    // Cannot move onto tiles occupied by another unit
+    if (tile.unitId !== null) {
+      continue;
+    }
+
+    reachableTiles.push({ x: tx, y: ty });
   }
 
   return reachableTiles;
