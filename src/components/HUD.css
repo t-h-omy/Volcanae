@@ -1,0 +1,317 @@
+/* ============================================================================
+ * HUD Styles – dark theme, minimal, functional
+ * ============================================================================ */
+
+/* ── Top Bar ── */
+
+.hud-top-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 12px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #eee;
+  font-size: 14px;
+  pointer-events: none;
+  user-select: none;
+  flex-wrap: wrap;
+}
+
+.hud-stat {
+  white-space: nowrap;
+}
+
+/* ── Bottom Bar ── */
+
+.hud-bottom-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #eee;
+  font-size: 13px;
+}
+
+/* ── End Turn Button ── */
+
+.hud-end-turn-btn {
+  margin-left: auto;
+  min-width: 120px;
+  min-height: 48px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #c0392b;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 0.15s;
+}
+
+.hud-end-turn-btn:hover {
+  background: #e74c3c;
+}
+
+.hud-end-turn-btn:active {
+  background: #a93226;
+}
+
+/* ── Info Panel (unit / building) ── */
+
+.hud-info-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 6px;
+  padding: 8px 12px;
+  min-width: 180px;
+  max-width: 320px;
+}
+
+.hud-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.hud-panel-emoji {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.hud-panel-name {
+  flex: 1;
+}
+
+.hud-faction-label {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+/* ── HP Bar (in info panel) ── */
+
+.hud-hp-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hud-hp-bar {
+  flex: 1;
+  height: 8px;
+  background: #e74c3c;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.hud-hp-fill {
+  height: 100%;
+  background: #2ecc71;
+  border-radius: 4px;
+  transition: width 0.2s;
+}
+
+.hud-hp-text {
+  font-size: 12px;
+  white-space: nowrap;
+  min-width: 48px;
+  text-align: right;
+}
+
+/* ── Action Tags ── */
+
+.hud-action-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.hud-action-tag {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  background: rgba(46, 204, 113, 0.25);
+  color: #2ecc71;
+}
+
+.hud-action-used {
+  background: rgba(255, 255, 255, 0.06);
+  color: #666;
+  text-decoration: line-through;
+}
+
+/* ── Building panel extras ── */
+
+.hud-specialist-row,
+.hud-recruit-row,
+.hud-global-specialists {
+  font-size: 12px;
+}
+
+.hud-label {
+  font-weight: 600;
+  margin-right: 4px;
+}
+
+.hud-value {
+  font-weight: 400;
+}
+
+.hud-dim {
+  opacity: 0.5;
+}
+
+.hud-disabled-note {
+  font-size: 11px;
+  color: #e67e22;
+  opacity: 1;
+}
+
+.hud-recruit-btn {
+  padding: 6px 12px;
+  min-height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  background: rgba(58, 123, 213, 0.3);
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 0.15s;
+}
+
+.hud-recruit-btn:hover:not(:disabled) {
+  background: rgba(58, 123, 213, 0.5);
+}
+
+.hud-recruit-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.hud-cost {
+  opacity: 0.7;
+  font-size: 11px;
+}
+
+.hud-specialist-list {
+  margin: 2px 0 0 16px;
+  padding: 0;
+  list-style: disc;
+}
+
+.hud-specialist-list li {
+  margin-bottom: 2px;
+}
+
+/* ── Game Over / Victory Overlay ── */
+
+.hud-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.75);
+}
+
+.hud-overlay-box {
+  text-align: center;
+  padding: 32px 48px;
+  border-radius: 12px;
+  background: rgba(20, 20, 20, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.hud-overlay-title {
+  font-size: 48px;
+  margin: 0 0 12px;
+}
+
+.hud-defeat {
+  color: #e74c3c;
+}
+
+.hud-victory {
+  color: #f1c40f;
+}
+
+.hud-overlay-sub {
+  font-size: 18px;
+  color: #aaa;
+  margin: 0 0 24px;
+}
+
+.hud-play-again-btn {
+  padding: 14px 32px;
+  min-height: 48px;
+  border: none;
+  border-radius: 8px;
+  background: #3a7bd5;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 0.15s;
+}
+
+.hud-play-again-btn:hover {
+  background: #4a8be5;
+}
+
+.hud-play-again-btn:active {
+  background: #2a6bc5;
+}
+
+/* ── Mobile adjustments ── */
+
+@media (max-width: 768px) {
+  .hud-top-bar {
+    font-size: 12px;
+    gap: 8px;
+    padding: 4px 8px;
+  }
+
+  .hud-bottom-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    padding: 6px 8px;
+  }
+
+  .hud-end-turn-btn {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .hud-info-panel {
+    max-width: 100%;
+  }
+
+  .hud-overlay-title {
+    font-size: 36px;
+  }
+
+  .hud-overlay-box {
+    padding: 24px;
+    margin: 16px;
+  }
+}

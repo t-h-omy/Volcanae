@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useGameStore } from './gameStore'
 import GridRenderer from './components/GridRenderer'
+import HUD from './components/HUD'
 import './App.css'
 
 function App() {
@@ -13,7 +14,14 @@ function App() {
 
   return (
     <div className="app-container">
-      {phase ? <GridRenderer /> : <span className="loading-text">Volcanae - Loading...</span>}
+      {phase ? (
+        <>
+          <GridRenderer />
+          <HUD />
+        </>
+      ) : (
+        <span className="loading-text">Volcanae - Loading...</span>
+      )}
     </div>
   )
 }
