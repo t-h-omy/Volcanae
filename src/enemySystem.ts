@@ -5,7 +5,7 @@
 
 import type { GameState, Unit, Building, Position } from './types';
 import type { Draft } from 'immer';
-import { produce, current } from 'immer';
+import { produce } from 'immer';
 import { Faction, UnitType, UnitTag, BuildingType } from './types';
 import { UNITS, ENEMY, MAP, AI_SCORING } from './gameConfig';
 import { resolveAttack, calculateCombat } from './combatSystem';
@@ -271,6 +271,16 @@ function spawnEnemyUnits(state: Draft<GameState>, events?: GameEvent[]): void {
       if (!spawnPosition) continue;
 
       const unit = createEnemyUnit(spawnPosition, unitType, building.lavaBoostEnabled, state.lavaFrontRow, building.position);
+
+      // Snapshot the unit BEFORE assigning to the draft (plain objects added
+      // to a draft are not immediately proxied, so current() cannot be used).
+      const unitSnapshot: Unit = {
+        ...unit,
+        position: { ...unit.position },
+        stats: { ...unit.stats },
+        tags: [...unit.tags],
+      };
+
       state.units[unit.id] = unit;
       state.grid[spawnPosition.y][spawnPosition.x].unitId = unit.id;
 
@@ -278,7 +288,7 @@ function spawnEnemyUnits(state: Draft<GameState>, events?: GameEvent[]): void {
         events.push({
           type: 'ENEMY_SPAWN',
           position: { ...spawnPosition },
-          unit: current(state.units[unit.id]),
+          unit: unitSnapshot,
           buildingId: building.id,
         });
       }

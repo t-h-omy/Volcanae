@@ -182,7 +182,8 @@ export const useGameStore = create<GameStore>()(
         // Phase 1: Resolve all pending captures (instant, no animation)
         resolveCaptures(state);
 
-        // Get a snapshot of the current state (post-capture, pre-enemy turn)
+        // Get a plain (non-Proxy) snapshot of the current state so runEnemyTurn
+        // can use produce() internally without nesting immer producers.
         const snapshot: GameState = current(state);
 
         // Phase 2: Compute enemy turn on snapshot

@@ -4,7 +4,7 @@
  * Used once at the top level of App.tsx.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useAnimationStore } from './animationStore';
 import { useGameStore } from './gameStore';
 import { ANIMATION, MAP } from './gameConfig';
@@ -50,21 +50,16 @@ function postActionDuration(event: GameEvent): number {
 // HOOK
 // ============================================================================
 
+/**
+ * Subscribes to the animation store and processes queued events when available.
+ * Uses Zustand's subscribe API to avoid React re-render race conditions.
+ */
 export function useAnimationEngine(): void {
-  const queueLength = useAnimationStore((s) => s.eventQueue.length);
-  const isAnimating = useAnimationStore((s) => s.isAnimating);
-  const cancelRef = useRef(false);
-
   useEffect(() => {
-    if (isAnimating || queueLength === 0) return;
-
-    cancelRef.current = false;
-    useAnimationStore.getState().setIsAnimating(true);
-
-    processQueue();
+    let processing = false;
 
     async function processQueue() {
-      while (!cancelRef.current) {
+      while (true) {
         const event = useAnimationStore.getState().shiftEvent();
         if (!event) break;
 
@@ -72,12 +67,8 @@ export function useAnimationEngine(): void {
         useAnimationStore.getState().setCameraTarget(eventPosition(event));
         await wait(ANIMATION.CAMERA_MOVE_DURATION_MS);
 
-        if (cancelRef.current) break;
-
         // 2. Pre-action idle
         await wait(ANIMATION.PRE_ACTION_IDLE_MS);
-
-        if (cancelRef.current) break;
 
         // 3. Apply event to live game state
         useGameStore.getState().applyEvent(event);
@@ -86,18 +77,25 @@ export function useAnimationEngine(): void {
         await wait(postActionDuration(event));
       }
 
-      if (cancelRef.current) return;
-
       // Queue exhausted — apply the fully resolved state and hand control back
       const resolvedState = useAnimationStore.getState().resolvedState;
       if (resolvedState) {
         useGameStore.getState().setGameState(resolvedState);
       }
       useAnimationStore.getState().setIsAnimating(false);
+      processing = false;
     }
 
-    return () => {
-      cancelRef.current = true;
-    };
-  }, [queueLength, isAnimating]);
+    // Subscribe to animation store changes; start processing when events are enqueued
+    const unsubscribe = useAnimationStore.subscribe(() => {
+      const { isAnimating, eventQueue } = useAnimationStore.getState();
+      if (processing || isAnimating || eventQueue.length === 0) return;
+
+      processing = true;
+      useAnimationStore.getState().setIsAnimating(true);
+      void processQueue();
+    });
+
+    return unsubscribe;
+  }, []);
 }
