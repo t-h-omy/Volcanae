@@ -7,6 +7,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { generateInitialGameState } from './mapGenerator';
 import { resolveAttack } from './combatSystem';
+import { moveUnit as moveUnitLogic } from './movementSystem';
 import type { GameState, UnitType, Position } from './types';
 
 // ============================================================================
@@ -91,9 +92,10 @@ export const useGameStore = create<GameStore>()(
       });
     },
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    moveUnit: (_unitId: string, _targetPosition: Position) => {
-      // Stub - logic to be implemented in later prompts
+    moveUnit: (unitId: string, targetPosition: Position) => {
+      set((state) => {
+        moveUnitLogic(state, unitId, targetPosition);
+      });
     },
 
     attackUnit: (attackerId: string, targetId: string) => {
