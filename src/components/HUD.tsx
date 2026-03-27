@@ -164,6 +164,9 @@ function TopBar() {
   );
 }
 
+/** Tags that are internal implementation details and should not be shown to the player */
+const HIDDEN_UNIT_TAGS = new Set<string>([UnitTag.NO_CAPTURE]);
+
 // ============================================================================
 // SELECTED UNIT PANEL
 // ============================================================================
@@ -177,6 +180,7 @@ function SelectedUnitPanel({
   captureTarget?: Building;
   onCapture?: () => void;
 }) {
+  const isPlayer = unit.faction === Faction.PLAYER;
   const hpPct = (unit.stats.currentHp / unit.stats.maxHp) * 100;
   const canMove = !unit.hasMovedThisTurn;
   const canAttack = !unit.hasActedThisTurn;
@@ -185,11 +189,14 @@ function SelectedUnitPanel({
     !unit.hasActedThisTurn &&
     !unit.tags.includes(UnitTag.NO_CAPTURE);
 
+  const visibleTags = unit.tags.filter((t) => !HIDDEN_UNIT_TAGS.has(t));
+
   return (
-    <div className="hud-info-panel">
+    <div className={`hud-info-panel${!isPlayer ? ' hud-panel-enemy' : ''}`}>
       <div className="hud-panel-header">
         <span className="hud-panel-emoji">{UNIT_EMOJI[unit.type] ?? '?'}</span>
         <span className="hud-panel-name">{UNIT_NAME[unit.type] ?? unit.type}</span>
+        {!isPlayer && <span className="hud-faction-label hud-faction-enemy">🔴 Enemy</span>}
       </div>
       <div className="hud-hp-row">
         <div className="hud-hp-bar">
@@ -199,19 +206,48 @@ function SelectedUnitPanel({
           {unit.stats.currentHp}/{unit.stats.maxHp}
         </span>
       </div>
-      <div className="hud-action-tags">
-        <span className={`hud-action-tag ${canMove ? '' : 'hud-action-used'}`}>Move</span>
-        <span className={`hud-action-tag ${canAttack ? '' : 'hud-action-used'}`}>Attack</span>
-        <span className={`hud-action-tag ${canCapture ? '' : 'hud-action-used'}`}>Capture</span>
+      <div className="hud-unit-stats">
+        <span className="hud-stat-label">ATK</span>
+        <span className="hud-stat-value">{unit.stats.attack}</span>
+        <span className="hud-stat-label">DEF</span>
+        <span className="hud-stat-value">{unit.stats.defense}</span>
+        <span className="hud-stat-label">MOV</span>
+        <span className="hud-stat-value">{unit.stats.moveRange}</span>
+        <span className="hud-stat-label">RNG</span>
+        <span className="hud-stat-value">{unit.stats.attackRange}</span>
+        <span className="hud-stat-label">VIS</span>
+        <span className="hud-stat-value">{unit.stats.discoverRadius}</span>
       </div>
-      {captureTarget && (
-        <button
-          className="hud-capture-btn"
-          disabled={!canCapture}
-          onClick={onCapture}
-        >
-          🏳️ Capture {BUILDING_NAME[captureTarget.type] ?? captureTarget.type}
-        </button>
+      {visibleTags.length > 0 && (
+        <div className="hud-tag-pills">
+          {visibleTags.map((tag) => (
+            <span key={tag} className="hud-tag-pill">
+              {tag === UnitTag.RANGED
+                ? '◎ Ranged'
+                : tag === UnitTag.LAVA_BOOST
+                  ? '🔥 Lava-Boosted'
+                  : tag}
+            </span>
+          ))}
+        </div>
+      )}
+      {isPlayer && (
+        <>
+          <div className="hud-action-tags">
+            <span className={`hud-action-tag ${canMove ? '' : 'hud-action-used'}`}>Move</span>
+            <span className={`hud-action-tag ${canAttack ? '' : 'hud-action-used'}`}>Attack</span>
+            <span className={`hud-action-tag ${canCapture ? '' : 'hud-action-used'}`}>Capture</span>
+          </div>
+          {captureTarget && (
+            <button
+              className="hud-capture-btn"
+              disabled={!canCapture}
+              onClick={onCapture}
+            >
+              🏳️ Capture {BUILDING_NAME[captureTarget.type] ?? captureTarget.type}
+            </button>
+          )}
+        </>
       )}
     </div>
   );
@@ -487,14 +523,16 @@ function BottomBar() {
     : undefined;
 
   // Find a building co-located with the selected unit that it can attempt to capture
-  const captureTarget: Building | undefined = selectedUnit
-    ? Object.values(buildings).find(
-        (b) =>
-          b.position.x === selectedUnit.position.x &&
-          b.position.y === selectedUnit.position.y &&
-          b.faction !== selectedUnit.faction
-      )
-    : undefined;
+  // Only relevant for player units
+  const captureTarget: Building | undefined =
+    selectedUnit && selectedUnit.faction === Faction.PLAYER
+      ? Object.values(buildings).find(
+          (b) =>
+            b.position.x === selectedUnit.position.x &&
+            b.position.y === selectedUnit.position.y &&
+            b.faction !== selectedUnit.faction
+        )
+      : undefined;
 
   const captureTargetId = captureTarget?.id;
 

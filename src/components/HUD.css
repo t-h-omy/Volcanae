@@ -675,3 +675,62 @@
     margin: 16px;
   }
 }
+
+/* ── Enemy unit panel ── */
+
+.hud-panel-enemy {
+  border-left: 3px solid #c0392b;
+}
+
+.hud-panel-enemy .hud-panel-header {
+  background: rgba(192, 57, 43, 0.15);
+  border-radius: 4px 4px 0 0;
+  margin: -4px -4px 4px -4px;
+  padding: 4px;
+}
+
+.hud-faction-enemy {
+  font-size: 11px;
+  color: #ff6b6b;
+  margin-left: auto;
+}
+
+/* ── Unit stats row ── */
+
+.hud-unit-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  margin: 4px 0;
+  font-family: ui-monospace, 'Courier New', monospace;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-stat-label {
+  color: #aaaaaa;
+}
+
+.hud-stat-value {
+  color: #ffffff;
+  margin-right: 4px;
+}
+
+/* ── Tag pills ── */
+
+.hud-tag-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 4px 0;
+}
+
+.hud-tag-pill {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #cccccc;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  white-space: nowrap;
+}

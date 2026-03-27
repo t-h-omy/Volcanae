@@ -5,8 +5,9 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useGameStore } from '../gameStore';
+import { useFloaterStore } from '../floaterStore';
 import { getReachableTiles } from '../movementSystem';
-import { MAP, RENDER } from '../gameConfig';
+import { MAP, RENDER, UI } from '../gameConfig';
 import {
   Faction,
   UnitType,
@@ -291,7 +292,7 @@ export default function GridRenderer() {
       // Select unit on tile
       if (tile.unitId) {
         const u = units[tile.unitId];
-        if (u && u.faction === Faction.PLAYER) {
+        if (u) {
           selectUnit(tile.unitId);
           return;
         }
@@ -384,6 +385,7 @@ export default function GridRenderer() {
             );
           }),
         )}
+        <DamageFloaterLayer tileSize={tileSize} />
       </div>
     </div>
   );
@@ -509,6 +511,35 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
           style={{ '--color-lava-boost': RENDER.COLORS.LAVA_BOOST_BAR } as React.CSSProperties}
         />
       )}
+    </div>
+  );
+}
+
+// ============================================================================
+// DAMAGE FLOATER LAYER
+// ============================================================================
+
+function DamageFloaterLayer({ tileSize }: { tileSize: number }) {
+  const floaters = useFloaterStore((s) => s.floaters);
+
+  return (
+    <div className="floater-layer">
+      {floaters.map((floater) => (
+        <div
+          key={floater.id}
+          className={`damage-floater ${floater.isEnemy ? 'floater-enemy' : 'floater-player'}`}
+          style={
+            {
+              left: floater.x * tileSize + tileSize / 2,
+              top: floater.y * tileSize,
+              '--float-duration': `${UI.DAMAGE_FLOAT_DURATION_MS}ms`,
+              '--float-rise': `-${UI.DAMAGE_FLOAT_RISE_PX}px`,
+            } as React.CSSProperties
+          }
+        >
+          {floater.value}
+        </div>
+      ))}
     </div>
   );
 }
