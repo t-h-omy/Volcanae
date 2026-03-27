@@ -11,6 +11,7 @@ import {
   Faction,
   GamePhase,
   UnitType,
+  UnitTag,
   BuildingType,
   type Building,
   type Unit,
@@ -99,11 +100,22 @@ function TopBar() {
 // SELECTED UNIT PANEL
 // ============================================================================
 
-function SelectedUnitPanel({ unit }: { unit: Unit }) {
+function SelectedUnitPanel({
+  unit,
+  captureTarget,
+  onCapture,
+}: {
+  unit: Unit;
+  captureTarget?: Building;
+  onCapture?: () => void;
+}) {
   const hpPct = (unit.stats.currentHp / unit.stats.maxHp) * 100;
   const canMove = !unit.hasMovedThisTurn;
   const canAttack = !unit.hasActedThisTurn;
-  const canCapture = !unit.hasCapturedThisTurn && !unit.hasActedThisTurn;
+  const canCapture =
+    !unit.hasCapturedThisTurn &&
+    !unit.hasActedThisTurn &&
+    !unit.tags.includes(UnitTag.NO_CAPTURE);
 
   return (
     <div className="hud-info-panel">
@@ -124,6 +136,15 @@ function SelectedUnitPanel({ unit }: { unit: Unit }) {
         <span className={`hud-action-tag ${canAttack ? '' : 'hud-action-used'}`}>Attack</span>
         <span className={`hud-action-tag ${canCapture ? '' : 'hud-action-used'}`}>Capture</span>
       </div>
+      {captureTarget && (
+        <button
+          className="hud-capture-btn"
+          disabled={!canCapture}
+          onClick={onCapture}
+        >
+          🏳️ Capture {BUILDING_NAME[captureTarget.type] ?? captureTarget.type}
+        </button>
+      )}
     </div>
   );
 }
@@ -388,6 +409,7 @@ function BottomBar() {
   const units = useGameStore((s) => s.units);
   const buildings = useGameStore((s) => s.buildings);
   const endPlayerTurn = useGameStore((s) => s.endPlayerTurn);
+  const captureBuilding = useGameStore((s) => s.captureBuilding);
 
   const selectedUnit: Unit | undefined = selectedUnitId
     ? units[selectedUnitId]
@@ -396,12 +418,36 @@ function BottomBar() {
     ? buildings[selectedBuildingId]
     : undefined;
 
+  // Find a building co-located with the selected unit that it can attempt to capture
+  const captureTarget: Building | undefined = selectedUnit
+    ? Object.values(buildings).find(
+        (b) =>
+          b.position.x === selectedUnit.position.x &&
+          b.position.y === selectedUnit.position.y &&
+          b.faction !== selectedUnit.faction
+      )
+    : undefined;
+
+  const captureTargetId = captureTarget?.id;
+
+  const handleCapture = useCallback(() => {
+    if (selectedUnitId && captureTargetId) {
+      captureBuilding(selectedUnitId, captureTargetId);
+    }
+  }, [selectedUnitId, captureTargetId, captureBuilding]);
+
   const isPlayerTurn = phase === GamePhase.PLAYER_TURN;
 
   return (
     <div className="hud-bottom-bar">
       {/* Info panels */}
-      {selectedUnit && <SelectedUnitPanel unit={selectedUnit} />}
+      {selectedUnit && (
+        <SelectedUnitPanel
+          unit={selectedUnit}
+          captureTarget={captureTarget}
+          onCapture={handleCapture}
+        />
+      )}
       {selectedBuilding && !selectedUnit && (
         <SelectedBuildingPanel building={selectedBuilding} />
       )}
