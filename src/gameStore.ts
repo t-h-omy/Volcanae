@@ -24,6 +24,7 @@ import {
   assignSpecialist as assignSpecialistLogic,
   unassignSpecialist as unassignSpecialistLogic,
 } from './specialistSystem';
+import { checkGameConditions } from './gameConditions';
 import { Faction } from './types';
 import type { GameState, UnitType, Position } from './types';
 
@@ -116,6 +117,8 @@ export const useGameStore = create<GameStore>()(
         moveUnitLogic(state, unitId, targetPosition);
         // Update fog of war after player action
         updateFogOfWar(state);
+        // Check win/loss conditions after player action
+        checkGameConditions(state);
       });
     },
 
@@ -124,6 +127,8 @@ export const useGameStore = create<GameStore>()(
         resolveAttack(state, attackerId, targetId);
         // Update fog of war after player action
         updateFogOfWar(state);
+        // Check win/loss conditions after player action
+        checkGameConditions(state);
       });
     },
 
@@ -132,6 +137,8 @@ export const useGameStore = create<GameStore>()(
         initiateCaptureLogic(state, unitId, buildingId);
         // Update fog of war after player action
         updateFogOfWar(state);
+        // Check win/loss conditions after player action
+        checkGameConditions(state);
       });
     },
 
@@ -158,11 +165,26 @@ export const useGameStore = create<GameStore>()(
         // Resolve all pending captures at end of player turn
         resolveCaptures(state);
 
+        // Check win/loss conditions after captures resolve
+        if (checkGameConditions(state)) {
+          return;
+        }
+
         // Run enemy turn (spawning and AI)
         runEnemyTurn(state);
 
+        // Check win/loss conditions after enemy turn resolves
+        if (checkGameConditions(state)) {
+          return;
+        }
+
         // Tick lava system (lava phase happens between turns, before the next player turn starts)
         tickLava(state);
+
+        // Check win/loss conditions after lava phase resolves
+        if (checkGameConditions(state)) {
+          return;
+        }
 
         // Increment turn counter
         state.turn += 1;
