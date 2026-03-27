@@ -1,5 +1,6 @@
 import { useEffect, useCallback, useState, useRef } from 'react'
 import { useGameStore } from './gameStore'
+import { useAnimationEngine } from './useAnimationEngine'
 import GridRenderer from './components/GridRenderer'
 import HUD from './components/HUD'
 import './App.css'
@@ -35,6 +36,9 @@ function App() {
   const initGame = useGameStore((s) => s.initGame)
   const phase = useGameStore((s) => s.phase)
   const { canInstall, promptInstall } = useA2HS();
+
+  // Initialize animation engine
+  useAnimationEngine();
 
   useEffect(() => {
     initGame()

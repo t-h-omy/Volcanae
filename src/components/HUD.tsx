@@ -6,6 +6,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useGameStore } from '../gameStore';
+import { useAnimationStore } from '../animationStore';
 import { UNIT_COSTS, RESOURCES } from '../gameConfig';
 import {
   Faction,
@@ -151,10 +152,12 @@ function TopBar() {
   const resources = useGameStore((s) => s.resources);
   const threatLevel = useGameStore((s) => s.threatLevel);
   const turnsUntilLavaAdvance = useGameStore((s) => s.turnsUntilLavaAdvance);
+  const isAnimating = useAnimationStore((s) => s.isAnimating);
 
   return (
     <div className="hud-top-bar">
       <span className="hud-stat">🔄 Turn {turn}</span>
+      {isAnimating && <span className="hud-stat hud-enemy-turn-label">⚔️ Enemy Turn...</span>}
       <span className="hud-stat">⛏️ {resources.iron}</span>
       <span className="hud-stat">🪵 {resources.wood}</span>
       <span className="hud-stat">⚠️ Threat {threatLevel}</span>
@@ -514,6 +517,7 @@ function BottomBar() {
   const buildings = useGameStore((s) => s.buildings);
   const endPlayerTurn = useGameStore((s) => s.endPlayerTurn);
   const captureBuilding = useGameStore((s) => s.captureBuilding);
+  const isAnimating = useAnimationStore((s) => s.isAnimating);
 
   const selectedUnit: Unit | undefined = selectedUnitId
     ? units[selectedUnitId]
@@ -559,7 +563,7 @@ function BottomBar() {
       )}
 
       {/* End Turn button */}
-      {isPlayerTurn && (
+      {isPlayerTurn && !isAnimating && (
         <button className="hud-end-turn-btn" onClick={endPlayerTurn}>
           End Turn ⏭️
         </button>

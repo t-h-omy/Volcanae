@@ -377,7 +377,6 @@ export function generateInitialGameState(): GameState {
     turnsUntilLavaAdvance: LAVA.LAVA_ADVANCE_INTERVAL,
     selectedUnitId: null,
     selectedBuildingId: null,
-    cameraY: 0,
     threatLevel: 0,
     zonesUnlocked: [1, 2],
   };

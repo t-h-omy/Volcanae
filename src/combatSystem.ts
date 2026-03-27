@@ -78,7 +78,8 @@ export function calculateCombat(attacker: Unit, defender: Unit): CombatResult {
 export function resolveAttack(
   state: Draft<GameState>,
   attackerId: string,
-  defenderId: string
+  defenderId: string,
+  suppressFloaters?: boolean
 ): void {
   const attacker = state.units[attackerId];
   const defender = state.units[defenderId];
@@ -103,22 +104,24 @@ export function resolveAttack(
   const attackerDead = newAttackerHp <= 0;
 
   // Trigger damage floaters (visual only)
-  const { addFloater } = useFloaterStore.getState();
-  if (combatResult.defenderHpLost > 0) {
-    addFloater({
-      value: combatResult.defenderHpLost,
-      x: defender.position.x,
-      y: defender.position.y,
-      isEnemy: defender.faction === Faction.ENEMY,
-    });
-  }
-  if (attackerTakesCounterDamage && combatResult.attackerHpLost > 0) {
-    addFloater({
-      value: combatResult.attackerHpLost,
-      x: attacker.position.x,
-      y: attacker.position.y,
-      isEnemy: attacker.faction === Faction.ENEMY,
-    });
+  if (!suppressFloaters) {
+    const { addFloater } = useFloaterStore.getState();
+    if (combatResult.defenderHpLost > 0) {
+      addFloater({
+        value: combatResult.defenderHpLost,
+        x: defender.position.x,
+        y: defender.position.y,
+        isEnemy: defender.faction === Faction.ENEMY,
+      });
+    }
+    if (attackerTakesCounterDamage && combatResult.attackerHpLost > 0) {
+      addFloater({
+        value: combatResult.attackerHpLost,
+        x: attacker.position.x,
+        y: attacker.position.y,
+        isEnemy: attacker.faction === Faction.ENEMY,
+      });
+    }
   }
 
   // Update attacker
