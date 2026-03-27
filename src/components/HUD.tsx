@@ -4,7 +4,7 @@
  * and game-over/victory overlay screens.
  */
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useGameStore } from '../gameStore';
 import { UNIT_COSTS, RESOURCES } from '../gameConfig';
 import {
@@ -76,6 +76,73 @@ const BUILDING_RECRUITS: Partial<Record<string, string>> = {
 };
 
 // ============================================================================
+// GAME MENU
+// ============================================================================
+
+function GameMenu() {
+  const [open, setOpen] = useState(false);
+  const initGame = useGameStore((s) => s.initGame);
+
+  const handleRestartGame = useCallback(() => {
+    initGame();
+    setOpen(false);
+  }, [initGame]);
+
+  const handleResetCache = useCallback(async () => {
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    }
+    if ('serviceWorker' in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(registrations.map((r) => r.unregister()));
+    }
+    window.location.reload();
+  }, []);
+
+  // Close menu on Escape key
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open]);
+
+  return (
+    <div className="hud-game-menu">
+      <button
+        className="hud-menu-btn"
+        onClick={() => setOpen((o) => !o)}
+        aria-label="Game menu"
+        aria-expanded={open}
+        aria-haspopup="menu"
+      >
+        ☰
+      </button>
+      {open && (
+        <>
+          <div
+            className="hud-menu-backdrop"
+            role="presentation"
+            onClick={() => setOpen(false)}
+          />
+          <div className="hud-menu-dropdown" role="menu">
+            <button className="hud-menu-item" role="menuitem" onClick={handleRestartGame}>
+              🔄 Restart Game
+            </button>
+            <button className="hud-menu-item" role="menuitem" onClick={handleResetCache}>
+              🗑️ Reset Cache &amp; Reload
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
 // TOP BAR
 // ============================================================================
 
@@ -92,6 +159,7 @@ function TopBar() {
       <span className="hud-stat">🪵 {resources.wood}</span>
       <span className="hud-stat">⚠️ Threat {threatLevel}</span>
       <span className="hud-stat">🌋 Lava in {turnsUntilLavaAdvance}</span>
+      <GameMenu />
     </div>
   );
 }
