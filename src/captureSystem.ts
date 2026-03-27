@@ -219,6 +219,15 @@ export function resolveCaptures(state: Draft<GameState>): void {
 
     // Complete the capture
     const previousFaction = building.faction;
+
+    // Track when building was captured by player (for enemy AI retake logic)
+    if (capturingUnit.faction === Faction.PLAYER) {
+      building.wasEnemyOwnedBeforeCapture = building.faction === Faction.ENEMY;
+      building.turnCapturedByPlayer = state.turn;
+    } else {
+      building.turnCapturedByPlayer = null;
+    }
+
     building.faction = capturingUnit.faction;
 
     // If building had an enemy specialist, remove it
