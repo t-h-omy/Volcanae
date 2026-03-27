@@ -390,7 +390,7 @@ export function generateInitialGameState(): GameState {
     selectedBuildingId: null,
     cameraY: 0,
     threatLevel: 0,
-    zonesUnlocked: [1],
+    zonesUnlocked: [1, 2],
   };
 
   return gameState;
