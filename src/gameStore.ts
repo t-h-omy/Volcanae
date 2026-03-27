@@ -12,6 +12,7 @@ import {
   initiateCapture as initiateCaptureLogic,
   resolveCaptures,
 } from './captureSystem';
+import { updateFogOfWar } from './fogOfWarSystem';
 import type { GameState, UnitType, Position } from './types';
 
 // ============================================================================
@@ -74,6 +75,8 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         const newState = generateInitialGameState();
         Object.assign(state, newState);
+        // Update fog of war based on initial unit/building positions
+        updateFogOfWar(state);
       });
     },
 
@@ -99,18 +102,24 @@ export const useGameStore = create<GameStore>()(
     moveUnit: (unitId: string, targetPosition: Position) => {
       set((state) => {
         moveUnitLogic(state, unitId, targetPosition);
+        // Update fog of war after player action
+        updateFogOfWar(state);
       });
     },
 
     attackUnit: (attackerId: string, targetId: string) => {
       set((state) => {
         resolveAttack(state, attackerId, targetId);
+        // Update fog of war after player action
+        updateFogOfWar(state);
       });
     },
 
     captureBuilding: (unitId: string, buildingId: string) => {
       set((state) => {
         initiateCaptureLogic(state, unitId, buildingId);
+        // Update fog of war after player action
+        updateFogOfWar(state);
       });
     },
 
@@ -134,6 +143,8 @@ export const useGameStore = create<GameStore>()(
         // Resolve all pending captures at end of player turn
         resolveCaptures(state);
         // Note: Enemy turn and lava phase will be implemented in later prompts
+        // Update fog of war after enemy turn resolves
+        updateFogOfWar(state);
       });
     },
 
