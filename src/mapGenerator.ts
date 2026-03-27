@@ -246,7 +246,7 @@ function createUnit(
       attack: UNITS.UNIT_ATTACK,
       defense: UNITS.UNIT_DEFENSE,
       moveRange: UNITS.UNIT_MOVE_RANGE,
-      visionRange: UNITS.UNIT_VISION_RANGE,
+      discoverRadius: UNITS.UNIT_DISCOVER_RADIUS,
       triggerRange: UNITS.UNIT_TRIGGER_RANGE,
       movementActions: UNITS.UNIT_MOVEMENT_ACTIONS,
       attackRange: UNITS.UNIT_ATTACK_RANGE,

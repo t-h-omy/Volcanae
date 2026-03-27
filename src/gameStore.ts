@@ -12,7 +12,7 @@ import {
   initiateCapture as initiateCaptureLogic,
   resolveCaptures,
 } from './captureSystem';
-import { updateFogOfWar } from './fogOfWarSystem';
+import { updateDiscovery } from './discoverySystem';
 import { tickLava, advanceLava } from './lavaSystem';
 import {
   collectResources,
@@ -66,7 +66,7 @@ interface GameActions {
   debugAdvanceLava: () => void;
   /** Debug: add 10 iron and 10 wood */
   debugAddResources: () => void;
-  /** Debug: reveal all tiles and clear fog */
+  /** Debug: reveal all tiles */
   debugRevealAll: () => void;
 }
 
@@ -99,8 +99,8 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         const newState = generateInitialGameState();
         Object.assign(state, newState);
-        // Update fog of war based on initial unit/building positions
-        updateFogOfWar(state);
+        // Update tile discovery based on initial unit positions
+        updateDiscovery(state);
       });
     },
 
@@ -126,8 +126,8 @@ export const useGameStore = create<GameStore>()(
     moveUnit: (unitId: string, targetPosition: Position) => {
       set((state) => {
         moveUnitLogic(state, unitId, targetPosition);
-        // Update fog of war after player action
-        updateFogOfWar(state);
+        // Update tile discovery after player action
+        updateDiscovery(state);
         // Check win/loss conditions after player action
         checkGameConditions(state);
       });
@@ -136,8 +136,8 @@ export const useGameStore = create<GameStore>()(
     attackUnit: (attackerId: string, targetId: string) => {
       set((state) => {
         resolveAttack(state, attackerId, targetId);
-        // Update fog of war after player action
-        updateFogOfWar(state);
+        // Update tile discovery after player action
+        updateDiscovery(state);
         // Check win/loss conditions after player action
         checkGameConditions(state);
       });
@@ -146,8 +146,8 @@ export const useGameStore = create<GameStore>()(
     captureBuilding: (unitId: string, buildingId: string) => {
       set((state) => {
         initiateCaptureLogic(state, unitId, buildingId);
-        // Update fog of war after player action
-        updateFogOfWar(state);
+        // Update tile discovery after player action
+        updateDiscovery(state);
         // Check win/loss conditions after player action
         checkGameConditions(state);
       });
@@ -209,8 +209,8 @@ export const useGameStore = create<GameStore>()(
         // 7b: Spawn queued units from recruitment buildings
         spawnQueuedUnits(state);
 
-        // 7c: Recalculate visibility
-        updateFogOfWar(state);
+        // 7c: Recalculate tile discovery
+        updateDiscovery(state);
 
         // 7d: Reset all player units for new turn
         for (const unit of Object.values(state.units)) {
@@ -270,7 +270,7 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         advanceLava(state);
         state.cameraY = Math.max(0, state.lavaFrontRow);
-        updateFogOfWar(state);
+        updateDiscovery(state);
         checkGameConditions(state);
       });
     },
