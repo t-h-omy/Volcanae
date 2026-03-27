@@ -98,6 +98,5 @@ export function checkLossCondition(state: Draft<GameState>): void {
 export function checkGameConditions(state: Draft<GameState>): boolean {
   checkWinCondition(state);
   checkLossCondition(state);
-  const phase: string = state.phase;
-  return phase === GamePhase.VICTORY || phase === GamePhase.GAME_OVER;
+  return state.phase === GamePhase.VICTORY || state.phase === GamePhase.GAME_OVER;
 }
