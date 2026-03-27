@@ -6,6 +6,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useGameStore } from '../gameStore';
 import { useFloaterStore } from '../floaterStore';
+import { useAnimationStore } from '../animationStore';
 import { getReachableTiles } from '../movementSystem';
 import { MAP, RENDER, UI } from '../gameConfig';
 import {
@@ -134,13 +135,16 @@ export default function GridRenderer() {
   const units = useGameStore((s) => s.units);
   const buildings = useGameStore((s) => s.buildings);
   const selectedUnitId = useGameStore((s) => s.selectedUnitId);
-  const cameraY = useGameStore((s) => s.cameraY);
 
   const selectUnit = useGameStore((s) => s.selectUnit);
   const selectBuilding = useGameStore((s) => s.selectBuilding);
   const clearSelection = useGameStore((s) => s.clearSelection);
   const moveUnit = useGameStore((s) => s.moveUnit);
   const attackUnit = useGameStore((s) => s.attackUnit);
+
+  // ── Animation store selectors ──
+  const isAnimating = useAnimationStore((s) => s.isAnimating);
+  const cameraTarget = useAnimationStore((s) => s.cameraTarget);
 
   const tileSize = useTileSize();
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -161,52 +165,26 @@ export default function GridRenderer() {
   // Offset the inner container; we store actual scroll position internally
   const [offset, setOffset] = useState({ x: 0, y: 0 });
 
-  // Animated cameraY tracking
-  const animRef = useRef<number | null>(null);
-  const prevCameraY = useRef(cameraY);
-
-  // When cameraY changes from store, smoothly animate the vertical offset
+  // When camera target changes during animation, update offset to center viewport on target
   useEffect(() => {
-    if (cameraY === prevCameraY.current) return;
-    prevCameraY.current = cameraY;
-
-    const targetY = cameraY * tileSize;
-    const startY = -offset.y; // current scroll-top (positive = scrolled down)
-    const diff = targetY - startY;
-    if (Math.abs(diff) < 1) return;
-
-    const duration = RENDER.CAMERA_ANIMATION_MS;
-    const startTime = performance.now();
-
-    const animate = (now: number) => {
-      const elapsed = now - startTime;
-      const t = Math.min(elapsed / duration, 1);
-      // ease-out quad
-      const eased = t * (2 - t);
-      const newScrollTop = startY + diff * eased;
-
-      setOffset((prev) => ({ ...prev, y: -newScrollTop }));
-
-      if (t < 1) {
-        animRef.current = requestAnimationFrame(animate);
-      } else {
-        animRef.current = null;
-      }
-    };
-
-    if (animRef.current) cancelAnimationFrame(animRef.current);
-    animRef.current = requestAnimationFrame(animate);
-
-    return () => {
-      if (animRef.current) cancelAnimationFrame(animRef.current);
-    };
-  }, [cameraY, tileSize]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!isAnimating) return;
+    const viewportEl = viewportRef.current;
+    if (!viewportEl) return;
+    const viewportW = viewportEl.clientWidth;
+    const viewportH = viewportEl.clientHeight;
+    setOffset({
+      x: viewportW / 2 - cameraTarget.x * tileSize - tileSize / 2,
+      y: viewportH / 2 - cameraTarget.y * tileSize - tileSize / 2,
+    });
+  }, [isAnimating, cameraTarget, tileSize]);
 
   // ── Pan / Drag handlers ──
   // On desktop: drag is activated only while RMB is held.
   // On touch / pen: drag is activated by primary pointer (finger).
   const onPointerDown = useCallback(
     (e: React.PointerEvent) => {
+      if (isAnimating) return; // Lock drag during animation
+
       const isTouch = e.pointerType === 'touch';
       const isRMB = e.button === 2;
 
@@ -226,7 +204,7 @@ export default function GridRenderer() {
       };
       (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
     },
-    [offset],
+    [offset, isAnimating],
   );
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
@@ -271,6 +249,7 @@ export default function GridRenderer() {
   const handleTileClick = useCallback(
     (x: number, y: number) => {
       if (dragState.current.isDragging) return;
+      if (isAnimating) return; // Lock clicks during animation
 
       const tile = grid[y][x];
       const key = posKey(x, y);
@@ -307,7 +286,7 @@ export default function GridRenderer() {
       // Clicking empty tile clears selection
       clearSelection();
     },
-    [grid, selectedUnit, attackableSet, reachableSet, units, selectUnit, selectBuilding, clearSelection, moveUnit, attackUnit],
+    [grid, selectedUnit, attackableSet, reachableSet, units, selectUnit, selectBuilding, clearSelection, moveUnit, attackUnit, isAnimating],
   );
 
   // Right-click / tap-hold → deselect (only when not used for drag-panning)
@@ -353,7 +332,7 @@ export default function GridRenderer() {
       onTouchCancel={onTouchEnd}
     >
       <div
-        className="grid-container"
+        className={`grid-container${isAnimating ? ' animating' : ''}`}
         ref={containerRef}
         style={{
           width: gridWidth,

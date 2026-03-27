@@ -19,6 +19,10 @@
   will-change: transform;
 }
 
+.grid-container.animating {
+  transition: transform 350ms ease-in-out;
+}
+
 /* ── Tile ── */
 
 .grid-tile {

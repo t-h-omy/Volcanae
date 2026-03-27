@@ -5,11 +5,13 @@
 
 import type { GameState, Unit, Building, Position } from './types';
 import type { Draft } from 'immer';
+import { produce, current } from 'immer';
 import { Faction, UnitType, UnitTag, BuildingType } from './types';
 import { UNITS, ENEMY, MAP, AI_SCORING } from './gameConfig';
 import { resolveAttack, calculateCombat } from './combatSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { initiateCapture, canCapture } from './captureSystem';
+import type { GameEvent } from './gameEvents';
 
 // ============================================================================
 // ID GENERATION
@@ -237,7 +239,7 @@ function createEnemyUnit(
   };
 }
 
-function spawnEnemyUnits(state: Draft<GameState>): void {
+function spawnEnemyUnits(state: Draft<GameState>, events?: GameEvent[]): void {
   const spawnCount = getSpawnCount(state.threatLevel);
 
   for (const building of Object.values(state.buildings)) {
@@ -271,6 +273,15 @@ function spawnEnemyUnits(state: Draft<GameState>): void {
       const unit = createEnemyUnit(spawnPosition, unitType, building.lavaBoostEnabled, state.lavaFrontRow, building.position);
       state.units[unit.id] = unit;
       state.grid[spawnPosition.y][spawnPosition.x].unitId = unit.id;
+
+      if (events) {
+        events.push({
+          type: 'ENEMY_SPAWN',
+          position: { ...spawnPosition },
+          unit: current(state.units[unit.id]),
+          buildingId: building.id,
+        });
+      }
     }
   }
 }
@@ -279,10 +290,11 @@ function spawnEnemyUnits(state: Draft<GameState>): void {
 // ENEMY MOVEMENT HELPER
 // ============================================================================
 
-function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: Position): void {
+function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: Position, events?: GameEvent[]): void {
   const unit = state.units[unitId];
   if (!unit) return;
 
+  const from = { x: unit.position.x, y: unit.position.y };
   const oldTile = state.grid[unit.position.y][unit.position.x];
   const newTile = state.grid[targetPosition.y][targetPosition.x];
 
@@ -294,6 +306,15 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
 
   unit.position.x = targetPosition.x;
   unit.position.y = targetPosition.y;
+
+  if (events) {
+    events.push({
+      type: 'ENEMY_MOVE',
+      unitId,
+      from,
+      to: { x: targetPosition.x, y: targetPosition.y },
+    });
+  }
 }
 
 // ============================================================================
@@ -628,9 +649,17 @@ function scoreActionsForUnit(
 // ACTION EXECUTION
 // ============================================================================
 
-function destroyUnit(state: Draft<GameState>, unitId: string): void {
+function destroyUnit(state: Draft<GameState>, unitId: string, events?: GameEvent[]): void {
   const unit = state.units[unitId];
   if (!unit) return;
+  if (events) {
+    events.push({
+      type: 'UNIT_DEATH',
+      unitId,
+      position: { x: unit.position.x, y: unit.position.y },
+      faction: unit.faction,
+    });
+  }
   const tile = state.grid[unit.position.y][unit.position.x];
   if (tile.unitId === unitId) {
     tile.unitId = null;
@@ -638,9 +667,11 @@ function destroyUnit(state: Draft<GameState>, unitId: string): void {
   delete state.units[unitId];
 }
 
-function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>): void {
+function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>, events?: GameEvent[]): void {
   const currentUnit = state.units[unit.id];
   if (!currentUnit) return;
+
+  const suppressFloaters = !!events;
 
   switch (action.type) {
     case 'ATTACK_UNIT':
@@ -653,11 +684,38 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
           currentUnit.stats.attackRange,
         );
         if (inAttackRange) {
-          resolveAttack(state, currentUnit.id, action.targetUnitId);
+          const attackerPos = { x: currentUnit.position.x, y: currentUnit.position.y };
+          const defenderPos = { x: targetUnit.position.x, y: targetUnit.position.y };
+          const attackerHpBefore = currentUnit.stats.currentHp;
+          const defenderHpBefore = targetUnit.stats.currentHp;
+          const attackerId = currentUnit.id;
+          const defenderId = action.targetUnitId;
+
+          resolveAttack(state, attackerId, defenderId, suppressFloaters);
+
+          if (events) {
+            const attackerAfter = state.units[attackerId];
+            const defenderAfter = state.units[defenderId];
+            events.push({
+              type: 'ENEMY_ATTACK',
+              attackerId,
+              defenderId,
+              attackerPosition: attackerPos,
+              defenderPosition: defenderPos,
+              attackerHpLost: attackerAfter ? attackerHpBefore - attackerAfter.stats.currentHp : attackerHpBefore,
+              defenderHpLost: defenderAfter ? defenderHpBefore - defenderAfter.stats.currentHp : defenderHpBefore,
+            });
+            if (!defenderAfter) {
+              events.push({ type: 'UNIT_DEATH', unitId: defenderId, position: defenderPos, faction: targetUnit.faction });
+            }
+            if (!attackerAfter) {
+              events.push({ type: 'UNIT_DEATH', unitId: attackerId, position: attackerPos, faction: currentUnit.faction });
+            }
+          }
         } else {
           const nextPos = stepToward(currentUnit.position, targetUnit.position, state);
           if (nextPos.x !== currentUnit.position.x || nextPos.y !== currentUnit.position.y) {
-            moveEnemyUnit(state, currentUnit.id, nextPos);
+            moveEnemyUnit(state, currentUnit.id, nextPos, events);
           }
         }
       }
@@ -666,7 +724,35 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
 
     case 'RANGED_ATTACK_UNIT': {
       if (action.targetUnitId && state.units[action.targetUnitId]) {
-        resolveAttack(state, currentUnit.id, action.targetUnitId);
+        const targetUnit = state.units[action.targetUnitId];
+        const attackerPos = { x: currentUnit.position.x, y: currentUnit.position.y };
+        const defenderPos = { x: targetUnit.position.x, y: targetUnit.position.y };
+        const attackerHpBefore = currentUnit.stats.currentHp;
+        const defenderHpBefore = targetUnit.stats.currentHp;
+        const attackerId = currentUnit.id;
+        const defenderId = action.targetUnitId;
+
+        resolveAttack(state, attackerId, defenderId, suppressFloaters);
+
+        if (events) {
+          const attackerAfter = state.units[attackerId];
+          const defenderAfter = state.units[defenderId];
+          events.push({
+            type: 'ENEMY_ATTACK',
+            attackerId,
+            defenderId,
+            attackerPosition: attackerPos,
+            defenderPosition: defenderPos,
+            attackerHpLost: attackerAfter ? attackerHpBefore - attackerAfter.stats.currentHp : attackerHpBefore,
+            defenderHpLost: defenderAfter ? defenderHpBefore - defenderAfter.stats.currentHp : defenderHpBefore,
+          });
+          if (!defenderAfter) {
+            events.push({ type: 'UNIT_DEATH', unitId: defenderId, position: defenderPos, faction: targetUnit.faction });
+          }
+          if (!attackerAfter) {
+            events.push({ type: 'UNIT_DEATH', unitId: attackerId, position: attackerPos, faction: currentUnit.faction });
+          }
+        }
       }
       break;
     }
@@ -674,7 +760,17 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
     case 'CAPTURE_BUILDING': {
       if (action.targetBuildingId) {
         if (canCapture(state, currentUnit.id, action.targetBuildingId)) {
+          const building = state.buildings[action.targetBuildingId];
           initiateCapture(state, currentUnit.id, action.targetBuildingId);
+          if (events && building) {
+            events.push({
+              type: 'BUILDING_CAPTURE',
+              buildingId: action.targetBuildingId,
+              position: { x: building.position.x, y: building.position.y },
+              newFaction: currentUnit.faction,
+              buildingType: building.type,
+            });
+          }
         }
       }
       break;
@@ -690,7 +786,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
       if (action.targetPosition) {
         const nextPos = stepToward(currentUnit.position, action.targetPosition, state);
         if (nextPos.x !== currentUnit.position.x || nextPos.y !== currentUnit.position.y) {
-          moveEnemyUnit(state, currentUnit.id, nextPos);
+          moveEnemyUnit(state, currentUnit.id, nextPos, events);
         }
       }
       break;
@@ -701,7 +797,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
       if (action.targetPosition) {
         const nextPos = stepToward(currentUnit.position, action.targetPosition, state);
         if (nextPos.x !== currentUnit.position.x || nextPos.y !== currentUnit.position.y) {
-          moveEnemyUnit(state, currentUnit.id, nextPos);
+          moveEnemyUnit(state, currentUnit.id, nextPos, events);
         }
       }
       break;
@@ -713,14 +809,14 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
       if (isWithinBounds(southPos)) {
         const tile = state.grid[southPos.y][southPos.x];
         if (!tile.isLava && tile.unitId === null) {
-          moveEnemyUnit(state, currentUnit.id, southPos);
+          moveEnemyUnit(state, currentUnit.id, southPos, events);
         }
       }
       break;
     }
 
     case 'SACRIFICE_TO_LAVA': {
-      destroyUnit(state, currentUnit.id);
+      destroyUnit(state, currentUnit.id, events);
       state.threatLevel += 1;
       return;
     }
@@ -734,7 +830,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
       const targetPos: Position = { x: currentUnit.position.x, y: targetY };
       const nextPos = stepToward(currentUnit.position, targetPos, state);
       if (nextPos.x !== currentUnit.position.x || nextPos.y !== currentUnit.position.y) {
-        moveEnemyUnit(state, currentUnit.id, nextPos);
+        moveEnemyUnit(state, currentUnit.id, nextPos, events);
       }
       break;
     }
@@ -746,7 +842,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
   // Post-move lava check: if unit moved onto or below lava front row, destroy it
   const movedUnit = state.units[unit.id];
   if (movedUnit && movedUnit.position.y <= state.lavaFrontRow) {
-    destroyUnit(state, movedUnit.id);
+    destroyUnit(state, movedUnit.id, events);
     state.threatLevel += 1;
   }
 }
@@ -760,6 +856,7 @@ function decideAndExecute(
   state: Draft<GameState>,
   targetingIntents: Map<string, number>,
   recentlyLostBuildingIds: Set<string>,
+  events?: GameEvent[],
 ): void {
   const candidates = scoreActionsForUnit(unit, state, targetingIntents, recentlyLostBuildingIds);
 
@@ -774,7 +871,7 @@ function decideAndExecute(
     targetingIntents.set(intentKey, (targetingIntents.get(intentKey) ?? 0) + 1);
   }
 
-  executeAction(unit, chosen, state);
+  executeAction(unit, chosen, state, events);
 }
 
 // ============================================================================
@@ -795,37 +892,41 @@ export function increaseThreatOnStrongholdCapture(state: Draft<GameState>): void
 // MAIN ENEMY TURN FUNCTION
 // ============================================================================
 
-export function runEnemyTurn(state: Draft<GameState>): void {
-  // 1. Build recentlyLostBuildingIds
-  const recentlyLostBuildingIds = new Set<string>(
-    Object.values(state.buildings)
-      .filter(b =>
-        b.faction === Faction.PLAYER &&
-        b.wasEnemyOwnedBeforeCapture === true &&
-        b.turnCapturedByPlayer !== null &&
-        state.turn - b.turnCapturedByPlayer <= AI_SCORING.RECENTLY_LOST_WINDOW_TURNS
-      )
-      .map(b => b.id)
-  );
+export function runEnemyTurn(state: GameState): { finalState: GameState; events: GameEvent[] } {
+  const events: GameEvent[] = [];
+  const finalState = produce(state, (draft) => {
+    // 1. Build recentlyLostBuildingIds
+    const recentlyLostBuildingIds = new Set<string>(
+      Object.values(draft.buildings)
+        .filter(b =>
+          b.faction === Faction.PLAYER &&
+          b.wasEnemyOwnedBeforeCapture === true &&
+          b.turnCapturedByPlayer !== null &&
+          draft.turn - b.turnCapturedByPlayer <= AI_SCORING.RECENTLY_LOST_WINDOW_TURNS
+        )
+        .map(b => b.id)
+    );
 
-  // 2. Spawn enemy units
-  spawnEnemyUnits(state);
+    // 2. Spawn enemy units
+    spawnEnemyUnits(draft, events);
 
-  // 3. Process each enemy unit
-  const targetingIntents = new Map<string, number>();
-  const enemyUnits = Object.values(state.units).filter(u => u.faction === Faction.ENEMY);
+    // 3. Process each enemy unit
+    const targetingIntents = new Map<string, number>();
+    const enemyUnits = Object.values(draft.units).filter(u => u.faction === Faction.ENEMY);
 
-  for (const unit of enemyUnits) {
-    if (!state.units[unit.id]) continue;
-    decideAndExecute(state.units[unit.id], state, targetingIntents, recentlyLostBuildingIds);
-  }
-
-  // 4. Reset enemy unit action flags for next turn
-  for (const unit of Object.values(state.units)) {
-    if (unit.faction === Faction.ENEMY) {
-      unit.hasMovedThisTurn = false;
-      unit.hasActedThisTurn = false;
-      unit.hasCapturedThisTurn = false;
+    for (const unit of enemyUnits) {
+      if (!draft.units[unit.id]) continue;
+      decideAndExecute(draft.units[unit.id], draft, targetingIntents, recentlyLostBuildingIds, events);
     }
-  }
+
+    // 4. Reset enemy unit action flags for next turn
+    for (const unit of Object.values(draft.units)) {
+      if (unit.faction === Faction.ENEMY) {
+        unit.hasMovedThisTurn = false;
+        unit.hasActedThisTurn = false;
+        unit.hasCapturedThisTurn = false;
+      }
+    }
+  });
+  return { finalState, events };
 }

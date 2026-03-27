@@ -19,8 +19,10 @@
 
 import type { GameState } from './types';
 import type { Draft } from 'immer';
+import { produce } from 'immer';
 import { Faction } from './types';
 import { MAP, LAVA } from './gameConfig';
+import type { GameEvent } from './gameEvents';
 
 // ============================================================================
 // LAVA STATE QUERIES
@@ -181,4 +183,44 @@ export function tickLava(state: Draft<GameState>): boolean {
   }
 
   return false;
+}
+
+// ============================================================================
+// LAVA ADVANCE WITH EVENTS (for animation system)
+// ============================================================================
+
+/**
+ * Advances lava by 1 row and returns the new state alongside a LAVA_ADVANCE event.
+ * Used by the animation event-queue system.
+ *
+ * @param state - Plain (non-draft) game state
+ * @returns Object with newState and LAVA_ADVANCE event
+ */
+export function advanceLavaWithEvents(state: GameState): { newState: GameState; event: GameEvent } {
+  const newLavaRow = state.lavaFrontRow + 1;
+  const destroyedUnitIds: string[] = [];
+  const destroyedBuildingIds: string[] = [];
+
+  // Collect what will be destroyed before applying
+  if (newLavaRow < MAP.GRID_HEIGHT) {
+    for (let x = 0; x < MAP.GRID_WIDTH; x++) {
+      const tile = state.grid[newLavaRow][x];
+      if (tile.unitId) destroyedUnitIds.push(tile.unitId);
+      if (tile.buildingId) destroyedBuildingIds.push(tile.buildingId);
+    }
+  }
+
+  const newState = produce(state, (draft) => {
+    advanceLava(draft);
+  });
+
+  return {
+    newState,
+    event: {
+      type: 'LAVA_ADVANCE',
+      newLavaRow,
+      destroyedUnitIds,
+      destroyedBuildingIds,
+    },
+  };
 }

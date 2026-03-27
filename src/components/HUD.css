@@ -26,6 +26,17 @@
   white-space: nowrap;
 }
 
+.hud-enemy-turn-label {
+  color: #ff9944;
+  font-weight: bold;
+  animation: pulse-enemy-turn 1s ease-in-out infinite;
+}
+
+@keyframes pulse-enemy-turn {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
 /* ── Bottom Bar ── */
 
 .hud-bottom-bar {

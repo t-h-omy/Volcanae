@@ -253,6 +253,23 @@ export const UNIT_COSTS: Record<string, UnitCost> = {
 } as const;
 
 // ============================================================================
+// ANIMATION CONFIGURATION
+// ============================================================================
+
+export const ANIMATION = {
+  /** Time for viewport to pan to a new target position */
+  CAMERA_MOVE_DURATION_MS: 350,
+  /** Pause after camera arrives, before action executes */
+  PRE_ACTION_IDLE_MS: 150,
+  /** Pause after action resolves, before moving to next event */
+  POST_ACTION_IDLE_MS: 250,
+  /** Longer pause for lava advance — more dramatic weight */
+  LAVA_ADVANCE_PAUSE_MS: 700,
+  /** Pause after a unit spawns before moving to next event */
+  SPAWN_PAUSE_MS: 300,
+} as const;
+
+// ============================================================================
 // UI CONFIGURATION
 // ============================================================================
 
@@ -309,6 +326,7 @@ export const GAME_CONFIG = {
   ENEMY,
   AI_SCORING,
   UNIT_COSTS,
+  ANIMATION,
   RENDER,
   UI,
 } as const;

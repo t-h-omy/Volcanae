@@ -5,6 +5,7 @@
 
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
+import { current, produce } from 'immer';
 import { generateInitialGameState } from './mapGenerator';
 import { resolveAttack } from './combatSystem';
 import { moveUnit as moveUnitLogic } from './movementSystem';
@@ -13,7 +14,7 @@ import {
   resolveCaptures,
 } from './captureSystem';
 import { updateDiscovery } from './discoverySystem';
-import { tickLava, advanceLava } from './lavaSystem';
+import { advanceLava, advanceLavaWithEvents, shouldLavaAdvance } from './lavaSystem';
 import {
   collectResources,
   recruitUnit as recruitUnitLogic,
@@ -25,9 +26,12 @@ import {
   unassignSpecialist as unassignSpecialistLogic,
 } from './specialistSystem';
 import { checkGameConditions } from './gameConditions';
+import { useFloaterStore } from './floaterStore';
+import { useAnimationStore } from './animationStore';
 import { Faction, GamePhase } from './types';
 import type { GameState, UnitType, Position } from './types';
-import { MAP } from './gameConfig';
+import type { GameEvent } from './gameEvents';
+import { MAP, LAVA } from './gameConfig';
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
@@ -54,10 +58,12 @@ interface GameActions {
   assignSpecialist: (specialistId: string, buildingId: string) => void;
   /** Unassign a specialist from a building (stub) */
   unassignSpecialist: (buildingId: string) => void;
-  /** End the player turn - triggers enemy turn, lava phase, then next player turn (stub) */
+  /** End the player turn - triggers enemy turn, lava phase, then next player turn */
   endPlayerTurn: () => void;
-  /** Set the camera Y position */
-  setCameraY: (y: number) => void;
+  /** Apply a single game event from the animation queue */
+  applyEvent: (event: GameEvent) => void;
+  /** Replace the entire game state (used by animation engine to apply resolved state) */
+  setGameState: (newState: GameState) => void;
 
   // ── Debug actions (development only) ──
   /** Debug: add spec_01 to globalSpecialistStorage */
@@ -173,79 +179,204 @@ export const useGameStore = create<GameStore>()(
 
     endPlayerTurn: () => {
       set((state) => {
-        // Step 2: Resolve all pending captures at end of player turn
+        // Phase 1: Resolve all pending captures (instant, no animation)
         resolveCaptures(state);
 
-        // Step 3: Run enemy turn (spawning and AI)
-        runEnemyTurn(state);
+        // Get a snapshot of the current state (post-capture, pre-enemy turn)
+        const snapshot: GameState = current(state);
 
-        // Step 4: Mark wasAttackedLastEnemyTurn on buildings attacked during enemy turn
-        // Currently enemy AI only attacks units, not buildings directly.
-        // This infrastructure supports future building attack mechanics.
+        // Phase 2: Compute enemy turn on snapshot
+        const { finalState: afterEnemy, events: enemyEvents } = runEnemyTurn(snapshot);
 
-        // Step 5: Check win/loss conditions after enemy turn
-        if (checkGameConditions(state)) {
+        // Phase 3: Check game conditions after enemy turn
+        let computedState = produce(afterEnemy, (draft) => {
+          checkGameConditions(draft);
+        });
+
+        // If game ended during enemy turn, enqueue events with that final state
+        if (computedState.phase === GamePhase.GAME_OVER || computedState.phase === GamePhase.VICTORY) {
+          if (enemyEvents.length > 0) {
+            useAnimationStore.getState().enqueue(enemyEvents, computedState);
+            state.phase = GamePhase.ENEMY_TURN;
+          } else {
+            Object.assign(state, computedState);
+          }
           return;
         }
 
-        // Step 6: Lava phase (only if game is not over)
-        // 6a: Advance lava if due, destroy affected tiles/units/buildings
-        const lavaAdvanced = tickLava(state);
+        // Phase 4: Lava phase
+        const allEvents: GameEvent[] = [...enemyEvents];
+        computedState = produce(computedState, (draft) => {
+          draft.turnsUntilLavaAdvance -= 1;
+        });
 
-        // 6b: If lava advanced, update cameraY for camera auto-pan
-        if (lavaAdvanced) {
-          state.cameraY = Math.max(0, state.lavaFrontRow);
+        if (shouldLavaAdvance(computedState)) {
+          const { newState: afterLava, event: lavaEvent } = advanceLavaWithEvents(computedState);
+          allEvents.push(lavaEvent);
+          computedState = produce(afterLava, (draft) => {
+            draft.turnsUntilLavaAdvance = LAVA.LAVA_ADVANCE_INTERVAL;
+          });
         }
 
-        // 6c: Check game conditions again (lava may have destroyed last stronghold)
-        if (checkGameConditions(state)) {
+        // Phase 5: Check game conditions after lava
+        computedState = produce(computedState, (draft) => {
+          checkGameConditions(draft);
+        });
+
+        if (computedState.phase === GamePhase.GAME_OVER || computedState.phase === GamePhase.VICTORY) {
+          if (allEvents.length > 0) {
+            useAnimationStore.getState().enqueue(allEvents, computedState);
+            state.phase = GamePhase.ENEMY_TURN;
+          } else {
+            Object.assign(state, computedState);
+          }
           return;
         }
 
-        // Step 7: New turn setup (only if game is still not over)
-        // 7a: Collect resources from player-owned resource buildings
-        collectResources(state);
+        // Phase 6: New turn bookkeeping on computedState
+        computedState = produce(computedState, (draft) => {
+          // Collect resources
+          collectResources(draft);
 
-        // 7b: Spawn queued units from recruitment buildings
-        spawnQueuedUnits(state);
+          // Spawn queued units
+          spawnQueuedUnits(draft);
 
-        // 7c: Recalculate tile discovery
-        updateDiscovery(state);
+          // Recalculate tile discovery
+          updateDiscovery(draft);
 
-        // 7d: Reset all player units for new turn
-        for (const unit of Object.values(state.units)) {
-          if (unit.faction === Faction.PLAYER) {
-            unit.hasMovedThisTurn = false;
-            unit.hasActedThisTurn = false;
-            unit.hasCapturedThisTurn = false;
+          // Reset all player units for new turn
+          for (const unit of Object.values(draft.units)) {
+            if (unit.faction === Faction.PLAYER) {
+              unit.hasMovedThisTurn = false;
+              unit.hasActedThisTurn = false;
+              unit.hasCapturedThisTurn = false;
+            }
           }
-        }
 
-        // 7e: Decrement isDisabledForTurns on all buildings (minimum 0)
-        // 7f: Reset wasAttackedLastEnemyTurn to false on all buildings
-        for (const building of Object.values(state.buildings)) {
-          if (building.isDisabledForTurns > 0) {
-            building.isDisabledForTurns -= 1;
+          // Decrement building disable timers, reset attack flags
+          for (const building of Object.values(draft.buildings)) {
+            if (building.isDisabledForTurns > 0) {
+              building.isDisabledForTurns -= 1;
+            }
+            building.wasAttackedLastEnemyTurn = false;
           }
-          building.wasAttackedLastEnemyTurn = false;
+
+          // Check threat level
+          if (draft.turn > 0 && draft.turn % 10 === 0) {
+            draft.threatLevel += 1;
+          }
+
+          // Increment turn counter
+          draft.turn += 1;
+
+          // Set phase to player turn
+          draft.phase = GamePhase.PLAYER_TURN;
+        });
+
+        // Phase 7: Enqueue events for animation
+        if (allEvents.length > 0) {
+          useAnimationStore.getState().enqueue(allEvents, computedState);
+          state.phase = GamePhase.ENEMY_TURN;
+        } else {
+          // No events to animate — apply final state directly
+          Object.assign(state, computedState);
         }
-
-        // 7g: Check threat level: increment by 1 if turn is a multiple of 10
-        if (state.turn > 0 && state.turn % 10 === 0) {
-          state.threatLevel += 1;
-        }
-
-        // 7h: Increment turn counter
-        state.turn += 1;
-
-        // 7i: Set phase to player turn
-        state.phase = GamePhase.PLAYER_TURN;
       });
     },
 
-    setCameraY: (y: number) => {
+    applyEvent: (event: GameEvent) => {
       set((state) => {
-        state.cameraY = y;
+        switch (event.type) {
+          case 'ENEMY_SPAWN': {
+            // Add unit to state
+            const unit = event.unit;
+            state.units[unit.id] = { ...unit };
+            const tile = state.grid[event.position.y][event.position.x];
+            tile.unitId = unit.id;
+            break;
+          }
+
+          case 'ENEMY_MOVE': {
+            const unit = state.units[event.unitId];
+            if (unit) {
+              // Clear old tile
+              const oldTile = state.grid[event.from.y][event.from.x];
+              if (oldTile.unitId === event.unitId) {
+                oldTile.unitId = null;
+              }
+              // Place on new tile
+              const newTile = state.grid[event.to.y][event.to.x];
+              newTile.unitId = event.unitId;
+              unit.position.x = event.to.x;
+              unit.position.y = event.to.y;
+            }
+            break;
+          }
+
+          case 'ENEMY_ATTACK': {
+            // Apply damage to both units
+            const attacker = state.units[event.attackerId];
+            const defender = state.units[event.defenderId];
+
+            if (defender && event.defenderHpLost > 0) {
+              defender.stats.currentHp -= event.defenderHpLost;
+            }
+            if (attacker && event.attackerHpLost > 0) {
+              attacker.stats.currentHp -= event.attackerHpLost;
+            }
+
+            // Trigger floaters for visual feedback
+            const { addFloater } = useFloaterStore.getState();
+            if (event.defenderHpLost > 0) {
+              addFloater({
+                value: event.defenderHpLost,
+                x: event.defenderPosition.x,
+                y: event.defenderPosition.y,
+                isEnemy: false, // defender is being attacked by enemy, so player unit shows red
+              });
+            }
+            if (event.attackerHpLost > 0) {
+              addFloater({
+                value: event.attackerHpLost,
+                x: event.attackerPosition.x,
+                y: event.attackerPosition.y,
+                isEnemy: true, // attacker is enemy
+              });
+            }
+            break;
+          }
+
+          case 'UNIT_DEATH': {
+            const unit = state.units[event.unitId];
+            if (unit) {
+              const tile = state.grid[unit.position.y][unit.position.x];
+              if (tile.unitId === event.unitId) {
+                tile.unitId = null;
+              }
+              delete state.units[event.unitId];
+            }
+            break;
+          }
+
+          case 'BUILDING_CAPTURE': {
+            const building = state.buildings[event.buildingId];
+            if (building) {
+              building.faction = event.newFaction;
+            }
+            break;
+          }
+
+          case 'LAVA_ADVANCE': {
+            advanceLava(state);
+            break;
+          }
+        }
+      });
+    },
+
+    setGameState: (newState: GameState) => {
+      set((state) => {
+        Object.assign(state, newState);
       });
     },
 
@@ -269,7 +400,6 @@ export const useGameStore = create<GameStore>()(
     debugAdvanceLava: () => {
       set((state) => {
         advanceLava(state);
-        state.cameraY = Math.max(0, state.lavaFrontRow);
         updateDiscovery(state);
         checkGameConditions(state);
       });
