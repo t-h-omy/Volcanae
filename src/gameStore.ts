@@ -211,14 +211,11 @@ export const useGameStore = create<GameStore>()(
         }
 
         // 7e: Decrement isDisabledForTurns on all buildings (minimum 0)
+        // 7f: Reset wasAttackedLastEnemyTurn to false on all buildings
         for (const building of Object.values(state.buildings)) {
           if (building.isDisabledForTurns > 0) {
             building.isDisabledForTurns -= 1;
           }
-        }
-
-        // 7f: Reset wasAttackedLastEnemyTurn to false on all buildings
-        for (const building of Object.values(state.buildings)) {
           building.wasAttackedLastEnemyTurn = false;
         }
 
