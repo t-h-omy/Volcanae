@@ -178,6 +178,15 @@ export const useGameStore = create<GameStore>()(
     },
 
     endPlayerTurn: () => {
+      // Capture enqueue data outside the immer set so that enqueue() is called
+      // after the immer draft commits. Calling enqueue() inside the set callback
+      // triggers the animation engine's subscribe handler synchronously; when all
+      // events are on undiscovered tiles processQueue() runs to completion before
+      // the callback returns, its setGameState(phase=PLAYER_TURN) is then
+      // overwritten by the outer draft committing phase=ENEMY_TURN.
+      let pendingEvents: GameEvent[] | null = null;
+      let pendingResolvedState: GameState | null = null;
+
       set((state) => {
         // Phase 1: Resolve all pending captures (instant, no animation)
         resolveCaptures(state);
@@ -197,7 +206,8 @@ export const useGameStore = create<GameStore>()(
         // If game ended during enemy turn, enqueue events with that final state
         if (computedState.phase === GamePhase.GAME_OVER || computedState.phase === GamePhase.VICTORY) {
           if (enemyEvents.length > 0) {
-            useAnimationStore.getState().enqueue(enemyEvents, computedState);
+            pendingEvents = enemyEvents;
+            pendingResolvedState = computedState;
             state.phase = GamePhase.ENEMY_TURN;
           } else {
             Object.assign(state, computedState);
@@ -226,7 +236,8 @@ export const useGameStore = create<GameStore>()(
 
         if (computedState.phase === GamePhase.GAME_OVER || computedState.phase === GamePhase.VICTORY) {
           if (allEvents.length > 0) {
-            useAnimationStore.getState().enqueue(allEvents, computedState);
+            pendingEvents = allEvents;
+            pendingResolvedState = computedState;
             state.phase = GamePhase.ENEMY_TURN;
           } else {
             Object.assign(state, computedState);
@@ -274,15 +285,22 @@ export const useGameStore = create<GameStore>()(
           draft.phase = GamePhase.PLAYER_TURN;
         });
 
-        // Phase 7: Enqueue events for animation
+        // Phase 7: Stage events for animation (enqueued after this set commits)
         if (allEvents.length > 0) {
-          useAnimationStore.getState().enqueue(allEvents, computedState);
+          pendingEvents = allEvents;
+          pendingResolvedState = computedState;
           state.phase = GamePhase.ENEMY_TURN;
         } else {
           // No events to animate — apply final state directly
           Object.assign(state, computedState);
         }
       });
+
+      // Enqueue outside the immer set so the draft has already committed before
+      // the animation engine's subscribe handler fires.
+      if (pendingEvents !== null && pendingResolvedState !== null) {
+        useAnimationStore.getState().enqueue(pendingEvents, pendingResolvedState);
+      }
     },
 
     applyEvent: (event: GameEvent) => {
