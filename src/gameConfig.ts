@@ -140,10 +140,9 @@ export const RENDER = {
   MOBILE_BREAKPOINT: 768,
   /** Colors for tile rendering */
   COLORS: {
-    UNREVEALED: '#b0b0b0',
+    UNREVEALED: '#d8d8d8',
     GRASS: '#4a8c3f',
     LAVA: '#e25822',
-    FOG_OVERLAY: 'rgba(0, 0, 0, 0.45)',
     LAVA_PREVIEW_OVERLAY: 'rgba(226, 88, 34, 0.35)',
     BUILDING_PLAYER: '#3a7bd5',
     BUILDING_ENEMY: '#c0392b',

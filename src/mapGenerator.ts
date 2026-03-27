@@ -40,17 +40,6 @@ export function resetIdCounter(): void {
 }
 
 /**
- * Gets the zone number (1-5) for a given row.
- * Zone 1: rows 5-11 (closest to lava)
- * Zone 5: rows 33-39 (northernmost)
- */
-function getZoneForRow(row: number): number {
-  if (row < MAP.LAVA_BUFFER_ROWS) return 0; // Lava buffer, no zone
-  const zoneIndex = Math.floor((row - MAP.LAVA_BUFFER_ROWS) / MAP.ZONE_HEIGHT);
-  return Math.min(zoneIndex + 1, MAP.ZONE_COUNT);
-}
-
-/**
  * Gets the row range [startRow, endRow] for a zone (inclusive).
  */
 function getZoneRowRange(zone: number): [number, number] {
@@ -279,15 +268,12 @@ function createGrid(): Tile[][] {
 
   for (let y = 0; y < MAP.GRID_HEIGHT; y++) {
     const row: Tile[] = [];
-    const zone = getZoneForRow(y);
-    const isZone1 = zone === 1;
 
     for (let x = 0; x < MAP.GRID_WIDTH; x++) {
       row.push({
         position: { x, y },
         type: TileType.PLAINS,
-        isRevealed: isZone1,
-        isInFogOfWar: !isZone1,
+        isRevealed: false,
         buildingId: null,
         unitId: null,
         isLava: false,
