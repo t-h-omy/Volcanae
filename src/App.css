@@ -5,6 +5,7 @@
   justify-content: center;
   align-items: center;
   background-color: #000000;
+  position: relative;
 }
 
 .loading-text {
@@ -12,4 +13,37 @@
   font-weight: 500;
   text-shadow: 0 0 10px rgba(255, 50, 50, 0.5);
   color: #ff4444;
+}
+
+/* ── Add to Home Screen button ── */
+
+.a2hs-btn {
+  position: fixed;
+  bottom: 72px;
+  right: 12px;
+  z-index: 150;
+  padding: 8px 16px;
+  min-height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  background: rgba(58, 123, 213, 0.85);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 0.15s;
+}
+
+.a2hs-btn:hover {
+  background: rgba(58, 123, 213, 1);
+}
+
+/* ── Desktop layout: center grid in max-width container ── */
+
+@media (min-width: 769px) {
+  .app-container {
+    max-width: 100%;
+    margin: 0 auto;
+  }
 }

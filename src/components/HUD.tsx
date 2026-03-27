@@ -455,8 +455,42 @@ function VictoryOverlay() {
 }
 
 // ============================================================================
+// DEBUG PANEL (development only)
+// ============================================================================
+
+function DebugPanel() {
+  const debugGiveSpecialist = useGameStore((s) => s.debugGiveSpecialist);
+  const debugAdvanceLava = useGameStore((s) => s.debugAdvanceLava);
+  const debugAddResources = useGameStore((s) => s.debugAddResources);
+  const debugRevealAll = useGameStore((s) => s.debugRevealAll);
+
+  const [collapsed, setCollapsed] = useState(true);
+
+  return (
+    <div className="hud-debug-panel">
+      <button
+        className="hud-debug-toggle"
+        onClick={() => setCollapsed((c) => !c)}
+      >
+        {collapsed ? '🐛' : '🐛 Debug'}
+      </button>
+      {!collapsed && (
+        <div className="hud-debug-btns">
+          <button onClick={debugGiveSpecialist}>🧙 Give Specialist</button>
+          <button onClick={debugAdvanceLava}>🌋 Advance Lava</button>
+          <button onClick={debugAddResources}>💰 +10 Resources</button>
+          <button onClick={debugRevealAll}>👁️ Reveal All</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
 // MAIN HUD COMPONENT
 // ============================================================================
+
+const isDev = import.meta.env.DEV;
 
 export default function HUD() {
   const phase = useGameStore((s) => s.phase);
@@ -465,6 +499,7 @@ export default function HUD() {
     <>
       <TopBar />
       <BottomBar />
+      {isDev && <DebugPanel />}
       {phase === GamePhase.GAME_OVER && <GameOverOverlay />}
       {phase === GamePhase.VICTORY && <VictoryOverlay />}
     </>

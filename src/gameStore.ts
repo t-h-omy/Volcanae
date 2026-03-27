@@ -13,7 +13,7 @@ import {
   resolveCaptures,
 } from './captureSystem';
 import { updateFogOfWar } from './fogOfWarSystem';
-import { tickLava } from './lavaSystem';
+import { tickLava, advanceLava } from './lavaSystem';
 import {
   collectResources,
   recruitUnit as recruitUnitLogic,
@@ -27,6 +27,7 @@ import {
 import { checkGameConditions } from './gameConditions';
 import { Faction, GamePhase } from './types';
 import type { GameState, UnitType, Position } from './types';
+import { MAP } from './gameConfig';
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
@@ -57,6 +58,16 @@ interface GameActions {
   endPlayerTurn: () => void;
   /** Set the camera Y position */
   setCameraY: (y: number) => void;
+
+  // ── Debug actions (development only) ──
+  /** Debug: add spec_01 to globalSpecialistStorage */
+  debugGiveSpecialist: () => void;
+  /** Debug: manually trigger lava advance */
+  debugAdvanceLava: () => void;
+  /** Debug: add 10 iron and 10 wood */
+  debugAddResources: () => void;
+  /** Debug: reveal all tiles and clear fog */
+  debugRevealAll: () => void;
 }
 
 // ============================================================================
@@ -235,6 +246,50 @@ export const useGameStore = create<GameStore>()(
     setCameraY: (y: number) => {
       set((state) => {
         state.cameraY = y;
+      });
+    },
+
+    // ========================================================================
+    // DEBUG ACTIONS (development only)
+    // ========================================================================
+
+    debugGiveSpecialist: () => {
+      set((state) => {
+        const specId = 'spec_01';
+        if (
+          state.specialists[specId] &&
+          !state.globalSpecialistStorage.includes(specId) &&
+          state.specialists[specId].assignedBuildingId === null
+        ) {
+          state.globalSpecialistStorage.push(specId);
+        }
+      });
+    },
+
+    debugAdvanceLava: () => {
+      set((state) => {
+        advanceLava(state);
+        state.cameraY = Math.max(0, state.lavaFrontRow);
+        updateFogOfWar(state);
+        checkGameConditions(state);
+      });
+    },
+
+    debugAddResources: () => {
+      set((state) => {
+        state.resources.iron += 10;
+        state.resources.wood += 10;
+      });
+    },
+
+    debugRevealAll: () => {
+      set((state) => {
+        for (let y = 0; y < MAP.GRID_HEIGHT; y++) {
+          for (let x = 0; x < MAP.GRID_WIDTH; x++) {
+            state.grid[y][x].isRevealed = true;
+            state.grid[y][x].isInFogOfWar = false;
+          }
+        }
       });
     },
   }))

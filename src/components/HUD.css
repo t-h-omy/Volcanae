@@ -487,6 +487,61 @@
   background: #2a6bc5;
 }
 
+/* ── Debug Panel ── */
+
+.hud-debug-panel {
+  position: fixed;
+  top: 40px;
+  right: 8px;
+  z-index: 150;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.hud-debug-toggle {
+  padding: 4px 10px;
+  min-width: 44px;
+  min-height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #eee;
+  font-size: 14px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.hud-debug-toggle:hover {
+  background: rgba(0, 0, 0, 0.85);
+}
+
+.hud-debug-btns {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hud-debug-btns button {
+  padding: 6px 12px;
+  min-height: 44px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  background: rgba(20, 20, 20, 0.9);
+  color: #eee;
+  font-size: 12px;
+  cursor: pointer;
+  touch-action: manipulation;
+  text-align: left;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.hud-debug-btns button:hover {
+  background: rgba(40, 40, 40, 0.95);
+}
+
 /* ── Mobile adjustments ── */
 
 @media (max-width: 768px) {
