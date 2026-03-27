@@ -19,13 +19,13 @@ import {
   recruitUnit as recruitUnitLogic,
   spawnQueuedUnits,
 } from './resourceSystem';
-import { runEnemyTurn, updateThreatFromTurn } from './enemySystem';
+import { runEnemyTurn } from './enemySystem';
 import {
   assignSpecialist as assignSpecialistLogic,
   unassignSpecialist as unassignSpecialistLogic,
 } from './specialistSystem';
 import { checkGameConditions } from './gameConditions';
-import { Faction } from './types';
+import { Faction, GamePhase } from './types';
 import type { GameState, UnitType, Position } from './types';
 
 // ============================================================================
@@ -162,43 +162,46 @@ export const useGameStore = create<GameStore>()(
 
     endPlayerTurn: () => {
       set((state) => {
-        // Resolve all pending captures at end of player turn
+        // Step 2: Resolve all pending captures at end of player turn
         resolveCaptures(state);
 
-        // Check win/loss conditions after captures resolve
-        if (checkGameConditions(state)) {
-          return;
-        }
-
-        // Run enemy turn (spawning and AI)
+        // Step 3: Run enemy turn (spawning and AI)
         runEnemyTurn(state);
 
-        // Check win/loss conditions after enemy turn resolves
+        // Step 4: Mark wasAttackedLastEnemyTurn on buildings attacked during enemy turn
+        // Currently enemy AI only attacks units, not buildings directly.
+        // This infrastructure supports future building attack mechanics.
+
+        // Step 5: Check win/loss conditions after enemy turn
         if (checkGameConditions(state)) {
           return;
         }
 
-        // Tick lava system (lava phase happens between turns, before the next player turn starts)
-        tickLava(state);
+        // Step 6: Lava phase (only if game is not over)
+        // 6a: Advance lava if due, destroy affected tiles/units/buildings
+        const lavaAdvanced = tickLava(state);
 
-        // Check win/loss conditions after lava phase resolves
+        // 6b: If lava advanced, update cameraY for camera auto-pan
+        if (lavaAdvanced) {
+          state.cameraY = Math.max(0, state.lavaFrontRow);
+        }
+
+        // 6c: Check game conditions again (lava may have destroyed last stronghold)
         if (checkGameConditions(state)) {
           return;
         }
 
-        // Increment turn counter
-        state.turn += 1;
-
-        // Update threat level based on turn count (every 10 turns)
-        updateThreatFromTurn(state);
-
-        // Turn start sequence:
-        // 1. Spawn queued units from recruitment buildings
-        spawnQueuedUnits(state);
-        // 2. Collect resources from player-owned resource buildings
+        // Step 7: New turn setup (only if game is still not over)
+        // 7a: Collect resources from player-owned resource buildings
         collectResources(state);
 
-        // Reset player unit action flags for new turn
+        // 7b: Spawn queued units from recruitment buildings
+        spawnQueuedUnits(state);
+
+        // 7c: Recalculate visibility
+        updateFogOfWar(state);
+
+        // 7d: Reset all player units for new turn
         for (const unit of Object.values(state.units)) {
           if (unit.faction === Faction.PLAYER) {
             unit.hasMovedThisTurn = false;
@@ -207,8 +210,28 @@ export const useGameStore = create<GameStore>()(
           }
         }
 
-        // Update fog of war after turn resolution
-        updateFogOfWar(state);
+        // 7e: Decrement isDisabledForTurns on all buildings (minimum 0)
+        for (const building of Object.values(state.buildings)) {
+          if (building.isDisabledForTurns > 0) {
+            building.isDisabledForTurns -= 1;
+          }
+        }
+
+        // 7f: Reset wasAttackedLastEnemyTurn to false on all buildings
+        for (const building of Object.values(state.buildings)) {
+          building.wasAttackedLastEnemyTurn = false;
+        }
+
+        // 7g: Check threat level: increment by 1 if turn is a multiple of 10
+        if (state.turn > 0 && state.turn % 10 === 0) {
+          state.threatLevel += 1;
+        }
+
+        // 7h: Increment turn counter
+        state.turn += 1;
+
+        // 7i: Set phase to player turn
+        state.phase = GamePhase.PLAYER_TURN;
       });
     },
 

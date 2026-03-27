@@ -161,11 +161,11 @@ export function advanceLava(state: Draft<GameState>): void {
  * Ticks the lava system between turns (after player ends turn, before next turn starts).
  * - Decrements turnsUntilLavaAdvance
  * - If counter reaches 0 or less, advances lava and resets counter
- * - Updates cameraY to lavaFrontRow if lava advanced
  *
  * @param state - Immer draft of the game state (will be mutated)
+ * @returns True if lava advanced this tick
  */
-export function tickLava(state: Draft<GameState>): void {
+export function tickLava(state: Draft<GameState>): boolean {
   // Decrement the counter
   state.turnsUntilLavaAdvance -= 1;
 
@@ -177,7 +177,8 @@ export function tickLava(state: Draft<GameState>): void {
     // Reset the counter
     state.turnsUntilLavaAdvance = LAVA.LAVA_ADVANCE_INTERVAL;
 
-    // Update camera to follow lava front (ensure camera doesn't go below 0)
-    state.cameraY = Math.max(0, state.lavaFrontRow);
+    return true;
   }
+
+  return false;
 }
