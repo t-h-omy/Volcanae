@@ -151,7 +151,6 @@ export interface Tile {
   position: Position;
   type: TileType;
   isRevealed: boolean;
-  isInFogOfWar: boolean;
   buildingId: string | null;
   unitId: string | null;
   isLava: boolean;

@@ -287,7 +287,6 @@ export const useGameStore = create<GameStore>()(
         for (let y = 0; y < MAP.GRID_HEIGHT; y++) {
           for (let x = 0; x < MAP.GRID_WIDTH; x++) {
             state.grid[y][x].isRevealed = true;
-            state.grid[y][x].isInFogOfWar = false;
           }
         }
       });

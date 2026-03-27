@@ -416,29 +416,24 @@ function TileCellInner({
   const buildingIconSize = Math.floor(tileSize * 0.8);
   const resourceIconSize = Math.floor(tileSize * 0.20);
 
-  // Determine overlay
-  let overlay: string | null = null;
-  if (!tile.isRevealed) {
-    overlay = null; // already coloured
-  } else if (tile.isLavaPreview && !tile.isLava) {
-    overlay = RENDER.COLORS.LAVA_PREVIEW_OVERLAY;
-  } else if (tile.isInFogOfWar) {
-    overlay = RENDER.COLORS.FOG_OVERLAY;
-  }
+  // Lava preview overlay (only on discovered tiles)
+  const overlay =
+    tile.isRevealed && tile.isLavaPreview && !tile.isLava
+      ? RENDER.COLORS.LAVA_PREVIEW_OVERLAY
+      : null;
 
   // Highlight overlays
   let highlightOverlay: string | null = null;
   if (isAttackable) highlightOverlay = RENDER.COLORS.ATTACKABLE_OVERLAY;
   else if (isReachable) highlightOverlay = RENDER.COLORS.REACHABLE_OVERLAY;
 
-  const showUnit = unit && tile.isRevealed && !tile.isInFogOfWar;
+  const showUnit = unit && tile.isRevealed;
   const showBuilding = building && tile.isRevealed;
 
   // Resource production icon for visible resource buildings
-  const resourceIcon =
-    showBuilding && building && !tile.isInFogOfWar
-      ? RESOURCE_BUILDING_ICON[building.type]
-      : undefined;
+  const resourceIcon = building && tile.isRevealed
+    ? RESOURCE_BUILDING_ICON[building.type]
+    : undefined;
 
   return (
     <div
@@ -450,7 +445,12 @@ function TileCellInner({
       }}
       onClick={onClick}
     >
-      {/* fog / lava-preview overlay */}
+      {/* cloud emoji for undiscovered tiles */}
+      {!tile.isRevealed && (
+        <span className="tile-cloud" style={{ fontSize: buildingIconSize }}>☁️</span>
+      )}
+
+      {/* lava-preview overlay */}
       {overlay && <div className="tile-overlay" style={{ backgroundColor: overlay }} />}
 
       {/* highlight overlay */}
