@@ -116,9 +116,9 @@ export const UNIT_COSTS: Record<string, UnitCost> = {
 
 export const RENDER = {
   /** Tile size on desktop in pixels */
-  TILE_SIZE_DESKTOP: 40,
+  TILE_SIZE_DESKTOP: 80,
   /** Tile size on mobile in pixels */
-  TILE_SIZE_MOBILE: 32,
+  TILE_SIZE_MOBILE: 64,
   /** Mobile breakpoint in pixels */
   MOBILE_BREAKPOINT: 768,
   /** Colors for tile rendering */
