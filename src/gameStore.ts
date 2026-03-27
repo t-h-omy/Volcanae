@@ -14,6 +14,11 @@ import {
 } from './captureSystem';
 import { updateFogOfWar } from './fogOfWarSystem';
 import { tickLava } from './lavaSystem';
+import {
+  collectResources,
+  recruitUnit as recruitUnitLogic,
+  spawnQueuedUnits,
+} from './resourceSystem';
 import type { GameState, UnitType, Position } from './types';
 
 // ============================================================================
@@ -124,9 +129,10 @@ export const useGameStore = create<GameStore>()(
       });
     },
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    recruitUnit: (_buildingId: string, _unitType: UnitType) => {
-      // Stub - logic to be implemented in later prompts
+    recruitUnit: (buildingId: string, unitType: UnitType) => {
+      set((state) => {
+        recruitUnitLogic(state, buildingId, unitType);
+      });
     },
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -146,6 +152,11 @@ export const useGameStore = create<GameStore>()(
         // Note: Enemy turn will be implemented in later prompts
         // Tick lava system (lava phase happens between turns, before the next player turn starts)
         tickLava(state);
+        // Turn start sequence:
+        // 1. Spawn queued units from recruitment buildings
+        spawnQueuedUnits(state);
+        // 2. Collect resources from player-owned resource buildings
+        collectResources(state);
         // Update fog of war after turn resolution
         updateFogOfWar(state);
       });
