@@ -19,6 +19,8 @@ import {
   recruitUnit as recruitUnitLogic,
   spawnQueuedUnits,
 } from './resourceSystem';
+import { runEnemyTurn, updateThreatFromTurn } from './enemySystem';
+import { Faction } from './types';
 import type { GameState, UnitType, Position } from './types';
 
 // ============================================================================
@@ -149,14 +151,34 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         // Resolve all pending captures at end of player turn
         resolveCaptures(state);
-        // Note: Enemy turn will be implemented in later prompts
+
+        // Run enemy turn (spawning and AI)
+        runEnemyTurn(state);
+
         // Tick lava system (lava phase happens between turns, before the next player turn starts)
         tickLava(state);
+
+        // Increment turn counter
+        state.turn += 1;
+
+        // Update threat level based on turn count (every 10 turns)
+        updateThreatFromTurn(state);
+
         // Turn start sequence:
         // 1. Spawn queued units from recruitment buildings
         spawnQueuedUnits(state);
         // 2. Collect resources from player-owned resource buildings
         collectResources(state);
+
+        // Reset player unit action flags for new turn
+        for (const unit of Object.values(state.units)) {
+          if (unit.faction === Faction.PLAYER) {
+            unit.hasMovedThisTurn = false;
+            unit.hasActedThisTurn = false;
+            unit.hasCapturedThisTurn = false;
+          }
+        }
+
         // Update fog of war after turn resolution
         updateFogOfWar(state);
       });
