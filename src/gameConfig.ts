@@ -111,6 +111,37 @@ export const UNIT_COSTS: Record<string, UnitCost> = {
 } as const;
 
 // ============================================================================
+// RENDERING CONFIGURATION
+// ============================================================================
+
+export const RENDER = {
+  /** Tile size on desktop in pixels */
+  TILE_SIZE_DESKTOP: 40,
+  /** Tile size on mobile in pixels */
+  TILE_SIZE_MOBILE: 32,
+  /** Mobile breakpoint in pixels */
+  MOBILE_BREAKPOINT: 768,
+  /** Colors for tile rendering */
+  COLORS: {
+    UNREVEALED: '#b0b0b0',
+    GRASS: '#4a8c3f',
+    LAVA: '#e25822',
+    FOG_OVERLAY: 'rgba(0, 0, 0, 0.45)',
+    LAVA_PREVIEW_OVERLAY: 'rgba(226, 88, 34, 0.35)',
+    BUILDING_PLAYER: '#3a7bd5',
+    BUILDING_ENEMY: '#c0392b',
+    BUILDING_NEUTRAL: '#4a8c3f',
+    REACHABLE_OVERLAY: 'rgba(58, 123, 213, 0.35)',
+    ATTACKABLE_OVERLAY: 'rgba(192, 57, 43, 0.35)',
+    HP_GREEN: '#2ecc71',
+    HP_RED: '#e74c3c',
+    LAVA_BOOST_BAR: '#e67e22',
+  },
+  /** Camera smooth animation duration in ms */
+  CAMERA_ANIMATION_MS: 400,
+} as const;
+
+// ============================================================================
 // CONVENIENCE EXPORTS
 // ============================================================================
 
@@ -125,6 +156,7 @@ export const GAME_CONFIG = {
   RESOURCES,
   ENEMY,
   UNIT_COSTS,
+  RENDER,
 } as const;
 
 export default GAME_CONFIG;
