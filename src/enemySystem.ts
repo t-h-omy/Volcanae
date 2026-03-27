@@ -143,7 +143,7 @@ function projectCombatScore(attacker: Unit, defender: Unit, isRanged: boolean): 
   }
 
   if (!isRanged && attackerHpLost >= attacker.stats.currentHp) {
-    const isLowHp = attacker.stats.currentHp < attacker.stats.maxHp * 0.5;
+    const isLowHp = attacker.stats.currentHp < attacker.stats.maxHp * AI_SCORING.LOW_HP_THRESHOLD;
     bonus -= AI_SCORING.DEATH_RISK_PENALTY * (isLowHp ? AI_SCORING.LOW_HP_RISK_FACTOR : 1);
   }
 
@@ -744,17 +744,10 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
   }
 
   // Post-move lava check: if unit moved onto or below lava front row, destroy it
-  // Only applies to actions that can change unit position
-  if (
-    action.type !== 'HOLD_POSITION' &&
-    action.type !== 'RANGED_ATTACK_UNIT' &&
-    action.type !== 'CAPTURE_BUILDING'
-  ) {
-    const movedUnit = state.units[unit.id];
-    if (movedUnit && movedUnit.position.y <= state.lavaFrontRow) {
-      destroyUnit(state, movedUnit.id);
-      state.threatLevel += 1;
-    }
+  const movedUnit = state.units[unit.id];
+  if (movedUnit && movedUnit.position.y <= state.lavaFrontRow) {
+    destroyUnit(state, movedUnit.id);
+    state.threatLevel += 1;
   }
 }
 

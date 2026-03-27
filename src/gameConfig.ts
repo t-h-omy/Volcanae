@@ -143,6 +143,7 @@ export const AI_SCORING = {
   KILL_BONUS: 45,
   DEATH_RISK_PENALTY: 30,
   LOW_HP_RISK_FACTOR: 0.7,
+  LOW_HP_THRESHOLD: 0.5,
 
   // Building strategic value multipliers
   BUILDING_VALUE_STRONGHOLD: 2.0,
