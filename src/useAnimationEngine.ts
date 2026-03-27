@@ -38,6 +38,42 @@ function eventPosition(event: GameEvent): Position {
 }
 
 /**
+ * Checks whether a grid position is on a discovered (revealed) tile.
+ */
+function isTileRevealed(pos: Position): boolean {
+  const grid = useGameStore.getState().grid;
+  if (grid.length === 0 || pos.y < 0 || pos.y >= grid.length) return false;
+  if (pos.x < 0 || pos.x >= grid[0].length) return false;
+  return grid[pos.y][pos.x].isRevealed;
+}
+
+/**
+ * Determines whether an event takes place on any discovered tile.
+ * Only visible events get the full animation treatment (camera pan + delays).
+ */
+function isEventVisible(event: GameEvent): boolean {
+  switch (event.type) {
+    case 'ENEMY_SPAWN':
+      return isTileRevealed(event.position);
+    case 'ENEMY_MOVE':
+      return isTileRevealed(event.from) || isTileRevealed(event.to);
+    case 'ENEMY_ATTACK':
+      return isTileRevealed(event.attackerPosition) || isTileRevealed(event.defenderPosition);
+    case 'UNIT_DEATH':
+      return isTileRevealed(event.position);
+    case 'BUILDING_CAPTURE':
+      return isTileRevealed(event.position);
+    case 'LAVA_ADVANCE': {
+      // Visible if any tile on the new lava row is revealed
+      const grid = useGameStore.getState().grid;
+      const row = event.newLavaRow;
+      if (row < 0 || row >= grid.length) return false;
+      return grid[row].some((tile) => tile.isRevealed);
+    }
+  }
+}
+
+/**
  * Returns the post-action pause duration for each event type.
  */
 function postActionDuration(event: GameEvent): number {
@@ -63,18 +99,24 @@ export function useAnimationEngine(): void {
         const event = useAnimationStore.getState().shiftEvent();
         if (!event) break;
 
-        // 1. Move camera to event position
-        useAnimationStore.getState().setCameraTarget(eventPosition(event));
-        await wait(ANIMATION.CAMERA_MOVE_DURATION_MS);
+        const visible = isEventVisible(event);
 
-        // 2. Pre-action idle
-        await wait(ANIMATION.PRE_ACTION_IDLE_MS);
+        if (visible) {
+          // 1. Move camera to event position
+          useAnimationStore.getState().setCameraTarget(eventPosition(event));
+          await wait(ANIMATION.CAMERA_MOVE_DURATION_MS);
+
+          // 2. Pre-action idle
+          await wait(ANIMATION.PRE_ACTION_IDLE_MS);
+        }
 
         // 3. Apply event to live game state
         useGameStore.getState().applyEvent(event);
 
-        // 4. Post-action idle (duration varies by event type)
-        await wait(postActionDuration(event));
+        if (visible) {
+          // 4. Post-action idle (duration varies by event type)
+          await wait(postActionDuration(event));
+        }
       }
 
       // Queue exhausted — apply the fully resolved state and hand control back
