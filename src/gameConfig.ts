@@ -45,11 +45,11 @@ export const UNITS = {
   UNIT_MOVEMENT_ACTIONS: 1,
   /** Movement range in cells */
   UNIT_MOVE_RANGE: 2,
-  /** Attack range (manhattan distance) */
+  /** Attack range (edge-circle distance) */
   UNIT_ATTACK_RANGE: 1,
-  /** Vision range (manhattan distance) */
+  /** Vision range (edge-circle distance) */
   UNIT_VISION_RANGE: 5,
-  /** Trigger range for enemy units only (manhattan distance) */
+  /** Trigger range for enemy units only (edge-circle distance) */
   UNIT_TRIGGER_RANGE: 5,
 } as const;
 
@@ -58,7 +58,7 @@ export const UNITS = {
 // ============================================================================
 
 export const BUILDINGS = {
-  /** Vision range for buildings (manhattan distance) */
+  /** Vision range for buildings (edge-circle distance) */
   BUILDING_VISION_RANGE: 5,
   /** Number of turns required to capture a building */
   BUILDING_CAPTURE_TURNS: 1,

@@ -8,6 +8,7 @@ import type { Draft } from 'immer';
 import { Faction, UnitType, UnitTag, BuildingType } from './types';
 import { UNITS, ENEMY, MAP } from './gameConfig';
 import { resolveAttack } from './combatSystem';
+import { isTileWithinEdgeCircleRange } from './rangeUtils';
 
 // ============================================================================
 // ID GENERATION
@@ -261,8 +262,12 @@ function findTargetsInRange(
   // Find player units in range
   for (const otherUnit of Object.values(state.units)) {
     if (otherUnit.faction === Faction.PLAYER) {
-      const distance = manhattanDistance(unit.position, otherUnit.position);
-      if (distance <= triggerRange) {
+      const inRange = isTileWithinEdgeCircleRange(
+        unit.position.x, unit.position.y,
+        otherUnit.position.x, otherUnit.position.y,
+        triggerRange,
+      );
+      if (inRange) {
         playerUnits.push(otherUnit);
       }
     }
@@ -270,8 +275,12 @@ function findTargetsInRange(
 
   // Find buildings in range
   for (const building of Object.values(state.buildings)) {
-    const distance = manhattanDistance(unit.position, building.position);
-    if (distance <= triggerRange) {
+    const inRange = isTileWithinEdgeCircleRange(
+      unit.position.x, unit.position.y,
+      building.position.x, building.position.y,
+      triggerRange,
+    );
+    if (inRange) {
       if (building.faction === Faction.PLAYER) {
         playerBuildings.push(building);
       } else if (building.faction === null) {
@@ -402,9 +411,13 @@ function runUnitAI(state: Draft<GameState>, unitId: string): void {
     return;
   }
 
-  const distance = manhattanDistance(unit.position, targetInfo.position);
+  const inAttackRange = isTileWithinEdgeCircleRange(
+    unit.position.x, unit.position.y,
+    targetInfo.position.x, targetInfo.position.y,
+    unit.stats.attackRange,
+  );
 
-  if (distance <= unit.stats.attackRange) {
+  if (inAttackRange) {
     // Target is adjacent - attack if it's a unit
     if (targetInfo.type === 'unit') {
       resolveAttack(state, unitId, (targetInfo.target as Unit).id);

@@ -12,11 +12,11 @@ import {
   UnitType,
   UnitTag,
   BuildingType,
-  type Position,
   type Tile,
   type Unit,
   type Building,
 } from '../types';
+import { isTileWithinEdgeCircleRange } from '../rangeUtils';
 import './GridRenderer.css';
 
 // ============================================================================
@@ -80,10 +80,6 @@ function posKey(x: number, y: number): string {
   return `${x},${y}`;
 }
 
-function manhattanDist(a: Position, b: Position): number {
-  return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-}
-
 /** Returns set of "x,y" keys for tiles an enemy unit occupies that are
  *  within attack range of the selected player unit. */
 function getAttackableTileKeys(
@@ -94,7 +90,12 @@ function getAttackableTileKeys(
   if (selectedUnit.hasActedThisTurn) return keys;
   for (const other of Object.values(units)) {
     if (other.faction === Faction.ENEMY) {
-      if (manhattanDist(selectedUnit.position, other.position) <= selectedUnit.stats.attackRange) {
+      const inRange = isTileWithinEdgeCircleRange(
+        selectedUnit.position.x, selectedUnit.position.y,
+        other.position.x, other.position.y,
+        selectedUnit.stats.attackRange,
+      );
+      if (inRange) {
         keys.add(posKey(other.position.x, other.position.y));
       }
     }
