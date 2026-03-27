@@ -165,6 +165,25 @@ export default function GridRenderer() {
   // Offset the inner container; we store actual scroll position internally
   const [offset, setOffset] = useState({ x: 0, y: 0 });
 
+  // Keep a ref to the latest offset so it can be read synchronously in effects
+  const offsetRef = useRef(offset);
+  offsetRef.current = offset;
+
+  // Saves the camera position just before animations begin so it can be restored afterwards
+  const preAnimationOffsetRef = useRef<{ x: number; y: number } | null>(null);
+  useEffect(() => {
+    if (isAnimating) {
+      // Animation starting — capture the current camera position
+      preAnimationOffsetRef.current = offsetRef.current;
+    } else {
+      // Animation ended — restore the camera to where it was before
+      if (preAnimationOffsetRef.current) {
+        setOffset(preAnimationOffsetRef.current);
+        preAnimationOffsetRef.current = null;
+      }
+    }
+  }, [isAnimating]);
+
   // When camera target changes during animation, update offset to center viewport on target
   useEffect(() => {
     if (!isAnimating) return;
