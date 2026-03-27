@@ -66,6 +66,17 @@ export const BUILDINGS = {
   SPECIALIST_ASSIGN_DISABLE_TURNS: 1,
   /** Probability of spawning a WATCHTOWER in each zone (0.0 to 1.0) */
   WATCHTOWER_SPAWN_CHANCE: 0.5,
+  /** Discover radius per building type (balanceable) */
+  DISCOVER_RADIUS: {
+    STRONGHOLD: 3,
+    MINE: 3,
+    WOODCUTTER: 3,
+    BARRACKS: 3,
+    ARCHER_CAMP: 3,
+    RIDER_CAMP: 3,
+    SIEGE_CAMP: 3,
+    WATCHTOWER: 3,
+  },
 } as const;
 
 // ============================================================================
@@ -92,6 +103,12 @@ export const ENEMY = {
   ENEMY_SPAWN_PER_BUILDING_BASE: 1,
   /** Bonus enemy spawn per 3 threat levels */
   ENEMY_THREAT_SPAWN_BONUS: 1,
+  /** Base probability (0.0–1.0) of spawning a unit per recruitment building per turn when no player unit is in discover radius and threat is 0 */
+  BASE_SPAWN_PROBABILITY: 0.20,
+  /** Maximum additional probability granted at max threat (0.0–1.0) */
+  MAX_THREAT_BONUS: 0.30,
+  /** Threat level at which the full MAX_THREAT_BONUS is reached */
+  MAX_THREAT: 10,
 } as const;
 
 // ============================================================================

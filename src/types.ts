@@ -143,6 +143,7 @@ export interface Building {
   isBeingCapturedBy: string | null;
   lavaBoostEnabled: boolean;
   recruitmentQueue: UnitType | null;
+  discoverRadius: number;
 }
 
 /** A tile on the game grid */
