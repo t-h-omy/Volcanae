@@ -5,6 +5,8 @@
 
 import type { Unit, GameState } from './types';
 import type { Draft } from 'immer';
+import { Faction } from './types';
+import { useFloaterStore } from './floaterStore';
 
 // ============================================================================
 // COMBAT RESULT INTERFACE
@@ -99,6 +101,25 @@ export function resolveAttack(
     ? attacker.stats.currentHp - combatResult.attackerHpLost
     : attacker.stats.currentHp;
   const attackerDead = newAttackerHp <= 0;
+
+  // Trigger damage floaters (visual only)
+  const { addFloater } = useFloaterStore.getState();
+  if (combatResult.defenderHpLost > 0) {
+    addFloater({
+      value: combatResult.defenderHpLost,
+      x: defender.position.x,
+      y: defender.position.y,
+      isEnemy: defender.faction === Faction.ENEMY,
+    });
+  }
+  if (attackerTakesCounterDamage && combatResult.attackerHpLost > 0) {
+    addFloater({
+      value: combatResult.attackerHpLost,
+      x: attacker.position.x,
+      y: attacker.position.y,
+      isEnemy: attacker.faction === Faction.ENEMY,
+    });
+  }
 
   // Update attacker
   if (attackerDead) {

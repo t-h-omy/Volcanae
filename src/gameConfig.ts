@@ -182,6 +182,17 @@ export const UNIT_COSTS: Record<string, UnitCost> = {
 } as const;
 
 // ============================================================================
+// UI CONFIGURATION
+// ============================================================================
+
+export const UI = {
+  /** Total lifetime of a damage number before removal */
+  DAMAGE_FLOAT_DURATION_MS: 2000,
+  /** How far upward the number floats (half a tile height) */
+  DAMAGE_FLOAT_RISE_PX: 20,
+} as const;
+
+// ============================================================================
 // RENDERING CONFIGURATION
 // ============================================================================
 
@@ -228,6 +239,7 @@ export const GAME_CONFIG = {
   AI_SCORING,
   UNIT_COSTS,
   RENDER,
+  UI,
 } as const;
 
 export default GAME_CONFIG;
