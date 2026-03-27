@@ -41,8 +41,8 @@ export function resetIdCounter(): void {
 
 /**
  * Gets the zone number (1-5) for a given row.
- * Zone 1: rows 5-24 (closest to lava)
- * Zone 5: rows 85-104 (northernmost)
+ * Zone 1: rows 5-11 (closest to lava)
+ * Zone 5: rows 33-39 (northernmost)
  */
 function getZoneForRow(row: number): number {
   if (row < MAP.LAVA_BUFFER_ROWS) return 0; // Lava buffer, no zone
