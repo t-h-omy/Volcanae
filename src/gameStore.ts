@@ -8,6 +8,10 @@ import { immer } from 'zustand/middleware/immer';
 import { generateInitialGameState } from './mapGenerator';
 import { resolveAttack } from './combatSystem';
 import { moveUnit as moveUnitLogic } from './movementSystem';
+import {
+  initiateCapture as initiateCaptureLogic,
+  resolveCaptures,
+} from './captureSystem';
 import type { GameState, UnitType, Position } from './types';
 
 // ============================================================================
@@ -104,9 +108,10 @@ export const useGameStore = create<GameStore>()(
       });
     },
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    captureBuilding: (_unitId: string, _buildingId: string) => {
-      // Stub - logic to be implemented in later prompts
+    captureBuilding: (unitId: string, buildingId: string) => {
+      set((state) => {
+        initiateCaptureLogic(state, unitId, buildingId);
+      });
     },
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -125,7 +130,11 @@ export const useGameStore = create<GameStore>()(
     },
 
     endPlayerTurn: () => {
-      // Stub - will trigger enemy turn, lava phase, then next player turn
+      set((state) => {
+        // Resolve all pending captures at end of player turn
+        resolveCaptures(state);
+        // Note: Enemy turn and lava phase will be implemented in later prompts
+      });
     },
 
     setCameraY: (y: number) => {
