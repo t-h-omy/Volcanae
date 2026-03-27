@@ -46,7 +46,7 @@ const BUILDING_EMOJI: Record<string, string> = {
 };
 
 const RESOURCE_BUILDING_ICON: Record<string, string> = {
-  [BuildingType.MINE]: '⛏️',
+  [BuildingType.MINE]: '⛓️',
   [BuildingType.WOODCUTTER]: '🪵',
 };
 
@@ -147,11 +147,14 @@ export default function GridRenderer() {
   // ── Camera drag state ──
   const dragState = useRef({
     isDragging: false,
+    isDragActive: false,
     startX: 0,
     startY: 0,
     scrollLeft: 0,
     scrollTop: 0,
   });
+  // Tracks whether the last RMB press resulted in a drag (used by contextmenu handler)
+  const rmbWasDragging = useRef(false);
 
   // Offset the inner container; we store actual scroll position internally
   const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -198,12 +201,22 @@ export default function GridRenderer() {
   }, [cameraY, tileSize]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Pan / Drag handlers ──
+  // On desktop: drag is activated only while RMB is held.
+  // On touch / pen: drag is activated by primary pointer (finger).
   const onPointerDown = useCallback(
     (e: React.PointerEvent) => {
-      // only left-click or primary touch
-      if (e.button !== 0) return;
+      const isTouch = e.pointerType === 'touch';
+      const isRMB = e.button === 2;
+
+      // Reset isDragging on any pointer-down so a post-drag LMB click isn't blocked
+      dragState.current.isDragging = false;
+
+      const shouldDrag = isRMB || (isTouch && e.isPrimary);
+      if (!shouldDrag) return;
+
       dragState.current = {
         isDragging: false,
+        isDragActive: true,
         startX: e.clientX,
         startY: e.clientY,
         scrollLeft: offset.x,
@@ -216,6 +229,7 @@ export default function GridRenderer() {
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
     const ds = dragState.current;
+    if (!ds.isDragActive) return;
     const dx = e.clientX - ds.startX;
     const dy = e.clientY - ds.startY;
     if (!ds.isDragging && Math.abs(dx) + Math.abs(dy) > 4) {
@@ -226,8 +240,15 @@ export default function GridRenderer() {
     }
   }, []);
 
-  const onPointerUp = useCallback(() => {
-    // nothing special – click handler checks isDragging
+  const onPointerUp = useCallback((e: React.PointerEvent) => {
+    const ds = dragState.current;
+    if (!ds.isDragActive) return;
+    // Capture drag state before clearing, so the contextmenu handler can read it
+    if (e.pointerType === 'mouse' && e.button === 2) {
+      rmbWasDragging.current = ds.isDragging;
+    }
+    ds.isDragActive = false;
+    // isDragging intentionally not reset here – onClick checks it to skip post-drag clicks
   }, []);
 
   // ── Reachable / Attackable sets ──
@@ -287,11 +308,14 @@ export default function GridRenderer() {
     [grid, selectedUnit, attackableSet, reachableSet, units, selectUnit, selectBuilding, clearSelection, moveUnit, attackUnit],
   );
 
-  // Right-click / tap-hold → deselect
+  // Right-click / tap-hold → deselect (only when not used for drag-panning)
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
-      clearSelection();
+      if (!rmbWasDragging.current) {
+        clearSelection();
+      }
+      rmbWasDragging.current = false;
     },
     [clearSelection],
   );
@@ -388,6 +412,8 @@ function TileCellInner({
   onClick,
 }: TileCellProps) {
   const bg = tileBackground(tile, building);
+  const buildingIconSize = Math.floor(tileSize * 0.8);
+  const resourceIconSize = Math.floor(tileSize * 0.15);
 
   // Determine overlay
   let overlay: string | null = null;
@@ -433,11 +459,17 @@ function TileCellInner({
 
       {/* building emoji */}
       {showBuilding && building && (
-        <span className="tile-building">{BUILDING_EMOJI[building.type] ?? ''}</span>
+        <span className="tile-building" style={{ fontSize: buildingIconSize }}>
+          {BUILDING_EMOJI[building.type] ?? ''}
+        </span>
       )}
 
       {/* resource icon */}
-      {resourceIcon && <span className="tile-resource-icon">{resourceIcon}</span>}
+      {resourceIcon && (
+        <span className="tile-resource-icon" style={{ fontSize: resourceIconSize }}>
+          {resourceIcon}
+        </span>
+      )}
 
       {/* unit rendering */}
       {showUnit && unit && <UnitBadge unit={unit} />}
