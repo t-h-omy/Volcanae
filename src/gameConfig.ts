@@ -48,9 +48,9 @@ export const UNITS = {
   /** Attack range (edge-circle distance) */
   UNIT_ATTACK_RANGE: 1,
   /** Discover radius (edge-circle distance) */
-  UNIT_DISCOVER_RADIUS: 5,
+  UNIT_DISCOVER_RADIUS: 2,
   /** Trigger range for enemy units only (edge-circle distance) */
-  UNIT_TRIGGER_RANGE: 5,
+  UNIT_TRIGGER_RANGE: 3,
 } as const;
 
 // ============================================================================
@@ -66,14 +66,14 @@ export const BUILDINGS = {
   WATCHTOWER_SPAWN_CHANCE: 0.5,
   /** Discover radius per building type (balanceable) */
   DISCOVER_RADIUS: {
-    STRONGHOLD: 3,
+    STRONGHOLD: 4,
     MINE: 3,
     WOODCUTTER: 3,
     BARRACKS: 3,
     ARCHER_CAMP: 3,
     RIDER_CAMP: 3,
     SIEGE_CAMP: 3,
-    WATCHTOWER: 3,
+    WATCHTOWER: 5,
   },
 } as const;
 
