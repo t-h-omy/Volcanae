@@ -94,7 +94,7 @@ export interface UnitStats {
   attack: number;
   defense: number;
   moveRange: number;
-  visionRange: number;
+  discoverRadius: number;
   triggerRange: number;
   movementActions: number;
   attackRange: number;

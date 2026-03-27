@@ -47,8 +47,8 @@ export const UNITS = {
   UNIT_MOVE_RANGE: 2,
   /** Attack range (edge-circle distance) */
   UNIT_ATTACK_RANGE: 1,
-  /** Vision range (edge-circle distance) */
-  UNIT_VISION_RANGE: 5,
+  /** Discover radius (edge-circle distance) */
+  UNIT_DISCOVER_RADIUS: 5,
   /** Trigger range for enemy units only (edge-circle distance) */
   UNIT_TRIGGER_RANGE: 5,
 } as const;
@@ -58,8 +58,6 @@ export const UNITS = {
 // ============================================================================
 
 export const BUILDINGS = {
-  /** Vision range for buildings (edge-circle distance) */
-  BUILDING_VISION_RANGE: 5,
   /** Number of turns required to capture a building */
   BUILDING_CAPTURE_TURNS: 1,
   /** Number of turns specialist assignment is disabled after use */

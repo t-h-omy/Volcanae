@@ -1,10 +1,10 @@
 /**
- * Fog of War system module for Volcanae.
- * Implements tile discovery using player unit vision.
+ * Tile discovery system module for Volcanae.
+ * Implements tile discovery using player unit presence.
  *
  * Rules:
- * - Tiles are either not-discovered or discovered (no fog of war once seen)
- * - Only player units discover tiles within their visionRange
+ * - Tiles are either undiscovered or discovered
+ * - Only player units discover tiles within their discoverRadius
  * - Player buildings do NOT auto-discover tiles
  * - Once a tile is discovered (isRevealed true), it stays discovered permanently
  * - Undiscovered tiles: shown as light grey with a cloud emoji
@@ -32,51 +32,51 @@ function positionToKey(x: number, y: number): string {
 }
 
 // ============================================================================
-// VISIBILITY CALCULATION
+// DISCOVERABLE TILES CALCULATION
 // ============================================================================
 
 /**
- * Gets all tiles currently visible to the player.
- * A tile is visible if it is within the vision range of any player unit.
- * Vision range is determined using the edge-circle range system.
+ * Gets all tiles currently discoverable by the player.
+ * A tile is discoverable if it is within the discover radius of any player unit.
+ * Discover radius is determined using the edge-circle range system.
  *
  * @param state - Current game state
- * @returns Set of "x,y" string keys representing currently visible tiles
+ * @returns Set of "x,y" string keys representing currently discoverable tiles
  */
-export function getVisibleTiles(
+export function getDiscoverableTiles(
   state: GameState | Draft<GameState>
 ): Set<string> {
-  const visibleTiles = new Set<string>();
+  const discoverableTiles = new Set<string>();
 
-  // Only player units reveal tiles (buildings do not auto-discover zones)
+  // Only player units discover tiles (buildings do not auto-discover zones)
   for (const unit of Object.values(state.units)) {
     if (unit.faction === Faction.PLAYER) {
       // Include the unit's own tile
-      visibleTiles.add(positionToKey(unit.position.x, unit.position.y));
-      // Include all tiles within edge-circle vision range
+      discoverableTiles.add(positionToKey(unit.position.x, unit.position.y));
+      // Include all tiles within edge-circle discover radius
       const tilesInRange = getTilesWithinEdgeCircleRange(
         unit.position.x,
         unit.position.y,
-        unit.stats.visionRange,
+        unit.stats.discoverRadius,
         MAP.GRID_WIDTH,
         MAP.GRID_HEIGHT,
       );
       for (const { x, y } of tilesInRange) {
-        visibleTiles.add(positionToKey(x, y));
+        discoverableTiles.add(positionToKey(x, y));
       }
     }
   }
 
-  return visibleTiles;
+  return discoverableTiles;
 }
 
 // ============================================================================
-// FOG OF WAR UPDATE
+// DISCOVERY UPDATE
 // ============================================================================
 
 /**
  * Updates tile discovery state based on current player unit positions.
- * - Marks tiles within player unit vision range as discovered (isRevealed = true)
+ * - Marks tiles within player unit discover radius as discovered (isRevealed = true)
  * - Once revealed, tiles are never hidden again
  * - Buildings do not contribute to discovery
  *
@@ -84,15 +84,15 @@ export function getVisibleTiles(
  *
  * @param state - Immer draft of the game state (will be mutated)
  */
-export function updateFogOfWar(state: Draft<GameState>): void {
-  // Get currently visible tiles
-  const visibleTiles = getVisibleTiles(state);
+export function updateDiscovery(state: Draft<GameState>): void {
+  // Get currently discoverable tiles
+  const discoverableTiles = getDiscoverableTiles(state);
 
-  // Mark visible tiles as permanently discovered
+  // Mark discoverable tiles as permanently discovered
   for (let y = 0; y < MAP.GRID_HEIGHT; y++) {
     for (let x = 0; x < MAP.GRID_WIDTH; x++) {
       const key = positionToKey(x, y);
-      if (visibleTiles.has(key)) {
+      if (discoverableTiles.has(key)) {
         state.grid[y][x].isRevealed = true;
       }
     }
