@@ -10,13 +10,13 @@
 
 export const MAP = {
   /** Width of the game grid in cells */
-  GRID_WIDTH: 20,
-  /** Total height of the grid (100 playable + 5 lava buffer rows at the bottom) */
-  GRID_HEIGHT: 105,
+  GRID_WIDTH: 7,
+  /** Total height of the grid (35 playable + 5 lava buffer rows at the bottom) */
+  GRID_HEIGHT: 40,
   /** Number of zones on the map */
   ZONE_COUNT: 5,
   /** Number of rows per zone */
-  ZONE_HEIGHT: 20,
+  ZONE_HEIGHT: 7,
   /** Number of lava buffer rows at the bottom of the map */
   LAVA_BUFFER_ROWS: 5,
 } as const;
