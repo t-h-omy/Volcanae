@@ -4,9 +4,9 @@
  * and game-over/victory overlay screens.
  */
 
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useGameStore } from '../gameStore';
-import { UNIT_COSTS } from '../gameConfig';
+import { UNIT_COSTS, RESOURCES } from '../gameConfig';
 import {
   Faction,
   GamePhase,
@@ -129,6 +129,72 @@ function SelectedUnitPanel({ unit }: { unit: Unit }) {
 }
 
 // ============================================================================
+// SPECIALIST PICKER MODAL
+// ============================================================================
+
+function SpecialistPickerModal({
+  buildingId,
+  onClose,
+}: {
+  buildingId: string;
+  onClose: () => void;
+}) {
+  const specialists = useGameStore((s) => s.specialists);
+  const globalSpecialistStorage = useGameStore((s) => s.globalSpecialistStorage);
+  const assignSpecialist = useGameStore((s) => s.assignSpecialist);
+
+  const available: Specialist[] = globalSpecialistStorage
+    .map((id) => specialists[id])
+    .filter(Boolean) as Specialist[];
+
+  const handleAssign = useCallback(
+    (specialistId: string) => {
+      assignSpecialist(specialistId, buildingId);
+      onClose();
+    },
+    [assignSpecialist, buildingId, onClose]
+  );
+
+  return (
+    <div className="hud-modal-backdrop" onClick={onClose}>
+      <div className="hud-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="hud-modal-header">
+          <span>🧙 Assign Specialist</span>
+          <button className="hud-modal-close" onClick={onClose}>
+            ✕
+          </button>
+        </div>
+        {available.length === 0 ? (
+          <p className="hud-dim" style={{ padding: '12px' }}>
+            No specialists available.
+          </p>
+        ) : (
+          <ul className="hud-modal-list">
+            {available.map((sp) => (
+              <li key={sp.id} className="hud-modal-item">
+                <div className="hud-modal-item-info">
+                  <span className="hud-modal-item-name">{sp.name}</span>
+                  <span className="hud-modal-item-desc">{sp.description}</span>
+                  <span className="hud-modal-item-effects">
+                    {sp.effects.map((e) => e.type).join(', ')}
+                  </span>
+                </div>
+                <button
+                  className="hud-modal-assign-btn"
+                  onClick={() => handleAssign(sp.id)}
+                >
+                  Assign
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
 // SELECTED BUILDING PANEL
 // ============================================================================
 
@@ -137,6 +203,9 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   const globalSpecialistStorage = useGameStore((s) => s.globalSpecialistStorage);
   const resources = useGameStore((s) => s.resources);
   const recruitUnit = useGameStore((s) => s.recruitUnit);
+  const unassignSpecialist = useGameStore((s) => s.unassignSpecialist);
+
+  const [showPicker, setShowPicker] = useState(false);
 
   const factionLabel =
     building.faction === Faction.PLAYER
@@ -145,14 +214,17 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
         ? '🔴 Enemy'
         : '⚪ Neutral';
 
+  const isPlayerOwned = building.faction === Faction.PLAYER;
+  const isDisabled = building.isDisabledForTurns > 0;
+  const isUnderAttack = building.wasAttackedLastEnemyTurn;
+  const isInteractionBlocked = isDisabled || isUnderAttack;
+
   // Specialist slot info
   const assignedSpecialist: Specialist | null =
     building.specialistSlot ? specialists[building.specialistSlot] ?? null : null;
 
   // Recruitment info
   const recruitableType = BUILDING_RECRUITS[building.type] as string | undefined;
-  const isPlayerOwned = building.faction === Faction.PLAYER;
-  const isDisabled = building.isDisabledForTurns > 0;
   const hasQueue = building.recruitmentQueue !== null;
   const cost = recruitableType ? UNIT_COSTS[recruitableType] : null;
   const canAfford = cost
@@ -167,6 +239,10 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
     }
   }, [canRecruit, recruitableType, recruitUnit, building.id]);
 
+  const handleUnassign = useCallback(() => {
+    unassignSpecialist(building.id);
+  }, [unassignSpecialist, building.id]);
+
   // Global specialist storage (shown on any player stronghold)
   const showGlobalStorage =
     building.type === BuildingType.STRONGHOLD && isPlayerOwned;
@@ -174,30 +250,84 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
     .map((id) => specialists[id])
     .filter(Boolean) as Specialist[];
 
+  // Production info for resource buildings
+  const isMine = building.type === BuildingType.MINE && isPlayerOwned;
+  const isWoodcutter = building.type === BuildingType.WOODCUTTER && isPlayerOwned;
+
   return (
-    <div className="hud-info-panel">
+    <div className="hud-info-panel hud-building-panel">
+      {/* Header */}
       <div className="hud-panel-header">
         <span className="hud-panel-emoji">{BUILDING_EMOJI[building.type] ?? '?'}</span>
         <span className="hud-panel-name">{BUILDING_NAME[building.type] ?? building.type}</span>
         <span className="hud-faction-label">{factionLabel}</span>
       </div>
 
+      {/* Warnings */}
+      {isDisabled && (
+        <div className="hud-warning hud-disabled-note">
+          🚫 Disabled for {building.isDisabledForTurns} turn(s)
+        </div>
+      )}
+      {isUnderAttack && (
+        <div className="hud-warning hud-attack-warning">
+          ⚔️ Under Attack!
+        </div>
+      )}
+
+      {/* Production rate for resource buildings */}
+      {isMine && (
+        <div className="hud-production-row">
+          ⛏️ +{RESOURCES.MINE_IRON_PER_TURN} iron per turn
+          {isDisabled && <span className="hud-dim"> (paused)</span>}
+        </div>
+      )}
+      {isWoodcutter && (
+        <div className="hud-production-row">
+          🪵 +{RESOURCES.WOODCUTTER_WOOD_PER_TURN} wood per turn
+          {isDisabled && <span className="hud-dim"> (paused)</span>}
+        </div>
+      )}
+
       {/* Specialist slot */}
-      <div className="hud-specialist-row">
-        <span className="hud-label">Specialist:</span>
-        {assignedSpecialist ? (
-          <span className="hud-value">{assignedSpecialist.name}</span>
-        ) : (
-          <span className="hud-value hud-dim">Empty</span>
-        )}
-      </div>
+      {isPlayerOwned && (
+        <div className="hud-specialist-row">
+          <span className="hud-label">Specialist:</span>
+          {assignedSpecialist ? (
+            <div className="hud-specialist-assigned">
+              <span className="hud-value">{assignedSpecialist.name}</span>
+              <span className="hud-specialist-desc">{assignedSpecialist.description}</span>
+              <button
+                className="hud-specialist-btn hud-unassign-btn"
+                disabled={isInteractionBlocked}
+                onClick={handleUnassign}
+              >
+                Unassign
+              </button>
+            </div>
+          ) : (
+            <div className="hud-specialist-empty">
+              <span className="hud-dim">Empty</span>
+              <button
+                className="hud-specialist-btn hud-assign-btn"
+                disabled={isInteractionBlocked || globalSpecialistStorage.length === 0}
+                onClick={() => setShowPicker(true)}
+              >
+                Assign Specialist
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Recruitment */}
       {recruitableType && isPlayerOwned && (
         <div className="hud-recruit-row">
+          <span className="hud-label">Recruit:</span>
           {hasQueue ? (
             <span className="hud-dim">
-              Training {UNIT_EMOJI[building.recruitmentQueue!] ?? '?'} …
+              🔨 Training {UNIT_EMOJI[building.recruitmentQueue!] ?? '?'}{' '}
+              {UNIT_NAME[building.recruitmentQueue!] ?? ''} …
             </span>
           ) : (
             <button
@@ -205,7 +335,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
               disabled={!canRecruit}
               onClick={handleRecruit}
             >
-              Recruit {UNIT_EMOJI[recruitableType] ?? ''}{' '}
+              {UNIT_EMOJI[recruitableType] ?? ''}{' '}
               {UNIT_NAME[recruitableType] ?? recruitableType}
               {cost && (
                 <span className="hud-cost">
@@ -214,12 +344,6 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
               )}
             </button>
           )}
-        </div>
-      )}
-
-      {isDisabled && (
-        <div className="hud-dim hud-disabled-note">
-          Disabled for {building.isDisabledForTurns} turn(s)
         </div>
       )}
 
@@ -232,11 +356,22 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
           ) : (
             <ul className="hud-specialist-list">
               {globalSpecialists.map((sp) => (
-                <li key={sp.id}>{sp.name}</li>
+                <li key={sp.id}>
+                  <span className="hud-specialist-storage-name">{sp.name}</span>
+                  <span className="hud-specialist-storage-desc"> — {sp.description}</span>
+                </li>
               ))}
             </ul>
           )}
         </div>
+      )}
+
+      {/* Specialist picker modal */}
+      {showPicker && (
+        <SpecialistPickerModal
+          buildingId={building.id}
+          onClose={() => setShowPicker(false)}
+        />
       )}
     </div>
   );
