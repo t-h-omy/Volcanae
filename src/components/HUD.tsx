@@ -197,7 +197,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
         <div className="hud-recruit-row">
           {hasQueue ? (
             <span className="hud-dim">
-              Training {UNIT_EMOJI[building.recruitmentQueue!]} …
+              Training {UNIT_EMOJI[building.recruitmentQueue!] ?? '?'} …
             </span>
           ) : (
             <button
