@@ -414,7 +414,7 @@ function TileCellInner({
 }: TileCellProps) {
   const bg = tileBackground(tile, building);
   const buildingIconSize = Math.floor(tileSize * 0.8);
-  const resourceIconSize = Math.floor(tileSize * 0.15);
+  const resourceIconSize = Math.floor(tileSize * 0.20);
 
   // Determine overlay
   let overlay: string | null = null;
@@ -473,7 +473,7 @@ function TileCellInner({
       )}
 
       {/* unit rendering */}
-      {showUnit && unit && <UnitBadge unit={unit} />}
+      {showUnit && unit && <UnitBadge unit={unit} tileSize={tileSize} />}
     </div>
   );
 }
@@ -484,9 +484,10 @@ const TileCell = React.memo(TileCellInner);
 // UNIT BADGE
 // ============================================================================
 
-function UnitBadge({ unit }: { unit: Unit }) {
+function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
   const hpPct = (unit.stats.currentHp / unit.stats.maxHp) * 100;
   const hasLavaBoost = unit.tags.includes(UnitTag.LAVA_BOOST);
+  const unitEmojiSize = Math.floor(tileSize * 0.8);
 
   return (
     <div className="tile-unit">
@@ -501,7 +502,7 @@ function UnitBadge({ unit }: { unit: Unit }) {
       >
         <div className="hp-bar-fill" style={{ width: `${hpPct}%` }} />
       </div>
-      <span className="unit-emoji">{UNIT_EMOJI[unit.type] ?? '?'}</span>
+      <span className="unit-emoji" style={{ fontSize: `${unitEmojiSize}px` }}>{UNIT_EMOJI[unit.type] ?? '?'}</span>
       {hasLavaBoost && (
         <div
           className="lava-boost-bar"
