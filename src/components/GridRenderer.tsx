@@ -273,36 +273,50 @@ export default function GridRenderer() {
       const tile = grid[y][x];
       const key = posKey(x, y);
 
-      // If a player unit is selected...
-      if (selectedUnit && selectedUnit.faction === Faction.PLAYER) {
-        // Attack?
-        if (attackableSet.has(key) && tile.unitId) {
-          attackUnit(selectedUnit.id, tile.unitId);
-          return;
-        }
-        // Move?
-        if (reachableSet.has(key)) {
-          moveUnit(selectedUnit.id, { x, y });
-          return;
-        }
-      }
-
-      // Select unit on tile
+      // Priority 1 — Own player unit on tile: always select, unconditionally
       if (tile.unitId) {
         const u = units[tile.unitId];
-        if (u) {
+        if (u && u.faction === Faction.PLAYER) {
           selectUnit(tile.unitId);
           return;
         }
       }
 
-      // Select building on tile
+      // Priority 2 — Enemy unit on tile, valid attack available
+      // Priority 3 — Enemy unit on tile, no valid attack: select for inspection
+      if (tile.unitId) {
+        const u = units[tile.unitId];
+        if (u && u.faction === Faction.ENEMY) {
+          if (
+            selectedUnit &&
+            !selectedUnit.hasActedThisTurn &&
+            attackableSet.has(key)
+          ) {
+            attackUnit(selectedUnit.id, tile.unitId);
+            return;
+          }
+          selectUnit(tile.unitId);
+          return;
+        }
+      }
+
+      // Priority 4 — Tile in movement range, unit can still move
+      if (
+        selectedUnit &&
+        !selectedUnit.hasMovedThisTurn &&
+        reachableSet.has(key)
+      ) {
+        moveUnit(selectedUnit.id, { x, y });
+        return;
+      }
+
+      // Priority 5 — Building on tile, movement not possible
       if (tile.buildingId) {
         selectBuilding(tile.buildingId);
         return;
       }
 
-      // Clicking empty tile clears selection
+      // Priority 6 — Fallback: clear selection
       clearSelection();
     },
     [grid, selectedUnit, attackableSet, reachableSet, units, selectUnit, selectBuilding, clearSelection, moveUnit, attackUnit, isAnimating],
