@@ -296,6 +296,10 @@ export const UI = {
   DAMAGE_FLOAT_RISE_PX: 20,
   /** Duration of the bounce animation on the capture-ready indicator */
   CAPTURE_INDICATOR_BOUNCE_DURATION_MS: 700,
+  /** How long the turn label is fully visible before fading out */
+  TURN_POPUP_DISPLAY_MS: 1200,
+  /** Duration of the turn popup fade-out */
+  TURN_POPUP_FADE_MS: 400,
 } as const;
 
 // ============================================================================
