@@ -149,13 +149,76 @@ export const useGameStore = create<GameStore>()(
     },
 
     attackUnit: (attackerId: string, targetId: string) => {
+      let pendingEvents: GameEvent[] | null = null;
+      let pendingResolvedState: GameState | null = null;
+
       set((state) => {
-        resolveAttack(state, attackerId, targetId);
-        // Update tile discovery after player action
-        updateDiscovery(state);
-        // Check win/loss conditions after player action
-        checkGameConditions(state);
+        const attacker = state.units[attackerId];
+        const defender = state.units[targetId];
+        if (!attacker || !defender) return;
+
+        const attackerPosition = { x: attacker.position.x, y: attacker.position.y };
+        const defenderPosition = { x: defender.position.x, y: defender.position.y };
+        const attackerHpBefore = attacker.stats.currentHp;
+        const defenderHpBefore = defender.stats.currentHp;
+        const defenderFaction = defender.faction;
+        const attackerFaction = attacker.faction;
+
+        // Take a plain snapshot of the current state so produce() can be called
+        // without nesting immer producers (same pattern as endPlayerTurn).
+        const snapshot: GameState = current(state);
+
+        // Compute the resolved state (post-attack) on the snapshot
+        const resolvedState = produce(snapshot, (draft) => {
+          resolveAttack(draft, attackerId, targetId, true);
+          updateDiscovery(draft);
+          checkGameConditions(draft);
+        });
+
+        // Compute event fields from the resolved state
+        const attackerAfter = resolvedState.units[attackerId];
+        const defenderAfter = resolvedState.units[targetId];
+        const advancedToPosition = (
+          !defenderAfter &&
+          attackerAfter &&
+          (attackerAfter.position.x !== attackerPosition.x || attackerAfter.position.y !== attackerPosition.y)
+        ) ? { x: attackerAfter.position.x, y: attackerAfter.position.y } : null;
+
+        const attackEvent: GameEvent = {
+          type: 'PLAYER_ATTACK',
+          attackerId,
+          defenderId: targetId,
+          attackerPosition,
+          defenderPosition,
+          attackerHpLost: attackerAfter
+            ? attackerHpBefore - attackerAfter.stats.currentHp
+            : attackerHpBefore,
+          defenderHpLost: defenderAfter
+            ? defenderHpBefore - defenderAfter.stats.currentHp
+            : defenderHpBefore,
+          advancedToPosition,
+        };
+
+        const events: GameEvent[] = [attackEvent];
+
+        // Add UNIT_DEATH events for killed units (consumed after the attack animation)
+        if (!defenderAfter) {
+          events.push({ type: 'UNIT_DEATH', unitId: targetId, position: defenderPosition, faction: defenderFaction });
+        }
+        if (!attackerAfter) {
+          events.push({ type: 'UNIT_DEATH', unitId: attackerId, position: attackerPosition, faction: attackerFaction });
+        }
+
+        pendingEvents = events;
+        pendingResolvedState = resolvedState;
+
+        // Lock UI while animation plays (same mechanism as enemy turn)
+        state.phase = GamePhase.ENEMY_TURN;
       });
+
+      if (pendingEvents !== null && pendingResolvedState !== null) {
+        useAnimationStore.getState().enqueue(pendingEvents, pendingResolvedState);
+      }
     },
 
     captureBuilding: (unitId: string, buildingId: string) => {
@@ -366,6 +429,39 @@ export const useGameStore = create<GameStore>()(
                 x: event.attackerPosition.x,
                 y: event.attackerPosition.y,
                 isEnemy: true, // attacker is enemy
+              });
+            }
+            break;
+          }
+
+          case 'PLAYER_ATTACK': {
+            // Apply damage to both units
+            const attacker = state.units[event.attackerId];
+            const defender = state.units[event.defenderId];
+
+            if (defender && event.defenderHpLost > 0) {
+              defender.stats.currentHp -= event.defenderHpLost;
+            }
+            if (attacker && event.attackerHpLost > 0) {
+              attacker.stats.currentHp -= event.attackerHpLost;
+            }
+
+            // Trigger floaters for visual feedback (isEnemy derived from faction)
+            const { addFloater } = useFloaterStore.getState();
+            if (event.defenderHpLost > 0) {
+              addFloater({
+                value: event.defenderHpLost,
+                x: event.defenderPosition.x,
+                y: event.defenderPosition.y,
+                isEnemy: defender?.faction === Faction.ENEMY,
+              });
+            }
+            if (event.attackerHpLost > 0) {
+              addFloater({
+                value: event.attackerHpLost,
+                x: event.attackerPosition.x,
+                y: event.attackerPosition.y,
+                isEnemy: attacker?.faction === Faction.ENEMY,
               });
             }
             break;
