@@ -142,7 +142,6 @@ export interface Building {
   captureProgress: number;
   isBeingCapturedBy: string | null;
   lavaBoostEnabled: boolean;
-  recruitmentQueue: UnitType | null;
   discoverRadius: number;
   turnCapturedByPlayer: number | null;
   wasEnemyOwnedBeforeCapture: boolean;

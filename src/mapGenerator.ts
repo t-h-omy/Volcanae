@@ -130,7 +130,6 @@ function createBuilding(
     captureProgress: 0,
     isBeingCapturedBy: null,
     lavaBoostEnabled: false,
-    recruitmentQueue: null,
     discoverRadius: BUILDINGS.DISCOVER_RADIUS[type],
     turnCapturedByPlayer: null,
     wasEnemyOwnedBeforeCapture: false,

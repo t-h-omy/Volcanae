@@ -3,7 +3,7 @@
  * Implements resource production, recruitment, and unit spawning.
  */
 
-import type { GameState, Building, Position } from './types';
+import type { GameState, Building, Position, Tile } from './types';
 import type { Draft } from 'immer';
 import { Faction, BuildingType, UnitType } from './types';
 import { RESOURCES, UNITS, UNIT_COSTS, MAP } from './gameConfig';
@@ -45,6 +45,27 @@ function getAdjacentPositions(pos: Position): Position[] {
     { x: pos.x - 1, y: pos.y }, // West
   ];
   return adjacent.filter(isWithinBounds);
+}
+
+/**
+ * Returns true if there is at least one free tile (building tile or adjacent)
+ * where a unit can spawn. Can be called with a plain grid (e.g. from the HUD).
+ */
+export function hasSpawnSpaceAt(
+  grid: Tile[][] | Draft<Tile[][]>,
+  position: Position
+): boolean {
+  const tile = (grid as Tile[][])[position.y]?.[position.x];
+  if (tile && tile.unitId === null && !tile.isLava) {
+    return true;
+  }
+  for (const pos of getAdjacentPositions(position)) {
+    const adjTile = (grid as Tile[][])[pos.y]?.[pos.x];
+    if (adjTile && adjTile.unitId === null && !adjTile.isLava) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
@@ -159,12 +180,12 @@ export function canAfford(
 // ============================================================================
 
 /**
- * Recruits a unit from a building by deducting resources and queuing the unit.
- * The unit will spawn at the start of the NEXT turn.
+ * Recruits a unit from a building, spawning it immediately on the map.
+ * The spawned unit cannot move or act until the following turn.
  *
  * Rules:
  * - Cannot recruit from a disabled building
- * - Cannot recruit if building already has a unit queued
+ * - Cannot recruit if there is no free spawn tile (building tile + adjacent)
  * - Cannot recruit if insufficient resources
  * - Building must be player-owned
  * - Building must be a recruitment building
@@ -200,11 +221,6 @@ export function recruitUnit(
     return;
   }
 
-  // Validate building doesn't already have a unit queued
-  if (building.recruitmentQueue !== null) {
-    return;
-  }
-
   // Validate the unit type can be recruited from this building
   const validUnitType = getUnitTypeForBuilding(building.type);
   if (validUnitType !== unitType) {
@@ -222,78 +238,40 @@ export function recruitUnit(
     return;
   }
 
+  // Find spawn position — reject if no free tile available
+  const spawnPosition = findSpawnPosition(state, building.position);
+  if (spawnPosition === null) {
+    return;
+  }
+
   // Deduct resources
   state.resources.iron -= cost.iron;
   state.resources.wood -= cost.wood;
 
-  // Queue the unit
-  building.recruitmentQueue = unitType;
-}
+  // Spawn the unit immediately, but flag it as having used all actions this turn
+  const unitId = generateUnitId();
+  state.units[unitId] = {
+    id: unitId,
+    type: unitType,
+    faction: Faction.PLAYER,
+    position: { ...spawnPosition },
+    stats: {
+      maxHp: UNITS[unitType].maxHp,
+      currentHp: UNITS[unitType].maxHp,
+      attack: UNITS[unitType].attack,
+      defense: UNITS[unitType].defense,
+      moveRange: UNITS[unitType].moveRange,
+      discoverRadius: UNITS[unitType].discoverRadius,
+      triggerRange: UNITS[unitType].triggerRange,
+      movementActions: UNITS[unitType].movementActions,
+      attackRange: UNITS[unitType].attackRange,
+    },
+    tags: [],
+    hasMovedThisTurn: true,
+    hasActedThisTurn: true,
+    hasCapturedThisTurn: true,
+  };
 
-// ============================================================================
-// UNIT SPAWNING
-// ============================================================================
-
-/**
- * Spawns all queued units from recruitment buildings.
- * Called at the start of the player turn.
- *
- * Rules:
- * - Unit spawns on the building tile if free
- * - If tile is occupied, spawns on nearest free adjacent tile
- * - If no free tile is found, the unit is lost (edge case)
- *
- * @param state - Immer draft of the game state (will be mutated)
- */
-export function spawnQueuedUnits(state: Draft<GameState>): void {
-  for (const building of Object.values(state.buildings)) {
-    // Skip buildings without queued units
-    if (building.recruitmentQueue === null) {
-      continue;
-    }
-
-    // Only spawn from player-owned buildings
-    if (building.faction !== Faction.PLAYER) {
-      building.recruitmentQueue = null;
-      continue;
-    }
-
-    const unitType = building.recruitmentQueue;
-    const spawnPosition = findSpawnPosition(state, building.position);
-
-    // Clear the queue regardless of spawn success
-    building.recruitmentQueue = null;
-
-    // If no spawn position found, unit is lost
-    if (spawnPosition === null) {
-      continue;
-    }
-
-    // Create the unit
-    const unitId = generateUnitId();
-    state.units[unitId] = {
-      id: unitId,
-      type: unitType,
-      faction: Faction.PLAYER,
-      position: { ...spawnPosition },
-      stats: {
-        maxHp: UNITS[unitType].maxHp,
-        currentHp: UNITS[unitType].maxHp,
-        attack: UNITS[unitType].attack,
-        defense: UNITS[unitType].defense,
-        moveRange: UNITS[unitType].moveRange,
-        discoverRadius: UNITS[unitType].discoverRadius,
-        triggerRange: UNITS[unitType].triggerRange,
-        movementActions: UNITS[unitType].movementActions,
-        attackRange: UNITS[unitType].attackRange,
-      },
-      tags: [],
-      hasMovedThisTurn: false,
-      hasActedThisTurn: false,
-      hasCapturedThisTurn: false,
-    };
-
-    // Place unit on the grid
-    state.grid[spawnPosition.y][spawnPosition.x].unitId = unitId;
-  }
+  // Place unit on the grid
+  state.grid[spawnPosition.y][spawnPosition.x].unitId = unitId;
 }
