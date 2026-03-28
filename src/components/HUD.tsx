@@ -256,7 +256,9 @@ function SelectedUnitPanel({
               disabled={!canCapture}
               onClick={onCapture}
             >
-              🏳️ Capture {BUILDING_NAME[captureTarget.type] ?? captureTarget.type}
+              {unit.hasMovedThisTurn
+                ? '🏳️ Capture — move here first'
+                : `🏳️ Capture ${BUILDING_NAME[captureTarget.type] ?? captureTarget.type}`}
             </button>
           )}
         </>

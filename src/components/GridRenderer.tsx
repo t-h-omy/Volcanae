@@ -8,6 +8,7 @@ import { useGameStore } from '../gameStore';
 import { useFloaterStore } from '../floaterStore';
 import { useAnimationStore } from '../animationStore';
 import { getReachableTiles } from '../movementSystem';
+import { canCapture } from '../captureSystem';
 import { MAP, RENDER, UI, ANIMATION } from '../gameConfig';
 import {
   Faction,
@@ -408,6 +409,7 @@ export default function GridRenderer() {
             );
           }),
         )}
+        <CaptureIndicatorLayer tileSize={tileSize} />
         <DamageFloaterLayer tileSize={tileSize} />
       </div>
     </div>
@@ -539,8 +541,57 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
 }
 
 // ============================================================================
-// DAMAGE FLOATER LAYER
+// CAPTURE INDICATOR LAYER
 // ============================================================================
+
+function CaptureIndicatorLayer({ tileSize }: { tileSize: number }) {
+  const units = useGameStore((s) => s.units);
+  const buildings = useGameStore((s) => s.buildings);
+
+  const captureReadyPositions = useMemo(() => {
+    const state = useGameStore.getState();
+    const result: Array<{ key: string; x: number; y: number }> = [];
+    for (const unit of Object.values(units)) {
+      if (unit.faction !== Faction.PLAYER) continue;
+      for (const building of Object.values(buildings)) {
+        if (
+          building.position.x === unit.position.x &&
+          building.position.y === unit.position.y &&
+          building.faction !== Faction.PLAYER
+        ) {
+          if (canCapture(state, unit.id, building.id)) {
+            result.push({ key: building.id, x: unit.position.x, y: unit.position.y });
+          }
+        }
+      }
+    }
+    return result;
+  }, [units, buildings]);
+
+  if (captureReadyPositions.length === 0) return null;
+
+  return (
+    <div className="capture-indicator-layer">
+      {captureReadyPositions.map(({ key, x, y }) => (
+        <div
+          key={key}
+          className="capture-indicator"
+          style={
+            {
+              left: x * tileSize,
+              top: y * tileSize,
+              width: tileSize,
+              '--capture-bounce-duration': `${UI.CAPTURE_INDICATOR_BOUNCE_DURATION_MS}ms`,
+            } as React.CSSProperties
+          }
+        >
+          <span className="capture-bubble">💬</span>
+          <span className="capture-fire">🔥</span>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function DamageFloaterLayer({ tileSize }: { tileSize: number }) {
   const floaters = useFloaterStore((s) => s.floaters);

@@ -278,6 +278,8 @@ export const UI = {
   DAMAGE_FLOAT_DURATION_MS: 2000,
   /** How far upward the number floats (half a tile height) */
   DAMAGE_FLOAT_RISE_PX: 20,
+  /** Duration of the bounce animation on the capture-ready indicator */
+  CAPTURE_INDICATOR_BOUNCE_DURATION_MS: 700,
 } as const;
 
 // ============================================================================
