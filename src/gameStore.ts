@@ -28,7 +28,7 @@ import {
 import { checkGameConditions } from './gameConditions';
 import { useFloaterStore } from './floaterStore';
 import { useAnimationStore } from './animationStore';
-import { Faction, GamePhase } from './types';
+import { Faction, GamePhase, BuildingType } from './types';
 import type { GameState, UnitType, Position } from './types';
 import type { GameEvent } from './gameEvents';
 import { MAP, LAVA } from './gameConfig';
@@ -102,12 +102,20 @@ export const useGameStore = create<GameStore>()(
     // ========================================================================
 
     initGame: () => {
+      const initialState = generateInitialGameState();
       set((state) => {
-        const newState = generateInitialGameState();
-        Object.assign(state, newState);
+        Object.assign(state, initialState);
         // Update tile discovery based on initial unit positions
         updateDiscovery(state);
       });
+
+      // Sync camera to the player's starting stronghold
+      const stronghold = Object.values(initialState.buildings).find(
+        (b) => b.type === BuildingType.STRONGHOLD && b.faction === Faction.PLAYER
+      );
+      if (stronghold) {
+        useAnimationStore.getState().setCameraTarget(stronghold.position);
+      }
     },
 
     selectUnit: (unitId: string) => {
