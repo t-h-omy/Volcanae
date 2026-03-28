@@ -80,6 +80,13 @@ const BUILDING_RECRUITS: Partial<Record<string, string>> = {
 // GAME MENU
 // ============================================================================
 
+function getDisplayVersion(full: string): string {
+  const parts = full.split('.');
+  return parts.length > 1 ? parts.slice(1).join('.') : full;
+}
+
+const displayVersion = getDisplayVersion(__APP_VERSION__);
+
 function GameMenu() {
   const [open, setOpen] = useState(false);
   const initGame = useGameStore((s) => s.initGame);
@@ -136,6 +143,7 @@ function GameMenu() {
             <button className="hud-menu-item" role="menuitem" onClick={handleResetCache}>
               🗑️ Reset Cache &amp; Reload
             </button>
+            <div className="hud-menu-version">v{displayVersion}</div>
           </div>
         </>
       )}
