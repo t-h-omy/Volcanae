@@ -518,6 +518,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
   const hpPct = (unit.stats.currentHp / unit.stats.maxHp) * 100;
   const hasLavaBoost = unit.tags.includes(UnitTag.LAVA_BOOST);
   const unitEmojiSize = Math.floor(tileSize * 0.8);
+  const isExhausted = unit.hasActedThisTurn && unit.hasMovedThisTurn;
 
   const anim = useCombatAnimationStore((s) => s.unitAnimations.get(unit.id));
 
@@ -542,6 +543,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
       style={
         {
           ...animStyle,
+          opacity: isExhausted ? RENDER.UNIT_EXHAUSTED_OPACITY : undefined,
           '--hit-shake-duration': `${ANIMATION.HIT_SHAKE_DURATION_MS}ms`,
           '--die-flash-duration': `${ANIMATION.DIE_FLASH_DURATION_MS}ms`,
           '--die-fade-duration': `${ANIMATION.DIE_FADE_DURATION_MS}ms`,

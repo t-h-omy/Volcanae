@@ -213,6 +213,10 @@ function createEnemyUnit(
   let finalAttack: number = baseAttack;
   const tags: UnitTag[] = [];
 
+  if (UNITS[unitType].attackRange > 1) {
+    tags.push(UnitTag.RANGED);
+  }
+
   if (lavaBoostEnabled) {
     const boostFactor = calculateLavaBoostFactor(buildingPosition, lavaFrontRow);
     const boostMultiplier = 1 + boostFactor * ENEMY.MAX_LAVA_BOOST_MULTIPLIER;

@@ -7,6 +7,7 @@ import { MAP, LAVA, UNITS, BUILDINGS } from './gameConfig';
 import {
   Faction,
   UnitType,
+  UnitTag,
   BuildingType,
   TileType,
   GamePhase,
@@ -250,7 +251,7 @@ function createUnit(
       movementActions: UNITS[type].movementActions,
       attackRange: UNITS[type].attackRange,
     },
-    tags: [],
+    tags: UNITS[type].attackRange > 1 ? [UnitTag.RANGED] : [],
     hasMovedThisTurn: false,
     hasActedThisTurn: false,
     hasCapturedThisTurn: false,
