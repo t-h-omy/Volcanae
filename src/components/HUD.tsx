@@ -198,6 +198,7 @@ function SelectedUnitPanel({
   const canCapture =
     !unit.hasCapturedThisTurn &&
     !unit.hasActedThisTurn &&
+    !unit.hasMovedThisTurn &&
     !unit.tags.includes(UnitTag.NO_CAPTURE);
 
   const visibleTags = unit.tags.filter((t) => !HIDDEN_UNIT_TAGS.has(t));
