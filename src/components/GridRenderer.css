@@ -155,3 +155,41 @@
   0%   { transform: translateX(-50%) translateY(0);                    opacity: 1; }
   100% { transform: translateX(-50%) translateY(var(--float-rise, -20px)); opacity: 0; }
 }
+
+/* ── Capture Indicator Layer ── */
+
+.capture-indicator-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9;
+}
+
+.capture-indicator {
+  position: absolute;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(-60%);
+  animation: captureIndicatorBounce var(--capture-bounce-duration, 700ms) ease-in-out infinite alternate;
+}
+
+.capture-bubble {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.capture-fire {
+  position: absolute;
+  font-size: 10px;
+  transform: translate(1px, -1px);
+}
+
+@keyframes captureIndicatorBounce {
+  0%   { transform: translateY(-60%); }
+  100% { transform: translateY(-80%); }
+}
