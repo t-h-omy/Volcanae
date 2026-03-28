@@ -193,3 +193,84 @@
   0%   { transform: translateY(-60%); }
   100% { transform: translateY(-80%); }
 }
+
+/* ── Combat Animations ── */
+
+/* Hit shake — rapid horizontal oscillation */
+.anim-hit .unit-main-emoji {
+  animation: unitHit var(--hit-shake-duration, 280ms) linear;
+}
+
+@keyframes unitHit {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-5px); }
+  40%      { transform: translateX(5px); }
+  60%      { transform: translateX(-4px); }
+  80%      { transform: translateX(4px); }
+}
+
+/* Dying — skull flash + fade */
+.anim-dying {
+  position: relative;
+}
+
+.anim-dying .unit-main-emoji {
+  animation: dyingUnitFlash var(--die-flash-duration, 540ms) linear forwards,
+             dyingFadeOut var(--die-fade-duration, 200ms) linear var(--die-flash-duration, 540ms) forwards;
+}
+
+.anim-dying .unit-skull-emoji {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  line-height: 1;
+  opacity: 0;
+  animation: dyingSkullFlash var(--die-flash-duration, 540ms) linear forwards,
+             dyingFadeOut var(--die-fade-duration, 200ms) linear var(--die-flash-duration, 540ms) forwards;
+}
+
+/* Unit emoji flashes: visible on odd cycles */
+@keyframes dyingUnitFlash {
+  0%, 34%, 67%  { opacity: 1; }
+  17%, 50%, 84% { opacity: 0; }
+  100%          { opacity: 0; }
+}
+
+/* Skull flashes: visible on even cycles (offset from unit) */
+@keyframes dyingSkullFlash {
+  0%, 34%, 67%  { opacity: 0; }
+  17%, 50%, 84% { opacity: 1; }
+  100%          { opacity: 0; }
+}
+
+/* Final fade out */
+@keyframes dyingFadeOut {
+  0%   { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ── Projectile Layer ── */
+
+.projectile-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 11;
+}
+
+.projectile-emoji {
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-size: 18px;
+  line-height: 1;
+  pointer-events: none;
+  will-change: transform;
+  /* Center the emoji on the position */
+  margin-left: -9px;
+  margin-top: -9px;
+}

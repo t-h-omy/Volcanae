@@ -7,6 +7,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useGameStore } from '../gameStore';
 import { useFloaterStore } from '../floaterStore';
 import { useAnimationStore } from '../animationStore';
+import { useCombatAnimationStore } from '../combatAnimationStore';
 import { getReachableTiles } from '../movementSystem';
 import { canCapture } from '../captureSystem';
 import { MAP, RENDER, UI, ANIMATION } from '../gameConfig';
@@ -411,6 +412,7 @@ export default function GridRenderer() {
         )}
         <CaptureIndicatorLayer tileSize={tileSize} />
         <DamageFloaterLayer tileSize={tileSize} />
+        <ProjectileLayer />
       </div>
     </div>
   );
@@ -516,8 +518,35 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
   const hasLavaBoost = unit.tags.includes(UnitTag.LAVA_BOOST);
   const unitEmojiSize = Math.floor(tileSize * 0.8);
 
+  const anim = useCombatAnimationStore((s) => s.unitAnimations.get(unit.id));
+
+  const animClass =
+    anim?.type === 'HIT'
+      ? 'anim-hit'
+      : anim?.type === 'DYING'
+        ? 'anim-dying'
+        : '';
+
+  const animStyle: React.CSSProperties | undefined =
+    anim?.type === 'LUNGE' || anim?.type === 'RECOIL'
+      ? {
+          transform: `translate(${anim.dx}px, ${anim.dy}px)`,
+          transition: `transform ${anim.type === 'LUNGE' ? ANIMATION.MELEE_LUNGE_DURATION_MS / 2 : ANIMATION.RANGED_RECOIL_DURATION_MS}ms ${anim.type === 'LUNGE' ? 'ease-out' : 'ease-out'}`,
+        }
+      : undefined;
+
   return (
-    <div className="tile-unit">
+    <div
+      className={`tile-unit ${animClass}`}
+      style={
+        {
+          ...animStyle,
+          '--hit-shake-duration': `${ANIMATION.HIT_SHAKE_DURATION_MS}ms`,
+          '--die-flash-duration': `${ANIMATION.DIE_FLASH_DURATION_MS}ms`,
+          '--die-fade-duration': `${ANIMATION.DIE_FADE_DURATION_MS}ms`,
+        } as React.CSSProperties
+      }
+    >
       <div
         className="hp-bar-wrapper"
         style={
@@ -529,7 +558,14 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
       >
         <div className="hp-bar-fill" style={{ width: `${hpPct}%` }} />
       </div>
-      <span className="unit-emoji" style={{ fontSize: `${unitEmojiSize}px` }}>{UNIT_EMOJI[unit.type] ?? '?'}</span>
+      <span className="unit-main-emoji unit-emoji" style={{ fontSize: `${unitEmojiSize}px` }}>
+        {UNIT_EMOJI[unit.type] ?? '?'}
+      </span>
+      {anim?.type === 'DYING' && (
+        <span className="unit-skull-emoji" style={{ fontSize: `${unitEmojiSize}px` }}>
+          💀
+        </span>
+      )}
       {hasLavaBoost && (
         <div
           className="lava-boost-bar"
@@ -615,5 +651,63 @@ function DamageFloaterLayer({ tileSize }: { tileSize: number }) {
         </div>
       ))}
     </div>
+  );
+}
+
+// ============================================================================
+// PROJECTILE LAYER
+// ============================================================================
+
+function ProjectileLayer() {
+  const projectiles = useCombatAnimationStore((s) => s.projectiles);
+  const removeProjectile = useCombatAnimationStore((s) => s.removeProjectile);
+
+  return (
+    <div className="projectile-layer">
+      {projectiles.map((p) => (
+        <ProjectileSprite key={p.id} projectile={p} onDone={() => removeProjectile(p.id)} />
+      ))}
+    </div>
+  );
+}
+
+function ProjectileSprite({
+  projectile,
+  onDone,
+}: {
+  projectile: { id: string; fromPx: { x: number; y: number }; toPx: { x: number; y: number }; emoji: string; rotationDeg: number; durationMs: number };
+  onDone: () => void;
+}) {
+  const ref = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    // Force the browser to apply the starting position before transitioning
+    el.getBoundingClientRect();
+
+    // Trigger transition to destination
+    el.style.transform = `translate(${projectile.toPx.x}px, ${projectile.toPx.y}px) rotate(${projectile.rotationDeg}deg)`;
+    el.style.opacity = '1';
+
+    const timer = setTimeout(onDone, projectile.durationMs);
+    return () => clearTimeout(timer);
+  }, [projectile, onDone]);
+
+  return (
+    <span
+      ref={ref}
+      className="projectile-emoji"
+      style={
+        {
+          transform: `translate(${projectile.fromPx.x}px, ${projectile.fromPx.y}px) rotate(${projectile.rotationDeg}deg)`,
+          transition: `transform ${projectile.durationMs}ms linear`,
+          '--projectile-duration': `${projectile.durationMs}ms`,
+        } as React.CSSProperties
+      }
+    >
+      {projectile.emoji}
+    </span>
   );
 }
