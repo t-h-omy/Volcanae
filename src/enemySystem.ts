@@ -136,7 +136,7 @@ function saturationPenalty(targetId: string, targetingIntents: Map<string, numbe
   return (targetingIntents.get(targetId) ?? 0) * AI_SCORING.SATURATION_PENALTY_PER_ALLY;
 }
 
-function projectCombatScore(attacker: Unit, defender: Unit, isRanged: boolean): number {
+function projectCombatScore(attacker: Unit, defender: Unit): number {
   const { attackerHpLost, defenderHpLost } = calculateCombat(attacker, defender);
   let bonus = 0;
 
@@ -144,7 +144,13 @@ function projectCombatScore(attacker: Unit, defender: Unit, isRanged: boolean): 
     bonus += AI_SCORING.KILL_BONUS;
   }
 
-  if (!isRanged && attackerHpLost >= attacker.stats.currentHp) {
+  const defenderCanCounter = isTileWithinEdgeCircleRange(
+    defender.position.x, defender.position.y,
+    attacker.position.x, attacker.position.y,
+    defender.stats.attackRange,
+  );
+
+  if (defenderCanCounter && attackerHpLost >= attacker.stats.currentHp) {
     const isLowHp = attacker.stats.currentHp < attacker.stats.maxHp * AI_SCORING.LOW_HP_THRESHOLD;
     bonus -= AI_SCORING.DEATH_RISK_PENALTY * (isLowHp ? AI_SCORING.LOW_HP_RISK_FACTOR : 1);
   }
@@ -378,7 +384,7 @@ function scoreActionsForUnit(
       const distance = manhattanDistance(unit.position, target.position);
       const score = AI_SCORING.BASE_INTERCEPT_CAPTOR
         - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
-        + projectCombatScore(unit, target, false)
+        + projectCombatScore(unit, target)
         + AI_SCORING.BONUS_PLAYER_CAPTURING
         - saturationPenalty(target.id, targetingIntents);
       candidates.push({ type: 'INTERCEPT_CAPTOR', score: Math.max(0, score), targetUnitId: target.id, targetPosition: target.position });
@@ -450,7 +456,7 @@ function scoreActionsForUnit(
     let bestTarget: Unit | null = null;
     let bestCombatScore = -Infinity;
     for (const target of playerUnitsInAttackRange) {
-      const cs = projectCombatScore(unit, target, false);
+      const cs = projectCombatScore(unit, target);
       if (cs > bestCombatScore) {
         bestCombatScore = cs;
         bestTarget = target;
@@ -460,7 +466,7 @@ function scoreActionsForUnit(
       const distance = manhattanDistance(unit.position, bestTarget.position);
       const score = AI_SCORING.BASE_ATTACK_UNIT
         - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
-        + projectCombatScore(unit, bestTarget, false)
+        + projectCombatScore(unit, bestTarget)
         - saturationPenalty(bestTarget.id, targetingIntents);
       candidates.push({ type: 'ATTACK_UNIT', score: Math.max(0, score), targetUnitId: bestTarget.id, targetPosition: bestTarget.position });
     }
@@ -475,7 +481,7 @@ function scoreActionsForUnit(
       const distance = manhattanDistance(unit.position, target.position);
       const score = AI_SCORING.BASE_RANGED_ATTACK_UNIT
         - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
-        + projectCombatScore(unit, target, true)
+        + projectCombatScore(unit, target)
         + AI_SCORING.BONUS_RANGED_SAFE_ATTACK
         - saturationPenalty(target.id, targetingIntents);
       candidates.push({ type: 'RANGED_ATTACK_UNIT', score: Math.max(0, score), targetUnitId: target.id, targetPosition: target.position });

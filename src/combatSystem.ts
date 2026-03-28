@@ -7,6 +7,7 @@ import type { Unit, GameState } from './types';
 import type { Draft } from 'immer';
 import { Faction } from './types';
 import { useFloaterStore } from './floaterStore';
+import { isTileWithinEdgeCircleRange } from './rangeUtils';
 
 // ============================================================================
 // COMBAT RESULT INTERFACE
@@ -67,7 +68,8 @@ export function calculateCombat(attacker: Unit, defender: Unit): CombatResult {
 /**
  * Resolves an attack between two units by mutating the draft state.
  * - Applies damage to defender
- * - If defender survives, applies counter-damage to attacker
+ * - If defender survives AND the attacker is within the defender's attack range,
+ *   applies counter-damage to attacker
  * - Removes dead units from state
  * - Marks attacker as having acted and moved this turn
  *
@@ -96,8 +98,13 @@ export function resolveAttack(
   const newDefenderHp = defender.stats.currentHp - combatResult.defenderHpLost;
   const defenderDead = newDefenderHp <= 0;
 
-  // If defender survives, apply counter-damage to attacker
-  const attackerTakesCounterDamage = !defenderDead;
+  // If defender survives AND attacker is within defender's attack range, apply counter-damage
+  const defenderCanCounterAttack = isTileWithinEdgeCircleRange(
+    defender.position.x, defender.position.y,
+    attacker.position.x, attacker.position.y,
+    defender.stats.attackRange,
+  );
+  const attackerTakesCounterDamage = !defenderDead && defenderCanCounterAttack;
   const newAttackerHp = attackerTakesCounterDamage
     ? attacker.stats.currentHp - combatResult.attackerHpLost
     : attacker.stats.currentHp;
