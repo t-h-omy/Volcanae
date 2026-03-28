@@ -33,6 +33,7 @@ function eventPosition(event: GameEvent): Position {
     case 'ENEMY_MOVE':
       return event.to;
     case 'ENEMY_ATTACK':
+    case 'PLAYER_ATTACK':
       return event.defenderPosition;
     case 'UNIT_DEATH':
       return event.position;
@@ -64,6 +65,7 @@ function isEventVisible(event: GameEvent): boolean {
     case 'ENEMY_MOVE':
       return isTileRevealed(event.from) || isTileRevealed(event.to);
     case 'ENEMY_ATTACK':
+    case 'PLAYER_ATTACK':
       return isTileRevealed(event.attackerPosition) || isTileRevealed(event.defenderPosition);
     case 'UNIT_DEATH':
       return isTileRevealed(event.position);
@@ -147,11 +149,11 @@ function projectileEmoji(unitType: string): string {
 // ============================================================================
 
 /**
- * Plays the full combat animation sequence for an ENEMY_ATTACK event.
+ * Plays the full combat animation sequence for an ENEMY_ATTACK or PLAYER_ATTACK event.
  * Returns the set of unit IDs that died (so the caller can consume UNIT_DEATH events).
  */
 async function playAttackAnimation(
-  event: Extract<GameEvent, { type: 'ENEMY_ATTACK' }>,
+  event: Extract<GameEvent, { type: 'ENEMY_ATTACK' | 'PLAYER_ATTACK' }>,
   visible: boolean,
 ): Promise<Set<string>> {
   const store = useCombatAnimationStore.getState();
@@ -299,8 +301,8 @@ export function useAnimationEngine(): void {
           await wait(ANIMATION.PRE_ACTION_IDLE_MS);
         }
 
-        // ── Special handling for ENEMY_ATTACK with combat animations ──
-        if (event.type === 'ENEMY_ATTACK') {
+        // ── Special handling for ENEMY_ATTACK or PLAYER_ATTACK with combat animations ──
+        if (event.type === 'ENEMY_ATTACK' || event.type === 'PLAYER_ATTACK') {
           const dyingIds = await playAttackAnimation(event, visible);
 
           // Consume following UNIT_DEATH events that were already animated
