@@ -386,30 +386,45 @@ function scoreActionsForUnit(
   }
 
   // ── INTERCEPT_CAPTOR ──
+  // This action can either attack immediately (if in range) or move toward the captor.
+  // Apply penalty only if attacking first (target in range and unit hasn't moved).
   {
     const captors = playerUnitsInTriggerRange.filter(u => u.hasCapturedThisTurn);
     if (captors.length > 0) {
       captors.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
       const target = captors[0];
       const distance = manhattanDistance(unit.position, target.position);
+      // Check if target is in attack range (if so, attacking will exhaust movement)
+      const inAttackRange = isTileWithinEdgeCircleRange(
+        unit.position.x, unit.position.y,
+        target.position.x, target.position.y,
+        attackRange,
+      );
+      // Apply penalty only if we would attack immediately (in range, unit hasn't moved)
+      const actionBeforeMovePenalty = (inAttackRange && !unit.hasMovedThisTurn) ? AI_SCORING.ACTION_BEFORE_MOVE_PENALTY : 0;
       const score = AI_SCORING.BASE_INTERCEPT_CAPTOR
         - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
         + projectCombatScore(unit, target)
         + AI_SCORING.BONUS_PLAYER_CAPTURING
-        - saturationPenalty(target.id, targetingIntents);
+        - saturationPenalty(target.id, targetingIntents)
+        - actionBeforeMovePenalty;
       candidates.push({ type: 'INTERCEPT_CAPTOR', score: Math.max(0, score), targetUnitId: target.id, targetPosition: target.position });
     }
   }
 
   // ── CAPTURE_BUILDING ──
+  // Capturing exhausts movement, so apply penalty if unit hasn't moved yet.
   if (!unit.hasActedThisTurn) {
     const tile = state.grid[unit.position.y][unit.position.x];
     if (tile.buildingId) {
       const building = state.buildings[tile.buildingId];
       if (building && building.faction !== Faction.ENEMY) {
+        // Apply penalty if unit hasn't moved yet (capturing will exhaust movement)
+        const actionBeforeMovePenalty = !unit.hasMovedThisTurn ? AI_SCORING.ACTION_BEFORE_MOVE_PENALTY : 0;
         const score = AI_SCORING.BASE_CAPTURE_BUILDING
           * buildingValueMultiplier(building.type)
-          - saturationPenalty(building.id, targetingIntents);
+          - saturationPenalty(building.id, targetingIntents)
+          - actionBeforeMovePenalty;
         candidates.push({ type: 'CAPTURE_BUILDING', score: Math.max(0, score), targetBuildingId: building.id, targetPosition: building.position });
       }
     }
@@ -462,6 +477,8 @@ function scoreActionsForUnit(
   }
 
   // ── ATTACK_UNIT ──
+  // Attacking exhausts movement, so we apply a penalty when the unit hasn't moved yet
+  // to encourage the AI to consider movement options before committing to an attack.
   if (!unit.hasActedThisTurn && playerUnitsInAttackRange.length > 0) {
     let bestTarget: Unit | null = null;
     let bestCombatScore = -Infinity;
@@ -474,26 +491,33 @@ function scoreActionsForUnit(
     }
     if (bestTarget) {
       const distance = manhattanDistance(unit.position, bestTarget.position);
+      // Apply penalty if unit hasn't moved yet (attacking first loses movement opportunity)
+      const actionBeforeMovePenalty = !unit.hasMovedThisTurn ? AI_SCORING.ACTION_BEFORE_MOVE_PENALTY : 0;
       const score = AI_SCORING.BASE_ATTACK_UNIT
         - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
         + projectCombatScore(unit, bestTarget)
-        - saturationPenalty(bestTarget.id, targetingIntents);
+        - saturationPenalty(bestTarget.id, targetingIntents)
+        - actionBeforeMovePenalty;
       candidates.push({ type: 'ATTACK_UNIT', score: Math.max(0, score), targetUnitId: bestTarget.id, targetPosition: bestTarget.position });
     }
   }
 
   // ── RANGED_ATTACK_UNIT ──
+  // Attacking exhausts movement, so we apply a penalty when the unit hasn't moved yet.
   if (!unit.hasActedThisTurn && unit.tags.includes(UnitTag.RANGED)) {
     const rangedTargets = playerUnitsInAttackRange.filter(u => manhattanDistance(unit.position, u.position) > 1);
     if (rangedTargets.length > 0) {
       rangedTargets.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
       const target = rangedTargets[0];
       const distance = manhattanDistance(unit.position, target.position);
+      // Apply penalty if unit hasn't moved yet (attacking first loses movement opportunity)
+      const actionBeforeMovePenalty = !unit.hasMovedThisTurn ? AI_SCORING.ACTION_BEFORE_MOVE_PENALTY : 0;
       const score = AI_SCORING.BASE_RANGED_ATTACK_UNIT
         - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
         + projectCombatScore(unit, target)
         + AI_SCORING.BONUS_RANGED_SAFE_ATTACK
-        - saturationPenalty(target.id, targetingIntents);
+        - saturationPenalty(target.id, targetingIntents)
+        - actionBeforeMovePenalty;
       candidates.push({ type: 'RANGED_ATTACK_UNIT', score: Math.max(0, score), targetUnitId: target.id, targetPosition: target.position });
     }
   }

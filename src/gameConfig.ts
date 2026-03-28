@@ -234,6 +234,11 @@ export const AI_SCORING = {
   // Lava-specific
   BONUS_LAVA_BOOST_AGGRESSION: 25,
   BONUS_SACRIFICE_PER_THREAT_BELOW_5: 3,
+
+  // Action-before-move penalty: applied to attack/capture actions when unit hasn't moved yet,
+  // to encourage the AI to consider movement options before committing to an action that exhausts movement.
+  // Higher values make the AI more likely to move first when beneficial.
+  ACTION_BEFORE_MOVE_PENALTY: 10,
 } as const;
 
 // ============================================================================
