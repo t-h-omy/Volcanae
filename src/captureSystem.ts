@@ -159,16 +159,17 @@ export function canCapture(
 // ============================================================================
 
 /**
- * Initiates capture of a building by a unit.
- * The capture will complete at the start of the next turn (via resolveCaptures).
- * A unit must not have moved this turn to initiate capture (i.e. must have been
+ * Captures a building immediately for a unit.
+ * A unit must not have moved this turn to capture (i.e. must have been
  * standing on the building at the start of the turn).
- * While capturing:
- * - Unit cannot move, attack, or do anything else
- * - hasCapturedThisTurn, hasMovedThisTurn, hasActedThisTurn are all set to true
+ * On success:
+ * - Building faction is immediately transferred to the capturing unit's faction
+ * - Any specialist in the building from the previous faction is removed
+ * - If the building is a STRONGHOLD, zones are updated and threat may increase
+ * - Unit is marked as having used all actions for this turn
  *
  * @param state - Immer draft of the game state (will be mutated)
- * @param unitId - ID of the unit initiating capture
+ * @param unitId - ID of the unit capturing the building
  * @param buildingId - ID of the building to capture
  */
 export function initiateCapture(
@@ -183,15 +184,41 @@ export function initiateCapture(
 
   const unit = state.units[unitId];
   const building = state.buildings[buildingId];
+  const previousFaction = building.faction;
 
   // Mark unit as having performed all actions (locked for this turn)
   unit.hasMovedThisTurn = true;
   unit.hasActedThisTurn = true;
   unit.hasCapturedThisTurn = true;
 
-  // Mark building as being captured
-  building.isBeingCapturedBy = unitId;
-  building.captureProgress = 1;
+  // Track when building was captured by player (for enemy AI retake logic)
+  if (unit.faction === Faction.PLAYER) {
+    building.wasEnemyOwnedBeforeCapture = previousFaction === Faction.ENEMY;
+    building.turnCapturedByPlayer = state.turn;
+  } else {
+    building.turnCapturedByPlayer = null;
+  }
+
+  // Immediately transfer building ownership
+  building.faction = unit.faction;
+
+  // If building had a specialist, remove it (canCapture guarantees previousFaction !== unit.faction)
+  if (building.specialistSlot) {
+    const specialistId = building.specialistSlot;
+    if (state.specialists[specialistId]) {
+      delete state.specialists[specialistId];
+    }
+    building.specialistSlot = null;
+  }
+
+  // If it's a stronghold, update zones and threat level
+  if (building.type === BuildingType.STRONGHOLD) {
+    updateZonesUnlocked(state, unit.faction);
+    // Increase threat level when player captures a stronghold
+    if (unit.faction === Faction.PLAYER) {
+      increaseThreatOnStrongholdCapture(state);
+    }
+  }
 }
 
 // ============================================================================
@@ -199,13 +226,11 @@ export function initiateCapture(
 // ============================================================================
 
 /**
- * Resolves all pending captures at the end of the turn.
- * For each building being captured:
- * - If the capturing unit still exists, complete the capture
- * - Change building faction to capturing unit's faction
- * - If building had an enemy specialist, remove it
- * - If captured building is a STRONGHOLD, update zonesUnlocked
- * - Reset building capture state
+ * Resolves any remaining pending captures (legacy / edge-case safety).
+ * Since initiateCapture now completes captures immediately, this function
+ * is a no-op under normal game flow. It is kept to handle any edge cases
+ * where isBeingCapturedBy may still be set (e.g. from enemy captures that
+ * were initiated on a snapshot before this change).
  *
  * @param state - Immer draft of the game state (will be mutated)
  */
