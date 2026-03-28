@@ -518,7 +518,23 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
   const hpPct = (unit.stats.currentHp / unit.stats.maxHp) * 100;
   const hasLavaBoost = unit.tags.includes(UnitTag.LAVA_BOOST);
   const unitEmojiSize = Math.floor(tileSize * 0.8);
-  const isExhausted = unit.hasActedThisTurn && unit.hasMovedThisTurn;
+
+  // A player unit that has moved but has no valid attack targets left to hit
+  // should also appear exhausted — there's nothing more it can do this turn.
+  const noAttackTargets = useGameStore((s) => {
+    if (unit.faction !== Faction.PLAYER || !unit.hasMovedThisTurn || unit.hasActedThisTurn) return false;
+    return !Object.values(s.units).some(
+      (other) =>
+        other.faction === Faction.ENEMY &&
+        isTileWithinEdgeCircleRange(
+          unit.position.x, unit.position.y,
+          other.position.x, other.position.y,
+          unit.stats.attackRange,
+        ),
+    );
+  });
+
+  const isExhausted = (unit.hasActedThisTurn && unit.hasMovedThisTurn) || noAttackTargets;
 
   const anim = useCombatAnimationStore((s) => s.unitAnimations.get(unit.id));
 
