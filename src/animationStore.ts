@@ -7,6 +7,7 @@
 import { create } from 'zustand';
 import type { GameEvent } from './gameEvents';
 import type { GameState, Position } from './types';
+import { MAP } from './gameConfig';
 
 // ============================================================================
 // TYPES
@@ -48,7 +49,10 @@ type AnimationStore = AnimationState & AnimationActions;
 export const useAnimationStore = create<AnimationStore>((set, get) => ({
   eventQueue: [],
   resolvedState: null,
-  cameraTarget: { x: 0, y: 0 },
+  cameraTarget: {
+    x: Math.floor(MAP.GRID_WIDTH / 2),
+    y: MAP.LAVA_BUFFER_ROWS + Math.floor(MAP.ZONE_HEIGHT / 2),
+  },
   isAnimating: false,
 
   enqueue: (events, resolvedState) => {
