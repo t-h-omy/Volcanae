@@ -18,7 +18,6 @@ import { advanceLava, advanceLavaWithEvents, shouldLavaAdvance } from './lavaSys
 import {
   collectResources,
   recruitUnit as recruitUnitLogic,
-  spawnQueuedUnits,
 } from './resourceSystem';
 import { runEnemyTurn } from './enemySystem';
 import {
@@ -259,9 +258,6 @@ export const useGameStore = create<GameStore>()(
         computedState = produce(computedState, (draft) => {
           // Collect resources
           collectResources(draft);
-
-          // Spawn queued units
-          spawnQueuedUnits(draft);
 
           // Recalculate tile discovery
           updateDiscovery(draft);

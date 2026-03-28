@@ -4,10 +4,11 @@
  * and game-over/victory overlay screens.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useGameStore } from '../gameStore';
 import { useAnimationStore } from '../animationStore';
 import { UNIT_COSTS, RESOURCES } from '../gameConfig';
+import { hasSpawnSpaceAt } from '../resourceSystem';
 import {
   Faction,
   GamePhase,
@@ -341,6 +342,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   const specialists = useGameStore((s) => s.specialists);
   const globalSpecialistStorage = useGameStore((s) => s.globalSpecialistStorage);
   const resources = useGameStore((s) => s.resources);
+  const grid = useGameStore((s) => s.grid);
   const recruitUnit = useGameStore((s) => s.recruitUnit);
   const unassignSpecialist = useGameStore((s) => s.unassignSpecialist);
 
@@ -364,13 +366,19 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
 
   // Recruitment info
   const recruitableType = BUILDING_RECRUITS[building.type] as string | undefined;
-  const hasQueue = building.recruitmentQueue !== null;
   const cost = recruitableType ? UNIT_COSTS[recruitableType] : null;
   const canAfford = cost
     ? resources.iron >= cost.iron && resources.wood >= cost.wood
     : false;
+
+  // Check whether there is a free tile to spawn a unit (building tile or adjacent)
+  const hasSpawnSpace = useMemo(
+    () => (recruitableType ? hasSpawnSpaceAt(grid, building.position) : false),
+    [recruitableType, building.position, grid]
+  );
+
   const canRecruit =
-    isPlayerOwned && recruitableType && !isDisabled && !hasQueue && canAfford;
+    isPlayerOwned && recruitableType && !isDisabled && hasSpawnSpace && canAfford;
 
   const handleRecruit = useCallback(() => {
     if (canRecruit && recruitableType) {
@@ -463,11 +471,8 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
       {recruitableType && isPlayerOwned && (
         <div className="hud-recruit-row">
           <span className="hud-label">Recruit:</span>
-          {hasQueue ? (
-            <span className="hud-dim">
-              🔨 Training {UNIT_EMOJI[building.recruitmentQueue!] ?? '?'}{' '}
-              {UNIT_NAME[building.recruitmentQueue!] ?? ''} …
-            </span>
+          {!hasSpawnSpace ? (
+            <span className="hud-dim">No space</span>
           ) : (
             <button
               className="hud-recruit-btn"
