@@ -121,12 +121,14 @@ export const useGameStore = create<GameStore>()(
     selectUnit: (unitId: string) => {
       set((state) => {
         state.selectedUnitId = unitId;
+        state.selectedBuildingId = null;
       });
     },
 
     selectBuilding: (buildingId: string) => {
       set((state) => {
         state.selectedBuildingId = buildingId;
+        state.selectedUnitId = null;
       });
     },
 
