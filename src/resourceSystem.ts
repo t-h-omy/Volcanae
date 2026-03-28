@@ -6,7 +6,7 @@
 import type { GameState, Building, Position, Tile } from './types';
 import type { Draft } from 'immer';
 import { Faction, BuildingType, UnitType, UnitTag } from './types';
-import { RESOURCES, UNITS, UNIT_COSTS, MAP } from './gameConfig';
+import { RESOURCES, UNITS, UNIT_COSTS } from './gameConfig';
 import type { UnitCost } from './gameConfig';
 
 // ============================================================================
@@ -23,54 +23,20 @@ function generateUnitId(): string {
 }
 
 /**
- * Checks if a position is within the grid bounds.
- */
-function isWithinBounds(pos: Position): boolean {
-  return (
-    pos.x >= 0 &&
-    pos.x < MAP.GRID_WIDTH &&
-    pos.y >= 0 &&
-    pos.y < MAP.GRID_HEIGHT
-  );
-}
-
-/**
- * Gets adjacent positions (4-directional) that are within bounds.
- */
-function getAdjacentPositions(pos: Position): Position[] {
-  const adjacent: Position[] = [
-    { x: pos.x, y: pos.y - 1 }, // North
-    { x: pos.x + 1, y: pos.y }, // East
-    { x: pos.x, y: pos.y + 1 }, // South
-    { x: pos.x - 1, y: pos.y }, // West
-  ];
-  return adjacent.filter(isWithinBounds);
-}
-
-/**
- * Returns true if there is at least one free tile (building tile or adjacent)
- * where a unit can spawn. Can be called with a plain grid (e.g. from the HUD).
+ * Returns true if the building's own tile is free (no unit, not lava).
+ * Recruitment is only allowed when the building tile itself is unoccupied.
  */
 export function hasSpawnSpaceAt(
   grid: Tile[][] | Draft<Tile[][]>,
   position: Position
 ): boolean {
   const tile = (grid as Tile[][])[position.y]?.[position.x];
-  if (tile && tile.unitId === null && !tile.isLava) {
-    return true;
-  }
-  for (const pos of getAdjacentPositions(position)) {
-    const adjTile = (grid as Tile[][])[pos.y]?.[pos.x];
-    if (adjTile && adjTile.unitId === null && !adjTile.isLava) {
-      return true;
-    }
-  }
-  return false;
+  return !!(tile && tile.unitId === null && !tile.isLava);
 }
 
 /**
- * Finds the nearest free tile to spawn a unit.
- * Returns the original position if it's free, otherwise searches adjacent tiles.
+ * Finds the spawn position for a newly recruited unit.
+ * Units can only be spawned on the building's own tile; returns null if occupied.
  */
 function findSpawnPosition(
   state: Draft<GameState>,
@@ -78,21 +44,11 @@ function findSpawnPosition(
 ): Position | null {
   const tile = state.grid[buildingPosition.y][buildingPosition.x];
 
-  // Check if building tile is free (no unit, not lava)
+  // Only spawn on the building tile itself; reject if occupied or lava
   if (tile.unitId === null && !tile.isLava) {
     return buildingPosition;
   }
 
-  // Search adjacent tiles
-  const adjacent = getAdjacentPositions(buildingPosition);
-  for (const pos of adjacent) {
-    const adjTile = state.grid[pos.y][pos.x];
-    if (adjTile.unitId === null && !adjTile.isLava) {
-      return pos;
-    }
-  }
-
-  // No free position found
   return null;
 }
 

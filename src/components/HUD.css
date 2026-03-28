@@ -698,6 +698,102 @@
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
+/* ── Dev Options Panel ── */
+
+.hud-dev-options-panel {
+  padding: 8px 16px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.hud-dev-option-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  user-select: none;
+  padding: 4px 0;
+}
+
+.hud-dev-option-label {
+  font-size: 12px;
+  color: #ccc;
+  flex: 1;
+}
+
+.hud-dev-option-toggle {
+  width: 18px;
+  height: 18px;
+  accent-color: #3a7bd5;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* ── AI Score Button (in enemy unit panel) ── */
+
+.hud-ai-score-btn {
+  margin-top: 6px;
+  padding: 6px 12px;
+  min-height: 36px;
+  border: 1px solid rgba(100, 180, 255, 0.35);
+  border-radius: 6px;
+  background: rgba(30, 80, 160, 0.25);
+  color: #7ec8ff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 0.15s;
+  align-self: flex-start;
+}
+
+.hud-ai-score-btn:hover {
+  background: rgba(30, 80, 160, 0.45);
+}
+
+/* ── AI Score Modal ── */
+
+.hud-ai-score-modal {
+  max-height: 70vh;
+  overflow-y: auto;
+  min-width: 280px;
+}
+
+.hud-ai-score-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-size: 12px;
+}
+
+.hud-ai-score-item:last-child {
+  border-bottom: none;
+}
+
+.hud-ai-score-rank {
+  font-size: 10px;
+  color: #666;
+  min-width: 24px;
+}
+
+.hud-ai-score-type {
+  flex: 1;
+  color: #ddd;
+  font-family: monospace;
+  font-size: 11px;
+}
+
+.hud-ai-score-value {
+  font-weight: 700;
+  color: #7ec8ff;
+  min-width: 40px;
+  text-align: right;
+}
+
+
 /* ── Debug Panel ── */
 
 .hud-debug-panel {
