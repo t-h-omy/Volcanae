@@ -8,6 +8,7 @@ import { useGameStore } from '../gameStore';
 import { useFloaterStore } from '../floaterStore';
 import { useAnimationStore } from '../animationStore';
 import { useCombatAnimationStore } from '../combatAnimationStore';
+import type { Projectile } from '../combatAnimationStore';
 import { getReachableTiles } from '../movementSystem';
 import { canCapture } from '../captureSystem';
 import { MAP, RENDER, UI, ANIMATION } from '../gameConfig';
@@ -531,7 +532,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
     anim?.type === 'LUNGE' || anim?.type === 'RECOIL'
       ? {
           transform: `translate(${anim.dx}px, ${anim.dy}px)`,
-          transition: `transform ${anim.type === 'LUNGE' ? ANIMATION.MELEE_LUNGE_DURATION_MS / 2 : ANIMATION.RANGED_RECOIL_DURATION_MS}ms ${anim.type === 'LUNGE' ? 'ease-out' : 'ease-out'}`,
+          transition: `transform ${anim.type === 'LUNGE' ? ANIMATION.MELEE_LUNGE_DURATION_MS / 2 : ANIMATION.RANGED_RECOIL_DURATION_MS}ms ease-out`,
         }
       : undefined;
 
@@ -675,7 +676,7 @@ function ProjectileSprite({
   projectile,
   onDone,
 }: {
-  projectile: { id: string; fromPx: { x: number; y: number }; toPx: { x: number; y: number }; emoji: string; rotationDeg: number; durationMs: number };
+  projectile: Projectile;
   onDone: () => void;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
