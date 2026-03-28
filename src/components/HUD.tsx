@@ -48,7 +48,7 @@ const UNIT_NAME: Record<string, string> = {
 
 const BUILDING_EMOJI: Record<string, string> = {
   [BuildingType.STRONGHOLD]: '🏰',
-  [BuildingType.MINE]: '⛏️',
+  [BuildingType.MINE]: '🏔️',
   [BuildingType.WOODCUTTER]: '🛖',
   [BuildingType.BARRACKS]: '🏚️',
   [BuildingType.ARCHER_CAMP]: '🏕️',
@@ -166,7 +166,7 @@ function TopBar() {
     <div className="hud-top-bar">
       <span className="hud-stat">🔄 Turn {turn}</span>
       {isAnimating && <span className="hud-stat hud-enemy-turn-label">⚔️ Enemy Turn...</span>}
-      <span className="hud-stat">⛏️ {resources.iron}</span>
+      <span className="hud-stat">⛓️ {resources.iron}</span>
       <span className="hud-stat">🪵 {resources.wood}</span>
       <span className="hud-stat">⚠️ Threat {threatLevel}</span>
       <span className="hud-stat">🌋 Lava in {turnsUntilLavaAdvance}</span>
@@ -414,7 +414,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
       {/* Production rate for resource buildings */}
       {isMine && (
         <div className="hud-production-row">
-          ⛏️ +{RESOURCES.MINE_IRON_PER_TURN} iron per turn
+          ⛓️ +{RESOURCES.MINE_IRON_PER_TURN} iron per turn
           {isDisabled && <span className="hud-dim"> (paused)</span>}
         </div>
       )}
@@ -475,7 +475,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
               {UNIT_NAME[recruitableType] ?? recruitableType}
               {cost && (
                 <span className="hud-cost">
-                  {' '}(⛏️{cost.iron} 🪵{cost.wood})
+                  {' '}(⛓️{cost.iron} 🪵{cost.wood})
                 </span>
               )}
             </button>

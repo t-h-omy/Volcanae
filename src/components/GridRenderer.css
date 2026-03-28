@@ -17,10 +17,11 @@
   position: absolute;
   display: grid;
   will-change: transform;
+  transition: transform var(--camera-move-duration, 350ms) ease-in-out;
 }
 
-.grid-container.animating {
-  transition: transform 350ms ease-in-out;
+.grid-container.no-transition {
+  transition: none;
 }
 
 /* ── Tile ── */

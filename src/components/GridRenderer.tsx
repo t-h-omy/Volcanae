@@ -8,7 +8,7 @@ import { useGameStore } from '../gameStore';
 import { useFloaterStore } from '../floaterStore';
 import { useAnimationStore } from '../animationStore';
 import { getReachableTiles } from '../movementSystem';
-import { MAP, RENDER, UI } from '../gameConfig';
+import { MAP, RENDER, UI, ANIMATION } from '../gameConfig';
 import {
   Faction,
   UnitType,
@@ -38,7 +38,7 @@ const UNIT_EMOJI: Record<string, string> = {
 
 const BUILDING_EMOJI: Record<string, string> = {
   [BuildingType.STRONGHOLD]: '🏰',
-  [BuildingType.MINE]: '⛏️',
+  [BuildingType.MINE]: '🏔️',
   [BuildingType.WOODCUTTER]: '🛖',
   [BuildingType.BARRACKS]: '🏚️',
   [BuildingType.ARCHER_CAMP]: '🏕️',
@@ -184,9 +184,15 @@ export default function GridRenderer() {
     }
   }, [isAnimating]);
 
-  // When camera target changes during animation, update offset to center viewport on target
+  // Set the CSS custom property for camera transition duration once on mount
   useEffect(() => {
-    if (!isAnimating) return;
+    if (containerRef.current) {
+      containerRef.current.style.setProperty('--camera-move-duration', `${ANIMATION.CAMERA_MOVE_DURATION_MS}ms`);
+    }
+  }, []);
+
+  // When camera target changes, update offset to center viewport on target
+  useEffect(() => {
     const viewportEl = viewportRef.current;
     if (!viewportEl) return;
     const viewportW = viewportEl.clientWidth;
@@ -195,7 +201,7 @@ export default function GridRenderer() {
       x: viewportW / 2 - cameraTarget.x * tileSize - tileSize / 2,
       y: viewportH / 2 - cameraTarget.y * tileSize - tileSize / 2,
     });
-  }, [isAnimating, cameraTarget, tileSize]);
+  }, [cameraTarget, tileSize]);
 
   // ── Pan / Drag handlers ──
   // On desktop: drag is activated only while RMB is held.
@@ -212,6 +218,9 @@ export default function GridRenderer() {
 
       const shouldDrag = isRMB || (isTouch && e.isPrimary);
       if (!shouldDrag) return;
+
+      // Suppress the CSS transition while the user is panning manually
+      if (containerRef.current) containerRef.current.classList.add('no-transition');
 
       dragState.current = {
         isDragging: false,
@@ -247,6 +256,8 @@ export default function GridRenderer() {
       rmbWasDragging.current = ds.isDragging;
     }
     ds.isDragActive = false;
+    // Restore the CSS transition now that manual panning has ended
+    if (containerRef.current) containerRef.current.classList.remove('no-transition');
     // isDragging intentionally not reset here – onClick checks it to skip post-drag clicks
   }, []);
 
@@ -365,7 +376,7 @@ export default function GridRenderer() {
       onTouchCancel={onTouchEnd}
     >
       <div
-        className={`grid-container${isAnimating ? ' animating' : ''}`}
+        className="grid-container"
         ref={containerRef}
         style={{
           width: gridWidth,
