@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useGameStore } from '../gameStore';
 import { useAnimationStore } from '../animationStore';
-import { UNIT_COSTS, RESOURCES } from '../gameConfig';
+import { UNIT_COSTS, RESOURCES, UI } from '../gameConfig';
 import { hasSpawnSpaceAt } from '../resourceSystem';
 import {
   Faction,
@@ -627,6 +627,43 @@ function VictoryOverlay() {
 }
 
 // ============================================================================
+// GAME INTRO POPUP
+// ============================================================================
+
+function GameIntroPopup({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <div className="hud-intro-overlay">
+      <div className="hud-intro-card">
+        <div className="hud-intro-icon">🌋</div>
+        <p className="hud-intro-text">
+          Lava rises. The horde follows.<br />
+          Capture all five strongholds before the mountain swallows you whole.
+        </p>
+        <button className="hud-intro-cta" onClick={onDismiss}>
+          To the Walls!
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// TURN ANNOUNCEMENT POPUP
+// ============================================================================
+
+function TurnAnnouncementPopup({ turn }: { turn: number }) {
+  const totalMs = UI.TURN_POPUP_DISPLAY_MS + UI.TURN_POPUP_FADE_MS;
+  return (
+    <div
+      className="hud-turn-popup"
+      style={{ animationDuration: `${totalMs}ms` }}
+    >
+      Turn {turn}
+    </div>
+  );
+}
+
+// ============================================================================
 // DEBUG PANEL (development only)
 // ============================================================================
 
@@ -664,16 +701,20 @@ function DebugPanel() {
 
 const isDev = import.meta.env.DEV;
 
-export default function HUD() {
+export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
   const phase = useGameStore((s) => s.phase);
+  const turn = useGameStore((s) => s.turn);
+  const [hasSeenIntro, setHasSeenIntro] = useState(false);
 
   return (
     <>
+      {!hasSeenIntro && <GameIntroPopup onDismiss={() => setHasSeenIntro(true)} />}
       <TopBar />
       <BottomBar />
       {isDev && <DebugPanel />}
       {phase === GamePhase.GAME_OVER && <GameOverOverlay />}
       {phase === GamePhase.VICTORY && <VictoryOverlay />}
+      {showTurnPopup && <TurnAnnouncementPopup turn={turn} />}
     </>
   );
 }

@@ -462,6 +462,99 @@
   background: rgba(46, 204, 113, 0.4);
 }
 
+/* ── Game Intro Popup ── */
+
+@keyframes introCardIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to   { opacity: 1; transform: scale(1);   }
+}
+
+.hud-intro-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.75);
+}
+
+.hud-intro-card {
+  max-width: 320px;
+  width: 100%;
+  background: #1a0000;
+  border-radius: 12px;
+  padding: 24px;
+  text-align: center;
+  animation: introCardIn 250ms ease-out both;
+}
+
+.hud-intro-icon {
+  font-size: 40px;
+  margin-bottom: 16px;
+}
+
+.hud-intro-text {
+  color: #eee;
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0 0 20px;
+}
+
+.hud-intro-cta {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  background: #8b0000;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 0.15s;
+}
+
+.hud-intro-cta:hover {
+  background: #a50000;
+}
+
+.hud-intro-cta:active {
+  background: #6e0000;
+}
+
+/* ── Turn Announcement Popup ── */
+
+@keyframes turnAnnounce {
+  0%   { opacity: 0; transform: translateY(-8px) scale(0.95); }
+  15%  { opacity: 1; transform: translateY(0)    scale(1);    }
+  75%  { opacity: 1; transform: translateY(0)    scale(1);    }
+  100% { opacity: 0; transform: translateY(-4px) scale(0.98); }
+}
+
+.hud-turn-popup {
+  position: fixed;
+  top: 20%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 250;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.6);
+  border-radius: 8px;
+  padding: 12px 28px;
+  font-size: 28px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  animation-name: turnAnnounce;
+  animation-timing-function: ease-in-out;
+  animation-fill-mode: both;
+}
+
 /* ── Game Over / Victory Overlay ── */
 
 .hud-overlay {
