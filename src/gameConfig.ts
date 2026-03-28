@@ -313,6 +313,8 @@ export const RENDER = {
   TILE_SIZE_MOBILE: 64,
   /** Mobile breakpoint in pixels */
   MOBILE_BREAKPOINT: 768,
+  /** Opacity of a unit graphic when it has no actions remaining (0.0–1.0) */
+  UNIT_EXHAUSTED_OPACITY: 0.6,
   /** Colors for tile rendering */
   COLORS: {
     UNREVEALED: '#d8d8d8',

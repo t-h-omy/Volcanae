@@ -5,7 +5,7 @@
 
 import type { GameState, Building, Position, Tile } from './types';
 import type { Draft } from 'immer';
-import { Faction, BuildingType, UnitType } from './types';
+import { Faction, BuildingType, UnitType, UnitTag } from './types';
 import { RESOURCES, UNITS, UNIT_COSTS, MAP } from './gameConfig';
 import type { UnitCost } from './gameConfig';
 
@@ -266,7 +266,7 @@ export function recruitUnit(
       movementActions: UNITS[unitType].movementActions,
       attackRange: UNITS[unitType].attackRange,
     },
-    tags: [],
+    tags: UNITS[unitType].attackRange > 1 ? [UnitTag.RANGED] : [],
     hasMovedThisTurn: true,
     hasActedThisTurn: true,
     hasCapturedThisTurn: true,
