@@ -5,6 +5,7 @@
 
 import type { GameState, Position } from './types';
 import type { Draft } from 'immer';
+import { Faction } from './types';
 import { MAP } from './gameConfig';
 import { getTilesWithinEdgeCircleRange } from './rangeUtils';
 
@@ -16,7 +17,7 @@ import { getTilesWithinEdgeCircleRange } from './rangeUtils';
  * Gets all tiles that a unit can reach from its current position.
  * A tile is reachable if:
  * - It is within the unit's move range (edge-circle range)
- * - It is not a lava tile
+ * - It is not a lava tile (player units only — enemy units may enter lava)
  * - It is not occupied by another unit
  * - The unit has not already moved this turn
  *
@@ -56,8 +57,8 @@ export function getReachableTiles(
 
     const tile = state.grid[ty][tx];
 
-    // Cannot move into lava tiles
-    if (tile.isLava) {
+    // Cannot move into lava tiles (player units only — enemy units may enter lava)
+    if (tile.isLava && unit.faction === Faction.PLAYER) {
       continue;
     }
 
@@ -124,6 +125,14 @@ export function moveUnit(
   // Update unit position
   unit.position.x = targetPosition.x;
   unit.position.y = targetPosition.y;
+
+  // If an enemy unit moves onto a lava tile, destroy it and increment threat
+  if (newTile.isLava && unit.faction === Faction.ENEMY) {
+    newTile.unitId = null;
+    delete state.units[unitId];
+    state.threatLevel += 1;
+    return;
+  }
 
   // Mark unit as having moved this turn
   unit.hasMovedThisTurn = true;

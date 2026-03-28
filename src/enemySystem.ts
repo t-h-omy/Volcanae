@@ -331,6 +331,12 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
       to: { x: targetPosition.x, y: targetPosition.y },
     });
   }
+
+  // If the destination is a lava tile, destroy the unit and increment threat
+  if (newTile.isLava) {
+    destroyUnit(state, unitId, events);
+    state.threatLevel += 1;
+  }
 }
 
 // ============================================================================
@@ -860,13 +866,6 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
 
     case 'HOLD_POSITION':
       break;
-  }
-
-  // Post-move lava check: if unit moved onto or below lava front row, destroy it
-  const movedUnit = state.units[unit.id];
-  if (movedUnit && movedUnit.position.y <= state.lavaFrontRow) {
-    destroyUnit(state, movedUnit.id, events);
-    state.threatLevel += 1;
   }
 }
 
