@@ -26,6 +26,7 @@ export type GameEvent =
       defenderPosition: Position;
       attackerHpLost: number;
       defenderHpLost: number;
+      advancedToPosition: Position | null;
     }
   | {
       type: 'UNIT_DEATH';
