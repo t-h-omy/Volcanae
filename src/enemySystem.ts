@@ -326,6 +326,7 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
 
   unit.position.x = targetPosition.x;
   unit.position.y = targetPosition.y;
+  unit.hasMovedThisTurn = true;
 
   if (events) {
     events.push({
@@ -416,7 +417,7 @@ function scoreActionsForUnit(
   }
 
   // ── CONTEST_BUILDING ──
-  {
+  if (!unit.hasMovedThisTurn) {
     const contestable = buildingsInTriggerRange.filter(b => {
       if (b.faction === Faction.PLAYER) return false;
       const bTile = state.grid[b.position.y][b.position.x];
@@ -446,7 +447,7 @@ function scoreActionsForUnit(
   }
 
   // ── RETAKE_BUILDING ──
-  {
+  if (!unit.hasMovedThisTurn) {
     const retakeable = allBuildings.filter(b => recentlyLostBuildingIds.has(b.id));
     if (retakeable.length > 0) {
       retakeable.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
@@ -499,7 +500,7 @@ function scoreActionsForUnit(
   }
 
   // ── DEFEND_ENEMY_BUILDING ──
-  {
+  if (!unit.hasMovedThisTurn) {
     const defendable = buildingsInTriggerRange.filter(b => {
       if (b.faction !== Faction.ENEMY) return false;
       if (isRecruitmentBuilding(b)) return false;
@@ -525,7 +526,7 @@ function scoreActionsForUnit(
   }
 
   // ── PROTECT_SPAWNER ──
-  {
+  if (!unit.hasMovedThisTurn) {
     const spawners = buildingsInTriggerRange.filter(b => {
       if (b.faction !== Faction.ENEMY) return false;
       if (!isRecruitmentBuilding(b)) return false;
@@ -551,7 +552,7 @@ function scoreActionsForUnit(
   }
 
   // ── PUSH_TO_STRONGHOLD ──
-  {
+  if (!unit.hasMovedThisTurn) {
     const playerStrongholds = allBuildings.filter(b => b.type === BuildingType.STRONGHOLD && b.faction === Faction.PLAYER);
     if (playerStrongholds.length > 0) {
       playerStrongholds.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
@@ -566,7 +567,7 @@ function scoreActionsForUnit(
   }
 
   // ── MOVE_TO_PLAYER_BUILDING ──
-  {
+  if (!unit.hasMovedThisTurn) {
     const playerBuildings = buildingsInTriggerRange.filter(b => b.faction === Faction.PLAYER && b.type !== BuildingType.STRONGHOLD);
     if (playerBuildings.length > 0) {
       playerBuildings.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
@@ -581,7 +582,7 @@ function scoreActionsForUnit(
   }
 
   // ── MOVE_TO_NEUTRAL_BUILDING ──
-  {
+  if (!unit.hasMovedThisTurn) {
     const neutralBuildings = buildingsInTriggerRange.filter(b => b.faction === null);
     if (neutralBuildings.length > 0) {
       neutralBuildings.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
@@ -596,7 +597,7 @@ function scoreActionsForUnit(
   }
 
   // ── MOVE_TO_UNIT ──
-  {
+  if (!unit.hasMovedThisTurn) {
     const outOfAttackRange = playerUnitsInTriggerRange.filter(u => !playerUnitsInAttackRange.includes(u));
     if (outOfAttackRange.length > 0) {
       outOfAttackRange.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
@@ -613,7 +614,7 @@ function scoreActionsForUnit(
   }
 
   // ── ADVANCE_WITH_LAVA ──
-  if (unit.tags.includes(UnitTag.LAVA_BOOST)) {
+  if (!unit.hasMovedThisTurn && unit.tags.includes(UnitTag.LAVA_BOOST)) {
     const lavaDistance = unit.position.y - state.lavaFrontRow;
     const boostFactor = Math.max(0, 1 - lavaDistance / ENEMY.MAX_LAVA_BOOST_DISTANCE);
     const score = AI_SCORING.BASE_ADVANCE_WITH_LAVA
@@ -622,7 +623,7 @@ function scoreActionsForUnit(
   }
 
   // ── PUSH_TO_ZONE_EDGE ──
-  {
+  if (!unit.hasMovedThisTurn) {
     const hasPlayerTargets = playerUnitsInTriggerRange.length > 0;
     const hasCapturable = buildingsInTriggerRange.some(b => b.faction === null || b.faction === Faction.PLAYER);
     if (!hasPlayerTargets && !hasCapturable) {
@@ -631,7 +632,7 @@ function scoreActionsForUnit(
   }
 
   // ── FLANK_UNIT ──
-  {
+  if (!unit.hasMovedThisTurn) {
     for (const target of playerUnitsInTriggerRange) {
       const alreadyTargeted = (targetingIntents.get(target.id) ?? 0) >= 1;
       if (!alreadyTargeted) continue;
@@ -649,10 +650,12 @@ function scoreActionsForUnit(
   }
 
   // ── ADVANCE_SOUTH ──
-  candidates.push({ type: 'ADVANCE_SOUTH', score: AI_SCORING.BASE_ADVANCE_SOUTH });
+  if (!unit.hasMovedThisTurn) {
+    candidates.push({ type: 'ADVANCE_SOUTH', score: AI_SCORING.BASE_ADVANCE_SOUTH });
+  }
 
   // ── SACRIFICE_TO_LAVA ──
-  {
+  if (!unit.hasMovedThisTurn) {
     const hasPlayerTargets = playerUnitsInTriggerRange.length > 0;
     const hasCapturable = buildingsInTriggerRange.some(b => b.faction === null || b.faction === Faction.PLAYER);
     const nearLava = unit.position.y - state.lavaFrontRow <= 5;
@@ -744,7 +747,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
               events.push({ type: 'UNIT_DEATH', unitId: attackerId, position: attackerPos, faction: currentUnit.faction });
             }
           }
-        } else {
+        } else if (!currentUnit.hasMovedThisTurn) {
           const nextPos = stepToward(currentUnit.position, targetUnit.position, state);
           if (nextPos.x !== currentUnit.position.x || nextPos.y !== currentUnit.position.y) {
             moveEnemyUnit(state, currentUnit.id, nextPos, events);
@@ -942,7 +945,15 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
 
     for (const unit of enemyUnits) {
       if (!draft.units[unit.id]) continue;
-      decideAndExecute(draft.units[unit.id], draft, targetingIntents, recentlyLostBuildingIds, events);
+      // Allow each enemy unit to act up to 2 times per turn (1 move + 1 attack/capture),
+      // matching player units that can move then attack/capture.
+      const maxActions = 2;
+      for (let i = 0; i < maxActions; i++) {
+        const currentUnit = draft.units[unit.id];
+        if (!currentUnit) break;
+        if (currentUnit.hasMovedThisTurn && currentUnit.hasActedThisTurn) break;
+        decideAndExecute(currentUnit, draft, targetingIntents, recentlyLostBuildingIds, events);
+      }
     }
 
     // 4. Reset enemy unit action flags for next turn
