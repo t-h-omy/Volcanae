@@ -47,32 +47,29 @@ function isUnitOnBuilding(
 }
 
 /**
- * Updates the zonesUnlocked array based on captured strongholds.
+ * Updates the zonesUnlocked array based on player-owned strongholds.
  * A stronghold capture unlocks its zone AND the next zone.
+ * This function always computes zones from the player's perspective because
+ * zonesUnlocked is player-only state (only player captures are zone-gated).
+ * It must be called whenever any stronghold changes ownership so that the
+ * player's unlocked zones stay in sync.
  */
-function updateZonesUnlocked(
-  state: Draft<GameState>,
-  capturingFaction: Faction
-): void {
+function updateZonesUnlocked(state: Draft<GameState>): void {
   // Collect all zones that should be unlocked for the player
   const unlockedZones = new Set<number>();
 
   // Zone 1 is always unlocked for the player
-  if (capturingFaction === Faction.PLAYER) {
-    unlockedZones.add(1);
-  }
+  unlockedZones.add(1);
 
-  // Check all strongholds to determine which zones are unlocked
+  // Check all player-owned strongholds to determine which zones are unlocked
   for (const building of Object.values(state.buildings)) {
-    if (building.type === BuildingType.STRONGHOLD) {
+    if (building.type === BuildingType.STRONGHOLD && building.faction === Faction.PLAYER) {
       const zone = getZoneForPosition(building.position);
 
-      if (building.faction === capturingFaction) {
-        // Owning a stronghold unlocks that zone and the next zone
-        unlockedZones.add(zone);
-        if (zone + 1 <= MAP.ZONE_COUNT) {
-          unlockedZones.add(zone + 1);
-        }
+      // Owning a stronghold unlocks that zone and the next zone
+      unlockedZones.add(zone);
+      if (zone + 1 <= MAP.ZONE_COUNT) {
+        unlockedZones.add(zone + 1);
       }
     }
   }
@@ -213,7 +210,7 @@ export function initiateCapture(
 
   // If it's a stronghold, update zones and threat level
   if (building.type === BuildingType.STRONGHOLD) {
-    updateZonesUnlocked(state, unit.faction);
+    updateZonesUnlocked(state);
     // Increase threat level when player captures a stronghold
     if (unit.faction === Faction.PLAYER) {
       increaseThreatOnStrongholdCapture(state);
@@ -278,7 +275,7 @@ export function resolveCaptures(state: Draft<GameState>): void {
 
     // If it's a stronghold, update zones and threat level
     if (building.type === BuildingType.STRONGHOLD) {
-      updateZonesUnlocked(state, capturingUnit.faction);
+      updateZonesUnlocked(state);
 
       // Increase threat level when player captures a stronghold
       if (capturingUnit.faction === Faction.PLAYER) {
