@@ -267,6 +267,22 @@ export const ANIMATION = {
   LAVA_ADVANCE_PAUSE_MS: 700,
   /** Pause after a unit spawns before moving to next event */
   SPAWN_PAUSE_MS: 300,
+  /** Melee lunge out + snap back total duration (ms) */
+  MELEE_LUNGE_DURATION_MS: 260,
+  /** Ranged projectile travel time per tile (ms) */
+  RANGED_PROJECTILE_MS_PER_TILE: 80,
+  /** Minimum ranged projectile travel time (ms) */
+  RANGED_PROJECTILE_MIN_MS: 200,
+  /** Maximum ranged projectile travel time (ms) */
+  RANGED_PROJECTILE_MAX_MS: 700,
+  /** Ranged attacker recoil duration (ms) */
+  RANGED_RECOIL_DURATION_MS: 180,
+  /** Hit shake duration (ms) */
+  HIT_SHAKE_DURATION_MS: 280,
+  /** Die skull-flash duration (ms) */
+  DIE_FLASH_DURATION_MS: 540,
+  /** Die fade-out duration (ms) */
+  DIE_FADE_DURATION_MS: 200,
 } as const;
 
 // ============================================================================

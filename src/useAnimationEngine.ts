@@ -1,13 +1,15 @@
 /**
  * Animation engine hook for Volcanae.
- * Processes the event queue with timing, camera movement, and state application.
- * Used once at the top level of App.tsx.
+ * Processes the event queue with timing, camera movement, combat animations,
+ * and state application. Used once at the top level of App.tsx.
  */
 
 import { useEffect } from 'react';
 import { useAnimationStore } from './animationStore';
 import { useGameStore } from './gameStore';
-import { ANIMATION, MAP } from './gameConfig';
+import { useCombatAnimationStore } from './combatAnimationStore';
+import { ANIMATION, MAP, RENDER } from './gameConfig';
+import { UnitTag, UnitType } from './types';
 import type { GameEvent } from './gameEvents';
 import type { Position } from './types';
 
@@ -16,6 +18,10 @@ import type { Position } from './types';
 // ============================================================================
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
 
 /**
  * Returns the Position the camera should center on for each event type.
@@ -83,6 +89,189 @@ function postActionDuration(event: GameEvent): number {
 }
 
 // ============================================================================
+// COMBAT ANIMATION HELPERS
+// ============================================================================
+
+/**
+ * Returns the current tile size based on the viewport width.
+ */
+function getTileSize(): number {
+  if (typeof window !== 'undefined' && window.innerWidth <= RENDER.MOBILE_BREAKPOINT) {
+    return RENDER.TILE_SIZE_MOBILE;
+  }
+  return RENDER.TILE_SIZE_DESKTOP;
+}
+
+/**
+ * Manhattan distance between two grid positions.
+ */
+function manhattanDistance(a: Position, b: Position): number {
+  return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+}
+
+/**
+ * Angle in degrees between two pixel positions (0° = right, rotating clockwise).
+ */
+function angleBetween(from: { x: number; y: number }, to: { x: number; y: number }): number {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  return (Math.atan2(dy, dx) * 180) / Math.PI;
+}
+
+/**
+ * Returns a normalised direction vector from source to target tile.
+ * Clamped to one of 8 directions.
+ */
+function normaliseDirection(from: Position, to: Position): { x: number; y: number } {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (len === 0) return { x: 0, y: 0 };
+  const nx = Math.round(dx / len);
+  const ny = Math.round(dy / len);
+  const rLen = Math.sqrt(nx * nx + ny * ny);
+  return rLen === 0 ? { x: 0, y: 0 } : { x: nx / rLen, y: ny / rLen };
+}
+
+/**
+ * Returns the projectile emoji for a given unit type.
+ */
+function projectileEmoji(unitType: string): string {
+  if (unitType === UnitType.ARCHER || unitType === UnitType.LAVA_ARCHER) return '🏹';
+  if (unitType === UnitType.SIEGE || unitType === UnitType.LAVA_SIEGE) return '💣';
+  return '•';
+}
+
+// ============================================================================
+// COMBAT ANIMATION CHOREOGRAPHY
+// ============================================================================
+
+/**
+ * Plays the full combat animation sequence for an ENEMY_ATTACK event.
+ * Returns the set of unit IDs that died (so the caller can consume UNIT_DEATH events).
+ */
+async function playAttackAnimation(
+  event: Extract<GameEvent, { type: 'ENEMY_ATTACK' }>,
+  visible: boolean,
+): Promise<Set<string>> {
+  const store = useCombatAnimationStore.getState();
+  const gameState = useGameStore.getState();
+
+  const attacker = gameState.units[event.attackerId];
+  const defender = gameState.units[event.defenderId];
+  const tileSize = getTileSize();
+  const dyingIds = new Set<string>();
+
+  // Determine ranged status from the attacker in current display state
+  const isRanged = attacker?.tags.includes(UnitTag.RANGED) ?? false;
+
+  if (visible) {
+    if (isRanged) {
+      // ── Ranged: fire projectile + recoil ──
+      const distance = manhattanDistance(event.attackerPosition, event.defenderPosition);
+      const projectileDuration = clamp(
+        distance * ANIMATION.RANGED_PROJECTILE_MS_PER_TILE,
+        ANIMATION.RANGED_PROJECTILE_MIN_MS,
+        ANIMATION.RANGED_PROJECTILE_MAX_MS,
+      );
+
+      const fromPx = {
+        x: event.attackerPosition.x * tileSize + tileSize / 2,
+        y: event.attackerPosition.y * tileSize + tileSize / 2,
+      };
+      const toPx = {
+        x: event.defenderPosition.x * tileSize + tileSize / 2,
+        y: event.defenderPosition.y * tileSize + tileSize / 2,
+      };
+
+      // Recoil: lean away from target
+      const recoilDx = (fromPx.x - toPx.x) * 0.15;
+      const recoilDy = (fromPx.y - toPx.y) * 0.15;
+
+      store.setUnitAnimation(event.attackerId, { type: 'RECOIL', dx: recoilDx, dy: recoilDy });
+      store.addProjectile({
+        id: crypto.randomUUID(),
+        fromPx,
+        toPx,
+        emoji: projectileEmoji(attacker?.type ?? ''),
+        rotationDeg: angleBetween(fromPx, toPx),
+        durationMs: projectileDuration,
+      });
+
+      await wait(projectileDuration);
+      useCombatAnimationStore.getState().setUnitAnimation(event.attackerId, null);
+    } else {
+      // ── Melee: lunge toward defender ──
+      const LUNGE_FACTOR = tileSize * 0.45;
+      const dir = normaliseDirection(event.attackerPosition, event.defenderPosition);
+      store.setUnitAnimation(event.attackerId, {
+        type: 'LUNGE',
+        dx: dir.x * LUNGE_FACTOR,
+        dy: dir.y * LUNGE_FACTOR,
+      });
+      await wait(ANIMATION.MELEE_LUNGE_DURATION_MS / 2);
+    }
+  }
+
+  // ── Apply damage to display state ──
+  useGameStore.getState().applyEvent(event);
+
+  if (visible) {
+    // ── Shake hit units ──
+    if (event.defenderHpLost > 0 && defender) {
+      useCombatAnimationStore.getState().setUnitAnimation(event.defenderId, { type: 'HIT' });
+    }
+    if (event.attackerHpLost > 0 && attacker) {
+      useCombatAnimationStore.getState().setUnitAnimation(event.attackerId, { type: 'HIT' });
+    }
+
+    // For melee: snap back (unless advancing)
+    if (!isRanged && !event.advancedToPosition) {
+      await wait(ANIMATION.MELEE_LUNGE_DURATION_MS / 2);
+      useCombatAnimationStore.getState().setUnitAnimation(event.attackerId, null);
+    } else if (!isRanged && event.advancedToPosition) {
+      // Melee kill-advance: clear lunge immediately
+      useCombatAnimationStore.getState().setUnitAnimation(event.attackerId, null);
+    }
+
+    await wait(ANIMATION.HIT_SHAKE_DURATION_MS);
+    useCombatAnimationStore.getState().setUnitAnimation(event.defenderId, null);
+    useCombatAnimationStore.getState().setUnitAnimation(event.attackerId, null);
+  }
+
+  // ── Determine dying units ──
+  const updatedState = useGameStore.getState();
+  const defenderAfter = updatedState.units[event.defenderId];
+  const attackerAfter = updatedState.units[event.attackerId];
+
+  // Defender died if no longer in state or HP <= 0
+  if (!defenderAfter || (defenderAfter.stats.currentHp <= 0)) {
+    dyingIds.add(event.defenderId);
+  }
+  // Attacker died if took damage and no longer in state or HP <= 0
+  if (event.attackerHpLost > 0 && (!attackerAfter || (attackerAfter.stats.currentHp <= 0))) {
+    dyingIds.add(event.attackerId);
+  }
+
+  // ── Die animations ──
+  if (visible && dyingIds.size > 0) {
+    for (const id of dyingIds) {
+      if (updatedState.units[id]) {
+        useCombatAnimationStore.getState().setUnitAnimation(id, { type: 'DYING' });
+      }
+    }
+
+    await wait(ANIMATION.DIE_FLASH_DURATION_MS + ANIMATION.DIE_FADE_DURATION_MS);
+
+    for (const id of dyingIds) {
+      useCombatAnimationStore.getState().setUnitAnimation(id, null);
+    }
+  }
+
+  return dyingIds;
+}
+
+// ============================================================================
 // HOOK
 // ============================================================================
 
@@ -110,18 +299,51 @@ export function useAnimationEngine(): void {
           await wait(ANIMATION.PRE_ACTION_IDLE_MS);
         }
 
+        // ── Special handling for ENEMY_ATTACK with combat animations ──
+        if (event.type === 'ENEMY_ATTACK') {
+          const dyingIds = await playAttackAnimation(event, visible);
+
+          // Consume following UNIT_DEATH events that were already animated
+          while (true) {
+            const { eventQueue } = useAnimationStore.getState();
+            if (eventQueue.length === 0) break;
+            const next = eventQueue[0];
+            if (next.type === 'UNIT_DEATH' && dyingIds.has(next.unitId)) {
+              useAnimationStore.getState().shiftEvent();
+              useGameStore.getState().applyEvent(next);
+            } else {
+              break;
+            }
+          }
+
+          if (visible) {
+            await wait(ANIMATION.POST_ACTION_IDLE_MS);
+
+            if (event.advancedToPosition) {
+              useAnimationStore.getState().setCameraTarget(event.advancedToPosition);
+              await wait(ANIMATION.CAMERA_MOVE_DURATION_MS + ANIMATION.POST_ACTION_IDLE_MS);
+            }
+          }
+
+          continue;
+        }
+
+        // ── Special handling for standalone UNIT_DEATH (e.g. from lava) ──
+        if (event.type === 'UNIT_DEATH' && visible) {
+          const unitStillExists = useGameStore.getState().units[event.unitId];
+          if (unitStillExists) {
+            useCombatAnimationStore.getState().setUnitAnimation(event.unitId, { type: 'DYING' });
+            await wait(ANIMATION.DIE_FLASH_DURATION_MS + ANIMATION.DIE_FADE_DURATION_MS);
+            useCombatAnimationStore.getState().setUnitAnimation(event.unitId, null);
+          }
+        }
+
         // 3. Apply event to live game state
         useGameStore.getState().applyEvent(event);
 
         if (visible) {
           // 4. Post-action idle (duration varies by event type)
           await wait(postActionDuration(event));
-
-          // 5. Brief extra camera pan to show where a melee attacker advanced after a kill
-          if (event.type === 'ENEMY_ATTACK' && event.advancedToPosition) {
-            useAnimationStore.getState().setCameraTarget(event.advancedToPosition);
-            await wait(ANIMATION.CAMERA_MOVE_DURATION_MS + ANIMATION.POST_ACTION_IDLE_MS);
-          }
         }
       }
 
