@@ -66,6 +66,8 @@ interface ScoredAction {
   targetPosition?: Position;
 }
 
+export type { ScoredAction };
+
 // ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
@@ -93,10 +95,6 @@ function calculateLavaBoostFactor(buildingPosition: Position, lavaFrontRow: numb
   return Math.max(0, 1 - distanceToLava / ENEMY.MAX_LAVA_BOOST_DISTANCE);
 }
 
-function getSpawnCount(threatLevel: number): number {
-  return ENEMY.ENEMY_SPAWN_PER_BUILDING_BASE + Math.floor(threatLevel / 3) * ENEMY.ENEMY_THREAT_SPAWN_BONUS;
-}
-
 function isPlayerUnitInDiscoverRadius(state: Draft<GameState>, building: Building): boolean {
   for (const unit of Object.values(state.units)) {
     if (unit.faction !== Faction.PLAYER) continue;
@@ -111,15 +109,6 @@ function getSpawnProbability(state: Draft<GameState>, building: Building): numbe
   if (isPlayerUnitInDiscoverRadius(state, building)) return 1.0;
   const threatRatio = Math.min(state.threatLevel / ENEMY.MAX_THREAT, 1);
   return ENEMY.BASE_SPAWN_PROBABILITY + ENEMY.MAX_THREAT_BONUS * threatRatio;
-}
-
-function getAdjacentPositions(pos: Position): Position[] {
-  return [
-    { x: pos.x, y: pos.y - 1 },
-    { x: pos.x + 1, y: pos.y },
-    { x: pos.x, y: pos.y + 1 },
-    { x: pos.x - 1, y: pos.y },
-  ].filter(isWithinBounds);
 }
 
 const SPAWNER_TYPES: BuildingType[] = [BuildingType.BARRACKS, BuildingType.ARCHER_CAMP, BuildingType.RIDER_CAMP, BuildingType.SIEGE_CAMP];
@@ -250,8 +239,6 @@ function createEnemyUnit(
 }
 
 function spawnEnemyUnits(state: Draft<GameState>, events?: GameEvent[]): void {
-  const spawnCount = getSpawnCount(state.threatLevel);
-
   for (const building of Object.values(state.buildings)) {
     if (building.faction !== Faction.ENEMY) continue;
     if (!isRecruitmentBuilding(building)) continue;
@@ -261,47 +248,33 @@ function spawnEnemyUnits(state: Draft<GameState>, events?: GameEvent[]): void {
     const spawnProbability = getSpawnProbability(state, building);
     if (Math.random() >= spawnProbability) continue;
 
-    for (let i = 0; i < spawnCount; i++) {
-      let spawnPosition: Position | null = null;
+    // Only spawn on the building's own tile; skip if occupied or lava
+    const buildingTile = state.grid[building.position.y][building.position.x];
+    if (buildingTile.unitId !== null || buildingTile.isLava) continue;
 
-      const buildingTile = state.grid[building.position.y][building.position.x];
-      if (buildingTile.unitId === null && !buildingTile.isLava) {
-        spawnPosition = { ...building.position };
-      } else {
-        const adjacent = getAdjacentPositions(building.position);
-        for (const pos of adjacent) {
-          const tile = state.grid[pos.y][pos.x];
-          if (tile.unitId === null && !tile.isLava) {
-            spawnPosition = pos;
-            break;
-          }
-        }
-      }
+    const spawnPosition: Position = { ...building.position };
 
-      if (!spawnPosition) continue;
+    const unit = createEnemyUnit(spawnPosition, unitType, building.lavaBoostEnabled, state.lavaFrontRow, building.position);
 
-      const unit = createEnemyUnit(spawnPosition, unitType, building.lavaBoostEnabled, state.lavaFrontRow, building.position);
+    // Snapshot the unit BEFORE assigning to the draft (plain objects added
+    // to a draft are not immediately proxied, so current() cannot be used).
+    const unitSnapshot: Unit = {
+      ...unit,
+      position: { ...unit.position },
+      stats: { ...unit.stats },
+      tags: [...unit.tags],
+    };
 
-      // Snapshot the unit BEFORE assigning to the draft (plain objects added
-      // to a draft are not immediately proxied, so current() cannot be used).
-      const unitSnapshot: Unit = {
-        ...unit,
-        position: { ...unit.position },
-        stats: { ...unit.stats },
-        tags: [...unit.tags],
-      };
+    state.units[unit.id] = unit;
+    state.grid[spawnPosition.y][spawnPosition.x].unitId = unit.id;
 
-      state.units[unit.id] = unit;
-      state.grid[spawnPosition.y][spawnPosition.x].unitId = unit.id;
-
-      if (events) {
-        events.push({
-          type: 'ENEMY_SPAWN',
-          position: { ...spawnPosition },
-          unit: unitSnapshot,
-          buildingId: building.id,
-        });
-      }
+    if (events) {
+      events.push({
+        type: 'ENEMY_SPAWN',
+        position: { ...spawnPosition },
+        unit: unitSnapshot,
+        buildingId: building.id,
+      });
     }
   }
 }
@@ -341,6 +314,32 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
   if (newTile.isLava) {
     destroyUnit(state, unitId, events);
     state.threatLevel += 1;
+  }
+}
+
+// ============================================================================
+// MULTI-TILE MOVEMENT HELPER
+// ============================================================================
+
+/**
+ * Moves an enemy unit up to its full moveRange toward a target position.
+ * Stops early if the path is blocked or the unit is destroyed (e.g., by lava).
+ */
+function moveEnemyUnitToward(
+  state: Draft<GameState>,
+  unitId: string,
+  targetPosition: Position,
+  events?: GameEvent[],
+): void {
+  const unit = state.units[unitId];
+  if (!unit) return;
+  const moveRange = unit.stats.moveRange;
+  for (let step = 0; step < moveRange; step++) {
+    const current = state.units[unitId];
+    if (!current) break; // unit was destroyed (e.g. walked into lava)
+    const nextPos = stepToward(current.position, targetPosition, state);
+    if (nextPos.x === current.position.x && nextPos.y === current.position.y) break; // blocked
+    moveEnemyUnit(state, unitId, nextPos, events);
   }
 }
 
@@ -748,10 +747,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
             }
           }
         } else if (!currentUnit.hasMovedThisTurn) {
-          const nextPos = stepToward(currentUnit.position, targetUnit.position, state);
-          if (nextPos.x !== currentUnit.position.x || nextPos.y !== currentUnit.position.y) {
-            moveEnemyUnit(state, currentUnit.id, nextPos, events);
-          }
+          moveEnemyUnitToward(state, currentUnit.id, targetUnit.position, events);
         }
       }
       break;
@@ -820,10 +816,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
     case 'MOVE_TO_PLAYER_BUILDING':
     case 'MOVE_TO_NEUTRAL_BUILDING': {
       if (action.targetPosition) {
-        const nextPos = stepToward(currentUnit.position, action.targetPosition, state);
-        if (nextPos.x !== currentUnit.position.x || nextPos.y !== currentUnit.position.y) {
-          moveEnemyUnit(state, currentUnit.id, nextPos, events);
-        }
+        moveEnemyUnitToward(state, currentUnit.id, action.targetPosition, events);
       }
       break;
     }
@@ -831,23 +824,18 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
     case 'MOVE_TO_UNIT':
     case 'FLANK_UNIT': {
       if (action.targetPosition) {
-        const nextPos = stepToward(currentUnit.position, action.targetPosition, state);
-        if (nextPos.x !== currentUnit.position.x || nextPos.y !== currentUnit.position.y) {
-          moveEnemyUnit(state, currentUnit.id, nextPos, events);
-        }
+        moveEnemyUnitToward(state, currentUnit.id, action.targetPosition, events);
       }
       break;
     }
 
     case 'ADVANCE_WITH_LAVA':
     case 'ADVANCE_SOUTH': {
-      const southPos: Position = { x: currentUnit.position.x, y: currentUnit.position.y - 1 };
-      if (isWithinBounds(southPos)) {
-        const tile = state.grid[southPos.y][southPos.x];
-        if (!tile.isLava && tile.unitId === null) {
-          moveEnemyUnit(state, currentUnit.id, southPos, events);
-        }
-      }
+      const southTarget: Position = {
+        x: currentUnit.position.x,
+        y: Math.max(0, currentUnit.position.y - currentUnit.stats.moveRange),
+      };
+      moveEnemyUnitToward(state, currentUnit.id, southTarget, events);
       break;
     }
 
@@ -859,15 +847,12 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
 
     case 'PUSH_TO_ZONE_EDGE': {
       const playerBuildings = Object.values(state.buildings).filter(b => b.faction === Faction.PLAYER);
-      let targetY = currentUnit.position.y - 1;
+      let targetY = Math.max(0, currentUnit.position.y - currentUnit.stats.moveRange);
       if (playerBuildings.length > 0) {
-        targetY = Math.min(...playerBuildings.map(b => b.position.y));
+        targetY = Math.max(0, Math.min(...playerBuildings.map(b => b.position.y)));
       }
       const targetPos: Position = { x: currentUnit.position.x, y: targetY };
-      const nextPos = stepToward(currentUnit.position, targetPos, state);
-      if (nextPos.x !== currentUnit.position.x || nextPos.y !== currentUnit.position.y) {
-        moveEnemyUnit(state, currentUnit.id, nextPos, events);
-      }
+      moveEnemyUnitToward(state, currentUnit.id, targetPos, events);
       break;
     }
 
@@ -966,4 +951,38 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
     }
   });
   return { finalState, events };
+}
+
+// ============================================================================
+// DEBUG / DEV: AI SCORE INSPECTION
+// ============================================================================
+
+/**
+ * Computes and returns all scored actions for an enemy unit, sorted by score
+ * descending. Intended for dev/debug use only (AI Score inspector).
+ */
+export function computeUnitAiScores(state: GameState, unitId: string): ScoredAction[] {
+  const unit = state.units[unitId];
+  if (!unit || unit.faction !== Faction.ENEMY) return [];
+
+  const recentlyLostBuildingIds = new Set<string>(
+    Object.values(state.buildings)
+      .filter(
+        (b) =>
+          b.faction === Faction.PLAYER &&
+          b.wasEnemyOwnedBeforeCapture === true &&
+          b.turnCapturedByPlayer !== null &&
+          state.turn - b.turnCapturedByPlayer <= AI_SCORING.RECENTLY_LOST_WINDOW_TURNS,
+      )
+      .map((b) => b.id),
+  );
+
+  const targetingIntents = new Map<string, number>();
+  const scores = scoreActionsForUnit(
+    unit,
+    state as Draft<GameState>,
+    targetingIntents,
+    recentlyLostBuildingIds,
+  );
+  return scores.sort((a, b) => b.score - a.score);
 }

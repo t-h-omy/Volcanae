@@ -7,8 +7,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useGameStore } from '../gameStore';
 import { useAnimationStore } from '../animationStore';
+import { useDevOptionsStore } from '../devOptionsStore';
 import { UNIT_COSTS, RESOURCES, UI } from '../gameConfig';
 import { hasSpawnSpaceAt } from '../resourceSystem';
+import { computeUnitAiScores, type ScoredAction } from '../enemySystem';
 import {
   Faction,
   GamePhase,
@@ -90,7 +92,10 @@ const displayVersion = getDisplayVersion(__APP_VERSION__);
 
 function GameMenu() {
   const [open, setOpen] = useState(false);
+  const [devOptionsOpen, setDevOptionsOpen] = useState(false);
   const initGame = useGameStore((s) => s.initGame);
+  const showAiScores = useDevOptionsStore((s) => s.showAiScores);
+  const setShowAiScores = useDevOptionsStore((s) => s.setShowAiScores);
 
   const handleRestartGame = useCallback(() => {
     initGame();
@@ -113,7 +118,10 @@ function GameMenu() {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false);
+      if (e.key === 'Escape') {
+        setDevOptionsOpen(false);
+        setOpen(false);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -135,7 +143,7 @@ function GameMenu() {
           <div
             className="hud-menu-backdrop"
             role="presentation"
-            onClick={() => setOpen(false)}
+            onClick={() => { setDevOptionsOpen(false); setOpen(false); }}
           />
           <div className="hud-menu-dropdown" role="menu">
             <button className="hud-menu-item" role="menuitem" onClick={handleRestartGame}>
@@ -144,6 +152,27 @@ function GameMenu() {
             <button className="hud-menu-item" role="menuitem" onClick={handleResetCache}>
               🗑️ Reset Cache &amp; Reload
             </button>
+            <button
+              className="hud-menu-item"
+              role="menuitem"
+              onClick={() => setDevOptionsOpen((o) => !o)}
+              aria-expanded={devOptionsOpen}
+            >
+              🛠️ Dev Options {devOptionsOpen ? '▲' : '▼'}
+            </button>
+            {devOptionsOpen && (
+              <div className="hud-dev-options-panel">
+                <label className="hud-dev-option-row">
+                  <span className="hud-dev-option-label">Show AI Scores for Enemy Units</span>
+                  <input
+                    type="checkbox"
+                    className="hud-dev-option-toggle"
+                    checked={showAiScores}
+                    onChange={(e) => setShowAiScores(e.target.checked)}
+                  />
+                </label>
+              </div>
+            )}
             <div className="hud-menu-version">v{displayVersion}</div>
           </div>
         </>
@@ -180,6 +209,36 @@ function TopBar() {
 const HIDDEN_UNIT_TAGS = new Set<string>([UnitTag.NO_CAPTURE]);
 
 // ============================================================================
+// AI SCORE MODAL (dev option)
+// ============================================================================
+
+function AiScoreModal({ scores, onClose }: { scores: ScoredAction[]; onClose: () => void }) {
+  return (
+    <div className="hud-modal-backdrop" onClick={onClose}>
+      <div className="hud-modal hud-ai-score-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="hud-modal-header">
+          <span>🤖 AI Scores</span>
+          <button className="hud-modal-close" onClick={onClose}>✕</button>
+        </div>
+        {scores.length === 0 ? (
+          <p className="hud-dim" style={{ padding: '12px' }}>No scores available.</p>
+        ) : (
+          <ul className="hud-modal-list">
+            {scores.map((s, i) => (
+              <li key={`${s.type}-${i}`} className="hud-ai-score-item">
+                <span className="hud-ai-score-rank">#{i + 1}</span>
+                <span className="hud-ai-score-type">{s.type}</span>
+                <span className="hud-ai-score-value">{s.score.toFixed(1)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
 // SELECTED UNIT PANEL
 // ============================================================================
 
@@ -203,6 +262,11 @@ function SelectedUnitPanel({
     !unit.tags.includes(UnitTag.NO_CAPTURE);
 
   const visibleTags = unit.tags.filter((t) => !HIDDEN_UNIT_TAGS.has(t));
+
+  const showAiScores = useDevOptionsStore((s) => s.showAiScores);
+  const gameState = useGameStore((s) => s);
+  const [aiScoreModal, setAiScoreModal] = useState(false);
+  const [aiScores, setAiScores] = useState<ScoredAction[]>([]);
 
   return (
     <div className={`hud-info-panel${!isPlayer ? ' hud-panel-enemy' : ''}`}>
@@ -263,6 +327,20 @@ function SelectedUnitPanel({
             </button>
           )}
         </>
+      )}
+      {!isPlayer && showAiScores && (
+        <button
+          className="hud-ai-score-btn"
+          onClick={() => {
+            setAiScores(computeUnitAiScores(gameState, unit.id));
+            setAiScoreModal(true);
+          }}
+        >
+          🤖 AI Score
+        </button>
+      )}
+      {aiScoreModal && (
+        <AiScoreModal scores={aiScores} onClose={() => setAiScoreModal(false)} />
       )}
     </div>
   );
