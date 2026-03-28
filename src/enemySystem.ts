@@ -712,6 +712,11 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
           if (events) {
             const attackerAfter = state.units[attackerId];
             const defenderAfter = state.units[defenderId];
+            const advancedToPosition = (
+              !defenderAfter &&
+              attackerAfter &&
+              (attackerAfter.position.x !== attackerPos.x || attackerAfter.position.y !== attackerPos.y)
+            ) ? { x: attackerAfter.position.x, y: attackerAfter.position.y } : null;
             events.push({
               type: 'ENEMY_ATTACK',
               attackerId,
@@ -720,6 +725,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
               defenderPosition: defenderPos,
               attackerHpLost: attackerAfter ? attackerHpBefore - attackerAfter.stats.currentHp : attackerHpBefore,
               defenderHpLost: defenderAfter ? defenderHpBefore - defenderAfter.stats.currentHp : defenderHpBefore,
+              advancedToPosition,
             });
             if (!defenderAfter) {
               events.push({ type: 'UNIT_DEATH', unitId: defenderId, position: defenderPos, faction: targetUnit.faction });
@@ -761,6 +767,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
             defenderPosition: defenderPos,
             attackerHpLost: attackerAfter ? attackerHpBefore - attackerAfter.stats.currentHp : attackerHpBefore,
             defenderHpLost: defenderAfter ? defenderHpBefore - defenderAfter.stats.currentHp : defenderHpBefore,
+            advancedToPosition: null,
           });
           if (!defenderAfter) {
             events.push({ type: 'UNIT_DEATH', unitId: defenderId, position: defenderPos, faction: targetUnit.faction });

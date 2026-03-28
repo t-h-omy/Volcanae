@@ -116,6 +116,12 @@ export function useAnimationEngine(): void {
         if (visible) {
           // 4. Post-action idle (duration varies by event type)
           await wait(postActionDuration(event));
+
+          // 5. Brief extra camera pan to show where a melee attacker advanced after a kill
+          if (event.type === 'ENEMY_ATTACK' && event.advancedToPosition) {
+            useAnimationStore.getState().setCameraTarget(event.advancedToPosition);
+            await wait(ANIMATION.CAMERA_MOVE_DURATION_MS + ANIMATION.POST_ACTION_IDLE_MS);
+          }
         }
       }
 

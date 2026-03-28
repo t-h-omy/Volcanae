@@ -5,7 +5,7 @@
 
 import type { Unit, GameState } from './types';
 import type { Draft } from 'immer';
-import { Faction } from './types';
+import { Faction, UnitTag } from './types';
 import { useFloaterStore } from './floaterStore';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 
@@ -91,6 +91,9 @@ export function resolveAttack(
     return;
   }
 
+  // Capture defender's position before it is potentially removed from state
+  const defenderPosition = { x: defender.position.x, y: defender.position.y };
+
   // Calculate combat result
   const combatResult = calculateCombat(attacker, defender);
 
@@ -159,5 +162,20 @@ export function resolveAttack(
   } else {
     // Update defender HP
     defender.stats.currentHp = newDefenderHp;
+  }
+
+  // Melee attacker advances onto the tile the defeated defender occupied
+  if (defenderDead && !attackerDead) {
+    const attackerUnit = state.units[attackerId];
+    if (attackerUnit && !attackerUnit.tags.includes(UnitTag.RANGED)) {
+      const fromTile = state.grid[attackerUnit.position.y][attackerUnit.position.x];
+      if (fromTile.unitId === attackerId) {
+        fromTile.unitId = null;
+      }
+      const toTile = state.grid[defenderPosition.y][defenderPosition.x];
+      toTile.unitId = attackerId;
+      attackerUnit.position.x = defenderPosition.x;
+      attackerUnit.position.y = defenderPosition.y;
+    }
   }
 }
