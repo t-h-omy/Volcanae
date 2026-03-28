@@ -89,6 +89,7 @@ function updateZonesUnlocked(
  * Checks if a unit can initiate capture of a building.
  * A unit can capture if:
  * - Unit exists and has not captured this turn
+ * - Unit has not moved this turn (cannot capture in the same turn as moving onto the building)
  * - Building exists and is not owned by the unit's faction
  * - Unit is on the same tile as the building
  * - Unit does not have the NO_CAPTURE tag
@@ -119,6 +120,11 @@ export function canCapture(
 
   // Unit has already captured this turn
   if (unit.hasCapturedThisTurn) {
+    return false;
+  }
+
+  // Unit has moved this turn — cannot capture in the same turn as moving onto a building
+  if (unit.hasMovedThisTurn) {
     return false;
   }
 
@@ -155,6 +161,8 @@ export function canCapture(
 /**
  * Initiates capture of a building by a unit.
  * The capture will complete at the start of the next turn (via resolveCaptures).
+ * A unit must not have moved this turn to initiate capture (i.e. must have been
+ * standing on the building at the start of the turn).
  * While capturing:
  * - Unit cannot move, attack, or do anything else
  * - hasCapturedThisTurn, hasMovedThisTurn, hasActedThisTurn are all set to true
