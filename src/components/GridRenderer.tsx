@@ -108,6 +108,29 @@ function getAttackableTileKeys(
   return keys;
 }
 
+/** Returns set of "x,y" keys for tiles an enemy unit occupies that are
+ *  within attack range of a player-owned attacking building (e.g. watchtower). */
+function getBuildingAttackableTileKeys(
+  building: Building,
+  units: Record<string, Unit>,
+): Set<string> {
+  const keys = new Set<string>();
+  if (!building.combatStats || building.faction !== Faction.PLAYER || building.hasActedThisTurn) return keys;
+  for (const other of Object.values(units)) {
+    if (other.faction === Faction.ENEMY) {
+      const inRange = isTileWithinEdgeCircleRange(
+        building.position.x, building.position.y,
+        other.position.x, other.position.y,
+        building.combatStats.attackRange,
+      );
+      if (inRange) {
+        keys.add(posKey(other.position.x, other.position.y));
+      }
+    }
+  }
+  return keys;
+}
+
 // ============================================================================
 // TILE BACKGROUND COLOR
 // ============================================================================
@@ -138,12 +161,14 @@ export default function GridRenderer() {
   const units = useGameStore((s) => s.units);
   const buildings = useGameStore((s) => s.buildings);
   const selectedUnitId = useGameStore((s) => s.selectedUnitId);
+  const selectedBuildingId = useGameStore((s) => s.selectedBuildingId);
 
   const selectUnit = useGameStore((s) => s.selectUnit);
   const selectBuilding = useGameStore((s) => s.selectBuilding);
   const clearSelection = useGameStore((s) => s.clearSelection);
   const moveUnit = useGameStore((s) => s.moveUnit);
   const attackUnit = useGameStore((s) => s.attackUnit);
+  const buildingAttackUnit = useGameStore((s) => s.buildingAttackUnit);
 
   // ── Animation store selectors ──
   const isAnimating = useAnimationStore((s) => s.isAnimating);
@@ -266,6 +291,7 @@ export default function GridRenderer() {
 
   // ── Reachable / Attackable sets ──
   const selectedUnit = selectedUnitId ? units[selectedUnitId] : undefined;
+  const selectedBuilding = selectedBuildingId ? buildings[selectedBuildingId] : undefined;
 
   const reachableSet = useMemo<Set<string>>(() => {
     if (!selectedUnit || selectedUnit.faction !== Faction.PLAYER) return new Set();
@@ -274,9 +300,16 @@ export default function GridRenderer() {
   }, [selectedUnit]);
 
   const attackableSet = useMemo<Set<string>>(() => {
-    if (!selectedUnit || selectedUnit.faction !== Faction.PLAYER) return new Set();
-    return getAttackableTileKeys(selectedUnit, units);
-  }, [selectedUnit, units]);
+    // Unit attack range
+    if (selectedUnit && selectedUnit.faction === Faction.PLAYER) {
+      return getAttackableTileKeys(selectedUnit, units);
+    }
+    // Building attack range (e.g. player watchtower)
+    if (selectedBuilding && selectedBuilding.combatStats && selectedBuilding.faction === Faction.PLAYER) {
+      return getBuildingAttackableTileKeys(selectedBuilding, units);
+    }
+    return new Set();
+  }, [selectedUnit, selectedBuilding, units]);
 
   // ── Tile click ──
   const handleTileClick = useCallback(
@@ -296,17 +329,29 @@ export default function GridRenderer() {
         }
       }
 
-      // Priority 2 — Enemy unit on tile, valid attack available
+      // Priority 2 — Enemy unit on tile, valid attack available (unit or building attack)
       // Priority 3 — Enemy unit on tile, no valid attack: select for inspection
       if (tile.unitId) {
         const u = units[tile.unitId];
         if (u && u.faction === Faction.ENEMY) {
+          // Unit attack
           if (
             selectedUnit &&
             !selectedUnit.hasActedThisTurn &&
             attackableSet.has(key)
           ) {
             attackUnit(selectedUnit.id, tile.unitId);
+            return;
+          }
+          // Building attack (e.g. player watchtower attacking enemy unit)
+          if (
+            selectedBuilding &&
+            selectedBuilding.combatStats &&
+            selectedBuilding.faction === Faction.PLAYER &&
+            !selectedBuilding.hasActedThisTurn &&
+            attackableSet.has(key)
+          ) {
+            buildingAttackUnit(selectedBuilding.id, tile.unitId);
             return;
           }
           selectUnit(tile.unitId);
@@ -333,7 +378,7 @@ export default function GridRenderer() {
       // Priority 6 — Fallback: clear selection
       clearSelection();
     },
-    [grid, selectedUnit, attackableSet, reachableSet, units, selectUnit, selectBuilding, clearSelection, moveUnit, attackUnit, isAnimating],
+    [grid, selectedUnit, selectedBuilding, attackableSet, reachableSet, units, selectUnit, selectBuilding, clearSelection, moveUnit, attackUnit, buildingAttackUnit, isAnimating],
   );
 
   // Right-click / tap-hold → deselect (only when not used for drag-panning)
@@ -490,9 +535,32 @@ function TileCellInner({
 
       {/* building emoji */}
       {showBuilding && building && (
-        <span className="tile-building" style={{ fontSize: buildingIconSize }}>
+        <span
+          className="tile-building"
+          style={{
+            fontSize: buildingIconSize,
+            opacity: building.combatStats && building.hasActedThisTurn
+              ? RENDER.UNIT_EXHAUSTED_OPACITY
+              : undefined,
+          }}
+        >
           {BUILDING_EMOJI[building.type] ?? ''}
         </span>
+      )}
+
+      {/* building HP bar for attacking buildings (e.g. watchtower) */}
+      {showBuilding && building && building.combatStats && building.faction && (
+        <div
+          className="hp-bar-wrapper building-hp-bar"
+          style={
+            {
+              '--color-hp-red': RENDER.COLORS.HP_RED,
+              '--color-hp-green': RENDER.COLORS.HP_GREEN,
+            } as React.CSSProperties
+          }
+        >
+          <div className="hp-bar-fill" style={{ width: `${(building.hp / building.maxHp) * 100}%` }} />
+        </div>
       )}
 
       {/* resource icon */}

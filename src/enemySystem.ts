@@ -8,7 +8,7 @@ import type { Draft } from 'immer';
 import { produce } from 'immer';
 import { Faction, UnitType, UnitTag, BuildingType } from './types';
 import { UNITS, ENEMY, MAP, AI_SCORING } from './gameConfig';
-import { resolveAttack, calculateCombat } from './combatSystem';
+import { resolveAttack, calculateCombat, resolveBuildingAttack, buildingToCombatant, calculateCombatFromStats, unitToCombatant } from './combatSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { initiateCapture, canCapture } from './captureSystem';
 import type { GameEvent } from './gameEvents';
@@ -118,6 +118,7 @@ function buildingValueMultiplier(type: BuildingType): number {
   if (type === BuildingType.STRONGHOLD) return AI_SCORING.BUILDING_VALUE_STRONGHOLD;
   if (SPAWNER_TYPES.includes(type)) return AI_SCORING.BUILDING_VALUE_SPAWNER;
   if (RESOURCE_TYPES.includes(type)) return AI_SCORING.BUILDING_VALUE_RESOURCE;
+  if (type === BuildingType.WATCHTOWER) return AI_SCORING.BUILDING_VALUE_WATCHTOWER;
   return AI_SCORING.BUILDING_VALUE_DEFAULT;
 }
 
@@ -903,6 +904,90 @@ export function increaseThreatOnStrongholdCapture(state: Draft<GameState>): void
 }
 
 // ============================================================================
+// ENEMY BUILDING ATTACKS
+// ============================================================================
+
+/**
+ * Enemy-owned buildings with combat stats (e.g. watchtowers) attack
+ * the best player unit within their attack range.
+ * Picks the target that would take the most damage (highest kill potential).
+ */
+function executeBuildingAttacks(state: Draft<GameState>, events?: GameEvent[]): void {
+  const suppressFloaters = !!events;
+
+  for (const building of Object.values(state.buildings)) {
+    if (building.faction !== Faction.ENEMY) continue;
+    if (!building.combatStats) continue;
+    if (building.hasActedThisTurn) continue;
+
+    const attackRange = building.combatStats.attackRange;
+    const bCombatant = buildingToCombatant(building);
+    if (!bCombatant) continue;
+
+    // Find best player unit target in range
+    let bestTarget: { id: string; score: number } | null = null;
+
+    for (const unit of Object.values(state.units)) {
+      if (unit.faction !== Faction.PLAYER) continue;
+      if (!isTileWithinEdgeCircleRange(
+        building.position.x, building.position.y,
+        unit.position.x, unit.position.y,
+        attackRange,
+      )) continue;
+
+      const dCombatant = unitToCombatant(unit);
+      const { defenderHpLost } = calculateCombatFromStats(bCombatant, dCombatant);
+      const killBonus = defenderHpLost >= unit.stats.currentHp ? 100 : 0;
+      const score = defenderHpLost + killBonus;
+
+      if (!bestTarget || score > bestTarget.score) {
+        bestTarget = { id: unit.id, score };
+      }
+    }
+
+    if (!bestTarget) continue;
+
+    const targetUnit = state.units[bestTarget.id];
+    if (!targetUnit) continue;
+
+    const buildingPos = { x: building.position.x, y: building.position.y };
+    const defenderPos = { x: targetUnit.position.x, y: targetUnit.position.y };
+    const buildingHpBefore = building.hp;
+    const defenderHpBefore = targetUnit.stats.currentHp;
+    const defenderId = bestTarget.id;
+
+    resolveBuildingAttack(state, building.id, defenderId, suppressFloaters);
+
+    // Mark building wasAttackedLastEnemyTurn for player UI feedback on their buildings
+    // (this flag is used for buildings attacked BY enemy, not for buildings that attack)
+
+    if (events) {
+      const buildingAfter = state.buildings[building.id];
+      const defenderAfter = state.units[defenderId];
+
+      events.push({
+        type: 'BUILDING_ATTACK',
+        buildingId: building.id,
+        defenderId,
+        buildingPosition: buildingPos,
+        defenderPosition: defenderPos,
+        buildingHpLost: buildingAfter ? buildingHpBefore - buildingAfter.hp : buildingHpBefore,
+        defenderHpLost: defenderAfter ? defenderHpBefore - defenderAfter.stats.currentHp : defenderHpBefore,
+      });
+
+      if (!defenderAfter) {
+        events.push({
+          type: 'UNIT_DEATH',
+          unitId: defenderId,
+          position: defenderPos,
+          faction: targetUnit.faction,
+        });
+      }
+    }
+  }
+}
+
+// ============================================================================
 // MAIN ENEMY TURN FUNCTION
 // ============================================================================
 
@@ -923,6 +1008,9 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
 
     // 2. Spawn enemy units
     spawnEnemyUnits(draft, events);
+
+    // 2b. Enemy-owned attacking buildings (e.g. watchtowers) fire at player units in range
+    executeBuildingAttacks(draft, events);
 
     // 3. Process each enemy unit
     const targetingIntents = new Map<string, number>();
@@ -947,6 +1035,13 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
         unit.hasMovedThisTurn = false;
         unit.hasActedThisTurn = false;
         unit.hasCapturedThisTurn = false;
+      }
+    }
+
+    // Reset enemy building action flags for next turn
+    for (const building of Object.values(draft.buildings)) {
+      if (building.faction === Faction.ENEMY && building.combatStats) {
+        building.hasActedThisTurn = false;
       }
     }
   });

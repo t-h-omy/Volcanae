@@ -316,15 +316,22 @@ function SelectedUnitPanel({
             <span className={`hud-action-tag ${canCapture ? '' : 'hud-action-used'}`}>Capture</span>
           </div>
           {captureTarget && (
-            <button
-              className="hud-capture-btn"
-              disabled={!canCapture}
-              onClick={onCapture}
-            >
-              {unit.hasMovedThisTurn
-                ? '🏳️ Capture — move here first'
-                : `🏳️ Capture ${BUILDING_NAME[captureTarget.type] ?? captureTarget.type}`}
-            </button>
+            <>
+              {captureTarget.consumesUnitOnCapture && canCapture && (
+                <div className="hud-warning hud-capture-warning">
+                  ⚠️ This unit will be consumed!
+                </div>
+              )}
+              <button
+                className="hud-capture-btn"
+                disabled={!canCapture}
+                onClick={onCapture}
+              >
+                {unit.hasMovedThisTurn
+                  ? '🏳️ Capture — move here first'
+                  : `🏳️ Capture ${BUILDING_NAME[captureTarget.type] ?? captureTarget.type}`}
+              </button>
+            </>
           )}
         </>
       )}
@@ -437,6 +444,8 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   const isDisabled = building.isDisabledForTurns > 0;
   const isUnderAttack = building.wasAttackedLastEnemyTurn;
   const isInteractionBlocked = isDisabled || isUnderAttack;
+  const hasCombatStats = building.combatStats !== null;
+  const canAttack = hasCombatStats && !building.hasActedThisTurn && building.faction !== null;
 
   // Specialist slot info
   const assignedSpecialist: Specialist | null =
@@ -487,6 +496,57 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
         <span className="hud-panel-name">{BUILDING_NAME[building.type] ?? building.type}</span>
         <span className="hud-faction-label">{factionLabel}</span>
       </div>
+
+      {/* HP bar for attacking buildings */}
+      {hasCombatStats && (
+        <div className="hud-hp-row">
+          <div className="hud-hp-bar">
+            <div className="hud-hp-fill" style={{ width: `${(building.hp / building.maxHp) * 100}%` }} />
+          </div>
+          <span className="hud-hp-text">
+            {building.hp}/{building.maxHp}
+          </span>
+        </div>
+      )}
+
+      {/* Combat stats for attacking buildings */}
+      {hasCombatStats && building.combatStats && (
+        <div className="hud-unit-stats">
+          <span className="hud-stat-label">ATK</span>
+          <span className="hud-stat-value">{building.combatStats.attack}</span>
+          <span className="hud-stat-label">DEF</span>
+          <span className="hud-stat-value">{building.combatStats.defense}</span>
+          <span className="hud-stat-label">RNG</span>
+          <span className="hud-stat-value">{building.combatStats.attackRange}</span>
+          <span className="hud-stat-label">VIS</span>
+          <span className="hud-stat-value">{building.discoverRadius}</span>
+        </div>
+      )}
+
+      {/* Tag pills for attacking buildings */}
+      {building.tags.length > 0 && (
+        <div className="hud-tag-pills">
+          {building.tags.filter((t) => !HIDDEN_UNIT_TAGS.has(t)).map((tag) => (
+            <span key={tag} className="hud-tag-pill">
+              {tag === UnitTag.RANGED ? '◎ Ranged' : tag}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Action tags for player-owned attacking buildings */}
+      {isPlayerOwned && hasCombatStats && (
+        <div className="hud-action-tags">
+          <span className={`hud-action-tag ${canAttack ? '' : 'hud-action-used'}`}>Attack</span>
+        </div>
+      )}
+
+      {/* Capture warning: unit is consumed when capturing this building */}
+      {building.consumesUnitOnCapture && (
+        <div className="hud-warning hud-capture-warning">
+          ⚠️ Capturing consumes the unit!
+        </div>
+      )}
 
       {/* Warnings */}
       {isDisabled && (

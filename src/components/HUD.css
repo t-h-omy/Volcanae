@@ -214,6 +214,11 @@
   background: rgba(231, 76, 60, 0.15);
 }
 
+.hud-capture-warning {
+  color: #e67e22;
+  background: rgba(230, 126, 34, 0.15);
+}
+
 /* ── Production row ── */
 
 .hud-production-row {
