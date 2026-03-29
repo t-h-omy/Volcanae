@@ -248,7 +248,7 @@ function createEnemyUnit(
 
     finalHp = Math.round(baseHp * boostMultiplier);
     finalAttack = Math.round(baseAttack * boostMultiplier);
-    tags.push(UnitTag.LAVA_BOOST);
+    tags.push(UnitTag.LAVABOOST);
   }
 
   return {
@@ -708,7 +708,7 @@ function scoreActionsForUnit(
   }
 
   // ── ADVANCE_WITH_LAVA ──
-  if (!unit.hasMovedThisTurn && unit.tags.includes(UnitTag.LAVA_BOOST)) {
+  if (!unit.hasMovedThisTurn && unit.tags.includes(UnitTag.LAVABOOST)) {
     const lavaDistance = unit.position.y - state.lavaFrontRow;
     const boostFactor = Math.max(0, 1 - lavaDistance / ENEMY.MAX_LAVA_BOOST_DISTANCE);
     const score = AI_SCORING.BASE_ADVANCE_WITH_LAVA

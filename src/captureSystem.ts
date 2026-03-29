@@ -90,6 +90,7 @@ function updateZonesUnlocked(state: Draft<GameState>): void {
  * - Building exists and is not owned by the unit's faction
  * - Unit is on the same tile as the building
  * - Unit does not have the NO_CAPTURE tag
+ *   (Unit must have the BUILDANDCAPTURE tag)
  * - The building's zone is unlocked for the unit's faction
  *
  * @param state - Current game state
@@ -125,8 +126,8 @@ export function canCapture(
     return false;
   }
 
-  // Unit has NO_CAPTURE tag
-  if (unit.tags.includes(UnitTag.NO_CAPTURE)) {
+  // Unit does not have BUILDANDCAPTURE tag
+  if (!unit.tags.includes(UnitTag.BUILDANDCAPTURE)) {
     return false;
   }
 

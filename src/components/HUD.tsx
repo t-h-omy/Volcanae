@@ -211,7 +211,7 @@ function TopBar() {
 }
 
 /** Tags that are internal implementation details and should not be shown to the player */
-const HIDDEN_UNIT_TAGS = new Set<string>([UnitTag.NO_CAPTURE]);
+const HIDDEN_UNIT_TAGS = new Set<string>([]);
 
 // ============================================================================
 // AI SCORE MODAL (dev option)
@@ -264,7 +264,7 @@ function SelectedUnitPanel({
     !unit.hasCapturedThisTurn &&
     !unit.hasActedThisTurn &&
     !unit.hasMovedThisTurn &&
-    !unit.tags.includes(UnitTag.NO_CAPTURE);
+    unit.tags.includes(UnitTag.BUILDANDCAPTURE);
 
   const visibleTags = unit.tags.filter((t) => !HIDDEN_UNIT_TAGS.has(t));
 
@@ -306,7 +306,7 @@ function SelectedUnitPanel({
             <span key={tag} className="hud-tag-pill">
               {tag === UnitTag.RANGED
                 ? '◎ Ranged'
-                : tag === UnitTag.LAVA_BOOST
+                : tag === UnitTag.LAVABOOST
                   ? '🔥 Lava-Boosted'
                   : tag === UnitTag.PREP
                     ? '⏸ Prep'

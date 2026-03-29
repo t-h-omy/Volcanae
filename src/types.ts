@@ -28,6 +28,7 @@ export const UnitType = {
   LAVA_ARCHER: 'LAVA_ARCHER',
   LAVA_RIDER: 'LAVA_RIDER',
   LAVA_SIEGE: 'LAVA_SIEGE',
+  EMBERLING: 'EMBERLING',
 } as const;
 export type UnitType = (typeof UnitType)[keyof typeof UnitType];
 
@@ -41,6 +42,12 @@ export const BuildingType = {
   RIDER_CAMP: 'RIDER_CAMP',
   SIEGE_CAMP: 'SIEGE_CAMP',
   WATCHTOWER: 'WATCHTOWER',
+  LAVALAIR: 'LAVALAIR',
+  INFERNALSANCTUM: 'INFERNALSANCTUM',
+  FARM: 'FARM',
+  PATRICIANHOUSE: 'PATRICIANHOUSE',
+  MAGMASPYR: 'MAGMASPYR',
+  EMBERNEST: 'EMBERNEST',
 } as const;
 export type BuildingType = (typeof BuildingType)[keyof typeof BuildingType];
 
@@ -48,6 +55,8 @@ export type BuildingType = (typeof BuildingType)[keyof typeof BuildingType];
 export const TileType = {
   EMPTY: 'EMPTY',
   PLAINS: 'PLAINS',
+  FOREST: 'FOREST',
+  MOUNTAIN: 'MOUNTAIN',
 } as const;
 export type TileType = (typeof TileType)[keyof typeof TileType];
 
@@ -73,11 +82,17 @@ export const UnitTag = {
   /** Unit has ranged attack capability */
   RANGED: 'RANGED',
   /** Unit stats are boosted at spawn based on spawning building proximity to lava */
-  LAVA_BOOST: 'LAVA_BOOST',
-  /** Unit cannot capture buildings */
-  NO_CAPTURE: 'NO_CAPTURE',
+  LAVABOOST: 'LAVABOOST',
   /** Unit cannot attack after moving (preparation required) */
   PREP: 'PREP',
+  /** Unit can construct buildings AND initiate captures */
+  BUILDANDCAPTURE: 'BUILDANDCAPTURE',
+  /** Enemy unit can corrupt FOREST and MOUNTAIN terrain tiles */
+  CORRUPT: 'CORRUPT',
+  /** Unit prioritizes moving toward lava to be destroyed */
+  SACRIFICIAL: 'SACRIFICIAL',
+  /** Unit explodes when adjacent to enemy-faction units, dealing area damage */
+  EXPLOSIVE: 'EXPLOSIVE',
 } as const;
 export type UnitTag = (typeof UnitTag)[keyof typeof UnitTag];
 
@@ -164,6 +179,14 @@ export interface Building {
   tags: UnitTag[];
   /** Whether capturing this building consumes the capturing unit */
   consumesUnitOnCapture: boolean;
+  /** Current number of people in this house — only relevant for FARM and PATRICIANHOUSE */
+  populationCount: number;
+  /** Maximum population for this house — only relevant for FARM and PATRICIANHOUSE */
+  populationCap: number;
+  /** Turns elapsed since last population growth — only for FARM and PATRICIANHOUSE */
+  populationGrowthCounter: number;
+  /** Turns since last Emberling spawn — only for EMBERNEST */
+  emberSpawnCounter: number;
 }
 
 /** A tile on the game grid */
@@ -175,12 +198,23 @@ export interface Tile {
   unitId: string | null;
   isLava: boolean;
   isLavaPreview: boolean;
+  isRuin: boolean;
+  isStrongholdRuin: boolean;
+  terrainType: TileType;
 }
 
 /** Resources available to the player */
 export interface Resources {
   iron: number;
   wood: number;
+  farmers: number;
+  nobles: number;
+}
+
+/** Population cost a unit occupies while alive */
+export interface UnitPopulationCost {
+  farmers: number;
+  nobles: number;
 }
 
 /** Complete game state */

@@ -148,6 +148,10 @@ function createBuilding(
     hasActedThisTurn: false,
     tags,
     consumesUnitOnCapture: isWatchtower,
+    populationCount: 0,
+    populationCap: 0,
+    populationGrowthCounter: 0,
+    emberSpawnCounter: 0,
   };
 }
 
@@ -268,7 +272,7 @@ function createUnit(
     tags: [
       ...(UNITS[type].attackRange > 1 ? [UnitTag.RANGED] : []),
       ...(type === UnitType.SIEGE || type === UnitType.LAVA_SIEGE ? [UnitTag.PREP] : []),
-      ...(type === UnitType.SCOUT ? [UnitTag.NO_CAPTURE] : []),
+      ...(type !== UnitType.SCOUT ? [UnitTag.BUILDANDCAPTURE] : []),
     ],
     hasMovedThisTurn: false,
     hasActedThisTurn: false,
@@ -298,6 +302,9 @@ function createGrid(): Tile[][] {
         unitId: null,
         isLava: false,
         isLavaPreview: false,
+        isRuin: false,
+        isStrongholdRuin: false,
+        terrainType: TileType.PLAINS,
       });
     }
     grid.push(row);
@@ -390,6 +397,8 @@ export function generateInitialGameState(): GameState {
     resources: {
       iron: 1,
       wood: 1,
+      farmers: 0,
+      nobles: 0,
     },
     lavaFrontRow: -1,
     turnsUntilLavaAdvance: LAVA.LAVA_ADVANCE_INTERVAL,

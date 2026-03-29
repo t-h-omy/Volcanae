@@ -144,6 +144,17 @@ export const UNITS = {
     discoverRadius: 1,
     triggerRange: 4,
   },
+
+  EMBERLING: {
+    maxHp: 40,
+    attack: 15,
+    defense: 10,
+    movementActions: 1,
+    moveRange: 1,
+    attackRange: 1,
+    discoverRadius: 1,
+    triggerRange: 0,
+  },
 } as const;
 
 // ============================================================================
@@ -167,6 +178,12 @@ export const BUILDINGS = {
     RIDER_CAMP: 2,
     SIEGE_CAMP: 2,
     WATCHTOWER: 4,
+    LAVALAIR: 0,
+    INFERNALSANCTUM: 0,
+    FARM: 0,
+    PATRICIANHOUSE: 0,
+    MAGMASPYR: 0,
+    EMBERNEST: 0,
   },
   /** Watchtower combat configuration */
   WATCHTOWER_STATS: {
