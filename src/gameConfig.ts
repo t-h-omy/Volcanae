@@ -40,20 +40,20 @@ export const UNITS = {
     attack: 50,
     defense: 50,
     movementActions: 1,
-    moveRange: 2,
+    moveRange: 1,
     attackRange: 1,
-    discoverRadius: 2,
+    discoverRadius: 1,
     triggerRange: 0,
   },
 
   ARCHER: {
     maxHp: 100,
-    attack: 50,
+    attack: 45,
     defense: 20,
     movementActions: 1,
-    moveRange: 2,
+    moveRange: 1,
     attackRange: 2,
-    discoverRadius: 2,
+    discoverRadius: 1,
     triggerRange: 0,
   },
 
@@ -62,9 +62,9 @@ export const UNITS = {
     attack: 65,
     defense: 40,
     movementActions: 1,
-    moveRange: 3,
+    moveRange: 2,
     attackRange: 1,
-    discoverRadius: 2,
+    discoverRadius: 1,
     triggerRange: 0,
   },
 
@@ -75,7 +75,7 @@ export const UNITS = {
     movementActions: 1,
     moveRange: 1,
     attackRange: 3,
-    discoverRadius: 2,
+    discoverRadius: 1,
     triggerRange: 0,
   },
 
@@ -84,20 +84,20 @@ export const UNITS = {
     attack: 50,
     defense: 50,
     movementActions: 1,
-    moveRange: 2,
+    moveRange: 1,
     attackRange: 1,
-    discoverRadius: 2,
+    discoverRadius: 1,
     triggerRange: 0,
   },
 
   LAVA_ARCHER: {
     maxHp: 100,
-    attack: 50,
+    attack: 45,
     defense: 20,
     movementActions: 1,
-    moveRange: 2,
+    moveRange: 1,
     attackRange: 2,
-    discoverRadius: 2,
+    discoverRadius: 1,
     triggerRange: 3,
   },
 
@@ -106,9 +106,9 @@ export const UNITS = {
     attack: 65,
     defense: 40,
     movementActions: 1,
-    moveRange: 3,
+    moveRange: 2,
     attackRange: 1,
-    discoverRadius: 2,
+    discoverRadius: 1,
     triggerRange: 3,
   },
 
@@ -119,7 +119,7 @@ export const UNITS = {
     movementActions: 1,
     moveRange: 1,
     attackRange: 3,
-    discoverRadius: 2,
+    discoverRadius: 1,
     triggerRange: 4,
   },
 } as const;
@@ -137,14 +137,14 @@ export const BUILDINGS = {
   WATCHTOWER_SPAWN_CHANCE: 0.5,
   /** Discover radius per building type (balanceable) */
   DISCOVER_RADIUS: {
-    STRONGHOLD: 4,
-    MINE: 3,
-    WOODCUTTER: 3,
-    BARRACKS: 3,
-    ARCHER_CAMP: 3,
-    RIDER_CAMP: 3,
-    SIEGE_CAMP: 3,
-    WATCHTOWER: 5,
+    STRONGHOLD: 2,
+    MINE: 2,
+    WOODCUTTER: 2,
+    BARRACKS: 2,
+    ARCHER_CAMP: 2,
+    RIDER_CAMP: 2,
+    SIEGE_CAMP: 2,
+    WATCHTOWER: 4,
   },
   /** Watchtower combat configuration */
   WATCHTOWER_STATS: {
@@ -213,31 +213,31 @@ export const AI_SCORING = {
   BASE_HOLD_POSITION: 3,
 
   // Distance
-  DISTANCE_PENALTY_PER_TILE: 4,
+  DISTANCE_PENALTY_PER_TILE: 6,
 
   // Combat outcome modifiers
-  KILL_BONUS: 45,
-  DEATH_RISK_PENALTY: 30,
-  LOW_HP_RISK_FACTOR: 0.7,
-  LOW_HP_THRESHOLD: 0.5,
+  KILL_BONUS: 50,
+  DEATH_RISK_PENALTY: 20,
+  LOW_HP_RISK_FACTOR: 0.5,
+  LOW_HP_THRESHOLD: 0.25,
 
   // Building strategic value multipliers
   BUILDING_VALUE_STRONGHOLD: 2.0,
   BUILDING_VALUE_SPAWNER: 1.6,
   BUILDING_VALUE_RESOURCE: 1.2,
   BUILDING_VALUE_DEFAULT: 1.0,
-  BUILDING_VALUE_WATCHTOWER: 1.4,
+  BUILDING_VALUE_WATCHTOWER: 2.0,
 
   // Saturation
-  SATURATION_PENALTY_PER_ALLY: 18,
+  SATURATION_PENALTY_PER_ALLY: 10,
 
   // Context bonuses
-  BONUS_PLAYER_ON_BUILDING: 25,
-  BONUS_PLAYER_CAPTURING: 30,
-  BONUS_UNDEFENDED_BUILDING: 15,
-  BONUS_RECENT_LOSS: 28,
-  RECENTLY_LOST_WINDOW_TURNS: 3,
-  BONUS_RANGED_SAFE_ATTACK: 15,
+  BONUS_PLAYER_ON_BUILDING: 35,
+  BONUS_PLAYER_CAPTURING: 40,
+  BONUS_UNDEFENDED_BUILDING: 25,
+  BONUS_RECENT_LOSS: 25,
+  RECENTLY_LOST_WINDOW_TURNS: 4,
+  BONUS_RANGED_SAFE_ATTACK: 25,
 
   // Lava-specific
   BONUS_LAVA_BOOST_AGGRESSION: 25,
@@ -257,7 +257,7 @@ export const UNIT_COSTS: Record<string, UnitCost> = {
   INFANTRY: { iron: 2, wood: 1 },
   ARCHER: { iron: 1, wood: 2 },
   RIDER: { iron: 3, wood: 1 },
-  SIEGE: { iron: 3, wood: 3 },
+  SIEGE: { iron: 2, wood: 3 },
 } as const;
 
 // ============================================================================
@@ -288,7 +288,7 @@ export const ANIMATION = {
   /** Hit shake duration (ms) */
   HIT_SHAKE_DURATION_MS: 280,
   /** Die skull-flash duration (ms) */
-  DIE_FLASH_DURATION_MS: 540,
+  DIE_FLASH_DURATION_MS: 450,
   /** Die fade-out duration (ms) */
   DIE_FADE_DURATION_MS: 200,
 } as const;
@@ -299,13 +299,13 @@ export const ANIMATION = {
 
 export const UI = {
   /** Total lifetime of a damage number before removal */
-  DAMAGE_FLOAT_DURATION_MS: 2000,
+  DAMAGE_FLOAT_DURATION_MS: 2500,
   /** How far upward the number floats (half a tile height) */
   DAMAGE_FLOAT_RISE_PX: 20,
   /** Duration of the bounce animation on the capture-ready indicator */
   CAPTURE_INDICATOR_BOUNCE_DURATION_MS: 700,
   /** How long the turn label is fully visible before fading out */
-  TURN_POPUP_DISPLAY_MS: 1200,
+  TURN_POPUP_DISPLAY_MS: 2000,
   /** Duration of the turn popup fade-out */
   TURN_POPUP_FADE_MS: 400,
 } as const;
@@ -322,7 +322,7 @@ export const RENDER = {
   /** Mobile breakpoint in pixels */
   MOBILE_BREAKPOINT: 768,
   /** Opacity of a unit graphic when it has no actions remaining (0.0–1.0) */
-  UNIT_EXHAUSTED_OPACITY: 0.6,
+  UNIT_EXHAUSTED_OPACITY: 0.5,
   /** Colors for tile rendering */
   COLORS: {
     UNREVEALED: '#d8d8d8',
