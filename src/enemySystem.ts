@@ -8,7 +8,7 @@ import type { Draft } from 'immer';
 import { produce } from 'immer';
 import { Faction, UnitType, UnitTag, BuildingType } from './types';
 import { UNITS, ENEMY, MAP, AI_SCORING } from './gameConfig';
-import { resolveAttack, calculateCombat, resolveBuildingAttack, buildingToCombatant, calculateCombatFromStats, unitToCombatant } from './combatSystem';
+import { resolveAttack, calculateCombat, resolveBuildingAttack, buildingToCombatant, calculateCombatFromStats, unitToCombatant, resolveAttackOnBuilding } from './combatSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { initiateCapture, canCapture } from './captureSystem';
 import type { GameEvent } from './gameEvents';
@@ -41,6 +41,8 @@ const BUILDING_SPAWN_UNIT_TYPE: Partial<Record<BuildingType, UnitType>> = {
 type EnemyActionType =
   | 'ATTACK_UNIT'
   | 'RANGED_ATTACK_UNIT'
+  | 'ATTACK_BUILDING'
+  | 'RANGED_ATTACK_BUILDING'
   | 'INTERCEPT_CAPTOR'
   | 'CAPTURE_BUILDING'
   | 'CONTEST_BUILDING'
@@ -126,6 +128,12 @@ function saturationPenalty(targetId: string, targetingIntents: Map<string, numbe
   return (targetingIntents.get(targetId) ?? 0) * AI_SCORING.SATURATION_PENALTY_PER_ALLY;
 }
 
+function calcDeathRiskPenalty(attacker: Unit, attackerHpLost: number, canCounter: boolean): number {
+  if (!canCounter || attackerHpLost < attacker.stats.currentHp) return 0;
+  const isLowHp = attacker.stats.currentHp < attacker.stats.maxHp * AI_SCORING.LOW_HP_THRESHOLD;
+  return AI_SCORING.DEATH_RISK_PENALTY * (isLowHp ? AI_SCORING.LOW_HP_RISK_FACTOR : 1);
+}
+
 function projectCombatScore(attacker: Unit, defender: Unit): number {
   const { attackerHpLost, defenderHpLost } = calculateCombat(attacker, defender);
   let bonus = 0;
@@ -140,10 +148,33 @@ function projectCombatScore(attacker: Unit, defender: Unit): number {
     defender.stats.attackRange,
   );
 
-  if (defenderCanCounter && attackerHpLost >= attacker.stats.currentHp) {
-    const isLowHp = attacker.stats.currentHp < attacker.stats.maxHp * AI_SCORING.LOW_HP_THRESHOLD;
-    bonus -= AI_SCORING.DEATH_RISK_PENALTY * (isLowHp ? AI_SCORING.LOW_HP_RISK_FACTOR : 1);
+  bonus -= calcDeathRiskPenalty(attacker, attackerHpLost, defenderCanCounter);
+
+  return bonus;
+}
+
+function projectBuildingCombatScore(attacker: Unit, building: Building): number {
+  if (!building.combatStats || !building.faction) return 0;
+
+  const attackerCombatant = unitToCombatant(attacker);
+  const buildingCombatant = buildingToCombatant(building)!;
+  const { attackerHpLost, defenderHpLost } = calculateCombatFromStats(attackerCombatant, buildingCombatant);
+
+  let bonus = 0;
+
+  // Bonus for reducing building to 0 HP (it becomes neutral)
+  if (defenderHpLost >= building.hp) {
+    bonus += AI_SCORING.KILL_BONUS;
   }
+
+  // Penalty if the building can counter-attack and the attacker would die
+  const buildingCanCounter = isTileWithinEdgeCircleRange(
+    building.position.x, building.position.y,
+    attacker.position.x, attacker.position.y,
+    building.combatStats.attackRange,
+  );
+
+  bonus -= calcDeathRiskPenalty(attacker, attackerHpLost, buildingCanCounter);
 
   return bonus;
 }
@@ -413,7 +444,8 @@ function scoreActionsForUnit(
     const tile = state.grid[unit.position.y][unit.position.x];
     if (tile.buildingId) {
       const building = state.buildings[tile.buildingId];
-      if (building && building.faction !== Faction.ENEMY) {
+      // Exclude buildings that consume the capturing unit (e.g. watchtowers) — they must be attacked/destroyed instead
+      if (building && building.faction !== Faction.ENEMY && !building.consumesUnitOnCapture) {
         const score = AI_SCORING.BASE_CAPTURE_BUILDING
           * buildingValueMultiplier(building.type)
           - saturationPenalty(building.id, targetingIntents);
@@ -502,6 +534,62 @@ function scoreActionsForUnit(
         + AI_SCORING.BONUS_RANGED_SAFE_ATTACK
         - saturationPenalty(target.id, targetingIntents);
       candidates.push({ type: 'RANGED_ATTACK_UNIT', score: Math.max(0, score), targetUnitId: target.id, targetPosition: target.position });
+    }
+  }
+
+  // ── ATTACK_BUILDING ── (attack player-owned buildings with combat stats, e.g. watchtowers)
+  if (canAttackThisTurn) {
+    const buildingsInAttackRange = allBuildings.filter(b => {
+      if (b.faction !== Faction.PLAYER) return false;
+      if (!b.combatStats) return false;
+      return isTileWithinEdgeCircleRange(
+        unit.position.x, unit.position.y,
+        b.position.x, b.position.y,
+        attackRange,
+      );
+    });
+
+    if (buildingsInAttackRange.length > 0) {
+      let bestBuilding: Building | null = null;
+      let bestBuildingScore = -Infinity;
+      for (const target of buildingsInAttackRange) {
+        const cs = projectBuildingCombatScore(unit, target);
+        if (cs > bestBuildingScore) {
+          bestBuildingScore = cs;
+          bestBuilding = target;
+        }
+      }
+      if (bestBuilding) {
+        const distance = manhattanDistance(unit.position, bestBuilding.position);
+        const score = AI_SCORING.BASE_ATTACK_BUILDING
+          - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
+          + projectBuildingCombatScore(unit, bestBuilding)
+          - saturationPenalty(bestBuilding.id, targetingIntents);
+        candidates.push({ type: 'ATTACK_BUILDING', score: Math.max(0, score), targetBuildingId: bestBuilding.id, targetPosition: bestBuilding.position });
+      }
+    }
+  }
+
+  // ── RANGED_ATTACK_BUILDING ── (ranged units attack buildings from safe distance)
+  if (canAttackThisTurn && unit.tags.includes(UnitTag.RANGED)) {
+    const rangedBuildingTargets = allBuildings.filter(b => {
+      if (b.faction !== Faction.PLAYER) return false;
+      if (!b.combatStats) return false;
+      if (!isTileWithinEdgeCircleRange(unit.position.x, unit.position.y, b.position.x, b.position.y, attackRange)) return false;
+      // Must be at a safe distance (not adjacent) to benefit from the safe-attack bonus
+      return manhattanDistance(unit.position, b.position) > 1;
+    });
+
+    if (rangedBuildingTargets.length > 0) {
+      rangedBuildingTargets.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
+      const target = rangedBuildingTargets[0];
+      const distance = manhattanDistance(unit.position, target.position);
+      const score = AI_SCORING.BASE_RANGED_ATTACK_BUILDING
+        - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
+        + projectBuildingCombatScore(unit, target)
+        + AI_SCORING.BONUS_RANGED_SAFE_ATTACK
+        - saturationPenalty(target.id, targetingIntents);
+      candidates.push({ type: 'RANGED_ATTACK_BUILDING', score: Math.max(0, score), targetBuildingId: target.id, targetPosition: target.position });
     }
   }
 
@@ -790,6 +878,50 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
           }
           if (!attackerAfter) {
             events.push({ type: 'UNIT_DEATH', unitId: attackerId, position: attackerPos, faction: currentUnit.faction });
+          }
+        }
+      }
+      break;
+    }
+
+    case 'ATTACK_BUILDING':
+    case 'RANGED_ATTACK_BUILDING': {
+      if (action.targetBuildingId) {
+        const building = state.buildings[action.targetBuildingId];
+        if (building) {
+          const inAttackRange = isTileWithinEdgeCircleRange(
+            currentUnit.position.x, currentUnit.position.y,
+            building.position.x, building.position.y,
+            currentUnit.stats.attackRange,
+          );
+          if (inAttackRange) {
+            const attackerPos = { x: currentUnit.position.x, y: currentUnit.position.y };
+            const buildingPos = { x: building.position.x, y: building.position.y };
+            const attackerHpBefore = currentUnit.stats.currentHp;
+            const buildingHpBefore = building.hp;
+            const attackerId = currentUnit.id;
+            const buildingId = action.targetBuildingId;
+
+            resolveAttackOnBuilding(state, attackerId, buildingId, suppressFloaters);
+
+            if (events) {
+              const attackerAfter = state.units[attackerId];
+              const buildingAfter = state.buildings[buildingId];
+              events.push({
+                type: 'UNIT_ATTACK_BUILDING',
+                attackerId,
+                buildingId,
+                attackerPosition: attackerPos,
+                buildingPosition: buildingPos,
+                attackerHpLost: attackerAfter ? attackerHpBefore - attackerAfter.stats.currentHp : attackerHpBefore,
+                buildingHpLost: buildingAfter ? buildingHpBefore - buildingAfter.hp : buildingHpBefore,
+              });
+              if (!attackerAfter) {
+                events.push({ type: 'UNIT_DEATH', unitId: attackerId, position: attackerPos, faction: currentUnit.faction });
+              }
+            }
+          } else if (!currentUnit.hasMovedThisTurn) {
+            moveEnemyUnitToward(state, currentUnit.id, building.position, events);
           }
         }
       }

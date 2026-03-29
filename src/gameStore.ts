@@ -586,6 +586,48 @@ export const useGameStore = create<GameStore>()(
             break;
           }
 
+          case 'UNIT_ATTACK_BUILDING': {
+            // Apply damage to attacker (from counter-attack) and building
+            const attacker = state.units[event.attackerId];
+            const building = state.buildings[event.buildingId];
+
+            if (attacker && event.attackerHpLost > 0) {
+              attacker.stats.currentHp -= event.attackerHpLost;
+            }
+            if (building && event.buildingHpLost > 0) {
+              building.hp -= event.buildingHpLost;
+              // If building HP reaches 0, it becomes neutral
+              if (building.hp <= 0) {
+                building.hp = building.maxHp;
+                building.faction = null;
+                building.hasActedThisTurn = false;
+                building.specialistSlot = null;
+                building.turnCapturedByPlayer = null;
+                building.wasEnemyOwnedBeforeCapture = false;
+              }
+            }
+
+            // Trigger floaters
+            const { addFloater } = useFloaterStore.getState();
+            if (event.buildingHpLost > 0) {
+              addFloater({
+                value: event.buildingHpLost,
+                x: event.buildingPosition.x,
+                y: event.buildingPosition.y,
+                isEnemy: building?.faction === Faction.ENEMY,
+              });
+            }
+            if (event.attackerHpLost > 0) {
+              addFloater({
+                value: event.attackerHpLost,
+                x: event.attackerPosition.x,
+                y: event.attackerPosition.y,
+                isEnemy: attacker?.faction === Faction.ENEMY,
+              });
+            }
+            break;
+          }
+
           case 'BUILDING_CAPTURE': {
             const building = state.buildings[event.buildingId];
             if (building) {
