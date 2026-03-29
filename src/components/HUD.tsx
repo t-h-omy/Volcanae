@@ -32,6 +32,8 @@ const UNIT_EMOJI: Record<string, string> = {
   [UnitType.ARCHER]: '🏹',
   [UnitType.RIDER]: '🐴',
   [UnitType.SIEGE]: '💣',
+  [UnitType.SCOUT]: '🔭',
+  [UnitType.GUARD]: '🛡️',
   [UnitType.LAVA_GRUNT]: '👹',
   [UnitType.LAVA_ARCHER]: '👺',
   [UnitType.LAVA_RIDER]: '👾',
@@ -43,6 +45,8 @@ const UNIT_NAME: Record<string, string> = {
   [UnitType.ARCHER]: 'Archer',
   [UnitType.RIDER]: 'Rider',
   [UnitType.SIEGE]: 'Siege',
+  [UnitType.SCOUT]: 'Scout',
+  [UnitType.GUARD]: 'Guard',
   [UnitType.LAVA_GRUNT]: 'Lava Grunt',
   [UnitType.LAVA_ARCHER]: 'Lava Archer',
   [UnitType.LAVA_RIDER]: 'Lava Rider',
@@ -71,12 +75,13 @@ const BUILDING_NAME: Record<string, string> = {
   [BuildingType.WATCHTOWER]: 'Watchtower',
 };
 
-/** Maps recruitment buildings to their recruitable unit type */
-const BUILDING_RECRUITS: Partial<Record<string, string>> = {
-  [BuildingType.BARRACKS]: UnitType.INFANTRY,
-  [BuildingType.ARCHER_CAMP]: UnitType.ARCHER,
-  [BuildingType.RIDER_CAMP]: UnitType.RIDER,
-  [BuildingType.SIEGE_CAMP]: UnitType.SIEGE,
+/** Maps recruitment buildings to their recruitable unit types */
+const BUILDING_RECRUITS: Partial<Record<string, UnitType[]>> = {
+  [BuildingType.BARRACKS]: [UnitType.INFANTRY],
+  [BuildingType.ARCHER_CAMP]: [UnitType.ARCHER],
+  [BuildingType.RIDER_CAMP]: [UnitType.RIDER],
+  [BuildingType.SIEGE_CAMP]: [UnitType.SIEGE],
+  [BuildingType.STRONGHOLD]: [UnitType.SCOUT, UnitType.GUARD],
 };
 
 // ============================================================================
@@ -303,7 +308,9 @@ function SelectedUnitPanel({
                 ? '◎ Ranged'
                 : tag === UnitTag.LAVA_BOOST
                   ? '🔥 Lava-Boosted'
-                  : tag}
+                  : tag === UnitTag.PREP
+                    ? '⏸ Prep'
+                    : tag}
             </span>
           ))}
         </div>
@@ -452,26 +459,13 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
     building.specialistSlot ? specialists[building.specialistSlot] ?? null : null;
 
   // Recruitment info
-  const recruitableType = BUILDING_RECRUITS[building.type] as string | undefined;
-  const cost = recruitableType ? UNIT_COSTS[recruitableType] : null;
-  const canAfford = cost
-    ? resources.iron >= cost.iron && resources.wood >= cost.wood
-    : false;
+  const recruitableTypes = BUILDING_RECRUITS[building.type] ?? [];
 
   // Check whether there is a free tile to spawn a unit (building tile or adjacent)
   const hasSpawnSpace = useMemo(
-    () => (recruitableType ? hasSpawnSpaceAt(grid, building.position) : false),
-    [recruitableType, building.position, grid]
+    () => (recruitableTypes.length > 0 ? hasSpawnSpaceAt(grid, building.position) : false),
+    [recruitableTypes.length, building.position, grid]
   );
-
-  const canRecruit =
-    isPlayerOwned && recruitableType && !isDisabled && hasSpawnSpace && canAfford;
-
-  const handleRecruit = useCallback(() => {
-    if (canRecruit && recruitableType) {
-      recruitUnit(building.id, recruitableType as UnitType);
-    }
-  }, [canRecruit, recruitableType, recruitUnit, building.id]);
 
   const handleUnassign = useCallback(() => {
     unassignSpecialist(building.id);
@@ -606,25 +600,37 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
       )}
 
       {/* Recruitment */}
-      {recruitableType && isPlayerOwned && (
+      {recruitableTypes.length > 0 && isPlayerOwned && (
         <div className="hud-recruit-row">
           <span className="hud-label">Recruit:</span>
           {!hasSpawnSpace ? (
             <span className="hud-dim">No space</span>
           ) : (
-            <button
-              className="hud-recruit-btn"
-              disabled={!canRecruit}
-              onClick={handleRecruit}
-            >
-              {UNIT_EMOJI[recruitableType] ?? ''}{' '}
-              {UNIT_NAME[recruitableType] ?? recruitableType}
-              {cost && (
-                <span className="hud-cost">
-                  {' '}(⛓️{cost.iron} 🪵{cost.wood})
-                </span>
-              )}
-            </button>
+            <div className="hud-recruit-options">
+              {recruitableTypes.map((unitType) => {
+                const cost = UNIT_COSTS[unitType];
+                const canAffordUnit = cost
+                  ? resources.iron >= cost.iron && resources.wood >= cost.wood
+                  : false;
+                const canRecruitThisUnit = !isDisabled && hasSpawnSpace && canAffordUnit;
+                return (
+                  <button
+                    key={unitType}
+                    className="hud-recruit-btn"
+                    disabled={!canRecruitThisUnit}
+                    onClick={() => recruitUnit(building.id, unitType)}
+                  >
+                    {UNIT_EMOJI[unitType] ?? ''}{' '}
+                    {UNIT_NAME[unitType] ?? unitType}
+                    {cost && (
+                      <span className="hud-cost">
+                        {' '}(⛓️{cost.iron} 🪵{cost.wood})
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           )}
         </div>
       )}

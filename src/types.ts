@@ -21,6 +21,8 @@ export const UnitType = {
   ARCHER: 'ARCHER',
   RIDER: 'RIDER',
   SIEGE: 'SIEGE',
+  SCOUT: 'SCOUT',
+  GUARD: 'GUARD',
   // Enemy units
   LAVA_GRUNT: 'LAVA_GRUNT',
   LAVA_ARCHER: 'LAVA_ARCHER',
