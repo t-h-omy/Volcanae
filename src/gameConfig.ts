@@ -86,14 +86,14 @@ export const UNITS = {
     movementActions: 1,
     moveRange: 2,
     attackRange: 1,
-    discoverRadius: 2,
+    discoverRadius: 1,
     triggerRange: 0,
   },
 
   GUARD: {
     maxHp: 100,
-    attack: 20,
-    defense: 75,
+    attack: 15,
+    defense: 65,
     movementActions: 1,
     moveRange: 1,
     attackRange: 1,
