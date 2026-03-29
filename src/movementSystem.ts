@@ -17,6 +17,7 @@ import { getTilesWithinEdgeCircleRange } from './rangeUtils';
  * Gets all tiles that a unit can reach from its current position.
  * A tile is reachable if:
  * - It is within the unit's move range (edge-circle range)
+ * - It has been discovered / revealed (player units only)
  * - It is not a lava tile (player units only — enemy units may enter lava)
  * - It is not occupied by another unit
  * - The unit has not already moved this turn
@@ -56,6 +57,11 @@ export function getReachableTiles(
     }
 
     const tile = state.grid[ty][tx];
+
+    // Cannot move onto undiscovered tiles (player units only)
+    if (!tile.isRevealed && unit.faction === Faction.PLAYER) {
+      continue;
+    }
 
     // Cannot move into lava tiles (player units only — enemy units may enter lava)
     if (tile.isLava && unit.faction === Faction.PLAYER) {
