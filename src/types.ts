@@ -74,6 +74,8 @@ export const UnitTag = {
   LAVA_BOOST: 'LAVA_BOOST',
   /** Cannot capture buildings - placeholder not used yet */
   NO_CAPTURE: 'NO_CAPTURE',
+  /** Unit cannot attack after moving (preparation required) */
+  PREP: 'PREP',
 } as const;
 export type UnitTag = (typeof UnitTag)[keyof typeof UnitTag];
 

@@ -222,7 +222,10 @@ export function recruitUnit(
       movementActions: UNITS[unitType].movementActions,
       attackRange: UNITS[unitType].attackRange,
     },
-    tags: UNITS[unitType].attackRange > 1 ? [UnitTag.RANGED] : [],
+    tags: [
+      ...(UNITS[unitType].attackRange > 1 ? [UnitTag.RANGED] : []),
+      ...(unitType === UnitType.SIEGE || unitType === UnitType.LAVA_SIEGE ? [UnitTag.PREP] : []),
+    ],
     hasMovedThisTurn: true,
     hasActedThisTurn: true,
     hasCapturedThisTurn: true,
