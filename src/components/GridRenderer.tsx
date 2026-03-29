@@ -33,6 +33,8 @@ const UNIT_EMOJI: Record<string, string> = {
   [UnitType.ARCHER]: '🏹',
   [UnitType.RIDER]: '🐴',
   [UnitType.SIEGE]: '💣',
+  [UnitType.SCOUT]: '🔭',
+  [UnitType.GUARD]: '🛡️',
   [UnitType.LAVA_GRUNT]: '👹',
   [UnitType.LAVA_ARCHER]: '👺',
   [UnitType.LAVA_RIDER]: '👾',
