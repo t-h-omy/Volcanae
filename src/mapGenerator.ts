@@ -342,7 +342,7 @@ export function generateInitialGameState(): GameState {
 
   // Create player unit on zone 1 stronghold
   const playerInfantry = createUnit(
-    UnitType.INFANTERY,
+    UnitType.INFANTRY,
     Faction.PLAYER,
     zone1Stronghold.position
   );
