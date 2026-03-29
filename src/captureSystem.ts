@@ -216,6 +216,16 @@ export function initiateCapture(
       increaseThreatOnStrongholdCapture(state);
     }
   }
+
+  // If the building consumes the capturing unit on capture (e.g. watchtower),
+  // remove the unit from the game after capturing
+  if (building.consumesUnitOnCapture) {
+    const unitTile = state.grid[unit.position.y][unit.position.x];
+    if (unitTile.unitId === unitId) {
+      unitTile.unitId = null;
+    }
+    delete state.units[unitId];
+  }
 }
 
 // ============================================================================

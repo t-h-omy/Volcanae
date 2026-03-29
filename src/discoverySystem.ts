@@ -4,8 +4,8 @@
  *
  * Rules:
  * - Tiles are either undiscovered or discovered
- * - Only player units discover tiles within their discoverRadius
- * - Player buildings do NOT auto-discover tiles
+ * - Player units discover tiles within their discoverRadius
+ * - Player-owned buildings also discover tiles within their discoverRadius
  * - Once a tile is discovered (isRevealed true), it stays discovered permanently
  * - Undiscovered tiles: shown as light grey with a cloud emoji
  * - Discovered tiles: always fully visible
@@ -37,7 +37,8 @@ function positionToKey(x: number, y: number): string {
 
 /**
  * Gets all tiles currently discoverable by the player.
- * A tile is discoverable if it is within the discover radius of any player unit.
+ * A tile is discoverable if it is within the discover radius of any player unit
+ * or any player-owned building (e.g. watchtower).
  * Discover radius is determined using the edge-circle range system.
  *
  * @param state - Current game state
@@ -48,7 +49,7 @@ export function getDiscoverableTiles(
 ): Set<string> {
   const discoverableTiles = new Set<string>();
 
-  // Only player units discover tiles (buildings do not auto-discover zones)
+  // Player units discover tiles
   for (const unit of Object.values(state.units)) {
     if (unit.faction === Faction.PLAYER) {
       // Include the unit's own tile
@@ -58,6 +59,23 @@ export function getDiscoverableTiles(
         unit.position.x,
         unit.position.y,
         unit.stats.discoverRadius,
+        MAP.GRID_WIDTH,
+        MAP.GRID_HEIGHT,
+      );
+      for (const { x, y } of tilesInRange) {
+        discoverableTiles.add(positionToKey(x, y));
+      }
+    }
+  }
+
+  // Player-owned buildings also discover tiles
+  for (const building of Object.values(state.buildings)) {
+    if (building.faction === Faction.PLAYER && building.discoverRadius > 0) {
+      discoverableTiles.add(positionToKey(building.position.x, building.position.y));
+      const tilesInRange = getTilesWithinEdgeCircleRange(
+        building.position.x,
+        building.position.y,
+        building.discoverRadius,
         MAP.GRID_WIDTH,
         MAP.GRID_HEIGHT,
       );
