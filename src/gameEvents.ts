@@ -54,6 +54,15 @@ export type GameEvent =
       defenderHpLost: number;
     }
   | {
+      type: 'UNIT_ATTACK_BUILDING';
+      attackerId: string;
+      buildingId: string;
+      attackerPosition: Position;
+      buildingPosition: Position;
+      attackerHpLost: number;
+      buildingHpLost: number;
+    }
+  | {
       type: 'BUILDING_CAPTURE';
       buildingId: string;
       position: Position;
