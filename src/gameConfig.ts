@@ -27,7 +27,7 @@ export const MAP = {
 
 export const LAVA = {
   /** Lava advances 1 row every N player turns */
-  LAVA_ADVANCE_INTERVAL: 2,
+  LAVA_ADVANCE_INTERVAL: 3,
 } as const;
 
 // ============================================================================
