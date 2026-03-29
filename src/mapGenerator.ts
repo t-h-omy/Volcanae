@@ -117,7 +117,17 @@ function createBuilding(
   position: Position,
   faction: Faction | null
 ): Building {
-  const maxHp = 100; // Default building HP
+  const isWatchtower = type === BuildingType.WATCHTOWER;
+  const maxHp = isWatchtower ? BUILDINGS.WATCHTOWER_STATS.maxHp : 100;
+  const combatStats = isWatchtower
+    ? {
+        attack: BUILDINGS.WATCHTOWER_STATS.attack,
+        defense: BUILDINGS.WATCHTOWER_STATS.defense,
+        attackRange: BUILDINGS.WATCHTOWER_STATS.attackRange,
+      }
+    : null;
+  const tags: import('./types').UnitTag[] = isWatchtower ? [UnitTag.RANGED] : [];
+
   return {
     id: generateId('building'),
     type,
@@ -134,6 +144,10 @@ function createBuilding(
     discoverRadius: BUILDINGS.DISCOVER_RADIUS[type],
     turnCapturedByPlayer: null,
     wasEnemyOwnedBeforeCapture: false,
+    combatStats,
+    hasActedThisTurn: false,
+    tags,
+    consumesUnitOnCapture: isWatchtower,
   };
 }
 

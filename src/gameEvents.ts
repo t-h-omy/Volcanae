@@ -45,6 +45,15 @@ export type GameEvent =
       faction: Faction;
     }
   | {
+      type: 'BUILDING_ATTACK';
+      buildingId: string;
+      defenderId: string;
+      buildingPosition: Position;
+      defenderPosition: Position;
+      buildingHpLost: number;
+      defenderHpLost: number;
+    }
+  | {
       type: 'BUILDING_CAPTURE';
       buildingId: string;
       position: Position;

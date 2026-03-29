@@ -35,6 +35,8 @@ function eventPosition(event: GameEvent): Position {
     case 'ENEMY_ATTACK':
     case 'PLAYER_ATTACK':
       return event.defenderPosition;
+    case 'BUILDING_ATTACK':
+      return event.defenderPosition;
     case 'UNIT_DEATH':
       return event.position;
     case 'BUILDING_CAPTURE':
@@ -67,6 +69,8 @@ function isEventVisible(event: GameEvent): boolean {
     case 'ENEMY_ATTACK':
     case 'PLAYER_ATTACK':
       return isTileRevealed(event.attackerPosition) || isTileRevealed(event.defenderPosition);
+    case 'BUILDING_ATTACK':
+      return isTileRevealed(event.buildingPosition) || isTileRevealed(event.defenderPosition);
     case 'UNIT_DEATH':
       return isTileRevealed(event.position);
     case 'BUILDING_CAPTURE':
@@ -274,6 +278,90 @@ async function playAttackAnimation(
 }
 
 // ============================================================================
+// BUILDING ATTACK ANIMATION
+// ============================================================================
+
+/**
+ * Plays the building attack animation (always ranged — fires a projectile).
+ * Returns the set of unit IDs that died.
+ */
+async function playBuildingAttackAnimation(
+  event: Extract<GameEvent, { type: 'BUILDING_ATTACK' }>,
+  visible: boolean,
+): Promise<Set<string>> {
+  const store = useCombatAnimationStore.getState();
+  const gameState = useGameStore.getState();
+  const tileSize = getTileSize();
+  const dyingIds = new Set<string>();
+  const defender = gameState.units[event.defenderId];
+
+  if (visible) {
+    // Fire projectile from building to defender
+    const distance = manhattanDistance(event.buildingPosition, event.defenderPosition);
+    const projectileDuration = clamp(
+      distance * ANIMATION.RANGED_PROJECTILE_MS_PER_TILE,
+      ANIMATION.RANGED_PROJECTILE_MIN_MS,
+      ANIMATION.RANGED_PROJECTILE_MAX_MS,
+    );
+
+    const fromPx = {
+      x: event.buildingPosition.x * tileSize + tileSize / 2,
+      y: event.buildingPosition.y * tileSize + tileSize / 2,
+    };
+    const toPx = {
+      x: event.defenderPosition.x * tileSize + tileSize / 2,
+      y: event.defenderPosition.y * tileSize + tileSize / 2,
+    };
+
+    store.addProjectile({
+      id: crypto.randomUUID(),
+      fromPx,
+      toPx,
+      emoji: '🗡️',
+      rotationDeg: angleBetween(fromPx, toPx),
+      durationMs: projectileDuration,
+    });
+
+    await wait(projectileDuration);
+  }
+
+  // Apply damage to display state
+  useGameStore.getState().applyEvent(event);
+
+  if (visible) {
+    // Shake hit units
+    if (event.defenderHpLost > 0 && defender) {
+      useCombatAnimationStore.getState().setUnitAnimation(event.defenderId, { type: 'HIT' });
+    }
+
+    await wait(ANIMATION.HIT_SHAKE_DURATION_MS);
+    useCombatAnimationStore.getState().setUnitAnimation(event.defenderId, null);
+  }
+
+  // Determine dying units
+  const updatedState = useGameStore.getState();
+  const defenderAfter = updatedState.units[event.defenderId];
+  if (!defenderAfter || defenderAfter.stats.currentHp <= 0) {
+    dyingIds.add(event.defenderId);
+  }
+
+  // Die animations
+  if (visible && dyingIds.size > 0) {
+    for (const id of dyingIds) {
+      if (updatedState.units[id]) {
+        useCombatAnimationStore.getState().setUnitAnimation(id, { type: 'DYING' });
+      }
+    }
+    await wait(ANIMATION.DIE_FLASH_DURATION_MS + ANIMATION.DIE_FADE_DURATION_MS);
+    for (const id of dyingIds) {
+      useCombatAnimationStore.getState().setUnitAnimation(id, null);
+    }
+  }
+
+  return dyingIds;
+}
+
+// ============================================================================
 // HOOK
 // ============================================================================
 
@@ -325,6 +413,30 @@ export function useAnimationEngine(): void {
               useAnimationStore.getState().setCameraTarget(event.advancedToPosition);
               await wait(ANIMATION.CAMERA_MOVE_DURATION_MS + ANIMATION.POST_ACTION_IDLE_MS);
             }
+          }
+
+          continue;
+        }
+
+        // ── Special handling for BUILDING_ATTACK (building fires projectile at unit) ──
+        if (event.type === 'BUILDING_ATTACK') {
+          const dyingIds = await playBuildingAttackAnimation(event, visible);
+
+          // Consume following UNIT_DEATH events that were already animated
+          while (true) {
+            const { eventQueue } = useAnimationStore.getState();
+            if (eventQueue.length === 0) break;
+            const next = eventQueue[0];
+            if (next.type === 'UNIT_DEATH' && dyingIds.has(next.unitId)) {
+              useAnimationStore.getState().shiftEvent();
+              useGameStore.getState().applyEvent(next);
+            } else {
+              break;
+            }
+          }
+
+          if (visible) {
+            await wait(ANIMATION.POST_ACTION_IDLE_MS);
           }
 
           continue;

@@ -128,6 +128,13 @@ export interface Specialist {
   assignedBuildingId: string | null;
 }
 
+/** Combat stats for buildings that can attack (e.g. Watchtower) */
+export interface BuildingCombatStats {
+  attack: number;
+  defense: number;
+  attackRange: number;
+}
+
 /** A building on the map */
 export interface Building {
   id: string;
@@ -145,6 +152,14 @@ export interface Building {
   discoverRadius: number;
   turnCapturedByPlayer: number | null;
   wasEnemyOwnedBeforeCapture: boolean;
+  /** Combat stats for attacking buildings (null if building cannot attack) */
+  combatStats: BuildingCombatStats | null;
+  /** Whether this building has attacked this turn (for attacking buildings) */
+  hasActedThisTurn: boolean;
+  /** Tags for attacking buildings (e.g. RANGED) */
+  tags: UnitTag[];
+  /** Whether capturing this building consumes the capturing unit */
+  consumesUnitOnCapture: boolean;
 }
 
 /** A tile on the game grid */

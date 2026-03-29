@@ -7,7 +7,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { current, produce } from 'immer';
 import { generateInitialGameState } from './mapGenerator';
-import { resolveAttack } from './combatSystem';
+import { resolveAttack, resolveBuildingAttack } from './combatSystem';
 import { moveUnit as moveUnitLogic } from './movementSystem';
 import {
   initiateCapture as initiateCaptureLogic,
@@ -49,6 +49,8 @@ interface GameActions {
   moveUnit: (unitId: string, targetPosition: Position) => void;
   /** Attack a target unit (stub) */
   attackUnit: (attackerId: string, targetId: string) => void;
+  /** Attack a target unit with a building (e.g. watchtower) */
+  buildingAttackUnit: (buildingId: string, targetId: string) => void;
   /** Capture a building with a unit (stub) */
   captureBuilding: (unitId: string, buildingId: string) => void;
   /** Recruit a unit from a building (stub) */
@@ -221,6 +223,67 @@ export const useGameStore = create<GameStore>()(
       }
     },
 
+    buildingAttackUnit: (buildingId: string, targetId: string) => {
+      let pendingEvents: GameEvent[] | null = null;
+      let pendingResolvedState: GameState | null = null;
+
+      set((state) => {
+        const building = state.buildings[buildingId];
+        const defender = state.units[targetId];
+        if (!building || !building.combatStats || !building.faction || !defender) return;
+
+        const buildingPosition = { x: building.position.x, y: building.position.y };
+        const defenderPosition = { x: defender.position.x, y: defender.position.y };
+        const buildingHpBefore = building.hp;
+        const defenderHpBefore = defender.stats.currentHp;
+        const defenderFaction = defender.faction;
+
+        // Take a plain snapshot of the current state
+        const snapshot: GameState = current(state);
+
+        // Compute the resolved state
+        const resolvedState = produce(snapshot, (draft) => {
+          resolveBuildingAttack(draft, buildingId, targetId, true);
+          updateDiscovery(draft);
+          checkGameConditions(draft);
+        });
+
+        const buildingAfter = resolvedState.buildings[buildingId];
+        const defenderAfter = resolvedState.units[targetId];
+
+        const buildingAttackEvent: GameEvent = {
+          type: 'BUILDING_ATTACK',
+          buildingId,
+          defenderId: targetId,
+          buildingPosition,
+          defenderPosition,
+          buildingHpLost: buildingAfter
+            ? buildingHpBefore - buildingAfter.hp
+            : buildingHpBefore,
+          defenderHpLost: defenderAfter
+            ? defenderHpBefore - defenderAfter.stats.currentHp
+            : defenderHpBefore,
+        };
+
+        const events: GameEvent[] = [buildingAttackEvent];
+
+        // Add UNIT_DEATH event if defender dies
+        if (!defenderAfter) {
+          events.push({ type: 'UNIT_DEATH', unitId: targetId, position: defenderPosition, faction: defenderFaction });
+        }
+
+        pendingEvents = events;
+        pendingResolvedState = resolvedState;
+
+        // Lock UI while animation plays
+        state.phase = GamePhase.ENEMY_TURN;
+      });
+
+      if (pendingEvents !== null && pendingResolvedState !== null) {
+        useAnimationStore.getState().enqueue(pendingEvents, pendingResolvedState);
+      }
+    },
+
     captureBuilding: (unitId: string, buildingId: string) => {
       set((state) => {
         initiateCaptureLogic(state, unitId, buildingId);
@@ -340,6 +403,10 @@ export const useGameStore = create<GameStore>()(
               building.isDisabledForTurns -= 1;
             }
             building.wasAttackedLastEnemyTurn = false;
+            // Reset attacking building action flags for new turn
+            if (building.combatStats && building.faction === Faction.PLAYER) {
+              building.hasActedThisTurn = false;
+            }
           }
 
           // Check threat level
@@ -475,6 +542,46 @@ export const useGameStore = create<GameStore>()(
                 tile.unitId = null;
               }
               delete state.units[event.unitId];
+            }
+            break;
+          }
+
+          case 'BUILDING_ATTACK': {
+            // Apply damage to building and defender
+            const building = state.buildings[event.buildingId];
+            const defender = state.units[event.defenderId];
+
+            if (defender && event.defenderHpLost > 0) {
+              defender.stats.currentHp -= event.defenderHpLost;
+            }
+            if (building && event.buildingHpLost > 0) {
+              building.hp -= event.buildingHpLost;
+              // If building HP reaches 0, it becomes neutral
+              if (building.hp <= 0) {
+                building.hp = building.maxHp;
+                building.faction = null;
+                building.hasActedThisTurn = false;
+                building.specialistSlot = null;
+              }
+            }
+
+            // Trigger floaters
+            const { addFloater } = useFloaterStore.getState();
+            if (event.defenderHpLost > 0) {
+              addFloater({
+                value: event.defenderHpLost,
+                x: event.defenderPosition.x,
+                y: event.defenderPosition.y,
+                isEnemy: defender?.faction === Faction.ENEMY,
+              });
+            }
+            if (event.buildingHpLost > 0) {
+              addFloater({
+                value: event.buildingHpLost,
+                x: event.buildingPosition.x,
+                y: event.buildingPosition.y,
+                isEnemy: building?.faction === Faction.ENEMY,
+              });
             }
             break;
           }

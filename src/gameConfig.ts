@@ -146,6 +146,13 @@ export const BUILDINGS = {
     SIEGE_CAMP: 3,
     WATCHTOWER: 5,
   },
+  /** Watchtower combat configuration */
+  WATCHTOWER_STATS: {
+    maxHp: 150,
+    attack: 50,
+    defense: 75,
+    attackRange: 3,
+  },
 } as const;
 
 // ============================================================================
@@ -219,6 +226,7 @@ export const AI_SCORING = {
   BUILDING_VALUE_SPAWNER: 1.6,
   BUILDING_VALUE_RESOURCE: 1.2,
   BUILDING_VALUE_DEFAULT: 1.0,
+  BUILDING_VALUE_WATCHTOWER: 1.4,
 
   // Saturation
   SATURATION_PENALTY_PER_ALLY: 18,
