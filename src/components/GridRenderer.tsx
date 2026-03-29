@@ -90,11 +90,16 @@ function posKey(x: number, y: number): string {
 function getAttackableTileKeys(
   selectedUnit: Unit,
   units: Record<string, Unit>,
+  grid: Tile[][],
 ): Set<string> {
   const keys = new Set<string>();
   if (selectedUnit.hasActedThisTurn) return keys;
+  // PREP tag: cannot attack after moving
+  if (selectedUnit.hasMovedThisTurn && selectedUnit.tags.includes(UnitTag.PREP)) return keys;
   for (const other of Object.values(units)) {
     if (other.faction === Faction.ENEMY) {
+      // Cannot attack enemy units on undiscovered tiles
+      if (!grid[other.position.y]?.[other.position.x]?.isRevealed) continue;
       const inRange = isTileWithinEdgeCircleRange(
         selectedUnit.position.x, selectedUnit.position.y,
         other.position.x, other.position.y,
@@ -302,14 +307,14 @@ export default function GridRenderer() {
   const attackableSet = useMemo<Set<string>>(() => {
     // Unit attack range
     if (selectedUnit && selectedUnit.faction === Faction.PLAYER) {
-      return getAttackableTileKeys(selectedUnit, units);
+      return getAttackableTileKeys(selectedUnit, units, grid);
     }
     // Building attack range (e.g. player watchtower)
     if (selectedBuilding && selectedBuilding.combatStats && selectedBuilding.faction === Faction.PLAYER) {
       return getBuildingAttackableTileKeys(selectedBuilding, units);
     }
     return new Set();
-  }, [selectedUnit, selectedBuilding, units]);
+  }, [selectedUnit, selectedBuilding, units, grid]);
 
   // ── Tile click ──
   const handleTileClick = useCallback(

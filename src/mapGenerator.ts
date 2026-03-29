@@ -265,7 +265,10 @@ function createUnit(
       movementActions: UNITS[type].movementActions,
       attackRange: UNITS[type].attackRange,
     },
-    tags: UNITS[type].attackRange > 1 ? [UnitTag.RANGED] : [],
+    tags: [
+      ...(UNITS[type].attackRange > 1 ? [UnitTag.RANGED] : []),
+      ...(type === UnitType.SIEGE || type === UnitType.LAVA_SIEGE ? [UnitTag.PREP] : []),
+    ],
     hasMovedThisTurn: false,
     hasActedThisTurn: false,
     hasCapturedThisTurn: false,

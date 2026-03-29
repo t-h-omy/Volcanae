@@ -207,6 +207,10 @@ function createEnemyUnit(
     tags.push(UnitTag.RANGED);
   }
 
+  if (unitType === UnitType.SIEGE || unitType === UnitType.LAVA_SIEGE) {
+    tags.push(UnitTag.PREP);
+  }
+
   if (lavaBoostEnabled) {
     const boostFactor = calculateLavaBoostFactor(buildingPosition, lavaFrontRow);
     const boostMultiplier = 1 + boostFactor * ENEMY.MAX_LAVA_BOOST_MULTIPLIER;
@@ -357,6 +361,8 @@ function scoreActionsForUnit(
   const candidates: ScoredAction[] = [];
   const triggerRange = unit.stats.triggerRange;
   const attackRange = unit.stats.attackRange;
+  // PREP tag prevents attacking after moving
+  const canAttackThisTurn = !unit.hasActedThisTurn && !(unit.hasMovedThisTurn && unit.tags.includes(UnitTag.PREP));
 
   // Gather player units in trigger range
   const playerUnitsInTriggerRange: Unit[] = [];
@@ -389,7 +395,7 @@ function scoreActionsForUnit(
   // ── INTERCEPT_CAPTOR ──
   {
     const captors = playerUnitsInTriggerRange.filter(u => u.hasCapturedThisTurn);
-    if (captors.length > 0) {
+    if (canAttackThisTurn && captors.length > 0) {
       captors.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
       const target = captors[0];
       const distance = manhattanDistance(unit.position, target.position);
@@ -463,7 +469,7 @@ function scoreActionsForUnit(
   }
 
   // ── ATTACK_UNIT ──
-  if (!unit.hasActedThisTurn && playerUnitsInAttackRange.length > 0) {
+  if (canAttackThisTurn && playerUnitsInAttackRange.length > 0) {
     let bestTarget: Unit | null = null;
     let bestCombatScore = -Infinity;
     for (const target of playerUnitsInAttackRange) {
@@ -484,7 +490,7 @@ function scoreActionsForUnit(
   }
 
   // ── RANGED_ATTACK_UNIT ──
-  if (!unit.hasActedThisTurn && unit.tags.includes(UnitTag.RANGED)) {
+  if (canAttackThisTurn && unit.tags.includes(UnitTag.RANGED)) {
     const rangedTargets = playerUnitsInAttackRange.filter(u => manhattanDistance(unit.position, u.position) > 1);
     if (rangedTargets.length > 0) {
       rangedTargets.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));

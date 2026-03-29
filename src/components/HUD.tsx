@@ -254,7 +254,7 @@ function SelectedUnitPanel({
   const isPlayer = unit.faction === Faction.PLAYER;
   const hpPct = (unit.stats.currentHp / unit.stats.maxHp) * 100;
   const canMove = !unit.hasMovedThisTurn;
-  const canAttack = !unit.hasActedThisTurn;
+  const canAttack = !unit.hasActedThisTurn && !(unit.tags.includes(UnitTag.PREP) && unit.hasMovedThisTurn);
   const canCapture =
     !unit.hasCapturedThisTurn &&
     !unit.hasActedThisTurn &&
