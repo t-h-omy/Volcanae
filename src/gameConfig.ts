@@ -79,6 +79,28 @@ export const UNITS = {
     triggerRange: 0,
   },
 
+  SCOUT: {
+    maxHp: 60,
+    attack: 20,
+    defense: 15,
+    movementActions: 1,
+    moveRange: 2,
+    attackRange: 1,
+    discoverRadius: 2,
+    triggerRange: 0,
+  },
+
+  GUARD: {
+    maxHp: 100,
+    attack: 20,
+    defense: 75,
+    movementActions: 1,
+    moveRange: 1,
+    attackRange: 1,
+    discoverRadius: 1,
+    triggerRange: 0,
+  },
+
   LAVA_GRUNT: {
     maxHp: 100,
     attack: 50,
@@ -258,6 +280,8 @@ export const UNIT_COSTS: Record<string, UnitCost> = {
   ARCHER: { iron: 1, wood: 2 },
   RIDER: { iron: 3, wood: 1 },
   SIEGE: { iron: 2, wood: 3 },
+  SCOUT: { iron: 0, wood: 1 },
+  GUARD: { iron: 1, wood: 0 },
 } as const;
 
 // ============================================================================

@@ -60,25 +60,28 @@ function isRecruitmentBuilding(building: Building): boolean {
     building.type === BuildingType.BARRACKS ||
     building.type === BuildingType.ARCHER_CAMP ||
     building.type === BuildingType.RIDER_CAMP ||
-    building.type === BuildingType.SIEGE_CAMP
+    building.type === BuildingType.SIEGE_CAMP ||
+    building.type === BuildingType.STRONGHOLD
   );
 }
 
 /**
- * Gets the unit type that can be recruited from a building type.
+ * Gets an array of unit types that can be recruited from a building type.
  */
-function getUnitTypeForBuilding(buildingType: BuildingType): UnitType | null {
+function getRecruitableUnitTypes(buildingType: BuildingType): UnitType[] {
   switch (buildingType) {
     case BuildingType.BARRACKS:
-      return UnitType.INFANTRY;
+      return [UnitType.INFANTRY];
     case BuildingType.ARCHER_CAMP:
-      return UnitType.ARCHER;
+      return [UnitType.ARCHER];
     case BuildingType.RIDER_CAMP:
-      return UnitType.RIDER;
+      return [UnitType.RIDER];
     case BuildingType.SIEGE_CAMP:
-      return UnitType.SIEGE;
+      return [UnitType.SIEGE];
+    case BuildingType.STRONGHOLD:
+      return [UnitType.SCOUT, UnitType.GUARD];
     default:
-      return null;
+      return [];
   }
 }
 
@@ -178,8 +181,8 @@ export function recruitUnit(
   }
 
   // Validate the unit type can be recruited from this building
-  const validUnitType = getUnitTypeForBuilding(building.type);
-  if (validUnitType !== unitType) {
+  const validUnitTypes = getRecruitableUnitTypes(building.type);
+  if (!validUnitTypes.includes(unitType)) {
     return;
   }
 
@@ -224,7 +227,7 @@ export function recruitUnit(
     },
     tags: [
       ...(UNITS[unitType].attackRange > 1 ? [UnitTag.RANGED] : []),
-      ...(unitType === UnitType.SIEGE || unitType === UnitType.LAVA_SIEGE ? [UnitTag.PREP] : []),
+      ...(unitType === UnitType.SIEGE || unitType === UnitType.LAVA_SIEGE || unitType === UnitType.GUARD ? [UnitTag.PREP] : []),
     ],
     hasMovedThisTurn: true,
     hasActedThisTurn: true,

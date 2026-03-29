@@ -282,6 +282,12 @@
 
 /* ── Recruit button ── */
 
+.hud-recruit-options {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .hud-recruit-btn {
   padding: 6px 12px;
   min-height: 44px;
