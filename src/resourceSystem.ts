@@ -228,7 +228,7 @@ export function recruitUnit(
     tags: [
       ...(UNITS[unitType].attackRange > 1 ? [UnitTag.RANGED] : []),
       ...(unitType === UnitType.SIEGE || unitType === UnitType.LAVA_SIEGE || unitType === UnitType.GUARD ? [UnitTag.PREP] : []),
-      ...(unitType === UnitType.SCOUT ? [UnitTag.SCOUT] : []),
+      ...(unitType === UnitType.SCOUT ? [UnitTag.NO_CAPTURE] : []),
     ],
     hasMovedThisTurn: true,
     hasActedThisTurn: true,

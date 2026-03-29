@@ -264,8 +264,7 @@ function SelectedUnitPanel({
     !unit.hasCapturedThisTurn &&
     !unit.hasActedThisTurn &&
     !unit.hasMovedThisTurn &&
-    !unit.tags.includes(UnitTag.NO_CAPTURE) &&
-    !unit.tags.includes(UnitTag.SCOUT);
+    !unit.tags.includes(UnitTag.NO_CAPTURE);
 
   const visibleTags = unit.tags.filter((t) => !HIDDEN_UNIT_TAGS.has(t));
 
@@ -311,9 +310,7 @@ function SelectedUnitPanel({
                   ? '🔥 Lava-Boosted'
                   : tag === UnitTag.PREP
                     ? '⏸ Prep'
-                    : tag === UnitTag.SCOUT
-                      ? '🔭 Scout'
-                      : tag}
+                    : tag}
             </span>
           ))}
         </div>

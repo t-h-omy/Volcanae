@@ -74,12 +74,10 @@ export const UnitTag = {
   RANGED: 'RANGED',
   /** Unit stats are boosted at spawn based on spawning building proximity to lava */
   LAVA_BOOST: 'LAVA_BOOST',
-  /** Cannot capture buildings - placeholder not used yet */
+  /** Unit cannot capture buildings */
   NO_CAPTURE: 'NO_CAPTURE',
   /** Unit cannot attack after moving (preparation required) */
   PREP: 'PREP',
-  /** Unit cannot capture buildings */
-  SCOUT: 'SCOUT',
 } as const;
 export type UnitTag = (typeof UnitTag)[keyof typeof UnitTag];
 
