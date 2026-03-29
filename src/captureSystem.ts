@@ -130,6 +130,11 @@ export function canCapture(
     return false;
   }
 
+  // Unit has SCOUT tag — scouts cannot capture buildings
+  if (unit.tags.includes(UnitTag.SCOUT)) {
+    return false;
+  }
+
   // Building is already owned by unit's faction
   if (building.faction === unit.faction) {
     return false;

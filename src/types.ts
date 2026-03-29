@@ -78,6 +78,8 @@ export const UnitTag = {
   NO_CAPTURE: 'NO_CAPTURE',
   /** Unit cannot attack after moving (preparation required) */
   PREP: 'PREP',
+  /** Unit cannot capture buildings */
+  SCOUT: 'SCOUT',
 } as const;
 export type UnitTag = (typeof UnitTag)[keyof typeof UnitTag];
 
