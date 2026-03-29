@@ -340,9 +340,9 @@ export function generateInitialGameState(): GameState {
     throw new Error('Zone 1 stronghold not found');
   }
 
-  // Create player infantry unit on zone 1 stronghold
+  // Create player unit on zone 1 stronghold
   const playerInfantry = createUnit(
-    UnitType.INFANTRY,
+    UnitType.SCOUT,
     Faction.PLAYER,
     zone1Stronghold.position
   );
