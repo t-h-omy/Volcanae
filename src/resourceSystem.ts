@@ -178,7 +178,10 @@ export function computePopulationUsage(
 
 /**
  * Checks if the player has enough population capacity to recruit a unit of the given type.
- * Returns true if (usage + cost) <= capacity for both farmers and nobles.
+ * Farmer capacity and noble capacity are checked independently:
+ * - If the unit costs farmers, ensures farmer usage + cost <= farmer capacity.
+ * - If the unit costs nobles, ensures noble usage + cost <= noble capacity.
+ * A shortfall in one pool does not block recruitment of units that only use the other pool.
  */
 export function canAffordPopulation(
   state: GameState | Draft<GameState>,
@@ -188,10 +191,10 @@ export function canAffordPopulation(
   const usage = computePopulationUsage(state);
   const cost = (UNIT_POPULATION_COSTS[unitType] as UnitPopulationCost | undefined) ?? DEFAULT_POPULATION_COST;
 
-  return (
-    usage.farmersUsed + cost.farmers <= capacity.farmerCapacity &&
-    usage.noblesUsed + cost.nobles <= capacity.nobleCapacity
-  );
+  const farmerOk = cost.farmers === 0 || usage.farmersUsed + cost.farmers <= capacity.farmerCapacity;
+  const nobleOk = cost.nobles === 0 || usage.noblesUsed + cost.nobles <= capacity.nobleCapacity;
+
+  return farmerOk && nobleOk;
 }
 
 /**
