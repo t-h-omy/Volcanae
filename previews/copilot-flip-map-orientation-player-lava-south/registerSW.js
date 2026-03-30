@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/Volcanae/previews/copilot-flip-map-orientation-player-lava-south/sw.js', { scope: '/Volcanae/previews/copilot-flip-map-orientation-player-lava-south/' })})}
