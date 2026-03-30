@@ -13,12 +13,10 @@ import type { UnitPopulationCost } from '../types';
 import {
   hasSpawnSpaceAt,
   computePopulationUsage,
-  computePopulationCapacity,
   canAffordPopulation,
 } from '../resourceSystem';
 import {
   getConstructionOptionsForTile,
-  type ConstructionOption,
 } from '../constructionSystem';
 import { computeUnitAiScores, type ScoredAction } from '../enemySystem';
 import {
@@ -222,8 +220,9 @@ function TopBar() {
   const turnsUntilLavaAdvance = useGameStore((s) => s.turnsUntilLavaAdvance);
   const isAnimating = useAnimationStore((s) => s.isAnimating);
 
-  // Population usage (live)
-  const popUsage = useGameStore((s) => computePopulationUsage(s));
+  // Population usage (live) — select primitives to avoid infinite re-render
+  const farmersUsed = useGameStore((s) => computePopulationUsage(s).farmersUsed);
+  const noblesUsed = useGameStore((s) => computePopulationUsage(s).noblesUsed);
 
   return (
     <div className="hud-top-bar">
@@ -231,8 +230,8 @@ function TopBar() {
       {isAnimating && <span className="hud-stat hud-enemy-turn-label">⚔️ Enemy Turn...</span>}
       <span className="hud-stat">⛓️ {resources.iron}</span>
       <span className="hud-stat">🪵 {resources.wood}</span>
-      <span className="hud-stat">🌾 {popUsage.farmersUsed}/{resources.farmers}</span>
-      <span className="hud-stat">🎖️ {popUsage.noblesUsed}/{resources.nobles}</span>
+      <span className="hud-stat">🌾 {farmersUsed}/{resources.farmers}</span>
+      <span className="hud-stat">🎖️ {noblesUsed}/{resources.nobles}</span>
       <span className="hud-stat">⚠️ Threat {threatLevel}</span>
       <span className="hud-stat">🌋 Lava in {turnsUntilLavaAdvance}</span>
       <GameMenu />
@@ -469,7 +468,12 @@ function ConstructionPanel({
 }) {
   const resources = useGameStore((s) => s.resources);
   const constructBuilding = useGameStore((s) => s.constructBuilding);
-  const options = useGameStore((s) => getConstructionOptionsForTile(s, tilePos));
+  const grid = useGameStore((s) => s.grid);
+
+  const options = useMemo(
+    () => getConstructionOptionsForTile(useGameStore.getState(), tilePos),
+    [tilePos, grid],
+  );
 
   if (options.length === 0) return null;
 
@@ -871,13 +875,12 @@ function BottomBar() {
 
   // Construction panel: show when a player BUILD_AND_CAPTURE unit is selected
   // and its tile has construction options
-  const constructionInfo = useGameStore((s) => {
-    if (!selectedUnit || selectedUnit.faction !== Faction.PLAYER) return null;
-    if (!selectedUnit.tags.includes(UnitTag.BUILDANDCAPTURE)) return null;
-    if (selectedUnit.hasMovedThisTurn || selectedUnit.hasActedThisTurn || selectedUnit.hasCapturedThisTurn) return null;
-    const tilePos = selectedUnit.position;
-    const options = getConstructionOptionsForTile(s, tilePos);
-    return options.length > 0 ? { tilePos, options } : null;
+  const showConstruction = useGameStore((s) => {
+    if (!selectedUnit || selectedUnit.faction !== Faction.PLAYER) return false;
+    if (!selectedUnit.tags.includes(UnitTag.BUILDANDCAPTURE)) return false;
+    if (selectedUnit.hasMovedThisTurn || selectedUnit.hasActedThisTurn || selectedUnit.hasCapturedThisTurn) return false;
+    const options = getConstructionOptionsForTile(s, selectedUnit.position);
+    return options.length > 0;
   });
 
   const isPlayerTurn = phase === GamePhase.PLAYER_TURN;
@@ -893,10 +896,10 @@ function BottomBar() {
         />
       )}
       {/* Construction panel for BUILD_AND_CAPTURE units on constructable tiles */}
-      {selectedUnit && constructionInfo && (
+      {selectedUnit && showConstruction && (
         <ConstructionPanel
           unit={selectedUnit}
-          tilePos={constructionInfo.tilePos}
+          tilePos={selectedUnit.position}
         />
       )}
       {selectedBuilding && !selectedUnit && (
