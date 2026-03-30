@@ -558,12 +558,12 @@ function TileCellInner({
           : null
       : null;
 
-  // Population display for player-owned FARM and PATRICIANHOUSE
+  // Population display for player-owned FARM, PATRICIANHOUSE, and STRONGHOLD
   const showPopulation =
     showBuilding &&
     building &&
     building.faction === Faction.PLAYER &&
-    (building.type === BuildingType.FARM || building.type === BuildingType.PATRICIANHOUSE);
+    (building.type === BuildingType.FARM || building.type === BuildingType.PATRICIANHOUSE || building.type === BuildingType.STRONGHOLD);
 
   return (
     <div

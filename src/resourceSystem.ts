@@ -141,6 +141,12 @@ export function computePopulationCapacity(
       farmerCapacity += building.populationCount;
     } else if (building.type === BuildingType.PATRICIANHOUSE) {
       nobleCapacity += building.populationCount;
+    } else if (building.type === BuildingType.STRONGHOLD) {
+      // Stronghold contributes farmers up to STRONGHOLD_FARMER_CAP, rest as nobles
+      const farmers = Math.min(building.populationCount, POPULATION.STRONGHOLD_FARMER_CAP);
+      const nobles = Math.max(0, building.populationCount - POPULATION.STRONGHOLD_FARMER_CAP);
+      farmerCapacity += farmers;
+      nobleCapacity += nobles;
     }
   }
 
@@ -189,7 +195,7 @@ export function canAffordPopulation(
 }
 
 /**
- * Grows population in all player-owned FARM and PATRICIANHOUSE buildings.
+ * Grows population in all player-owned FARM, PATRICIANHOUSE, and STRONGHOLD buildings.
  * For each housing building below its populationCap:
  * - Increments populationGrowthCounter
  * - When counter reaches HOUSE_GROWTH_INTERVAL, increments populationCount and resets counter
@@ -203,7 +209,8 @@ export function growHousePopulations(state: Draft<GameState>): void {
 
     if (
       building.type !== BuildingType.FARM &&
-      building.type !== BuildingType.PATRICIANHOUSE
+      building.type !== BuildingType.PATRICIANHOUSE &&
+      building.type !== BuildingType.STRONGHOLD
     ) {
       continue;
     }

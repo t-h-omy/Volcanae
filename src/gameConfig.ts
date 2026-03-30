@@ -400,6 +400,10 @@ export const POPULATION = {
   FARM_POPULATION_CAP: 3,
   /** Maximum population capacity for a Patrician House */
   PATRICIAN_HOUSE_POPULATION_CAP: 3,
+  /** Farmer capacity provided by a Stronghold */
+  STRONGHOLD_FARMER_CAP: 3,
+  /** Noble capacity provided by a Stronghold */
+  STRONGHOLD_NOBLE_CAP: 1,
   /** Initial population when a housing building is constructed */
   HOUSE_INITIAL_POPULATION: 1,
   /** Number of turns between each population increase (same for all housing types) */

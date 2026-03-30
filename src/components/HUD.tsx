@@ -567,11 +567,13 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   const isMine = building.type === BuildingType.MINE && isPlayerOwned;
   const isWoodcutter = building.type === BuildingType.WOODCUTTER && isPlayerOwned;
 
-  // Population info for FARM and PATRICIANHOUSE
+  // Population info for FARM, PATRICIANHOUSE, and STRONGHOLD
   const isHousingBuilding =
     isPlayerOwned &&
-    (building.type === BuildingType.FARM || building.type === BuildingType.PATRICIANHOUSE);
-  const housingLabel = building.type === BuildingType.FARM ? 'farmers' : 'nobles';
+    (building.type === BuildingType.FARM || building.type === BuildingType.PATRICIANHOUSE || building.type === BuildingType.STRONGHOLD);
+  const housingLabel = building.type === BuildingType.FARM ? 'farmers'
+    : building.type === BuildingType.PATRICIANHOUSE ? 'nobles'
+    : 'farmers + nobles';
   const turnsUntilNextPop =
     isHousingBuilding && building.populationCount < building.populationCap
       ? POPULATION.HOUSE_GROWTH_INTERVAL - building.populationGrowthCounter
@@ -682,12 +684,20 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
         </div>
       )}
 
-      {/* Population info for FARM and PATRICIANHOUSE */}
+      {/* Population info for FARM, PATRICIANHOUSE, and STRONGHOLD */}
       {isHousingBuilding && (
         <div className="hud-production-row">
-          👥 {building.populationCount} / {building.populationCap} {housingLabel}
+          {building.type === BuildingType.STRONGHOLD ? (
+            <>
+              👥 {Math.min(building.populationCount, POPULATION.STRONGHOLD_FARMER_CAP)}/{POPULATION.STRONGHOLD_FARMER_CAP} farmers, {Math.max(0, building.populationCount - POPULATION.STRONGHOLD_FARMER_CAP)}/{POPULATION.STRONGHOLD_NOBLE_CAP} nobles
+            </>
+          ) : (
+            <>
+              👥 {building.populationCount} / {building.populationCap} {housingLabel}
+            </>
+          )}
           {turnsUntilNextPop !== null && (
-            <span className="hud-dim"> — Next {housingLabel === 'farmers' ? 'farmer' : 'noble'} in {turnsUntilNextPop} turn(s)</span>
+            <span className="hud-dim"> — Next pop in {turnsUntilNextPop} turn(s)</span>
           )}
         </div>
       )}

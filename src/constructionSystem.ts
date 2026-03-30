@@ -269,6 +269,9 @@ function createBuildingObject(
   } else if (type === BuildingType.PATRICIANHOUSE) {
     populationCap = POPULATION.PATRICIAN_HOUSE_POPULATION_CAP;
     populationCount = POPULATION.HOUSE_INITIAL_POPULATION;
+  } else if (type === BuildingType.STRONGHOLD) {
+    populationCap = POPULATION.STRONGHOLD_FARMER_CAP + POPULATION.STRONGHOLD_NOBLE_CAP;
+    populationCount = POPULATION.HOUSE_INITIAL_POPULATION;
   }
 
   return {
