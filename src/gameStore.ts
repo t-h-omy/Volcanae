@@ -6,7 +6,7 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { current, produce } from 'immer';
-import { generateInitialGameState } from './mapGenerator';
+import { generateInitialGameState, generateId } from './mapGenerator';
 import { resolveAttack, resolveBuildingAttack } from './combatSystem';
 import { moveUnit as moveUnitLogic } from './movementSystem';
 import {
@@ -18,7 +18,13 @@ import { advanceLava, advanceLavaWithEvents, shouldLavaAdvance } from './lavaSys
 import {
   collectResources,
   recruitUnit as recruitUnitLogic,
+  growHousePopulations,
+  computePopulationCapacity,
 } from './resourceSystem';
+import {
+  constructBuilding as constructBuildingLogic,
+  destroyOwnBuilding as destroyOwnBuildingLogic,
+} from './constructionSystem';
 import { runEnemyTurn } from './enemySystem';
 import {
   assignSpecialist as assignSpecialistLogic,
@@ -30,7 +36,7 @@ import { useAnimationStore } from './animationStore';
 import { Faction, GamePhase, BuildingType } from './types';
 import type { GameState, UnitType, Position } from './types';
 import type { GameEvent } from './gameEvents';
-import { MAP, LAVA } from './gameConfig';
+import { MAP, LAVA, POPULATION, BUILDINGS } from './gameConfig';
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
@@ -55,6 +61,10 @@ interface GameActions {
   captureBuilding: (unitId: string, buildingId: string) => void;
   /** Recruit a unit from a building (stub) */
   recruitUnit: (buildingId: string, unitType: UnitType) => void;
+  /** Construct a building on a tile using a unit */
+  constructBuilding: (unitId: string, tilePos: Position, buildingType: BuildingType) => void;
+  /** Destroy a player-owned building (unit must be on tile with BUILDANDCAPTURE tag) */
+  destroyOwnBuilding: (unitId: string, buildingId: string) => void;
   /** Assign a specialist to a building (stub) */
   assignSpecialist: (specialistId: string, buildingId: string) => void;
   /** Unassign a specialist from a building (stub) */
@@ -75,6 +85,10 @@ interface GameActions {
   debugAddResources: () => void;
   /** Debug: reveal all tiles */
   debugRevealAll: () => void;
+  /** Debug: add a test FARM building with full population in zone 1 */
+  debugAddFarmers: () => void;
+  /** Debug: set a nearby tile to isRuin = true */
+  debugAddRuin: () => void;
 }
 
 // ============================================================================
@@ -300,6 +314,22 @@ export const useGameStore = create<GameStore>()(
       });
     },
 
+    constructBuilding: (unitId: string, tilePos: Position, buildingType: BuildingType) => {
+      set((state) => {
+        constructBuildingLogic(state, unitId, tilePos, buildingType);
+        updateDiscovery(state);
+        checkGameConditions(state);
+      });
+    },
+
+    destroyOwnBuilding: (unitId: string, buildingId: string) => {
+      set((state) => {
+        destroyOwnBuildingLogic(state, unitId, buildingId);
+        updateDiscovery(state);
+        checkGameConditions(state);
+      });
+    },
+
     assignSpecialist: (specialistId: string, buildingId: string) => {
       set((state) => {
         assignSpecialistLogic(state, specialistId, buildingId);
@@ -384,6 +414,9 @@ export const useGameStore = create<GameStore>()(
         computedState = produce(computedState, (draft) => {
           // Collect resources
           collectResources(draft);
+
+          // Grow house populations
+          growHousePopulations(draft);
 
           // Recalculate tile discovery
           updateDiscovery(draft);
@@ -722,6 +755,77 @@ export const useGameStore = create<GameStore>()(
         for (let y = 0; y < MAP.GRID_HEIGHT; y++) {
           for (let x = 0; x < MAP.GRID_WIDTH; x++) {
             state.grid[y][x].isRevealed = true;
+          }
+        }
+      });
+    },
+
+    debugAddFarmers: () => {
+      set((state) => {
+        // Find a free tile in zone 1 (rows LAVA_BUFFER_ROWS to LAVA_BUFFER_ROWS + ZONE_HEIGHT - 1)
+        const startRow = MAP.LAVA_BUFFER_ROWS;
+        const endRow = MAP.LAVA_BUFFER_ROWS + MAP.ZONE_HEIGHT - 1;
+        for (let y = startRow; y <= endRow; y++) {
+          for (let x = 0; x < MAP.GRID_WIDTH; x++) {
+            const tile = state.grid[y][x];
+            if (tile.buildingId === null && !tile.isLava && tile.unitId === null) {
+              const building = {
+                id: generateId('building'),
+                type: BuildingType.FARM,
+                faction: Faction.PLAYER as Faction | null,
+                position: { x, y },
+                hp: 100,
+                maxHp: 100,
+                specialistSlot: null,
+                isDisabledForTurns: 0,
+                wasAttackedLastEnemyTurn: false,
+                captureProgress: 0,
+                isBeingCapturedBy: null,
+                lavaBoostEnabled: false,
+                discoverRadius: BUILDINGS.DISCOVER_RADIUS[BuildingType.FARM],
+                turnCapturedByPlayer: null,
+                wasEnemyOwnedBeforeCapture: false,
+                combatStats: null,
+                hasActedThisTurn: false,
+                tags: [] as import('./types').UnitTag[],
+                consumesUnitOnCapture: false,
+                populationCount: POPULATION.FARM_POPULATION_CAP,
+                populationCap: POPULATION.FARM_POPULATION_CAP,
+                populationGrowthCounter: 0,
+                emberSpawnCounter: 0,
+                recruitmentQueue: null,
+              };
+              state.buildings[building.id] = building;
+              tile.buildingId = building.id;
+              // Recompute farmers resource
+              const capacity = computePopulationCapacity(state);
+              state.resources.farmers = capacity.farmerCapacity;
+              return;
+            }
+          }
+        }
+      });
+    },
+
+    debugAddRuin: () => {
+      set((state) => {
+        // Find a tile near a player unit that is empty (no building, no lava)
+        const playerUnits = Object.values(state.units).filter(u => u.faction === Faction.PLAYER);
+        if (playerUnits.length === 0) return;
+        const unit = playerUnits[0];
+        // Check adjacent tiles
+        const offsets = [
+          { dx: 0, dy: -1 }, { dx: 0, dy: 1 }, { dx: -1, dy: 0 }, { dx: 1, dy: 0 },
+          { dx: -1, dy: -1 }, { dx: 1, dy: -1 }, { dx: -1, dy: 1 }, { dx: 1, dy: 1 },
+        ];
+        for (const { dx, dy } of offsets) {
+          const nx = unit.position.x + dx;
+          const ny = unit.position.y + dy;
+          if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;
+          const tile = state.grid[ny][nx];
+          if (tile.buildingId === null && !tile.isLava && !tile.isRuin && !tile.isStrongholdRuin) {
+            tile.isRuin = true;
+            return;
           }
         }
       });
