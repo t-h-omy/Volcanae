@@ -932,14 +932,17 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
       if (action.targetBuildingId) {
         if (canCapture(state, currentUnit.id, action.targetBuildingId)) {
           const building = state.buildings[action.targetBuildingId];
+          // Save building info before capture (initiateCapture now destroys the building)
+          const capturedPosition = building ? { x: building.position.x, y: building.position.y } : null;
+          const capturedType = building?.type;
           initiateCapture(state, currentUnit.id, action.targetBuildingId);
-          if (events && building) {
+          if (events && capturedPosition && capturedType) {
             events.push({
               type: 'BUILDING_CAPTURE',
               buildingId: action.targetBuildingId,
-              position: { x: building.position.x, y: building.position.y },
+              position: capturedPosition,
               newFaction: currentUnit.faction,
-              buildingType: building.type,
+              buildingType: capturedType,
             });
           }
         }

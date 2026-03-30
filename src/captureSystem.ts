@@ -89,9 +89,8 @@ function updateZonesUnlocked(state: Draft<GameState>): void {
  * - Unit has not moved this turn (cannot capture in the same turn as moving onto the building)
  * - Building exists and is not owned by the unit's faction
  * - Unit is on the same tile as the building
- * - Unit does not have the NO_CAPTURE tag
- *   (Unit must have the BUILDANDCAPTURE tag)
- * - The building's zone is unlocked for the unit's faction
+ * - Unit has the BUILDANDCAPTURE tag
+ * - The building's zone is unlocked for player units (enemy units are NOT zone-locked)
  *
  * @param state - Current game state
  * @param unitId - ID of the unit attempting to capture
@@ -157,13 +156,14 @@ export function canCapture(
 // ============================================================================
 
 /**
- * Captures a building immediately for a unit.
+ * Captures a building by DESTROYING it and turning its tile into a ruin.
  * A unit must not have moved this turn to capture (i.e. must have been
  * standing on the building at the start of the turn).
  * On success:
- * - Building faction is immediately transferred to the capturing unit's faction
- * - Any specialist in the building from the previous faction is removed
- * - If the building is a STRONGHOLD, zones are updated and threat may increase
+ * - Building is removed from state and its tile becomes a ruin
+ * - Specialist handling: player captures move specialist to global storage;
+ *   enemy captures cause the specialist to be lost
+ * - If the building was a STRONGHOLD, zones are updated and threat may increase
  * - Unit is marked as having used all actions for this turn
  *
  * @param state - Immer draft of the game state (will be mutated)
@@ -182,50 +182,54 @@ export function initiateCapture(
 
   const unit = state.units[unitId];
   const building = state.buildings[buildingId];
-  const previousFaction = building.faction;
 
   // Mark unit as having performed all actions (locked for this turn)
   unit.hasMovedThisTurn = true;
   unit.hasActedThisTurn = true;
   unit.hasCapturedThisTurn = true;
 
-  // Track when building was captured by player (for enemy AI retake logic)
-  if (unit.faction === Faction.PLAYER) {
-    building.wasEnemyOwnedBeforeCapture = previousFaction === Faction.ENEMY;
-    building.turnCapturedByPlayer = state.turn;
-  } else {
-    building.turnCapturedByPlayer = null;
-  }
-
-  // Immediately transfer building ownership
-  building.faction = unit.faction;
-
-  // If building had a specialist, remove it (canCapture guarantees previousFaction !== unit.faction)
+  // Handle specialist
   if (building.specialistSlot) {
     const specialistId = building.specialistSlot;
-    if (state.specialists[specialistId]) {
-      delete state.specialists[specialistId];
+    if (unit.faction === Faction.PLAYER) {
+      // Player captures: move specialist to global storage
+      state.globalSpecialistStorage.push(specialistId);
+      if (state.specialists[specialistId]) {
+        state.specialists[specialistId].assignedBuildingId = null;
+      }
+    } else {
+      // Enemy captures: specialist is lost
+      if (state.specialists[specialistId]) {
+        delete state.specialists[specialistId];
+      }
     }
-    building.specialistSlot = null;
   }
 
-  // If it's a stronghold, update zones and threat level
-  if (building.type === BuildingType.STRONGHOLD) {
+  // Store building info before removing
+  const buildingType = building.type;
+  const { x, y } = building.position;
+
+  // Remove the building from state
+  delete state.buildings[buildingId];
+
+  // Clear grid tile
+  const tile = state.grid[y][x];
+  tile.buildingId = null;
+
+  // Determine ruin type
+  if (buildingType === BuildingType.STRONGHOLD) {
+    tile.isStrongholdRuin = true;
+  } else {
+    tile.isRuin = true;
+  }
+
+  // If it was a stronghold, update zones and threat level
+  if (buildingType === BuildingType.STRONGHOLD) {
     updateZonesUnlocked(state);
-    // Increase threat level when player captures a stronghold
+    // Increase threat level when player captures (destroys) a stronghold
     if (unit.faction === Faction.PLAYER) {
       increaseThreatOnStrongholdCapture(state);
     }
-  }
-
-  // If the building consumes the capturing unit on capture (e.g. watchtower),
-  // remove the unit from the game after capturing
-  if (building.consumesUnitOnCapture) {
-    const unitTile = state.grid[unit.position.y][unit.position.x];
-    if (unitTile.unitId === unitId) {
-      unitTile.unitId = null;
-    }
-    delete state.units[unitId];
   }
 }
 
@@ -237,13 +241,20 @@ export function initiateCapture(
  * Resolves any remaining pending captures (legacy / edge-case safety).
  * Since initiateCapture now completes captures immediately, this function
  * is a no-op under normal game flow. It is kept to handle any edge cases
- * where isBeingCapturedBy may still be set (e.g. from enemy captures that
- * were initiated on a snapshot before this change).
+ * where isBeingCapturedBy may still be set.
+ *
+ * Capturing now DESTROYS the building and turns the tile into a ruin.
  *
  * @param state - Immer draft of the game state (will be mutated)
  */
 export function resolveCaptures(state: Draft<GameState>): void {
-  for (const building of Object.values(state.buildings)) {
+  // Collect building IDs first to avoid mutation during iteration
+  const buildingIds = Object.keys(state.buildings);
+
+  for (const buildingId of buildingIds) {
+    const building = state.buildings[buildingId];
+    if (!building) continue;
+
     // Skip buildings not being captured
     if (!building.isBeingCapturedBy) {
       continue;
@@ -258,40 +269,52 @@ export function resolveCaptures(state: Draft<GameState>): void {
       continue;
     }
 
-    // Complete the capture
-    const previousFaction = building.faction;
-
-    // Track when building was captured by player (for enemy AI retake logic)
-    if (capturingUnit.faction === Faction.PLAYER) {
-      building.wasEnemyOwnedBeforeCapture = building.faction === Faction.ENEMY;
-      building.turnCapturedByPlayer = state.turn;
-    } else {
-      building.turnCapturedByPlayer = null;
-    }
-
-    building.faction = capturingUnit.faction;
-
-    // If building had an enemy specialist, remove it
-    if (building.specialistSlot && previousFaction !== capturingUnit.faction) {
+    // Handle specialist
+    if (building.specialistSlot) {
       const specialistId = building.specialistSlot;
-      if (state.specialists[specialistId]) {
-        delete state.specialists[specialistId];
+      if (capturingUnit.faction === Faction.PLAYER) {
+        // Player captures: move specialist to global storage
+        state.globalSpecialistStorage.push(specialistId);
+        if (state.specialists[specialistId]) {
+          state.specialists[specialistId].assignedBuildingId = null;
+        }
+      } else {
+        // Enemy captures: specialist is lost
+        if (state.specialists[specialistId]) {
+          delete state.specialists[specialistId];
+        }
       }
-      building.specialistSlot = null;
     }
 
-    // Reset capture state
-    building.isBeingCapturedBy = null;
-    building.captureProgress = 0;
+    // Store building info before removing
+    const buildingType = building.type;
+    const { x, y } = building.position;
 
-    // If it's a stronghold, update zones and threat level
-    if (building.type === BuildingType.STRONGHOLD) {
+    // Remove the building from state
+    delete state.buildings[buildingId];
+
+    // Clear grid tile
+    const tile = state.grid[y][x];
+    tile.buildingId = null;
+
+    // Determine ruin type
+    if (buildingType === BuildingType.STRONGHOLD) {
+      tile.isStrongholdRuin = true;
+    } else {
+      tile.isRuin = true;
+    }
+
+    // If it was a stronghold, update zones and threat level
+    if (buildingType === BuildingType.STRONGHOLD) {
       updateZonesUnlocked(state);
-
-      // Increase threat level when player captures a stronghold
       if (capturingUnit.faction === Faction.PLAYER) {
         increaseThreatOnStrongholdCapture(state);
       }
     }
+
+    // Mark capturing unit actions
+    capturingUnit.hasCapturedThisTurn = true;
+    capturingUnit.hasMovedThisTurn = true;
+    capturingUnit.hasActedThisTurn = true;
   }
 }
