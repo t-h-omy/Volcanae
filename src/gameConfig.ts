@@ -156,7 +156,7 @@ export const UNITS = {
     attackRange: 1,
     discoverRadius: 1,
     triggerRange: 0,
-    explosionDamage: 30,
+    explosionDamage: 40,
   },
 } as const;
 
@@ -289,7 +289,7 @@ export const AI_SCORING = {
   BUILDING_VALUE_SPAWNER: 1.6,
   BUILDING_VALUE_RESOURCE: 1.2,
   BUILDING_VALUE_DEFAULT: 1.0,
-  BUILDING_VALUE_WATCHTOWER: 2.0,
+  BUILDING_VALUE_WATCHTOWER: 2.5,
 
   // Saturation
   SATURATION_PENALTY_PER_ALLY: 10,
