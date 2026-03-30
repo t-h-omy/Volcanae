@@ -704,7 +704,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
 
   return (
     <div
-      className={`tile-unit ${animClass}${isEmberling ? ' emberling-unit' : ''}`}
+      className={['tile-unit', animClass, isEmberling && 'emberling-unit'].filter(Boolean).join(' ')}
       style={
         {
           ...animStyle,
