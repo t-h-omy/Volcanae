@@ -364,7 +364,7 @@ export const AI_SCORING = {
   /** Base score for a BUILD_AND_CAPTURE unit choosing to build a LAVA_LAIR on a ruin tile */
   BASE_BUILD_LAVA_LAIR: 55,
   /** Base score for a unit with the CORRUPT tag choosing to corrupt a FOREST or MOUNTAIN tile */
-  BASE_CORRUPT_TERRAIN: 30,
+  BASE_CORRUPT_TERRAIN: 60,
 
   // ── Explosive / Sacrificial unit AI ──────────────────────────────────────
   // These scores are tag-gated and apply to any unit carrying the EXPLOSIVE or
@@ -420,7 +420,7 @@ export const TERRAIN = {
    * Maximum edge-circle distance from the zone 1 stronghold for the guaranteed
    * forest tile placement in zone 1.
    */
-  ZONE1_FOREST_MAX_DISTANCE: 4,
+  ZONE1_FOREST_MAX_DISTANCE: 3,
 } as const;
 
 // ============================================================================
@@ -438,19 +438,19 @@ export const CONSTRUCTION = {
   /** Construction cost for a Mine (player) */
   MINE_COST: { iron: 0, wood: 1 },
   /** Construction cost for a Barracks (player) */
-  BARRACKS_COST: { iron: 0, wood: 1 },
+  BARRACKS_COST: { iron: 0, wood: 2 },
   /** Construction cost for an Archer Camp (player) */
-  ARCHER_CAMP_COST: { iron: 0, wood: 1 },
+  ARCHER_CAMP_COST: { iron: 0, wood: 2 },
   /** Construction cost for a Rider Camp (player) */
-  RIDER_CAMP_COST: { iron: 1, wood: 1 },
+  RIDER_CAMP_COST: { iron: 3, wood: 2 },
   /** Construction cost for a Siege Camp (player) */
-  SIEGE_CAMP_COST: { iron: 1, wood: 1 },
+  SIEGE_CAMP_COST: { iron: 2, wood: 3 },
   /** Construction cost for a Farm (player, built on ruins) */
-  FARM_COST: { iron: 0, wood: 1 },
+  FARM_COST: { iron: 0, wood: 2 },
   /** Construction cost for a Patrician House (player, built on ruins) */
   PATRICIAN_HOUSE_COST: { iron: 2, wood: 2 },
   /** Construction cost for a Stronghold rebuild (player) */
-  STRONGHOLD_COST: { iron: 2, wood: 2 },
+  STRONGHOLD_COST: { iron: 0, wood: 0 },
   /** Construction cost for a Lava Lair (enemy AI, not player) */
   LAVA_LAIR_COST: { iron: 0, wood: 0 },
   /** Construction cost for an Infernal Sanctum (enemy AI, not player) */
@@ -504,7 +504,7 @@ export const ENEMY_UNIT_UNLOCK: Record<string, number> = {
   LAVA_ARCHER: 2,
   LAVA_RIDER: 4,
   LAVA_SIEGE: 6,
-  EMBERLING: 3,
+  EMBERLING: 1,
 };
 
 // ============================================================================
