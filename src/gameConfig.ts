@@ -286,14 +286,12 @@ export const AI_SCORING = {
   BASE_MOVE_TO_NEUTRAL_BUILDING: 38,
   /** Move towards the nearest player unit when no higher-priority target exists */
   BASE_MOVE_TO_UNIT: 32,
-  /** Move southward alongside the advancing lava front to maintain pressure */
-  BASE_ADVANCE_WITH_LAVA: 28,
   /** Move to the southern edge of the current zone to push into the next zone */
   BASE_PUSH_TO_ZONE_EDGE: 25,
   /** Move to a tile that puts the unit adjacent to a player unit's flank or rear */
   BASE_FLANK_UNIT: 20,
-  /** Generic southward advance when no specific target is reachable */
-  BASE_ADVANCE_SOUTH: 18,
+  /** Move toward the lava front (increasing Y); always a candidate for unmoved units */
+  BASE_ADVANCE_TOWARD_LAVA: 18,
   /** Voluntarily walk into lava to boost the threat level when no better action exists */
   BASE_SACRIFICE_TO_LAVA: 12,
   /** Stay in place; fallback when every other action scores 0 or is unavailable */
@@ -354,8 +352,6 @@ export const AI_SCORING = {
 
   // ── Lava-specific ─────────────────────────────────────────────────────────
 
-  /** Bonus to aggressive actions (attacks, captures) when a unit is close to the lava front */
-  BONUS_LAVA_BOOST_AGGRESSION: 25,
   /** Per-point bonus to SACRIFICE_TO_LAVA for each threat level below 5 (encourages sacrifices at low threat) */
   BONUS_SACRIFICE_PER_THREAT_BELOW_5: 3,
 
@@ -368,18 +364,12 @@ export const AI_SCORING = {
 
   // ── Explosive / Sacrificial unit AI ──────────────────────────────────────
   // These scores are tag-gated and apply to any unit carrying the EXPLOSIVE or
-  // SACRIFICIAL tag (e.g. EMBERLING). BASE values are the floor shared by all
-  // such units; per-unit-type bonuses are added on top via
-  // sacrificialLavaMoveBonus() in enemySystem.ts so individual unit types can
-  // express a much stronger preference for self-destructive actions.
+  // SACRIFICIAL tag (e.g. EMBERLING).
 
-  /** Base score for an EXPLOSIVE unit to detonate when adjacent to one or more player units;
-   *  only scored when the lava-advance simulation finds no valid path to the lava front */
+  /** Base score for an EXPLOSIVE unit to detonate when adjacent to one or more player units */
   BASE_EXPLODE: 70,
-  /** Base score for a SACRIFICIAL unit to move directly onto a lava tile (self-sacrifice) */
-  BASE_MOVE_TO_LAVA: 40,
-  /** Base score for a SACRIFICIAL unit to advance southward toward the lava front */
-  BASE_SACRIFICIAL_ADVANCE: 20,
+  /** Bonus added to BASE_ADVANCE_TOWARD_LAVA for units with the SACRIFICIAL tag */
+  BONUS_SACRIFICIAL_ADVANCE_TOWARD_LAVA: 160,
 } as const;
 
 // ============================================================================
