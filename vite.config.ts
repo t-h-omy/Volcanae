@@ -3,11 +3,27 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { version } from './package.json'
 
-// https://vite.dev/config/
+const gitBranch = process.env.GITHUB_REF_NAME || 'local'
+
+const getBasePath = () => {
+  if (process.env.VITE_BASE_PATH) {
+    return process.env.VITE_BASE_PATH
+  }
+  const repo = process.env.GITHUB_REPOSITORY
+  if (repo) {
+    const repoName = repo.split('/')[1]
+    return `/${repoName}/`
+  }
+  return '/Volcanae/'
+}
+
+const basePath = getBasePath()
+
 export default defineConfig({
-  base: '/Volcanae/',
+  base: basePath,
   define: {
     __APP_VERSION__: JSON.stringify(version),
+    __GIT_BRANCH__: JSON.stringify(gitBranch),
   },
   plugins: [
     react(),
