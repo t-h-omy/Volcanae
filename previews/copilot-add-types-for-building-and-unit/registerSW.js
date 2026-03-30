@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/Volcanae/previews/copilot-add-types-for-building-and-unit/sw.js', { scope: '/Volcanae/previews/copilot-add-types-for-building-and-unit/' })})}
