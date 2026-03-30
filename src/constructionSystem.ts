@@ -283,6 +283,7 @@ function createBuildingObject(
     populationCap,
     populationGrowthCounter: 0,
     emberSpawnCounter: 0,
+    recruitmentQueue: null,
   };
 }
 

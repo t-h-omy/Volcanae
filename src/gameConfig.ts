@@ -396,6 +396,19 @@ export const UNIT_POPULATION_COSTS: Record<string, UnitPopulationCost> = {
 };
 
 // ============================================================================
+// ENEMY UNIT UNLOCK CONFIGURATION
+// ============================================================================
+
+/** Minimum threat level required to unlock each enemy unit type for recruitment */
+export const ENEMY_UNIT_UNLOCK: Record<string, number> = {
+  LAVA_GRUNT: 0,
+  LAVA_ARCHER: 2,
+  LAVA_RIDER: 4,
+  LAVA_SIEGE: 6,
+  EMBERLING: 3,
+};
+
+// ============================================================================
 // ANIMATION CONFIGURATION
 // ============================================================================
 
@@ -495,6 +508,7 @@ export const GAME_CONFIG = {
   POPULATION,
   UNIT_POPULATION_COSTS,
   ENEMY,
+  ENEMY_UNIT_UNLOCK,
   AI_SCORING,
   UNIT_COSTS,
   ANIMATION,

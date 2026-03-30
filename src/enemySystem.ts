@@ -6,11 +6,12 @@
 import type { GameState, Unit, Building, Position } from './types';
 import type { Draft } from 'immer';
 import { produce } from 'immer';
-import { Faction, UnitType, UnitTag, BuildingType } from './types';
-import { UNITS, ENEMY, MAP, AI_SCORING } from './gameConfig';
+import { Faction, UnitType, UnitTag, BuildingType, TileType } from './types';
+import { UNITS, ENEMY, MAP, AI_SCORING, ENEMY_UNIT_UNLOCK } from './gameConfig';
 import { resolveAttack, calculateCombat, resolveBuildingAttack, buildingToCombatant, calculateCombatFromStats, unitToCombatant, resolveAttackOnBuilding } from './combatSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { initiateCapture, canCapture } from './captureSystem';
+import { corruptTerrain } from './corruptionSystem';
 import type { GameEvent } from './gameEvents';
 
 // ============================================================================
@@ -32,6 +33,8 @@ const BUILDING_SPAWN_UNIT_TYPE: Partial<Record<BuildingType, UnitType>> = {
   [BuildingType.ARCHER_CAMP]: UnitType.LAVA_ARCHER,
   [BuildingType.RIDER_CAMP]: UnitType.LAVA_RIDER,
   [BuildingType.SIEGE_CAMP]: UnitType.LAVA_SIEGE,
+  [BuildingType.LAVALAIR]: UnitType.LAVA_GRUNT,
+  [BuildingType.INFERNALSANCTUM]: UnitType.LAVA_RIDER,
 };
 
 // ============================================================================
@@ -58,6 +61,7 @@ type EnemyActionType =
   | 'FLANK_UNIT'
   | 'ADVANCE_SOUTH'
   | 'SACRIFICE_TO_LAVA'
+  | 'CORRUPT_TERRAIN'
   | 'HOLD_POSITION';
 
 interface ScoredAction {
@@ -87,7 +91,9 @@ function isRecruitmentBuilding(building: Building): boolean {
     building.type === BuildingType.BARRACKS ||
     building.type === BuildingType.ARCHER_CAMP ||
     building.type === BuildingType.RIDER_CAMP ||
-    building.type === BuildingType.SIEGE_CAMP
+    building.type === BuildingType.SIEGE_CAMP ||
+    building.type === BuildingType.LAVALAIR ||
+    building.type === BuildingType.INFERNALSANCTUM
   );
 }
 
@@ -113,7 +119,7 @@ function getSpawnProbability(state: Draft<GameState>, building: Building): numbe
   return ENEMY.BASE_SPAWN_PROBABILITY + ENEMY.MAX_THREAT_BONUS * threatRatio;
 }
 
-const SPAWNER_TYPES: BuildingType[] = [BuildingType.BARRACKS, BuildingType.ARCHER_CAMP, BuildingType.RIDER_CAMP, BuildingType.SIEGE_CAMP];
+const SPAWNER_TYPES: BuildingType[] = [BuildingType.BARRACKS, BuildingType.ARCHER_CAMP, BuildingType.RIDER_CAMP, BuildingType.SIEGE_CAMP, BuildingType.LAVALAIR, BuildingType.INFERNALSANCTUM];
 const RESOURCE_TYPES: BuildingType[] = [BuildingType.MINE, BuildingType.WOODCUTTER];
 
 function buildingValueMultiplier(type: BuildingType): number {
@@ -242,6 +248,18 @@ function createEnemyUnit(
     tags.push(UnitTag.PREP);
   }
 
+  // LAVA_GRUNT can corrupt terrain
+  if (unitType === UnitType.LAVA_GRUNT) {
+    tags.push(UnitTag.CORRUPT);
+    tags.push(UnitTag.BUILDANDCAPTURE);
+  }
+
+  // EMBERLING gets sacrificial + explosive
+  if (unitType === UnitType.EMBERLING) {
+    tags.push(UnitTag.SACRIFICIAL);
+    tags.push(UnitTag.EXPLOSIVE);
+  }
+
   if (lavaBoostEnabled) {
     const boostFactor = calculateLavaBoostFactor(buildingPosition, lavaFrontRow);
     const boostMultiplier = 1 + boostFactor * ENEMY.MAX_LAVA_BOOST_MULTIPLIER;
@@ -279,7 +297,13 @@ function spawnEnemyUnits(state: Draft<GameState>, events?: GameEvent[]): void {
     if (building.faction !== Faction.ENEMY) continue;
     if (!isRecruitmentBuilding(building)) continue;
 
-    const unitType: UnitType = BUILDING_SPAWN_UNIT_TYPE[building.type] ?? UnitType.LAVA_GRUNT;
+    // Use recruitmentQueue if set (from scoreRecruitmentForLavaLairs), otherwise fall back to static map
+    const unitType: UnitType = building.recruitmentQueue ?? BUILDING_SPAWN_UNIT_TYPE[building.type] ?? UnitType.LAVA_GRUNT;
+
+    // Clear the recruitment queue after using it
+    if (building.recruitmentQueue) {
+      building.recruitmentQueue = null;
+    }
 
     const spawnProbability = getSpawnProbability(state, building);
     if (Math.random() >= spawnProbability) continue;
@@ -311,6 +335,129 @@ function spawnEnemyUnits(state: Draft<GameState>, events?: GameEvent[]): void {
         unit: unitSnapshot,
         buildingId: building.id,
       });
+    }
+  }
+}
+
+// ============================================================================
+// LAVA_LAIR / INFERNAL_SANCTUM DYNAMIC RECRUITMENT
+// ============================================================================
+
+/** Base priority scores for each enemy unit type when scoring recruitment */
+const RECRUITMENT_BASE_SCORES: Partial<Record<UnitType, number>> = {
+  [UnitType.LAVA_GRUNT]: 50,
+  [UnitType.LAVA_ARCHER]: 60,
+  [UnitType.LAVA_RIDER]: 65,
+  [UnitType.LAVA_SIEGE]: 55,
+  [UnitType.EMBERLING]: 45,
+};
+
+/**
+ * Gets the zone number (1-5) for a given row position.
+ */
+function getZoneForRow(row: number): number {
+  if (row < MAP.LAVA_BUFFER_ROWS) return 0;
+  const zoneIndex = Math.floor((row - MAP.LAVA_BUFFER_ROWS) / MAP.ZONE_HEIGHT);
+  return Math.min(zoneIndex + 1, MAP.ZONE_COUNT);
+}
+
+/**
+ * Scores and queues recruitment for each LAVA_LAIR and INFERNAL_SANCTUM building.
+ * Dynamically selects the best unit type to spawn based on tactical factors
+ * and threat-gated unlocks.
+ */
+function scoreRecruitmentForLavaLairs(state: Draft<GameState>): void {
+  for (const building of Object.values(state.buildings)) {
+    if (building.faction !== Faction.ENEMY) continue;
+    if (building.type !== BuildingType.LAVALAIR && building.type !== BuildingType.INFERNALSANCTUM) continue;
+
+    const buildingZone = getZoneForRow(building.position.y);
+
+    // Gather eligible unit types (unlocked at current threat level)
+    const eligibleTypes: UnitType[] = [];
+    for (const [unitTypeKey, minThreat] of Object.entries(ENEMY_UNIT_UNLOCK)) {
+      if (state.threatLevel >= minThreat) {
+        eligibleTypes.push(unitTypeKey as UnitType);
+      }
+    }
+
+    if (eligibleTypes.length === 0) continue;
+
+    // Count enemy units of each type in the same zone
+    const unitCountInZone = new Map<UnitType, number>();
+    for (const unit of Object.values(state.units)) {
+      if (unit.faction !== Faction.ENEMY) continue;
+      const unitZone = getZoneForRow(unit.position.y);
+      if (unitZone === buildingZone) {
+        unitCountInZone.set(unit.type, (unitCountInZone.get(unit.type) ?? 0) + 1);
+      }
+    }
+
+    // Check if player units are in the zone ahead (north = higher zone number)
+    const zoneAhead = buildingZone + 1;
+    let playerUnitsInZoneAhead = 0;
+    for (const unit of Object.values(state.units)) {
+      if (unit.faction !== Faction.PLAYER) continue;
+      const unitZone = getZoneForRow(unit.position.y);
+      if (unitZone === zoneAhead) {
+        playerUnitsInZoneAhead++;
+      }
+    }
+
+    // Count player buildings in range (within trigger range 6)
+    let playerBuildingsInRange = 0;
+    for (const b of Object.values(state.buildings)) {
+      if (b.faction !== Faction.PLAYER) continue;
+      if (manhattanDistance(building.position, b.position) <= 6) {
+        playerBuildingsInRange++;
+      }
+    }
+
+    // Check if any Emberling exists within 6 tiles
+    let emberlingNearby = false;
+    for (const unit of Object.values(state.units)) {
+      if (unit.type === UnitType.EMBERLING && manhattanDistance(unit.position, building.position) <= 6) {
+        emberlingNearby = true;
+        break;
+      }
+    }
+
+    // Score each eligible unit type
+    let bestType: UnitType | null = null;
+    let bestScore = -Infinity;
+
+    for (const unitType of eligibleTypes) {
+      let score = RECRUITMENT_BASE_SCORES[unitType] ?? 0;
+
+      // Bonus if zone ahead has player units
+      if (playerUnitsInZoneAhead > 0) {
+        if (unitType === UnitType.LAVA_GRUNT) score += 20;
+        if (unitType === UnitType.LAVA_ARCHER || unitType === UnitType.LAVA_RIDER) score += 30;
+      }
+
+      // Bonus for LAVA_SIEGE if player has many buildings in range
+      if (unitType === UnitType.LAVA_SIEGE && playerBuildingsInRange >= 2) {
+        score += 25;
+      }
+
+      // Bonus for EMBERLING if threat >= 5 and no Emberling nearby
+      if (unitType === UnitType.EMBERLING && state.threatLevel >= 5 && !emberlingNearby) {
+        score += 20;
+      }
+
+      // Penalty if over-represented in zone (more than 3 of that type)
+      if ((unitCountInZone.get(unitType) ?? 0) > 3) {
+        score -= 20;
+      }
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestType = unitType;
+      }
+    }
+
+    if (bestType) {
+      building.recruitmentQueue = bestType;
     }
   }
 }
@@ -762,6 +909,25 @@ function scoreActionsForUnit(
     }
   }
 
+  // ── CORRUPT_TERRAIN ──
+  if (!unit.hasActedThisTurn && unit.tags.includes(UnitTag.CORRUPT)) {
+    // Find corruptible terrain tiles (FOREST or MOUNTAIN) in trigger range
+    for (let dy = -triggerRange; dy <= triggerRange; dy++) {
+      for (let dx = -triggerRange; dx <= triggerRange; dx++) {
+        const tx = unit.position.x + dx;
+        const ty = unit.position.y + dy;
+        if (!isWithinBounds({ x: tx, y: ty })) continue;
+        const tile = state.grid[ty][tx];
+        if (tile.terrainType === TileType.FOREST || tile.terrainType === TileType.MOUNTAIN) {
+          const distance = manhattanDistance(unit.position, { x: tx, y: ty });
+          // Score: moderate priority — deny terrain resources for the player
+          const score = 30 - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE;
+          candidates.push({ type: 'CORRUPT_TERRAIN', score: Math.max(0, score), targetPosition: { x: tx, y: ty } });
+        }
+      }
+    }
+  }
+
   // ── HOLD_POSITION ──
   candidates.push({ type: 'HOLD_POSITION', score: AI_SCORING.BASE_HOLD_POSITION });
 
@@ -998,6 +1164,21 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
       break;
     }
 
+    case 'CORRUPT_TERRAIN': {
+      if (action.targetPosition) {
+        const isOnTile = currentUnit.position.x === action.targetPosition.x && currentUnit.position.y === action.targetPosition.y;
+        if (isOnTile) {
+          // Unit is on the terrain tile — corrupt it
+          corruptTerrain(state, currentUnit.id, action.targetPosition);
+          currentUnit.hasActedThisTurn = true;
+        } else if (!currentUnit.hasMovedThisTurn) {
+          // Move 1 step toward the terrain tile
+          moveEnemyUnitToward(state, currentUnit.id, action.targetPosition, events);
+        }
+      }
+      break;
+    }
+
     case 'HOLD_POSITION':
       break;
   }
@@ -1147,10 +1328,13 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
         .map(b => b.id)
     );
 
-    // 2. Spawn enemy units
+    // 2. Score recruitment for LAVA_LAIR / INFERNAL_SANCTUM buildings
+    scoreRecruitmentForLavaLairs(draft);
+
+    // 2b. Spawn enemy units (uses recruitmentQueue from step 2 when available)
     spawnEnemyUnits(draft, events);
 
-    // 2b. Enemy-owned attacking buildings (e.g. watchtowers) fire at player units in range
+    // 2c. Enemy-owned attacking buildings (e.g. watchtowers) fire at player units in range
     executeBuildingAttacks(draft, events);
 
     // 3. Process each enemy unit

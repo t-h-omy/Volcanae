@@ -187,6 +187,8 @@ export interface Building {
   populationGrowthCounter: number;
   /** Turns since last Emberling spawn — only for EMBERNEST */
   emberSpawnCounter: number;
+  /** Queued unit type for next spawn — used by LAVALAIR/INFERNALSANCTUM dynamic recruitment */
+  recruitmentQueue: UnitType | null;
 }
 
 /** A tile on the game grid */
