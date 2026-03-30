@@ -359,6 +359,22 @@ const RECRUITMENT_BASE_SCORES: Partial<Record<UnitType, number>> = {
 };
 
 /**
+ * Per-unit-type bonus added on top of AI_SCORING.BASE_MOVE_TO_LAVA and
+ * AI_SCORING.BASE_SACRIFICIAL_ADVANCE when scoring lava-seeking actions.
+ * Units not listed here receive no extra bonus (effective bonus = 0).
+ * Emberlings get a large bonus so they overwhelmingly prefer rushing the lava
+ * over any other available action.
+ */
+const SACRIFICIAL_LAVA_BONUS: Partial<Record<UnitType, number>> = {
+  [UnitType.EMBERLING]: 160,
+};
+
+/** Returns the per-unit-type bonus for lava-seeking (MOVE_TO_LAVA / SACRIFICIAL_ADVANCE) actions. */
+function sacrificialLavaMoveBonus(unitType: UnitType): number {
+  return SACRIFICIAL_LAVA_BONUS[unitType] ?? 0;
+}
+
+/**
  * Gets the zone number (1-5) for a given row position.
  */
 function getZoneForRow(row: number): number {
@@ -1124,10 +1140,12 @@ function scoreActionsForUnit(
 
   // ── MOVE_TO_LAVA (SACRIFICIAL tag — reusable for any sacrificial unit) ──
   // Uses the pre-computed simulation result; no second loop needed.
+  // A per-unit-type bonus (sacrificialLavaMoveBonus) is added on top of the base score,
+  // so units like EMBERLING express a much stronger preference than generic sacrificial units.
   if (!unit.hasMovedThisTurn && unit.tags.includes(UnitTag.SACRIFICIAL) && sacrificialBestPos) {
     candidates.push({
       type: 'MOVE_TO_LAVA',
-      score: AI_SCORING.BASE_MOVE_TO_LAVA,
+      score: AI_SCORING.BASE_MOVE_TO_LAVA + sacrificialLavaMoveBonus(unit.type),
       targetPosition: sacrificialBestPos,
     });
   }
@@ -1136,6 +1154,7 @@ function scoreActionsForUnit(
   // When a sacrificial unit can't reach lava, advance toward nearest player unit instead.
   // Only add this action if the target is in the direction of the lava (lower or equal Y),
   // so the unit never moves away from the lava toward enemy territory.
+  // Same per-unit-type bonus applies here.
   if (!unit.hasMovedThisTurn && unit.tags.includes(UnitTag.SACRIFICIAL)) {
     let nearestPlayer: Unit | null = null;
     let nearestDist = Infinity;
@@ -1152,7 +1171,7 @@ function scoreActionsForUnit(
     if (nearestPlayer) {
       candidates.push({
         type: 'SACRIFICIAL_ADVANCE',
-        score: AI_SCORING.BASE_SACRIFICIAL_ADVANCE,
+        score: AI_SCORING.BASE_SACRIFICIAL_ADVANCE + sacrificialLavaMoveBonus(unit.type),
         targetPosition: nearestPlayer.position,
       });
     }
