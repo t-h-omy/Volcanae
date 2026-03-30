@@ -20,7 +20,7 @@
 import type { GameState } from './types';
 import type { Draft } from 'immer';
 import { produce } from 'immer';
-import { Faction } from './types';
+import { Faction, UnitType } from './types';
 import { MAP, LAVA } from './gameConfig';
 import type { GameEvent } from './gameEvents';
 
@@ -113,6 +113,11 @@ export function advanceLava(state: Draft<GameState>): void {
     // Destroy any unit on this tile
     if (tile.unitId !== null) {
       const unitId = tile.unitId;
+      // If the destroyed unit is an EMBERLING, increase threat level
+      const unit = state.units[unitId];
+      if (unit && unit.type === UnitType.EMBERLING) {
+        state.threatLevel += 1;
+      }
       // Remove unit from state
       delete state.units[unitId];
       // Clear unit from tile

@@ -636,6 +636,41 @@ export const useGameStore = create<GameStore>()(
             break;
           }
 
+          case 'EMBERLING_EXPLOSION': {
+            // Apply flat damage to each affected player unit
+            for (const targetId of event.damagedUnitIds) {
+              const target = state.units[targetId];
+              if (target) {
+                target.stats.currentHp -= event.damagePerUnit;
+                // If unit dies, it will be handled by the subsequent UNIT_DEATH event
+              }
+            }
+            // Remove the emberling
+            const emberling = state.units[event.emberlingId];
+            if (emberling) {
+              const tile = state.grid[emberling.position.y][emberling.position.x];
+              if (tile.unitId === event.emberlingId) {
+                tile.unitId = null;
+              }
+              delete state.units[event.emberlingId];
+            }
+
+            // Trigger floaters for explosion damage
+            const { addFloater } = useFloaterStore.getState();
+            for (const targetId of event.damagedUnitIds) {
+              const target = state.units[targetId];
+              if (target) {
+                addFloater({
+                  value: event.damagePerUnit,
+                  x: target.position.x,
+                  y: target.position.y,
+                  isEnemy: false, // player units take damage
+                });
+              }
+            }
+            break;
+          }
+
           case 'LAVA_ADVANCE': {
             advanceLava(state);
             break;

@@ -156,6 +156,7 @@ export const UNITS = {
     attackRange: 1,
     discoverRadius: 1,
     triggerRange: 0,
+    explosionDamage: 30,
   },
 } as const;
 
@@ -308,6 +309,11 @@ export const AI_SCORING = {
   // Construction AI
   BASE_BUILD_LAVA_LAIR: 55,
   BASE_CORRUPT_TERRAIN: 30,
+
+  // Emberling AI
+  BASE_EMBERLING_EXPLODE: 100,
+  BASE_EMBERLING_SACRIFICE: 40,
+  BASE_EMBERLING_ADVANCE: 20,
 } as const;
 
 // ============================================================================

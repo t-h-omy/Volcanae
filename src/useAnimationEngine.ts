@@ -43,6 +43,8 @@ function eventPosition(event: GameEvent): Position {
       return event.position;
     case 'BUILDING_CAPTURE':
       return event.position;
+    case 'EMBERLING_EXPLOSION':
+      return event.position;
     case 'LAVA_ADVANCE':
       return { x: Math.floor(MAP.GRID_WIDTH / 2), y: event.newLavaRow };
   }
@@ -78,6 +80,8 @@ function isEventVisible(event: GameEvent): boolean {
     case 'UNIT_DEATH':
       return isTileRevealed(event.position);
     case 'BUILDING_CAPTURE':
+      return isTileRevealed(event.position);
+    case 'EMBERLING_EXPLOSION':
       return isTileRevealed(event.position);
     case 'LAVA_ADVANCE': {
       // Visible if any tile on the new lava row is revealed

@@ -70,6 +70,13 @@ export type GameEvent =
       buildingType: BuildingType;
     }
   | {
+      type: 'EMBERLING_EXPLOSION';
+      emberlingId: string;
+      position: Position;
+      damagedUnitIds: string[];
+      damagePerUnit: number;
+    }
+  | {
       type: 'LAVA_ADVANCE';
       newLavaRow: number;
       destroyedUnitIds: string[];
