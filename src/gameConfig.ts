@@ -311,7 +311,11 @@ export const AI_SCORING = {
   BASE_CORRUPT_TERRAIN: 30,
 
   // Explosive / Sacrificial unit AI (tag-gated, reusable for any unit with EXPLOSIVE or SACRIFICIAL tags)
-  BASE_EXPLODE: 100,
+  // BASE values are the floor shared by all unit types carrying the tag.
+  // Per-unit-type bonuses are added on top via sacrificialLavaMoveBonus() in enemySystem.ts,
+  // so individual unit types (e.g. EMBERLING) can express a much stronger preference.
+  // BASE_EXPLODE is only ever scored when the advancement simulation finds no valid lava path.
+  BASE_EXPLODE: 70,
   BASE_MOVE_TO_LAVA: 40,
   BASE_SACRIFICIAL_ADVANCE: 20,
 } as const;

@@ -558,8 +558,30 @@ export function generateInitialGameState(): GameState {
     resources: {
       iron: 1,
       wood: 1,
-      farmers: 0,
-      nobles: 0,
+      farmers: (() => {
+        let f = 0;
+        for (const b of Object.values(buildings)) {
+          if (b.faction !== Faction.PLAYER) continue;
+          if (b.type === BuildingType.FARM) {
+            f += b.populationCount;
+          } else if (b.type === BuildingType.STRONGHOLD) {
+            f += Math.min(b.populationCount, POPULATION.STRONGHOLD_FARMER_CAP);
+          }
+        }
+        return f;
+      })(),
+      nobles: (() => {
+        let n = 0;
+        for (const b of Object.values(buildings)) {
+          if (b.faction !== Faction.PLAYER) continue;
+          if (b.type === BuildingType.PATRICIANHOUSE) {
+            n += b.populationCount;
+          } else if (b.type === BuildingType.STRONGHOLD) {
+            n += Math.max(0, b.populationCount - POPULATION.STRONGHOLD_FARMER_CAP);
+          }
+        }
+        return n;
+      })(),
     },
     lavaFrontRow: -1,
     turnsUntilLavaAdvance: LAVA.LAVA_ADVANCE_INTERVAL,
