@@ -4,6 +4,8 @@
  * Do not hardcode these values elsewhere - always import from this file.
  */
 
+import type { UnitPopulationCost } from './types';
+
 // ============================================================================
 // MAP CONFIGURATION
 // ============================================================================
@@ -304,6 +306,96 @@ export const UNIT_COSTS: Record<string, UnitCost> = {
 } as const;
 
 // ============================================================================
+// TERRAIN CONFIGURATION
+// ============================================================================
+
+export const TERRAIN = {
+  /** Number of forest tiles placed per zone */
+  FORESTS_PER_ZONE: 2,
+  /** Number of mountain tiles placed per zone */
+  MOUNTAINS_PER_ZONE: 2,
+  /** Number of ruin tiles placed per zone */
+  RUINS_PER_ZONE: 3,
+  /**
+   * Minimum edge-circle distance from the zone 1 stronghold for the guaranteed
+   * forest tile placement in zone 1.
+   */
+  ZONE1_FOREST_MIN_DISTANCE: 2,
+  /**
+   * Maximum edge-circle distance from the zone 1 stronghold for the guaranteed
+   * forest tile placement in zone 1.
+   */
+  ZONE1_FOREST_MAX_DISTANCE: 4,
+} as const;
+
+// ============================================================================
+// CONSTRUCTION CONFIGURATION
+// ============================================================================
+
+export interface BuildingCost {
+  iron: number;
+  wood: number;
+}
+
+export const CONSTRUCTION = {
+  /** Construction cost for a Woodcutter (player) */
+  WOODCUTTER_COST: { iron: 0, wood: 0 },
+  /** Construction cost for a Mine (player) */
+  MINE_COST: { iron: 0, wood: 1 },
+  /** Construction cost for a Barracks (player) */
+  BARRACKS_COST: { iron: 0, wood: 1 },
+  /** Construction cost for an Archer Camp (player) */
+  ARCHER_CAMP_COST: { iron: 0, wood: 1 },
+  /** Construction cost for a Rider Camp (player) */
+  RIDER_CAMP_COST: { iron: 1, wood: 1 },
+  /** Construction cost for a Siege Camp (player) */
+  SIEGE_CAMP_COST: { iron: 1, wood: 1 },
+  /** Construction cost for a Farm (player, built on ruins) */
+  FARM_COST: { iron: 0, wood: 1 },
+  /** Construction cost for a Patrician House (player, built on ruins) */
+  PATRICIAN_HOUSE_COST: { iron: 2, wood: 2 },
+  /** Construction cost for a Stronghold rebuild (player) */
+  STRONGHOLD_COST: { iron: 2, wood: 2 },
+  /** Construction cost for a Lava Lair (enemy AI, not player) */
+  LAVA_LAIR_COST: { iron: 0, wood: 0 },
+  /** Construction cost for an Infernal Sanctum (enemy AI, not player) */
+  INFERNAL_SANCTUM_COST: { iron: 0, wood: 0 },
+} as const satisfies Record<string, BuildingCost>;
+
+// ============================================================================
+// POPULATION CONFIGURATION
+// ============================================================================
+
+export const POPULATION = {
+  /** Maximum population capacity for a Farm */
+  FARM_POPULATION_CAP: 3,
+  /** Maximum population capacity for a Patrician House */
+  PATRICIAN_HOUSE_POPULATION_CAP: 3,
+  /** Initial population when a housing building is constructed */
+  HOUSE_INITIAL_POPULATION: 1,
+  /** Number of turns between each population increase (same for all housing types) */
+  HOUSE_GROWTH_INTERVAL: 2,
+} as const;
+
+// ============================================================================
+// UNIT POPULATION COSTS CONFIGURATION
+// ============================================================================
+
+export const UNIT_POPULATION_COSTS: Record<string, UnitPopulationCost> = {
+  INFANTRY: { farmers: 1, nobles: 0 },
+  ARCHER: { farmers: 1, nobles: 0 },
+  RIDER: { farmers: 0, nobles: 1 },
+  SIEGE: { farmers: 1, nobles: 1 },
+  SCOUT: { farmers: 1, nobles: 0 },
+  GUARD: { farmers: 0, nobles: 1 },
+  LAVA_GRUNT: { farmers: 0, nobles: 0 },
+  LAVA_ARCHER: { farmers: 0, nobles: 0 },
+  LAVA_RIDER: { farmers: 0, nobles: 0 },
+  LAVA_SIEGE: { farmers: 0, nobles: 0 },
+  EMBERLING: { farmers: 0, nobles: 0 },
+};
+
+// ============================================================================
 // ANIMATION CONFIGURATION
 // ============================================================================
 
@@ -398,6 +490,10 @@ export const GAME_CONFIG = {
   UNITS,
   BUILDINGS,
   RESOURCES,
+  TERRAIN,
+  CONSTRUCTION,
+  POPULATION,
+  UNIT_POPULATION_COSTS,
   ENEMY,
   AI_SCORING,
   UNIT_COSTS,
