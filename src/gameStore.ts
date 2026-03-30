@@ -762,9 +762,9 @@ export const useGameStore = create<GameStore>()(
 
     debugAddFarmers: () => {
       set((state) => {
-        // Find a free tile in zone 1 (rows LAVA_BUFFER_ROWS to LAVA_BUFFER_ROWS + ZONE_HEIGHT - 1)
-        const startRow = MAP.LAVA_BUFFER_ROWS;
-        const endRow = MAP.LAVA_BUFFER_ROWS + MAP.ZONE_HEIGHT - 1;
+        // Find a free tile in zone 1 (high Y, south — near lava)
+        const endRow = MAP.GRID_HEIGHT - MAP.LAVA_BUFFER_ROWS - 1;
+        const startRow = endRow - MAP.ZONE_HEIGHT + 1;
         for (let y = startRow; y <= endRow; y++) {
           for (let x = 0; x < MAP.GRID_WIDTH; x++) {
             const tile = state.grid[y][x];

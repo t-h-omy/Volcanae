@@ -15,13 +15,13 @@ import { increaseThreatOnStrongholdCapture } from './enemySystem';
 
 /**
  * Gets the zone number (1-5) for a given position.
- * Zone 1: rows 5-24 (closest to lava)
- * Zone 5: rows 85-104 (northernmost)
+ * Zone 1: high Y rows (closest to lava, south)
+ * Zone 5: low Y rows (northernmost)
  */
 function getZoneForPosition(position: Position): number {
   const row = position.y;
-  if (row < MAP.LAVA_BUFFER_ROWS) return 0; // Lava buffer, no zone
-  const zoneIndex = Math.floor((row - MAP.LAVA_BUFFER_ROWS) / MAP.ZONE_HEIGHT);
+  if (row >= MAP.GRID_HEIGHT - MAP.LAVA_BUFFER_ROWS) return 0; // Lava buffer, no zone
+  const zoneIndex = Math.floor((MAP.GRID_HEIGHT - MAP.LAVA_BUFFER_ROWS - 1 - row) / MAP.ZONE_HEIGHT);
   return Math.min(zoneIndex + 1, MAP.ZONE_COUNT);
 }
 

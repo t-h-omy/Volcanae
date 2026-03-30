@@ -3,9 +3,9 @@
  * Implements lava advancement, destruction of units/buildings, and preview tiles.
  *
  * Rules:
- * - Lava starts below the map (lavaFrontRow = -1)
- * - Rows 0 to 4 are the lava buffer - lava advances through these first
- * - Lava advances 1 row northward every LAVA_ADVANCE_INTERVAL player turns (default 2)
+ * - Lava starts beyond the south edge of the map (lavaFrontRow = MAP.GRID_HEIGHT)
+ * - The lava buffer occupies the southernmost rows (GRID_HEIGHT - LAVA_BUFFER_ROWS .. GRID_HEIGHT - 1)
+ * - Lava advances 1 row northward (decreasing Y) every LAVA_ADVANCE_INTERVAL player turns (default 3)
  * - Lava phase happens between turns (after player ends turn, before next turn starts)
  * - When lava advances to row N:
  *   - All tiles at row N become isLava: true
@@ -13,7 +13,7 @@
  *   - Any building on row N is instantly destroyed
  *   - If destroyed building had an assigned specialist AND belonged to player: specialist goes to globalSpecialistStorage
  *   - If destroyed building had an assigned specialist AND belonged to enemy: specialist is lost
- * - Lava preview: next LAVA_ADVANCE_INTERVAL rows above current lava front are marked isLavaPreview: true
+ * - Lava preview: next LAVA_ADVANCE_INTERVAL rows north of current lava front are marked isLavaPreview: true
  * - Units cannot move into lava tiles
  */
 
@@ -45,7 +45,7 @@ export function shouldLavaAdvance(
 
 /**
  * Updates the lava preview tiles on the grid.
- * The next LAVA_ADVANCE_INTERVAL rows above the current lava front are marked isLavaPreview: true.
+ * The next LAVA_ADVANCE_INTERVAL rows north of the current lava front are marked isLavaPreview: true.
  * All other tiles have isLavaPreview set to false.
  *
  * @param state - Immer draft of the game state (will be mutated)
@@ -61,9 +61,9 @@ function updateLavaPreview(state: Draft<GameState>): void {
     }
   }
 
-  // Mark preview rows (rows above lava front up to LAVA_ADVANCE_INTERVAL)
+  // Mark preview rows (rows north of lava front, i.e. decreasing Y)
   for (let i = 1; i <= previewRows; i++) {
-    const previewRow = lavaFrontRow + i;
+    const previewRow = lavaFrontRow - i;
     // Only mark valid rows
     if (previewRow >= 0 && previewRow < MAP.GRID_HEIGHT) {
       for (let x = 0; x < MAP.GRID_WIDTH; x++) {
@@ -81,7 +81,7 @@ function updateLavaPreview(state: Draft<GameState>): void {
 // ============================================================================
 
 /**
- * Advances lava by 1 row northward.
+ * Advances lava by 1 row northward (decreasing Y).
  * - Converts all tiles in the new lava row to lava
  * - Destroys any units on that row
  * - Destroys any buildings on that row
@@ -91,11 +91,11 @@ function updateLavaPreview(state: Draft<GameState>): void {
  * @param state - Immer draft of the game state (will be mutated)
  */
 export function advanceLava(state: Draft<GameState>): void {
-  // Advance lava front row
-  const newLavaRow = state.lavaFrontRow + 1;
+  // Advance lava front row (northward = decreasing Y)
+  const newLavaRow = state.lavaFrontRow - 1;
 
   // If lava has reached beyond the grid, no need to advance further
-  if (newLavaRow >= MAP.GRID_HEIGHT) {
+  if (newLavaRow < 0) {
     return;
   }
 
@@ -202,12 +202,12 @@ export function tickLava(state: Draft<GameState>): boolean {
  * @returns Object with newState and LAVA_ADVANCE event
  */
 export function advanceLavaWithEvents(state: GameState): { newState: GameState; event: GameEvent } {
-  const newLavaRow = state.lavaFrontRow + 1;
+  const newLavaRow = state.lavaFrontRow - 1;
   const destroyedUnitIds: string[] = [];
   const destroyedBuildingIds: string[] = [];
 
   // Collect what will be destroyed before applying
-  if (newLavaRow < MAP.GRID_HEIGHT) {
+  if (newLavaRow >= 0 && newLavaRow < MAP.GRID_HEIGHT) {
     for (let x = 0; x < MAP.GRID_WIDTH; x++) {
       const tile = state.grid[newLavaRow][x];
       if (tile.unitId) destroyedUnitIds.push(tile.unitId);

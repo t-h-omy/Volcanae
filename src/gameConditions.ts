@@ -3,7 +3,7 @@
  * Implements win and loss condition checking.
  *
  * Win condition:
- * - Player wins when they own a STRONGHOLD in zone 5 (the northernmost zone)
+ * - Player wins when they own a STRONGHOLD in zone 5 (the northernmost zone, low Y)
  * - On win: set state.phase to VICTORY
  *
  * Loss conditions:
@@ -22,13 +22,13 @@ import { MAP } from './gameConfig';
 
 /**
  * Gets the zone number (1-5) for a given position.
- * Zone 1 is closest to lava, zone 5 is northernmost.
- * Returns 0 for positions in the lava buffer.
+ * Zone 1 is closest to lava (high Y, south), zone 5 is northernmost (low Y).
+ * Returns 0 for positions in the lava buffer (high Y beyond playable area).
  */
 function getZoneForPosition(position: Position): number {
   const row = position.y;
-  if (row < MAP.LAVA_BUFFER_ROWS) return 0;
-  const zoneIndex = Math.floor((row - MAP.LAVA_BUFFER_ROWS) / MAP.ZONE_HEIGHT);
+  if (row >= MAP.GRID_HEIGHT - MAP.LAVA_BUFFER_ROWS) return 0;
+  const zoneIndex = Math.floor((MAP.GRID_HEIGHT - MAP.LAVA_BUFFER_ROWS - 1 - row) / MAP.ZONE_HEIGHT);
   return Math.min(zoneIndex + 1, MAP.ZONE_COUNT);
 }
 
@@ -38,7 +38,7 @@ function getZoneForPosition(position: Position): number {
 
 /**
  * Checks if the player has won.
- * Player wins when they own a STRONGHOLD in zone 5 (the northernmost zone).
+ * Player wins when they own a STRONGHOLD in zone 5 (the northernmost zone, low Y).
  * Since strongholds can be destroyed (captured creates ruin), the player may need
  * to reconstruct one in zone 5 using a unit with BUILDANDCAPTURE tag.
  * If win condition is met, sets state.phase to VICTORY.

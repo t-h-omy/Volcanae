@@ -51,7 +51,7 @@ export const useAnimationStore = create<AnimationStore>((set, get) => ({
   resolvedState: null,
   cameraTarget: {
     x: Math.floor(MAP.GRID_WIDTH / 2),
-    y: MAP.LAVA_BUFFER_ROWS + Math.floor(MAP.ZONE_HEIGHT / 2),
+    y: MAP.GRID_HEIGHT - MAP.LAVA_BUFFER_ROWS - 1 - Math.floor(MAP.ZONE_HEIGHT / 2),
   },
   isAnimating: false,
 
