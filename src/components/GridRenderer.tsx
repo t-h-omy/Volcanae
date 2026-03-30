@@ -17,6 +17,7 @@ import {
   UnitType,
   UnitTag,
   BuildingType,
+  TileType,
   type Tile,
   type Unit,
   type Building,
@@ -39,6 +40,7 @@ const UNIT_EMOJI: Record<string, string> = {
   [UnitType.LAVA_ARCHER]: '👺',
   [UnitType.LAVA_RIDER]: '👾',
   [UnitType.LAVA_SIEGE]: '🐦‍🔥',
+  [UnitType.EMBERLING]: '🔥',
 };
 
 const BUILDING_EMOJI: Record<string, string> = {
@@ -50,6 +52,12 @@ const BUILDING_EMOJI: Record<string, string> = {
   [BuildingType.RIDER_CAMP]: '🏘️',
   [BuildingType.SIEGE_CAMP]: '🏛️',
   [BuildingType.WATCHTOWER]: '👁️',
+  [BuildingType.LAVALAIR]: '🕳️',
+  [BuildingType.INFERNALSANCTUM]: '🌋',
+  [BuildingType.FARM]: '🌾',
+  [BuildingType.PATRICIANHOUSE]: '🏯',
+  [BuildingType.MAGMASPYR]: '⛰️',
+  [BuildingType.EMBERNEST]: '🌲',
 };
 
 const RESOURCE_BUILDING_ICON: Record<string, string> = {
@@ -154,6 +162,10 @@ function tileBackground(
     if (building.faction === Faction.ENEMY) return RENDER.COLORS.BUILDING_ENEMY;
     return RENDER.COLORS.BUILDING_NEUTRAL;
   }
+
+  // Terrain-specific backgrounds
+  if (tile.terrainType === TileType.FOREST) return '#2d6e1e';
+  if (tile.terrainType === TileType.MOUNTAIN) return '#6b5b45';
 
   return RENDER.COLORS.GRASS;
 }
@@ -497,6 +509,7 @@ function TileCellInner({
   const bg = tileBackground(tile, building);
   const buildingIconSize = Math.floor(tileSize * 0.8);
   const resourceIconSize = Math.floor(tileSize * 0.20);
+  const terrainIconSize = Math.floor(tileSize * 0.7);
 
   // Lava preview overlay (only on discovered tiles)
   const overlay =
@@ -517,6 +530,41 @@ function TileCellInner({
     ? RESOURCE_BUILDING_ICON[building.type]
     : undefined;
 
+  // Terrain background icon (faint, behind buildings/units)
+  const terrainIcon = tile.isRevealed && !tile.isLava
+    ? tile.terrainType === TileType.FOREST
+      ? '🌲'
+      : tile.terrainType === TileType.MOUNTAIN
+        ? '⛰️'
+        : null
+    : null;
+
+  // Ruin icon (faint background behind any unit/building)
+  const ruinIcon = tile.isRevealed && !tile.isLava
+    ? tile.isStrongholdRuin
+      ? '🏚️'
+      : tile.isRuin
+        ? '🪨'
+        : null
+    : null;
+
+  // Corruption visual overlay for MAGMA_SPYR and EMBER_NEST buildings
+  const corruptionOverlayClass =
+    showBuilding && building
+      ? building.type === BuildingType.MAGMASPYR
+        ? 'corruption-magmaspyr'
+        : building.type === BuildingType.EMBERNEST
+          ? 'corruption-embernest'
+          : null
+      : null;
+
+  // Population display for player-owned FARM and PATRICIANHOUSE
+  const showPopulation =
+    showBuilding &&
+    building &&
+    building.faction === Faction.PLAYER &&
+    (building.type === BuildingType.FARM || building.type === BuildingType.PATRICIANHOUSE);
+
   return (
     <div
       className="grid-tile"
@@ -532,8 +580,25 @@ function TileCellInner({
         <span className="tile-cloud" style={{ fontSize: buildingIconSize }}>☁️</span>
       )}
 
+      {/* terrain background icon (faint, behind everything) */}
+      {terrainIcon && (
+        <span className="tile-terrain-icon" style={{ fontSize: terrainIconSize }}>
+          {terrainIcon}
+        </span>
+      )}
+
+      {/* ruin background icon */}
+      {ruinIcon && (
+        <span className="tile-ruin-icon" style={{ fontSize: terrainIconSize }}>
+          {ruinIcon}
+        </span>
+      )}
+
       {/* lava-preview overlay */}
       {overlay && <div className="tile-overlay" style={{ backgroundColor: overlay }} />}
+
+      {/* corruption visual overlay */}
+      {corruptionOverlayClass && <div className={`tile-overlay ${corruptionOverlayClass}`} />}
 
       {/* highlight overlay */}
       {highlightOverlay && (
@@ -555,7 +620,7 @@ function TileCellInner({
         </span>
       )}
 
-      {/* building HP bar for attacking buildings (e.g. watchtower) */}
+      {/* building HP bar for attacking buildings (e.g. watchtower, magma spyr) */}
       {showBuilding && building && building.combatStats && building.faction && (
         <div
           className="hp-bar-wrapper building-hp-bar"
@@ -567,6 +632,13 @@ function TileCellInner({
           }
         >
           <div className="hp-bar-fill" style={{ width: `${(building.hp / building.maxHp) * 100}%` }} />
+        </div>
+      )}
+
+      {/* population badge for FARM and PATRICIANHOUSE */}
+      {showPopulation && building && (
+        <div className="population-badge">
+          {building.populationCount}/{building.populationCap}
         </div>
       )}
 
@@ -628,9 +700,11 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
         }
       : undefined;
 
+  const isEmberling = unit.type === UnitType.EMBERLING;
+
   return (
     <div
-      className={`tile-unit ${animClass}`}
+      className={`tile-unit ${animClass}${isEmberling ? ' emberling-unit' : ''}`}
       style={
         {
           ...animStyle,
@@ -655,6 +729,11 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
       <span className="unit-main-emoji unit-emoji" style={{ fontSize: `${unitEmojiSize}px` }}>
         {UNIT_EMOJI[unit.type] ?? '?'}
       </span>
+      {isEmberling && (
+        <span className="emberling-hover-explosion" style={{ fontSize: `${Math.floor(unitEmojiSize * 0.5)}px` }}>
+          💥
+        </span>
+      )}
       {anim?.type === 'DYING' && (
         <span className="unit-skull-emoji" style={{ fontSize: `${unitEmojiSize}px` }}>
           💀
