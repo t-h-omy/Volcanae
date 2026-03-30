@@ -1,56 +1,217 @@
-name: Deploy to GitHub Pages
+name: Deploy to gh-pages branch with previews
 
 on:
   push:
     branches:
-      - main
+      - '**'
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
+  pull-requests: write
 
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: gh-pages-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
+          cache: 'npm'
 
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
-      - name: Build
+      - name: Determine deployment directory and base path
+        id: deploy-config
+        run: |
+          BRANCH_NAME="${GITHUB_REF#refs/heads/}"
+          SAFE_BRANCH_NAME=$(echo "$BRANCH_NAME" | sed 's/\//-/g')
+
+          if [ "$BRANCH_NAME" = "main" ]; then
+            echo "destination_dir=." >> $GITHUB_OUTPUT
+            echo "base_path=/Volcanae/" >> $GITHUB_OUTPUT
+            echo "deployment_url=https://t-h-omy.github.io/Volcanae/" >> $GITHUB_OUTPUT
+          else
+            echo "destination_dir=previews/$SAFE_BRANCH_NAME" >> $GITHUB_OUTPUT
+            echo "base_path=/Volcanae/previews/$SAFE_BRANCH_NAME/" >> $GITHUB_OUTPUT
+            echo "deployment_url=https://t-h-omy.github.io/Volcanae/previews/$SAFE_BRANCH_NAME/" >> $GITHUB_OUTPUT
+          fi
+
+          echo "Branch: $BRANCH_NAME"
+          echo "Safe branch name: $SAFE_BRANCH_NAME"
+
+      - name: Build with branch-specific base path
         run: npm run build
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          VITE_BASE_PATH: ${{ steps.deploy-config.outputs.base_path }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
 
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+      - name: Deploy to gh-pages branch
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          if git ls-remote --exit-code --heads origin gh-pages; then
+            echo "gh-pages branch exists, cloning..."
+            git clone --single-branch --branch gh-pages https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git gh-pages-repo
+          else
+            echo "gh-pages branch doesn't exist, creating..."
+            mkdir gh-pages-repo
+            cd gh-pages-repo
+            git init
+            git checkout -b gh-pages
+            git remote add origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+            cd ..
+          fi
+
+          DEST_DIR="gh-pages-repo/${{ steps.deploy-config.outputs.destination_dir }}"
+          mkdir -p "$DEST_DIR"
+
+          if [ "${{ steps.deploy-config.outputs.destination_dir }}" != "." ]; then
+            rm -rf "$DEST_DIR"/*
+          else
+            cd gh-pages-repo
+            find . -maxdepth 1 -type f -delete
+            find . -maxdepth 1 -type d ! -name . ! -name .. ! -name .git ! -name previews -exec rm -rf {} +
+            cd ..
+          fi
+
+          cp -r dist/* "$DEST_DIR/"
+
+          if [ ! -f "gh-pages-repo/previews/index.html" ] && [ -d "gh-pages-repo/previews" ]; then
+            mkdir -p gh-pages-repo/previews
+            cat > gh-pages-repo/previews/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Branch Previews</title>
+            <style>
+              body { font-family: system-ui; max-width: 800px; margin: 40px auto; padding: 20px; }
+              h1 { color: #333; }
+              ul { list-style: none; padding: 0; }
+              li { margin: 10px 0; }
+              a { color: #0066cc; text-decoration: none; padding: 10px; display: block; border: 1px solid #ddd; border-radius: 4px; }
+              a:hover { background: #f5f5f5; }
+            </style>
+          </head>
+          <body>
+            <h1>Branch Previews</h1>
+            <p>Available preview deployments:</p>
+            <ul id="previews"></ul>
+            <script>
+              fetch('.')
+                .then(r => r.text())
+                .then(html => {
+                  const parser = new DOMParser();
+                  const doc = parser.parseFromString(html, 'text/html');
+                  const links = Array.from(doc.querySelectorAll('a'))
+                    .map(a => a.getAttribute('href'))
+                    .filter(href => href && href !== '../' && !href.includes('index.html'));
+                  const ul = document.getElementById('previews');
+                  links.forEach(link => {
+                    const li = document.createElement('li');
+                    const a = document.createElement('a');
+                    a.href = link;
+                    a.textContent = link.replace('/', '');
+                    li.appendChild(a);
+                    ul.appendChild(li);
+                  });
+                });
+            </script>
+          </body>
+          </html>
+          EOF
+          fi
+
+          cd gh-pages-repo
+          git add -A
+
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Deploy ${{ github.ref_name }} to ${{ steps.deploy-config.outputs.destination_dir }}"
+            git push origin gh-pages
+            echo "✅ Deployed successfully!"
+          fi
+
+      - name: Post Preview URL to PR
+        if: github.ref != 'refs/heads/main'
+        uses: actions/github-script@v7
         with:
-          path: dist
+          script: |
+            const deploymentUrl = '${{ steps.deploy-config.outputs.deployment_url }}';
+            const branchName = '${{ github.ref_name }}';
+            const timestamp = new Date().toUTCString();
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+            const commentBody = `🚀 **Preview Deployment**
+
+            Branch \`${branchName}\` has been deployed!
+
+            🔗 **Preview URL:** ${deploymentUrl}
+
+            <sub>Last updated: ${timestamp}</sub>
+            <!-- preview-deployment-${branchName} -->`;
+
+            let prNumber = null;
+
+            if (context.eventName === 'pull_request' && context.payload.pull_request) {
+              prNumber = context.payload.pull_request.number;
+            } else {
+              const prs = await github.rest.pulls.list({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open',
+                head: `${context.repo.owner}:${branchName}`
+              });
+              if (prs.data.length > 0) {
+                prNumber = prs.data[0].number;
+              }
+            }
+
+            if (!prNumber) {
+              console.log('No PR found for this branch, skipping comment');
+              return;
+            }
+
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber
+            });
+
+            const existingComment = comments.data.find(comment =>
+              comment.body.includes(`<!-- preview-deployment-${branchName} -->`)
+            );
+
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: commentBody
+              });
+              console.log('Updated existing comment');
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: commentBody
+              });
+              console.log('Created new comment');
+            }
+
+      - name: Comment deployment URL
+        run: |
+          echo "🚀 Deployment URL: ${{ steps.deploy-config.outputs.deployment_url }}"
+          echo "📁 Destination: ${{ steps.deploy-config.outputs.destination_dir }}"
+
