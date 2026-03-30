@@ -147,11 +147,13 @@ export interface Specialist {
   assignedBuildingId: string | null;
 }
 
-/** Combat stats for buildings that can attack (e.g. Watchtower) */
+/** Combat stats for buildings that can attack (e.g. Watchtower, Magma Spyr) */
 export interface BuildingCombatStats {
   attack: number;
   defense: number;
   attackRange: number;
+  /** Maximum number of different targets the building can attack per turn (default: 1) */
+  maxAttacksPerTurn?: number;
 }
 
 /** A building on the map */

@@ -11,7 +11,7 @@ import { UNITS, ENEMY, MAP, AI_SCORING, ENEMY_UNIT_UNLOCK } from './gameConfig';
 import { resolveAttack, calculateCombat, resolveBuildingAttack, buildingToCombatant, calculateCombatFromStats, unitToCombatant, resolveAttackOnBuilding } from './combatSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { initiateCapture, canCapture } from './captureSystem';
-import { corruptTerrain } from './corruptionSystem';
+import { corruptTerrain, processMagmaSpyrAttacks, processEmberNestSpawns } from './corruptionSystem';
 import { enemyConstructBuilding } from './constructionSystem';
 import type { GameEvent } from './gameEvents';
 
@@ -520,7 +520,7 @@ function scoreConstructionActions(
 
       // ── CORRUPT_TERRAIN for CORRUPT tag units on FOREST/MOUNTAIN tiles ──
       if (unit.tags.includes(UnitTag.CORRUPT)) {
-        if (tile.terrainType === TileType.FOREST || tile.terrainType === TileType.MOUNTAIN) {
+        if ((tile.terrainType === TileType.FOREST || tile.terrainType === TileType.MOUNTAIN) && !tile.buildingId) {
           const score = AI_SCORING.BASE_CORRUPT_TERRAIN
             - AI_SCORING.DISTANCE_PENALTY_PER_TILE * distance;
           candidates.push({ type: 'CORRUPT_TERRAIN', score: Math.max(0, score), targetPosition: { x: tx, y: ty } });
@@ -1410,6 +1410,9 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
     // 2. Score recruitment for LAVA_LAIR / INFERNAL_SANCTUM buildings
     scoreRecruitmentForLavaLairs(draft);
 
+    // 2a. Process Ember Nest spawns (at start of enemy turn)
+    processEmberNestSpawns(draft, events);
+
     // 2b. Spawn enemy units (uses recruitmentQueue from step 2 when available)
     spawnEnemyUnits(draft, events);
 
@@ -1432,6 +1435,9 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
         decideAndExecute(currentUnit, draft, targetingIntents, recentlyLostBuildingIds, events);
       }
     }
+
+    // 3b. Magma Spyr attacks (after unit movement)
+    processMagmaSpyrAttacks(draft, events);
 
     // 4. Reset enemy unit action flags for next turn
     for (const unit of Object.values(draft.units)) {

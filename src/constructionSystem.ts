@@ -15,7 +15,7 @@ import type {
   Building,
   GameState,
 } from './types';
-import { CONSTRUCTION, POPULATION, BUILDINGS } from './gameConfig';
+import { CONSTRUCTION, POPULATION, BUILDINGS, LAVA_LAIR } from './gameConfig';
 import { generateId } from './mapGenerator';
 
 // ============================================================================
@@ -238,15 +238,27 @@ function createBuildingObject(
   faction: Faction | null,
 ): Building {
   const isWatchtower = type === BuildingType.WATCHTOWER;
-  const maxHp = isWatchtower ? BUILDINGS.WATCHTOWER_STATS.maxHp : 100;
+  const isMagmaSpyr = type === BuildingType.MAGMASPYR;
+  const maxHp = isWatchtower
+    ? BUILDINGS.WATCHTOWER_STATS.maxHp
+    : isMagmaSpyr
+      ? LAVA_LAIR.MAGMA_SPYR_STATS.maxHp
+      : 100;
   const combatStats = isWatchtower
     ? {
         attack: BUILDINGS.WATCHTOWER_STATS.attack,
         defense: BUILDINGS.WATCHTOWER_STATS.defense,
         attackRange: BUILDINGS.WATCHTOWER_STATS.attackRange,
       }
-    : null;
-  const tags: import('./types').UnitTag[] = isWatchtower ? [UnitTag.RANGED] : [];
+    : isMagmaSpyr
+      ? {
+          attack: LAVA_LAIR.MAGMA_SPYR_STATS.attack,
+          defense: LAVA_LAIR.MAGMA_SPYR_STATS.defense,
+          attackRange: LAVA_LAIR.MAGMA_SPYR_STATS.attackRange,
+          maxAttacksPerTurn: LAVA_LAIR.MAGMA_SPYR_STATS.maxAttacksPerTurn,
+        }
+      : null;
+  const tags: import('./types').UnitTag[] = (isWatchtower || isMagmaSpyr) ? [UnitTag.RANGED] : [];
 
   // Population initialization for housing buildings
   let populationCount = 0;

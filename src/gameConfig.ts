@@ -197,6 +197,25 @@ export const BUILDINGS = {
 } as const;
 
 // ============================================================================
+// LAVA LAIR / CORRUPTION BUILDING CONFIGURATION
+// ============================================================================
+
+export const LAVA_LAIR = {
+  /** Combat stats for MAGMA_SPYR buildings (created on corrupted MOUNTAIN tiles) */
+  MAGMA_SPYR_STATS: {
+    maxHp: 120,
+    attack: 40,
+    defense: 60,
+    attackRange: 2,
+    maxAttacksPerTurn: 2,
+  },
+  /** Number of turns between EMBER_NEST Emberling spawns */
+  EMBER_NEST_SPAWN_INTERVAL: 3,
+  /** Maximum number of EMBERLINGs allowed near an EMBER_NEST (within 8 tiles) */
+  EMBER_NEST_MAX_EMBERLINGS: 2,
+} as const;
+
+// ============================================================================
 // RESOURCE CONFIGURATION
 // ============================================================================
 
@@ -504,6 +523,7 @@ export const RENDER = {
 export const GAME_CONFIG = {
   MAP,
   LAVA,
+  LAVA_LAIR,
   UNITS,
   BUILDINGS,
   RESOURCES,
