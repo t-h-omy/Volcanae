@@ -33,7 +33,7 @@ import {
  * Generates a unique ID for entities.
  */
 let idCounter = 0;
-function generateId(prefix: string): string {
+export function generateId(prefix: string): string {
   return `${prefix}_${++idCounter}`;
 }
 
