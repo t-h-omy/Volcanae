@@ -253,70 +253,132 @@ export const ENEMY = {
 // ============================================================================
 
 export const AI_SCORING = {
-  // Base scores per action type
+  // ── Base scores per action type ──────────────────────────────────────────
+  // Each BASE_* value is the starting score for that action before any
+  // distance penalties, context bonuses, or multipliers are applied.
+  // Higher values make the AI prioritise that action over lower-valued ones.
+
+  /** Move into melee range of a player unit that is currently capturing a building, to stop it */
   BASE_INTERCEPT_CAPTOR: 90,
+  /** Walk onto an unoccupied neutral or player building to begin capturing it */
   BASE_CAPTURE_BUILDING: 85,
+  /** Move to a building already occupied by a player unit to disrupt their capture attempt */
   BASE_CONTEST_BUILDING: 80,
+  /** Perform a melee attack against an adjacent player unit */
   BASE_ATTACK_UNIT: 70,
+  /** Perform a melee attack against an adjacent player-owned building */
   BASE_ATTACK_BUILDING: 68,
+  /** Perform a ranged attack against a player-owned building from a safe distance */
   BASE_RANGED_ATTACK_BUILDING: 66,
+  /** Perform a ranged attack against a player unit from outside melee range */
   BASE_RANGED_ATTACK_UNIT: 65,
+  /** Move towards a building that was previously enemy-owned but recently captured by the player */
   BASE_RETAKE_BUILDING: 65,
+  /** Move towards a friendly LAVA_LAIR or INFERNAL_SANCTUM to keep it defended */
   BASE_PROTECT_SPAWNER: 58,
+  /** Move towards the player's starting stronghold (zone 1) to apply pressure */
   BASE_PUSH_TO_STRONGHOLD: 52,
+  /** Move to or hold position near a friendly enemy-owned building to defend it */
   BASE_DEFEND_ENEMY_BUILDING: 48,
+  /** Move towards a player-owned building that is not immediately contestable */
   BASE_MOVE_TO_PLAYER_BUILDING: 42,
+  /** Move towards a neutral (unowned) building to eventually capture it */
   BASE_MOVE_TO_NEUTRAL_BUILDING: 38,
+  /** Move towards the nearest player unit when no higher-priority target exists */
   BASE_MOVE_TO_UNIT: 32,
+  /** Move southward alongside the advancing lava front to maintain pressure */
   BASE_ADVANCE_WITH_LAVA: 28,
+  /** Move to the southern edge of the current zone to push into the next zone */
   BASE_PUSH_TO_ZONE_EDGE: 25,
+  /** Move to a tile that puts the unit adjacent to a player unit's flank or rear */
   BASE_FLANK_UNIT: 20,
+  /** Generic southward advance when no specific target is reachable */
   BASE_ADVANCE_SOUTH: 18,
+  /** Voluntarily walk into lava to boost the threat level when no better action exists */
   BASE_SACRIFICE_TO_LAVA: 12,
+  /** Stay in place; fallback when every other action scores 0 or is unavailable */
   BASE_HOLD_POSITION: 3,
 
-  // Distance
+  // ── Distance ─────────────────────────────────────────────────────────────
+
+  /** Score subtracted for every tile of Manhattan distance between the unit and its target */
   DISTANCE_PENALTY_PER_TILE: 6,
 
-  // Combat outcome modifiers
+  // ── Combat outcome modifiers ─────────────────────────────────────────────
+
+  /** Bonus added to an attack score when the simulated hit would kill the defender */
   KILL_BONUS: 50,
+  /** Penalty subtracted when the counterattack would leave the attacker dangerously low on HP */
   DEATH_RISK_PENALTY: 20,
+  /** Fraction of DEATH_RISK_PENALTY applied when HP is low but not lethal (scales linearly) */
   LOW_HP_RISK_FACTOR: 0.5,
+  /** HP fraction (0–1) below which the LOW_HP_RISK_FACTOR risk penalty begins to apply */
   LOW_HP_THRESHOLD: 0.25,
 
-  // Building strategic value multipliers
+  // ── Building strategic value multipliers ─────────────────────────────────
+  // Base building action scores are multiplied by the appropriate value below
+  // so that the AI treats more important buildings as higher-priority targets.
+
+  /** Multiplier applied to scores targeting a STRONGHOLD building */
   BUILDING_VALUE_STRONGHOLD: 2.0,
+  /** Multiplier applied to scores targeting a LAVA_LAIR or INFERNAL_SANCTUM (enemy spawners) */
   BUILDING_VALUE_SPAWNER: 1.6,
+  /** Multiplier applied to scores targeting a resource-producing building (MINE, WOODCUTTER) */
   BUILDING_VALUE_RESOURCE: 1.2,
+  /** Multiplier applied to scores targeting any other building type not covered above */
   BUILDING_VALUE_DEFAULT: 1.0,
+  /** Multiplier applied to scores targeting a WATCHTOWER */
   BUILDING_VALUE_WATCHTOWER: 2.5,
 
-  // Saturation
+  // ── Saturation ───────────────────────────────────────────────────────────
+
+  /** Score penalty deducted for each allied unit already targeting the same tile or building */
   SATURATION_PENALTY_PER_ALLY: 10,
 
-  // Context bonuses
+  // ── Context bonuses ───────────────────────────────────────────────────────
+  // These are flat bonuses added to a candidate's score when a specific
+  // contextual condition is true.
+
+  /** Bonus when a player unit is standing on the target building (easier to contest or attack) */
   BONUS_PLAYER_ON_BUILDING: 35,
+  /** Extra bonus on top of BONUS_PLAYER_ON_BUILDING when that player unit is actively capturing */
   BONUS_PLAYER_CAPTURING: 40,
+  /** Bonus when the target building has no allied units nearby defending it */
   BONUS_UNDEFENDED_BUILDING: 25,
+  /** Bonus when the target building was recently recaptured from the enemy */
   BONUS_RECENT_LOSS: 25,
+  /** Number of turns after a building is captured by the player that BONUS_RECENT_LOSS applies */
   RECENTLY_LOST_WINDOW_TURNS: 4,
+  /** Bonus for a ranged attack where the attacker would not be in the defender's counter range */
   BONUS_RANGED_SAFE_ATTACK: 25,
 
-  // Lava-specific
+  // ── Lava-specific ─────────────────────────────────────────────────────────
+
+  /** Bonus to aggressive actions (attacks, captures) when a unit is close to the lava front */
   BONUS_LAVA_BOOST_AGGRESSION: 25,
+  /** Per-point bonus to SACRIFICE_TO_LAVA for each threat level below 5 (encourages sacrifices at low threat) */
   BONUS_SACRIFICE_PER_THREAT_BELOW_5: 3,
 
-  // Construction AI
+  // ── Construction AI ───────────────────────────────────────────────────────
+
+  /** Base score for a BUILD_AND_CAPTURE unit choosing to build a LAVA_LAIR on a ruin tile */
   BASE_BUILD_LAVA_LAIR: 55,
+  /** Base score for a unit with the CORRUPT tag choosing to corrupt a FOREST or MOUNTAIN tile */
   BASE_CORRUPT_TERRAIN: 30,
 
-  // Explosive / Sacrificial unit AI (tag-gated, reusable for any unit with EXPLOSIVE or SACRIFICIAL tags)
-  // BASE values are the floor shared by all unit types carrying the tag.
-  // Per-unit-type bonuses are added on top via sacrificialLavaMoveBonus() in enemySystem.ts,
-  // so individual unit types (e.g. EMBERLING) can express a much stronger preference.
-  // BASE_EXPLODE is only ever scored when the advancement simulation finds no valid lava path.
+  // ── Explosive / Sacrificial unit AI ──────────────────────────────────────
+  // These scores are tag-gated and apply to any unit carrying the EXPLOSIVE or
+  // SACRIFICIAL tag (e.g. EMBERLING). BASE values are the floor shared by all
+  // such units; per-unit-type bonuses are added on top via
+  // sacrificialLavaMoveBonus() in enemySystem.ts so individual unit types can
+  // express a much stronger preference for self-destructive actions.
+
+  /** Base score for an EXPLOSIVE unit to detonate when adjacent to one or more player units;
+   *  only scored when the lava-advance simulation finds no valid path to the lava front */
   BASE_EXPLODE: 70,
+  /** Base score for a SACRIFICIAL unit to move directly onto a lava tile (self-sacrifice) */
   BASE_MOVE_TO_LAVA: 40,
+  /** Base score for a SACRIFICIAL unit to advance southward toward the lava front */
   BASE_SACRIFICIAL_ADVANCE: 20,
 } as const;
 
