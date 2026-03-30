@@ -213,7 +213,6 @@ export function initiateCapture(
   }
 
   // All other cases: destroy the building and create a ruin
-  const buildingType = building.type;
 
   // Handle specialist
   if (building.specialistSlot) {
@@ -233,6 +232,7 @@ export function initiateCapture(
   }
 
   const { x, y } = building.position;
+  const buildingType = building.type;
 
   // Remove the building from state
   delete state.buildings[buildingId];
@@ -319,7 +319,6 @@ export function resolveCaptures(state: Draft<GameState>): void {
     }
 
     // All other cases: destroy the building and create a ruin
-    const buildingType = building.type;
 
     // Handle specialist
     if (building.specialistSlot) {
@@ -339,6 +338,7 @@ export function resolveCaptures(state: Draft<GameState>): void {
     }
 
     const { x, y } = building.position;
+    const buildingType = building.type;
 
     // Remove the building from state
     delete state.buildings[buildingId];

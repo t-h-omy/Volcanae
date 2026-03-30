@@ -311,9 +311,13 @@ export const AI_SCORING = {
   BASE_CORRUPT_TERRAIN: 30,
 
   // Explosive / Sacrificial unit AI (tag-gated, reusable for any unit with EXPLOSIVE or SACRIFICIAL tags)
-  BASE_EXPLODE: 60,
-  BASE_MOVE_TO_LAVA: 80,
-  BASE_SACRIFICIAL_ADVANCE: 20,
+  // MOVE_TO_LAVA and SACRIFICIAL_ADVANCE are given very large scores so that sacrificial units
+  // overwhelmingly prefer reaching the lava over any other action.
+  // BASE_EXPLODE is only ever scored when the advancement simulation finds no valid lava path,
+  // so its absolute value matters less than the other two.
+  BASE_EXPLODE: 70,
+  BASE_MOVE_TO_LAVA: 200,
+  BASE_SACRIFICIAL_ADVANCE: 90,
 } as const;
 
 // ============================================================================

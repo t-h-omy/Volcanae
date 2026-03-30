@@ -1067,31 +1067,14 @@ function scoreActionsForUnit(
     }
   }
 
-  // ── EXPLODE (EXPLOSIVE tag — reusable for any explosive unit) ──
-  // Check for adjacent player units using Chebyshev distance (includes diagonals)
-  if (!unit.hasActedThisTurn && unit.tags.includes(UnitTag.EXPLOSIVE)) {
-    let hasAdjacentPlayer = false;
-    for (const u of Object.values(state.units)) {
-      if (u.faction !== Faction.PLAYER) continue;
-      const dx = Math.abs(u.position.x - unit.position.x);
-      const dy = Math.abs(u.position.y - unit.position.y);
-      if (Math.max(dx, dy) <= 1) {
-        hasAdjacentPlayer = true;
-        break;
-      }
-    }
-    if (hasAdjacentPlayer) {
-      candidates.push({ type: 'EXPLODE', score: AI_SCORING.BASE_EXPLODE });
-    }
-  }
-
-  // ── MOVE_TO_LAVA (SACRIFICIAL tag — reusable for any sacrificial unit) ──
-  // Move toward lavaFrontRow to sacrifice into the lava
+  // ── SACRIFICIAL lava-advance simulation ──
+  // Run the advancement simulation up-front so that the EXPLODE scoring can check
+  // whether a valid lava path exists. The result is also used directly by MOVE_TO_LAVA.
+  let sacrificialBestPos: Position | null = null;
   if (!unit.hasMovedThisTurn && unit.tags.includes(UnitTag.SACRIFICIAL)) {
     const lavaFrontRow = state.lavaFrontRow;
     const currentDistToLava = unit.position.y - lavaFrontRow;
 
-    let bestPos: Position | null = null;
     let bestDist = currentDistToLava;
     const moveRange = unit.stats.moveRange;
 
@@ -1108,18 +1091,45 @@ function scoreActionsForUnit(
         const distToLava = ny - lavaFrontRow;
         if (distToLava < bestDist) {
           bestDist = distToLava;
-          bestPos = { x: nx, y: ny };
+          sacrificialBestPos = { x: nx, y: ny };
         }
       }
     }
+  }
 
-    if (bestPos) {
-      candidates.push({
-        type: 'MOVE_TO_LAVA',
-        score: AI_SCORING.BASE_MOVE_TO_LAVA,
-        targetPosition: bestPos,
-      });
+  // ── EXPLODE (EXPLOSIVE tag — reusable for any explosive unit) ──
+  // For units that also carry the SACRIFICIAL tag, EXPLODE is suppressed whenever
+  // the advancement simulation found a valid path toward the lava. This ensures
+  // the unit always prefers sacrificing itself over detonating prematurely.
+  // For pure EXPLOSIVE units (not SACRIFICIAL), this gate does not apply.
+  if (!unit.hasActedThisTurn && unit.tags.includes(UnitTag.EXPLOSIVE)) {
+    const isSacrificial = unit.tags.includes(UnitTag.SACRIFICIAL);
+    const blockedFromLava = !isSacrificial || sacrificialBestPos === null;
+    if (blockedFromLava) {
+      let hasAdjacentPlayer = false;
+      for (const u of Object.values(state.units)) {
+        if (u.faction !== Faction.PLAYER) continue;
+        const dx = Math.abs(u.position.x - unit.position.x);
+        const dy = Math.abs(u.position.y - unit.position.y);
+        if (Math.max(dx, dy) <= 1) {
+          hasAdjacentPlayer = true;
+          break;
+        }
+      }
+      if (hasAdjacentPlayer) {
+        candidates.push({ type: 'EXPLODE', score: AI_SCORING.BASE_EXPLODE });
+      }
     }
+  }
+
+  // ── MOVE_TO_LAVA (SACRIFICIAL tag — reusable for any sacrificial unit) ──
+  // Uses the pre-computed simulation result; no second loop needed.
+  if (!unit.hasMovedThisTurn && unit.tags.includes(UnitTag.SACRIFICIAL) && sacrificialBestPos) {
+    candidates.push({
+      type: 'MOVE_TO_LAVA',
+      score: AI_SCORING.BASE_MOVE_TO_LAVA,
+      targetPosition: sacrificialBestPos,
+    });
   }
 
   // ── SACRIFICIAL_ADVANCE (SACRIFICIAL tag — fallback: move toward nearest player) ──
