@@ -285,6 +285,10 @@ export const AI_SCORING = {
   // Lava-specific
   BONUS_LAVA_BOOST_AGGRESSION: 25,
   BONUS_SACRIFICE_PER_THREAT_BELOW_5: 3,
+
+  // Construction AI
+  BASE_BUILD_LAVA_LAIR: 55,
+  BASE_CORRUPT_TERRAIN: 30,
 } as const;
 
 // ============================================================================

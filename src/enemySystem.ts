@@ -12,6 +12,7 @@ import { resolveAttack, calculateCombat, resolveBuildingAttack, buildingToCombat
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { initiateCapture, canCapture } from './captureSystem';
 import { corruptTerrain } from './corruptionSystem';
+import { enemyConstructBuilding } from './constructionSystem';
 import type { GameEvent } from './gameEvents';
 
 // ============================================================================
@@ -62,6 +63,8 @@ type EnemyActionType =
   | 'ADVANCE_SOUTH'
   | 'SACRIFICE_TO_LAVA'
   | 'CORRUPT_TERRAIN'
+  | 'BUILD_LAVA_LAIR'
+  | 'BUILD_INFERNAL_SANCTUM'
   | 'HOLD_POSITION';
 
 interface ScoredAction {
@@ -458,6 +461,71 @@ function scoreRecruitmentForLavaLairs(state: Draft<GameState>): void {
 
     if (bestType) {
       building.recruitmentQueue = bestType;
+    }
+  }
+}
+
+// ============================================================================
+// CONSTRUCTION SCORING FOR BUILD_AND_CAPTURE UNITS
+// ============================================================================
+
+/**
+ * Scores possible construction actions for a BUILDANDCAPTURE enemy unit.
+ * Finds ruin tiles, stronghold ruin tiles, and corruptible terrain within range,
+ * and adds scored BUILD_LAVA_LAIR, BUILD_INFERNAL_SANCTUM, and CORRUPT_TERRAIN actions.
+ */
+function scoreConstructionActions(
+  unit: Unit,
+  state: Draft<GameState>,
+  candidates: ScoredAction[],
+): void {
+  // Only BUILDANDCAPTURE units can construct
+  if (!unit.tags.includes(UnitTag.BUILDANDCAPTURE)) return;
+
+  const moveRange = unit.stats.moveRange;
+
+  // Scan tiles within moveRange for ruin, stronghold ruin, and terrain corruption targets
+  for (let dy = -moveRange; dy <= moveRange; dy++) {
+    for (let dx = -moveRange; dx <= moveRange; dx++) {
+      const tx = unit.position.x + dx;
+      const ty = unit.position.y + dy;
+      if (!isWithinBounds({ x: tx, y: ty })) continue;
+      if (!isTileWithinEdgeCircleRange(unit.position.x, unit.position.y, tx, ty, moveRange)) continue;
+
+      const tile = state.grid[ty][tx];
+      const distance = manhattanDistance(unit.position, { x: tx, y: ty });
+
+      // ── BUILD_LAVA_LAIR on ruin tiles ──
+      if (tile.isRuin) {
+        let score = AI_SCORING.BASE_BUILD_LAVA_LAIR
+          - AI_SCORING.DISTANCE_PENALTY_PER_TILE * distance;
+
+        // Bonus if no other LAVA_LAIR buildings exist within 4 tiles (encourages spread)
+        const nearbyLavaLair = Object.values(state.buildings).some(
+          b => b.type === BuildingType.LAVALAIR && manhattanDistance(b.position, { x: tx, y: ty }) <= 4,
+        );
+        if (!nearbyLavaLair) {
+          score += 15;
+        }
+
+        candidates.push({ type: 'BUILD_LAVA_LAIR', score: Math.max(0, score), targetPosition: { x: tx, y: ty } });
+      }
+
+      // ── BUILD_INFERNAL_SANCTUM on stronghold ruin tiles ──
+      if (tile.isStrongholdRuin) {
+        const score = AI_SCORING.BASE_BUILD_LAVA_LAIR + 20
+          - AI_SCORING.DISTANCE_PENALTY_PER_TILE * distance;
+        candidates.push({ type: 'BUILD_INFERNAL_SANCTUM', score: Math.max(0, score), targetPosition: { x: tx, y: ty } });
+      }
+
+      // ── CORRUPT_TERRAIN for CORRUPT tag units on FOREST/MOUNTAIN tiles ──
+      if (unit.tags.includes(UnitTag.CORRUPT)) {
+        if (tile.terrainType === TileType.FOREST || tile.terrainType === TileType.MOUNTAIN) {
+          const score = AI_SCORING.BASE_CORRUPT_TERRAIN
+            - AI_SCORING.DISTANCE_PENALTY_PER_TILE * distance;
+          candidates.push({ type: 'CORRUPT_TERRAIN', score: Math.max(0, score), targetPosition: { x: tx, y: ty } });
+        }
+      }
     }
   }
 }
@@ -909,23 +977,10 @@ function scoreActionsForUnit(
     }
   }
 
-  // ── CORRUPT_TERRAIN ──
-  if (!unit.hasActedThisTurn && unit.tags.includes(UnitTag.CORRUPT)) {
-    // Find corruptible terrain tiles (FOREST or MOUNTAIN) in trigger range
-    for (let dy = -triggerRange; dy <= triggerRange; dy++) {
-      for (let dx = -triggerRange; dx <= triggerRange; dx++) {
-        const tx = unit.position.x + dx;
-        const ty = unit.position.y + dy;
-        if (!isWithinBounds({ x: tx, y: ty })) continue;
-        const tile = state.grid[ty][tx];
-        if (tile.terrainType === TileType.FOREST || tile.terrainType === TileType.MOUNTAIN) {
-          const distance = manhattanDistance(unit.position, { x: tx, y: ty });
-          // Score: moderate priority — deny terrain resources for the player
-          const score = 30 - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE;
-          candidates.push({ type: 'CORRUPT_TERRAIN', score: Math.max(0, score), targetPosition: { x: tx, y: ty } });
-        }
-      }
-    }
+  // ── CONSTRUCTION & CORRUPTION ──
+  // scoreConstructionActions handles BUILD_LAVA_LAIR, BUILD_INFERNAL_SANCTUM, and CORRUPT_TERRAIN
+  if (!unit.hasActedThisTurn) {
+    scoreConstructionActions(unit, state, candidates);
   }
 
   // ── HOLD_POSITION ──
@@ -1161,6 +1216,30 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
       }
       const targetPos: Position = { x: currentUnit.position.x, y: targetY };
       moveEnemyUnitToward(state, currentUnit.id, targetPos, events);
+      break;
+    }
+
+    case 'BUILD_LAVA_LAIR': {
+      if (action.targetPosition) {
+        const isOnTile = currentUnit.position.x === action.targetPosition.x && currentUnit.position.y === action.targetPosition.y;
+        if (isOnTile) {
+          enemyConstructBuilding(state, currentUnit.id, action.targetPosition, BuildingType.LAVALAIR);
+        } else if (!currentUnit.hasMovedThisTurn) {
+          moveEnemyUnitToward(state, currentUnit.id, action.targetPosition, events);
+        }
+      }
+      break;
+    }
+
+    case 'BUILD_INFERNAL_SANCTUM': {
+      if (action.targetPosition) {
+        const isOnTile = currentUnit.position.x === action.targetPosition.x && currentUnit.position.y === action.targetPosition.y;
+        if (isOnTile) {
+          enemyConstructBuilding(state, currentUnit.id, action.targetPosition, BuildingType.INFERNALSANCTUM);
+        } else if (!currentUnit.hasMovedThisTurn) {
+          moveEnemyUnitToward(state, currentUnit.id, action.targetPosition, events);
+        }
+      }
       break;
     }
 
