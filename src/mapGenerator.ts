@@ -46,10 +46,12 @@ export function resetIdCounter(): void {
 
 /**
  * Gets the row range [startRow, endRow] for a zone (inclusive).
+ * Zone 1 is at high Y (south, near lava), zone 5 is at low Y (north, enemy territory).
+ * Lava buffer occupies the highest rows (GRID_HEIGHT - LAVA_BUFFER_ROWS .. GRID_HEIGHT - 1).
  */
 function getZoneRowRange(zone: number): [number, number] {
-  const startRow = MAP.LAVA_BUFFER_ROWS + (zone - 1) * MAP.ZONE_HEIGHT;
-  const endRow = startRow + MAP.ZONE_HEIGHT - 1;
+  const endRow = MAP.GRID_HEIGHT - MAP.LAVA_BUFFER_ROWS - 1 - (zone - 1) * MAP.ZONE_HEIGHT;
+  const startRow = endRow - MAP.ZONE_HEIGHT + 1;
   return [startRow, endRow];
 }
 
@@ -583,7 +585,7 @@ export function generateInitialGameState(): GameState {
         return n;
       })(),
     },
-    lavaFrontRow: -1,
+    lavaFrontRow: MAP.GRID_HEIGHT,
     turnsUntilLavaAdvance: LAVA.LAVA_ADVANCE_INTERVAL,
     selectedUnitId: null,
     selectedBuildingId: null,

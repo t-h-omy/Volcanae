@@ -104,8 +104,8 @@ function isRecruitmentBuilding(building: Building): boolean {
 }
 
 function calculateLavaBoostFactor(buildingPosition: Position, lavaFrontRow: number): number {
-  const effectiveLavaRow = Math.max(0, lavaFrontRow);
-  const distanceToLava = buildingPosition.y - effectiveLavaRow;
+  const effectiveLavaRow = Math.min(MAP.GRID_HEIGHT - 1, lavaFrontRow);
+  const distanceToLava = effectiveLavaRow - buildingPosition.y;
   return Math.max(0, 1 - distanceToLava / ENEMY.MAX_LAVA_BOOST_DISTANCE);
 }
 
@@ -376,10 +376,11 @@ function sacrificialLavaMoveBonus(unitType: UnitType): number {
 
 /**
  * Gets the zone number (1-5) for a given row position.
+ * Zone 1 is at high Y (south, near lava), zone 5 is at low Y (north).
  */
 function getZoneForRow(row: number): number {
-  if (row < MAP.LAVA_BUFFER_ROWS) return 0;
-  const zoneIndex = Math.floor((row - MAP.LAVA_BUFFER_ROWS) / MAP.ZONE_HEIGHT);
+  if (row >= MAP.GRID_HEIGHT - MAP.LAVA_BUFFER_ROWS) return 0;
+  const zoneIndex = Math.floor((MAP.GRID_HEIGHT - MAP.LAVA_BUFFER_ROWS - 1 - row) / MAP.ZONE_HEIGHT);
   return Math.min(zoneIndex + 1, MAP.ZONE_COUNT);
 }
 
@@ -415,8 +416,8 @@ function scoreRecruitmentForLavaLairs(state: Draft<GameState>): void {
       }
     }
 
-    // Check if player units are in the zone ahead (north = higher zone number)
-    const zoneAhead = buildingZone + 1;
+    // Check if player units are in the zone ahead (toward player = lower zone number = higher Y)
+    const zoneAhead = buildingZone - 1;
     let playerUnitsInZoneAhead = 0;
     for (const unit of Object.values(state.units)) {
       if (unit.faction !== Faction.PLAYER) continue;
@@ -1030,7 +1031,7 @@ function scoreActionsForUnit(
 
   // ── ADVANCE_WITH_LAVA ──
   if (!unit.hasMovedThisTurn && unit.tags.includes(UnitTag.LAVABOOST)) {
-    const lavaDistance = unit.position.y - state.lavaFrontRow;
+    const lavaDistance = state.lavaFrontRow - unit.position.y;
     const boostFactor = Math.max(0, 1 - lavaDistance / ENEMY.MAX_LAVA_BOOST_DISTANCE);
     const score = AI_SCORING.BASE_ADVANCE_WITH_LAVA
       + boostFactor * AI_SCORING.BONUS_LAVA_BOOST_AGGRESSION;
@@ -1073,7 +1074,7 @@ function scoreActionsForUnit(
   if (!unit.hasMovedThisTurn) {
     const hasPlayerTargets = playerUnitsInTriggerRange.length > 0;
     const hasCapturable = buildingsInTriggerRange.some(b => b.faction === null || b.faction === Faction.PLAYER);
-    const nearLava = unit.position.y - state.lavaFrontRow <= 5;
+    const nearLava = state.lavaFrontRow - unit.position.y <= 5;
 
     if (!hasPlayerTargets && !hasCapturable && nearLava) {
       const threatDeficit = Math.max(0, 5 - state.threatLevel);
@@ -1089,7 +1090,7 @@ function scoreActionsForUnit(
   let sacrificialBestPos: Position | null = null;
   if (!unit.hasMovedThisTurn && unit.tags.includes(UnitTag.SACRIFICIAL)) {
     const lavaFrontRow = state.lavaFrontRow;
-    const currentDistToLava = unit.position.y - lavaFrontRow;
+    const currentDistToLava = lavaFrontRow - unit.position.y;
 
     let bestDist = currentDistToLava;
     const moveRange = unit.stats.moveRange;
@@ -1104,7 +1105,7 @@ function scoreActionsForUnit(
         const tile = state.grid[ny][nx];
         // Allow moving into lava (that's the sacrifice!) or free tiles
         if (tile.unitId !== null && !tile.isLava) continue;
-        const distToLava = ny - lavaFrontRow;
+        const distToLava = lavaFrontRow - ny;
         if (distToLava < bestDist) {
           bestDist = distToLava;
           sacrificialBestPos = { x: nx, y: ny };
@@ -1152,7 +1153,7 @@ function scoreActionsForUnit(
 
   // ── SACRIFICIAL_ADVANCE (SACRIFICIAL tag — fallback: move toward nearest player) ──
   // When a sacrificial unit can't reach lava, advance toward nearest player unit instead.
-  // Only add this action if the target is in the direction of the lava (lower or equal Y),
+  // Only add this action if the target is in the direction of the lava (higher or equal Y),
   // so the unit never moves away from the lava toward enemy territory.
   // Same per-unit-type bonus applies here.
   if (!unit.hasMovedThisTurn && unit.tags.includes(UnitTag.SACRIFICIAL)) {
@@ -1160,8 +1161,8 @@ function scoreActionsForUnit(
     let nearestDist = Infinity;
     for (const u of Object.values(state.units)) {
       if (u.faction !== Faction.PLAYER) continue;
-      // Only consider player units that are at or closer to the lava (lower or equal Y)
-      if (u.position.y > unit.position.y) continue;
+      // Only consider player units that are at or closer to the lava (higher or equal Y)
+      if (u.position.y < unit.position.y) continue;
       const dist = manhattanDistance(unit.position, u.position);
       if (dist < nearestDist) {
         nearestDist = dist;
@@ -1396,7 +1397,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
     case 'ADVANCE_SOUTH': {
       const southTarget: Position = {
         x: currentUnit.position.x,
-        y: Math.max(0, currentUnit.position.y - currentUnit.stats.moveRange),
+        y: Math.min(MAP.GRID_HEIGHT - 1, currentUnit.position.y + currentUnit.stats.moveRange),
       };
       moveEnemyUnitToward(state, currentUnit.id, southTarget, events);
       break;
@@ -1410,9 +1411,9 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
 
     case 'PUSH_TO_ZONE_EDGE': {
       const playerBuildings = Object.values(state.buildings).filter(b => b.faction === Faction.PLAYER);
-      let targetY = Math.max(0, currentUnit.position.y - currentUnit.stats.moveRange);
+      let targetY = Math.min(MAP.GRID_HEIGHT - 1, currentUnit.position.y + currentUnit.stats.moveRange);
       if (playerBuildings.length > 0) {
-        targetY = Math.max(0, Math.min(...playerBuildings.map(b => b.position.y)));
+        targetY = Math.min(MAP.GRID_HEIGHT - 1, Math.max(...playerBuildings.map(b => b.position.y)));
       }
       const targetPos: Position = { x: currentUnit.position.x, y: targetY };
       moveEnemyUnitToward(state, currentUnit.id, targetPos, events);
