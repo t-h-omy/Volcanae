@@ -1123,12 +1123,16 @@ function scoreActionsForUnit(
   }
 
   // ── SACRIFICIAL_ADVANCE (SACRIFICIAL tag — fallback: move toward nearest player) ──
-  // When a sacrificial unit can't reach lava, advance toward nearest player unit instead
+  // When a sacrificial unit can't reach lava, advance toward nearest player unit instead.
+  // Only add this action if the target is in the direction of the lava (lower or equal Y),
+  // so the unit never moves away from the lava toward enemy territory.
   if (!unit.hasMovedThisTurn && unit.tags.includes(UnitTag.SACRIFICIAL)) {
     let nearestPlayer: Unit | null = null;
     let nearestDist = Infinity;
     for (const u of Object.values(state.units)) {
       if (u.faction !== Faction.PLAYER) continue;
+      // Only consider player units that are at or closer to the lava (lower or equal Y)
+      if (u.position.y > unit.position.y) continue;
       const dist = manhattanDistance(unit.position, u.position);
       if (dist < nearestDist) {
         nearestDist = dist;

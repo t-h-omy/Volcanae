@@ -311,8 +311,8 @@ export const AI_SCORING = {
   BASE_CORRUPT_TERRAIN: 30,
 
   // Explosive / Sacrificial unit AI (tag-gated, reusable for any unit with EXPLOSIVE or SACRIFICIAL tags)
-  BASE_EXPLODE: 100,
-  BASE_MOVE_TO_LAVA: 40,
+  BASE_EXPLODE: 60,
+  BASE_MOVE_TO_LAVA: 80,
   BASE_SACRIFICIAL_ADVANCE: 20,
 } as const;
 

@@ -156,15 +156,19 @@ export function canCapture(
 // ============================================================================
 
 /**
- * Captures a building by DESTROYING it and turning its tile into a ruin.
+ * Captures a building.
+ * - STRONGHOLD or WATCHTOWER captured by the PLAYER: ownership is transferred to the player.
+ * - All other combinations: the building is DESTROYED and the tile becomes a ruin.
+ *
  * A unit must not have moved this turn to capture (i.e. must have been
  * standing on the building at the start of the turn).
  * On success:
- * - Building is removed from state and its tile becomes a ruin
- * - Specialist handling: player captures move specialist to global storage;
- *   enemy captures cause the specialist to be lost
- * - If the building was a STRONGHOLD, zones are updated and threat may increase
- * - Unit is marked as having used all actions for this turn
+ * - For transferred buildings: faction is changed to PLAYER; building remains on the tile.
+ * - For destroyed buildings: building is removed and tile becomes a ruin.
+ * - Specialist handling: player captures (destroy path) move specialist to global storage;
+ *   enemy captures cause the specialist to be lost.  Transferred buildings keep their specialist.
+ * - If the building was a STRONGHOLD, zones are updated and threat may increase.
+ * - Unit is marked as having used all actions for this turn.
  *
  * @param state - Immer draft of the game state (will be mutated)
  * @param unitId - ID of the unit capturing the building
@@ -188,6 +192,29 @@ export function initiateCapture(
   unit.hasActedThisTurn = true;
   unit.hasCapturedThisTurn = true;
 
+  // STRONGHOLD and WATCHTOWER captured by the player: transfer ownership instead of destroying
+  const isPlayerTransfer =
+    unit.faction === Faction.PLAYER &&
+    (building.type === BuildingType.STRONGHOLD || building.type === BuildingType.WATCHTOWER);
+
+  if (isPlayerTransfer) {
+    // Transfer ownership — building stays on the tile
+    building.faction = Faction.PLAYER;
+    building.captureProgress = 0;
+    building.isBeingCapturedBy = null;
+    building.wasEnemyOwnedBeforeCapture = true;
+    building.turnCapturedByPlayer = state.turn;
+
+    if (building.type === BuildingType.STRONGHOLD) {
+      updateZonesUnlocked(state);
+      increaseThreatOnStrongholdCapture(state);
+    }
+    return;
+  }
+
+  // All other cases: destroy the building and create a ruin
+  const buildingType = building.type;
+
   // Handle specialist
   if (building.specialistSlot) {
     const specialistId = building.specialistSlot;
@@ -205,8 +232,6 @@ export function initiateCapture(
     }
   }
 
-  // Store building info before removing
-  const buildingType = building.type;
   const { x, y } = building.position;
 
   // Remove the building from state
@@ -243,7 +268,8 @@ export function initiateCapture(
  * is a no-op under normal game flow. It is kept to handle any edge cases
  * where isBeingCapturedBy may still be set.
  *
- * Capturing now DESTROYS the building and turns the tile into a ruin.
+ * STRONGHOLD and WATCHTOWER captured by the PLAYER are transferred (ownership change).
+ * All other captures DESTROY the building and turn the tile into a ruin.
  *
  * @param state - Immer draft of the game state (will be mutated)
  */
@@ -269,6 +295,32 @@ export function resolveCaptures(state: Draft<GameState>): void {
       continue;
     }
 
+    // STRONGHOLD and WATCHTOWER captured by the player: transfer ownership
+    const isPlayerTransfer =
+      capturingUnit.faction === Faction.PLAYER &&
+      (building.type === BuildingType.STRONGHOLD || building.type === BuildingType.WATCHTOWER);
+
+    if (isPlayerTransfer) {
+      building.faction = Faction.PLAYER;
+      building.captureProgress = 0;
+      building.isBeingCapturedBy = null;
+      building.wasEnemyOwnedBeforeCapture = true;
+      building.turnCapturedByPlayer = state.turn;
+
+      if (building.type === BuildingType.STRONGHOLD) {
+        updateZonesUnlocked(state);
+        increaseThreatOnStrongholdCapture(state);
+      }
+
+      capturingUnit.hasCapturedThisTurn = true;
+      capturingUnit.hasMovedThisTurn = true;
+      capturingUnit.hasActedThisTurn = true;
+      continue;
+    }
+
+    // All other cases: destroy the building and create a ruin
+    const buildingType = building.type;
+
     // Handle specialist
     if (building.specialistSlot) {
       const specialistId = building.specialistSlot;
@@ -286,8 +338,6 @@ export function resolveCaptures(state: Draft<GameState>): void {
       }
     }
 
-    // Store building info before removing
-    const buildingType = building.type;
     const { x, y } = building.position;
 
     // Remove the building from state
