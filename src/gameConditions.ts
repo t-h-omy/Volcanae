@@ -3,7 +3,7 @@
  * Implements win and loss condition checking.
  *
  * Win condition:
- * - Player wins when ALL not-destroyed strongholds are player-owned simultaneously
+ * - Player wins when they own a STRONGHOLD in zone 5 (the northernmost zone)
  * - On win: set state.phase to VICTORY
  *
  * Loss conditions:
@@ -11,9 +11,26 @@
  * - On loss: set state.phase to GAME_OVER
  */
 
-import type { GameState } from './types';
+import type { GameState, Position } from './types';
 import type { Draft } from 'immer';
 import { BuildingType, Faction, GamePhase } from './types';
+import { MAP } from './gameConfig';
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Gets the zone number (1-5) for a given position.
+ * Zone 1 is closest to lava, zone 5 is northernmost.
+ * Returns 0 for positions in the lava buffer.
+ */
+function getZoneForPosition(position: Position): number {
+  const row = position.y;
+  if (row < MAP.LAVA_BUFFER_ROWS) return 0;
+  const zoneIndex = Math.floor((row - MAP.LAVA_BUFFER_ROWS) / MAP.ZONE_HEIGHT);
+  return Math.min(zoneIndex + 1, MAP.ZONE_COUNT);
+}
 
 // ============================================================================
 // WIN CONDITION
@@ -21,7 +38,9 @@ import { BuildingType, Faction, GamePhase } from './types';
 
 /**
  * Checks if the player has won.
- * Player wins when ALL not-destroyed strongholds are player-owned simultaneously.
+ * Player wins when they own a STRONGHOLD in zone 5 (the northernmost zone).
+ * Since strongholds can be destroyed (captured creates ruin), the player may need
+ * to reconstruct one in zone 5 using a unit with BUILDANDCAPTURE tag.
  * If win condition is met, sets state.phase to VICTORY.
  *
  * @param state - Immer draft of the game state (will be mutated)
@@ -35,21 +54,16 @@ export function checkWinCondition(state: Draft<GameState>): void {
     return;
   }
 
-  const strongholds = Object.values(state.buildings).filter(
-    (b) => b.type === BuildingType.STRONGHOLD
+  const playerStrongholds = Object.values(state.buildings).filter(
+    (b) => b.type === BuildingType.STRONGHOLD && b.faction === Faction.PLAYER
   );
 
-  // No strongholds exist at all - don't trigger victory
-  if (strongholds.length === 0) {
-    return;
-  }
-
-  // Check if ALL strongholds are player-owned
-  const allPlayerOwned = strongholds.every(
-    (b) => b.faction === Faction.PLAYER
+  // Check if any player-owned stronghold is in zone 5
+  const hasZone5Stronghold = playerStrongholds.some(
+    (b) => getZoneForPosition(b.position) === MAP.ZONE_COUNT
   );
 
-  if (allPlayerOwned) {
+  if (hasZone5Stronghold) {
     state.phase = GamePhase.VICTORY;
   }
 }
