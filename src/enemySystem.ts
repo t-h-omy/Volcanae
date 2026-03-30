@@ -6,11 +6,13 @@
 import type { GameState, Unit, Building, Position } from './types';
 import type { Draft } from 'immer';
 import { produce } from 'immer';
-import { Faction, UnitType, UnitTag, BuildingType } from './types';
-import { UNITS, ENEMY, MAP, AI_SCORING } from './gameConfig';
+import { Faction, UnitType, UnitTag, BuildingType, TileType } from './types';
+import { UNITS, ENEMY, MAP, AI_SCORING, ENEMY_UNIT_UNLOCK } from './gameConfig';
 import { resolveAttack, calculateCombat, resolveBuildingAttack, buildingToCombatant, calculateCombatFromStats, unitToCombatant, resolveAttackOnBuilding } from './combatSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { initiateCapture, canCapture } from './captureSystem';
+import { corruptTerrain, processMagmaSpyrAttacks, processEmberNestSpawns } from './corruptionSystem';
+import { enemyConstructBuilding } from './constructionSystem';
 import type { GameEvent } from './gameEvents';
 
 // ============================================================================
@@ -32,6 +34,8 @@ const BUILDING_SPAWN_UNIT_TYPE: Partial<Record<BuildingType, UnitType>> = {
   [BuildingType.ARCHER_CAMP]: UnitType.LAVA_ARCHER,
   [BuildingType.RIDER_CAMP]: UnitType.LAVA_RIDER,
   [BuildingType.SIEGE_CAMP]: UnitType.LAVA_SIEGE,
+  [BuildingType.LAVALAIR]: UnitType.LAVA_GRUNT,
+  [BuildingType.INFERNALSANCTUM]: UnitType.LAVA_RIDER,
 };
 
 // ============================================================================
@@ -58,6 +62,12 @@ type EnemyActionType =
   | 'FLANK_UNIT'
   | 'ADVANCE_SOUTH'
   | 'SACRIFICE_TO_LAVA'
+  | 'CORRUPT_TERRAIN'
+  | 'BUILD_LAVA_LAIR'
+  | 'BUILD_INFERNAL_SANCTUM'
+  | 'EXPLODE'
+  | 'MOVE_TO_LAVA'
+  | 'SACRIFICIAL_ADVANCE'
   | 'HOLD_POSITION';
 
 interface ScoredAction {
@@ -87,7 +97,9 @@ function isRecruitmentBuilding(building: Building): boolean {
     building.type === BuildingType.BARRACKS ||
     building.type === BuildingType.ARCHER_CAMP ||
     building.type === BuildingType.RIDER_CAMP ||
-    building.type === BuildingType.SIEGE_CAMP
+    building.type === BuildingType.SIEGE_CAMP ||
+    building.type === BuildingType.LAVALAIR ||
+    building.type === BuildingType.INFERNALSANCTUM
   );
 }
 
@@ -113,7 +125,7 @@ function getSpawnProbability(state: Draft<GameState>, building: Building): numbe
   return ENEMY.BASE_SPAWN_PROBABILITY + ENEMY.MAX_THREAT_BONUS * threatRatio;
 }
 
-const SPAWNER_TYPES: BuildingType[] = [BuildingType.BARRACKS, BuildingType.ARCHER_CAMP, BuildingType.RIDER_CAMP, BuildingType.SIEGE_CAMP];
+const SPAWNER_TYPES: BuildingType[] = [BuildingType.BARRACKS, BuildingType.ARCHER_CAMP, BuildingType.RIDER_CAMP, BuildingType.SIEGE_CAMP, BuildingType.LAVALAIR, BuildingType.INFERNALSANCTUM];
 const RESOURCE_TYPES: BuildingType[] = [BuildingType.MINE, BuildingType.WOODCUTTER];
 
 function buildingValueMultiplier(type: BuildingType): number {
@@ -242,13 +254,25 @@ function createEnemyUnit(
     tags.push(UnitTag.PREP);
   }
 
+  // LAVA_GRUNT can corrupt terrain
+  if (unitType === UnitType.LAVA_GRUNT) {
+    tags.push(UnitTag.CORRUPT);
+    tags.push(UnitTag.BUILDANDCAPTURE);
+  }
+
+  // EMBERLING gets sacrificial + explosive
+  if (unitType === UnitType.EMBERLING) {
+    tags.push(UnitTag.SACRIFICIAL);
+    tags.push(UnitTag.EXPLOSIVE);
+  }
+
   if (lavaBoostEnabled) {
     const boostFactor = calculateLavaBoostFactor(buildingPosition, lavaFrontRow);
     const boostMultiplier = 1 + boostFactor * ENEMY.MAX_LAVA_BOOST_MULTIPLIER;
 
     finalHp = Math.round(baseHp * boostMultiplier);
     finalAttack = Math.round(baseAttack * boostMultiplier);
-    tags.push(UnitTag.LAVA_BOOST);
+    tags.push(UnitTag.LAVABOOST);
   }
 
   return {
@@ -279,7 +303,13 @@ function spawnEnemyUnits(state: Draft<GameState>, events?: GameEvent[]): void {
     if (building.faction !== Faction.ENEMY) continue;
     if (!isRecruitmentBuilding(building)) continue;
 
-    const unitType: UnitType = BUILDING_SPAWN_UNIT_TYPE[building.type] ?? UnitType.LAVA_GRUNT;
+    // Use recruitmentQueue if set (from scoreRecruitmentForLavaLairs), otherwise fall back to static map
+    const unitType: UnitType = building.recruitmentQueue ?? BUILDING_SPAWN_UNIT_TYPE[building.type] ?? UnitType.LAVA_GRUNT;
+
+    // Clear the recruitment queue after using it
+    if (building.recruitmentQueue) {
+      building.recruitmentQueue = null;
+    }
 
     const spawnProbability = getSpawnProbability(state, building);
     if (Math.random() >= spawnProbability) continue;
@@ -311,6 +341,194 @@ function spawnEnemyUnits(state: Draft<GameState>, events?: GameEvent[]): void {
         unit: unitSnapshot,
         buildingId: building.id,
       });
+    }
+  }
+}
+
+// ============================================================================
+// LAVA_LAIR / INFERNAL_SANCTUM DYNAMIC RECRUITMENT
+// ============================================================================
+
+/** Base priority scores for each enemy unit type when scoring recruitment */
+const RECRUITMENT_BASE_SCORES: Partial<Record<UnitType, number>> = {
+  [UnitType.LAVA_GRUNT]: 50,
+  [UnitType.LAVA_ARCHER]: 60,
+  [UnitType.LAVA_RIDER]: 65,
+  [UnitType.LAVA_SIEGE]: 55,
+  [UnitType.EMBERLING]: 45,
+};
+
+/**
+ * Gets the zone number (1-5) for a given row position.
+ */
+function getZoneForRow(row: number): number {
+  if (row < MAP.LAVA_BUFFER_ROWS) return 0;
+  const zoneIndex = Math.floor((row - MAP.LAVA_BUFFER_ROWS) / MAP.ZONE_HEIGHT);
+  return Math.min(zoneIndex + 1, MAP.ZONE_COUNT);
+}
+
+/**
+ * Scores and queues recruitment for each LAVA_LAIR and INFERNAL_SANCTUM building.
+ * Dynamically selects the best unit type to spawn based on tactical factors
+ * and threat-gated unlocks.
+ */
+function scoreRecruitmentForLavaLairs(state: Draft<GameState>): void {
+  for (const building of Object.values(state.buildings)) {
+    if (building.faction !== Faction.ENEMY) continue;
+    if (building.type !== BuildingType.LAVALAIR && building.type !== BuildingType.INFERNALSANCTUM) continue;
+
+    const buildingZone = getZoneForRow(building.position.y);
+
+    // Gather eligible unit types (unlocked at current threat level)
+    const eligibleTypes: UnitType[] = [];
+    for (const [unitTypeKey, minThreat] of Object.entries(ENEMY_UNIT_UNLOCK)) {
+      if (state.threatLevel >= minThreat) {
+        eligibleTypes.push(unitTypeKey as UnitType);
+      }
+    }
+
+    if (eligibleTypes.length === 0) continue;
+
+    // Count enemy units of each type in the same zone
+    const unitCountInZone = new Map<UnitType, number>();
+    for (const unit of Object.values(state.units)) {
+      if (unit.faction !== Faction.ENEMY) continue;
+      const unitZone = getZoneForRow(unit.position.y);
+      if (unitZone === buildingZone) {
+        unitCountInZone.set(unit.type, (unitCountInZone.get(unit.type) ?? 0) + 1);
+      }
+    }
+
+    // Check if player units are in the zone ahead (north = higher zone number)
+    const zoneAhead = buildingZone + 1;
+    let playerUnitsInZoneAhead = 0;
+    for (const unit of Object.values(state.units)) {
+      if (unit.faction !== Faction.PLAYER) continue;
+      const unitZone = getZoneForRow(unit.position.y);
+      if (unitZone === zoneAhead) {
+        playerUnitsInZoneAhead++;
+      }
+    }
+
+    // Count player buildings in range (within trigger range 6)
+    let playerBuildingsInRange = 0;
+    for (const b of Object.values(state.buildings)) {
+      if (b.faction !== Faction.PLAYER) continue;
+      if (manhattanDistance(building.position, b.position) <= 6) {
+        playerBuildingsInRange++;
+      }
+    }
+
+    // Check if any Emberling exists within 6 tiles
+    let emberlingNearby = false;
+    for (const unit of Object.values(state.units)) {
+      if (unit.type === UnitType.EMBERLING && manhattanDistance(unit.position, building.position) <= 6) {
+        emberlingNearby = true;
+        break;
+      }
+    }
+
+    // Score each eligible unit type
+    let bestType: UnitType | null = null;
+    let bestScore = -Infinity;
+
+    for (const unitType of eligibleTypes) {
+      let score = RECRUITMENT_BASE_SCORES[unitType] ?? 0;
+
+      // Bonus if zone ahead has player units
+      if (playerUnitsInZoneAhead > 0) {
+        if (unitType === UnitType.LAVA_GRUNT) score += 20;
+        if (unitType === UnitType.LAVA_ARCHER || unitType === UnitType.LAVA_RIDER) score += 30;
+      }
+
+      // Bonus for LAVA_SIEGE if player has many buildings in range
+      if (unitType === UnitType.LAVA_SIEGE && playerBuildingsInRange >= 2) {
+        score += 25;
+      }
+
+      // Bonus for EMBERLING if threat >= 5 and no Emberling nearby
+      if (unitType === UnitType.EMBERLING && state.threatLevel >= 5 && !emberlingNearby) {
+        score += 20;
+      }
+
+      // Penalty if over-represented in zone (more than 3 of that type)
+      if ((unitCountInZone.get(unitType) ?? 0) > 3) {
+        score -= 20;
+      }
+
+      if (score > bestScore) {
+        bestScore = score;
+        bestType = unitType;
+      }
+    }
+
+    if (bestType) {
+      building.recruitmentQueue = bestType;
+    }
+  }
+}
+
+// ============================================================================
+// CONSTRUCTION SCORING FOR BUILD_AND_CAPTURE UNITS
+// ============================================================================
+
+/**
+ * Scores possible construction actions for a BUILDANDCAPTURE enemy unit.
+ * Finds ruin tiles, stronghold ruin tiles, and corruptible terrain within range,
+ * and adds scored BUILD_LAVA_LAIR, BUILD_INFERNAL_SANCTUM, and CORRUPT_TERRAIN actions.
+ */
+function scoreConstructionActions(
+  unit: Unit,
+  state: Draft<GameState>,
+  candidates: ScoredAction[],
+): void {
+  // Only BUILDANDCAPTURE units can construct
+  if (!unit.tags.includes(UnitTag.BUILDANDCAPTURE)) return;
+
+  const moveRange = unit.stats.moveRange;
+
+  // Scan tiles within moveRange for ruin, stronghold ruin, and terrain corruption targets
+  for (let dy = -moveRange; dy <= moveRange; dy++) {
+    for (let dx = -moveRange; dx <= moveRange; dx++) {
+      const tx = unit.position.x + dx;
+      const ty = unit.position.y + dy;
+      if (!isWithinBounds({ x: tx, y: ty })) continue;
+      if (!isTileWithinEdgeCircleRange(unit.position.x, unit.position.y, tx, ty, moveRange)) continue;
+
+      const tile = state.grid[ty][tx];
+      const distance = manhattanDistance(unit.position, { x: tx, y: ty });
+
+      // ── BUILD_LAVA_LAIR on ruin tiles ──
+      if (tile.isRuin) {
+        let score = AI_SCORING.BASE_BUILD_LAVA_LAIR
+          - AI_SCORING.DISTANCE_PENALTY_PER_TILE * distance;
+
+        // Bonus if no other LAVA_LAIR buildings exist within 4 tiles (encourages spread)
+        const nearbyLavaLair = Object.values(state.buildings).some(
+          b => b.type === BuildingType.LAVALAIR && manhattanDistance(b.position, { x: tx, y: ty }) <= 4,
+        );
+        if (!nearbyLavaLair) {
+          score += 15;
+        }
+
+        candidates.push({ type: 'BUILD_LAVA_LAIR', score: Math.max(0, score), targetPosition: { x: tx, y: ty } });
+      }
+
+      // ── BUILD_INFERNAL_SANCTUM on stronghold ruin tiles ──
+      if (tile.isStrongholdRuin) {
+        const score = AI_SCORING.BASE_BUILD_LAVA_LAIR + 20
+          - AI_SCORING.DISTANCE_PENALTY_PER_TILE * distance;
+        candidates.push({ type: 'BUILD_INFERNAL_SANCTUM', score: Math.max(0, score), targetPosition: { x: tx, y: ty } });
+      }
+
+      // ── CORRUPT_TERRAIN for CORRUPT tag units on FOREST/MOUNTAIN tiles ──
+      if (unit.tags.includes(UnitTag.CORRUPT)) {
+        if ((tile.terrainType === TileType.FOREST || tile.terrainType === TileType.MOUNTAIN) && !tile.buildingId) {
+          const score = AI_SCORING.BASE_CORRUPT_TERRAIN
+            - AI_SCORING.DISTANCE_PENALTY_PER_TILE * distance;
+          candidates.push({ type: 'CORRUPT_TERRAIN', score: Math.max(0, score), targetPosition: { x: tx, y: ty } });
+        }
+      }
     }
   }
 }
@@ -377,6 +595,93 @@ function moveEnemyUnitToward(
     if (nextPos.x === current.position.x && nextPos.y === current.position.y) break; // blocked
     moveEnemyUnit(state, unitId, nextPos, events);
   }
+}
+
+// ============================================================================
+// EXPLOSION RESOLUTION (for EXPLOSIVE-tagged units)
+// ============================================================================
+
+/**
+ * Resolves an explosion for any EXPLOSIVE-tagged unit. Deals flat damage to all
+ * player units within Chebyshev distance 1 (including diagonals). No counter-attack,
+ * no defense formula. The exploding unit is destroyed in the process.
+ *
+ * Reusable for any unit type that has the EXPLOSIVE tag and an explosionDamage stat.
+ */
+export function resolveExplosion(
+  state: Draft<GameState>,
+  unitId: string,
+  events: GameEvent[],
+): void {
+  const unit = state.units[unitId];
+  if (!unit) return;
+
+  const unitConfig = UNITS[unit.type] as { explosionDamage?: number };
+  const explosionDamage = unitConfig.explosionDamage ?? 0;
+  const unitPos = { x: unit.position.x, y: unit.position.y };
+  const damagedUnitIds: string[] = [];
+
+  // Find all player units within Chebyshev distance 1
+  const targets: string[] = [];
+  for (const u of Object.values(state.units)) {
+    if (u.faction !== Faction.PLAYER) continue;
+    const dx = Math.abs(u.position.x - unit.position.x);
+    const dy = Math.abs(u.position.y - unit.position.y);
+    if (Math.max(dx, dy) <= 1) {
+      targets.push(u.id);
+    }
+  }
+
+  // Apply flat damage to each target
+  for (const targetId of targets) {
+    const target = state.units[targetId];
+    if (!target) continue;
+
+    target.stats.currentHp -= explosionDamage;
+    damagedUnitIds.push(targetId);
+
+    if (target.stats.currentHp <= 0) {
+      const deathPos = { x: target.position.x, y: target.position.y };
+      const deathFaction = target.faction;
+      // Remove unit
+      const tile = state.grid[target.position.y][target.position.x];
+      if (tile.unitId === targetId) {
+        tile.unitId = null;
+      }
+      delete state.units[targetId];
+      // Emit death event
+      events.push({
+        type: 'UNIT_DEATH',
+        unitId: targetId,
+        position: deathPos,
+        faction: deathFaction,
+      });
+    }
+  }
+
+  // Emit explosion event
+  events.push({
+    type: 'EXPLOSION',
+    unitId,
+    position: unitPos,
+    damagedUnitIds,
+    damagePerUnit: explosionDamage,
+  });
+
+  // Remove the exploding unit
+  const unitTile = state.grid[unit.position.y][unit.position.x];
+  if (unitTile.unitId === unitId) {
+    unitTile.unitId = null;
+  }
+  delete state.units[unitId];
+
+  // Emit death event for the exploding unit
+  events.push({
+    type: 'UNIT_DEATH',
+    unitId,
+    position: unitPos,
+    faction: Faction.ENEMY,
+  });
 }
 
 // ============================================================================
@@ -708,7 +1013,7 @@ function scoreActionsForUnit(
   }
 
   // ── ADVANCE_WITH_LAVA ──
-  if (!unit.hasMovedThisTurn && unit.tags.includes(UnitTag.LAVA_BOOST)) {
+  if (!unit.hasMovedThisTurn && unit.tags.includes(UnitTag.LAVABOOST)) {
     const lavaDistance = unit.position.y - state.lavaFrontRow;
     const boostFactor = Math.max(0, 1 - lavaDistance / ENEMY.MAX_LAVA_BOOST_DISTANCE);
     const score = AI_SCORING.BASE_ADVANCE_WITH_LAVA
@@ -760,6 +1065,89 @@ function scoreActionsForUnit(
         + threatDeficit * AI_SCORING.BONUS_SACRIFICE_PER_THREAT_BELOW_5;
       candidates.push({ type: 'SACRIFICE_TO_LAVA', score: Math.max(0, score) });
     }
+  }
+
+  // ── EXPLODE (EXPLOSIVE tag — reusable for any explosive unit) ──
+  // Check for adjacent player units using Chebyshev distance (includes diagonals)
+  if (!unit.hasActedThisTurn && unit.tags.includes(UnitTag.EXPLOSIVE)) {
+    let hasAdjacentPlayer = false;
+    for (const u of Object.values(state.units)) {
+      if (u.faction !== Faction.PLAYER) continue;
+      const dx = Math.abs(u.position.x - unit.position.x);
+      const dy = Math.abs(u.position.y - unit.position.y);
+      if (Math.max(dx, dy) <= 1) {
+        hasAdjacentPlayer = true;
+        break;
+      }
+    }
+    if (hasAdjacentPlayer) {
+      candidates.push({ type: 'EXPLODE', score: AI_SCORING.BASE_EXPLODE });
+    }
+  }
+
+  // ── MOVE_TO_LAVA (SACRIFICIAL tag — reusable for any sacrificial unit) ──
+  // Move toward lavaFrontRow to sacrifice into the lava
+  if (!unit.hasMovedThisTurn && unit.tags.includes(UnitTag.SACRIFICIAL)) {
+    const lavaFrontRow = state.lavaFrontRow;
+    const currentDistToLava = unit.position.y - lavaFrontRow;
+
+    let bestPos: Position | null = null;
+    let bestDist = currentDistToLava;
+    const moveRange = unit.stats.moveRange;
+
+    for (let dy = -moveRange; dy <= moveRange; dy++) {
+      for (let dx = -moveRange; dx <= moveRange; dx++) {
+        if (Math.abs(dx) + Math.abs(dy) > moveRange) continue;
+        if (dx === 0 && dy === 0) continue;
+        const nx = unit.position.x + dx;
+        const ny = unit.position.y + dy;
+        if (!isWithinBounds({ x: nx, y: ny })) continue;
+        const tile = state.grid[ny][nx];
+        // Allow moving into lava (that's the sacrifice!) or free tiles
+        if (tile.unitId !== null && !tile.isLava) continue;
+        const distToLava = ny - lavaFrontRow;
+        if (distToLava < bestDist) {
+          bestDist = distToLava;
+          bestPos = { x: nx, y: ny };
+        }
+      }
+    }
+
+    if (bestPos) {
+      candidates.push({
+        type: 'MOVE_TO_LAVA',
+        score: AI_SCORING.BASE_MOVE_TO_LAVA,
+        targetPosition: bestPos,
+      });
+    }
+  }
+
+  // ── SACRIFICIAL_ADVANCE (SACRIFICIAL tag — fallback: move toward nearest player) ──
+  // When a sacrificial unit can't reach lava, advance toward nearest player unit instead
+  if (!unit.hasMovedThisTurn && unit.tags.includes(UnitTag.SACRIFICIAL)) {
+    let nearestPlayer: Unit | null = null;
+    let nearestDist = Infinity;
+    for (const u of Object.values(state.units)) {
+      if (u.faction !== Faction.PLAYER) continue;
+      const dist = manhattanDistance(unit.position, u.position);
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearestPlayer = u;
+      }
+    }
+    if (nearestPlayer) {
+      candidates.push({
+        type: 'SACRIFICIAL_ADVANCE',
+        score: AI_SCORING.BASE_SACRIFICIAL_ADVANCE,
+        targetPosition: nearestPlayer.position,
+      });
+    }
+  }
+
+  // ── CONSTRUCTION & CORRUPTION ──
+  // scoreConstructionActions handles BUILD_LAVA_LAIR, BUILD_INFERNAL_SANCTUM, and CORRUPT_TERRAIN
+  if (!unit.hasActedThisTurn) {
+    scoreConstructionActions(unit, state, candidates);
   }
 
   // ── HOLD_POSITION ──
@@ -932,14 +1320,17 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
       if (action.targetBuildingId) {
         if (canCapture(state, currentUnit.id, action.targetBuildingId)) {
           const building = state.buildings[action.targetBuildingId];
+          // Save building info before capture (initiateCapture now destroys the building)
+          const capturedPosition = building ? { x: building.position.x, y: building.position.y } : null;
+          const capturedType = building?.type;
           initiateCapture(state, currentUnit.id, action.targetBuildingId);
-          if (events && building) {
+          if (events && capturedPosition && capturedType) {
             events.push({
               type: 'BUILDING_CAPTURE',
               buildingId: action.targetBuildingId,
-              position: { x: building.position.x, y: building.position.y },
+              position: capturedPosition,
               newFaction: currentUnit.faction,
-              buildingType: building.type,
+              buildingType: capturedType,
             });
           }
         }
@@ -995,6 +1386,64 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
       break;
     }
 
+    case 'BUILD_LAVA_LAIR': {
+      if (action.targetPosition) {
+        const isOnTile = currentUnit.position.x === action.targetPosition.x && currentUnit.position.y === action.targetPosition.y;
+        if (isOnTile) {
+          enemyConstructBuilding(state, currentUnit.id, action.targetPosition, BuildingType.LAVALAIR);
+        } else if (!currentUnit.hasMovedThisTurn) {
+          moveEnemyUnitToward(state, currentUnit.id, action.targetPosition, events);
+        }
+      }
+      break;
+    }
+
+    case 'BUILD_INFERNAL_SANCTUM': {
+      if (action.targetPosition) {
+        const isOnTile = currentUnit.position.x === action.targetPosition.x && currentUnit.position.y === action.targetPosition.y;
+        if (isOnTile) {
+          enemyConstructBuilding(state, currentUnit.id, action.targetPosition, BuildingType.INFERNALSANCTUM);
+        } else if (!currentUnit.hasMovedThisTurn) {
+          moveEnemyUnitToward(state, currentUnit.id, action.targetPosition, events);
+        }
+      }
+      break;
+    }
+
+    case 'CORRUPT_TERRAIN': {
+      if (action.targetPosition) {
+        const isOnTile = currentUnit.position.x === action.targetPosition.x && currentUnit.position.y === action.targetPosition.y;
+        if (isOnTile) {
+          // Unit is on the terrain tile — corrupt it
+          corruptTerrain(state, currentUnit.id, action.targetPosition);
+          currentUnit.hasActedThisTurn = true;
+        } else if (!currentUnit.hasMovedThisTurn) {
+          // Move 1 step toward the terrain tile
+          moveEnemyUnitToward(state, currentUnit.id, action.targetPosition, events);
+        }
+      }
+      break;
+    }
+
+    case 'EXPLODE': {
+      resolveExplosion(state, currentUnit.id, events ?? []);
+      return; // unit is destroyed, no further processing
+    }
+
+    case 'MOVE_TO_LAVA': {
+      if (action.targetPosition && !currentUnit.hasMovedThisTurn) {
+        moveEnemyUnitToward(state, currentUnit.id, action.targetPosition, events);
+      }
+      break;
+    }
+
+    case 'SACRIFICIAL_ADVANCE': {
+      if (action.targetPosition && !currentUnit.hasMovedThisTurn) {
+        moveEnemyUnitToward(state, currentUnit.id, action.targetPosition, events);
+      }
+      break;
+    }
+
     case 'HOLD_POSITION':
       break;
   }
@@ -1011,6 +1460,8 @@ function decideAndExecute(
   recentlyLostBuildingIds: Set<string>,
   events?: GameEvent[],
 ): void {
+  // All units go through the unified scoring — tag-based behaviors
+  // (EXPLOSIVE, SACRIFICIAL, etc.) are handled within scoreActionsForUnit
   const candidates = scoreActionsForUnit(unit, state, targetingIntents, recentlyLostBuildingIds);
 
   candidates.sort((a, b) => b.score - a.score);
@@ -1144,10 +1595,16 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
         .map(b => b.id)
     );
 
-    // 2. Spawn enemy units
+    // 2. Score recruitment for LAVA_LAIR / INFERNAL_SANCTUM buildings
+    scoreRecruitmentForLavaLairs(draft);
+
+    // 2a. Process Ember Nest spawns (at start of enemy turn)
+    processEmberNestSpawns(draft, events);
+
+    // 2b. Spawn enemy units (uses recruitmentQueue from step 2 when available)
     spawnEnemyUnits(draft, events);
 
-    // 2b. Enemy-owned attacking buildings (e.g. watchtowers) fire at player units in range
+    // 2c. Enemy-owned attacking buildings (e.g. watchtowers) fire at player units in range
     executeBuildingAttacks(draft, events);
 
     // 3. Process each enemy unit
@@ -1166,6 +1623,9 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
         decideAndExecute(currentUnit, draft, targetingIntents, recentlyLostBuildingIds, events);
       }
     }
+
+    // 3b. Magma Spyr attacks (after unit movement)
+    processMagmaSpyrAttacks(draft, events);
 
     // 4. Reset enemy unit action flags for next turn
     for (const unit of Object.values(draft.units)) {

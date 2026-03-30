@@ -4,6 +4,8 @@
  * Do not hardcode these values elsewhere - always import from this file.
  */
 
+import type { UnitPopulationCost } from './types';
+
 // ============================================================================
 // MAP CONFIGURATION
 // ============================================================================
@@ -144,6 +146,18 @@ export const UNITS = {
     discoverRadius: 1,
     triggerRange: 4,
   },
+
+  EMBERLING: {
+    maxHp: 40,
+    attack: 15,
+    defense: 10,
+    movementActions: 1,
+    moveRange: 1,
+    attackRange: 1,
+    discoverRadius: 1,
+    triggerRange: 0,
+    explosionDamage: 30,
+  },
 } as const;
 
 // ============================================================================
@@ -167,6 +181,12 @@ export const BUILDINGS = {
     RIDER_CAMP: 2,
     SIEGE_CAMP: 2,
     WATCHTOWER: 4,
+    LAVALAIR: 0,
+    INFERNALSANCTUM: 0,
+    FARM: 0,
+    PATRICIANHOUSE: 0,
+    MAGMASPYR: 0,
+    EMBERNEST: 0,
   },
   /** Watchtower combat configuration */
   WATCHTOWER_STATS: {
@@ -175,6 +195,25 @@ export const BUILDINGS = {
     defense: 75,
     attackRange: 3,
   },
+} as const;
+
+// ============================================================================
+// LAVA LAIR / CORRUPTION BUILDING CONFIGURATION
+// ============================================================================
+
+export const LAVA_LAIR = {
+  /** Combat stats for MAGMA_SPYR buildings (created on corrupted MOUNTAIN tiles) */
+  MAGMA_SPYR_STATS: {
+    maxHp: 120,
+    attack: 40,
+    defense: 60,
+    attackRange: 2,
+    maxAttacksPerTurn: 2,
+  },
+  /** Number of turns between EMBER_NEST Emberling spawns */
+  EMBER_NEST_SPAWN_INTERVAL: 3,
+  /** Maximum number of EMBERLINGs allowed near an EMBER_NEST (within 8 tiles) */
+  EMBER_NEST_MAX_EMBERLINGS: 2,
 } as const;
 
 // ============================================================================
@@ -266,6 +305,15 @@ export const AI_SCORING = {
   // Lava-specific
   BONUS_LAVA_BOOST_AGGRESSION: 25,
   BONUS_SACRIFICE_PER_THREAT_BELOW_5: 3,
+
+  // Construction AI
+  BASE_BUILD_LAVA_LAIR: 55,
+  BASE_CORRUPT_TERRAIN: 30,
+
+  // Explosive / Sacrificial unit AI (tag-gated, reusable for any unit with EXPLOSIVE or SACRIFICIAL tags)
+  BASE_EXPLODE: 100,
+  BASE_MOVE_TO_LAVA: 40,
+  BASE_SACRIFICIAL_ADVANCE: 20,
 } as const;
 
 // ============================================================================
@@ -285,6 +333,113 @@ export const UNIT_COSTS: Record<string, UnitCost> = {
   SCOUT: { iron: 0, wood: 1 },
   GUARD: { iron: 1, wood: 0 },
 } as const;
+
+// ============================================================================
+// TERRAIN CONFIGURATION
+// ============================================================================
+
+export const TERRAIN = {
+  /** Number of forest tiles placed per zone */
+  FORESTS_PER_ZONE: 2,
+  /** Number of mountain tiles placed per zone */
+  MOUNTAINS_PER_ZONE: 2,
+  /** Number of ruin tiles placed per zone */
+  RUINS_PER_ZONE: 3,
+  /**
+   * Minimum edge-circle distance from the zone 1 stronghold for the guaranteed
+   * forest tile placement in zone 1.
+   */
+  ZONE1_FOREST_MIN_DISTANCE: 2,
+  /**
+   * Maximum edge-circle distance from the zone 1 stronghold for the guaranteed
+   * forest tile placement in zone 1.
+   */
+  ZONE1_FOREST_MAX_DISTANCE: 4,
+} as const;
+
+// ============================================================================
+// CONSTRUCTION CONFIGURATION
+// ============================================================================
+
+export interface BuildingCost {
+  iron: number;
+  wood: number;
+}
+
+export const CONSTRUCTION = {
+  /** Construction cost for a Woodcutter (player) */
+  WOODCUTTER_COST: { iron: 0, wood: 0 },
+  /** Construction cost for a Mine (player) */
+  MINE_COST: { iron: 0, wood: 1 },
+  /** Construction cost for a Barracks (player) */
+  BARRACKS_COST: { iron: 0, wood: 1 },
+  /** Construction cost for an Archer Camp (player) */
+  ARCHER_CAMP_COST: { iron: 0, wood: 1 },
+  /** Construction cost for a Rider Camp (player) */
+  RIDER_CAMP_COST: { iron: 1, wood: 1 },
+  /** Construction cost for a Siege Camp (player) */
+  SIEGE_CAMP_COST: { iron: 1, wood: 1 },
+  /** Construction cost for a Farm (player, built on ruins) */
+  FARM_COST: { iron: 0, wood: 1 },
+  /** Construction cost for a Patrician House (player, built on ruins) */
+  PATRICIAN_HOUSE_COST: { iron: 2, wood: 2 },
+  /** Construction cost for a Stronghold rebuild (player) */
+  STRONGHOLD_COST: { iron: 2, wood: 2 },
+  /** Construction cost for a Lava Lair (enemy AI, not player) */
+  LAVA_LAIR_COST: { iron: 0, wood: 0 },
+  /** Construction cost for an Infernal Sanctum (enemy AI, not player) */
+  INFERNAL_SANCTUM_COST: { iron: 0, wood: 0 },
+} as const satisfies Record<string, BuildingCost>;
+
+// ============================================================================
+// POPULATION CONFIGURATION
+// ============================================================================
+
+export const POPULATION = {
+  /** Maximum population capacity for a Farm */
+  FARM_POPULATION_CAP: 3,
+  /** Maximum population capacity for a Patrician House */
+  PATRICIAN_HOUSE_POPULATION_CAP: 3,
+  /** Farmer capacity provided by a Stronghold */
+  STRONGHOLD_FARMER_CAP: 3,
+  /** Noble capacity provided by a Stronghold */
+  STRONGHOLD_NOBLE_CAP: 1,
+  /** Initial population when a housing building is constructed */
+  HOUSE_INITIAL_POPULATION: 1,
+  /** Number of turns between each population increase (same for all housing types) */
+  HOUSE_GROWTH_INTERVAL: 2,
+} as const;
+
+// ============================================================================
+// UNIT POPULATION COSTS CONFIGURATION
+// ============================================================================
+
+export const UNIT_POPULATION_COSTS: Record<string, UnitPopulationCost> = {
+  INFANTRY: { farmers: 1, nobles: 0 },
+  ARCHER: { farmers: 1, nobles: 0 },
+  RIDER: { farmers: 0, nobles: 1 },
+  SIEGE: { farmers: 1, nobles: 1 },
+  SCOUT: { farmers: 1, nobles: 0 },
+  GUARD: { farmers: 0, nobles: 1 },
+  LAVA_GRUNT: { farmers: 0, nobles: 0 },
+  LAVA_ARCHER: { farmers: 0, nobles: 0 },
+  LAVA_RIDER: { farmers: 0, nobles: 0 },
+  LAVA_SIEGE: { farmers: 0, nobles: 0 },
+  EMBERLING: { farmers: 0, nobles: 0 },
+};
+
+// ============================================================================
+// ENEMY UNIT UNLOCK CONFIGURATION
+// ============================================================================
+
+/** Minimum threat level required to unlock each enemy unit type for recruitment */
+export const ENEMY_UNIT_UNLOCK: Record<string, number> = {
+  LAVA_GRUNT: 0,
+  LAVA_ARCHER: 2,
+  LAVA_RIDER: 4,
+  LAVA_SIEGE: 6,
+  EMBERLING: 3,
+};
 
 // ============================================================================
 // ANIMATION CONFIGURATION
@@ -378,10 +533,16 @@ export const RENDER = {
 export const GAME_CONFIG = {
   MAP,
   LAVA,
+  LAVA_LAIR,
   UNITS,
   BUILDINGS,
   RESOURCES,
+  TERRAIN,
+  CONSTRUCTION,
+  POPULATION,
+  UNIT_POPULATION_COSTS,
   ENEMY,
+  ENEMY_UNIT_UNLOCK,
   AI_SCORING,
   UNIT_COSTS,
   ANIMATION,

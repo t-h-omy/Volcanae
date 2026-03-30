@@ -113,6 +113,11 @@ export function advanceLava(state: Draft<GameState>): void {
     // Destroy any unit on this tile
     if (tile.unitId !== null) {
       const unitId = tile.unitId;
+      const unit = state.units[unitId];
+      // Any enemy unit destroyed by lava advance increases threat level
+      if (unit && unit.faction === Faction.ENEMY) {
+        state.threatLevel += 1;
+      }
       // Remove unit from state
       delete state.units[unitId];
       // Clear unit from tile

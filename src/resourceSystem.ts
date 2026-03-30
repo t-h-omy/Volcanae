@@ -3,10 +3,10 @@
  * Implements resource production, recruitment, and unit spawning.
  */
 
-import type { GameState, Building, Position, Tile } from './types';
+import type { GameState, Building, Position, Tile, UnitPopulationCost } from './types';
 import type { Draft } from 'immer';
 import { Faction, BuildingType, UnitType, UnitTag } from './types';
-import { RESOURCES, UNITS, UNIT_COSTS } from './gameConfig';
+import { RESOURCES, UNITS, UNIT_COSTS, POPULATION, UNIT_POPULATION_COSTS } from './gameConfig';
 import type { UnitCost } from './gameConfig';
 
 // ============================================================================
@@ -117,6 +117,120 @@ export function collectResources(state: Draft<GameState>): void {
 }
 
 // ============================================================================
+// POPULATION SYSTEM
+// ============================================================================
+
+/** Default population cost for unit types not in UNIT_POPULATION_COSTS */
+const DEFAULT_POPULATION_COST: UnitPopulationCost = { farmers: 0, nobles: 0 };
+
+/**
+ * Computes the total population capacity from all player-owned housing buildings.
+ * farmerCapacity = sum of populationCount for all player-owned FARM buildings
+ * nobleCapacity = sum of populationCount for all player-owned PATRICIANHOUSE buildings
+ */
+export function computePopulationCapacity(
+  state: GameState | Draft<GameState>
+): { farmerCapacity: number; nobleCapacity: number } {
+  let farmerCapacity = 0;
+  let nobleCapacity = 0;
+
+  for (const building of Object.values(state.buildings)) {
+    if (building.faction !== Faction.PLAYER) continue;
+
+    if (building.type === BuildingType.FARM) {
+      farmerCapacity += building.populationCount;
+    } else if (building.type === BuildingType.PATRICIANHOUSE) {
+      nobleCapacity += building.populationCount;
+    } else if (building.type === BuildingType.STRONGHOLD) {
+      // Stronghold contributes farmers up to STRONGHOLD_FARMER_CAP, rest as nobles
+      const farmers = Math.min(building.populationCount, POPULATION.STRONGHOLD_FARMER_CAP);
+      const nobles = Math.max(0, building.populationCount - POPULATION.STRONGHOLD_FARMER_CAP);
+      farmerCapacity += farmers;
+      nobleCapacity += nobles;
+    }
+  }
+
+  return { farmerCapacity, nobleCapacity };
+}
+
+/**
+ * Computes the total population usage from all player-owned units.
+ * Sums UNIT_POPULATION_COSTS[unit.type] for each player unit.
+ */
+export function computePopulationUsage(
+  state: GameState | Draft<GameState>
+): { farmersUsed: number; noblesUsed: number } {
+  let farmersUsed = 0;
+  let noblesUsed = 0;
+
+  for (const unit of Object.values(state.units)) {
+    if (unit.faction !== Faction.PLAYER) continue;
+
+    const cost = UNIT_POPULATION_COSTS[unit.type] as UnitPopulationCost | undefined;
+    if (cost) {
+      farmersUsed += cost.farmers;
+      noblesUsed += cost.nobles;
+    }
+  }
+
+  return { farmersUsed, noblesUsed };
+}
+
+/**
+ * Checks if the player has enough population capacity to recruit a unit of the given type.
+ * Returns true if (usage + cost) <= capacity for both farmers and nobles.
+ */
+export function canAffordPopulation(
+  state: GameState | Draft<GameState>,
+  unitType: UnitType
+): boolean {
+  const capacity = computePopulationCapacity(state);
+  const usage = computePopulationUsage(state);
+  const cost = (UNIT_POPULATION_COSTS[unitType] as UnitPopulationCost | undefined) ?? DEFAULT_POPULATION_COST;
+
+  return (
+    usage.farmersUsed + cost.farmers <= capacity.farmerCapacity &&
+    usage.noblesUsed + cost.nobles <= capacity.nobleCapacity
+  );
+}
+
+/**
+ * Grows population in all player-owned FARM, PATRICIANHOUSE, and STRONGHOLD buildings.
+ * For each housing building below its populationCap:
+ * - Increments populationGrowthCounter
+ * - When counter reaches HOUSE_GROWTH_INTERVAL, increments populationCount and resets counter
+ * After all buildings are updated, recomputes state.resources.farmers and state.resources.nobles.
+ *
+ * Call at the start of the player turn (alongside collectResources).
+ */
+export function growHousePopulations(state: Draft<GameState>): void {
+  for (const building of Object.values(state.buildings)) {
+    if (building.faction !== Faction.PLAYER) continue;
+
+    if (
+      building.type !== BuildingType.FARM &&
+      building.type !== BuildingType.PATRICIANHOUSE &&
+      building.type !== BuildingType.STRONGHOLD
+    ) {
+      continue;
+    }
+
+    if (building.populationCount < building.populationCap) {
+      building.populationGrowthCounter += 1;
+      if (building.populationGrowthCounter >= POPULATION.HOUSE_GROWTH_INTERVAL) {
+        building.populationCount += 1;
+        building.populationGrowthCounter = 0;
+      }
+    }
+  }
+
+  // Recompute resource capacity after growth
+  const capacity = computePopulationCapacity(state);
+  state.resources.farmers = capacity.farmerCapacity;
+  state.resources.nobles = capacity.nobleCapacity;
+}
+
+// ============================================================================
 // AFFORDABILITY CHECK
 // ============================================================================
 
@@ -197,6 +311,11 @@ export function recruitUnit(
     return;
   }
 
+  // Validate player has enough population capacity
+  if (!canAffordPopulation(state, unitType)) {
+    return;
+  }
+
   // Find spawn position — reject if no free tile available
   const spawnPosition = findSpawnPosition(state, building.position);
   if (spawnPosition === null) {
@@ -228,7 +347,7 @@ export function recruitUnit(
     tags: [
       ...(UNITS[unitType].attackRange > 1 ? [UnitTag.RANGED] : []),
       ...(unitType === UnitType.SIEGE || unitType === UnitType.LAVA_SIEGE || unitType === UnitType.GUARD ? [UnitTag.PREP] : []),
-      ...(unitType === UnitType.SCOUT ? [UnitTag.NO_CAPTURE] : []),
+      ...(unitType !== UnitType.SCOUT ? [UnitTag.BUILDANDCAPTURE] : []),
     ],
     hasMovedThisTurn: true,
     hasActedThisTurn: true,

@@ -8,8 +8,16 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useGameStore } from '../gameStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
-import { UNIT_COSTS, RESOURCES, UI } from '../gameConfig';
-import { hasSpawnSpaceAt } from '../resourceSystem';
+import { UNIT_COSTS, RESOURCES, UI, UNIT_POPULATION_COSTS, POPULATION } from '../gameConfig';
+import type { UnitPopulationCost } from '../types';
+import {
+  hasSpawnSpaceAt,
+  computePopulationUsage,
+  canAffordPopulation,
+} from '../resourceSystem';
+import {
+  getConstructionOptionsForTile,
+} from '../constructionSystem';
 import { computeUnitAiScores, type ScoredAction } from '../enemySystem';
 import {
   Faction,
@@ -20,6 +28,7 @@ import {
   type Building,
   type Unit,
   type Specialist,
+  type Position,
 } from '../types';
 import './HUD.css';
 
@@ -38,6 +47,7 @@ const UNIT_EMOJI: Record<string, string> = {
   [UnitType.LAVA_ARCHER]: '👺',
   [UnitType.LAVA_RIDER]: '👾',
   [UnitType.LAVA_SIEGE]: '🐦‍🔥',
+  [UnitType.EMBERLING]: '🔥',
 };
 
 const UNIT_NAME: Record<string, string> = {
@@ -51,6 +61,7 @@ const UNIT_NAME: Record<string, string> = {
   [UnitType.LAVA_ARCHER]: 'Lava Archer',
   [UnitType.LAVA_RIDER]: 'Lava Rider',
   [UnitType.LAVA_SIEGE]: 'Lava Siege',
+  [UnitType.EMBERLING]: 'Emberling',
 };
 
 const BUILDING_EMOJI: Record<string, string> = {
@@ -62,6 +73,12 @@ const BUILDING_EMOJI: Record<string, string> = {
   [BuildingType.RIDER_CAMP]: '🏘️',
   [BuildingType.SIEGE_CAMP]: '🏛️',
   [BuildingType.WATCHTOWER]: '👁️',
+  [BuildingType.LAVALAIR]: '🕳️',
+  [BuildingType.INFERNALSANCTUM]: '🌋',
+  [BuildingType.FARM]: '🌾',
+  [BuildingType.PATRICIANHOUSE]: '🏯',
+  [BuildingType.MAGMASPYR]: '⛰️',
+  [BuildingType.EMBERNEST]: '🌲',
 };
 
 const BUILDING_NAME: Record<string, string> = {
@@ -73,6 +90,12 @@ const BUILDING_NAME: Record<string, string> = {
   [BuildingType.RIDER_CAMP]: 'Rider Camp',
   [BuildingType.SIEGE_CAMP]: 'Siege Camp',
   [BuildingType.WATCHTOWER]: 'Watchtower',
+  [BuildingType.LAVALAIR]: 'Lava Lair',
+  [BuildingType.INFERNALSANCTUM]: 'Infernal Sanctum',
+  [BuildingType.FARM]: 'Farm',
+  [BuildingType.PATRICIANHOUSE]: 'Patrician House',
+  [BuildingType.MAGMASPYR]: 'Magma Spyr',
+  [BuildingType.EMBERNEST]: 'Ember Nest',
 };
 
 /** Maps recruitment buildings to their recruitable unit types */
@@ -197,12 +220,18 @@ function TopBar() {
   const turnsUntilLavaAdvance = useGameStore((s) => s.turnsUntilLavaAdvance);
   const isAnimating = useAnimationStore((s) => s.isAnimating);
 
+  // Population usage (live) — select primitives to avoid infinite re-render
+  const farmersUsed = useGameStore((s) => computePopulationUsage(s).farmersUsed);
+  const noblesUsed = useGameStore((s) => computePopulationUsage(s).noblesUsed);
+
   return (
     <div className="hud-top-bar">
       <span className="hud-stat">🔄 Turn {turn}</span>
       {isAnimating && <span className="hud-stat hud-enemy-turn-label">⚔️ Enemy Turn...</span>}
       <span className="hud-stat">⛓️ {resources.iron}</span>
       <span className="hud-stat">🪵 {resources.wood}</span>
+      <span className="hud-stat">🌾 {farmersUsed}/{resources.farmers}</span>
+      <span className="hud-stat">🎖️ {noblesUsed}/{resources.nobles}</span>
       <span className="hud-stat">⚠️ Threat {threatLevel}</span>
       <span className="hud-stat">🌋 Lava in {turnsUntilLavaAdvance}</span>
       <GameMenu />
@@ -211,7 +240,7 @@ function TopBar() {
 }
 
 /** Tags that are internal implementation details and should not be shown to the player */
-const HIDDEN_UNIT_TAGS = new Set<string>([UnitTag.NO_CAPTURE]);
+const HIDDEN_UNIT_TAGS = new Set<string>([]);
 
 // ============================================================================
 // AI SCORE MODAL (dev option)
@@ -264,7 +293,7 @@ function SelectedUnitPanel({
     !unit.hasCapturedThisTurn &&
     !unit.hasActedThisTurn &&
     !unit.hasMovedThisTurn &&
-    !unit.tags.includes(UnitTag.NO_CAPTURE);
+    unit.tags.includes(UnitTag.BUILDANDCAPTURE);
 
   const visibleTags = unit.tags.filter((t) => !HIDDEN_UNIT_TAGS.has(t));
 
@@ -306,7 +335,7 @@ function SelectedUnitPanel({
             <span key={tag} className="hud-tag-pill">
               {tag === UnitTag.RANGED
                 ? '◎ Ranged'
-                : tag === UnitTag.LAVA_BOOST
+                : tag === UnitTag.LAVABOOST
                   ? '🔥 Lava-Boosted'
                   : tag === UnitTag.PREP
                     ? '⏸ Prep'
@@ -427,6 +456,59 @@ function SpecialistPickerModal({
 }
 
 // ============================================================================
+// CONSTRUCTION PANEL (shown when a BUILD_AND_CAPTURE unit is on a constructable tile)
+// ============================================================================
+
+function ConstructionPanel({
+  unit,
+  tilePos,
+}: {
+  unit: Unit;
+  tilePos: Position;
+}) {
+  const resources = useGameStore((s) => s.resources);
+  const constructBuilding = useGameStore((s) => s.constructBuilding);
+  const grid = useGameStore((s) => s.grid);
+
+  const options = useMemo(
+    () => getConstructionOptionsForTile(useGameStore.getState(), tilePos),
+    [tilePos, grid],
+  );
+
+  if (options.length === 0) return null;
+
+  return (
+    <div className="hud-info-panel hud-construction-panel">
+      <div className="hud-panel-header">
+        <span className="hud-panel-emoji">🔨</span>
+        <span className="hud-panel-name">Construct Building</span>
+      </div>
+      <div className="hud-construct-options">
+        {options.map((opt) => {
+          const canAffordThis =
+            resources.iron >= opt.cost.iron && resources.wood >= opt.cost.wood;
+          return (
+            <button
+              key={opt.buildingType}
+              className="hud-construct-btn"
+              disabled={!canAffordThis}
+              onClick={() =>
+                constructBuilding(unit.id, tilePos, opt.buildingType)
+              }
+            >
+              {opt.emoji} {opt.label}
+              <span className="hud-cost">
+                {' '}(⛓️{opt.cost.iron} 🪵{opt.cost.wood})
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
 // SELECTED BUILDING PANEL
 // ============================================================================
 
@@ -435,10 +517,13 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   const globalSpecialistStorage = useGameStore((s) => s.globalSpecialistStorage);
   const resources = useGameStore((s) => s.resources);
   const grid = useGameStore((s) => s.grid);
+  const units = useGameStore((s) => s.units);
   const recruitUnit = useGameStore((s) => s.recruitUnit);
   const unassignSpecialist = useGameStore((s) => s.unassignSpecialist);
+  const destroyOwnBuilding = useGameStore((s) => s.destroyOwnBuilding);
 
   const [showPicker, setShowPicker] = useState(false);
+  const [confirmDemolish, setConfirmDemolish] = useState(false);
 
   const factionLabel =
     building.faction === Faction.PLAYER
@@ -481,6 +566,37 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   // Production info for resource buildings
   const isMine = building.type === BuildingType.MINE && isPlayerOwned;
   const isWoodcutter = building.type === BuildingType.WOODCUTTER && isPlayerOwned;
+
+  // Population info for FARM, PATRICIANHOUSE, and STRONGHOLD
+  const isHousingBuilding =
+    isPlayerOwned &&
+    (building.type === BuildingType.FARM || building.type === BuildingType.PATRICIANHOUSE || building.type === BuildingType.STRONGHOLD);
+  const housingLabel = building.type === BuildingType.FARM ? 'farmers'
+    : building.type === BuildingType.PATRICIANHOUSE ? 'nobles'
+    : 'farmers + nobles';
+  const turnsUntilNextPop =
+    isHousingBuilding && building.populationCount < building.populationCap
+      ? POPULATION.HOUSE_GROWTH_INTERVAL - building.populationGrowthCounter
+      : null;
+
+  // Demolish: a player unit with BUILD_AND_CAPTURE must be on the same tile
+  const builderOnTile = useMemo(() => {
+    if (!isPlayerOwned) return null;
+    return Object.values(units).find(
+      (u) =>
+        u.faction === Faction.PLAYER &&
+        u.tags.includes(UnitTag.BUILDANDCAPTURE) &&
+        u.position.x === building.position.x &&
+        u.position.y === building.position.y,
+    ) ?? null;
+  }, [isPlayerOwned, units, building.position]);
+
+  const handleDemolish = useCallback(() => {
+    if (builderOnTile) {
+      destroyOwnBuilding(builderOnTile.id, building.id);
+      setConfirmDemolish(false);
+    }
+  }, [builderOnTile, destroyOwnBuilding, building.id]);
 
   return (
     <div className="hud-info-panel hud-building-panel">
@@ -568,6 +684,24 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
         </div>
       )}
 
+      {/* Population info for FARM, PATRICIANHOUSE, and STRONGHOLD */}
+      {isHousingBuilding && (
+        <div className="hud-production-row">
+          {building.type === BuildingType.STRONGHOLD ? (
+            <>
+              👥 {Math.min(building.populationCount, POPULATION.STRONGHOLD_FARMER_CAP)}/{POPULATION.STRONGHOLD_FARMER_CAP} farmers, {Math.max(0, building.populationCount - POPULATION.STRONGHOLD_FARMER_CAP)}/{POPULATION.STRONGHOLD_NOBLE_CAP} nobles
+            </>
+          ) : (
+            <>
+              👥 {building.populationCount} / {building.populationCap} {housingLabel}
+            </>
+          )}
+          {turnsUntilNextPop !== null && (
+            <span className="hud-dim"> — Next pop in {turnsUntilNextPop} turn(s)</span>
+          )}
+        </div>
+      )}
+
       {/* Specialist slot */}
       {isPlayerOwned && (
         <div className="hud-specialist-row">
@@ -612,22 +746,38 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
                 const canAffordUnit = cost
                   ? resources.iron >= cost.iron && resources.wood >= cost.wood
                   : false;
-                const canRecruitThisUnit = !isDisabled && hasSpawnSpace && canAffordUnit;
+                const popCost = (UNIT_POPULATION_COSTS[unitType] as UnitPopulationCost | undefined);
+                const hasPopulation = canAffordPopulation(useGameStore.getState(), unitType);
+                const canRecruitThisUnit = !isDisabled && hasSpawnSpace && canAffordUnit && hasPopulation;
                 return (
-                  <button
-                    key={unitType}
-                    className="hud-recruit-btn"
-                    disabled={!canRecruitThisUnit}
-                    onClick={() => recruitUnit(building.id, unitType)}
-                  >
-                    {UNIT_EMOJI[unitType] ?? ''}{' '}
-                    {UNIT_NAME[unitType] ?? unitType}
-                    {cost && (
-                      <span className="hud-cost">
-                        {' '}(⛓️{cost.iron} 🪵{cost.wood})
+                  <div key={unitType} className="hud-recruit-option-wrapper">
+                    <button
+                      className="hud-recruit-btn"
+                      disabled={!canRecruitThisUnit}
+                      onClick={() => recruitUnit(building.id, unitType)}
+                    >
+                      {UNIT_EMOJI[unitType] ?? ''}{' '}
+                      {UNIT_NAME[unitType] ?? unitType}
+                      {cost && (
+                        <span className="hud-cost">
+                          {' '}(⛓️{cost.iron} 🪵{cost.wood})
+                        </span>
+                      )}
+                    </button>
+                    {popCost && (popCost.farmers > 0 || popCost.nobles > 0) && (
+                      <span className="hud-pop-req">
+                        Requires:{' '}
+                        {popCost.farmers > 0 && `🌾 ${popCost.farmers} farmer${popCost.farmers > 1 ? 's' : ''}`}
+                        {popCost.farmers > 0 && popCost.nobles > 0 && ', '}
+                        {popCost.nobles > 0 && `🎖️ ${popCost.nobles} noble${popCost.nobles > 1 ? 's' : ''}`}
                       </span>
                     )}
-                  </button>
+                    {!hasPopulation && canAffordUnit && (
+                      <span className="hud-pop-warning">
+                        Not enough {popCost && popCost.farmers > 0 ? 'farmers — build more Farms' : 'nobles — build more Patrician Houses'}
+                      </span>
+                    )}
+                  </div>
                 );
               })}
             </div>
@@ -660,6 +810,33 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
           buildingId={building.id}
           onClose={() => setShowPicker(false)}
         />
+      )}
+
+      {/* Demolish button for player-owned buildings */}
+      {isPlayerOwned && (
+        <div className="hud-demolish-row">
+          {!confirmDemolish ? (
+            <button
+              className="hud-demolish-btn"
+              disabled={!builderOnTile}
+              title={!builderOnTile ? 'A builder unit must be on this building to demolish' : undefined}
+              onClick={() => setConfirmDemolish(true)}
+            >
+              🔨 Demolish
+            </button>
+          ) : (
+            <div className="hud-demolish-confirm">
+              <span>Are you sure?</span>
+              <button className="hud-demolish-yes" onClick={handleDemolish}>Yes</button>
+              <button className="hud-demolish-no" onClick={() => setConfirmDemolish(false)}>No</button>
+            </div>
+          )}
+          {!builderOnTile && (
+            <span className="hud-dim" style={{ fontSize: 11 }}>
+              A builder unit must be on this building to demolish
+            </span>
+          )}
+        </div>
       )}
     </div>
   );
@@ -706,6 +883,16 @@ function BottomBar() {
     }
   }, [selectedUnitId, captureTargetId, captureBuilding]);
 
+  // Construction panel: show when a player BUILD_AND_CAPTURE unit is selected
+  // and its tile has construction options
+  const showConstruction = useGameStore((s) => {
+    if (!selectedUnit || selectedUnit.faction !== Faction.PLAYER) return false;
+    if (!selectedUnit.tags.includes(UnitTag.BUILDANDCAPTURE)) return false;
+    if (selectedUnit.hasMovedThisTurn || selectedUnit.hasActedThisTurn || selectedUnit.hasCapturedThisTurn) return false;
+    const options = getConstructionOptionsForTile(s, selectedUnit.position);
+    return options.length > 0;
+  });
+
   const isPlayerTurn = phase === GamePhase.PLAYER_TURN;
 
   return (
@@ -716,6 +903,13 @@ function BottomBar() {
           unit={selectedUnit}
           captureTarget={captureTarget}
           onCapture={handleCapture}
+        />
+      )}
+      {/* Construction panel for BUILD_AND_CAPTURE units on constructable tiles */}
+      {selectedUnit && showConstruction && (
+        <ConstructionPanel
+          unit={selectedUnit}
+          tilePos={selectedUnit.position}
         />
       )}
       {selectedBuilding && !selectedUnit && (

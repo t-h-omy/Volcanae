@@ -97,6 +97,84 @@
   transition: opacity 0.2s;
 }
 
+/* ── Terrain background icon (faint, behind buildings/units) ── */
+
+.tile-terrain-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  line-height: 1;
+  opacity: 0.4;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Ruin background icon ── */
+
+.tile-ruin-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  line-height: 1;
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Corruption visual overlays ── */
+
+.corruption-magmaspyr {
+  background-color: rgba(226, 88, 34, 0.3);
+  animation: pulseRedGlow 2s ease-in-out infinite;
+}
+
+.corruption-embernest {
+  background-color: rgba(255, 140, 0, 0.25);
+}
+
+@keyframes pulseRedGlow {
+  0%, 100% { background-color: rgba(226, 88, 34, 0.15); }
+  50%      { background-color: rgba(226, 88, 34, 0.4); }
+}
+
+/* ── Population badge for FARM and PATRICIANHOUSE ── */
+
+.population-badge {
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  font-weight: bold;
+  color: white;
+  background: rgba(0, 0, 0, 0.65);
+  padding: 0 3px;
+  border-radius: 3px;
+  line-height: 1.3;
+  z-index: 3;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* ── Emberling hover explosion icon ── */
+
+.emberling-hover-explosion {
+  position: absolute;
+  top: 0;
+  right: 0;
+  line-height: 1;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+  z-index: 3;
+}
+
+.emberling-unit:hover .emberling-hover-explosion {
+  opacity: 1;
+}
+
 /* ── Building HP bar (for attacking buildings like watchtowers) ── */
 
 .building-hp-bar {

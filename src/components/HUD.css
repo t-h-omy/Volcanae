@@ -953,3 +953,120 @@
   border: 1px solid rgba(255, 255, 255, 0.2);
   white-space: nowrap;
 }
+
+/* ── Construction Panel ── */
+
+.hud-construction-panel {
+  max-width: 320px;
+}
+
+.hud-construct-options {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.hud-construct-btn {
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  background: rgba(46, 204, 113, 0.15);
+  color: #eee;
+  font-size: 12px;
+  cursor: pointer;
+  touch-action: manipulation;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.hud-construct-btn:hover:not(:disabled) {
+  background: rgba(46, 204, 113, 0.3);
+}
+
+.hud-construct-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* ── Demolish Button ── */
+
+.hud-demolish-row {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.hud-demolish-btn {
+  padding: 6px 12px;
+  border: 1px solid rgba(231, 76, 60, 0.4);
+  border-radius: 6px;
+  background: rgba(231, 76, 60, 0.15);
+  color: #e74c3c;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 0.15s;
+}
+
+.hud-demolish-btn:hover:not(:disabled) {
+  background: rgba(231, 76, 60, 0.3);
+}
+
+.hud-demolish-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+  color: #999;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.hud-demolish-confirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #e74c3c;
+  font-weight: 600;
+}
+
+.hud-demolish-yes,
+.hud-demolish-no {
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  font-size: 12px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.hud-demolish-yes {
+  background: rgba(231, 76, 60, 0.3);
+  color: #e74c3c;
+}
+
+.hud-demolish-no {
+  background: rgba(255, 255, 255, 0.1);
+  color: #eee;
+}
+
+/* ── Population Requirement ── */
+
+.hud-recruit-option-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.hud-pop-req {
+  font-size: 10px;
+  color: #aaa;
+  padding-left: 4px;
+}
+
+.hud-pop-warning {
+  font-size: 10px;
+  color: #e67e22;
+  padding-left: 4px;
+}

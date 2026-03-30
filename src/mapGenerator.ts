@@ -3,7 +3,7 @@
  * Generates the initial GameState grid with buildings, units, and zones.
  */
 
-import { MAP, LAVA, UNITS, BUILDINGS } from './gameConfig';
+import { MAP, LAVA, UNITS, BUILDINGS, TERRAIN, POPULATION } from './gameConfig';
 import {
   Faction,
   UnitType,
@@ -20,6 +20,10 @@ import type {
   GameState,
 } from './types';
 import { createInitialSpecialists } from './specialistSystem';
+import {
+  isTileWithinEdgeCircleRange,
+  getTilesWithinEdgeCircleRange,
+} from './rangeUtils';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -29,7 +33,7 @@ import { createInitialSpecialists } from './specialistSystem';
  * Generates a unique ID for entities.
  */
 let idCounter = 0;
-function generateId(prefix: string): string {
+export function generateId(prefix: string): string {
   return `${prefix}_${++idCounter}`;
 }
 
@@ -128,6 +132,21 @@ function createBuilding(
     : null;
   const tags: import('./types').UnitTag[] = isWatchtower ? [UnitTag.RANGED] : [];
 
+  // Population initialization for housing buildings
+  let populationCount = 0;
+  let populationCap = 0;
+  if (type === BuildingType.FARM) {
+    populationCap = POPULATION.FARM_POPULATION_CAP;
+    populationCount = POPULATION.HOUSE_INITIAL_POPULATION;
+  } else if (type === BuildingType.PATRICIANHOUSE) {
+    populationCap = POPULATION.PATRICIAN_HOUSE_POPULATION_CAP;
+    populationCount = POPULATION.HOUSE_INITIAL_POPULATION;
+  } else if (type === BuildingType.STRONGHOLD) {
+    populationCap = POPULATION.STRONGHOLD_FARMER_CAP + POPULATION.STRONGHOLD_NOBLE_CAP;
+    // Starting strongholds begin fully populated
+    populationCount = populationCap;
+  }
+
   return {
     id: generateId('building'),
     type,
@@ -148,49 +167,28 @@ function createBuilding(
     hasActedThisTurn: false,
     tags,
     consumesUnitOnCapture: isWatchtower,
+    populationCount,
+    populationCap,
+    populationGrowthCounter: 0,
+    emberSpawnCounter: 0,
+    recruitmentQueue: null,
   };
 }
 
 /**
- * Gets the recruitment building type for a zone.
- * Varies per zone: BARRACKS, ARCHER_CAMP, RIDER_CAMP, SIEGE_CAMP
- */
-function getRecruitmentBuildingForZone(zone: number): BuildingType {
-  const buildingTypes: BuildingType[] = [
-    BuildingType.BARRACKS,
-    BuildingType.ARCHER_CAMP,
-    BuildingType.RIDER_CAMP,
-    BuildingType.SIEGE_CAMP,
-    BuildingType.BARRACKS, // Zone 5 repeats BARRACKS
-  ];
-  return buildingTypes[(zone - 1) % buildingTypes.length];
-}
-
-/**
- * Generates the resource buildings for a zone (2 total).
- * Either 1 MINE and 1 WOODCUTTER, or 2 MINES, or 2 WOODCUTTERS
- */
-function getResourceBuildingsForZone(): BuildingType[] {
-  const options: BuildingType[][] = [
-    [BuildingType.MINE, BuildingType.WOODCUTTER],
-    [BuildingType.MINE, BuildingType.MINE],
-    [BuildingType.WOODCUTTER, BuildingType.WOODCUTTER],
-  ];
-  return options[Math.floor(Math.random() * options.length)];
-}
-
-/**
  * Generates all buildings for a zone.
+ * Only generates 1 STRONGHOLD (at the pre-selected position) and an optional WATCHTOWER.
  */
 function generateBuildingsForZone(
   zone: number,
+  strongholdPos: Position,
   occupiedPositions: Set<string>
 ): Building[] {
   const buildings: Building[] = [];
 
   // Determine faction based on zone:
   // - Zone 1 STRONGHOLD: PLAYER faction (already captured)
-  // - Zone 1 other buildings and Zone 2: null (neutral/uncaptured)
+  // - Zones 2-3: null (neutral/uncaptured)
   // - Zones 4-5: ENEMY faction
   const getFaction = (isStronghold: boolean): Faction | null => {
     if (zone === 1 && isStronghold) {
@@ -202,30 +200,12 @@ function generateBuildingsForZone(
     return null;
   };
 
-  // 1. STRONGHOLD (anchor building)
-  const strongholdPos = getRandomPositionInZone(zone, occupiedPositions);
-  markPositionOccupied(strongholdPos, occupiedPositions);
+  // 1. STRONGHOLD (at pre-selected position)
   buildings.push(
     createBuilding(BuildingType.STRONGHOLD, strongholdPos, getFaction(true))
   );
 
-  // 2. Resource buildings (2 total)
-  const resourceTypes = getResourceBuildingsForZone();
-  for (const resourceType of resourceTypes) {
-    const pos = getRandomPositionInZone(zone, occupiedPositions);
-    markPositionOccupied(pos, occupiedPositions);
-    buildings.push(createBuilding(resourceType, pos, getFaction(false)));
-  }
-
-  // 3. Recruitment building
-  const recruitmentType = getRecruitmentBuildingForZone(zone);
-  const recruitmentPos = getRandomPositionInZone(zone, occupiedPositions);
-  markPositionOccupied(recruitmentPos, occupiedPositions);
-  buildings.push(
-    createBuilding(recruitmentType, recruitmentPos, getFaction(false))
-  );
-
-  // 4. Optional WATCHTOWER (based on configured spawn chance)
+  // 2. Optional WATCHTOWER (based on configured spawn chance)
   if (Math.random() < BUILDINGS.WATCHTOWER_SPAWN_CHANCE) {
     const watchtowerPos = getRandomPositionInZone(zone, occupiedPositions);
     markPositionOccupied(watchtowerPos, occupiedPositions);
@@ -249,6 +229,15 @@ function createUnit(
   faction: Faction,
   position: Position
 ): Unit {
+  /** Unit types that receive the BUILDANDCAPTURE tag */
+  const buildAndCaptureTypes: ReadonlySet<UnitType> = new Set([
+    UnitType.INFANTRY,
+    UnitType.ARCHER,
+    UnitType.RIDER,
+    UnitType.GUARD,
+    UnitType.LAVA_GRUNT,
+  ]);
+
   return {
     id: generateId('unit'),
     type,
@@ -268,12 +257,149 @@ function createUnit(
     tags: [
       ...(UNITS[type].attackRange > 1 ? [UnitTag.RANGED] : []),
       ...(type === UnitType.SIEGE || type === UnitType.LAVA_SIEGE ? [UnitTag.PREP] : []),
-      ...(type === UnitType.SCOUT ? [UnitTag.NO_CAPTURE] : []),
+      ...(buildAndCaptureTypes.has(type) ? [UnitTag.BUILDANDCAPTURE] : []),
+      ...(type === UnitType.LAVA_GRUNT ? [UnitTag.CORRUPT] : []),
+      ...(type === UnitType.EMBERLING ? [UnitTag.SACRIFICIAL, UnitTag.EXPLOSIVE] : []),
     ],
     hasMovedThisTurn: false,
     hasActedThisTurn: false,
     hasCapturedThisTurn: false,
   };
+}
+
+// ============================================================================
+// TERRAIN GENERATION
+// ============================================================================
+
+/**
+ * Places FOREST and MOUNTAIN tiles in a zone by setting tile.terrainType.
+ * Terrain tiles must not overlap with buildings or each other.
+ * Returns the positions of placed forests and mountains for zone-balance tracking.
+ */
+function placeTerrainForZone(
+  zone: number,
+  grid: Tile[][],
+  occupiedPositions: Set<string>,
+  config: { forests: number; mountains: number }
+): { forestPositions: Position[]; mountainPositions: Position[] } {
+  const forestPositions: Position[] = [];
+  const mountainPositions: Position[] = [];
+
+  // Place forest tiles
+  for (let i = 0; i < config.forests; i++) {
+    const pos = getRandomPositionInZone(zone, occupiedPositions);
+    markPositionOccupied(pos, occupiedPositions);
+    grid[pos.y][pos.x].terrainType = TileType.FOREST;
+    forestPositions.push(pos);
+  }
+
+  // Place mountain tiles
+  for (let i = 0; i < config.mountains; i++) {
+    const pos = getRandomPositionInZone(zone, occupiedPositions);
+    markPositionOccupied(pos, occupiedPositions);
+    grid[pos.y][pos.x].terrainType = TileType.MOUNTAIN;
+    mountainPositions.push(pos);
+  }
+
+  return { forestPositions, mountainPositions };
+}
+
+/**
+ * Ensures at least one FOREST tile exists within edge-circle range
+ * [ZONE1_FOREST_MIN_DISTANCE, ZONE1_FOREST_MAX_DISTANCE] of the zone 1 stronghold.
+ * If no forest was placed in that range during placeTerrainForZone, places one additional FOREST tile.
+ */
+function guaranteeForestNearStronghold(
+  zone1StrongholdPos: Position,
+  grid: Tile[][],
+  occupiedPositions: Set<string>
+): void {
+  const { x: sx, y: sy } = zone1StrongholdPos;
+  const minDist = TERRAIN.ZONE1_FOREST_MIN_DISTANCE;
+  const maxDist = TERRAIN.ZONE1_FOREST_MAX_DISTANCE;
+
+  // Get all tiles within the max edge-circle range
+  const tilesInMaxRange = getTilesWithinEdgeCircleRange(
+    sx, sy, maxDist, MAP.GRID_WIDTH, MAP.GRID_HEIGHT
+  );
+
+  // Filter to the ring [minDist, maxDist]: within maxDist but NOT within (minDist - 1)
+  const tilesInRing = tilesInMaxRange.filter(({ x, y }) =>
+    !isTileWithinEdgeCircleRange(sx, sy, x, y, minDist - 1)
+  );
+
+  // Check if any forest already exists in the ring
+  const forestExists = tilesInRing.some(({ x, y }) =>
+    grid[y][x].terrainType === TileType.FOREST
+  );
+
+  if (forestExists) return;
+
+  // No forest in range — find valid positions for one
+  const candidates = tilesInRing.filter(({ x, y }) => {
+    if (isPositionOccupied({ x, y }, occupiedPositions)) return false;
+    if (grid[y][x].terrainType !== TileType.PLAINS) return false;
+    if (grid[y][x].isLava) return false;
+    return true;
+  });
+
+  if (candidates.length > 0) {
+    const chosen = candidates[Math.floor(Math.random() * candidates.length)];
+    grid[chosen.y][chosen.x].terrainType = TileType.FOREST;
+    markPositionOccupied({ x: chosen.x, y: chosen.y }, occupiedPositions);
+  }
+}
+
+/**
+ * Places TERRAIN.RUINS_PER_ZONE ruins in the zone.
+ * Ruins are placed by setting tile.isRuin = true on PLAINS tiles
+ * (not on FOREST or MOUNTAIN tiles).
+ */
+function placeRuinsForZone(
+  zone: number,
+  grid: Tile[][],
+  occupiedPositions: Set<string>
+): void {
+  const [startRow, endRow] = getZoneRowRange(zone);
+  let placed = 0;
+  const target = TERRAIN.RUINS_PER_ZONE;
+  let attempts = 0;
+  const maxAttempts = 200;
+
+  while (placed < target && attempts < maxAttempts) {
+    const x = Math.floor(Math.random() * MAP.GRID_WIDTH);
+    const y = startRow + Math.floor(Math.random() * (endRow - startRow + 1));
+    const pos = { x, y };
+
+    if (
+      !isPositionOccupied(pos, occupiedPositions) &&
+      grid[y][x].terrainType === TileType.PLAINS &&
+      !grid[y][x].isRuin
+    ) {
+      grid[y][x].isRuin = true;
+      markPositionOccupied(pos, occupiedPositions);
+      placed++;
+    }
+    attempts++;
+  }
+
+  // Fallback: linear scan for remaining ruins
+  if (placed < target) {
+    for (let y = startRow; y <= endRow && placed < target; y++) {
+      for (let x = 0; x < MAP.GRID_WIDTH && placed < target; x++) {
+        const pos = { x, y };
+        if (
+          !isPositionOccupied(pos, occupiedPositions) &&
+          grid[y][x].terrainType === TileType.PLAINS &&
+          !grid[y][x].isRuin
+        ) {
+          grid[y][x].isRuin = true;
+          markPositionOccupied(pos, occupiedPositions);
+          placed++;
+        }
+      }
+    }
+  }
 }
 
 // ============================================================================
@@ -298,6 +424,9 @@ function createGrid(): Tile[][] {
         unitId: null,
         isLava: false,
         isLavaPreview: false,
+        isRuin: false,
+        isStrongholdRuin: false,
+        terrainType: TileType.PLAINS,
       });
     }
     grid.push(row);
@@ -317,13 +446,55 @@ export function generateInitialGameState(): GameState {
   // Reset ID counter for consistent generation
   resetIdCounter();
 
-  // Track occupied positions for building placement
+  // Track occupied positions for placement
   const occupiedPositions = new Set<string>();
+
+  // Create the grid
+  const grid = createGrid();
+
+  // Pre-select stronghold positions for all zones (mark as occupied so terrain avoids them)
+  const strongholdPositions: Position[] = [];
+  for (let zone = 1; zone <= MAP.ZONE_COUNT; zone++) {
+    const pos = getRandomPositionInZone(zone, occupiedPositions);
+    markPositionOccupied(pos, occupiedPositions);
+    strongholdPositions.push(pos);
+  }
+
+  // Place terrain for each zone with zone-balance carry-forward
+  let extraForests = 0;
+  let extraMountains = 0;
+
+  for (let zone = 1; zone <= MAP.ZONE_COUNT; zone++) {
+    const config = {
+      forests: TERRAIN.FORESTS_PER_ZONE + extraForests,
+      mountains: TERRAIN.MOUNTAINS_PER_ZONE + extraMountains,
+    };
+
+    const { forestPositions, mountainPositions } = placeTerrainForZone(
+      zone, grid, occupiedPositions, config
+    );
+
+    // After zone 1 terrain: guarantee forest near stronghold
+    if (zone === 1) {
+      guaranteeForestNearStronghold(strongholdPositions[0], grid, occupiedPositions);
+    }
+
+    // Zone-balance check: if zone got 0 of a type, next zone gets at least 1 extra
+    extraForests = forestPositions.length === 0 ? 1 : 0;
+    extraMountains = mountainPositions.length === 0 ? 1 : 0;
+  }
+
+  // Place ruins for each zone after terrain is placed
+  for (let zone = 1; zone <= MAP.ZONE_COUNT; zone++) {
+    placeRuinsForZone(zone, grid, occupiedPositions);
+  }
 
   // Generate buildings for all zones
   const allBuildings: Building[] = [];
   for (let zone = 1; zone <= MAP.ZONE_COUNT; zone++) {
-    const zoneBuildings = generateBuildingsForZone(zone, occupiedPositions);
+    const zoneBuildings = generateBuildingsForZone(
+      zone, strongholdPositions[zone - 1], occupiedPositions
+    );
     allBuildings.push(...zoneBuildings);
   }
 
@@ -331,6 +502,12 @@ export function generateInitialGameState(): GameState {
   const buildings: Record<string, Building> = {};
   for (const building of allBuildings) {
     buildings[building.id] = building;
+  }
+
+  // Place buildings on the grid
+  for (const building of allBuildings) {
+    const { x, y } = building.position;
+    grid[y][x].buildingId = building.id;
   }
 
   // Find zone 1 stronghold for player infantry placement
@@ -363,15 +540,6 @@ export function generateInitialGameState(): GameState {
     units[unit.id] = unit;
   }
 
-  // Create the grid
-  const grid = createGrid();
-
-  // Place buildings on the grid
-  for (const building of allBuildings) {
-    const { x, y } = building.position;
-    grid[y][x].buildingId = building.id;
-  }
-
   // Place units on the grid
   for (const unit of Object.values(units)) {
     const { x, y } = unit.position;
@@ -390,6 +558,8 @@ export function generateInitialGameState(): GameState {
     resources: {
       iron: 1,
       wood: 1,
+      farmers: 0,
+      nobles: 0,
     },
     lavaFrontRow: -1,
     turnsUntilLavaAdvance: LAVA.LAVA_ADVANCE_INTERVAL,
