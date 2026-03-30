@@ -209,6 +209,16 @@ export function initiateCapture(
       updateZonesUnlocked(state);
       increaseThreatOnStrongholdCapture(state);
     }
+
+    // Consume the capturing unit if the building requires it (e.g. watchtower)
+    if (building.consumesUnitOnCapture) {
+      const tile = state.grid[unit.position.y][unit.position.x];
+      if (tile.unitId === unitId) {
+        tile.unitId = null;
+      }
+      delete state.units[unitId];
+    }
+
     return;
   }
 
@@ -315,6 +325,16 @@ export function resolveCaptures(state: Draft<GameState>): void {
       capturingUnit.hasCapturedThisTurn = true;
       capturingUnit.hasMovedThisTurn = true;
       capturingUnit.hasActedThisTurn = true;
+
+      // Consume the capturing unit if the building requires it (e.g. watchtower)
+      if (building.consumesUnitOnCapture) {
+        const tile = state.grid[capturingUnit.position.y][capturingUnit.position.x];
+        if (tile.unitId === capturingUnit.id) {
+          tile.unitId = null;
+        }
+        delete state.units[capturingUnit.id];
+      }
+
       continue;
     }
 
