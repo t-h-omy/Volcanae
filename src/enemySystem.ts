@@ -65,9 +65,9 @@ type EnemyActionType =
   | 'CORRUPT_TERRAIN'
   | 'BUILD_LAVA_LAIR'
   | 'BUILD_INFERNAL_SANCTUM'
-  | 'EMBERLING_EXPLODE'
-  | 'EMBERLING_MOVE_TO_LAVA'
-  | 'EMBERLING_ADVANCE'
+  | 'EXPLODE'
+  | 'MOVE_TO_LAVA'
+  | 'SACRIFICIAL_ADVANCE'
   | 'HOLD_POSITION';
 
 interface ScoredAction {
@@ -598,129 +598,35 @@ function moveEnemyUnitToward(
 }
 
 // ============================================================================
-// EMBERLING-SPECIFIC SCORING
+// EXPLOSION RESOLUTION (for EXPLOSIVE-tagged units)
 // ============================================================================
 
 /**
- * Scores actions specifically for EMBERLING units.
- * Emberlings prioritize: explode near player > move to lava > advance toward player.
+ * Resolves an explosion for any EXPLOSIVE-tagged unit. Deals flat damage to all
+ * player units within Chebyshev distance 1 (including diagonals). No counter-attack,
+ * no defense formula. The exploding unit is destroyed in the process.
+ *
+ * Reusable for any unit type that has the EXPLOSIVE tag and an explosionDamage stat.
  */
-function scoreEmberlingActions(
+export function resolveExplosion(
   state: Draft<GameState>,
-  unit: Unit,
-): ScoredAction[] {
-  const candidates: ScoredAction[] = [];
-
-  // 1. EMBERLING_EXPLODE — check Chebyshev distance <= 1 (including diagonals)
-  if (!unit.hasActedThisTurn) {
-    const adjacentPlayerUnits: Unit[] = [];
-    for (const u of Object.values(state.units)) {
-      if (u.faction !== Faction.PLAYER) continue;
-      const dx = Math.abs(u.position.x - unit.position.x);
-      const dy = Math.abs(u.position.y - unit.position.y);
-      if (Math.max(dx, dy) <= 1) {
-        adjacentPlayerUnits.push(u);
-      }
-    }
-    if (adjacentPlayerUnits.length > 0) {
-      candidates.push({
-        type: 'EMBERLING_EXPLODE',
-        score: AI_SCORING.BASE_EMBERLING_EXPLODE,
-      });
-    }
-  }
-
-  // 2. EMBERLING_MOVE_TO_LAVA — move toward lavaFrontRow
-  if (!unit.hasMovedThisTurn) {
-    const lavaFrontRow = state.lavaFrontRow;
-    const currentDistToLava = unit.position.y - lavaFrontRow;
-
-    // Find best tile within moveRange that reduces distance to lava
-    let bestPos: Position | null = null;
-    let bestDist = currentDistToLava;
-    const moveRange = unit.stats.moveRange;
-
-    for (let dy = -moveRange; dy <= moveRange; dy++) {
-      for (let dx = -moveRange; dx <= moveRange; dx++) {
-        if (Math.abs(dx) + Math.abs(dy) > moveRange) continue;
-        if (dx === 0 && dy === 0) continue;
-        const nx = unit.position.x + dx;
-        const ny = unit.position.y + dy;
-        if (!isWithinBounds({ x: nx, y: ny })) continue;
-        const tile = state.grid[ny][nx];
-        // Allow moving into lava (that's the sacrifice!) or free tiles
-        if (tile.unitId !== null && !(tile.isLava)) continue;
-        const distToLava = ny - lavaFrontRow;
-        if (distToLava < bestDist) {
-          bestDist = distToLava;
-          bestPos = { x: nx, y: ny };
-        }
-      }
-    }
-
-    if (bestPos) {
-      candidates.push({
-        type: 'EMBERLING_MOVE_TO_LAVA',
-        score: AI_SCORING.BASE_EMBERLING_SACRIFICE,
-        targetPosition: bestPos,
-      });
-    }
-  }
-
-  // 3. EMBERLING_ADVANCE — fallback: move toward nearest player unit
-  if (!unit.hasMovedThisTurn) {
-    let nearestPlayer: Unit | null = null;
-    let nearestDist = Infinity;
-    for (const u of Object.values(state.units)) {
-      if (u.faction !== Faction.PLAYER) continue;
-      const dist = manhattanDistance(unit.position, u.position);
-      if (dist < nearestDist) {
-        nearestDist = dist;
-        nearestPlayer = u;
-      }
-    }
-    if (nearestPlayer) {
-      candidates.push({
-        type: 'EMBERLING_ADVANCE',
-        score: AI_SCORING.BASE_EMBERLING_ADVANCE,
-        targetPosition: nearestPlayer.position,
-      });
-    }
-  }
-
-  // Always add HOLD_POSITION as fallback
-  candidates.push({ type: 'HOLD_POSITION', score: AI_SCORING.BASE_HOLD_POSITION });
-
-  return candidates;
-}
-
-// ============================================================================
-// EMBERLING EXPLOSION
-// ============================================================================
-
-/**
- * Resolves an Emberling explosion. Deals flat damage to all player units
- * within Chebyshev distance 1 (including diagonals). No counter-attack, no defense formula.
- * The Emberling is destroyed in the process.
- */
-export function resolveEmberlingExplosion(
-  state: Draft<GameState>,
-  emberlingId: string,
+  unitId: string,
   events: GameEvent[],
 ): void {
-  const emberling = state.units[emberlingId];
-  if (!emberling) return;
+  const unit = state.units[unitId];
+  if (!unit) return;
 
-  const explosionDamage = (UNITS[UnitType.EMBERLING] as { explosionDamage: number }).explosionDamage;
-  const emberlingPos = { x: emberling.position.x, y: emberling.position.y };
+  const unitConfig = UNITS[unit.type] as { explosionDamage?: number };
+  const explosionDamage = unitConfig.explosionDamage ?? 0;
+  const unitPos = { x: unit.position.x, y: unit.position.y };
   const damagedUnitIds: string[] = [];
 
   // Find all player units within Chebyshev distance 1
   const targets: string[] = [];
   for (const u of Object.values(state.units)) {
     if (u.faction !== Faction.PLAYER) continue;
-    const dx = Math.abs(u.position.x - emberling.position.x);
-    const dy = Math.abs(u.position.y - emberling.position.y);
+    const dx = Math.abs(u.position.x - unit.position.x);
+    const dy = Math.abs(u.position.y - unit.position.y);
     if (Math.max(dx, dy) <= 1) {
       targets.push(u.id);
     }
@@ -755,25 +661,25 @@ export function resolveEmberlingExplosion(
 
   // Emit explosion event
   events.push({
-    type: 'EMBERLING_EXPLOSION',
-    emberlingId,
-    position: emberlingPos,
+    type: 'EXPLOSION',
+    unitId,
+    position: unitPos,
     damagedUnitIds,
     damagePerUnit: explosionDamage,
   });
 
-  // Remove the Emberling
-  const emberlingTile = state.grid[emberling.position.y][emberling.position.x];
-  if (emberlingTile.unitId === emberlingId) {
-    emberlingTile.unitId = null;
+  // Remove the exploding unit
+  const unitTile = state.grid[unit.position.y][unit.position.x];
+  if (unitTile.unitId === unitId) {
+    unitTile.unitId = null;
   }
-  delete state.units[emberlingId];
+  delete state.units[unitId];
 
-  // Emit Emberling death event
+  // Emit death event for the exploding unit
   events.push({
     type: 'UNIT_DEATH',
-    unitId: emberlingId,
-    position: emberlingPos,
+    unitId,
+    position: unitPos,
     faction: Faction.ENEMY,
   });
 }
@@ -1161,6 +1067,83 @@ function scoreActionsForUnit(
     }
   }
 
+  // ── EXPLODE (EXPLOSIVE tag — reusable for any explosive unit) ──
+  // Check for adjacent player units using Chebyshev distance (includes diagonals)
+  if (!unit.hasActedThisTurn && unit.tags.includes(UnitTag.EXPLOSIVE)) {
+    let hasAdjacentPlayer = false;
+    for (const u of Object.values(state.units)) {
+      if (u.faction !== Faction.PLAYER) continue;
+      const dx = Math.abs(u.position.x - unit.position.x);
+      const dy = Math.abs(u.position.y - unit.position.y);
+      if (Math.max(dx, dy) <= 1) {
+        hasAdjacentPlayer = true;
+        break;
+      }
+    }
+    if (hasAdjacentPlayer) {
+      candidates.push({ type: 'EXPLODE', score: AI_SCORING.BASE_EXPLODE });
+    }
+  }
+
+  // ── MOVE_TO_LAVA (SACRIFICIAL tag — reusable for any sacrificial unit) ──
+  // Move toward lavaFrontRow to sacrifice into the lava
+  if (!unit.hasMovedThisTurn && unit.tags.includes(UnitTag.SACRIFICIAL)) {
+    const lavaFrontRow = state.lavaFrontRow;
+    const currentDistToLava = unit.position.y - lavaFrontRow;
+
+    let bestPos: Position | null = null;
+    let bestDist = currentDistToLava;
+    const moveRange = unit.stats.moveRange;
+
+    for (let dy = -moveRange; dy <= moveRange; dy++) {
+      for (let dx = -moveRange; dx <= moveRange; dx++) {
+        if (Math.abs(dx) + Math.abs(dy) > moveRange) continue;
+        if (dx === 0 && dy === 0) continue;
+        const nx = unit.position.x + dx;
+        const ny = unit.position.y + dy;
+        if (!isWithinBounds({ x: nx, y: ny })) continue;
+        const tile = state.grid[ny][nx];
+        // Allow moving into lava (that's the sacrifice!) or free tiles
+        if (tile.unitId !== null && !tile.isLava) continue;
+        const distToLava = ny - lavaFrontRow;
+        if (distToLava < bestDist) {
+          bestDist = distToLava;
+          bestPos = { x: nx, y: ny };
+        }
+      }
+    }
+
+    if (bestPos) {
+      candidates.push({
+        type: 'MOVE_TO_LAVA',
+        score: AI_SCORING.BASE_MOVE_TO_LAVA,
+        targetPosition: bestPos,
+      });
+    }
+  }
+
+  // ── SACRIFICIAL_ADVANCE (SACRIFICIAL tag — fallback: move toward nearest player) ──
+  // When a sacrificial unit can't reach lava, advance toward nearest player unit instead
+  if (!unit.hasMovedThisTurn && unit.tags.includes(UnitTag.SACRIFICIAL)) {
+    let nearestPlayer: Unit | null = null;
+    let nearestDist = Infinity;
+    for (const u of Object.values(state.units)) {
+      if (u.faction !== Faction.PLAYER) continue;
+      const dist = manhattanDistance(unit.position, u.position);
+      if (dist < nearestDist) {
+        nearestDist = dist;
+        nearestPlayer = u;
+      }
+    }
+    if (nearestPlayer) {
+      candidates.push({
+        type: 'SACRIFICIAL_ADVANCE',
+        score: AI_SCORING.BASE_SACRIFICIAL_ADVANCE,
+        targetPosition: nearestPlayer.position,
+      });
+    }
+  }
+
   // ── CONSTRUCTION & CORRUPTION ──
   // scoreConstructionActions handles BUILD_LAVA_LAIR, BUILD_INFERNAL_SANCTUM, and CORRUPT_TERRAIN
   if (!unit.hasActedThisTurn) {
@@ -1442,19 +1425,19 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
       break;
     }
 
-    case 'EMBERLING_EXPLODE': {
-      resolveEmberlingExplosion(state, currentUnit.id, events ?? []);
+    case 'EXPLODE': {
+      resolveExplosion(state, currentUnit.id, events ?? []);
       return; // unit is destroyed, no further processing
     }
 
-    case 'EMBERLING_MOVE_TO_LAVA': {
+    case 'MOVE_TO_LAVA': {
       if (action.targetPosition && !currentUnit.hasMovedThisTurn) {
         moveEnemyUnitToward(state, currentUnit.id, action.targetPosition, events);
       }
       break;
     }
 
-    case 'EMBERLING_ADVANCE': {
+    case 'SACRIFICIAL_ADVANCE': {
       if (action.targetPosition && !currentUnit.hasMovedThisTurn) {
         moveEnemyUnitToward(state, currentUnit.id, action.targetPosition, events);
       }
@@ -1477,10 +1460,9 @@ function decideAndExecute(
   recentlyLostBuildingIds: Set<string>,
   events?: GameEvent[],
 ): void {
-  // Use Emberling-specific scoring for EMBERLING units
-  const candidates = unit.type === UnitType.EMBERLING
-    ? scoreEmberlingActions(state, unit)
-    : scoreActionsForUnit(unit, state, targetingIntents, recentlyLostBuildingIds);
+  // All units go through the unified scoring — tag-based behaviors
+  // (EXPLOSIVE, SACRIFICIAL, etc.) are handled within scoreActionsForUnit
+  const candidates = scoreActionsForUnit(unit, state, targetingIntents, recentlyLostBuildingIds);
 
   candidates.sort((a, b) => b.score - a.score);
 
@@ -1675,12 +1657,6 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
 export function computeUnitAiScores(state: GameState, unitId: string): ScoredAction[] {
   const unit = state.units[unitId];
   if (!unit || unit.faction !== Faction.ENEMY) return [];
-
-  // Use Emberling-specific scoring for EMBERLING units
-  if (unit.type === UnitType.EMBERLING) {
-    const scores = scoreEmberlingActions(state as Draft<GameState>, unit);
-    return scores.sort((a, b) => b.score - a.score);
-  }
 
   const recentlyLostBuildingIds = new Set<string>(
     Object.values(state.buildings)

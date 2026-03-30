@@ -310,10 +310,10 @@ export const AI_SCORING = {
   BASE_BUILD_LAVA_LAIR: 55,
   BASE_CORRUPT_TERRAIN: 30,
 
-  // Emberling AI
-  BASE_EMBERLING_EXPLODE: 100,
-  BASE_EMBERLING_SACRIFICE: 40,
-  BASE_EMBERLING_ADVANCE: 20,
+  // Explosive / Sacrificial unit AI (tag-gated, reusable for any unit with EXPLOSIVE or SACRIFICIAL tags)
+  BASE_EXPLODE: 100,
+  BASE_MOVE_TO_LAVA: 40,
+  BASE_SACRIFICIAL_ADVANCE: 20,
 } as const;
 
 // ============================================================================

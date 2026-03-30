@@ -636,7 +636,7 @@ export const useGameStore = create<GameStore>()(
             break;
           }
 
-          case 'EMBERLING_EXPLOSION': {
+          case 'EXPLOSION': {
             // Apply flat damage to each affected player unit
             for (const targetId of event.damagedUnitIds) {
               const target = state.units[targetId];
@@ -645,14 +645,14 @@ export const useGameStore = create<GameStore>()(
                 // If unit dies, it will be handled by the subsequent UNIT_DEATH event
               }
             }
-            // Remove the emberling
-            const emberling = state.units[event.emberlingId];
-            if (emberling) {
-              const tile = state.grid[emberling.position.y][emberling.position.x];
-              if (tile.unitId === event.emberlingId) {
+            // Remove the exploding unit
+            const explodingUnit = state.units[event.unitId];
+            if (explodingUnit) {
+              const tile = state.grid[explodingUnit.position.y][explodingUnit.position.x];
+              if (tile.unitId === event.unitId) {
                 tile.unitId = null;
               }
-              delete state.units[event.emberlingId];
+              delete state.units[event.unitId];
             }
 
             // Trigger floaters for explosion damage
