@@ -29,7 +29,7 @@ export const MAP = {
 
 export const LAVA = {
   /** Lava advances 1 row every N player turns */
-  LAVA_ADVANCE_INTERVAL: 2,
+  LAVA_ADVANCE_INTERVAL: 3,
 } as const;
 
 // ============================================================================
@@ -226,9 +226,9 @@ export const RESOURCES = {
   /** Wood produced per turn by a woodcutter */
   WOODCUTTER_WOOD_PER_TURN: 1,
   /** Iron available at the start of a new game */
-  START_IRON: 1,
+  START_IRON: 2,
   /** Wood available at the start of a new game */
-  START_WOOD: 1,
+  START_WOOD: 2,
 } as const;
 
 // ============================================================================
