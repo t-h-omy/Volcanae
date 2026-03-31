@@ -145,25 +145,41 @@ function calcDeathRiskPenalty(attacker: Unit, attackerHpLost: number, canCounter
 
 /**
  * Checks whether a SACRIFICIAL unit is blocked from reaching lava.
- * Scans a corridor within ±moveRange columns and up to checkDist rows
- * toward lava (increasing Y). Returns true if no free non-lava tile exists.
+ * Uses a BFS path simulation: from the unit's current position, explores
+ * reachable free (non-lava, unoccupied) tiles up to checkDist steps in any
+ * direction. Returns true only if no reachable tile lies closer to lava.
+ *
+ * Coordinate system: lava is at high Y values (increasing Y = toward lava).
+ * A tile at ny > startY is one step closer to lava.
  */
 function isUnitBlockedFromLava(unit: Unit, state: Draft<GameState>): boolean {
   const checkDist = AI_SCORING.SACRIFICIAL_BLOCKED_CHECK_DISTANCE;
-  const moveRange = unit.stats.moveRange;
-  for (let dy = 1; dy <= checkDist; dy++) {
-    const ry = unit.position.y + dy;
-    if (ry >= MAP.GRID_HEIGHT) break;
-    for (let dx = -moveRange; dx <= moveRange; dx++) {
-      const rx = unit.position.x + dx;
-      if (rx < 0 || rx >= MAP.GRID_WIDTH) continue;
-      const tile = state.grid[ry][rx];
-      if (tile.unitId === null && !tile.isLava) {
-        return false;
-      }
+  const startX = unit.position.x;
+  const startY = unit.position.y;
+
+  const visited = new Set<string>();
+  const queue: Array<{ x: number; y: number; steps: number }> = [{ x: startX, y: startY, steps: 0 }];
+  visited.add(`${startX},${startY}`);
+  let head = 0;
+
+  while (head < queue.length) {
+    const { x, y, steps } = queue[head++];
+    if (steps >= checkDist) continue;
+    for (const [dx, dy] of [[0, 1], [0, -1], [1, 0], [-1, 0]] as const) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;
+      const key = `${nx},${ny}`;
+      if (visited.has(key)) continue;
+      visited.add(key);
+      const tile = state.grid[ny][nx];
+      if (tile.unitId !== null || tile.isLava) continue;
+      // ny > startY means the tile is closer to lava (higher Y = toward lava)
+      if (ny > startY) return false;
+      queue.push({ x: nx, y: ny, steps: steps + 1 });
     }
   }
-  return true;
+  return true; // No reachable tile advances toward lava within checkDist steps
 }
 
 function projectCombatScore(attacker: Unit, defender: Unit): number {
@@ -1151,7 +1167,8 @@ function scoreActionsForUnit(
         }
       }
       if (hasAdjacentPlayer) {
-        candidates.push({ type: 'EXPLODE', score: AI_SCORING.BASE_EXPLODE });
+        const blockedBonus = (isSacrificial && isBlockedFromLava) ? AI_SCORING.BONUS_BLOCKED_SACRIFICIAL_EXPLODE : 0;
+        candidates.push({ type: 'EXPLODE', score: AI_SCORING.BASE_EXPLODE + blockedBonus });
       }
     }
   }
