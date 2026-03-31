@@ -380,7 +380,7 @@ const RECRUITMENT_BASE_SCORES: Partial<Record<UnitType, number>> = {
 
 /**
  * Gets the zone number (1-5) for a given row position.
- * Zone 1 is at high Y (south, near lava), zone 5 is at low Y (north).
+ * Zone 1 is at high Y (near lava), zone 5 is at low Y (far from lava).
  */
 function getZoneForRow(row: number): number {
   if (row >= MAP.GRID_HEIGHT - MAP.LAVA_BUFFER_ROWS) return 0;

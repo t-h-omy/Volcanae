@@ -286,11 +286,11 @@ export const AI_SCORING = {
   BASE_MOVE_TO_NEUTRAL_BUILDING: 38,
   /** Move towards the nearest player unit when no higher-priority target exists */
   BASE_MOVE_TO_UNIT: 32,
-  /** Move to the southern edge of the current zone to push into the next zone */
+  /** Move to the lava-side edge of the current zone to push into the next zone */
   BASE_PUSH_TO_ZONE_EDGE: 25,
   /** Move to a tile that puts the unit adjacent to a player unit's flank or rear */
   BASE_FLANK_UNIT: 20,
-  /** Move toward the lava front (increasing Y); always a candidate for unmoved units */
+  /** Move toward the lava front; always a candidate for unmoved units */
   BASE_ADVANCE_TOWARD_LAVA: 18,
   /** Voluntarily walk into lava to boost the threat level when no better action exists */
   BASE_SACRIFICE_TO_LAVA: 12,
