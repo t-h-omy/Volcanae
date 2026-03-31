@@ -143,6 +143,29 @@ function calcDeathRiskPenalty(attacker: Unit, attackerHpLost: number, canCounter
   return AI_SCORING.DEATH_RISK_PENALTY * (isLowHp ? AI_SCORING.LOW_HP_RISK_FACTOR : 1);
 }
 
+/**
+ * Checks whether a SACRIFICIAL unit is blocked from reaching lava.
+ * Scans a corridor within ±moveRange columns and up to checkDist rows
+ * toward lava (increasing Y). Returns true if no free non-lava tile exists.
+ */
+function isUnitBlockedFromLava(unit: Unit, state: Draft<GameState>): boolean {
+  const checkDist = AI_SCORING.SACRIFICIAL_BLOCKED_CHECK_DISTANCE;
+  const moveRange = unit.stats.moveRange;
+  for (let dy = 1; dy <= checkDist; dy++) {
+    const ry = unit.position.y + dy;
+    if (ry >= MAP.GRID_HEIGHT) break;
+    for (let dx = -moveRange; dx <= moveRange; dx++) {
+      const rx = unit.position.x + dx;
+      if (rx < 0 || rx >= MAP.GRID_WIDTH) continue;
+      const tile = state.grid[ry][rx];
+      if (tile.unitId === null && !tile.isLava) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 function projectCombatScore(attacker: Unit, defender: Unit): number {
   const { attackerHpLost, defenderHpLost } = calculateCombat(attacker, defender);
   let bonus = 0;
@@ -1037,41 +1060,54 @@ function scoreActionsForUnit(
     }
   }
 
+  // ── Blocked-from-lava detection for SACRIFICIAL units ──
+  const isBlockedFromLava = unit.tags.includes(UnitTag.SACRIFICIAL)
+    ? isUnitBlockedFromLava(unit, state)
+    : false;
+
   // ── ADVANCE_TOWARD_LAVA ──
   if (!unit.hasMovedThisTurn) {
     const score = AI_SCORING.BASE_ADVANCE_TOWARD_LAVA
       + (unit.tags.includes(UnitTag.SACRIFICIAL) ? AI_SCORING.BONUS_SACRIFICIAL_ADVANCE_TOWARD_LAVA : 0);
-    candidates.push({ type: 'ADVANCE_TOWARD_LAVA', score });
+    if (isBlockedFromLava) {
+      // When blocked, target the nearest player unit to push through the blocker
+      const playerUnits = Object.values(state.units).filter(u => u.faction === Faction.PLAYER);
+      if (playerUnits.length > 0) {
+        playerUnits.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
+        candidates.push({ type: 'ADVANCE_TOWARD_LAVA', score, targetPosition: playerUnits[0].position });
+      } else {
+        candidates.push({ type: 'ADVANCE_TOWARD_LAVA', score });
+      }
+    } else {
+      candidates.push({ type: 'ADVANCE_TOWARD_LAVA', score });
+    }
   }
 
   // ── SACRIFICE_TO_LAVA ──
   if (!unit.hasMovedThisTurn) {
-    const hasPlayerTargets = playerUnitsInTriggerRange.length > 0;
-    const hasCapturable = buildingsInTriggerRange.some(b => b.faction === null || b.faction === Faction.PLAYER);
-    const nearLava = state.lavaFrontRow - unit.position.y <= 5;
-
-    if (!hasPlayerTargets && !hasCapturable && nearLava) {
-      const threatDeficit = Math.max(0, 5 - state.threatLevel);
-      const score = AI_SCORING.BASE_SACRIFICE_TO_LAVA
-        + threatDeficit * AI_SCORING.BONUS_SACRIFICE_PER_THREAT_BELOW_5;
-      candidates.push({ type: 'SACRIFICE_TO_LAVA', score: Math.max(0, score) });
-    }
+    const score = AI_SCORING.BASE_SACRIFICE_TO_LAVA
+      + (unit.tags.includes(UnitTag.SACRIFICIAL) ? AI_SCORING.BONUS_SACRIFICIAL_SACRIFICE_TO_LAVA : 0);
+    candidates.push({ type: 'SACRIFICE_TO_LAVA', score });
   }
 
-  // ── EXPLODE (EXPLOSIVE tag — reusable for any explosive unit) ──
+  // ── EXPLODE (EXPLOSIVE + SACRIFICIAL blocked, or pure EXPLOSIVE — reusable for any explosive unit) ──
   if (!unit.hasActedThisTurn && unit.tags.includes(UnitTag.EXPLOSIVE)) {
-    let hasAdjacentPlayer = false;
-    for (const u of Object.values(state.units)) {
-      if (u.faction !== Faction.PLAYER) continue;
-      const dx = Math.abs(u.position.x - unit.position.x);
-      const dy = Math.abs(u.position.y - unit.position.y);
-      if (Math.max(dx, dy) <= 1) {
-        hasAdjacentPlayer = true;
-        break;
+    const isSacrificial = unit.tags.includes(UnitTag.SACRIFICIAL);
+    // Only score EXPLODE for SACRIFICIAL units when they are blocked from lava
+    if (!isSacrificial || isBlockedFromLava) {
+      let hasAdjacentPlayer = false;
+      for (const u of Object.values(state.units)) {
+        if (u.faction !== Faction.PLAYER) continue;
+        const dx = Math.abs(u.position.x - unit.position.x);
+        const dy = Math.abs(u.position.y - unit.position.y);
+        if (Math.max(dx, dy) <= 1) {
+          hasAdjacentPlayer = true;
+          break;
+        }
       }
-    }
-    if (hasAdjacentPlayer) {
-      candidates.push({ type: 'EXPLODE', score: AI_SCORING.BASE_EXPLODE });
+      if (hasAdjacentPlayer) {
+        candidates.push({ type: 'EXPLODE', score: AI_SCORING.BASE_EXPLODE });
+      }
     }
   }
 
@@ -1291,7 +1327,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
     }
 
     case 'ADVANCE_TOWARD_LAVA': {
-      const lavaTarget: Position = {
+      const lavaTarget: Position = action.targetPosition ?? {
         x: currentUnit.position.x,
         y: Math.min(MAP.GRID_HEIGHT - 1, currentUnit.position.y + currentUnit.stats.moveRange),
       };
