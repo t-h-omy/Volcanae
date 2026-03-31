@@ -11,6 +11,7 @@ import { useCombatAnimationStore } from '../combatAnimationStore';
 import type { Projectile } from '../combatAnimationStore';
 import { getReachableTiles } from '../movementSystem';
 import { canCapture } from '../captureSystem';
+import { getConstructionOptionsForTile } from '../constructionSystem';
 import { MAP, RENDER, UI, ANIMATION, INPUT } from '../gameConfig';
 import {
   Faction,
@@ -549,6 +550,7 @@ export default function GridRenderer() {
           }),
         )}
         <CaptureIndicatorLayer tileSize={tileSize} />
+        <BuildIndicatorLayer tileSize={tileSize} />
         <DamageFloaterLayer tileSize={tileSize} />
         <ProjectileLayer />
       </div>
@@ -869,6 +871,50 @@ function CaptureIndicatorLayer({ tileSize }: { tileSize: number }) {
         >
           <span className="capture-bubble">💬</span>
           <span className="capture-fire">🔥</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function BuildIndicatorLayer({ tileSize }: { tileSize: number }) {
+  const units = useGameStore((s) => s.units);
+  const grid = useGameStore((s) => s.grid);
+
+  const buildReadyPositions = useMemo(() => {
+    const state = useGameStore.getState();
+    const result: Array<{ key: string; x: number; y: number }> = [];
+    for (const unit of Object.values(units)) {
+      if (unit.faction !== Faction.PLAYER) continue;
+      if (!unit.tags.includes(UnitTag.BUILDANDCAPTURE)) continue;
+      if (unit.hasMovedThisTurn || unit.hasActedThisTurn || unit.hasCapturedThisTurn) continue;
+      const options = getConstructionOptionsForTile(state, unit.position);
+      if (options.length > 0) {
+        result.push({ key: unit.id, x: unit.position.x, y: unit.position.y });
+      }
+    }
+    return result;
+  }, [units, grid]);
+
+  if (buildReadyPositions.length === 0) return null;
+
+  return (
+    <div className="build-indicator-layer">
+      {buildReadyPositions.map(({ key, x, y }) => (
+        <div
+          key={key}
+          className="build-indicator"
+          style={
+            {
+              left: x * tileSize,
+              top: y * tileSize,
+              width: tileSize,
+              '--capture-bounce-duration': `${UI.CAPTURE_INDICATOR_BOUNCE_DURATION_MS}ms`,
+            } as React.CSSProperties
+          }
+        >
+          <span className="capture-bubble">💬</span>
+          <span className="build-hammer">🔨</span>
         </div>
       ))}
     </div>
