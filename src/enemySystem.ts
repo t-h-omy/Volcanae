@@ -1035,11 +1035,20 @@ function scoreActionsForUnit(
       playerStrongholds.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
       const building = playerStrongholds[0];
       const distance = manhattanDistance(unit.position, building.position);
-      const score = AI_SCORING.BASE_PUSH_TO_STRONGHOLD
-        * AI_SCORING.BUILDING_VALUE_STRONGHOLD
-        - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
-        - saturationPenalty(building.id, targetingIntents);
-      candidates.push({ type: 'PUSH_TO_STRONGHOLD', score: Math.max(0, score), targetBuildingId: building.id, targetPosition: building.position });
+      // If a player unit is standing on the stronghold and the enemy is already within its attack
+      // range, suppress this action so attack actions take priority instead.
+      // Melee units have attackRange === 1 (adjacent only); ranged units have attackRange > 1.
+      // Using attackRange directly handles both cases without special-casing.
+      const strongholdTile = state.grid[building.position.y][building.position.x];
+      const playerUnitOnStronghold = strongholdTile.unitId != null
+        && state.units[strongholdTile.unitId]?.faction === Faction.PLAYER;
+      if (!(playerUnitOnStronghold && distance <= attackRange)) {
+        const score = AI_SCORING.BASE_PUSH_TO_STRONGHOLD
+          * AI_SCORING.BUILDING_VALUE_STRONGHOLD
+          - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
+          - saturationPenalty(building.id, targetingIntents);
+        candidates.push({ type: 'PUSH_TO_STRONGHOLD', score: Math.max(0, score), targetBuildingId: building.id, targetPosition: building.position });
+      }
     }
   }
 
