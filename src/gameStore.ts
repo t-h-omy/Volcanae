@@ -37,6 +37,7 @@ import { Faction, GamePhase, BuildingType } from './types';
 import type { GameState, UnitType, Position } from './types';
 import type { GameEvent } from './gameEvents';
 import { MAP, LAVA, POPULATION, BUILDINGS } from './gameConfig';
+import { saveGameState, loadGameState, clearSavedGame, hasSavedGame } from './saveSystem';
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
@@ -45,6 +46,8 @@ import { MAP, LAVA, POPULATION, BUILDINGS } from './gameConfig';
 interface GameActions {
   /** Initialize a new game by generating initial state */
   initGame: () => void;
+  /** Start a fresh new game, clearing any existing save */
+  initNewGame: () => void;
   /** Select a unit by ID */
   selectUnit: (unitId: string) => void;
   /** Select a building by ID */
@@ -75,6 +78,14 @@ interface GameActions {
   applyEvent: (event: GameEvent) => void;
   /** Replace the entire game state (used by animation engine to apply resolved state) */
   setGameState: (newState: GameState) => void;
+  /** Manually save the current game state to localStorage */
+  saveGame: () => void;
+  /** Load the saved game state from localStorage (no-op if none exists) */
+  loadGame: () => void;
+  /** Delete the saved game from localStorage */
+  clearSavedGame: () => void;
+  /** Return true when a save is present in localStorage */
+  hasSavedGame: () => boolean;
 
   // ── Debug actions (development only) ──
   /** Debug: add spec_01 to globalSpecialistStorage */
@@ -104,6 +115,20 @@ type GameStore = GameState & GameActions;
 const createInitialState = (): GameState => generateInitialGameState();
 
 // ============================================================================
+// HELPERS
+// ============================================================================
+
+/** Sync the camera to the player's starting STRONGHOLD in the given state. */
+function syncCameraToPlayerStronghold(state: GameState): void {
+  const stronghold = Object.values(state.buildings).find(
+    (b) => b.type === BuildingType.STRONGHOLD && b.faction === Faction.PLAYER
+  );
+  if (stronghold) {
+    useAnimationStore.getState().setCameraTarget(stronghold.position);
+  }
+}
+
+// ============================================================================
 // STORE IMPLEMENTATION
 // ============================================================================
 
@@ -117,20 +142,30 @@ export const useGameStore = create<GameStore>()(
     // ========================================================================
 
     initGame: () => {
+      // Attempt to restore a previously autosaved game; fall back to a fresh game.
+      const saved = loadGameState();
+      const stateToLoad = saved ?? generateInitialGameState();
+
+      set((state) => {
+        Object.assign(state, stateToLoad);
+        if (!saved) {
+          // Update tile discovery only for a fresh game (saved games already have it)
+          updateDiscovery(state);
+        }
+      });
+
+      syncCameraToPlayerStronghold(stateToLoad);
+    },
+
+    initNewGame: () => {
+      clearSavedGame();
       const initialState = generateInitialGameState();
       set((state) => {
         Object.assign(state, initialState);
-        // Update tile discovery based on initial unit positions
         updateDiscovery(state);
       });
 
-      // Sync camera to the player's starting stronghold
-      const stronghold = Object.values(initialState.buildings).find(
-        (b) => b.type === BuildingType.STRONGHOLD && b.faction === Faction.PLAYER
-      );
-      if (stronghold) {
-        useAnimationStore.getState().setCameraTarget(stronghold.position);
-      }
+      syncCameraToPlayerStronghold(initialState);
     },
 
     selectUnit: (unitId: string) => {
@@ -469,6 +504,13 @@ export const useGameStore = create<GameStore>()(
       // the animation engine's subscribe handler fires.
       if (pendingEvents !== null && pendingResolvedState !== null) {
         useAnimationStore.getState().enqueue(pendingEvents, pendingResolvedState);
+      } else if (pendingResolvedState === null) {
+        // No events queued — the final state was applied directly inside the set().
+        // Autosave when the new player turn has started.
+        const currentState = useGameStore.getState();
+        if (currentState.phase === GamePhase.PLAYER_TURN) {
+          saveGameState(currentState);
+        }
       }
     },
 
@@ -716,6 +758,31 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         Object.assign(state, newState);
       });
+      // Autosave when transitioning to the player's turn
+      if (newState.phase === GamePhase.PLAYER_TURN) {
+        saveGameState(newState);
+      }
+    },
+
+    saveGame: () => {
+      saveGameState(useGameStore.getState());
+    },
+
+    loadGame: () => {
+      const saved = loadGameState();
+      if (!saved) return;
+      set((state) => {
+        Object.assign(state, saved);
+      });
+      syncCameraToPlayerStronghold(saved);
+    },
+
+    clearSavedGame: () => {
+      clearSavedGame();
+    },
+
+    hasSavedGame: () => {
+      return hasSavedGame();
     },
 
     // ========================================================================
