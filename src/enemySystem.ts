@@ -165,7 +165,7 @@ function isUnitBlockedFromLava(unit: Unit, state: Draft<GameState>): boolean {
   while (head < queue.length) {
     const { x, y, steps } = queue[head++];
     if (steps >= checkDist) continue;
-    for (const [dx, dy] of [[0, 1], [0, -1], [1, 0], [-1, 0]] as const) {
+    for (const [dx, dy] of [[0, 1], [0, -1], [1, 0], [-1, 0], [1, 1], [1, -1], [-1, 1], [-1, -1]] as const) {
       const nx = x + dx;
       const ny = y + dy;
       if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;
@@ -232,6 +232,12 @@ function stepToward(from: Position, target: Position, state: Draft<GameState>): 
   const dy = target.y - from.y;
 
   const steps: Position[] = [];
+
+  // Prefer diagonal movement when both components are non-zero
+  if (dx !== 0 && dy !== 0) {
+    steps.push({ x: from.x + Math.sign(dx), y: from.y + Math.sign(dy) });
+  }
+
   if (Math.abs(dx) >= Math.abs(dy)) {
     if (dx !== 0) steps.push({ x: from.x + Math.sign(dx), y: from.y });
     if (dy !== 0) steps.push({ x: from.x, y: from.y + Math.sign(dy) });

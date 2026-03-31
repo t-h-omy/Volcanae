@@ -127,8 +127,8 @@ export function getConstructionOptionsForTile(
     options.push(makeOption(BuildingType.WOODCUTTER));
   }
 
-  // Mountain terrain (no existing building) → MINE
-  if (tile.terrainType === TileType.MOUNTAIN && tile.buildingId === null) {
+  // Mountain terrain (no existing building, not a ruin) → MINE
+  if (tile.terrainType === TileType.MOUNTAIN && tile.buildingId === null && !tile.isRuin) {
     options.push(makeOption(BuildingType.MINE));
   }
 
