@@ -1035,11 +1035,18 @@ function scoreActionsForUnit(
       playerStrongholds.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
       const building = playerStrongholds[0];
       const distance = manhattanDistance(unit.position, building.position);
-      const score = AI_SCORING.BASE_PUSH_TO_STRONGHOLD
-        * AI_SCORING.BUILDING_VALUE_STRONGHOLD
-        - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
-        - saturationPenalty(building.id, targetingIntents);
-      candidates.push({ type: 'PUSH_TO_STRONGHOLD', score: Math.max(0, score), targetBuildingId: building.id, targetPosition: building.position });
+      // If the enemy is already adjacent to the stronghold and a player unit is standing on it,
+      // advancing further is impossible — skip this action so ATTACK_UNIT takes priority.
+      const strongholdTile = state.grid[building.position.y][building.position.x];
+      const playerUnitOnStronghold = strongholdTile.unitId != null
+        && state.units[strongholdTile.unitId]?.faction === Faction.PLAYER;
+      if (!(playerUnitOnStronghold && distance <= 1)) {
+        const score = AI_SCORING.BASE_PUSH_TO_STRONGHOLD
+          * AI_SCORING.BUILDING_VALUE_STRONGHOLD
+          - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
+          - saturationPenalty(building.id, targetingIntents);
+        candidates.push({ type: 'PUSH_TO_STRONGHOLD', score: Math.max(0, score), targetBuildingId: building.id, targetPosition: building.position });
+      }
     }
   }
 
