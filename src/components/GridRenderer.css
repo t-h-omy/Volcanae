@@ -277,6 +277,34 @@
   transform: translate(1px, -1px);
 }
 
+.build-hammer {
+  position: absolute;
+  font-size: 10px;
+  transform: translate(1px, -1px);
+}
+
+/* ── Build Indicator Layer ── */
+
+.build-indicator-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9;
+}
+
+.build-indicator {
+  position: absolute;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(-60%);
+  animation: captureIndicatorBounce var(--capture-bounce-duration, 700ms) ease-in-out infinite alternate;
+}
+
 @keyframes captureIndicatorBounce {
   0%   { transform: translateY(-60%); }
   100% { transform: translateY(-80%); }
