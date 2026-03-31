@@ -3,7 +3,7 @@
  * Generates the initial GameState grid with buildings, units, and zones.
  */
 
-import { MAP, LAVA, UNITS, BUILDINGS, TERRAIN, POPULATION } from './gameConfig';
+import { MAP, LAVA, UNITS, BUILDINGS, TERRAIN, POPULATION, RESOURCES } from './gameConfig';
 import {
   Faction,
   UnitType,
@@ -558,8 +558,8 @@ export function generateInitialGameState(): GameState {
     specialists: createInitialSpecialists(),
     globalSpecialistStorage: [],
     resources: {
-      iron: 1,
-      wood: 1,
+      iron: RESOURCES.START_IRON,
+      wood: RESOURCES.START_WOOD,
       farmers: (() => {
         let f = 0;
         for (const b of Object.values(buildings)) {
