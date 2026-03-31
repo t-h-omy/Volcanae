@@ -12,15 +12,15 @@ import type { UnitPopulationCost } from './types';
 
 export const MAP = {
   /** Width of the game grid in cells */
-  GRID_WIDTH: 7,
-  /** Total height of the grid (35 playable + 5 lava buffer rows at the south/high-Y end) */
-  GRID_HEIGHT: 40,
+  GRID_WIDTH: 9,
+  /** Total height of the grid (35 playable + 6 lava buffer rows at the south/high-Y end) */
+  GRID_HEIGHT: 41,
   /** Number of zones on the map */
   ZONE_COUNT: 5,
   /** Number of rows per zone */
   ZONE_HEIGHT: 7,
   /** Number of lava buffer rows at the south (high-Y) end of the map */
-  LAVA_BUFFER_ROWS: 5,
+  LAVA_BUFFER_ROWS: 6,
 } as const;
 
 // ============================================================================
@@ -29,7 +29,7 @@ export const MAP = {
 
 export const LAVA = {
   /** Lava advances 1 row every N player turns */
-  LAVA_ADVANCE_INTERVAL: 3,
+  LAVA_ADVANCE_INTERVAL: 2,
 } as const;
 
 // ============================================================================
@@ -148,7 +148,7 @@ export const UNITS = {
   },
 
   EMBERLING: {
-    maxHp: 40,
+    maxHp: 45,
     attack: 15,
     defense: 10,
     movementActions: 1,
@@ -192,7 +192,7 @@ export const BUILDINGS = {
   WATCHTOWER_STATS: {
     maxHp: 150,
     attack: 50,
-    defense: 75,
+    defense: 65,
     attackRange: 3,
   },
 } as const;
@@ -307,7 +307,7 @@ export const AI_SCORING = {
   /** Bonus added to an attack score when the simulated hit would kill the defender */
   KILL_BONUS: 50,
   /** Penalty subtracted when the counterattack would leave the attacker dangerously low on HP */
-  DEATH_RISK_PENALTY: 20,
+  DEATH_RISK_PENALTY: 0,
   /** Fraction of DEATH_RISK_PENALTY applied when HP is low but not lethal (scales linearly) */
   LOW_HP_RISK_FACTOR: 0.5,
   /** HP fraction (0–1) below which the LOW_HP_RISK_FACTOR risk penalty begins to apply */
@@ -338,38 +338,38 @@ export const AI_SCORING = {
   // contextual condition is true.
 
   /** Bonus when a player unit is standing on the target building (easier to contest or attack) */
-  BONUS_PLAYER_ON_BUILDING: 35,
+  BONUS_PLAYER_ON_BUILDING: 45,
   /** Extra bonus on top of BONUS_PLAYER_ON_BUILDING when that player unit is actively capturing */
   BONUS_PLAYER_CAPTURING: 40,
   /** Bonus when the target building has no allied units nearby defending it */
   BONUS_UNDEFENDED_BUILDING: 25,
   /** Bonus when the target building was recently recaptured from the enemy */
-  BONUS_RECENT_LOSS: 25,
+  BONUS_RECENT_LOSS: 35,
   /** Number of turns after a building is captured by the player that BONUS_RECENT_LOSS applies */
   RECENTLY_LOST_WINDOW_TURNS: 4,
   /** Bonus for a ranged attack where the attacker would not be in the defender's counter range */
-  BONUS_RANGED_SAFE_ATTACK: 25,
+  BONUS_RANGED_SAFE_ATTACK: 45,
 
   // ── Lava-specific ─────────────────────────────────────────────────────────
 
   /** Large bonus added to SACRIFICE_TO_LAVA for units with the SACRIFICIAL tag */
   BONUS_SACRIFICIAL_SACRIFICE_TO_LAVA: 160,
   /** How many tiles toward lava (increasing Y) to scan when checking if a SACRIFICIAL unit is blocked */
-  SACRIFICIAL_BLOCKED_CHECK_DISTANCE: 5,
+  SACRIFICIAL_BLOCKED_CHECK_DISTANCE: 3,
 
   // ── Construction AI ───────────────────────────────────────────────────────
 
   /** Base score for a BUILD_AND_CAPTURE unit choosing to build a LAVA_LAIR on a ruin tile */
-  BASE_BUILD_LAVA_LAIR: 55,
+  BASE_BUILD_LAVA_LAIR: 65,
   /** Base score for a unit with the CORRUPT tag choosing to corrupt a FOREST or MOUNTAIN tile */
-  BASE_CORRUPT_TERRAIN: 60,
+  BASE_CORRUPT_TERRAIN: 65,
 
   // ── Explosive / Sacrificial unit AI ──────────────────────────────────────
   // These scores are tag-gated and apply to any unit carrying the EXPLOSIVE or
   // SACRIFICIAL tag (e.g. EMBERLING).
 
   /** Base score for an EXPLOSIVE unit to detonate when adjacent to one or more player units */
-  BASE_EXPLODE: 70,
+  BASE_EXPLODE: 30,
   /** Bonus added to BASE_ADVANCE_TOWARD_LAVA for units with the SACRIFICIAL tag */
   BONUS_SACRIFICIAL_ADVANCE_TOWARD_LAVA: 160,
   /**
@@ -377,7 +377,7 @@ export const AI_SCORING = {
    * from reaching lava. Ensures EXPLODE beats ADVANCE_TOWARD_LAVA (18 + 160 = 178)
    * when the unit is adjacent to a player unit and has no path forward.
    */
-  BONUS_BLOCKED_SACRIFICIAL_EXPLODE: 160,
+  BONUS_BLOCKED_SACRIFICIAL_EXPLODE: 250,
 } as const;
 
 // ============================================================================
@@ -390,12 +390,12 @@ export interface UnitCost {
 }
 
 export const UNIT_COSTS: Record<string, UnitCost> = {
-  INFANTRY: { iron: 2, wood: 1 },
-  ARCHER: { iron: 1, wood: 2 },
-  RIDER: { iron: 3, wood: 1 },
-  SIEGE: { iron: 2, wood: 3 },
-  SCOUT: { iron: 0, wood: 1 },
-  GUARD: { iron: 1, wood: 0 },
+  INFANTRY: { iron: 3, wood: 2 },
+  ARCHER: { iron: 2, wood: 3 },
+  RIDER: { iron: 4, wood: 2 },
+  SIEGE: { iron: 3, wood: 4 },
+  SCOUT: { iron: 0, wood: 2 },
+  GUARD: { iron: 2, wood: 0 },
 } as const;
 
 // ============================================================================
@@ -434,19 +434,19 @@ export const CONSTRUCTION = {
   /** Construction cost for a Woodcutter (player) */
   WOODCUTTER_COST: { iron: 0, wood: 0 },
   /** Construction cost for a Mine (player) */
-  MINE_COST: { iron: 0, wood: 1 },
+  MINE_COST: { iron: 0, wood: 2 },
   /** Construction cost for a Barracks (player) */
-  BARRACKS_COST: { iron: 0, wood: 2 },
+  BARRACKS_COST: { iron: 2, wood: 2 },
   /** Construction cost for an Archer Camp (player) */
-  ARCHER_CAMP_COST: { iron: 0, wood: 2 },
+  ARCHER_CAMP_COST: { iron: 1, wood: 3 },
   /** Construction cost for a Rider Camp (player) */
-  RIDER_CAMP_COST: { iron: 3, wood: 2 },
+  RIDER_CAMP_COST: { iron: 5, wood: 3 },
   /** Construction cost for a Siege Camp (player) */
-  SIEGE_CAMP_COST: { iron: 2, wood: 3 },
+  SIEGE_CAMP_COST: { iron: 3, wood: 5 },
   /** Construction cost for a Farm (player, built on ruins) */
-  FARM_COST: { iron: 0, wood: 2 },
+  FARM_COST: { iron: 0, wood: 3 },
   /** Construction cost for a Patrician House (player, built on ruins) */
-  PATRICIAN_HOUSE_COST: { iron: 2, wood: 2 },
+  PATRICIAN_HOUSE_COST: { iron: 3, wood: 3 },
   /** Construction cost for a Stronghold rebuild (player) */
   STRONGHOLD_COST: { iron: 0, wood: 0 },
   /** Construction cost for a Lava Lair (enemy AI, not player) */
@@ -461,11 +461,11 @@ export const CONSTRUCTION = {
 
 export const POPULATION = {
   /** Maximum population capacity for a Farm */
-  FARM_POPULATION_CAP: 3,
+  FARM_POPULATION_CAP: 2,
   /** Maximum population capacity for a Patrician House */
-  PATRICIAN_HOUSE_POPULATION_CAP: 3,
+  PATRICIAN_HOUSE_POPULATION_CAP: 2,
   /** Farmer capacity provided by a Stronghold */
-  STRONGHOLD_FARMER_CAP: 3,
+  STRONGHOLD_FARMER_CAP: 2,
   /** Noble capacity provided by a Stronghold */
   STRONGHOLD_NOBLE_CAP: 1,
   /** Initial population when a housing building is constructed */
@@ -499,9 +499,9 @@ export const UNIT_POPULATION_COSTS: Record<string, UnitPopulationCost> = {
 /** Minimum threat level required to unlock each enemy unit type for recruitment */
 export const ENEMY_UNIT_UNLOCK: Record<string, number> = {
   LAVA_GRUNT: 0,
-  LAVA_ARCHER: 2,
-  LAVA_RIDER: 4,
-  LAVA_SIEGE: 6,
+  LAVA_ARCHER: 0,
+  LAVA_RIDER: 3,
+  LAVA_SIEGE: 5,
   EMBERLING: 1,
 };
 
