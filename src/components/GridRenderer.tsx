@@ -11,7 +11,7 @@ import { useCombatAnimationStore } from '../combatAnimationStore';
 import type { Projectile } from '../combatAnimationStore';
 import { getReachableTiles } from '../movementSystem';
 import { canCapture } from '../captureSystem';
-import { MAP, RENDER, UI, ANIMATION } from '../gameConfig';
+import { MAP, RENDER, UI, ANIMATION, INPUT } from '../gameConfig';
 import {
   Faction,
   UnitType,
@@ -205,9 +205,16 @@ export default function GridRenderer() {
     startY: 0,
     scrollLeft: 0,
     scrollTop: 0,
+    lastMoveTime: 0,
+    lastMoveX: 0,
+    lastMoveY: 0,
+    velocityX: 0,
+    velocityY: 0,
   });
   // Tracks whether the last RMB press resulted in a drag (used by contextmenu handler)
   const rmbWasDragging = useRef(false);
+  // rAF handle for touch inertia; cancelled when a new drag starts
+  const inertiaRaf = useRef<number | null>(null);
 
   // Offset the inner container; we store actual scroll position internally
   const [offset, setOffset] = useState({ x: 0, y: 0 });
@@ -266,6 +273,12 @@ export default function GridRenderer() {
       const shouldDrag = isRMB || (isTouch && e.isPrimary);
       if (!shouldDrag) return;
 
+      // Cancel any ongoing inertia scroll before starting a new drag
+      if (inertiaRaf.current !== null) {
+        cancelAnimationFrame(inertiaRaf.current);
+        inertiaRaf.current = null;
+      }
+
       // Suppress the CSS transition while the user is panning manually
       if (containerRef.current) containerRef.current.classList.add('no-transition');
 
@@ -276,6 +289,11 @@ export default function GridRenderer() {
         startY: e.clientY,
         scrollLeft: offset.x,
         scrollTop: offset.y,
+        lastMoveTime: performance.now(),
+        lastMoveX: e.clientX,
+        lastMoveY: e.clientY,
+        velocityX: 0,
+        velocityY: 0,
       };
       (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
     },
@@ -292,6 +310,25 @@ export default function GridRenderer() {
     }
     if (ds.isDragging) {
       setOffset({ x: ds.scrollLeft + dx, y: ds.scrollTop + dy });
+
+      // Sample velocity for touch inertia using exponential moving average
+      // so the lift-off velocity reflects the recent motion, not just the
+      // last (potentially tiny) event delta.
+      if (e.pointerType === 'touch') {
+        const now = performance.now();
+        const dt = now - ds.lastMoveTime;
+        if (dt > 0) {
+          const instantVx = (e.clientX - ds.lastMoveX) / dt;
+          const instantVy = (e.clientY - ds.lastMoveY) / dt;
+          // alpha grows with dt so a long gap fully replaces the stored value
+          const alpha = Math.min(1, dt / 50);
+          ds.velocityX = alpha * instantVx + (1 - alpha) * ds.velocityX;
+          ds.velocityY = alpha * instantVy + (1 - alpha) * ds.velocityY;
+        }
+        ds.lastMoveTime = now;
+        ds.lastMoveX = e.clientX;
+        ds.lastMoveY = e.clientY;
+      }
     }
   }, []);
 
@@ -303,9 +340,45 @@ export default function GridRenderer() {
       rmbWasDragging.current = ds.isDragging;
     }
     ds.isDragActive = false;
-    // Restore the CSS transition now that manual panning has ended
-    if (containerRef.current) containerRef.current.classList.remove('no-transition');
     // isDragging intentionally not reset here – onClick checks it to skip post-drag clicks
+
+    // Start inertia scroll for touch swipes
+    if (e.pointerType === 'touch' && ds.isDragging) {
+      // Keep no-transition active during inertia to prevent CSS transitions from
+      // stacking on every setOffset call. Remove it only when inertia has ended.
+      let vx = ds.velocityX;
+      let vy = ds.velocityY;
+      let lastTime = performance.now();
+
+      const inertiaFrame = (now: number) => {
+        const dt = Math.min(now - lastTime, 32); // cap to avoid large jumps on tab-switch
+        lastTime = now;
+
+        const dx = vx * dt;
+        const dy = vy * dt;
+
+        const current = offsetRef.current;
+        setOffset({ x: current.x + dx, y: current.y + dy });
+
+        // Time-based decay: consistent deceleration regardless of frame rate
+        const decayFactor = Math.pow(INPUT.SWIPE_FRICTION, dt / 16.67);
+        vx *= decayFactor;
+        vy *= decayFactor;
+
+        if (Math.abs(vx) > INPUT.SWIPE_MIN_VELOCITY || Math.abs(vy) > INPUT.SWIPE_MIN_VELOCITY) {
+          inertiaRaf.current = requestAnimationFrame(inertiaFrame);
+        } else {
+          inertiaRaf.current = null;
+          // Restore the CSS transition now that inertia has fully ended
+          if (containerRef.current) containerRef.current.classList.remove('no-transition');
+        }
+      };
+
+      inertiaRaf.current = requestAnimationFrame(inertiaFrame);
+    } else {
+      // Non-touch drag (RMB) or touch tap without drag: restore CSS transition immediately
+      if (containerRef.current) containerRef.current.classList.remove('no-transition');
+    }
   }, []);
 
   // ── Reachable / Attackable sets ──
