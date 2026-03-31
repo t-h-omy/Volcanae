@@ -225,6 +225,10 @@ export const RESOURCES = {
   MINE_IRON_PER_TURN: 1,
   /** Wood produced per turn by a woodcutter */
   WOODCUTTER_WOOD_PER_TURN: 1,
+  /** Iron available at the start of a new game */
+  START_IRON: 1,
+  /** Wood available at the start of a new game */
+  START_WOOD: 1,
 } as const;
 
 // ============================================================================
