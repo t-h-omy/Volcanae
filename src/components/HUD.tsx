@@ -121,14 +121,25 @@ const displayVersion = getDisplayVersion(__APP_VERSION__);
 function GameMenu() {
   const [open, setOpen] = useState(false);
   const [devOptionsOpen, setDevOptionsOpen] = useState(false);
-  const initGame = useGameStore((s) => s.initGame);
+  const initNewGame = useGameStore((s) => s.initNewGame);
+  const saveGame = useGameStore((s) => s.saveGame);
+  const clearSavedGameAction = useGameStore((s) => s.clearSavedGame);
+  const hasSavedGameCheck = useGameStore((s) => s.hasSavedGame);
   const showAiScores = useDevOptionsStore((s) => s.showAiScores);
   const setShowAiScores = useDevOptionsStore((s) => s.setShowAiScores);
 
-  const handleRestartGame = useCallback(() => {
-    initGame();
+  const handleNewGame = useCallback(() => {
+    initNewGame();
     setOpen(false);
-  }, [initGame]);
+  }, [initNewGame]);
+
+  const handleSaveGame = useCallback(() => {
+    saveGame();
+  }, [saveGame]);
+
+  const handleClearSave = useCallback(() => {
+    clearSavedGameAction();
+  }, [clearSavedGameAction]);
 
   const handleResetCache = useCallback(async () => {
     if ('caches' in window) {
@@ -155,6 +166,10 @@ function GameMenu() {
     return () => window.removeEventListener('keydown', onKey);
   }, [open]);
 
+  // Read current save status directly from localStorage each render so the
+  // menu always reflects the latest state without needing a separate effect.
+  const saveExists = hasSavedGameCheck();
+
   return (
     <div className="hud-game-menu">
       <button
@@ -174,8 +189,16 @@ function GameMenu() {
             onClick={() => { setDevOptionsOpen(false); setOpen(false); }}
           />
           <div className="hud-menu-dropdown" role="menu">
-            <button className="hud-menu-item" role="menuitem" onClick={handleRestartGame}>
-              🔄 Restart Game
+            <button className="hud-menu-item" role="menuitem" onClick={handleSaveGame}>
+              💾 Save Game
+            </button>
+            {saveExists && (
+              <button className="hud-menu-item" role="menuitem" onClick={handleClearSave}>
+                🗑️ Clear Save
+              </button>
+            )}
+            <button className="hud-menu-item" role="menuitem" onClick={handleNewGame}>
+              🔄 New Game
             </button>
             <button className="hud-menu-item" role="menuitem" onClick={handleResetCache}>
               🗑️ Reset Cache &amp; Reload
