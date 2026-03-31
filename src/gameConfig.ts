@@ -375,7 +375,7 @@ export const AI_SCORING = {
   /** Base score for an EXPLOSIVE unit to detonate when adjacent to one or more player units */
   BASE_EXPLODE: 30,
   /** Bonus added to BASE_ADVANCE_TOWARD_LAVA for units with the SACRIFICIAL tag */
-  BONUS_SACRIFICIAL_ADVANCE_TOWARD_LAVA: 160,
+  BONUS_SACRIFICIAL_ADVANCE_TOWARD_LAVA: 130,
   /**
    * Extra bonus added to EXPLODE for a SACRIFICIAL unit that is confirmed blocked
    * from reaching lava. Ensures EXPLODE beats ADVANCE_TOWARD_LAVA (18 + 160 = 178)
