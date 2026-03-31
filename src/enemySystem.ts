@@ -1035,12 +1035,16 @@ function scoreActionsForUnit(
       playerStrongholds.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
       const building = playerStrongholds[0];
       const distance = manhattanDistance(unit.position, building.position);
-      // If the enemy is already adjacent to the stronghold and a player unit is standing on it,
-      // advancing further is impossible — skip this action so ATTACK_UNIT takes priority.
+      // If a player unit is standing on the stronghold and the enemy is already within striking
+      // range, suppress this action so attack actions take priority instead.
+      // Ranged units use their full attackRange as the threshold (they should stay at range and
+      // fire); melee units use distance 1 (they must be adjacent to attack).
       const strongholdTile = state.grid[building.position.y][building.position.x];
       const playerUnitOnStronghold = strongholdTile.unitId != null
         && state.units[strongholdTile.unitId]?.faction === Faction.PLAYER;
-      if (!(playerUnitOnStronghold && distance <= 1)) {
+      const isRanged = unit.tags.includes(UnitTag.RANGED);
+      const strikeThreshold = isRanged ? attackRange : 1;
+      if (!(playerUnitOnStronghold && distance <= strikeThreshold)) {
         const score = AI_SCORING.BASE_PUSH_TO_STRONGHOLD
           * AI_SCORING.BUILDING_VALUE_STRONGHOLD
           - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
