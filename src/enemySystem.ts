@@ -236,6 +236,47 @@ function stepToward(from: Position, target: Position, state: Draft<GameState>): 
   return from;
 }
 
+/**
+ * Finds the best target position for ADVANCE_TOWARD_LAVA using pathfinding.
+ * Scans rows progressively toward the lava front row, returning the first row
+ * that has a free (non-lava, unoccupied) tile and picking the tile closest to
+ * the unit's current X column. This allows moveEnemyUnitToward to travel
+ * diagonally or sideways rather than only straight south.
+ */
+function findLavaAdvanceTarget(unit: Unit, state: Draft<GameState>): Position {
+  const lavaFrontRow = state.lavaFrontRow;
+  const startX = unit.position.x;
+  const startY = unit.position.y;
+  // Scan up to moveRange + a small buffer sideways for path-finding flexibility
+  const scanWidth = unit.stats.moveRange + 3;
+
+  // Walk from just before the lava row back toward (but not including) the
+  // unit's own row — we want tiles strictly ahead (higher Y = closer to lava).
+  for (let ty = lavaFrontRow - 1; ty > startY; ty--) {
+    let bestX: number | null = null;
+    let bestDist = Infinity;
+
+    for (let tx = Math.max(0, startX - scanWidth); tx <= Math.min(MAP.GRID_WIDTH - 1, startX + scanWidth); tx++) {
+      const tile = state.grid[ty][tx];
+      if (tile.isLava || tile.unitId !== null) continue;
+      const dist = Math.abs(tx - startX);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestX = tx;
+      }
+    }
+
+    if (bestX !== null) {
+      return { x: bestX, y: ty };
+    }
+  }
+
+  // Fallback: all rows ahead are fully blocked or unit is already adjacent to
+  // lava. Target the lava row itself so the unit steps in (moveEnemyUnit handles
+  // lava entry by destroying the unit and incrementing threat).
+  return { x: startX, y: Math.min(MAP.GRID_HEIGHT - 1, lavaFrontRow) };
+}
+
 function alliedUnitsNear(pos: Position, radius: number, excludeId: string, state: Draft<GameState>): number {
   let count = 0;
   for (const unit of Object.values(state.units)) {
@@ -1076,10 +1117,14 @@ function scoreActionsForUnit(
         playerUnits.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
         candidates.push({ type: 'ADVANCE_TOWARD_LAVA', score, targetPosition: playerUnits[0].position });
       } else {
-        candidates.push({ type: 'ADVANCE_TOWARD_LAVA', score });
+        // No player units to push through — still use pathfinding to advance
+        const lavaTarget = findLavaAdvanceTarget(unit, state);
+        candidates.push({ type: 'ADVANCE_TOWARD_LAVA', score, targetPosition: lavaTarget });
       }
     } else {
-      candidates.push({ type: 'ADVANCE_TOWARD_LAVA', score });
+      // Use pathfinding target so movement can be diagonal/sideways around obstacles
+      const lavaTarget = findLavaAdvanceTarget(unit, state);
+      candidates.push({ type: 'ADVANCE_TOWARD_LAVA', score, targetPosition: lavaTarget });
     }
   }
 

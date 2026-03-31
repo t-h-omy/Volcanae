@@ -199,10 +199,11 @@ export function initiateCapture(
 
   if (isPlayerTransfer) {
     // Transfer ownership — building stays on the tile
+    const wasEnemy = building.faction === Faction.ENEMY;
     building.faction = Faction.PLAYER;
     building.captureProgress = 0;
     building.isBeingCapturedBy = null;
-    building.wasEnemyOwnedBeforeCapture = true;
+    building.wasEnemyOwnedBeforeCapture = wasEnemy;
     building.turnCapturedByPlayer = state.turn;
 
     if (building.type === BuildingType.STRONGHOLD) {
@@ -311,10 +312,11 @@ export function resolveCaptures(state: Draft<GameState>): void {
       (building.type === BuildingType.STRONGHOLD || building.type === BuildingType.WATCHTOWER);
 
     if (isPlayerTransfer) {
+      const wasEnemy = building.faction === Faction.ENEMY;
       building.faction = Faction.PLAYER;
       building.captureProgress = 0;
       building.isBeingCapturedBy = null;
-      building.wasEnemyOwnedBeforeCapture = true;
+      building.wasEnemyOwnedBeforeCapture = wasEnemy;
       building.turnCapturedByPlayer = state.turn;
 
       if (building.type === BuildingType.STRONGHOLD) {
