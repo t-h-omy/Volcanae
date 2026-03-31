@@ -58,16 +58,13 @@ type EnemyActionType =
   | 'MOVE_TO_PLAYER_BUILDING'
   | 'MOVE_TO_NEUTRAL_BUILDING'
   | 'MOVE_TO_UNIT'
-  | 'ADVANCE_WITH_LAVA'
+  | 'ADVANCE_TOWARD_LAVA'
   | 'FLANK_UNIT'
-  | 'ADVANCE_SOUTH'
   | 'SACRIFICE_TO_LAVA'
   | 'CORRUPT_TERRAIN'
   | 'BUILD_LAVA_LAIR'
   | 'BUILD_INFERNAL_SANCTUM'
   | 'EXPLODE'
-  | 'MOVE_TO_LAVA'
-  | 'SACRIFICIAL_ADVANCE'
   | 'HOLD_POSITION';
 
 interface ScoredAction {
@@ -357,22 +354,6 @@ const RECRUITMENT_BASE_SCORES: Partial<Record<UnitType, number>> = {
   [UnitType.LAVA_SIEGE]: 55,
   [UnitType.EMBERLING]: 45,
 };
-
-/**
- * Per-unit-type bonus added on top of AI_SCORING.BASE_MOVE_TO_LAVA and
- * AI_SCORING.BASE_SACRIFICIAL_ADVANCE when scoring lava-seeking actions.
- * Units not listed here receive no extra bonus (effective bonus = 0).
- * Emberlings get a large bonus so they overwhelmingly prefer rushing the lava
- * over any other available action.
- */
-const SACRIFICIAL_LAVA_BONUS: Partial<Record<UnitType, number>> = {
-  [UnitType.EMBERLING]: 160,
-};
-
-/** Returns the per-unit-type bonus for lava-seeking (MOVE_TO_LAVA / SACRIFICIAL_ADVANCE) actions. */
-function sacrificialLavaMoveBonus(unitType: UnitType): number {
-  return SACRIFICIAL_LAVA_BONUS[unitType] ?? 0;
-}
 
 /**
  * Gets the zone number (1-5) for a given row position.
@@ -1029,15 +1010,6 @@ function scoreActionsForUnit(
     }
   }
 
-  // ── ADVANCE_WITH_LAVA ──
-  if (!unit.hasMovedThisTurn && unit.tags.includes(UnitTag.LAVABOOST)) {
-    const lavaDistance = state.lavaFrontRow - unit.position.y;
-    const boostFactor = Math.max(0, 1 - lavaDistance / ENEMY.MAX_LAVA_BOOST_DISTANCE);
-    const score = AI_SCORING.BASE_ADVANCE_WITH_LAVA
-      + boostFactor * AI_SCORING.BONUS_LAVA_BOOST_AGGRESSION;
-    candidates.push({ type: 'ADVANCE_WITH_LAVA', score: Math.max(0, score) });
-  }
-
   // ── PUSH_TO_ZONE_EDGE ──
   if (!unit.hasMovedThisTurn) {
     const hasPlayerTargets = playerUnitsInTriggerRange.length > 0;
@@ -1065,9 +1037,11 @@ function scoreActionsForUnit(
     }
   }
 
-  // ── ADVANCE_SOUTH ──
+  // ── ADVANCE_TOWARD_LAVA ──
   if (!unit.hasMovedThisTurn) {
-    candidates.push({ type: 'ADVANCE_SOUTH', score: AI_SCORING.BASE_ADVANCE_SOUTH });
+    const score = AI_SCORING.BASE_ADVANCE_TOWARD_LAVA
+      + (unit.tags.includes(UnitTag.SACRIFICIAL) ? AI_SCORING.BONUS_SACRIFICIAL_ADVANCE_TOWARD_LAVA : 0);
+    candidates.push({ type: 'ADVANCE_TOWARD_LAVA', score });
   }
 
   // ── SACRIFICE_TO_LAVA ──
@@ -1084,97 +1058,20 @@ function scoreActionsForUnit(
     }
   }
 
-  // ── SACRIFICIAL lava-advance simulation ──
-  // Run the advancement simulation up-front so that the EXPLODE scoring can check
-  // whether a valid lava path exists. The result is also used directly by MOVE_TO_LAVA.
-  let sacrificialBestPos: Position | null = null;
-  if (!unit.hasMovedThisTurn && unit.tags.includes(UnitTag.SACRIFICIAL)) {
-    const lavaFrontRow = state.lavaFrontRow;
-    const currentDistToLava = lavaFrontRow - unit.position.y;
-
-    let bestDist = currentDistToLava;
-    const moveRange = unit.stats.moveRange;
-
-    for (let dy = -moveRange; dy <= moveRange; dy++) {
-      for (let dx = -moveRange; dx <= moveRange; dx++) {
-        if (Math.abs(dx) + Math.abs(dy) > moveRange) continue;
-        if (dx === 0 && dy === 0) continue;
-        const nx = unit.position.x + dx;
-        const ny = unit.position.y + dy;
-        if (!isWithinBounds({ x: nx, y: ny })) continue;
-        const tile = state.grid[ny][nx];
-        // Allow moving into lava (that's the sacrifice!) or free tiles
-        if (tile.unitId !== null && !tile.isLava) continue;
-        const distToLava = lavaFrontRow - ny;
-        if (distToLava < bestDist) {
-          bestDist = distToLava;
-          sacrificialBestPos = { x: nx, y: ny };
-        }
-      }
-    }
-  }
-
   // ── EXPLODE (EXPLOSIVE tag — reusable for any explosive unit) ──
-  // For units that also carry the SACRIFICIAL tag, EXPLODE is suppressed whenever
-  // the advancement simulation found a valid path toward the lava. This ensures
-  // the unit always prefers sacrificing itself over detonating prematurely.
-  // For pure EXPLOSIVE units (not SACRIFICIAL), this gate does not apply.
   if (!unit.hasActedThisTurn && unit.tags.includes(UnitTag.EXPLOSIVE)) {
-    const isSacrificial = unit.tags.includes(UnitTag.SACRIFICIAL);
-    const blockedFromLava = !isSacrificial || sacrificialBestPos === null;
-    if (blockedFromLava) {
-      let hasAdjacentPlayer = false;
-      for (const u of Object.values(state.units)) {
-        if (u.faction !== Faction.PLAYER) continue;
-        const dx = Math.abs(u.position.x - unit.position.x);
-        const dy = Math.abs(u.position.y - unit.position.y);
-        if (Math.max(dx, dy) <= 1) {
-          hasAdjacentPlayer = true;
-          break;
-        }
-      }
-      if (hasAdjacentPlayer) {
-        candidates.push({ type: 'EXPLODE', score: AI_SCORING.BASE_EXPLODE });
-      }
-    }
-  }
-
-  // ── MOVE_TO_LAVA (SACRIFICIAL tag — reusable for any sacrificial unit) ──
-  // Uses the pre-computed simulation result; no second loop needed.
-  // A per-unit-type bonus (sacrificialLavaMoveBonus) is added on top of the base score,
-  // so units like EMBERLING express a much stronger preference than generic sacrificial units.
-  if (!unit.hasMovedThisTurn && unit.tags.includes(UnitTag.SACRIFICIAL) && sacrificialBestPos) {
-    candidates.push({
-      type: 'MOVE_TO_LAVA',
-      score: AI_SCORING.BASE_MOVE_TO_LAVA + sacrificialLavaMoveBonus(unit.type),
-      targetPosition: sacrificialBestPos,
-    });
-  }
-
-  // ── SACRIFICIAL_ADVANCE (SACRIFICIAL tag — fallback: move toward nearest player) ──
-  // When a sacrificial unit can't reach lava, advance toward nearest player unit instead.
-  // Only add this action if the target is in the direction of the lava (higher or equal Y),
-  // so the unit never moves away from the lava toward enemy territory.
-  // Same per-unit-type bonus applies here.
-  if (!unit.hasMovedThisTurn && unit.tags.includes(UnitTag.SACRIFICIAL)) {
-    let nearestPlayer: Unit | null = null;
-    let nearestDist = Infinity;
+    let hasAdjacentPlayer = false;
     for (const u of Object.values(state.units)) {
       if (u.faction !== Faction.PLAYER) continue;
-      // Only consider player units that are at or closer to the lava (higher or equal Y)
-      if (u.position.y < unit.position.y) continue;
-      const dist = manhattanDistance(unit.position, u.position);
-      if (dist < nearestDist) {
-        nearestDist = dist;
-        nearestPlayer = u;
+      const dx = Math.abs(u.position.x - unit.position.x);
+      const dy = Math.abs(u.position.y - unit.position.y);
+      if (Math.max(dx, dy) <= 1) {
+        hasAdjacentPlayer = true;
+        break;
       }
     }
-    if (nearestPlayer) {
-      candidates.push({
-        type: 'SACRIFICIAL_ADVANCE',
-        score: AI_SCORING.BASE_SACRIFICIAL_ADVANCE + sacrificialLavaMoveBonus(unit.type),
-        targetPosition: nearestPlayer.position,
-      });
+    if (hasAdjacentPlayer) {
+      candidates.push({ type: 'EXPLODE', score: AI_SCORING.BASE_EXPLODE });
     }
   }
 
@@ -1393,13 +1290,12 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
       break;
     }
 
-    case 'ADVANCE_WITH_LAVA':
-    case 'ADVANCE_SOUTH': {
-      const southTarget: Position = {
+    case 'ADVANCE_TOWARD_LAVA': {
+      const lavaTarget: Position = {
         x: currentUnit.position.x,
         y: Math.min(MAP.GRID_HEIGHT - 1, currentUnit.position.y + currentUnit.stats.moveRange),
       };
-      moveEnemyUnitToward(state, currentUnit.id, southTarget, events);
+      moveEnemyUnitToward(state, currentUnit.id, lavaTarget, events);
       break;
     }
 
@@ -1462,20 +1358,6 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
     case 'EXPLODE': {
       resolveExplosion(state, currentUnit.id, events ?? []);
       return; // unit is destroyed, no further processing
-    }
-
-    case 'MOVE_TO_LAVA': {
-      if (action.targetPosition && !currentUnit.hasMovedThisTurn) {
-        moveEnemyUnitToward(state, currentUnit.id, action.targetPosition, events);
-      }
-      break;
-    }
-
-    case 'SACRIFICIAL_ADVANCE': {
-      if (action.targetPosition && !currentUnit.hasMovedThisTurn) {
-        moveEnemyUnitToward(state, currentUnit.id, action.targetPosition, events);
-      }
-      break;
     }
 
     case 'HOLD_POSITION':
