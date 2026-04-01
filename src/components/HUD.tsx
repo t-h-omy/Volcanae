@@ -127,6 +127,7 @@ function GameMenu() {
   const hasSavedGameCheck = useGameStore((s) => s.hasSavedGame);
   const showAiScores = useDevOptionsStore((s) => s.showAiScores);
   const setShowAiScores = useDevOptionsStore((s) => s.setShowAiScores);
+  const debugRevealAll = useGameStore((s) => s.debugRevealAll);
 
   const handleNewGame = useCallback(() => {
     initNewGame();
@@ -222,6 +223,12 @@ function GameMenu() {
                     onChange={(e) => setShowAiScores(e.target.checked)}
                   />
                 </label>
+                <button
+                  className="hud-dev-option-action"
+                  onClick={debugRevealAll}
+                >
+                  👁️ Discover all fields
+                </button>
               </div>
             )}
             <div className="hud-menu-version">v{displayVersion}</div>
