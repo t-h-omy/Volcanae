@@ -118,16 +118,68 @@ function getDisplayVersion(full: string): string {
 
 const displayVersion = getDisplayVersion(__APP_VERSION__);
 
+const isDev = import.meta.env.DEV;
+
+// ============================================================================
+// DEV OPTIONS OVERLAY
+// ============================================================================
+
+function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
+  const showAiScores = useDevOptionsStore((s) => s.showAiScores);
+  const setShowAiScores = useDevOptionsStore((s) => s.setShowAiScores);
+  const debugAdvanceLava = useGameStore((s) => s.debugAdvanceLava);
+  const debugAddResources = useGameStore((s) => s.debugAddResources);
+  const debugGiveSpecialist = useGameStore((s) => s.debugGiveSpecialist);
+  const debugRevealAll = useGameStore((s) => s.debugRevealAll);
+  const debugAddFarmers = useGameStore((s) => s.debugAddFarmers);
+  const debugAddRuin = useGameStore((s) => s.debugAddRuin);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div className="hud-dev-overlay-backdrop" onClick={onClose}>
+      <div className="hud-dev-overlay" onClick={(e) => e.stopPropagation()}>
+        <div className="hud-dev-overlay-header">
+          <span>🛠️ Dev Options</span>
+          <button className="hud-modal-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="hud-dev-overlay-body">
+          <div className="hud-dev-overlay-section-title">Toggles</div>
+          <label className="hud-dev-option-row">
+            <span className="hud-dev-option-label">Show AI Scores for Enemy Units</span>
+            <input
+              type="checkbox"
+              className="hud-dev-option-toggle"
+              checked={showAiScores}
+              onChange={(e) => setShowAiScores(e.target.checked)}
+            />
+          </label>
+          <div className="hud-dev-overlay-section-title">Actions</div>
+          <button className="hud-dev-action-btn" onClick={debugAdvanceLava}>🌋 Advance Lava</button>
+          <button className="hud-dev-action-btn" onClick={debugAddResources}>💰 +10 Resources</button>
+          <button className="hud-dev-action-btn" onClick={debugGiveSpecialist}>🧙 Give Specialist</button>
+          <button className="hud-dev-action-btn" onClick={debugRevealAll}>👁️ Reveal All</button>
+          <button className="hud-dev-action-btn" onClick={debugAddFarmers}>🌾 Add Farm (zone 1)</button>
+          <button className="hud-dev-action-btn" onClick={debugAddRuin}>🗿 Add Ruin (near unit)</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function GameMenu() {
   const [open, setOpen] = useState(false);
-  const [devOptionsOpen, setDevOptionsOpen] = useState(false);
+  const [devOptionsOverlayOpen, setDevOptionsOverlayOpen] = useState(false);
   const initNewGame = useGameStore((s) => s.initNewGame);
   const saveGame = useGameStore((s) => s.saveGame);
   const clearSavedGameAction = useGameStore((s) => s.clearSavedGame);
   const hasSavedGameCheck = useGameStore((s) => s.hasSavedGame);
-  const showAiScores = useDevOptionsStore((s) => s.showAiScores);
-  const setShowAiScores = useDevOptionsStore((s) => s.setShowAiScores);
-  const debugRevealAll = useGameStore((s) => s.debugRevealAll);
 
   const handleNewGame = useCallback(() => {
     initNewGame();
@@ -158,10 +210,7 @@ function GameMenu() {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setDevOptionsOpen(false);
-        setOpen(false);
-      }
+      if (e.key === 'Escape') setOpen(false);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -187,7 +236,7 @@ function GameMenu() {
           <div
             className="hud-menu-backdrop"
             role="presentation"
-            onClick={() => { setDevOptionsOpen(false); setOpen(false); }}
+            onClick={() => setOpen(false)}
           />
           <div className="hud-menu-dropdown" role="menu">
             <button className="hud-menu-item" role="menuitem" onClick={handleSaveGame}>
@@ -204,36 +253,21 @@ function GameMenu() {
             <button className="hud-menu-item" role="menuitem" onClick={handleResetCache}>
               🗑️ Reset Cache &amp; Reload
             </button>
-            <button
-              className="hud-menu-item"
-              role="menuitem"
-              onClick={() => setDevOptionsOpen((o) => !o)}
-              aria-expanded={devOptionsOpen}
-            >
-              🛠️ Dev Options {devOptionsOpen ? '▲' : '▼'}
-            </button>
-            {devOptionsOpen && (
-              <div className="hud-dev-options-panel">
-                <label className="hud-dev-option-row">
-                  <span className="hud-dev-option-label">Show AI Scores for Enemy Units</span>
-                  <input
-                    type="checkbox"
-                    className="hud-dev-option-toggle"
-                    checked={showAiScores}
-                    onChange={(e) => setShowAiScores(e.target.checked)}
-                  />
-                </label>
-                <button
-                  className="hud-dev-option-action"
-                  onClick={debugRevealAll}
-                >
-                  👁️ Discover all fields
-                </button>
-              </div>
+            {isDev && (
+              <button
+                className="hud-menu-item"
+                role="menuitem"
+                onClick={() => { setOpen(false); setDevOptionsOverlayOpen(true); }}
+              >
+                🛠️ Dev Options
+              </button>
             )}
             <div className="hud-menu-version">v{displayVersion}</div>
           </div>
         </>
+      )}
+      {devOptionsOverlayOpen && (
+        <DevOptionsOverlay onClose={() => setDevOptionsOverlayOpen(false)} />
       )}
     </div>
   );
@@ -1032,42 +1066,8 @@ function TurnAnnouncementPopup({ turn }: { turn: number }) {
 }
 
 // ============================================================================
-// DEBUG PANEL (development only)
-// ============================================================================
-
-function DebugPanel() {
-  const debugGiveSpecialist = useGameStore((s) => s.debugGiveSpecialist);
-  const debugAdvanceLava = useGameStore((s) => s.debugAdvanceLava);
-  const debugAddResources = useGameStore((s) => s.debugAddResources);
-  const debugRevealAll = useGameStore((s) => s.debugRevealAll);
-
-  const [collapsed, setCollapsed] = useState(true);
-
-  return (
-    <div className="hud-debug-panel">
-      <button
-        className="hud-debug-toggle"
-        onClick={() => setCollapsed((c) => !c)}
-      >
-        {collapsed ? '🐛' : '🐛 Debug'}
-      </button>
-      {!collapsed && (
-        <div className="hud-debug-btns">
-          <button onClick={debugGiveSpecialist}>🧙 Give Specialist</button>
-          <button onClick={debugAdvanceLava}>🌋 Advance Lava</button>
-          <button onClick={debugAddResources}>💰 +10 Resources</button>
-          <button onClick={debugRevealAll}>👁️ Reveal All</button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ============================================================================
 // MAIN HUD COMPONENT
 // ============================================================================
-
-const isDev = import.meta.env.DEV;
 
 export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
   const phase = useGameStore((s) => s.phase);
@@ -1079,7 +1079,6 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
       {!hasSeenIntro && <GameIntroPopup onDismiss={() => setHasSeenIntro(true)} />}
       <TopBar />
       <BottomBar />
-      {isDev && <DebugPanel />}
       {phase === GamePhase.GAME_OVER && <GameOverOverlay />}
       {phase === GamePhase.VICTORY && <VictoryOverlay />}
       {showTurnPopup && <TurnAnnouncementPopup turn={turn} />}
