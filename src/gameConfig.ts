@@ -369,7 +369,7 @@ export const AI_SCORING = {
   // ── Lava-specific ─────────────────────────────────────────────────────────
 
   /** Large bonus added to SACRIFICE_TO_LAVA for units with the SACRIFICIAL tag */
-  BONUS_SACRIFICIAL_SACRIFICE_TO_LAVA: 160,
+  BONUS_SACRIFICIAL_SACRIFICE_TO_LAVA: 0,
   /** How many tiles toward lava (increasing Y) to scan when checking if a SACRIFICIAL unit is blocked */
   SACRIFICIAL_BLOCKED_CHECK_DISTANCE: 3,
 

@@ -745,9 +745,13 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
   // should also appear exhausted — there's nothing more it can do this turn.
   const noAttackTargets = useGameStore((s) => {
     if (unit.faction !== Faction.PLAYER || !unit.hasMovedThisTurn || unit.hasActedThisTurn) return false;
+    // PREP units cannot attack after moving — treat as exhausted immediately
+    if (unit.tags.includes(UnitTag.PREP)) return true;
     return !Object.values(s.units).some(
       (other) =>
         other.faction === Faction.ENEMY &&
+        // Cannot attack enemies on undiscovered tiles
+        s.grid[other.position.y]?.[other.position.x]?.isRevealed &&
         isTileWithinEdgeCircleRange(
           unit.position.x, unit.position.y,
           other.position.x, other.position.y,
