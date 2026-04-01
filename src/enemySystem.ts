@@ -30,10 +30,6 @@ function generateEnemyId(): string {
 // ============================================================================
 
 const BUILDING_SPAWN_UNIT_TYPE: Partial<Record<BuildingType, UnitType>> = {
-  [BuildingType.BARRACKS]: UnitType.LAVA_GRUNT,
-  [BuildingType.ARCHER_CAMP]: UnitType.LAVA_ARCHER,
-  [BuildingType.RIDER_CAMP]: UnitType.LAVA_RIDER,
-  [BuildingType.SIEGE_CAMP]: UnitType.LAVA_SIEGE,
   [BuildingType.LAVALAIR]: UnitType.LAVA_GRUNT,
   [BuildingType.INFERNALSANCTUM]: UnitType.LAVA_RIDER,
 };
@@ -91,10 +87,6 @@ function isWithinBounds(pos: Position): boolean {
 
 function isRecruitmentBuilding(building: Building): boolean {
   return (
-    building.type === BuildingType.BARRACKS ||
-    building.type === BuildingType.ARCHER_CAMP ||
-    building.type === BuildingType.RIDER_CAMP ||
-    building.type === BuildingType.SIEGE_CAMP ||
     building.type === BuildingType.LAVALAIR ||
     building.type === BuildingType.INFERNALSANCTUM
   );
