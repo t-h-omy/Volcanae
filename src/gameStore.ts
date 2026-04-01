@@ -352,6 +352,10 @@ export const useGameStore = create<GameStore>()(
     constructBuilding: (unitId: string, tilePos: Position, buildingType: BuildingType) => {
       set((state) => {
         constructBuildingLogic(state, unitId, tilePos, buildingType);
+        // Recompute population capacity after building construction
+        const capacity = computePopulationCapacity(state);
+        state.resources.farmers = capacity.farmerCapacity;
+        state.resources.nobles = capacity.nobleCapacity;
         updateDiscovery(state);
         checkGameConditions(state);
       });
@@ -360,6 +364,10 @@ export const useGameStore = create<GameStore>()(
     destroyOwnBuilding: (unitId: string, buildingId: string) => {
       set((state) => {
         destroyOwnBuildingLogic(state, unitId, buildingId);
+        // Recompute population capacity after building destruction
+        const capacity = computePopulationCapacity(state);
+        state.resources.farmers = capacity.farmerCapacity;
+        state.resources.nobles = capacity.nobleCapacity;
         updateDiscovery(state);
         checkGameConditions(state);
       });

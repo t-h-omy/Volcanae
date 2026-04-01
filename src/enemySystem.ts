@@ -1140,10 +1140,23 @@ function scoreActionsForUnit(
   }
 
   // ── SACRIFICE_TO_LAVA ──
+  // Only score this when lava is directly adjacent — unit will step into it this turn.
   if (!unit.hasMovedThisTurn) {
-    const score = AI_SCORING.BASE_SACRIFICE_TO_LAVA
-      + (unit.tags.includes(UnitTag.SACRIFICIAL) ? AI_SCORING.BONUS_SACRIFICIAL_SACRIFICE_TO_LAVA : 0);
-    candidates.push({ type: 'SACRIFICE_TO_LAVA', score });
+    let adjacentLavaPos: Position | null = null;
+    for (const [dx, dy] of [[0, 1], [0, -1], [1, 0], [-1, 0]] as const) {
+      const nx = unit.position.x + dx;
+      const ny = unit.position.y + dy;
+      if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;
+      if (state.grid[ny][nx].isLava) {
+        adjacentLavaPos = { x: nx, y: ny };
+        break;
+      }
+    }
+    if (adjacentLavaPos) {
+      const score = AI_SCORING.BASE_SACRIFICE_TO_LAVA
+        + (unit.tags.includes(UnitTag.SACRIFICIAL) ? AI_SCORING.BONUS_SACRIFICIAL_SACRIFICE_TO_LAVA : 0);
+      candidates.push({ type: 'SACRIFICE_TO_LAVA', score, targetPosition: adjacentLavaPos });
+    }
   }
 
   // ── EXPLODE (EXPLOSIVE + SACRIFICIAL blocked, or pure EXPLOSIVE — reusable for any explosive unit) ──
@@ -1393,8 +1406,15 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
     }
 
     case 'SACRIFICE_TO_LAVA': {
-      destroyUnit(state, currentUnit.id, events);
-      state.threatLevel += 1;
+      // Move the unit into the adjacent lava tile; moveEnemyUnit handles lava entry
+      // (emits ENEMY_MOVE event, destroys the unit, and increments threat level).
+      if (action.targetPosition) {
+        moveEnemyUnit(state, currentUnit.id, action.targetPosition, events);
+      } else {
+        // Fallback: destroy in place (should not normally happen)
+        destroyUnit(state, currentUnit.id, events);
+        state.threatLevel += 1;
+      }
       return;
     }
 
