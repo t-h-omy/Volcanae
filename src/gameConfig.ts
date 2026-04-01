@@ -400,6 +400,81 @@ export const AI_SCORING = {
   BONUS_BLOCKED_SACRIFICIAL_EXPLODE: 250,
 } as const;
 
+export const AI_RECRUITMENT = {
+
+  // ── Base scores per unit type ────────────────────────────────────────────
+  // Starting score before any context bonuses or penalties are applied.
+  // Keep low — context should drive decisions. Adjust for coarse balancing.
+  BASE_SCORE_GRUNT: 0,
+  BASE_SCORE_ARCHER: 0,
+  BASE_SCORE_RIDER: 0,
+  BASE_SCORE_SIEGE: 0,
+  BASE_SCORE_EMBERLING: 0,
+
+  // ── Classification thresholds ───────────────────────────────────────────
+  /** Unit offensiveScore >= this → counted as offensive */
+  OFFENSIVE_THRESHOLD: 0.6,
+  /** Unit defensiveScore >= this → counted as defensive */
+  DEFENSIVE_THRESHOLD: 0.4,
+  /** moveRange >= this → unit is classified as fast */
+  FAST_THRESHOLD: 2,
+  /** attackRange >= this AND RANGED tag → classified as ranged (includes siege) */
+  RANGED_THRESHOLD: 2,
+  /** attackRange >= this AND RANGED tag → classified as siege */
+  SIEGE_THRESHOLD: 3,
+  // slow melee = attackRange < RANGED_THRESHOLD AND moveRange < FAST_THRESHOLD
+  // melee = attackRange < RANGED_THRESHOLD (regardless of speed)
+
+  // ── LAVA_GRUNT ──────────────────────────────────────────────────────────
+  GRUNT_BONUS_ENEMY_OFF_EXCEEDS_DEF: 20,
+  GRUNT_BONUS_PLAYER_OFFENSIVE_COUNT: 5,
+  GRUNT_BONUS_ENEMY_SIEGE_EXISTS: 25,
+  GRUNT_BONUS_HIGH_PLAYER_MELEE_RATIO: 20,
+  GRUNT_PLAYER_MELEE_RATIO_THRESHOLD: 0.5,
+  GRUNT_PENALTY_OVERREPRESENTED: 20,
+  GRUNT_OVERREPRESENTED_THRESHOLD: 0.6,
+
+  // ── LAVA_ARCHER ─────────────────────────────────────────────────────────
+  ARCHER_BONUS_PLAYER_SLOW_MELEE_RATIO: 30,
+  ARCHER_PLAYER_SLOW_MELEE_RATIO_THRESHOLD: 0.4,
+  ARCHER_BONUS_ENEMY_DEF_COVER: 20,
+  ARCHER_ENEMY_DEF_COUNT_THRESHOLD: 2,
+  ARCHER_PENALTY_PLAYER_FAST_RATIO: 35,
+  ARCHER_PLAYER_FAST_RATIO_THRESHOLD: 0.25,
+  ARCHER_PENALTY_OVERREPRESENTED: 20,
+  ARCHER_RANGED_OVERREPRESENTED_THRESHOLD: 0.4,
+
+  // ── LAVA_RIDER ──────────────────────────────────────────────────────────
+  RIDER_BONUS_PLAYER_RANGED_RATIO: 30,
+  RIDER_PLAYER_RANGED_RATIO_THRESHOLD: 0.25,
+  RIDER_BONUS_PLAYER_RANGED_COUNT: 8,
+  RIDER_BONUS_ENEMY_FAST_GAP: 15,
+  RIDER_ENEMY_FAST_GAP_THRESHOLD: 2,
+  RIDER_PENALTY_OVERREPRESENTED: 20,
+  RIDER_FAST_OVERREPRESENTED_THRESHOLD: 0.4,
+
+  // ── LAVA_SIEGE ──────────────────────────────────────────────────────────
+  SIEGE_BONUS_PLAYER_SLOW_MELEE_RATIO: 30,
+  SIEGE_PLAYER_SLOW_MELEE_RATIO_THRESHOLD: 0.5,
+  SIEGE_BONUS_ENEMY_DEF_COVER: 25,
+  SIEGE_ENEMY_DEF_COUNT_THRESHOLD: 2,
+  SIEGE_PENALTY_NO_COVER: 20,
+  SIEGE_NO_COVER_THRESHOLD: 2,
+  SIEGE_PENALTY_PLAYER_FAST_RATIO: 35,
+  SIEGE_PLAYER_FAST_RATIO_THRESHOLD: 0.25,
+  SIEGE_PENALTY_OVERREPRESENTED: 15,
+  SIEGE_OVERREPRESENTED_THRESHOLD: 0.3,
+
+  // ── EMBERLING ───────────────────────────────────────────────────────────
+  EMBERLING_BONUS_PLAYER_MELEE_RATIO: 25,
+  EMBERLING_PLAYER_MELEE_RATIO_THRESHOLD: 0.5,
+  EMBERLING_BONUS_PLAYER_SLOW_MELEE_COUNT: 6,
+  EMBERLING_BONUS_NONE_NEARBY: 20,
+  EMBERLING_PENALTY_OVERREPRESENTED: 30,
+  EMBERLING_NEARBY_OVERREPRESENTED_COUNT: 2,
+
+} as const;
+
 // ============================================================================
 // UNIT COST CONFIGURATION
 // ============================================================================
@@ -639,6 +714,7 @@ export const GAME_CONFIG = {
   ENEMY,
   ENEMY_UNIT_UNLOCK,
   AI_SCORING,
+  AI_RECRUITMENT,
   UNIT_COSTS,
   ANIMATION,
   RENDER,
