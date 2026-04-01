@@ -104,7 +104,7 @@ export function calculateCombatFromStats(attacker: Combatant, defender: Combatan
   // Calculate effective defense based on defender's current HP ratio
   const defenderHpRatio = defender.currentHp / defender.maxHp;
   const effectiveDefense =
-    defender.defense * (0.5 + 0.5 * defenderHpRatio);
+    defender.defense * (0.4 + 0.4 * defenderHpRatio);
 
   // Calculate damage dealt to defender
   const totalPower = effectiveAttack + effectiveDefense;
