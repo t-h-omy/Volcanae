@@ -183,6 +183,10 @@ export const BUILDINGS = {
   SPECIALIST_ASSIGN_DISABLE_TURNS: 1,
   /** Probability of spawning a WATCHTOWER in each zone (0.0 to 1.0) */
   WATCHTOWER_SPAWN_CHANCE: 0.5,
+  /** Number of rows at the start (low-Y end) of a zone where strongholds may not spawn */
+  STRONGHOLD_SPAWN_SKIP_FIRST_ROWS: 1,
+  /** Number of rows at the end (high-Y end) of a zone where strongholds may not spawn */
+  STRONGHOLD_SPAWN_SKIP_LAST_ROWS: 1,
   /** Discover radius per building type (balanceable) */
   DISCOVER_RADIUS: {
     STRONGHOLD: 2,
