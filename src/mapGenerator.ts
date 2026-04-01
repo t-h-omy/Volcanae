@@ -77,12 +77,24 @@ function markPositionOccupied(
 
 /**
  * Generates a random position within a zone that is not occupied.
+ * @param skipFirstRows - number of rows at the low-Y (start) end of the zone to exclude
+ * @param skipLastRows  - number of rows at the high-Y (end) end of the zone to exclude
  */
 function getRandomPositionInZone(
   zone: number,
-  occupiedPositions: Set<string>
+  occupiedPositions: Set<string>,
+  skipFirstRows = 0,
+  skipLastRows = 0,
 ): Position {
-  const [startRow, endRow] = getZoneRowRange(zone);
+  const [zoneStart, zoneEnd] = getZoneRowRange(zone);
+  const startRow = zoneStart + skipFirstRows;
+  const endRow = zoneEnd - skipLastRows;
+
+  if (startRow > endRow) {
+    throw new Error(
+      `Invalid row skip configuration for zone ${zone}: skipFirstRows (${skipFirstRows}) + skipLastRows (${skipLastRows}) exceeds zone height`,
+    );
+  }
   let attempts = 0;
   const maxAttempts = 100;
 
@@ -442,7 +454,12 @@ export function generateInitialGameState(): GameState {
   // Pre-select stronghold positions for all zones (mark as occupied so terrain avoids them)
   const strongholdPositions: Position[] = [];
   for (let zone = 1; zone <= MAP.ZONE_COUNT; zone++) {
-    const pos = getRandomPositionInZone(zone, occupiedPositions);
+    const pos = getRandomPositionInZone(
+      zone,
+      occupiedPositions,
+      BUILDINGS.STRONGHOLD_SPAWN_SKIP_FIRST_ROWS,
+      BUILDINGS.STRONGHOLD_SPAWN_SKIP_LAST_ROWS,
+    );
     markPositionOccupied(pos, occupiedPositions);
     strongholdPositions.push(pos);
   }
