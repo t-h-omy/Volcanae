@@ -829,7 +829,7 @@ function scoreActionsForUnit(
   }
 
   // ── CAPTURE_BUILDING ──
-  if (!unit.hasActedThisTurn) {
+  if (!unit.hasActedThisTurn && unit.tags.includes(UnitTag.BUILDANDCAPTURE)) {
     const tile = state.grid[unit.position.y][unit.position.x];
     if (tile.buildingId) {
       const building = state.buildings[tile.buildingId];
