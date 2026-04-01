@@ -424,17 +424,17 @@ export const TERRAIN = {
   /** Number of mountain tiles placed per zone */
   MOUNTAINS_PER_ZONE: 2,
   /** Number of ruin tiles placed per zone */
-  RUINS_PER_ZONE: 3,
+  RUINS_PER_ZONE: 4,
   /**
    * Minimum edge-circle distance from the zone 1 stronghold for the guaranteed
    * forest tile placement in zone 1.
    */
-  ZONE1_FOREST_MIN_DISTANCE: 2,
+  ZONE1_FOREST_MIN_DISTANCE: 1,
   /**
    * Maximum edge-circle distance from the zone 1 stronghold for the guaranteed
    * forest tile placement in zone 1.
    */
-  ZONE1_FOREST_MAX_DISTANCE: 3,
+  ZONE1_FOREST_MAX_DISTANCE: 2,
 } as const;
 
 // ============================================================================
