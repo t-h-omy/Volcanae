@@ -131,7 +131,7 @@ export const UNITS = {
     attackRange: 2,
     discoverRadius: 1,
     triggerRange: 3,
-    tags: [UnitTag.RANGED],
+    tags: [UnitTag.BUILDANDCAPTURE, UnitTag.RANGED],
   },
 
   LAVA_RIDER: {
@@ -143,7 +143,7 @@ export const UNITS = {
     attackRange: 1,
     discoverRadius: 1,
     triggerRange: 3,
-    tags: [],
+    tags: [UnitTag.BUILDANDCAPTURE],
   },
 
   LAVA_SIEGE: {
