@@ -955,14 +955,14 @@ function BottomBar() {
 
 function GameOverOverlay() {
   const turn = useGameStore((s) => s.turn);
-  const initGame = useGameStore((s) => s.initGame);
+  const initNewGame = useGameStore((s) => s.initNewGame);
 
   return (
     <div className="hud-overlay">
       <div className="hud-overlay-box">
         <h1 className="hud-overlay-title hud-defeat">💀 DEFEATED</h1>
         <p className="hud-overlay-sub">You survived {turn} turns</p>
-        <button className="hud-play-again-btn" onClick={initGame}>
+        <button className="hud-play-again-btn" onClick={initNewGame}>
           🔄 Play Again
         </button>
       </div>
@@ -972,14 +972,14 @@ function GameOverOverlay() {
 
 function VictoryOverlay() {
   const turn = useGameStore((s) => s.turn);
-  const initGame = useGameStore((s) => s.initGame);
+  const initNewGame = useGameStore((s) => s.initNewGame);
 
   return (
     <div className="hud-overlay">
       <div className="hud-overlay-box">
         <h1 className="hud-overlay-title hud-victory">🏆 VICTORY</h1>
         <p className="hud-overlay-sub">Completed in {turn} turns</p>
-        <button className="hud-play-again-btn" onClick={initGame}>
+        <button className="hud-play-again-btn" onClick={initNewGame}>
           🔄 Play Again
         </button>
       </div>

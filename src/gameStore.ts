@@ -514,9 +514,15 @@ export const useGameStore = create<GameStore>()(
         useAnimationStore.getState().enqueue(pendingEvents, pendingResolvedState);
       } else if (pendingResolvedState === null) {
         // No events queued — the final state was applied directly inside the set().
-        // Autosave when the new player turn has started.
+        // Autosave when the new player turn has started, or when the game ends
+        // so that on reload the game-over/victory overlay is shown rather than
+        // rewinding to the last living turn.
         const currentState = useGameStore.getState();
-        if (currentState.phase === GamePhase.PLAYER_TURN) {
+        if (
+          currentState.phase === GamePhase.PLAYER_TURN ||
+          currentState.phase === GamePhase.GAME_OVER ||
+          currentState.phase === GamePhase.VICTORY
+        ) {
           saveGameState(currentState);
         }
       }
@@ -766,8 +772,13 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         Object.assign(state, newState);
       });
-      // Autosave when transitioning to the player's turn
-      if (newState.phase === GamePhase.PLAYER_TURN) {
+      // Autosave when transitioning to the player's turn, or when the game ends
+      // so that the overlay is shown on reload rather than rewinding to the last turn.
+      if (
+        newState.phase === GamePhase.PLAYER_TURN ||
+        newState.phase === GamePhase.GAME_OVER ||
+        newState.phase === GamePhase.VICTORY
+      ) {
         saveGameState(newState);
       }
     },
