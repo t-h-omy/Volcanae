@@ -327,27 +327,7 @@ function createEnemyUnit(
 
   let finalHp: number = baseHp;
   let finalAttack: number = baseAttack;
-  const tags: UnitTag[] = [];
-
-  if (UNITS[unitType].attackRange > 1) {
-    tags.push(UnitTag.RANGED);
-  }
-
-  if (unitType === UnitType.SIEGE || unitType === UnitType.LAVA_SIEGE) {
-    tags.push(UnitTag.PREP);
-  }
-
-  // LAVA_GRUNT can corrupt terrain
-  if (unitType === UnitType.LAVA_GRUNT) {
-    tags.push(UnitTag.CORRUPT);
-    tags.push(UnitTag.BUILDANDCAPTURE);
-  }
-
-  // EMBERLING gets sacrificial + explosive
-  if (unitType === UnitType.EMBERLING) {
-    tags.push(UnitTag.SACRIFICIAL);
-    tags.push(UnitTag.EXPLOSIVE);
-  }
+  const tags: UnitTag[] = [...UNITS[unitType].tags];
 
   if (lavaBoostEnabled) {
     const boostFactor = calculateLavaBoostFactor(buildingPosition, lavaFrontRow);

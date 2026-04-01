@@ -4,6 +4,7 @@
  * Do not hardcode these values elsewhere - always import from this file.
  */
 
+import { UnitTag } from './types';
 import type { UnitPopulationCost } from './types';
 
 // ============================================================================
@@ -46,6 +47,7 @@ export const UNITS = {
     attackRange: 1,
     discoverRadius: 1,
     triggerRange: 0,
+    tags: [UnitTag.BUILDANDCAPTURE],
   },
 
   ARCHER: {
@@ -57,6 +59,7 @@ export const UNITS = {
     attackRange: 2,
     discoverRadius: 1,
     triggerRange: 0,
+    tags: [UnitTag.RANGED, UnitTag.BUILDANDCAPTURE],
   },
 
   RIDER: {
@@ -68,6 +71,7 @@ export const UNITS = {
     attackRange: 1,
     discoverRadius: 1,
     triggerRange: 0,
+    tags: [UnitTag.BUILDANDCAPTURE],
   },
 
   SIEGE: {
@@ -79,6 +83,7 @@ export const UNITS = {
     attackRange: 3,
     discoverRadius: 1,
     triggerRange: 0,
+    tags: [UnitTag.RANGED, UnitTag.PREP],
   },
 
   SCOUT: {
@@ -90,6 +95,7 @@ export const UNITS = {
     attackRange: 1,
     discoverRadius: 1,
     triggerRange: 0,
+    tags: [],
   },
 
   GUARD: {
@@ -101,6 +107,7 @@ export const UNITS = {
     attackRange: 1,
     discoverRadius: 1,
     triggerRange: 0,
+    tags: [UnitTag.BUILDANDCAPTURE],
   },
 
   LAVA_GRUNT: {
@@ -112,6 +119,7 @@ export const UNITS = {
     attackRange: 1,
     discoverRadius: 1,
     triggerRange: 0,
+    tags: [UnitTag.BUILDANDCAPTURE, UnitTag.CORRUPT],
   },
 
   LAVA_ARCHER: {
@@ -123,6 +131,7 @@ export const UNITS = {
     attackRange: 2,
     discoverRadius: 1,
     triggerRange: 3,
+    tags: [UnitTag.RANGED],
   },
 
   LAVA_RIDER: {
@@ -134,6 +143,7 @@ export const UNITS = {
     attackRange: 1,
     discoverRadius: 1,
     triggerRange: 3,
+    tags: [],
   },
 
   LAVA_SIEGE: {
@@ -145,6 +155,7 @@ export const UNITS = {
     attackRange: 3,
     discoverRadius: 1,
     triggerRange: 4,
+    tags: [UnitTag.RANGED, UnitTag.PREP],
   },
 
   EMBERLING: {
@@ -157,8 +168,9 @@ export const UNITS = {
     discoverRadius: 1,
     triggerRange: 0,
     explosionDamage: 40,
+    tags: [UnitTag.SACRIFICIAL, UnitTag.EXPLOSIVE],
   },
-} as const;
+};
 
 // ============================================================================
 // BUILDING CONFIGURATION

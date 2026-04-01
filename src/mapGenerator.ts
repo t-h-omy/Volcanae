@@ -231,15 +231,6 @@ function createUnit(
   faction: Faction,
   position: Position
 ): Unit {
-  /** Unit types that receive the BUILDANDCAPTURE tag */
-  const buildAndCaptureTypes: ReadonlySet<UnitType> = new Set([
-    UnitType.INFANTRY,
-    UnitType.ARCHER,
-    UnitType.RIDER,
-    UnitType.GUARD,
-    UnitType.LAVA_GRUNT,
-  ]);
-
   return {
     id: generateId('unit'),
     type,
@@ -256,13 +247,7 @@ function createUnit(
       movementActions: UNITS[type].movementActions,
       attackRange: UNITS[type].attackRange,
     },
-    tags: [
-      ...(UNITS[type].attackRange > 1 ? [UnitTag.RANGED] : []),
-      ...(type === UnitType.SIEGE || type === UnitType.LAVA_SIEGE ? [UnitTag.PREP] : []),
-      ...(buildAndCaptureTypes.has(type) ? [UnitTag.BUILDANDCAPTURE] : []),
-      ...(type === UnitType.LAVA_GRUNT ? [UnitTag.CORRUPT] : []),
-      ...(type === UnitType.EMBERLING ? [UnitTag.SACRIFICIAL, UnitTag.EXPLOSIVE] : []),
-    ],
+    tags: [...UNITS[type].tags],
     hasMovedThisTurn: false,
     hasActedThisTurn: false,
     hasCapturedThisTurn: false,
