@@ -96,17 +96,19 @@ function posKey(x: number, y: number): string {
   return `${x},${y}`;
 }
 
-/** Returns set of "x,y" keys for tiles an enemy unit occupies that are
- *  within attack range of the selected player unit. */
+/** Returns set of "x,y" keys for tiles that are attackable by the selected player unit.
+ *  Includes tiles with enemy units and tiles with enemy buildings (no unit on the tile). */
 function getAttackableTileKeys(
   selectedUnit: Unit,
   units: Record<string, Unit>,
+  buildings: Record<string, Building>,
   grid: Tile[][],
 ): Set<string> {
   const keys = new Set<string>();
   if (selectedUnit.hasActedThisTurn) return keys;
   // PREP tag: cannot attack after moving
   if (selectedUnit.hasMovedThisTurn && selectedUnit.tags.includes(UnitTag.PREP)) return keys;
+  // Enemy units
   for (const other of Object.values(units)) {
     if (other.faction === Faction.ENEMY) {
       // Cannot attack enemy units on undiscovered tiles
@@ -118,6 +120,22 @@ function getAttackableTileKeys(
       );
       if (inRange) {
         keys.add(posKey(other.position.x, other.position.y));
+      }
+    }
+  }
+  // Enemy buildings (only tiles without an enemy unit already in the set)
+  for (const b of Object.values(buildings)) {
+    if (b.faction === Faction.ENEMY) {
+      if (!grid[b.position.y]?.[b.position.x]?.isRevealed) continue;
+      const key = posKey(b.position.x, b.position.y);
+      if (keys.has(key)) continue; // tile already covered by enemy unit
+      const inRange = isTileWithinEdgeCircleRange(
+        selectedUnit.position.x, selectedUnit.position.y,
+        b.position.x, b.position.y,
+        selectedUnit.stats.attackRange,
+      );
+      if (inRange) {
+        keys.add(key);
       }
     }
   }
@@ -186,8 +204,10 @@ export default function GridRenderer() {
   const selectUnit = useGameStore((s) => s.selectUnit);
   const selectBuilding = useGameStore((s) => s.selectBuilding);
   const clearSelection = useGameStore((s) => s.clearSelection);
+  const selectTile = useGameStore((s) => s.selectTile);
   const moveUnit = useGameStore((s) => s.moveUnit);
   const attackUnit = useGameStore((s) => s.attackUnit);
+  const attackBuilding = useGameStore((s) => s.attackBuilding);
   const buildingAttackUnit = useGameStore((s) => s.buildingAttackUnit);
 
   // ── Animation store selectors ──
@@ -393,16 +413,16 @@ export default function GridRenderer() {
   }, [selectedUnit]);
 
   const attackableSet = useMemo<Set<string>>(() => {
-    // Unit attack range
+    // Unit attack range (enemy units and enemy buildings)
     if (selectedUnit && selectedUnit.faction === Faction.PLAYER) {
-      return getAttackableTileKeys(selectedUnit, units, grid);
+      return getAttackableTileKeys(selectedUnit, units, buildings, grid);
     }
     // Building attack range (e.g. player watchtower)
     if (selectedBuilding && selectedBuilding.combatStats && selectedBuilding.faction === Faction.PLAYER) {
       return getBuildingAttackableTileKeys(selectedBuilding, units);
     }
     return new Set();
-  }, [selectedUnit, selectedBuilding, units, grid]);
+  }, [selectedUnit, selectedBuilding, units, buildings, grid]);
 
   // ── Tile click ──
   const handleTileClick = useCallback(
@@ -472,7 +492,24 @@ export default function GridRenderer() {
         return;
       }
 
-      // Priority 5 — Building on tile, movement not possible
+      // Priority 5a — Enemy building on tile (no enemy unit), player unit can attack it
+      if (tile.buildingId) {
+        const b = buildings[tile.buildingId];
+        if (
+          b &&
+          b.faction === Faction.ENEMY &&
+          selectedUnit &&
+          selectedUnit.faction === Faction.PLAYER &&
+          !selectedUnit.hasActedThisTurn &&
+          !(selectedUnit.tags.includes(UnitTag.PREP) && selectedUnit.hasMovedThisTurn) &&
+          attackableSet.has(key)
+        ) {
+          attackBuilding(selectedUnit.id, tile.buildingId);
+          return;
+        }
+      }
+
+      // Priority 5b — Building on tile, select it
       // Cycle: if this building is already selected and there is also a unit → select the unit
       if (tile.buildingId) {
         if (selectedBuildingId === tile.buildingId && tile.unitId) {
@@ -483,10 +520,14 @@ export default function GridRenderer() {
         return;
       }
 
-      // Priority 6 — Fallback: clear selection
-      clearSelection();
+      // Priority 6 — Fallback: select the terrain tile if revealed, otherwise clear selection
+      if (tile.isRevealed && !tile.isLava) {
+        selectTile({ x, y });
+      } else {
+        clearSelection();
+      }
     },
-    [grid, selectedUnitId, selectedBuildingId, selectedUnit, selectedBuilding, attackableSet, reachableSet, units, selectUnit, selectBuilding, clearSelection, moveUnit, attackUnit, buildingAttackUnit, isAnimating],
+    [grid, selectedUnitId, selectedBuildingId, selectedUnit, selectedBuilding, attackableSet, reachableSet, units, buildings, selectUnit, selectBuilding, selectTile, clearSelection, moveUnit, attackUnit, attackBuilding, buildingAttackUnit, isAnimating],
   );
 
   // Right-click / tap-hold → deselect (only when not used for drag-panning)

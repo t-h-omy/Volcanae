@@ -25,10 +25,12 @@ import {
   UnitType,
   UnitTag,
   BuildingType,
+  TileType,
   type Building,
   type Unit,
   type Specialist,
   type Position,
+  type Tile,
 } from '../types';
 import './HUD.css';
 
@@ -612,6 +614,45 @@ function ConstructionPanel({
 }
 
 // ============================================================================
+// SELECTED TILE PANEL
+// ============================================================================
+
+function SelectedTilePanel({ tile }: { tile: Tile }) {
+  const terrainEmoji =
+    tile.terrainType === TileType.FOREST
+      ? '🌲'
+      : tile.terrainType === TileType.MOUNTAIN
+        ? '⛰️'
+        : tile.terrainType === TileType.PLAINS
+          ? '🌾'
+          : '🟫';
+
+  const terrainName =
+    tile.terrainType === TileType.FOREST
+      ? 'Forest'
+      : tile.terrainType === TileType.MOUNTAIN
+        ? 'Mountain'
+        : tile.terrainType === TileType.PLAINS
+          ? 'Plains'
+          : 'Empty';
+
+  return (
+    <div className="hud-info-panel">
+      <div className="hud-panel-header">
+        <span className="hud-panel-emoji">{terrainEmoji}</span>
+        <span className="hud-panel-name">{terrainName}</span>
+      </div>
+      {tile.isStrongholdRuin && (
+        <div className="hud-tile-feature">🏚️ Stronghold Ruin</div>
+      )}
+      {tile.isRuin && !tile.isStrongholdRuin && (
+        <div className="hud-tile-feature">🪨 Ruin</div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
 // SELECTED BUILDING PANEL
 // ============================================================================
 
@@ -978,8 +1019,10 @@ function BottomBar() {
   const phase = useGameStore((s) => s.phase);
   const selectedUnitId = useGameStore((s) => s.selectedUnitId);
   const selectedBuildingId = useGameStore((s) => s.selectedBuildingId);
+  const selectedTilePos = useGameStore((s) => s.selectedTilePos);
   const units = useGameStore((s) => s.units);
   const buildings = useGameStore((s) => s.buildings);
+  const grid = useGameStore((s) => s.grid);
   const endPlayerTurn = useGameStore((s) => s.endPlayerTurn);
   const captureBuilding = useGameStore((s) => s.captureBuilding);
   const isAnimating = useAnimationStore((s) => s.isAnimating);
@@ -989,6 +1032,9 @@ function BottomBar() {
     : undefined;
   const selectedBuilding: Building | undefined = selectedBuildingId
     ? buildings[selectedBuildingId]
+    : undefined;
+  const selectedTile: Tile | undefined = selectedTilePos
+    ? grid[selectedTilePos.y]?.[selectedTilePos.x]
     : undefined;
 
   // Find a building co-located with the selected unit that it can attempt to capture
@@ -1042,6 +1088,9 @@ function BottomBar() {
       )}
       {selectedBuilding && !selectedUnit && (
         <SelectedBuildingPanel building={selectedBuilding} />
+      )}
+      {selectedTile && !selectedUnit && !selectedBuilding && (
+        <SelectedTilePanel tile={selectedTile} />
       )}
 
       {/* End Turn button */}

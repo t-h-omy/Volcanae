@@ -235,6 +235,7 @@ export interface GameState {
   turnsUntilLavaAdvance: number;
   selectedUnitId: string | null;
   selectedBuildingId: string | null;
+  selectedTilePos: Position | null;
   threatLevel: number;
   zonesUnlocked: number[];
 }
