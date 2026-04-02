@@ -140,8 +140,11 @@ export function canCapture(
     return false;
   }
 
-  // Check zone lock for player units
-  if (unit.faction === Faction.PLAYER) {
+  // Check zone lock for player units — only applies to STRONGHOLD captures, which drive
+  // zone-progression mechanics.  Corruption buildings (MAGMASPYR, EMBERNEST), enemy
+  // production buildings (LAVALAIR, INFERNALSANCTUM) and watchtowers are destroyed or
+  // neutralised, so they should always be targetable regardless of zone.
+  if (unit.faction === Faction.PLAYER && building.type === BuildingType.STRONGHOLD) {
     const buildingZone = getZoneForPosition(building.position);
     if (!state.zonesUnlocked.includes(buildingZone)) {
       return false;

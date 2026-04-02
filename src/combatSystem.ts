@@ -309,13 +309,28 @@ export function resolveBuildingAttack(
 
   // Update building
   if (buildingDead) {
-    // Building becomes neutral instead of being destroyed
-    building.hp = building.maxHp;
-    building.faction = null;
-    building.hasActedThisTurn = false;
-    building.specialistSlot = null;
-    building.turnCapturedByPlayer = null;
-    building.wasEnemyOwnedBeforeCapture = false;
+    if (building.type === BuildingType.WATCHTOWER || building.faction === Faction.PLAYER) {
+      // Watchtowers and player-owned buildings go neutral when destroyed so they can be
+      // recaptured (same behaviour as resolveAttackOnBuilding for watchtowers).
+      building.hp = building.maxHp;
+      building.faction = null;
+      building.hasActedThisTurn = false;
+      building.specialistSlot = null;
+      building.turnCapturedByPlayer = null;
+      building.wasEnemyOwnedBeforeCapture = false;
+    } else {
+      // Enemy buildings (e.g. MAGMASPYR) are fully destroyed and leave a ruin.
+      const { x, y } = building.position;
+      const buildingType = building.type;
+      delete state.buildings[buildingId];
+      const tile = state.grid[y][x];
+      tile.buildingId = null;
+      if (buildingType === BuildingType.STRONGHOLD || buildingType === BuildingType.INFERNALSANCTUM) {
+        tile.isStrongholdRuin = true;
+      } else {
+        tile.isRuin = true;
+      }
+    }
   } else {
     building.hp = newBuildingHp;
     building.hasActedThisTurn = true;
