@@ -343,6 +343,38 @@ function AiScoreModal({ scores, onClose }: { scores: ScoredAction[]; onClose: ()
   );
 }
 
+function RecruitScoreModal({
+  scores,
+  onClose,
+}: {
+  scores: { type: UnitType; score: number }[];
+  onClose: () => void;
+}) {
+  return (
+    <div className="hud-modal-backdrop" onClick={onClose}>
+      <div className="hud-modal hud-ai-score-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="hud-modal-header">
+          <span>🛠️ Recruit Scores</span>
+          <button className="hud-modal-close" onClick={onClose}>✕</button>
+        </div>
+        {scores.length === 0 ? (
+          <p className="hud-dim" style={{ padding: '12px' }}>No scores available.</p>
+        ) : (
+          <ul className="hud-modal-list">
+            {scores.map((s, i) => (
+              <li key={`${s.type}-${i}`} className="hud-ai-score-item">
+                <span className="hud-ai-score-rank">#{i + 1}</span>
+                <span className="hud-ai-score-type">{s.type}</span>
+                <span className="hud-ai-score-value">{s.score.toFixed(1)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ============================================================================
 // SELECTED UNIT PANEL
 // ============================================================================
@@ -597,6 +629,8 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
 
   const [showPicker, setShowPicker] = useState(false);
   const [confirmDemolish, setConfirmDemolish] = useState(false);
+  const [recruitScoreModal, setRecruitScoreModal] = useState(false);
+  const [recruitScores, setRecruitScores] = useState<{ type: UnitType; score: number }[]>([]);
 
   const factionLabel =
     building.faction === Faction.PLAYER
@@ -675,10 +709,6 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   const isEnemyRecruitingBuilding =
     building.faction === Faction.ENEMY &&
     (building.type === BuildingType.LAVALAIR || building.type === BuildingType.INFERNALSANCTUM);
-  const recruitingScores = useMemo(() => {
-    if (!showRecruitingScores || !isEnemyRecruitingBuilding) return null;
-    return computeRecruitmentScores(gameState, building.id);
-  }, [showRecruitingScores, isEnemyRecruitingBuilding, gameState, building.id]);
 
   return (
     <div className="hud-info-panel hud-building-panel">
@@ -752,19 +782,20 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
         </div>
       )}
 
-      {/* Dev: Recruiting scores for enemy LAVA_LAIR / INFERNAL_SANCTUM */}
-      {recruitingScores && (
-        <div className="hud-dev-recruit-scores">
-          <span className="hud-label">🛠️ Recruit Scores:</span>
-          <div className="hud-dev-recruit-score-list">
-            {recruitingScores.map(({ type, score }, i) => (
-              <div key={type} className={`hud-dev-recruit-score-row${i === 0 ? ' hud-dev-recruit-score-best' : ''}`}>
-                <span className="hud-dev-recruit-score-type">{type}</span>
-                <span className="hud-dev-recruit-score-value">{score.toFixed(1)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* Dev: Recruiting scores button for enemy LAVA_LAIR / INFERNAL_SANCTUM */}
+      {isEnemyRecruitingBuilding && showRecruitingScores && (
+        <button
+          className="hud-ai-score-btn"
+          onClick={() => {
+            setRecruitScores(computeRecruitmentScores(gameState, building.id) ?? []);
+            setRecruitScoreModal(true);
+          }}
+        >
+          🛠️ Recruit Scores
+        </button>
+      )}
+      {recruitScoreModal && (
+        <RecruitScoreModal scores={recruitScores} onClose={() => setRecruitScoreModal(false)} />
       )}
 
       {/* Production rate for resource buildings */}
