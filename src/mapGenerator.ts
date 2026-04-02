@@ -191,18 +191,21 @@ function createBuilding(
 
 /**
  * Generates all buildings for a zone.
- * Only generates 1 STRONGHOLD (at the pre-selected position) and an optional WATCHTOWER.
+ * - Zone 1: PLAYER STRONGHOLD building + optional WATCHTOWER.
+ * - Zones 2-3: marks the stronghold position as a stronghold ruin on the grid (no building created) + optional WATCHTOWER.
+ * - Zones 4-5: ENEMY STRONGHOLD building + optional WATCHTOWER.
  */
 function generateBuildingsForZone(
   zone: number,
   strongholdPos: Position,
-  occupiedPositions: Set<string>
+  occupiedPositions: Set<string>,
+  grid: Tile[][]
 ): Building[] {
   const buildings: Building[] = [];
 
   // Determine faction based on zone:
   // - Zone 1 STRONGHOLD: PLAYER faction (already captured)
-  // - Zones 2-3: null (neutral/uncaptured)
+  // - Zones 2-3: null (neutral) → stronghold ruin, no building
   // - Zones 4-5: ENEMY faction
   const getFaction = (isStronghold: boolean): Faction | null => {
     if (zone === 1 && isStronghold) {
@@ -215,9 +218,15 @@ function generateBuildingsForZone(
   };
 
   // 1. STRONGHOLD (at pre-selected position)
-  buildings.push(
-    createBuilding(BuildingType.STRONGHOLD, strongholdPos, getFaction(true))
-  );
+  const strongholdFaction = getFaction(true);
+  if (strongholdFaction === null) {
+    // Neutral zones 2-3: place a stronghold ruin tile instead of a building
+    grid[strongholdPos.y][strongholdPos.x].isStrongholdRuin = true;
+  } else {
+    buildings.push(
+      createBuilding(BuildingType.STRONGHOLD, strongholdPos, strongholdFaction)
+    );
+  }
 
   // 2. Optional WATCHTOWER (based on configured spawn chance)
   if (Math.random() < BUILDINGS.WATCHTOWER_SPAWN_CHANCE) {
@@ -497,7 +506,7 @@ export function generateInitialGameState(): GameState {
   const allBuildings: Building[] = [];
   for (let zone = 1; zone <= MAP.ZONE_COUNT; zone++) {
     const zoneBuildings = generateBuildingsForZone(
-      zone, strongholdPositions[zone - 1], occupiedPositions
+      zone, strongholdPositions[zone - 1], occupiedPositions, grid
     );
     allBuildings.push(...zoneBuildings);
   }

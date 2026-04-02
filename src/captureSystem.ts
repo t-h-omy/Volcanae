@@ -253,7 +253,7 @@ export function initiateCapture(
   tile.buildingId = null;
 
   // Determine ruin type
-  if (buildingType === BuildingType.STRONGHOLD) {
+  if (buildingType === BuildingType.STRONGHOLD || buildingType === BuildingType.INFERNALSANCTUM) {
     tile.isStrongholdRuin = true;
   } else {
     tile.isRuin = true;
