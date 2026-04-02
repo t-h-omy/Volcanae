@@ -118,8 +118,6 @@ function getDisplayVersion(full: string): string {
 
 const displayVersion = getDisplayVersion(__APP_VERSION__);
 
-const isDev = import.meta.env.DEV;
-
 // ============================================================================
 // DEV OPTIONS OVERLAY
 // ============================================================================
@@ -253,15 +251,13 @@ function GameMenu() {
             <button className="hud-menu-item" role="menuitem" onClick={handleResetCache}>
               🗑️ Reset Cache &amp; Reload
             </button>
-            {isDev && (
-              <button
-                className="hud-menu-item"
-                role="menuitem"
-                onClick={() => { setOpen(false); setDevOptionsOverlayOpen(true); }}
-              >
-                🛠️ Dev Options
-              </button>
-            )}
+            <button
+              className="hud-menu-item"
+              role="menuitem"
+              onClick={() => { setOpen(false); setDevOptionsOverlayOpen(true); }}
+            >
+              🛠️ Dev Options
+            </button>
             <div className="hud-menu-version">v{displayVersion}</div>
           </div>
         </>
