@@ -192,7 +192,7 @@ function createBuilding(
 /**
  * Generates all buildings for a zone.
  * - Zone 1: PLAYER STRONGHOLD building + optional WATCHTOWER.
- * - Zones 2-3: marks the stronghold position as a stronghold ruin on the grid (no building created).
+ * - Zones 2-3: marks the stronghold position as a stronghold ruin on the grid (no building created) + optional WATCHTOWER.
  * - Zones 4-5: ENEMY STRONGHOLD building + optional WATCHTOWER.
  */
 function generateBuildingsForZone(
