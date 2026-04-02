@@ -7,7 +7,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { current, produce } from 'immer';
 import { generateInitialGameState, generateId } from './mapGenerator';
-import { resolveAttack, resolveBuildingAttack } from './combatSystem';
+import { resolveAttack, resolveBuildingAttack, resolveAttackOnBuilding } from './combatSystem';
 import { moveUnit as moveUnitLogic } from './movementSystem';
 import {
   initiateCapture as initiateCaptureLogic,
@@ -60,6 +60,8 @@ interface GameActions {
   moveUnit: (unitId: string, targetPosition: Position) => void;
   /** Attack a target unit (stub) */
   attackUnit: (attackerId: string, targetId: string) => void;
+  /** Attack a target building with a unit */
+  attackBuilding: (attackerId: string, buildingId: string) => void;
   /** Attack a target unit with a building (e.g. watchtower) */
   buildingAttackUnit: (buildingId: string, targetId: string) => void;
   /** Capture a building with a unit (stub) */
@@ -277,6 +279,63 @@ export const useGameStore = create<GameStore>()(
         pendingResolvedState = resolvedState;
 
         // Lock UI while animation plays (same mechanism as enemy turn)
+        state.phase = GamePhase.ENEMY_TURN;
+      });
+
+      if (pendingEvents !== null && pendingResolvedState !== null) {
+        useAnimationStore.getState().enqueue(pendingEvents, pendingResolvedState);
+      }
+    },
+
+    attackBuilding: (attackerId: string, buildingId: string) => {
+      let pendingEvents: GameEvent[] | null = null;
+      let pendingResolvedState: GameState | null = null;
+
+      set((state) => {
+        const attacker = state.units[attackerId];
+        const building = state.buildings[buildingId];
+        if (!attacker || !building) return;
+
+        const attackerPosition = { x: attacker.position.x, y: attacker.position.y };
+        const buildingPosition = { x: building.position.x, y: building.position.y };
+        const attackerHpBefore = attacker.stats.currentHp;
+        const buildingHpBefore = building.hp;
+        const attackerFaction = attacker.faction;
+
+        const snapshot: GameState = current(state);
+
+        const resolvedState = produce(snapshot, (draft) => {
+          resolveAttackOnBuilding(draft, attackerId, buildingId, true);
+          updateDiscovery(draft);
+          checkGameConditions(draft);
+        });
+
+        const attackerAfter = resolvedState.units[attackerId];
+        const buildingAfter = resolvedState.buildings[buildingId];
+
+        const attackBuildingEvent: GameEvent = {
+          type: 'UNIT_ATTACK_BUILDING',
+          attackerId,
+          buildingId,
+          attackerPosition,
+          buildingPosition,
+          attackerHpLost: attackerAfter
+            ? attackerHpBefore - attackerAfter.stats.currentHp
+            : attackerHpBefore,
+          buildingHpLost: buildingAfter
+            ? buildingHpBefore - buildingAfter.hp
+            : buildingHpBefore,
+        };
+
+        const events: GameEvent[] = [attackBuildingEvent];
+
+        if (!attackerAfter) {
+          events.push({ type: 'UNIT_DEATH', unitId: attackerId, position: attackerPosition, faction: attackerFaction });
+        }
+
+        pendingEvents = events;
+        pendingResolvedState = resolvedState;
+
         state.phase = GamePhase.ENEMY_TURN;
       });
 
@@ -697,15 +756,31 @@ export const useGameStore = create<GameStore>()(
               attacker.stats.currentHp -= event.attackerHpLost;
             }
             if (building && event.buildingHpLost > 0) {
-              building.hp -= event.buildingHpLost;
-              // If building HP reaches 0, it becomes neutral
-              if (building.hp <= 0) {
-                building.hp = building.maxHp;
-                building.faction = null;
-                building.hasActedThisTurn = false;
-                building.specialistSlot = null;
-                building.turnCapturedByPlayer = null;
-                building.wasEnemyOwnedBeforeCapture = false;
+              const newHp = building.hp - event.buildingHpLost;
+              if (newHp <= 0) {
+                if (building.type === BuildingType.WATCHTOWER) {
+                  // Watchtower goes neutral
+                  building.hp = building.maxHp;
+                  building.faction = null;
+                  building.hasActedThisTurn = false;
+                  building.specialistSlot = null;
+                  building.turnCapturedByPlayer = null;
+                  building.wasEnemyOwnedBeforeCapture = false;
+                } else if (attacker?.faction === Faction.PLAYER && building.faction === Faction.ENEMY) {
+                  // Enemy building destroyed by player: remove from state and leave a ruin
+                  const { x, y } = building.position;
+                  const buildingType = building.type;
+                  delete state.buildings[event.buildingId];
+                  const tile = state.grid[y][x];
+                  tile.buildingId = null;
+                  if (buildingType === BuildingType.STRONGHOLD || buildingType === BuildingType.INFERNALSANCTUM) {
+                    tile.isStrongholdRuin = true;
+                  } else {
+                    tile.isRuin = true;
+                  }
+                }
+              } else {
+                building.hp = newHp;
               }
             }
 

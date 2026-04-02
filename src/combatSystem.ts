@@ -418,16 +418,27 @@ export function resolveAttackOnBuilding(
 
   // Update building
   if (buildingDead) {
-    // Building becomes neutral at 0 HP (for WATCHTOWER type)
     if (building.type === BuildingType.WATCHTOWER) {
+      // Watchtower goes neutral at 0 HP
       building.hp = building.maxHp;
       building.faction = null;
       building.hasActedThisTurn = false;
       building.specialistSlot = null;
       building.turnCapturedByPlayer = null;
       building.wasEnemyOwnedBeforeCapture = false;
+    } else if (attacker.faction === Faction.PLAYER && building.faction === Faction.ENEMY) {
+      // Enemy building destroyed by player unit: remove from state and leave a ruin
+      const { x, y } = building.position;
+      const buildingType = building.type;
+      delete state.buildings[buildingId];
+      const tile = state.grid[y][x];
+      tile.buildingId = null;
+      if (buildingType === BuildingType.STRONGHOLD || buildingType === BuildingType.INFERNALSANCTUM) {
+        tile.isStrongholdRuin = true;
+      } else {
+        tile.isRuin = true;
+      }
     }
-    // Other building types don't have combat stats currently
   } else {
     building.hp = newBuildingHp;
   }
