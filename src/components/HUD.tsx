@@ -18,7 +18,7 @@ import {
 import {
   getConstructionOptionsForTile,
 } from '../constructionSystem';
-import { computeUnitAiScores, type ScoredAction } from '../enemySystem';
+import { computeUnitAiScores, computeRecruitmentScores, type ScoredAction } from '../enemySystem';
 import {
   Faction,
   GamePhase,
@@ -125,6 +125,8 @@ const displayVersion = getDisplayVersion(__APP_VERSION__);
 function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
   const showAiScores = useDevOptionsStore((s) => s.showAiScores);
   const setShowAiScores = useDevOptionsStore((s) => s.setShowAiScores);
+  const showRecruitingScores = useDevOptionsStore((s) => s.showRecruitingScores);
+  const setShowRecruitingScores = useDevOptionsStore((s) => s.setShowRecruitingScores);
   const debugAdvanceLava = useGameStore((s) => s.debugAdvanceLava);
   const debugAddResources = useGameStore((s) => s.debugAddResources);
   const debugGiveSpecialist = useGameStore((s) => s.debugGiveSpecialist);
@@ -156,6 +158,15 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
               className="hud-dev-option-toggle"
               checked={showAiScores}
               onChange={(e) => setShowAiScores(e.target.checked)}
+            />
+          </label>
+          <label className="hud-dev-option-row">
+            <span className="hud-dev-option-label">Show Recruiting Scores for Enemy Buildings</span>
+            <input
+              type="checkbox"
+              className="hud-dev-option-toggle"
+              checked={showRecruitingScores}
+              onChange={(e) => setShowRecruitingScores(e.target.checked)}
             />
           </label>
           <div className="hud-dev-overlay-section-title">Actions</div>
@@ -578,9 +589,11 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   const resources = useGameStore((s) => s.resources);
   const grid = useGameStore((s) => s.grid);
   const units = useGameStore((s) => s.units);
+  const gameState = useGameStore((s) => s);
   const recruitUnit = useGameStore((s) => s.recruitUnit);
   const unassignSpecialist = useGameStore((s) => s.unassignSpecialist);
   const destroyOwnBuilding = useGameStore((s) => s.destroyOwnBuilding);
+  const showRecruitingScores = useDevOptionsStore((s) => s.showRecruitingScores);
 
   const [showPicker, setShowPicker] = useState(false);
   const [confirmDemolish, setConfirmDemolish] = useState(false);
@@ -658,6 +671,15 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
     }
   }, [builderOnTile, destroyOwnBuilding, building.id]);
 
+  // Dev: recruiting scores for enemy LAVA_LAIR / INFERNAL_SANCTUM
+  const isEnemyRecruitingBuilding =
+    building.faction === Faction.ENEMY &&
+    (building.type === BuildingType.LAVALAIR || building.type === BuildingType.INFERNALSANCTUM);
+  const recruitingScores = useMemo(() => {
+    if (!showRecruitingScores || !isEnemyRecruitingBuilding) return null;
+    return computeRecruitmentScores(gameState, building.id);
+  }, [showRecruitingScores, isEnemyRecruitingBuilding, gameState, building.id]);
+
   return (
     <div className="hud-info-panel hud-building-panel">
       {/* Header */}
@@ -727,6 +749,21 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
       {isUnderAttack && (
         <div className="hud-warning hud-attack-warning">
           ⚔️ Under Attack!
+        </div>
+      )}
+
+      {/* Dev: Recruiting scores for enemy LAVA_LAIR / INFERNAL_SANCTUM */}
+      {recruitingScores && (
+        <div className="hud-dev-recruit-scores">
+          <span className="hud-label">🛠️ Recruit Scores:</span>
+          <div className="hud-dev-recruit-score-list">
+            {recruitingScores.map(({ type, score }, i) => (
+              <div key={type} className={`hud-dev-recruit-score-row${i === 0 ? ' hud-dev-recruit-score-best' : ''}`}>
+                <span className="hud-dev-recruit-score-type">{type}</span>
+                <span className="hud-dev-recruit-score-value">{score.toFixed(1)}</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

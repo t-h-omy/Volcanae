@@ -476,13 +476,9 @@ function spawnEnemyUnits(state: Draft<GameState>, events?: GameEvent[]): void {
     if (building.faction !== Faction.ENEMY) continue;
     if (!isRecruitmentBuilding(building)) continue;
 
-    // Use recruitmentQueue if set (from scoreRecruitmentForLavaLairs), otherwise fall back to static map
-    const unitType: UnitType = building.recruitmentQueue ?? BUILDING_SPAWN_UNIT_TYPE[building.type] ?? UnitType.LAVA_GRUNT;
-
-    // Clear the recruitment queue after using it
-    if (building.recruitmentQueue) {
-      building.recruitmentQueue = null;
-    }
+    // Score recruitment fresh each time so already-spawned units affect composition
+    const scored = scoreRecruitmentForBuilding(state, building);
+    const unitType: UnitType = scored[0]?.type ?? BUILDING_SPAWN_UNIT_TYPE[building.type] ?? UnitType.LAVA_GRUNT;
 
     const spawnProbability = getSpawnProbability(state, building);
     if (Math.random() >= spawnProbability) continue;
@@ -533,15 +529,20 @@ function getZoneForRow(row: number): number {
 }
 
 /**
- * Scores and queues recruitment for each LAVA_LAIR and INFERNAL_SANCTUM building.
- * Dynamically selects the best unit type to spawn based on army composition
- * analysis of both the enemy and player armies, plus threat-gated unlocks.
+ * Scores all eligible unit types for a single LAVA_LAIR or INFERNAL_SANCTUM
+ * building and returns them sorted by score descending.
+ *
+ * Rebuilds army profiles from the current state on every call so that units
+ * already spawned earlier in the same turn are reflected in the composition
+ * analysis. This prevents the same unit type from dominating all recruits in
+ * a single turn.
+ *
+ * Emberlings are intentionally excluded — they only spawn from Ember Nests.
  *
  * All scoring weights and thresholds are defined in AI_RECRUITMENT (gameConfig.ts).
  *
  * Profile scoping:
  *   playerProfile  — all player units on the map (global)
- *   enemyProfile   — all enemy units on the map (global, for reference)
  *   zoneProfile    — enemy units in the same zone as the spawning building
  *                    (local composition; used for over-representation checks
  *                    and cover/gap detection)
@@ -557,165 +558,131 @@ function getZoneForRow(row: number): number {
  *   LAVA_SIEGE   — long-range; only viable when player is slow AND enemy has
  *                  enough defensive cover. Hard-penalised without cover or
  *                  when player has fast units.
- *   EMBERLING    — explosive disruptor; good when player melee is clustered.
- *                  Penalised when multiple Emberlings already exist nearby.
  */
-function scoreRecruitmentForLavaLairs(state: Draft<GameState>): void {
+function scoreRecruitmentForBuilding(
+  state: Draft<GameState>,
+  building: Building,
+): { type: UnitType; score: number }[] {
   const R = AI_RECRUITMENT;
 
-  // Build global profiles once; reused for every building this turn
+  // Threat-gated eligible unit types; Emberlings only spawn from Ember Nests
+  const eligibleTypes: UnitType[] = Object.entries(ENEMY_UNIT_UNLOCK)
+    .filter(([, minThreat]) => state.threatLevel >= minThreat)
+    .map(([type]) => type as UnitType)
+    .filter(type => type !== UnitType.EMBERLING);
+
+  if (eligibleTypes.length === 0) return [];
+
+  // Rebuild profiles from current state (reflects units spawned earlier this turn)
   const allUnits = Object.values(state.units);
   const playerProfile = buildArmyProfile(allUnits.filter(u => u.faction === Faction.PLAYER));
   const enemyUnits = allUnits.filter(u => u.faction === Faction.ENEMY);
 
-  for (const building of Object.values(state.buildings)) {
-    if (building.faction !== Faction.ENEMY) continue;
-    if (building.type !== BuildingType.LAVALAIR && building.type !== BuildingType.INFERNALSANCTUM) continue;
+  // Zone-local enemy profile for composition/cover checks
+  const buildingZone = getZoneForRow(building.position.y);
+  const zoneProfile = buildArmyProfile(
+    enemyUnits.filter(u => getZoneForRow(u.position.y) === buildingZone)
+  );
 
-    // Threat-gated eligible unit types
-    const eligibleTypes: UnitType[] = Object.entries(ENEMY_UNIT_UNLOCK)
-      .filter(([, minThreat]) => state.threatLevel >= minThreat)
-      .map(([type]) => type as UnitType);
+  const results: { type: UnitType; score: number }[] = [];
 
-    if (eligibleTypes.length === 0) continue;
+  for (const unitType of eligibleTypes) {
+    const baseScores: Partial<Record<UnitType, number>> = {
+      [UnitType.LAVA_GRUNT]: R.BASE_SCORE_GRUNT,
+      [UnitType.LAVA_ARCHER]: R.BASE_SCORE_ARCHER,
+      [UnitType.LAVA_RIDER]: R.BASE_SCORE_RIDER,
+      [UnitType.LAVA_SIEGE]: R.BASE_SCORE_SIEGE,
+    };
+    let score = baseScores[unitType] ?? 0;
 
-    // Zone-local enemy profile for composition/cover checks
-    const buildingZone = getZoneForRow(building.position.y);
-    const zoneProfile = buildArmyProfile(
-      enemyUnits.filter(u => getZoneForRow(u.position.y) === buildingZone)
-    );
-
-    // Emberling proximity count
-    const emberlingNearbyCount = enemyUnits.filter(
-      u => u.type === UnitType.EMBERLING &&
-      manhattanDistance(u.position, building.position) <= 6
-    ).length;
-
-    let bestType: UnitType | null = null;
-    let bestScore = -Infinity;
-
-    for (const unitType of eligibleTypes) {
-      const baseScores: Partial<Record<UnitType, number>> = {
-        [UnitType.LAVA_GRUNT]: R.BASE_SCORE_GRUNT,
-        [UnitType.LAVA_ARCHER]: R.BASE_SCORE_ARCHER,
-        [UnitType.LAVA_RIDER]: R.BASE_SCORE_RIDER,
-        [UnitType.LAVA_SIEGE]: R.BASE_SCORE_SIEGE,
-        [UnitType.EMBERLING]: R.BASE_SCORE_EMBERLING,
-      };
-      let score = baseScores[unitType] ?? 0;
-
-      // ── LAVA_GRUNT scoring ──────────────────────────────────────────
-      if (unitType === UnitType.LAVA_GRUNT) {
-        // Bonus when enemy army is more offensive than defensive (needs front line)
-        if (zoneProfile.offensiveAvg > zoneProfile.defensiveAvg) {
-          score += R.GRUNT_BONUS_ENEMY_OFF_EXCEEDS_DEF;
-        }
-        // Bonus per player offensive unit (more threats = more need for defenders)
-        score += playerProfile.offensiveCount * R.GRUNT_BONUS_PLAYER_OFFENSIVE_COUNT;
-        // Bonus when enemy has siege to protect
-        if (zoneProfile.siegeCount > 0) {
-          score += R.GRUNT_BONUS_ENEMY_SIEGE_EXISTS;
-        }
-        // Bonus when player is melee-heavy (grunts trade well vs melee)
-        if (playerProfile.meleeRatio >= R.GRUNT_PLAYER_MELEE_RATIO_THRESHOLD) {
-          score += R.GRUNT_BONUS_HIGH_PLAYER_MELEE_RATIO;
-        }
-        // Penalty when grunts are over-represented in zone
-        if (zoneProfile.totalCount > 0 && zoneProfile.meleeRatio >= R.GRUNT_OVERREPRESENTED_THRESHOLD) {
-          score -= R.GRUNT_PENALTY_OVERREPRESENTED;
-        }
+    // ── LAVA_GRUNT scoring ──────────────────────────────────────────
+    if (unitType === UnitType.LAVA_GRUNT) {
+      // Bonus when enemy army is more offensive than defensive (needs front line)
+      if (zoneProfile.offensiveAvg > zoneProfile.defensiveAvg) {
+        score += R.GRUNT_BONUS_ENEMY_OFF_EXCEEDS_DEF;
       }
-
-      // ── LAVA_ARCHER scoring ─────────────────────────────────────────
-      if (unitType === UnitType.LAVA_ARCHER) {
-        // Bonus when player has many slow melee units (easy targets)
-        if (playerProfile.slowMeleeRatio >= R.ARCHER_PLAYER_SLOW_MELEE_RATIO_THRESHOLD) {
-          score += R.ARCHER_BONUS_PLAYER_SLOW_MELEE_RATIO;
-        }
-        // Bonus when enemy has enough defensive cover
-        if (zoneProfile.defensiveCount >= R.ARCHER_ENEMY_DEF_COUNT_THRESHOLD) {
-          score += R.ARCHER_BONUS_ENEMY_DEF_COVER;
-        }
-        // Penalty when player has fast units that can close distance
-        if (playerProfile.fastRatio >= R.ARCHER_PLAYER_FAST_RATIO_THRESHOLD) {
-          score -= R.ARCHER_PENALTY_PLAYER_FAST_RATIO;
-        }
-        // Penalty when ranged units are over-represented in zone
-        if (zoneProfile.totalCount > 0 && zoneProfile.rangedRatio >= R.ARCHER_RANGED_OVERREPRESENTED_THRESHOLD) {
-          score -= R.ARCHER_PENALTY_OVERREPRESENTED;
-        }
+      // Bonus per player offensive unit (more threats = more need for defenders)
+      score += playerProfile.offensiveCount * R.GRUNT_BONUS_PLAYER_OFFENSIVE_COUNT;
+      // Bonus when enemy has siege to protect
+      if (zoneProfile.siegeCount > 0) {
+        score += R.GRUNT_BONUS_ENEMY_SIEGE_EXISTS;
       }
-
-      // ── LAVA_RIDER scoring ──────────────────────────────────────────
-      if (unitType === UnitType.LAVA_RIDER) {
-        // Bonus when player has ranged units (riders counter ranged)
-        if (playerProfile.rangedRatio >= R.RIDER_PLAYER_RANGED_RATIO_THRESHOLD) {
-          score += R.RIDER_BONUS_PLAYER_RANGED_RATIO;
-        }
-        // Bonus per player ranged unit
-        score += playerProfile.rangedCount * R.RIDER_BONUS_PLAYER_RANGED_COUNT;
-        // Bonus when enemy lacks fast units in zone (gap to fill)
-        if (zoneProfile.fastCount < R.RIDER_ENEMY_FAST_GAP_THRESHOLD) {
-          score += R.RIDER_BONUS_ENEMY_FAST_GAP;
-        }
-        // Penalty when fast units are over-represented in zone
-        if (zoneProfile.totalCount > 0 && zoneProfile.fastRatio >= R.RIDER_FAST_OVERREPRESENTED_THRESHOLD) {
-          score -= R.RIDER_PENALTY_OVERREPRESENTED;
-        }
+      // Bonus when player is melee-heavy (grunts trade well vs melee)
+      if (playerProfile.meleeRatio >= R.GRUNT_PLAYER_MELEE_RATIO_THRESHOLD) {
+        score += R.GRUNT_BONUS_HIGH_PLAYER_MELEE_RATIO;
       }
-
-      // ── LAVA_SIEGE scoring ──────────────────────────────────────────
-      if (unitType === UnitType.LAVA_SIEGE) {
-        // Bonus when player is slow-melee-heavy (can't reach siege easily)
-        if (playerProfile.slowMeleeRatio >= R.SIEGE_PLAYER_SLOW_MELEE_RATIO_THRESHOLD) {
-          score += R.SIEGE_BONUS_PLAYER_SLOW_MELEE_RATIO;
-        }
-        // Bonus when enemy has enough defensive cover to protect siege
-        if (zoneProfile.defensiveCount >= R.SIEGE_ENEMY_DEF_COUNT_THRESHOLD) {
-          score += R.SIEGE_BONUS_ENEMY_DEF_COVER;
-        }
-        // Penalty when enemy has no cover (siege is vulnerable)
-        if (zoneProfile.defensiveCount < R.SIEGE_NO_COVER_THRESHOLD) {
-          score -= R.SIEGE_PENALTY_NO_COVER;
-        }
-        // Penalty when player has fast units that can reach siege
-        if (playerProfile.fastRatio >= R.SIEGE_PLAYER_FAST_RATIO_THRESHOLD) {
-          score -= R.SIEGE_PENALTY_PLAYER_FAST_RATIO;
-        }
-        // Penalty when siege is over-represented in zone
-        if (zoneProfile.totalCount > 0 && zoneProfile.siegeRatio >= R.SIEGE_OVERREPRESENTED_THRESHOLD) {
-          score -= R.SIEGE_PENALTY_OVERREPRESENTED;
-        }
-      }
-
-      // ── EMBERLING scoring ───────────────────────────────────────────
-      if (unitType === UnitType.EMBERLING) {
-        // Bonus when player is melee-heavy (good explosion targets)
-        if (playerProfile.meleeRatio >= R.EMBERLING_PLAYER_MELEE_RATIO_THRESHOLD) {
-          score += R.EMBERLING_BONUS_PLAYER_MELEE_RATIO;
-        }
-        // Bonus per player slow melee unit
-        score += playerProfile.slowMeleeCount * R.EMBERLING_BONUS_PLAYER_SLOW_MELEE_COUNT;
-        // Bonus when no Emberlings are nearby
-        if (emberlingNearbyCount === 0) {
-          score += R.EMBERLING_BONUS_NONE_NEARBY;
-        }
-        // Penalty when too many Emberlings already nearby
-        if (emberlingNearbyCount >= R.EMBERLING_NEARBY_OVERREPRESENTED_COUNT) {
-          score -= R.EMBERLING_PENALTY_OVERREPRESENTED;
-        }
-      }
-
-      if (score > bestScore) {
-        bestScore = score;
-        bestType = unitType;
+      // Penalty when grunts are over-represented in zone
+      if (zoneProfile.totalCount > 0 && zoneProfile.meleeRatio >= R.GRUNT_OVERREPRESENTED_THRESHOLD) {
+        score -= R.GRUNT_PENALTY_OVERREPRESENTED;
       }
     }
 
-    if (bestType) {
-      building.recruitmentQueue = bestType;
+    // ── LAVA_ARCHER scoring ─────────────────────────────────────────
+    if (unitType === UnitType.LAVA_ARCHER) {
+      // Bonus when player has many slow melee units (easy targets)
+      if (playerProfile.slowMeleeRatio >= R.ARCHER_PLAYER_SLOW_MELEE_RATIO_THRESHOLD) {
+        score += R.ARCHER_BONUS_PLAYER_SLOW_MELEE_RATIO;
+      }
+      // Bonus when enemy has enough defensive cover
+      if (zoneProfile.defensiveCount >= R.ARCHER_ENEMY_DEF_COUNT_THRESHOLD) {
+        score += R.ARCHER_BONUS_ENEMY_DEF_COVER;
+      }
+      // Penalty when player has fast units that can close distance
+      if (playerProfile.fastRatio >= R.ARCHER_PLAYER_FAST_RATIO_THRESHOLD) {
+        score -= R.ARCHER_PENALTY_PLAYER_FAST_RATIO;
+      }
+      // Penalty when ranged units are over-represented in zone
+      if (zoneProfile.totalCount > 0 && zoneProfile.rangedRatio >= R.ARCHER_RANGED_OVERREPRESENTED_THRESHOLD) {
+        score -= R.ARCHER_PENALTY_OVERREPRESENTED;
+      }
     }
+
+    // ── LAVA_RIDER scoring ──────────────────────────────────────────
+    if (unitType === UnitType.LAVA_RIDER) {
+      // Bonus when player has ranged units (riders counter ranged)
+      if (playerProfile.rangedRatio >= R.RIDER_PLAYER_RANGED_RATIO_THRESHOLD) {
+        score += R.RIDER_BONUS_PLAYER_RANGED_RATIO;
+      }
+      // Bonus per player ranged unit
+      score += playerProfile.rangedCount * R.RIDER_BONUS_PLAYER_RANGED_COUNT;
+      // Bonus when enemy lacks fast units in zone (gap to fill)
+      if (zoneProfile.fastCount < R.RIDER_ENEMY_FAST_GAP_THRESHOLD) {
+        score += R.RIDER_BONUS_ENEMY_FAST_GAP;
+      }
+      // Penalty when fast units are over-represented in zone
+      if (zoneProfile.totalCount > 0 && zoneProfile.fastRatio >= R.RIDER_FAST_OVERREPRESENTED_THRESHOLD) {
+        score -= R.RIDER_PENALTY_OVERREPRESENTED;
+      }
+    }
+
+    // ── LAVA_SIEGE scoring ──────────────────────────────────────────
+    if (unitType === UnitType.LAVA_SIEGE) {
+      // Bonus when player is slow-melee-heavy (can't reach siege easily)
+      if (playerProfile.slowMeleeRatio >= R.SIEGE_PLAYER_SLOW_MELEE_RATIO_THRESHOLD) {
+        score += R.SIEGE_BONUS_PLAYER_SLOW_MELEE_RATIO;
+      }
+      // Bonus when enemy has enough defensive cover to protect siege
+      if (zoneProfile.defensiveCount >= R.SIEGE_ENEMY_DEF_COUNT_THRESHOLD) {
+        score += R.SIEGE_BONUS_ENEMY_DEF_COVER;
+      }
+      // Penalty when enemy has no cover (siege is vulnerable)
+      if (zoneProfile.defensiveCount < R.SIEGE_NO_COVER_THRESHOLD) {
+        score -= R.SIEGE_PENALTY_NO_COVER;
+      }
+      // Penalty when player has fast units that can reach siege
+      if (playerProfile.fastRatio >= R.SIEGE_PLAYER_FAST_RATIO_THRESHOLD) {
+        score -= R.SIEGE_PENALTY_PLAYER_FAST_RATIO;
+      }
+      // Penalty when siege is over-represented in zone
+      if (zoneProfile.totalCount > 0 && zoneProfile.siegeRatio >= R.SIEGE_OVERREPRESENTED_THRESHOLD) {
+        score -= R.SIEGE_PENALTY_OVERREPRESENTED;
+      }
+    }
+
+    results.push({ type: unitType, score });
   }
+
+  return results.sort((a, b) => b.score - a.score);
 }
 
 // ============================================================================
@@ -1810,13 +1777,10 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
         .map(b => b.id)
     );
 
-    // 2. Score recruitment for LAVA_LAIR / INFERNAL_SANCTUM buildings
-    scoreRecruitmentForLavaLairs(draft);
-
-    // 2a. Process Ember Nest spawns (at start of enemy turn)
+    // 2. Process Ember Nest spawns (at start of enemy turn)
     processEmberNestSpawns(draft, events);
 
-    // 2b. Spawn enemy units (uses recruitmentQueue from step 2 when available)
+    // 2a. Spawn enemy units (recruitment is scored fresh per-building inside spawnEnemyUnits)
     spawnEnemyUnits(draft, events);
 
     // 2c. Enemy-owned attacking buildings (e.g. watchtowers) fire at player units in range
@@ -1893,4 +1857,20 @@ export function computeUnitAiScores(state: GameState, unitId: string): ScoredAct
     recentlyLostBuildingIds,
   );
   return scores.sort((a, b) => b.score - a.score);
+}
+
+/**
+ * Computes recruitment scores for an enemy LAVA_LAIR or INFERNAL_SANCTUM
+ * building and returns them sorted by score descending.
+ * Returns null if the building is not an enemy recruiting building.
+ * Intended for dev/debug use only (Recruiting Score inspector).
+ */
+export function computeRecruitmentScores(
+  state: GameState,
+  buildingId: string,
+): { type: UnitType; score: number }[] | null {
+  const building = state.buildings[buildingId];
+  if (!building || building.faction !== Faction.ENEMY) return null;
+  if (building.type !== BuildingType.LAVALAIR && building.type !== BuildingType.INFERNALSANCTUM) return null;
+  return scoreRecruitmentForBuilding(state as Draft<GameState>, building);
 }
