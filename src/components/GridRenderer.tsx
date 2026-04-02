@@ -413,17 +413,23 @@ export default function GridRenderer() {
       const tile = grid[y][x];
       const key = posKey(x, y);
 
-      // Priority 1 — Own player unit on tile: always select, unconditionally
+      // Priority 1 — Own player unit on tile
+      // Cycle: if this unit is already selected and there is also a building → select the building
       if (tile.unitId) {
         const u = units[tile.unitId];
         if (u && u.faction === Faction.PLAYER) {
-          selectUnit(tile.unitId);
+          if (selectedUnitId === tile.unitId && tile.buildingId) {
+            selectBuilding(tile.buildingId);
+          } else {
+            selectUnit(tile.unitId);
+          }
           return;
         }
       }
 
       // Priority 2 — Enemy unit on tile, valid attack available (unit or building attack)
       // Priority 3 — Enemy unit on tile, no valid attack: select for inspection
+      // Cycle: if this enemy unit is already selected and there is also a building → select the building
       if (tile.unitId) {
         const u = units[tile.unitId];
         if (u && u.faction === Faction.ENEMY) {
@@ -447,7 +453,11 @@ export default function GridRenderer() {
             buildingAttackUnit(selectedBuilding.id, tile.unitId);
             return;
           }
-          selectUnit(tile.unitId);
+          if (selectedUnitId === tile.unitId && tile.buildingId) {
+            selectBuilding(tile.buildingId);
+          } else {
+            selectUnit(tile.unitId);
+          }
           return;
         }
       }
@@ -463,15 +473,20 @@ export default function GridRenderer() {
       }
 
       // Priority 5 — Building on tile, movement not possible
+      // Cycle: if this building is already selected and there is also a unit → select the unit
       if (tile.buildingId) {
-        selectBuilding(tile.buildingId);
+        if (selectedBuildingId === tile.buildingId && tile.unitId) {
+          selectUnit(tile.unitId);
+        } else {
+          selectBuilding(tile.buildingId);
+        }
         return;
       }
 
       // Priority 6 — Fallback: clear selection
       clearSelection();
     },
-    [grid, selectedUnit, selectedBuilding, attackableSet, reachableSet, units, selectUnit, selectBuilding, clearSelection, moveUnit, attackUnit, buildingAttackUnit, isAnimating],
+    [grid, selectedUnitId, selectedBuildingId, selectedUnit, selectedBuilding, attackableSet, reachableSet, units, selectUnit, selectBuilding, clearSelection, moveUnit, attackUnit, buildingAttackUnit, isAnimating],
   );
 
   // Right-click / tap-hold → deselect (only when not used for drag-panning)
