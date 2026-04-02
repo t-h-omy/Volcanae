@@ -717,12 +717,26 @@ export const useGameStore = create<GameStore>()(
             }
             if (building && event.buildingHpLost > 0) {
               building.hp -= event.buildingHpLost;
-              // If building HP reaches 0, it becomes neutral
               if (building.hp <= 0) {
-                building.hp = building.maxHp;
-                building.faction = null;
-                building.hasActedThisTurn = false;
-                building.specialistSlot = null;
+                if (building.type === BuildingType.WATCHTOWER || building.faction === Faction.PLAYER) {
+                  // Watchtowers and player buildings go neutral
+                  building.hp = building.maxHp;
+                  building.faction = null;
+                  building.hasActedThisTurn = false;
+                  building.specialistSlot = null;
+                } else {
+                  // Enemy buildings (e.g. MAGMASPYR) are destroyed and leave a ruin
+                  const { x, y } = building.position;
+                  const buildingType = building.type;
+                  delete state.buildings[event.buildingId];
+                  const tile = state.grid[y][x];
+                  tile.buildingId = null;
+                  if (buildingType === BuildingType.STRONGHOLD || buildingType === BuildingType.INFERNALSANCTUM) {
+                    tile.isStrongholdRuin = true;
+                  } else {
+                    tile.isRuin = true;
+                  }
+                }
               }
             }
 

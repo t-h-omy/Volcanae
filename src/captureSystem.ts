@@ -90,7 +90,6 @@ function updateZonesUnlocked(state: Draft<GameState>): void {
  * - Building exists and is not owned by the unit's faction
  * - Unit is on the same tile as the building
  * - Unit has the BUILDANDCAPTURE tag
- * - The building's zone is unlocked for player units (enemy units are NOT zone-locked)
  *
  * @param state - Current game state
  * @param unitId - ID of the unit attempting to capture
@@ -138,14 +137,6 @@ export function canCapture(
   // Unit is not on the same tile as the building
   if (!isUnitOnBuilding(state, unitId, buildingId)) {
     return false;
-  }
-
-  // Check zone lock for player units
-  if (unit.faction === Faction.PLAYER) {
-    const buildingZone = getZoneForPosition(building.position);
-    if (!state.zonesUnlocked.includes(buildingZone)) {
-      return false;
-    }
   }
 
   return true;
