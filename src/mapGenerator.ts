@@ -193,7 +193,7 @@ function createBuilding(
  * Generates all buildings for a zone.
  * - Zone 1: PLAYER STRONGHOLD building + optional WATCHTOWER.
  * - Zones 2-3: marks the stronghold position as a stronghold ruin on the grid (no building created) + optional WATCHTOWER.
- * - Zones 4-5: ENEMY STRONGHOLD building + optional WATCHTOWER.
+ * - Zones 4-5: ENEMY INFERNALSANCTUM building + optional WATCHTOWER.
  */
 function generateBuildingsForZone(
   zone: number,
@@ -217,14 +217,17 @@ function generateBuildingsForZone(
     return null;
   };
 
-  // 1. STRONGHOLD (at pre-selected position)
+  // 1. STRONGHOLD or INFERNALSANCTUM (at pre-selected position)
   const strongholdFaction = getFaction(true);
   if (strongholdFaction === null) {
     // Neutral zones 2-3: place a stronghold ruin tile instead of a building
     grid[strongholdPos.y][strongholdPos.x].isStrongholdRuin = true;
   } else {
+    const buildingType = strongholdFaction === Faction.ENEMY
+      ? BuildingType.INFERNALSANCTUM
+      : BuildingType.STRONGHOLD;
     buildings.push(
-      createBuilding(BuildingType.STRONGHOLD, strongholdPos, strongholdFaction)
+      createBuilding(buildingType, strongholdPos, strongholdFaction)
     );
   }
 
