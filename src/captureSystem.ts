@@ -192,10 +192,10 @@ export function initiateCapture(
   unit.hasActedThisTurn = true;
   unit.hasCapturedThisTurn = true;
 
-  // STRONGHOLD and WATCHTOWER captured by the player: transfer ownership instead of destroying
+  // STRONGHOLD, WATCHTOWER, and LAVALAIR captured by the player: transfer ownership instead of destroying
   const isPlayerTransfer =
     unit.faction === Faction.PLAYER &&
-    (building.type === BuildingType.STRONGHOLD || building.type === BuildingType.WATCHTOWER);
+    (building.type === BuildingType.STRONGHOLD || building.type === BuildingType.WATCHTOWER || building.type === BuildingType.LAVALAIR);
 
   if (isPlayerTransfer) {
     // Transfer ownership — building stays on the tile
@@ -306,10 +306,10 @@ export function resolveCaptures(state: Draft<GameState>): void {
       continue;
     }
 
-    // STRONGHOLD and WATCHTOWER captured by the player: transfer ownership
+    // STRONGHOLD, WATCHTOWER, and LAVALAIR captured by the player: transfer ownership
     const isPlayerTransfer =
       capturingUnit.faction === Faction.PLAYER &&
-      (building.type === BuildingType.STRONGHOLD || building.type === BuildingType.WATCHTOWER);
+      (building.type === BuildingType.STRONGHOLD || building.type === BuildingType.WATCHTOWER || building.type === BuildingType.LAVALAIR);
 
     if (isPlayerTransfer) {
       const wasEnemy = building.faction === Faction.ENEMY;

@@ -266,6 +266,8 @@ export const ENEMY = {
   MAX_THREAT_BONUS: 0.60,
   /** Threat level at which the full MAX_THREAT_BONUS is reached */
   MAX_THREAT: 10,
+  /** Number of player turns between automatic threat level increases */
+  THREAT_LEVEL_INCREASE_INTERVAL: 10,
 } as const;
 
 // ============================================================================

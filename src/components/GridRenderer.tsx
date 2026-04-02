@@ -186,6 +186,7 @@ export default function GridRenderer() {
   const selectUnit = useGameStore((s) => s.selectUnit);
   const selectBuilding = useGameStore((s) => s.selectBuilding);
   const clearSelection = useGameStore((s) => s.clearSelection);
+  const selectTile = useGameStore((s) => s.selectTile);
   const moveUnit = useGameStore((s) => s.moveUnit);
   const attackUnit = useGameStore((s) => s.attackUnit);
   const buildingAttackUnit = useGameStore((s) => s.buildingAttackUnit);
@@ -483,10 +484,14 @@ export default function GridRenderer() {
         return;
       }
 
-      // Priority 6 — Fallback: clear selection
-      clearSelection();
+      // Priority 6 — Fallback: select the terrain tile if revealed, otherwise clear selection
+      if (tile.isRevealed && !tile.isLava) {
+        selectTile({ x, y });
+      } else {
+        clearSelection();
+      }
     },
-    [grid, selectedUnitId, selectedBuildingId, selectedUnit, selectedBuilding, attackableSet, reachableSet, units, selectUnit, selectBuilding, clearSelection, moveUnit, attackUnit, buildingAttackUnit, isAnimating],
+    [grid, selectedUnitId, selectedBuildingId, selectedUnit, selectedBuilding, attackableSet, reachableSet, units, selectUnit, selectBuilding, selectTile, clearSelection, moveUnit, attackUnit, buildingAttackUnit, isAnimating],
   );
 
   // Right-click / tap-hold → deselect (only when not used for drag-panning)

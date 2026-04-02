@@ -36,7 +36,7 @@ import { useAnimationStore } from './animationStore';
 import { Faction, GamePhase, BuildingType } from './types';
 import type { GameState, UnitType, Position } from './types';
 import type { GameEvent } from './gameEvents';
-import { MAP, LAVA, POPULATION, BUILDINGS } from './gameConfig';
+import { MAP, LAVA, POPULATION, BUILDINGS, ENEMY } from './gameConfig';
 import { saveGameState, loadGameState, clearSavedGame, hasSavedGame } from './saveSystem';
 
 // ============================================================================
@@ -52,6 +52,8 @@ interface GameActions {
   selectUnit: (unitId: string) => void;
   /** Select a building by ID */
   selectBuilding: (buildingId: string) => void;
+  /** Select a terrain tile by position (shown when no building/unit on tile) */
+  selectTile: (pos: Position) => void;
   /** Clear both unit and building selection */
   clearSelection: () => void;
   /** Move a unit to a target position (stub) */
@@ -172,6 +174,7 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         state.selectedUnitId = unitId;
         state.selectedBuildingId = null;
+        state.selectedTilePos = null;
       });
     },
 
@@ -179,11 +182,21 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         state.selectedBuildingId = buildingId;
         state.selectedUnitId = null;
+        state.selectedTilePos = null;
       });
     },
 
     clearSelection: () => {
       set((state) => {
+        state.selectedUnitId = null;
+        state.selectedBuildingId = null;
+        state.selectedTilePos = null;
+      });
+    },
+
+    selectTile: (pos: Position) => {
+      set((state) => {
+        state.selectedTilePos = pos;
         state.selectedUnitId = null;
         state.selectedBuildingId = null;
       });
@@ -486,7 +499,7 @@ export const useGameStore = create<GameStore>()(
           }
 
           // Check threat level
-          if (draft.turn > 0 && draft.turn % 10 === 0) {
+          if (draft.turn > 0 && draft.turn % ENEMY.THREAT_LEVEL_INCREASE_INTERVAL === 0) {
             draft.threatLevel += 1;
           }
 
