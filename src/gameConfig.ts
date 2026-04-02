@@ -118,7 +118,7 @@ export const UNITS = {
     moveRange: 1,
     attackRange: 1,
     discoverRadius: 1,
-    triggerRange: 0,
+    triggerRange: 3,
     tags: [UnitTag.BUILDANDCAPTURE, UnitTag.CORRUPT],
   },
 
