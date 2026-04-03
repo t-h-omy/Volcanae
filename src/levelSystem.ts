@@ -6,7 +6,9 @@
 import type { Draft } from 'immer';
 import type { GameState } from './types';
 import { Faction, GamePhase } from './types';
-import { UNITS, UNIT_LEVEL_UP, XP } from './gameConfig';
+import { UNITS, UNIT_LEVEL_UP, XP, ANIMATION } from './gameConfig';
+import { useFloaterStore } from './floaterStore';
+import { useCombatAnimationStore } from './combatAnimationStore';
 
 /**
  * Returns the target level for a unit based on its current XP.
@@ -44,6 +46,8 @@ export function applyLevelUps(
   if (!levelDefs) return;
 
   const baseStats = UNITS[unit.type as keyof typeof UNITS];
+  const startLevel = unit.level;
+  let totalHeal = 0;
 
   for (let newLevel = unit.level + 1; newLevel <= targetLevel; newLevel++) {
     const levelDef = levelDefs[newLevel - 2]; // index 0 = level 2
@@ -59,9 +63,46 @@ export function applyLevelUps(
       }
     }
 
+    // Accumulate heal amount before restoring HP
+    const healAmount = unit.stats.maxHp - unit.stats.currentHp;
+    if (healAmount > 0) totalHeal += healAmount;
+
     // Restore HP to new maxHp after applying boosts for this level
     unit.stats.currentHp = unit.stats.maxHp;
     unit.level = newLevel;
+  }
+
+  // Fire visual effects if unit actually levelled up
+  if (unit.level > startLevel) {
+    const { x, y } = unit.position;
+    const isEnemy = unit.faction === Faction.ENEMY;
+
+    // Heal floater: show total HP restored
+    if (totalHeal > 0) {
+      useFloaterStore.getState().addFloater({
+        value: totalHeal,
+        x,
+        y,
+        isEnemy,
+        floaterType: 'heal',
+      });
+    }
+
+    // Level-up floater
+    useFloaterStore.getState().addFloater({
+      value: 0,
+      label: `⬆️ Lv.${unit.level}`,
+      x,
+      y,
+      isEnemy: false,
+      floaterType: 'levelup',
+    });
+
+    // Level-up glow animation on the unit — auto-clears after the CSS animation completes
+    useCombatAnimationStore.getState().setUnitAnimation(unitId, { type: 'LEVEL_UP' });
+    setTimeout(() => {
+      useCombatAnimationStore.getState().setUnitAnimation(unitId, null);
+    }, ANIMATION.LEVEL_UP_ANIM_DURATION_MS);
   }
 }
 

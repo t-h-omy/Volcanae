@@ -827,7 +827,9 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
       ? 'anim-hit'
       : anim?.type === 'DYING'
         ? 'anim-dying'
-        : '';
+        : anim?.type === 'LEVEL_UP'
+          ? 'anim-levelup'
+          : '';
 
   const animStyle: React.CSSProperties | undefined =
     anim?.type === 'LUNGE' || anim?.type === 'RECOIL'
@@ -849,6 +851,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
           '--hit-shake-duration': `${ANIMATION.HIT_SHAKE_DURATION_MS}ms`,
           '--die-flash-duration': `${ANIMATION.DIE_FLASH_DURATION_MS}ms`,
           '--die-fade-duration': `${ANIMATION.DIE_FADE_DURATION_MS}ms`,
+          '--levelup-anim-duration': `${ANIMATION.LEVEL_UP_ANIM_DURATION_MS}ms`,
         } as React.CSSProperties
       }
     >
@@ -863,6 +866,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
       >
         <div className="hp-bar-fill" style={{ width: `${hpPct}%` }} />
       </div>
+      <span className="unit-hp-text">{unit.stats.currentHp}</span>
       <span className="unit-main-emoji unit-emoji" style={{ fontSize: `${unitEmojiSize}px` }}>
         {UNIT_EMOJI[unit.type] ?? '?'}
       </span>
@@ -1027,22 +1031,38 @@ function DamageFloaterLayer({ tileSize }: { tileSize: number }) {
 
   return (
     <div className="floater-layer">
-      {floaters.map((floater) => (
-        <div
-          key={floater.id}
-          className={`damage-floater ${floater.isEnemy ? 'floater-enemy' : 'floater-player'}`}
-          style={
-            {
-              left: floater.x * tileSize + tileSize / 2,
-              top: floater.y * tileSize,
-              '--float-duration': `${UI.DAMAGE_FLOAT_DURATION_MS}ms`,
-              '--float-rise': `-${UI.DAMAGE_FLOAT_RISE_PX}px`,
-            } as React.CSSProperties
-          }
-        >
-          {floater.value}
-        </div>
-      ))}
+      {floaters.map((floater) => {
+        const colorClass =
+          floater.floaterType === 'heal'
+            ? 'floater-heal'
+            : floater.floaterType === 'levelup'
+              ? 'floater-levelup'
+              : floater.isEnemy
+                ? 'floater-enemy'
+                : 'floater-player';
+        const content =
+          floater.label !== undefined
+            ? floater.label
+            : floater.floaterType === 'heal'
+              ? `+${floater.value}`
+              : floater.value;
+        return (
+          <div
+            key={floater.id}
+            className={`damage-floater ${colorClass}`}
+            style={
+              {
+                left: floater.x * tileSize + tileSize / 2,
+                top: floater.y * tileSize,
+                '--float-duration': `${UI.DAMAGE_FLOAT_DURATION_MS}ms`,
+                '--float-rise': `-${UI.DAMAGE_FLOAT_RISE_PX}px`,
+              } as React.CSSProperties
+            }
+          >
+            {content}
+          </div>
+        );
+      })}
     </div>
   );
 }

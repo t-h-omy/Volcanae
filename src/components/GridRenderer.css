@@ -85,6 +85,23 @@
   margin-top: 1px;
 }
 
+/* ── Unit HP text ── */
+
+.unit-hp-text {
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 8px;
+  font-weight: bold;
+  line-height: 1;
+  color: white;
+  text-shadow: 0 0 2px #000, 1px 0 0 #000, -1px 0 0 #000, 0 1px 0 #000, 0 -1px 0 #000;
+  pointer-events: none;
+  z-index: 3;
+  white-space: nowrap;
+}
+
 /* ── Building layer ── */
 
 .tile-building {
@@ -237,6 +254,15 @@
 
 .damage-floater.floater-player {
   color: #ff4444;
+}
+
+.damage-floater.floater-heal {
+  color: #2ecc71;
+}
+
+.damage-floater.floater-levelup {
+  color: #f1c40f;
+  font-size: 16px;
 }
 
 @keyframes floatUp {
@@ -392,6 +418,20 @@
 @keyframes dyingFadeOut {
   0%   { opacity: 1; }
   100% { opacity: 0; }
+}
+
+/* ── Level-Up Animation ── */
+
+.anim-levelup .unit-main-emoji {
+  animation: levelUpPulse var(--levelup-anim-duration, 1000ms) ease-out forwards;
+}
+
+@keyframes levelUpPulse {
+  0%   { transform: scale(1);    filter: brightness(1)   drop-shadow(0 0 0px   gold); }
+  20%  { transform: scale(1.35); filter: brightness(1.8) drop-shadow(0 0 8px   gold); }
+  50%  { transform: scale(1.1);  filter: brightness(1.4) drop-shadow(0 0 5px   gold); }
+  80%  { transform: scale(1.2);  filter: brightness(1.6) drop-shadow(0 0 6px   gold); }
+  100% { transform: scale(1);    filter: brightness(1)   drop-shadow(0 0 0px   gold); }
 }
 
 /* ── Projectile Layer ── */
