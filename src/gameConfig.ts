@@ -1,7 +1,9 @@
 /**
- * Centralized game configuration for Volcanae.
- * All balanceable constants should be defined here.
- * Do not hardcode these values elsewhere - always import from this file.
+ * Gameplay and balance configuration for Volcanae.
+ * Contains only pure gameplay constants (map layout, unit stats, AI parameters,
+ * resource rates, XP/level-up values, etc.).
+ * Presentation-layer constants (animation, UI, rendering, input) live in
+ * animationConfig.ts, uiConfig.ts, renderConfig.ts, and inputConfig.ts.
  */
 
 import { UnitTag } from './types';
@@ -603,131 +605,6 @@ export const ENEMY_UNIT_UNLOCK: Record<string, number> = {
 };
 
 // ============================================================================
-// ANIMATION CONFIGURATION
-// ============================================================================
-
-export const ANIMATION = {
-  /** Time for viewport to pan to a new target position */
-  CAMERA_MOVE_DURATION_MS: 350,
-  /** Pause after camera arrives, before action executes */
-  PRE_ACTION_IDLE_MS: 150,
-  /** Pause after action resolves, before moving to next event */
-  POST_ACTION_IDLE_MS: 250,
-  /** Longer pause for lava advance — more dramatic weight */
-  LAVA_ADVANCE_PAUSE_MS: 700,
-  /** Pause after a unit spawns before moving to next event */
-  SPAWN_PAUSE_MS: 300,
-  /** Melee lunge out + snap back total duration (ms) */
-  MELEE_LUNGE_DURATION_MS: 260,
-  /** Ranged projectile travel time per tile (ms) */
-  RANGED_PROJECTILE_MS_PER_TILE: 80,
-  /** Minimum ranged projectile travel time (ms) */
-  RANGED_PROJECTILE_MIN_MS: 200,
-  /** Maximum ranged projectile travel time (ms) */
-  RANGED_PROJECTILE_MAX_MS: 700,
-  /** Ranged attacker recoil duration (ms) */
-  RANGED_RECOIL_DURATION_MS: 180,
-  /** Hit shake duration (ms) */
-  HIT_SHAKE_DURATION_MS: 280,
-  /** Die skull-flash duration (ms) */
-  DIE_FLASH_DURATION_MS: 450,
-  /** Die fade-out duration (ms) */
-  DIE_FADE_DURATION_MS: 200,
-  /** Level-up golden pulse animation duration (ms) */
-  LEVEL_UP_ANIM_DURATION_MS: 1000,
-  /** Level-up pulse: peak scale at 20% keyframe */
-  LEVEL_UP_SCALE_PEAK: 1.35,
-  /** Level-up pulse: mid scale at 50% keyframe */
-  LEVEL_UP_SCALE_MID1: 1.1,
-  /** Level-up pulse: mid scale at 80% keyframe */
-  LEVEL_UP_SCALE_MID2: 1.2,
-  /** Level-up pulse: peak brightness at 20% keyframe */
-  LEVEL_UP_BRIGHTNESS_PEAK: 1.8,
-  /** Level-up pulse: mid brightness at 50% keyframe */
-  LEVEL_UP_BRIGHTNESS_MID1: 1.4,
-  /** Level-up pulse: mid brightness at 80% keyframe */
-  LEVEL_UP_BRIGHTNESS_MID2: 1.6,
-  /** Level-up pulse: peak drop-shadow blur (px) at 20% keyframe */
-  LEVEL_UP_GLOW_PEAK_PX: 8,
-  /** Level-up pulse: mid drop-shadow blur (px) at 50% keyframe */
-  LEVEL_UP_GLOW_MID1_PX: 5,
-  /** Level-up pulse: mid drop-shadow blur (px) at 80% keyframe */
-  LEVEL_UP_GLOW_MID2_PX: 6,
-} as const;
-
-// ============================================================================
-// UI CONFIGURATION
-// ============================================================================
-
-export const UI = {
-  /** Total lifetime of a damage number before removal */
-  DAMAGE_FLOAT_DURATION_MS: 2500,
-  /** How far upward the number floats (half a tile height) */
-  DAMAGE_FLOAT_RISE_PX: 20,
-  /** Font size for damage/general floaters (px) */
-  DAMAGE_FLOATER_FONT_SIZE_PX: 14,
-  /** Font size for level-up floaters (px) — larger for emphasis */
-  LEVEL_UP_FLOATER_FONT_SIZE_PX: 16,
-  /** Font size for the HP number shown above a unit (px) */
-  UNIT_HP_TEXT_FONT_SIZE_PX: 8,
-  /** Duration of the bounce animation on the capture-ready indicator */
-  CAPTURE_INDICATOR_BOUNCE_DURATION_MS: 700,
-  /** How long the turn label is fully visible before fading out */
-  TURN_POPUP_DISPLAY_MS: 2000,
-  /** Duration of the turn popup fade-out */
-  TURN_POPUP_FADE_MS: 400,
-} as const;
-
-// ============================================================================
-// RENDERING CONFIGURATION
-// ============================================================================
-
-export const RENDER = {
-  /** Tile size on desktop in pixels */
-  TILE_SIZE_DESKTOP: 80,
-  /** Tile size on mobile in pixels */
-  TILE_SIZE_MOBILE: 64,
-  /** Mobile breakpoint in pixels */
-  MOBILE_BREAKPOINT: 768,
-  /** Opacity of a unit graphic when it has no actions remaining (0.0–1.0) */
-  UNIT_EXHAUSTED_OPACITY: 0.5,
-  /** Colors for tile rendering */
-  COLORS: {
-    UNREVEALED: '#d8d8d8',
-    GRASS: '#4a8c3f',
-    LAVA: '#e25822',
-    LAVA_PREVIEW_OVERLAY: 'rgba(226, 88, 34, 0.35)',
-    BUILDING_PLAYER: '#3a7bd5',
-    BUILDING_ENEMY: '#c0392b',
-    BUILDING_NEUTRAL: '#4a8c3f',
-    REACHABLE_OVERLAY: 'rgba(58, 123, 213, 0.35)',
-    ATTACKABLE_OVERLAY: 'rgba(192, 57, 43, 0.35)',
-    HP_GREEN: '#2ecc71',
-    HP_RED: '#e74c3c',
-    LAVA_BOOST_BAR: '#e67e22',
-    /** Colour of the heal floater text */
-    HEAL_FLOATER: '#2ecc71',
-    /** Colour of the level-up floater text */
-    LEVEL_UP_FLOATER: '#f1c40f',
-    /** Drop-shadow colour used in the level-up pulse animation */
-    LEVEL_UP_GLOW: 'gold',
-  },
-  /** Camera smooth animation duration in ms */
-  CAMERA_ANIMATION_MS: 400,
-} as const;
-
-// ============================================================================
-// INPUT CONFIGURATION
-// ============================================================================
-
-export const INPUT = {
-  /** Inertia friction multiplier applied per animation frame (0–1, closer to 1 = longer glide) */
-  SWIPE_FRICTION: 0.95,
-  /** Minimum velocity (px/ms) below which inertia stops */
-  SWIPE_MIN_VELOCITY: 0.01,
-} as const;
-
-// ============================================================================
 // UNIT XP AND LEVEL-UP CONFIGURATION
 // ============================================================================
 
@@ -839,10 +716,6 @@ export const GAME_CONFIG = {
   AI_SCORING,
   AI_RECRUITMENT,
   UNIT_COSTS,
-  ANIMATION,
-  RENDER,
-  UI,
-  INPUT,
   XP,
   LEVEL_UP_VALUES,
   UNIT_LEVEL_UP,
