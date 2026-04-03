@@ -73,6 +73,14 @@ export function getReachableTiles(
       continue;
     }
 
+    // Cannot move onto tiles occupied by a hostile building (must attack it first)
+    if (tile.buildingId !== null) {
+      const tileBuilding = state.buildings[tile.buildingId];
+      if (tileBuilding && tileBuilding.faction !== null && tileBuilding.faction !== unit.faction) {
+        continue;
+      }
+    }
+
     reachableTiles.push({ x: tx, y: ty });
   }
 

@@ -113,8 +113,7 @@ export function calculateCombatFromStats(attacker: Combatant, defender: Combatan
 
   // Calculate counter-damage dealt to attacker
   const counterDamageToAttacker =
-    e
-    defender.defence * (effectiveDefense / totalPower);
+    defender.defense * (effectiveDefense / totalPower);
 
   return {
     attackerHpLost: Math.round(counterDamageToAttacker),
@@ -365,6 +364,9 @@ export function resolveAttackOnBuilding(
 
   if (!attacker || !building) return;
 
+  // Capture building position before any mutations (needed for melee advance)
+  const buildingPosition = { x: building.position.x, y: building.position.y };
+
   // Only buildings with combat stats can be attacked / counter-attack
   const buildingCombatant = building.combatStats ? buildingToCombatant(building) : null;
 
@@ -457,5 +459,20 @@ export function resolveAttackOnBuilding(
     }
   } else {
     building.hp = newBuildingHp;
+  }
+
+  // Melee attacker advances onto the tile the destroyed building occupied
+  if (buildingDead && !attackerDead) {
+    const attackerUnit = state.units[attackerId];
+    if (attackerUnit && !attackerUnit.tags.includes(UnitTag.RANGED)) {
+      const fromTile = state.grid[attackerUnit.position.y][attackerUnit.position.x];
+      if (fromTile.unitId === attackerId) {
+        fromTile.unitId = null;
+      }
+      const toTile = state.grid[buildingPosition.y][buildingPosition.x];
+      toTile.unitId = attackerId;
+      attackerUnit.position.x = buildingPosition.x;
+      attackerUnit.position.y = buildingPosition.y;
+    }
   }
 }

@@ -186,7 +186,7 @@ function isUnitBlockedFromLava(unit: Unit, state: Draft<GameState>): boolean {
       if (visited.has(key)) continue;
       visited.add(key);
       const tile = state.grid[ny][nx];
-      if (tile.unitId !== null || tile.isLava) continue;
+      if (tile.unitId !== null || tile.isLava || (tile.buildingId !== null && state.buildings[tile.buildingId]?.faction === Faction.PLAYER)) continue;
       // ny > startY means the tile is closer to lava (higher Y = toward lava)
       if (ny > startY) return false;
       queue.push({ x: nx, y: ny, steps: steps + 1 });
@@ -262,7 +262,7 @@ function stepToward(from: Position, target: Position, state: Draft<GameState>): 
   for (const pos of steps) {
     if (isWithinBounds(pos)) {
       const tile = state.grid[pos.y][pos.x];
-      if (!tile.isLava && tile.unitId === null) {
+      if (!tile.isLava && tile.unitId === null && (tile.buildingId === null || state.buildings[tile.buildingId]?.faction !== Faction.PLAYER)) {
         return pos;
       }
     }
@@ -293,7 +293,7 @@ function findLavaAdvanceTarget(unit: Unit, state: Draft<GameState>): Position {
 
     for (let tx = Math.max(0, startX - scanWidth); tx <= Math.min(MAP.GRID_WIDTH - 1, startX + scanWidth); tx++) {
       const tile = state.grid[ty][tx];
-      if (tile.isLava || tile.unitId !== null) continue;
+      if (tile.isLava || tile.unitId !== null || (tile.buildingId !== null && state.buildings[tile.buildingId]?.faction === Faction.PLAYER)) continue;
       const dist = Math.abs(tx - startX);
       if (dist < bestDist) {
         bestDist = dist;
