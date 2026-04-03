@@ -285,23 +285,23 @@ export const AI_SCORING = {
   /** Move into melee range of a player unit that is currently capturing a building, to stop it */
   BASE_INTERCEPT_CAPTOR: 90,
   /** Walk onto an unoccupied neutral or player building to begin capturing it */
-  BASE_CAPTURE_BUILDING: 85,
+  BASE_CAPTURE_BUILDING: 90,
   /** Move to a building already occupied by a player unit to disrupt their capture attempt */
   BASE_CONTEST_BUILDING: 80,
   /** Perform a melee attack against an adjacent player unit */
-  BASE_ATTACK_UNIT: 70,
+  BASE_ATTACK_UNIT: 75,
   /** Perform a melee attack against an adjacent player-owned building */
-  BASE_ATTACK_BUILDING: 68,
+  BASE_ATTACK_BUILDING: 76,
   /** Perform a ranged attack against a player-owned building from a safe distance */
-  BASE_RANGED_ATTACK_BUILDING: 66,
+  BASE_RANGED_ATTACK_BUILDING: 75,
   /** Perform a ranged attack against a player unit from outside melee range */
-  BASE_RANGED_ATTACK_UNIT: 65,
+  BASE_RANGED_ATTACK_UNIT: 76,
   /** Move towards a building that was previously enemy-owned but recently captured by the player */
   BASE_RETAKE_BUILDING: 65,
   /** Move towards a friendly LAVA_LAIR or INFERNAL_SANCTUM to keep it defended */
   BASE_PROTECT_SPAWNER: 58,
   /** Move towards the player's starting stronghold (zone 1) to apply pressure */
-  BASE_PUSH_TO_STRONGHOLD: 52,
+  BASE_PUSH_TO_STRONGHOLD: 50,
   /** Move to or hold position near a friendly enemy-owned building to defend it */
   BASE_DEFEND_ENEMY_BUILDING: 48,
   /** Move towards a player-owned building that is not immediately contestable */
@@ -313,7 +313,7 @@ export const AI_SCORING = {
   /** Move to the lava-side edge of the current zone to push into the next zone */
   BASE_PUSH_TO_ZONE_EDGE: 25,
   /** Move to a tile that puts the unit adjacent to a player unit's flank or rear */
-  BASE_FLANK_UNIT: 20,
+  BASE_FLANK_UNIT: 25,
   /** Move toward the lava front; always a candidate for unmoved units */
   BASE_ADVANCE_TOWARD_LAVA: 18,
   /** Voluntarily walk into lava to boost the threat level when no better action exists */
@@ -324,7 +324,7 @@ export const AI_SCORING = {
   // ── Distance ─────────────────────────────────────────────────────────────
 
   /** Score subtracted for every tile of Manhattan distance between the unit and its target */
-  DISTANCE_PENALTY_PER_TILE: 6,
+  DISTANCE_PENALTY_PER_TILE: 8,
 
   // ── Combat outcome modifiers ─────────────────────────────────────────────
 
