@@ -73,10 +73,11 @@ export function getReachableTiles(
       continue;
     }
 
-    // Cannot move onto tiles occupied by a hostile building (must attack it first)
+    // Cannot move onto tiles occupied by a hostile building that has HP (must attack it first)
+    // Buildings without combatStats (no HP/attack) can be walked onto to destroy them
     if (tile.buildingId !== null) {
       const tileBuilding = state.buildings[tile.buildingId];
-      if (tileBuilding && tileBuilding.faction !== null && tileBuilding.faction !== unit.faction) {
+      if (tileBuilding && tileBuilding.faction !== null && tileBuilding.faction !== unit.faction && tileBuilding.combatStats !== null) {
         continue;
       }
     }
