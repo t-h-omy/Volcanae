@@ -355,6 +355,8 @@ export function recruitUnit(
     hasMovedThisTurn: true,
     hasActedThisTurn: true,
     hasCapturedThisTurn: true,
+    xp: 0,
+    level: 1,
   };
 
   // Place unit on the grid

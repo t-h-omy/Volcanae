@@ -13,6 +13,7 @@ import { getReachableTiles } from '../movementSystem';
 import { canCapture } from '../captureSystem';
 import { getConstructionOptionsForTile } from '../constructionSystem';
 import { MAP, RENDER, UI, ANIMATION, INPUT } from '../gameConfig';
+import { computeLevelFromXp } from '../levelSystem';
 import {
   Faction,
   UnitType,
@@ -607,6 +608,7 @@ export default function GridRenderer() {
         )}
         <CaptureIndicatorLayer tileSize={tileSize} />
         <BuildIndicatorLayer tileSize={tileSize} />
+        <LevelUpIndicatorLayer tileSize={tileSize} />
         <DamageFloaterLayer tileSize={tileSize} />
         <ProjectileLayer />
       </div>
@@ -825,7 +827,9 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
       ? 'anim-hit'
       : anim?.type === 'DYING'
         ? 'anim-dying'
-        : '';
+        : anim?.type === 'LEVEL_UP'
+          ? 'anim-levelup'
+          : '';
 
   const animStyle: React.CSSProperties | undefined =
     anim?.type === 'LUNGE' || anim?.type === 'RECOIL'
@@ -847,6 +851,18 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
           '--hit-shake-duration': `${ANIMATION.HIT_SHAKE_DURATION_MS}ms`,
           '--die-flash-duration': `${ANIMATION.DIE_FLASH_DURATION_MS}ms`,
           '--die-fade-duration': `${ANIMATION.DIE_FADE_DURATION_MS}ms`,
+          '--levelup-anim-duration': `${ANIMATION.LEVEL_UP_ANIM_DURATION_MS}ms`,
+          '--levelup-scale-peak': ANIMATION.LEVEL_UP_SCALE_PEAK,
+          '--levelup-scale-mid1': ANIMATION.LEVEL_UP_SCALE_MID1,
+          '--levelup-scale-mid2': ANIMATION.LEVEL_UP_SCALE_MID2,
+          '--levelup-brightness-peak': ANIMATION.LEVEL_UP_BRIGHTNESS_PEAK,
+          '--levelup-brightness-mid1': ANIMATION.LEVEL_UP_BRIGHTNESS_MID1,
+          '--levelup-brightness-mid2': ANIMATION.LEVEL_UP_BRIGHTNESS_MID2,
+          '--levelup-glow-peak': `${ANIMATION.LEVEL_UP_GLOW_PEAK_PX}px`,
+          '--levelup-glow-mid1': `${ANIMATION.LEVEL_UP_GLOW_MID1_PX}px`,
+          '--levelup-glow-mid2': `${ANIMATION.LEVEL_UP_GLOW_MID2_PX}px`,
+          '--levelup-glow-color': RENDER.COLORS.LEVEL_UP_GLOW,
+          '--unit-hp-text-font-size': `${UI.UNIT_HP_TEXT_FONT_SIZE_PX}px`,
         } as React.CSSProperties
       }
     >
@@ -861,6 +877,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
       >
         <div className="hp-bar-fill" style={{ width: `${hpPct}%` }} />
       </div>
+      <span className="unit-hp-text">{unit.stats.currentHp}</span>
       <span className="unit-main-emoji unit-emoji" style={{ fontSize: `${unitEmojiSize}px` }}>
         {UNIT_EMOJI[unit.type] ?? '?'}
       </span>
@@ -981,27 +998,92 @@ function BuildIndicatorLayer({ tileSize }: { tileSize: number }) {
   );
 }
 
+function LevelUpIndicatorLayer({ tileSize }: { tileSize: number }) {
+  const units = useGameStore((s) => s.units);
+
+  const levelUpReadyPositions = useMemo(() => {
+    const result: Array<{ key: string; x: number; y: number }> = [];
+    for (const unit of Object.values(units)) {
+      if (unit.faction !== Faction.PLAYER) continue;
+      if (computeLevelFromXp(unit.type, unit.xp) > unit.level) {
+        result.push({ key: unit.id, x: unit.position.x, y: unit.position.y });
+      }
+    }
+    return result;
+  }, [units]);
+
+  if (levelUpReadyPositions.length === 0) return null;
+
+  return (
+    <div className="levelup-indicator-layer">
+      {levelUpReadyPositions.map(({ key, x, y }) => (
+        <div
+          key={key}
+          className="levelup-indicator"
+          style={
+            {
+              left: x * tileSize,
+              top: y * tileSize,
+              width: tileSize,
+              '--capture-bounce-duration': `${UI.CAPTURE_INDICATOR_BOUNCE_DURATION_MS}ms`,
+            } as React.CSSProperties
+          }
+        >
+          <span className="capture-bubble">💬</span>
+          <span className="levelup-arrow">⬆️</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function DamageFloaterLayer({ tileSize }: { tileSize: number }) {
   const floaters = useFloaterStore((s) => s.floaters);
 
   return (
-    <div className="floater-layer">
-      {floaters.map((floater) => (
-        <div
-          key={floater.id}
-          className={`damage-floater ${floater.isEnemy ? 'floater-enemy' : 'floater-player'}`}
-          style={
-            {
-              left: floater.x * tileSize + tileSize / 2,
-              top: floater.y * tileSize,
-              '--float-duration': `${UI.DAMAGE_FLOAT_DURATION_MS}ms`,
-              '--float-rise': `-${UI.DAMAGE_FLOAT_RISE_PX}px`,
-            } as React.CSSProperties
-          }
-        >
-          {floater.value}
-        </div>
-      ))}
+    <div
+      className="floater-layer"
+      style={
+        {
+          '--color-heal-floater': RENDER.COLORS.HEAL_FLOATER,
+          '--color-levelup-floater': RENDER.COLORS.LEVEL_UP_FLOATER,
+          '--damage-floater-font-size': `${UI.DAMAGE_FLOATER_FONT_SIZE_PX}px`,
+          '--levelup-floater-font-size': `${UI.LEVEL_UP_FLOATER_FONT_SIZE_PX}px`,
+        } as React.CSSProperties
+      }
+    >
+      {floaters.map((floater) => {
+        const colorClass =
+          floater.floaterType === 'heal'
+            ? 'floater-heal'
+            : floater.floaterType === 'levelup'
+              ? 'floater-levelup'
+              : floater.isEnemy
+                ? 'floater-enemy'
+                : 'floater-player';
+        const content =
+          floater.label !== undefined
+            ? floater.label
+            : floater.floaterType === 'heal'
+              ? `+${floater.value}`
+              : floater.value;
+        return (
+          <div
+            key={floater.id}
+            className={`damage-floater ${colorClass}`}
+            style={
+              {
+                left: floater.x * tileSize + tileSize / 2,
+                top: floater.y * tileSize,
+                '--float-duration': `${UI.DAMAGE_FLOAT_DURATION_MS}ms`,
+                '--float-rise': `-${UI.DAMAGE_FLOAT_RISE_PX}px`,
+              } as React.CSSProperties
+            }
+          >
+            {content}
+          </div>
+        );
+      })}
     </div>
   );
 }

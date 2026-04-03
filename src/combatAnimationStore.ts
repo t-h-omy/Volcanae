@@ -13,7 +13,8 @@ export type UnitAnimationState =
   | { type: 'LUNGE'; dx: number; dy: number }
   | { type: 'RECOIL'; dx: number; dy: number }
   | { type: 'HIT' }
-  | { type: 'DYING' };
+  | { type: 'DYING' }
+  | { type: 'LEVEL_UP' };
 
 export interface Projectile {
   id: string;

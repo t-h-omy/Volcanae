@@ -1088,3 +1088,36 @@
   color: #e67e22;
   padding-left: 4px;
 }
+
+/* ── XP Bar / Level display ── */
+.hud-xp-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.hud-xp-label {
+  color: #f1c40f;
+}
+
+/* ── Level Up Button ── */
+.hud-levelup-btn {
+  margin-top: 4px;
+  padding: 6px 12px;
+  min-height: 36px;
+  border: 1px solid rgba(241, 196, 15, 0.5);
+  border-radius: 6px;
+  background: rgba(241, 196, 15, 0.15);
+  color: #f1c40f;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 0.15s;
+  align-self: flex-start;
+}
+
+.hud-levelup-btn:hover {
+  background: rgba(241, 196, 15, 0.3);
+}

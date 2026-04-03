@@ -12,10 +12,14 @@ import { UI } from './gameConfig';
 export interface DamageFloater {
   id: string;
   value: number;
+  /** Optional text label — shown instead of `value` when set */
+  label?: string;
   x: number;
   y: number;
   /** true = enemy took damage (orange), false = player took damage (red) */
   isEnemy: boolean;
+  /** Visual type that controls colour and style; defaults to 'damage' */
+  floaterType?: 'damage' | 'heal' | 'levelup';
 }
 
 interface FloaterState {

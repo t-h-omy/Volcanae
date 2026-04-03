@@ -5,7 +5,7 @@
  */
 
 import { UnitTag } from './types';
-import type { UnitPopulationCost } from './types';
+import type { UnitPopulationCost, UnitLevelDefinition } from './types';
 
 // ============================================================================
 // MAP CONFIGURATION
@@ -633,6 +633,26 @@ export const ANIMATION = {
   DIE_FLASH_DURATION_MS: 450,
   /** Die fade-out duration (ms) */
   DIE_FADE_DURATION_MS: 200,
+  /** Level-up golden pulse animation duration (ms) */
+  LEVEL_UP_ANIM_DURATION_MS: 1000,
+  /** Level-up pulse: peak scale at 20% keyframe */
+  LEVEL_UP_SCALE_PEAK: 1.35,
+  /** Level-up pulse: mid scale at 50% keyframe */
+  LEVEL_UP_SCALE_MID1: 1.1,
+  /** Level-up pulse: mid scale at 80% keyframe */
+  LEVEL_UP_SCALE_MID2: 1.2,
+  /** Level-up pulse: peak brightness at 20% keyframe */
+  LEVEL_UP_BRIGHTNESS_PEAK: 1.8,
+  /** Level-up pulse: mid brightness at 50% keyframe */
+  LEVEL_UP_BRIGHTNESS_MID1: 1.4,
+  /** Level-up pulse: mid brightness at 80% keyframe */
+  LEVEL_UP_BRIGHTNESS_MID2: 1.6,
+  /** Level-up pulse: peak drop-shadow blur (px) at 20% keyframe */
+  LEVEL_UP_GLOW_PEAK_PX: 8,
+  /** Level-up pulse: mid drop-shadow blur (px) at 50% keyframe */
+  LEVEL_UP_GLOW_MID1_PX: 5,
+  /** Level-up pulse: mid drop-shadow blur (px) at 80% keyframe */
+  LEVEL_UP_GLOW_MID2_PX: 6,
 } as const;
 
 // ============================================================================
@@ -644,6 +664,12 @@ export const UI = {
   DAMAGE_FLOAT_DURATION_MS: 2500,
   /** How far upward the number floats (half a tile height) */
   DAMAGE_FLOAT_RISE_PX: 20,
+  /** Font size for damage/general floaters (px) */
+  DAMAGE_FLOATER_FONT_SIZE_PX: 14,
+  /** Font size for level-up floaters (px) — larger for emphasis */
+  LEVEL_UP_FLOATER_FONT_SIZE_PX: 16,
+  /** Font size for the HP number shown above a unit (px) */
+  UNIT_HP_TEXT_FONT_SIZE_PX: 8,
   /** Duration of the bounce animation on the capture-ready indicator */
   CAPTURE_INDICATOR_BOUNCE_DURATION_MS: 700,
   /** How long the turn label is fully visible before fading out */
@@ -679,6 +705,12 @@ export const RENDER = {
     HP_GREEN: '#2ecc71',
     HP_RED: '#e74c3c',
     LAVA_BOOST_BAR: '#e67e22',
+    /** Colour of the heal floater text */
+    HEAL_FLOATER: '#2ecc71',
+    /** Colour of the level-up floater text */
+    LEVEL_UP_FLOATER: '#f1c40f',
+    /** Drop-shadow colour used in the level-up pulse animation */
+    LEVEL_UP_GLOW: 'gold',
   },
   /** Camera smooth animation duration in ms */
   CAMERA_ANIMATION_MS: 400,
@@ -694,6 +726,95 @@ export const INPUT = {
   /** Minimum velocity (px/ms) below which inertia stops */
   SWIPE_MIN_VELOCITY: 0.01,
 } as const;
+
+// ============================================================================
+// UNIT XP AND LEVEL-UP CONFIGURATION
+// ============================================================================
+
+/**
+ * XP reward values and global level system constants.
+ */
+export const XP = {
+  /** XP granted for killing an enemy unit */
+  KILL_UNIT: 2,
+  /** XP granted for destroying an enemy building (incl. Watchtower going neutral) */
+  DESTROY_BUILDING: 1,
+  /** XP granted for capturing an enemy building (incl. Watchtower going neutral) */
+  CAPTURE_BUILDING: 1,
+  /** XP granted for constructing a building */
+  CONSTRUCT_BUILDING: 1,
+  /** Maximum level a unit can reach */
+  MAX_LEVEL: 3,
+} as const;
+
+/**
+ * Shared XP thresholds and stat-boost values referenced by UNIT_LEVEL_UP.
+ * Change these to re-balance all unit types at once.
+ */
+export const LEVEL_UP_VALUES = {
+  /** Cumulative XP required to reach level 2 (applies to all unit types) */
+  XP_TO_LEVEL_2: 3,
+  /** Cumulative XP required to reach level 3 (applies to all unit types) */
+  XP_TO_LEVEL_3: 7,
+  /** Max-HP flat boost per level for most unit types */
+  HP_BOOST_DEFAULT: 20,
+  /** Max-HP flat boost per level for Scout units */
+  HP_BOOST_SCOUT: 15,
+  /** Max-HP flat boost per level for Emberling units */
+  HP_BOOST_EMBERLING: 10,
+} as const;
+
+/**
+ * Per-unit-type level-up definitions.
+ * Index 0 = level 2, index 1 = level 3.
+ * Each entry lists the cumulative XP required and the stat boosts applied.
+ */
+export const UNIT_LEVEL_UP: Record<string, UnitLevelDefinition[]> = {
+  INFANTRY: [
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+  ],
+  ARCHER: [
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+  ],
+  RIDER: [
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+  ],
+  SIEGE: [
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+  ],
+  SCOUT: [
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_SCOUT }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_SCOUT }] },
+  ],
+  GUARD: [
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+  ],
+  LAVA_GRUNT: [
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+  ],
+  LAVA_ARCHER: [
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+  ],
+  LAVA_RIDER: [
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+  ],
+  LAVA_SIEGE: [
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+  ],
+  EMBERLING: [
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_EMBERLING }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_EMBERLING }] },
+  ],
+};
 
 // ============================================================================
 // CONVENIENCE EXPORTS
@@ -722,6 +843,9 @@ export const GAME_CONFIG = {
   RENDER,
   UI,
   INPUT,
+  XP,
+  LEVEL_UP_VALUES,
+  UNIT_LEVEL_UP,
 } as const;
 
 export default GAME_CONFIG;

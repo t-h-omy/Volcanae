@@ -85,6 +85,23 @@
   margin-top: 1px;
 }
 
+/* ── Unit HP text ── */
+
+.unit-hp-text {
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: var(--unit-hp-text-font-size, 8px);
+  font-weight: bold;
+  line-height: 1;
+  color: white;
+  text-shadow: 0 0 2px #000, 1px 0 0 #000, -1px 0 0 #000, 0 1px 0 #000, 0 -1px 0 #000;
+  pointer-events: none;
+  z-index: 3;
+  white-space: nowrap;
+}
+
 /* ── Building layer ── */
 
 .tile-building {
@@ -221,7 +238,7 @@
 
 .damage-floater {
   position: absolute;
-  font-size: 14px;
+  font-size: var(--damage-floater-font-size, 14px);
   font-weight: bold;
   color: white;
   text-shadow: 0 0 1px black, 1px 1px 0 black, -1px -1px 0 black, 1px -1px 0 black, -1px 1px 0 black;
@@ -237,6 +254,15 @@
 
 .damage-floater.floater-player {
   color: #ff4444;
+}
+
+.damage-floater.floater-heal {
+  color: var(--color-heal-floater, #2ecc71);
+}
+
+.damage-floater.floater-levelup {
+  color: var(--color-levelup-floater, #f1c40f);
+  font-size: var(--levelup-floater-font-size, 16px);
 }
 
 @keyframes floatUp {
@@ -310,6 +336,34 @@
   100% { transform: translateY(-80%); }
 }
 
+/* ── Level-Up Indicator Layer ── */
+
+.levelup-indicator-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9;
+}
+
+.levelup-indicator {
+  position: absolute;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateY(-60%);
+  animation: captureIndicatorBounce var(--capture-bounce-duration, 700ms) ease-in-out infinite alternate;
+}
+
+.levelup-arrow {
+  position: absolute;
+  font-size: 10px;
+  transform: translate(1px, -1px);
+}
+
 /* ── Combat Animations ── */
 
 /* Hit shake — rapid horizontal oscillation */
@@ -364,6 +418,20 @@
 @keyframes dyingFadeOut {
   0%   { opacity: 1; }
   100% { opacity: 0; }
+}
+
+/* ── Level-Up Animation ── */
+
+.anim-levelup .unit-main-emoji {
+  animation: levelUpPulse var(--levelup-anim-duration, 1000ms) ease-out forwards;
+}
+
+@keyframes levelUpPulse {
+  0%   { transform: scale(1);                                      filter: brightness(1)                                        drop-shadow(0 0 0px var(--levelup-glow-color, gold)); }
+  20%  { transform: scale(var(--levelup-scale-peak, 1.35));        filter: brightness(var(--levelup-brightness-peak, 1.8))      drop-shadow(0 0 var(--levelup-glow-peak, 8px) var(--levelup-glow-color, gold)); }
+  50%  { transform: scale(var(--levelup-scale-mid1, 1.1));         filter: brightness(var(--levelup-brightness-mid1, 1.4))      drop-shadow(0 0 var(--levelup-glow-mid1, 5px) var(--levelup-glow-color, gold)); }
+  80%  { transform: scale(var(--levelup-scale-mid2, 1.2));         filter: brightness(var(--levelup-brightness-mid2, 1.6))      drop-shadow(0 0 var(--levelup-glow-mid2, 6px) var(--levelup-glow-color, gold)); }
+  100% { transform: scale(1);                                      filter: brightness(1)                                        drop-shadow(0 0 0px var(--levelup-glow-color, gold)); }
 }
 
 /* ── Projectile Layer ── */

@@ -15,8 +15,9 @@ import type {
   Building,
   GameState,
 } from './types';
-import { CONSTRUCTION, POPULATION, BUILDINGS, LAVA_LAIR } from './gameConfig';
+import { CONSTRUCTION, POPULATION, BUILDINGS, LAVA_LAIR, XP } from './gameConfig';
 import { generateId } from './mapGenerator';
+import { grantXp } from './levelSystem';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -345,6 +346,9 @@ export function constructBuilding(
   unit.hasMovedThisTurn = true;
   unit.hasActedThisTurn = true;
   unit.hasCapturedThisTurn = true;
+
+  // Grant XP to the unit for constructing a building
+  grantXp(state, unitId, XP.CONSTRUCT_BUILDING);
 }
 
 // ============================================================================
@@ -453,4 +457,7 @@ export function enemyConstructBuilding(
   const unit = state.units[unitId];
   unit.hasMovedThisTurn = true;
   unit.hasActedThisTurn = true;
+
+  // Grant XP to the enemy unit for constructing a building
+  grantXp(state, unitId, XP.CONSTRUCT_BUILDING);
 }

@@ -13,6 +13,7 @@ import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { initiateCapture, canCapture } from './captureSystem';
 import { corruptTerrain, processMagmaSpyrAttacks, processEmberNestSpawns } from './corruptionSystem';
 import { enemyConstructBuilding } from './constructionSystem';
+import { processEnemyLevelUps } from './levelSystem';
 import type { GameEvent } from './gameEvents';
 
 // ============================================================================
@@ -468,6 +469,8 @@ function createEnemyUnit(
     hasMovedThisTurn: false,
     hasActedThisTurn: false,
     hasCapturedThisTurn: false,
+    xp: 0,
+    level: 1,
   };
 }
 
@@ -1765,6 +1768,9 @@ function executeBuildingAttacks(state: Draft<GameState>, events?: GameEvent[]): 
 export function runEnemyTurn(state: GameState): { finalState: GameState; events: GameEvent[] } {
   const events: GameEvent[] = [];
   const finalState = produce(state, (draft) => {
+    // 0. Process deferred enemy level-ups (XP may have been earned during player turn)
+    processEnemyLevelUps(draft);
+
     // 1. Build recentlyLostBuildingIds
     const recentlyLostBuildingIds = new Set<string>(
       Object.values(draft.buildings)

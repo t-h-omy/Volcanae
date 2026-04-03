@@ -6,8 +6,9 @@
 import type { GameState, Position } from './types';
 import type { Draft } from 'immer';
 import { BuildingType, UnitTag, Faction } from './types';
-import { MAP } from './gameConfig';
+import { MAP, XP } from './gameConfig';
 import { increaseThreatOnStrongholdCapture } from './enemySystem';
+import { grantXp } from './levelSystem';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -202,6 +203,11 @@ export function initiateCapture(
       increaseThreatOnStrongholdCapture(state);
     }
 
+    // Grant XP to player unit for capturing the building (if it still exists)
+    if (wasEnemy && !building.consumesUnitOnCapture) {
+      grantXp(state, unitId, XP.CAPTURE_BUILDING);
+    }
+
     // Consume the capturing unit if the building requires it (e.g. watchtower)
     if (building.consumesUnitOnCapture) {
       const tile = state.grid[unit.position.y][unit.position.x];
@@ -258,6 +264,9 @@ export function initiateCapture(
       increaseThreatOnStrongholdCapture(state);
     }
   }
+
+  // Grant XP for capturing/destroying the building
+  grantXp(state, unitId, XP.CAPTURE_BUILDING);
 }
 
 // ============================================================================
