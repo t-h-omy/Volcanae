@@ -293,6 +293,8 @@ export function processEmberNestSpawns(
       hasMovedThisTurn: false,
       hasActedThisTurn: false,
       hasCapturedThisTurn: false,
+      xp: 0,
+      level: 1,
     };
 
     // Snapshot BEFORE assigning to draft

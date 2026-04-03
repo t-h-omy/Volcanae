@@ -9,6 +9,8 @@ import type { Draft } from 'immer';
 import { BuildingType, Faction, UnitTag } from './types';
 import { useFloaterStore } from './floaterStore';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
+import { UNITS, XP } from './gameConfig';
+import { grantXp } from './levelSystem';
 
 // ============================================================================
 // COMBAT RESULT INTERFACE
@@ -33,6 +35,7 @@ export interface CombatResult {
 export interface Combatant {
   currentHp: number;
   maxHp: number;
+  baseMaxHp: number;
   attack: number;
   defense: number;
   attackRange: number;
@@ -44,9 +47,11 @@ export interface Combatant {
 
 /** Extracts combatant stats from a Unit. */
 export function unitToCombatant(unit: Unit): Combatant {
+  const baseMaxHp = (UNITS[unit.type as keyof typeof UNITS] as { maxHp: number } | undefined)?.maxHp ?? unit.stats.maxHp;
   return {
     currentHp: unit.stats.currentHp,
     maxHp: unit.stats.maxHp,
+    baseMaxHp,
     attack: unit.stats.attack,
     defense: unit.stats.defense,
     attackRange: unit.stats.attackRange,
@@ -63,6 +68,7 @@ export function buildingToCombatant(building: Building): Combatant | null {
   return {
     currentHp: building.hp,
     maxHp: building.maxHp,
+    baseMaxHp: building.maxHp,
     attack: building.combatStats.attack,
     defense: building.combatStats.defense,
     attackRange: building.combatStats.attackRange,
@@ -97,12 +103,14 @@ export function calculateCombat(attacker: Unit, defender: Unit): CombatResult {
  * General combat calculation using Combatant stats (works for both units and buildings).
  */
 export function calculateCombatFromStats(attacker: Combatant, defender: Combatant): CombatResult {
-  // Calculate effective attack based on attacker's current HP ratio
-  const attackerHpRatio = attacker.currentHp / attacker.maxHp;
+  // Calculate effective attack based on attacker's current HP ratio (vs base level-1 maxHp)
+  const attackerBaseHp = attacker.baseMaxHp > 0 ? attacker.baseMaxHp : attacker.maxHp;
+  const attackerHpRatio = attacker.currentHp / attackerBaseHp;
   const effectiveAttack = attacker.attack * (0.5 + 0.5 * attackerHpRatio);
 
-  // Calculate effective defense based on defender's current HP ratio
-  const defenderHpRatio = defender.currentHp / defender.maxHp;
+  // Calculate effective defense based on defender's current HP ratio (vs base level-1 maxHp)
+  const defenderBaseHp = defender.baseMaxHp > 0 ? defender.baseMaxHp : defender.maxHp;
+  const defenderHpRatio = defender.currentHp / defenderBaseHp;
   const effectiveDefense =
     defender.defense * (0.5 + 0.5 * defenderHpRatio);
 
@@ -203,6 +211,8 @@ export function resolveAttack(
     }
     // Remove attacker from units
     delete state.units[attackerId];
+    // Grant XP to defender for killing the attacker
+    grantXp(state, defenderId, XP.KILL_UNIT);
   } else {
     // Update attacker HP and mark as acted
     attacker.stats.currentHp = newAttackerHp;
@@ -219,6 +229,10 @@ export function resolveAttack(
     }
     // Remove defender from units
     delete state.units[defenderId];
+    // Grant XP to attacker for killing the defender
+    if (!attackerDead) {
+      grantXp(state, attackerId, XP.KILL_UNIT);
+    }
   } else {
     // Update defender HP
     defender.stats.currentHp = newDefenderHp;
@@ -318,6 +332,10 @@ export function resolveBuildingAttack(
       building.specialistSlot = null;
       building.turnCapturedByPlayer = null;
       building.wasEnemyOwnedBeforeCapture = false;
+      // Grant XP to the enemy unit that counter-killed the player building
+      if (defender.faction === Faction.ENEMY && !defenderDead) {
+        grantXp(state, defenderId, XP.DESTROY_BUILDING);
+      }
     } else {
       // Enemy buildings (e.g. MAGMASPYR) are fully destroyed and leave a ruin.
       const { x, y } = building.position;
@@ -376,6 +394,7 @@ export function resolveAttackOnBuilding(
   const defenderStats: Combatant = buildingCombatant ?? {
     currentHp: building.hp,
     maxHp: building.maxHp,
+    baseMaxHp: building.maxHp,
     attack: 0,
     defense: 0,
     attackRange: 0,
@@ -436,6 +455,8 @@ export function resolveAttackOnBuilding(
 
   // Update building
   if (buildingDead) {
+    // Capture building faction before any mutations
+    const previousBuildingFaction = building.faction;
     if (building.type === BuildingType.WATCHTOWER) {
       // Watchtower goes neutral at 0 HP
       building.hp = building.maxHp;
@@ -444,7 +465,11 @@ export function resolveAttackOnBuilding(
       building.specialistSlot = null;
       building.turnCapturedByPlayer = null;
       building.wasEnemyOwnedBeforeCapture = false;
-    } else if (attacker.faction === Faction.PLAYER && building.faction === Faction.ENEMY) {
+      // Grant XP to player attacker when enemy watchtower goes neutral
+      if (!attackerDead && attacker.faction === Faction.PLAYER && previousBuildingFaction === Faction.ENEMY) {
+        grantXp(state, attackerId, XP.DESTROY_BUILDING);
+      }
+    } else if (attacker.faction === Faction.PLAYER && previousBuildingFaction === Faction.ENEMY) {
       // Enemy building destroyed by player unit: remove from state and leave a ruin
       const { x, y } = building.position;
       const buildingType = building.type;
@@ -455,6 +480,10 @@ export function resolveAttackOnBuilding(
         tile.isStrongholdRuin = true;
       } else {
         tile.isRuin = true;
+      }
+      // Grant XP to player attacker for destroying enemy building
+      if (!attackerDead) {
+        grantXp(state, attackerId, XP.DESTROY_BUILDING);
       }
     }
   } else {

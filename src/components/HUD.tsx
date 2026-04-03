@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useGameStore } from '../gameStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
-import { UNIT_COSTS, RESOURCES, UI, UNIT_POPULATION_COSTS, POPULATION } from '../gameConfig';
+import { UNIT_COSTS, RESOURCES, UI, UNIT_POPULATION_COSTS, POPULATION, UNIT_LEVEL_UP, XP } from '../gameConfig';
 import type { UnitPopulationCost } from '../types';
 import {
   hasSpawnSpaceAt,
@@ -18,6 +18,7 @@ import {
 import {
   getConstructionOptionsForTile,
 } from '../constructionSystem';
+import { computeLevelFromXp } from '../levelSystem';
 import { computeUnitAiScores, computeRecruitmentScores, type ScoredAction } from '../enemySystem';
 import {
   Faction,
@@ -406,6 +407,13 @@ function SelectedUnitPanel({
   const gameState = useGameStore((s) => s);
   const [aiScoreModal, setAiScoreModal] = useState(false);
   const [aiScores, setAiScores] = useState<ScoredAction[]>([]);
+  const levelUpUnit = useGameStore((s) => s.levelUpUnit);
+
+  const targetLevel = computeLevelFromXp(unit.type, unit.xp);
+  const canLevelUp = isPlayer && targetLevel > unit.level;
+  const isMaxLevel = unit.level >= XP.MAX_LEVEL;
+  const nextLevelDef = !isMaxLevel ? UNIT_LEVEL_UP[unit.type]?.[unit.level - 1] : null;
+  const nextLevelXpRequired = nextLevelDef?.xpRequired ?? null;
 
   return (
     <div className={`hud-info-panel${!isPlayer ? ' hud-panel-enemy' : ''}`}>
@@ -422,6 +430,28 @@ function SelectedUnitPanel({
           {unit.stats.currentHp}/{unit.stats.maxHp}
         </span>
       </div>
+      {isPlayer && (
+        <div className="hud-xp-row">
+          <span className="hud-xp-label">
+            {isMaxLevel
+              ? `⭐ XP: ${unit.xp}   Lv.${unit.level} (MAX)`
+              : `⭐ XP: ${unit.xp} / ${nextLevelXpRequired}   Lv.${unit.level}`}
+          </span>
+        </div>
+      )}
+      {!isPlayer && (
+        <div className="hud-xp-row">
+          <span className="hud-xp-label">⭐ Lv.{unit.level}</span>
+        </div>
+      )}
+      {canLevelUp && (
+        <button
+          className="hud-levelup-btn"
+          onClick={() => levelUpUnit(unit.id)}
+        >
+          ⬆️ Level Up to Lv.{targetLevel}
+        </button>
+      )}
       <div className="hud-unit-stats">
         <span className="hud-stat-label">ATK</span>
         <span className="hud-stat-value">{unit.stats.attack}</span>

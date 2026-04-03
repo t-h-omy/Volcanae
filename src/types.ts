@@ -130,6 +130,21 @@ export interface Unit {
   hasMovedThisTurn: boolean;
   hasActedThisTurn: boolean;
   hasCapturedThisTurn: boolean;
+  xp: number;
+  level: number;
+}
+
+/** Defines a single stat boost applied when a unit reaches a new level */
+export interface UnitLevelStatBoost {
+  stat: keyof UnitStats;
+  mode: 'add' | 'percent';
+  value: number;
+}
+
+/** Defines the XP threshold and stat boosts for a specific level */
+export interface UnitLevelDefinition {
+  xpRequired: number;
+  boosts: UnitLevelStatBoost[];
 }
 
 /** Effect that a specialist can apply */

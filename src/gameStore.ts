@@ -38,6 +38,7 @@ import type { GameState, UnitType, Position } from './types';
 import type { GameEvent } from './gameEvents';
 import { MAP, LAVA, POPULATION, BUILDINGS, ENEMY } from './gameConfig';
 import { saveGameState, loadGameState, clearSavedGame, hasSavedGame } from './saveSystem';
+import { computeLevelFromXp, applyLevelUps } from './levelSystem';
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
@@ -104,6 +105,8 @@ interface GameActions {
   debugAddFarmers: () => void;
   /** Debug: set a nearby tile to isRuin = true */
   debugAddRuin: () => void;
+  /** Level up a player unit if they have enough XP */
+  levelUpUnit: (unitId: string) => void;
 }
 
 // ============================================================================
@@ -1016,6 +1019,16 @@ export const useGameStore = create<GameStore>()(
             return;
           }
         }
+      });
+    },
+
+    levelUpUnit: (unitId: string) => {
+      set((state) => {
+        const unit = state.units[unitId];
+        if (!unit || unit.faction !== Faction.PLAYER) return;
+        const targetLevel = computeLevelFromXp(unit.type, unit.xp);
+        if (targetLevel <= unit.level) return;
+        applyLevelUps(state, unitId, targetLevel);
       });
     },
   }))

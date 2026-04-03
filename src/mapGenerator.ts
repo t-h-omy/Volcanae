@@ -275,6 +275,8 @@ function createUnit(
     hasMovedThisTurn: false,
     hasActedThisTurn: false,
     hasCapturedThisTurn: false,
+    xp: 0,
+    level: 1,
   };
 }
 

@@ -5,7 +5,7 @@
  */
 
 import { UnitTag } from './types';
-import type { UnitPopulationCost } from './types';
+import type { UnitPopulationCost, UnitLevelDefinition } from './types';
 
 // ============================================================================
 // MAP CONFIGURATION
@@ -696,6 +696,78 @@ export const INPUT = {
 } as const;
 
 // ============================================================================
+// UNIT XP AND LEVEL-UP CONFIGURATION
+// ============================================================================
+
+/**
+ * XP reward values and global level system constants.
+ */
+export const XP = {
+  /** XP granted for killing an enemy unit */
+  KILL_UNIT: 2,
+  /** XP granted for destroying an enemy building (incl. Watchtower going neutral) */
+  DESTROY_BUILDING: 1,
+  /** XP granted for capturing an enemy building (incl. Watchtower going neutral) */
+  CAPTURE_BUILDING: 1,
+  /** XP granted for constructing a building */
+  CONSTRUCT_BUILDING: 1,
+  /** Maximum level a unit can reach */
+  MAX_LEVEL: 3,
+} as const;
+
+/**
+ * Per-unit-type level-up definitions.
+ * Index 0 = level 2, index 1 = level 3.
+ * Each entry lists the cumulative XP required and the stat boosts applied.
+ */
+export const UNIT_LEVEL_UP: Record<string, UnitLevelDefinition[]> = {
+  INFANTRY: [
+    { xpRequired: 3, boosts: [{ stat: 'maxHp', mode: 'add', value: 20 }] },
+    { xpRequired: 7, boosts: [{ stat: 'maxHp', mode: 'add', value: 20 }] },
+  ],
+  ARCHER: [
+    { xpRequired: 3, boosts: [{ stat: 'maxHp', mode: 'add', value: 20 }] },
+    { xpRequired: 7, boosts: [{ stat: 'maxHp', mode: 'add', value: 20 }] },
+  ],
+  RIDER: [
+    { xpRequired: 3, boosts: [{ stat: 'maxHp', mode: 'add', value: 20 }] },
+    { xpRequired: 7, boosts: [{ stat: 'maxHp', mode: 'add', value: 20 }] },
+  ],
+  SIEGE: [
+    { xpRequired: 3, boosts: [{ stat: 'maxHp', mode: 'add', value: 20 }] },
+    { xpRequired: 7, boosts: [{ stat: 'maxHp', mode: 'add', value: 20 }] },
+  ],
+  SCOUT: [
+    { xpRequired: 3, boosts: [{ stat: 'maxHp', mode: 'add', value: 15 }] },
+    { xpRequired: 7, boosts: [{ stat: 'maxHp', mode: 'add', value: 15 }] },
+  ],
+  GUARD: [
+    { xpRequired: 3, boosts: [{ stat: 'maxHp', mode: 'add', value: 20 }] },
+    { xpRequired: 7, boosts: [{ stat: 'maxHp', mode: 'add', value: 20 }] },
+  ],
+  LAVA_GRUNT: [
+    { xpRequired: 3, boosts: [{ stat: 'maxHp', mode: 'add', value: 20 }] },
+    { xpRequired: 7, boosts: [{ stat: 'maxHp', mode: 'add', value: 20 }] },
+  ],
+  LAVA_ARCHER: [
+    { xpRequired: 3, boosts: [{ stat: 'maxHp', mode: 'add', value: 20 }] },
+    { xpRequired: 7, boosts: [{ stat: 'maxHp', mode: 'add', value: 20 }] },
+  ],
+  LAVA_RIDER: [
+    { xpRequired: 3, boosts: [{ stat: 'maxHp', mode: 'add', value: 20 }] },
+    { xpRequired: 7, boosts: [{ stat: 'maxHp', mode: 'add', value: 20 }] },
+  ],
+  LAVA_SIEGE: [
+    { xpRequired: 3, boosts: [{ stat: 'maxHp', mode: 'add', value: 20 }] },
+    { xpRequired: 7, boosts: [{ stat: 'maxHp', mode: 'add', value: 20 }] },
+  ],
+  EMBERLING: [
+    { xpRequired: 3, boosts: [{ stat: 'maxHp', mode: 'add', value: 10 }] },
+    { xpRequired: 7, boosts: [{ stat: 'maxHp', mode: 'add', value: 10 }] },
+  ],
+};
+
+// ============================================================================
 // CONVENIENCE EXPORTS
 // ============================================================================
 
@@ -722,6 +794,8 @@ export const GAME_CONFIG = {
   RENDER,
   UI,
   INPUT,
+  XP,
+  UNIT_LEVEL_UP,
 } as const;
 
 export default GAME_CONFIG;

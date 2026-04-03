@@ -13,6 +13,7 @@ import { getReachableTiles } from '../movementSystem';
 import { canCapture } from '../captureSystem';
 import { getConstructionOptionsForTile } from '../constructionSystem';
 import { MAP, RENDER, UI, ANIMATION, INPUT } from '../gameConfig';
+import { computeLevelFromXp } from '../levelSystem';
 import {
   Faction,
   UnitType,
@@ -607,6 +608,7 @@ export default function GridRenderer() {
         )}
         <CaptureIndicatorLayer tileSize={tileSize} />
         <BuildIndicatorLayer tileSize={tileSize} />
+        <LevelUpIndicatorLayer tileSize={tileSize} />
         <DamageFloaterLayer tileSize={tileSize} />
         <ProjectileLayer />
       </div>
@@ -975,6 +977,45 @@ function BuildIndicatorLayer({ tileSize }: { tileSize: number }) {
         >
           <span className="capture-bubble">💬</span>
           <span className="build-hammer">🔨</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function LevelUpIndicatorLayer({ tileSize }: { tileSize: number }) {
+  const units = useGameStore((s) => s.units);
+
+  const levelUpReadyPositions = useMemo(() => {
+    const result: Array<{ key: string; x: number; y: number }> = [];
+    for (const unit of Object.values(units)) {
+      if (unit.faction !== Faction.PLAYER) continue;
+      if (computeLevelFromXp(unit.type, unit.xp) > unit.level) {
+        result.push({ key: unit.id, x: unit.position.x, y: unit.position.y });
+      }
+    }
+    return result;
+  }, [units]);
+
+  if (levelUpReadyPositions.length === 0) return null;
+
+  return (
+    <div className="levelup-indicator-layer">
+      {levelUpReadyPositions.map(({ key, x, y }) => (
+        <div
+          key={key}
+          className="levelup-indicator"
+          style={
+            {
+              left: x * tileSize,
+              top: y * tileSize,
+              width: tileSize,
+              '--capture-bounce-duration': `${UI.CAPTURE_INDICATOR_BOUNCE_DURATION_MS}ms`,
+            } as React.CSSProperties
+          }
+        >
+          <span className="capture-bubble">💬</span>
+          <span className="levelup-arrow">⬆️</span>
         </div>
       ))}
     </div>
