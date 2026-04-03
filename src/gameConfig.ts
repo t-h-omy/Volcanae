@@ -30,7 +30,7 @@ export const MAP = {
 
 export const LAVA = {
   /** Lava advances 1 row every N player turns */
-  LAVA_ADVANCE_INTERVAL: 3,
+  LAVA_ADVANCE_INTERVAL: 4,
 } as const;
 
 // ============================================================================
@@ -52,7 +52,7 @@ export const UNITS = {
 
   ARCHER: {
     maxHp: 100,
-    attack: 45,
+    attack: 50,
     defense: 20,
     movementActions: 1,
     moveRange: 1,
@@ -76,7 +76,7 @@ export const UNITS = {
 
   SIEGE: {
     maxHp: 100,
-    attack: 65,
+    attack: 80,
     defense: 0,
     movementActions: 1,
     moveRange: 1,
@@ -88,8 +88,8 @@ export const UNITS = {
 
   SCOUT: {
     maxHp: 60,
-    attack: 20,
-    defense: 15,
+    attack: 30,
+    defense: 20,
     movementActions: 1,
     moveRange: 2,
     attackRange: 1,
@@ -101,7 +101,7 @@ export const UNITS = {
   GUARD: {
     maxHp: 100,
     attack: 15,
-    defense: 65,
+    defense: 75,
     movementActions: 1,
     moveRange: 1,
     attackRange: 1,
@@ -124,7 +124,7 @@ export const UNITS = {
 
   LAVA_ARCHER: {
     maxHp: 100,
-    attack: 45,
+    attack: 50,
     defense: 20,
     movementActions: 1,
     moveRange: 1,
@@ -148,7 +148,7 @@ export const UNITS = {
 
   LAVA_SIEGE: {
     maxHp: 100,
-    attack: 65,
+    attack: 80,
     defense: 0,
     movementActions: 1,
     moveRange: 1,
