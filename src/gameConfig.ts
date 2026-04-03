@@ -748,54 +748,71 @@ export const XP = {
 } as const;
 
 /**
+ * Shared XP thresholds and stat-boost values referenced by UNIT_LEVEL_UP.
+ * Change these to re-balance all unit types at once.
+ */
+export const LEVEL_UP_VALUES = {
+  /** Cumulative XP required to reach level 2 (applies to all unit types) */
+  XP_TO_LEVEL_2: 3,
+  /** Cumulative XP required to reach level 3 (applies to all unit types) */
+  XP_TO_LEVEL_3: 7,
+  /** Max-HP flat boost per level for most unit types */
+  HP_BOOST_DEFAULT: 20,
+  /** Max-HP flat boost per level for Scout units */
+  HP_BOOST_SCOUT: 15,
+  /** Max-HP flat boost per level for Emberling units */
+  HP_BOOST_EMBERLING: 10,
+} as const;
+
+/**
  * Per-unit-type level-up definitions.
  * Index 0 = level 2, index 1 = level 3.
  * Each entry lists the cumulative XP required and the stat boosts applied.
  */
 export const UNIT_LEVEL_UP: Record<string, UnitLevelDefinition[]> = {
   INFANTRY: [
-    { xpRequired: 3, boosts: [{ stat: 'maxHp', mode: 'add', value: 20 }] },
-    { xpRequired: 7, boosts: [{ stat: 'maxHp', mode: 'add', value: 20 }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
   ],
   ARCHER: [
-    { xpRequired: 3, boosts: [{ stat: 'maxHp', mode: 'add', value: 20 }] },
-    { xpRequired: 7, boosts: [{ stat: 'maxHp', mode: 'add', value: 20 }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
   ],
   RIDER: [
-    { xpRequired: 3, boosts: [{ stat: 'maxHp', mode: 'add', value: 20 }] },
-    { xpRequired: 7, boosts: [{ stat: 'maxHp', mode: 'add', value: 20 }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
   ],
   SIEGE: [
-    { xpRequired: 3, boosts: [{ stat: 'maxHp', mode: 'add', value: 20 }] },
-    { xpRequired: 7, boosts: [{ stat: 'maxHp', mode: 'add', value: 20 }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
   ],
   SCOUT: [
-    { xpRequired: 3, boosts: [{ stat: 'maxHp', mode: 'add', value: 15 }] },
-    { xpRequired: 7, boosts: [{ stat: 'maxHp', mode: 'add', value: 15 }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_SCOUT }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_SCOUT }] },
   ],
   GUARD: [
-    { xpRequired: 3, boosts: [{ stat: 'maxHp', mode: 'add', value: 20 }] },
-    { xpRequired: 7, boosts: [{ stat: 'maxHp', mode: 'add', value: 20 }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
   ],
   LAVA_GRUNT: [
-    { xpRequired: 3, boosts: [{ stat: 'maxHp', mode: 'add', value: 20 }] },
-    { xpRequired: 7, boosts: [{ stat: 'maxHp', mode: 'add', value: 20 }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
   ],
   LAVA_ARCHER: [
-    { xpRequired: 3, boosts: [{ stat: 'maxHp', mode: 'add', value: 20 }] },
-    { xpRequired: 7, boosts: [{ stat: 'maxHp', mode: 'add', value: 20 }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
   ],
   LAVA_RIDER: [
-    { xpRequired: 3, boosts: [{ stat: 'maxHp', mode: 'add', value: 20 }] },
-    { xpRequired: 7, boosts: [{ stat: 'maxHp', mode: 'add', value: 20 }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
   ],
   LAVA_SIEGE: [
-    { xpRequired: 3, boosts: [{ stat: 'maxHp', mode: 'add', value: 20 }] },
-    { xpRequired: 7, boosts: [{ stat: 'maxHp', mode: 'add', value: 20 }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
   ],
   EMBERLING: [
-    { xpRequired: 3, boosts: [{ stat: 'maxHp', mode: 'add', value: 10 }] },
-    { xpRequired: 7, boosts: [{ stat: 'maxHp', mode: 'add', value: 10 }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_EMBERLING }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_EMBERLING }] },
   ],
 };
 
@@ -827,6 +844,7 @@ export const GAME_CONFIG = {
   UI,
   INPUT,
   XP,
+  LEVEL_UP_VALUES,
   UNIT_LEVEL_UP,
 } as const;
 
