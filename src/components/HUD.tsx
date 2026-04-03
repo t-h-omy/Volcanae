@@ -8,7 +8,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useGameStore } from '../gameStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
-import { UNIT_COSTS, RESOURCES, UI, UNIT_POPULATION_COSTS, POPULATION, UNIT_LEVEL_UP, XP } from '../gameConfig';
+import { UNIT_COSTS, RESOURCES, UNIT_POPULATION_COSTS, POPULATION, UNIT_LEVEL_UP, XP } from '../gameConfig';
+import { UI } from '../uiConfig';
 import type { UnitPopulationCost } from '../types';
 import {
   hasSpawnSpaceAt,

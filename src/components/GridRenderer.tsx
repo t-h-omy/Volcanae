@@ -12,7 +12,11 @@ import type { Projectile } from '../combatAnimationStore';
 import { getReachableTiles } from '../movementSystem';
 import { canCapture } from '../captureSystem';
 import { getConstructionOptionsForTile } from '../constructionSystem';
-import { MAP, RENDER, UI, ANIMATION, INPUT } from '../gameConfig';
+import { MAP } from '../gameConfig';
+import { ANIMATION } from '../animationConfig';
+import { UI } from '../uiConfig';
+import { RENDER } from '../renderConfig';
+import { INPUT } from '../inputConfig';
 import { computeLevelFromXp } from '../levelSystem';
 import {
   Faction,
