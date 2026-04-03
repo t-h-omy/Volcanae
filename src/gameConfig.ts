@@ -255,13 +255,13 @@ export const ENEMY = {
   /** Maximum distance from lava for boost calculation */
   MAX_LAVA_BOOST_DISTANCE: 20,
   /** Maximum multiplier for lava proximity boost */
-  MAX_LAVA_BOOST_MULTIPLIER: 0.5,
+  MAX_LAVA_BOOST_MULTIPLIER: 0,
   /** Base enemy spawn count per building */
   ENEMY_SPAWN_PER_BUILDING_BASE: 1,
   /** Bonus enemy spawn per 3 threat levels */
   ENEMY_THREAT_SPAWN_BONUS: 1,
   /** Base probability (0.0–1.0) of spawning a unit per recruitment building per turn when no player unit is in discover radius and threat is 0 */
-  BASE_SPAWN_PROBABILITY: 0.10,
+  BASE_SPAWN_PROBABILITY: 0.075,
   /** Maximum additional probability granted at max threat (0.0–1.0) */
   MAX_THREAT_BONUS: 0.60,
   /** Threat level at which the full MAX_THREAT_BONUS is reached */
