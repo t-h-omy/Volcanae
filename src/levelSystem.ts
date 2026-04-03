@@ -108,8 +108,9 @@ export function applyLevelUps(
 }
 
 /**
- * Grants XP to a unit and immediately applies level-up when appropriate:
- * - PLAYER units: always level up immediately.
+ * Grants XP to a unit and banks it. Level-up is NOT applied automatically:
+ * - PLAYER units: XP is banked; the player must manually trigger level-up
+ *   via the levelUpUnit store action (button in the unit panel).
  * - ENEMY units during ENEMY_TURN: level up immediately.
  * - ENEMY units during PLAYER_TURN: XP is banked; level-up is deferred to
  *   the call of processEnemyLevelUps at the start of the next enemy turn.
@@ -128,14 +129,12 @@ export function grantXp(
   const targetLevel = computeLevelFromXp(unit.type, unit.xp);
   if (targetLevel <= unit.level) return;
 
-  if (unit.faction === Faction.PLAYER) {
-    // Player units always level up immediately
-    applyLevelUps(state, unitId, targetLevel);
-  } else if (unit.faction === Faction.ENEMY && state.phase === GamePhase.ENEMY_TURN) {
+  if (unit.faction === Faction.ENEMY && state.phase === GamePhase.ENEMY_TURN) {
     // Enemy units level up immediately during their own turn
     applyLevelUps(state, unitId, targetLevel);
   }
-  // Otherwise (enemy unit during player turn): defer to processEnemyLevelUps
+  // Player units: XP is banked; player must manually trigger level-up via levelUpUnit action.
+  // Enemy units during player turn: defer to processEnemyLevelUps at start of next enemy turn.
 }
 
 /**
