@@ -852,6 +852,17 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
           '--die-flash-duration': `${ANIMATION.DIE_FLASH_DURATION_MS}ms`,
           '--die-fade-duration': `${ANIMATION.DIE_FADE_DURATION_MS}ms`,
           '--levelup-anim-duration': `${ANIMATION.LEVEL_UP_ANIM_DURATION_MS}ms`,
+          '--levelup-scale-peak': ANIMATION.LEVEL_UP_SCALE_PEAK,
+          '--levelup-scale-mid1': ANIMATION.LEVEL_UP_SCALE_MID1,
+          '--levelup-scale-mid2': ANIMATION.LEVEL_UP_SCALE_MID2,
+          '--levelup-brightness-peak': ANIMATION.LEVEL_UP_BRIGHTNESS_PEAK,
+          '--levelup-brightness-mid1': ANIMATION.LEVEL_UP_BRIGHTNESS_MID1,
+          '--levelup-brightness-mid2': ANIMATION.LEVEL_UP_BRIGHTNESS_MID2,
+          '--levelup-glow-peak': `${ANIMATION.LEVEL_UP_GLOW_PEAK_PX}px`,
+          '--levelup-glow-mid1': `${ANIMATION.LEVEL_UP_GLOW_MID1_PX}px`,
+          '--levelup-glow-mid2': `${ANIMATION.LEVEL_UP_GLOW_MID2_PX}px`,
+          '--levelup-glow-color': RENDER.COLORS.LEVEL_UP_GLOW,
+          '--unit-hp-text-font-size': `${UI.UNIT_HP_TEXT_FONT_SIZE_PX}px`,
         } as React.CSSProperties
       }
     >
@@ -1030,7 +1041,17 @@ function DamageFloaterLayer({ tileSize }: { tileSize: number }) {
   const floaters = useFloaterStore((s) => s.floaters);
 
   return (
-    <div className="floater-layer">
+    <div
+      className="floater-layer"
+      style={
+        {
+          '--color-heal-floater': RENDER.COLORS.HEAL_FLOATER,
+          '--color-levelup-floater': RENDER.COLORS.LEVEL_UP_FLOATER,
+          '--damage-floater-font-size': `${UI.DAMAGE_FLOATER_FONT_SIZE_PX}px`,
+          '--levelup-floater-font-size': `${UI.LEVEL_UP_FLOATER_FONT_SIZE_PX}px`,
+        } as React.CSSProperties
+      }
+    >
       {floaters.map((floater) => {
         const colorClass =
           floater.floaterType === 'heal'

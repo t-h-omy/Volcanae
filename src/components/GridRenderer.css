@@ -92,7 +92,7 @@
   top: 5px;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 8px;
+  font-size: var(--unit-hp-text-font-size, 8px);
   font-weight: bold;
   line-height: 1;
   color: white;
@@ -238,7 +238,7 @@
 
 .damage-floater {
   position: absolute;
-  font-size: 14px;
+  font-size: var(--damage-floater-font-size, 14px);
   font-weight: bold;
   color: white;
   text-shadow: 0 0 1px black, 1px 1px 0 black, -1px -1px 0 black, 1px -1px 0 black, -1px 1px 0 black;
@@ -257,12 +257,12 @@
 }
 
 .damage-floater.floater-heal {
-  color: #2ecc71;
+  color: var(--color-heal-floater, #2ecc71);
 }
 
 .damage-floater.floater-levelup {
-  color: #f1c40f;
-  font-size: 16px;
+  color: var(--color-levelup-floater, #f1c40f);
+  font-size: var(--levelup-floater-font-size, 16px);
 }
 
 @keyframes floatUp {
@@ -427,11 +427,11 @@
 }
 
 @keyframes levelUpPulse {
-  0%   { transform: scale(1);    filter: brightness(1)   drop-shadow(0 0 0px   gold); }
-  20%  { transform: scale(1.35); filter: brightness(1.8) drop-shadow(0 0 8px   gold); }
-  50%  { transform: scale(1.1);  filter: brightness(1.4) drop-shadow(0 0 5px   gold); }
-  80%  { transform: scale(1.2);  filter: brightness(1.6) drop-shadow(0 0 6px   gold); }
-  100% { transform: scale(1);    filter: brightness(1)   drop-shadow(0 0 0px   gold); }
+  0%   { transform: scale(1);                                      filter: brightness(1)                                        drop-shadow(0 0 0px var(--levelup-glow-color, gold)); }
+  20%  { transform: scale(var(--levelup-scale-peak, 1.35));        filter: brightness(var(--levelup-brightness-peak, 1.8))      drop-shadow(0 0 var(--levelup-glow-peak, 8px) var(--levelup-glow-color, gold)); }
+  50%  { transform: scale(var(--levelup-scale-mid1, 1.1));         filter: brightness(var(--levelup-brightness-mid1, 1.4))      drop-shadow(0 0 var(--levelup-glow-mid1, 5px) var(--levelup-glow-color, gold)); }
+  80%  { transform: scale(var(--levelup-scale-mid2, 1.2));         filter: brightness(var(--levelup-brightness-mid2, 1.6))      drop-shadow(0 0 var(--levelup-glow-mid2, 6px) var(--levelup-glow-color, gold)); }
+  100% { transform: scale(1);                                      filter: brightness(1)                                        drop-shadow(0 0 0px var(--levelup-glow-color, gold)); }
 }
 
 /* ── Projectile Layer ── */
