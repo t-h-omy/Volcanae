@@ -613,7 +613,7 @@ export const ENEMY_UNIT_UNLOCK: Record<string, number> = {
  */
 export const XP = {
   /** XP granted for killing an enemy unit */
-  KILL_UNIT: 2,
+  KILL_UNIT: 1,
   /** XP granted for destroying an enemy building (incl. Watchtower going neutral) */
   DESTROY_BUILDING: 1,
   /** XP granted for capturing an enemy building (incl. Watchtower going neutral) */
