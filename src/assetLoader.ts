@@ -7,13 +7,14 @@
  * empty strings the returned promise resolves instantly.
  */
 
-import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE } from './assetRegistry';
+import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE, RESOURCE_SPRITE } from './assetRegistry';
 
 export function preloadAssets(): Promise<void> {
   const paths = [
     ...Object.values(UNIT_SPRITE),
     ...Object.values(BUILDING_SPRITE),
     ...Object.values(TILE_SPRITE),
+    ...Object.values(RESOURCE_SPRITE),
   ].filter((p): p is string => typeof p === 'string' && p !== '');
 
   if (paths.length === 0) return Promise.resolve();
