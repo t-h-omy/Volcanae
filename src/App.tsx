@@ -1,6 +1,7 @@
 import { useEffect, useCallback, useState, useRef } from 'react'
 import { useGameStore } from './gameStore'
 import { useAnimationEngine } from './useAnimationEngine'
+import { preloadAssets } from './assetLoader'
 import { GamePhase } from './types'
 import { UI } from './uiConfig'
 import GridRenderer from './components/GridRenderer'
@@ -40,9 +41,14 @@ function App() {
   const turn = useGameStore((s) => s.turn)
   const { canInstall, promptInstall } = useA2HS();
   const [showTurnPopup, setShowTurnPopup] = useState(false);
+  const [assetsReady, setAssetsReady] = useState(false);
 
   // Initialize animation engine
   useAnimationEngine();
+
+  useEffect(() => {
+    preloadAssets().then(() => setAssetsReady(true));
+  }, []);
 
   useEffect(() => {
     initGame()
@@ -70,7 +76,9 @@ function App() {
 
   return (
     <div className="app-container">
-      {phase ? (
+      {!assetsReady ? (
+        <div role="status" aria-live="polite" className="loading-text">Loading…</div>
+      ) : phase ? (
         <>
           <GridRenderer />
           <HUD showTurnPopup={showTurnPopup} />

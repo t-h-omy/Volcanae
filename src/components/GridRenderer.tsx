@@ -1,6 +1,6 @@
 /**
  * GridRenderer – renders the Volcanae 20×105 game grid with camera pan/drag,
- * tile colouring, unit & building emojis, HP bars, and click interaction.
+ * sprite-based tile/unit/building rendering, HP bars, zoom, and click interaction.
  */
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -18,12 +18,14 @@ import { UI } from '../uiConfig';
 import { RENDER } from '../renderConfig';
 import { INPUT } from '../inputConfig';
 import { computeLevelFromXp } from '../levelSystem';
+import { useZoomStore } from '../zoomStore';
+import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE, RESOURCE_SPRITE } from '../assetRegistry';
+import MissingSprite from './MissingSprite';
 import {
   Faction,
   UnitType,
   UnitTag,
   BuildingType,
-  TileType,
   type Tile,
   type Unit,
   type Building,
@@ -32,51 +34,11 @@ import { isTileWithinEdgeCircleRange } from '../rangeUtils';
 import './GridRenderer.css';
 
 // ============================================================================
-// CONSTANTS / LOOKUP TABLES
-// ============================================================================
-
-const UNIT_EMOJI: Record<string, string> = {
-  [UnitType.INFANTRY]: '⚔️',
-  [UnitType.ARCHER]: '🏹',
-  [UnitType.RIDER]: '🐴',
-  [UnitType.SIEGE]: '💣',
-  [UnitType.SCOUT]: '🔭',
-  [UnitType.GUARD]: '🛡️',
-  [UnitType.LAVA_GRUNT]: '👹',
-  [UnitType.LAVA_ARCHER]: '👺',
-  [UnitType.LAVA_RIDER]: '👾',
-  [UnitType.LAVA_SIEGE]: '🐦‍🔥',
-  [UnitType.EMBERLING]: '🔥',
-};
-
-const BUILDING_EMOJI: Record<string, string> = {
-  [BuildingType.STRONGHOLD]: '🏰',
-  [BuildingType.MINE]: '🏔️',
-  [BuildingType.WOODCUTTER]: '🛖',
-  [BuildingType.BARRACKS]: '🏚️',
-  [BuildingType.ARCHER_CAMP]: '🏕️',
-  [BuildingType.RIDER_CAMP]: '🏘️',
-  [BuildingType.SIEGE_CAMP]: '🏛️',
-  [BuildingType.WATCHTOWER]: '👁️',
-  [BuildingType.LAVALAIR]: '🕳️',
-  [BuildingType.INFERNALSANCTUM]: '🌋',
-  [BuildingType.FARM]: '🌾',
-  [BuildingType.PATRICIANHOUSE]: '🏯',
-  [BuildingType.MAGMASPYR]: '⛰️',
-  [BuildingType.EMBERNEST]: '🌲',
-};
-
-const RESOURCE_BUILDING_ICON: Record<string, string> = {
-  [BuildingType.MINE]: '⛓️',
-  [BuildingType.WOODCUTTER]: '🪵',
-};
-
-// ============================================================================
 // HELPERS
 // ============================================================================
 
 function useTileSize(): number {
-  const [size, setSize] = useState(() =>
+  const [baseSize, setBaseSize] = useState(() =>
     typeof window !== 'undefined' && window.innerWidth <= RENDER.MOBILE_BREAKPOINT
       ? RENDER.TILE_SIZE_MOBILE
       : RENDER.TILE_SIZE_DESKTOP,
@@ -84,7 +46,7 @@ function useTileSize(): number {
 
   useEffect(() => {
     const onResize = () => {
-      setSize(
+      setBaseSize(
         window.innerWidth <= RENDER.MOBILE_BREAKPOINT
           ? RENDER.TILE_SIZE_MOBILE
           : RENDER.TILE_SIZE_DESKTOP,
@@ -94,7 +56,8 @@ function useTileSize(): number {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  return size;
+  const zoom = useZoomStore((s) => s.zoom);
+  return Math.round(baseSize * zoom);
 }
 
 function posKey(x: number, y: number): string {
@@ -171,30 +134,6 @@ function getBuildingAttackableTileKeys(
 }
 
 // ============================================================================
-// TILE BACKGROUND COLOR
-// ============================================================================
-
-function tileBackground(
-  tile: Tile,
-  building: Building | undefined,
-): string {
-  if (!tile.isRevealed) return RENDER.COLORS.UNREVEALED;
-  if (tile.isLava) return RENDER.COLORS.LAVA;
-
-  if (building) {
-    if (building.faction === Faction.PLAYER) return RENDER.COLORS.BUILDING_PLAYER;
-    if (building.faction === Faction.ENEMY) return RENDER.COLORS.BUILDING_ENEMY;
-    return RENDER.COLORS.BUILDING_NEUTRAL;
-  }
-
-  // Terrain-specific backgrounds
-  if (tile.terrainType === TileType.FOREST) return '#2d6e1e';
-  if (tile.terrainType === TileType.MOUNTAIN) return '#6b5b45';
-
-  return RENDER.COLORS.GRASS;
-}
-
-// ============================================================================
 // COMPONENT
 // ============================================================================
 
@@ -219,9 +158,33 @@ export default function GridRenderer() {
   const isAnimating = useAnimationStore((s) => s.isAnimating);
   const cameraTarget = useAnimationStore((s) => s.cameraTarget);
 
+  // ── Zoom store ──
+  const stepZoom = useZoomStore((s) => s.stepZoom);
+  const setZoom = useZoomStore((s) => s.setZoom);
+
   const tileSize = useTileSize();
   const viewportRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // ── Pinch-to-zoom state ──
+  const pinchState = useRef<{
+    active: boolean;
+    startDist: number;
+    startZoom: number;
+    pointers: Map<number, { x: number; y: number }>;
+  }>({ active: false, startDist: 0, startZoom: RENDER.ZOOM_DEFAULT, pointers: new Map() });
+
+  // ── Mouse wheel zoom ──
+  useEffect(() => {
+    const vp = viewportRef.current;
+    if (!vp) return;
+    const handler = (e: WheelEvent) => {
+      e.preventDefault();
+      stepZoom(e.deltaY < 0 ? +RENDER.ZOOM_STEP : -RENDER.ZOOM_STEP);
+    };
+    vp.addEventListener('wheel', handler, { passive: false });
+    return () => vp.removeEventListener('wheel', handler);
+  }, [stepZoom]);
 
   // ── Camera drag state ──
   const dragState = useRef({
@@ -293,6 +256,19 @@ export default function GridRenderer() {
       const isTouch = e.pointerType === 'touch';
       const isRMB = e.button === 2;
 
+      // ── Pinch tracking ──
+      if (isTouch) {
+        const ps = pinchState.current;
+        ps.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        if (ps.pointers.size === 2) {
+          const pts = Array.from(ps.pointers.values());
+          ps.startDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+          ps.startZoom = useZoomStore.getState().zoom;
+          ps.active = true;
+          return; // don't start a drag during pinch
+        }
+      }
+
       // Reset isDragging on any pointer-down so a post-drag LMB click isn't blocked
       dragState.current.isDragging = false;
 
@@ -327,6 +303,23 @@ export default function GridRenderer() {
   );
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
+    // ── Pinch-to-zoom ──
+    if (e.pointerType === 'touch') {
+      const ps = pinchState.current;
+      if (ps.pointers.has(e.pointerId)) {
+        ps.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      }
+      if (ps.active && ps.pointers.size === 2) {
+        const pts = Array.from(ps.pointers.values());
+        const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+        if (ps.startDist > 0) {
+          const ratio = dist / ps.startDist;
+          setZoom(ps.startZoom * ratio);
+        }
+        return; // don't pan while pinching
+      }
+    }
+
     const ds = dragState.current;
     if (!ds.isDragActive) return;
     const dx = e.clientX - ds.startX;
@@ -356,9 +349,19 @@ export default function GridRenderer() {
         ds.lastMoveY = e.clientY;
       }
     }
-  }, []);
+  }, [setZoom]);
 
   const onPointerUp = useCallback((e: React.PointerEvent) => {
+    // ── Pinch cleanup ──
+    if (e.pointerType === 'touch') {
+      const ps = pinchState.current;
+      ps.pointers.delete(e.pointerId);
+      if (ps.active) {
+        ps.active = false;
+        return;
+      }
+    }
+
     const ds = dragState.current;
     if (!ds.isDragActive) return;
     // Capture drag state before clearing, so the contextmenu handler can read it
@@ -620,6 +623,10 @@ export default function GridRenderer() {
         <DamageFloaterLayer tileSize={tileSize} />
         <ProjectileLayer />
       </div>
+      <div className="zoom-controls">
+        <button onClick={() => stepZoom(-RENDER.ZOOM_STEP)}>−</button>
+        <button onClick={() => stepZoom(+RENDER.ZOOM_STEP)}>+</button>
+      </div>
     </div>
   );
 }
@@ -649,10 +656,19 @@ function TileCellInner({
   isSelected,
   onClick,
 }: TileCellProps) {
-  const bg = tileBackground(tile, building);
   const buildingIconSize = Math.floor(tileSize * 0.8);
-  const resourceIconSize = Math.floor(tileSize * 0.20);
-  const terrainIconSize = Math.floor(tileSize * 0.7);
+
+  // ── Tile sprite path ──
+  const tileSpritePath: string | undefined = tile.isLava
+    ? TILE_SPRITE['lava']
+    : !tile.isRevealed
+      ? TILE_SPRITE['unrevealed']
+      : tile.isRuin || tile.isStrongholdRuin
+        ? TILE_SPRITE['ruin']
+        : TILE_SPRITE[tile.terrainType];
+
+  const [tileSpriteError, setTileSpriteError] = useState(false);
+  const showTileImg = typeof tileSpritePath === 'string' && tileSpritePath !== '' && !tileSpriteError;
 
   // Lava preview overlay (only on discovered tiles)
   const overlay =
@@ -667,29 +683,6 @@ function TileCellInner({
 
   const showUnit = unit && tile.isRevealed;
   const showBuilding = building && tile.isRevealed;
-
-  // Resource production icon for visible resource buildings
-  const resourceIcon = building && tile.isRevealed
-    ? RESOURCE_BUILDING_ICON[building.type]
-    : undefined;
-
-  // Terrain background icon (faint, behind buildings/units)
-  const terrainIcon = tile.isRevealed && !tile.isLava
-    ? tile.terrainType === TileType.FOREST
-      ? '🌲'
-      : tile.terrainType === TileType.MOUNTAIN
-        ? '⛰️'
-        : null
-    : null;
-
-  // Ruin icon (faint background behind any unit/building)
-  const ruinIcon = tile.isRevealed && !tile.isLava
-    ? tile.isStrongholdRuin
-      ? '🏚️'
-      : tile.isRuin
-        ? '🪨'
-        : null
-    : null;
 
   // Corruption visual overlay for MAGMA_SPYR and EMBER_NEST buildings
   const corruptionOverlayClass =
@@ -708,33 +701,46 @@ function TileCellInner({
     building.faction === Faction.PLAYER &&
     (building.type === BuildingType.FARM || building.type === BuildingType.PATRICIANHOUSE || building.type === BuildingType.STRONGHOLD);
 
+  // Building sprite — neutral buildings use the resource sprite registry
+  const buildingSpritePath = building
+    ? building.faction === null
+      ? RESOURCE_SPRITE[building.type]
+      : BUILDING_SPRITE[building.type]
+    : undefined;
+  const [buildingSpriteError, setBuildingSpriteError] = useState(false);
+  const buildingExhaustedOpacity = building && building.combatStats && building.hasActedThisTurn
+    ? RENDER.UNIT_EXHAUSTED_OPACITY
+    : undefined;
+
   return (
     <div
       className={['grid-tile', isSelected && 'tile-selected'].filter(Boolean).join(' ')}
       style={{
         width: tileSize,
         height: tileSize,
-        backgroundColor: bg,
+        backgroundColor: '#888',
       }}
       onClick={onClick}
     >
-      {/* cloud emoji for undiscovered tiles */}
-      {!tile.isRevealed && (
-        <span className="tile-cloud" style={{ fontSize: buildingIconSize }}>☁️</span>
-      )}
-
-      {/* terrain background icon (faint, behind everything) */}
-      {terrainIcon && (
-        <span className="tile-terrain-icon" style={{ fontSize: terrainIconSize }}>
-          {terrainIcon}
-        </span>
-      )}
-
-      {/* ruin background icon */}
-      {ruinIcon && (
-        <span className="tile-ruin-icon" style={{ fontSize: terrainIconSize }}>
-          {ruinIcon}
-        </span>
+      {/* tile sprite or missing-sprite placeholder */}
+      {showTileImg ? (
+        <img
+          src={tileSpritePath}
+          alt=""
+          onError={() => setTileSpriteError(true)}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            zIndex: 0,
+          }}
+        />
+      ) : (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
+          <MissingSprite size={tileSize} />
+        </div>
       )}
 
       {/* lava-preview overlay */}
@@ -748,19 +754,25 @@ function TileCellInner({
         <div className="tile-overlay" style={{ backgroundColor: highlightOverlay }} />
       )}
 
-      {/* building emoji */}
+      {/* building sprite or missing-sprite */}
       {showBuilding && building && (
-        <span
-          className="tile-building"
-          style={{
-            fontSize: buildingIconSize,
-            opacity: building.combatStats && building.hasActedThisTurn
-              ? RENDER.UNIT_EXHAUSTED_OPACITY
-              : undefined,
-          }}
-        >
-          {BUILDING_EMOJI[building.type] ?? ''}
-        </span>
+        <>
+          {typeof buildingSpritePath === 'string' && buildingSpritePath !== '' && !buildingSpriteError ? (
+            <img
+              src={buildingSpritePath}
+              className="tile-building-img"
+              width={buildingIconSize}
+              height={buildingIconSize}
+              alt=""
+              onError={() => setBuildingSpriteError(true)}
+              style={{ opacity: buildingExhaustedOpacity }}
+            />
+          ) : (
+            <div className="tile-building" style={{ opacity: buildingExhaustedOpacity }}>
+              <MissingSprite size={buildingIconSize} />
+            </div>
+          )}
+        </>
       )}
 
       {/* building HP bar for attacking buildings (e.g. watchtower, magma spyr) */}
@@ -785,13 +797,6 @@ function TileCellInner({
         </div>
       )}
 
-      {/* resource icon */}
-      {resourceIcon && (
-        <span className="tile-resource-icon" style={{ fontSize: resourceIconSize }}>
-          {resourceIcon}
-        </span>
-      )}
-
       {/* unit rendering */}
       {showUnit && unit && <UnitBadge unit={unit} tileSize={tileSize} />}
     </div>
@@ -808,6 +813,10 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
   const hpPct = (unit.stats.currentHp / unit.stats.maxHp) * 100;
   const hasLavaBoost = unit.tags.includes(UnitTag.LAVABOOST);
   const unitEmojiSize = Math.floor(tileSize * 0.8);
+
+  const unitSpritePath = UNIT_SPRITE[unit.type];
+  const [unitSpriteError, setUnitSpriteError] = useState(false);
+  const showUnitImg = typeof unitSpritePath === 'string' && unitSpritePath !== '' && !unitSpriteError;
 
   // A player unit that has moved but has no valid attack targets left to hit
   // should also appear exhausted — there's nothing more it can do this turn.
@@ -903,9 +912,18 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
         <div className="hp-bar-fill" style={{ width: `${hpPct}%` }} />
       </div>
       <span className="unit-hp-text">{unit.stats.currentHp}</span>
-      <span className="unit-main-emoji unit-emoji" style={{ fontSize: `${unitEmojiSize}px` }}>
-        {UNIT_EMOJI[unit.type] ?? '?'}
-      </span>
+      {showUnitImg ? (
+        <img
+          src={unitSpritePath}
+          className="unit-main-img"
+          width={unitEmojiSize}
+          height={unitEmojiSize}
+          alt=""
+          onError={() => setUnitSpriteError(true)}
+        />
+      ) : (
+        <MissingSprite size={unitEmojiSize} />
+      )}
       {isEmberling && (
         <span className="emberling-hover-explosion" style={{ fontSize: `${Math.floor(unitEmojiSize * 0.5)}px` }}>
           💥
