@@ -50,6 +50,20 @@ export const BUILDING_SPRITE: Partial<Record<BuildingType, string>> = {
   EMBERNEST: '',
 };
 
+/**
+ * Resource node sprites — shown when a building exists on a tile but is
+ * faction-neutral (i.e. an unclaimed resource node like a forest or mine).
+ * When a player or enemy claims the tile, BUILDING_SPRITE takes over.
+ * When the building is destroyed, no building layer is shown.
+ *
+ * Keys are the BuildingType values that represent capturable resource nodes.
+ * Empty string = no sprite yet → pink MissingSprite placeholder.
+ */
+export const RESOURCE_SPRITE: Partial<Record<BuildingType, string>> = {
+  MINE: '',
+  WOODCUTTER: '',
+};
+
 /** Maps every TileType value plus special keys to a sprite path (empty = missing). */
 export const TILE_SPRITE: Partial<Record<TileType | 'lava' | 'unrevealed' | 'ruin', string>> = {
   EMPTY: '',

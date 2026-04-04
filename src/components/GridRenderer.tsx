@@ -19,7 +19,7 @@ import { RENDER } from '../renderConfig';
 import { INPUT } from '../inputConfig';
 import { computeLevelFromXp } from '../levelSystem';
 import { useZoomStore } from '../zoomStore';
-import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE } from '../assetRegistry';
+import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE, RESOURCE_SPRITE } from '../assetRegistry';
 import MissingSprite from './MissingSprite';
 import {
   Faction,
@@ -701,8 +701,12 @@ function TileCellInner({
     building.faction === Faction.PLAYER &&
     (building.type === BuildingType.FARM || building.type === BuildingType.PATRICIANHOUSE || building.type === BuildingType.STRONGHOLD);
 
-  // Building sprite
-  const buildingSpritePath = building ? BUILDING_SPRITE[building.type] : undefined;
+  // Building sprite — neutral buildings use the resource sprite registry
+  const buildingSpritePath = building
+    ? building.faction === null
+      ? RESOURCE_SPRITE[building.type]
+      : BUILDING_SPRITE[building.type]
+    : undefined;
   const [buildingSpriteError, setBuildingSpriteError] = useState(false);
   const buildingExhaustedOpacity = building && building.combatStats && building.hasActedThisTurn
     ? RENDER.UNIT_EXHAUSTED_OPACITY
