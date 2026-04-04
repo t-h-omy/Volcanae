@@ -77,7 +77,7 @@ function App() {
   return (
     <div className="app-container">
       {!assetsReady ? (
-        <span className="loading-text">Loading…</span>
+        <div role="status" aria-live="polite" className="loading-text">Loading…</div>
       ) : phase ? (
         <>
           <GridRenderer />

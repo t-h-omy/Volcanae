@@ -172,7 +172,7 @@ export default function GridRenderer() {
     startDist: number;
     startZoom: number;
     pointers: Map<number, { x: number; y: number }>;
-  }>({ active: false, startDist: 0, startZoom: 1, pointers: new Map() });
+  }>({ active: false, startDist: 0, startZoom: RENDER.ZOOM_DEFAULT, pointers: new Map() });
 
   // ── Mouse wheel zoom ──
   useEffect(() => {
