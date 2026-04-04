@@ -809,7 +809,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
     if (unit.faction !== Faction.PLAYER || !unit.hasMovedThisTurn || unit.hasActedThisTurn) return false;
     // PREP units cannot attack after moving — treat as exhausted immediately
     if (unit.tags.includes(UnitTag.PREP)) return true;
-    return !Object.values(s.units).some(
+    const hasEnemyUnitTarget = Object.values(s.units).some(
       (other) =>
         other.faction === Faction.ENEMY &&
         // Cannot attack enemies on undiscovered tiles
@@ -820,6 +820,18 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
           unit.stats.attackRange,
         ),
     );
+    if (hasEnemyUnitTarget) return false;
+    const hasEnemyBuildingTarget = Object.values(s.buildings).some(
+      (b) =>
+        b.faction === Faction.ENEMY &&
+        s.grid[b.position.y]?.[b.position.x]?.isRevealed &&
+        isTileWithinEdgeCircleRange(
+          unit.position.x, unit.position.y,
+          b.position.x, b.position.y,
+          unit.stats.attackRange,
+        ),
+    );
+    return !hasEnemyBuildingTarget;
   });
 
   const isExhausted = (unit.hasActedThisTurn && unit.hasMovedThisTurn) || noAttackTargets;
