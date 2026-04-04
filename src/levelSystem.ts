@@ -127,7 +127,29 @@ export function grantXp(
   unit.xp += amount;
 
   const targetLevel = computeLevelFromXp(unit.type, unit.xp);
-  if (targetLevel <= unit.level) return;
+  const isLevelUp = targetLevel > unit.level;
+
+  // Always show a ⭐ floater so the player/enemy can see XP being earned.
+  // Uses its own 'xp' type so it gets distinct styling.
+  useFloaterStore.getState().addFloater({
+    value: amount,
+    label: `⭐ +${amount}`,
+    x: unit.position.x,
+    y: unit.position.y,
+    isEnemy: unit.faction === Faction.ENEMY,
+    floaterType: 'xp',
+  });
+
+  // Brief gold sparkle on the unit — suppressed when a level-up is about to
+  // fire its own (more prominent) LEVEL_UP animation.
+  if (!isLevelUp) {
+    useCombatAnimationStore.getState().setUnitAnimation(unitId, { type: 'XP_GAIN' });
+    setTimeout(() => {
+      useCombatAnimationStore.getState().setUnitAnimation(unitId, null);
+    }, ANIMATION.XP_GAIN_ANIM_DURATION_MS);
+  }
+
+  if (!isLevelUp) return;
 
   if (unit.faction === Faction.ENEMY && state.phase === GamePhase.ENEMY_TURN) {
     // Enemy units level up immediately during their own turn

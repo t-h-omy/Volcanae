@@ -595,6 +595,9 @@ export default function GridRenderer() {
             const key = posKey(x, y);
             const isReachable = reachableSet.has(key);
             const isAttackable = attackableSet.has(key);
+            const isSelected =
+              (tile.unitId != null && tile.unitId === selectedUnitId) ||
+              (tile.buildingId != null && tile.buildingId === selectedBuildingId);
 
             return (
               <TileCell
@@ -605,6 +608,7 @@ export default function GridRenderer() {
                 tileSize={tileSize}
                 isReachable={isReachable}
                 isAttackable={isAttackable}
+                isSelected={isSelected}
                 onClick={() => handleTileClick(x, y)}
               />
             );
@@ -631,6 +635,7 @@ interface TileCellProps {
   tileSize: number;
   isReachable: boolean;
   isAttackable: boolean;
+  isSelected: boolean;
   onClick: () => void;
 }
 
@@ -641,6 +646,7 @@ function TileCellInner({
   tileSize,
   isReachable,
   isAttackable,
+  isSelected,
   onClick,
 }: TileCellProps) {
   const bg = tileBackground(tile, building);
@@ -704,7 +710,7 @@ function TileCellInner({
 
   return (
     <div
-      className="grid-tile"
+      className={['grid-tile', isSelected && 'tile-selected'].filter(Boolean).join(' ')}
       style={{
         width: tileSize,
         height: tileSize,
@@ -809,7 +815,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
     if (unit.faction !== Faction.PLAYER || !unit.hasMovedThisTurn || unit.hasActedThisTurn) return false;
     // PREP units cannot attack after moving — treat as exhausted immediately
     if (unit.tags.includes(UnitTag.PREP)) return true;
-    return !Object.values(s.units).some(
+    const hasEnemyUnitTarget = Object.values(s.units).some(
       (other) =>
         other.faction === Faction.ENEMY &&
         // Cannot attack enemies on undiscovered tiles
@@ -820,6 +826,18 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
           unit.stats.attackRange,
         ),
     );
+    if (hasEnemyUnitTarget) return false;
+    const hasEnemyBuildingTarget = Object.values(s.buildings).some(
+      (b) =>
+        b.faction === Faction.ENEMY &&
+        s.grid[b.position.y]?.[b.position.x]?.isRevealed &&
+        isTileWithinEdgeCircleRange(
+          unit.position.x, unit.position.y,
+          b.position.x, b.position.y,
+          unit.stats.attackRange,
+        ),
+    );
+    return !hasEnemyBuildingTarget;
   });
 
   const isExhausted = (unit.hasActedThisTurn && unit.hasMovedThisTurn) || noAttackTargets;
@@ -833,7 +851,9 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
         ? 'anim-dying'
         : anim?.type === 'LEVEL_UP'
           ? 'anim-levelup'
-          : '';
+          : anim?.type === 'XP_GAIN'
+            ? 'anim-xpgain'
+            : '';
 
   const animStyle: React.CSSProperties | undefined =
     anim?.type === 'LUNGE' || anim?.type === 'RECOIL'
@@ -866,6 +886,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
           '--levelup-glow-mid1': `${ANIMATION.LEVEL_UP_GLOW_MID1_PX}px`,
           '--levelup-glow-mid2': `${ANIMATION.LEVEL_UP_GLOW_MID2_PX}px`,
           '--levelup-glow-color': RENDER.COLORS.LEVEL_UP_GLOW,
+          '--xpgain-anim-duration': `${ANIMATION.XP_GAIN_ANIM_DURATION_MS}ms`,
           '--unit-hp-text-font-size': `${UI.UNIT_HP_TEXT_FONT_SIZE_PX}px`,
         } as React.CSSProperties
       }
@@ -1051,8 +1072,10 @@ function DamageFloaterLayer({ tileSize }: { tileSize: number }) {
         {
           '--color-heal-floater': RENDER.COLORS.HEAL_FLOATER,
           '--color-levelup-floater': RENDER.COLORS.LEVEL_UP_FLOATER,
+          '--color-xp-floater': RENDER.COLORS.XP_FLOATER,
           '--damage-floater-font-size': `${UI.DAMAGE_FLOATER_FONT_SIZE_PX}px`,
           '--levelup-floater-font-size': `${UI.LEVEL_UP_FLOATER_FONT_SIZE_PX}px`,
+          '--xp-floater-font-size': `${UI.XP_FLOATER_FONT_SIZE_PX}px`,
         } as React.CSSProperties
       }
     >
@@ -1062,9 +1085,11 @@ function DamageFloaterLayer({ tileSize }: { tileSize: number }) {
             ? 'floater-heal'
             : floater.floaterType === 'levelup'
               ? 'floater-levelup'
-              : floater.isEnemy
-                ? 'floater-enemy'
-                : 'floater-player';
+              : floater.floaterType === 'xp'
+                ? 'floater-xp'
+                : floater.isEnemy
+                  ? 'floater-enemy'
+                  : 'floater-player';
         const content =
           floater.label !== undefined
             ? floater.label

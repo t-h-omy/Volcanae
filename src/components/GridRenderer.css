@@ -42,6 +42,28 @@
   pointer-events: none;
 }
 
+/* ── Selection highlight ── */
+
+.grid-tile.tile-selected {
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12),
+              inset 0 0 0 2px rgba(255, 255, 255, 0.85),
+              inset 0 0 0 4px rgba(255, 215, 0, 0.5);
+  animation: selectionPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes selectionPulse {
+  0%, 100% {
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12),
+                inset 0 0 0 2px rgba(255, 255, 255, 0.7),
+                inset 0 0 0 4px rgba(255, 215, 0, 0.3);
+  }
+  50% {
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12),
+                inset 0 0 0 2px rgba(255, 255, 255, 0.95),
+                inset 0 0 0 5px rgba(255, 215, 0, 0.7);
+  }
+}
+
 /* ── Unit layer ── */
 
 .tile-unit {
@@ -265,6 +287,11 @@
   font-size: var(--levelup-floater-font-size, 16px);
 }
 
+.damage-floater.floater-xp {
+  color: var(--color-xp-floater, #e8c94f);
+  font-size: var(--xp-floater-font-size, 12px);
+}
+
 @keyframes floatUp {
   0%   { transform: translateX(-50%) translateY(0);                    opacity: 1; }
   100% { transform: translateX(-50%) translateY(var(--float-rise, -20px)); opacity: 0; }
@@ -432,6 +459,19 @@
   50%  { transform: scale(var(--levelup-scale-mid1, 1.1));         filter: brightness(var(--levelup-brightness-mid1, 1.4))      drop-shadow(0 0 var(--levelup-glow-mid1, 5px) var(--levelup-glow-color, gold)); }
   80%  { transform: scale(var(--levelup-scale-mid2, 1.2));         filter: brightness(var(--levelup-brightness-mid2, 1.6))      drop-shadow(0 0 var(--levelup-glow-mid2, 6px) var(--levelup-glow-color, gold)); }
   100% { transform: scale(1);                                      filter: brightness(1)                                        drop-shadow(0 0 0px var(--levelup-glow-color, gold)); }
+}
+
+/* ── XP Gain Animation — brief star-gold shimmer, subtler than level-up ── */
+
+.anim-xpgain .unit-main-emoji {
+  animation: xpGainSparkle var(--xpgain-anim-duration, 600ms) ease-out forwards;
+}
+
+@keyframes xpGainSparkle {
+  0%   { filter: brightness(1)   drop-shadow(0 0 0px gold); }
+  30%  { filter: brightness(1.4) drop-shadow(0 0 4px gold); }
+  65%  { filter: brightness(1.2) drop-shadow(0 0 2px gold); }
+  100% { filter: brightness(1)   drop-shadow(0 0 0px gold); }
 }
 
 /* ── Projectile Layer ── */

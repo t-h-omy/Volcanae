@@ -14,7 +14,8 @@ export type UnitAnimationState =
   | { type: 'RECOIL'; dx: number; dy: number }
   | { type: 'HIT' }
   | { type: 'DYING' }
-  | { type: 'LEVEL_UP' };
+  | { type: 'LEVEL_UP' }
+  | { type: 'XP_GAIN' };
 
 export interface Projectile {
   id: string;

@@ -13,6 +13,8 @@ export const UI = {
   DAMAGE_FLOATER_FONT_SIZE_PX: 14,
   /** Font size for level-up floaters (px) — larger for emphasis */
   LEVEL_UP_FLOATER_FONT_SIZE_PX: 16,
+  /** Font size for XP-gain floaters (px) — smaller/subtler */
+  XP_FLOATER_FONT_SIZE_PX: 12,
   /** Font size for the HP number shown above a unit (px) */
   UNIT_HP_TEXT_FONT_SIZE_PX: 8,
   /** Duration of the bounce animation on the capture-ready indicator */
