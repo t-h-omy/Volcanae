@@ -207,8 +207,8 @@ export function canEnemyConstructAt(
   // Must be on the exact same tile
   if (unit.position.x !== tilePos.x || unit.position.y !== tilePos.y) return false;
 
-  // Must not have acted this turn
-  if (unit.hasActedThisTurn) return false;
+  // Must not have moved, acted, or captured this turn
+  if (unit.hasMovedThisTurn || unit.hasActedThisTurn || unit.hasCapturedThisTurn) return false;
 
   const tile = state.grid[tilePos.y][tilePos.x];
 

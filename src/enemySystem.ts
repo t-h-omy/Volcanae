@@ -466,9 +466,9 @@ function createEnemyUnit(
       attackRange: UNITS[unitType].attackRange,
     },
     tags,
-    hasMovedThisTurn: false,
-    hasActedThisTurn: false,
-    hasCapturedThisTurn: false,
+    hasMovedThisTurn: true,
+    hasActedThisTurn: true,
+    hasCapturedThisTurn: true,
     xp: 0,
     level: 1,
   };
@@ -965,7 +965,7 @@ function scoreActionsForUnit(
   }
 
   // ── CAPTURE_BUILDING ──
-  if (!unit.hasActedThisTurn && unit.tags.includes(UnitTag.BUILDANDCAPTURE)) {
+  if (!unit.hasActedThisTurn && !unit.hasMovedThisTurn && unit.tags.includes(UnitTag.BUILDANDCAPTURE)) {
     const tile = state.grid[unit.position.y][unit.position.x];
     if (tile.buildingId) {
       const building = state.buildings[tile.buildingId];
@@ -1339,7 +1339,7 @@ function scoreActionsForUnit(
 
   // ── CONSTRUCTION & CORRUPTION ──
   // scoreConstructionActions handles BUILD_LAVA_LAIR, BUILD_INFERNAL_SANCTUM, and CORRUPT_TERRAIN
-  if (!unit.hasActedThisTurn) {
+  if (!unit.hasActedThisTurn && !unit.hasMovedThisTurn && !unit.hasCapturedThisTurn) {
     scoreConstructionActions(unit, state, candidates);
   }
 
