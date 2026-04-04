@@ -5,7 +5,7 @@
 
 import type { GameState, Position } from './types';
 import type { Draft } from 'immer';
-import { Faction } from './types';
+import { BuildingType, Faction } from './types';
 import { MAP } from './gameConfig';
 import { getTilesWithinEdgeCircleRange } from './rangeUtils';
 
@@ -73,12 +73,17 @@ export function getReachableTiles(
       continue;
     }
 
-    // Cannot move onto tiles occupied by a building that has combat stats
-    // Buildings without combatStats (no HP/attack) can be walked onto to destroy them
+    // Cannot move onto tiles occupied by a building that has combat stats,
+    // except for neutral watchtowers which can be moved onto (to capture them).
+    // Owned watchtowers (player or enemy) block movement like other combat buildings.
     if (tile.buildingId !== null) {
       const tileBuilding = state.buildings[tile.buildingId];
       if (tileBuilding && tileBuilding.combatStats !== null) {
-        continue;
+        const isNeutralWatchtower =
+          tileBuilding.type === BuildingType.WATCHTOWER && tileBuilding.faction === null;
+        if (!isNeutralWatchtower) {
+          continue;
+        }
       }
     }
 
