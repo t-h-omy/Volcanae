@@ -38,4 +38,9 @@ export const RENDER = {
   },
   /** Camera smooth animation duration in ms */
   CAMERA_ANIMATION_MS: 400,
+  /** Zoom limits and defaults */
+  ZOOM_MIN: 0.5,
+  ZOOM_MAX: 1.25,
+  ZOOM_DEFAULT: 1.0,
+  ZOOM_STEP: 0.05,
 } as const;
