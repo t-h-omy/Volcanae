@@ -223,8 +223,8 @@ export const LAVA_LAIR = {
   /** Combat stats for MAGMA_SPYR buildings (created on corrupted MOUNTAIN tiles) */
   MAGMA_SPYR_STATS: {
     maxHp: 120,
-    attack: 40,
-    defense: 60,
+    attack: 50,
+    defense: 50,
     attackRange: 2,
     maxAttacksPerTurn: 2,
   },
@@ -244,9 +244,9 @@ export const RESOURCES = {
   /** Wood produced per turn by a woodcutter */
   WOODCUTTER_WOOD_PER_TURN: 1,
   /** Iron available at the start of a new game */
-  START_IRON: 2,
+  START_IRON: 3,
   /** Wood available at the start of a new game */
-  START_WOOD: 2,
+  START_WOOD: 3,
 } as const;
 
 // ============================================================================
@@ -265,9 +265,9 @@ export const ENEMY = {
   /** Base probability (0.0–1.0) of spawning a unit per recruitment building per turn when no player unit is in discover radius and threat is 0 */
   BASE_SPAWN_PROBABILITY: 0.075,
   /** Maximum additional probability granted at max threat (0.0–1.0) */
-  MAX_THREAT_BONUS: 0.60,
+  MAX_THREAT_BONUS: 0.70,
   /** Threat level at which the full MAX_THREAT_BONUS is reached */
-  MAX_THREAT: 10,
+  MAX_THREAT: 20,
   /** Number of player turns between automatic threat level increases */
   THREAT_LEVEL_INCREASE_INTERVAL: 10,
 } as const;
@@ -283,9 +283,9 @@ export const AI_SCORING = {
   // Higher values make the AI prioritise that action over lower-valued ones.
 
   /** Move into melee range of a player unit that is currently capturing a building, to stop it */
-  BASE_INTERCEPT_CAPTOR: 90,
+  BASE_INTERCEPT_CAPTOR: 100,
   /** Walk onto an unoccupied neutral or player building to begin capturing it */
-  BASE_CAPTURE_BUILDING: 90,
+  BASE_CAPTURE_BUILDING: 100,
   /** Move to a building already occupied by a player unit to disrupt their capture attempt */
   BASE_CONTEST_BUILDING: 80,
   /** Perform a melee attack against an adjacent player unit */
