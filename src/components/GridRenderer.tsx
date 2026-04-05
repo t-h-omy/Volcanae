@@ -19,7 +19,7 @@ import { RENDER } from '../renderConfig';
 import { INPUT } from '../inputConfig';
 import { computeLevelFromXp } from '../levelSystem';
 import { useZoomStore } from '../zoomStore';
-import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE, RESOURCE_SPRITE, ENEMY_BUILDING_SPRITE } from '../assetRegistry';
+import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE, RESOURCE_SPRITE, ENEMY_BUILDING_SPRITE, TERRAIN_RESOURCE_SPRITE } from '../assetRegistry';
 import MissingSprite from './MissingSprite';
 import {
   Faction,
@@ -686,6 +686,13 @@ function TileCellInner({
   const showUnit = unit && tile.isRevealed;
   const showBuilding = building && tile.isRevealed;
 
+  // Terrain resource overlay (forest / mountain shown on top of grass when no building)
+  const terrainResourcePath = tile.isRevealed && !building
+    ? TERRAIN_RESOURCE_SPRITE[tile.terrainType]
+    : undefined;
+  const [terrainResSpriteError, setTerrainResSpriteError] = useState(false);
+  const showTerrainResource = typeof terrainResourcePath === 'string' && terrainResourcePath !== '' && !terrainResSpriteError;
+
   // Corruption visual overlay for MAGMA_SPYR and EMBER_NEST buildings
   const corruptionOverlayClass =
     showBuilding && building
@@ -750,6 +757,23 @@ function TileCellInner({
 
       {/* lava-preview overlay */}
       {overlay && <div className="tile-overlay" style={{ backgroundColor: overlay }} />}
+
+      {/* terrain resource overlay (forest / mountain on top of grass) */}
+      {showTerrainResource && (
+        <img
+          src={terrainResourcePath}
+          alt=""
+          onError={() => setTerrainResSpriteError(true)}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            zIndex: 1,
+          }}
+        />
+      )}
 
       {/* corruption visual overlay */}
       {corruptionOverlayClass && <div className={`tile-overlay ${corruptionOverlayClass}`} />}
