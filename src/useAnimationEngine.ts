@@ -150,9 +150,10 @@ function normaliseDirection(from: Position, to: Position): { x: number; y: numbe
 }
 
 /**
- * Returns the projectile emoji for a given unit type.
+ * Returns the projectile character for a given unit type.
+ * (Will be replaced with sprite images in a future task.)
  */
-function projectileEmoji(unitType: string): string {
+function projectileChar(unitType: string): string {
   if (unitType === UnitType.ARCHER || unitType === UnitType.LAVA_ARCHER) return '🏹';
   if (unitType === UnitType.SIEGE || unitType === UnitType.LAVA_SIEGE) return '💣';
   return '•';
@@ -209,7 +210,7 @@ async function playAttackAnimation(
         id: crypto.randomUUID(),
         fromPx,
         toPx,
-        emoji: projectileEmoji(attacker?.type ?? ''),
+        emoji: projectileChar(attacker?.type ?? ''),
         rotationDeg: angleBetween(fromPx, toPx),
         durationMs: projectileDuration,
       });
@@ -419,7 +420,7 @@ async function playUnitAttackBuildingAnimation(
         id: crypto.randomUUID(),
         fromPx,
         toPx,
-        emoji: projectileEmoji(attacker?.type ?? ''),
+        emoji: projectileChar(attacker?.type ?? ''),
         rotationDeg: angleBetween(fromPx, toPx),
         durationMs: projectileDuration,
       });
