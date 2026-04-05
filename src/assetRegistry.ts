@@ -10,8 +10,9 @@
  * ## Required sprite sizes
  * - **Ground tiles**: 100×100 px PNG (covers desktop max zoom of 1.25 × 80 = 100 px;
  *   mobile tiles are smaller so 100 px is sufficient for both)
- * - **Units**: 80×80 px PNG (max effective size: 100 px tile × 0.8 = 80 px)
- * - **Buildings**: 80×80 px PNG (same as units)
+ * - **Units**: 100×100 px PNG (fills the full tile at all zoom levels)
+ * - **Buildings**: 100×100 px PNG (same as units)
+ * - **Resource nodes**: 100×100 px PNG (same as units and buildings)
  * - All sprites: **transparent background** PNG
  */
 

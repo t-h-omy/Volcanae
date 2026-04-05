@@ -656,7 +656,7 @@ function TileCellInner({
   isSelected,
   onClick,
 }: TileCellProps) {
-  const buildingIconSize = Math.floor(tileSize * 0.8);
+  const buildingIconSize = tileSize;
 
   // ── Tile sprite path ──
   const tileSpritePath: string | undefined = tile.isLava
@@ -812,7 +812,7 @@ const TileCell = React.memo(TileCellInner);
 function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
   const hpPct = (unit.stats.currentHp / unit.stats.maxHp) * 100;
   const hasLavaBoost = unit.tags.includes(UnitTag.LAVABOOST);
-  const unitEmojiSize = Math.floor(tileSize * 0.8);
+  const unitEmojiSize = tileSize;
 
   const unitSpritePath = UNIT_SPRITE[unit.type];
   const [unitSpriteError, setUnitSpriteError] = useState(false);
