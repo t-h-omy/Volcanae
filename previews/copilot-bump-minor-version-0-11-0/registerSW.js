@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/Volcanae/previews/copilot-bump-minor-version-0-11-0/sw.js', { scope: '/Volcanae/previews/copilot-bump-minor-version-0-11-0/' })})}
