@@ -19,7 +19,7 @@ import { RENDER } from '../renderConfig';
 import { INPUT } from '../inputConfig';
 import { computeLevelFromXp } from '../levelSystem';
 import { useZoomStore } from '../zoomStore';
-import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE, RESOURCE_SPRITE } from '../assetRegistry';
+import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE, RESOURCE_SPRITE, ENEMY_BUILDING_SPRITE } from '../assetRegistry';
 import MissingSprite from './MissingSprite';
 import {
   Faction,
@@ -663,9 +663,11 @@ function TileCellInner({
     ? TILE_SPRITE['lava']
     : !tile.isRevealed
       ? TILE_SPRITE['unrevealed']
-      : tile.isRuin || tile.isStrongholdRuin
-        ? TILE_SPRITE['ruin']
-        : TILE_SPRITE[tile.terrainType];
+      : tile.isStrongholdRuin
+        ? TILE_SPRITE['strongholdRuin']
+        : tile.isRuin
+          ? TILE_SPRITE['ruin']
+          : TILE_SPRITE[tile.terrainType];
 
   const [tileSpriteError, setTileSpriteError] = useState(false);
   const showTileImg = typeof tileSpritePath === 'string' && tileSpritePath !== '' && !tileSpriteError;
@@ -701,11 +703,14 @@ function TileCellInner({
     building.faction === Faction.PLAYER &&
     (building.type === BuildingType.FARM || building.type === BuildingType.PATRICIANHOUSE || building.type === BuildingType.STRONGHOLD);
 
-  // Building sprite — neutral buildings use the resource sprite registry
+  // Building sprite — neutral buildings use the resource sprite registry;
+  // enemy buildings check for a faction-specific override first.
   const buildingSpritePath = building
     ? building.faction === null
       ? RESOURCE_SPRITE[building.type]
-      : BUILDING_SPRITE[building.type]
+      : building.faction === Faction.ENEMY && ENEMY_BUILDING_SPRITE[building.type]
+        ? ENEMY_BUILDING_SPRITE[building.type]
+        : BUILDING_SPRITE[building.type]
     : undefined;
   const [buildingSpriteError, setBuildingSpriteError] = useState(false);
   const buildingExhaustedOpacity = building && building.combatStats && building.hasActedThisTurn

@@ -20,35 +20,46 @@ import type { UnitType, BuildingType, TileType } from './types';
 
 /** Maps every UnitType value to a sprite path (empty = missing). */
 export const UNIT_SPRITE: Partial<Record<UnitType, string>> = {
-  INFANTRY: '',
-  ARCHER: '',
-  RIDER: '',
-  SIEGE: '',
-  SCOUT: '',
-  GUARD: '',
-  LAVA_GRUNT: '',
-  LAVA_ARCHER: '',
-  LAVA_RIDER: '',
-  LAVA_SIEGE: '',
-  EMBERLING: '',
+  // Player units
+  INFANTRY:    '/sprites/units/Spearman_100px.png',
+  ARCHER:      '/sprites/units/Archer_100px.png',
+  RIDER:       '/sprites/units/Rider_100px.png',
+  SIEGE:       '/sprites/units/Catapult_100px.png',
+  SCOUT:       '/sprites/units/Scout_100px.png',
+  GUARD:       '/sprites/units/Guard_100px.png',
+  // Enemy units
+  LAVA_GRUNT:  '/sprites/units/Grunt_100px.png',
+  LAVA_ARCHER: '/sprites/units/Spitter_100px.png',
+  LAVA_RIDER:  '/sprites/units/Blazard_100px.png',
+  LAVA_SIEGE:  '/sprites/units/Hurler_100px.png',
+  EMBERLING:   '/sprites/units/Emberling_100px.png',
 };
 
 /** Maps every BuildingType value to a sprite path (empty = missing). */
 export const BUILDING_SPRITE: Partial<Record<BuildingType, string>> = {
-  STRONGHOLD: '',
-  MINE: '',
-  WOODCUTTER: '',
-  BARRACKS: '',
-  ARCHER_CAMP: '',
-  RIDER_CAMP: '',
-  SIEGE_CAMP: '',
-  WATCHTOWER: '',
-  LAVALAIR: '',
-  INFERNALSANCTUM: '',
-  FARM: '',
-  PATRICIANHOUSE: '',
-  MAGMASPYR: '',
-  EMBERNEST: '',
+  STRONGHOLD:      '', // no sprite yet
+  MINE:            '/sprites/buildings/mine_100px.png',
+  WOODCUTTER:      '/sprites/buildings/woodcutter_100px.png',
+  BARRACKS:        '/sprites/buildings/barracks_100px.png',
+  ARCHER_CAMP:     '/sprites/buildings/archer_camp_100px.png',
+  RIDER_CAMP:      '/sprites/buildings/horse%20camp_100px.png',
+  SIEGE_CAMP:      '/sprites/buildings/siege_workshop_100px.png',
+  WATCHTOWER:      '/sprites/buildings/watch_tower_100px.png',
+  LAVALAIR:        '/sprites/buildings/lava_lair_100px.png',
+  INFERNALSANCTUM: '/sprites/buildings/infernal_sanctum_100px.png',
+  FARM:            '/sprites/buildings/farm_100px.png',
+  PATRICIANHOUSE:  '', // no sprite yet
+  MAGMASPYR:       '/sprites/buildings/magma_spyr_100px.png',
+  EMBERNEST:       '/sprites/buildings/ember_nest_100px.png',
+};
+
+/**
+ * Enemy-faction overrides for building sprites.
+ * Only entries listed here override BUILDING_SPRITE when building.faction === ENEMY.
+ * Keys and empty-string rules are identical to BUILDING_SPRITE.
+ */
+export const ENEMY_BUILDING_SPRITE: Partial<Record<BuildingType, string>> = {
+  WATCHTOWER: '/sprites/buildings/watch_tower_enemy_100px.png',
 };
 
 /**
@@ -61,17 +72,18 @@ export const BUILDING_SPRITE: Partial<Record<BuildingType, string>> = {
  * Empty string = no sprite yet → pink MissingSprite placeholder.
  */
 export const RESOURCE_SPRITE: Partial<Record<BuildingType, string>> = {
-  MINE: '',
-  WOODCUTTER: '',
+  MINE:      '/sprites/resources/resource_mine_100px.png',
+  WOODCUTTER: '/sprites/resources/ressource_forest_100px.PNG',
 };
 
 /** Maps every TileType value plus special keys to a sprite path (empty = missing). */
-export const TILE_SPRITE: Partial<Record<TileType | 'lava' | 'unrevealed' | 'ruin', string>> = {
-  EMPTY: '',
-  PLAINS: '',
-  FOREST: '',
-  MOUNTAIN: '',
-  lava: '',
-  unrevealed: '',
-  ruin: '',
+export const TILE_SPRITE: Partial<Record<TileType | 'lava' | 'unrevealed' | 'ruin' | 'strongholdRuin', string>> = {
+  EMPTY:        '/sprites/tiles/terrain_grass_100px.png',
+  PLAINS:       '/sprites/tiles/terrain_grass_100px.png',
+  FOREST:       '', // no sprite yet
+  MOUNTAIN:     '', // no sprite yet
+  lava:         '/sprites/tiles/terrain_lava_100px.png',
+  unrevealed:   '/sprites/tiles/terrain_undiscovered_100px.png',
+  ruin:         '/sprites/buildings/ruin_standard_100px.png',
+  strongholdRuin: '/sprites/buildings/ruin_stronghold_100px.png',
 };
