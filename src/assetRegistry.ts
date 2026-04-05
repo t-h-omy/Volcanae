@@ -37,7 +37,7 @@ export const UNIT_SPRITE: Partial<Record<UnitType, string>> = {
 
 /** Maps every BuildingType value to a sprite path (empty = missing). */
 export const BUILDING_SPRITE: Partial<Record<BuildingType, string>> = {
-  STRONGHOLD:      '', // no sprite yet
+  STRONGHOLD:      '/sprites/buildings/stronghold_100px.png',
   MINE:            '/sprites/buildings/mine_100px.png',
   WOODCUTTER:      '/sprites/buildings/woodcutter_100px.png',
   BARRACKS:        '/sprites/buildings/barracks_100px.png',
@@ -48,7 +48,7 @@ export const BUILDING_SPRITE: Partial<Record<BuildingType, string>> = {
   LAVALAIR:        '/sprites/buildings/lava_lair_100px.png',
   INFERNALSANCTUM: '/sprites/buildings/infernal_sanctum_100px.png',
   FARM:            '/sprites/buildings/farm_100px.png',
-  PATRICIANHOUSE:  '', // no sprite yet
+  PATRICIANHOUSE:  '/sprites/buildings/patrician_house_100px.png',
   MAGMASPYR:       '/sprites/buildings/magma_spyr_100px.png',
   EMBERNEST:       '/sprites/buildings/ember_nest_100px.png',
 };
@@ -76,12 +76,23 @@ export const RESOURCE_SPRITE: Partial<Record<BuildingType, string>> = {
   WOODCUTTER: '/sprites/resources/ressource_forest_100px.PNG',
 };
 
+/**
+ * Terrain resource overlay sprites — shown on top of the base grass tile when
+ * the terrain type is a resource (FOREST / MOUNTAIN) and no building has been
+ * constructed yet.  Once a player builds a WOODCUTTER or MINE, the building
+ * sprite takes over; these are only the "natural" overlays.
+ */
+export const TERRAIN_RESOURCE_SPRITE: Partial<Record<TileType, string>> = {
+  FOREST:   '/sprites/resources/ressource_forest_100px.PNG',
+  MOUNTAIN: '/sprites/resources/resource_mine_100px.png',
+};
+
 /** Maps every TileType value plus special keys to a sprite path (empty = missing). */
 export const TILE_SPRITE: Partial<Record<TileType | 'lava' | 'unrevealed' | 'ruin' | 'strongholdRuin', string>> = {
   EMPTY:        '/sprites/tiles/terrain_grass_100px.png',
   PLAINS:       '/sprites/tiles/terrain_grass_100px.png',
-  FOREST:       '', // no sprite yet
-  MOUNTAIN:     '', // no sprite yet
+  FOREST:       '/sprites/tiles/terrain_grass_100px.png',
+  MOUNTAIN:     '/sprites/tiles/terrain_grass_100px.png',
   lava:         '/sprites/tiles/terrain_lava_100px.png',
   unrevealed:   '/sprites/tiles/terrain_undiscovered_100px.png',
   ruin:         '/sprites/buildings/ruin_standard_100px.png',
