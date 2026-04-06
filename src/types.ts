@@ -77,6 +77,17 @@ export const ResourceType = {
 } as const;
 export type ResourceType = (typeof ResourceType)[keyof typeof ResourceType];
 
+/** Determines what happens to the tile when a building is destroyed */
+export const DestroyBehavior = {
+  /** Building sits on a resource tile — destroying it restores the terrain (no ruin) */
+  RESOURCE: 'RESOURCE',
+  /** Building sits on a ruin — destroying it leaves a regular ruin */
+  RUIN: 'RUIN',
+  /** Building sits on a stronghold ruin — destroying it leaves a stronghold ruin */
+  STRONGHOLD_RUIN: 'STRONGHOLD_RUIN',
+} as const;
+export type DestroyBehavior = (typeof DestroyBehavior)[keyof typeof DestroyBehavior];
+
 /** Tags that can be applied to units */
 export const UnitTag = {
   /** Unit has ranged attack capability */
@@ -206,6 +217,8 @@ export interface Building {
   emberSpawnCounter: number;
   /** Queued unit type for next spawn — used by LAVALAIR/INFERNALSANCTUM dynamic recruitment */
   recruitmentQueue: UnitType | null;
+  /** What happens to the tile when this building is destroyed */
+  destroyBehavior: DestroyBehavior;
 }
 
 /** A tile on the game grid */
