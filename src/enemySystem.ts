@@ -107,6 +107,18 @@ function isWithinBounds(pos: Position): boolean {
   return pos.x >= 0 && pos.x < MAP.GRID_WIDTH && pos.y >= 0 && pos.y < MAP.GRID_HEIGHT;
 }
 
+/**
+ * Returns true when the building on a tile is a combat-capable building that
+ * blocks all unit movement (owned watch tower or magma spyr).
+ * Neutral watchtowers return false so they remain capturable by moving onto them.
+ */
+function isAttackingOwnedBuilding(buildingId: string | null, state: Draft<GameState>): boolean {
+  if (buildingId === null) return false;
+  const building = state.buildings[buildingId];
+  return !!(building && building.combatStats !== null &&
+    !(building.type === BuildingType.WATCHTOWER && building.faction === null));
+}
+
 function isRecruitmentBuilding(building: Building): boolean {
   return (
     building.type === BuildingType.LAVALAIR ||
@@ -187,7 +199,7 @@ function isUnitBlockedFromLava(unit: Unit, state: Draft<GameState>): boolean {
       if (visited.has(key)) continue;
       visited.add(key);
       const tile = state.grid[ny][nx];
-      if (tile.unitId !== null || tile.isLava || (tile.buildingId !== null && state.buildings[tile.buildingId]?.faction === Faction.PLAYER)) continue;
+      if (tile.unitId !== null || tile.isLava || (tile.buildingId !== null && state.buildings[tile.buildingId]?.faction === Faction.PLAYER) || isAttackingOwnedBuilding(tile.buildingId, state)) continue;
       // ny > startY means the tile is closer to lava (higher Y = toward lava)
       if (ny > startY) return false;
       queue.push({ x: nx, y: ny, steps: steps + 1 });
@@ -263,7 +275,7 @@ function stepToward(from: Position, target: Position, state: Draft<GameState>): 
   for (const pos of steps) {
     if (isWithinBounds(pos)) {
       const tile = state.grid[pos.y][pos.x];
-      if (!tile.isLava && tile.unitId === null && (tile.buildingId === null || state.buildings[tile.buildingId]?.faction !== Faction.PLAYER)) {
+      if (!tile.isLava && tile.unitId === null && (tile.buildingId === null || state.buildings[tile.buildingId]?.faction !== Faction.PLAYER) && !isAttackingOwnedBuilding(tile.buildingId, state)) {
         return pos;
       }
     }
@@ -294,7 +306,7 @@ function findLavaAdvanceTarget(unit: Unit, state: Draft<GameState>): Position {
 
     for (let tx = Math.max(0, startX - scanWidth); tx <= Math.min(MAP.GRID_WIDTH - 1, startX + scanWidth); tx++) {
       const tile = state.grid[ty][tx];
-      if (tile.isLava || tile.unitId !== null || (tile.buildingId !== null && state.buildings[tile.buildingId]?.faction === Faction.PLAYER)) continue;
+      if (tile.isLava || tile.unitId !== null || (tile.buildingId !== null && state.buildings[tile.buildingId]?.faction === Faction.PLAYER) || isAttackingOwnedBuilding(tile.buildingId, state)) continue;
       const dist = Math.abs(tx - startX);
       if (dist < bestDist) {
         bestDist = dist;
