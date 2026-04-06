@@ -3,13 +3,13 @@
  * Handles player building construction, player demolition, and enemy construction.
  */
 
-import type { Draft } from 'immer';
 import {
   Faction,
   UnitTag,
   BuildingType,
   TileType,
 } from './types';
+import type { Draft } from 'immer';
 import type {
   Position,
   Building,
@@ -300,6 +300,7 @@ function createBuildingObject(
     populationGrowthCounter: 0,
     emberSpawnCounter: 0,
     recruitmentQueue: null,
+    destroyBehavior: BUILDINGS.DESTROY_BEHAVIOR[type],
   };
 }
 

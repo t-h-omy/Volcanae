@@ -6,7 +6,7 @@
 
 import type { Unit, Building, GameState } from './types';
 import type { Draft } from 'immer';
-import { BuildingType, Faction, UnitTag } from './types';
+import { BuildingType, Faction, UnitTag, DestroyBehavior } from './types';
 import { useFloaterStore } from './floaterStore';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { UNITS, XP } from './gameConfig';
@@ -337,17 +337,18 @@ export function resolveBuildingAttack(
         grantXp(state, defenderId, XP.DESTROY_BUILDING);
       }
     } else {
-      // Enemy buildings (e.g. MAGMASPYR) are fully destroyed and leave a ruin.
+      // Enemy buildings are fully destroyed; apply destroy behavior.
       const { x, y } = building.position;
-      const buildingType = building.type;
+      const destroyBehavior = building.destroyBehavior;
       delete state.buildings[buildingId];
       const tile = state.grid[y][x];
       tile.buildingId = null;
-      if (buildingType === BuildingType.STRONGHOLD || buildingType === BuildingType.INFERNALSANCTUM) {
+      if (destroyBehavior === DestroyBehavior.STRONGHOLD_RUIN) {
         tile.isStrongholdRuin = true;
-      } else {
+      } else if (destroyBehavior === DestroyBehavior.RUIN) {
         tile.isRuin = true;
       }
+      // DestroyBehavior.RESOURCE: no ruin — terrain is restored naturally
     }
   } else {
     building.hp = newBuildingHp;
@@ -470,17 +471,18 @@ export function resolveAttackOnBuilding(
         grantXp(state, attackerId, XP.DESTROY_BUILDING);
       }
     } else if (attacker.faction === Faction.PLAYER && previousBuildingFaction === Faction.ENEMY) {
-      // Enemy building destroyed by player unit: remove from state and leave a ruin
+      // Enemy building destroyed by player unit: remove from state; apply destroy behavior
       const { x, y } = building.position;
-      const buildingType = building.type;
+      const destroyBehavior = building.destroyBehavior;
       delete state.buildings[buildingId];
       const tile = state.grid[y][x];
       tile.buildingId = null;
-      if (buildingType === BuildingType.STRONGHOLD || buildingType === BuildingType.INFERNALSANCTUM) {
+      if (destroyBehavior === DestroyBehavior.STRONGHOLD_RUIN) {
         tile.isStrongholdRuin = true;
-      } else {
+      } else if (destroyBehavior === DestroyBehavior.RUIN) {
         tile.isRuin = true;
       }
+      // DestroyBehavior.RESOURCE: no ruin — terrain is restored naturally
       // Grant XP to player attacker for destroying enemy building
       if (!attackerDead) {
         grantXp(state, attackerId, XP.DESTROY_BUILDING);

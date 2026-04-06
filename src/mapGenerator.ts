@@ -186,6 +186,7 @@ function createBuilding(
     populationGrowthCounter: 0,
     emberSpawnCounter: 0,
     recruitmentQueue: null,
+    destroyBehavior: BUILDINGS.DESTROY_BEHAVIOR[type],
   };
 }
 

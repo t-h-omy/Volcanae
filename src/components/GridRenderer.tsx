@@ -93,7 +93,7 @@ function getAttackableTileKeys(
   }
   // Enemy buildings (only tiles without an enemy unit already in the set)
   for (const b of Object.values(buildings)) {
-    if (b.faction === Faction.ENEMY) {
+    if (b.faction === Faction.ENEMY && b.hp > 0) {
       if (!grid[b.position.y]?.[b.position.x]?.isRevealed) continue;
       const key = posKey(b.position.x, b.position.y);
       if (keys.has(key)) continue; // tile already covered by enemy unit
@@ -687,7 +687,7 @@ function TileCellInner({
   const showBuilding = building && tile.isRevealed;
 
   // Terrain resource overlay (forest / mountain shown on top of grass when no building)
-  const terrainResourcePath = tile.isRevealed && !building
+  const terrainResourcePath = tile.isRevealed && !building && !tile.isLava
     ? TERRAIN_RESOURCE_SPRITE[tile.terrainType]
     : undefined;
   const [terrainResSpriteError, setTerrainResSpriteError] = useState(false);
@@ -868,6 +868,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
     const hasEnemyBuildingTarget = Object.values(s.buildings).some(
       (b) =>
         b.faction === Faction.ENEMY &&
+        b.hp > 0 &&
         s.grid[b.position.y]?.[b.position.x]?.isRevealed &&
         isTileWithinEdgeCircleRange(
           unit.position.x, unit.position.y,

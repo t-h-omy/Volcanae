@@ -6,7 +6,7 @@
  * animationConfig.ts, uiConfig.ts, renderConfig.ts, and inputConfig.ts.
  */
 
-import { UnitTag } from './types';
+import { UnitTag, DestroyBehavior } from './types';
 import type { UnitPopulationCost, UnitLevelDefinition } from './types';
 
 // ============================================================================
@@ -199,12 +199,29 @@ export const BUILDINGS = {
     RIDER_CAMP: 2,
     SIEGE_CAMP: 2,
     WATCHTOWER: 4,
-    LAVALAIR: 0,
-    INFERNALSANCTUM: 0,
+    LAVALAIR: 2,
+    INFERNALSANCTUM: 2,
     FARM: 0,
     PATRICIANHOUSE: 0,
-    MAGMASPYR: 0,
-    EMBERNEST: 0,
+    MAGMASPYR: 2,
+    EMBERNEST: 2,
+  },
+  /** What happens to a tile when a building of each type is destroyed */
+  DESTROY_BEHAVIOR: {
+    STRONGHOLD: DestroyBehavior.STRONGHOLD_RUIN,
+    MINE: DestroyBehavior.RUIN,
+    WOODCUTTER: DestroyBehavior.RUIN,
+    BARRACKS: DestroyBehavior.RUIN,
+    ARCHER_CAMP: DestroyBehavior.RUIN,
+    RIDER_CAMP: DestroyBehavior.RUIN,
+    SIEGE_CAMP: DestroyBehavior.RUIN,
+    WATCHTOWER: DestroyBehavior.RUIN,
+    LAVALAIR: DestroyBehavior.RUIN,
+    INFERNALSANCTUM: DestroyBehavior.STRONGHOLD_RUIN,
+    FARM: DestroyBehavior.RUIN,
+    PATRICIANHOUSE: DestroyBehavior.RUIN,
+    MAGMASPYR: DestroyBehavior.RESOURCE,
+    EMBERNEST: DestroyBehavior.RESOURCE,
   },
   /** Watchtower combat configuration */
   WATCHTOWER_STATS: {

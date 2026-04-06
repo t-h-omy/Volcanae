@@ -5,7 +5,7 @@
 
 import type { GameState, Position } from './types';
 import type { Draft } from 'immer';
-import { BuildingType, UnitTag, Faction } from './types';
+import { BuildingType, UnitTag, Faction, DestroyBehavior } from './types';
 import { MAP, XP } from './gameConfig';
 import { increaseThreatOnStrongholdCapture } from './enemySystem';
 import { grantXp } from './levelSystem';
@@ -241,6 +241,7 @@ export function initiateCapture(
 
   const { x, y } = building.position;
   const buildingType = building.type;
+  const destroyBehavior = building.destroyBehavior;
 
   // Remove the building from state
   delete state.buildings[buildingId];
@@ -249,12 +250,13 @@ export function initiateCapture(
   const tile = state.grid[y][x];
   tile.buildingId = null;
 
-  // Determine ruin type
-  if (buildingType === BuildingType.STRONGHOLD || buildingType === BuildingType.INFERNALSANCTUM) {
+  // Apply destroy behavior
+  if (destroyBehavior === DestroyBehavior.STRONGHOLD_RUIN) {
     tile.isStrongholdRuin = true;
-  } else {
+  } else if (destroyBehavior === DestroyBehavior.RUIN) {
     tile.isRuin = true;
   }
+  // DestroyBehavior.RESOURCE: no ruin — terrain is restored naturally
 
   // If it was a stronghold, update zones and threat level
   if (buildingType === BuildingType.STRONGHOLD) {
@@ -361,6 +363,7 @@ export function resolveCaptures(state: Draft<GameState>): void {
 
     const { x, y } = building.position;
     const buildingType = building.type;
+    const destroyBehavior = building.destroyBehavior;
 
     // Remove the building from state
     delete state.buildings[buildingId];
@@ -369,12 +372,13 @@ export function resolveCaptures(state: Draft<GameState>): void {
     const tile = state.grid[y][x];
     tile.buildingId = null;
 
-    // Determine ruin type
-    if (buildingType === BuildingType.STRONGHOLD) {
+    // Apply destroy behavior
+    if (destroyBehavior === DestroyBehavior.STRONGHOLD_RUIN) {
       tile.isStrongholdRuin = true;
-    } else {
+    } else if (destroyBehavior === DestroyBehavior.RUIN) {
       tile.isRuin = true;
     }
+    // DestroyBehavior.RESOURCE: no ruin — terrain is restored naturally
 
     // If it was a stronghold, update zones and threat level
     if (buildingType === BuildingType.STRONGHOLD) {
