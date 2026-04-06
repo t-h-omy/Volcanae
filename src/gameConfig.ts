@@ -32,7 +32,7 @@ export const MAP = {
 
 export const LAVA = {
   /** Lava advances 1 row every N player turns */
-  LAVA_ADVANCE_INTERVAL: 4,
+  LAVA_ADVANCE_INTERVAL: 3,
 } as const;
 
 // ============================================================================
@@ -66,7 +66,7 @@ export const UNITS = {
 
   RIDER: {
     maxHp: 100,
-    attack: 65,
+    attack: 70,
     defense: 40,
     movementActions: 1,
     moveRange: 2,
@@ -78,7 +78,7 @@ export const UNITS = {
 
   SIEGE: {
     maxHp: 100,
-    attack: 80,
+    attack: 85,
     defense: 0,
     movementActions: 1,
     moveRange: 1,
@@ -138,7 +138,7 @@ export const UNITS = {
 
   LAVA_RIDER: {
     maxHp: 100,
-    attack: 65,
+    attack: 70,
     defense: 40,
     movementActions: 1,
     moveRange: 2,
@@ -150,7 +150,7 @@ export const UNITS = {
 
   LAVA_SIEGE: {
     maxHp: 100,
-    attack: 80,
+    attack: 85,
     defense: 0,
     movementActions: 1,
     moveRange: 1,
@@ -280,11 +280,11 @@ export const ENEMY = {
   /** Bonus enemy spawn per 3 threat levels */
   ENEMY_THREAT_SPAWN_BONUS: 1,
   /** Base probability (0.0–1.0) of spawning a unit per recruitment building per turn when no player unit is in discover radius and threat is 0 */
-  BASE_SPAWN_PROBABILITY: 0.075,
+  BASE_SPAWN_PROBABILITY: 0.09,
   /** Maximum additional probability granted at max threat (0.0–1.0) */
   MAX_THREAT_BONUS: 0.70,
   /** Threat level at which the full MAX_THREAT_BONUS is reached */
-  MAX_THREAT: 20,
+  MAX_THREAT: 15,
   /** Number of player turns between automatic threat level increases */
   THREAT_LEVEL_INCREASE_INTERVAL: 10,
 } as const;
@@ -508,8 +508,8 @@ export interface UnitCost {
 export const UNIT_COSTS: Record<string, UnitCost> = {
   INFANTRY: { iron: 3, wood: 2 },
   ARCHER: { iron: 2, wood: 3 },
-  RIDER: { iron: 4, wood: 2 },
-  SIEGE: { iron: 3, wood: 4 },
+  RIDER: { iron: 5, wood: 2 },
+  SIEGE: { iron: 4, wood: 4 },
   SCOUT: { iron: 0, wood: 2 },
   GUARD: { iron: 2, wood: 0 },
 } as const;
@@ -524,7 +524,7 @@ export const TERRAIN = {
   /** Number of mountain tiles placed per zone */
   MOUNTAINS_PER_ZONE: 2,
   /** Number of ruin tiles placed per zone */
-  RUINS_PER_ZONE: 4,
+  RUINS_PER_ZONE: 5,
   /**
    * Minimum edge-circle distance from the zone 1 stronghold for the guaranteed
    * forest tile placement in zone 1.
@@ -587,7 +587,7 @@ export const POPULATION = {
   /** Initial population when a housing building is constructed */
   HOUSE_INITIAL_POPULATION: 1,
   /** Number of turns between each population increase (same for all housing types) */
-  HOUSE_GROWTH_INTERVAL: 2,
+  HOUSE_GROWTH_INTERVAL: 3,
 } as const;
 
 // ============================================================================
@@ -617,7 +617,7 @@ export const ENEMY_UNIT_UNLOCK: Record<string, number> = {
   LAVA_GRUNT: 0,
   LAVA_ARCHER: 0,
   LAVA_RIDER: 3,
-  LAVA_SIEGE: 5,
+  LAVA_SIEGE: 4,
   EMBERLING: 1,
 };
 
@@ -652,6 +652,7 @@ export const LEVEL_UP_VALUES = {
   XP_TO_LEVEL_3: 7,
   /** Max-HP flat boost per level for most unit types */
   HP_BOOST_DEFAULT: 20,
+  HP_BOOST_DEFAULT2: 40,
   /** Max-HP flat boost per level for Scout units */
   HP_BOOST_SCOUT: 15,
   /** Max-HP flat boost per level for Emberling units */
@@ -666,19 +667,19 @@ export const LEVEL_UP_VALUES = {
 export const UNIT_LEVEL_UP: Record<string, UnitLevelDefinition[]> = {
   INFANTRY: [
     { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
-    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
   ],
   ARCHER: [
     { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
-    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
   ],
   RIDER: [
     { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
-    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
   ],
   SIEGE: [
     { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
-    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
   ],
   SCOUT: [
     { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_SCOUT }] },
@@ -686,23 +687,23 @@ export const UNIT_LEVEL_UP: Record<string, UnitLevelDefinition[]> = {
   ],
   GUARD: [
     { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
-    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
   ],
   LAVA_GRUNT: [
     { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
-    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
   ],
   LAVA_ARCHER: [
     { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
-    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
   ],
   LAVA_RIDER: [
     { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
-    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
   ],
   LAVA_SIEGE: [
     { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
-    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
   ],
   EMBERLING: [
     { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_EMBERLING }] },
