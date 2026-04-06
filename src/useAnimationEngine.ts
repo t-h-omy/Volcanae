@@ -14,6 +14,7 @@ import { RENDER } from './renderConfig';
 import { UnitTag, UnitType } from './types';
 import type { GameEvent } from './gameEvents';
 import type { Position } from './types';
+import { useZoomStore } from './zoomStore';
 
 // ============================================================================
 // HELPERS
@@ -109,13 +110,14 @@ function postActionDuration(event: GameEvent): number {
 // ============================================================================
 
 /**
- * Returns the current tile size based on the viewport width.
+ * Returns the current tile size based on the viewport width and zoom level.
  */
 function getTileSize(): number {
-  if (typeof window !== 'undefined' && window.innerWidth <= RENDER.MOBILE_BREAKPOINT) {
-    return RENDER.TILE_SIZE_MOBILE;
-  }
-  return RENDER.TILE_SIZE_DESKTOP;
+  const baseSize = typeof window !== 'undefined' && window.innerWidth <= RENDER.MOBILE_BREAKPOINT
+    ? RENDER.TILE_SIZE_MOBILE
+    : RENDER.TILE_SIZE_DESKTOP;
+  const zoom = useZoomStore.getState().zoom;
+  return Math.round(baseSize * zoom);
 }
 
 /**

@@ -478,7 +478,7 @@ export function resolveAttackOnBuilding(
       tile.buildingId = null;
       if (buildingType === BuildingType.STRONGHOLD || buildingType === BuildingType.INFERNALSANCTUM) {
         tile.isStrongholdRuin = true;
-      } else {
+      } else if (buildingType !== BuildingType.EMBERNEST && buildingType !== BuildingType.MAGMASPYR) {
         tile.isRuin = true;
       }
       // Grant XP to player attacker for destroying enemy building

@@ -249,10 +249,10 @@ export function initiateCapture(
   const tile = state.grid[y][x];
   tile.buildingId = null;
 
-  // Determine ruin type
+  // Determine ruin type — corruption buildings (EMBERNEST, MAGMASPYR) restore terrain
   if (buildingType === BuildingType.STRONGHOLD || buildingType === BuildingType.INFERNALSANCTUM) {
     tile.isStrongholdRuin = true;
-  } else {
+  } else if (buildingType !== BuildingType.EMBERNEST && buildingType !== BuildingType.MAGMASPYR) {
     tile.isRuin = true;
   }
 
@@ -369,10 +369,10 @@ export function resolveCaptures(state: Draft<GameState>): void {
     const tile = state.grid[y][x];
     tile.buildingId = null;
 
-    // Determine ruin type
+    // Determine ruin type — corruption buildings (EMBERNEST, MAGMASPYR) restore terrain
     if (buildingType === BuildingType.STRONGHOLD) {
       tile.isStrongholdRuin = true;
-    } else {
+    } else if (buildingType !== BuildingType.EMBERNEST && buildingType !== BuildingType.MAGMASPYR) {
       tile.isRuin = true;
     }
 

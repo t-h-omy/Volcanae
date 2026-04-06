@@ -123,7 +123,7 @@ function calculateLavaBoostFactor(buildingPosition: Position, lavaFrontRow: numb
 function isPlayerUnitInDiscoverRadius(state: Draft<GameState>, building: Building): boolean {
   for (const unit of Object.values(state.units)) {
     if (unit.faction !== Faction.PLAYER) continue;
-    if (isTileWithinEdgeCircleRange(building.position.x, building.position.y, unit.position.x, unit.position.y, building.discoverRadius)) {
+    if (isTileWithinEdgeCircleRange(unit.position.x, unit.position.y, building.position.x, building.position.y, unit.stats.discoverRadius)) {
       return true;
     }
   }
