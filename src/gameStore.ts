@@ -959,7 +959,7 @@ export const useGameStore = create<GameStore>()(
         for (let y = startRow; y <= endRow; y++) {
           for (let x = 0; x < MAP.GRID_WIDTH; x++) {
             const tile = state.grid[y][x];
-            if (tile.buildingId === null && !tile.isLava && tile.unitId === null) {
+            if (tile.buildingId === null && !tile.isLava && tile.unitId === null && tile.isRevealed) {
               const building = {
                 id: generateId('building'),
                 type: BuildingType.FARM,
@@ -992,6 +992,7 @@ export const useGameStore = create<GameStore>()(
               // Recompute farmers resource
               const capacity = computePopulationCapacity(state);
               state.resources.farmers = capacity.farmerCapacity;
+              updateDiscovery(state);
               return;
             }
           }
