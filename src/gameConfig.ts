@@ -165,7 +165,7 @@ export const UNITS = {
     attack: 15,
     defense: 10,
     movementActions: 1,
-    moveRange: 1,
+    moveRange: 2,
     attackRange: 1,
     discoverRadius: 1,
     triggerRange: 0,
