@@ -675,11 +675,11 @@ function TileCellInner({
         ? TILE_SPRITE['ruin']
         : undefined
     : undefined;
-  const [ruinSpriteError, setRuinSpriteError] = useState(false);
-  const showRuinOverlay = typeof ruinSpritePath === 'string' && ruinSpritePath !== '' && !ruinSpriteError;
 
   const [tileSpriteError, setTileSpriteError] = useState(false);
+  const [ruinSpriteError, setRuinSpriteError] = useState(false);
   const showTileImg = typeof tileSpritePath === 'string' && tileSpritePath !== '' && !tileSpriteError;
+  const showRuinOverlay = typeof ruinSpritePath === 'string' && ruinSpritePath !== '' && !ruinSpriteError;
 
   // Lava preview overlay (only on discovered tiles)
   const overlay =
@@ -701,6 +701,16 @@ function TileCellInner({
     : undefined;
   const [terrainResSpriteError, setTerrainResSpriteError] = useState(false);
   const showTerrainResource = typeof terrainResourcePath === 'string' && terrainResourcePath !== '' && !terrainResSpriteError;
+
+  // Shared style for full-tile overlay images (terrain resource, ruin, etc.)
+  const fullTileOverlayStyle: React.CSSProperties = {
+    position: 'absolute',
+    inset: 0,
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+    zIndex: 1,
+  };
 
   // Corruption visual overlay for MAGMA_SPYR and EMBER_NEST buildings
   const corruptionOverlayClass =
@@ -772,14 +782,7 @@ function TileCellInner({
           src={terrainResourcePath}
           alt=""
           onError={() => setTerrainResSpriteError(true)}
-          style={{
-            position: 'absolute',
-            inset: 0,
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-            zIndex: 1,
-          }}
+          style={fullTileOverlayStyle}
         />
       )}
 
@@ -790,14 +793,7 @@ function TileCellInner({
           src={ruinSpritePath}
           alt=""
           onError={() => setRuinSpriteError(true)}
-          style={{
-            position: 'absolute',
-            inset: 0,
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-            zIndex: 1,
-          }}
+          style={fullTileOverlayStyle}
         />
       )}
 
