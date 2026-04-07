@@ -259,6 +259,12 @@ function projectBuildingCombatScore(attacker: Unit, building: Building): number 
   return bonus;
 }
 
+const BFS_DIRECTIONS: [number, number][] = [
+  [-1, -1], [0, -1], [1, -1],
+  [-1,  0],          [1,  0],
+  [-1,  1], [0,  1], [1,  1],
+];
+
 /**
  * Finds a path from `from` to `target` using BFS on the 8-directional grid.
  * Returns the full path as an ordered array of positions starting with the
@@ -287,22 +293,16 @@ function findBfsPath(
   visited.add(fromKey);
   prev.set(fromKey, null);
 
-  const directions: [number, number][] = [
-    [-1, -1], [0, -1], [1, -1],
-    [-1,  0],          [1,  0],
-    [-1,  1], [0,  1], [1,  1],
-  ];
-
   let head = 0;
   while (head < queue.length) {
     const current = queue[head++];
-    for (const [dx, dy] of directions) {
+    for (const [dx, dy] of BFS_DIRECTIONS) {
       const nx = current.x + dx;
       const ny = current.y + dy;
+      if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;
       const nkey = `${nx},${ny}`;
       if (visited.has(nkey)) continue;
       visited.add(nkey);
-      if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;
       const tile = state.grid[ny][nx];
       const isTarget = nx === target.x && ny === target.y;
       if (tile.isLava && !isTarget) continue;
