@@ -159,19 +159,20 @@ function calcDeathRiskPenalty(attacker: Unit, attackerHpLost: number, canCounter
 
 /**
  * Returns true when a building on the given tile should block enemy unit movement.
- * Enemy units cannot move onto:
- *   - Player-faction buildings (any type)
- *   - Enemy-faction buildings that have combat stats (e.g. watchtowers, magma spyrs)
- *     — these are impassable for the same reason player units cannot walk into them.
- * Neutral buildings and enemy-owned non-combat buildings remain passable.
+ * Mirrors the rule used for player movement in getReachableTiles:
+ *   - Any building with combatStats blocks movement, regardless of faction.
+ *   - Neutral (unowned) watchtowers are the sole exception — they can be walked
+ *     onto to initiate capture (which consumes the capturing unit).
+ * Non-combat buildings (mines, barracks, etc.) of any faction remain passable.
  */
 function isBlockedBuildingForEnemyMovement(state: Draft<GameState>, buildingId: string | null): boolean {
   if (buildingId === null) return false;
   const building = state.buildings[buildingId];
   if (!building) return false;
-  if (building.faction === Faction.PLAYER) return true;
-  if (building.faction === Faction.ENEMY && building.combatStats !== null) return true;
-  return false;
+  if (building.combatStats === null) return false;
+  // Neutral watchtowers are passable so they can be captured (capture consumes the unit)
+  if (building.faction === null && building.type === BuildingType.WATCHTOWER) return false;
+  return true;
 }
 
 /**
