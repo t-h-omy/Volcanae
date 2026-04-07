@@ -158,6 +158,24 @@ function calcDeathRiskPenalty(attacker: Unit, attackerHpLost: number, canCounter
 }
 
 /**
+ * Returns true when a building on the given tile should block enemy unit movement.
+ * Mirrors the rule used for player movement in getReachableTiles:
+ *   - Any building with combatStats blocks movement, regardless of faction.
+ *   - Neutral (unowned) watchtowers are the sole exception — they can be walked
+ *     onto to initiate capture (which consumes the capturing unit).
+ * Non-combat buildings (mines, barracks, etc.) of any faction remain passable.
+ */
+function isBlockedBuildingForEnemyMovement(state: Draft<GameState>, buildingId: string | null): boolean {
+  if (buildingId === null) return false;
+  const building = state.buildings[buildingId];
+  if (!building) return false;
+  if (building.combatStats === null) return false;
+  // Neutral watchtowers are passable so they can be captured (capture consumes the unit)
+  if (building.faction === null && building.type === BuildingType.WATCHTOWER) return false;
+  return true;
+}
+
+/**
  * Checks whether a SACRIFICIAL unit is blocked from reaching lava.
  * Uses a BFS path simulation: from the unit's current position, explores
  * reachable free (non-lava, unoccupied) tiles up to checkDist steps in any
@@ -187,7 +205,7 @@ function isUnitBlockedFromLava(unit: Unit, state: Draft<GameState>): boolean {
       if (visited.has(key)) continue;
       visited.add(key);
       const tile = state.grid[ny][nx];
-      if (tile.unitId !== null || tile.isLava || (tile.buildingId !== null && state.buildings[tile.buildingId]?.faction === Faction.PLAYER)) continue;
+      if (tile.unitId !== null || tile.isLava || isBlockedBuildingForEnemyMovement(state, tile.buildingId)) continue;
       // ny > startY means the tile is closer to lava (higher Y = toward lava)
       if (ny > startY) return false;
       queue.push({ x: nx, y: ny, steps: steps + 1 });
@@ -263,7 +281,7 @@ function stepToward(from: Position, target: Position, state: Draft<GameState>): 
   for (const pos of steps) {
     if (isWithinBounds(pos)) {
       const tile = state.grid[pos.y][pos.x];
-      if (!tile.isLava && tile.unitId === null && (tile.buildingId === null || state.buildings[tile.buildingId]?.faction !== Faction.PLAYER)) {
+      if (!tile.isLava && tile.unitId === null && !isBlockedBuildingForEnemyMovement(state, tile.buildingId)) {
         return pos;
       }
     }
@@ -294,7 +312,7 @@ function findLavaAdvanceTarget(unit: Unit, state: Draft<GameState>): Position {
 
     for (let tx = Math.max(0, startX - scanWidth); tx <= Math.min(MAP.GRID_WIDTH - 1, startX + scanWidth); tx++) {
       const tile = state.grid[ty][tx];
-      if (tile.isLava || tile.unitId !== null || (tile.buildingId !== null && state.buildings[tile.buildingId]?.faction === Faction.PLAYER)) continue;
+      if (tile.isLava || tile.unitId !== null || isBlockedBuildingForEnemyMovement(state, tile.buildingId)) continue;
       const dist = Math.abs(tx - startX);
       if (dist < bestDist) {
         bestDist = dist;

@@ -91,9 +91,9 @@ function getAttackableTileKeys(
       }
     }
   }
-  // Enemy buildings (only tiles without an enemy unit already in the set)
+  // Enemy buildings that have hp (combat stats) — only tiles without an enemy unit already in the set
   for (const b of Object.values(buildings)) {
-    if (b.faction === Faction.ENEMY && b.hp > 0) {
+    if (b.faction === Faction.ENEMY && b.maxHp > 0 && b.combatStats !== null) {
       if (!grid[b.position.y]?.[b.position.x]?.isRevealed) continue;
       const key = posKey(b.position.x, b.position.y);
       if (keys.has(key)) continue; // tile already covered by enemy unit
