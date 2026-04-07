@@ -543,8 +543,10 @@ export const useGameStore = create<GameStore>()(
           for (const unit of Object.values(draft.units)) {
             if (unit.faction === Faction.PLAYER) {
               unit.hasMovedThisTurn = false;
-              unit.hasActedThisTurn = false;
+              unit.hasAttackedThisTurn = false;
               unit.hasCapturedThisTurn = false;
+              unit.hasConstructedThisTurn = false;
+              unit.hasDestroyedThisTurn = false;
             }
           }
 
@@ -556,7 +558,7 @@ export const useGameStore = create<GameStore>()(
             building.wasAttackedLastEnemyTurn = false;
             // Reset attacking building action flags for new turn
             if (building.combatStats && building.faction === Faction.PLAYER) {
-              building.hasActedThisTurn = false;
+              building.hasAttackedThisTurn = false;
             }
           }
 
@@ -725,7 +727,7 @@ export const useGameStore = create<GameStore>()(
                   // Watchtowers and player buildings go neutral
                   building.hp = building.maxHp;
                   building.faction = null;
-                  building.hasActedThisTurn = false;
+                  building.hasAttackedThisTurn = false;
                   building.specialistSlot = null;
                 } else {
                   // Enemy buildings (e.g. MAGMASPYR) are destroyed and leave a ruin
@@ -779,7 +781,7 @@ export const useGameStore = create<GameStore>()(
                   // Watchtower goes neutral
                   building.hp = building.maxHp;
                   building.faction = null;
-                  building.hasActedThisTurn = false;
+                  building.hasAttackedThisTurn = false;
                   building.specialistSlot = null;
                   building.turnCapturedByPlayer = null;
                   building.wasEnemyOwnedBeforeCapture = false;
@@ -977,7 +979,7 @@ export const useGameStore = create<GameStore>()(
                 turnCapturedByPlayer: null,
                 wasEnemyOwnedBeforeCapture: false,
                 combatStats: null,
-                hasActedThisTurn: false,
+                hasAttackedThisTurn: false,
                 tags: [] as import('./types').UnitTag[],
                 consumesUnitOnCapture: false,
                 populationCount: POPULATION.FARM_POPULATION_CAP,
