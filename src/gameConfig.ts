@@ -419,6 +419,12 @@ export const AI_SCORING = {
    * when the unit is adjacent to a player unit and has no path forward.
    */
   BONUS_BLOCKED_SACRIFICIAL_EXPLODE: 250,
+  /**
+   * Penalty subtracted from a movement action's score when the unit's first step
+   * toward the target would land on a friendly enemy recruitment building (LAVA_LAIR
+   * or INFERNAL_SANCTUM). Keeps spawner tiles free for recruitment.
+   */
+  PENALTY_STEP_ONTO_RECRUITMENT_BUILDING: 50,
 } as const;
 
 export const AI_RECRUITMENT = {
