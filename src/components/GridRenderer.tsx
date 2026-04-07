@@ -730,7 +730,6 @@ function TileCellInner({
       style={{
         width: tileSize,
         height: tileSize,
-        backgroundColor: '#888',
       }}
       onClick={onClick}
     >
