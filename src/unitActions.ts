@@ -33,7 +33,7 @@ import type { Draft } from 'immer';
 import { Faction, UnitTag } from './types';
 import type { Unit, Building, Tile } from './types';
 import { getReachableTiles } from './movementSystem';
-import { getConstructionOptionsForTile } from './constructionSystem';
+import { getConstructionOptionsForTile, type ConstructionOption } from './constructionSystem';
 import { canCapture } from './captureSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 
@@ -167,7 +167,7 @@ export function canUnitConstruct(unit: Unit): boolean {
 export function getConstructionTargets(
   unit: Unit,
   state: GameState | Draft<GameState>,
-) {
+): ConstructionOption[] {
   if (!canUnitConstruct(unit)) return [];
   return getConstructionOptionsForTile(state, unit.position);
 }
