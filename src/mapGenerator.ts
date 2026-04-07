@@ -33,8 +33,14 @@ import {
  * Generates a unique ID for entities.
  */
 let idCounter = 0;
+// Per-session random salt prevents collisions when new IDs are generated after loading a saved
+// game: without the salt, the counter restarts from 0 and can produce IDs that already exist in
+// the loaded state, silently overwriting existing entities.
+// Old saves (IDs like "building_1") remain forward-compatible because the new format
+// ("building_<uuid_prefix>_1") is a different string and will never collide with old-format IDs.
+const sessionSalt = crypto.randomUUID().slice(0, 8);
 export function generateId(prefix: string): string {
-  return `${prefix}_${++idCounter}`;
+  return `${prefix}_${sessionSalt}_${++idCounter}`;
 }
 
 /**
