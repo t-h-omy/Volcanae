@@ -278,6 +278,16 @@ function stepToward(from: Position, target: Position, state: Draft<GameState>): 
     if (dx !== 0) steps.push({ x: from.x + Math.sign(dx), y: from.y });
   }
 
+  // When moving in a single axis, also try diagonal alternatives so that units
+  // can route around obstacles using diagonal steps.
+  if (dx === 0 && dy !== 0) {
+    steps.push({ x: from.x + 1, y: from.y + Math.sign(dy) });
+    steps.push({ x: from.x - 1, y: from.y + Math.sign(dy) });
+  } else if (dy === 0 && dx !== 0) {
+    steps.push({ x: from.x + Math.sign(dx), y: from.y + 1 });
+    steps.push({ x: from.x + Math.sign(dx), y: from.y - 1 });
+  }
+
   for (const pos of steps) {
     if (isWithinBounds(pos)) {
       const tile = state.grid[pos.y][pos.x];
@@ -1364,6 +1374,24 @@ function scoreActionsForUnit(
   // ── HOLD_POSITION ──
   candidates.push({ type: 'HOLD_POSITION', score: AI_SCORING.BASE_HOLD_POSITION });
 
+  // ── Recruitment-building step penalty ──
+  // Subtract a penalty from any movement candidate whose first step toward the
+  // target would land on a friendly enemy recruitment building. This keeps
+  // spawner tiles free so recruitment can proceed each turn.
+  if (!unit.hasMovedThisTurn) {
+    for (const candidate of candidates) {
+      if (!candidate.targetPosition) continue;
+      const nextStep = stepToward(unit.position, candidate.targetPosition, state);
+      if (nextStep.x === unit.position.x && nextStep.y === unit.position.y) continue;
+      const tile = state.grid[nextStep.y][nextStep.x];
+      if (!tile.buildingId) continue;
+      const b = state.buildings[tile.buildingId];
+      if (b && b.faction === Faction.ENEMY && isRecruitmentBuilding(b)) {
+        candidate.score = Math.max(0, candidate.score - AI_SCORING.PENALTY_STEP_ONTO_RECRUITMENT_BUILDING);
+      }
+    }
+  }
+
   return candidates;
 }
 
@@ -1804,9 +1832,6 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
     // 2. Process Ember Nest spawns (at start of enemy turn)
     processEmberNestSpawns(draft, events);
 
-    // 2a. Spawn enemy units (recruitment is scored fresh per-building inside spawnEnemyUnits)
-    spawnEnemyUnits(draft, events);
-
     // 2c. Enemy-owned attacking buildings (e.g. watchtowers) fire at player units in range
     executeBuildingAttacks(draft, events);
 
@@ -1829,6 +1854,10 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
 
     // 3b. Magma Spyr attacks (after unit movement)
     processMagmaSpyrAttacks(draft, events);
+
+    // 3c. Spawn enemy units after movement so that freed building tiles can be used
+    //     (recruitment is scored fresh per-building inside spawnEnemyUnits)
+    spawnEnemyUnits(draft, events);
 
     // 4. Reset enemy unit action flags for next turn
     for (const unit of Object.values(draft.units)) {
