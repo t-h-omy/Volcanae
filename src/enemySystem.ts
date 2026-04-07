@@ -259,86 +259,73 @@ function projectBuildingCombatScore(attacker: Unit, building: Building): number 
   return bonus;
 }
 
-function stepToward(from: Position, target: Position, state: Draft<GameState>): Position {
-  const dx = target.x - from.x;
-  const dy = target.y - from.y;
-
-  const steps: Position[] = [];
-
-  // Prefer diagonal movement when both components are non-zero
-  if (dx !== 0 && dy !== 0) {
-    steps.push({ x: from.x + Math.sign(dx), y: from.y + Math.sign(dy) });
-  }
-
-  if (Math.abs(dx) >= Math.abs(dy)) {
-    if (dx !== 0) steps.push({ x: from.x + Math.sign(dx), y: from.y });
-    if (dy !== 0) steps.push({ x: from.x, y: from.y + Math.sign(dy) });
-  } else {
-    if (dy !== 0) steps.push({ x: from.x, y: from.y + Math.sign(dy) });
-    if (dx !== 0) steps.push({ x: from.x + Math.sign(dx), y: from.y });
-  }
-
-  // When moving in a single axis, also try diagonal alternatives so that units
-  // can route around obstacles using diagonal steps.
-  if (dx === 0 && dy !== 0) {
-    steps.push({ x: from.x + 1, y: from.y + Math.sign(dy) });
-    steps.push({ x: from.x - 1, y: from.y + Math.sign(dy) });
-  } else if (dy === 0 && dx !== 0) {
-    steps.push({ x: from.x + Math.sign(dx), y: from.y + 1 });
-    steps.push({ x: from.x + Math.sign(dx), y: from.y - 1 });
-  }
-
-  for (const pos of steps) {
-    if (isWithinBounds(pos)) {
-      const tile = state.grid[pos.y][pos.x];
-      if (!tile.isLava && tile.unitId === null && !isBlockedBuildingForEnemyMovement(state, tile.buildingId)) {
-        return pos;
-      }
-    }
-  }
-
-  return from;
-}
+const BFS_DIRECTIONS: [number, number][] = [
+  [-1, -1], [0, -1], [1, -1],
+  [-1,  0],          [1,  0],
+  [-1,  1], [0,  1], [1,  1],
+];
 
 /**
- * Finds the best target position for ADVANCE_TOWARD_LAVA using pathfinding.
- * Scans rows progressively toward the lava front row, returning the first row
- * that has a free (non-lava, unoccupied) tile and picking the tile closest to
- * the unit's current X column. This allows moveEnemyUnitToward to travel
- * diagonally or sideways rather than only straight south.
+ * Finds a path from `from` to `target` using BFS on the 8-directional grid.
+ * Returns the full path as an ordered array of positions starting with the
+ * first step (not including `from` itself), or an empty array if no path exists.
+ *
+ * Passability rules during BFS traversal:
+ *   - Out-of-bounds tiles: impassable
+ *   - Lava tiles: impassable UNLESS it is the target tile itself
+ *   - isBlockedBuildingForEnemyMovement: impassable
+ *   - Unit-occupied tiles: treated as passable (units may move away next turn)
+ *
+ * The caller (moveEnemyUnitToward) is responsible for stopping movement when
+ * the next tile in the returned path is occupied by a unit at step time.
  */
-function findLavaAdvanceTarget(unit: Unit, state: Draft<GameState>): Position {
-  const lavaFrontRow = state.lavaFrontRow;
-  const startX = unit.position.x;
-  const startY = unit.position.y;
-  // Scan up to moveRange + a small buffer sideways for path-finding flexibility
-  const scanWidth = unit.stats.moveRange + 3;
+function findBfsPath(
+  from: Position,
+  target: Position,
+  state: Draft<GameState>,
+): Position[] {
+  if (from.x === target.x && from.y === target.y) return [];
 
-  // Walk from just before the lava row back toward (but not including) the
-  // unit's own row — we want tiles strictly ahead (higher Y = closer to lava).
-  for (let ty = lavaFrontRow - 1; ty > startY; ty--) {
-    let bestX: number | null = null;
-    let bestDist = Infinity;
+  const fromKey = `${from.x},${from.y}`;
+  const visited = new Set<string>();
+  const prev = new Map<string, Position | null>();
+  const queue: Position[] = [from];
+  visited.add(fromKey);
+  prev.set(fromKey, null);
 
-    for (let tx = Math.max(0, startX - scanWidth); tx <= Math.min(MAP.GRID_WIDTH - 1, startX + scanWidth); tx++) {
-      const tile = state.grid[ty][tx];
-      if (tile.isLava || tile.unitId !== null || isBlockedBuildingForEnemyMovement(state, tile.buildingId)) continue;
-      const dist = Math.abs(tx - startX);
-      if (dist < bestDist) {
-        bestDist = dist;
-        bestX = tx;
+  let head = 0;
+  while (head < queue.length) {
+    const current = queue[head++];
+    for (const [dx, dy] of BFS_DIRECTIONS) {
+      const nx = current.x + dx;
+      const ny = current.y + dy;
+      if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;
+      const nkey = `${nx},${ny}`;
+      if (visited.has(nkey)) continue;
+      visited.add(nkey);
+      const tile = state.grid[ny][nx];
+      const isTarget = nx === target.x && ny === target.y;
+      if (tile.isLava && !isTarget) continue;
+      if (isBlockedBuildingForEnemyMovement(state, tile.buildingId)) continue;
+      const next: Position = { x: nx, y: ny };
+      prev.set(nkey, current);
+      if (isTarget) {
+        // Reconstruct path from target back to from
+        const path: Position[] = [];
+        let pos: Position | null = next;
+        while (pos !== null) {
+          const pKey: string = `${pos.x},${pos.y}`;
+          if (pKey === fromKey) break;
+          path.unshift(pos);
+          pos = prev.get(pKey) ?? null;
+        }
+        return path;
       }
-    }
-
-    if (bestX !== null) {
-      return { x: bestX, y: ty };
+      queue.push(next);
     }
   }
 
-  // Fallback: all rows ahead are fully blocked or unit is already adjacent to
-  // lava. Target the lava row itself so the unit steps in (moveEnemyUnit handles
-  // lava entry by destroying the unit and incrementing threat).
-  return { x: startX, y: Math.min(MAP.GRID_HEIGHT - 1, lavaFrontRow) };
+  return [];
 }
 
 function alliedUnitsNear(pos: Position, radius: number, excludeId: string, state: Draft<GameState>): number {
@@ -825,7 +812,10 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
 
 /**
  * Moves an enemy unit up to its full moveRange toward a target position.
- * Stops early if the path is blocked or the unit is destroyed (e.g., by lava).
+ * Uses BFS to find the optimal path around terrain and buildings.
+ * Stops early if a unit is occupying the next tile or the unit is destroyed
+ * (e.g., by lava). The path is computed once from the unit's current position;
+ * a blocking unit that has since moved will be re-evaluated next turn.
  */
 function moveEnemyUnitToward(
   state: Draft<GameState>,
@@ -836,11 +826,13 @@ function moveEnemyUnitToward(
   const unit = state.units[unitId];
   if (!unit) return;
   const moveRange = unit.stats.moveRange;
-  for (let step = 0; step < moveRange; step++) {
+  const path = findBfsPath(unit.position, targetPosition, state);
+  for (let step = 0; step < Math.min(moveRange, path.length); step++) {
     const current = state.units[unitId];
     if (!current) break; // unit was destroyed (e.g. walked into lava)
-    const nextPos = stepToward(current.position, targetPosition, state);
-    if (nextPos.x === current.position.x && nextPos.y === current.position.y) break; // blocked
+    const nextPos = path[step];
+    const tile = state.grid[nextPos.y][nextPos.x];
+    if (tile.unitId !== null) break; // blocked by a unit occupying the tile
     moveEnemyUnit(state, unitId, nextPos, events);
   }
 }
@@ -1305,6 +1297,7 @@ function scoreActionsForUnit(
   if (!unit.hasMovedThisTurn) {
     const score = AI_SCORING.BASE_ADVANCE_TOWARD_LAVA
       + (unit.tags.includes(UnitTag.SACRIFICIAL) ? AI_SCORING.BONUS_SACRIFICIAL_ADVANCE_TOWARD_LAVA : 0);
+    const lavaTarget: Position = { x: unit.position.x, y: Math.min(MAP.GRID_HEIGHT - 1, state.lavaFrontRow) };
     if (isBlockedFromLava) {
       // When blocked, target the nearest player unit to push through the blocker
       const playerUnits = Object.values(state.units).filter(u => u.faction === Faction.PLAYER);
@@ -1312,13 +1305,10 @@ function scoreActionsForUnit(
         playerUnits.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
         candidates.push({ type: 'ADVANCE_TOWARD_LAVA', score, targetPosition: playerUnits[0].position });
       } else {
-        // No player units to push through — still use pathfinding to advance
-        const lavaTarget = findLavaAdvanceTarget(unit, state);
+        // No player units to push through — BFS will navigate around obstacles
         candidates.push({ type: 'ADVANCE_TOWARD_LAVA', score, targetPosition: lavaTarget });
       }
     } else {
-      // Use pathfinding target so movement can be diagonal/sideways around obstacles
-      const lavaTarget = findLavaAdvanceTarget(unit, state);
       candidates.push({ type: 'ADVANCE_TOWARD_LAVA', score, targetPosition: lavaTarget });
     }
   }
@@ -1381,8 +1371,9 @@ function scoreActionsForUnit(
   if (!unit.hasMovedThisTurn) {
     for (const candidate of candidates) {
       if (!candidate.targetPosition) continue;
-      const nextStep = stepToward(unit.position, candidate.targetPosition, state);
-      if (nextStep.x === unit.position.x && nextStep.y === unit.position.y) continue;
+      const bfsPath = findBfsPath(unit.position, candidate.targetPosition, state);
+      if (bfsPath.length === 0) continue;
+      const nextStep = bfsPath[0];
       const tile = state.grid[nextStep.y][nextStep.x];
       if (!tile.buildingId) continue;
       const b = state.buildings[tile.buildingId];
