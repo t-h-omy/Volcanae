@@ -720,8 +720,8 @@ function TileCellInner({
         : BUILDING_SPRITE[building.type]
     : undefined;
   const [buildingSpriteError, setBuildingSpriteError] = useState(false);
-  const buildingExhaustedOpacity = building && building.combatStats && building.hasActedThisTurn
-    ? RENDER.UNIT_EXHAUSTED_OPACITY
+  const buildingExhaustedFilter = building && building.combatStats && building.hasActedThisTurn
+    ? RENDER.UNIT_EXHAUSTED_FILTER
     : undefined;
 
   return (
@@ -794,10 +794,10 @@ function TileCellInner({
               height={buildingIconSize}
               alt=""
               onError={() => setBuildingSpriteError(true)}
-              style={{ opacity: buildingExhaustedOpacity }}
+              style={{ filter: buildingExhaustedFilter }}
             />
           ) : (
-            <div className="tile-building" style={{ opacity: buildingExhaustedOpacity }}>
+            <div className="tile-building" style={{ filter: buildingExhaustedFilter }}>
               <MissingSprite size={buildingIconSize} />
             </div>
           )}
@@ -910,7 +910,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
       style={
         {
           ...animStyle,
-          opacity: isExhausted ? RENDER.UNIT_EXHAUSTED_OPACITY : undefined,
+          filter: isExhausted ? RENDER.UNIT_EXHAUSTED_FILTER : undefined,
           '--hit-shake-duration': `${ANIMATION.HIT_SHAKE_DURATION_MS}ms`,
           '--die-flash-duration': `${ANIMATION.DIE_FLASH_DURATION_MS}ms`,
           '--die-fade-duration': `${ANIMATION.DIE_FADE_DURATION_MS}ms`,
