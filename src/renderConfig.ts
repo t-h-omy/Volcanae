@@ -1,6 +1,6 @@
 /**
  * Rendering configuration for Volcanae.
- * Tile sizes, breakpoints, opacity values, color palette, and camera constants.
+ * Tile sizes, breakpoints, filter values, color palette, and camera constants.
  * Pure presentation values — no gameplay logic depends on these.
  */
 
@@ -11,8 +11,8 @@ export const RENDER = {
   TILE_SIZE_MOBILE: 64,
   /** Mobile breakpoint in pixels */
   MOBILE_BREAKPOINT: 768,
-  /** Opacity of a unit graphic when it has no actions remaining (0.0–1.0) */
-  UNIT_EXHAUSTED_OPACITY: 0.5,
+  /** CSS filter applied to a unit graphic when it has no actions remaining */
+  UNIT_EXHAUSTED_FILTER: 'saturate(0.55) brightness(0.75)',
   /** Colors for tile rendering */
   COLORS: {
     UNREVEALED: '#d8d8d8',
