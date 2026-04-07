@@ -729,13 +729,16 @@ function TileCellInner({
     building.faction === Faction.PLAYER &&
     (building.type === BuildingType.FARM || building.type === BuildingType.PATRICIANHOUSE || building.type === BuildingType.STRONGHOLD);
 
-  // Building sprite — neutral buildings use the resource sprite registry;
-  // enemy buildings check for a faction-specific override first.
+  // Building sprite selection:
+  // - Enemy buildings use ENEMY_BUILDING_SPRITE when a faction-specific override exists.
+  // - Neutral resource nodes (MINE, WOODCUTTER) use RESOURCE_SPRITE.
+  // - All other buildings (including neutral WATCHTOWER) use BUILDING_SPRITE directly,
+  //   so they render as normal buildings on top of the terrain background.
   const buildingSpritePath = building
-    ? building.faction === null
-      ? (RESOURCE_SPRITE[building.type] || BUILDING_SPRITE[building.type])
-      : building.faction === Faction.ENEMY && ENEMY_BUILDING_SPRITE[building.type]
-        ? ENEMY_BUILDING_SPRITE[building.type]
+    ? building.faction === Faction.ENEMY && ENEMY_BUILDING_SPRITE[building.type]
+      ? ENEMY_BUILDING_SPRITE[building.type]
+      : building.faction === null && RESOURCE_SPRITE[building.type]
+        ? RESOURCE_SPRITE[building.type]
         : BUILDING_SPRITE[building.type]
     : undefined;
   const [buildingSpriteError, setBuildingSpriteError] = useState(false);
