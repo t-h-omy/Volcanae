@@ -97,6 +97,10 @@ function updateZonesUnlocked(state: Draft<GameState>): void {
  * @param buildingId - ID of the building to capture
  * @returns True if the unit can capture the building
  */
+// Cross-blocking rules and tag requirements for capture live in
+// unitActions.ts -> canUnitCapture. Do not add tag checks or flag logic here.
+// This function is a safety net for the capture preconditions only.
+
 export function canCapture(
   state: GameState | Draft<GameState>,
   unitId: string,
@@ -179,9 +183,7 @@ export function initiateCapture(
   const unit = state.units[unitId];
   const building = state.buildings[buildingId];
 
-  // Mark unit as having performed all actions (locked for this turn)
-  unit.hasMovedThisTurn = true;
-  unit.hasActedThisTurn = true;
+  // Mark unit as having captured this turn
   unit.hasCapturedThisTurn = true;
 
   // STRONGHOLD and WATCHTOWER captured by the player: transfer ownership instead of destroying
@@ -327,8 +329,6 @@ export function resolveCaptures(state: Draft<GameState>): void {
       }
 
       capturingUnit.hasCapturedThisTurn = true;
-      capturingUnit.hasMovedThisTurn = true;
-      capturingUnit.hasActedThisTurn = true;
 
       // Consume the capturing unit if the building requires it (e.g. watchtower)
       if (building.consumesUnitOnCapture) {
@@ -390,7 +390,5 @@ export function resolveCaptures(state: Draft<GameState>): void {
 
     // Mark capturing unit actions
     capturingUnit.hasCapturedThisTurn = true;
-    capturingUnit.hasMovedThisTurn = true;
-    capturingUnit.hasActedThisTurn = true;
   }
 }

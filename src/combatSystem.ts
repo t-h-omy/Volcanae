@@ -133,13 +133,16 @@ export function calculateCombatFromStats(attacker: Combatant, defender: Combatan
 // ATTACK RESOLUTION
 // ============================================================================
 
+// Action availability rules (which flags or tags block attacking) live in
+// unitActions.ts -> canUnitAttack. Do not add tag checks or flag logic here.
+
 /**
  * Resolves an attack between two units by mutating the draft state.
  * - Applies damage to defender
  * - If defender survives AND the attacker is within the defender's attack range,
  *   applies counter-damage to attacker
  * - Removes dead units from state
- * - Marks attacker as having acted and moved this turn
+ * - Marks attacker as having attacked this turn
  *
  * @param state - Immer draft of the game state (will be mutated)
  * @param attackerId - ID of the attacking unit
@@ -216,8 +219,7 @@ export function resolveAttack(
   } else {
     // Update attacker HP and mark as acted
     attacker.stats.currentHp = newAttackerHp;
-    attacker.hasActedThisTurn = true;
-    attacker.hasMovedThisTurn = true;
+    attacker.hasAttackedThisTurn = true;
   }
 
   // Update defender
@@ -328,7 +330,7 @@ export function resolveBuildingAttack(
       // recaptured (same behaviour as resolveAttackOnBuilding for watchtowers).
       building.hp = building.maxHp;
       building.faction = null;
-      building.hasActedThisTurn = false;
+      building.hasAttackedThisTurn = false;
       building.specialistSlot = null;
       building.turnCapturedByPlayer = null;
       building.wasEnemyOwnedBeforeCapture = false;
@@ -352,7 +354,7 @@ export function resolveBuildingAttack(
     }
   } else {
     building.hp = newBuildingHp;
-    building.hasActedThisTurn = true;
+    building.hasAttackedThisTurn = true;
   }
 
   // Update defender
@@ -450,8 +452,7 @@ export function resolveAttackOnBuilding(
     delete state.units[attackerId];
   } else {
     attacker.stats.currentHp = newAttackerHp;
-    attacker.hasActedThisTurn = true;
-    attacker.hasMovedThisTurn = true;
+    attacker.hasAttackedThisTurn = true;
   }
 
   // Update building
@@ -462,7 +463,7 @@ export function resolveAttackOnBuilding(
       // Watchtower goes neutral at 0 HP
       building.hp = building.maxHp;
       building.faction = null;
-      building.hasActedThisTurn = false;
+      building.hasAttackedThisTurn = false;
       building.specialistSlot = null;
       building.turnCapturedByPlayer = null;
       building.wasEnemyOwnedBeforeCapture = false;
