@@ -659,18 +659,27 @@ function TileCellInner({
   const buildingIconSize = tileSize;
 
   // ── Tile sprite path ──
+  // Ruin tiles use the underlying terrain as their base; the ruin graphic is
+  // rendered as a separate overlay so its transparent areas show the ground.
   const tileSpritePath: string | undefined = tile.isLava
     ? TILE_SPRITE['lava']
     : !tile.isRevealed
       ? TILE_SPRITE['unrevealed']
-      : tile.isStrongholdRuin
-        ? TILE_SPRITE['strongholdRuin']
-        : tile.isRuin
-          ? TILE_SPRITE['ruin']
-          : TILE_SPRITE[tile.terrainType];
+      : TILE_SPRITE[tile.terrainType];
+
+  // ── Ruin overlay sprite (rendered on top of terrain, like a building) ──
+  const ruinSpritePath: string | undefined = tile.isRevealed
+    ? tile.isStrongholdRuin
+      ? TILE_SPRITE['strongholdRuin']
+      : tile.isRuin
+        ? TILE_SPRITE['ruin']
+        : undefined
+    : undefined;
 
   const [tileSpriteError, setTileSpriteError] = useState(false);
+  const [ruinSpriteError, setRuinSpriteError] = useState(false);
   const showTileImg = typeof tileSpritePath === 'string' && tileSpritePath !== '' && !tileSpriteError;
+  const showRuinOverlay = typeof ruinSpritePath === 'string' && ruinSpritePath !== '' && !ruinSpriteError;
 
   // Lava preview overlay (only on discovered tiles)
   const overlay =
@@ -693,6 +702,16 @@ function TileCellInner({
   const [terrainResSpriteError, setTerrainResSpriteError] = useState(false);
   const showTerrainResource = typeof terrainResourcePath === 'string' && terrainResourcePath !== '' && !terrainResSpriteError;
 
+  // Shared style for full-tile overlay images (terrain resource, ruin, etc.)
+  const fullTileOverlayStyle: React.CSSProperties = {
+    position: 'absolute',
+    inset: 0,
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+    zIndex: 1,
+  };
+
   // Corruption visual overlay for MAGMA_SPYR and EMBER_NEST buildings
   const corruptionOverlayClass =
     showBuilding && building
@@ -710,13 +729,16 @@ function TileCellInner({
     building.faction === Faction.PLAYER &&
     (building.type === BuildingType.FARM || building.type === BuildingType.PATRICIANHOUSE || building.type === BuildingType.STRONGHOLD);
 
-  // Building sprite — neutral buildings use the resource sprite registry;
-  // enemy buildings check for a faction-specific override first.
+  // Building sprite selection:
+  // - Enemy buildings use ENEMY_BUILDING_SPRITE when a faction-specific override exists.
+  // - Neutral resource nodes (MINE, WOODCUTTER) use RESOURCE_SPRITE.
+  // - All other buildings (including neutral WATCHTOWER) use BUILDING_SPRITE directly,
+  //   so they render as normal buildings on top of the terrain background.
   const buildingSpritePath = building
-    ? building.faction === null
-      ? RESOURCE_SPRITE[building.type]
-      : building.faction === Faction.ENEMY && ENEMY_BUILDING_SPRITE[building.type]
-        ? ENEMY_BUILDING_SPRITE[building.type]
+    ? building.faction === Faction.ENEMY && ENEMY_BUILDING_SPRITE[building.type]
+      ? ENEMY_BUILDING_SPRITE[building.type]
+      : building.faction === null && RESOURCE_SPRITE[building.type]
+        ? RESOURCE_SPRITE[building.type]
         : BUILDING_SPRITE[building.type]
     : undefined;
   const [buildingSpriteError, setBuildingSpriteError] = useState(false);
@@ -763,14 +785,18 @@ function TileCellInner({
           src={terrainResourcePath}
           alt=""
           onError={() => setTerrainResSpriteError(true)}
-          style={{
-            position: 'absolute',
-            inset: 0,
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-            zIndex: 1,
-          }}
+          style={fullTileOverlayStyle}
+        />
+      )}
+
+      {/* ruin overlay — rendered on top of the terrain tile so transparent
+          areas in the ruin PNG reveal the ground beneath */}
+      {showRuinOverlay && (
+        <img
+          src={ruinSpritePath}
+          alt=""
+          onError={() => setRuinSpriteError(true)}
+          style={fullTileOverlayStyle}
         />
       )}
 
