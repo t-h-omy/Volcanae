@@ -353,8 +353,10 @@ export function recruitUnit(
       ...(unitType !== UnitType.SCOUT ? [UnitTag.BUILDANDCAPTURE] : []),
     ],
     hasMovedThisTurn: true,
-    hasActedThisTurn: true,
+    hasAttackedThisTurn: true,
     hasCapturedThisTurn: true,
+    hasConstructedThisTurn: true,
+    hasDestroyedThisTurn: true,
     xp: 0,
     level: 1,
   };
