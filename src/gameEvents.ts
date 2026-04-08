@@ -27,6 +27,8 @@ export type GameEvent =
       attackerHpLost: number;
       defenderHpLost: number;
       advancedToPosition: Position | null;
+      attackerXpGained?: number | null;
+      defenderXpGained?: number | null;
     }
   | {
       type: 'PLAYER_ATTACK';
@@ -37,6 +39,8 @@ export type GameEvent =
       attackerHpLost: number;
       defenderHpLost: number;
       advancedToPosition: Position | null;
+      attackerXpGained?: number | null;
+      defenderXpGained?: number | null;
     }
   | {
       type: 'UNIT_DEATH';
@@ -52,6 +56,7 @@ export type GameEvent =
       defenderPosition: Position;
       buildingHpLost: number;
       defenderHpLost: number;
+      defenderXpGained?: number | null;
     }
   | {
       type: 'UNIT_ATTACK_BUILDING';
@@ -61,6 +66,8 @@ export type GameEvent =
       buildingPosition: Position;
       attackerHpLost: number;
       buildingHpLost: number;
+      advancedToPosition?: Position | null;
+      attackerXpGained?: number | null;
     }
   | {
       type: 'BUILDING_CAPTURE';
@@ -68,6 +75,7 @@ export type GameEvent =
       position: Position;
       newFaction: Faction;
       buildingType: BuildingType;
+      xpGained?: number | null;
     }
   | {
       type: 'EXPLOSION';

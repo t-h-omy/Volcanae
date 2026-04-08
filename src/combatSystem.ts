@@ -214,7 +214,7 @@ export function resolveAttack(
     // Remove attacker from units
     delete state.units[attackerId];
     // Grant XP to defender for killing the attacker
-    grantXp(state, defenderId, XP.KILL_UNIT);
+    grantXp(state, defenderId, XP.KILL_UNIT, suppressFloaters);
   } else {
     // Update attacker HP and mark as acted
     attacker.stats.currentHp = newAttackerHp;
@@ -232,7 +232,7 @@ export function resolveAttack(
     delete state.units[defenderId];
     // Grant XP to attacker for killing the defender
     if (!attackerDead) {
-      grantXp(state, attackerId, XP.KILL_UNIT);
+      grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
     }
   } else {
     // Update defender HP
@@ -335,7 +335,7 @@ export function resolveBuildingAttack(
       building.wasEnemyOwnedBeforeCapture = false;
       // Grant XP to the enemy unit that counter-killed the player building
       if (defender.faction === Faction.ENEMY && !defenderDead) {
-        grantXp(state, defenderId, XP.DESTROY_BUILDING);
+        grantXp(state, defenderId, XP.DESTROY_BUILDING, suppressFloaters);
       }
     } else {
       // Enemy buildings are fully destroyed; apply destroy behavior.
@@ -468,7 +468,7 @@ export function resolveAttackOnBuilding(
       building.wasEnemyOwnedBeforeCapture = false;
       // Grant XP to player attacker when enemy watchtower goes neutral
       if (!attackerDead && attacker.faction === Faction.PLAYER && previousBuildingFaction === Faction.ENEMY) {
-        grantXp(state, attackerId, XP.DESTROY_BUILDING);
+        grantXp(state, attackerId, XP.DESTROY_BUILDING, suppressFloaters);
       }
     } else if (attacker.faction === Faction.PLAYER && previousBuildingFaction === Faction.ENEMY) {
       // Enemy building destroyed by player unit: remove from state; apply destroy behavior
@@ -485,7 +485,7 @@ export function resolveAttackOnBuilding(
       // DestroyBehavior.RESOURCE: no ruin — terrain is restored naturally
       // Grant XP to player attacker for destroying enemy building
       if (!attackerDead) {
-        grantXp(state, attackerId, XP.DESTROY_BUILDING);
+        grantXp(state, attackerId, XP.DESTROY_BUILDING, suppressFloaters);
       }
     }
   } else {

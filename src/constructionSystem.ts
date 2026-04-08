@@ -438,6 +438,7 @@ export function enemyConstructBuilding(
   unitId: string,
   tilePos: Position,
   buildingType: BuildingType,
+  suppressEffects?: boolean,
 ): void {
   if (!canEnemyConstructAt(state, unitId, tilePos, buildingType)) {
     throw new Error(
@@ -473,5 +474,5 @@ export function enemyConstructBuilding(
   unit.hasConstructedThisTurn = true;
 
   // Grant XP to the enemy unit for constructing a building
-  grantXp(state, unitId, XP.CONSTRUCT_BUILDING);
+  grantXp(state, unitId, XP.CONSTRUCT_BUILDING, suppressEffects);
 }

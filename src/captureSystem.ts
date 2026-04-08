@@ -172,7 +172,8 @@ export function canCapture(
 export function initiateCapture(
   state: Draft<GameState>,
   unitId: string,
-  buildingId: string
+  buildingId: string,
+  suppressEffects?: boolean,
 ): void {
   // Validate capture is allowed
   if (!canCapture(state, unitId, buildingId)) {
@@ -206,7 +207,7 @@ export function initiateCapture(
 
     // Grant XP to player unit for capturing the building (if it still exists)
     if (wasEnemy && !building.consumesUnitOnCapture) {
-      grantXp(state, unitId, XP.CAPTURE_BUILDING);
+      grantXp(state, unitId, XP.CAPTURE_BUILDING, suppressEffects);
     }
 
     // Consume the capturing unit if the building requires it (e.g. watchtower)
@@ -269,7 +270,7 @@ export function initiateCapture(
   }
 
   // Grant XP for capturing/destroying the building
-  grantXp(state, unitId, XP.CAPTURE_BUILDING);
+  grantXp(state, unitId, XP.CAPTURE_BUILDING, suppressEffects);
 }
 
 // ============================================================================

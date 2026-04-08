@@ -36,7 +36,7 @@ import { useAnimationStore } from './animationStore';
 import { Faction, GamePhase, BuildingType } from './types';
 import type { GameState, UnitType, Position } from './types';
 import type { GameEvent } from './gameEvents';
-import { MAP, LAVA, POPULATION, BUILDINGS, ENEMY } from './gameConfig';
+import { MAP, LAVA, POPULATION, BUILDINGS, ENEMY, XP } from './gameConfig';
 import { saveGameState, loadGameState, clearSavedGame, hasSavedGame } from './saveSystem';
 import { computeLevelFromXp, applyLevelUps } from './levelSystem';
 
@@ -252,6 +252,9 @@ export const useGameStore = create<GameStore>()(
           attackerAfter &&
           (attackerAfter.position.x !== attackerPosition.x || attackerAfter.position.y !== attackerPosition.y)
         ) ? { x: attackerAfter.position.x, y: attackerAfter.position.y } : null;
+        // Attacker earns XP for killing the defender; defender earns XP for a counter-kill.
+        const attackerXpGained = !defenderAfter && attackerAfter ? XP.KILL_UNIT : null;
+        const defenderXpGained = !attackerAfter ? XP.KILL_UNIT : null;
 
         const attackEvent: GameEvent = {
           type: 'PLAYER_ATTACK',
@@ -266,6 +269,8 @@ export const useGameStore = create<GameStore>()(
             ? defenderHpBefore - defenderAfter.stats.currentHp
             : defenderHpBefore,
           advancedToPosition,
+          attackerXpGained,
+          defenderXpGained,
         };
 
         const events: GameEvent[] = [attackEvent];
@@ -315,6 +320,11 @@ export const useGameStore = create<GameStore>()(
 
         const attackerAfter = resolvedState.units[attackerId];
         const buildingAfter = resolvedState.buildings[buildingId];
+        const buildingFactionBefore = building.faction;
+        // Building was killed if destroyed or went neutral (e.g. watchtower).
+        const buildingDied = !buildingAfter || buildingAfter.faction !== buildingFactionBefore;
+        // Player attacker earns XP for destroying an enemy building.
+        const attackerXpGained = buildingDied && attackerAfter ? XP.DESTROY_BUILDING : null;
 
         const attackBuildingEvent: GameEvent = {
           type: 'UNIT_ATTACK_BUILDING',
@@ -328,6 +338,7 @@ export const useGameStore = create<GameStore>()(
           buildingHpLost: buildingAfter
             ? buildingHpBefore - buildingAfter.hp
             : buildingHpBefore,
+          attackerXpGained,
         };
 
         const events: GameEvent[] = [attackBuildingEvent];
@@ -374,6 +385,13 @@ export const useGameStore = create<GameStore>()(
 
         const buildingAfter = resolvedState.buildings[buildingId];
         const defenderAfter = resolvedState.units[targetId];
+        const buildingFactionBefore = building.faction;
+        // Building was killed if destroyed or went neutral.
+        const buildingDied = !buildingAfter || buildingAfter.faction !== buildingFactionBefore;
+        // Enemy defender earns XP for counter-killing the player building.
+        const defenderXpGained = buildingDied && defenderAfter && defenderFaction === Faction.ENEMY
+          ? XP.DESTROY_BUILDING
+          : null;
 
         const buildingAttackEvent: GameEvent = {
           type: 'BUILDING_ATTACK',
@@ -387,6 +405,7 @@ export const useGameStore = create<GameStore>()(
           defenderHpLost: defenderAfter
             ? defenderHpBefore - defenderAfter.stats.currentHp
             : defenderHpBefore,
+          defenderXpGained,
         };
 
         const events: GameEvent[] = [buildingAttackEvent];
@@ -645,6 +664,19 @@ export const useGameStore = create<GameStore>()(
               attacker.stats.currentHp -= event.attackerHpLost;
             }
 
+            // Apply melee advance in display state so that subsequent ENEMY_MOVE events
+            // for other units don't visually overlap with the advancing attacker's old tile.
+            if (event.advancedToPosition && attacker) {
+              const fromTile = state.grid[attacker.position.y][attacker.position.x];
+              if (fromTile.unitId === event.attackerId) {
+                fromTile.unitId = null;
+              }
+              const toTile = state.grid[event.advancedToPosition.y][event.advancedToPosition.x];
+              toTile.unitId = event.attackerId;
+              attacker.position.x = event.advancedToPosition.x;
+              attacker.position.y = event.advancedToPosition.y;
+            }
+
             // Trigger floaters for visual feedback
             const { addFloater } = useFloaterStore.getState();
             if (event.defenderHpLost > 0) {
@@ -663,6 +695,27 @@ export const useGameStore = create<GameStore>()(
                 isEnemy: true, // attacker is enemy
               });
             }
+            // XP floaters — shown here (after the kill animation) rather than during computation.
+            if (event.attackerXpGained) {
+              addFloater({
+                value: event.attackerXpGained,
+                label: `⭐ +${event.attackerXpGained}`,
+                x: event.attackerPosition.x,
+                y: event.attackerPosition.y,
+                isEnemy: true,
+                floaterType: 'xp',
+              });
+            }
+            if (event.defenderXpGained) {
+              addFloater({
+                value: event.defenderXpGained,
+                label: `⭐ +${event.defenderXpGained}`,
+                x: event.defenderPosition.x,
+                y: event.defenderPosition.y,
+                isEnemy: false,
+                floaterType: 'xp',
+              });
+            }
             break;
           }
 
@@ -676,6 +729,18 @@ export const useGameStore = create<GameStore>()(
             }
             if (attacker && event.attackerHpLost > 0) {
               attacker.stats.currentHp -= event.attackerHpLost;
+            }
+
+            // Apply melee advance for display consistency.
+            if (event.advancedToPosition && attacker) {
+              const fromTile = state.grid[attacker.position.y][attacker.position.x];
+              if (fromTile.unitId === event.attackerId) {
+                fromTile.unitId = null;
+              }
+              const toTile = state.grid[event.advancedToPosition.y][event.advancedToPosition.x];
+              toTile.unitId = event.attackerId;
+              attacker.position.x = event.advancedToPosition.x;
+              attacker.position.y = event.advancedToPosition.y;
             }
 
             // Trigger floaters for visual feedback (isEnemy derived from faction)
@@ -694,6 +759,27 @@ export const useGameStore = create<GameStore>()(
                 x: event.attackerPosition.x,
                 y: event.attackerPosition.y,
                 isEnemy: attacker?.faction === Faction.ENEMY,
+              });
+            }
+            // XP floaters — shown here rather than during computation.
+            if (event.attackerXpGained) {
+              addFloater({
+                value: event.attackerXpGained,
+                label: `⭐ +${event.attackerXpGained}`,
+                x: event.attackerPosition.x,
+                y: event.attackerPosition.y,
+                isEnemy: attacker?.faction === Faction.ENEMY,
+                floaterType: 'xp',
+              });
+            }
+            if (event.defenderXpGained) {
+              addFloater({
+                value: event.defenderXpGained,
+                label: `⭐ +${event.defenderXpGained}`,
+                x: event.defenderPosition.x,
+                y: event.defenderPosition.y,
+                isEnemy: defender?.faction === Faction.ENEMY,
+                floaterType: 'xp',
               });
             }
             break;
@@ -762,6 +848,17 @@ export const useGameStore = create<GameStore>()(
                 isEnemy: building?.faction === Faction.ENEMY,
               });
             }
+            // XP floater for enemy unit that counter-killed the player building.
+            if (event.defenderXpGained) {
+              addFloater({
+                value: event.defenderXpGained,
+                label: `⭐ +${event.defenderXpGained}`,
+                x: event.defenderPosition.x,
+                y: event.defenderPosition.y,
+                isEnemy: defender?.faction === Faction.ENEMY,
+                floaterType: 'xp',
+              });
+            }
             break;
           }
 
@@ -802,6 +899,19 @@ export const useGameStore = create<GameStore>()(
               }
             }
 
+            // Apply melee advance in display state so subsequent ENEMY_MOVE events
+            // don't visually overlap with the advancing attacker's old tile.
+            if (event.advancedToPosition && attacker) {
+              const fromTile = state.grid[attacker.position.y][attacker.position.x];
+              if (fromTile.unitId === event.attackerId) {
+                fromTile.unitId = null;
+              }
+              const toTile = state.grid[event.advancedToPosition.y][event.advancedToPosition.x];
+              toTile.unitId = event.attackerId;
+              attacker.position.x = event.advancedToPosition.x;
+              attacker.position.y = event.advancedToPosition.y;
+            }
+
             // Trigger floaters
             const { addFloater } = useFloaterStore.getState();
             if (event.buildingHpLost > 0) {
@@ -820,6 +930,17 @@ export const useGameStore = create<GameStore>()(
                 isEnemy: attacker?.faction === Faction.ENEMY,
               });
             }
+            // XP floater for attacker killing a building.
+            if (event.attackerXpGained) {
+              addFloater({
+                value: event.attackerXpGained,
+                label: `⭐ +${event.attackerXpGained}`,
+                x: event.attackerPosition.x,
+                y: event.attackerPosition.y,
+                isEnemy: attacker?.faction === Faction.ENEMY,
+                floaterType: 'xp',
+              });
+            }
             break;
           }
 
@@ -827,6 +948,17 @@ export const useGameStore = create<GameStore>()(
             const building = state.buildings[event.buildingId];
             if (building) {
               building.faction = event.newFaction;
+            }
+            // XP floater for the capturing unit.
+            if (event.xpGained) {
+              useFloaterStore.getState().addFloater({
+                value: event.xpGained,
+                label: `⭐ +${event.xpGained}`,
+                x: event.position.x,
+                y: event.position.y,
+                isEnemy: event.newFaction === Faction.ENEMY,
+                floaterType: 'xp',
+              });
             }
             break;
           }
