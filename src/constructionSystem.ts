@@ -297,7 +297,7 @@ function createBuildingObject(
     turnCapturedByPlayer: null,
     wasEnemyOwnedBeforeCapture: false,
     combatStats,
-    hasActedThisTurn: false,
+    hasAttackedThisTurn: false,
     tags,
     consumesUnitOnCapture: isWatchtower,
     populationCount,
