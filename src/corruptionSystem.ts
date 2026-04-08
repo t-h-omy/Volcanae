@@ -39,7 +39,7 @@ export function corruptTerrain(
   if (unit.position.x !== tilePos.x || unit.position.y !== tilePos.y) return;
 
   // Unit must not have acted this turn
-  if (unit.hasActedThisTurn) return;
+  if (unit.hasConstructedThisTurn) return;
 
   const tile = state.grid[tilePos.y]?.[tilePos.x];
   if (!tile) return;
@@ -87,7 +87,7 @@ export function corruptTerrain(
     turnCapturedByPlayer: null,
     wasEnemyOwnedBeforeCapture: false,
     combatStats,
-    hasActedThisTurn: false,
+    hasAttackedThisTurn: false,
     tags,
     consumesUnitOnCapture: false,
     populationCount: 0,
@@ -105,8 +105,7 @@ export function corruptTerrain(
   tile.buildingId = newBuilding.id;
 
   // Mark unit as having acted
-  unit.hasMovedThisTurn = true;
-  unit.hasActedThisTurn = true;
+  unit.hasConstructedThisTurn = true;
 }
 
 /**
@@ -156,7 +155,7 @@ export function processMagmaSpyrAttacks(
     if (building.faction !== Faction.ENEMY) continue;
     if (building.type !== BuildingType.MAGMASPYR) continue;
     if (!building.combatStats) continue;
-    if (building.hasActedThisTurn) continue;
+    if (building.hasAttackedThisTurn) continue;
 
     const attackRange = building.combatStats.attackRange;
     const maxAttacks = building.combatStats.maxAttacksPerTurn ?? 1;
@@ -232,7 +231,7 @@ export function processMagmaSpyrAttacks(
     // Mark building as having acted
     const bAfter = state.buildings[building.id];
     if (bAfter) {
-      bAfter.hasActedThisTurn = true;
+      bAfter.hasAttackedThisTurn = true;
     }
   }
 }
@@ -292,7 +291,9 @@ export function processEmberNestSpawns(
       },
       tags: [UnitTag.SACRIFICIAL, UnitTag.EXPLOSIVE],
       hasMovedThisTurn: false,
-      hasActedThisTurn: false,
+      hasAttackedThisTurn: false,
+      hasConstructedThisTurn: false,
+      hasDestroyedThisTurn: false,
       hasCapturedThisTurn: false,
       xp: 0,
       level: 1,
