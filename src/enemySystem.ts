@@ -1844,7 +1844,7 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
       for (let i = 0; i < maxActions; i++) {
         const currentUnit = draft.units[unit.id];
         if (!currentUnit) break;
-        if (currentUnit.hasMovedThisTurn && hasUnitActed(currentUnit)) break;
+        if (hasUnitActed(currentUnit)) break;
         decideAndExecute(currentUnit, draft, targetingIntents, recentlyLostBuildingIds, events);
       }
     }
