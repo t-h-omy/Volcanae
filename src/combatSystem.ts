@@ -216,8 +216,7 @@ export function resolveAttack(
   } else {
     // Update attacker HP and mark as acted
     attacker.stats.currentHp = newAttackerHp;
-    attacker.hasActedThisTurn = true;
-    attacker.hasMovedThisTurn = true;
+    attacker.hasAttackedThisTurn = true;
   }
 
   // Update defender
@@ -328,7 +327,7 @@ export function resolveBuildingAttack(
       // recaptured (same behaviour as resolveAttackOnBuilding for watchtowers).
       building.hp = building.maxHp;
       building.faction = null;
-      building.hasActedThisTurn = false;
+      building.hasAttackedThisTurn = false;
       building.specialistSlot = null;
       building.turnCapturedByPlayer = null;
       building.wasEnemyOwnedBeforeCapture = false;
@@ -352,7 +351,7 @@ export function resolveBuildingAttack(
     }
   } else {
     building.hp = newBuildingHp;
-    building.hasActedThisTurn = true;
+    building.hasAttackedThisTurn = true;
   }
 
   // Update defender
@@ -450,8 +449,7 @@ export function resolveAttackOnBuilding(
     delete state.units[attackerId];
   } else {
     attacker.stats.currentHp = newAttackerHp;
-    attacker.hasActedThisTurn = true;
-    attacker.hasMovedThisTurn = true;
+    attacker.hasAttackedThisTurn = true;
   }
 
   // Update building
@@ -462,7 +460,7 @@ export function resolveAttackOnBuilding(
       // Watchtower goes neutral at 0 HP
       building.hp = building.maxHp;
       building.faction = null;
-      building.hasActedThisTurn = false;
+      building.hasAttackedThisTurn = false;
       building.specialistSlot = null;
       building.turnCapturedByPlayer = null;
       building.wasEnemyOwnedBeforeCapture = false;
