@@ -97,6 +97,9 @@ function updateZonesUnlocked(state: Draft<GameState>): void {
  * @param buildingId - ID of the building to capture
  * @returns True if the unit can capture the building
  */
+// Cross-blocking rules and tag requirements for capture live in
+// unitActions.ts → canUnitCapture. Do not add tag checks or flag logic here.
+// This function is a safety net for the capture preconditions only.
 export function canCapture(
   state: GameState | Draft<GameState>,
   unitId: string,

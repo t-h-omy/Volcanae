@@ -151,6 +151,9 @@ export function getConstructionOptionsForTile(
 /**
  * Returns true if the player unit can construct the given building at tilePos.
  */
+// Cross-blocking rules and tag requirements for construction live in
+// unitActions.ts → canUnitConstruct. Do not add tag checks or flag logic here.
+// This function is a safety net for the construction preconditions only.
 export function canConstructAt(
   state: GameState | Draft<GameState>,
   unitId: string,
@@ -361,6 +364,9 @@ export function constructBuilding(
  * Safety-net guard — authoritative cross-blocking rules are in
  * unitActions.canUnitDestroy. Do not add tag rules or cross-blocking here.
  */
+// Cross-blocking rules and tag requirements for demolish live in
+// unitActions.ts → canUnitDestroy. Do not add tag checks or flag logic here.
+// This function is a safety net for the demolish preconditions only.
 export function canDestroyOwnBuilding(
   state: GameState | Draft<GameState>,
   unitId: string,

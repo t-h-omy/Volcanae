@@ -24,6 +24,8 @@ import type { GameEvent } from './gameEvents';
  * @param unitId - ID of the unit performing the corruption
  * @param tilePos - Position of the tile to corrupt
  */
+// This is an enemy-only action. Player action availability rules live in
+// unitActions.ts. Do not add player tag checks here.
 export function corruptTerrain(
   state: Draft<GameState>,
   unitId: string,

@@ -145,6 +145,8 @@ export function calculateCombatFromStats(attacker: Combatant, defender: Combatan
  * @param attackerId - ID of the attacking unit
  * @param defenderId - ID of the defending unit
  */
+// Action availability rules (which flags or tags block attacking) live in
+// unitActions.ts → canUnitAttack. Do not add tag checks or flag logic here.
 export function resolveAttack(
   state: Draft<GameState>,
   attackerId: string,

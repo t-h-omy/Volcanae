@@ -931,6 +931,9 @@ export function resolveExplosion(
 // SCORING FUNCTION
 // ============================================================================
 
+// The enemy AI derives its own canAttackThisTurn inline because it is a
+// self-contained AI pipeline. Player-facing action availability rules
+// (including all UnitTag checks for player units) live in unitActions.ts.
 function scoreActionsForUnit(
   unit: Unit,
   state: Draft<GameState>,
