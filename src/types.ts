@@ -139,7 +139,9 @@ export interface Unit {
   stats: UnitStats;
   tags: UnitTag[];
   hasMovedThisTurn: boolean;
-  hasActedThisTurn: boolean;
+  hasAttackedThisTurn: boolean;
+  hasConstructedThisTurn: boolean;
+  hasDestroyedThisTurn: boolean;
   hasCapturedThisTurn: boolean;
   xp: number;
   level: number;
@@ -201,8 +203,8 @@ export interface Building {
   wasEnemyOwnedBeforeCapture: boolean;
   /** Combat stats for attacking buildings (null if building cannot attack) */
   combatStats: BuildingCombatStats | null;
-  /** Whether this building has attacked this turn (for attacking buildings) */
-  hasActedThisTurn: boolean;
+  /** Whether this building has attacked this turn */
+  hasAttackedThisTurn: boolean;
   /** Tags for attacking buildings (e.g. RANGED) */
   tags: UnitTag[];
   /** Whether capturing this building consumes the capturing unit */

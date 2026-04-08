@@ -34,6 +34,7 @@ import {
   type Position,
   type Tile,
 } from '../types';
+import { canUnitMove, canUnitAttack, canUnitCapture, canUnitDestroy, canUnitConstruct } from '../unitActions';
 import './HUD.css';
 
 // ============================================================================
@@ -394,13 +395,9 @@ function SelectedUnitPanel({
 }) {
   const isPlayer = unit.faction === Faction.PLAYER;
   const hpPct = (unit.stats.currentHp / unit.stats.maxHp) * 100;
-  const canMove = !unit.hasMovedThisTurn;
-  const canAttack = !unit.hasActedThisTurn && !(unit.tags.includes(UnitTag.PREP) && unit.hasMovedThisTurn);
-  const canCapture =
-    !unit.hasCapturedThisTurn &&
-    !unit.hasActedThisTurn &&
-    !unit.hasMovedThisTurn &&
-    unit.tags.includes(UnitTag.BUILDANDCAPTURE);
+  const canMove = canUnitMove(unit);
+  const canAttack = canUnitAttack(unit);
+  const canCapture = canUnitCapture(unit);
 
   const visibleTags = unit.tags.filter((t) => !HIDDEN_UNIT_TAGS.has(t));
 
@@ -716,7 +713,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   const isUnderAttack = building.wasAttackedLastEnemyTurn;
   const isInteractionBlocked = isDisabled || isUnderAttack;
   const hasCombatStats = building.combatStats !== null;
-  const canAttack = hasCombatStats && !building.hasActedThisTurn && building.faction !== null;
+  const canAttack = hasCombatStats && !building.hasAttackedThisTurn && building.faction !== null;
 
   // Specialist slot info
   const assignedSpecialist: Specialist | null =
@@ -761,13 +758,15 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   // Demolish: a player unit with BUILD_AND_CAPTURE must be on the same tile
   const builderOnTile = useMemo(() => {
     if (!isPlayerOwned) return null;
-    return Object.values(units).find(
-      (u) =>
-        u.faction === Faction.PLAYER &&
-        u.tags.includes(UnitTag.BUILDANDCAPTURE) &&
-        u.position.x === building.position.x &&
-        u.position.y === building.position.y,
-    ) ?? null;
+    return (
+      Object.values(units).find(
+        (u) =>
+          u.faction === Faction.PLAYER &&
+          u.position.x === building.position.x &&
+          u.position.y === building.position.y &&
+          canUnitDestroy(u),
+      ) ?? null
+    );
   }, [isPlayerOwned, units, building.position]);
 
   const handleDemolish = useCallback(() => {
@@ -1093,7 +1092,7 @@ function BottomBar() {
   const showConstruction = useGameStore((s) => {
     if (!selectedUnit || selectedUnit.faction !== Faction.PLAYER) return false;
     if (!selectedUnit.tags.includes(UnitTag.BUILDANDCAPTURE)) return false;
-    if (selectedUnit.hasMovedThisTurn || selectedUnit.hasActedThisTurn || selectedUnit.hasCapturedThisTurn) return false;
+    if (!canUnitConstruct(selectedUnit)) return false;
     const options = getConstructionOptionsForTile(s, selectedUnit.position);
     return options.length > 0;
   });

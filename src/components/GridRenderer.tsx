@@ -9,7 +9,6 @@ import { useFloaterStore } from '../floaterStore';
 import { useAnimationStore } from '../animationStore';
 import { useCombatAnimationStore } from '../combatAnimationStore';
 import type { Projectile } from '../combatAnimationStore';
-import { getReachableTiles } from '../movementSystem';
 import { canCapture } from '../captureSystem';
 import { getConstructionOptionsForTile } from '../constructionSystem';
 import { MAP } from '../gameConfig';
@@ -31,6 +30,7 @@ import {
   type Building,
 } from '../types';
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
+import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, canUnitConstruct, hasUnitActed } from '../unitActions';
 import './GridRenderer.css';
 
 // ============================================================================
@@ -66,50 +66,6 @@ function posKey(x: number, y: number): string {
 
 /** Returns set of "x,y" keys for tiles that are attackable by the selected player unit.
  *  Includes tiles with enemy units and tiles with enemy buildings (no unit on the tile). */
-function getAttackableTileKeys(
-  selectedUnit: Unit,
-  units: Record<string, Unit>,
-  buildings: Record<string, Building>,
-  grid: Tile[][],
-): Set<string> {
-  const keys = new Set<string>();
-  if (selectedUnit.hasActedThisTurn) return keys;
-  // PREP tag: cannot attack after moving
-  if (selectedUnit.hasMovedThisTurn && selectedUnit.tags.includes(UnitTag.PREP)) return keys;
-  // Enemy units
-  for (const other of Object.values(units)) {
-    if (other.faction === Faction.ENEMY) {
-      // Cannot attack enemy units on undiscovered tiles
-      if (!grid[other.position.y]?.[other.position.x]?.isRevealed) continue;
-      const inRange = isTileWithinEdgeCircleRange(
-        selectedUnit.position.x, selectedUnit.position.y,
-        other.position.x, other.position.y,
-        selectedUnit.stats.attackRange,
-      );
-      if (inRange) {
-        keys.add(posKey(other.position.x, other.position.y));
-      }
-    }
-  }
-  // Enemy buildings that have hp (combat stats) — only tiles without an enemy unit already in the set
-  for (const b of Object.values(buildings)) {
-    if (b.faction === Faction.ENEMY && b.maxHp > 0 && b.combatStats !== null) {
-      if (!grid[b.position.y]?.[b.position.x]?.isRevealed) continue;
-      const key = posKey(b.position.x, b.position.y);
-      if (keys.has(key)) continue; // tile already covered by enemy unit
-      const inRange = isTileWithinEdgeCircleRange(
-        selectedUnit.position.x, selectedUnit.position.y,
-        b.position.x, b.position.y,
-        selectedUnit.stats.attackRange,
-      );
-      if (inRange) {
-        keys.add(key);
-      }
-    }
-  }
-  return keys;
-}
-
 /** Returns set of "x,y" keys for tiles an enemy unit occupies that are
  *  within attack range of a player-owned attacking building (e.g. watchtower). */
 function getBuildingAttackableTileKeys(
@@ -117,7 +73,7 @@ function getBuildingAttackableTileKeys(
   units: Record<string, Unit>,
 ): Set<string> {
   const keys = new Set<string>();
-  if (!building.combatStats || building.faction !== Faction.PLAYER || building.hasActedThisTurn) return keys;
+  if (!building.combatStats || building.faction !== Faction.PLAYER || building.hasAttackedThisTurn) return keys;
   for (const other of Object.values(units)) {
     if (other.faction === Faction.ENEMY) {
       const inRange = isTileWithinEdgeCircleRange(
@@ -416,14 +372,13 @@ export default function GridRenderer() {
 
   const reachableSet = useMemo<Set<string>>(() => {
     if (!selectedUnit || selectedUnit.faction !== Faction.PLAYER) return new Set();
-    const tiles = getReachableTiles(useGameStore.getState(), selectedUnit.id);
-    return new Set(tiles.map((p) => posKey(p.x, p.y)));
+    return getMovableTiles(selectedUnit, useGameStore.getState());
   }, [selectedUnit]);
 
   const attackableSet = useMemo<Set<string>>(() => {
     // Unit attack range (enemy units and enemy buildings)
     if (selectedUnit && selectedUnit.faction === Faction.PLAYER) {
-      return getAttackableTileKeys(selectedUnit, units, buildings, grid);
+      return getAttackTargets(selectedUnit, units, buildings, grid);
     }
     // Building attack range (e.g. player watchtower)
     if (selectedBuilding && selectedBuilding.combatStats && selectedBuilding.faction === Faction.PLAYER) {
@@ -464,7 +419,7 @@ export default function GridRenderer() {
           // Unit attack
           if (
             selectedUnit &&
-            !selectedUnit.hasActedThisTurn &&
+            canUnitAttack(selectedUnit) &&
             attackableSet.has(key)
           ) {
             attackUnit(selectedUnit.id, tile.unitId);
@@ -475,7 +430,7 @@ export default function GridRenderer() {
             selectedBuilding &&
             selectedBuilding.combatStats &&
             selectedBuilding.faction === Faction.PLAYER &&
-            !selectedBuilding.hasActedThisTurn &&
+            !selectedBuilding.hasAttackedThisTurn &&
             attackableSet.has(key)
           ) {
             buildingAttackUnit(selectedBuilding.id, tile.unitId);
@@ -493,7 +448,7 @@ export default function GridRenderer() {
       // Priority 4 — Tile in movement range, unit can still move
       if (
         selectedUnit &&
-        !selectedUnit.hasMovedThisTurn &&
+        canUnitMove(selectedUnit) &&
         reachableSet.has(key)
       ) {
         moveUnit(selectedUnit.id, { x, y });
@@ -508,8 +463,7 @@ export default function GridRenderer() {
           b.faction === Faction.ENEMY &&
           selectedUnit &&
           selectedUnit.faction === Faction.PLAYER &&
-          !selectedUnit.hasActedThisTurn &&
-          !(selectedUnit.tags.includes(UnitTag.PREP) && selectedUnit.hasMovedThisTurn) &&
+          canUnitAttack(selectedUnit) &&
           attackableSet.has(key)
         ) {
           attackBuilding(selectedUnit.id, tile.buildingId);
@@ -742,7 +696,7 @@ function TileCellInner({
         : BUILDING_SPRITE[building.type]
     : undefined;
   const [buildingSpriteError, setBuildingSpriteError] = useState(false);
-  const buildingExhaustedFilter = building && building.combatStats && building.hasActedThisTurn
+  const buildingExhaustedFilter = building && building.combatStats && building.hasAttackedThisTurn
     ? RENDER.UNIT_EXHAUSTED_FILTER
     : undefined;
 
@@ -875,36 +829,11 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
   // A player unit that has moved but has no valid attack targets left to hit
   // should also appear exhausted — there's nothing more it can do this turn.
   const noAttackTargets = useGameStore((s) => {
-    if (unit.faction !== Faction.PLAYER || !unit.hasMovedThisTurn || unit.hasActedThisTurn) return false;
-    // PREP units cannot attack after moving — treat as exhausted immediately
-    if (unit.tags.includes(UnitTag.PREP)) return true;
-    const hasEnemyUnitTarget = Object.values(s.units).some(
-      (other) =>
-        other.faction === Faction.ENEMY &&
-        // Cannot attack enemies on undiscovered tiles
-        s.grid[other.position.y]?.[other.position.x]?.isRevealed &&
-        isTileWithinEdgeCircleRange(
-          unit.position.x, unit.position.y,
-          other.position.x, other.position.y,
-          unit.stats.attackRange,
-        ),
-    );
-    if (hasEnemyUnitTarget) return false;
-    const hasEnemyBuildingTarget = Object.values(s.buildings).some(
-      (b) =>
-        b.faction === Faction.ENEMY &&
-        b.hp > 0 &&
-        s.grid[b.position.y]?.[b.position.x]?.isRevealed &&
-        isTileWithinEdgeCircleRange(
-          unit.position.x, unit.position.y,
-          b.position.x, b.position.y,
-          unit.stats.attackRange,
-        ),
-    );
-    return !hasEnemyBuildingTarget;
+    if (unit.faction !== Faction.PLAYER || !unit.hasMovedThisTurn || hasUnitActed(unit)) return false;
+    return getAttackTargets(unit, s.units, s.buildings, s.grid).size === 0;
   });
 
-  const isExhausted = (unit.hasActedThisTurn && unit.hasMovedThisTurn) || noAttackTargets;
+  const isExhausted = hasUnitActed(unit) || noAttackTargets;
 
   const anim = useCombatAnimationStore((s) => s.unitAnimations.get(unit.id));
 
@@ -1062,7 +991,7 @@ function BuildIndicatorLayer({ tileSize }: { tileSize: number }) {
     for (const unit of Object.values(units)) {
       if (unit.faction !== Faction.PLAYER) continue;
       if (!unit.tags.includes(UnitTag.BUILDANDCAPTURE)) continue;
-      if (unit.hasMovedThisTurn || unit.hasActedThisTurn || unit.hasCapturedThisTurn) continue;
+      if (!canUnitConstruct(unit)) continue;
       const options = getConstructionOptionsForTile(state, unit.position);
       if (options.length > 0) {
         result.push({ key: unit.id, x: unit.position.x, y: unit.position.y });

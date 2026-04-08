@@ -5,7 +5,7 @@
 
 import type { GameState, Building, Position, Tile, UnitPopulationCost } from './types';
 import type { Draft } from 'immer';
-import { Faction, BuildingType, UnitType, UnitTag } from './types';
+import { Faction, BuildingType, UnitType } from './types';
 import { RESOURCES, UNITS, UNIT_COSTS, POPULATION, UNIT_POPULATION_COSTS } from './gameConfig';
 import type { UnitCost } from './gameConfig';
 
@@ -347,14 +347,12 @@ export function recruitUnit(
       movementActions: UNITS[unitType].movementActions,
       attackRange: UNITS[unitType].attackRange,
     },
-    tags: [
-      ...(UNITS[unitType].attackRange > 1 ? [UnitTag.RANGED] : []),
-      ...(unitType === UnitType.SIEGE || unitType === UnitType.LAVA_SIEGE || unitType === UnitType.GUARD ? [UnitTag.PREP] : []),
-      ...(unitType !== UnitType.SCOUT ? [UnitTag.BUILDANDCAPTURE] : []),
-    ],
+    tags: [...UNITS[unitType].tags],
     hasMovedThisTurn: true,
-    hasActedThisTurn: true,
+    hasAttackedThisTurn: true,
     hasCapturedThisTurn: true,
+    hasConstructedThisTurn: true,
+    hasDestroyedThisTurn: true,
     xp: 0,
     level: 1,
   };

@@ -15,6 +15,7 @@ import { corruptTerrain, processMagmaSpyrAttacks, processEmberNestSpawns } from 
 import { enemyConstructBuilding } from './constructionSystem';
 import { processEnemyLevelUps } from './levelSystem';
 import type { GameEvent } from './gameEvents';
+import { hasUnitActed } from './unitActions';
 
 // ============================================================================
 // ID GENERATION
@@ -482,8 +483,10 @@ function createEnemyUnit(
     },
     tags,
     hasMovedThisTurn: true,
-    hasActedThisTurn: true,
+    hasAttackedThisTurn: true,
     hasCapturedThisTurn: true,
+    hasConstructedThisTurn: true,
+    hasDestroyedThisTurn: true,
     xp: 0,
     level: 1,
   };
@@ -928,6 +931,9 @@ export function resolveExplosion(
 // SCORING FUNCTION
 // ============================================================================
 
+// The enemy AI derives its own canAttackThisTurn inline because it is a
+// self-contained AI pipeline. Player-facing action availability rules
+// (including all UnitTag checks for player units) live in unitActions.ts.
 function scoreActionsForUnit(
   unit: Unit,
   state: Draft<GameState>,
@@ -938,7 +944,7 @@ function scoreActionsForUnit(
   const triggerRange = unit.stats.triggerRange;
   const attackRange = unit.stats.attackRange;
   // PREP tag prevents attacking after moving
-  const canAttackThisTurn = !unit.hasActedThisTurn && !(unit.hasMovedThisTurn && unit.tags.includes(UnitTag.PREP));
+  const canAttackThisTurn = !hasUnitActed(unit) && !(unit.hasMovedThisTurn && unit.tags.includes(UnitTag.PREP));
 
   // Gather player units in trigger range
   const playerUnitsInTriggerRange: Unit[] = [];
@@ -985,7 +991,7 @@ function scoreActionsForUnit(
   }
 
   // ── CAPTURE_BUILDING ──
-  if (!unit.hasActedThisTurn && !unit.hasMovedThisTurn && unit.tags.includes(UnitTag.BUILDANDCAPTURE)) {
+  if (!hasUnitActed(unit) && !unit.hasMovedThisTurn && unit.tags.includes(UnitTag.BUILDANDCAPTURE)) {
     const tile = state.grid[unit.position.y][unit.position.x];
     if (tile.buildingId) {
       const building = state.buildings[tile.buildingId];
@@ -1334,7 +1340,7 @@ function scoreActionsForUnit(
   }
 
   // ── EXPLODE (EXPLOSIVE + SACRIFICIAL blocked, or pure EXPLOSIVE — reusable for any explosive unit) ──
-  if (!unit.hasActedThisTurn && unit.tags.includes(UnitTag.EXPLOSIVE)) {
+  if (!hasUnitActed(unit) && unit.tags.includes(UnitTag.EXPLOSIVE)) {
     const isSacrificial = unit.tags.includes(UnitTag.SACRIFICIAL);
     // Only score EXPLODE for SACRIFICIAL units when they are blocked from lava
     if (!isSacrificial || isBlockedFromLava) {
@@ -1357,7 +1363,7 @@ function scoreActionsForUnit(
 
   // ── CONSTRUCTION & CORRUPTION ──
   // scoreConstructionActions handles BUILD_LAVA_LAIR, BUILD_INFERNAL_SANCTUM, and CORRUPT_TERRAIN
-  if (!unit.hasActedThisTurn && !unit.hasMovedThisTurn && !unit.hasCapturedThisTurn) {
+  if (!hasUnitActed(unit) && !unit.hasMovedThisTurn) {
     scoreConstructionActions(unit, state, candidates);
   }
 
@@ -1652,7 +1658,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
         if (isOnTile) {
           // Unit is on the terrain tile — corrupt it
           corruptTerrain(state, currentUnit.id, action.targetPosition);
-          currentUnit.hasActedThisTurn = true;
+          currentUnit.hasConstructedThisTurn = true;
         } else if (!currentUnit.hasMovedThisTurn) {
           // Move 1 step toward the terrain tile
           moveEnemyUnitToward(state, currentUnit.id, action.targetPosition, events);
@@ -1729,7 +1735,7 @@ function executeBuildingAttacks(state: Draft<GameState>, events?: GameEvent[]): 
   for (const building of Object.values(state.buildings)) {
     if (building.faction !== Faction.ENEMY) continue;
     if (!building.combatStats) continue;
-    if (building.hasActedThisTurn) continue;
+    if (building.hasAttackedThisTurn) continue;
 
     const attackRange = building.combatStats.attackRange;
     const bCombatant = buildingToCombatant(building);
@@ -1838,7 +1844,7 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
       for (let i = 0; i < maxActions; i++) {
         const currentUnit = draft.units[unit.id];
         if (!currentUnit) break;
-        if (currentUnit.hasMovedThisTurn && currentUnit.hasActedThisTurn) break;
+        if (hasUnitActed(currentUnit)) break;
         decideAndExecute(currentUnit, draft, targetingIntents, recentlyLostBuildingIds, events);
       }
     }
@@ -1854,15 +1860,17 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
     for (const unit of Object.values(draft.units)) {
       if (unit.faction === Faction.ENEMY) {
         unit.hasMovedThisTurn = false;
-        unit.hasActedThisTurn = false;
+        unit.hasAttackedThisTurn = false;
         unit.hasCapturedThisTurn = false;
+        unit.hasConstructedThisTurn = false;
+        unit.hasDestroyedThisTurn = false;
       }
     }
 
     // Reset enemy building action flags for next turn
     for (const building of Object.values(draft.buildings)) {
       if (building.faction === Faction.ENEMY && building.combatStats) {
-        building.hasActedThisTurn = false;
+        building.hasAttackedThisTurn = false;
       }
     }
   });
