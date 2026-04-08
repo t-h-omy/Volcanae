@@ -1808,7 +1808,8 @@ function executeBuildingAttacks(state: Draft<GameState>, events?: GameEvent[]): 
         defenderPosition: defenderPos,
         buildingHpLost: buildingAfter ? buildingHpBefore - buildingAfter.hp : buildingHpBefore,
         defenderHpLost: defenderAfter ? defenderHpBefore - defenderAfter.stats.currentHp : defenderHpBefore,
-        // Defender is a player unit — player units do not earn XP for counter-killing buildings.
+        // Defender is a player unit defending against an enemy building attack —
+        // player units do not earn XP for counter-killing buildings.
         defenderXpGained: null,
       });
 
