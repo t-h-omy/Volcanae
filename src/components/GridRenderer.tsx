@@ -9,7 +9,6 @@ import { useFloaterStore } from '../floaterStore';
 import { useAnimationStore } from '../animationStore';
 import { useCombatAnimationStore } from '../combatAnimationStore';
 import type { Projectile } from '../combatAnimationStore';
-import { getReachableTiles } from '../movementSystem';
 import { canCapture } from '../captureSystem';
 import { getConstructionOptionsForTile } from '../constructionSystem';
 import { MAP } from '../gameConfig';
@@ -31,7 +30,7 @@ import {
   type Building,
 } from '../types';
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
-import { canUnitAttack, getAttackTargets, canUnitConstruct, hasUnitActed } from '../unitActions';
+import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, canUnitConstruct, hasUnitActed } from '../unitActions';
 import './GridRenderer.css';
 
 // ============================================================================
@@ -373,8 +372,7 @@ export default function GridRenderer() {
 
   const reachableSet = useMemo<Set<string>>(() => {
     if (!selectedUnit || selectedUnit.faction !== Faction.PLAYER) return new Set();
-    const tiles = getReachableTiles(useGameStore.getState(), selectedUnit.id);
-    return new Set(tiles.map((p) => posKey(p.x, p.y)));
+    return getMovableTiles(selectedUnit, useGameStore.getState());
   }, [selectedUnit]);
 
   const attackableSet = useMemo<Set<string>>(() => {
@@ -450,7 +448,7 @@ export default function GridRenderer() {
       // Priority 4 — Tile in movement range, unit can still move
       if (
         selectedUnit &&
-        !selectedUnit.hasMovedThisTurn &&
+        canUnitMove(selectedUnit) &&
         reachableSet.has(key)
       ) {
         moveUnit(selectedUnit.id, { x, y });
