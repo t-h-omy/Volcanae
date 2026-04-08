@@ -166,8 +166,9 @@ export function canConstructAt(
   // Must be on the exact same tile
   if (unit.position.x !== tilePos.x || unit.position.y !== tilePos.y) return false;
 
-  // Must not have moved, acted, or captured this turn
-  if (unit.hasMovedThisTurn || unit.hasActedThisTurn || unit.hasCapturedThisTurn) return false;
+  // Must not have performed any action this turn
+  if (unit.hasMovedThisTurn || unit.hasConstructedThisTurn || unit.hasCapturedThisTurn
+      || unit.hasAttackedThisTurn || unit.hasDestroyedThisTurn) return false;
 
   // Tile must support the requested building type
   const options = getConstructionOptionsForTile(state, tilePos);
@@ -207,8 +208,9 @@ export function canEnemyConstructAt(
   // Must be on the exact same tile
   if (unit.position.x !== tilePos.x || unit.position.y !== tilePos.y) return false;
 
-  // Must not have moved, acted, or captured this turn
-  if (unit.hasMovedThisTurn || unit.hasActedThisTurn || unit.hasCapturedThisTurn) return false;
+  // Must not have performed any action this turn
+  if (unit.hasMovedThisTurn || unit.hasConstructedThisTurn || unit.hasCapturedThisTurn
+      || unit.hasAttackedThisTurn || unit.hasDestroyedThisTurn) return false;
 
   const tile = state.grid[tilePos.y][tilePos.x];
 
@@ -342,50 +344,58 @@ export function constructBuilding(
     tile.isStrongholdRuin = false;
   }
 
-  // Mark unit as having acted
+  // Mark unit as having constructed
   const unit = state.units[unitId];
-  unit.hasMovedThisTurn = true;
-  unit.hasActedThisTurn = true;
-  unit.hasCapturedThisTurn = true;
+  unit.hasConstructedThisTurn = true;
 
   // Grant XP to the unit for constructing a building
   grantXp(state, unitId, XP.CONSTRUCT_BUILDING);
 }
 
 // ============================================================================
-// PLAYER DESTROY OWN BUILDING (UI action — no unit action cost)
+// PLAYER DESTROY OWN BUILDING
 // ============================================================================
 
 /**
- * Destroys a player-owned building. Triggered from the building UI panel.
- * The unit must be on the same tile as the building AND have BUILD_AND_CAPTURE tag.
- * Does NOT consume any unit actions.
+ * Returns true if the unit can demolish the given building right now.
+ * Safety-net guard — authoritative cross-blocking rules are in
+ * unitActions.canUnitDestroy. Do not add tag rules or cross-blocking here.
+ */
+export function canDestroyOwnBuilding(
+  state: GameState | Draft<GameState>,
+  unitId: string,
+  buildingId: string,
+): boolean {
+  const unit = state.units[unitId];
+  if (!unit) return false;
+  if (!unit.tags.includes(UnitTag.BUILDANDCAPTURE)) return false;
+  if (unit.hasMovedThisTurn || unit.hasAttackedThisTurn || unit.hasCapturedThisTurn
+      || unit.hasConstructedThisTurn || unit.hasDestroyedThisTurn) return false;
+  const building = state.buildings[buildingId];
+  if (!building) return false;
+  if (building.faction !== Faction.PLAYER) return false;
+  if (building.type === BuildingType.STRONGHOLD) return false;
+  if (unit.position.x !== building.position.x || unit.position.y !== building.position.y) return false;
+  return true;
+}
+
+/**
+ * Demolishes a player-owned building. Sets hasDestroyedThisTurn so the unit
+ * cannot perform any further actions this turn. Silently returns if
+ * canDestroyOwnBuilding is false.
  */
 export function destroyOwnBuilding(
   state: Draft<GameState>,
   unitId: string,
   buildingId: string,
 ): void {
+  if (!canDestroyOwnBuilding(state, unitId, buildingId)) return;
+
   const unit = state.units[unitId];
-  if (!unit) throw new Error(`Unit ${unitId} not found`);
-
-  // Must have BUILDANDCAPTURE tag
-  if (!unit.tags.includes(UnitTag.BUILDANDCAPTURE)) {
-    throw new Error(`Unit ${unitId} does not have BUILDANDCAPTURE tag`);
-  }
-
   const building = state.buildings[buildingId];
-  if (!building) throw new Error(`Building ${buildingId} not found`);
 
-  // Unit must be on the building's tile
-  if (unit.position.x !== building.position.x || unit.position.y !== building.position.y) {
-    throw new Error(`Unit ${unitId} is not on the same tile as building ${buildingId}`);
-  }
-
-  // If building has a specialist assigned, move to global storage
   if (building.specialistSlot) {
     state.globalSpecialistStorage.push(building.specialistSlot);
-    // Also clear the specialist's assignedBuildingId
     const specialist = state.specialists[building.specialistSlot];
     if (specialist) {
       specialist.assignedBuildingId = null;
@@ -395,21 +405,19 @@ export function destroyOwnBuilding(
   const { x, y } = building.position;
   const buildingType = building.type;
 
-  // Remove building from state
   delete state.buildings[buildingId];
 
-  // Clear grid tile
   const tile = state.grid[y][x];
   tile.buildingId = null;
 
-  // Determine ruin type
   if (buildingType === BuildingType.STRONGHOLD) {
     tile.isStrongholdRuin = true;
   } else {
     tile.isRuin = true;
   }
 
-  // Do NOT consume any unit actions — this is a UI action
+  // Consume unit's turn action
+  unit.hasDestroyedThisTurn = true;
 }
 
 // ============================================================================
@@ -454,10 +462,9 @@ export function enemyConstructBuilding(
     tile.isStrongholdRuin = false;
   }
 
-  // Mark unit as having acted
+  // Mark unit as having constructed
   const unit = state.units[unitId];
-  unit.hasMovedThisTurn = true;
-  unit.hasActedThisTurn = true;
+  unit.hasConstructedThisTurn = true;
 
   // Grant XP to the enemy unit for constructing a building
   grantXp(state, unitId, XP.CONSTRUCT_BUILDING);
