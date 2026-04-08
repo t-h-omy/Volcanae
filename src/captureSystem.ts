@@ -179,9 +179,7 @@ export function initiateCapture(
   const unit = state.units[unitId];
   const building = state.buildings[buildingId];
 
-  // Mark unit as having performed all actions (locked for this turn)
-  unit.hasMovedThisTurn = true;
-  unit.hasActedThisTurn = true;
+  // Mark unit as having captured this turn
   unit.hasCapturedThisTurn = true;
 
   // STRONGHOLD and WATCHTOWER captured by the player: transfer ownership instead of destroying
@@ -327,8 +325,6 @@ export function resolveCaptures(state: Draft<GameState>): void {
       }
 
       capturingUnit.hasCapturedThisTurn = true;
-      capturingUnit.hasMovedThisTurn = true;
-      capturingUnit.hasActedThisTurn = true;
 
       // Consume the capturing unit if the building requires it (e.g. watchtower)
       if (building.consumesUnitOnCapture) {
@@ -390,7 +386,5 @@ export function resolveCaptures(state: Draft<GameState>): void {
 
     // Mark capturing unit actions
     capturingUnit.hasCapturedThisTurn = true;
-    capturingUnit.hasMovedThisTurn = true;
-    capturingUnit.hasActedThisTurn = true;
   }
 }
