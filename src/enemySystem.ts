@@ -1281,9 +1281,10 @@ function scoreActionsForUnit(
   // Steers idle units toward neutral buildings in columns with few allied units,
   // ensuring horizontal map coverage when no immediate threats exist.
   if (!unit.hasMovedThisTurn) {
+    const triggerRangeIds = new Set(buildingsInTriggerRange.map(b => b.id));
     const outOfRangeNeutrals = Object.values(state.buildings).filter(b => {
       if (b.faction !== null) return false;
-      return !buildingsInTriggerRange.some(t => t.id === b.id);
+      return !triggerRangeIds.has(b.id);
     });
 
     if (outOfRangeNeutrals.length > 0) {
