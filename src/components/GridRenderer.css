@@ -194,6 +194,23 @@
   white-space: nowrap;
 }
 
+/* ── Unit XP text (shown under HP) ── */
+
+.unit-xp-text {
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 7px;
+  font-weight: bold;
+  line-height: 1;
+  color: #f5d76e;
+  text-shadow: 0 0 2px #000, 1px 0 0 #000, -1px 0 0 #000, 0 1px 0 #000, 0 -1px 0 #000;
+  pointer-events: none;
+  z-index: 3;
+  white-space: nowrap;
+}
+
 /* ── Building layer ── */
 
 .tile-building {
