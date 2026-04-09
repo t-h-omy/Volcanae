@@ -7,7 +7,7 @@ import type { GameState, Unit, Building, Position } from './types';
 import type { Draft } from 'immer';
 import { produce } from 'immer';
 import { Faction, UnitType, UnitTag, BuildingType, TileType } from './types';
-import { UNITS, ENEMY, MAP, AI_SCORING, AI_RECRUITMENT, ENEMY_UNIT_UNLOCK } from './gameConfig';
+import { UNITS, ENEMY, MAP, AI_SCORING, AI_RECRUITMENT, ENEMY_UNIT_UNLOCK, XP } from './gameConfig';
 import { resolveAttack, calculateCombat, resolveBuildingAttack, buildingToCombatant, calculateCombatFromStats, unitToCombatant, resolveAttackOnBuilding } from './combatSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { initiateCapture, canCapture } from './captureSystem';
@@ -1448,6 +1448,9 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
               attackerAfter &&
               (attackerAfter.position.x !== attackerPos.x || attackerAfter.position.y !== attackerPos.y)
             ) ? { x: attackerAfter.position.x, y: attackerAfter.position.y } : null;
+            // Attacker earns XP for killing the defender; defender earns XP for a counter-kill.
+            const attackerXpGained = !defenderAfter && attackerAfter ? XP.KILL_UNIT : null;
+            const defenderXpGained = !attackerAfter ? XP.KILL_UNIT : null;
             events.push({
               type: 'ENEMY_ATTACK',
               attackerId,
@@ -1457,6 +1460,8 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
               attackerHpLost: attackerAfter ? attackerHpBefore - attackerAfter.stats.currentHp : attackerHpBefore,
               defenderHpLost: defenderAfter ? defenderHpBefore - defenderAfter.stats.currentHp : defenderHpBefore,
               advancedToPosition,
+              attackerXpGained,
+              defenderXpGained,
             });
             if (!defenderAfter) {
               events.push({ type: 'UNIT_DEATH', unitId: defenderId, position: defenderPos, faction: targetUnit.faction });
@@ -1487,6 +1492,8 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
         if (events) {
           const attackerAfter = state.units[attackerId];
           const defenderAfter = state.units[defenderId];
+          const attackerXpGained = !defenderAfter && attackerAfter ? XP.KILL_UNIT : null;
+          const defenderXpGained = !attackerAfter ? XP.KILL_UNIT : null;
           events.push({
             type: 'ENEMY_ATTACK',
             attackerId,
@@ -1496,6 +1503,8 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
             attackerHpLost: attackerAfter ? attackerHpBefore - attackerAfter.stats.currentHp : attackerHpBefore,
             defenderHpLost: defenderAfter ? defenderHpBefore - defenderAfter.stats.currentHp : defenderHpBefore,
             advancedToPosition: null,
+            attackerXpGained,
+            defenderXpGained,
           });
           if (!defenderAfter) {
             events.push({ type: 'UNIT_DEATH', unitId: defenderId, position: defenderPos, faction: targetUnit.faction });
@@ -1531,6 +1540,13 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
             if (events) {
               const attackerAfter = state.units[attackerId];
               const buildingAfter = state.buildings[buildingId];
+              // Detect melee advance: attacker's position changed after the kill.
+              const advancedToPosition = (
+                !buildingAfter &&
+                attackerAfter &&
+                (attackerAfter.position.x !== attackerPos.x || attackerAfter.position.y !== attackerPos.y)
+              ) ? { x: attackerAfter.position.x, y: attackerAfter.position.y } : null;
+              // Enemy attackers don't earn XP for killing player buildings via resolveAttackOnBuilding.
               events.push({
                 type: 'UNIT_ATTACK_BUILDING',
                 attackerId,
@@ -1539,6 +1555,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
                 buildingPosition: buildingPos,
                 attackerHpLost: attackerAfter ? attackerHpBefore - attackerAfter.stats.currentHp : attackerHpBefore,
                 buildingHpLost: buildingAfter ? buildingHpBefore - buildingAfter.hp : buildingHpBefore,
+                advancedToPosition,
               });
               if (!attackerAfter) {
                 events.push({ type: 'UNIT_DEATH', unitId: attackerId, position: attackerPos, faction: currentUnit.faction });
@@ -1559,7 +1576,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
           // Save building info before capture (initiateCapture now destroys the building)
           const capturedPosition = building ? { x: building.position.x, y: building.position.y } : null;
           const capturedType = building?.type;
-          initiateCapture(state, currentUnit.id, action.targetBuildingId);
+          initiateCapture(state, currentUnit.id, action.targetBuildingId, suppressFloaters);
           if (events && capturedPosition && capturedType) {
             events.push({
               type: 'BUILDING_CAPTURE',
@@ -1567,6 +1584,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
               position: capturedPosition,
               newFaction: currentUnit.faction,
               buildingType: capturedType,
+              xpGained: XP.CAPTURE_BUILDING,
             });
           }
         }
@@ -1632,7 +1650,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
       if (action.targetPosition) {
         const isOnTile = currentUnit.position.x === action.targetPosition.x && currentUnit.position.y === action.targetPosition.y;
         if (isOnTile) {
-          enemyConstructBuilding(state, currentUnit.id, action.targetPosition, BuildingType.LAVALAIR);
+          enemyConstructBuilding(state, currentUnit.id, action.targetPosition, BuildingType.LAVALAIR, suppressFloaters);
         } else if (!currentUnit.hasMovedThisTurn) {
           moveEnemyUnitToward(state, currentUnit.id, action.targetPosition, events);
         }
@@ -1644,7 +1662,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
       if (action.targetPosition) {
         const isOnTile = currentUnit.position.x === action.targetPosition.x && currentUnit.position.y === action.targetPosition.y;
         if (isOnTile) {
-          enemyConstructBuilding(state, currentUnit.id, action.targetPosition, BuildingType.INFERNALSANCTUM);
+          enemyConstructBuilding(state, currentUnit.id, action.targetPosition, BuildingType.INFERNALSANCTUM, suppressFloaters);
         } else if (!currentUnit.hasMovedThisTurn) {
           moveEnemyUnitToward(state, currentUnit.id, action.targetPosition, events);
         }
@@ -1790,6 +1808,9 @@ function executeBuildingAttacks(state: Draft<GameState>, events?: GameEvent[]): 
         defenderPosition: defenderPos,
         buildingHpLost: buildingAfter ? buildingHpBefore - buildingAfter.hp : buildingHpBefore,
         defenderHpLost: defenderAfter ? defenderHpBefore - defenderAfter.stats.currentHp : defenderHpBefore,
+        // Defender is a player unit defending against an enemy building attack —
+        // player units do not earn XP for counter-killing buildings.
+        defenderXpGained: null,
       });
 
       if (!defenderAfter) {

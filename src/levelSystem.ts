@@ -120,11 +120,17 @@ export function grantXp(
   state: Draft<GameState>,
   unitId: string,
   amount: number,
+  suppressEffects?: boolean,
 ): void {
   const unit = state.units[unitId];
   if (!unit) return;
 
   unit.xp += amount;
+
+  // When effects are suppressed (e.g. during enemy-turn computation), skip all
+  // visual side-effects. The caller is responsible for showing the XP floater
+  // at the correct point in the animation sequence via the event payload.
+  if (suppressEffects) return;
 
   const targetLevel = computeLevelFromXp(unit.type, unit.xp);
   const isLevelUp = targetLevel > unit.level;
