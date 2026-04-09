@@ -401,6 +401,13 @@ export const AI_SCORING = {
   // ── Construction AI ───────────────────────────────────────────────────────
 
   /** Base score for a BUILD_AND_CAPTURE unit choosing to build a LAVA_LAIR on a ruin tile */
+  /** Base score for moving toward a neutral building outside trigger range, in an underrepresented column */
+  BASE_SPREAD_TO_FLANK: 32,
+  /** Score penalty per enemy unit already occupying the same X column as the target building */
+  SPREAD_COLUMN_COVERAGE_PENALTY: 10,
+  /** Distance penalty per tile for SPREAD_TO_FLANK (lighter than DISTANCE_PENALTY_PER_TILE to reward lateral travel) */
+  SPREAD_DISTANCE_PENALTY: 3,
+
   BASE_BUILD_LAVA_LAIR: 65,
   /** Base score for a unit with the CORRUPT tag choosing to corrupt a FOREST or MOUNTAIN tile */
   BASE_CORRUPT_TERRAIN: 65,
