@@ -53,6 +53,7 @@ type EnemyActionType =
   | 'PROTECT_SPAWNER'
   | 'PUSH_TO_STRONGHOLD'
   | 'PUSH_TO_ZONE_EDGE'
+  | 'SPREAD_TO_FLANK'
   | 'MOVE_TO_PLAYER_BUILDING'
   | 'MOVE_TO_NEUTRAL_BUILDING'
   | 'MOVE_TO_UNIT'
@@ -1276,6 +1277,47 @@ function scoreActionsForUnit(
     }
   }
 
+  // ── SPREAD_TO_FLANK ──
+  // Steers idle units toward neutral buildings in columns with few allied units,
+  // ensuring horizontal map coverage when no immediate threats exist.
+  if (!unit.hasMovedThisTurn) {
+    const triggerRangeIds = new Set(buildingsInTriggerRange.map(b => b.id));
+    const outOfRangeNeutrals = Object.values(state.buildings).filter(b => {
+      if (b.faction !== null) return false;
+      return !triggerRangeIds.has(b.id);
+    });
+
+    if (outOfRangeNeutrals.length > 0) {
+      let bestBuilding: Building | null = null;
+      let bestScore = -Infinity;
+
+      for (const building of outOfRangeNeutrals) {
+        const distance = manhattanDistance(unit.position, building.position);
+        const alliesInColumn = Object.values(state.units).filter(
+          u => u.faction === Faction.ENEMY && u.id !== unit.id && u.position.x === building.position.x,
+        ).length;
+        const score =
+          AI_SCORING.BASE_SPREAD_TO_FLANK
+          - distance * AI_SCORING.SPREAD_DISTANCE_PENALTY
+          - alliesInColumn * AI_SCORING.SPREAD_COLUMN_COVERAGE_PENALTY
+          - saturationPenalty(building.id, targetingIntents);
+        if (score > bestScore) {
+          bestScore = score;
+          bestBuilding = building;
+        }
+      }
+
+      if (bestBuilding && bestScore > 0) {
+        candidates.push({
+          type: 'SPREAD_TO_FLANK',
+          score: bestScore,
+          targetBuildingId: bestBuilding.id,
+          targetPosition: bestBuilding.position,
+        });
+      }
+    }
+  }
+
   // ── FLANK_UNIT ──
   if (!unit.hasMovedThisTurn) {
     for (const target of playerUnitsInTriggerRange) {
@@ -1598,7 +1640,8 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
     case 'PROTECT_SPAWNER':
     case 'PUSH_TO_STRONGHOLD':
     case 'MOVE_TO_PLAYER_BUILDING':
-    case 'MOVE_TO_NEUTRAL_BUILDING': {
+    case 'MOVE_TO_NEUTRAL_BUILDING':
+    case 'SPREAD_TO_FLANK': {
       if (action.targetPosition) {
         moveEnemyUnitToward(state, currentUnit.id, action.targetPosition, events);
       }
