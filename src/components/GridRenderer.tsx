@@ -11,7 +11,7 @@ import { useCombatAnimationStore } from '../combatAnimationStore';
 import type { Projectile } from '../combatAnimationStore';
 import { canCapture } from '../captureSystem';
 import { getConstructionOptionsForTile } from '../constructionSystem';
-import { MAP } from '../gameConfig';
+import { MAP, UNIT_LEVEL_UP, XP } from '../gameConfig';
 import { ANIMATION } from '../animationConfig';
 import { UI } from '../uiConfig';
 import { RENDER } from '../renderConfig';
@@ -30,7 +30,7 @@ import {
   type Building,
 } from '../types';
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
-import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, canUnitConstruct, hasUnitActed } from '../unitActions';
+import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, canUnitConstruct, canUnitCapture, hasUnitActed } from '../unitActions';
 import './GridRenderer.css';
 
 // ============================================================================
@@ -896,6 +896,9 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
         <div className="hp-bar-fill" style={{ width: `${hpPct}%` }} />
       </div>
       <span className="unit-hp-text">{unit.stats.currentHp}</span>
+      {UNIT_LEVEL_UP[unit.type] && unit.level < XP.MAX_LEVEL && (
+        <span className="unit-xp-text">{unit.xp} xp</span>
+      )}
       {showUnitImg ? (
         <img
           src={unitSpritePath}
@@ -947,7 +950,7 @@ function CaptureIndicatorLayer({ tileSize }: { tileSize: number }) {
           building.position.y === unit.position.y &&
           building.faction !== Faction.PLAYER
         ) {
-          if (canCapture(state, unit.id, building.id)) {
+          if (canUnitCapture(unit) && canCapture(state, unit.id, building.id)) {
             result.push({ key: building.id, x: unit.position.x, y: unit.position.y });
           }
         }

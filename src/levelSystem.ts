@@ -125,6 +125,9 @@ export function grantXp(
   const unit = state.units[unitId];
   if (!unit) return;
 
+  // Do not grant XP when the unit already qualifies for MAX_LEVEL
+  if (computeLevelFromXp(unit.type, unit.xp) >= XP.MAX_LEVEL) return;
+
   unit.xp += amount;
 
   // When effects are suppressed (e.g. during enemy-turn computation), skip all
