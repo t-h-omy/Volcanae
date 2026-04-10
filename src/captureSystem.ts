@@ -6,9 +6,10 @@
 import type { GameState, Position } from './types';
 import type { Draft } from 'immer';
 import { BuildingType, UnitTag, Faction, DestroyBehavior } from './types';
-import { MAP, XP } from './gameConfig';
+import { MAP, XP, TECH } from './gameConfig';
 import { increaseThreatOnStrongholdCapture } from './enemySystem';
 import { grantXp } from './levelSystem';
+import { grantTechPick } from './techSystem';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -203,6 +204,7 @@ export function initiateCapture(
     if (building.type === BuildingType.STRONGHOLD) {
       updateZonesUnlocked(state);
       increaseThreatOnStrongholdCapture(state);
+      grantTechPick(state, TECH.PICKS_ON_ZONE_STRONGHOLD);
     }
 
     // Grant XP to player unit for capturing the building (if it still exists)
@@ -326,6 +328,7 @@ export function resolveCaptures(state: Draft<GameState>): void {
       if (building.type === BuildingType.STRONGHOLD) {
         updateZonesUnlocked(state);
         increaseThreatOnStrongholdCapture(state);
+        grantTechPick(state, TECH.PICKS_ON_ZONE_STRONGHOLD);
       }
 
       capturingUnit.hasCapturedThisTurn = true;

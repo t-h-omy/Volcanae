@@ -34,11 +34,12 @@ import { checkGameConditions } from './gameConditions';
 import { useFloaterStore } from './floaterStore';
 import { useAnimationStore } from './animationStore';
 import { Faction, GamePhase, BuildingType } from './types';
-import type { GameState, UnitType, Position } from './types';
+import type { GameState, UnitType, Position, TechId } from './types';
 import type { GameEvent } from './gameEvents';
 import { MAP, LAVA, POPULATION, BUILDINGS, ENEMY, XP } from './gameConfig';
 import { saveGameState, loadGameState, clearSavedGame, hasSavedGame } from './saveSystem';
 import { computeLevelFromXp, applyLevelUps } from './levelSystem';
+import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLogic } from './techSystem';
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
@@ -107,6 +108,10 @@ interface GameActions {
   debugAddRuin: () => void;
   /** Level up a player unit if they have enough XP */
   levelUpUnit: (unitId: string) => void;
+  /** Unlock a tech node and spend one pending pick */
+  unlockTech: (techId: TechId) => void;
+  /** Return the list of tech IDs available for the player to pick */
+  getAvailableTechs: () => TechId[];
 }
 
 // ============================================================================
@@ -1165,6 +1170,16 @@ export const useGameStore = create<GameStore>()(
         if (targetLevel <= unit.level) return;
         applyLevelUps(state, unitId, targetLevel);
       });
+    },
+
+    unlockTech: (techId: TechId) => {
+      set((state) => {
+        unlockTechLogic(state, techId);
+      });
+    },
+
+    getAvailableTechs: (): TechId[] => {
+      return getAvailableTechsLogic(useGameStore.getState());
     },
   }))
 );

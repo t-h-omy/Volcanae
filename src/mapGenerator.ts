@@ -3,7 +3,7 @@
  * Generates the initial GameState grid with buildings, units, and zones.
  */
 
-import { MAP, LAVA, UNITS, BUILDINGS, TERRAIN, POPULATION, RESOURCES, TECH_TREE } from './gameConfig';
+import { MAP, LAVA, UNITS, BUILDINGS, TERRAIN, POPULATION, RESOURCES, TECH_TREE, TECH } from './gameConfig';
 import {
   Faction,
   UnitType,
@@ -623,6 +623,9 @@ export function generateInitialGameState(): GameState {
       return acc;
     }, {}),
     techFlags: [],
+    pendingTechPicks: TECH.PICKS_ON_GAME_START,
+    unlockedBuildings: [],
+    unlockedUnits: [],
   };
 
   return gameState;

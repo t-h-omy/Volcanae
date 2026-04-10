@@ -312,4 +312,7 @@ export interface GameState {
   zonesUnlocked: number[];
   techNodes: Record<TechId, TechNodeState>;
   techFlags: string[];
+  pendingTechPicks: number;
+  unlockedBuildings: BuildingType[];
+  unlockedUnits: UnitType[];
 }

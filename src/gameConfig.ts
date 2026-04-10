@@ -725,6 +725,19 @@ export const UNIT_LEVEL_UP: Record<string, UnitLevelDefinition[]> = {
 };
 
 // ============================================================================
+// TECH CONFIGURATION
+// ============================================================================
+
+export const TECH = {
+  /** Number of picks granted at game start (before first lava consumption) */
+  PICKS_ON_GAME_START: 1,
+  /** Number of picks granted each time a player building is consumed by lava */
+  PICKS_ON_LAVA_CONSUMPTION: 1,
+  /** Number of picks granted each time the player captures a new zone stronghold */
+  PICKS_ON_ZONE_STRONGHOLD: 0,
+} as const;
+
+// ============================================================================
 // TECH TREE CONFIGURATION
 // ============================================================================
 
@@ -761,6 +774,7 @@ export const GAME_CONFIG = {
   XP,
   LEVEL_UP_VALUES,
   UNIT_LEVEL_UP,
+  TECH,
   TECH_TREE,
 } as const;
 

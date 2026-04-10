@@ -21,8 +21,9 @@ import type { GameState } from './types';
 import type { Draft } from 'immer';
 import { produce } from 'immer';
 import { Faction } from './types';
-import { MAP, LAVA } from './gameConfig';
+import { MAP, LAVA, TECH } from './gameConfig';
 import type { GameEvent } from './gameEvents';
+import { grantTechPick } from './techSystem';
 
 // ============================================================================
 // LAVA STATE QUERIES
@@ -130,6 +131,11 @@ export function advanceLava(state: Draft<GameState>): void {
       const building = state.buildings[buildingId];
 
       if (building) {
+        // Grant tech pick when player building is consumed by lava
+        if (building.faction === Faction.PLAYER) {
+          grantTechPick(state, TECH.PICKS_ON_LAVA_CONSUMPTION);
+        }
+
         // Handle specialist storage
         if (building.specialistSlot !== null) {
           const specialistId = building.specialistSlot;
