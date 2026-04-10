@@ -112,7 +112,9 @@ function applyTechEffect(state: Draft<GameState>, effect: TechEffect): void {
         }
       }
       break;
-    // BUILDING_PRODUCTION_MOD is applied at point-of-use in collectResources
+    case 'BUILDING_PRODUCTION_MOD':
+      // Applied at point-of-use in collectResources() — no immediate state mutation
+      break;
     default:
       break;
   }

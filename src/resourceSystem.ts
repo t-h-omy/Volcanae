@@ -5,7 +5,7 @@
 
 import type { GameState, Building, Position, Tile, UnitPopulationCost } from './types';
 import type { Draft } from 'immer';
-import { Faction, BuildingType, UnitType, ResourceType } from './types';
+import { Faction, BuildingType, UnitType, ResourceType, type UnitTag } from './types';
 import { RESOURCES, UNITS, UNIT_COSTS, POPULATION, UNIT_POPULATION_COSTS } from './gameConfig';
 import type { UnitCost } from './gameConfig';
 import { getGrantedTags, getStatMods, getBuildingProductionMods } from './techSystem';
@@ -343,7 +343,7 @@ export function recruitUnit(
 
   // Spawn the unit immediately, but flag it as having used all actions this turn
   const unitId = generateUnitId();
-  const baseTags: import('./types').UnitTag[] = [...UNITS[unitType].tags];
+  const baseTags: UnitTag[] = [...UNITS[unitType].tags];
   // Add any tags granted by unlocked techs
   for (const tag of getGrantedTags(state, unitType)) {
     if (!baseTags.includes(tag)) baseTags.push(tag);
