@@ -4,7 +4,7 @@
  * and game-over/victory overlay screens.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useGameStore } from '../gameStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
@@ -290,7 +290,15 @@ function GameMenu() {
 // TOP BAR
 // ============================================================================
 
-function TopBar() {
+function TopBar({
+  onOpenTechTree,
+  showTechButton,
+  pendingTechPicks,
+}: {
+  onOpenTechTree: () => void;
+  showTechButton: boolean;
+  pendingTechPicks: number;
+}) {
   const turn = useGameStore((s) => s.turn);
   const resources = useGameStore((s) => s.resources);
   const threatLevel = useGameStore((s) => s.threatLevel);
@@ -311,6 +319,14 @@ function TopBar() {
       <span className="hud-stat">🎖️ {noblesUsed}/{resources.nobles}</span>
       <span className="hud-stat">⚠️ Threat {threatLevel}</span>
       <span className="hud-stat">🌋 Lava in {turnsUntilLavaAdvance}</span>
+      {showTechButton && (
+        <button className="hud-tech-tree-btn" onClick={onOpenTechTree}>
+          🔬
+          {pendingTechPicks > 0 && (
+            <span className="hud-tech-tree-badge">{pendingTechPicks}</span>
+          )}
+        </button>
+      )}
       <GameMenu />
     </div>
   );
@@ -1212,66 +1228,210 @@ function TurnAnnouncementPopup({ turn }: { turn: number }) {
 }
 
 // ============================================================================
-// TECH PICK MODAL
+// TECH TREE NODE POSITION MAP
 // ============================================================================
 
-function TechPickModal() {
-  const pendingTechPicks = useGameStore((s) => s.pendingTechPicks);
+const STRIDE_X = 160;
+const STRIDE_Y = 140;
+const NODE_W = 120;
+const NODE_H = 52;
+
+/** Grid position for each tech node (col, row) */
+const TECH_NODE_POS: Record<string, { col: number; row: number }> = {
+  CONSCRIPTION:  { col: 1.5, row: 0 },
+  A_NOBLE_STEAD: { col: 0,   row: 1 },
+  FAR_REACH:     { col: 1,   row: 1 },
+  FIELD_DUTIES:  { col: 2,   row: 1 },
+  BIG_EYES:      { col: 3,   row: 1 },
+  DEEP_VEINS:    { col: 0,   row: 2 },
+  CLEAN_CUTS:    { col: 1,   row: 2 },
+  HOLD_GROUND:   { col: 2,   row: 2 },
+  ASSASSIN:      { col: 3,   row: 2 },
+  TO_THE_FRONT:  { col: 1,   row: 3 },
+  FIELDWORK:     { col: 2,   row: 3 },
+  PATCH_UP:      { col: 3,   row: 3 },
+};
+
+function nodeCentre(id: string): { x: number; y: number } {
+  const pos = TECH_NODE_POS[id];
+  if (!pos) return { x: 0, y: 0 };
+  return { x: pos.col * STRIDE_X + NODE_W / 2, y: pos.row * STRIDE_Y + NODE_H / 2 };
+}
+
+// ============================================================================
+// TECH TREE OVERLAY
+// ============================================================================
+
+function TechTreeOverlay({ onClose }: { onClose: () => void }) {
   const techNodes = useGameStore((s) => s.techNodes);
+  const pendingTechPicks = useGameStore((s) => s.pendingTechPicks);
   const unlockTech = useGameStore((s) => s.unlockTech);
   const getAvailableTechs = useGameStore((s) => s.getAvailableTechs);
 
+  const [selectedId, setSelectedId] = useState<TechId | null>(null);
+
   const availableIds: TechId[] = useMemo(() => {
-    // Re-derive when techNodes or pendingTechPicks change
     void techNodes;
     void pendingTechPicks;
     return getAvailableTechs();
   }, [techNodes, pendingTechPicks, getAvailableTechs]);
 
-  const availableNodes = useMemo(
-    () => TECH_TREE.filter((def) => availableIds.includes(def.id)),
-    [availableIds],
+  const availableSet = useMemo(() => new Set(availableIds), [availableIds]);
+
+  const selectedDef = useMemo(
+    () => (selectedId ? TECH_TREE.find((d) => d.id === selectedId) ?? null : null),
+    [selectedId],
   );
 
-  if (pendingTechPicks <= 0) return null;
+  const selectedState: 'unlocked' | 'available' | 'locked' = useMemo(() => {
+    if (!selectedId) return 'locked';
+    if (techNodes[selectedId]?.unlocked) return 'unlocked';
+    if (availableSet.has(selectedId)) return 'available';
+    return 'locked';
+  }, [selectedId, techNodes, availableSet]);
+
+  // Unmet prerequisites for the selected node
+  const unmetPrereqs = useMemo(() => {
+    if (!selectedDef) return [];
+    return selectedDef.requires
+      .filter((reqId) => !techNodes[reqId]?.unlocked)
+      .map((reqId) => {
+        const def = TECH_TREE.find((d) => d.id === reqId);
+        return def?.name ?? reqId;
+      });
+  }, [selectedDef, techNodes]);
+
+  const handleResearch = useCallback(() => {
+    if (selectedId && pendingTechPicks > 0 && availableSet.has(selectedId)) {
+      unlockTech(selectedId);
+    }
+  }, [selectedId, pendingTechPicks, availableSet, unlockTech]);
+
+  // Close on Escape
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  // Canvas dimensions
+  const canvasW = 3 * STRIDE_X + NODE_W + 40;
+  const canvasH = 3 * STRIDE_Y + NODE_H + 40;
 
   return (
-    <div className="hud-modal-backdrop">
-      <div className="hud-modal hud-tech-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="hud-modal-header">
-          <span>🔬 Choose a Technology</span>
+    <div className="tech-overlay">
+      {/* Header */}
+      <div className="tech-overlay-header">
+        <span>🔬 Tech Tree</span>
+        {pendingTechPicks > 0 && (
+          <span className="tech-overlay-picks">{pendingTechPicks} pick{pendingTechPicks > 1 ? 's' : ''} available</span>
+        )}
+        <button className="tech-overlay-close" onClick={onClose}>✕</button>
+      </div>
+
+      {/* Canvas area */}
+      <div className="tech-canvas-scroll" onClick={() => setSelectedId(null)}>
+        <div className="tech-canvas" style={{ width: canvasW, height: canvasH }}>
+          {/* Edges (SVG behind nodes) */}
+          <svg className="tech-edges" width={canvasW} height={canvasH}>
+            {TECH_TREE.flatMap((def) =>
+              def.requires.map((reqId) => {
+                const from = nodeCentre(reqId);
+                const to = nodeCentre(def.id);
+                return (
+                  <line
+                    key={`${reqId}-${def.id}`}
+                    x1={from.x} y1={from.y}
+                    x2={to.x}   y2={to.y}
+                    className="tech-edge"
+                  />
+                );
+              })
+            )}
+          </svg>
+
+          {/* Nodes */}
+          {TECH_TREE.map((def) => {
+            const pos = TECH_NODE_POS[def.id];
+            if (!pos) return null;
+            const isUnlocked = techNodes[def.id]?.unlocked ?? false;
+            const isAvailable = availableSet.has(def.id);
+            const stateClass = isUnlocked
+              ? 'tech-node--unlocked'
+              : isAvailable
+                ? 'tech-node--available'
+                : 'tech-node--locked';
+
+            return (
+              <div
+                key={def.id}
+                className={`tech-node ${stateClass} ${selectedId === def.id ? 'tech-node--selected' : ''}`}
+                style={{
+                  left: pos.col * STRIDE_X,
+                  top: pos.row * STRIDE_Y,
+                  width: NODE_W,
+                  height: NODE_H,
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSelectedId(def.id);
+                }}
+              >
+                <span className="tech-node-name">{def.name}</span>
+                {isAvailable && <span className="tech-node-cost">🔬 1</span>}
+              </div>
+            );
+          })}
         </div>
-        <p className="hud-tech-subtitle">
-          {pendingTechPicks} pick{pendingTechPicks > 1 ? 's' : ''} remaining
-        </p>
-        {availableNodes.length === 0 ? (
-          <p className="hud-dim" style={{ padding: '12px' }}>
-            No technologies available to research.
-          </p>
-        ) : (
-          <ul className="hud-modal-list">
-            {availableNodes.map((def) => (
-              <li key={def.id} className="hud-modal-item">
-                <div className="hud-modal-item-info">
-                  <span className="hud-modal-item-name">{def.name}</span>
-                  <span className="hud-modal-item-desc">{def.description}</span>
-                  <span className="hud-modal-item-effects">
-                    {def.effects.map((e, i) => (
-                      <span key={i} className="hud-tech-effect-line">
-                        {renderEffect(e)}
-                      </span>
-                    ))}
-                  </span>
-                </div>
+      </div>
+
+      {/* Detail sheet */}
+      <div className={`tech-detail-sheet ${selectedDef ? 'tech-detail-sheet--open' : ''}`}>
+        {selectedDef && (
+          <>
+            <div className="tech-detail-title">
+              {selectedDef.name}
+              {selectedState === 'unlocked' && <span className="tech-detail-label"> (completed)</span>}
+              {selectedState === 'locked' && <span className="tech-detail-label"> (locked)</span>}
+            </div>
+
+            {selectedState === 'unlocked' && (
+              <p className="tech-detail-text">You have already researched this technology.</p>
+            )}
+            {selectedState === 'locked' && unmetPrereqs.length > 0 && (
+              <p className="tech-detail-text">Requires: {unmetPrereqs.join(', ')}</p>
+            )}
+            {selectedState !== 'unlocked' && (
+              <p className="tech-detail-text">This tech will enable the following:</p>
+            )}
+
+            <div className="tech-detail-effects">
+              {selectedDef.effects.map((e, i) => (
+                <span key={i} className="tech-detail-effect-chip">{renderEffect(e)}</span>
+              ))}
+            </div>
+
+            <div className="tech-detail-actions">
+              {selectedState === 'available' && (
                 <button
-                  className="hud-modal-assign-btn"
-                  onClick={() => unlockTech(def.id)}
+                  className={`tech-detail-btn tech-detail-btn--primary ${pendingTechPicks <= 0 ? 'tech-detail-btn--disabled' : ''}`}
+                  onClick={handleResearch}
+                  disabled={pendingTechPicks <= 0}
+                  title={pendingTechPicks <= 0 ? 'No picks available' : undefined}
                 >
-                  Unlock
+                  {pendingTechPicks > 0 ? 'RESEARCH' : 'RESEARCH (No picks)'}
                 </button>
-              </li>
-            ))}
-          </ul>
+              )}
+              <button
+                className="tech-detail-btn tech-detail-btn--secondary"
+                onClick={() => setSelectedId(null)}
+              >
+                BACK
+              </button>
+            </div>
+          </>
         )}
       </div>
     </div>
@@ -1279,76 +1439,30 @@ function TechPickModal() {
 }
 
 // ============================================================================
-// TECH PENDING BADGE
+// TECH PICK TOAST
 // ============================================================================
 
-function TechPendingBadge() {
+function TechPickToast() {
   const pendingTechPicks = useGameStore((s) => s.pendingTechPicks);
+  const prevPicksRef = useRef(pendingTechPicks);
+  const toastRef = useRef<HTMLDivElement>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  if (pendingTechPicks <= 0) return null;
+  useEffect(() => {
+    if (pendingTechPicks > prevPicksRef.current) {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      const el = toastRef.current;
+      if (el) el.style.display = 'block';
+      timerRef.current = setTimeout(() => {
+        if (el) el.style.display = 'none';
+      }, 3000);
+    }
+    prevPicksRef.current = pendingTechPicks;
+  }, [pendingTechPicks]);
 
   return (
-    <div className="tech-pending-badge">
-      🔬 Research available{pendingTechPicks > 1 ? ` (${pendingTechPicks})` : ''}
-    </div>
-  );
-}
-
-// ============================================================================
-// TECH TREE OVERVIEW PANEL
-// ============================================================================
-
-function TechTreeOverview({ onClose }: { onClose: () => void }) {
-  const techNodes = useGameStore((s) => s.techNodes);
-
-  return (
-    <div className="hud-modal-backdrop" onClick={onClose}>
-      <div className="hud-modal hud-tech-overview-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="hud-modal-header">
-          <span>🔬 Tech Tree</span>
-          <button className="hud-modal-close" onClick={onClose}>✕</button>
-        </div>
-        {TECH_TREE.length === 0 ? (
-          <p className="hud-dim" style={{ padding: '12px' }}>
-            No technologies have been discovered yet.
-          </p>
-        ) : (
-          <ul className="hud-modal-list">
-            {TECH_TREE.map((def) => {
-              const nodeState = techNodes[def.id];
-              const isUnlocked = nodeState?.unlocked ?? false;
-              const prereqsMet = def.requires.every(
-                (reqId) => techNodes[reqId]?.unlocked === true,
-              );
-              return (
-                <li
-                  key={def.id}
-                  className={`hud-modal-item hud-tech-node ${isUnlocked ? 'hud-tech-unlocked' : prereqsMet ? 'hud-tech-available' : 'hud-tech-locked'}`}
-                >
-                  <div className="hud-modal-item-info">
-                    <span className="hud-modal-item-name">
-                      {isUnlocked ? '✅' : prereqsMet ? '🔓' : '🔒'} {def.name}
-                    </span>
-                    <span className="hud-modal-item-desc">{def.description}</span>
-                    <span className="hud-modal-item-effects">
-                      {def.effects.map((e, i) => (
-                        <span key={i} className="hud-tech-effect-line">
-                          {renderEffect(e)}
-                        </span>
-                      ))}
-                    </span>
-                    {def.requires.length > 0 && (
-                      <span className="hud-tech-requires">
-                        Requires: {def.requires.join(', ')}
-                      </span>
-                    )}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
+    <div ref={toastRef} className="tech-toast" style={{ display: 'none' }}>
+      🔬 New tech pick available!
     </div>
   );
 }
@@ -1362,19 +1476,29 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
   const turn = useGameStore((s) => s.turn);
   const pendingTechPicks = useGameStore((s) => s.pendingTechPicks);
   const [hasSeenIntro, setHasSeenIntro] = useState(false);
-  const [showTechOverview, setShowTechOverview] = useState(false);
+  const [showTechTree, setShowTechTree] = useState(false);
 
-  // The pick modal blocks play whenever picks are available AND intro has been seen
-  const showTechPicker = hasSeenIntro && pendingTechPicks > 0;
+  const handleIntroDismiss = useCallback(() => {
+    setHasSeenIntro(true);
+    // Auto-open tech tree on game start when picks are available
+    if (useGameStore.getState().pendingTechPicks > 0) {
+      setShowTechTree(true);
+    }
+  }, []);
+
+  const isPlayerTurn = phase === GamePhase.PLAYER_TURN;
 
   return (
     <>
-      {!hasSeenIntro && <GameIntroPopup onDismiss={() => setHasSeenIntro(true)} />}
-      <TopBar />
+      {!hasSeenIntro && <GameIntroPopup onDismiss={handleIntroDismiss} />}
+      <TopBar
+        onOpenTechTree={() => setShowTechTree(true)}
+        showTechButton={isPlayerTurn}
+        pendingTechPicks={pendingTechPicks}
+      />
       <BottomBar />
-      <TechPendingBadge />
-      {showTechPicker && <TechPickModal />}
-      {showTechOverview && <TechTreeOverview onClose={() => setShowTechOverview(false)} />}
+      <TechPickToast />
+      {showTechTree && <TechTreeOverlay onClose={() => setShowTechTree(false)} />}
       {phase === GamePhase.GAME_OVER && <GameOverOverlay />}
       {phase === GamePhase.VICTORY && <VictoryOverlay />}
       {showTurnPopup && <TurnAnnouncementPopup turn={turn} />}
