@@ -1271,9 +1271,9 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
   const [selectedId, setSelectedId] = useState<TechId | null>(null);
 
   const availableIds: TechId[] = useMemo(() => {
-    void techNodes;
-    void pendingTechPicks;
+    // Depend on techNodes + pendingTechPicks to re-derive when state changes
     return getAvailableTechs();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [techNodes, pendingTechPicks, getAvailableTechs]);
 
   const availableSet = useMemo(() => new Set(availableIds), [availableIds]);
