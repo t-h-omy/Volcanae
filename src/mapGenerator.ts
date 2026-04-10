@@ -3,7 +3,7 @@
  * Generates the initial GameState grid with buildings, units, and zones.
  */
 
-import { MAP, LAVA, UNITS, BUILDINGS, TERRAIN, POPULATION, RESOURCES } from './gameConfig';
+import { MAP, LAVA, UNITS, BUILDINGS, TERRAIN, POPULATION, RESOURCES, TECH_TREE } from './gameConfig';
 import {
   Faction,
   UnitType,
@@ -18,6 +18,7 @@ import type {
   Building,
   Tile,
   GameState,
+  TechNodeState,
 } from './types';
 import { createInitialSpecialists } from './specialistSystem';
 import {
@@ -617,6 +618,11 @@ export function generateInitialGameState(): GameState {
     selectedTilePos: null,
     threatLevel: 0,
     zonesUnlocked: [1, 2],
+    techNodes: TECH_TREE.reduce<Record<string, TechNodeState>>((acc, def) => {
+      acc[def.id] = { id: def.id, unlocked: false };
+      return acc;
+    }, {}),
+    techFlags: [],
   };
 
   return gameState;

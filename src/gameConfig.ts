@@ -7,7 +7,7 @@
  */
 
 import { UnitTag, DestroyBehavior } from './types';
-import type { UnitPopulationCost, UnitLevelDefinition } from './types';
+import type { UnitPopulationCost, UnitLevelDefinition, TechNodeDefinition } from './types';
 
 // ============================================================================
 // MAP CONFIGURATION
@@ -725,6 +725,17 @@ export const UNIT_LEVEL_UP: Record<string, UnitLevelDefinition[]> = {
 };
 
 // ============================================================================
+// TECH TREE CONFIGURATION
+// ============================================================================
+
+/**
+ * Tech tree node definitions.
+ * Add a new tech node by adding one entry to this array — no logic files
+ * touched, no switch statements updated, no hardcoded references.
+ */
+export const TECH_TREE: TechNodeDefinition[] = [];
+
+// ============================================================================
 // CONVENIENCE EXPORTS
 // ============================================================================
 
@@ -750,6 +761,7 @@ export const GAME_CONFIG = {
   XP,
   LEVEL_UP_VALUES,
   UNIT_LEVEL_UP,
+  TECH_TREE,
 } as const;
 
 export default GAME_CONFIG;

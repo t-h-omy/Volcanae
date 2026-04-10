@@ -88,6 +88,20 @@ export const DestroyBehavior = {
 } as const;
 export type DestroyBehavior = (typeof DestroyBehavior)[keyof typeof DestroyBehavior];
 
+/** Tech node identifier — deliberately open so nodes are defined in config, not hardcoded */
+export type TechId = string;
+
+/** Discriminator for tech-tree effect payloads */
+export const TechEffectType = {
+  UNLOCK_BUILDING:          'UNLOCK_BUILDING',
+  UNLOCK_UNIT:              'UNLOCK_UNIT',
+  GRANT_UNIT_TAG:           'GRANT_UNIT_TAG',
+  UNIT_STAT_MOD:            'UNIT_STAT_MOD',
+  BUILDING_PRODUCTION_MOD:  'BUILDING_PRODUCTION_MOD',
+  FLAG:                     'FLAG',
+} as const;
+export type TechEffectType = (typeof TechEffectType)[keyof typeof TechEffectType];
+
 /** Tags that can be applied to units */
 export const UnitTag = {
   /** Unit has ranged attack capability */
@@ -106,6 +120,34 @@ export const UnitTag = {
   EXPLOSIVE: 'EXPLOSIVE',
 } as const;
 export type UnitTag = (typeof UnitTag)[keyof typeof UnitTag];
+
+// ============================================================================
+// TECH TREE TYPES
+// ============================================================================
+
+/** A single effect granted when a tech node is unlocked */
+export type TechEffect =
+  | { type: 'UNLOCK_BUILDING';         buildingType: BuildingType }
+  | { type: 'UNLOCK_UNIT';             unitType: UnitType }
+  | { type: 'GRANT_UNIT_TAG';          unitType: UnitType; tag: UnitTag }
+  | { type: 'UNIT_STAT_MOD';           unitType: UnitType; stat: keyof UnitStats; mode: 'add' | 'percent'; value: number }
+  | { type: 'BUILDING_PRODUCTION_MOD'; buildingType: BuildingType; resource: ResourceType; chancePercent: number; amount: number }
+  | { type: 'FLAG';                    flag: string };
+
+/** Static definition of a tech-tree node (lives in gameConfig) */
+export interface TechNodeDefinition {
+  id: TechId;
+  name: string;
+  description: string;
+  requires: TechId[];
+  effects: TechEffect[];
+}
+
+/** Runtime state for a single tech node */
+export interface TechNodeState {
+  id: TechId;
+  unlocked: boolean;
+}
 
 // ============================================================================
 // INTERFACES
@@ -268,4 +310,6 @@ export interface GameState {
   selectedTilePos: Position | null;
   threatLevel: number;
   zonesUnlocked: number[];
+  techNodes: Record<TechId, TechNodeState>;
+  techFlags: string[];
 }
