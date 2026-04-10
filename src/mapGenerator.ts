@@ -619,7 +619,7 @@ export function generateInitialGameState(): GameState {
     threatLevel: 0,
     zonesUnlocked: [1, 2],
     techNodes: TECH_TREE.reduce<Record<string, TechNodeState>>((acc, def) => {
-      acc[def.id] = { id: def.id, unlocked: false };
+      acc[def.id] = { id: def.id, unlocked: def.id === 'CONSCRIPTION' };
       return acc;
     }, {}),
     techFlags: [],
@@ -627,6 +627,19 @@ export function generateInitialGameState(): GameState {
     unlockedBuildings: [],
     unlockedUnits: [],
   };
+
+  // Auto-apply CONSCRIPTION effects (unlocked at game start, not a pick)
+  const conscription = TECH_TREE.find((d) => d.id === 'CONSCRIPTION');
+  if (conscription) {
+    for (const effect of conscription.effects) {
+      if (effect.type === 'UNLOCK_BUILDING' && !gameState.unlockedBuildings.includes(effect.buildingType)) {
+        gameState.unlockedBuildings.push(effect.buildingType);
+      }
+      if (effect.type === 'UNLOCK_UNIT' && !gameState.unlockedUnits.includes(effect.unitType)) {
+        gameState.unlockedUnits.push(effect.unitType);
+      }
+    }
+  }
 
   return gameState;
 }

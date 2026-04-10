@@ -118,6 +118,12 @@ export const UnitTag = {
   SACRIFICIAL: 'SACRIFICIAL',
   /** Unit explodes when adjacent to enemy-faction units, dealing area damage */
   EXPLOSIVE: 'EXPLOSIVE',
+  /** Guard-like unit can sacrifice itself to construct a Watchtower */
+  FIELDWORK: 'FIELDWORK',
+  /** Scout deals bonus damage when attacking full-HP enemies */
+  ASSASSIN: 'ASSASSIN',
+  /** Scout can heal adjacent friendly units */
+  PATCHUP: 'PATCHUP',
 } as const;
 export type UnitTag = (typeof UnitTag)[keyof typeof UnitTag];
 

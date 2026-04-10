@@ -6,7 +6,7 @@
  * animationConfig.ts, uiConfig.ts, renderConfig.ts, and inputConfig.ts.
  */
 
-import { UnitTag, DestroyBehavior } from './types';
+import { UnitTag, DestroyBehavior, BuildingType, UnitType, ResourceType } from './types';
 import type { UnitPopulationCost, UnitLevelDefinition, TechNodeDefinition } from './types';
 
 // ============================================================================
@@ -730,7 +730,7 @@ export const UNIT_LEVEL_UP: Record<string, UnitLevelDefinition[]> = {
 
 export const TECH = {
   /** Number of picks granted at game start (before first lava consumption) */
-  PICKS_ON_GAME_START: 1,
+  PICKS_ON_GAME_START: 3,
   /** Number of picks granted each time a player building is consumed by lava */
   PICKS_ON_LAVA_CONSUMPTION: 1,
   /** Number of picks granted each time the player captures a new zone stronghold */
@@ -746,7 +746,132 @@ export const TECH = {
  * Add a new tech node by adding one entry to this array — no logic files
  * touched, no switch statements updated, no hardcoded references.
  */
-export const TECH_TREE: TechNodeDefinition[] = [];
+export const TECH_TREE: TechNodeDefinition[] = [
+  // ── Root node (auto-unlocked at game start, not a pick) ──
+  {
+    id: 'CONSCRIPTION',
+    name: 'Conscription',
+    description: 'Basic military infrastructure',
+    requires: [],
+    effects: [
+      { type: 'UNLOCK_BUILDING', buildingType: BuildingType.BARRACKS },
+      { type: 'UNLOCK_BUILDING', buildingType: BuildingType.FARM },
+      { type: 'UNLOCK_UNIT',     unitType: UnitType.INFANTRY },
+      { type: 'UNLOCK_UNIT',     unitType: UnitType.SCOUT },
+      { type: 'UNLOCK_UNIT',     unitType: UnitType.GUARD },
+    ],
+  },
+
+  // ── Branch 1: Nobility ──
+  {
+    id: 'A_NOBLE_STEAD',
+    name: 'A Noble Stead',
+    description: 'Attract the upper class and field swift cavalry',
+    requires: ['CONSCRIPTION'],
+    effects: [
+      { type: 'UNLOCK_BUILDING', buildingType: BuildingType.PATRICIANHOUSE },
+      { type: 'UNLOCK_BUILDING', buildingType: BuildingType.RIDER_CAMP },
+      { type: 'UNLOCK_UNIT',     unitType: UnitType.RIDER },
+    ],
+  },
+  {
+    id: 'DEEP_VEINS',
+    name: 'Deep Veins',
+    description: 'Mines occasionally produce bonus iron',
+    requires: ['A_NOBLE_STEAD'],
+    effects: [
+      { type: 'BUILDING_PRODUCTION_MOD', buildingType: BuildingType.MINE, resource: ResourceType.IRON, chancePercent: 30, amount: 1 },
+    ],
+  },
+
+  // ── Branch 2: Ranged ──
+  {
+    id: 'FAR_REACH',
+    name: 'Far Reach',
+    description: 'Establish archery ranges and train bowmen',
+    requires: ['CONSCRIPTION'],
+    effects: [
+      { type: 'UNLOCK_BUILDING', buildingType: BuildingType.ARCHER_CAMP },
+      { type: 'UNLOCK_UNIT',     unitType: UnitType.ARCHER },
+    ],
+  },
+  {
+    id: 'CLEAN_CUTS',
+    name: 'Clean Cuts',
+    description: 'Woodcutters occasionally produce bonus wood',
+    requires: ['FAR_REACH'],
+    effects: [
+      { type: 'BUILDING_PRODUCTION_MOD', buildingType: BuildingType.WOODCUTTER, resource: ResourceType.WOOD, chancePercent: 30, amount: 1 },
+    ],
+  },
+  {
+    id: 'TO_THE_FRONT',
+    name: 'To the Front',
+    description: 'Units far from the lava front move faster',
+    requires: ['CLEAN_CUTS'],
+    effects: [
+      { type: 'FLAG', flag: 'TO_THE_FRONT' },
+    ],
+  },
+
+  // ── Branch 3: Fortification ──
+  {
+    id: 'FIELD_DUTIES',
+    name: 'Field Duties',
+    description: 'Guards can now construct and capture like builders',
+    requires: ['CONSCRIPTION'],
+    effects: [
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.GUARD, tag: UnitTag.BUILDANDCAPTURE },
+    ],
+  },
+  {
+    id: 'HOLD_GROUND',
+    name: 'Hold Ground',
+    description: 'Units on own buildings gain a defense bonus',
+    requires: ['FIELD_DUTIES'],
+    effects: [
+      { type: 'FLAG', flag: 'HOLD_GROUND' },
+    ],
+  },
+  {
+    id: 'FIELDWORK',
+    name: 'Fieldwork',
+    description: 'Infantry can sacrifice themselves to construct a Watchtower',
+    requires: ['FIELD_DUTIES'],
+    effects: [
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.INFANTRY, tag: UnitTag.FIELDWORK },
+    ],
+  },
+
+  // ── Branch 4: Reconnaissance ──
+  {
+    id: 'BIG_EYES',
+    name: 'Big Eyes',
+    description: 'Scouts see further into the fog',
+    requires: ['CONSCRIPTION'],
+    effects: [
+      { type: 'UNIT_STAT_MOD', unitType: UnitType.SCOUT, stat: 'discoverRadius', mode: 'add', value: 1 },
+    ],
+  },
+  {
+    id: 'ASSASSIN',
+    name: 'Assassin',
+    description: 'Scouts deal bonus damage when striking full-HP enemies',
+    requires: ['BIG_EYES'],
+    effects: [
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.SCOUT, tag: UnitTag.ASSASSIN },
+    ],
+  },
+  {
+    id: 'PATCH_UP',
+    name: 'Patch Up',
+    description: 'Scouts can heal adjacent friendly units',
+    requires: ['BIG_EYES'],
+    effects: [
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.SCOUT, tag: UnitTag.PATCHUP },
+    ],
+  },
+];
 
 // ============================================================================
 // CONVENIENCE EXPORTS

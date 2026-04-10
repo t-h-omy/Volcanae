@@ -106,7 +106,8 @@ function applyTechEffect(state: Draft<GameState>, effect: TechEffect): void {
 
 /** Human-readable descriptions for FLAG effects */
 const flagDescriptions: Record<string, string> = {
-  // Add one entry per FLAG used in TECH_TREE
+  TO_THE_FRONT: 'Units >10 tiles from lava front: +1 movement',
+  HOLD_GROUND: 'Units on own buildings: defense bonus',
 };
 
 /**

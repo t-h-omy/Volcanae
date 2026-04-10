@@ -133,16 +133,21 @@ export function getConstructionOptionsForTile(
     options.push(makeOption(BuildingType.MINE));
   }
 
-  // Ruin → all non-terrain player buildings
+  // Ruin → all non-terrain player buildings that are tech-unlocked
   if (tile.isRuin) {
-    options.push(
-      makeOption(BuildingType.BARRACKS),
-      makeOption(BuildingType.ARCHER_CAMP),
-      makeOption(BuildingType.RIDER_CAMP),
-      makeOption(BuildingType.SIEGE_CAMP),
-      makeOption(BuildingType.FARM),
-      makeOption(BuildingType.PATRICIANHOUSE),
-    );
+    const ruinBuildings = [
+      BuildingType.BARRACKS,
+      BuildingType.ARCHER_CAMP,
+      BuildingType.RIDER_CAMP,
+      BuildingType.SIEGE_CAMP,
+      BuildingType.FARM,
+      BuildingType.PATRICIANHOUSE,
+    ];
+    for (const bt of ruinBuildings) {
+      if (state.unlockedBuildings.includes(bt)) {
+        options.push(makeOption(bt));
+      }
+    }
   }
 
   return options;

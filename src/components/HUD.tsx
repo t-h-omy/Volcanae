@@ -695,6 +695,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   const recruitUnit = useGameStore((s) => s.recruitUnit);
   const unassignSpecialist = useGameStore((s) => s.unassignSpecialist);
   const destroyOwnBuilding = useGameStore((s) => s.destroyOwnBuilding);
+  const unlockedUnits = useGameStore((s) => s.unlockedUnits);
   const showRecruitingScores = useDevOptionsStore((s) => s.showRecruitingScores);
 
   const [showPicker, setShowPicker] = useState(false);
@@ -720,8 +721,9 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   const assignedSpecialist: Specialist | null =
     building.specialistSlot ? specialists[building.specialistSlot] ?? null : null;
 
-  // Recruitment info
-  const recruitableTypes = BUILDING_RECRUITS[building.type] ?? [];
+  // Recruitment info — filter by tech-unlocked units
+  const allRecruitableTypes = BUILDING_RECRUITS[building.type] ?? [];
+  const recruitableTypes = allRecruitableTypes.filter((ut) => unlockedUnits.includes(ut));
 
   // Check whether there is a free tile to spawn a unit (building tile or adjacent)
   const hasSpawnSpace = useMemo(
