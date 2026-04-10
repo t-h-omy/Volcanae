@@ -1280,15 +1280,15 @@ function TechPickModal() {
 // TECH PENDING BADGE
 // ============================================================================
 
-function TechPendingBadge({ onOpen }: { onOpen: () => void }) {
+function TechPendingBadge() {
   const pendingTechPicks = useGameStore((s) => s.pendingTechPicks);
 
   if (pendingTechPicks <= 0) return null;
 
   return (
-    <button className="tech-pending-badge" onClick={onOpen}>
+    <div className="tech-pending-badge">
       🔬 Research available{pendingTechPicks > 1 ? ` (${pendingTechPicks})` : ''}
-    </button>
+    </div>
   );
 }
 
@@ -1370,7 +1370,7 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
       {!hasSeenIntro && <GameIntroPopup onDismiss={() => setHasSeenIntro(true)} />}
       <TopBar />
       <BottomBar />
-      <TechPendingBadge onOpen={() => { /* Modal auto-opens when picks > 0 */ }} />
+      <TechPendingBadge />
       {showTechPicker && <TechPickModal />}
       {showTechOverview && <TechTreeOverview onClose={() => setShowTechOverview(false)} />}
       {phase === GamePhase.GAME_OVER && <GameOverOverlay />}
