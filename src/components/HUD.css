@@ -1216,9 +1216,6 @@
 .tech-canvas-scroll {
   flex: 1;
   overflow: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   padding: 24px;
   -webkit-overflow-scrolling: touch;
 }
@@ -1226,6 +1223,7 @@
 .tech-canvas {
   position: relative;
   flex-shrink: 0;
+  margin: auto;
 }
 
 .tech-edges {

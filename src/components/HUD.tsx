@@ -1316,9 +1316,9 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  // Canvas dimensions
+  // Canvas dimensions — add bottom padding so row-3 nodes aren't hidden behind the detail sheet
   const canvasW = 3 * STRIDE_X + NODE_W + 40;
-  const canvasH = 3 * STRIDE_Y + NODE_H + 40;
+  const canvasH = 3 * STRIDE_Y + NODE_H + 300;
 
   return (
     <div className="tech-overlay">

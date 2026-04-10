@@ -5,9 +5,10 @@
 
 import type { GameState, Building, Position, Tile, UnitPopulationCost } from './types';
 import type { Draft } from 'immer';
-import { Faction, BuildingType, UnitType } from './types';
+import { Faction, BuildingType, UnitType, ResourceType } from './types';
 import { RESOURCES, UNITS, UNIT_COSTS, POPULATION, UNIT_POPULATION_COSTS } from './gameConfig';
 import type { UnitCost } from './gameConfig';
+import { getGrantedTags, getStatMods, getBuildingProductionMods } from './techSystem';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -112,6 +113,17 @@ export function collectResources(state: Draft<GameState>): void {
       state.resources.iron += RESOURCES.MINE_IRON_PER_TURN;
     } else if (building.type === BuildingType.WOODCUTTER) {
       state.resources.wood += RESOURCES.WOODCUTTER_WOOD_PER_TURN;
+    }
+
+    // Apply bonus production from unlocked tech effects (BUILDING_PRODUCTION_MOD)
+    for (const mod of getBuildingProductionMods(state, building.type)) {
+      if (Math.random() * 100 < mod.chancePercent) {
+        if (mod.resource === ResourceType.IRON) {
+          state.resources.iron += mod.amount;
+        } else if (mod.resource === ResourceType.WOOD) {
+          state.resources.wood += mod.amount;
+        }
+      }
     }
   }
 }
@@ -331,6 +343,12 @@ export function recruitUnit(
 
   // Spawn the unit immediately, but flag it as having used all actions this turn
   const unitId = generateUnitId();
+  const baseTags: import('./types').UnitTag[] = [...UNITS[unitType].tags];
+  // Add any tags granted by unlocked techs
+  for (const tag of getGrantedTags(state, unitType)) {
+    if (!baseTags.includes(tag)) baseTags.push(tag);
+  }
+
   state.units[unitId] = {
     id: unitId,
     type: unitType,
@@ -347,7 +365,7 @@ export function recruitUnit(
       movementActions: UNITS[unitType].movementActions,
       attackRange: UNITS[unitType].attackRange,
     },
-    tags: [...UNITS[unitType].tags],
+    tags: baseTags,
     hasMovedThisTurn: true,
     hasAttackedThisTurn: true,
     hasCapturedThisTurn: true,
@@ -356,6 +374,18 @@ export function recruitUnit(
     xp: 0,
     level: 1,
   };
+
+  // Apply stat mods from unlocked techs to the newly spawned unit
+  const unit = state.units[unitId];
+  for (const mod of getStatMods(state, unitType)) {
+    if (mod.mode === 'add') {
+      (unit.stats[mod.stat] as number) += mod.value;
+    } else {
+      (unit.stats[mod.stat] as number) = Math.round(
+        (unit.stats[mod.stat] as number) * (1 + mod.value / 100),
+      );
+    }
+  }
 
   // Place unit on the grid
   state.grid[spawnPosition.y][spawnPosition.x].unitId = unitId;

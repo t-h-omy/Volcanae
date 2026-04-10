@@ -5,7 +5,8 @@
  */
 
 import type { Draft } from 'immer';
-import type { GameState, TechId, TechEffect } from './types';
+import type { GameState, TechId, TechEffect, UnitStats } from './types';
+import { Faction } from './types';
 import { TECH_TREE } from './gameConfig';
 
 // ============================================================================
@@ -93,11 +94,108 @@ function applyTechEffect(state: Draft<GameState>, effect: TechEffect): void {
         state.techFlags.push(effect.flag);
       }
       break;
-    // GRANT_UNIT_TAG, UNIT_STAT_MOD, BUILDING_PRODUCTION_MOD
-    // are read at point-of-use by other systems — no immediate state mutation needed.
+    case 'GRANT_UNIT_TAG':
+      // Retroactively add the tag to all existing player units of that type
+      for (const unit of Object.values(state.units)) {
+        if (unit.faction === Faction.PLAYER && unit.type === effect.unitType) {
+          if (!unit.tags.includes(effect.tag)) {
+            unit.tags.push(effect.tag);
+          }
+        }
+      }
+      break;
+    case 'UNIT_STAT_MOD':
+      // Retroactively modify the stat on all existing player units of that type
+      for (const unit of Object.values(state.units)) {
+        if (unit.faction === Faction.PLAYER && unit.type === effect.unitType) {
+          applyStatMod(unit.stats, effect.stat, effect.mode, effect.value);
+        }
+      }
+      break;
+    // BUILDING_PRODUCTION_MOD is applied at point-of-use in collectResources
     default:
       break;
   }
+}
+
+/** Apply a single stat modification to a unit's stats. */
+function applyStatMod(
+  stats: Draft<UnitStats>,
+  stat: keyof UnitStats,
+  mode: 'add' | 'percent',
+  value: number,
+): void {
+  if (mode === 'add') {
+    (stats[stat] as number) += value;
+  } else {
+    (stats[stat] as number) = Math.round((stats[stat] as number) * (1 + value / 100));
+  }
+}
+
+// ============================================================================
+// POINT-OF-USE HELPERS
+// ============================================================================
+
+import type { UnitType, UnitTag, BuildingType, ResourceType } from './types';
+
+/**
+ * Returns all GRANT_UNIT_TAG effects for the given unit type from unlocked techs.
+ * Used at unit spawn time to apply tech-granted tags to newly created units.
+ */
+export function getGrantedTags(
+  state: GameState | Draft<GameState>,
+  unitType: UnitType,
+): UnitTag[] {
+  const tags: UnitTag[] = [];
+  for (const def of TECH_TREE) {
+    if (!state.techNodes[def.id]?.unlocked) continue;
+    for (const effect of def.effects) {
+      if (effect.type === 'GRANT_UNIT_TAG' && effect.unitType === unitType) {
+        tags.push(effect.tag);
+      }
+    }
+  }
+  return tags;
+}
+
+/**
+ * Returns all UNIT_STAT_MOD effects for the given unit type from unlocked techs.
+ * Used at unit spawn time to apply tech-granted stat mods to newly created units.
+ */
+export function getStatMods(
+  state: GameState | Draft<GameState>,
+  unitType: UnitType,
+): { stat: keyof UnitStats; mode: 'add' | 'percent'; value: number }[] {
+  const mods: { stat: keyof UnitStats; mode: 'add' | 'percent'; value: number }[] = [];
+  for (const def of TECH_TREE) {
+    if (!state.techNodes[def.id]?.unlocked) continue;
+    for (const effect of def.effects) {
+      if (effect.type === 'UNIT_STAT_MOD' && effect.unitType === unitType) {
+        mods.push({ stat: effect.stat, mode: effect.mode, value: effect.value });
+      }
+    }
+  }
+  return mods;
+}
+
+/**
+ * Returns all BUILDING_PRODUCTION_MOD effects for the given building type from unlocked techs.
+ * Used at resource collection time to apply bonus production.
+ */
+export function getBuildingProductionMods(
+  state: GameState | Draft<GameState>,
+  buildingType: BuildingType,
+): { resource: ResourceType; chancePercent: number; amount: number }[] {
+  const mods: { resource: ResourceType; chancePercent: number; amount: number }[] = [];
+  for (const def of TECH_TREE) {
+    if (!state.techNodes[def.id]?.unlocked) continue;
+    for (const effect of def.effects) {
+      if (effect.type === 'BUILDING_PRODUCTION_MOD' && effect.buildingType === buildingType) {
+        mods.push({ resource: effect.resource, chancePercent: effect.chancePercent, amount: effect.amount });
+      }
+    }
+  }
+  return mods;
 }
 
 // ============================================================================

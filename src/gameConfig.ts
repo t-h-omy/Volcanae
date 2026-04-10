@@ -109,7 +109,7 @@ export const UNITS = {
     attackRange: 1,
     discoverRadius: 1,
     triggerRange: 0,
-    tags: [UnitTag.BUILDANDCAPTURE, UnitTag.PREP],
+    tags: [UnitTag.PREP],
   },
 
   LAVA_GRUNT: {
