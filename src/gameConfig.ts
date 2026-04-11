@@ -749,9 +749,9 @@ export const UNIT_LEVEL_UP: Record<string, UnitLevelDefinition[]> = {
 
 export const TECH = {
   /** Number of crystals granted at game start (before first lava consumption) */
-  CRYSTALS_ON_GAME_START: 3,
+  CRYSTALS_ON_GAME_START: 2,
   /** Number of crystals granted each time a player building is consumed by lava */
-  CRYSTALS_ON_LAVA_CONSUMPTION: 1,
+  CRYSTALS_ON_LAVA_CONSUMPTION: 0,
   /** Number of crystals granted each time the player captures a new zone stronghold */
   CRYSTALS_ON_ZONE_STRONGHOLD: 0,
 } as const;
