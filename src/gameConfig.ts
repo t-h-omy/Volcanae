@@ -788,6 +788,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     name: 'A Noble Stead',
     description: 'Attract the upper class and field swift cavalry',
     requires: ['CONSCRIPTION'],
+    cost: 2,
     effects: [
       { type: 'UNLOCK_BUILDING', buildingType: BuildingType.PATRICIANHOUSE },
       { type: 'UNLOCK_BUILDING', buildingType: BuildingType.RIDER_CAMP },
@@ -799,6 +800,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     name: 'Deep Veins',
     description: 'Mines occasionally produce bonus iron',
     requires: ['A_NOBLE_STEAD'],
+    cost: 3,
     effects: [
       { type: 'BUILDING_PRODUCTION_MOD', buildingType: BuildingType.MINE, resource: ResourceType.IRON, chancePercent: 30, amount: 1 },
     ],
@@ -810,6 +812,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     name: 'Far Reach',
     description: 'Establish archery ranges and train bowmen',
     requires: ['CONSCRIPTION'],
+    cost: 2,
     effects: [
       { type: 'UNLOCK_BUILDING', buildingType: BuildingType.ARCHER_CAMP },
       { type: 'UNLOCK_UNIT',     unitType: UnitType.ARCHER },
@@ -820,6 +823,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     name: 'Clean Cuts',
     description: 'Woodcutters occasionally produce bonus wood',
     requires: ['FAR_REACH'],
+    cost: 3,
     effects: [
       { type: 'BUILDING_PRODUCTION_MOD', buildingType: BuildingType.WOODCUTTER, resource: ResourceType.WOOD, chancePercent: 30, amount: 1 },
     ],
@@ -829,6 +833,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     name: 'To the Front',
     description: 'Units far from the lava front move faster',
     requires: ['CLEAN_CUTS'],
+    cost: 5,
     effects: [
       { type: 'FLAG', flag: 'TO_THE_FRONT' },
     ],
@@ -840,6 +845,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     name: 'Field Duties',
     description: 'Guards can now construct and capture like builders',
     requires: ['CONSCRIPTION'],
+    cost: 2,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.GUARD, tag: UnitTag.BUILDANDCAPTURE },
     ],
@@ -849,6 +855,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     name: 'Hold Ground',
     description: 'Units on own buildings gain a defense bonus',
     requires: ['FIELD_DUTIES'],
+    cost: 3,
     effects: [
       { type: 'FLAG', flag: 'HOLD_GROUND' },
     ],
@@ -858,6 +865,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     name: 'Fieldwork',
     description: 'Infantry can sacrifice themselves to construct a Watchtower',
     requires: ['FIELD_DUTIES'],
+    cost: 3,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.INFANTRY, tag: UnitTag.FIELDWORK },
     ],
@@ -869,6 +877,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     name: 'Big Eyes',
     description: 'Scouts see further into the fog',
     requires: ['CONSCRIPTION'],
+    cost: 2,
     effects: [
       { type: 'UNIT_STAT_MOD', unitType: UnitType.SCOUT, stat: 'discoverRadius', mode: 'add', value: 1 },
     ],
@@ -878,6 +887,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     name: 'Assassin',
     description: 'Scouts deal bonus damage when striking full-HP enemies',
     requires: ['BIG_EYES'],
+    cost: 3,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SCOUT, tag: UnitTag.ASSASSIN },
     ],
@@ -887,6 +897,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     name: 'Patch Up',
     description: 'Scouts can heal adjacent friendly units',
     requires: ['BIG_EYES'],
+    cost: 3,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SCOUT, tag: UnitTag.PATCHUP },
     ],

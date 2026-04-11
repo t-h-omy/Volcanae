@@ -147,6 +147,8 @@ export interface TechNodeDefinition {
   name: string;
   description: string;
   requires: TechId[];
+  /** Crystal cost to unlock this node. Defaults to 1 if omitted. */
+  cost?: number;
   effects: TechEffect[];
 }
 
