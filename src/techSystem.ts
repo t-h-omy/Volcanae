@@ -14,12 +14,12 @@ import { TECH_TREE } from './gameConfig';
 // ============================================================================
 
 /**
- * Grant tech picks to the player.
+ * Grant arcane crystals to the player.
  * @param state - Immer draft of the game state (will be mutated)
- * @param amount - Number of picks to grant (driven by TECH config values)
+ * @param amount - Number of crystals to grant (driven by TECH config values)
  */
-export function grantTechPick(state: Draft<GameState>, amount: number): void {
-  state.pendingTechPicks += amount;
+export function grantArcaneCrystals(state: Draft<GameState>, amount: number): void {
+  state.arcaneCrystals += amount;
 }
 
 // ============================================================================
@@ -52,7 +52,7 @@ export function getAvailableTechs(state: GameState | Draft<GameState>): TechId[]
  * the player has no pending picks.
  */
 export function unlockTech(state: Draft<GameState>, techId: TechId): void {
-  if (state.pendingTechPicks <= 0) return;
+  if (state.arcaneCrystals <= 0) return;
 
   const nodeState = state.techNodes[techId];
   if (!nodeState || nodeState.unlocked) return;
@@ -65,7 +65,7 @@ export function unlockTech(state: Draft<GameState>, techId: TechId): void {
 
   // Mark as unlocked and spend the pick
   nodeState.unlocked = true;
-  state.pendingTechPicks -= 1;
+  state.arcaneCrystals -= 1;
 
   // Apply effects
   for (const effect of def.effects) {

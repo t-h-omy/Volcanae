@@ -15,7 +15,7 @@ import type {
   Building,
   GameState,
 } from './types';
-import { CONSTRUCTION, POPULATION, BUILDINGS, LAVA_LAIR, XP } from './gameConfig';
+import { CONSTRUCTION, POPULATION, BUILDINGS, LAVA_LAIR, XP, CRYSTAL_CHAMBER_CONFIG } from './gameConfig';
 import { generateId } from './mapGenerator';
 import { grantXp } from './levelSystem';
 
@@ -33,7 +33,8 @@ export type ConstructableBuilding =
   | typeof BuildingType.SIEGE_CAMP
   | typeof BuildingType.FARM
   | typeof BuildingType.PATRICIANHOUSE
-  | typeof BuildingType.STRONGHOLD;
+  | typeof BuildingType.STRONGHOLD
+  | typeof BuildingType.CRYSTAL_CHAMBER;
 
 /** Building types the enemy can construct */
 export type EnemyConstructableBuilding =
@@ -63,6 +64,7 @@ const BUILDING_COST: Record<ConstructableBuilding, { iron: number; wood: number 
   [BuildingType.FARM]: CONSTRUCTION.FARM_COST,
   [BuildingType.PATRICIANHOUSE]: CONSTRUCTION.PATRICIAN_HOUSE_COST,
   [BuildingType.STRONGHOLD]: CONSTRUCTION.STRONGHOLD_COST,
+  [BuildingType.CRYSTAL_CHAMBER]: CRYSTAL_CHAMBER_CONFIG.COST,
 };
 
 const BUILDING_LABEL: Record<ConstructableBuilding, string> = {
@@ -75,6 +77,7 @@ const BUILDING_LABEL: Record<ConstructableBuilding, string> = {
   [BuildingType.FARM]: 'Farm',
   [BuildingType.PATRICIANHOUSE]: 'Patrician House',
   [BuildingType.STRONGHOLD]: 'Stronghold',
+  [BuildingType.CRYSTAL_CHAMBER]: 'Crystal Chamber',
 };
 
 const BUILDING_EMOJI_MAP: Record<ConstructableBuilding, string> = {
@@ -87,6 +90,7 @@ const BUILDING_EMOJI_MAP: Record<ConstructableBuilding, string> = {
   [BuildingType.FARM]: '🌾',
   [BuildingType.PATRICIANHOUSE]: '🏠',
   [BuildingType.STRONGHOLD]: '🏰',
+  [BuildingType.CRYSTAL_CHAMBER]: '💎',
 };
 
 // ============================================================================
@@ -147,6 +151,9 @@ export function getConstructionOptionsForTile(
       if (state.unlockedBuildings.includes(bt)) {
         options.push(makeOption(bt));
       }
+    }
+    if (state.unlockedBuildings.includes(BuildingType.CRYSTAL_CHAMBER)) {
+      options.push(makeOption(BuildingType.CRYSTAL_CHAMBER));
     }
   }
 
@@ -250,11 +257,14 @@ function createBuildingObject(
 ): Building {
   const isWatchtower = type === BuildingType.WATCHTOWER;
   const isMagmaSpyr = type === BuildingType.MAGMASPYR;
+  const isCrystalChamber = type === BuildingType.CRYSTAL_CHAMBER;
   const maxHp = isWatchtower
     ? BUILDINGS.WATCHTOWER_STATS.maxHp
     : isMagmaSpyr
       ? LAVA_LAIR.MAGMA_SPYR_STATS.maxHp
-      : 100;
+      : isCrystalChamber
+        ? CRYSTAL_CHAMBER_CONFIG.MAX_HP
+        : 100;
   const combatStats = isWatchtower
     ? {
         attack: BUILDINGS.WATCHTOWER_STATS.attack,
@@ -311,6 +321,7 @@ function createBuildingObject(
     emberSpawnCounter: 0,
     recruitmentQueue: null,
     destroyBehavior: BUILDINGS.DESTROY_BEHAVIOR[type],
+    resonanceTurnsRemaining: 0,
   };
 }
 

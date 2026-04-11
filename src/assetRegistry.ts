@@ -66,6 +66,7 @@ export const BUILDING_SPRITE: Partial<Record<BuildingType, string>> = withBase({
   PATRICIANHOUSE:  '/sprites/buildings/patrician_house_100px.png',
   MAGMASPYR:       '/sprites/buildings/magma_spyr_100px.png',
   EMBERNEST:       '/sprites/buildings/ember_nest_100px.png',
+  CRYSTAL_CHAMBER: '/sprites/buildings/crystal_chamber_100px.png',
 });
 
 /**

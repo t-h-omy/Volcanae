@@ -205,6 +205,7 @@ export const BUILDINGS = {
     PATRICIANHOUSE: 0,
     MAGMASPYR: 2,
     EMBERNEST: 2,
+    CRYSTAL_CHAMBER: 2,
   },
   /** What happens to a tile when a building of each type is destroyed */
   DESTROY_BEHAVIOR: {
@@ -222,6 +223,7 @@ export const BUILDINGS = {
     PATRICIANHOUSE: DestroyBehavior.RUIN,
     MAGMASPYR: DestroyBehavior.RESOURCE,
     EMBERNEST: DestroyBehavior.RESOURCE,
+    CRYSTAL_CHAMBER: DestroyBehavior.RUIN,
   },
   /** Watchtower combat configuration */
   WATCHTOWER_STATS: {
@@ -249,6 +251,23 @@ export const LAVA_LAIR = {
   EMBER_NEST_SPAWN_INTERVAL: 3,
   /** Maximum number of EMBERLINGs allowed near an EMBER_NEST (within 8 tiles) */
   EMBER_NEST_MAX_EMBERLINGS: 2,
+} as const;
+
+// ============================================================================
+// CRYSTAL CHAMBER CONFIGURATION
+// ============================================================================
+
+export const CRYSTAL_CHAMBER_CONFIG = {
+  /** Number of turns all surviving chambers resonate after one is destroyed by lava */
+  RESONANCE_DURATION: 3,
+  /** Arcane crystals granted per resonating chamber per player turn */
+  CRYSTALS_PER_CHAMBER_PER_TURN: 1,
+  /** Construction cost */
+  COST: { iron: 2, wood: 3 },
+  /** Max HP */
+  MAX_HP: 100,
+  /** Discovery radius */
+  DISCOVER_RADIUS: 2,
 } as const;
 
 // ============================================================================
@@ -729,12 +748,12 @@ export const UNIT_LEVEL_UP: Record<string, UnitLevelDefinition[]> = {
 // ============================================================================
 
 export const TECH = {
-  /** Number of picks granted at game start (before first lava consumption) */
-  PICKS_ON_GAME_START: 3,
-  /** Number of picks granted each time a player building is consumed by lava */
-  PICKS_ON_LAVA_CONSUMPTION: 1,
-  /** Number of picks granted each time the player captures a new zone stronghold */
-  PICKS_ON_ZONE_STRONGHOLD: 0,
+  /** Number of crystals granted at game start (before first lava consumption) */
+  CRYSTALS_ON_GAME_START: 3,
+  /** Number of crystals granted each time a player building is consumed by lava */
+  CRYSTALS_ON_LAVA_CONSUMPTION: 1,
+  /** Number of crystals granted each time the player captures a new zone stronghold */
+  CRYSTALS_ON_ZONE_STRONGHOLD: 0,
 } as const;
 
 // ============================================================================
@@ -759,6 +778,19 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'UNLOCK_UNIT',     unitType: UnitType.INFANTRY },
       { type: 'UNLOCK_UNIT',     unitType: UnitType.SCOUT },
       { type: 'UNLOCK_UNIT',     unitType: UnitType.GUARD },
+    ],
+  },
+
+  // ── Branch 5: Crystal Chambers ──
+  {
+    id: 'CRYSTAL_LORE',
+    name: 'Crystal Lore',
+    description:
+      'Arcane crystals attune to one another across distance. Unlocks the Crystal Chamber — ' +
+      'when lava claims one, all surviving chambers resonate and generate arcane crystals.',
+    requires: ['CONSCRIPTION'],
+    effects: [
+      { type: 'UNLOCK_BUILDING', buildingType: BuildingType.CRYSTAL_CHAMBER },
     ],
   },
 
@@ -901,6 +933,7 @@ export const GAME_CONFIG = {
   UNIT_LEVEL_UP,
   TECH,
   TECH_TREE,
+  CRYSTAL_CHAMBER_CONFIG,
 } as const;
 
 export default GAME_CONFIG;

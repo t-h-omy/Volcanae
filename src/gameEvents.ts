@@ -89,4 +89,10 @@ export type GameEvent =
       newLavaRow: number;
       destroyedUnitIds: string[];
       destroyedBuildingIds: string[];
+    }
+  | {
+      type: 'RESONANCE_TRIGGERED';
+      destroyedChamberPosition: Position;
+      survivingChamberIds: string[];
+      resonanceDuration: number;
     };

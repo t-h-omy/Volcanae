@@ -6,9 +6,9 @@
 import type { GameState, Building, Position, Tile, UnitPopulationCost } from './types';
 import type { Draft } from 'immer';
 import { Faction, BuildingType, UnitType, ResourceType, type UnitTag } from './types';
-import { RESOURCES, UNITS, UNIT_COSTS, POPULATION, UNIT_POPULATION_COSTS } from './gameConfig';
+import { RESOURCES, UNITS, UNIT_COSTS, POPULATION, UNIT_POPULATION_COSTS, CRYSTAL_CHAMBER_CONFIG } from './gameConfig';
 import type { UnitCost } from './gameConfig';
-import { getGrantedTags, getStatMods, getBuildingProductionMods } from './techSystem';
+import { getGrantedTags, getStatMods, getBuildingProductionMods, grantArcaneCrystals } from './techSystem';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -125,6 +125,21 @@ export function collectResources(state: Draft<GameState>): void {
         }
       }
     }
+  }
+
+  // Tick Crystal Chamber resonance: grant arcane crystals and decrement counter
+  for (const building of Object.values(state.buildings)) {
+    if (
+      building.faction !== Faction.PLAYER ||
+      building.type !== BuildingType.CRYSTAL_CHAMBER ||
+      building.isDisabledForTurns > 0 ||
+      building.resonanceTurnsRemaining <= 0
+    ) {
+      continue;
+    }
+
+    grantArcaneCrystals(state, CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN);
+    building.resonanceTurnsRemaining -= 1;
   }
 }
 

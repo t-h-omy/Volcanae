@@ -194,6 +194,7 @@ function createBuilding(
     emberSpawnCounter: 0,
     recruitmentQueue: null,
     destroyBehavior: BUILDINGS.DESTROY_BEHAVIOR[type],
+    resonanceTurnsRemaining: 0,
   };
 }
 
@@ -623,7 +624,7 @@ export function generateInitialGameState(): GameState {
       return acc;
     }, {}),
     techFlags: [],
-    pendingTechPicks: TECH.PICKS_ON_GAME_START,
+    arcaneCrystals: TECH.CRYSTALS_ON_GAME_START,
     unlockedBuildings: [],
     unlockedUnits: [],
   };

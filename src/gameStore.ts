@@ -1124,6 +1124,7 @@ export const useGameStore = create<GameStore>()(
                 emberSpawnCounter: 0,
                 recruitmentQueue: null,
                 destroyBehavior: BUILDINGS.DESTROY_BEHAVIOR[BuildingType.FARM],
+                resonanceTurnsRemaining: 0,
               };
               state.buildings[building.id] = building;
               tile.buildingId = building.id;

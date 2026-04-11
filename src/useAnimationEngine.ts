@@ -50,6 +50,8 @@ function eventPosition(event: GameEvent): Position {
       return event.position;
     case 'LAVA_ADVANCE':
       return { x: Math.floor(MAP.GRID_WIDTH / 2), y: event.newLavaRow };
+    case 'RESONANCE_TRIGGERED':
+      return event.destroyedChamberPosition;
   }
 }
 
@@ -93,6 +95,8 @@ function isEventVisible(event: GameEvent): boolean {
       if (row < 0 || row >= grid.length) return false;
       return grid[row].some((tile) => tile.isRevealed);
     }
+    case 'RESONANCE_TRIGGERED':
+      return isTileRevealed(event.destroyedChamberPosition);
   }
 }
 

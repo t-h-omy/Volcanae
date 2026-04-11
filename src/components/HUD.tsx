@@ -85,6 +85,7 @@ const BUILDING_EMOJI: Record<string, string> = {
   [BuildingType.PATRICIANHOUSE]: '🏯',
   [BuildingType.MAGMASPYR]: '⛰️',
   [BuildingType.EMBERNEST]: '🌲',
+  [BuildingType.CRYSTAL_CHAMBER]: '💎',
 };
 
 const BUILDING_NAME: Record<string, string> = {
@@ -102,6 +103,7 @@ const BUILDING_NAME: Record<string, string> = {
   [BuildingType.PATRICIANHOUSE]: 'Patrician House',
   [BuildingType.MAGMASPYR]: 'Magma Spyr',
   [BuildingType.EMBERNEST]: 'Ember Nest',
+  [BuildingType.CRYSTAL_CHAMBER]: 'Crystal Chamber',
 };
 
 /** Maps recruitment buildings to their recruitable unit types */
@@ -293,11 +295,11 @@ function GameMenu() {
 function TopBar({
   onOpenTechTree,
   showTechButton,
-  pendingTechPicks,
+  arcaneCrystals,
 }: {
   onOpenTechTree: () => void;
   showTechButton: boolean;
-  pendingTechPicks: number;
+  arcaneCrystals: number;
 }) {
   const turn = useGameStore((s) => s.turn);
   const resources = useGameStore((s) => s.resources);
@@ -322,8 +324,8 @@ function TopBar({
       {showTechButton && (
         <button className="hud-tech-tree-btn" onClick={onOpenTechTree}>
           🔬
-          {pendingTechPicks > 0 && (
-            <span className="hud-tech-tree-badge">{pendingTechPicks}</span>
+          {arcaneCrystals > 0 && (
+            <span className="hud-tech-tree-badge">{arcaneCrystals}</span>
           )}
         </button>
       )}
@@ -872,6 +874,13 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
         </div>
       )}
 
+      {/* Crystal Chamber resonance status */}
+      {building.type === BuildingType.CRYSTAL_CHAMBER && building.resonanceTurnsRemaining > 0 && (
+        <div className="hud-production-row">
+          ✨ Resonating — {building.resonanceTurnsRemaining} turn{building.resonanceTurnsRemaining !== 1 ? 's' : ''} remaining
+        </div>
+      )}
+
       {/* Dev: Recruiting scores button for enemy LAVA_LAIR / INFERNAL_SANCTUM */}
       {isEnemyRecruitingBuilding && showRecruitingScores && (
         <button
@@ -1238,11 +1247,12 @@ const NODE_H = 52;
 
 /** Grid position for each tech node (col, row) */
 const TECH_NODE_POS: Record<string, { col: number; row: number }> = {
-  CONSCRIPTION:  { col: 1.5, row: 0 },
+  CONSCRIPTION:  { col: 2,   row: 0 },
   A_NOBLE_STEAD: { col: 0,   row: 1 },
   FAR_REACH:     { col: 1,   row: 1 },
   FIELD_DUTIES:  { col: 2,   row: 1 },
   BIG_EYES:      { col: 3,   row: 1 },
+  CRYSTAL_LORE:  { col: 4,   row: 1 },
   DEEP_VEINS:    { col: 0,   row: 2 },
   CLEAN_CUTS:    { col: 1,   row: 2 },
   HOLD_GROUND:   { col: 2,   row: 2 },
@@ -1264,17 +1274,17 @@ function nodeCentre(id: string): { x: number; y: number } {
 
 function TechTreeOverlay({ onClose }: { onClose: () => void }) {
   const techNodes = useGameStore((s) => s.techNodes);
-  const pendingTechPicks = useGameStore((s) => s.pendingTechPicks);
+  const arcaneCrystals = useGameStore((s) => s.arcaneCrystals);
   const unlockTech = useGameStore((s) => s.unlockTech);
   const getAvailableTechs = useGameStore((s) => s.getAvailableTechs);
 
   const [selectedId, setSelectedId] = useState<TechId | null>(null);
 
   const availableIds: TechId[] = useMemo(() => {
-    // Depend on techNodes + pendingTechPicks to re-derive when state changes
+    // Depend on techNodes + arcaneCrystals to re-derive when state changes
     return getAvailableTechs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [techNodes, pendingTechPicks, getAvailableTechs]);
+  }, [techNodes, arcaneCrystals, getAvailableTechs]);
 
   const availableSet = useMemo(() => new Set(availableIds), [availableIds]);
 
@@ -1302,10 +1312,10 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
   }, [selectedDef, techNodes]);
 
   const handleResearch = useCallback(() => {
-    if (selectedId && pendingTechPicks > 0 && availableSet.has(selectedId)) {
+    if (selectedId && arcaneCrystals > 0 && availableSet.has(selectedId)) {
       unlockTech(selectedId);
     }
-  }, [selectedId, pendingTechPicks, availableSet, unlockTech]);
+  }, [selectedId, arcaneCrystals, availableSet, unlockTech]);
 
   // Close on Escape
   useEffect(() => {
@@ -1317,7 +1327,7 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
   }, [onClose]);
 
   // Canvas dimensions — add bottom padding so row-3 nodes aren't hidden behind the detail sheet
-  const canvasW = 3 * STRIDE_X + NODE_W + 40;
+  const canvasW = 4 * STRIDE_X + NODE_W + 40;
   const canvasH = 3 * STRIDE_Y + NODE_H + 300;
 
   return (
@@ -1325,8 +1335,8 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
       {/* Header */}
       <div className="tech-overlay-header">
         <span>🔬 Tech Tree</span>
-        {pendingTechPicks > 0 && (
-          <span className="tech-overlay-picks">{pendingTechPicks} pick{pendingTechPicks > 1 ? 's' : ''} available</span>
+        {arcaneCrystals > 0 && (
+          <span className="tech-overlay-picks">{arcaneCrystals} crystal{arcaneCrystals > 1 ? 's' : ''} available</span>
         )}
         <button className="tech-overlay-close" onClick={onClose}>✕</button>
       </div>
@@ -1416,12 +1426,12 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
             <div className="tech-detail-actions">
               {selectedState === 'available' && (
                 <button
-                  className={`tech-detail-btn tech-detail-btn--primary ${pendingTechPicks <= 0 ? 'tech-detail-btn--disabled' : ''}`}
+                  className={`tech-detail-btn tech-detail-btn--primary ${arcaneCrystals <= 0 ? 'tech-detail-btn--disabled' : ''}`}
                   onClick={handleResearch}
-                  disabled={pendingTechPicks <= 0}
-                  title={pendingTechPicks <= 0 ? 'No picks available' : undefined}
+                  disabled={arcaneCrystals <= 0}
+                  title={arcaneCrystals <= 0 ? 'No crystals available' : undefined}
                 >
-                  {pendingTechPicks > 0 ? 'RESEARCH' : 'RESEARCH (No picks)'}
+                  {arcaneCrystals > 0 ? 'RESEARCH' : 'RESEARCH (No crystals)'}
                 </button>
               )}
               <button
@@ -1439,17 +1449,17 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
 }
 
 // ============================================================================
-// TECH PICK TOAST
+// ARCANE CRYSTAL TOAST
 // ============================================================================
 
-function TechPickToast() {
-  const pendingTechPicks = useGameStore((s) => s.pendingTechPicks);
-  const prevPicksRef = useRef(pendingTechPicks);
+function ArcaneCrystalToast() {
+  const arcaneCrystals = useGameStore((s) => s.arcaneCrystals);
+  const prevCrystalsRef = useRef(arcaneCrystals);
   const toastRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (pendingTechPicks > prevPicksRef.current) {
+    if (arcaneCrystals > prevCrystalsRef.current) {
       if (timerRef.current) clearTimeout(timerRef.current);
       const el = toastRef.current;
       if (el) el.style.display = 'block';
@@ -1457,12 +1467,12 @@ function TechPickToast() {
         if (el) el.style.display = 'none';
       }, 3000);
     }
-    prevPicksRef.current = pendingTechPicks;
-  }, [pendingTechPicks]);
+    prevCrystalsRef.current = arcaneCrystals;
+  }, [arcaneCrystals]);
 
   return (
     <div ref={toastRef} className="tech-toast" style={{ display: 'none' }}>
-      🔬 New tech pick available!
+      💎 New arcane crystal available!
     </div>
   );
 }
@@ -1474,14 +1484,14 @@ function TechPickToast() {
 export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
   const phase = useGameStore((s) => s.phase);
   const turn = useGameStore((s) => s.turn);
-  const pendingTechPicks = useGameStore((s) => s.pendingTechPicks);
+  const arcaneCrystals = useGameStore((s) => s.arcaneCrystals);
   const [hasSeenIntro, setHasSeenIntro] = useState(false);
   const [showTechTree, setShowTechTree] = useState(false);
 
   const handleIntroDismiss = useCallback(() => {
     setHasSeenIntro(true);
-    // Auto-open tech tree on game start when picks are available
-    if (useGameStore.getState().pendingTechPicks > 0) {
+    // Auto-open tech tree on game start when crystals are available
+    if (useGameStore.getState().arcaneCrystals > 0) {
       setShowTechTree(true);
     }
   }, []);
@@ -1494,10 +1504,10 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
       <TopBar
         onOpenTechTree={() => setShowTechTree(true)}
         showTechButton={isPlayerTurn}
-        pendingTechPicks={pendingTechPicks}
+        arcaneCrystals={arcaneCrystals}
       />
       <BottomBar />
-      <TechPickToast />
+      <ArcaneCrystalToast />
       {showTechTree && <TechTreeOverlay onClose={() => setShowTechTree(false)} />}
       {phase === GamePhase.GAME_OVER && <GameOverOverlay />}
       {phase === GamePhase.VICTORY && <VictoryOverlay />}

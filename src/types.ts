@@ -48,6 +48,7 @@ export const BuildingType = {
   PATRICIANHOUSE: 'PATRICIANHOUSE',
   MAGMASPYR: 'MAGMASPYR',
   EMBERNEST: 'EMBERNEST',
+  CRYSTAL_CHAMBER: 'CRYSTAL_CHAMBER',
 } as const;
 export type BuildingType = (typeof BuildingType)[keyof typeof BuildingType];
 
@@ -269,6 +270,8 @@ export interface Building {
   recruitmentQueue: UnitType | null;
   /** What happens to the tile when this building is destroyed */
   destroyBehavior: DestroyBehavior;
+  /** Turns of resonance remaining on this chamber (0 = not resonating). Only relevant for CRYSTAL_CHAMBER. */
+  resonanceTurnsRemaining: number;
 }
 
 /** A tile on the game grid */
@@ -318,7 +321,7 @@ export interface GameState {
   zonesUnlocked: number[];
   techNodes: Record<TechId, TechNodeState>;
   techFlags: string[];
-  pendingTechPicks: number;
+  arcaneCrystals: number;
   unlockedBuildings: BuildingType[];
   unlockedUnits: UnitType[];
 }

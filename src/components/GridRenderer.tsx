@@ -700,9 +700,11 @@ function TileCellInner({
     ? RENDER.UNIT_EXHAUSTED_FILTER
     : undefined;
 
+  const isResonating = building?.type === BuildingType.CRYSTAL_CHAMBER && building.resonanceTurnsRemaining > 0;
+
   return (
     <div
-      className={['grid-tile', isSelected && 'tile-selected'].filter(Boolean).join(' ')}
+      className={['grid-tile', isSelected && 'tile-selected', isResonating && 'tile--resonating'].filter(Boolean).join(' ')}
       style={{
         width: tileSize,
         height: tileSize,
