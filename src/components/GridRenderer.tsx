@@ -18,7 +18,7 @@ import { RENDER } from '../renderConfig';
 import { INPUT } from '../inputConfig';
 import { computeLevelFromXp } from '../levelSystem';
 import { useZoomStore } from '../zoomStore';
-import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE, RESOURCE_SPRITE, ENEMY_BUILDING_SPRITE, TERRAIN_RESOURCE_SPRITE } from '../assetRegistry';
+import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE, RESOURCE_SPRITE, ENEMY_BUILDING_SPRITE, TERRAIN_RESOURCE_SPRITE, CRYSTAL_CHAMBER_ACTIVE_SPRITE } from '../assetRegistry';
 import MissingSprite from './MissingSprite';
 import {
   Faction,
@@ -683,9 +683,12 @@ function TileCellInner({
     building.faction === Faction.PLAYER &&
     (building.type === BuildingType.FARM || building.type === BuildingType.PATRICIANHOUSE || building.type === BuildingType.STRONGHOLD);
 
+  const isResonating = building?.type === BuildingType.CRYSTAL_CHAMBER && building.resonanceTurnsRemaining > 0;
+
   // Building sprite selection:
   // - Enemy buildings use ENEMY_BUILDING_SPRITE when a faction-specific override exists.
   // - Neutral resource nodes (MINE, WOODCUTTER) use RESOURCE_SPRITE.
+  // - Active (resonating) Crystal Chambers use CRYSTAL_CHAMBER_ACTIVE_SPRITE.
   // - All other buildings (including neutral WATCHTOWER) use BUILDING_SPRITE directly,
   //   so they render as normal buildings on top of the terrain background.
   const buildingSpritePath = building
@@ -693,14 +696,14 @@ function TileCellInner({
       ? ENEMY_BUILDING_SPRITE[building.type]
       : building.faction === null && RESOURCE_SPRITE[building.type]
         ? RESOURCE_SPRITE[building.type]
-        : BUILDING_SPRITE[building.type]
+        : isResonating
+          ? CRYSTAL_CHAMBER_ACTIVE_SPRITE
+          : BUILDING_SPRITE[building.type]
     : undefined;
   const [buildingSpriteError, setBuildingSpriteError] = useState(false);
   const buildingExhaustedFilter = building && building.combatStats && building.hasAttackedThisTurn
     ? RENDER.UNIT_EXHAUSTED_FILTER
     : undefined;
-
-  const isResonating = building?.type === BuildingType.CRYSTAL_CHAMBER && building.resonanceTurnsRemaining > 0;
 
   return (
     <div

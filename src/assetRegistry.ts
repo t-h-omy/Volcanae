@@ -70,6 +70,16 @@ export const BUILDING_SPRITE: Partial<Record<BuildingType, string>> = withBase({
 });
 
 /**
+ * Sprite path for the active (resonating) Crystal Chamber.
+ * Exported separately because active/inactive variants share the same BuildingType key.
+ * Point this at the real PNG once the asset is ready; an empty string shows the
+ * pink MissingSprite placeholder in the meantime.
+ */
+export const CRYSTAL_CHAMBER_ACTIVE_SPRITE = withBase({
+  active: '/sprites/buildings/crystal_chamber_active_100px.png',
+}).active ?? '';
+
+/**
  * Enemy-faction overrides for building sprites.
  * Only entries listed here override BUILDING_SPRITE when building.faction === ENEMY.
  * Keys and empty-string rules are identical to BUILDING_SPRITE.
