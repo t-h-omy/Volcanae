@@ -29,6 +29,7 @@ import {
   UnitTag,
   BuildingType,
   TileType,
+  TechEffectType,
   type Building,
   type Unit,
   type Specialist,
@@ -36,6 +37,7 @@ import {
   type Tile,
 } from '../types';
 import { canUnitMove, canUnitAttack, canUnitCapture, canUnitDestroy, canUnitConstruct } from '../unitActions';
+import { UNIT_DESCRIPTIONS, UNIT_TAGS, TAG_INFO, BUILDING_DESCRIPTIONS } from '../descriptions';
 import './HUD.css';
 
 // ============================================================================
@@ -336,6 +338,184 @@ function TopBar({
 const HIDDEN_UNIT_TAGS = new Set<string>([]);
 
 // ============================================================================
+// SHARED INFO POPUP COMPONENTS
+// ============================================================================
+
+/** Reusable popup shell — backdrop + centered card, dismisses on outside tap */
+function Popup({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
+  return (
+    <div className="info-popup-backdrop" onClick={onClose}>
+      <div className="info-popup-card" onClick={(e) => e.stopPropagation()}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/** Tag info popup — shows label + description with an OK button */
+function TagPopup({ tag, onClose }: { tag: UnitTag; onClose: () => void }) {
+  const info = TAG_INFO[tag];
+  if (!info) return null;
+  return (
+    <Popup onClose={onClose}>
+      <div className="info-popup-header-name" style={{ marginBottom: 10 }}>{info.label}</div>
+      <p className="info-popup-desc" style={{ marginBottom: 16 }}>{info.desc}</p>
+      <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>OK</button>
+    </Popup>
+  );
+}
+
+/** Tappable tag pill used in panels and popups */
+function InfoTagPill({ tag, onClick }: { tag: UnitTag; onClick: () => void }) {
+  const info = TAG_INFO[tag];
+  return (
+    <button className="info-popup-tag-pill" onClick={onClick}>
+      {info?.label ?? tag}
+      <span className="info-popup-tag-pill-i">i</span>
+    </button>
+  );
+}
+
+/**
+ * Unit info popup — shows description, stat grid, and tappable tag pills.
+ * When isReadOnly is false (default), shows action buttons (Back + Recruit).
+ */
+function UnitInfoPopup({
+  unitType,
+  unit,
+  costLabel,
+  onAction,
+  actionLabel,
+  onClose,
+  isReadOnly,
+}: {
+  unitType: UnitType;
+  unit?: Unit;
+  costLabel?: string;
+  onAction?: () => void;
+  actionLabel?: string;
+  onClose: () => void;
+  isReadOnly?: boolean;
+}) {
+  const [tagPopup, setTagPopup] = useState<UnitTag | null>(null);
+  const desc = UNIT_DESCRIPTIONS[unitType];
+  const baseTags = UNIT_TAGS[unitType] ?? [];
+  const emoji = UNIT_EMOJI[unitType] ?? '?';
+  const name = UNIT_NAME[unitType] ?? unitType;
+
+  // Use live unit stats if available, otherwise fall back to nothing
+  const stats = unit?.stats;
+
+  return (
+    <>
+      <Popup onClose={onClose}>
+        {/* Header */}
+        <div className="info-popup-header">
+          <span className="info-popup-header-emoji">{emoji}</span>
+          <div>
+            <div className="info-popup-header-name">{name}</div>
+            {costLabel && <div className="info-popup-header-cost">{costLabel}</div>}
+          </div>
+        </div>
+
+        {/* Description */}
+        {desc && <p className="info-popup-desc">{desc}</p>}
+
+        {/* Stats */}
+        {stats && (
+          <div className="info-popup-stats">
+            {([
+              ['ATK', stats.attack],
+              ['DEF', stats.defense],
+              ['MOV', stats.moveRange],
+              ['RNG', stats.attackRange],
+              ['VIS', stats.discoverRadius],
+            ] as const).map(([l, v]) => (
+              <div key={l} className="info-popup-stat-cell">
+                <div className="info-popup-stat-label">{l}</div>
+                <div className="info-popup-stat-value">{v}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Tag pills */}
+        {baseTags.length > 0 && (
+          <div className="info-popup-tags">
+            {baseTags.map((tag) => (
+              <InfoTagPill key={tag} tag={tag} onClick={() => setTagPopup(tag)} />
+            ))}
+          </div>
+        )}
+
+        {/* Action buttons */}
+        {!isReadOnly && onAction ? (
+          <div className="info-popup-actions">
+            <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>Back</button>
+            <button className="info-popup-btn info-popup-btn--primary" onClick={onAction}>{actionLabel ?? 'OK'}</button>
+          </div>
+        ) : (
+          <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>
+            {isReadOnly ? 'OK' : 'Back'}
+          </button>
+        )}
+      </Popup>
+
+      {tagPopup && <TagPopup tag={tagPopup} onClose={() => setTagPopup(null)} />}
+    </>
+  );
+}
+
+/**
+ * Building info popup — shows description and cost.
+ * When isReadOnly is false (default), shows Back + Construct buttons.
+ */
+function BuildingInfoPopup({
+  buildingType,
+  cost,
+  onAction,
+  actionLabel,
+  onClose,
+  isReadOnly,
+}: {
+  buildingType: BuildingType;
+  cost?: { iron: number; wood: number };
+  onAction?: () => void;
+  actionLabel?: string;
+  onClose: () => void;
+  isReadOnly?: boolean;
+}) {
+  const desc = BUILDING_DESCRIPTIONS[buildingType];
+  const emoji = BUILDING_EMOJI[buildingType] ?? '?';
+  const name = BUILDING_NAME[buildingType] ?? buildingType;
+
+  return (
+    <Popup onClose={onClose}>
+      <div className="info-popup-header">
+        <span className="info-popup-header-emoji">{emoji}</span>
+        <div>
+          <div className="info-popup-header-name">{name}</div>
+          {cost && <div className="info-popup-header-cost">⛓️{cost.iron} 🪵{cost.wood}</div>}
+        </div>
+      </div>
+
+      {desc && <p className="info-popup-desc" style={{ marginBottom: 18 }}>{desc}</p>}
+
+      {!isReadOnly && onAction ? (
+        <div className="info-popup-actions">
+          <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>Back</button>
+          <button className="info-popup-btn info-popup-btn--primary" onClick={onAction}>{actionLabel ?? 'Construct'}</button>
+        </div>
+      ) : (
+        <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>
+          {isReadOnly ? 'OK' : 'Back'}
+        </button>
+      )}
+    </Popup>
+  );
+}
+
+// ============================================================================
 // AI SCORE MODAL (dev option)
 // ============================================================================
 
@@ -422,6 +602,8 @@ function SelectedUnitPanel({
   const gameState = useGameStore((s) => s);
   const [aiScoreModal, setAiScoreModal] = useState(false);
   const [aiScores, setAiScores] = useState<ScoredAction[]>([]);
+  const [unitInfoOpen, setUnitInfoOpen] = useState(false);
+  const [tagPopup, setTagPopup] = useState<UnitTag | null>(null);
   const levelUpUnit = useGameStore((s) => s.levelUpUnit);
 
   const targetLevel = computeLevelFromXp(unit.type, unit.xp);
@@ -432,11 +614,13 @@ function SelectedUnitPanel({
 
   return (
     <div className={`hud-info-panel${!isPlayer ? ' hud-panel-enemy' : ''}`}>
-      <div className="hud-panel-header">
+      {/* Header — entire row is tappable to open UnitInfoPopup */}
+      <button className="hud-panel-header-btn" onClick={() => setUnitInfoOpen(true)}>
         <span className="hud-panel-emoji">{UNIT_EMOJI[unit.type] ?? '?'}</span>
         <span className="hud-panel-name">{UNIT_NAME[unit.type] ?? unit.type}</span>
-        {!isPlayer && <span className="hud-faction-label hud-faction-enemy">🔴 Enemy</span>}
-      </div>
+        <span className="info-badge">i</span>
+        {!isPlayer && <span className="hud-faction-label hud-faction-enemy" style={{ marginLeft: 'auto' }}>🔴 Enemy</span>}
+      </button>
       <div className="hud-hp-row">
         <div className="hud-hp-bar">
           <div className="hud-hp-fill" style={{ width: `${hpPct}%` }} />
@@ -482,15 +666,7 @@ function SelectedUnitPanel({
       {visibleTags.length > 0 && (
         <div className="hud-tag-pills">
           {visibleTags.map((tag) => (
-            <span key={tag} className="hud-tag-pill">
-              {tag === UnitTag.RANGED
-                ? '◎ Ranged'
-                : tag === UnitTag.LAVABOOST
-                  ? '🔥 Lava-Boosted'
-                  : tag === UnitTag.PREP
-                    ? '⏸ Prep'
-                    : tag}
-            </span>
+            <InfoTagPill key={tag} tag={tag} onClick={() => setTagPopup(tag)} />
           ))}
         </div>
       )}
@@ -535,6 +711,15 @@ function SelectedUnitPanel({
       {aiScoreModal && (
         <AiScoreModal scores={aiScores} onClose={() => setAiScoreModal(false)} />
       )}
+      {unitInfoOpen && (
+        <UnitInfoPopup
+          unitType={unit.type}
+          unit={unit}
+          onClose={() => setUnitInfoOpen(false)}
+          isReadOnly
+        />
+      )}
+      {tagPopup && <TagPopup tag={tagPopup} onClose={() => setTagPopup(null)} />}
     </div>
   );
 }
@@ -619,6 +804,7 @@ function ConstructionPanel({
   const resources = useGameStore((s) => s.resources);
   const constructBuilding = useGameStore((s) => s.constructBuilding);
   const grid = useGameStore((s) => s.grid);
+  const [confirmBuilding, setConfirmBuilding] = useState<typeof options[number] | null>(null);
 
   const options = useMemo(
     () => getConstructionOptionsForTile(useGameStore.getState(), tilePos),
@@ -640,20 +826,34 @@ function ConstructionPanel({
           return (
             <button
               key={opt.buildingType}
-              className="hud-construct-btn"
+              className="info-row-btn"
               disabled={!canAffordThis}
-              onClick={() =>
-                constructBuilding(unit.id, tilePos, opt.buildingType)
-              }
+              onClick={() => setConfirmBuilding(opt)}
             >
-              {opt.emoji} {opt.label}
-              <span className="hud-cost">
-                {' '}(⛓️{opt.cost.iron} 🪵{opt.cost.wood})
-              </span>
+              <span className="info-row-emoji">{opt.emoji}</span>
+              <div className="info-row-body">
+                <div className="info-row-name">
+                  {opt.label}
+                  <span className="info-badge info-badge--small">i</span>
+                </div>
+                <div className="info-row-cost">⛓️{opt.cost.iron} 🪵{opt.cost.wood}</div>
+              </div>
             </button>
           );
         })}
       </div>
+      {confirmBuilding && (
+        <BuildingInfoPopup
+          buildingType={confirmBuilding.buildingType}
+          cost={confirmBuilding.cost}
+          actionLabel="Construct"
+          onAction={() => {
+            constructBuilding(unit.id, tilePos, confirmBuilding.buildingType);
+            setConfirmBuilding(null);
+          }}
+          onClose={() => setConfirmBuilding(null)}
+        />
+      )}
     </div>
   );
 }
@@ -716,6 +916,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
 
   const [showPicker, setShowPicker] = useState(false);
   const [confirmDemolish, setConfirmDemolish] = useState(false);
+  const [confirmRecruitUnit, setConfirmRecruitUnit] = useState<UnitType | null>(null);
   const [recruitScoreModal, setRecruitScoreModal] = useState(false);
   const [recruitScores, setRecruitScores] = useState<{ type: UnitType; score: number }[]>([]);
 
@@ -977,17 +1178,18 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
                 return (
                   <div key={unitType} className="hud-recruit-option-wrapper">
                     <button
-                      className="hud-recruit-btn"
+                      className="info-row-btn"
                       disabled={!canRecruitThisUnit}
-                      onClick={() => recruitUnit(building.id, unitType)}
+                      onClick={() => setConfirmRecruitUnit(unitType)}
                     >
-                      {UNIT_EMOJI[unitType] ?? ''}{' '}
-                      {UNIT_NAME[unitType] ?? unitType}
-                      {cost && (
-                        <span className="hud-cost">
-                          {' '}(⛓️{cost.iron} 🪵{cost.wood})
-                        </span>
-                      )}
+                      <span className="info-row-emoji">{UNIT_EMOJI[unitType] ?? ''}</span>
+                      <div className="info-row-body">
+                        <div className="info-row-name">
+                          {UNIT_NAME[unitType] ?? unitType}
+                          <span className="info-badge info-badge--small">i</span>
+                        </div>
+                        {cost && <div className="info-row-cost">⛓️{cost.iron} 🪵{cost.wood}</div>}
+                      </div>
                     </button>
                     {popCost && (popCost.farmers > 0 || popCost.nobles > 0) && (
                       <span className="hud-pop-req">
@@ -1009,6 +1211,22 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
           )}
         </div>
       )}
+      {confirmRecruitUnit && (() => {
+        const cost = UNIT_COSTS[confirmRecruitUnit];
+        const costLabel = cost ? `⛓️${cost.iron} 🪵${cost.wood}` : undefined;
+        return (
+          <UnitInfoPopup
+            unitType={confirmRecruitUnit}
+            costLabel={costLabel}
+            actionLabel="Recruit"
+            onAction={() => {
+              recruitUnit(building.id, confirmRecruitUnit);
+              setConfirmRecruitUnit(null);
+            }}
+            onClose={() => setConfirmRecruitUnit(null)}
+          />
+        );
+      })()}
 
       {/* Global specialist storage (stronghold only) */}
       {showGlobalStorage && (
@@ -1276,6 +1494,8 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
   const getAvailableTechs = useGameStore((s) => s.getAvailableTechs);
 
   const [selectedId, setSelectedId] = useState<TechId | null>(null);
+  const [infoUnitType, setInfoUnitType] = useState<UnitType | null>(null);
+  const [infoBuildingType, setInfoBuildingType] = useState<BuildingType | null>(null);
 
   const availableIds: TechId[] = useMemo(() => {
     // Depend on techNodes + arcaneCrystals to re-derive when state changes
@@ -1415,9 +1635,29 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
             )}
 
             <div className="tech-detail-effects">
-              {selectedDef.effects.map((e, i) => (
-                <span key={i} className="tech-detail-effect-chip">{renderEffect(e)}</span>
-              ))}
+              {selectedDef.effects.map((e, i) => {
+                if (e.type === TechEffectType.UNLOCK_UNIT) {
+                  return (
+                    <button key={i} className="tech-effect-tile" onClick={() => setInfoUnitType(e.unitType)}>
+                      <span className="tech-effect-tile-emoji">{UNIT_EMOJI[e.unitType] ?? '?'}</span>
+                      <span className="tech-effect-tile-name">{UNIT_NAME[e.unitType] ?? e.unitType}</span>
+                      <span className="info-badge">i</span>
+                    </button>
+                  );
+                }
+                if (e.type === TechEffectType.UNLOCK_BUILDING) {
+                  return (
+                    <button key={i} className="tech-effect-tile" onClick={() => setInfoBuildingType(e.buildingType)}>
+                      <span className="tech-effect-tile-emoji">{BUILDING_EMOJI[e.buildingType] ?? '?'}</span>
+                      <span className="tech-effect-tile-name">{BUILDING_NAME[e.buildingType] ?? e.buildingType}</span>
+                      <span className="info-badge">i</span>
+                    </button>
+                  );
+                }
+                return (
+                  <span key={i} className="tech-detail-effect-chip">{renderEffect(e)}</span>
+                );
+              })}
             </div>
 
             <div className="tech-detail-actions">
@@ -1445,6 +1685,20 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
           </>
         )}
       </div>
+      {infoUnitType && (
+        <UnitInfoPopup
+          unitType={infoUnitType}
+          onClose={() => setInfoUnitType(null)}
+          isReadOnly
+        />
+      )}
+      {infoBuildingType && (
+        <BuildingInfoPopup
+          buildingType={infoBuildingType}
+          onClose={() => setInfoBuildingType(null)}
+          isReadOnly
+        />
+      )}
     </div>
   );
 }

@@ -1420,3 +1420,264 @@
   pointer-events: none;
   animation: tech-toast-in 0.3s ease;
 }
+
+/* ── Info Popup system ── */
+
+@keyframes infoPopIn {
+  from { opacity: 0; transform: scale(0.93); }
+  to   { opacity: 1; transform: scale(1);   }
+}
+
+.info-popup-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.info-popup-card {
+  background: #141418;
+  border: 1px solid rgba(255, 140, 40, 0.3);
+  border-radius: 14px;
+  padding: 22px 24px;
+  max-width: 300px;
+  width: 92%;
+  box-shadow: 0 8px 48px rgba(0, 0, 0, 0.9);
+  animation: infoPopIn 0.17s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.info-popup-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.info-popup-header-emoji {
+  font-size: 26px;
+}
+
+.info-popup-header-name {
+  font-weight: 700;
+  font-size: 16px;
+  color: #f0c870;
+  font-family: Georgia, serif;
+}
+
+.info-popup-header-cost {
+  font-size: 11px;
+  color: #f0a840;
+}
+
+.info-popup-desc {
+  margin: 0 0 14px;
+  font-size: 12px;
+  color: #c8b898;
+  line-height: 1.65;
+  font-family: Georgia, serif;
+}
+
+.info-popup-stats {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 2px 0;
+  margin-bottom: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  padding: 10px 6px;
+}
+
+.info-popup-stat-cell {
+  text-align: center;
+}
+
+.info-popup-stat-label {
+  font-size: 9px;
+  color: #888;
+  letter-spacing: 0.06em;
+}
+
+.info-popup-stat-value {
+  font-size: 15px;
+  color: #eee;
+  font-weight: 700;
+}
+
+.info-popup-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.info-popup-tag-pill {
+  font-size: 11px;
+  color: #f0d080;
+  background: rgba(240, 180, 40, 0.12);
+  border: 1px solid rgba(240, 180, 40, 0.35);
+  border-radius: 20px;
+  padding: 3px 10px;
+  cursor: pointer;
+  font-family: Georgia, serif;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.info-popup-tag-pill-i {
+  font-size: 9px;
+  color: rgba(240, 180, 40, 0.6);
+  font-family: sans-serif;
+}
+
+.info-popup-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.info-popup-btn {
+  flex: 1;
+  padding: 9px 0;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: Georgia, serif;
+  touch-action: manipulation;
+}
+
+.info-popup-btn--secondary {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #aaa;
+  font-weight: 400;
+}
+
+.info-popup-btn--primary {
+  background: rgba(255, 140, 40, 0.2);
+  border: 1px solid rgba(255, 140, 40, 0.5);
+  color: #f0c060;
+  font-weight: 700;
+}
+
+/* ⓘ badge for headers and tiles */
+
+.info-badge {
+  font-size: 9px;
+  color: rgba(255, 160, 60, 0.6);
+  font-family: sans-serif;
+  background: rgba(255, 160, 60, 0.1);
+  border: 1px solid rgba(255, 160, 60, 0.3);
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.info-badge--small {
+  width: 13px;
+  height: 13px;
+  font-size: 8px;
+  color: rgba(255, 160, 60, 0.5);
+}
+
+/* Tappable panel header (for unit info) */
+
+.hud-panel-header-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  color: #eee;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  width: 100%;
+  border-radius: 6px;
+}
+
+/* Tappable recruit / construct rows */
+
+.info-row-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 7px;
+  padding: 9px 12px;
+  color: #eee;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+
+.info-row-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.info-row-emoji {
+  font-size: 18px;
+}
+
+.info-row-body {
+  flex: 1;
+}
+
+.info-row-name {
+  font-size: 13px;
+  font-family: Georgia, serif;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.info-row-cost {
+  font-size: 10px;
+  color: #f0a840;
+}
+
+/* Tech tree effect tile with ⓘ */
+
+.tech-effect-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  color: #eee;
+  position: relative;
+}
+
+.tech-effect-tile-emoji {
+  font-size: 30px;
+}
+
+.tech-effect-tile-name {
+  font-size: 12px;
+  font-family: Georgia, serif;
+}
+
+.tech-effect-tile .info-badge {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 14px;
+  height: 14px;
+  font-size: 8px;
+  color: rgba(255, 160, 60, 0.7);
+  background: rgba(255, 160, 60, 0.15);
+  border: 1px solid rgba(255, 160, 60, 0.35);
+}
