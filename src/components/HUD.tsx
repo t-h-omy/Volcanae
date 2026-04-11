@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useGameStore } from '../gameStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
-import { UNIT_COSTS, RESOURCES, UNIT_POPULATION_COSTS, POPULATION, UNIT_LEVEL_UP, XP, TECH_TREE } from '../gameConfig';
+import { UNITS, UNIT_COSTS, RESOURCES, UNIT_POPULATION_COSTS, POPULATION, UNIT_LEVEL_UP, XP, TECH_TREE } from '../gameConfig';
 import { UI } from '../uiConfig';
 import type { UnitPopulationCost, TechId } from '../types';
 import {
@@ -382,7 +382,6 @@ function InfoTagPill({ tag, onClick }: { tag: UnitTag; onClick: () => void }) {
  */
 function UnitInfoPopup({
   unitType,
-  unit,
   costLabel,
   onAction,
   actionLabel,
@@ -390,7 +389,6 @@ function UnitInfoPopup({
   isReadOnly,
 }: {
   unitType: UnitType;
-  unit?: Unit;
   costLabel?: string;
   onAction?: () => void;
   actionLabel?: string;
@@ -403,8 +401,19 @@ function UnitInfoPopup({
   const emoji = UNIT_EMOJI[unitType] ?? '?';
   const name = UNIT_NAME[unitType] ?? unitType;
 
-  // Use live unit stats if available, otherwise fall back to nothing
-  const stats = unit?.stats;
+  // Always show base stats from UNITS config so info is consistent regardless of call site
+  const baseConfig = UNITS[unitType as keyof typeof UNITS] as
+    | { attack: number; defense: number; moveRange: number; attackRange: number; discoverRadius: number }
+    | undefined;
+  const stats = baseConfig
+    ? {
+        attack: baseConfig.attack,
+        defense: baseConfig.defense,
+        moveRange: baseConfig.moveRange,
+        attackRange: baseConfig.attackRange,
+        discoverRadius: baseConfig.discoverRadius,
+      }
+    : undefined;
 
   return (
     <>
@@ -714,7 +723,6 @@ function SelectedUnitPanel({
       {unitInfoOpen && (
         <UnitInfoPopup
           unitType={unit.type}
-          unit={unit}
           onClose={() => setUnitInfoOpen(false)}
           isReadOnly
         />
