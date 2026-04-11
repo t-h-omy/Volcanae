@@ -321,12 +321,10 @@ function TopBar({
       <span className="hud-stat">🎖️ {noblesUsed}/{resources.nobles}</span>
       <span className="hud-stat">⚠️ Threat {threatLevel}</span>
       <span className="hud-stat">🌋 Lava in {turnsUntilLavaAdvance}</span>
+      <span className="hud-stat">💎 {arcaneCrystals}</span>
       {showTechButton && (
         <button className="hud-tech-tree-btn" onClick={onOpenTechTree}>
-          🔬
-          {arcaneCrystals > 0 && (
-            <span className="hud-tech-tree-badge">{arcaneCrystals}</span>
-          )}
+          🔬 Tech Tree
         </button>
       )}
       <GameMenu />
