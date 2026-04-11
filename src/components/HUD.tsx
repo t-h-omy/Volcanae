@@ -1309,10 +1309,10 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
   }, [selectedDef, techNodes]);
 
   const handleResearch = useCallback(() => {
-    if (selectedId && arcaneCrystals > 0 && availableSet.has(selectedId)) {
+    if (selectedId && selectedDef && arcaneCrystals >= (selectedDef.cost ?? 1) && availableSet.has(selectedId)) {
       unlockTech(selectedId);
     }
-  }, [selectedId, arcaneCrystals, availableSet, unlockTech]);
+  }, [selectedId, selectedDef, arcaneCrystals, availableSet, unlockTech]);
 
   // Close on Escape
   useEffect(() => {
@@ -1333,7 +1333,7 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
       <div className="tech-overlay-header">
         <span>🔬 Tech Tree</span>
         {arcaneCrystals > 0 && (
-          <span className="tech-overlay-picks">{arcaneCrystals} crystal{arcaneCrystals > 1 ? 's' : ''} available</span>
+          <span className="tech-overlay-picks">💎 {arcaneCrystals} crystal{arcaneCrystals > 1 ? 's' : ''} available</span>
         )}
         <button className="tech-overlay-close" onClick={onClose}>✕</button>
       </div>
@@ -1387,7 +1387,7 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
                 }}
               >
                 <span className="tech-node-name">{def.name}</span>
-                {isAvailable && <span className="tech-node-cost">🔬 1</span>}
+                {isAvailable && <span className="tech-node-cost">💎 {def.cost ?? 1}</span>}
               </div>
             );
           })}
@@ -1421,16 +1421,20 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
             </div>
 
             <div className="tech-detail-actions">
-              {selectedState === 'available' && (
-                <button
-                  className={`tech-detail-btn tech-detail-btn--primary ${arcaneCrystals <= 0 ? 'tech-detail-btn--disabled' : ''}`}
-                  onClick={handleResearch}
-                  disabled={arcaneCrystals <= 0}
-                  title={arcaneCrystals <= 0 ? 'No crystals available' : undefined}
-                >
-                  {arcaneCrystals > 0 ? 'RESEARCH' : 'RESEARCH (No crystals)'}
-                </button>
-              )}
+              {selectedState === 'available' && (() => {
+                const techCost = selectedDef?.cost ?? 1;
+                const canAfford = arcaneCrystals >= techCost;
+                return (
+                  <button
+                    className={`tech-detail-btn tech-detail-btn--primary ${!canAfford ? 'tech-detail-btn--disabled' : ''}`}
+                    onClick={handleResearch}
+                    disabled={!canAfford}
+                    title={!canAfford ? `Need ${techCost} crystals (have ${arcaneCrystals})` : undefined}
+                  >
+                    {canAfford ? `RESEARCH (💎 ${techCost})` : `RESEARCH (need 💎 ${techCost})`}
+                  </button>
+                );
+              })()}
               <button
                 className="tech-detail-btn tech-detail-btn--secondary"
                 onClick={() => setSelectedId(null)}

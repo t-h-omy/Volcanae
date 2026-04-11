@@ -52,20 +52,22 @@ export function getAvailableTechs(state: GameState | Draft<GameState>): TechId[]
  * the player has no pending picks.
  */
 export function unlockTech(state: Draft<GameState>, techId: TechId): void {
-  if (state.arcaneCrystals <= 0) return;
-
   const nodeState = state.techNodes[techId];
   if (!nodeState || nodeState.unlocked) return;
 
   const def = TECH_TREE.find((d) => d.id === techId);
   if (!def) return;
 
+  const cost = def.cost ?? 1;
+
   // Check prerequisites
   if (!def.requires.every((reqId) => state.techNodes[reqId]?.unlocked === true)) return;
 
-  // Mark as unlocked and spend the pick
+  if (state.arcaneCrystals < cost) return;
+
+  // Mark as unlocked and spend the crystals
   nodeState.unlocked = true;
-  state.arcaneCrystals -= 1;
+  state.arcaneCrystals -= cost;
 
   // Apply effects
   for (const effect of def.effects) {
