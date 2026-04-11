@@ -344,7 +344,7 @@ const HIDDEN_UNIT_TAGS = new Set<string>([]);
 /** Reusable popup shell — backdrop + centered card, dismisses on outside tap */
 function Popup({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
   return (
-    <div className="info-popup-backdrop" onClick={onClose}>
+    <div className="info-popup-backdrop" onClick={onClose} role="dialog" aria-modal="true">
       <div className="info-popup-card" onClick={(e) => e.stopPropagation()}>
         {children}
       </div>
@@ -615,10 +615,10 @@ function SelectedUnitPanel({
   return (
     <div className={`hud-info-panel${!isPlayer ? ' hud-panel-enemy' : ''}`}>
       {/* Header — entire row is tappable to open UnitInfoPopup */}
-      <button className="hud-panel-header-btn" onClick={() => setUnitInfoOpen(true)}>
+      <button className="hud-panel-header-btn" onClick={() => setUnitInfoOpen(true)} aria-label={`View ${UNIT_NAME[unit.type] ?? unit.type} info`}>
         <span className="hud-panel-emoji">{UNIT_EMOJI[unit.type] ?? '?'}</span>
         <span className="hud-panel-name">{UNIT_NAME[unit.type] ?? unit.type}</span>
-        <span className="info-badge">i</span>
+        <span className="info-badge" aria-hidden="true">i</span>
         {!isPlayer && <span className="hud-faction-label hud-faction-enemy" style={{ marginLeft: 'auto' }}>🔴 Enemy</span>}
       </button>
       <div className="hud-hp-row">
