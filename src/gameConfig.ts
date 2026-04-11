@@ -6,8 +6,8 @@
  * animationConfig.ts, uiConfig.ts, renderConfig.ts, and inputConfig.ts.
  */
 
-import { UnitTag, DestroyBehavior } from './types';
-import type { UnitPopulationCost, UnitLevelDefinition } from './types';
+import { UnitTag, DestroyBehavior, BuildingType, UnitType, ResourceType } from './types';
+import type { UnitPopulationCost, UnitLevelDefinition, TechNodeDefinition } from './types';
 
 // ============================================================================
 // MAP CONFIGURATION
@@ -109,7 +109,7 @@ export const UNITS = {
     attackRange: 1,
     discoverRadius: 1,
     triggerRange: 0,
-    tags: [UnitTag.BUILDANDCAPTURE, UnitTag.PREP],
+    tags: [UnitTag.PREP],
   },
 
   LAVA_GRUNT: {
@@ -205,6 +205,7 @@ export const BUILDINGS = {
     PATRICIANHOUSE: 0,
     MAGMASPYR: 2,
     EMBERNEST: 2,
+    CRYSTAL_CHAMBER: 2,
   },
   /** What happens to a tile when a building of each type is destroyed */
   DESTROY_BEHAVIOR: {
@@ -222,6 +223,7 @@ export const BUILDINGS = {
     PATRICIANHOUSE: DestroyBehavior.RUIN,
     MAGMASPYR: DestroyBehavior.RESOURCE,
     EMBERNEST: DestroyBehavior.RESOURCE,
+    CRYSTAL_CHAMBER: DestroyBehavior.RUIN,
   },
   /** Watchtower combat configuration */
   WATCHTOWER_STATS: {
@@ -249,6 +251,23 @@ export const LAVA_LAIR = {
   EMBER_NEST_SPAWN_INTERVAL: 3,
   /** Maximum number of EMBERLINGs allowed near an EMBER_NEST (within 8 tiles) */
   EMBER_NEST_MAX_EMBERLINGS: 2,
+} as const;
+
+// ============================================================================
+// CRYSTAL CHAMBER CONFIGURATION
+// ============================================================================
+
+export const CRYSTAL_CHAMBER_CONFIG = {
+  /** Number of turns all surviving chambers resonate after one is destroyed by lava */
+  RESONANCE_DURATION: 3,
+  /** Arcane crystals granted per resonating chamber per player turn */
+  CRYSTALS_PER_CHAMBER_PER_TURN: 1,
+  /** Construction cost */
+  COST: { iron: 2, wood: 3 },
+  /** Max HP */
+  MAX_HP: 100,
+  /** Discovery radius */
+  DISCOVER_RADIUS: 2,
 } as const;
 
 // ============================================================================
@@ -725,6 +744,156 @@ export const UNIT_LEVEL_UP: Record<string, UnitLevelDefinition[]> = {
 };
 
 // ============================================================================
+// TECH CONFIGURATION
+// ============================================================================
+
+export const TECH = {
+  /** Number of crystals granted at game start (before first lava consumption) */
+  CRYSTALS_ON_GAME_START: 3,
+  /** Number of crystals granted each time a player building is consumed by lava */
+  CRYSTALS_ON_LAVA_CONSUMPTION: 1,
+  /** Number of crystals granted each time the player captures a new zone stronghold */
+  CRYSTALS_ON_ZONE_STRONGHOLD: 0,
+} as const;
+
+// ============================================================================
+// TECH TREE CONFIGURATION
+// ============================================================================
+
+/**
+ * Tech tree node definitions.
+ * Add a new tech node by adding one entry to this array — no logic files
+ * touched, no switch statements updated, no hardcoded references.
+ */
+export const TECH_TREE: TechNodeDefinition[] = [
+  // ── Root node (auto-unlocked at game start, not a pick) ──
+  {
+    id: 'CONSCRIPTION',
+    name: 'Conscription',
+    description: 'Basic military infrastructure',
+    requires: [],
+    effects: [
+      { type: 'UNLOCK_BUILDING', buildingType: BuildingType.BARRACKS },
+      { type: 'UNLOCK_BUILDING', buildingType: BuildingType.FARM },
+      { type: 'UNLOCK_BUILDING', buildingType: BuildingType.CRYSTAL_CHAMBER },
+      { type: 'UNLOCK_UNIT',     unitType: UnitType.INFANTRY },
+      { type: 'UNLOCK_UNIT',     unitType: UnitType.SCOUT },
+      { type: 'UNLOCK_UNIT',     unitType: UnitType.GUARD },
+    ],
+  },
+
+  // ── Branch 1: Nobility ──
+  {
+    id: 'A_NOBLE_STEAD',
+    name: 'A Noble Stead',
+    description: 'Attract the upper class and field swift cavalry',
+    requires: ['CONSCRIPTION'],
+    effects: [
+      { type: 'UNLOCK_BUILDING', buildingType: BuildingType.PATRICIANHOUSE },
+      { type: 'UNLOCK_BUILDING', buildingType: BuildingType.RIDER_CAMP },
+      { type: 'UNLOCK_UNIT',     unitType: UnitType.RIDER },
+    ],
+  },
+  {
+    id: 'DEEP_VEINS',
+    name: 'Deep Veins',
+    description: 'Mines occasionally produce bonus iron',
+    requires: ['A_NOBLE_STEAD'],
+    effects: [
+      { type: 'BUILDING_PRODUCTION_MOD', buildingType: BuildingType.MINE, resource: ResourceType.IRON, chancePercent: 30, amount: 1 },
+    ],
+  },
+
+  // ── Branch 2: Ranged ──
+  {
+    id: 'FAR_REACH',
+    name: 'Far Reach',
+    description: 'Establish archery ranges and train bowmen',
+    requires: ['CONSCRIPTION'],
+    effects: [
+      { type: 'UNLOCK_BUILDING', buildingType: BuildingType.ARCHER_CAMP },
+      { type: 'UNLOCK_UNIT',     unitType: UnitType.ARCHER },
+    ],
+  },
+  {
+    id: 'CLEAN_CUTS',
+    name: 'Clean Cuts',
+    description: 'Woodcutters occasionally produce bonus wood',
+    requires: ['FAR_REACH'],
+    effects: [
+      { type: 'BUILDING_PRODUCTION_MOD', buildingType: BuildingType.WOODCUTTER, resource: ResourceType.WOOD, chancePercent: 30, amount: 1 },
+    ],
+  },
+  {
+    id: 'TO_THE_FRONT',
+    name: 'To the Front',
+    description: 'Units far from the lava front move faster',
+    requires: ['CLEAN_CUTS'],
+    effects: [
+      { type: 'FLAG', flag: 'TO_THE_FRONT' },
+    ],
+  },
+
+  // ── Branch 3: Fortification ──
+  {
+    id: 'FIELD_DUTIES',
+    name: 'Field Duties',
+    description: 'Guards can now construct and capture like builders',
+    requires: ['CONSCRIPTION'],
+    effects: [
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.GUARD, tag: UnitTag.BUILDANDCAPTURE },
+    ],
+  },
+  {
+    id: 'HOLD_GROUND',
+    name: 'Hold Ground',
+    description: 'Units on own buildings gain a defense bonus',
+    requires: ['FIELD_DUTIES'],
+    effects: [
+      { type: 'FLAG', flag: 'HOLD_GROUND' },
+    ],
+  },
+  {
+    id: 'FIELDWORK',
+    name: 'Fieldwork',
+    description: 'Infantry can sacrifice themselves to construct a Watchtower',
+    requires: ['FIELD_DUTIES'],
+    effects: [
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.INFANTRY, tag: UnitTag.FIELDWORK },
+    ],
+  },
+
+  // ── Branch 4: Reconnaissance ──
+  {
+    id: 'BIG_EYES',
+    name: 'Big Eyes',
+    description: 'Scouts see further into the fog',
+    requires: ['CONSCRIPTION'],
+    effects: [
+      { type: 'UNIT_STAT_MOD', unitType: UnitType.SCOUT, stat: 'discoverRadius', mode: 'add', value: 1 },
+    ],
+  },
+  {
+    id: 'ASSASSIN',
+    name: 'Assassin',
+    description: 'Scouts deal bonus damage when striking full-HP enemies',
+    requires: ['BIG_EYES'],
+    effects: [
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.SCOUT, tag: UnitTag.ASSASSIN },
+    ],
+  },
+  {
+    id: 'PATCH_UP',
+    name: 'Patch Up',
+    description: 'Scouts can heal adjacent friendly units',
+    requires: ['BIG_EYES'],
+    effects: [
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.SCOUT, tag: UnitTag.PATCHUP },
+    ],
+  },
+];
+
+// ============================================================================
 // CONVENIENCE EXPORTS
 // ============================================================================
 
@@ -750,6 +919,9 @@ export const GAME_CONFIG = {
   XP,
   LEVEL_UP_VALUES,
   UNIT_LEVEL_UP,
+  TECH,
+  TECH_TREE,
+  CRYSTAL_CHAMBER_CONFIG,
 } as const;
 
 export default GAME_CONFIG;

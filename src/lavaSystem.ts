@@ -20,9 +20,10 @@
 import type { GameState } from './types';
 import type { Draft } from 'immer';
 import { produce } from 'immer';
-import { Faction } from './types';
-import { MAP, LAVA } from './gameConfig';
+import { Faction, BuildingType } from './types';
+import { MAP, LAVA, TECH, CRYSTAL_CHAMBER_CONFIG } from './gameConfig';
 import type { GameEvent } from './gameEvents';
+import { grantArcaneCrystals } from './techSystem';
 
 // ============================================================================
 // LAVA STATE QUERIES
@@ -130,6 +131,11 @@ export function advanceLava(state: Draft<GameState>): void {
       const building = state.buildings[buildingId];
 
       if (building) {
+        // Grant tech pick when player building is consumed by lava
+        if (building.faction === Faction.PLAYER) {
+          grantArcaneCrystals(state, TECH.CRYSTALS_ON_LAVA_CONSUMPTION);
+        }
+
         // Handle specialist storage
         if (building.specialistSlot !== null) {
           const specialistId = building.specialistSlot;
@@ -149,6 +155,21 @@ export function advanceLava(state: Draft<GameState>): void {
 
         // Remove building from state
         delete state.buildings[buildingId];
+
+        // If a player Crystal Chamber was consumed, trigger resonance on survivors
+        if (building.faction === Faction.PLAYER && building.type === BuildingType.CRYSTAL_CHAMBER) {
+          for (const other of Object.values(state.buildings)) {
+            if (
+              other.faction === Faction.PLAYER &&
+              other.type === BuildingType.CRYSTAL_CHAMBER
+            ) {
+              other.resonanceTurnsRemaining = Math.max(
+                other.resonanceTurnsRemaining,
+                CRYSTAL_CHAMBER_CONFIG.RESONANCE_DURATION,
+              );
+            }
+          }
+        }
       }
 
       // Clear building from tile

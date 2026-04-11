@@ -98,6 +98,7 @@ export function corruptTerrain(
     emberSpawnCounter: 0,
     recruitmentQueue: null,
     destroyBehavior: BUILDINGS.DESTROY_BEHAVIOR[buildingType],
+    resonanceTurnsRemaining: 0,
   };
 
   // Add building to state

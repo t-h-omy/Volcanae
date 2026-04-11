@@ -3,7 +3,7 @@
  * Generates the initial GameState grid with buildings, units, and zones.
  */
 
-import { MAP, LAVA, UNITS, BUILDINGS, TERRAIN, POPULATION, RESOURCES } from './gameConfig';
+import { MAP, LAVA, UNITS, BUILDINGS, TERRAIN, POPULATION, RESOURCES, TECH_TREE, TECH } from './gameConfig';
 import {
   Faction,
   UnitType,
@@ -18,6 +18,7 @@ import type {
   Building,
   Tile,
   GameState,
+  TechNodeState,
 } from './types';
 import { createInitialSpecialists } from './specialistSystem';
 import {
@@ -193,6 +194,7 @@ function createBuilding(
     emberSpawnCounter: 0,
     recruitmentQueue: null,
     destroyBehavior: BUILDINGS.DESTROY_BEHAVIOR[type],
+    resonanceTurnsRemaining: 0,
   };
 }
 
@@ -617,7 +619,28 @@ export function generateInitialGameState(): GameState {
     selectedTilePos: null,
     threatLevel: 0,
     zonesUnlocked: [1, 2],
+    techNodes: TECH_TREE.reduce<Record<string, TechNodeState>>((acc, def) => {
+      acc[def.id] = { id: def.id, unlocked: def.id === 'CONSCRIPTION' };
+      return acc;
+    }, {}),
+    techFlags: [],
+    arcaneCrystals: TECH.CRYSTALS_ON_GAME_START,
+    unlockedBuildings: [],
+    unlockedUnits: [],
   };
+
+  // Auto-apply CONSCRIPTION effects (unlocked at game start, not a pick)
+  const conscription = TECH_TREE.find((d) => d.id === 'CONSCRIPTION');
+  if (conscription) {
+    for (const effect of conscription.effects) {
+      if (effect.type === 'UNLOCK_BUILDING' && !gameState.unlockedBuildings.includes(effect.buildingType)) {
+        gameState.unlockedBuildings.push(effect.buildingType);
+      }
+      if (effect.type === 'UNLOCK_UNIT' && !gameState.unlockedUnits.includes(effect.unitType)) {
+        gameState.unlockedUnits.push(effect.unitType);
+      }
+    }
+  }
 
   return gameState;
 }
