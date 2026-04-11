@@ -1247,12 +1247,11 @@ const NODE_H = 52;
 
 /** Grid position for each tech node (col, row) */
 const TECH_NODE_POS: Record<string, { col: number; row: number }> = {
-  CONSCRIPTION:  { col: 2,   row: 0 },
+  CONSCRIPTION:  { col: 1.5, row: 0 },
   A_NOBLE_STEAD: { col: 0,   row: 1 },
   FAR_REACH:     { col: 1,   row: 1 },
   FIELD_DUTIES:  { col: 2,   row: 1 },
   BIG_EYES:      { col: 3,   row: 1 },
-  CRYSTAL_LORE:  { col: 4,   row: 1 },
   DEEP_VEINS:    { col: 0,   row: 2 },
   CLEAN_CUTS:    { col: 1,   row: 2 },
   HOLD_GROUND:   { col: 2,   row: 2 },
@@ -1327,7 +1326,7 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
   }, [onClose]);
 
   // Canvas dimensions — add bottom padding so row-3 nodes aren't hidden behind the detail sheet
-  const canvasW = 4 * STRIDE_X + NODE_W + 40;
+  const canvasW = 3 * STRIDE_X + NODE_W + 40;
   const canvasH = 3 * STRIDE_Y + NODE_H + 300;
 
   return (

@@ -775,22 +775,10 @@ export const TECH_TREE: TechNodeDefinition[] = [
     effects: [
       { type: 'UNLOCK_BUILDING', buildingType: BuildingType.BARRACKS },
       { type: 'UNLOCK_BUILDING', buildingType: BuildingType.FARM },
+      { type: 'UNLOCK_BUILDING', buildingType: BuildingType.CRYSTAL_CHAMBER },
       { type: 'UNLOCK_UNIT',     unitType: UnitType.INFANTRY },
       { type: 'UNLOCK_UNIT',     unitType: UnitType.SCOUT },
       { type: 'UNLOCK_UNIT',     unitType: UnitType.GUARD },
-    ],
-  },
-
-  // ── Branch 5: Crystal Chambers ──
-  {
-    id: 'CRYSTAL_LORE',
-    name: 'Crystal Lore',
-    description:
-      'Arcane crystals attune to one another across distance. Unlocks the Crystal Chamber — ' +
-      'when lava claims one, all surviving chambers resonate and generate arcane crystals.',
-    requires: ['CONSCRIPTION'],
-    effects: [
-      { type: 'UNLOCK_BUILDING', buildingType: BuildingType.CRYSTAL_CHAMBER },
     ],
   },
 
