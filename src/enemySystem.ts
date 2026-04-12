@@ -1157,7 +1157,6 @@ function scoreActionsForUnit(
       let bestPairScore = -Infinity;
       let bestPairTile: Position | null = null;
       let bestPairTarget: Unit | null = null;
-      let bestPairKill = false;
 
       for (const dest of reachableTiles) {
         // Check no player unit at Chebyshev distance ≤ 1 from destination
@@ -1184,15 +1183,13 @@ function scoreActionsForUnit(
             bestPairScore = pairScore;
             bestPairTile = dest;
             bestPairTarget = pu;
-            bestPairKill = kill;
           }
         }
       }
 
       if (bestPairTile && bestPairTarget) {
         const score = AI_SCORING.BASE_MOVE_TO_SAFE_RANGED_POSITION
-          + projectCombatScore(unit, bestPairTarget)
-          + (bestPairKill ? AI_SCORING.BONUS_SAFE_RANGED_KILL : 0)
+          + bestPairScore
           - saturationPenalty(bestPairTarget.id, targetingIntents);
         candidates.push({
           type: 'MOVE_TO_SAFE_RANGED_POSITION',
