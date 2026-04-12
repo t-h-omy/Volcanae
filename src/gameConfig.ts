@@ -919,7 +919,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'ASSASSIN',
     name: 'Assassin',
-    description: 'Scouts deal bonus damage when striking full-HP enemies',
+    description: 'Scouts deal bonus damage with no retaliation damage when striking full-HP enemies',
     requires: ['BIG_EYES'],
     cost: 3,
     effects: [
@@ -944,15 +944,15 @@ export const TECH_TREE: TechNodeDefinition[] = [
 
 export const ABILITIES = {
   /** Damage multiplier applied when ASSASSIN tag attacks a full-HP target */
-  ASSASSIN_DAMAGE_MULTIPLIER: 1.5,
+  ASSASSIN_BASE_RANGED_ATTACK: 3,
   /** Flat defense bonus applied when HOLD_GROUND flag is active and unit stands on own building */
-  HOLD_GROUND_DEFENSE_BONUS: 20,
+  HOLD_GROUND_DEFENSE_BONUS: 30,
   /** Extra move range granted by TO_THE_FRONT flag */
   TO_THE_FRONT_MOVE_BONUS: 1,
   /** Minimum tile distance from lava front required for TO_THE_FRONT bonus to apply */
-  TO_THE_FRONT_MIN_DISTANCE: 10,
+  TO_THE_FRONT_MIN_DISTANCE: 8,
   /** HP restored per PATCHUP heal action */
-  PATCHUP_HEAL_AMOUNT: 30,
+  PATCHUP_HEAL_AMOUNT: 40,
 } as const;
 
 // ============================================================================
