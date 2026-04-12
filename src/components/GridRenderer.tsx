@@ -92,7 +92,7 @@ function getBuildingAttackableTileKeys(
 
   // Enemy buildings in range (skip tiles that already have an enemy unit — unit takes priority)
   for (const other of Object.values(buildings)) {
-    if (other.faction === Faction.ENEMY && other.maxHp > 0 && other.id !== building.id) {
+    if (other.faction === Faction.ENEMY && other.combatStats !== null && other.id !== building.id) {
       const key = posKey(other.position.x, other.position.y);
       if (keys.has(key)) continue; // unit on this tile already takes priority
       const inRange = isTileWithinEdgeCircleRange(

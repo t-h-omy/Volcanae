@@ -1270,6 +1270,19 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
                 const popCost = (UNIT_POPULATION_COSTS[unitType] as UnitPopulationCost | undefined);
                 const hasPopulation = canAffordPopulation(useGameStore.getState(), unitType);
                 const canRecruitThisUnit = !isDisabled && hasSpawnSpace && canAffordUnit && hasPopulation;
+                // Compute which population resource is actually insufficient for the error message
+                let popWarningMsg: string | null = null;
+                if (!hasPopulation && canAffordUnit && popCost) {
+                  const state = useGameStore.getState();
+                  const usage = computePopulationUsage(state);
+                  const capacity = computePopulationCapacity(state);
+                  const needFarmers = popCost.farmers > 0 && usage.farmersUsed + popCost.farmers > capacity.farmerCapacity;
+                  const needNobles = popCost.nobles > 0 && usage.noblesUsed + popCost.nobles > capacity.nobleCapacity;
+                  const parts: string[] = [];
+                  if (needFarmers) parts.push('farmers — build more Farms');
+                  if (needNobles) parts.push('nobles — build more Patrician Houses');
+                  if (parts.length > 0) popWarningMsg = `Not enough ${parts.join(' and ')}`;
+                }
                 return (
                   <div key={unitType} className="hud-recruit-option-wrapper">
                     <button
@@ -1294,21 +1307,9 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
                         {popCost.nobles > 0 && `🎖️ ${popCost.nobles} noble${popCost.nobles > 1 ? 's' : ''}`}
                       </span>
                     )}
-                    {!hasPopulation && canAffordUnit && (() => {
-                      const state = useGameStore.getState();
-                      const usage = computePopulationUsage(state);
-                      const capacity = computePopulationCapacity(state);
-                      const needFarmers = popCost && popCost.farmers > 0 && usage.farmersUsed + popCost.farmers > capacity.farmerCapacity;
-                      const needNobles = popCost && popCost.nobles > 0 && usage.noblesUsed + popCost.nobles > capacity.nobleCapacity;
-                      const parts: string[] = [];
-                      if (needFarmers) parts.push('farmers — build more Farms');
-                      if (needNobles) parts.push('nobles — build more Patrician Houses');
-                      return (
-                        <span className="hud-pop-warning">
-                          Not enough {parts.join(' and ')}
-                        </span>
-                      );
-                    })()}
+                    {popWarningMsg && (
+                      <span className="hud-pop-warning">{popWarningMsg}</span>
+                    )}
                   </div>
                 );
               })}
