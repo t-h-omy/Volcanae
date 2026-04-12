@@ -80,6 +80,15 @@ export const CRYSTAL_CHAMBER_ACTIVE_SPRITE = withBase({
 }).active ?? '';
 
 /**
+ * Player-faction overrides for building sprites.
+ * Only entries listed here override BUILDING_SPRITE when building.faction === PLAYER.
+ * Keys and empty-string rules are identical to BUILDING_SPRITE.
+ */
+export const PLAYER_BUILDING_SPRITE: Partial<Record<BuildingType, string>> = withBase({
+  WATCHTOWER: '/sprites/buildings/watch_tower_player_100px.png',
+});
+
+/**
  * Enemy-faction overrides for building sprites.
  * Only entries listed here override BUILDING_SPRITE when building.faction === ENEMY.
  * Keys and empty-string rules are identical to BUILDING_SPRITE.

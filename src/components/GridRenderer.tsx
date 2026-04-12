@@ -18,7 +18,7 @@ import { RENDER } from '../renderConfig';
 import { INPUT } from '../inputConfig';
 import { computeLevelFromXp } from '../levelSystem';
 import { useZoomStore } from '../zoomStore';
-import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE, RESOURCE_SPRITE, ENEMY_BUILDING_SPRITE, TERRAIN_RESOURCE_SPRITE, CRYSTAL_CHAMBER_ACTIVE_SPRITE } from '../assetRegistry';
+import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE, RESOURCE_SPRITE, ENEMY_BUILDING_SPRITE, PLAYER_BUILDING_SPRITE, TERRAIN_RESOURCE_SPRITE, CRYSTAL_CHAMBER_ACTIVE_SPRITE } from '../assetRegistry';
 import MissingSprite from './MissingSprite';
 import {
   Faction,
@@ -66,14 +66,17 @@ function posKey(x: number, y: number): string {
 
 /** Returns set of "x,y" keys for tiles that are attackable by the selected player unit.
  *  Includes tiles with enemy units and tiles with enemy buildings (no unit on the tile). */
-/** Returns set of "x,y" keys for tiles an enemy unit occupies that are
+/** Returns set of "x,y" keys for tiles an enemy unit or enemy building occupies that are
  *  within attack range of a player-owned attacking building (e.g. watchtower). */
 function getBuildingAttackableTileKeys(
   building: Building,
   units: Record<string, Unit>,
+  buildings: Record<string, Building>,
 ): Set<string> {
   const keys = new Set<string>();
   if (!building.combatStats || building.faction !== Faction.PLAYER || building.hasAttackedThisTurn) return keys;
+
+  // Enemy units in range
   for (const other of Object.values(units)) {
     if (other.faction === Faction.ENEMY) {
       const inRange = isTileWithinEdgeCircleRange(
@@ -86,6 +89,23 @@ function getBuildingAttackableTileKeys(
       }
     }
   }
+
+  // Enemy buildings in range (skip tiles that already have an enemy unit — unit takes priority)
+  for (const other of Object.values(buildings)) {
+    if (other.faction === Faction.ENEMY && other.combatStats !== null && other.id !== building.id) {
+      const key = posKey(other.position.x, other.position.y);
+      if (keys.has(key)) continue; // unit on this tile already takes priority
+      const inRange = isTileWithinEdgeCircleRange(
+        building.position.x, building.position.y,
+        other.position.x, other.position.y,
+        building.combatStats.attackRange,
+      );
+      if (inRange) {
+        keys.add(key);
+      }
+    }
+  }
+
   return keys;
 }
 
@@ -109,6 +129,7 @@ export default function GridRenderer() {
   const attackUnit = useGameStore((s) => s.attackUnit);
   const attackBuilding = useGameStore((s) => s.attackBuilding);
   const buildingAttackUnit = useGameStore((s) => s.buildingAttackUnit);
+  const buildingAttackBuilding = useGameStore((s) => s.buildingAttackBuilding);
   const healUnit = useGameStore((s) => s.healUnit);
   const pendingHealerId = useGameStore((s) => s.pendingHealerId);
   const cancelHealMode = useGameStore((s) => s.cancelHealMode);
@@ -385,7 +406,7 @@ export default function GridRenderer() {
     }
     // Building attack range (e.g. player watchtower)
     if (selectedBuilding && selectedBuilding.combatStats && selectedBuilding.faction === Faction.PLAYER) {
-      return getBuildingAttackableTileKeys(selectedBuilding, units);
+      return getBuildingAttackableTileKeys(selectedBuilding, units, buildings);
     }
     return new Set();
   }, [selectedUnit, selectedBuilding, units, buildings, grid]);
@@ -481,19 +502,29 @@ export default function GridRenderer() {
         return;
       }
 
-      // Priority 5a — Enemy building on tile (no enemy unit), player unit can attack it
+      // Priority 5a — Enemy building on tile (no enemy unit), player unit or player building can attack it
       if (tile.buildingId) {
         const b = buildings[tile.buildingId];
-        if (
-          b &&
-          b.faction === Faction.ENEMY &&
-          selectedUnit &&
-          selectedUnit.faction === Faction.PLAYER &&
-          canUnitAttack(selectedUnit) &&
-          attackableSet.has(key)
-        ) {
-          attackBuilding(selectedUnit.id, tile.buildingId);
-          return;
+        if (b && b.faction === Faction.ENEMY && attackableSet.has(key)) {
+          // Player unit attacks the building
+          if (
+            selectedUnit &&
+            selectedUnit.faction === Faction.PLAYER &&
+            canUnitAttack(selectedUnit)
+          ) {
+            attackBuilding(selectedUnit.id, tile.buildingId);
+            return;
+          }
+          // Player building (e.g. watchtower) attacks the enemy building
+          if (
+            selectedBuilding &&
+            selectedBuilding.combatStats &&
+            selectedBuilding.faction === Faction.PLAYER &&
+            !selectedBuilding.hasAttackedThisTurn
+          ) {
+            buildingAttackBuilding(selectedBuilding.id, tile.buildingId);
+            return;
+          }
         }
       }
 
@@ -515,7 +546,7 @@ export default function GridRenderer() {
         clearSelection();
       }
     },
-    [grid, selectedUnitId, selectedBuildingId, selectedUnit, selectedBuilding, attackableSet, healableSet, reachableSet, units, buildings, selectUnit, selectBuilding, selectTile, clearSelection, moveUnit, attackUnit, attackBuilding, buildingAttackUnit, healUnit, pendingHealerId, cancelHealMode, isAnimating],
+    [grid, selectedUnitId, selectedBuildingId, selectedUnit, selectedBuilding, attackableSet, healableSet, reachableSet, units, buildings, selectUnit, selectBuilding, selectTile, clearSelection, moveUnit, attackUnit, attackBuilding, buildingAttackUnit, buildingAttackBuilding, healUnit, pendingHealerId, cancelHealMode, isAnimating],
   );
 
   // Right-click / tap-hold → deselect (only when not used for drag-panning)
@@ -718,18 +749,20 @@ function TileCellInner({
 
   // Building sprite selection:
   // - Enemy buildings use ENEMY_BUILDING_SPRITE when a faction-specific override exists.
+  // - Player buildings use PLAYER_BUILDING_SPRITE when a faction-specific override exists.
   // - Neutral resource nodes (MINE, WOODCUTTER) use RESOURCE_SPRITE.
   // - Active (resonating) Crystal Chambers use CRYSTAL_CHAMBER_ACTIVE_SPRITE.
-  // - All other buildings (including neutral WATCHTOWER) use BUILDING_SPRITE directly,
-  //   so they render as normal buildings on top of the terrain background.
+  // - All other buildings use BUILDING_SPRITE directly.
   const buildingSpritePath = building
     ? building.faction === Faction.ENEMY && ENEMY_BUILDING_SPRITE[building.type]
       ? ENEMY_BUILDING_SPRITE[building.type]
-      : building.faction === null && RESOURCE_SPRITE[building.type]
-        ? RESOURCE_SPRITE[building.type]
-        : isResonating
-          ? CRYSTAL_CHAMBER_ACTIVE_SPRITE
-          : BUILDING_SPRITE[building.type]
+      : building.faction === Faction.PLAYER && PLAYER_BUILDING_SPRITE[building.type]
+        ? PLAYER_BUILDING_SPRITE[building.type]
+        : building.faction === null && RESOURCE_SPRITE[building.type]
+          ? RESOURCE_SPRITE[building.type]
+          : isResonating
+            ? CRYSTAL_CHAMBER_ACTIVE_SPRITE
+            : BUILDING_SPRITE[building.type]
     : undefined;
   const [buildingSpriteError, setBuildingSpriteError] = useState(false);
   const buildingExhaustedFilter = building && building.combatStats && building.hasAttackedThisTurn

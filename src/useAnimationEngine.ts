@@ -40,6 +40,8 @@ function eventPosition(event: GameEvent): Position {
       return event.defenderPosition;
     case 'BUILDING_ATTACK':
       return event.defenderPosition;
+    case 'BUILDING_ATTACK_BUILDING':
+      return event.targetBuildingPosition;
     case 'UNIT_ATTACK_BUILDING':
       return event.buildingPosition;
     case 'UNIT_DEATH':
@@ -80,6 +82,8 @@ function isEventVisible(event: GameEvent): boolean {
       return isTileRevealed(event.attackerPosition) || isTileRevealed(event.defenderPosition);
     case 'BUILDING_ATTACK':
       return isTileRevealed(event.buildingPosition) || isTileRevealed(event.defenderPosition);
+    case 'BUILDING_ATTACK_BUILDING':
+      return isTileRevealed(event.attackingBuildingPosition) || isTileRevealed(event.targetBuildingPosition);
     case 'UNIT_ATTACK_BUILDING':
       return isTileRevealed(event.attackerPosition) || isTileRevealed(event.buildingPosition);
     case 'UNIT_DEATH':
@@ -550,6 +554,48 @@ export function useAnimationEngine(): void {
               useAnimationStore.getState().setCameraTarget(event.advancedToPosition);
               await wait(ANIMATION.CAMERA_MOVE_DURATION_MS + ANIMATION.POST_ACTION_IDLE_MS);
             }
+          }
+
+          continue;
+        }
+
+        // ── Special handling for BUILDING_ATTACK_BUILDING (building fires projectile at another building) ──
+        if (event.type === 'BUILDING_ATTACK_BUILDING') {
+          if (visible) {
+            const tileSize = getTileSize();
+            const distance = manhattanDistance(event.attackingBuildingPosition, event.targetBuildingPosition);
+            const projectileDuration = clamp(
+              distance * ANIMATION.RANGED_PROJECTILE_MS_PER_TILE,
+              ANIMATION.RANGED_PROJECTILE_MIN_MS,
+              ANIMATION.RANGED_PROJECTILE_MAX_MS,
+            );
+
+            const fromPx = {
+              x: event.attackingBuildingPosition.x * tileSize + tileSize / 2,
+              y: event.attackingBuildingPosition.y * tileSize + tileSize / 2,
+            };
+            const toPx = {
+              x: event.targetBuildingPosition.x * tileSize + tileSize / 2,
+              y: event.targetBuildingPosition.y * tileSize + tileSize / 2,
+            };
+
+            useCombatAnimationStore.getState().addProjectile({
+              id: crypto.randomUUID(),
+              fromPx,
+              toPx,
+              emoji: '🗡️',
+              rotationDeg: angleBetween(fromPx, toPx),
+              durationMs: projectileDuration,
+            });
+
+            await wait(projectileDuration);
+          }
+
+          useGameStore.getState().applyEvent(event);
+
+          if (visible) {
+            await wait(ANIMATION.HIT_SHAKE_DURATION_MS);
+            await wait(ANIMATION.POST_ACTION_IDLE_MS);
           }
 
           continue;

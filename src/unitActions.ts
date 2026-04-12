@@ -30,7 +30,7 @@
 
 import type { GameState } from './types';
 import type { Draft } from 'immer';
-import { Faction, UnitTag } from './types';
+import { Faction, UnitTag, BuildingType } from './types';
 import type { Unit, Building, Tile } from './types';
 import { getReachableTiles } from './movementSystem';
 import { getConstructionOptionsForTile } from './constructionSystem';
@@ -164,9 +164,11 @@ export function getAttackTargets(
   }
 
   // Enemy buildings with combat stats on revealed tiles (skip tiles already
-  // covered by an enemy unit — the unit takes priority as the attack target)
+  // covered by an enemy unit — the unit takes priority as the attack target).
+  // INFERNALSANCTUM is capture-only and cannot be directly attacked.
   for (const b of Object.values(buildings)) {
-    if (b.faction === Faction.ENEMY && b.maxHp > 0 && b.combatStats !== null) {
+    if (b.faction === Faction.ENEMY && b.maxHp > 0 && b.combatStats !== null
+        && b.type !== BuildingType.INFERNALSANCTUM) {
       if (!grid[b.position.y]?.[b.position.x]?.isRevealed) continue;
       const key = `${b.position.x},${b.position.y}`;
       if (keys.has(key)) continue;

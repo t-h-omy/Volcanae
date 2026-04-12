@@ -7,7 +7,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { current, produce } from 'immer';
 import { generateInitialGameState, generateId } from './mapGenerator';
-import { resolveAttack, resolveBuildingAttack, resolveAttackOnBuilding } from './combatSystem';
+import { resolveAttack, resolveBuildingAttack, resolveAttackOnBuilding, resolveBuildingAttackOnBuilding } from './combatSystem';
 import { moveUnit as moveUnitLogic } from './movementSystem';
 import {
   initiateCapture as initiateCaptureLogic,
@@ -67,6 +67,8 @@ interface GameActions {
   attackBuilding: (attackerId: string, buildingId: string) => void;
   /** Attack a target unit with a building (e.g. watchtower) */
   buildingAttackUnit: (buildingId: string, targetId: string) => void;
+  /** Attack a target building with a player building (e.g. watchtower vs enemy watchtower) */
+  buildingAttackBuilding: (attackingBuildingId: string, targetBuildingId: string) => void;
   /** Capture a building with a unit (stub) */
   captureBuilding: (unitId: string, buildingId: string) => void;
   /** Recruit a unit from a building (stub) */
@@ -438,6 +440,58 @@ export const useGameStore = create<GameStore>()(
         }
 
         pendingEvents = events;
+        pendingResolvedState = resolvedState;
+
+        // Lock UI while animation plays
+        state.phase = GamePhase.ENEMY_TURN;
+      });
+
+      if (pendingEvents !== null && pendingResolvedState !== null) {
+        useAnimationStore.getState().enqueue(pendingEvents, pendingResolvedState);
+      }
+    },
+
+    buildingAttackBuilding: (attackingBuildingId: string, targetBuildingId: string) => {
+      let pendingEvents: GameEvent[] | null = null;
+      let pendingResolvedState: GameState | null = null;
+
+      set((state) => {
+        const attackingBuilding = state.buildings[attackingBuildingId];
+        const targetBuilding = state.buildings[targetBuildingId];
+        if (!attackingBuilding || !attackingBuilding.combatStats || !attackingBuilding.faction) return;
+        if (!targetBuilding) return;
+
+        const attackingBuildingPosition = { x: attackingBuilding.position.x, y: attackingBuilding.position.y };
+        const targetBuildingPosition = { x: targetBuilding.position.x, y: targetBuilding.position.y };
+        const attackingHpBefore = attackingBuilding.hp;
+        const targetHpBefore = targetBuilding.hp;
+
+        const snapshot: GameState = current(state);
+
+        const resolvedState = produce(snapshot, (draft) => {
+          resolveBuildingAttackOnBuilding(draft, attackingBuildingId, targetBuildingId, true);
+          updateDiscovery(draft);
+          checkGameConditions(draft);
+        });
+
+        const attackingAfter = resolvedState.buildings[attackingBuildingId];
+        const targetAfter = resolvedState.buildings[targetBuildingId];
+
+        const buildingAttackBuildingEvent: GameEvent = {
+          type: 'BUILDING_ATTACK_BUILDING',
+          attackingBuildingId,
+          targetBuildingId,
+          attackingBuildingPosition,
+          targetBuildingPosition,
+          attackingBuildingHpLost: attackingAfter
+            ? attackingHpBefore - attackingAfter.hp
+            : attackingHpBefore,
+          targetBuildingHpLost: targetAfter
+            ? targetHpBefore - targetAfter.hp
+            : targetHpBefore,
+        };
+
+        pendingEvents = [buildingAttackBuildingEvent];
         pendingResolvedState = resolvedState;
 
         // Lock UI while animation plays
@@ -1011,6 +1065,61 @@ export const useGameStore = create<GameStore>()(
                 y: event.attackerPosition.y,
                 isEnemy: attacker?.faction === Faction.ENEMY,
                 floaterType: 'xp',
+              });
+            }
+            break;
+          }
+
+          case 'BUILDING_ATTACK_BUILDING': {
+            // Apply damage to attacking building (from counter-attack) and target building
+            const attackingBuilding = state.buildings[event.attackingBuildingId];
+            const targetBuilding = state.buildings[event.targetBuildingId];
+
+            if (attackingBuilding && event.attackingBuildingHpLost > 0) {
+              const newHp = attackingBuilding.hp - event.attackingBuildingHpLost;
+              if (newHp <= 0) {
+                // Attacking building goes neutral when destroyed by counter-attack
+                attackingBuilding.hp = attackingBuilding.maxHp;
+                attackingBuilding.faction = null;
+                attackingBuilding.hasAttackedThisTurn = false;
+                attackingBuilding.specialistSlot = null;
+                attackingBuilding.turnCapturedByPlayer = null;
+                attackingBuilding.wasEnemyOwnedBeforeCapture = false;
+              } else {
+                attackingBuilding.hp = newHp;
+              }
+            }
+            if (targetBuilding && event.targetBuildingHpLost > 0) {
+              const newHp = targetBuilding.hp - event.targetBuildingHpLost;
+              if (newHp <= 0) {
+                // Target building goes neutral at 0 HP
+                targetBuilding.hp = targetBuilding.maxHp;
+                targetBuilding.faction = null;
+                targetBuilding.hasAttackedThisTurn = false;
+                targetBuilding.specialistSlot = null;
+                targetBuilding.turnCapturedByPlayer = null;
+                targetBuilding.wasEnemyOwnedBeforeCapture = false;
+              } else {
+                targetBuilding.hp = newHp;
+              }
+            }
+
+            // Trigger floaters
+            const { addFloater: addBldFloater } = useFloaterStore.getState();
+            if (event.targetBuildingHpLost > 0) {
+              addBldFloater({
+                value: event.targetBuildingHpLost,
+                x: event.targetBuildingPosition.x,
+                y: event.targetBuildingPosition.y,
+                isEnemy: targetBuilding?.faction === Faction.ENEMY,
+              });
+            }
+            if (event.attackingBuildingHpLost > 0) {
+              addBldFloater({
+                value: event.attackingBuildingHpLost,
+                x: event.attackingBuildingPosition.x,
+                y: event.attackingBuildingPosition.y,
+                isEnemy: attackingBuilding?.faction === Faction.ENEMY,
               });
             }
             break;
