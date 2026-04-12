@@ -41,9 +41,16 @@ export function getReachableTiles(
   const unitPosition = unit.position;
   let moveRange = unit.stats.moveRange;
 
-  // TO_THE_FRONT tech: player units far from lava front get +1 movement.
+  // TO_THE_FRONT tech: player units >N tiles south of the northmost player unit
+  // get a movement bonus.
   if (unit.faction === Faction.PLAYER && state.techFlags.includes(TechFlag.TO_THE_FRONT)) {
-    if (state.lavaFrontRow - unitPosition.y > ABILITIES.TO_THE_FRONT_MIN_DISTANCE) {
+    let minPlayerY = unitPosition.y;
+    for (const u of Object.values(state.units)) {
+      if (u.faction === Faction.PLAYER && u.position.y < minPlayerY) {
+        minPlayerY = u.position.y;
+      }
+    }
+    if (unitPosition.y - minPlayerY > ABILITIES.TO_THE_FRONT_MIN_DISTANCE) {
       moveRange += ABILITIES.TO_THE_FRONT_MOVE_BONUS;
     }
   }

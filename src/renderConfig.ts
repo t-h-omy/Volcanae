@@ -24,6 +24,7 @@ export const RENDER = {
     BUILDING_NEUTRAL: '#4a8c3f',
     REACHABLE_OVERLAY: 'rgba(58, 123, 213, 0.35)',
     ATTACKABLE_OVERLAY: 'rgba(192, 57, 43, 0.35)',
+    HEALABLE_OVERLAY: 'rgba(46, 204, 113, 0.35)',
     HP_GREEN: '#2ecc71',
     HP_RED: '#e74c3c',
     LAVA_BOOST_BAR: '#e67e22',

@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useGameStore } from '../gameStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
-import { UNITS, UNIT_COSTS, RESOURCES, UNIT_POPULATION_COSTS, POPULATION, UNIT_LEVEL_UP, XP, TECH_TREE } from '../gameConfig';
+import { UNITS, UNIT_COSTS, RESOURCES, UNIT_POPULATION_COSTS, POPULATION, UNIT_LEVEL_UP, XP, TECH_TREE, ABILITIES } from '../gameConfig';
 import { UI } from '../uiConfig';
 import type { UnitPopulationCost, TechId } from '../types';
 import {
@@ -31,6 +31,7 @@ import {
   BuildingType,
   TileType,
   TechEffectType,
+  TechFlag,
   type Building,
   type Unit,
   type Specialist,
@@ -623,9 +624,10 @@ function SelectedUnitPanel({
   const [unitInfoOpen, setUnitInfoOpen] = useState(false);
   const [tagPopup, setTagPopup] = useState<UnitTag | null>(null);
   const levelUpUnit = useGameStore((s) => s.levelUpUnit);
-  const healUnit = useGameStore((s) => s.healUnit);
+  const startHealMode = useGameStore((s) => s.startHealMode);
+  const cancelHealMode = useGameStore((s) => s.cancelHealMode);
+  const pendingHealerId = useGameStore((s) => s.pendingHealerId);
   const fieldworkUnit = useGameStore((s) => s.fieldworkUnit);
-  const [healTargetPicker, setHealTargetPicker] = useState(false);
   const [confirmFieldwork, setConfirmFieldwork] = useState(false);
 
   const healTargets = useMemo(
@@ -633,11 +635,13 @@ function SelectedUnitPanel({
     [canHeal, gameState, unit.id],
   );
 
+  const isInHealMode = pendingHealerId === unit.id;
+
   const handleHealClick = () => {
-    if (healTargets.length === 1) {
-      healUnit(unit.id, healTargets[0]);
-    } else if (healTargets.length > 1) {
-      setHealTargetPicker(true);
+    if (isInHealMode) {
+      cancelHealMode();
+    } else if (healTargets.length > 0) {
+      startHealMode(unit.id);
     }
   };
 
@@ -646,6 +650,38 @@ function SelectedUnitPanel({
   const isMaxLevel = unit.level >= XP.MAX_LEVEL;
   const nextLevelDef = !isMaxLevel ? UNIT_LEVEL_UP[unit.type]?.[unit.level - 1] : null;
   const nextLevelXpRequired = nextLevelDef?.xpRequired ?? null;
+
+  // Compute contextual stat bonuses from tech flags
+  const statBonuses = useMemo(() => {
+    const bonuses: { def: number; mov: number } = { def: 0, mov: 0 };
+    if (unit.faction !== Faction.PLAYER) return bonuses;
+
+    // HOLD_GROUND: defense bonus when standing on own building
+    if (gameState.techFlags.includes(TechFlag.HOLD_GROUND)) {
+      const tile = gameState.grid[unit.position.y]?.[unit.position.x];
+      if (tile?.buildingId) {
+        const building = gameState.buildings[tile.buildingId];
+        if (building?.faction === Faction.PLAYER) {
+          bonuses.def = ABILITIES.HOLD_GROUND_DEFENSE_BONUS;
+        }
+      }
+    }
+
+    // TO_THE_FRONT: movement bonus when far south of northernmost player unit
+    if (gameState.techFlags.includes(TechFlag.TO_THE_FRONT)) {
+      let minPlayerY = unit.position.y;
+      for (const u of Object.values(gameState.units)) {
+        if (u.faction === Faction.PLAYER && u.position.y < minPlayerY) {
+          minPlayerY = u.position.y;
+        }
+      }
+      if (unit.position.y - minPlayerY > ABILITIES.TO_THE_FRONT_MIN_DISTANCE) {
+        bonuses.mov = ABILITIES.TO_THE_FRONT_MOVE_BONUS;
+      }
+    }
+
+    return bonuses;
+  }, [unit, gameState]);
 
   return (
     <div className={`hud-info-panel${!isPlayer ? ' hud-panel-enemy' : ''}`}>
@@ -692,9 +728,13 @@ function SelectedUnitPanel({
         <span className="hud-stat-label">ATK</span>
         <span className="hud-stat-value">{unit.stats.attack}</span>
         <span className="hud-stat-label">DEF</span>
-        <span className="hud-stat-value">{unit.stats.defense}</span>
+        <span className={`hud-stat-value${statBonuses.def > 0 ? ' hud-stat-boosted' : ''}`}>
+          {unit.stats.defense}{statBonuses.def > 0 ? `+${statBonuses.def}` : ''}
+        </span>
         <span className="hud-stat-label">MOV</span>
-        <span className="hud-stat-value">{unit.stats.moveRange}</span>
+        <span className={`hud-stat-value${statBonuses.mov > 0 ? ' hud-stat-boosted' : ''}`}>
+          {unit.stats.moveRange}{statBonuses.mov > 0 ? `+${statBonuses.mov}` : ''}
+        </span>
         <span className="hud-stat-label">RNG</span>
         <span className="hud-stat-value">{unit.stats.attackRange}</span>
         <span className="hud-stat-label">VIS</span>
@@ -733,35 +773,13 @@ function SelectedUnitPanel({
             </>
           )}
           {canHeal && (
-            <>
-              <button
-                className="hud-capture-btn"
-                disabled={healTargets.length === 0}
-                onClick={handleHealClick}
-              >
-                💊 Heal
-              </button>
-              {healTargetPicker && healTargets.length > 1 && (
-                <div className="hud-heal-targets">
-                  {healTargets.map((tid) => {
-                    const t = gameState.units[tid];
-                    if (!t) return null;
-                    return (
-                      <button
-                        key={tid}
-                        className="hud-capture-btn"
-                        onClick={() => {
-                          healUnit(unit.id, tid);
-                          setHealTargetPicker(false);
-                        }}
-                      >
-                        {UNIT_EMOJI[t.type] ?? '?'} {UNIT_NAME[t.type] ?? t.type} ({t.stats.currentHp}/{t.stats.maxHp})
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </>
+            <button
+              className={`hud-capture-btn${isInHealMode ? ' hud-heal-active' : ''}`}
+              disabled={healTargets.length === 0}
+              onClick={handleHealClick}
+            >
+              {isInHealMode ? '💊 Choose target…' : '💊 Heal'}
+            </button>
           )}
           {canFieldwork && (
             <>
