@@ -1,6 +1,6 @@
 /**
  * Construction system for Volcanae.
- * Handles player building construction, player demolition, and enemy construction.
+ * Handles player building construction and enemy construction.
  */
 
 import {
@@ -369,77 +369,9 @@ export function constructBuilding(
 
   // Grant XP to the unit for constructing a building
   grantXp(state, unitId, XP.CONSTRUCT_BUILDING);
-}
 
-// ============================================================================
-// PLAYER DESTROY OWN BUILDING
-// ============================================================================
-
-/**
- * Returns true if the unit can demolish the given building right now.
- * Safety-net guard — authoritative cross-blocking rules are in
- * unitActions.canUnitDestroy. Do not add tag rules or cross-blocking here.
- */
-// Cross-blocking rules and tag requirements for demolish live in
-// unitActions.ts → canUnitDestroy. Do not add tag checks or flag logic here.
-// This function is a safety net for the demolish preconditions only.
-export function canDestroyOwnBuilding(
-  state: GameState | Draft<GameState>,
-  unitId: string,
-  buildingId: string,
-): boolean {
-  const unit = state.units[unitId];
-  if (!unit) return false;
-  if (!unit.tags.includes(UnitTag.BUILDANDCAPTURE)) return false;
-  if (unit.hasMovedThisTurn || unit.hasAttackedThisTurn || unit.hasCapturedThisTurn
-      || unit.hasConstructedThisTurn || unit.hasDestroyedThisTurn) return false;
-  const building = state.buildings[buildingId];
-  if (!building) return false;
-  if (building.faction !== Faction.PLAYER) return false;
-  if (building.type === BuildingType.STRONGHOLD) return false;
-  if (unit.position.x !== building.position.x || unit.position.y !== building.position.y) return false;
-  return true;
-}
-
-/**
- * Demolishes a player-owned building. Sets hasDestroyedThisTurn so the unit
- * cannot perform any further actions this turn. Silently returns if
- * canDestroyOwnBuilding is false.
- */
-export function destroyOwnBuilding(
-  state: Draft<GameState>,
-  unitId: string,
-  buildingId: string,
-): void {
-  if (!canDestroyOwnBuilding(state, unitId, buildingId)) return;
-
-  const unit = state.units[unitId];
-  const building = state.buildings[buildingId];
-
-  if (building.specialistSlot) {
-    state.globalSpecialistStorage.push(building.specialistSlot);
-    const specialist = state.specialists[building.specialistSlot];
-    if (specialist) {
-      specialist.assignedBuildingId = null;
-    }
-  }
-
-  const { x, y } = building.position;
-  const buildingType = building.type;
-
-  delete state.buildings[buildingId];
-
-  const tile = state.grid[y][x];
-  tile.buildingId = null;
-
-  if (buildingType === BuildingType.STRONGHOLD) {
-    tile.isStrongholdRuin = true;
-  } else {
-    tile.isRuin = true;
-  }
-
-  // Consume unit's turn action
-  unit.hasDestroyedThisTurn = true;
+  // Update construction stats
+  state.gameStats.buildingsConstructed += 1;
 }
 
 // ============================================================================

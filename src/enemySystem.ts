@@ -883,6 +883,8 @@ export function resolveExplosion(
 
     target.stats.currentHp -= explosionDamage;
     damagedUnitIds.push(targetId);
+    // Track damage received by player
+    state.gameStats.damageReceived += explosionDamage;
 
     if (target.stats.currentHp <= 0) {
       const deathPos = { x: target.position.x, y: target.position.y };
@@ -893,6 +895,7 @@ export function resolveExplosion(
         tile.unitId = null;
       }
       delete state.units[targetId];
+      state.gameStats.unitsLost += 1;
       // Emit death event
       events.push({
         type: 'UNIT_DEATH',

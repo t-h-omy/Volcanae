@@ -187,14 +187,17 @@ export function initiateCapture(
   // Mark unit as having captured this turn
   unit.hasCapturedThisTurn = true;
 
+  const unitFaction = unit.faction;
+  const buildingFaction = building.faction;
+
   // STRONGHOLD and WATCHTOWER captured by the player: transfer ownership instead of destroying
   const isPlayerTransfer =
-    unit.faction === Faction.PLAYER &&
+    unitFaction === Faction.PLAYER &&
     (building.type === BuildingType.STRONGHOLD || building.type === BuildingType.WATCHTOWER);
 
   if (isPlayerTransfer) {
     // Transfer ownership — building stays on the tile
-    const wasEnemy = building.faction === Faction.ENEMY;
+    const wasEnemy = buildingFaction === Faction.ENEMY;
     building.faction = Faction.PLAYER;
     building.captureProgress = 0;
     building.isBeingCapturedBy = null;
@@ -211,6 +214,9 @@ export function initiateCapture(
     if (wasEnemy && !building.consumesUnitOnCapture) {
       grantXp(state, unitId, XP.CAPTURE_BUILDING, suppressEffects);
     }
+
+    // Update capture stats
+    if (wasEnemy) state.gameStats.enemyBuildingsCaptured += 1;
 
     // Consume the capturing unit if the building requires it (e.g. watchtower)
     if (building.consumesUnitOnCapture) {
@@ -229,7 +235,7 @@ export function initiateCapture(
   // Handle specialist
   if (building.specialistSlot) {
     const specialistId = building.specialistSlot;
-    if (unit.faction === Faction.PLAYER) {
+    if (unitFaction === Faction.PLAYER) {
       // Player captures: move specialist to global storage
       state.globalSpecialistStorage.push(specialistId);
       if (state.specialists[specialistId]) {
@@ -262,11 +268,18 @@ export function initiateCapture(
   }
   // DestroyBehavior.RESOURCE: no ruin — terrain is restored naturally
 
+  // Update capture stats: enemy→player is counted as "captured", player→enemy as "captured by enemy"
+  if (unitFaction === Faction.PLAYER && buildingFaction === Faction.ENEMY) {
+    state.gameStats.enemyBuildingsCaptured += 1;
+  } else if (unitFaction === Faction.ENEMY && buildingFaction === Faction.PLAYER) {
+    state.gameStats.buildingsCapturedByEnemy += 1;
+  }
+
   // If it was a stronghold, update zones and threat level
   if (buildingType === BuildingType.STRONGHOLD) {
     updateZonesUnlocked(state);
     // Increase threat level when player captures (destroys) a stronghold
-    if (unit.faction === Faction.PLAYER) {
+    if (unitFaction === Faction.PLAYER) {
       increaseThreatOnStrongholdCapture(state);
     }
   }
@@ -333,6 +346,8 @@ export function resolveCaptures(state: Draft<GameState>): void {
 
       capturingUnit.hasCapturedThisTurn = true;
 
+      if (wasEnemy) state.gameStats.enemyBuildingsCaptured += 1;
+
       // Consume the capturing unit if the building requires it (e.g. watchtower)
       if (building.consumesUnitOnCapture) {
         const tile = state.grid[capturingUnit.position.y][capturingUnit.position.x];
@@ -366,6 +381,8 @@ export function resolveCaptures(state: Draft<GameState>): void {
 
     const { x, y } = building.position;
     const buildingType = building.type;
+    const capturingFaction = capturingUnit.faction;
+    const buildingFaction = building.faction;
     const destroyBehavior = building.destroyBehavior;
 
     // Remove the building from state
@@ -383,10 +400,17 @@ export function resolveCaptures(state: Draft<GameState>): void {
     }
     // DestroyBehavior.RESOURCE: no ruin — terrain is restored naturally
 
+    // Update capture stats
+    if (capturingFaction === Faction.PLAYER && buildingFaction === Faction.ENEMY) {
+      state.gameStats.enemyBuildingsCaptured += 1;
+    } else if (capturingFaction === Faction.ENEMY && buildingFaction === Faction.PLAYER) {
+      state.gameStats.buildingsCapturedByEnemy += 1;
+    }
+
     // If it was a stronghold, update zones and threat level
     if (buildingType === BuildingType.STRONGHOLD) {
       updateZonesUnlocked(state);
-      if (capturingUnit.faction === Faction.PLAYER) {
+      if (capturingFaction === Faction.PLAYER) {
         increaseThreatOnStrongholdCapture(state);
       }
     }

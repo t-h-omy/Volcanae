@@ -15,6 +15,7 @@ import {
   hasSpawnSpaceAt,
   computePopulationUsage,
   canAffordPopulation,
+  computeResourceIncome,
 } from '../resourceSystem';
 import {
   getConstructionOptionsForTile,
@@ -35,8 +36,9 @@ import {
   type Specialist,
   type Position,
   type Tile,
+  type GameStats,
 } from '../types';
-import { canUnitMove, canUnitAttack, canUnitCapture, canUnitDestroy, canUnitConstruct } from '../unitActions';
+import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct } from '../unitActions';
 import { UNIT_DESCRIPTIONS, UNIT_TAGS, TAG_INFO, BUILDING_DESCRIPTIONS } from '../descriptions';
 import './HUD.css';
 
@@ -313,12 +315,16 @@ function TopBar({
   const farmersUsed = useGameStore((s) => computePopulationUsage(s).farmersUsed);
   const noblesUsed = useGameStore((s) => computePopulationUsage(s).noblesUsed);
 
+  // Resource income per turn
+  const ironPerTurn = useGameStore((s) => computeResourceIncome(s).ironPerTurn);
+  const woodPerTurn = useGameStore((s) => computeResourceIncome(s).woodPerTurn);
+
   return (
     <div className="hud-top-bar">
       <span className="hud-stat">🔄 Turn {turn}</span>
       {isAnimating && <span className="hud-stat hud-enemy-turn-label">⚔️ Enemy Turn...</span>}
-      <span className="hud-stat">⛓️ {resources.iron}</span>
-      <span className="hud-stat">🪵 {resources.wood}</span>
+      <span className="hud-stat">⛓️ {resources.iron}{ironPerTurn > 0 && <span className="hud-income">(+{Number.isInteger(ironPerTurn) ? ironPerTurn : ironPerTurn.toFixed(1)})</span>}</span>
+      <span className="hud-stat">🪵 {resources.wood}{woodPerTurn > 0 && <span className="hud-income">(+{Number.isInteger(woodPerTurn) ? woodPerTurn : woodPerTurn.toFixed(1)})</span>}</span>
       <span className="hud-stat">🌾 {farmersUsed}/{resources.farmers}</span>
       <span className="hud-stat">🎖️ {noblesUsed}/{resources.nobles}</span>
       <span className="hud-stat">⚠️ Threat {threatLevel}</span>
@@ -916,16 +922,13 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   const globalSpecialistStorage = useGameStore((s) => s.globalSpecialistStorage);
   const resources = useGameStore((s) => s.resources);
   const grid = useGameStore((s) => s.grid);
-  const units = useGameStore((s) => s.units);
   const gameState = useGameStore((s) => s);
   const recruitUnit = useGameStore((s) => s.recruitUnit);
   const unassignSpecialist = useGameStore((s) => s.unassignSpecialist);
-  const destroyOwnBuilding = useGameStore((s) => s.destroyOwnBuilding);
   const unlockedUnits = useGameStore((s) => s.unlockedUnits);
   const showRecruitingScores = useDevOptionsStore((s) => s.showRecruitingScores);
 
   const [showPicker, setShowPicker] = useState(false);
-  const [confirmDemolish, setConfirmDemolish] = useState(false);
   const [confirmRecruitUnit, setConfirmRecruitUnit] = useState<UnitType | null>(null);
   const [recruitScoreModal, setRecruitScoreModal] = useState(false);
   const [recruitScores, setRecruitScores] = useState<{ type: UnitType; score: number }[]>([]);
@@ -985,27 +988,6 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
     isHousingBuilding && building.populationCount < building.populationCap
       ? POPULATION.HOUSE_GROWTH_INTERVAL - building.populationGrowthCounter
       : null;
-
-  // Demolish: a player unit with BUILD_AND_CAPTURE must be on the same tile
-  const builderOnTile = useMemo(() => {
-    if (!isPlayerOwned) return null;
-    return (
-      Object.values(units).find(
-        (u) =>
-          u.faction === Faction.PLAYER &&
-          u.position.x === building.position.x &&
-          u.position.y === building.position.y &&
-          canUnitDestroy(u),
-      ) ?? null
-    );
-  }, [isPlayerOwned, units, building.position]);
-
-  const handleDemolish = useCallback(() => {
-    if (builderOnTile) {
-      destroyOwnBuilding(builderOnTile.id, building.id);
-      setConfirmDemolish(false);
-    }
-  }, [builderOnTile, destroyOwnBuilding, building.id]);
 
   // Dev: recruiting scores for enemy LAVA_LAIR / INFERNAL_SANCTUM
   const isEnemyRecruitingBuilding =
@@ -1269,32 +1251,6 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
         />
       )}
 
-      {/* Demolish button for player-owned buildings */}
-      {isPlayerOwned && (
-        <div className="hud-demolish-row">
-          {!confirmDemolish ? (
-            <button
-              className="hud-demolish-btn"
-              disabled={!builderOnTile}
-              title={!builderOnTile ? 'A builder unit must be on this building to demolish' : undefined}
-              onClick={() => setConfirmDemolish(true)}
-            >
-              🔨 Demolish
-            </button>
-          ) : (
-            <div className="hud-demolish-confirm">
-              <span>Are you sure?</span>
-              <button className="hud-demolish-yes" onClick={handleDemolish}>Yes</button>
-              <button className="hud-demolish-no" onClick={() => setConfirmDemolish(false)}>No</button>
-            </div>
-          )}
-          {!builderOnTile && (
-            <span className="hud-dim" style={{ fontSize: 11 }}>
-              A builder unit must be on this building to demolish
-            </span>
-          )}
-        </div>
-      )}
       {buildingInfoOpen && (
         <BuildingInfoPopup
           buildingType={building.type}
@@ -1402,8 +1358,42 @@ function BottomBar() {
 // GAME OVER / VICTORY OVERLAYS
 // ============================================================================
 
+function EndGameStats({ stats }: { stats: GameStats }) {
+  return (
+    <div className="hud-endgame-stats">
+      <div className="hud-endgame-stats-grid">
+        <span className="hud-endgame-stat-label">⚔️ Units killed</span>
+        <span className="hud-endgame-stat-value">{stats.unitsKilled}</span>
+        <span className="hud-endgame-stat-label">💀 Units lost</span>
+        <span className="hud-endgame-stat-value">{stats.unitsLost}</span>
+        <span className="hud-endgame-stat-label">🗡️ Damage dealt</span>
+        <span className="hud-endgame-stat-value">{stats.damageDealt}</span>
+        <span className="hud-endgame-stat-label">🛡️ Damage received</span>
+        <span className="hud-endgame-stat-value">{stats.damageReceived}</span>
+        <span className="hud-endgame-stat-label">🪖 Units recruited</span>
+        <span className="hud-endgame-stat-value">{stats.unitsRecruited}</span>
+        <span className="hud-endgame-stat-label">🏗️ Buildings constructed</span>
+        <span className="hud-endgame-stat-value">{stats.buildingsConstructed}</span>
+        <span className="hud-endgame-stat-label">🔬 Techs unlocked</span>
+        <span className="hud-endgame-stat-value">{stats.techsUnlocked}</span>
+        <span className="hud-endgame-stat-label">💥 Enemy buildings destroyed</span>
+        <span className="hud-endgame-stat-value">{stats.enemyBuildingsDestroyed}</span>
+        <span className="hud-endgame-stat-label">🚩 Enemy buildings captured</span>
+        <span className="hud-endgame-stat-value">{stats.enemyBuildingsCaptured}</span>
+        <span className="hud-endgame-stat-label">🏚️ Buildings destroyed by enemy</span>
+        <span className="hud-endgame-stat-value">{stats.buildingsDestroyedByEnemy}</span>
+        <span className="hud-endgame-stat-label">🔴 Buildings captured by enemy</span>
+        <span className="hud-endgame-stat-value">{stats.buildingsCapturedByEnemy}</span>
+        <span className="hud-endgame-stat-label">🌋 Buildings destroyed by lava</span>
+        <span className="hud-endgame-stat-value">{stats.buildingsDestroyedByLava}</span>
+      </div>
+    </div>
+  );
+}
+
 function GameOverOverlay() {
   const turn = useGameStore((s) => s.turn);
+  const gameStats = useGameStore((s) => s.gameStats);
   const initNewGame = useGameStore((s) => s.initNewGame);
 
   return (
@@ -1411,6 +1401,7 @@ function GameOverOverlay() {
       <div className="hud-overlay-box">
         <h1 className="hud-overlay-title hud-defeat">💀 DEFEATED</h1>
         <p className="hud-overlay-sub">You survived {turn} turns</p>
+        <EndGameStats stats={gameStats} />
         <button className="hud-play-again-btn" onClick={initNewGame}>
           🔄 Play Again
         </button>
@@ -1421,6 +1412,7 @@ function GameOverOverlay() {
 
 function VictoryOverlay() {
   const turn = useGameStore((s) => s.turn);
+  const gameStats = useGameStore((s) => s.gameStats);
   const initNewGame = useGameStore((s) => s.initNewGame);
 
   return (
@@ -1428,6 +1420,7 @@ function VictoryOverlay() {
       <div className="hud-overlay-box">
         <h1 className="hud-overlay-title hud-victory">🏆 VICTORY</h1>
         <p className="hud-overlay-sub">Completed in {turn} turns</p>
+        <EndGameStats stats={gameStats} />
         <button className="hud-play-again-btn" onClick={initNewGame}>
           🔄 Play Again
         </button>

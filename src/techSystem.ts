@@ -73,6 +73,9 @@ export function unlockTech(state: Draft<GameState>, techId: TechId): void {
   for (const effect of def.effects) {
     applyTechEffect(state, effect);
   }
+
+  // Update tech stats
+  state.gameStats.techsUnlocked += 1;
 }
 
 // ============================================================================

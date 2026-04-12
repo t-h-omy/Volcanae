@@ -161,6 +161,10 @@ export function resolveAttack(
     return;
   }
 
+  // Capture factions before mutations
+  const attackerFaction = attacker.faction;
+  const defenderFaction = defender.faction;
+
   // Capture defender's position before it is potentially removed from state
   const defenderPosition = { x: defender.position.x, y: defender.position.y };
 
@@ -182,6 +186,20 @@ export function resolveAttack(
     ? attacker.stats.currentHp - combatResult.attackerHpLost
     : attacker.stats.currentHp;
   const attackerDead = newAttackerHp <= 0;
+
+  // Update game stats
+  if (attackerFaction === Faction.PLAYER) {
+    state.gameStats.damageDealt += combatResult.defenderHpLost;
+  } else if (defenderFaction === Faction.PLAYER) {
+    state.gameStats.damageReceived += combatResult.defenderHpLost;
+  }
+  if (attackerTakesCounterDamage) {
+    if (defenderFaction === Faction.PLAYER) {
+      state.gameStats.damageDealt += combatResult.attackerHpLost;
+    } else if (attackerFaction === Faction.PLAYER) {
+      state.gameStats.damageReceived += combatResult.attackerHpLost;
+    }
+  }
 
   // Trigger damage floaters (visual only)
   if (!suppressFloaters) {
@@ -215,6 +233,9 @@ export function resolveAttack(
     delete state.units[attackerId];
     // Grant XP to defender for killing the attacker
     grantXp(state, defenderId, XP.KILL_UNIT, suppressFloaters);
+    // Update kill/loss stats
+    if (attackerFaction === Faction.PLAYER) state.gameStats.unitsLost += 1;
+    else if (defenderFaction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
   } else {
     // Update attacker HP and mark as acted
     attacker.stats.currentHp = newAttackerHp;
@@ -234,11 +255,14 @@ export function resolveAttack(
     if (!attackerDead) {
       grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
     }
+    // Update kill/loss stats
+    if (defenderFaction === Faction.PLAYER) state.gameStats.unitsLost += 1;
+    else if (attackerFaction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
 
     // If the defender was standing on an enemy building that the player attacker
     // just conquered (melee advance), destroy/neutralize the building the same
     // way resolveAttackOnBuilding does.
-    if (!attackerDead && attacker.faction === Faction.PLAYER) {
+    if (!attackerDead && attackerFaction === Faction.PLAYER) {
       const tileOfDead = state.grid[defenderPosition.y][defenderPosition.x];
       if (tileOfDead.buildingId) {
         const bld = state.buildings[tileOfDead.buildingId];
@@ -263,6 +287,7 @@ export function resolveAttack(
               tileOfDead.isRuin = true;
             }
             // DestroyBehavior.RESOURCE: no ruin — terrain is restored naturally
+            state.gameStats.enemyBuildingsDestroyed += 1;
           }
           grantXp(state, attackerId, XP.DESTROY_BUILDING, suppressFloaters);
         }
@@ -315,6 +340,9 @@ export function resolveBuildingAttack(
 
   if (!building || !building.combatStats || !building.faction || !defender) return;
 
+  const buildingFaction = building.faction;
+  const defenderFaction = defender.faction;
+
   const buildingCombatant = buildingToCombatant(building)!;
   const defenderCombatant = unitToCombatant(defender);
 
@@ -334,6 +362,17 @@ export function resolveBuildingAttack(
     ? building.hp - combatResult.attackerHpLost
     : building.hp;
   const buildingDead = newBuildingHp <= 0;
+
+  // Update game stats
+  if (buildingFaction === Faction.ENEMY && defenderFaction === Faction.PLAYER) {
+    // Enemy building attacks player unit
+    state.gameStats.damageReceived += combatResult.defenderHpLost;
+    if (buildingTakesCounterDamage) state.gameStats.damageDealt += combatResult.attackerHpLost;
+  } else if (buildingFaction === Faction.PLAYER && defenderFaction === Faction.ENEMY) {
+    // Player building attacks enemy unit
+    state.gameStats.damageDealt += combatResult.defenderHpLost;
+    if (buildingTakesCounterDamage) state.gameStats.damageReceived += combatResult.attackerHpLost;
+  }
 
   // Trigger damage floaters
   if (!suppressFloaters) {
@@ -358,7 +397,7 @@ export function resolveBuildingAttack(
 
   // Update building
   if (buildingDead) {
-    if (building.type === BuildingType.WATCHTOWER || building.faction === Faction.PLAYER) {
+    if (building.type === BuildingType.WATCHTOWER || buildingFaction === Faction.PLAYER) {
       // Watchtowers and player-owned buildings go neutral when destroyed so they can be
       // recaptured (same behaviour as resolveAttackOnBuilding for watchtowers).
       building.hp = building.maxHp;
@@ -368,9 +407,10 @@ export function resolveBuildingAttack(
       building.turnCapturedByPlayer = null;
       building.wasEnemyOwnedBeforeCapture = false;
       // Grant XP to the enemy unit that counter-killed the player building
-      if (defender.faction === Faction.ENEMY && !defenderDead) {
+      if (defenderFaction === Faction.ENEMY && !defenderDead) {
         grantXp(state, defenderId, XP.DESTROY_BUILDING, suppressFloaters);
       }
+      if (buildingFaction === Faction.PLAYER) state.gameStats.buildingsDestroyedByEnemy += 1;
     } else {
       // Enemy buildings are fully destroyed; apply destroy behavior.
       const { x, y } = building.position;
@@ -384,6 +424,7 @@ export function resolveBuildingAttack(
         tile.isRuin = true;
       }
       // DestroyBehavior.RESOURCE: no ruin — terrain is restored naturally
+      if (defenderFaction === Faction.PLAYER) state.gameStats.enemyBuildingsDestroyed += 1;
     }
   } else {
     building.hp = newBuildingHp;
@@ -397,6 +438,8 @@ export function resolveBuildingAttack(
       defenderTile.unitId = null;
     }
     delete state.units[defenderId];
+    if (defenderFaction === Faction.PLAYER) state.gameStats.unitsLost += 1;
+    else if (buildingFaction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
   } else {
     defender.stats.currentHp = newDefenderHp;
   }
@@ -417,6 +460,10 @@ export function resolveAttackOnBuilding(
   const building = state.buildings[buildingId];
 
   if (!attacker || !building) return;
+
+  // Capture factions before any mutations
+  const attackerFaction = attacker.faction;
+  const buildingFaction = building.faction;
 
   // Capture building position before any mutations (needed for melee advance)
   const buildingPosition = { x: building.position.x, y: building.position.y };
@@ -456,6 +503,15 @@ export function resolveAttackOnBuilding(
     : attacker.stats.currentHp;
   const attackerDead = newAttackerHp <= 0;
 
+  // Update game stats
+  if (attackerFaction === Faction.PLAYER) {
+    state.gameStats.damageDealt += combatResult.defenderHpLost;
+    if (canCounter) state.gameStats.damageReceived += combatResult.attackerHpLost;
+  } else if (buildingFaction === Faction.PLAYER) {
+    state.gameStats.damageReceived += combatResult.defenderHpLost;
+    if (canCounter) state.gameStats.damageDealt += combatResult.attackerHpLost;
+  }
+
   if (!suppressFloaters) {
     const { addFloater } = useFloaterStore.getState();
     if (combatResult.defenderHpLost > 0) {
@@ -483,6 +539,7 @@ export function resolveAttackOnBuilding(
       attackerTile.unitId = null;
     }
     delete state.units[attackerId];
+    if (attackerFaction === Faction.PLAYER) state.gameStats.unitsLost += 1;
   } else {
     attacker.stats.currentHp = newAttackerHp;
     attacker.hasAttackedThisTurn = true;
@@ -491,7 +548,7 @@ export function resolveAttackOnBuilding(
   // Update building
   if (buildingDead) {
     // Capture building faction before any mutations
-    const previousBuildingFaction = building.faction;
+    const previousBuildingFaction = buildingFaction;
     if (building.type === BuildingType.WATCHTOWER) {
       // Watchtower goes neutral at 0 HP
       building.hp = building.maxHp;
@@ -501,10 +558,11 @@ export function resolveAttackOnBuilding(
       building.turnCapturedByPlayer = null;
       building.wasEnemyOwnedBeforeCapture = false;
       // Grant XP to player attacker when enemy watchtower goes neutral
-      if (!attackerDead && attacker.faction === Faction.PLAYER && previousBuildingFaction === Faction.ENEMY) {
+      if (!attackerDead && attackerFaction === Faction.PLAYER && previousBuildingFaction === Faction.ENEMY) {
         grantXp(state, attackerId, XP.DESTROY_BUILDING, suppressFloaters);
+        state.gameStats.enemyBuildingsDestroyed += 1;
       }
-    } else if (attacker.faction === Faction.PLAYER && previousBuildingFaction === Faction.ENEMY) {
+    } else if (attackerFaction === Faction.PLAYER && previousBuildingFaction === Faction.ENEMY) {
       // Enemy building destroyed by player unit: remove from state; apply destroy behavior
       const { x, y } = building.position;
       const destroyBehavior = building.destroyBehavior;
@@ -521,6 +579,7 @@ export function resolveAttackOnBuilding(
       if (!attackerDead) {
         grantXp(state, attackerId, XP.DESTROY_BUILDING, suppressFloaters);
       }
+      state.gameStats.enemyBuildingsDestroyed += 1;
     }
   } else {
     building.hp = newBuildingHp;

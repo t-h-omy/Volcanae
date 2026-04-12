@@ -23,7 +23,6 @@ import {
 } from './resourceSystem';
 import {
   constructBuilding as constructBuildingLogic,
-  destroyOwnBuilding as destroyOwnBuildingLogic,
 } from './constructionSystem';
 import { runEnemyTurn } from './enemySystem';
 import {
@@ -72,8 +71,6 @@ interface GameActions {
   recruitUnit: (buildingId: string, unitType: UnitType) => void;
   /** Construct a building on a tile using a unit */
   constructBuilding: (unitId: string, tilePos: Position, buildingType: BuildingType) => void;
-  /** Destroy a player-owned building (unit must be on tile with BUILDANDCAPTURE tag) */
-  destroyOwnBuilding: (unitId: string, buildingId: string) => void;
   /** Assign a specialist to a building (stub) */
   assignSpecialist: (specialistId: string, buildingId: string) => void;
   /** Unassign a specialist from a building (stub) */
@@ -458,18 +455,6 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         constructBuildingLogic(state, unitId, tilePos, buildingType);
         // Recompute population capacity after building construction
-        const capacity = computePopulationCapacity(state);
-        state.resources.farmers = capacity.farmerCapacity;
-        state.resources.nobles = capacity.nobleCapacity;
-        updateDiscovery(state);
-        checkGameConditions(state);
-      });
-    },
-
-    destroyOwnBuilding: (unitId: string, buildingId: string) => {
-      set((state) => {
-        destroyOwnBuildingLogic(state, unitId, buildingId);
-        // Recompute population capacity after building destruction
         const capacity = computePopulationCapacity(state);
         state.resources.farmers = capacity.farmerCapacity;
         state.resources.nobles = capacity.nobleCapacity;
