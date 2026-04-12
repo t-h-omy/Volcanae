@@ -1491,6 +1491,7 @@ const TECH_NODE_POS: Record<string, { col: number; row: number }> = {
   BIG_EYES:      { col: 3,   row: 1 },
   DEEP_VEINS:    { col: 0,   row: 2 },
   CLEAN_CUTS:    { col: 1,   row: 2 },
+  SIEGE_WORKS:   { col: 1.5, row: 2 },
   HOLD_GROUND:   { col: 2,   row: 2 },
   ASSASSIN:      { col: 3,   row: 2 },
   TO_THE_FRONT:  { col: 1,   row: 3 },

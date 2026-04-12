@@ -819,6 +819,17 @@ export const TECH_TREE: TechNodeDefinition[] = [
     ],
   },
   {
+    id: 'SIEGE_WORKS',
+    name: 'Siege Works',
+    description: 'Build Siege Camps and field devastating siege engines',
+    requires: ['FAR_REACH'],
+    cost: 3,
+    effects: [
+      { type: 'UNLOCK_BUILDING', buildingType: BuildingType.SIEGE_CAMP },
+      { type: 'UNLOCK_UNIT',     unitType: UnitType.SIEGE },
+    ],
+  },
+  {
     id: 'CLEAN_CUTS',
     name: 'Clean Cuts',
     description: 'Woodcutters occasionally produce bonus wood',
@@ -831,7 +842,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'TO_THE_FRONT',
     name: 'To the Front',
-    description: 'Units far from the lava front move faster',
+    description: 'Units far from the front line move faster',
     requires: ['CLEAN_CUTS'],
     cost: 5,
     effects: [

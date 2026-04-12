@@ -222,7 +222,7 @@ export function tickLava(state: Draft<GameState>): boolean {
  * @param state - Plain (non-draft) game state
  * @returns Object with newState and LAVA_ADVANCE event
  */
-export function advanceLavaWithEvents(state: GameState): { newState: GameState; event: GameEvent } {
+export function advanceLavaWithEvents(state: GameState): { newState: GameState; events: GameEvent[] } {
   const newLavaRow = state.lavaFrontRow - 1;
   const destroyedUnitIds: string[] = [];
   const destroyedBuildingIds: string[] = [];
@@ -236,17 +236,47 @@ export function advanceLavaWithEvents(state: GameState): { newState: GameState; 
     }
   }
 
+  // Check if a player Crystal Chamber will be destroyed (triggers resonance)
+  let destroyedChamberPosition: { x: number; y: number } | null = null;
+  for (const bId of destroyedBuildingIds) {
+    const b = state.buildings[bId];
+    if (b && b.faction === Faction.PLAYER && b.type === BuildingType.CRYSTAL_CHAMBER) {
+      destroyedChamberPosition = { x: b.position.x, y: b.position.y };
+      break;
+    }
+  }
+
   const newState = produce(state, (draft) => {
     advanceLava(draft);
   });
 
-  return {
-    newState,
-    event: {
+  const events: GameEvent[] = [
+    {
       type: 'LAVA_ADVANCE',
       newLavaRow,
       destroyedUnitIds,
       destroyedBuildingIds,
     },
-  };
+  ];
+
+  // If a Crystal Chamber was destroyed, emit RESONANCE_TRIGGERED so the camera
+  // pans to each surviving chamber that just got activated.
+  if (destroyedChamberPosition) {
+    const survivingChamberIds: string[] = [];
+    for (const b of Object.values(newState.buildings)) {
+      if (b.faction === Faction.PLAYER && b.type === BuildingType.CRYSTAL_CHAMBER) {
+        survivingChamberIds.push(b.id);
+      }
+    }
+    if (survivingChamberIds.length > 0) {
+      events.push({
+        type: 'RESONANCE_TRIGGERED',
+        destroyedChamberPosition,
+        survivingChamberIds,
+        resonanceDuration: CRYSTAL_CHAMBER_CONFIG.RESONANCE_DURATION,
+      });
+    }
+  }
+
+  return { newState, events };
 }
