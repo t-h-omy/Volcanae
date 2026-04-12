@@ -213,8 +213,10 @@ export function initiateCapture(
     // Grant XP to player unit for capturing the building (if it still exists)
     if (wasEnemy && !building.consumesUnitOnCapture) {
       grantXp(state, unitId, XP.CAPTURE_BUILDING, suppressEffects);
-      state.gameStats.enemyBuildingsCaptured += 1;
     }
+
+    // Update capture stats
+    if (wasEnemy) state.gameStats.enemyBuildingsCaptured += 1;
 
     // Consume the capturing unit if the building requires it (e.g. watchtower)
     if (building.consumesUnitOnCapture) {
@@ -266,7 +268,7 @@ export function initiateCapture(
   }
   // DestroyBehavior.RESOURCE: no ruin — terrain is restored naturally
 
-  // Update capture stats
+  // Update capture stats: enemy→player is counted as "captured", player→enemy as "captured by enemy"
   if (unitFaction === Faction.PLAYER && buildingFaction === Faction.ENEMY) {
     state.gameStats.enemyBuildingsCaptured += 1;
   } else if (unitFaction === Faction.ENEMY && buildingFaction === Faction.PLAYER) {
