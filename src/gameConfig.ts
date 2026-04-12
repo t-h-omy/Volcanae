@@ -410,6 +410,29 @@ export const AI_SCORING = {
   /** Bonus for a ranged attack where the attacker would not be in the defender's counter range */
   BONUS_RANGED_SAFE_ATTACK: 45,
 
+  /**
+   * Base score for a ranged unit moving to a tile from which it can attack
+   * a player unit at distance > 1 while no player unit is adjacent to that tile.
+   * Must beat BASE_RANGED_ATTACK_UNIT (76) + BONUS_RANGED_SAFE_ATTACK (45) = 121
+   * to be preferred over an immediately available safe ranged attack.
+   * Set lower so it loses to an already-safe attack but wins over ATTACK_UNIT (75)
+   * and all pure movement actions.
+   */
+  BASE_MOVE_TO_SAFE_RANGED_POSITION: 88,
+
+  /**
+   * Bonus added when the (tile, target) pair found by MOVE_TO_SAFE_RANGED_POSITION
+   * would also kill the target (no counter possible anyway).
+   */
+  BONUS_SAFE_RANGED_KILL: 50,
+
+  /**
+   * Bonus added for PREP-tagged ranged units when their current-position target
+   * cannot counter-attack (target's attackRange < distance to this unit).
+   * Applied on top of BASE_RANGED_ATTACK_UNIT.
+   */
+  BONUS_PREP_UNCOUNTERABLE_TARGET: 40,
+
   // ── Lava-specific ─────────────────────────────────────────────────────────
 
   /** Large bonus added to SACRIFICE_TO_LAVA for units with the SACRIFICIAL tag */
