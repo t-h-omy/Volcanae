@@ -188,6 +188,11 @@ export function resolveAttack(
   }
   const combatResult = calculateCombatFromStats(attackerCombatant, defenderCombatant);
 
+  // ASSASSIN: no retaliation damage when ability is activated (defender at full HP)
+  if (attacker.tags.includes(UnitTag.ASSASSIN) && defender.stats.currentHp === defender.stats.maxHp) {
+    combatResult.attackerHpLost = 0;
+  }
+
   // Apply damage to defender
   const newDefenderHp = defender.stats.currentHp - combatResult.defenderHpLost;
   const defenderDead = newDefenderHp <= 0;

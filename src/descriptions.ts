@@ -45,7 +45,7 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string }> = {
   [UnitTag.SACRIFICIAL]:     { label: 'Sacrificial',     desc: 'Prioritizes walking toward the lava to be consumed.' },
   [UnitTag.EXPLOSIVE]:       { label: 'Explosive',       desc: 'Deals heavy area damage to all adjacent enemies when it dies.' },
   [UnitTag.FIELDWORK]:       { label: 'Fieldwork',       desc: 'Can sacrifice itself on its current tile to instantly erect a Watchtower.' },
-  [UnitTag.ASSASSIN]:        { label: 'Assassin',        desc: `Deals ${ABILITIES.ASSASSIN_DAMAGE_MULTIPLIER}× damage when striking an enemy that is still at full health.` },
+  [UnitTag.ASSASSIN]:        { label: 'Assassin',        desc: `Deals ${ABILITIES.ASSASSIN_DAMAGE_MULTIPLIER}× damage and receives no retaliation when striking an enemy that is still at full health.` },
   [UnitTag.PATCHUP]:         { label: 'Patch Up',        desc: `Can spend its action to restore ${ABILITIES.PATCHUP_HEAL_AMOUNT} HP on one adjacent friendly unit.` },
   [UnitTag.LAVABOOST]:       { label: 'Lava-Boosted',    desc: 'Spawns with boosted stats when its spawning building is close to the lava front.' },
   [UnitTag.CORRUPT]:         { label: 'Corrupt',         desc: 'Can corrupt forest and mountain terrain tiles.' },
