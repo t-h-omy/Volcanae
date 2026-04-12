@@ -626,9 +626,11 @@ function SelectedUnitPanel({
       {/* Header — entire row is tappable to open UnitInfoPopup */}
       <button className="hud-panel-header-btn" onClick={() => setUnitInfoOpen(true)} aria-label={`View ${UNIT_NAME[unit.type] ?? unit.type} info`}>
         <span className="hud-panel-emoji">{UNIT_EMOJI[unit.type] ?? '?'}</span>
-        <span className="hud-panel-name">{UNIT_NAME[unit.type] ?? unit.type}</span>
-        <span className="info-badge" aria-hidden="true">i</span>
-        {!isPlayer && <span className="hud-faction-label hud-faction-enemy" style={{ marginLeft: 'auto' }}>🔴 Enemy</span>}
+        <span className="hud-panel-name">
+          {UNIT_NAME[unit.type] ?? unit.type}
+          <span className="info-badge" aria-hidden="true">i</span>
+        </span>
+        {!isPlayer && <span className="hud-faction-label hud-faction-enemy">🔴 Enemy</span>}
       </button>
       <div className="hud-hp-row">
         <div className="hud-hp-bar">
@@ -927,6 +929,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   const [confirmRecruitUnit, setConfirmRecruitUnit] = useState<UnitType | null>(null);
   const [recruitScoreModal, setRecruitScoreModal] = useState(false);
   const [recruitScores, setRecruitScores] = useState<{ type: UnitType; score: number }[]>([]);
+  const [buildingInfoOpen, setBuildingInfoOpen] = useState(false);
 
   const factionLabel =
     building.faction === Faction.PLAYER
@@ -1012,11 +1015,14 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   return (
     <div className="hud-info-panel hud-building-panel">
       {/* Header */}
-      <div className="hud-panel-header">
+      <button className="hud-panel-header hud-panel-header-btn" onClick={() => setBuildingInfoOpen(true)} aria-label={`View ${BUILDING_NAME[building.type] ?? building.type} info`}>
         <span className="hud-panel-emoji">{BUILDING_EMOJI[building.type] ?? '?'}</span>
-        <span className="hud-panel-name">{BUILDING_NAME[building.type] ?? building.type}</span>
+        <span className="hud-panel-name">
+          {BUILDING_NAME[building.type] ?? building.type}
+          <span className="info-badge" aria-hidden="true">i</span>
+        </span>
         <span className="hud-faction-label">{factionLabel}</span>
-      </div>
+      </button>
 
       {/* HP bar for attacking buildings */}
       {hasCombatStats && (
@@ -1288,6 +1294,13 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
             </span>
           )}
         </div>
+      )}
+      {buildingInfoOpen && (
+        <BuildingInfoPopup
+          buildingType={building.type}
+          isReadOnly
+          onClose={() => setBuildingInfoOpen(false)}
+        />
       )}
     </div>
   );

@@ -108,6 +108,9 @@
 
 .hud-panel-name {
   flex: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .hud-faction-label {
