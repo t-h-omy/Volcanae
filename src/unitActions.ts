@@ -56,6 +56,24 @@ export function hasUnitActed(unit: Unit): boolean {
   );
 }
 
+/**
+ * Returns the Y coordinate of the northernmost (lowest Y) player unit.
+ * Returns undefined if there are no player units.
+ */
+export function getNorthermostPlayerY(
+  state: GameState | Draft<GameState>,
+): number | undefined {
+  let minY: number | undefined;
+  for (const u of Object.values(state.units)) {
+    if (u.faction === Faction.PLAYER) {
+      if (minY === undefined || u.position.y < minY) {
+        minY = u.position.y;
+      }
+    }
+  }
+  return minY;
+}
+
 // ── MOVE ─────────────────────────────────────────────────────────────────────
 
 /**

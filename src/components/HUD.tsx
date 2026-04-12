@@ -39,7 +39,7 @@ import {
   type Tile,
   type GameStats,
 } from '../types';
-import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork } from '../unitActions';
+import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY } from '../unitActions';
 import { UNIT_DESCRIPTIONS, UNIT_TAGS, TAG_INFO, BUILDING_DESCRIPTIONS } from '../descriptions';
 import './HUD.css';
 
@@ -669,13 +669,8 @@ function SelectedUnitPanel({
 
     // TO_THE_FRONT: movement bonus when far south of northernmost player unit
     if (gameState.techFlags.includes(TechFlag.TO_THE_FRONT)) {
-      let minPlayerY = unit.position.y;
-      for (const u of Object.values(gameState.units)) {
-        if (u.faction === Faction.PLAYER && u.position.y < minPlayerY) {
-          minPlayerY = u.position.y;
-        }
-      }
-      if (unit.position.y - minPlayerY > ABILITIES.TO_THE_FRONT_MIN_DISTANCE) {
+      const minPlayerY = getNorthermostPlayerY(gameState);
+      if (minPlayerY !== undefined && unit.position.y - minPlayerY > ABILITIES.TO_THE_FRONT_MIN_DISTANCE) {
         bonuses.mov = ABILITIES.TO_THE_FRONT_MOVE_BONUS;
       }
     }
