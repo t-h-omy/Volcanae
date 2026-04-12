@@ -75,6 +75,10 @@ interface GameActions {
   constructBuilding: (unitId: string, tilePos: Position, buildingType: BuildingType) => void;
   /** Heal an adjacent friendly unit using a PATCHUP unit */
   healUnit: (healerId: string, targetId: string) => void;
+  /** Enter heal-target-selection mode */
+  startHealMode: (healerId: string) => void;
+  /** Cancel heal-target-selection mode */
+  cancelHealMode: () => void;
   /** Sacrifice a FIELDWORK unit to build a Watchtower at its position */
   fieldworkUnit: (unitId: string) => void;
   /** Assign a specialist to a building (stub) */
@@ -190,6 +194,7 @@ export const useGameStore = create<GameStore>()(
         state.selectedUnitId = unitId;
         state.selectedBuildingId = null;
         state.selectedTilePos = null;
+        state.pendingHealerId = null;
       });
     },
 
@@ -198,6 +203,7 @@ export const useGameStore = create<GameStore>()(
         state.selectedBuildingId = buildingId;
         state.selectedUnitId = null;
         state.selectedTilePos = null;
+        state.pendingHealerId = null;
       });
     },
 
@@ -206,6 +212,7 @@ export const useGameStore = create<GameStore>()(
         state.selectedUnitId = null;
         state.selectedBuildingId = null;
         state.selectedTilePos = null;
+        state.pendingHealerId = null;
       });
     },
 
@@ -214,6 +221,7 @@ export const useGameStore = create<GameStore>()(
         state.selectedTilePos = pos;
         state.selectedUnitId = null;
         state.selectedBuildingId = null;
+        state.pendingHealerId = null;
       });
     },
 
@@ -482,6 +490,19 @@ export const useGameStore = create<GameStore>()(
           target.stats.maxHp,
         );
         healer.hasAttackedThisTurn = true;
+        state.pendingHealerId = null;
+      });
+    },
+
+    startHealMode: (healerId: string) => {
+      set((state) => {
+        state.pendingHealerId = healerId;
+      });
+    },
+
+    cancelHealMode: () => {
+      set((state) => {
+        state.pendingHealerId = null;
       });
     },
 

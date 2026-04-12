@@ -354,6 +354,8 @@ export interface GameState {
   selectedUnitId: string | null;
   selectedBuildingId: string | null;
   selectedTilePos: Position | null;
+  /** When non-null, the player is choosing a heal target on the map */
+  pendingHealerId: string | null;
   threatLevel: number;
   zonesUnlocked: number[];
   techNodes: Record<TechId, TechNodeState>;

@@ -344,6 +344,17 @@
   cursor: not-allowed;
 }
 
+.hud-heal-active {
+  background: rgba(46, 204, 113, 0.55);
+  border-color: rgba(46, 204, 113, 0.7);
+  animation: heal-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes heal-pulse {
+  0%, 100% { box-shadow: 0 0 4px rgba(46, 204, 113, 0.4); }
+  50% { box-shadow: 0 0 12px rgba(46, 204, 113, 0.7); }
+}
+
 .hud-cost {
   opacity: 0.7;
   font-size: 11px;
@@ -978,6 +989,10 @@
   margin-right: 4px;
 }
 
+.hud-stat-boosted {
+  color: #2ecc71;
+}
+
 /* ── Tag pills ── */
 
 .hud-tag-pills {
@@ -1016,6 +1031,8 @@
   flex-direction: column;
   gap: 4px;
   margin-top: 4px;
+  max-height: 40vh;
+  overflow-y: auto;
 }
 
 .hud-construct-btn {

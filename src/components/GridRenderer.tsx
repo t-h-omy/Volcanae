@@ -30,7 +30,7 @@ import {
   type Building,
 } from '../types';
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
-import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, canUnitConstruct, canUnitCapture, hasUnitActed } from '../unitActions';
+import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, canUnitConstruct, canUnitCapture, hasUnitActed, getHealTargets } from '../unitActions';
 import './GridRenderer.css';
 
 // ============================================================================
@@ -109,6 +109,9 @@ export default function GridRenderer() {
   const attackUnit = useGameStore((s) => s.attackUnit);
   const attackBuilding = useGameStore((s) => s.attackBuilding);
   const buildingAttackUnit = useGameStore((s) => s.buildingAttackUnit);
+  const healUnit = useGameStore((s) => s.healUnit);
+  const pendingHealerId = useGameStore((s) => s.pendingHealerId);
+  const cancelHealMode = useGameStore((s) => s.cancelHealMode);
 
   // ── Animation store selectors ──
   const isAnimating = useAnimationStore((s) => s.isAnimating);
@@ -387,6 +390,18 @@ export default function GridRenderer() {
     return new Set();
   }, [selectedUnit, selectedBuilding, units, buildings, grid]);
 
+  // Heal target highlighting: when a healer is in heal-mode, show healable tiles
+  const healableSet = useMemo<Set<string>>(() => {
+    if (!pendingHealerId) return new Set();
+    const targets = getHealTargets(useGameStore.getState(), pendingHealerId);
+    const set = new Set<string>();
+    for (const tid of targets) {
+      const u = units[tid];
+      if (u) set.add(posKey(u.position.x, u.position.y));
+    }
+    return set;
+  }, [pendingHealerId, units]);
+
   // ── Tile click ──
   const handleTileClick = useCallback(
     (x: number, y: number) => {
@@ -395,6 +410,17 @@ export default function GridRenderer() {
 
       const tile = grid[y][x];
       const key = posKey(x, y);
+
+      // Priority 0 — Heal mode: if waiting for heal target selection
+      if (pendingHealerId && healableSet.has(key) && tile.unitId) {
+        healUnit(pendingHealerId, tile.unitId);
+        return;
+      }
+      if (pendingHealerId) {
+        // Clicked outside healable tiles — cancel heal mode
+        cancelHealMode();
+        return;
+      }
 
       // Priority 1 — Own player unit on tile
       // Cycle: if this unit is already selected and there is also a building → select the building
@@ -489,7 +515,7 @@ export default function GridRenderer() {
         clearSelection();
       }
     },
-    [grid, selectedUnitId, selectedBuildingId, selectedUnit, selectedBuilding, attackableSet, reachableSet, units, buildings, selectUnit, selectBuilding, selectTile, clearSelection, moveUnit, attackUnit, attackBuilding, buildingAttackUnit, isAnimating],
+    [grid, selectedUnitId, selectedBuildingId, selectedUnit, selectedBuilding, attackableSet, healableSet, reachableSet, units, buildings, selectUnit, selectBuilding, selectTile, clearSelection, moveUnit, attackUnit, attackBuilding, buildingAttackUnit, healUnit, pendingHealerId, cancelHealMode, isAnimating],
   );
 
   // Right-click / tap-hold → deselect (only when not used for drag-panning)
@@ -552,6 +578,7 @@ export default function GridRenderer() {
             const key = posKey(x, y);
             const isReachable = reachableSet.has(key);
             const isAttackable = attackableSet.has(key);
+            const isHealable = healableSet.has(key);
             const isSelected =
               (tile.unitId != null && tile.unitId === selectedUnitId) ||
               (tile.buildingId != null && tile.buildingId === selectedBuildingId);
@@ -565,6 +592,7 @@ export default function GridRenderer() {
                 tileSize={tileSize}
                 isReachable={isReachable}
                 isAttackable={isAttackable}
+                isHealable={isHealable}
                 isSelected={isSelected}
                 onClick={() => handleTileClick(x, y)}
               />
@@ -596,6 +624,7 @@ interface TileCellProps {
   tileSize: number;
   isReachable: boolean;
   isAttackable: boolean;
+  isHealable: boolean;
   isSelected: boolean;
   onClick: () => void;
 }
@@ -607,6 +636,7 @@ function TileCellInner({
   tileSize,
   isReachable,
   isAttackable,
+  isHealable,
   isSelected,
   onClick,
 }: TileCellProps) {
@@ -643,7 +673,8 @@ function TileCellInner({
 
   // Highlight overlays
   let highlightOverlay: string | null = null;
-  if (isAttackable) highlightOverlay = RENDER.COLORS.ATTACKABLE_OVERLAY;
+  if (isHealable) highlightOverlay = RENDER.COLORS.HEALABLE_OVERLAY;
+  else if (isAttackable) highlightOverlay = RENDER.COLORS.ATTACKABLE_OVERLAY;
   else if (isReachable) highlightOverlay = RENDER.COLORS.REACHABLE_OVERLAY;
 
   const showUnit = unit && tile.isRevealed;

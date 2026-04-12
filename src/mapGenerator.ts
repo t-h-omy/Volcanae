@@ -617,6 +617,7 @@ export function generateInitialGameState(): GameState {
     selectedUnitId: null,
     selectedBuildingId: null,
     selectedTilePos: null,
+    pendingHealerId: null,
     threatLevel: 0,
     zonesUnlocked: [1, 2],
     techNodes: TECH_TREE.reduce<Record<string, TechNodeState>>((acc, def) => {
