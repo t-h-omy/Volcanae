@@ -144,6 +144,46 @@ export function collectResources(state: Draft<GameState>): void {
 }
 
 // ============================================================================
+// RESOURCE INCOME
+// ============================================================================
+
+/**
+ * Computes the guaranteed (deterministic) resource income per turn from all
+ * player-owned, non-disabled resource buildings plus unlocked tech bonuses.
+ * Probabilistic bonuses (chancePercent < 100) are included as fractional amounts.
+ *
+ * @returns ironPerTurn and woodPerTurn
+ */
+export function computeResourceIncome(
+  state: GameState | Draft<GameState>,
+): { ironPerTurn: number; woodPerTurn: number } {
+  let ironPerTurn = 0;
+  let woodPerTurn = 0;
+
+  for (const building of Object.values(state.buildings)) {
+    if (building.faction !== Faction.PLAYER) continue;
+    if (building.isDisabledForTurns > 0) continue;
+
+    if (building.type === BuildingType.MINE) {
+      ironPerTurn += RESOURCES.MINE_IRON_PER_TURN;
+    } else if (building.type === BuildingType.WOODCUTTER) {
+      woodPerTurn += RESOURCES.WOODCUTTER_WOOD_PER_TURN;
+    }
+
+    for (const mod of getBuildingProductionMods(state, building.type)) {
+      const expected = mod.amount * (mod.chancePercent / 100);
+      if (mod.resource === ResourceType.IRON) {
+        ironPerTurn += expected;
+      } else if (mod.resource === ResourceType.WOOD) {
+        woodPerTurn += expected;
+      }
+    }
+  }
+
+  return { ironPerTurn, woodPerTurn };
+}
+
+// ============================================================================
 // POPULATION SYSTEM
 // ============================================================================
 
@@ -404,4 +444,7 @@ export function recruitUnit(
 
   // Place unit on the grid
   state.grid[spawnPosition.y][spawnPosition.x].unitId = unitId;
+
+  // Update recruitment stats
+  state.gameStats.unitsRecruited += 1;
 }

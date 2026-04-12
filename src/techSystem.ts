@@ -73,6 +73,9 @@ export function unlockTech(state: Draft<GameState>, techId: TechId): void {
   for (const effect of def.effects) {
     applyTechEffect(state, effect);
   }
+
+  // Update tech stats (exclude the auto-unlocked CONSCRIPTION root node)
+  state.gameStats.techsUnlocked += 1;
 }
 
 // ============================================================================

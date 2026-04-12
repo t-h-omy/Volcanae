@@ -627,6 +627,20 @@ export function generateInitialGameState(): GameState {
     arcaneCrystals: TECH.CRYSTALS_ON_GAME_START,
     unlockedBuildings: [],
     unlockedUnits: [],
+    gameStats: {
+      unitsKilled: 0,
+      unitsLost: 0,
+      damageDealt: 0,
+      damageReceived: 0,
+      unitsRecruited: 0,
+      buildingsConstructed: 0,
+      techsUnlocked: 0,
+      enemyBuildingsDestroyed: 0,
+      enemyBuildingsCaptured: 0,
+      buildingsDestroyedByEnemy: 0,
+      buildingsCapturedByEnemy: 0,
+      buildingsDestroyedByLava: 0,
+    },
   };
 
   // Auto-apply CONSCRIPTION effects (unlocked at game start, not a pick)

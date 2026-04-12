@@ -304,6 +304,34 @@ export interface UnitPopulationCost {
   nobles: number;
 }
 
+/** Statistics accumulated over the course of a game session */
+export interface GameStats {
+  /** Enemy units killed by the player */
+  unitsKilled: number;
+  /** Player units lost to enemies or lava */
+  unitsLost: number;
+  /** Total damage dealt by player units to enemies */
+  damageDealt: number;
+  /** Total damage received by player units from enemies */
+  damageReceived: number;
+  /** Player units recruited */
+  unitsRecruited: number;
+  /** Player buildings constructed */
+  buildingsConstructed: number;
+  /** Tech nodes unlocked */
+  techsUnlocked: number;
+  /** Enemy buildings destroyed by the player */
+  enemyBuildingsDestroyed: number;
+  /** Enemy buildings captured by the player */
+  enemyBuildingsCaptured: number;
+  /** Player buildings destroyed or neutralised by the enemy */
+  buildingsDestroyedByEnemy: number;
+  /** Player buildings captured by the enemy */
+  buildingsCapturedByEnemy: number;
+  /** Player buildings (or ruins) consumed by lava */
+  buildingsDestroyedByLava: number;
+}
+
 /** Complete game state */
 export interface GameState {
   turn: number;
@@ -326,4 +354,6 @@ export interface GameState {
   arcaneCrystals: number;
   unlockedBuildings: BuildingType[];
   unlockedUnits: UnitType[];
+  /** Accumulated game statistics for the end-game screen */
+  gameStats: GameStats;
 }

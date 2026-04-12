@@ -107,9 +107,11 @@ export function advanceLava(state: Draft<GameState>): void {
   for (let x = 0; x < MAP.GRID_WIDTH; x++) {
     const tile = state.grid[newLavaRow][x];
 
-    // Convert tile to lava
+    // Convert tile to lava; clear any ruins
     tile.isLava = true;
     tile.isLavaPreview = false;
+    tile.isRuin = false;
+    tile.isStrongholdRuin = false;
 
     // Destroy any unit on this tile
     if (tile.unitId !== null) {
@@ -118,6 +120,9 @@ export function advanceLava(state: Draft<GameState>): void {
       // Any enemy unit destroyed by lava advance increases threat level
       if (unit && unit.faction === Faction.ENEMY) {
         state.threatLevel += 1;
+      }
+      if (unit && unit.faction === Faction.PLAYER) {
+        state.gameStats.unitsLost += 1;
       }
       // Remove unit from state
       delete state.units[unitId];
@@ -134,6 +139,7 @@ export function advanceLava(state: Draft<GameState>): void {
         // Grant tech pick when player building is consumed by lava
         if (building.faction === Faction.PLAYER) {
           grantArcaneCrystals(state, TECH.CRYSTALS_ON_LAVA_CONSUMPTION);
+          state.gameStats.buildingsDestroyedByLava += 1;
         }
 
         // Handle specialist storage
