@@ -103,6 +103,13 @@ export const TechEffectType = {
 } as const;
 export type TechEffectType = (typeof TechEffectType)[keyof typeof TechEffectType];
 
+/** Typed tech flags granted by the tech tree */
+export const TechFlag = {
+  TO_THE_FRONT: 'TO_THE_FRONT',
+  HOLD_GROUND:  'HOLD_GROUND',
+} as const;
+export type TechFlag = (typeof TechFlag)[keyof typeof TechFlag];
+
 /** Tags that can be applied to units */
 export const UnitTag = {
   /** Unit has ranged attack capability */
@@ -139,7 +146,7 @@ export type TechEffect =
   | { type: 'GRANT_UNIT_TAG';          unitType: UnitType; tag: UnitTag }
   | { type: 'UNIT_STAT_MOD';           unitType: UnitType; stat: keyof UnitStats; mode: 'add' | 'percent'; value: number }
   | { type: 'BUILDING_PRODUCTION_MOD'; buildingType: BuildingType; resource: ResourceType; chancePercent: number; amount: number }
-  | { type: 'FLAG';                    flag: string };
+  | { type: 'FLAG';                    flag: TechFlag };
 
 /** Static definition of a tech-tree node (lives in gameConfig) */
 export interface TechNodeDefinition {
@@ -350,7 +357,7 @@ export interface GameState {
   threatLevel: number;
   zonesUnlocked: number[];
   techNodes: Record<TechId, TechNodeState>;
-  techFlags: string[];
+  techFlags: TechFlag[];
   arcaneCrystals: number;
   unlockedBuildings: BuildingType[];
   unlockedUnits: UnitType[];

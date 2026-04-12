@@ -6,10 +6,10 @@
 
 import type { Unit, Building, GameState } from './types';
 import type { Draft } from 'immer';
-import { BuildingType, Faction, UnitTag, DestroyBehavior } from './types';
+import { BuildingType, Faction, UnitTag, TechFlag, DestroyBehavior } from './types';
 import { useFloaterStore } from './floaterStore';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
-import { UNITS, XP } from './gameConfig';
+import { UNITS, XP, ABILITIES } from './gameConfig';
 import { grantXp } from './levelSystem';
 
 // ============================================================================
@@ -106,7 +106,12 @@ export function calculateCombatFromStats(attacker: Combatant, defender: Combatan
   // Calculate effective attack based on attacker's current HP ratio (vs base level-1 maxHp)
   const attackerBaseHp = attacker.baseMaxHp > 0 ? attacker.baseMaxHp : attacker.maxHp;
   const attackerHpRatio = attacker.currentHp / attackerBaseHp;
-  const effectiveAttack = attacker.attack * (0.5 + 0.5 * attackerHpRatio);
+  let effectiveAttack = attacker.attack * (0.5 + 0.5 * attackerHpRatio);
+
+  // ASSASSIN: boost effective attack when attacking a full-HP target
+  if (attacker.tags.includes(UnitTag.ASSASSIN) && defender.currentHp === defender.maxHp) {
+    effectiveAttack *= ABILITIES.ASSASSIN_DAMAGE_MULTIPLIER;
+  }
 
   // Calculate effective defense based on defender's current HP ratio (vs base level-1 maxHp)
   const defenderBaseHp = defender.baseMaxHp > 0 ? defender.baseMaxHp : defender.maxHp;
@@ -168,8 +173,20 @@ export function resolveAttack(
   // Capture defender's position before it is potentially removed from state
   const defenderPosition = { x: defender.position.x, y: defender.position.y };
 
-  // Calculate combat result
-  const combatResult = calculateCombat(attacker, defender);
+  // Calculate combat result (with HOLD_GROUND defense bonus if applicable)
+  const attackerCombatant = unitToCombatant(attacker);
+  const defenderCombatant = unitToCombatant(defender);
+  if (state.techFlags.includes(TechFlag.HOLD_GROUND) && defender.faction === Faction.PLAYER) {
+    const tile = state.grid[defender.position.y]?.[defender.position.x];
+    const buildingId = tile?.buildingId;
+    if (buildingId) {
+      const building = state.buildings[buildingId];
+      if (building?.faction === Faction.PLAYER) {
+        defenderCombatant.defense += ABILITIES.HOLD_GROUND_DEFENSE_BONUS;
+      }
+    }
+  }
+  const combatResult = calculateCombatFromStats(attackerCombatant, defenderCombatant);
 
   // Apply damage to defender
   const newDefenderHp = defender.stats.currentHp - combatResult.defenderHpLost;
@@ -345,6 +362,19 @@ export function resolveBuildingAttack(
 
   const buildingCombatant = buildingToCombatant(building)!;
   const defenderCombatant = unitToCombatant(defender);
+
+  // HOLD_GROUND: if the flag is active and the defender is a player unit
+  // standing on a player-owned building, add a flat defense bonus.
+  if (state.techFlags.includes(TechFlag.HOLD_GROUND) && defender.faction === Faction.PLAYER) {
+    const defTile = state.grid[defender.position.y]?.[defender.position.x];
+    const defBuildingId = defTile?.buildingId;
+    if (defBuildingId) {
+      const defBuilding = state.buildings[defBuildingId];
+      if (defBuilding?.faction === Faction.PLAYER) {
+        defenderCombatant.defense += ABILITIES.HOLD_GROUND_DEFENSE_BONUS;
+      }
+    }
+  }
 
   const combatResult = calculateCombatFromStats(buildingCombatant, defenderCombatant);
 

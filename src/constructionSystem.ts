@@ -326,6 +326,15 @@ function createBuildingObject(
 }
 
 /**
+ * Creates a Watchtower building for the FIELDWORK ability.
+ * This creates a player-owned Watchtower without requiring a constructing unit
+ * or resource costs (the unit is sacrificed instead).
+ */
+export function createFieldworkWatchtower(position: Position): Building {
+  return createBuildingObject(BuildingType.WATCHTOWER, position, Faction.PLAYER);
+}
+
+/**
  * Constructs a building for the player. Mutates the immer Draft directly.
  */
 export function constructBuilding(

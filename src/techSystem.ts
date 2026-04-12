@@ -6,7 +6,7 @@
 
 import type { Draft } from 'immer';
 import type { GameState, TechId, TechEffect, UnitStats } from './types';
-import { Faction } from './types';
+import { Faction, TechFlag } from './types';
 import { TECH_TREE } from './gameConfig';
 
 // ============================================================================
@@ -210,9 +210,9 @@ export function getBuildingProductionMods(
 // ============================================================================
 
 /** Human-readable descriptions for FLAG effects */
-const flagDescriptions: Record<string, string> = {
-  TO_THE_FRONT: 'Units >10 tiles south of the northmost player unit: +1 movement',
-  HOLD_GROUND: 'Units on own buildings: defense bonus',
+const flagDescriptions: Record<TechFlag, string> = {
+  [TechFlag.TO_THE_FRONT]: 'Units >10 tiles south of the northmost player unit: +1 movement',
+  [TechFlag.HOLD_GROUND]: 'Units on own buildings: defense bonus',
 };
 
 /**

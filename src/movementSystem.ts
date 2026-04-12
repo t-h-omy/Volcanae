@@ -5,8 +5,8 @@
 
 import type { GameState, Position } from './types';
 import type { Draft } from 'immer';
-import { BuildingType, Faction } from './types';
-import { MAP } from './gameConfig';
+import { BuildingType, Faction, TechFlag } from './types';
+import { MAP, ABILITIES } from './gameConfig';
 import { getTilesWithinEdgeCircleRange } from './rangeUtils';
 
 // ============================================================================
@@ -41,17 +41,10 @@ export function getReachableTiles(
   const unitPosition = unit.position;
   let moveRange = unit.stats.moveRange;
 
-  // TO_THE_FRONT tech: player units >10 tiles south of the northmost player
-  // unit get +1 movement, rewarding pulling reserves forward.
-  if (unit.faction === Faction.PLAYER && state.techFlags.includes('TO_THE_FRONT')) {
-    let northmostY: number = MAP.GRID_HEIGHT;
-    for (const u of Object.values(state.units)) {
-      if (u.faction === Faction.PLAYER && u.position.y < northmostY) {
-        northmostY = u.position.y;
-      }
-    }
-    if (unitPosition.y - northmostY > 10) {
-      moveRange += 1;
+  // TO_THE_FRONT tech: player units far from lava front get +1 movement.
+  if (unit.faction === Faction.PLAYER && state.techFlags.includes(TechFlag.TO_THE_FRONT)) {
+    if (state.lavaFrontRow - unitPosition.y > ABILITIES.TO_THE_FRONT_MIN_DISTANCE) {
+      moveRange += ABILITIES.TO_THE_FRONT_MOVE_BONUS;
     }
   }
 
