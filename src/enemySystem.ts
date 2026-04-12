@@ -63,6 +63,7 @@ type EnemyActionType =
   | 'CORRUPT_TERRAIN'
   | 'BUILD_LAVA_LAIR'
   | 'BUILD_INFERNAL_SANCTUM'
+  | 'MOVE_TO_SAFE_RANGED_POSITION'
   | 'EXPLODE'
   | 'HOLD_POSITION';
 
@@ -1080,15 +1081,123 @@ function scoreActionsForUnit(
   if (canAttackThisTurn && unit.tags.includes(UnitTag.RANGED)) {
     const rangedTargets = playerUnitsInAttackRange.filter(u => manhattanDistance(unit.position, u.position) > 1);
     if (rangedTargets.length > 0) {
-      rangedTargets.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
-      const target = rangedTargets[0];
-      const distance = manhattanDistance(unit.position, target.position);
-      const score = AI_SCORING.BASE_RANGED_ATTACK_UNIT
-        - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
-        + projectCombatScore(unit, target)
-        + AI_SCORING.BONUS_RANGED_SAFE_ATTACK
-        - saturationPenalty(target.id, targetingIntents);
-      candidates.push({ type: 'RANGED_ATTACK_UNIT', score: Math.max(0, score), targetUnitId: target.id, targetPosition: target.position });
+      // PREP units that haven't moved yet: score each target individually and prefer uncounterable ones
+      if (unit.tags.includes(UnitTag.PREP) && !unit.hasMovedThisTurn) {
+        let bestTarget: Unit | null = null;
+        let bestScore = -Infinity;
+        for (const target of rangedTargets) {
+          const distance = manhattanDistance(unit.position, target.position);
+          const uncounterable = target.stats.attackRange < distance;
+          const score = AI_SCORING.BASE_RANGED_ATTACK_UNIT
+            - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
+            + projectCombatScore(unit, target)
+            + AI_SCORING.BONUS_RANGED_SAFE_ATTACK
+            + (uncounterable ? AI_SCORING.BONUS_PREP_UNCOUNTERABLE_TARGET : 0)
+            - saturationPenalty(target.id, targetingIntents);
+          if (score > bestScore) {
+            bestScore = score;
+            bestTarget = target;
+          }
+        }
+        if (bestTarget) {
+          candidates.push({ type: 'RANGED_ATTACK_UNIT', score: Math.max(0, bestScore), targetUnitId: bestTarget.id, targetPosition: bestTarget.position });
+        }
+      } else {
+        rangedTargets.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
+        const target = rangedTargets[0];
+        const distance = manhattanDistance(unit.position, target.position);
+        const score = AI_SCORING.BASE_RANGED_ATTACK_UNIT
+          - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
+          + projectCombatScore(unit, target)
+          + AI_SCORING.BONUS_RANGED_SAFE_ATTACK
+          - saturationPenalty(target.id, targetingIntents);
+        candidates.push({ type: 'RANGED_ATTACK_UNIT', score: Math.max(0, score), targetUnitId: target.id, targetPosition: target.position });
+      }
+    }
+  }
+
+  // ── MOVE_TO_SAFE_RANGED_POSITION ──
+  // Only for ranged units that haven't moved yet and don't already have a safe ranged attack available
+  if (unit.tags.includes(UnitTag.RANGED) && !unit.hasMovedThisTurn) {
+    const safeRangedTargetsFromCurrent = canAttackThisTurn
+      ? playerUnitsInAttackRange.filter(u => manhattanDistance(unit.position, u.position) > 1)
+      : [];
+    if (safeRangedTargetsFromCurrent.length === 0) {
+      // BFS to find all reachable tiles within moveRange
+      const moveRange = unit.stats.moveRange;
+      const reachableTiles: Position[] = [];
+      const bfsVisited = new Set<string>();
+      const bfsQueue: Array<{ x: number; y: number; steps: number }> = [
+        { x: unit.position.x, y: unit.position.y, steps: 0 },
+      ];
+      bfsVisited.add(`${unit.position.x},${unit.position.y}`);
+      let bfsHead = 0;
+      while (bfsHead < bfsQueue.length) {
+        const { x, y, steps } = bfsQueue[bfsHead++];
+        if (steps >= moveRange) continue;
+        for (const [dx, dy] of BFS_DIRECTIONS) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;
+          const nkey = `${nx},${ny}`;
+          if (bfsVisited.has(nkey)) continue;
+          bfsVisited.add(nkey);
+          const tile = state.grid[ny][nx];
+          if (tile.isLava) continue;
+          if (isBlockedBuildingForEnemyMovement(state, tile.buildingId)) continue;
+          if (tile.unitId !== null) continue; // must be unoccupied to land on
+          reachableTiles.push({ x: nx, y: ny });
+          bfsQueue.push({ x: nx, y: ny, steps: steps + 1 });
+        }
+      }
+
+      // Gather all player units for adjacency and target checks
+      const allPlayerUnits = Object.values(state.units).filter(u => u.faction === Faction.PLAYER);
+
+      let bestPairScore = -Infinity;
+      let bestPairTile: Position | null = null;
+      let bestPairTarget: Unit | null = null;
+
+      for (const dest of reachableTiles) {
+        // Check no player unit at Chebyshev distance ≤ 1 from destination
+        let adjacentPlayer = false;
+        for (const pu of allPlayerUnits) {
+          const cdx = Math.abs(pu.position.x - dest.x);
+          const cdy = Math.abs(pu.position.y - dest.y);
+          if (Math.max(cdx, cdy) <= 1) {
+            adjacentPlayer = true;
+            break;
+          }
+        }
+        if (adjacentPlayer) continue;
+
+        // Find player units at manhattanDistance > 1 AND <= attackRange from destination
+        for (const pu of allPlayerUnits) {
+          const dist = manhattanDistance(dest, pu.position);
+          if (dist <= 1 || dist > attackRange) continue;
+          const cs = projectCombatScore(unit, pu);
+          const { defenderHpLost } = calculateCombat(unit, pu);
+          const kill = defenderHpLost >= pu.stats.currentHp;
+          const pairScore = cs + (kill ? AI_SCORING.BONUS_SAFE_RANGED_KILL : 0);
+          if (pairScore > bestPairScore) {
+            bestPairScore = pairScore;
+            bestPairTile = dest;
+            bestPairTarget = pu;
+          }
+        }
+      }
+
+      if (bestPairTile && bestPairTarget) {
+        const score = AI_SCORING.BASE_MOVE_TO_SAFE_RANGED_POSITION
+          + bestPairScore
+          - saturationPenalty(bestPairTarget.id, targetingIntents);
+        candidates.push({
+          type: 'MOVE_TO_SAFE_RANGED_POSITION',
+          score: Math.max(0, score),
+          targetUnitId: bestPairTarget.id,
+          targetPosition: bestPairTile,
+        });
+      }
     }
   }
 
@@ -1655,6 +1764,13 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
     case 'FLANK_UNIT': {
       if (action.targetPosition) {
         moveEnemyUnitToward(state, currentUnit.id, action.targetPosition, events);
+      }
+      break;
+    }
+
+    case 'MOVE_TO_SAFE_RANGED_POSITION': {
+      if (action.targetPosition && !currentUnit.hasMovedThisTurn) {
+        moveEnemyUnit(state, currentUnit.id, action.targetPosition, events);
       }
       break;
     }
