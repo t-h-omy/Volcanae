@@ -38,7 +38,7 @@ export const UNIT_TAGS: Partial<Record<UnitType, UnitTag[]>> = {
 // ============================================================================
 
 export const TAG_INFO: Record<UnitTag, { label: string; desc: string }> = {
-  [UnitTag.RANGED]:          { label: 'Ranged',          desc: 'Attacks from a distance and does not advance onto the tile of a defeated enemy.' },
+  [UnitTag.RANGED]:          { label: 'Ranged',          desc: 'Attacks from a distance and does not move onto a defeated enemy\'s tile.' },
   [UnitTag.PREP]:            { label: 'Prep',            desc: 'Cannot attack in the same turn it moves. Attack first, then move — or wait a turn after moving.' },
   [UnitTag.BUILDANDCAPTURE]: { label: 'Build & Capture', desc: 'Can construct buildings on open terrain and capture enemy strongholds.' },
   [UnitTag.SACRIFICIAL]:     { label: 'Sacrificial',     desc: 'Prioritizes walking toward the lava to be consumed.' },
@@ -62,7 +62,7 @@ export const BUILDING_DESCRIPTIONS: Partial<Record<BuildingType, string>> = {
   [BuildingType.ARCHER_CAMP]:     'Archery range that trains Archers.',
   [BuildingType.RIDER_CAMP]:      'Stable that trains Riders.',
   [BuildingType.SIEGE_CAMP]:      'Engineering works that trains Siege engines.',
-  [BuildingType.WATCHTOWER]:      'Defensive tower that attacks nearby enemies within 3 tiles and expands your vision.',
+  [BuildingType.WATCHTOWER]:      'Defensive tower that attacks enemies within 3 tiles and expands your vision.',
   [BuildingType.FARM]:            'Housing for common folk — each pop raised lets you field one more basic unit.',
   [BuildingType.PATRICIANHOUSE]:  'Noble estate — each noble raised lets you field one more elite unit.',
   [BuildingType.CRYSTAL_CHAMBER]: 'Arcane resonator. When a Crystal Chamber is consumed by lava, all surviving chambers begin resonating and generate crystals each turn.',
