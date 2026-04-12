@@ -44,13 +44,13 @@ export function getReachableTiles(
   // TO_THE_FRONT tech: player units >10 tiles south of the northmost player
   // unit get +1 movement, rewarding pulling reserves forward.
   if (unit.faction === Faction.PLAYER && state.techFlags.includes('TO_THE_FRONT')) {
-    let northmostRow: number = MAP.GRID_HEIGHT;
+    let northmostY: number = MAP.GRID_HEIGHT;
     for (const u of Object.values(state.units)) {
-      if (u.faction === Faction.PLAYER && u.position.y < northmostRow) {
-        northmostRow = u.position.y;
+      if (u.faction === Faction.PLAYER && u.position.y < northmostY) {
+        northmostY = u.position.y;
       }
     }
-    if (unitPosition.y - northmostRow > 10) {
+    if (unitPosition.y - northmostY > 10) {
       moveRange += 1;
     }
   }
