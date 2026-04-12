@@ -14,6 +14,7 @@ import type { UnitPopulationCost, TechId } from '../types';
 import {
   hasSpawnSpaceAt,
   computePopulationUsage,
+  computePopulationCapacity,
   canAffordPopulation,
   computeResourceIncome,
 } from '../resourceSystem';
@@ -1293,11 +1294,21 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
                         {popCost.nobles > 0 && `🎖️ ${popCost.nobles} noble${popCost.nobles > 1 ? 's' : ''}`}
                       </span>
                     )}
-                    {!hasPopulation && canAffordUnit && (
-                      <span className="hud-pop-warning">
-                        Not enough {popCost && popCost.farmers > 0 ? 'farmers — build more Farms' : 'nobles — build more Patrician Houses'}
-                      </span>
-                    )}
+                    {!hasPopulation && canAffordUnit && (() => {
+                      const state = useGameStore.getState();
+                      const usage = computePopulationUsage(state);
+                      const capacity = computePopulationCapacity(state);
+                      const needFarmers = popCost && popCost.farmers > 0 && usage.farmersUsed + popCost.farmers > capacity.farmerCapacity;
+                      const needNobles = popCost && popCost.nobles > 0 && usage.noblesUsed + popCost.nobles > capacity.nobleCapacity;
+                      const parts: string[] = [];
+                      if (needFarmers) parts.push('farmers — build more Farms');
+                      if (needNobles) parts.push('nobles — build more Patrician Houses');
+                      return (
+                        <span className="hud-pop-warning">
+                          Not enough {parts.join(' and ')}
+                        </span>
+                      );
+                    })()}
                   </div>
                 );
               })}

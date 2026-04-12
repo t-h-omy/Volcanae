@@ -289,8 +289,8 @@ export function resolveAttack(
       if (tileOfDead.buildingId) {
         const bld = state.buildings[tileOfDead.buildingId];
         if (bld && bld.faction === Faction.ENEMY) {
-          if (bld.type === BuildingType.WATCHTOWER) {
-            // Watchtower goes neutral so it can be captured
+          if (bld.type === BuildingType.WATCHTOWER || bld.type === BuildingType.INFERNALSANCTUM) {
+            // Watchtower / INFERNALSANCTUM goes neutral so it can be captured
             bld.hp = bld.maxHp;
             bld.faction = null;
             bld.hasAttackedThisTurn = false;
@@ -524,6 +524,11 @@ export function resolveAttackOnBuilding(
 
   const combatResult = calculateCombatFromStats(attackerCombatant, defenderStats);
 
+  // ASSASSIN: no retaliation damage when ability is activated (building at full HP)
+  if (attacker.tags.includes(UnitTag.ASSASSIN) && building.hp === building.maxHp) {
+    combatResult.attackerHpLost = 0;
+  }
+
   const newBuildingHp = building.hp - combatResult.defenderHpLost;
   const buildingDead = newBuildingHp <= 0;
 
@@ -633,5 +638,118 @@ export function resolveAttackOnBuilding(
       attackerUnit.position.x = buildingPosition.x;
       attackerUnit.position.y = buildingPosition.y;
     }
+  }
+}
+
+/**
+ * Resolves an attack by a player building (e.g. watchtower) against an enemy building.
+ * The target building may counter-attack if it has combat stats and the attacker is in range.
+ * If the target building's HP reaches 0, it becomes neutral (same behaviour as watchtower).
+ */
+export function resolveBuildingAttackOnBuilding(
+  state: Draft<GameState>,
+  attackingBuildingId: string,
+  targetBuildingId: string,
+  suppressFloaters?: boolean,
+): void {
+  const attackingBuilding = state.buildings[attackingBuildingId];
+  const targetBuilding = state.buildings[targetBuildingId];
+
+  if (!attackingBuilding || !attackingBuilding.combatStats || !attackingBuilding.faction) return;
+  if (!targetBuilding) return;
+
+  const attackingFaction = attackingBuilding.faction;
+  const targetFaction = targetBuilding.faction;
+
+  const attackingCombatant = buildingToCombatant(attackingBuilding)!;
+  const targetCombatant: Combatant = targetBuilding.combatStats
+    ? buildingToCombatant(targetBuilding)!
+    : {
+        currentHp: targetBuilding.hp,
+        maxHp: targetBuilding.maxHp,
+        baseMaxHp: targetBuilding.maxHp,
+        attack: 0,
+        defense: 0,
+        attackRange: 0,
+        positionX: targetBuilding.position.x,
+        positionY: targetBuilding.position.y,
+        faction: targetBuilding.faction ?? Faction.ENEMY,
+        tags: targetBuilding.tags,
+      };
+
+  const combatResult = calculateCombatFromStats(attackingCombatant, targetCombatant);
+
+  const newTargetHp = targetBuilding.hp - combatResult.defenderHpLost;
+  const targetDead = newTargetHp <= 0;
+
+  // Target building can counter-attack if it has combat stats, survives, and attacker is in range
+  const canCounter = targetBuilding.combatStats && !targetDead && isTileWithinEdgeCircleRange(
+    targetBuilding.position.x, targetBuilding.position.y,
+    attackingBuilding.position.x, attackingBuilding.position.y,
+    targetBuilding.combatStats.attackRange,
+  );
+  const newAttackingHp = canCounter
+    ? attackingBuilding.hp - combatResult.attackerHpLost
+    : attackingBuilding.hp;
+  const attackingDead = newAttackingHp <= 0;
+
+  // Update game stats
+  if (attackingFaction === Faction.PLAYER && targetFaction === Faction.ENEMY) {
+    state.gameStats.damageDealt += combatResult.defenderHpLost;
+    if (canCounter) state.gameStats.damageReceived += combatResult.attackerHpLost;
+  } else if (attackingFaction === Faction.ENEMY && targetFaction === Faction.PLAYER) {
+    state.gameStats.damageReceived += combatResult.defenderHpLost;
+    if (canCounter) state.gameStats.damageDealt += combatResult.attackerHpLost;
+  }
+
+  if (!suppressFloaters) {
+    const { addFloater } = useFloaterStore.getState();
+    if (combatResult.defenderHpLost > 0) {
+      addFloater({
+        value: combatResult.defenderHpLost,
+        x: targetBuilding.position.x,
+        y: targetBuilding.position.y,
+        isEnemy: targetBuilding.faction === Faction.ENEMY,
+      });
+    }
+    if (canCounter && combatResult.attackerHpLost > 0) {
+      addFloater({
+        value: combatResult.attackerHpLost,
+        x: attackingBuilding.position.x,
+        y: attackingBuilding.position.y,
+        isEnemy: attackingBuilding.faction === Faction.ENEMY,
+      });
+    }
+  }
+
+  // Update attacking building
+  if (attackingDead) {
+    // Attacking building goes neutral when HP reaches 0
+    attackingBuilding.hp = attackingBuilding.maxHp;
+    attackingBuilding.faction = null;
+    attackingBuilding.hasAttackedThisTurn = false;
+    attackingBuilding.specialistSlot = null;
+    attackingBuilding.turnCapturedByPlayer = null;
+    attackingBuilding.wasEnemyOwnedBeforeCapture = false;
+    if (attackingFaction === Faction.PLAYER) state.gameStats.buildingsDestroyedByEnemy += 1;
+  } else {
+    attackingBuilding.hp = newAttackingHp;
+    attackingBuilding.hasAttackedThisTurn = true;
+  }
+
+  // Update target building
+  if (targetDead) {
+    // Target building goes neutral at 0 HP (so it can be captured)
+    targetBuilding.hp = targetBuilding.maxHp;
+    targetBuilding.faction = null;
+    targetBuilding.hasAttackedThisTurn = false;
+    targetBuilding.specialistSlot = null;
+    targetBuilding.turnCapturedByPlayer = null;
+    targetBuilding.wasEnemyOwnedBeforeCapture = false;
+    if (!attackingDead && attackingFaction === Faction.PLAYER && targetFaction === Faction.ENEMY) {
+      state.gameStats.enemyBuildingsDestroyed += 1;
+    }
+  } else {
+    targetBuilding.hp = newTargetHp;
   }
 }

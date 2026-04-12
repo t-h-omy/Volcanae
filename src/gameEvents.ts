@@ -91,6 +91,15 @@ export type GameEvent =
       destroyedBuildingIds: string[];
     }
   | {
+      type: 'BUILDING_ATTACK_BUILDING';
+      attackingBuildingId: string;
+      targetBuildingId: string;
+      attackingBuildingPosition: Position;
+      targetBuildingPosition: Position;
+      attackingBuildingHpLost: number;
+      targetBuildingHpLost: number;
+    }
+  | {
       type: 'RESONANCE_TRIGGERED';
       destroyedChamberPosition: Position;
       survivingChamberIds: string[];
