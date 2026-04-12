@@ -37,6 +37,7 @@ import { getConstructionOptionsForTile } from './constructionSystem';
 import type { ConstructionOption } from './constructionSystem';
 import { canCapture } from './captureSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
+import { MAP } from './gameConfig';
 
 // ── HELPER ───────────────────────────────────────────────────────────────────
 
@@ -245,4 +246,82 @@ export function getConstructionTargets(
 ): ConstructionOption[] {
   if (!canUnitConstruct(unit)) return [];
   return getConstructionOptionsForTile(state, unit.position);
+}
+
+// ── HEAL (PATCHUP) ─────────────────────────────────────────────────────────
+
+/**
+ * Returns true if the unit is allowed to heal an adjacent unit this turn.
+ *
+ * Blocking rules:
+ *   - hasMovedThisTurn: must not have moved
+ *   - hasAttackedThisTurn: must not have attacked (heal uses the attack slot)
+ *   - any other non-move action flag: unit is spent
+ *
+ * Tag rules:
+ *   PATCHUP — only units with this tag can heal.
+ */
+export function canUnitHeal(unit: Unit): boolean {
+  if (!unit.tags.includes(UnitTag.PATCHUP)) return false;
+  if (unit.hasMovedThisTurn) return false;
+  if (unit.hasAttackedThisTurn) return false;
+  if (unit.hasCapturedThisTurn) return false;
+  if (unit.hasConstructedThisTurn) return false;
+  if (unit.hasDestroyedThisTurn) return false;
+  return true;
+}
+
+/**
+ * Returns the IDs of adjacent (distance = 1, orthogonal + diagonal) friendly
+ * units whose currentHp < maxHp.
+ */
+export function getHealTargets(
+  state: GameState | Draft<GameState>,
+  unitId: string,
+): string[] {
+  const unit = state.units[unitId];
+  if (!unit) return [];
+  const targets: string[] = [];
+  const { x, y } = unit.position;
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;
+      const tile = state.grid[ny][nx];
+      if (!tile.unitId) continue;
+      const other = state.units[tile.unitId];
+      if (!other) continue;
+      if (other.faction !== unit.faction) continue;
+      if (other.stats.currentHp >= other.stats.maxHp) continue;
+      targets.push(other.id);
+    }
+  }
+  return targets;
+}
+
+// ── FIELDWORK ───────────────────────────────────────────────────────────────
+
+/**
+ * Returns true if the unit is allowed to perform the fieldwork action this turn.
+ * Fieldwork sacrifices the unit to build a Watchtower at its position.
+ *
+ * Blocking rules:
+ *   - hasMovedThisTurn: must not have moved
+ *   - hasAttackedThisTurn: must not have attacked
+ *   - hasConstructedThisTurn: must not have constructed
+ *   - any other non-move action flag: unit is spent
+ *
+ * Tag rules:
+ *   FIELDWORK — only units with this tag can fieldwork.
+ */
+export function canUnitFieldwork(unit: Unit): boolean {
+  if (!unit.tags.includes(UnitTag.FIELDWORK)) return false;
+  if (unit.hasMovedThisTurn) return false;
+  if (unit.hasAttackedThisTurn) return false;
+  if (unit.hasConstructedThisTurn) return false;
+  if (unit.hasCapturedThisTurn) return false;
+  if (unit.hasDestroyedThisTurn) return false;
+  return true;
 }

@@ -6,7 +6,7 @@
  * animationConfig.ts, uiConfig.ts, renderConfig.ts, and inputConfig.ts.
  */
 
-import { UnitTag, DestroyBehavior, BuildingType, UnitType, ResourceType } from './types';
+import { UnitTag, DestroyBehavior, BuildingType, UnitType, ResourceType, TechFlag } from './types';
 import type { UnitPopulationCost, UnitLevelDefinition, TechNodeDefinition } from './types';
 
 // ============================================================================
@@ -846,7 +846,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     requires: ['CLEAN_CUTS'],
     cost: 5,
     effects: [
-      { type: 'FLAG', flag: 'TO_THE_FRONT' },
+      { type: 'FLAG', flag: TechFlag.TO_THE_FRONT },
     ],
   },
 
@@ -868,7 +868,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     requires: ['FIELD_DUTIES'],
     cost: 3,
     effects: [
-      { type: 'FLAG', flag: 'HOLD_GROUND' },
+      { type: 'FLAG', flag: TechFlag.HOLD_GROUND },
     ],
   },
   {
@@ -916,6 +916,23 @@ export const TECH_TREE: TechNodeDefinition[] = [
 ];
 
 // ============================================================================
+// ABILITIES — Balance-tunable constants for tag/flag-based abilities
+// ============================================================================
+
+export const ABILITIES = {
+  /** Damage multiplier applied when ASSASSIN tag attacks a full-HP target */
+  ASSASSIN_DAMAGE_MULTIPLIER: 1.5,
+  /** Flat defense bonus applied when HOLD_GROUND flag is active and unit stands on own building */
+  HOLD_GROUND_DEFENSE_BONUS: 20,
+  /** Extra move range granted by TO_THE_FRONT flag */
+  TO_THE_FRONT_MOVE_BONUS: 1,
+  /** Minimum tile distance from lava front required for TO_THE_FRONT bonus to apply */
+  TO_THE_FRONT_MIN_DISTANCE: 10,
+  /** HP restored per PATCHUP heal action */
+  PATCHUP_HEAL_AMOUNT: 30,
+} as const;
+
+// ============================================================================
 // CONVENIENCE EXPORTS
 // ============================================================================
 
@@ -944,6 +961,7 @@ export const GAME_CONFIG = {
   TECH,
   TECH_TREE,
   CRYSTAL_CHAMBER_CONFIG,
+  ABILITIES,
 } as const;
 
 export default GAME_CONFIG;

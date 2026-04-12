@@ -35,10 +35,12 @@ import { useAnimationStore } from './animationStore';
 import { Faction, GamePhase, BuildingType } from './types';
 import type { GameState, UnitType, Position, TechId } from './types';
 import type { GameEvent } from './gameEvents';
-import { MAP, LAVA, POPULATION, BUILDINGS, ENEMY, XP } from './gameConfig';
+import { MAP, LAVA, POPULATION, BUILDINGS, ENEMY, XP, ABILITIES } from './gameConfig';
 import { saveGameState, loadGameState, clearSavedGame, hasSavedGame } from './saveSystem';
 import { computeLevelFromXp, applyLevelUps } from './levelSystem';
 import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLogic } from './techSystem';
+import { canUnitHeal, getHealTargets, canUnitFieldwork } from './unitActions';
+import { createFieldworkWatchtower } from './constructionSystem';
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
@@ -71,6 +73,10 @@ interface GameActions {
   recruitUnit: (buildingId: string, unitType: UnitType) => void;
   /** Construct a building on a tile using a unit */
   constructBuilding: (unitId: string, tilePos: Position, buildingType: BuildingType) => void;
+  /** Heal an adjacent friendly unit using a PATCHUP unit */
+  healUnit: (healerId: string, targetId: string) => void;
+  /** Sacrifice a FIELDWORK unit to build a Watchtower at its position */
+  fieldworkUnit: (unitId: string) => void;
   /** Assign a specialist to a building (stub) */
   assignSpecialist: (specialistId: string, buildingId: string) => void;
   /** Unassign a specialist from a building (stub) */
@@ -460,6 +466,49 @@ export const useGameStore = create<GameStore>()(
         state.resources.nobles = capacity.nobleCapacity;
         updateDiscovery(state);
         checkGameConditions(state);
+      });
+    },
+
+    healUnit: (healerId: string, targetId: string) => {
+      set((state) => {
+        const healer = state.units[healerId];
+        if (!healer || !canUnitHeal(healer)) return;
+        const targets = getHealTargets(state, healerId);
+        if (!targets.includes(targetId)) return;
+        const target = state.units[targetId];
+        if (!target) return;
+        target.stats.currentHp = Math.min(
+          target.stats.currentHp + ABILITIES.PATCHUP_HEAL_AMOUNT,
+          target.stats.maxHp,
+        );
+        healer.hasAttackedThisTurn = true;
+      });
+    },
+
+    fieldworkUnit: (unitId: string) => {
+      set((state) => {
+        const unit = state.units[unitId];
+        if (!unit || !canUnitFieldwork(unit)) return;
+        const { x, y } = unit.position;
+        const tile = state.grid[y][x];
+        // Cannot build on a tile that already has a building
+        if (tile.buildingId !== null) return;
+        // Create a Watchtower at the unit's position
+        const newBuilding = createFieldworkWatchtower({ x, y });
+        state.buildings[newBuilding.id] = newBuilding;
+        tile.buildingId = newBuilding.id;
+        // Clear ruin flags (if any)
+        tile.isRuin = false;
+        tile.isStrongholdRuin = false;
+        // Delete the unit
+        tile.unitId = null;
+        delete state.units[unitId];
+        if (state.selectedUnitId === unitId) {
+          state.selectedUnitId = null;
+        }
+        updateDiscovery(state);
+        checkGameConditions(state);
+        state.gameStats.buildingsConstructed += 1;
       });
     },
 

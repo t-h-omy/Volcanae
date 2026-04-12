@@ -38,7 +38,7 @@ import {
   type Tile,
   type GameStats,
 } from '../types';
-import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct } from '../unitActions';
+import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork } from '../unitActions';
 import { UNIT_DESCRIPTIONS, UNIT_TAGS, TAG_INFO, BUILDING_DESCRIPTIONS } from '../descriptions';
 import './HUD.css';
 
@@ -610,16 +610,36 @@ function SelectedUnitPanel({
   const canMove = canUnitMove(unit);
   const canAttack = canUnitAttack(unit);
   const canCapture = canUnitCapture(unit);
+  const canHeal = isPlayer && canUnitHeal(unit);
+  const canFieldwork = isPlayer && canUnitFieldwork(unit);
 
   const visibleTags = unit.tags.filter((t) => !HIDDEN_UNIT_TAGS.has(t));
 
   const showAiScores = useDevOptionsStore((s) => s.showAiScores);
   const gameState = useGameStore((s) => s);
+  const fieldworkBlocked = canFieldwork && gameState.grid[unit.position.y]?.[unit.position.x]?.buildingId !== null;
   const [aiScoreModal, setAiScoreModal] = useState(false);
   const [aiScores, setAiScores] = useState<ScoredAction[]>([]);
   const [unitInfoOpen, setUnitInfoOpen] = useState(false);
   const [tagPopup, setTagPopup] = useState<UnitTag | null>(null);
   const levelUpUnit = useGameStore((s) => s.levelUpUnit);
+  const healUnit = useGameStore((s) => s.healUnit);
+  const fieldworkUnit = useGameStore((s) => s.fieldworkUnit);
+  const [healTargetPicker, setHealTargetPicker] = useState(false);
+  const [confirmFieldwork, setConfirmFieldwork] = useState(false);
+
+  const healTargets = useMemo(
+    () => (canHeal ? getHealTargets(gameState, unit.id) : []),
+    [canHeal, gameState, unit.id],
+  );
+
+  const handleHealClick = () => {
+    if (healTargets.length === 1) {
+      healUnit(unit.id, healTargets[0]);
+    } else if (healTargets.length > 1) {
+      setHealTargetPicker(true);
+    }
+  };
 
   const targetLevel = computeLevelFromXp(unit.type, unit.xp);
   const canLevelUp = isPlayer && targetLevel > unit.level;
@@ -710,6 +730,71 @@ function SelectedUnitPanel({
                   ? '🏳️ Capture — move here first'
                   : `🏳️ Capture ${BUILDING_NAME[captureTarget.type] ?? captureTarget.type}`}
               </button>
+            </>
+          )}
+          {canHeal && (
+            <>
+              <button
+                className="hud-capture-btn"
+                disabled={healTargets.length === 0}
+                onClick={handleHealClick}
+              >
+                💊 Heal
+              </button>
+              {healTargetPicker && healTargets.length > 1 && (
+                <div className="hud-heal-targets">
+                  {healTargets.map((tid) => {
+                    const t = gameState.units[tid];
+                    if (!t) return null;
+                    return (
+                      <button
+                        key={tid}
+                        className="hud-capture-btn"
+                        onClick={() => {
+                          healUnit(unit.id, tid);
+                          setHealTargetPicker(false);
+                        }}
+                      >
+                        {UNIT_EMOJI[t.type] ?? '?'} {UNIT_NAME[t.type] ?? t.type} ({t.stats.currentHp}/{t.stats.maxHp})
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
+          {canFieldwork && (
+            <>
+              {!confirmFieldwork ? (
+                <button
+                  className="hud-capture-btn"
+                  disabled={fieldworkBlocked}
+                  onClick={() => setConfirmFieldwork(true)}
+                >
+                  🏗️ Build Watchtower
+                </button>
+              ) : (
+                <div className="hud-fieldwork-confirm">
+                  <div className="hud-warning hud-capture-warning">
+                    ⚠️ This unit will be consumed!
+                  </div>
+                  <button
+                    className="hud-capture-btn"
+                    onClick={() => {
+                      fieldworkUnit(unit.id);
+                      setConfirmFieldwork(false);
+                    }}
+                  >
+                    ✅ Confirm Build
+                  </button>
+                  <button
+                    className="hud-capture-btn"
+                    onClick={() => setConfirmFieldwork(false)}
+                  >
+                    ❌ Cancel
+                  </button>
+                </div>
+              )}
             </>
           )}
         </>
