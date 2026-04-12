@@ -282,23 +282,28 @@ export function resolveAttack(
     else if (attackerFaction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
 
     // If the defender was standing on an enemy building that the player attacker
-    // just conquered (melee advance), destroy/neutralize the building the same
-    // way resolveAttackOnBuilding does.
+    // just conquered (melee advance), destroy/neutralize the building only for
+    // applicable building types. Spawner buildings (LAVALAIR, INFERNALSANCTUM)
+    // remain untouched — they can only be taken through the capture mechanic.
     if (!attackerDead && attackerFaction === Faction.PLAYER) {
       const tileOfDead = state.grid[defenderPosition.y][defenderPosition.x];
       if (tileOfDead.buildingId) {
         const bld = state.buildings[tileOfDead.buildingId];
         if (bld && bld.faction === Faction.ENEMY) {
-          if (bld.type === BuildingType.WATCHTOWER || bld.type === BuildingType.INFERNALSANCTUM) {
-            // Watchtower / INFERNALSANCTUM goes neutral so it can be captured
+          if (bld.type === BuildingType.WATCHTOWER) {
+            // Watchtower goes neutral so it can be captured
             bld.hp = bld.maxHp;
             bld.faction = null;
             bld.hasAttackedThisTurn = false;
             bld.specialistSlot = null;
             bld.turnCapturedByPlayer = null;
             bld.wasEnemyOwnedBeforeCapture = false;
-          } else {
-            // Enemy building destroyed: apply destroy behavior
+            grantXp(state, attackerId, XP.DESTROY_BUILDING, suppressFloaters);
+          } else if (
+            bld.type !== BuildingType.LAVALAIR &&
+            bld.type !== BuildingType.INFERNALSANCTUM
+          ) {
+            // Other enemy buildings (but NOT spawners) are destroyed
             const destroyBehavior = bld.destroyBehavior;
             const bldId = tileOfDead.buildingId!;
             delete state.buildings[bldId];
@@ -310,8 +315,9 @@ export function resolveAttack(
             }
             // DestroyBehavior.RESOURCE: no ruin — terrain is restored naturally
             state.gameStats.enemyBuildingsDestroyed += 1;
+            grantXp(state, attackerId, XP.DESTROY_BUILDING, suppressFloaters);
           }
-          grantXp(state, attackerId, XP.DESTROY_BUILDING, suppressFloaters);
+          // LAVALAIR / INFERNALSANCTUM: remain as enemy buildings — no action needed
         }
       }
     }
