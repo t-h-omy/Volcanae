@@ -234,6 +234,40 @@ export function resolveAttack(
     if (!attackerDead) {
       grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
     }
+
+    // If the defender was standing on an enemy building that the player attacker
+    // just conquered (melee advance), destroy/neutralize the building the same
+    // way resolveAttackOnBuilding does.
+    if (!attackerDead && attacker.faction === Faction.PLAYER) {
+      const tileOfDead = state.grid[defenderPosition.y][defenderPosition.x];
+      if (tileOfDead.buildingId) {
+        const bld = state.buildings[tileOfDead.buildingId];
+        if (bld && bld.faction === Faction.ENEMY) {
+          if (bld.type === BuildingType.WATCHTOWER) {
+            // Watchtower goes neutral so it can be captured
+            bld.hp = bld.maxHp;
+            bld.faction = null;
+            bld.hasAttackedThisTurn = false;
+            bld.specialistSlot = null;
+            bld.turnCapturedByPlayer = null;
+            bld.wasEnemyOwnedBeforeCapture = false;
+          } else {
+            // Enemy building destroyed: apply destroy behavior
+            const destroyBehavior = bld.destroyBehavior;
+            const bldId = tileOfDead.buildingId!;
+            delete state.buildings[bldId];
+            tileOfDead.buildingId = null;
+            if (destroyBehavior === DestroyBehavior.STRONGHOLD_RUIN) {
+              tileOfDead.isStrongholdRuin = true;
+            } else if (destroyBehavior === DestroyBehavior.RUIN) {
+              tileOfDead.isRuin = true;
+            }
+            // DestroyBehavior.RESOURCE: no ruin — terrain is restored naturally
+          }
+          grantXp(state, attackerId, XP.DESTROY_BUILDING, suppressFloaters);
+        }
+      }
+    }
   } else {
     // Update defender HP
     defender.stats.currentHp = newDefenderHp;

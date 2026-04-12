@@ -236,8 +236,13 @@ async function playAttackAnimation(
     }
   }
 
-  // ── Apply damage to display state ──
+  // ── Apply damage to display state (without melee advance, so dying unit stays visible) ──
+  // Temporarily strip the advance so that the defender tile is not overwritten
+  // before the skull animation can render.
+  const savedAdvance = event.advancedToPosition;
+  (event as Record<string, unknown>).advancedToPosition = null;
   useGameStore.getState().applyEvent(event);
+  (event as Record<string, unknown>).advancedToPosition = savedAdvance;
 
   if (visible) {
     // ── Shake hit units ──
@@ -289,6 +294,11 @@ async function playAttackAnimation(
     for (const id of dyingIds) {
       useCombatAnimationStore.getState().setUnitAnimation(id, null);
     }
+  }
+
+  // ── Apply melee advance after die animation so the dying defender was visible ──
+  if (savedAdvance) {
+    useGameStore.getState().applyMeleeAdvance(event.attackerId, savedAdvance);
   }
 
   return dyingIds;
@@ -601,6 +611,19 @@ export function useAnimationEngine(): void {
             await wait(ANIMATION.DIE_FLASH_DURATION_MS + ANIMATION.DIE_FADE_DURATION_MS);
             useCombatAnimationStore.getState().setUnitAnimation(event.unitId, null);
           }
+        }
+
+        // ── Special handling for RESONANCE_TRIGGERED (pan to each surviving chamber) ──
+        if (event.type === 'RESONANCE_TRIGGERED') {
+          const gameState = useGameStore.getState();
+          for (const chamberId of event.survivingChamberIds) {
+            const chamber = gameState.buildings[chamberId];
+            if (chamber) {
+              useAnimationStore.getState().setCameraTarget(chamber.position);
+              await wait(ANIMATION.CAMERA_MOVE_DURATION_MS + ANIMATION.POST_ACTION_IDLE_MS);
+            }
+          }
+          continue;
         }
 
         // 3. Apply event to live game state

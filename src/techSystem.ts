@@ -208,7 +208,7 @@ export function getBuildingProductionMods(
 
 /** Human-readable descriptions for FLAG effects */
 const flagDescriptions: Record<string, string> = {
-  TO_THE_FRONT: 'Units >10 tiles from lava front: +1 movement',
+  TO_THE_FRONT: 'Units >10 tiles south of the northmost player unit: +1 movement',
   HOLD_GROUND: 'Units on own buildings: defense bonus',
 };
 

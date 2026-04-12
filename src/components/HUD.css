@@ -1611,8 +1611,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(58, 123, 213, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 7px;
   padding: 9px 12px;
   color: #eee;
@@ -1621,9 +1621,14 @@
   width: 100%;
 }
 
+.info-row-btn:hover:not(:disabled) {
+  background: rgba(58, 123, 213, 0.4);
+}
+
 .info-row-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .info-row-emoji {

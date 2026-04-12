@@ -82,6 +82,8 @@ interface GameActions {
   endPlayerTurn: () => void;
   /** Apply a single game event from the animation queue */
   applyEvent: (event: GameEvent) => void;
+  /** Apply a melee advance after the die animation (deferred from attack event) */
+  applyMeleeAdvance: (attackerId: string, toPosition: Position) => void;
   /** Replace the entire game state (used by animation engine to apply resolved state) */
   setGameState: (newState: GameState) => void;
   /** Manually save the current game state to localStorage */
@@ -293,6 +295,10 @@ export const useGameStore = create<GameStore>()(
 
         // Lock UI while animation plays (same mechanism as enemy turn)
         state.phase = GamePhase.ENEMY_TURN;
+        // Clear selection so movement range / action indicators don't show
+        // during the combat animation.
+        state.selectedUnitId = null;
+        state.selectedBuildingId = null;
       });
 
       if (pendingEvents !== null && pendingResolvedState !== null) {
@@ -529,8 +535,8 @@ export const useGameStore = create<GameStore>()(
         });
 
         if (shouldLavaAdvance(computedState)) {
-          const { newState: afterLava, event: lavaEvent } = advanceLavaWithEvents(computedState);
-          allEvents.push(lavaEvent);
+          const { newState: afterLava, events: lavaEvents } = advanceLavaWithEvents(computedState);
+          allEvents.push(...lavaEvents);
           computedState = produce(afterLava, (draft) => {
             draft.turnsUntilLavaAdvance = LAVA.LAVA_ADVANCE_INTERVAL;
           });
@@ -734,6 +740,12 @@ export const useGameStore = create<GameStore>()(
             }
             if (attacker && event.attackerHpLost > 0) {
               attacker.stats.currentHp -= event.attackerHpLost;
+            }
+
+            // Mark attacker as having attacked so the UI shows it as exhausted
+            // immediately rather than showing actions remaining during animation.
+            if (attacker) {
+              attacker.hasAttackedThisTurn = true;
             }
 
             // Apply melee advance for display consistency.
@@ -1008,6 +1020,21 @@ export const useGameStore = create<GameStore>()(
             break;
           }
         }
+      });
+    },
+
+    applyMeleeAdvance: (attackerId: string, toPosition: Position) => {
+      set((state) => {
+        const attacker = state.units[attackerId];
+        if (!attacker) return;
+        const fromTile = state.grid[attacker.position.y][attacker.position.x];
+        if (fromTile.unitId === attackerId) {
+          fromTile.unitId = null;
+        }
+        const toTile = state.grid[toPosition.y][toPosition.x];
+        toTile.unitId = attackerId;
+        attacker.position.x = toPosition.x;
+        attacker.position.y = toPosition.y;
       });
     },
 
