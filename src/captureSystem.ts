@@ -210,10 +210,8 @@ export function initiateCapture(
       grantArcaneCrystals(state, TECH.CRYSTALS_ON_ZONE_STRONGHOLD);
       // Apply any stronghold cap mods from unlocked techs
       const { farmerMod, nobleMod } = getStrongholdCapMods(state);
-      const baseCap = building.populationCap;
-      const expectedCap = baseCap + farmerMod + nobleMod;
-      if (expectedCap > baseCap) {
-        building.populationCap = expectedCap;
+      if (farmerMod + nobleMod > 0) {
+        building.populationCap += farmerMod + nobleMod;
       }
     }
 
@@ -351,10 +349,8 @@ export function resolveCaptures(state: Draft<GameState>): void {
         grantArcaneCrystals(state, TECH.CRYSTALS_ON_ZONE_STRONGHOLD);
         // Apply any stronghold cap mods from unlocked techs
         const { farmerMod, nobleMod } = getStrongholdCapMods(state);
-        const baseCap = building.populationCap;
-        const expectedCap = baseCap + farmerMod + nobleMod;
-        if (expectedCap > baseCap) {
-          building.populationCap = expectedCap;
+        if (farmerMod + nobleMod > 0) {
+          building.populationCap += farmerMod + nobleMod;
         }
       }
 
