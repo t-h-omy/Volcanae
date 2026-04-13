@@ -11,7 +11,7 @@ import { useCombatAnimationStore } from '../combatAnimationStore';
 import type { Projectile } from '../combatAnimationStore';
 import { canCapture } from '../captureSystem';
 import { getConstructionOptionsForTile } from '../constructionSystem';
-import { MAP, UNIT_LEVEL_UP, XP } from '../gameConfig';
+import { MAP, UNIT_LEVEL_UP } from '../gameConfig';
 import { ANIMATION } from '../animationConfig';
 import { UI } from '../uiConfig';
 import { RENDER } from '../renderConfig';
@@ -1033,7 +1033,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
         <div className="hp-bar-fill" style={{ width: `${hpPct}%` }} />
       </div>
       <span className="unit-hp-text">{unit.stats.currentHp}</span>
-      {UNIT_LEVEL_UP[unit.type] && unit.level < XP.MAX_LEVEL && (
+      {UNIT_LEVEL_UP[unit.type] && (
         <span className="unit-xp-text">{unit.xp} xp</span>
       )}
       {showUnitImg ? (

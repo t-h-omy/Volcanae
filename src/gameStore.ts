@@ -32,7 +32,7 @@ import {
 import { checkGameConditions } from './gameConditions';
 import { useFloaterStore } from './floaterStore';
 import { useAnimationStore } from './animationStore';
-import { Faction, GamePhase, BuildingType } from './types';
+import { Faction, GamePhase, BuildingType, TileType } from './types';
 import type { GameState, UnitType, Position, TechId } from './types';
 import type { GameEvent } from './gameEvents';
 import { MAP, LAVA, POPULATION, BUILDINGS, ENEMY, XP, ABILITIES } from './gameConfig';
@@ -40,7 +40,7 @@ import { saveGameState, loadGameState, clearSavedGame, hasSavedGame } from './sa
 import { computeLevelFromXp, applyLevelUps } from './levelSystem';
 import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLogic } from './techSystem';
 import { canUnitHeal, getHealTargets, canUnitFieldwork } from './unitActions';
-import { createFieldworkWatchtower } from './constructionSystem';
+import { createFieldworkOutpost } from './constructionSystem';
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
@@ -570,13 +570,14 @@ export const useGameStore = create<GameStore>()(
         const tile = state.grid[y][x];
         // Cannot build on a tile that already has a building
         if (tile.buildingId !== null) return;
-        // Create a Watchtower at the unit's position
-        const newBuilding = createFieldworkWatchtower({ x, y });
+        // Cannot build on ruins
+        if (tile.isRuin || tile.isStrongholdRuin) return;
+        // Cannot build on resource terrain (forest or mountain)
+        if (tile.terrainType === TileType.FOREST || tile.terrainType === TileType.MOUNTAIN) return;
+        // Create an Outpost at the unit's position with HP based on the unit's current HP
+        const newBuilding = createFieldworkOutpost({ x, y }, unit.stats.currentHp);
         state.buildings[newBuilding.id] = newBuilding;
         tile.buildingId = newBuilding.id;
-        // Clear ruin flags (if any)
-        tile.isRuin = false;
-        tile.isStrongholdRuin = false;
         // Delete the unit
         tile.unitId = null;
         delete state.units[unitId];
