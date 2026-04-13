@@ -270,7 +270,8 @@ export function processEmberNestSpawns(
 
     if (nearbyEmberlings >= LAVA_LAIR.EMBER_NEST_MAX_EMBERLINGS) continue;
 
-    // Spawn on the building's own tile; skip if occupied or lava
+    // Spawn on the building's own tile; skip if occupied or lava.
+    // Buildings only exist at valid tile positions, so no bounds check is needed.
     const spawnTile = state.grid[building.position.y]?.[building.position.x];
     if (!spawnTile || spawnTile.unitId !== null || spawnTile.isLava) continue;
     const spawnPos = { ...building.position };
