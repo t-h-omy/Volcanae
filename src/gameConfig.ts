@@ -936,6 +936,32 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SCOUT, tag: UnitTag.PATCHUP },
     ],
   },
+
+  // ── Branch 5: Stronghold Development ──
+  {
+    id: 'WALLED_SETTLEMENT',
+    name: 'Walled Settlement',
+    description: 'Strongholds sustain more farmers and produce goods for the realm',
+    requires: ['CONSCRIPTION'],
+    cost: 2,
+    effects: [
+      { type: 'STRONGHOLD_CAP_MOD', capType: 'farmer', amount: 1 },
+      { type: 'BUILDING_PRODUCTION_MOD', buildingType: BuildingType.STRONGHOLD, resource: ResourceType.WOOD, chancePercent: 50, amount: 1 },
+      { type: 'BUILDING_PRODUCTION_MOD', buildingType: BuildingType.STRONGHOLD, resource: ResourceType.IRON, chancePercent: 50, amount: 1 },
+    ],
+  },
+  {
+    id: 'CITADEL',
+    name: 'Citadel',
+    description: 'An imposing fortress that houses nobles and trains elite warriors',
+    requires: ['WALLED_SETTLEMENT'],
+    cost: 3,
+    effects: [
+      { type: 'STRONGHOLD_CAP_MOD', capType: 'noble', amount: 1 },
+      { type: 'UNIT_STAT_MOD', unitType: UnitType.SCOUT, stat: 'maxHp', mode: 'add', value: 30 },
+      { type: 'UNIT_STAT_MOD', unitType: UnitType.GUARD, stat: 'maxHp', mode: 'add', value: 30 },
+    ],
+  },
 ];
 
 // ============================================================================

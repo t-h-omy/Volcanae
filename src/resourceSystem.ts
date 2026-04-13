@@ -8,7 +8,7 @@ import type { Draft } from 'immer';
 import { Faction, BuildingType, UnitType, ResourceType, type UnitTag } from './types';
 import { RESOURCES, UNITS, UNIT_COSTS, POPULATION, UNIT_POPULATION_COSTS, CRYSTAL_CHAMBER_CONFIG } from './gameConfig';
 import type { UnitCost } from './gameConfig';
-import { getGrantedTags, getStatMods, getBuildingProductionMods, grantArcaneCrystals } from './techSystem';
+import { getGrantedTags, getStatMods, getBuildingProductionMods, grantArcaneCrystals, getStrongholdCapMods } from './techSystem';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -209,9 +209,11 @@ export function computePopulationCapacity(
     } else if (building.type === BuildingType.PATRICIANHOUSE) {
       nobleCapacity += building.populationCount;
     } else if (building.type === BuildingType.STRONGHOLD) {
-      // Stronghold contributes farmers up to STRONGHOLD_FARMER_CAP, rest as nobles
-      const farmers = Math.min(building.populationCount, POPULATION.STRONGHOLD_FARMER_CAP);
-      const nobles = Math.max(0, building.populationCount - POPULATION.STRONGHOLD_FARMER_CAP);
+      // Stronghold contributes farmers up to STRONGHOLD_FARMER_CAP + tech mods, rest as nobles
+      const { farmerMod } = getStrongholdCapMods(state);
+      const effectiveFarmerCap = POPULATION.STRONGHOLD_FARMER_CAP + farmerMod;
+      const farmers = Math.min(building.populationCount, effectiveFarmerCap);
+      const nobles = Math.max(0, building.populationCount - effectiveFarmerCap);
       farmerCapacity += farmers;
       nobleCapacity += nobles;
     }
@@ -441,6 +443,8 @@ export function recruitUnit(
       );
     }
   }
+  // Ensure current HP matches the (possibly boosted) max HP for a freshly recruited unit
+  unit.stats.currentHp = unit.stats.maxHp;
 
   // Place unit on the grid
   state.grid[spawnPosition.y][spawnPosition.x].unitId = unitId;

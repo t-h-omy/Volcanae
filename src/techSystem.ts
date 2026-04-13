@@ -6,7 +6,7 @@
 
 import type { Draft } from 'immer';
 import type { GameState, TechId, TechEffect, UnitStats } from './types';
-import { Faction, TechFlag } from './types';
+import { Faction, TechFlag, BuildingType } from './types';
 import { TECH_TREE } from './gameConfig';
 
 // ============================================================================
@@ -120,6 +120,14 @@ function applyTechEffect(state: Draft<GameState>, effect: TechEffect): void {
     case 'BUILDING_PRODUCTION_MOD':
       // Applied at point-of-use in collectResources() — no immediate state mutation
       break;
+    case 'STRONGHOLD_CAP_MOD':
+      // Retroactively update populationCap on all existing player-owned strongholds
+      for (const building of Object.values(state.buildings)) {
+        if (building.faction === Faction.PLAYER && building.type === BuildingType.STRONGHOLD) {
+          building.populationCap += effect.amount;
+        }
+      }
+      break;
     default:
       break;
   }
@@ -143,7 +151,7 @@ function applyStatMod(
 // POINT-OF-USE HELPERS
 // ============================================================================
 
-import type { UnitType, UnitTag, BuildingType, ResourceType } from './types';
+import type { UnitType, UnitTag, ResourceType } from './types';
 
 /**
  * Returns all GRANT_UNIT_TAG effects for the given unit type from unlocked techs.
@@ -205,6 +213,27 @@ export function getBuildingProductionMods(
   return mods;
 }
 
+/**
+ * Returns the total stronghold farmer and noble cap modifiers from all unlocked techs.
+ * Used at population capacity computation time and when creating/capturing strongholds.
+ */
+export function getStrongholdCapMods(
+  state: GameState | Draft<GameState>,
+): { farmerMod: number; nobleMod: number } {
+  let farmerMod = 0;
+  let nobleMod = 0;
+  for (const def of TECH_TREE) {
+    if (!state.techNodes[def.id]?.unlocked) continue;
+    for (const effect of def.effects) {
+      if (effect.type === 'STRONGHOLD_CAP_MOD') {
+        if (effect.capType === 'farmer') farmerMod += effect.amount;
+        else if (effect.capType === 'noble') nobleMod += effect.amount;
+      }
+    }
+  }
+  return { farmerMod, nobleMod };
+}
+
 // ============================================================================
 // EFFECT RENDERING (for UI)
 // ============================================================================
@@ -232,6 +261,8 @@ export function renderEffect(effect: TechEffect): string {
       return `${effect.buildingType} ${effect.chancePercent}% chance +${effect.amount} ${effect.resource}/turn`;
     case 'FLAG':
       return flagDescriptions[effect.flag] ?? effect.flag;
+    case 'STRONGHOLD_CAP_MOD':
+      return `Stronghold +${effect.amount} ${effect.capType} cap`;
     default:
       return '';
   }
