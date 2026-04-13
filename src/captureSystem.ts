@@ -9,7 +9,7 @@ import { BuildingType, UnitTag, Faction, DestroyBehavior } from './types';
 import { MAP, XP, TECH } from './gameConfig';
 import { increaseThreatOnStrongholdCapture } from './enemySystem';
 import { grantXp } from './levelSystem';
-import { grantArcaneCrystals } from './techSystem';
+import { grantArcaneCrystals, getStrongholdCapMods } from './techSystem';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -208,6 +208,11 @@ export function initiateCapture(
       updateZonesUnlocked(state);
       increaseThreatOnStrongholdCapture(state);
       grantArcaneCrystals(state, TECH.CRYSTALS_ON_ZONE_STRONGHOLD);
+      // Apply any stronghold cap mods from unlocked techs
+      const { farmerMod, nobleMod } = getStrongholdCapMods(state);
+      if (farmerMod + nobleMod > 0) {
+        building.populationCap += farmerMod + nobleMod;
+      }
     }
 
     // Grant XP to player unit for capturing the building (if it still exists)
@@ -342,6 +347,11 @@ export function resolveCaptures(state: Draft<GameState>): void {
         updateZonesUnlocked(state);
         increaseThreatOnStrongholdCapture(state);
         grantArcaneCrystals(state, TECH.CRYSTALS_ON_ZONE_STRONGHOLD);
+        // Apply any stronghold cap mods from unlocked techs
+        const { farmerMod, nobleMod } = getStrongholdCapMods(state);
+        if (farmerMod + nobleMod > 0) {
+          building.populationCap += farmerMod + nobleMod;
+        }
       }
 
       capturingUnit.hasCapturedThisTurn = true;
