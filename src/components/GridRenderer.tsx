@@ -156,32 +156,6 @@ export default function GridRenderer() {
     pointers: Map<number, { x: number; y: number }>;
   }>({ active: false, prevDist: 0, prevMidX: 0, prevMidY: 0, pointers: new Map() });
 
-  // Helper: zoom to a new value and adjust offset so the given focal point (in viewport px)
-  // stays fixed on screen. Call this for wheel and button zooming.
-  const applyZoom = useCallback((newZoom: number, focalX: number, focalY: number) => {
-    const clampedZoom = Math.min(RENDER.ZOOM_MAX, Math.max(RENDER.ZOOM_MIN, newZoom));
-    const oldZoom = useZoomStore.getState().zoom;
-    const ratio = clampedZoom / oldZoom;
-    const { x: ox, y: oy } = offsetRef.current;
-    setOffset({ x: focalX - (focalX - ox) * ratio, y: focalY - (focalY - oy) * ratio });
-    useZoomStore.getState().setZoom(clampedZoom);
-  }, []);
-
-  // ── Mouse wheel zoom (zooms around cursor position) ──
-  useEffect(() => {
-    const vp = viewportRef.current;
-    if (!vp) return;
-    const handler = (e: WheelEvent) => {
-      e.preventDefault();
-      const rect = vp.getBoundingClientRect();
-      const oldZoom = useZoomStore.getState().zoom;
-      const delta = e.deltaY < 0 ? +RENDER.ZOOM_STEP : -RENDER.ZOOM_STEP;
-      applyZoom(oldZoom + delta, e.clientX - rect.left, e.clientY - rect.top);
-    };
-    vp.addEventListener('wheel', handler, { passive: false });
-    return () => vp.removeEventListener('wheel', handler);
-  }, [applyZoom]);
-
   // ── Camera drag state ──
   const dragState = useRef({
     isDragging: false,
@@ -207,6 +181,38 @@ export default function GridRenderer() {
   // Keep a ref to the latest offset so it can be read synchronously in effects
   const offsetRef = useRef(offset);
   offsetRef.current = offset;
+
+  // Helper: zoom to a new value and adjust offset so the given focal point (in viewport px)
+  // stays fixed on screen. Call this for wheel and button zooming.
+  const applyZoom = useCallback((newZoom: number, focalX: number, focalY: number) => {
+    const clampedZoom = Math.min(RENDER.ZOOM_MAX, Math.max(RENDER.ZOOM_MIN, newZoom));
+    const oldZoom = useZoomStore.getState().zoom;
+    const ratio = clampedZoom / oldZoom;
+    const { x: ox, y: oy } = offsetRef.current;
+    setOffset({ x: focalX - (focalX - ox) * ratio, y: focalY - (focalY - oy) * ratio });
+    useZoomStore.getState().setZoom(clampedZoom);
+  }, [setOffset]);
+
+  // ── Mouse wheel zoom (zooms around cursor position) ──
+  useEffect(() => {
+    const vp = viewportRef.current;
+    if (!vp) return;
+    const handler = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = vp.getBoundingClientRect();
+      const oldZoom = useZoomStore.getState().zoom;
+      const delta = e.deltaY < 0 ? +RENDER.ZOOM_STEP : -RENDER.ZOOM_STEP;
+      applyZoom(oldZoom + delta, e.clientX - rect.left, e.clientY - rect.top);
+    };
+    vp.addEventListener('wheel', handler, { passive: false });
+    return () => vp.removeEventListener('wheel', handler);
+  }, [applyZoom]);
+
+  // Zoom buttons: step zoom around the viewport centre.
+  const handleZoomButton = useCallback((delta: number) => {
+    const vp = viewportRef.current;
+    if (vp) applyZoom(useZoomStore.getState().zoom + delta, vp.clientWidth / 2, vp.clientHeight / 2);
+  }, [applyZoom]);
 
   // Saves the camera position just before animations begin so it can be restored afterwards
   const preAnimationOffsetRef = useRef<{ x: number; y: number } | null>(null);
@@ -266,8 +272,13 @@ export default function GridRenderer() {
           ps.prevMidX = (pts[0].x + pts[1].x) / 2;
           ps.prevMidY = (pts[0].y + pts[1].y) / 2;
           ps.active = true;
-          // Capture this pointer so move events aren't lost if the finger moves off the element
-          (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+          // Capture both pointers so move events aren't lost if fingers move off the element.
+          // We use e.currentTarget (the viewport div) as the capture target so both pointers
+          // route to the same element regardless of which child was under each finger.
+          const vpEl = e.currentTarget as HTMLElement;
+          for (const [pid] of ps.pointers) {
+            vpEl.setPointerCapture?.(pid);
+          }
           // Cancel any active pan drag — we're switching to pinch
           dragState.current.isDragActive = false;
           // Suppress CSS transition during pinch
@@ -694,14 +705,8 @@ export default function GridRenderer() {
         <ProjectileLayer />
       </div>
       <div className="zoom-controls">
-        <button onClick={() => {
-          const vp = viewportRef.current;
-          if (vp) applyZoom(useZoomStore.getState().zoom - RENDER.ZOOM_STEP, vp.clientWidth / 2, vp.clientHeight / 2);
-        }}>−</button>
-        <button onClick={() => {
-          const vp = viewportRef.current;
-          if (vp) applyZoom(useZoomStore.getState().zoom + RENDER.ZOOM_STEP, vp.clientWidth / 2, vp.clientHeight / 2);
-        }}>+</button>
+        <button onClick={() => handleZoomButton(-RENDER.ZOOM_STEP)}>−</button>
+        <button onClick={() => handleZoomButton(+RENDER.ZOOM_STEP)}>+</button>
       </div>
     </div>
   );
