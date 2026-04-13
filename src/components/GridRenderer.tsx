@@ -244,10 +244,10 @@ export default function GridRenderer() {
     if (!viewportEl) return;
     const viewportW = viewportEl.clientWidth;
     const viewportH = viewportEl.clientHeight;
-    const z = useZoomStore.getState().zoom;
+    const currentZoom = useZoomStore.getState().zoom;
     setOffset({
-      x: viewportW / 2 - (cameraTarget.x * tileSize + tileSize / 2) * z,
-      y: viewportH / 2 - (cameraTarget.y * tileSize + tileSize / 2) * z,
+      x: viewportW / 2 - (cameraTarget.x * tileSize + tileSize / 2) * currentZoom,
+      y: viewportH / 2 - (cameraTarget.y * tileSize + tileSize / 2) * currentZoom,
     });
   }, [cameraTarget, tileSize]);
 
