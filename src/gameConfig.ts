@@ -242,7 +242,7 @@ export const LAVA_LAIR = {
   /** Combat stats for MAGMA_SPYR buildings (created on corrupted MOUNTAIN tiles) */
   MAGMA_SPYR_STATS: {
     maxHp: 120,
-    attack: 50,
+    attack: 30,
     defense: 50,
     attackRange: 2,
     maxAttacksPerTurn: 2,
@@ -958,8 +958,8 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 3,
     effects: [
       { type: 'STRONGHOLD_CAP_MOD', capType: 'noble', amount: 1 },
-      { type: 'UNIT_STAT_MOD', unitType: UnitType.SCOUT, stat: 'maxHp', mode: 'add', value: 30 },
-      { type: 'UNIT_STAT_MOD', unitType: UnitType.GUARD, stat: 'maxHp', mode: 'add', value: 30 },
+      { type: 'UNIT_STAT_MOD', unitType: UnitType.SCOUT, stat: 'maxHp', mode: 'add', value: 40 },
+      { type: 'UNIT_STAT_MOD', unitType: UnitType.GUARD, stat: 'maxHp', mode: 'add', value: 40 },
     ],
   },
 ];
