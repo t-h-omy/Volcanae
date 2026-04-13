@@ -117,6 +117,8 @@ interface GameActions {
   debugAddFarmers: () => void;
   /** Debug: set a nearby tile to isRuin = true */
   debugAddRuin: () => void;
+  /** Debug: add 5 arcane crystals */
+  debugAddCrystals: () => void;
   /** Level up a player unit if they have enough XP */
   levelUpUnit: (unitId: string) => void;
   /** Unlock a tech node and spend one pending pick */
@@ -1351,6 +1353,12 @@ export const useGameStore = create<GameStore>()(
             return;
           }
         }
+      });
+    },
+
+    debugAddCrystals: () => {
+      set((state) => {
+        state.arcaneCrystals += 5;
       });
     },
 

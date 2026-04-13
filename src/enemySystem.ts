@@ -277,10 +277,11 @@ const BFS_DIRECTIONS: [number, number][] = [
  *   - Out-of-bounds tiles: impassable
  *   - Lava tiles: impassable UNLESS it is the target tile itself
  *   - isBlockedBuildingForEnemyMovement: impassable
- *   - Unit-occupied tiles: treated as passable (units may move away next turn)
+ *   - Unit-occupied tiles: impassable UNLESS it is the target tile itself
  *
- * The caller (moveEnemyUnitToward) is responsible for stopping movement when
- * the next tile in the returned path is occupied by a unit at step time.
+ * Treating unit-occupied tiles as impassable (except the target) ensures that
+ * enemy units route diagonally around blocking units rather than planning a
+ * straight path through them and then getting stuck on execution.
  */
 function findBfsPath(
   from: Position,
@@ -310,6 +311,7 @@ function findBfsPath(
       const isTarget = nx === target.x && ny === target.y;
       if (tile.isLava && !isTarget) continue;
       if (isBlockedBuildingForEnemyMovement(state, tile.buildingId)) continue;
+      if (tile.unitId !== null && !isTarget) continue;
       const next: Position = { x: nx, y: ny };
       prev.set(nkey, current);
       if (isTarget) {
@@ -1916,6 +1918,8 @@ function executeBuildingAttacks(state: Draft<GameState>, events?: GameEvent[]): 
     if (building.faction !== Faction.ENEMY) continue;
     if (!building.combatStats) continue;
     if (building.hasAttackedThisTurn) continue;
+    // MAGMA_SPYR is handled separately by processMagmaSpyrAttacks (supports multi-attack)
+    if (building.type === BuildingType.MAGMASPYR) continue;
 
     const attackRange = building.combatStats.attackRange;
     const bCombatant = buildingToCombatant(building);
