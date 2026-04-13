@@ -56,8 +56,9 @@ function useTileSize(): number {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  const zoom = useZoomStore((s) => s.zoom);
-  return Math.round(baseSize * zoom);
+  // Zoom is applied via CSS transform scale on the grid container rather than
+  // changing tile sizes, so tileSize stays at the base (unzoomed) value.
+  return baseSize;
 }
 
 function posKey(x: number, y: number): string {
@@ -139,8 +140,8 @@ export default function GridRenderer() {
   const cameraTarget = useAnimationStore((s) => s.cameraTarget);
 
   // ── Zoom store ──
-  const stepZoom = useZoomStore((s) => s.stepZoom);
-  const setZoom = useZoomStore((s) => s.setZoom);
+  // Subscribe to zoom for rendering; mutations go through getState() to avoid extra subscriptions.
+  const zoom = useZoomStore((s) => s.zoom);
 
   const tileSize = useTileSize();
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -149,22 +150,37 @@ export default function GridRenderer() {
   // ── Pinch-to-zoom state ──
   const pinchState = useRef<{
     active: boolean;
-    startDist: number;
-    startZoom: number;
+    prevDist: number;
+    prevMidX: number;
+    prevMidY: number;
     pointers: Map<number, { x: number; y: number }>;
-  }>({ active: false, startDist: 0, startZoom: RENDER.ZOOM_DEFAULT, pointers: new Map() });
+  }>({ active: false, prevDist: 0, prevMidX: 0, prevMidY: 0, pointers: new Map() });
 
-  // ── Mouse wheel zoom ──
+  // Helper: zoom to a new value and adjust offset so the given focal point (in viewport px)
+  // stays fixed on screen. Call this for wheel and button zooming.
+  const applyZoom = useCallback((newZoom: number, focalX: number, focalY: number) => {
+    const clampedZoom = Math.min(RENDER.ZOOM_MAX, Math.max(RENDER.ZOOM_MIN, newZoom));
+    const oldZoom = useZoomStore.getState().zoom;
+    const ratio = clampedZoom / oldZoom;
+    const { x: ox, y: oy } = offsetRef.current;
+    setOffset({ x: focalX - (focalX - ox) * ratio, y: focalY - (focalY - oy) * ratio });
+    useZoomStore.getState().setZoom(clampedZoom);
+  }, []);
+
+  // ── Mouse wheel zoom (zooms around cursor position) ──
   useEffect(() => {
     const vp = viewportRef.current;
     if (!vp) return;
     const handler = (e: WheelEvent) => {
       e.preventDefault();
-      stepZoom(e.deltaY < 0 ? +RENDER.ZOOM_STEP : -RENDER.ZOOM_STEP);
+      const rect = vp.getBoundingClientRect();
+      const oldZoom = useZoomStore.getState().zoom;
+      const delta = e.deltaY < 0 ? +RENDER.ZOOM_STEP : -RENDER.ZOOM_STEP;
+      applyZoom(oldZoom + delta, e.clientX - rect.left, e.clientY - rect.top);
     };
     vp.addEventListener('wheel', handler, { passive: false });
     return () => vp.removeEventListener('wheel', handler);
-  }, [stepZoom]);
+  }, [applyZoom]);
 
   // ── Camera drag state ──
   const dragState = useRef({
@@ -214,15 +230,18 @@ export default function GridRenderer() {
     }
   }, []);
 
-  // When camera target changes, update offset to center viewport on target
+  // When camera target changes, update offset to center viewport on target.
+  // Zoom is intentionally NOT a dependency: we don't re-centre during pinch/wheel
+  // zoom — those handlers adjust offset themselves to keep the focal point fixed.
   useEffect(() => {
     const viewportEl = viewportRef.current;
     if (!viewportEl) return;
     const viewportW = viewportEl.clientWidth;
     const viewportH = viewportEl.clientHeight;
+    const z = useZoomStore.getState().zoom;
     setOffset({
-      x: viewportW / 2 - cameraTarget.x * tileSize - tileSize / 2,
-      y: viewportH / 2 - cameraTarget.y * tileSize - tileSize / 2,
+      x: viewportW / 2 - (cameraTarget.x * tileSize + tileSize / 2) * z,
+      y: viewportH / 2 - (cameraTarget.y * tileSize + tileSize / 2) * z,
     });
   }, [cameraTarget, tileSize]);
 
@@ -242,9 +261,22 @@ export default function GridRenderer() {
         ps.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
         if (ps.pointers.size === 2) {
           const pts = Array.from(ps.pointers.values());
-          ps.startDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
-          ps.startZoom = useZoomStore.getState().zoom;
+          const startDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+          ps.prevDist = startDist;
+          ps.prevMidX = (pts[0].x + pts[1].x) / 2;
+          ps.prevMidY = (pts[0].y + pts[1].y) / 2;
           ps.active = true;
+          // Capture this pointer so move events aren't lost if the finger moves off the element
+          (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+          // Cancel any active pan drag — we're switching to pinch
+          dragState.current.isDragActive = false;
+          // Suppress CSS transition during pinch
+          if (containerRef.current) containerRef.current.classList.add('no-transition');
+          // Cancel any ongoing inertia
+          if (inertiaRaf.current !== null) {
+            cancelAnimationFrame(inertiaRaf.current);
+            inertiaRaf.current = null;
+          }
           return; // don't start a drag during pinch
         }
       }
@@ -292,10 +324,29 @@ export default function GridRenderer() {
       if (ps.active && ps.pointers.size === 2) {
         const pts = Array.from(ps.pointers.values());
         const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
-        if (ps.startDist > 0) {
-          const ratio = dist / ps.startDist;
-          setZoom(ps.startZoom * ratio);
+        const mx = (pts[0].x + pts[1].x) / 2;
+        const my = (pts[0].y + pts[1].y) / 2;
+
+        if (ps.prevDist > 0) {
+          // Incremental zoom: scale relative to the previous frame so the
+          // pinch midpoint stays fixed under both fingers.
+          const oldZoom = useZoomStore.getState().zoom;
+          const newZoom = Math.min(RENDER.ZOOM_MAX, Math.max(RENDER.ZOOM_MIN, oldZoom * (dist / ps.prevDist)));
+          const ratio = newZoom / oldZoom;
+
+          // Adjust offset so the element under prevMid stays under curMid after scaling.
+          // Formula: newOffset = curMid - (prevMid - oldOffset) * (newZoom / oldZoom)
+          const { x: ox, y: oy } = offsetRef.current;
+          const newOx = mx - (ps.prevMidX - ox) * ratio;
+          const newOy = my - (ps.prevMidY - oy) * ratio;
+
+          useZoomStore.getState().setZoom(newZoom);
+          setOffset({ x: newOx, y: newOy });
         }
+
+        ps.prevDist = dist;
+        ps.prevMidX = mx;
+        ps.prevMidY = my;
         return; // don't pan while pinching
       }
     }
@@ -329,7 +380,7 @@ export default function GridRenderer() {
         ds.lastMoveY = e.clientY;
       }
     }
-  }, [setZoom]);
+  }, []);
 
   const onPointerUp = useCallback((e: React.PointerEvent) => {
     // ── Pinch cleanup ──
@@ -338,6 +389,8 @@ export default function GridRenderer() {
       ps.pointers.delete(e.pointerId);
       if (ps.active) {
         ps.active = false;
+        // Restore CSS transition once pinch gesture ends
+        if (containerRef.current) containerRef.current.classList.remove('no-transition');
         return;
       }
     }
@@ -599,7 +652,11 @@ export default function GridRenderer() {
           height: gridHeight,
           gridTemplateColumns: `repeat(${MAP.GRID_WIDTH}, ${tileSize}px)`,
           gridTemplateRows: `repeat(${MAP.GRID_HEIGHT}, ${tileSize}px)`,
-          transform: `translate(${offset.x}px, ${offset.y}px)`,
+          // Zoom is applied as a CSS scale (GPU-composited, no layout recalculation).
+          // transform-origin is set to 0 0 so the scale is anchored at the container
+          // origin, matching the offset arithmetic used throughout this component.
+          transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`,
+          transformOrigin: '0 0',
         }}
       >
         {grid.map((row, y) =>
@@ -637,8 +694,14 @@ export default function GridRenderer() {
         <ProjectileLayer />
       </div>
       <div className="zoom-controls">
-        <button onClick={() => stepZoom(-RENDER.ZOOM_STEP)}>−</button>
-        <button onClick={() => stepZoom(+RENDER.ZOOM_STEP)}>+</button>
+        <button onClick={() => {
+          const vp = viewportRef.current;
+          if (vp) applyZoom(useZoomStore.getState().zoom - RENDER.ZOOM_STEP, vp.clientWidth / 2, vp.clientHeight / 2);
+        }}>−</button>
+        <button onClick={() => {
+          const vp = viewportRef.current;
+          if (vp) applyZoom(useZoomStore.getState().zoom + RENDER.ZOOM_STEP, vp.clientWidth / 2, vp.clientHeight / 2);
+        }}>+</button>
       </div>
     </div>
   );
