@@ -8,7 +8,7 @@
 import type { GameState, Position, Unit, Building } from './types';
 import type { Draft } from 'immer';
 import { Faction, TileType, UnitTag, UnitType, BuildingType } from './types';
-import { LAVA_LAIR, UNITS, MAP, BUILDINGS } from './gameConfig';
+import { LAVA_LAIR, UNITS, BUILDINGS } from './gameConfig';
 import { generateId } from './mapGenerator';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { resolveBuildingAttack, buildingToCombatant } from './combatSystem';
@@ -242,7 +242,7 @@ export function processMagmaSpyrAttacks(
 /**
  * Processes Emberling spawns from EMBER_NEST buildings at the start of the enemy turn.
  * Each EMBER_NEST increments its spawn counter; when the counter reaches the spawn interval,
- * it spawns an EMBERLING at a free adjacent tile (if under the max nearby limit).
+ * it spawns an EMBERLING on the building's own tile (if unoccupied and under the max nearby limit).
  */
 export function processEmberNestSpawns(
   state: Draft<GameState>,
@@ -270,9 +270,11 @@ export function processEmberNestSpawns(
 
     if (nearbyEmberlings >= LAVA_LAIR.EMBER_NEST_MAX_EMBERLINGS) continue;
 
-    // Find nearest free adjacent tile to spawn on
-    const spawnPos = findFreeAdjacentTile(state, building.position);
-    if (!spawnPos) continue;
+    // Spawn on the building's own tile; skip if occupied or lava.
+    // Buildings only exist at valid tile positions, so no bounds check is needed.
+    const spawnTile = state.grid[building.position.y]?.[building.position.x];
+    if (!spawnTile || spawnTile.unitId !== null || spawnTile.isLava) continue;
+    const spawnPos = { ...building.position };
 
     // Create EMBERLING unit
     const unitConfig = UNITS[UnitType.EMBERLING];
@@ -326,28 +328,5 @@ export function processEmberNestSpawns(
   }
 }
 
-/**
- * Finds the nearest free adjacent tile (4 cardinal directions) to the given position.
- * A tile is free if it has no unit, no building, is not lava, and is within bounds.
- */
-function findFreeAdjacentTile(state: Draft<GameState>, pos: Position): Position | null {
-  const directions = [
-    { x: 0, y: -1 }, // north (south on screen since y=0 is top)
-    { x: 1, y: 0 },  // east
-    { x: 0, y: 1 },  // south
-    { x: -1, y: 0 }, // west
-  ];
 
-  for (const dir of directions) {
-    const nx = pos.x + dir.x;
-    const ny = pos.y + dir.y;
-    if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;
-    const tile = state.grid[ny][nx];
-    if (tile.unitId !== null) continue;
-    if (tile.isLava) continue;
-    // Allow spawn even if there's a building (the unit can occupy the tile)
-    return { x: nx, y: ny };
-  }
 
-  return null;
-}

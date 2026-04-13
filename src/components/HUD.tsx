@@ -147,6 +147,7 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
   const debugRevealAll = useGameStore((s) => s.debugRevealAll);
   const debugAddFarmers = useGameStore((s) => s.debugAddFarmers);
   const debugAddRuin = useGameStore((s) => s.debugAddRuin);
+  const debugAddCrystals = useGameStore((s) => s.debugAddCrystals);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -190,6 +191,7 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
           <button className="hud-dev-action-btn" onClick={debugRevealAll}>👁️ Reveal All</button>
           <button className="hud-dev-action-btn" onClick={debugAddFarmers}>🌾 Add Farm (zone 1)</button>
           <button className="hud-dev-action-btn" onClick={debugAddRuin}>🗿 Add Ruin (near unit)</button>
+          <button className="hud-dev-action-btn" onClick={debugAddCrystals}>💎 +5 Crystals</button>
         </div>
       </div>
     </div>
