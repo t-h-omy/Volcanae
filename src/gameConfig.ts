@@ -186,9 +186,9 @@ export const BUILDINGS = {
   /** Probability of spawning a WATCHTOWER in each zone (0.0 to 1.0) */
   WATCHTOWER_SPAWN_CHANCE: 0.5,
   /** Number of rows at the start (low-Y end) of a zone where strongholds may not spawn */
-  STRONGHOLD_SPAWN_SKIP_FIRST_ROWS: 1,
+  STRONGHOLD_SPAWN_SKIP_FIRST_ROWS: 2,
   /** Number of rows at the end (high-Y end) of a zone where strongholds may not spawn */
-  STRONGHOLD_SPAWN_SKIP_LAST_ROWS: 1,
+  STRONGHOLD_SPAWN_SKIP_LAST_ROWS: 0,
   /** Discover radius per building type (balanceable) */
   DISCOVER_RADIUS: {
     STRONGHOLD: 2,
@@ -201,8 +201,8 @@ export const BUILDINGS = {
     WATCHTOWER: 4,
     LAVALAIR: 2,
     INFERNALSANCTUM: 2,
-    FARM: 0,
-    PATRICIANHOUSE: 0,
+    FARM: 2,
+    PATRICIANHOUSE: 2,
     MAGMASPYR: 2,
     EMBERNEST: 2,
     CRYSTAL_CHAMBER: 2,
@@ -299,11 +299,11 @@ export const ENEMY = {
   /** Bonus enemy spawn per 3 threat levels */
   ENEMY_THREAT_SPAWN_BONUS: 1,
   /** Base probability (0.0–1.0) of spawning a unit per recruitment building per turn when no player unit is in discover radius and threat is 0 */
-  BASE_SPAWN_PROBABILITY: 0.09,
+  BASE_SPAWN_PROBABILITY: 0.1,
   /** Maximum additional probability granted at max threat (0.0–1.0) */
-  MAX_THREAT_BONUS: 0.70,
+  MAX_THREAT_BONUS: 0.75,
   /** Threat level at which the full MAX_THREAT_BONUS is reached */
-  MAX_THREAT: 15,
+  MAX_THREAT: 20,
   /** Number of player turns between automatic threat level increases */
   THREAT_LEVEL_INCREASE_INTERVAL: 10,
 } as const;
@@ -461,7 +461,7 @@ export const AI_SCORING = {
   /** Base score for an EXPLOSIVE unit to detonate when adjacent to one or more player units */
   BASE_EXPLODE: 30,
   /** Bonus added to BASE_ADVANCE_TOWARD_LAVA for units with the SACRIFICIAL tag */
-  BONUS_SACRIFICIAL_ADVANCE_TOWARD_LAVA: 130,
+  BONUS_SACRIFICIAL_ADVANCE_TOWARD_LAVA: 160,
   /**
    * Extra bonus added to EXPLODE for a SACRIFICIAL unit that is confirmed blocked
    * from reaching lava. Ensures EXPLODE beats ADVANCE_TOWARD_LAVA (18 + 160 = 178)
@@ -473,7 +473,7 @@ export const AI_SCORING = {
    * toward the target would land on a friendly enemy recruitment building (LAVA_LAIR
    * or INFERNAL_SANCTUM). Keeps spawner tiles free for recruitment.
    */
-  PENALTY_STEP_ONTO_RECRUITMENT_BUILDING: 50,
+  PENALTY_STEP_ONTO_RECRUITMENT_BUILDING: 70,
 } as const;
 
 export const AI_RECRUITMENT = {
@@ -579,7 +579,7 @@ export const TERRAIN = {
   /** Number of mountain tiles placed per zone */
   MOUNTAINS_PER_ZONE: 2,
   /** Number of ruin tiles placed per zone */
-  RUINS_PER_ZONE: 5,
+  RUINS_PER_ZONE: 6,
   /**
    * Minimum edge-circle distance from the zone 1 stronghold for the guaranteed
    * forest tile placement in zone 1.
@@ -672,7 +672,7 @@ export const ENEMY_UNIT_UNLOCK: Record<string, number> = {
   LAVA_GRUNT: 0,
   LAVA_ARCHER: 0,
   LAVA_RIDER: 3,
-  LAVA_SIEGE: 4,
+  LAVA_SIEGE: 5,
   EMBERLING: 1,
 };
 
@@ -950,9 +950,9 @@ export const ABILITIES = {
   /** Extra move range granted by TO_THE_FRONT flag */
   TO_THE_FRONT_MOVE_BONUS: 1,
   /** Minimum tile distance from lava front required for TO_THE_FRONT bonus to apply */
-  TO_THE_FRONT_MIN_DISTANCE: 8,
+  TO_THE_FRONT_MIN_DISTANCE: 7,
   /** HP restored per PATCHUP heal action */
-  PATCHUP_HEAL_AMOUNT: 40,
+  PATCHUP_HEAL_AMOUNT: 50,
 } as const;
 
 // ============================================================================
