@@ -9,7 +9,7 @@ import type { Draft } from 'immer';
 import { BuildingType, Faction, UnitTag, TechFlag, DestroyBehavior } from './types';
 import { useFloaterStore } from './floaterStore';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
-import { UNITS, XP, ABILITIES } from './gameConfig';
+import { UNITS, XP, ABILITIES, MAP } from './gameConfig';
 import { grantXp } from './levelSystem';
 
 // ============================================================================
@@ -77,6 +77,63 @@ export function buildingToCombatant(building: Building): Combatant | null {
     faction: building.faction,
     tags: building.tags,
   };
+}
+
+// ============================================================================
+// PHALANX BONUS HELPERS
+// ============================================================================
+
+/**
+ * Returns the total PHALANX defense bonus for a unit.
+ * Counts all adjacent friendly units (Chebyshev distance 1) that carry the PHALANX tag
+ * and sums ABILITIES.PHALANX_DEFENSE_BONUS_PER_CARRIER for each one.
+ */
+export function getPhalanxDefenseBonus(state: GameState | Draft<GameState>, unit: Unit): number {
+  let bonus = 0;
+  const { x, y } = unit.position;
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;
+      const tile = state.grid[ny]?.[nx];
+      if (!tile?.unitId) continue;
+      const other = state.units[tile.unitId];
+      if (!other) continue;
+      if (other.faction !== unit.faction) continue;
+      if (!other.tags.includes(UnitTag.PHALANX)) continue;
+      bonus += ABILITIES.PHALANX_DEFENSE_BONUS_PER_CARRIER;
+    }
+  }
+  return bonus;
+}
+
+/**
+ * Returns the total PHALANX attack bonus for a unit that itself carries the PHALANX tag.
+ * Counts all adjacent friendly units (Chebyshev distance 1) regardless of their tags
+ * and returns count × ABILITIES.PHALANX_ATTACK_BONUS_PER_ALLY.
+ * Returns 0 if the unit does not have the PHALANX tag.
+ */
+export function getPhalanxAttackBonus(state: GameState | Draft<GameState>, unit: Unit): number {
+  if (!unit.tags.includes(UnitTag.PHALANX)) return 0;
+  let count = 0;
+  const { x, y } = unit.position;
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;
+      const tile = state.grid[ny]?.[nx];
+      if (!tile?.unitId) continue;
+      const other = state.units[tile.unitId];
+      if (!other) continue;
+      if (other.faction !== unit.faction) continue;
+      count++;
+    }
+  }
+  return count * ABILITIES.PHALANX_ATTACK_BONUS_PER_ALLY;
 }
 
 // ============================================================================
@@ -186,6 +243,11 @@ export function resolveAttack(
       }
     }
   }
+
+  // PHALANX: attacker gains attack bonus, defender gains defense bonus
+  attackerCombatant.attack += getPhalanxAttackBonus(state, attacker);
+  defenderCombatant.defense += getPhalanxDefenseBonus(state, defender);
+
   const combatResult = calculateCombatFromStats(attackerCombatant, defenderCombatant);
 
   // ASSASSIN: no retaliation damage when ability is activated (defender at full HP)
@@ -387,6 +449,9 @@ export function resolveBuildingAttack(
     }
   }
 
+  // PHALANX: defender gains defense bonus from adjacent PHALANX allies
+  defenderCombatant.defense += getPhalanxDefenseBonus(state, defender);
+
   const combatResult = calculateCombatFromStats(buildingCombatant, defenderCombatant);
 
   const newDefenderHp = defender.stats.currentHp - combatResult.defenderHpLost;
@@ -513,6 +578,9 @@ export function resolveAttackOnBuilding(
   const buildingCombatant = building.combatStats ? buildingToCombatant(building) : null;
 
   const attackerCombatant = unitToCombatant(attacker);
+
+  // PHALANX: attacker gains attack bonus from adjacent friendly units
+  attackerCombatant.attack += getPhalanxAttackBonus(state, attacker);
 
   // Calculate combat - if building has combat stats use them for defense, otherwise use 0
   const defenderStats: Combatant = buildingCombatant ?? {
