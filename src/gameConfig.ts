@@ -272,7 +272,7 @@ export const CRYSTAL_CHAMBER_CONFIG = {
   /** Arcane crystals granted per resonating chamber per player turn */
   CRYSTALS_PER_CHAMBER_PER_TURN: 1,
   /** Construction cost */
-  COST: { iron: 2, wood: 3 },
+  COST: { iron: 3, wood: 2 },
   /** Max HP */
   MAX_HP: 100,
   /** Discovery radius */
