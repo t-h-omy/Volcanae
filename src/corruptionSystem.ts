@@ -8,11 +8,66 @@
 import type { GameState, Position, Unit, Building } from './types';
 import type { Draft } from 'immer';
 import { Faction, TileType, UnitTag, UnitType, BuildingType } from './types';
-import { LAVA_LAIR, UNITS, BUILDINGS } from './gameConfig';
+import { LAVA_LAIR, UNITS, BUILDINGS, MAP } from './gameConfig';
 import { generateId } from './mapGenerator';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { resolveBuildingAttack, buildingToCombatant } from './combatSystem';
 import type { GameEvent } from './gameEvents';
+
+// Adjacency offsets (orthogonal + diagonal)
+const ADJACENT_DIRS = [
+  [-1, 0], [1, 0], [0, -1], [0, 1],
+  [-1, -1], [-1, 1], [1, -1], [1, 1],
+] as const;
+
+/**
+ * Generic rule: no unit may stand on a building that can attack (combatStats !== null).
+ * When an attack building is placed on a tile that already has a unit on it, this
+ * function relocates that unit to the nearest free adjacent tile.
+ * If no free adjacent tile exists the unit is removed from the game.
+ * Should be called immediately after any attack building is placed.
+ */
+export function evictUnitFromAttackBuildingTile(
+  state: Draft<GameState>,
+  tilePos: Position,
+): void {
+  const tile = state.grid[tilePos.y]?.[tilePos.x];
+  if (!tile || tile.unitId === null) return;
+
+  // Only apply when the tile holds an attack building
+  const building = tile.buildingId ? state.buildings[tile.buildingId] : null;
+  if (!building || building.combatStats === null) return;
+
+  const unitId = tile.unitId;
+  const unit = state.units[unitId];
+  if (!unit) {
+    tile.unitId = null;
+    return;
+  }
+
+  // Find the first free adjacent tile (no unit, no lava, no attack building)
+  for (const [dx, dy] of ADJACENT_DIRS) {
+    const nx = tilePos.x + dx;
+    const ny = tilePos.y + dy;
+    if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;
+    const adjTile = state.grid[ny][nx];
+    if (adjTile.unitId !== null || adjTile.isLava) continue;
+    if (adjTile.buildingId !== null) {
+      const adjBuilding = state.buildings[adjTile.buildingId];
+      if (adjBuilding && adjBuilding.combatStats !== null) continue;
+    }
+    // Move the unit to this adjacent tile
+    tile.unitId = null;
+    adjTile.unitId = unitId;
+    unit.position.x = nx;
+    unit.position.y = ny;
+    return;
+  }
+
+  // No free adjacent tile — remove the unit
+  tile.unitId = null;
+  delete state.units[unitId];
+}
 
 /**
  * Corrupts the terrain at the given tile position by creating an enemy building.
@@ -106,6 +161,12 @@ export function corruptTerrain(
 
   // Set grid tile buildingId
   tile.buildingId = newBuilding.id;
+
+  // Generic rule: no unit may stand on a building that can attack.
+  // After placing an attack building, evict any unit occupying the same tile.
+  if (combatStats !== null) {
+    evictUnitFromAttackBuildingTile(state, tilePos);
+  }
 
   // Mark unit as having acted
   unit.hasConstructedThisTurn = true;
@@ -314,6 +375,7 @@ export function processEmberNestSpawns(
 
     state.units[newUnit.id] = newUnit;
     state.grid[spawnPos.y][spawnPos.x].unitId = newUnit.id;
+    state.enemyUnitsSpawnedLastTurn += 1;
 
     // Reset spawn counter
     building.emberSpawnCounter = 0;

@@ -370,4 +370,6 @@ export interface GameState {
   unlockedUnits: UnitType[];
   /** Accumulated game statistics for the end-game screen */
   gameStats: GameStats;
+  /** Number of enemy units that were spawned during the most recent enemy turn */
+  enemyUnitsSpawnedLastTurn: number;
 }

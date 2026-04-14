@@ -150,6 +150,7 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
   const debugAddFarmers = useGameStore((s) => s.debugAddFarmers);
   const debugAddRuin = useGameStore((s) => s.debugAddRuin);
   const debugAddCrystals = useGameStore((s) => s.debugAddCrystals);
+  const [devStatsOpen, setDevStatsOpen] = useState(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -160,40 +161,95 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
   }, [onClose]);
 
   return (
+    <>
+      <div className="hud-dev-overlay-backdrop" onClick={onClose}>
+        <div className="hud-dev-overlay" onClick={(e) => e.stopPropagation()}>
+          <div className="hud-dev-overlay-header">
+            <span>🛠️ Dev Options</span>
+            <button className="hud-modal-close" onClick={onClose}>✕</button>
+          </div>
+          <div className="hud-dev-overlay-body">
+            <div className="hud-dev-overlay-section-title">Toggles</div>
+            <label className="hud-dev-option-row">
+              <span className="hud-dev-option-label">Show AI Scores for Enemy Units</span>
+              <input
+                type="checkbox"
+                className="hud-dev-option-toggle"
+                checked={showAiScores}
+                onChange={(e) => setShowAiScores(e.target.checked)}
+              />
+            </label>
+            <label className="hud-dev-option-row">
+              <span className="hud-dev-option-label">Show Recruiting Scores for Enemy Buildings</span>
+              <input
+                type="checkbox"
+                className="hud-dev-option-toggle"
+                checked={showRecruitingScores}
+                onChange={(e) => setShowRecruitingScores(e.target.checked)}
+              />
+            </label>
+            <div className="hud-dev-overlay-section-title">Stats</div>
+            <button className="hud-dev-action-btn" onClick={() => setDevStatsOpen(true)}>📊 Dev Stats</button>
+            <div className="hud-dev-overlay-section-title">Actions</div>
+            <button className="hud-dev-action-btn" onClick={debugAdvanceLava}>🌋 Advance Lava</button>
+            <button className="hud-dev-action-btn" onClick={debugAddResources}>💰 +10 Resources</button>
+            <button className="hud-dev-action-btn" onClick={debugGiveSpecialist}>🧙 Give Specialist</button>
+            <button className="hud-dev-action-btn" onClick={debugRevealAll}>👁️ Reveal All</button>
+            <button className="hud-dev-action-btn" onClick={debugAddFarmers}>🌾 Add Farm (zone 1)</button>
+            <button className="hud-dev-action-btn" onClick={debugAddRuin}>🗿 Add Ruin (near unit)</button>
+            <button className="hud-dev-action-btn" onClick={debugAddCrystals}>💎 +5 Crystals</button>
+          </div>
+        </div>
+      </div>
+      {devStatsOpen && <DevStatsOverlay onClose={() => setDevStatsOpen(false)} />}
+    </>
+  );
+}
+
+/** Enemy recruitment building types — buildings that spawn enemy units each turn. */
+const ENEMY_RECRUITMENT_TYPES = new Set<BuildingType>([
+  BuildingType.LAVALAIR,
+  BuildingType.INFERNALSANCTUM,
+]);
+
+function DevStatsOverlay({ onClose }: { onClose: () => void }) {
+  const buildings = useGameStore((s) => s.buildings);
+  const enemyUnitsSpawnedLastTurn = useGameStore((s) => s.enemyUnitsSpawnedLastTurn);
+
+  const enemyRecruitingBuildingCount = useMemo(
+    () => Object.values(buildings).filter(
+      (b) => b.faction === Faction.ENEMY && ENEMY_RECRUITMENT_TYPES.has(b.type),
+    ).length,
+    [buildings],
+  );
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const stats: Array<{ label: string; value: number | string }> = [
+    { label: 'Enemy recruiting buildings', value: enemyRecruitingBuildingCount },
+    { label: 'Enemy units spawned last turn', value: enemyUnitsSpawnedLastTurn },
+  ];
+
+  return (
     <div className="hud-dev-overlay-backdrop" onClick={onClose}>
       <div className="hud-dev-overlay" onClick={(e) => e.stopPropagation()}>
         <div className="hud-dev-overlay-header">
-          <span>🛠️ Dev Options</span>
+          <span>📊 Dev Stats</span>
           <button className="hud-modal-close" onClick={onClose}>✕</button>
         </div>
         <div className="hud-dev-overlay-body">
-          <div className="hud-dev-overlay-section-title">Toggles</div>
-          <label className="hud-dev-option-row">
-            <span className="hud-dev-option-label">Show AI Scores for Enemy Units</span>
-            <input
-              type="checkbox"
-              className="hud-dev-option-toggle"
-              checked={showAiScores}
-              onChange={(e) => setShowAiScores(e.target.checked)}
-            />
-          </label>
-          <label className="hud-dev-option-row">
-            <span className="hud-dev-option-label">Show Recruiting Scores for Enemy Buildings</span>
-            <input
-              type="checkbox"
-              className="hud-dev-option-toggle"
-              checked={showRecruitingScores}
-              onChange={(e) => setShowRecruitingScores(e.target.checked)}
-            />
-          </label>
-          <div className="hud-dev-overlay-section-title">Actions</div>
-          <button className="hud-dev-action-btn" onClick={debugAdvanceLava}>🌋 Advance Lava</button>
-          <button className="hud-dev-action-btn" onClick={debugAddResources}>💰 +10 Resources</button>
-          <button className="hud-dev-action-btn" onClick={debugGiveSpecialist}>🧙 Give Specialist</button>
-          <button className="hud-dev-action-btn" onClick={debugRevealAll}>👁️ Reveal All</button>
-          <button className="hud-dev-action-btn" onClick={debugAddFarmers}>🌾 Add Farm (zone 1)</button>
-          <button className="hud-dev-action-btn" onClick={debugAddRuin}>🗿 Add Ruin (near unit)</button>
-          <button className="hud-dev-action-btn" onClick={debugAddCrystals}>💎 +5 Crystals</button>
+          {stats.map(({ label, value }) => (
+            <div key={label} className="hud-dev-stat-row">
+              <span className="hud-dev-stat-label">{label}</span>
+              <span className="hud-dev-stat-value">{value}</span>
+            </div>
+          ))}
         </div>
       </div>
     </div>
