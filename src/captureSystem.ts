@@ -271,9 +271,7 @@ export function initiateCapture(
   } else if (destroyBehavior === DestroyBehavior.RUIN) {
     tile.isRuin = true;
   }
-  // DestroyBehavior.RESOURCE: no ruin — terrain is restored naturally
-
-  // Update capture stats: enemy→player is counted as "captured", player→enemy as "captured by enemy"
+  // DestroyBehavior.NONE / DestroyBehavior.RESOURCE: no ruin — terrain is restored naturally
   if (unitFaction === Faction.PLAYER && buildingFaction === Faction.ENEMY) {
     state.gameStats.enemyBuildingsCaptured += 1;
   } else if (unitFaction === Faction.ENEMY && buildingFaction === Faction.PLAYER) {
@@ -408,7 +406,7 @@ export function resolveCaptures(state: Draft<GameState>): void {
     } else if (destroyBehavior === DestroyBehavior.RUIN) {
       tile.isRuin = true;
     }
-    // DestroyBehavior.RESOURCE: no ruin — terrain is restored naturally
+    // DestroyBehavior.NONE / DestroyBehavior.RESOURCE: no ruin — terrain is restored naturally
 
     // Update capture stats
     if (capturingFaction === Faction.PLAYER && buildingFaction === Faction.ENEMY) {
