@@ -272,6 +272,7 @@ export function initiateCapture(
     tile.isRuin = true;
   }
   // DestroyBehavior.NONE / DestroyBehavior.RESOURCE: no ruin — terrain is restored naturally
+
   if (unitFaction === Faction.PLAYER && buildingFaction === Faction.ENEMY) {
     state.gameStats.enemyBuildingsCaptured += 1;
   } else if (unitFaction === Faction.ENEMY && buildingFaction === Faction.PLAYER) {
