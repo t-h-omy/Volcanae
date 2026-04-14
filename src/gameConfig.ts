@@ -199,6 +199,7 @@ export const BUILDINGS = {
     RIDER_CAMP: 2,
     SIEGE_CAMP: 2,
     WATCHTOWER: 4,
+    OUTPOST: 3,
     LAVALAIR: 2,
     INFERNALSANCTUM: 2,
     FARM: 2,
@@ -217,6 +218,7 @@ export const BUILDINGS = {
     RIDER_CAMP: DestroyBehavior.RUIN,
     SIEGE_CAMP: DestroyBehavior.RUIN,
     WATCHTOWER: DestroyBehavior.RUIN,
+    OUTPOST: DestroyBehavior.RUIN,
     LAVALAIR: DestroyBehavior.RUIN,
     INFERNALSANCTUM: DestroyBehavior.STRONGHOLD_RUIN,
     FARM: DestroyBehavior.RUIN,
@@ -231,6 +233,12 @@ export const BUILDINGS = {
     attack: 50,
     defense: 65,
     attackRange: 3,
+  },
+  /** Outpost combat configuration (player-built by Infantry via Fieldwork tech) */
+  OUTPOST_STATS: {
+    attack: 40,
+    defense: 55,
+    attackRange: 2,
   },
 } as const;
 
@@ -897,7 +905,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'FIELDWORK',
     name: 'Fieldwork',
-    description: 'Infantry can sacrifice themselves to construct a Watchtower',
+    description: 'Infantry can sacrifice themselves to construct an Outpost',
     requires: ['FIELD_DUTIES'],
     cost: 3,
     effects: [
@@ -979,6 +987,8 @@ export const ABILITIES = {
   TO_THE_FRONT_MIN_DISTANCE: 7,
   /** HP restored per PATCHUP heal action */
   PATCHUP_HEAL_AMOUNT: 50,
+  /** Multiplier applied to the building unit's currentHp to determine the Outpost's starting HP */
+  FIELDWORK_HP_MULTIPLIER: 1.5,
 } as const;
 
 // ============================================================================

@@ -14,7 +14,6 @@ import { RENDER } from './renderConfig';
 import { UnitTag, UnitType } from './types';
 import type { GameEvent } from './gameEvents';
 import type { Position } from './types';
-import { useZoomStore } from './zoomStore';
 
 // ============================================================================
 // HELPERS
@@ -118,14 +117,15 @@ function postActionDuration(event: GameEvent): number {
 // ============================================================================
 
 /**
- * Returns the current tile size based on the viewport width and zoom level.
+ * Returns the current tile size based on the viewport width.
+ * NOTE: do NOT multiply by zoom here. The projectile layer lives inside the
+ * CSS-scaled grid-container, so positions must be in unscaled local space.
  */
 function getTileSize(): number {
   const baseSize = typeof window !== 'undefined' && window.innerWidth <= RENDER.MOBILE_BREAKPOINT
     ? RENDER.TILE_SIZE_MOBILE
     : RENDER.TILE_SIZE_DESKTOP;
-  const zoom = useZoomStore.getState().zoom;
-  return Math.round(baseSize * zoom);
+  return baseSize;
 }
 
 /**

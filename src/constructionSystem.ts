@@ -15,7 +15,7 @@ import type {
   Building,
   GameState,
 } from './types';
-import { CONSTRUCTION, POPULATION, BUILDINGS, LAVA_LAIR, XP, CRYSTAL_CHAMBER_CONFIG } from './gameConfig';
+import { CONSTRUCTION, POPULATION, BUILDINGS, LAVA_LAIR, XP, CRYSTAL_CHAMBER_CONFIG, ABILITIES } from './gameConfig';
 import { generateId } from './mapGenerator';
 import { grantXp } from './levelSystem';
 import { getStrongholdCapMods } from './techSystem';
@@ -255,8 +255,10 @@ function createBuildingObject(
   type: BuildingType,
   position: Position,
   faction: Faction | null,
+  overrideHp?: number,
 ): Building {
   const isWatchtower = type === BuildingType.WATCHTOWER;
+  const isOutpost = type === BuildingType.OUTPOST;
   const isMagmaSpyr = type === BuildingType.MAGMASPYR;
   const isCrystalChamber = type === BuildingType.CRYSTAL_CHAMBER;
   const maxHp = isWatchtower
@@ -272,15 +274,21 @@ function createBuildingObject(
         defense: BUILDINGS.WATCHTOWER_STATS.defense,
         attackRange: BUILDINGS.WATCHTOWER_STATS.attackRange,
       }
-    : isMagmaSpyr
+    : isOutpost
       ? {
-          attack: LAVA_LAIR.MAGMA_SPYR_STATS.attack,
-          defense: LAVA_LAIR.MAGMA_SPYR_STATS.defense,
-          attackRange: LAVA_LAIR.MAGMA_SPYR_STATS.attackRange,
-          maxAttacksPerTurn: LAVA_LAIR.MAGMA_SPYR_STATS.maxAttacksPerTurn,
+          attack: BUILDINGS.OUTPOST_STATS.attack,
+          defense: BUILDINGS.OUTPOST_STATS.defense,
+          attackRange: BUILDINGS.OUTPOST_STATS.attackRange,
         }
-      : null;
-  const tags: import('./types').UnitTag[] = (isWatchtower || isMagmaSpyr) ? [UnitTag.RANGED] : [];
+      : isMagmaSpyr
+        ? {
+            attack: LAVA_LAIR.MAGMA_SPYR_STATS.attack,
+            defense: LAVA_LAIR.MAGMA_SPYR_STATS.defense,
+            attackRange: LAVA_LAIR.MAGMA_SPYR_STATS.attackRange,
+            maxAttacksPerTurn: LAVA_LAIR.MAGMA_SPYR_STATS.maxAttacksPerTurn,
+          }
+        : null;
+  const tags: import('./types').UnitTag[] = (isWatchtower || isOutpost || isMagmaSpyr) ? [UnitTag.RANGED] : [];
 
   // Population initialization for housing buildings
   let populationCount = 0;
@@ -296,13 +304,15 @@ function createBuildingObject(
     populationCount = POPULATION.HOUSE_INITIAL_POPULATION;
   }
 
+  const effectiveMaxHp = overrideHp ?? maxHp;
+
   return {
     id: generateId('building'),
     type,
     faction,
     position: { ...position },
-    hp: maxHp,
-    maxHp,
+    hp: effectiveMaxHp,
+    maxHp: effectiveMaxHp,
     specialistSlot: null,
     isDisabledForTurns: 0,
     wasAttackedLastEnemyTurn: false,
@@ -327,12 +337,13 @@ function createBuildingObject(
 }
 
 /**
- * Creates a Watchtower building for the FIELDWORK ability.
- * This creates a player-owned Watchtower without requiring a constructing unit
- * or resource costs (the unit is sacrificed instead).
+ * Creates an Outpost building for the FIELDWORK ability.
+ * The outpost's HP is derived from the sacrificing unit's current HP multiplied
+ * by ABILITIES.FIELDWORK_HP_MULTIPLIER, giving stronger units a stronger outpost.
  */
-export function createFieldworkWatchtower(position: Position): Building {
-  return createBuildingObject(BuildingType.WATCHTOWER, position, Faction.PLAYER);
+export function createFieldworkOutpost(position: Position, unitCurrentHp: number): Building {
+  const hp = Math.max(1, Math.round(unitCurrentHp * ABILITIES.FIELDWORK_HP_MULTIPLIER));
+  return createBuildingObject(BuildingType.OUTPOST, position, Faction.PLAYER, hp);
 }
 
 /**

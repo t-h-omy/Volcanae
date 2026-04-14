@@ -85,6 +85,7 @@ const BUILDING_EMOJI: Record<string, string> = {
   [BuildingType.RIDER_CAMP]: '🏘️',
   [BuildingType.SIEGE_CAMP]: '🏛️',
   [BuildingType.WATCHTOWER]: '👁️',
+  [BuildingType.OUTPOST]: '🗼',
   [BuildingType.LAVALAIR]: '🕳️',
   [BuildingType.INFERNALSANCTUM]: '🌋',
   [BuildingType.FARM]: '🌾',
@@ -103,6 +104,7 @@ const BUILDING_NAME: Record<string, string> = {
   [BuildingType.RIDER_CAMP]: 'Rider Camp',
   [BuildingType.SIEGE_CAMP]: 'Siege Camp',
   [BuildingType.WATCHTOWER]: 'Watchtower',
+  [BuildingType.OUTPOST]: 'Outpost',
   [BuildingType.LAVALAIR]: 'Lava Lair',
   [BuildingType.INFERNALSANCTUM]: 'Infernal Sanctum',
   [BuildingType.FARM]: 'Farm',
@@ -621,7 +623,14 @@ function SelectedUnitPanel({
 
   const showAiScores = useDevOptionsStore((s) => s.showAiScores);
   const gameState = useGameStore((s) => s);
-  const fieldworkBlocked = canFieldwork && gameState.grid[unit.position.y]?.[unit.position.x]?.buildingId !== null;
+  const fieldworkBlocked = canFieldwork && (() => {
+    const tile = gameState.grid[unit.position.y]?.[unit.position.x];
+    if (!tile) return true;
+    if (tile.buildingId !== null) return true;
+    if (tile.isRuin || tile.isStrongholdRuin) return true;
+    if (tile.terrainType === TileType.FOREST || tile.terrainType === TileType.MOUNTAIN) return true;
+    return false;
+  })();
   const [aiScoreModal, setAiScoreModal] = useState(false);
   const [aiScores, setAiScores] = useState<ScoredAction[]>([]);
   const [unitInfoOpen, setUnitInfoOpen] = useState(false);
@@ -787,7 +796,7 @@ function SelectedUnitPanel({
                   disabled={fieldworkBlocked}
                   onClick={() => setConfirmFieldwork(true)}
                 >
-                  🏗️ Build Watchtower
+                  🏗️ Build Outpost
                 </button>
               ) : (
                 <div className="hud-fieldwork-confirm">
