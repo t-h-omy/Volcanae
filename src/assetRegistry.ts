@@ -60,7 +60,7 @@ export const BUILDING_SPRITE: Partial<Record<BuildingType, string>> = withBase({
   RIDER_CAMP:      '/sprites/buildings/horse%20camp_100px.png',
   SIEGE_CAMP:      '/sprites/buildings/siege_workshop_100px.png',
   WATCHTOWER:      '/sprites/buildings/watch_tower_100px.png',
-  OUTPOST:         '',
+  OUTPOST:         '/sprites/buildings/outpost_100px.png',
   LAVALAIR:        '/sprites/buildings/lava_lair_100px.png',
   INFERNALSANCTUM: '/sprites/buildings/infernal_sanctum_100px.png',
   FARM:            '/sprites/buildings/farm_100px.png',
