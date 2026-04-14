@@ -310,9 +310,9 @@ export const ENEMY = {
   /** Base probability (0.0–1.0) of spawning a unit per recruitment building per turn when no player unit is in discover radius and threat is 0 */
   BASE_SPAWN_PROBABILITY: 0.1,
   /** Maximum additional probability granted at max threat (0.0–1.0) */
-  MAX_THREAT_BONUS: 5,
+  MAX_THREAT_BONUS: 0.9,
   /** Threat level at which the full MAX_THREAT_BONUS is reached */
-  MAX_THREAT: 20,
+  MAX_THREAT: 15,
   /** Number of player turns between automatic threat level increases */
   THREAT_LEVEL_INCREASE_INTERVAL: 10,
 } as const;
@@ -679,7 +679,7 @@ export const UNIT_POPULATION_COSTS: Record<string, UnitPopulationCost> = {
 /** Minimum threat level required to unlock each enemy unit type for recruitment */
 export const ENEMY_UNIT_UNLOCK: Record<string, number> = {
   LAVA_GRUNT: 0,
-  LAVA_ARCHER: 0,
+  LAVA_ARCHER: 1,
   LAVA_RIDER: 3,
   LAVA_SIEGE: 5,
   EMBERLING: 1,
@@ -989,7 +989,7 @@ export const ABILITIES = {
   /** HP restored per PATCHUP heal action */
   PATCHUP_HEAL_AMOUNT: 50,
   /** Multiplier applied to the building unit's currentHp to determine the Outpost's starting HP */
-  FIELDWORK_HP_MULTIPLIER: 1.5,
+  FIELDWORK_HP_MULTIPLIER: 2,
 } as const;
 
 // ============================================================================
