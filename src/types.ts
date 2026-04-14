@@ -81,6 +81,8 @@ export type ResourceType = (typeof ResourceType)[keyof typeof ResourceType];
 
 /** Determines what happens to the tile when a building is destroyed */
 export const DestroyBehavior = {
+  /** Building is destroyed without leaving any replacement — tile reverts to plain terrain */
+  NONE: 'NONE',
   /** Building sits on a resource tile — destroying it restores the terrain (no ruin) */
   RESOURCE: 'RESOURCE',
   /** Building sits on a ruin — destroying it leaves a regular ruin */

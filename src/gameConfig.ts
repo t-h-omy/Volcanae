@@ -218,7 +218,7 @@ export const BUILDINGS = {
     RIDER_CAMP: DestroyBehavior.RUIN,
     SIEGE_CAMP: DestroyBehavior.RUIN,
     WATCHTOWER: DestroyBehavior.RUIN,
-    OUTPOST: DestroyBehavior.RUIN,
+    OUTPOST: DestroyBehavior.NONE,
     LAVALAIR: DestroyBehavior.RUIN,
     INFERNALSANCTUM: DestroyBehavior.STRONGHOLD_RUIN,
     FARM: DestroyBehavior.RUIN,

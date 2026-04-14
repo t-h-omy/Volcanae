@@ -313,7 +313,7 @@ export function resolveAttack(
             } else if (destroyBehavior === DestroyBehavior.RUIN) {
               tileOfDead.isRuin = true;
             }
-            // DestroyBehavior.RESOURCE: no ruin — terrain is restored naturally
+            // DestroyBehavior.NONE / DestroyBehavior.RESOURCE: no ruin — terrain is restored naturally
             state.gameStats.enemyBuildingsDestroyed += 1;
             grantXp(state, attackerId, XP.DESTROY_BUILDING, suppressFloaters);
           }
@@ -464,7 +464,7 @@ export function resolveBuildingAttack(
       } else if (destroyBehavior === DestroyBehavior.RUIN) {
         tile.isRuin = true;
       }
-      // DestroyBehavior.RESOURCE: no ruin — terrain is restored naturally
+      // DestroyBehavior.NONE / DestroyBehavior.RESOURCE: no ruin — terrain is restored naturally
       if (defenderFaction === Faction.PLAYER) state.gameStats.enemyBuildingsDestroyed += 1;
     }
   } else {
@@ -620,7 +620,7 @@ export function resolveAttackOnBuilding(
       } else if (destroyBehavior === DestroyBehavior.RUIN) {
         tile.isRuin = true;
       }
-      // DestroyBehavior.RESOURCE: no ruin — terrain is restored naturally
+      // DestroyBehavior.NONE / DestroyBehavior.RESOURCE: no ruin — terrain is restored naturally
       // Grant XP to player attacker for destroying enemy building
       if (!attackerDead) {
         grantXp(state, attackerId, XP.DESTROY_BUILDING, suppressFloaters);
