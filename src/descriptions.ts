@@ -64,7 +64,7 @@ export const BUILDING_DESCRIPTIONS: Partial<Record<BuildingType, string>> = {
   [BuildingType.RIDER_CAMP]:      'Stable that trains Riders.',
   [BuildingType.SIEGE_CAMP]:      'Engineering works that trains Siege engines.',
   [BuildingType.WATCHTOWER]:      `Defensive tower that attacks enemies within ${BUILDINGS.WATCHTOWER_STATS.attackRange} tiles and expands your vision.`,
-  [BuildingType.OUTPOST]:         `Field fortification built by Infantry via Fieldwork. Attacks enemies within ${BUILDINGS.OUTPOST_STATS.attackRange} tiles. Starting HP is based on the building unit's current HP.`,
+  [BuildingType.OUTPOST]:         `Field fortification built by Infantry via Fieldwork. Attacks enemies within ${BUILDINGS.OUTPOST_STATS.attackRange} tiles. Starting HP is based on the building unit's current HP, capped at ${BUILDINGS.OUTPOST_STATS.maxHp}.`,
   [BuildingType.FARM]:            'Housing for common folk — each pop raised lets you field one more basic unit.',
   [BuildingType.PATRICIANHOUSE]:  'Noble estate — each noble raised lets you field one more elite unit.',
   [BuildingType.CRYSTAL_CHAMBER]: 'Arcane resonator. When a Crystal Chamber is consumed by lava, all surviving chambers begin resonating and generate crystals each turn.',

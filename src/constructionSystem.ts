@@ -342,7 +342,10 @@ function createBuildingObject(
  * by ABILITIES.FIELDWORK_HP_MULTIPLIER, giving stronger units a stronger outpost.
  */
 export function createFieldworkOutpost(position: Position, unitCurrentHp: number): Building {
-  const hp = Math.max(1, Math.round(unitCurrentHp * ABILITIES.FIELDWORK_HP_MULTIPLIER));
+  const hp = Math.min(
+    BUILDINGS.OUTPOST_STATS.maxHp,
+    Math.max(1, Math.round(unitCurrentHp * ABILITIES.FIELDWORK_HP_MULTIPLIER)),
+  );
   return createBuildingObject(BuildingType.OUTPOST, position, Faction.PLAYER, hp);
 }
 

@@ -236,6 +236,7 @@ export const BUILDINGS = {
   },
   /** Outpost combat configuration (player-built by Infantry via Fieldwork tech) */
   OUTPOST_STATS: {
+    maxHp: 150,
     attack: 40,
     defense: 55,
     attackRange: 2,
