@@ -913,6 +913,16 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.INFANTRY, tag: UnitTag.FIELDWORK },
     ],
   },
+  {
+    id: 'PHALANX_FORMATION',
+    name: 'Phalanx Formation',
+    description: 'Guards in formation bolster each other — gaining attack and granting defense to nearby allies',
+    requires: ['FIELD_DUTIES'],
+    cost: 3,
+    effects: [
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.GUARD, tag: UnitTag.PHALANX },
+    ],
+  },
 
   // ── Branch 4: Reconnaissance ──
   {
@@ -990,6 +1000,10 @@ export const ABILITIES = {
   PATCHUP_HEAL_AMOUNT: 50,
   /** Multiplier applied to the building unit's currentHp to determine the Outpost's starting HP */
   FIELDWORK_HP_MULTIPLIER: 2,
+  /** Defense bonus granted to each adjacent friendly unit by a PHALANX tag carrier */
+  PHALANX_DEFENSE_BONUS_PER_CARRIER: 15,
+  /** Attack bonus gained by a PHALANX unit per adjacent friendly unit */
+  PHALANX_ATTACK_BONUS_PER_ALLY: 10,
 } as const;
 
 // ============================================================================

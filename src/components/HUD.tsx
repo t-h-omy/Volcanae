@@ -41,6 +41,7 @@ import {
   type GameStats,
 } from '../types';
 import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY } from '../unitActions';
+import { getPhalanxAttackBonus, getPhalanxDefenseBonus } from '../combatSystem';
 import { UNIT_DESCRIPTIONS, UNIT_TAGS, TAG_INFO, BUILDING_DESCRIPTIONS } from '../descriptions';
 import './HUD.css';
 
@@ -746,6 +747,10 @@ function SelectedUnitPanel({
     return bonuses;
   }, [unit, gameState]);
 
+  // Compute PHALANX formation bonuses (works for both factions)
+  const phalanxAttack = useMemo(() => getPhalanxAttackBonus(gameState, unit), [gameState, unit]);
+  const phalanxDefense = useMemo(() => getPhalanxDefenseBonus(gameState, unit), [gameState, unit]);
+
   return (
     <div className={`hud-info-panel${!isPlayer ? ' hud-panel-enemy' : ''}`}>
       {/* Header — entire row is tappable to open UnitInfoPopup */}
@@ -803,6 +808,12 @@ function SelectedUnitPanel({
         <span className="hud-stat-label">VIS</span>
         <span className="hud-stat-value">{unit.stats.discoverRadius}</span>
       </div>
+      {(phalanxAttack > 0 || phalanxDefense > 0) && (
+        <div className="hud-phalanx-bonuses">
+          {phalanxAttack > 0 && <span>⚔️ +{phalanxAttack} from formation</span>}
+          {phalanxDefense > 0 && <span>🛡️ +{phalanxDefense} from formation</span>}
+        </div>
+      )}
       {visibleTags.length > 0 && (
         <div className="hud-tag-pills">
           {visibleTags.map((tag) => (
@@ -1675,6 +1686,7 @@ const TECH_NODE_POS: Record<string, { col: number; row: number }> = {
   CITADEL:            { col: 4,   row: 2 },
   TO_THE_FRONT:       { col: 1,   row: 3 },
   FIELDWORK:          { col: 2,   row: 3 },
+  PHALANX_FORMATION:  { col: 2.5, row: 3 },
   PATCH_UP:           { col: 3,   row: 3 },
 };
 

@@ -136,6 +136,8 @@ export const UnitTag = {
   ASSASSIN: 'ASSASSIN',
   /** Scout can heal adjacent friendly units */
   PATCHUP: 'PATCHUP',
+  /** Unit grants defense to adjacent allies and gains attack per adjacent ally */
+  PHALANX: 'PHALANX',
 } as const;
 export type UnitTag = (typeof UnitTag)[keyof typeof UnitTag];
 
