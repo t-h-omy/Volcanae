@@ -527,6 +527,7 @@ function spawnEnemyUnits(state: Draft<GameState>, events?: GameEvent[]): void {
 
     state.units[unit.id] = unit;
     state.grid[spawnPosition.y][spawnPosition.x].unitId = unit.id;
+    state.enemyUnitsSpawnedLastTurn += 1;
 
     if (events) {
       events.push({
@@ -2000,6 +2001,9 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
   const finalState = produce(state, (draft) => {
     // 0. Process deferred enemy level-ups (XP may have been earned during player turn)
     processEnemyLevelUps(draft);
+
+    // Reset the per-turn spawn counter at the start of each enemy turn
+    draft.enemyUnitsSpawnedLastTurn = 0;
 
     // 1. Build recentlyLostBuildingIds
     const recentlyLostBuildingIds = new Set<string>(

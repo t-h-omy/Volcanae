@@ -642,6 +642,7 @@ export function generateInitialGameState(): GameState {
       buildingsCapturedByEnemy: 0,
       buildingsDestroyedByLava: 0,
     },
+    enemyUnitsSpawnedLastTurn: 0,
   };
 
   // Auto-apply CONSCRIPTION effects (unlocked at game start, not a pick)
