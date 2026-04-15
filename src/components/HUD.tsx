@@ -764,6 +764,7 @@ function SelectedUnitPanel({
   // Compute PHALANX formation bonuses (works for both factions)
   const phalanxAttack = useMemo(() => getPhalanxAttackBonus(gameState, unit), [gameState, unit]);
   const phalanxDefense = useMemo(() => getPhalanxDefenseBonus(gameState, unit), [gameState, unit]);
+  const totalDefBonus = statBonuses.def + phalanxDefense;
 
   return (
     <div className={`hud-info-panel${!isPlayer ? ' hud-panel-enemy' : ''}`}>
@@ -808,10 +809,12 @@ function SelectedUnitPanel({
       )}
       <div className="hud-unit-stats">
         <span className="hud-stat-label">ATK</span>
-        <span className="hud-stat-value">{unit.stats.attack}</span>
+        <span className={`hud-stat-value${phalanxAttack > 0 ? ' hud-stat-boosted' : ''}`}>
+          {unit.stats.attack}{phalanxAttack > 0 ? `+${phalanxAttack}` : ''}
+        </span>
         <span className="hud-stat-label">DEF</span>
-        <span className={`hud-stat-value${statBonuses.def > 0 ? ' hud-stat-boosted' : ''}`}>
-          {unit.stats.defense}{statBonuses.def > 0 ? `+${statBonuses.def}` : ''}
+        <span className={`hud-stat-value${totalDefBonus > 0 ? ' hud-stat-boosted' : ''}`}>
+          {unit.stats.defense}{totalDefBonus > 0 ? `+${totalDefBonus}` : ''}
         </span>
         <span className="hud-stat-label">MOV</span>
         <span className={`hud-stat-value${statBonuses.mov > 0 ? ' hud-stat-boosted' : ''}`}>
@@ -822,12 +825,6 @@ function SelectedUnitPanel({
         <span className="hud-stat-label">VIS</span>
         <span className="hud-stat-value">{unit.stats.discoverRadius}</span>
       </div>
-      {(phalanxAttack > 0 || phalanxDefense > 0) && (
-        <div className="hud-phalanx-bonuses">
-          {phalanxAttack > 0 && <span>⚔️ +{phalanxAttack} from formation</span>}
-          {phalanxDefense > 0 && <span>🛡️ +{phalanxDefense} from formation</span>}
-        </div>
-      )}
       {visibleTags.length > 0 && (
         <div className="hud-tag-pills">
           {visibleTags.map((tag) => (
@@ -1731,7 +1728,7 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
   const unlockTech = useGameStore((s) => s.unlockTech);
   const getAvailableTechs = useGameStore((s) => s.getAvailableTechs);
 
-  const [selectedId, setSelectedId] = useState<TechId | null>(null);
+  const [selectedId, setSelectedId] = useState<TechId | null>(() => TECH_TREE.find((d) => d.requires.length === 0)?.id ?? null);
   const [infoUnitType, setInfoUnitType] = useState<UnitType | null>(null);
   const [infoBuildingType, setInfoBuildingType] = useState<BuildingType | null>(null);
   const [infoUnitTag, setInfoUnitTag] = useState<UnitTag | null>(null);
