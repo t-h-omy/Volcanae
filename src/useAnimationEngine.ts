@@ -521,6 +521,31 @@ export function useAnimationEngine(): void {
 
         const visible = isEventVisible(event);
 
+        // ── Special handling for RESONANCE_TRIGGERED (pan to each surviving chamber, then activate it) ──
+        // Handled before the main camera-pan block so we never pan to the destroyed chamber.
+        if (event.type === 'RESONANCE_TRIGGERED') {
+          if (visible) {
+            for (const chamberId of event.survivingChamberIds) {
+              const chamber = useGameStore.getState().buildings[chamberId];
+              if (chamber) {
+                useAnimationStore.getState().setCameraTarget(chamber.position);
+                await wait(ANIMATION.CAMERA_MOVE_DURATION_MS + ANIMATION.PRE_ACTION_IDLE_MS);
+
+                // Activate this chamber in the live state so the sprite switches to active
+                useGameStore.getState().activateCrystalChamber(chamberId);
+
+                // Play crystal-blue activation VFX
+                useCombatAnimationStore.getState().setBuildingAnimation(chamberId, 'CRYSTAL_ACTIVATE');
+                await wait(ANIMATION.CRYSTAL_ACTIVATE_VFX_DURATION_MS);
+                useCombatAnimationStore.getState().setBuildingAnimation(chamberId, null);
+
+                await wait(ANIMATION.POST_ACTION_IDLE_MS);
+              }
+            }
+          }
+          continue;
+        }
+
         if (visible) {
           // 1. Move camera to event position
           useAnimationStore.getState().setCameraTarget(eventPosition(event));
@@ -657,19 +682,6 @@ export function useAnimationEngine(): void {
             await wait(ANIMATION.DIE_FLASH_DURATION_MS + ANIMATION.DIE_FADE_DURATION_MS);
             useCombatAnimationStore.getState().setUnitAnimation(event.unitId, null);
           }
-        }
-
-        // ── Special handling for RESONANCE_TRIGGERED (pan to each surviving chamber) ──
-        if (event.type === 'RESONANCE_TRIGGERED') {
-          const gameState = useGameStore.getState();
-          for (const chamberId of event.survivingChamberIds) {
-            const chamber = gameState.buildings[chamberId];
-            if (chamber) {
-              useAnimationStore.getState().setCameraTarget(chamber.position);
-              await wait(ANIMATION.CAMERA_MOVE_DURATION_MS + ANIMATION.POST_ACTION_IDLE_MS);
-            }
-          }
-          continue;
         }
 
         // 3. Apply event to live game state

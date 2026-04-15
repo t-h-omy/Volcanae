@@ -17,6 +17,8 @@ export type UnitAnimationState =
   | { type: 'LEVEL_UP' }
   | { type: 'XP_GAIN' };
 
+export type BuildingAnimationState = 'CRYSTAL_ACTIVATE';
+
 export interface Projectile {
   id: string;
   fromPx: { x: number; y: number };
@@ -28,11 +30,13 @@ export interface Projectile {
 
 interface CombatAnimationState {
   unitAnimations: Map<string, UnitAnimationState>;
+  buildingAnimations: Map<string, BuildingAnimationState>;
   projectiles: Projectile[];
 }
 
 interface CombatAnimationActions {
   setUnitAnimation: (unitId: string, anim: UnitAnimationState | null) => void;
+  setBuildingAnimation: (buildingId: string, anim: BuildingAnimationState | null) => void;
   addProjectile: (p: Projectile) => void;
   removeProjectile: (id: string) => void;
 }
@@ -45,6 +49,7 @@ type CombatAnimationStore = CombatAnimationState & CombatAnimationActions;
 
 export const useCombatAnimationStore = create<CombatAnimationStore>((set) => ({
   unitAnimations: new Map(),
+  buildingAnimations: new Map(),
   projectiles: [],
 
   setUnitAnimation: (unitId, anim) => {
@@ -56,6 +61,18 @@ export const useCombatAnimationStore = create<CombatAnimationStore>((set) => ({
         next.delete(unitId);
       }
       return { unitAnimations: next };
+    });
+  },
+
+  setBuildingAnimation: (buildingId, anim) => {
+    set((state) => {
+      const next = new Map(state.buildingAnimations);
+      if (anim) {
+        next.set(buildingId, anim);
+      } else {
+        next.delete(buildingId);
+      }
+      return { buildingAnimations: next };
     });
   },
 

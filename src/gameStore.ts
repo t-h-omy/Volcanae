@@ -35,7 +35,7 @@ import { useAnimationStore } from './animationStore';
 import { Faction, GamePhase, BuildingType, TileType } from './types';
 import type { GameState, UnitType, Position, TechId } from './types';
 import type { GameEvent } from './gameEvents';
-import { MAP, LAVA, POPULATION, BUILDINGS, ENEMY, XP, ABILITIES } from './gameConfig';
+import { MAP, LAVA, POPULATION, BUILDINGS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG } from './gameConfig';
 import { saveGameState, loadGameState, clearSavedGame, hasSavedGame } from './saveSystem';
 import { computeLevelFromXp, applyLevelUps } from './levelSystem';
 import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLogic } from './techSystem';
@@ -93,6 +93,8 @@ interface GameActions {
   applyEvent: (event: GameEvent) => void;
   /** Apply a melee advance after the die animation (deferred from attack event) */
   applyMeleeAdvance: (attackerId: string, toPosition: Position) => void;
+  /** Activate a single Crystal Chamber by setting its resonanceTurnsRemaining (used by animation engine) */
+  activateCrystalChamber: (chamberId: string) => void;
   /** Replace the entire game state (used by animation engine to apply resolved state) */
   setGameState: (newState: GameState) => void;
   /** Manually save the current game state to localStorage */
@@ -1202,6 +1204,18 @@ export const useGameStore = create<GameStore>()(
         toTile.unitId = attackerId;
         attacker.position.x = toPosition.x;
         attacker.position.y = toPosition.y;
+      });
+    },
+
+    activateCrystalChamber: (chamberId: string) => {
+      set((state) => {
+        const chamber = state.buildings[chamberId];
+        if (chamber && chamber.type === BuildingType.CRYSTAL_CHAMBER) {
+          chamber.resonanceTurnsRemaining = Math.max(
+            chamber.resonanceTurnsRemaining,
+            CRYSTAL_CHAMBER_CONFIG.RESONANCE_DURATION,
+          );
+        }
       });
     },
 
