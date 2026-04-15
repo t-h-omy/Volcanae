@@ -1691,7 +1691,7 @@ const NODE_H = 52;
  */
 const TECH_NODE_POS: Record<string, { x: number; y: number }> = {
   // ── Center ──────────────────────────────────────────
-  CONSCRIPTION:       { x: 400, y: 754 },  // center (460, 780)
+  CONSCRIPTION:       { x: 400, y: 754 },  // top-left; center (460, 780)
 
   // ── Tier 1 – r=200, every 72° from north ────────────
   FAR_REACH:          { x: 400, y: 554 },  // 0°   (460, 580)
