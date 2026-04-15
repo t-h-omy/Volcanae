@@ -298,6 +298,7 @@ function createUnit(
 /**
  * Places FOREST and MOUNTAIN tiles in a zone by setting tile.terrainType.
  * Terrain tiles must not overlap with buildings or each other.
+ * The counts in config are determined by the caller using TERRAIN min/max ranges.
  * Returns the positions of placed forests and mountains for zone-balance tracking.
  */
 function placeTerrainForZone(
@@ -375,7 +376,8 @@ function guaranteeForestNearStronghold(
 }
 
 /**
- * Places TERRAIN.RUINS_PER_ZONE ruins in the zone.
+ * Places a random number of ruins (between TERRAIN.RUINS_PER_ZONE_MIN and TERRAIN.RUINS_PER_ZONE_MAX)
+ * in the zone.
  * Ruins are placed by setting tile.isRuin = true on PLAINS tiles
  * (not on FOREST or MOUNTAIN tiles).
  */
@@ -386,7 +388,7 @@ function placeRuinsForZone(
 ): void {
   const [startRow, endRow] = getZoneRowRange(zone);
   let placed = 0;
-  const target = TERRAIN.RUINS_PER_ZONE;
+  const target = Math.floor(Math.random() * (TERRAIN.RUINS_PER_ZONE_MAX - TERRAIN.RUINS_PER_ZONE_MIN + 1)) + TERRAIN.RUINS_PER_ZONE_MIN;
   let attempts = 0;
   const maxAttempts = 200;
 
@@ -495,8 +497,8 @@ export function generateInitialGameState(): GameState {
 
   for (let zone = 1; zone <= MAP.ZONE_COUNT; zone++) {
     const config = {
-      forests: TERRAIN.FORESTS_PER_ZONE + extraForests,
-      mountains: TERRAIN.MOUNTAINS_PER_ZONE + extraMountains,
+      forests: Math.floor(Math.random() * (TERRAIN.FORESTS_PER_ZONE_MAX - TERRAIN.FORESTS_PER_ZONE_MIN + 1)) + TERRAIN.FORESTS_PER_ZONE_MIN + extraForests,
+      mountains: Math.floor(Math.random() * (TERRAIN.MOUNTAINS_PER_ZONE_MAX - TERRAIN.MOUNTAINS_PER_ZONE_MIN + 1)) + TERRAIN.MOUNTAINS_PER_ZONE_MIN + extraMountains,
     };
 
     const { forestPositions, mountainPositions } = placeTerrainForZone(
