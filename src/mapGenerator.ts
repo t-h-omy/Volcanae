@@ -295,6 +295,11 @@ function createUnit(
 // TERRAIN GENERATION
 // ============================================================================
 
+/** Returns a random integer in the inclusive range [min, max]. */
+function randomInRange(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
 /**
  * Places FOREST and MOUNTAIN tiles in a zone by setting tile.terrainType.
  * Terrain tiles must not overlap with buildings or each other.
@@ -388,7 +393,7 @@ function placeRuinsForZone(
 ): void {
   const [startRow, endRow] = getZoneRowRange(zone);
   let placed = 0;
-  const target = Math.floor(Math.random() * (TERRAIN.RUINS_PER_ZONE_MAX - TERRAIN.RUINS_PER_ZONE_MIN + 1)) + TERRAIN.RUINS_PER_ZONE_MIN;
+  const target = randomInRange(TERRAIN.RUINS_PER_ZONE_MIN, TERRAIN.RUINS_PER_ZONE_MAX);
   let attempts = 0;
   const maxAttempts = 200;
 
@@ -497,8 +502,8 @@ export function generateInitialGameState(): GameState {
 
   for (let zone = 1; zone <= MAP.ZONE_COUNT; zone++) {
     const config = {
-      forests: Math.floor(Math.random() * (TERRAIN.FORESTS_PER_ZONE_MAX - TERRAIN.FORESTS_PER_ZONE_MIN + 1)) + TERRAIN.FORESTS_PER_ZONE_MIN + extraForests,
-      mountains: Math.floor(Math.random() * (TERRAIN.MOUNTAINS_PER_ZONE_MAX - TERRAIN.MOUNTAINS_PER_ZONE_MIN + 1)) + TERRAIN.MOUNTAINS_PER_ZONE_MIN + extraMountains,
+      forests: randomInRange(TERRAIN.FORESTS_PER_ZONE_MIN, TERRAIN.FORESTS_PER_ZONE_MAX) + extraForests,
+      mountains: randomInRange(TERRAIN.MOUNTAINS_PER_ZONE_MIN, TERRAIN.MOUNTAINS_PER_ZONE_MAX) + extraMountains,
     };
 
     const { forestPositions, mountainPositions } = placeTerrainForZone(
