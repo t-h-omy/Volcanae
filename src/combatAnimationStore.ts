@@ -17,6 +17,8 @@ export type UnitAnimationState =
   | { type: 'LEVEL_UP' }
   | { type: 'XP_GAIN' };
 
+export type BuildingAnimationState = 'CRYSTAL_ACTIVATE';
+
 export interface Projectile {
   id: string;
   fromPx: { x: number; y: number };
