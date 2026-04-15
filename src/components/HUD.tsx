@@ -388,9 +388,12 @@ function TopBar({
   const turnsUntilLavaAdvance = useGameStore((s) => s.turnsUntilLavaAdvance);
   const isAnimating = useAnimationStore((s) => s.isAnimating);
 
-  // Population usage (live) — select primitives to avoid infinite re-render
+  // Population usage and capacity (live) — computed from state to stay in sync
+  // with canAffordPopulation checks; never use stale resources.farmers/nobles here.
   const farmersUsed = useGameStore((s) => computePopulationUsage(s).farmersUsed);
   const noblesUsed = useGameStore((s) => computePopulationUsage(s).noblesUsed);
+  const farmerCapacity = useGameStore((s) => computePopulationCapacity(s).farmerCapacity);
+  const nobleCapacity = useGameStore((s) => computePopulationCapacity(s).nobleCapacity);
 
   // Resource income per turn
   const ironPerTurn = useGameStore((s) => computeResourceIncome(s).ironPerTurn);
@@ -402,8 +405,8 @@ function TopBar({
       {isAnimating && <span className="hud-stat hud-enemy-turn-label">⚔️ Enemy Turn...</span>}
       <span className="hud-stat">⛓️ {resources.iron}{ironPerTurn > 0 && <span className="hud-income">(+{Number.isInteger(ironPerTurn) ? ironPerTurn : ironPerTurn.toFixed(1)})</span>}</span>
       <span className="hud-stat">🪵 {resources.wood}{woodPerTurn > 0 && <span className="hud-income">(+{Number.isInteger(woodPerTurn) ? woodPerTurn : woodPerTurn.toFixed(1)})</span>}</span>
-      <span className="hud-stat">🌾 {farmersUsed}/{resources.farmers}</span>
-      <span className="hud-stat">🎖️ {noblesUsed}/{resources.nobles}</span>
+      <span className="hud-stat">🌾 {farmersUsed}/{farmerCapacity}</span>
+      <span className="hud-stat">🎖️ {noblesUsed}/{nobleCapacity}</span>
       <span className="hud-stat">⚠️ Threat {threatLevel}</span>
       <span className="hud-stat">🌋 Lava in {turnsUntilLavaAdvance}</span>
       <span className="hud-stat">💎 {arcaneCrystals}</span>

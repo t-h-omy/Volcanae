@@ -510,6 +510,10 @@ export const useGameStore = create<GameStore>()(
     captureBuilding: (unitId: string, buildingId: string) => {
       set((state) => {
         initiateCaptureLogic(state, unitId, buildingId);
+        // Recompute population capacity in case a housing building was captured
+        const captureCapacity = computePopulationCapacity(state);
+        state.resources.farmers = captureCapacity.farmerCapacity;
+        state.resources.nobles = captureCapacity.nobleCapacity;
         // Update tile discovery after player action
         updateDiscovery(state);
         // Check win/loss conditions after player action
@@ -1390,6 +1394,11 @@ export const useGameStore = create<GameStore>()(
     unlockTech: (techId: TechId) => {
       set((state) => {
         unlockTechLogic(state, techId);
+        // Recompute population capacity: STRONGHOLD_CAP_MOD effects shift capacity
+        // between farmer and noble pools without updating resources directly.
+        const techCapacity = computePopulationCapacity(state);
+        state.resources.farmers = techCapacity.farmerCapacity;
+        state.resources.nobles = techCapacity.nobleCapacity;
       });
     },
 
