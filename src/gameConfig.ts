@@ -1007,7 +1007,7 @@ export const ABILITIES = {
   /** Multiplier applied to the building unit's currentHp to determine the Outpost's starting HP */
   FIELDWORK_HP_MULTIPLIER: 2,
   /** Defense bonus granted to each adjacent friendly unit by a PHALANX tag carrier */
-  PHALANX_DEFENSE_BONUS_PER_CARRIER: 10,
+  PHALANX_DEFENSE_BONUS_PER_CARRIER: 8,
   /** Attack bonus gained by a PHALANX unit per adjacent friendly unit */
   PHALANX_ATTACK_BONUS_PER_ALLY: 5,
 } as const;
