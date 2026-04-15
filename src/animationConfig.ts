@@ -35,6 +35,8 @@ export const ANIMATION = {
   LEVEL_UP_ANIM_DURATION_MS: 1000,
   /** XP-gain sparkle animation duration (ms) — shorter/subtler than level-up */
   XP_GAIN_ANIM_DURATION_MS: 600,
+  /** Crystal Chamber activation VFX duration (ms) */
+  CRYSTAL_ACTIVATE_VFX_DURATION_MS: 1200,
   /** Level-up pulse: peak scale at 20% keyframe */
   LEVEL_UP_SCALE_PEAK: 1.35,
   /** Level-up pulse: mid scale at 50% keyframe */

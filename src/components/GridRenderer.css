@@ -607,3 +607,38 @@
     box-shadow: inset 0 0 12px 4px rgba(180, 120, 255, 0.6);
   }
 }
+
+/* Crystal Chamber activation VFX overlay — crystal-blue radial burst */
+.tile-crystal-activate-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(160, 240, 255, 0.92) 0%,
+    rgba(80, 190, 255, 0.65) 38%,
+    rgba(40, 140, 240, 0.25) 68%,
+    transparent 100%
+  );
+  animation: crystalActivateFlash var(--crystal-activate-duration, 1200ms) ease-out forwards;
+}
+
+@keyframes crystalActivateFlash {
+  0%   { opacity: 0; transform: scale(0.35); }
+  18%  { opacity: 1; transform: scale(1.15); }
+  55%  { opacity: 0.65; transform: scale(1.0); }
+  100% { opacity: 0; transform: scale(1.05); }
+}
+
+/* Building image glow when crystal chamber activates */
+.tile--crystal-activating .tile-building-img {
+  animation: crystalActivateGlow var(--crystal-activate-duration, 1200ms) ease-out forwards;
+}
+
+@keyframes crystalActivateGlow {
+  0%   { filter: brightness(1)   drop-shadow(0 0 0px  rgba(100, 210, 255, 0)); }
+  18%  { filter: brightness(2.4) drop-shadow(0 0 14px rgba(120, 235, 255, 1)); }
+  55%  { filter: brightness(1.5) drop-shadow(0 0 8px  rgba(100, 210, 255, 0.7)); }
+  100% { filter: brightness(1)   drop-shadow(0 0 0px  rgba(100, 210, 255, 0)); }
+}

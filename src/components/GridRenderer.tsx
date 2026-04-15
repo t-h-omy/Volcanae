@@ -814,6 +814,9 @@ function TileCellInner({
     (building.type === BuildingType.FARM || building.type === BuildingType.PATRICIANHOUSE || building.type === BuildingType.STRONGHOLD);
 
   const isResonating = building?.type === BuildingType.CRYSTAL_CHAMBER && building.resonanceTurnsRemaining > 0;
+  const isCrystalActivating = useCombatAnimationStore(
+    (s) => building !== undefined && s.buildingAnimations.get(building.id) === 'CRYSTAL_ACTIVATE',
+  );
 
   // Building sprite selection:
   // - Enemy buildings use ENEMY_BUILDING_SPRITE when a faction-specific override exists.
@@ -839,11 +842,12 @@ function TileCellInner({
 
   return (
     <div
-      className={['grid-tile', isSelected && 'tile-selected', isResonating && 'tile--resonating'].filter(Boolean).join(' ')}
+      className={['grid-tile', isSelected && 'tile-selected', isResonating && 'tile--resonating', isCrystalActivating && 'tile--crystal-activating'].filter(Boolean).join(' ')}
       style={{
         width: tileSize,
         height: tileSize,
-      }}
+        ...(isCrystalActivating && { '--crystal-activate-duration': `${ANIMATION.CRYSTAL_ACTIVATE_VFX_DURATION_MS}ms` }),
+      } as React.CSSProperties}
       onClick={onClick}
     >
       {/* tile sprite or missing-sprite placeholder */}
@@ -898,6 +902,9 @@ function TileCellInner({
       {highlightOverlay && (
         <div className="tile-overlay" style={{ backgroundColor: highlightOverlay }} />
       )}
+
+      {/* crystal chamber activation VFX overlay */}
+      {isCrystalActivating && <div className="tile-crystal-activate-overlay" />}
 
       {/* building sprite or missing-sprite */}
       {showBuilding && building && (
