@@ -1728,7 +1728,8 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
   const unlockTech = useGameStore((s) => s.unlockTech);
   const getAvailableTechs = useGameStore((s) => s.getAvailableTechs);
 
-  const [selectedId, setSelectedId] = useState<TechId | null>(() => TECH_TREE.find((d) => d.requires.length === 0)?.id ?? null);
+  const [selectedId, setSelectedId] = useState<TechId | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [infoUnitType, setInfoUnitType] = useState<UnitType | null>(null);
   const [infoBuildingType, setInfoBuildingType] = useState<BuildingType | null>(null);
   const [infoUnitTag, setInfoUnitTag] = useState<UnitTag | null>(null);
@@ -1779,6 +1780,15 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  // On open, scroll the canvas so the root node is centered in the viewport
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const rootCenter = nodeCentre(TECH_TREE.find((d) => d.requires.length === 0)?.id ?? '');
+    el.scrollLeft = rootCenter.x - el.clientWidth / 2;
+    el.scrollTop = rootCenter.y - el.clientHeight / 2;
+  }, []);
+
   // Canvas dimensions — add bottom padding so row-3 nodes aren't hidden behind the detail sheet
   const canvasW = 920;
   const canvasH = 1452;
@@ -1795,7 +1805,7 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
       </div>
 
       {/* Canvas area */}
-      <div className="tech-canvas-scroll" onClick={() => setSelectedId(null)}>
+      <div className="tech-canvas-scroll" ref={scrollRef} onClick={() => setSelectedId(null)}>
         <div className="tech-canvas" style={{ width: canvasW, height: canvasH }}>
           {/* Edges (SVG behind nodes) */}
           <svg className="tech-edges" width={canvasW} height={canvasH}>
