@@ -115,6 +115,20 @@ const BUILDING_NAME: Record<string, string> = {
   [BuildingType.CRYSTAL_CHAMBER]: 'Crystal Chamber',
 };
 
+const TAG_EMOJI: Partial<Record<UnitTag, string>> = {
+  [UnitTag.RANGED]:          '🎯',
+  [UnitTag.PREP]:            '⏸️',
+  [UnitTag.BUILDANDCAPTURE]: '🏗️',
+  [UnitTag.SACRIFICIAL]:     '💀',
+  [UnitTag.EXPLOSIVE]:       '💥',
+  [UnitTag.FIELDWORK]:       '⛺',
+  [UnitTag.ASSASSIN]:        '🗡️',
+  [UnitTag.PATCHUP]:         '🩹',
+  [UnitTag.PHALANX]:         '🔰',
+  [UnitTag.LAVABOOST]:       '🌋',
+  [UnitTag.CORRUPT]:         '☠️',
+};
+
 /** Maps recruitment buildings to their recruitable unit types */
 const BUILDING_RECRUITS: Partial<Record<string, UnitType[]>> = {
   [BuildingType.BARRACKS]: [UnitType.INFANTRY],
@@ -1665,35 +1679,46 @@ function TurnAnnouncementPopup({ turn }: { turn: number }) {
 // TECH TREE NODE POSITION MAP
 // ============================================================================
 
-const STRIDE_X = 160;
-const STRIDE_Y = 140;
 const NODE_W = 120;
 const NODE_H = 52;
 
-/** Grid position for each tech node (col, row) */
-const TECH_NODE_POS: Record<string, { col: number; row: number }> = {
-  CONSCRIPTION:       { col: 1.5, row: 0 },
-  A_NOBLE_STEAD:      { col: 0,   row: 1 },
-  FAR_REACH:          { col: 1,   row: 1 },
-  FIELD_DUTIES:       { col: 2,   row: 1 },
-  BIG_EYES:           { col: 3,   row: 1 },
-  WALLED_SETTLEMENT:  { col: 4,   row: 1 },
-  DEEP_VEINS:         { col: 0,   row: 2 },
-  CLEAN_CUTS:         { col: 1,   row: 2 },
-  SIEGE_WORKS:        { col: 1.5, row: 2 },
-  HOLD_GROUND:        { col: 2,   row: 2 },
-  ASSASSIN:           { col: 3,   row: 2 },
-  CITADEL:            { col: 4,   row: 2 },
-  TO_THE_FRONT:       { col: 1,   row: 3 },
-  FIELDWORK:          { col: 2,   row: 3 },
-  PHALANX_FORMATION:  { col: 2.5, row: 3 },
-  PATCH_UP:           { col: 3,   row: 3 },
+/**
+ * Pixel position (top-left corner) of each tech node on the canvas.
+ * Layout: CONSCRIPTION at center (460, 780); 5 tier-1 branches equally spaced
+ * at 72° intervals (r=200); tier-2 nodes at r=360; TO_THE_FRONT at r=500.
+ * Positions were computed with: x = cx + r·sin(θ) − NODE_W/2,
+ *                               y = cy − r·cos(θ) − NODE_H/2
+ */
+const TECH_NODE_POS: Record<string, { x: number; y: number }> = {
+  // ── Center ──────────────────────────────────────────
+  CONSCRIPTION:       { x: 400, y: 754 },  // top-left; center (460, 780)
+
+  // ── Tier 1 – r=200, every 72° from north ────────────
+  FAR_REACH:          { x: 400, y: 554 },  // 0°   (460, 580)
+  BIG_EYES:           { x: 590, y: 692 },  // 72°  (650, 718)
+  WALLED_SETTLEMENT:  { x: 518, y: 916 },  // 144° (578, 942)
+  FIELD_DUTIES:       { x: 282, y: 916 },  // 216° (342, 942)
+  A_NOBLE_STEAD:      { x: 210, y: 692 },  // 288° (270, 718)
+
+  // ── Tier 2 – r=360, spread ±20° from parent ─────────
+  SIEGE_WORKS:        { x: 277, y: 416 },  // −20° (337, 442)
+  CLEAN_CUTS:         { x: 523, y: 416 },  // +20° (583, 442)
+  ASSASSIN:           { x: 684, y: 532 },  //  52° (744, 558)
+  PATCH_UP:           { x: 760, y: 767 },  //  92° (820, 793)
+  CITADEL:            { x: 612, y: 1045 }, // 144° (672,1071)
+  HOLD_GROUND:        { x: 301, y: 1100 }, // 196° (361,1126)
+  FIELDWORK:          { x: 188, y: 1045 }, // 216° (248,1071)
+  PHALANX_FORMATION:  { x: 71,  y: 900 },  // 246° (131, 926)
+  DEEP_VEINS:         { x: 58,  y: 643 },  // 288° (118, 669)
+
+  // ── Tier 3 ───────────────────────────────────────────
+  TO_THE_FRONT:       { x: 571, y: 284 },  //  20°, r=500 (631, 310)
 };
 
 function nodeCentre(id: string): { x: number; y: number } {
   const pos = TECH_NODE_POS[id];
   if (!pos) return { x: 0, y: 0 };
-  return { x: pos.col * STRIDE_X + NODE_W / 2, y: pos.row * STRIDE_Y + NODE_H / 2 };
+  return { x: pos.x + NODE_W / 2, y: pos.y + NODE_H / 2 };
 }
 
 // ============================================================================
@@ -1709,6 +1734,7 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
   const [selectedId, setSelectedId] = useState<TechId | null>(null);
   const [infoUnitType, setInfoUnitType] = useState<UnitType | null>(null);
   const [infoBuildingType, setInfoBuildingType] = useState<BuildingType | null>(null);
+  const [infoUnitTag, setInfoUnitTag] = useState<UnitTag | null>(null);
 
   const availableIds: TechId[] = useMemo(() => {
     // Depend on techNodes + arcaneCrystals to re-derive when state changes
@@ -1757,8 +1783,8 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
   }, [onClose]);
 
   // Canvas dimensions — add bottom padding so row-3 nodes aren't hidden behind the detail sheet
-  const canvasW = 4 * STRIDE_X + NODE_W + 40;
-  const canvasH = 3 * STRIDE_Y + NODE_H + 300;
+  const canvasW = 920;
+  const canvasH = 1452;
 
   return (
     <div className="tech-overlay">
@@ -1809,8 +1835,8 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
                 key={def.id}
                 className={`tech-node ${stateClass} ${selectedId === def.id ? 'tech-node--selected' : ''}`}
                 style={{
-                  left: pos.col * STRIDE_X,
-                  top: pos.row * STRIDE_Y,
+                  left: pos.x,
+                  top: pos.y,
                   width: NODE_W,
                   height: NODE_H,
                 }}
@@ -1867,6 +1893,17 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
                     </button>
                   );
                 }
+                if (e.type === TechEffectType.GRANT_UNIT_TAG) {
+                  const tagLabel = TAG_INFO[e.tag]?.label ?? e.tag;
+                  const unitLabel = UNIT_NAME[e.unitType] ?? e.unitType;
+                  return (
+                    <button key={i} className="tech-effect-tile" onClick={() => setInfoUnitTag(e.tag)}>
+                      <span className="tech-effect-tile-emoji">{TAG_EMOJI[e.tag] ?? '✦'}</span>
+                      <span className="tech-effect-tile-name">{unitLabel} gains {tagLabel}</span>
+                      <span className="info-badge">i</span>
+                    </button>
+                  );
+                }
                 return (
                   <span key={i} className="tech-detail-effect-chip">{renderEffect(e)}</span>
                 );
@@ -1910,6 +1947,12 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
           buildingType={infoBuildingType}
           onClose={() => setInfoBuildingType(null)}
           isReadOnly
+        />
+      )}
+      {infoUnitTag && (
+        <TagPopup
+          tag={infoUnitTag}
+          onClose={() => setInfoUnitTag(null)}
         />
       )}
     </div>
