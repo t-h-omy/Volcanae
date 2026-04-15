@@ -764,6 +764,7 @@ function SelectedUnitPanel({
   // Compute PHALANX formation bonuses (works for both factions)
   const phalanxAttack = useMemo(() => getPhalanxAttackBonus(gameState, unit), [gameState, unit]);
   const phalanxDefense = useMemo(() => getPhalanxDefenseBonus(gameState, unit), [gameState, unit]);
+  const totalDefBonus = statBonuses.def + phalanxDefense;
 
   return (
     <div className={`hud-info-panel${!isPlayer ? ' hud-panel-enemy' : ''}`}>
@@ -812,8 +813,8 @@ function SelectedUnitPanel({
           {unit.stats.attack}{phalanxAttack > 0 ? `+${phalanxAttack}` : ''}
         </span>
         <span className="hud-stat-label">DEF</span>
-        <span className={`hud-stat-value${(statBonuses.def + phalanxDefense) > 0 ? ' hud-stat-boosted' : ''}`}>
-          {unit.stats.defense}{(statBonuses.def + phalanxDefense) > 0 ? `+${statBonuses.def + phalanxDefense}` : ''}
+        <span className={`hud-stat-value${totalDefBonus > 0 ? ' hud-stat-boosted' : ''}`}>
+          {unit.stats.defense}{totalDefBonus > 0 ? `+${totalDefBonus}` : ''}
         </span>
         <span className="hud-stat-label">MOV</span>
         <span className={`hud-stat-value${statBonuses.mov > 0 ? ' hud-stat-boosted' : ''}`}>
