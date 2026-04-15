@@ -997,7 +997,7 @@ export const ABILITIES = {
   /** Damage multiplier applied when ASSASSIN tag attacks a full-HP target */
   ASSASSIN_DAMAGE_MULTIPLIER: 3,
   /** Flat defense bonus applied when HOLD_GROUND flag is active and unit stands on own building */
-  HOLD_GROUND_DEFENSE_BONUS: 30,
+  HOLD_GROUND_DEFENSE_BONUS: 20,
   /** Extra move range granted by TO_THE_FRONT flag */
   TO_THE_FRONT_MOVE_BONUS: 1,
   /** Minimum tile distance from lava front required for TO_THE_FRONT bonus to apply */
@@ -1007,9 +1007,9 @@ export const ABILITIES = {
   /** Multiplier applied to the building unit's currentHp to determine the Outpost's starting HP */
   FIELDWORK_HP_MULTIPLIER: 2,
   /** Defense bonus granted to each adjacent friendly unit by a PHALANX tag carrier */
-  PHALANX_DEFENSE_BONUS_PER_CARRIER: 15,
+  PHALANX_DEFENSE_BONUS_PER_CARRIER: 10,
   /** Attack bonus gained by a PHALANX unit per adjacent friendly unit */
-  PHALANX_ATTACK_BONUS_PER_ALLY: 10,
+  PHALANX_ATTACK_BONUS_PER_ALLY: 5,
 } as const;
 
 // ============================================================================
