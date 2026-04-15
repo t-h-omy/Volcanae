@@ -584,17 +584,17 @@ export const UNIT_COSTS: Record<string, UnitCost> = {
 
 export const TERRAIN = {
   /** Minimum number of forest tiles placed per zone */
-  FORESTS_PER_ZONE_MIN: 1,
+  FORESTS_PER_ZONE_MIN: 2,
   /** Maximum number of forest tiles placed per zone */
   FORESTS_PER_ZONE_MAX: 3,
   /** Minimum number of mountain tiles placed per zone */
-  MOUNTAINS_PER_ZONE_MIN: 1,
+  MOUNTAINS_PER_ZONE_MIN: 2,
   /** Maximum number of mountain tiles placed per zone */
   MOUNTAINS_PER_ZONE_MAX: 3,
   /** Minimum number of ruin tiles placed per zone */
-  RUINS_PER_ZONE_MIN: 5,
+  RUINS_PER_ZONE_MIN: 7,
   /** Maximum number of ruin tiles placed per zone */
-  RUINS_PER_ZONE_MAX: 9,
+  RUINS_PER_ZONE_MAX: 8,
   /**
    * Minimum edge-circle distance from the zone 1 stronghold for the guaranteed
    * forest tile placement in zone 1.
