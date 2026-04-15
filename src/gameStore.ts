@@ -939,7 +939,12 @@ export const useGameStore = create<GameStore>()(
             if (building && event.buildingHpLost > 0) {
               building.hp -= event.buildingHpLost;
               if (building.hp <= 0) {
-                if (building.type === BuildingType.WATCHTOWER || building.faction === Faction.PLAYER) {
+                if (building.type === BuildingType.OUTPOST) {
+                  // Outposts are removed completely when destroyed
+                  const { x, y } = building.position;
+                  delete state.buildings[event.buildingId];
+                  state.grid[y][x].buildingId = null;
+                } else if (building.type === BuildingType.WATCHTOWER || building.faction === Faction.PLAYER) {
                   // Watchtowers and player buildings go neutral
                   building.hp = building.maxHp;
                   building.faction = null;
@@ -1004,7 +1009,12 @@ export const useGameStore = create<GameStore>()(
             if (building && event.buildingHpLost > 0) {
               const newHp = building.hp - event.buildingHpLost;
               if (newHp <= 0) {
-                if (building.type === BuildingType.WATCHTOWER) {
+                if (building.type === BuildingType.OUTPOST) {
+                  // Outposts are removed completely when destroyed
+                  const { x, y } = building.position;
+                  delete state.buildings[event.buildingId];
+                  state.grid[y][x].buildingId = null;
+                } else if (building.type === BuildingType.WATCHTOWER) {
                   // Watchtower goes neutral
                   building.hp = building.maxHp;
                   building.faction = null;
@@ -1083,13 +1093,20 @@ export const useGameStore = create<GameStore>()(
             if (attackingBuilding && event.attackingBuildingHpLost > 0) {
               const newHp = attackingBuilding.hp - event.attackingBuildingHpLost;
               if (newHp <= 0) {
-                // Attacking building goes neutral when destroyed by counter-attack
-                attackingBuilding.hp = attackingBuilding.maxHp;
-                attackingBuilding.faction = null;
-                attackingBuilding.hasAttackedThisTurn = false;
-                attackingBuilding.specialistSlot = null;
-                attackingBuilding.turnCapturedByPlayer = null;
-                attackingBuilding.wasEnemyOwnedBeforeCapture = false;
+                if (attackingBuilding.type === BuildingType.OUTPOST) {
+                  // Outposts are removed completely when destroyed
+                  const { x, y } = attackingBuilding.position;
+                  delete state.buildings[event.attackingBuildingId];
+                  state.grid[y][x].buildingId = null;
+                } else {
+                  // Attacking building goes neutral when destroyed by counter-attack
+                  attackingBuilding.hp = attackingBuilding.maxHp;
+                  attackingBuilding.faction = null;
+                  attackingBuilding.hasAttackedThisTurn = false;
+                  attackingBuilding.specialistSlot = null;
+                  attackingBuilding.turnCapturedByPlayer = null;
+                  attackingBuilding.wasEnemyOwnedBeforeCapture = false;
+                }
               } else {
                 attackingBuilding.hp = newHp;
               }
@@ -1097,13 +1114,20 @@ export const useGameStore = create<GameStore>()(
             if (targetBuilding && event.targetBuildingHpLost > 0) {
               const newHp = targetBuilding.hp - event.targetBuildingHpLost;
               if (newHp <= 0) {
-                // Target building goes neutral at 0 HP
-                targetBuilding.hp = targetBuilding.maxHp;
-                targetBuilding.faction = null;
-                targetBuilding.hasAttackedThisTurn = false;
-                targetBuilding.specialistSlot = null;
-                targetBuilding.turnCapturedByPlayer = null;
-                targetBuilding.wasEnemyOwnedBeforeCapture = false;
+                if (targetBuilding.type === BuildingType.OUTPOST) {
+                  // Outposts are removed completely when destroyed
+                  const { x, y } = targetBuilding.position;
+                  delete state.buildings[event.targetBuildingId];
+                  state.grid[y][x].buildingId = null;
+                } else {
+                  // Target building goes neutral at 0 HP
+                  targetBuilding.hp = targetBuilding.maxHp;
+                  targetBuilding.faction = null;
+                  targetBuilding.hasAttackedThisTurn = false;
+                  targetBuilding.specialistSlot = null;
+                  targetBuilding.turnCapturedByPlayer = null;
+                  targetBuilding.wasEnemyOwnedBeforeCapture = false;
+                }
               } else {
                 targetBuilding.hp = newHp;
               }
