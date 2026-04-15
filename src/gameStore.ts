@@ -1414,6 +1414,11 @@ export const useGameStore = create<GameStore>()(
     unlockTech: (techId: TechId) => {
       set((state) => {
         unlockTechLogic(state, techId);
+        // Refresh population capacity cache: some techs (e.g. WALLED_SETTLEMENT) shift
+        // the stronghold farmer/noble split, changing live capacity immediately.
+        const capacity = computePopulationCapacity(state);
+        state.resources.farmers = capacity.farmerCapacity;
+        state.resources.nobles = capacity.nobleCapacity;
       });
     },
 
