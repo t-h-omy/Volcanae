@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useGameStore } from '../gameStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
-import { UNITS, UNIT_COSTS, RESOURCES, UNIT_POPULATION_COSTS, POPULATION, UNIT_LEVEL_UP, XP, TECH_TREE, ABILITIES } from '../gameConfig';
+import { UNITS, UNIT_COSTS, RESOURCES, UNIT_POPULATION_COSTS, POPULATION, UNIT_LEVEL_UP, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval } from '../gameConfig';
 import { UI } from '../uiConfig';
 import type { UnitPopulationCost, TechId } from '../types';
 import {
@@ -33,6 +33,7 @@ import {
   TileType,
   TechEffectType,
   TechFlag,
+  Difficulty,
   type Building,
   type Unit,
   type Specialist,
@@ -271,18 +272,78 @@ function DevStatsOverlay({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ============================================================================
+// DIFFICULTY OVERLAY
+// ============================================================================
+
+const DIFFICULTY_LABEL: Record<Difficulty, string> = {
+  [Difficulty.EASY]: '🟢 Easy',
+  [Difficulty.STANDARD]: '🟡 Standard',
+  [Difficulty.HARD]: '🔴 Hard',
+};
+
+const DIFFICULTY_DESC: Record<Difficulty, string> = {
+  [Difficulty.EASY]: `Enemies are weaker (×${DIFFICULTY_MULTIPLIER[Difficulty.EASY]}). Lava advances every ${getLavaAdvanceInterval(Difficulty.EASY)} turns.`,
+  [Difficulty.STANDARD]: `Enemies are at full strength. Lava advances every ${getLavaAdvanceInterval(Difficulty.STANDARD)} turns.`,
+  [Difficulty.HARD]: `Enemies are stronger (×${DIFFICULTY_MULTIPLIER[Difficulty.HARD]}). Lava advances every ${getLavaAdvanceInterval(Difficulty.HARD)} turns.`,
+};
+
+function DifficultyOverlay({
+  currentDifficulty,
+  onSelect,
+  onClose,
+}: {
+  currentDifficulty: Difficulty;
+  onSelect: (d: Difficulty) => void;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div className="hud-dev-overlay-backdrop" onClick={onClose}>
+      <div className="hud-difficulty-overlay" onClick={(e) => e.stopPropagation()}>
+        <div className="hud-dev-overlay-header">
+          <span>⚔️ Choose Difficulty</span>
+          <button className="hud-close-btn" onClick={onClose} aria-label="Close">✕</button>
+        </div>
+        <div className="hud-difficulty-overlay-body">
+          {([Difficulty.EASY, Difficulty.STANDARD, Difficulty.HARD] as Difficulty[]).map((d) => (
+            <button
+              key={d}
+              className={`hud-difficulty-btn${currentDifficulty === d ? ' hud-difficulty-btn--active' : ''}`}
+              onClick={() => onSelect(d)}
+            >
+              <span className="hud-difficulty-btn-label">{DIFFICULTY_LABEL[d]}</span>
+              <span className="hud-difficulty-btn-desc">{DIFFICULTY_DESC[d]}</span>
+            </button>
+          ))}
+          <p className="hud-difficulty-note">Starting a new game will apply the selected difficulty.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function GameMenu() {
   const [open, setOpen] = useState(false);
   const [devOptionsOverlayOpen, setDevOptionsOverlayOpen] = useState(false);
+  const [difficultyOverlayOpen, setDifficultyOverlayOpen] = useState(false);
   const initNewGame = useGameStore((s) => s.initNewGame);
+  const currentDifficulty = useGameStore((s) => s.difficulty);
   const saveGame = useGameStore((s) => s.saveGame);
   const clearSavedGameAction = useGameStore((s) => s.clearSavedGame);
   const hasSavedGameCheck = useGameStore((s) => s.hasSavedGame);
 
   const handleNewGame = useCallback(() => {
-    initNewGame();
+    initNewGame(currentDifficulty);
     setOpen(false);
-  }, [initNewGame]);
+  }, [initNewGame, currentDifficulty]);
 
   const handleSaveGame = useCallback(() => {
     saveGame();
@@ -303,6 +364,11 @@ function GameMenu() {
     }
     window.location.reload();
   }, []);
+
+  const handleDifficultySelect = useCallback((d: Difficulty) => {
+    initNewGame(d);
+    setDifficultyOverlayOpen(false);
+  }, [initNewGame]);
 
   // Close menu on Escape key
   useEffect(() => {
@@ -348,6 +414,13 @@ function GameMenu() {
             <button className="hud-menu-item" role="menuitem" onClick={handleNewGame}>
               🔄 New Game
             </button>
+            <button
+              className="hud-menu-item"
+              role="menuitem"
+              onClick={() => { setOpen(false); setDifficultyOverlayOpen(true); }}
+            >
+              ⚔️ Difficulty ({DIFFICULTY_LABEL[currentDifficulty]})
+            </button>
             <button className="hud-menu-item" role="menuitem" onClick={handleResetCache}>
               🗑️ Reset Cache &amp; Reload
             </button>
@@ -364,6 +437,13 @@ function GameMenu() {
       )}
       {devOptionsOverlayOpen && (
         <DevOptionsOverlay onClose={() => setDevOptionsOverlayOpen(false)} />
+      )}
+      {difficultyOverlayOpen && (
+        <DifficultyOverlay
+          currentDifficulty={currentDifficulty}
+          onSelect={handleDifficultySelect}
+          onClose={() => setDifficultyOverlayOpen(false)}
+        />
       )}
     </div>
   );
@@ -1603,6 +1683,7 @@ function GameOverOverlay() {
   const turn = useGameStore((s) => s.turn);
   const gameStats = useGameStore((s) => s.gameStats);
   const initNewGame = useGameStore((s) => s.initNewGame);
+  const difficulty = useGameStore((s) => s.difficulty);
 
   return (
     <div className="hud-overlay">
@@ -1610,7 +1691,7 @@ function GameOverOverlay() {
         <h1 className="hud-overlay-title hud-defeat">💀 DEFEATED</h1>
         <p className="hud-overlay-sub">You survived {turn} turns</p>
         <EndGameStats stats={gameStats} />
-        <button className="hud-play-again-btn" onClick={initNewGame}>
+        <button className="hud-play-again-btn" onClick={() => initNewGame(difficulty)}>
           🔄 Play Again
         </button>
       </div>
@@ -1622,6 +1703,7 @@ function VictoryOverlay() {
   const turn = useGameStore((s) => s.turn);
   const gameStats = useGameStore((s) => s.gameStats);
   const initNewGame = useGameStore((s) => s.initNewGame);
+  const difficulty = useGameStore((s) => s.difficulty);
 
   return (
     <div className="hud-overlay">
@@ -1629,7 +1711,7 @@ function VictoryOverlay() {
         <h1 className="hud-overlay-title hud-victory">🏆 VICTORY</h1>
         <p className="hud-overlay-sub">Completed in {turn} turns</p>
         <EndGameStats stats={gameStats} />
-        <button className="hud-play-again-btn" onClick={initNewGame}>
+        <button className="hud-play-again-btn" onClick={() => initNewGame(difficulty)}>
           🔄 Play Again
         </button>
       </div>

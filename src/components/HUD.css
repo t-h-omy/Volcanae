@@ -1700,3 +1700,70 @@
   background: rgba(255, 160, 60, 0.15);
   border: 1px solid rgba(255, 160, 60, 0.35);
 }
+
+/* ============================================================================
+   DIFFICULTY OVERLAY
+   ============================================================================ */
+
+.hud-difficulty-overlay {
+  background: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  width: min(360px, 90vw);
+  display: flex;
+  flex-direction: column;
+  color: #eee;
+}
+
+.hud-difficulty-overlay-body {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.hud-difficulty-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: #eee;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.hud-difficulty-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.hud-difficulty-btn--active {
+  background: rgba(255, 200, 60, 0.12);
+  border-color: rgba(255, 200, 60, 0.5);
+}
+
+.hud-difficulty-btn--active:hover {
+  background: rgba(255, 200, 60, 0.18);
+}
+
+.hud-difficulty-btn-label {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.hud-difficulty-btn-desc {
+  font-size: 11px;
+  color: #aaa;
+}
+
+.hud-difficulty-note {
+  font-size: 11px;
+  color: #888;
+  margin: 0;
+  text-align: center;
+}
