@@ -3,7 +3,7 @@
  * Generates the initial GameState grid with buildings, units, and zones.
  */
 
-import { MAP, LAVA, UNITS, BUILDINGS, TERRAIN, POPULATION, RESOURCES, TECH_TREE, TECH } from './gameConfig';
+import { MAP, UNITS, BUILDINGS, TERRAIN, POPULATION, RESOURCES, TECH_TREE, TECH, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval } from './gameConfig';
 import {
   Faction,
   UnitType,
@@ -11,6 +11,7 @@ import {
   BuildingType,
   TileType,
   GamePhase,
+  Difficulty,
 } from './types';
 import type {
   Position,
@@ -473,7 +474,7 @@ function createGrid(): Tile[][] {
 /**
  * Generates the initial game state for Volcanae.
  */
-export function generateInitialGameState(): GameState {
+export function generateInitialGameState(difficulty: Difficulty = Difficulty.STANDARD): GameState {
   // Reset ID counter for consistent generation
   resetIdCounter();
 
@@ -563,10 +564,17 @@ export function generateInitialGameState(): GameState {
 
   // Create 2 enemy LAVA_GRUNT units in zone 5
   const enemyUnits: Unit[] = [];
+  const difficultyMult = DIFFICULTY_MULTIPLIER[difficulty];
   for (let i = 0; i < 2; i++) {
     const position = getRandomPositionInZone(5, occupiedPositions);
     markPositionOccupied(position, occupiedPositions);
-    enemyUnits.push(createUnit(UnitType.LAVA_GRUNT, Faction.ENEMY, position));
+    const unit = createUnit(UnitType.LAVA_GRUNT, Faction.ENEMY, position);
+    const scaledHp = Math.round(unit.stats.maxHp * difficultyMult);
+    unit.stats.maxHp = scaledHp;
+    unit.stats.currentHp = scaledHp;
+    unit.stats.attack = Math.round(unit.stats.attack * difficultyMult);
+    unit.stats.defense = Math.round(unit.stats.defense * difficultyMult);
+    enemyUnits.push(unit);
   }
 
   // Convert units array to record
@@ -620,7 +628,7 @@ export function generateInitialGameState(): GameState {
       })(),
     },
     lavaFrontRow: MAP.GRID_HEIGHT,
-    turnsUntilLavaAdvance: LAVA.LAVA_ADVANCE_INTERVAL,
+    turnsUntilLavaAdvance: getLavaAdvanceInterval(difficulty),
     selectedUnitId: null,
     selectedBuildingId: null,
     selectedTilePos: null,
@@ -650,6 +658,7 @@ export function generateInitialGameState(): GameState {
       buildingsDestroyedByLava: 0,
     },
     enemyUnitsSpawnedLastTurn: 0,
+    difficulty,
   };
 
   // Auto-apply CONSCRIPTION effects (unlocked at game start, not a pick)

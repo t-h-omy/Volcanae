@@ -32,10 +32,10 @@ import {
 import { checkGameConditions } from './gameConditions';
 import { useFloaterStore } from './floaterStore';
 import { useAnimationStore } from './animationStore';
-import { Faction, GamePhase, BuildingType, TileType } from './types';
+import { Faction, GamePhase, BuildingType, TileType, Difficulty } from './types';
 import type { GameState, UnitType, Position, TechId } from './types';
 import type { GameEvent } from './gameEvents';
-import { MAP, LAVA, POPULATION, BUILDINGS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG } from './gameConfig';
+import { MAP, POPULATION, BUILDINGS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, getLavaAdvanceInterval } from './gameConfig';
 import { saveGameState, loadGameState, clearSavedGame, hasSavedGame } from './saveSystem';
 import { computeLevelFromXp, applyLevelUps } from './levelSystem';
 import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLogic } from './techSystem';
@@ -49,8 +49,8 @@ import { createFieldworkOutpost } from './constructionSystem';
 interface GameActions {
   /** Initialize a new game by generating initial state */
   initGame: () => void;
-  /** Start a fresh new game, clearing any existing save */
-  initNewGame: () => void;
+  /** Start a fresh new game with the given difficulty, clearing any existing save */
+  initNewGame: (difficulty: Difficulty) => void;
   /** Select a unit by ID */
   selectUnit: (unitId: string) => void;
   /** Select a building by ID */
@@ -184,9 +184,9 @@ export const useGameStore = create<GameStore>()(
       syncCameraToPlayerStronghold(stateToLoad);
     },
 
-    initNewGame: () => {
+    initNewGame: (difficulty: Difficulty) => {
       clearSavedGame();
-      const initialState = generateInitialGameState();
+      const initialState = generateInitialGameState(difficulty);
       set((state) => {
         Object.assign(state, initialState);
         updateDiscovery(state);
@@ -652,7 +652,7 @@ export const useGameStore = create<GameStore>()(
           const { newState: afterLava, events: lavaEvents } = advanceLavaWithEvents(computedState);
           allEvents.push(...lavaEvents);
           computedState = produce(afterLava, (draft) => {
-            draft.turnsUntilLavaAdvance = LAVA.LAVA_ADVANCE_INTERVAL;
+            draft.turnsUntilLavaAdvance = getLavaAdvanceInterval(draft.difficulty);
           });
         }
 

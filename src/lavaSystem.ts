@@ -21,7 +21,7 @@ import type { GameState } from './types';
 import type { Draft } from 'immer';
 import { produce } from 'immer';
 import { Faction, BuildingType } from './types';
-import { MAP, LAVA, TECH, CRYSTAL_CHAMBER_CONFIG } from './gameConfig';
+import { MAP, TECH, CRYSTAL_CHAMBER_CONFIG, getLavaAdvanceInterval } from './gameConfig';
 import type { GameEvent } from './gameEvents';
 import { grantArcaneCrystals } from './techSystem';
 
@@ -53,7 +53,7 @@ export function shouldLavaAdvance(
  */
 function updateLavaPreview(state: Draft<GameState>): void {
   const lavaFrontRow = state.lavaFrontRow;
-  const previewRows = LAVA.LAVA_ADVANCE_INTERVAL;
+  const previewRows = getLavaAdvanceInterval(state.difficulty);
 
   // Clear all preview markers first
   for (let y = 0; y < MAP.GRID_HEIGHT; y++) {
@@ -209,7 +209,7 @@ export function tickLava(state: Draft<GameState>): boolean {
     advanceLava(state);
 
     // Reset the counter
-    state.turnsUntilLavaAdvance = LAVA.LAVA_ADVANCE_INTERVAL;
+    state.turnsUntilLavaAdvance = getLavaAdvanceInterval(state.difficulty);
 
     return true;
   }

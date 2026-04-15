@@ -62,6 +62,14 @@ export const TileType = {
 } as const;
 export type TileType = (typeof TileType)[keyof typeof TileType];
 
+/** Difficulty levels that scale enemy strength and lava speed */
+export const Difficulty = {
+  EASY: 'EASY',
+  STANDARD: 'STANDARD',
+  HARD: 'HARD',
+} as const;
+export type Difficulty = (typeof Difficulty)[keyof typeof Difficulty];
+
 /** Game phases representing different states of the game loop */
 export const GamePhase = {
   PLAYER_TURN: 'PLAYER_TURN',
@@ -374,4 +382,6 @@ export interface GameState {
   gameStats: GameStats;
   /** Number of enemy units that were spawned during the most recent enemy turn */
   enemyUnitsSpawnedLastTurn: number;
+  /** Selected difficulty level that scales enemy stats and lava speed */
+  difficulty: Difficulty;
 }

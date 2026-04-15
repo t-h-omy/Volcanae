@@ -7,7 +7,7 @@ import type { GameState, Unit, Building, Position } from './types';
 import type { Draft } from 'immer';
 import { produce } from 'immer';
 import { Faction, UnitType, UnitTag, BuildingType, TileType } from './types';
-import { UNITS, ENEMY, MAP, AI_SCORING, AI_RECRUITMENT, ENEMY_UNIT_UNLOCK, XP } from './gameConfig';
+import { UNITS, ENEMY, MAP, AI_SCORING, AI_RECRUITMENT, ENEMY_UNIT_UNLOCK, XP, DIFFICULTY_MULTIPLIER } from './gameConfig';
 import { resolveAttack, calculateCombat, resolveBuildingAttack, buildingToCombatant, calculateCombatFromStats, unitToCombatant, resolveAttackOnBuilding } from './combatSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { initiateCapture, canCapture } from './captureSystem';
@@ -451,21 +451,24 @@ function createEnemyUnit(
   unitType: UnitType,
   lavaBoostEnabled: boolean,
   lavaFrontRow: number,
-  buildingPosition: Position
+  buildingPosition: Position,
+  difficultyMult: number
 ): Unit {
   const baseHp: number = UNITS[unitType].maxHp;
   const baseAttack: number = UNITS[unitType].attack;
+  const baseDefense: number = UNITS[unitType].defense;
 
-  let finalHp: number = baseHp;
-  let finalAttack: number = baseAttack;
+  let finalHp: number = Math.round(baseHp * difficultyMult);
+  let finalAttack: number = Math.round(baseAttack * difficultyMult);
+  const finalDefense: number = Math.round(baseDefense * difficultyMult);
   const tags: UnitTag[] = [...UNITS[unitType].tags];
 
   if (lavaBoostEnabled) {
     const boostFactor = calculateLavaBoostFactor(buildingPosition, lavaFrontRow);
     const boostMultiplier = 1 + boostFactor * ENEMY.MAX_LAVA_BOOST_MULTIPLIER;
 
-    finalHp = Math.round(baseHp * boostMultiplier);
-    finalAttack = Math.round(baseAttack * boostMultiplier);
+    finalHp = Math.round(finalHp * boostMultiplier);
+    finalAttack = Math.round(finalAttack * boostMultiplier);
     tags.push(UnitTag.LAVABOOST);
   }
 
@@ -478,7 +481,7 @@ function createEnemyUnit(
       maxHp: finalHp,
       currentHp: finalHp,
       attack: finalAttack,
-      defense: UNITS[unitType].defense,
+      defense: finalDefense,
       moveRange: UNITS[unitType].moveRange,
       discoverRadius: UNITS[unitType].discoverRadius,
       triggerRange: UNITS[unitType].triggerRange,
@@ -514,7 +517,7 @@ function spawnEnemyUnits(state: Draft<GameState>, events?: GameEvent[]): void {
 
     const spawnPosition: Position = { ...building.position };
 
-    const unit = createEnemyUnit(spawnPosition, unitType, building.lavaBoostEnabled, state.lavaFrontRow, building.position);
+    const unit = createEnemyUnit(spawnPosition, unitType, building.lavaBoostEnabled, state.lavaFrontRow, building.position, DIFFICULTY_MULTIPLIER[state.difficulty]);
 
     // Snapshot the unit BEFORE assigning to the draft (plain objects added
     // to a draft are not immediately proxied, so current() cannot be used).

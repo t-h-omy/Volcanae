@@ -6,7 +6,7 @@
  * animationConfig.ts, uiConfig.ts, renderConfig.ts, and inputConfig.ts.
  */
 
-import { UnitTag, DestroyBehavior, BuildingType, UnitType, ResourceType, TechFlag } from './types';
+import { UnitTag, DestroyBehavior, BuildingType, UnitType, ResourceType, TechFlag, Difficulty } from './types';
 import type { UnitPopulationCost, UnitLevelDefinition, TechNodeDefinition } from './types';
 
 // ============================================================================
@@ -34,6 +34,25 @@ export const LAVA = {
   /** Lava advances 1 row every N player turns */
   LAVA_ADVANCE_INTERVAL: 3,
 } as const;
+
+// ============================================================================
+// DIFFICULTY CONFIGURATION
+// ============================================================================
+
+/** Multipliers applied to enemy attack, defense, max HP, and lava advance speed per difficulty. */
+export const DIFFICULTY_MULTIPLIER: Record<Difficulty, number> = {
+  [Difficulty.EASY]: 0.5,
+  [Difficulty.STANDARD]: 1,
+  [Difficulty.HARD]: 1.25,
+};
+
+/**
+ * Returns the lava advance interval (turns between lava advances) for the given difficulty.
+ * Higher difficulty → smaller interval → faster lava.
+ */
+export function getLavaAdvanceInterval(difficulty: Difficulty): number {
+  return Math.max(1, Math.round(LAVA.LAVA_ADVANCE_INTERVAL / DIFFICULTY_MULTIPLIER[difficulty]));
+}
 
 // ============================================================================
 // UNIT CONFIGURATION (standard unit defaults)
