@@ -115,4 +115,8 @@ export type GameEvent =
       purgedUnitIds: string[];
       /** Turn number on which the zone lockout expires (state.turn + ZONE_LOCKOUT_TURNS) */
       lockoutUntilTurn: number;
+      /** Turn on which spawn freeze expires (0 if SPAWN_FREEZE_TURNS === 0) */
+      spawnFreezeUntilTurn: number;
+      /** Turn on which lava freeze expires (0 if LAVA_FREEZE_TURNS === 0) */
+      lavaFreezeUntilTurn: number;
     };

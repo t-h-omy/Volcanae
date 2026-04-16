@@ -500,6 +500,12 @@ function createEnemyUnit(
 }
 
 function spawnEnemyUnits(state: Draft<GameState>, events?: GameEvent[]): void {
+  if (SANCTUM_COLLAPSE.ZONE_LOCKOUT_TURNS > 0 &&
+      SANCTUM_COLLAPSE.SPAWN_FREEZE_TURNS > 0 &&
+      state.spawnFreezeUntilTurn > 0 &&
+      state.turn < state.spawnFreezeUntilTurn) {
+    return; // spawn frozen by Sanctum Collapse
+  }
   for (const building of Object.values(state.buildings)) {
     if (building.faction !== Faction.ENEMY) continue;
     if (!isRecruitmentBuilding(building)) continue;

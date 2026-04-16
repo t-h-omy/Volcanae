@@ -394,4 +394,17 @@ export interface GameState {
    * Only written when SANCTUM_COLLAPSE.ZONE_LOCKOUT_TURNS > 0.
    */
   zoneLockoutUntilTurn: Partial<Record<number, number>>;
+  /**
+   * Turn number on which the spawn freeze from Sanctum Collapse expires.
+   * When state.turn < spawnFreezeUntilTurn, spawnEnemyUnits() is a no-op.
+   * Value of 0 means no active freeze.
+   */
+  spawnFreezeUntilTurn: number;
+  /**
+   * Turn number on which the lava freeze from Sanctum Collapse expires.
+   * While state.turn < lavaFreezeUntilTurn, turnsUntilLavaAdvance is not
+   * decremented during the lava phase.
+   * Value of 0 means no active freeze.
+   */
+  lavaFreezeUntilTurn: number;
 }

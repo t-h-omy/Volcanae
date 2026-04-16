@@ -659,6 +659,8 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
     enemyUnitsSpawnedLastTurn: 0,
     difficulty,
     zoneLockoutUntilTurn: {},
+    spawnFreezeUntilTurn: 0,
+    lavaFreezeUntilTurn: 0,
   };
 
   // Auto-apply CONSCRIPTION effects (unlocked at game start, not a pick)

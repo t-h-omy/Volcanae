@@ -650,7 +650,15 @@ export const useGameStore = create<GameStore>()(
         // Phase 4: Lava phase
         const allEvents: GameEvent[] = [...enemyEvents];
         computedState = produce(computedState, (draft) => {
-          draft.turnsUntilLavaAdvance -= 1;
+          const lavaFrozen =
+            SANCTUM_COLLAPSE.ZONE_LOCKOUT_TURNS > 0 &&
+            SANCTUM_COLLAPSE.LAVA_FREEZE_TURNS > 0 &&
+            draft.lavaFreezeUntilTurn > 0 &&
+            draft.turn < draft.lavaFreezeUntilTurn;
+
+          if (!lavaFrozen) {
+            draft.turnsUntilLavaAdvance -= 1;
+          }
         });
 
         if (shouldLavaAdvance(computedState)) {
@@ -1241,9 +1249,24 @@ export const useGameStore = create<GameStore>()(
             }
             // Apply lockout
             state.zoneLockoutUntilTurn[event.zone] = event.lockoutUntilTurn;
+            // Apply freeze fields
+            if (event.spawnFreezeUntilTurn > 0) {
+              state.spawnFreezeUntilTurn = Math.max(state.spawnFreezeUntilTurn, event.spawnFreezeUntilTurn);
+            }
+            if (event.lavaFreezeUntilTurn > 0) {
+              state.lavaFreezeUntilTurn = Math.max(state.lavaFreezeUntilTurn, event.lavaFreezeUntilTurn);
+            }
             // Notification floater on the sanctum tile
+            const parts: string[] = [`🌋 Zone ${event.zone} purged!`];
+            if (event.spawnFreezeUntilTurn > state.turn) {
+              parts.push(`Spawns frozen (${event.spawnFreezeUntilTurn - state.turn}t)`);
+            }
+            if (event.lavaFreezeUntilTurn > state.turn) {
+              parts.push(`Lava paused (${event.lavaFreezeUntilTurn - state.turn}t)`);
+            }
+            const label = parts.join(' · ');
             useFloaterStore.getState().addFloater({
-              label: `🌋 Zone ${event.zone} purged! (${event.lockoutUntilTurn - state.turn} turns)`,
+              label,
               value: 0,
               x: event.sanctumPosition.x,
               y: event.sanctumPosition.y,

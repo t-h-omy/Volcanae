@@ -16,7 +16,7 @@ import type { GameState } from './types';
 const SAVE_KEY = 'volcanae-save';
 
 /** Increment this whenever the serialized shape changes incompatibly. */
-const SAVE_VERSION = 6;
+const SAVE_VERSION = 7;
 
 // ============================================================================
 // PUBLIC API

@@ -352,6 +352,23 @@ export function triggerSanctumCollapse(
   const lockoutUntilTurn = state.turn + SANCTUM_COLLAPSE.ZONE_LOCKOUT_TURNS;
   state.zoneLockoutUntilTurn[zone] = lockoutUntilTurn;
 
+  // Spawn freeze
+  if (SANCTUM_COLLAPSE.SPAWN_FREEZE_TURNS > 0) {
+    // Extend if a freeze is already active; never shorten an existing freeze.
+    const newSpawnFreeze = state.turn + SANCTUM_COLLAPSE.SPAWN_FREEZE_TURNS;
+    if (newSpawnFreeze > (state.spawnFreezeUntilTurn ?? 0)) {
+      state.spawnFreezeUntilTurn = newSpawnFreeze;
+    }
+  }
+
+  // Lava freeze
+  if (SANCTUM_COLLAPSE.LAVA_FREEZE_TURNS > 0) {
+    const newLavaFreeze = state.turn + SANCTUM_COLLAPSE.LAVA_FREEZE_TURNS;
+    if (newLavaFreeze > (state.lavaFreezeUntilTurn ?? 0)) {
+      state.lavaFreezeUntilTurn = newLavaFreeze;
+    }
+  }
+
   // Emit SANCTUM_COLLAPSE event
   events.push({
     type: 'SANCTUM_COLLAPSE',
@@ -359,6 +376,8 @@ export function triggerSanctumCollapse(
     zone,
     purgedUnitIds,
     lockoutUntilTurn,
+    spawnFreezeUntilTurn: state.spawnFreezeUntilTurn,
+    lavaFreezeUntilTurn: state.lavaFreezeUntilTurn,
   });
 }
 
