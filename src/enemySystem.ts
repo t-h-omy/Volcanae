@@ -510,6 +510,13 @@ function spawnEnemyUnits(state: Draft<GameState>, events?: GameEvent[]): void {
     if (building.faction !== Faction.ENEMY) continue;
     if (!isRecruitmentBuilding(building)) continue;
 
+    // Per-building spawn cooldown: skip this building for one turn after its
+    // defender was killed, giving the player a window to move onto the tile.
+    if (building.spawnCooldownRemaining > 0) {
+      building.spawnCooldownRemaining -= 1;
+      continue;
+    }
+
     // Score recruitment fresh each time so already-spawned units affect composition
     const scored = scoreRecruitmentForBuilding(state, building);
     const unitType: UnitType = scored[0]?.type ?? BUILDING_SPAWN_UNIT_TYPE[building.type] ?? UnitType.LAVA_GRUNT;
