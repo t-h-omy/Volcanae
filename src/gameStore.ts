@@ -35,7 +35,7 @@ import { useAnimationStore } from './animationStore';
 import { Faction, GamePhase, BuildingType, TileType, Difficulty } from './types';
 import type { GameState, UnitType, Position, TechId } from './types';
 import type { GameEvent } from './gameEvents';
-import { MAP, POPULATION, BUILDINGS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, getLavaAdvanceInterval } from './gameConfig';
+import { MAP, POPULATION, BUILDINGS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval } from './gameConfig';
 import { saveGameState, loadGameState, clearSavedGame, hasSavedGame } from './saveSystem';
 import { computeLevelFromXp, applyLevelUps } from './levelSystem';
 import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLogic } from './techSystem';
@@ -508,13 +508,18 @@ export const useGameStore = create<GameStore>()(
     },
 
     captureBuilding: (unitId: string, buildingId: string) => {
+      const collapseEvents: GameEvent[] = [];
       set((state) => {
-        initiateCaptureLogic(state, unitId, buildingId);
+        initiateCaptureLogic(state, unitId, buildingId, undefined, collapseEvents);
         // Update tile discovery after player action
         updateDiscovery(state);
         // Check win/loss conditions after player action
         checkGameConditions(state);
       });
+      // Apply any sanctum collapse events (floaters and stats)
+      for (const ev of collapseEvents) {
+        useGameStore.getState().applyEvent(ev);
+      }
     },
 
     recruitUnit: (buildingId: string, unitType: UnitType) => {
@@ -708,6 +713,15 @@ export const useGameStore = create<GameStore>()(
           // Check threat level
           if (draft.turn > 0 && draft.turn % ENEMY.THREAT_LEVEL_INCREASE_INTERVAL === 0) {
             draft.threatLevel += 1;
+          }
+
+          // Expire elapsed zone lockouts
+          if (SANCTUM_COLLAPSE.ZONE_LOCKOUT_TURNS > 0) {
+            for (const zone of Object.keys(draft.zoneLockoutUntilTurn) as unknown as number[]) {
+              if ((draft.zoneLockoutUntilTurn[zone] ?? 0) <= draft.turn) {
+                delete draft.zoneLockoutUntilTurn[zone];
+              }
+            }
           }
 
           // Increment turn counter
@@ -1212,6 +1226,31 @@ export const useGameStore = create<GameStore>()(
             advanceLava(state);
             break;
           }
+
+          case 'SANCTUM_COLLAPSE': {
+            // Purge units
+            for (const unitId of event.purgedUnitIds) {
+              const unit = state.units[unitId];
+              if (unit) {
+                const tile = state.grid[unit.position.y][unit.position.x];
+                if (tile.unitId === unitId) tile.unitId = null;
+                delete state.units[unitId];
+                state.gameStats.unitsKilled += 1;
+              }
+            }
+            // Apply lockout
+            state.zoneLockoutUntilTurn[event.zone] = event.lockoutUntilTurn;
+            // Notification floater on the sanctum tile
+            useFloaterStore.getState().addFloater({
+              label: `🌋 Zone ${event.zone} purged! (${event.lockoutUntilTurn - state.turn} turns)`,
+              value: 0,
+              x: event.sanctumPosition.x,
+              y: event.sanctumPosition.y,
+              isEnemy: false,
+              floaterType: 'xp',
+            });
+            break;
+          }
         }
       });
     },
@@ -1357,6 +1396,7 @@ export const useGameStore = create<GameStore>()(
                 recruitmentQueue: null,
                 destroyBehavior: BUILDINGS.DESTROY_BEHAVIOR[BuildingType.FARM],
                 resonanceTurnsRemaining: 0,
+                spawnCooldownRemaining: 0,
               };
               state.buildings[building.id] = building;
               tile.buildingId = building.id;

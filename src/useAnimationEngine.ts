@@ -53,6 +53,8 @@ function eventPosition(event: GameEvent): Position {
       return { x: Math.floor(MAP.GRID_WIDTH / 2), y: event.newLavaRow };
     case 'RESONANCE_TRIGGERED':
       return event.destroyedChamberPosition;
+    case 'SANCTUM_COLLAPSE':
+      return event.sanctumPosition;
   }
 }
 
@@ -100,6 +102,8 @@ function isEventVisible(event: GameEvent): boolean {
     }
     case 'RESONANCE_TRIGGERED':
       return isTileRevealed(event.destroyedChamberPosition);
+    case 'SANCTUM_COLLAPSE':
+      return isTileRevealed(event.sanctumPosition);
   }
 }
 

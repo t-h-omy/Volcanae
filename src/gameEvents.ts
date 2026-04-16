@@ -104,4 +104,15 @@ export type GameEvent =
       destroyedChamberPosition: Position;
       survivingChamberIds: string[];
       resonanceDuration: number;
+    }
+  | {
+      type: 'SANCTUM_COLLAPSE';
+      /** Position of the captured INFERNALSANCTUM building */
+      sanctumPosition: Position;
+      /** Zone number (1–5) in which the collapse occurred */
+      zone: number;
+      /** IDs of enemy units purged from the zone */
+      purgedUnitIds: string[];
+      /** Turn number on which the zone lockout expires (state.turn + ZONE_LOCKOUT_TURNS) */
+      lockoutUntilTurn: number;
     };

@@ -154,6 +154,7 @@ export function corruptTerrain(
     recruitmentQueue: null,
     destroyBehavior: BUILDINGS.DESTROY_BEHAVIOR[buildingType],
     resonanceTurnsRemaining: 0,
+    spawnCooldownRemaining: 0,
   };
 
   // Add building to state

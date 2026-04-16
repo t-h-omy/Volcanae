@@ -6,7 +6,8 @@
 import type { GameState, Position } from './types';
 import type { Draft } from 'immer';
 import { BuildingType, UnitTag, Faction, DestroyBehavior } from './types';
-import { MAP, XP, TECH } from './gameConfig';
+import type { GameEvent } from './gameEvents';
+import { MAP, XP, TECH, SANCTUM_COLLAPSE } from './gameConfig';
 import { increaseThreatOnStrongholdCapture } from './enemySystem';
 import { grantXp } from './levelSystem';
 import { grantArcaneCrystals, getStrongholdCapMods } from './techSystem';
@@ -175,6 +176,7 @@ export function initiateCapture(
   unitId: string,
   buildingId: string,
   suppressEffects?: boolean,
+  events?: GameEvent[],
 ): void {
   // Validate capture is allowed
   if (!canCapture(state, unitId, buildingId)) {
@@ -193,7 +195,7 @@ export function initiateCapture(
   // STRONGHOLD and WATCHTOWER captured by the player: transfer ownership instead of destroying
   const isPlayerTransfer =
     unitFaction === Faction.PLAYER &&
-    (building.type === BuildingType.STRONGHOLD || building.type === BuildingType.WATCHTOWER);
+    (building.type === BuildingType.STRONGHOLD || building.type === BuildingType.WATCHTOWER || building.type === BuildingType.INFERNALSANCTUM);
 
   if (isPlayerTransfer) {
     // Transfer ownership — building stays on the tile
@@ -213,6 +215,10 @@ export function initiateCapture(
       if (farmerMod + nobleMod > 0) {
         building.populationCap += farmerMod + nobleMod;
       }
+    }
+
+    if (building.type === BuildingType.INFERNALSANCTUM) {
+      triggerSanctumCollapse(state, building.position, events ?? []);
     }
 
     // Grant XP to player unit for capturing the building (if it still exists)
@@ -290,6 +296,70 @@ export function initiateCapture(
 
   // Grant XP for capturing/destroying the building
   grantXp(state, unitId, XP.CAPTURE_BUILDING, suppressEffects);
+}
+
+/**
+ * Executes the Sanctum Collapse effect when a player captures an INFERNALSANCTUM.
+ *
+ * 1. Determines the zone of the captured sanctum using the local getZoneForPosition helper.
+ * 2. Purges all ENEMY faction units whose position falls within that zone's row range.
+ *    Each purged unit is removed from state.units and its tile cleared.
+ *    Emit one UNIT_DEATH event per purged unit.
+ * 3. Sets state.zoneLockoutUntilTurn[zone] = state.turn + SANCTUM_COLLAPSE.ZONE_LOCKOUT_TURNS.
+ * 4. Emits one SANCTUM_COLLAPSE event with all purged unit IDs and the lockout turn.
+ *
+ * Does nothing (returns immediately) if SANCTUM_COLLAPSE.ZONE_LOCKOUT_TURNS === 0.
+ */
+export function triggerSanctumCollapse(
+  state: Draft<GameState>,
+  sanctumPosition: Position,
+  events: GameEvent[],
+): void {
+  if ((SANCTUM_COLLAPSE.ZONE_LOCKOUT_TURNS as number) === 0) return;
+
+  const zone = getZoneForPosition(sanctumPosition);
+  if (zone === 0) return; // lava buffer, no valid zone
+
+  // Compute zone row range
+  const startRow = MAP.GRID_HEIGHT - MAP.LAVA_BUFFER_ROWS - zone * MAP.ZONE_HEIGHT;
+  const endRow = startRow + MAP.ZONE_HEIGHT - 1;
+
+  // Purge all enemy units in this zone
+  const purgedUnitIds: string[] = [];
+  for (const unit of Object.values(state.units)) {
+    if (unit.faction !== Faction.ENEMY) continue;
+    if (unit.position.y >= startRow && unit.position.y <= endRow) {
+      purgedUnitIds.push(unit.id);
+
+      // Emit UNIT_DEATH event
+      events.push({
+        type: 'UNIT_DEATH',
+        unitId: unit.id,
+        position: { x: unit.position.x, y: unit.position.y },
+        faction: Faction.ENEMY,
+      });
+
+      // Clear tile
+      const tile = state.grid[unit.position.y][unit.position.x];
+      if (tile.unitId === unit.id) {
+        tile.unitId = null;
+      }
+      delete state.units[unit.id];
+    }
+  }
+
+  // Set zone lockout
+  const lockoutUntilTurn = state.turn + SANCTUM_COLLAPSE.ZONE_LOCKOUT_TURNS;
+  state.zoneLockoutUntilTurn[zone] = lockoutUntilTurn;
+
+  // Emit SANCTUM_COLLAPSE event
+  events.push({
+    type: 'SANCTUM_COLLAPSE',
+    sanctumPosition: { x: sanctumPosition.x, y: sanctumPosition.y },
+    zone,
+    purgedUnitIds,
+    lockoutUntilTurn,
+  });
 }
 
 // ============================================================================

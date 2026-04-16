@@ -196,10 +196,9 @@ function createBuilding(
     recruitmentQueue: null,
     destroyBehavior: BUILDINGS.DESTROY_BEHAVIOR[type],
     resonanceTurnsRemaining: 0,
+    spawnCooldownRemaining: 0,
   };
-}
-
-/**
+}/**
  * Generates all buildings for a zone.
  * - Zone 1: PLAYER STRONGHOLD building + optional WATCHTOWER.
  * - Zones 2-3: marks the stronghold position as a stronghold ruin on the grid (no building created) + optional WATCHTOWER.
@@ -659,6 +658,7 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
     },
     enemyUnitsSpawnedLastTurn: 0,
     difficulty,
+    zoneLockoutUntilTurn: {},
   };
 
   // Auto-apply CONSCRIPTION effects (unlocked at game start, not a pick)

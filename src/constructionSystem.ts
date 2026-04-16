@@ -333,6 +333,7 @@ function createBuildingObject(
     recruitmentQueue: null,
     destroyBehavior: BUILDINGS.DESTROY_BEHAVIOR[type],
     resonanceTurnsRemaining: 0,
+    spawnCooldownRemaining: 0,
   };
 }
 
