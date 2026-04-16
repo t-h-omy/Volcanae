@@ -113,6 +113,8 @@ export type GameEvent =
       zone: number;
       /** IDs of enemy units purged from the zone */
       purgedUnitIds: string[];
+      /** IDs of enemy buildings destroyed in the zone */
+      destroyedBuildingIds: string[];
       /** Turn number on which the zone lockout expires (state.turn + ZONE_LOCKOUT_TURNS) */
       lockoutUntilTurn: number;
       /** Turn on which spawn freeze expires (0 if SPAWN_FREEZE_TURNS === 0) */

@@ -306,8 +306,11 @@ export function initiateCapture(
  * 2. Purges all ENEMY faction units whose position falls within that zone's row range.
  *    Each purged unit is removed from state.units and its tile cleared.
  *    Emit one UNIT_DEATH event per purged unit.
- * 3. Sets state.zoneLockoutUntilTurn[zone] = state.turn + SANCTUM_COLLAPSE.ZONE_LOCKOUT_TURNS.
- * 4. Emits one SANCTUM_COLLAPSE event with all purged unit IDs and the lockout turn.
+ * 3. Destroys all ENEMY faction buildings whose position falls within that zone's row range.
+ *    Each destroyed building is removed from state.buildings, its tile cleared,
+ *    and the appropriate destroy behavior (ruin / stronghold ruin) is applied.
+ * 4. Sets state.zoneLockoutUntilTurn[zone] = state.turn + SANCTUM_COLLAPSE.ZONE_LOCKOUT_TURNS.
+ * 5. Emits one SANCTUM_COLLAPSE event with all purged unit IDs, destroyed building IDs, and the lockout turn.
  *
  * Does nothing (returns immediately) if SANCTUM_COLLAPSE.ZONE_LOCKOUT_TURNS === 0.
  */
@@ -349,6 +352,36 @@ export function triggerSanctumCollapse(
     }
   }
 
+  // Destroy all enemy-owned buildings in this zone
+  const destroyedBuildingIds: string[] = [];
+  for (const building of Object.values(state.buildings)) {
+    if (building.faction !== Faction.ENEMY) continue;
+    if (building.position.y >= startRow && building.position.y <= endRow) {
+      destroyedBuildingIds.push(building.id);
+
+      // Handle specialist: specialist is lost when enemy building is destroyed by collapse
+      if (building.specialistSlot) {
+        const specialistId = building.specialistSlot;
+        if (state.specialists[specialistId]) {
+          delete state.specialists[specialistId];
+        }
+      }
+
+      // Apply destroy behavior to the tile
+      const tile = state.grid[building.position.y][building.position.x];
+      const destroyBehavior = building.destroyBehavior;
+      tile.buildingId = null;
+      if (destroyBehavior === DestroyBehavior.STRONGHOLD_RUIN) {
+        tile.isStrongholdRuin = true;
+      } else if (destroyBehavior === DestroyBehavior.RUIN) {
+        tile.isRuin = true;
+      }
+      // DestroyBehavior.NONE / DestroyBehavior.RESOURCE: no ruin — terrain is restored naturally
+
+      delete state.buildings[building.id];
+    }
+  }
+
   // Set zone lockout
   const lockoutUntilTurn = state.turn + SANCTUM_COLLAPSE.ZONE_LOCKOUT_TURNS;
   state.zoneLockoutUntilTurn[zone] = lockoutUntilTurn;
@@ -376,6 +409,7 @@ export function triggerSanctumCollapse(
     sanctumPosition: { x: sanctumPosition.x, y: sanctumPosition.y },
     zone,
     purgedUnitIds,
+    destroyedBuildingIds,
     lockoutUntilTurn,
     spawnFreezeUntilTurn: state.spawnFreezeUntilTurn,
     lavaFreezeUntilTurn: state.lavaFreezeUntilTurn,

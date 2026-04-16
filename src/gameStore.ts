@@ -32,7 +32,7 @@ import {
 import { checkGameConditions } from './gameConditions';
 import { useFloaterStore } from './floaterStore';
 import { useAnimationStore } from './animationStore';
-import { Faction, GamePhase, BuildingType, TileType, Difficulty } from './types';
+import { Faction, GamePhase, BuildingType, TileType, Difficulty, DestroyBehavior } from './types';
 import type { GameState, UnitType, Position, TechId } from './types';
 import type { GameEvent } from './gameEvents';
 import { MAP, POPULATION, BUILDINGS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval } from './gameConfig';
@@ -1245,6 +1245,22 @@ export const useGameStore = create<GameStore>()(
                 if (tile.unitId === unitId) tile.unitId = null;
                 delete state.units[unitId];
                 state.gameStats.unitsKilled += 1;
+              }
+            }
+            // Destroy enemy buildings
+            for (const buildingId of event.destroyedBuildingIds) {
+              const building = state.buildings[buildingId];
+              if (building) {
+                const tile = state.grid[building.position.y][building.position.x];
+                tile.buildingId = null;
+                const destroyBehavior = building.destroyBehavior;
+                if (destroyBehavior === DestroyBehavior.STRONGHOLD_RUIN) {
+                  tile.isStrongholdRuin = true;
+                } else if (destroyBehavior === DestroyBehavior.RUIN) {
+                  tile.isRuin = true;
+                }
+                delete state.buildings[buildingId];
+                state.gameStats.enemyBuildingsDestroyed += 1;
               }
             }
             // Apply lockout
