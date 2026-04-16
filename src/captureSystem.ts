@@ -195,7 +195,7 @@ export function initiateCapture(
   // STRONGHOLD and WATCHTOWER captured by the player: transfer ownership instead of destroying
   const isPlayerTransfer =
     unitFaction === Faction.PLAYER &&
-    (building.type === BuildingType.STRONGHOLD || building.type === BuildingType.WATCHTOWER || building.type === BuildingType.INFERNALSANCTUM);
+    (building.type === BuildingType.STRONGHOLD || building.type === BuildingType.WATCHTOWER);
 
   if (isPlayerTransfer) {
     // Transfer ownership — building stays on the tile
@@ -215,10 +215,6 @@ export function initiateCapture(
       if (farmerMod + nobleMod > 0) {
         building.populationCap += farmerMod + nobleMod;
       }
-    }
-
-    if (building.type === BuildingType.INFERNALSANCTUM) {
-      triggerSanctumCollapse(state, building.position, events ?? []);
     }
 
     // Grant XP to player unit for capturing the building (if it still exists)
@@ -292,6 +288,11 @@ export function initiateCapture(
     if (unitFaction === Faction.PLAYER) {
       increaseThreatOnStrongholdCapture(state);
     }
+  }
+
+  // If it was an Infernal Sanctum captured by the player, trigger Sanctum Collapse
+  if (buildingType === BuildingType.INFERNALSANCTUM && unitFaction === Faction.PLAYER) {
+    triggerSanctumCollapse(state, { x, y }, events ?? []);
   }
 
   // Grant XP for capturing/destroying the building

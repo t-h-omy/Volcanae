@@ -284,19 +284,6 @@
   pointer-events: none;
 }
 
-/* ── Captured building faction badge ── */
-
-.captured-badge {
-  position: absolute;
-  top: 1px;
-  right: 1px;
-  font-size: 10px;
-  line-height: 1;
-  z-index: 3;
-  pointer-events: none;
-  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.7));
-}
-
 /* ── Emberling hover explosion icon ── */
 
 .emberling-hover-explosion {
