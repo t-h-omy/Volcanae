@@ -717,7 +717,8 @@ export const useGameStore = create<GameStore>()(
 
           // Expire elapsed zone lockouts
           if (SANCTUM_COLLAPSE.ZONE_LOCKOUT_TURNS > 0) {
-            for (const zone of Object.keys(draft.zoneLockoutUntilTurn) as unknown as number[]) {
+            for (const zoneKey of Object.keys(draft.zoneLockoutUntilTurn)) {
+              const zone = Number(zoneKey);
               if ((draft.zoneLockoutUntilTurn[zone] ?? 0) <= draft.turn) {
                 delete draft.zoneLockoutUntilTurn[zone];
               }
