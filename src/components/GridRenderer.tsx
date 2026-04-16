@@ -949,6 +949,12 @@ function TileCellInner({
         </div>
       )}
 
+      {/* Faction badge for captured enemy spawner buildings (no faction-specific sprite) */}
+      {showBuilding && building && building.faction === Faction.PLAYER &&
+        (building.type === BuildingType.INFERNALSANCTUM || building.type === BuildingType.LAVALAIR) && (
+        <div className="captured-badge">✅</div>
+      )}
+
       {/* unit rendering */}
       {showUnit && unit && <UnitBadge unit={unit} tileSize={tileSize} />}
     </div>

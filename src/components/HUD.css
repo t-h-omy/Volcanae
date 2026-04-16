@@ -344,6 +344,15 @@
   cursor: not-allowed;
 }
 
+.hud-building-on-tile {
+  padding: 4px 8px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(46, 204, 113, 0.15);
+  border-radius: 4px;
+  margin-top: 4px;
+}
+
 .hud-heal-active {
   background: rgba(46, 204, 113, 0.55);
   border-color: rgba(46, 204, 113, 0.7);

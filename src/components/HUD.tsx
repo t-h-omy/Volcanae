@@ -759,10 +759,12 @@ function SelectedUnitPanel({
   unit,
   captureTarget,
   onCapture,
+  buildingOnTile,
 }: {
   unit: Unit;
   captureTarget?: Building;
   onCapture?: () => void;
+  buildingOnTile?: Building;
 }) {
   const isPlayer = unit.faction === Faction.PLAYER;
   const hpPct = (unit.stats.currentHp / unit.stats.maxHp) * 100;
@@ -938,6 +940,11 @@ function SelectedUnitPanel({
                   : `🏳️ Capture ${BUILDING_NAME[captureTarget.type] ?? captureTarget.type}`}
               </button>
             </>
+          )}
+          {!captureTarget && buildingOnTile && buildingOnTile.faction === Faction.PLAYER && (
+            <div className="hud-building-on-tile">
+              ✅ {BUILDING_NAME[buildingOnTile.type] ?? buildingOnTile.type} (captured)
+            </div>
           )}
           {canHeal && (
             <button
@@ -1590,6 +1597,14 @@ function BottomBar() {
 
   const captureTargetId = captureTarget?.id;
 
+  // Find building on the selected unit's tile (regardless of faction)
+  const buildingOnTile: Building | undefined = useMemo(() => {
+    if (!selectedUnit) return undefined;
+    const tile = grid[selectedUnit.position.y]?.[selectedUnit.position.x];
+    if (!tile?.buildingId) return undefined;
+    return buildings[tile.buildingId];
+  }, [selectedUnit, grid, buildings]);
+
   const handleCapture = useCallback(() => {
     if (selectedUnitId && captureTargetId) {
       captureBuilding(selectedUnitId, captureTargetId);
@@ -1616,6 +1631,7 @@ function BottomBar() {
           unit={selectedUnit}
           captureTarget={captureTarget}
           onCapture={handleCapture}
+          buildingOnTile={buildingOnTile}
         />
       )}
       {/* Construction panel for BUILD_AND_CAPTURE units on constructable tiles */}
