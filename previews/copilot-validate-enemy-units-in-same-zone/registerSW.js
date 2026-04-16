@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/Volcanae/previews/copilot-validate-enemy-units-in-same-zone/sw.js', { scope: '/Volcanae/previews/copilot-validate-enemy-units-in-same-zone/' })})}
