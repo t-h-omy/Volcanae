@@ -32,7 +32,7 @@ import {
 import { checkGameConditions } from './gameConditions';
 import { useFloaterStore } from './floaterStore';
 import { useAnimationStore } from './animationStore';
-import { Faction, GamePhase, BuildingType, TileType, Difficulty, UnitTag } from './types';
+import { Faction, GamePhase, BuildingType, TileType, Difficulty } from './types';
 import type { GameState, UnitType, Position, TechId } from './types';
 import type { GameEvent } from './gameEvents';
 import { MAP, POPULATION, BUILDINGS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval } from './gameConfig';
@@ -261,35 +261,9 @@ export const useGameStore = create<GameStore>()(
         // without nesting immer producers (same pattern as endPlayerTurn).
         const snapshot: GameState = current(state);
 
-        // Compute the resolved state (post-attack) on the snapshot.
-        // If a melee BUILDANDCAPTURE player unit advances onto an enemy
-        // spawner building (INFERNALSANCTUM / LAVALAIR) after killing its
-        // defender, automatically capture the building in the same action.
-        const captureEvents: GameEvent[] = [];
+        // Compute the resolved state (post-attack) on the snapshot
         const resolvedState = produce(snapshot, (draft) => {
           resolveAttack(draft, attackerId, targetId, true);
-
-          // Auto-capture spawner buildings on melee advance
-          const atk = draft.units[attackerId];
-          if (
-            atk &&
-            atk.faction === Faction.PLAYER &&
-            atk.tags.includes(UnitTag.BUILDANDCAPTURE) &&
-            (atk.position.x !== attackerPosition.x || atk.position.y !== attackerPosition.y)
-          ) {
-            const advTile = draft.grid[atk.position.y][atk.position.x];
-            if (advTile.buildingId) {
-              const bld = draft.buildings[advTile.buildingId];
-              if (
-                bld &&
-                bld.faction === Faction.ENEMY &&
-                (bld.type === BuildingType.INFERNALSANCTUM || bld.type === BuildingType.LAVALAIR)
-              ) {
-                initiateCaptureLogic(draft, attackerId, advTile.buildingId, true, captureEvents);
-              }
-            }
-          }
-
           updateDiscovery(draft);
           checkGameConditions(draft);
         });
@@ -331,11 +305,6 @@ export const useGameStore = create<GameStore>()(
         }
         if (!attackerAfter) {
           events.push({ type: 'UNIT_DEATH', unitId: attackerId, position: attackerPosition, faction: attackerFaction });
-        }
-
-        // Add sanctum-collapse / capture events (UNIT_DEATH for purged enemies, SANCTUM_COLLAPSE)
-        if (captureEvents.length > 0) {
-          events.push(...captureEvents);
         }
 
         pendingEvents = events;
