@@ -17,7 +17,7 @@ export type UnitAnimationState =
   | { type: 'LEVEL_UP' }
   | { type: 'XP_GAIN' };
 
-export type BuildingAnimationState = 'CRYSTAL_ACTIVATE';
+export type BuildingAnimationState = 'CRYSTAL_ACTIVATE' | 'SANCTUM_SHATTER';
 
 export interface Projectile {
   id: string;
@@ -32,6 +32,8 @@ interface CombatAnimationState {
   unitAnimations: Map<string, UnitAnimationState>;
   buildingAnimations: Map<string, BuildingAnimationState>;
   projectiles: Projectile[];
+  /** Active per-tile flash bursts, keyed by "x,y" */
+  tileFlashes: Map<string, { durationMs: number }>;
 }
 
 interface CombatAnimationActions {
@@ -39,6 +41,8 @@ interface CombatAnimationActions {
   setBuildingAnimation: (buildingId: string, anim: BuildingAnimationState | null) => void;
   addProjectile: (p: Projectile) => void;
   removeProjectile: (id: string) => void;
+  addTileFlash: (x: number, y: number, durationMs: number) => void;
+  removeTileFlash: (key: string) => void;
 }
 
 type CombatAnimationStore = CombatAnimationState & CombatAnimationActions;
@@ -51,6 +55,7 @@ export const useCombatAnimationStore = create<CombatAnimationStore>((set) => ({
   unitAnimations: new Map(),
   buildingAnimations: new Map(),
   projectiles: [],
+  tileFlashes: new Map(),
 
   setUnitAnimation: (unitId, anim) => {
     set((state) => {
@@ -84,5 +89,21 @@ export const useCombatAnimationStore = create<CombatAnimationStore>((set) => ({
     set((state) => ({
       projectiles: state.projectiles.filter((p) => p.id !== id),
     }));
+  },
+
+  addTileFlash: (x, y, durationMs) => {
+    set((state) => {
+      const next = new Map(state.tileFlashes);
+      next.set(`${x},${y}`, { durationMs });
+      return { tileFlashes: next };
+    });
+  },
+
+  removeTileFlash: (key) => {
+    set((state) => {
+      const next = new Map(state.tileFlashes);
+      next.delete(key);
+      return { tileFlashes: next };
+    });
   },
 }));

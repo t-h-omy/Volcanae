@@ -121,4 +121,15 @@ export type GameEvent =
       spawnFreezeUntilTurn: number;
       /** Turn on which lava freeze expires (0 if LAVA_FREEZE_TURNS === 0) */
       lavaFreezeUntilTurn: number;
+    }
+  | {
+      type: 'ZONE_CLEARED';
+      /** Zone number (1–5) that was cleared */
+      zone: number;
+      /** Tile the Infernum Sanctum was on */
+      sanctumPosition: Position;
+      /** Positions of all wiped enemy units */
+      clearedUnitPositions: Position[];
+      /** Positions of all wiped enemy buildings */
+      clearedBuildingPositions: Position[];
     };

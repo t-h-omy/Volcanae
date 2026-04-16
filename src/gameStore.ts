@@ -1291,6 +1291,10 @@ export const useGameStore = create<GameStore>()(
             });
             break;
           }
+
+          case 'ZONE_CLEARED':
+            // All state mutations already applied during cascade — event is presentation-only.
+            break;
         }
       });
     },

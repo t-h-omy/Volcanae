@@ -9,6 +9,7 @@ import { useFloaterStore } from '../floaterStore';
 import { useAnimationStore } from '../animationStore';
 import { useCombatAnimationStore } from '../combatAnimationStore';
 import type { Projectile } from '../combatAnimationStore';
+import { useShockwaveStore } from '../shockwaveStore';
 import { canCapture } from '../captureSystem';
 import { getConstructionOptionsForTile } from '../constructionSystem';
 import { MAP, UNIT_LEVEL_UP } from '../gameConfig';
@@ -703,6 +704,7 @@ export default function GridRenderer() {
         <LevelUpIndicatorLayer tileSize={tileSize} />
         <DamageFloaterLayer tileSize={tileSize} />
         <ProjectileLayer />
+        <ShockwaveLayer />
       </div>
       <div className="zoom-controls">
         <button onClick={() => handleZoomButton(-RENDER.ZOOM_STEP)}>−</button>
@@ -818,6 +820,10 @@ function TileCellInner({
     (s) => building !== undefined && s.buildingAnimations.get(building.id) === 'CRYSTAL_ACTIVATE',
   );
 
+  const tileFlashEntry = useCombatAnimationStore(
+    (s) => s.tileFlashes.get(`${tile.position.x},${tile.position.y}`),
+  );
+
   // Building sprite selection:
   // - Enemy buildings use ENEMY_BUILDING_SPRITE when a faction-specific override exists.
   // - Player buildings use PLAYER_BUILDING_SPRITE when a faction-specific override exists.
@@ -905,6 +911,14 @@ function TileCellInner({
 
       {/* crystal chamber activation VFX overlay */}
       {isCrystalActivating && <div className="tile-crystal-activate-overlay" />}
+
+      {/* zone cleared per-tile flash overlay */}
+      {tileFlashEntry && (
+        <div
+          className="tile-clear-flash-overlay"
+          style={{ '--tile-clear-flash-duration': `${tileFlashEntry.durationMs}ms` } as React.CSSProperties}
+        />
+      )}
 
       {/* building sprite or missing-sprite */}
       {showBuilding && building && (
@@ -1321,5 +1335,30 @@ function ProjectileSprite({
     >
       {projectile.emoji}
     </span>
+  );
+}
+
+// ============================================================================
+// SHOCKWAVE LAYER
+// ============================================================================
+
+function ShockwaveLayer() {
+  const shockwaves = useShockwaveStore((s) => s.shockwaves);
+  const remove = useShockwaveStore((s) => s.removeShockwave);
+  return (
+    <div className="shockwave-layer">
+      {shockwaves.map((sw) => (
+        <div
+          key={sw.id}
+          className="shockwave-ring"
+          style={{
+            left: sw.cx,
+            top: sw.cy,
+            '--shockwave-duration': `${sw.durationMs}ms`,
+          } as React.CSSProperties}
+          onAnimationEnd={() => remove(sw.id)}
+        />
+      ))}
+    </div>
   );
 }

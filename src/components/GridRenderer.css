@@ -642,3 +642,61 @@
   55%  { filter: brightness(1.5) drop-shadow(0 0 8px  rgba(100, 210, 255, 0.7)); }
   100% { filter: brightness(1)   drop-shadow(0 0 0px  rgba(100, 210, 255, 0)); }
 }
+
+/* ── Shockwave layer (zone cleared) ── */
+
+.shockwave-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 12;
+}
+
+.shockwave-ring {
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 3px rgba(255, 210, 80, 0.9),
+    0 0 12px 4px rgba(255, 140, 20, 0.6);
+  transform: translate(-50%, -50%) scale(0);
+  animation: shockwaveExpand var(--shockwave-duration, 700ms) ease-out forwards;
+}
+
+.shockwave-ring::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(255, 100, 20, 0.5);
+  animation: shockwaveExpand var(--shockwave-duration, 700ms) 80ms ease-out forwards;
+}
+
+@keyframes shockwaveExpand {
+  0%   { transform: translate(-50%, -50%) scale(0);   opacity: 1; }
+  60%  { opacity: 0.6; }
+  100% { transform: translate(-50%, -50%) scale(6.5); opacity: 0; }
+}
+
+/* ── Per-tile cleared flash burst (zone cleared) ── */
+
+.tile-clear-flash-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(255, 240, 120, 0.95) 0%,
+    rgba(255, 100, 20,  0.7)  45%,
+    transparent               80%
+  );
+  animation: tileClearFlash var(--tile-clear-flash-duration, 500ms) ease-out forwards;
+}
+
+@keyframes tileClearFlash {
+  0%   { opacity: 0; transform: scale(0.4); }
+  20%  { opacity: 1; transform: scale(1.1); }
+  100% { opacity: 0; transform: scale(1.0); }
+}

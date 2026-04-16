@@ -330,10 +330,12 @@ export function triggerSanctumCollapse(
 
   // Purge all enemy units in this zone
   const purgedUnitIds: string[] = [];
+  const clearedUnitPositions: Position[] = [];
   for (const unit of Object.values(state.units)) {
     if (unit.faction !== Faction.ENEMY) continue;
     if (unit.position.y >= startRow && unit.position.y <= endRow) {
       purgedUnitIds.push(unit.id);
+      clearedUnitPositions.push({ x: unit.position.x, y: unit.position.y });
 
       // Emit UNIT_DEATH event
       events.push({
@@ -354,10 +356,12 @@ export function triggerSanctumCollapse(
 
   // Destroy all enemy-owned buildings in this zone
   const destroyedBuildingIds: string[] = [];
+  const clearedBuildingPositions: Position[] = [];
   for (const building of Object.values(state.buildings)) {
     if (building.faction !== Faction.ENEMY) continue;
     if (building.position.y >= startRow && building.position.y <= endRow) {
       destroyedBuildingIds.push(building.id);
+      clearedBuildingPositions.push({ x: building.position.x, y: building.position.y });
 
       // Handle specialist: specialist is lost when enemy building is destroyed by collapse
       if (building.specialistSlot) {
@@ -413,6 +417,15 @@ export function triggerSanctumCollapse(
     lockoutUntilTurn,
     spawnFreezeUntilTurn: state.spawnFreezeUntilTurn,
     lavaFreezeUntilTurn: state.lavaFreezeUntilTurn,
+  });
+
+  // Emit ZONE_CLEARED event for visual celebration
+  events.push({
+    type: 'ZONE_CLEARED',
+    zone,
+    sanctumPosition: { x: sanctumPosition.x, y: sanctumPosition.y },
+    clearedUnitPositions,
+    clearedBuildingPositions,
   });
 }
 
