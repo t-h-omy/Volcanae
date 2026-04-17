@@ -454,6 +454,11 @@ export const AI_SCORING = {
    * candidate uses the MOVE_TO_SAFE_RANGED_POSITION action type and wins over
    * ATTACK_UNIT (75) in most cases, preventing archers from melee-attacking
    * instead of falling back to safety.
+   *
+   * Intentionally the same value as BASE_MOVE_TO_SAFE_RANGED_POSITION (88):
+   * a pure retreat and a move-then-attack should be equally preferred over a
+   * melee attack. Kept as a separate named constant so the two can be tuned
+   * independently if needed.
    */
   BASE_RETREAT_FROM_ADJACENT: 88,
 

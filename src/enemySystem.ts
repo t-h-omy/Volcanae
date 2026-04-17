@@ -1264,7 +1264,7 @@ function scoreActionsForUnit(
         if (isCurrentlyAdjacent) {
           candidates.push({
             type: 'MOVE_TO_SAFE_RANGED_POSITION',
-            score: Math.max(0, AI_SCORING.BASE_RETREAT_FROM_ADJACENT),
+            score: AI_SCORING.BASE_RETREAT_FROM_ADJACENT,
             targetPosition: bestSafeTile,
           });
         }
