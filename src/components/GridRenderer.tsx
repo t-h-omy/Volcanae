@@ -928,7 +928,7 @@ function TileCellInner({
       )}
 
       {/* building HP bar for attacking buildings (e.g. watchtower, magma spyr) */}
-      {showBuilding && building && building.combatStats && building.faction && (
+      {showBuilding && building && building.combatStats && building.faction && building.hp < building.maxHp && (
         <div
           className="hp-bar-wrapper building-hp-bar"
           style={
@@ -1028,18 +1028,22 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
         } as React.CSSProperties
       }
     >
-      <div
-        className="hp-bar-wrapper"
-        style={
-          {
-            '--color-hp-red': RENDER.COLORS.HP_RED,
-            '--color-hp-green': RENDER.COLORS.HP_GREEN,
-          } as React.CSSProperties
-        }
-      >
-        <div className="hp-bar-fill" style={{ width: `${hpPct}%` }} />
-      </div>
-      <span className="unit-hp-text">{unit.stats.currentHp}</span>
+      {unit.stats.currentHp < unit.stats.maxHp && (
+        <div
+          className="hp-bar-wrapper"
+          style={
+            {
+              '--color-hp-red': RENDER.COLORS.HP_RED,
+              '--color-hp-green': RENDER.COLORS.HP_GREEN,
+            } as React.CSSProperties
+          }
+        >
+          <div className="hp-bar-fill" style={{ width: `${hpPct}%` }} />
+        </div>
+      )}
+      {unit.stats.currentHp < unit.stats.maxHp && (
+        <span className="unit-hp-text">{unit.stats.currentHp}</span>
+      )}
       {UNIT_LEVEL_UP[unit.type] && (
         <span className="unit-xp-text">{unit.xp} xp</span>
       )}
