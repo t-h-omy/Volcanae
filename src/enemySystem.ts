@@ -1196,6 +1196,11 @@ function scoreActionsForUnit(
       let bestPairTile: Position | null = null;
       let bestPairTarget: Unit | null = null;
 
+      // Also track the best safe-only tile (no attack required) for a pure retreat
+      // fallback when no safe+attack pair is found but the archer is being melee'd.
+      let bestSafeTile: Position | null = null;
+      let bestSafeMinDist = -1;
+
       for (const dest of reachableTiles) {
         // Check no player unit at Chebyshev distance ≤ 1 from destination
         let adjacentPlayer = false;
@@ -1208,6 +1213,17 @@ function scoreActionsForUnit(
           }
         }
         if (adjacentPlayer) continue;
+
+        // Track the safe tile that is furthest from all player units (for pure retreat)
+        let minDist = Infinity;
+        for (const pu of allPlayerUnits) {
+          const d = manhattanDistance(dest, pu.position);
+          if (d < minDist) minDist = d;
+        }
+        if (minDist > bestSafeMinDist) {
+          bestSafeMinDist = minDist;
+          bestSafeTile = dest;
+        }
 
         // Find player units at manhattanDistance > 1 AND <= attackRange from destination
         for (const pu of allPlayerUnits) {
@@ -1235,6 +1251,23 @@ function scoreActionsForUnit(
           targetUnitId: bestPairTarget.id,
           targetPosition: bestPairTile,
         });
+      } else if (bestSafeTile) {
+        // No safe+attack pair was found. If the archer is currently adjacent to
+        // a player unit it should still retreat to safety rather than attacking
+        // melee. Generate a pure-retreat candidate so this action beats
+        // ATTACK_UNIT in the normal case (no kill available).
+        const isCurrentlyAdjacent = allPlayerUnits.some((pu) => {
+          const cdx = Math.abs(pu.position.x - unit.position.x);
+          const cdy = Math.abs(pu.position.y - unit.position.y);
+          return Math.max(cdx, cdy) <= 1;
+        });
+        if (isCurrentlyAdjacent) {
+          candidates.push({
+            type: 'MOVE_TO_SAFE_RANGED_POSITION',
+            score: AI_SCORING.BASE_RETREAT_FROM_ADJACENT,
+            targetPosition: bestSafeTile,
+          });
+        }
       }
     }
   }

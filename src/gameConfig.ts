@@ -449,6 +449,20 @@ export const AI_SCORING = {
   BASE_MOVE_TO_SAFE_RANGED_POSITION: 88,
 
   /**
+   * Base score for a ranged unit retreating away from an adjacent player unit
+   * when no safe ranged attack position can be found. This "pure retreat"
+   * candidate uses the MOVE_TO_SAFE_RANGED_POSITION action type and wins over
+   * ATTACK_UNIT (75) in most cases, preventing archers from melee-attacking
+   * instead of falling back to safety.
+   *
+   * Intentionally the same value as BASE_MOVE_TO_SAFE_RANGED_POSITION (88):
+   * a pure retreat and a move-then-attack should be equally preferred over a
+   * melee attack. Kept as a separate named constant so the two can be tuned
+   * independently if needed.
+   */
+  BASE_RETREAT_FROM_ADJACENT: 88,
+
+  /**
    * Bonus added when the (tile, target) pair found by MOVE_TO_SAFE_RANGED_POSITION
    * would also kill the target (no counter possible anyway).
    */
@@ -1014,7 +1028,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
 
 export const ABILITIES = {
   /** Damage multiplier applied when ASSASSIN tag attacks a full-HP target */
-  ASSASSIN_DAMAGE_MULTIPLIER: 6,
+  ASSASSIN_DAMAGE_MULTIPLIER: 3,
   /** Flat defense bonus applied when HOLD_GROUND flag is active and unit stands on own building */
   HOLD_GROUND_DEFENSE_BONUS: 20,
   /** Extra move range granted by TO_THE_FRONT flag */

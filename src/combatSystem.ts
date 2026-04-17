@@ -163,12 +163,7 @@ export function calculateCombatFromStats(attacker: Combatant, defender: Combatan
   // Calculate effective attack based on attacker's current HP ratio (vs base level-1 maxHp)
   const attackerBaseHp = attacker.baseMaxHp > 0 ? attacker.baseMaxHp : attacker.maxHp;
   const attackerHpRatio = attacker.currentHp / attackerBaseHp;
-  let effectiveAttack = attacker.attack * (0.5 + 0.5 * attackerHpRatio);
-
-  // ASSASSIN: boost effective attack when attacking a full-HP target
-  if (attacker.tags.includes(UnitTag.ASSASSIN) && defender.currentHp === defender.maxHp) {
-    effectiveAttack *= ABILITIES.ASSASSIN_DAMAGE_MULTIPLIER;
-  }
+  const effectiveAttack = attacker.attack * (0.5 + 0.5 * attackerHpRatio);
 
   // Calculate effective defense based on defender's current HP ratio (vs base level-1 maxHp)
   const defenderBaseHp = defender.baseMaxHp > 0 ? defender.baseMaxHp : defender.maxHp;
@@ -178,8 +173,16 @@ export function calculateCombatFromStats(attacker: Combatant, defender: Combatan
 
   // Calculate damage dealt to defender
   const totalPower = effectiveAttack + effectiveDefense;
-  const damageToDefender =
+  let damageToDefender =
     attacker.attack * (effectiveAttack / totalPower);
+
+  // ASSASSIN: multiply final damage when attacking a full-HP target.
+  // The multiplier is applied to the finished damage value so it reliably
+  // delivers ASSASSIN_DAMAGE_MULTIPLIER × the normal output, regardless of
+  // the ratio-based combat formula.
+  if (attacker.tags.includes(UnitTag.ASSASSIN) && defender.currentHp === defender.maxHp) {
+    damageToDefender *= ABILITIES.ASSASSIN_DAMAGE_MULTIPLIER;
+  }
 
   // Calculate counter-damage dealt to attacker
   const counterDamageToAttacker =
