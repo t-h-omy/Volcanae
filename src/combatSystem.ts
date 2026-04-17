@@ -379,7 +379,12 @@ export function resolveAttack(
             state.gameStats.enemyBuildingsDestroyed += 1;
             grantXp(state, attackerId, XP.DESTROY_BUILDING, suppressFloaters);
           }
-          // LAVALAIR / INFERNALSANCTUM: remain as enemy buildings — no action needed
+          // LAVALAIR / INFERNALSANCTUM: remain as enemy buildings.
+          // Set a spawn cooldown so the building skips one spawn cycle,
+          // giving the player a turn to move onto the tile and capture.
+          if (bld.type === BuildingType.LAVALAIR || bld.type === BuildingType.INFERNALSANCTUM) {
+            bld.spawnCooldownRemaining = 1;
+          }
         }
       }
     }
@@ -546,6 +551,16 @@ export function resolveBuildingAttack(
     delete state.units[defenderId];
     if (defenderFaction === Faction.PLAYER) state.gameStats.unitsLost += 1;
     else if (buildingFaction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
+
+    // If the dead defender was standing on an enemy spawner building, set a spawn
+    // cooldown so the player has a window to move onto the tile and capture.
+    if (buildingFaction === Faction.PLAYER && defenderFaction === Faction.ENEMY && defenderTile.buildingId) {
+      const spawner = state.buildings[defenderTile.buildingId];
+      if (spawner && spawner.faction === Faction.ENEMY &&
+          (spawner.type === BuildingType.LAVALAIR || spawner.type === BuildingType.INFERNALSANCTUM)) {
+        spawner.spawnCooldownRemaining = 1;
+      }
+    }
   } else {
     defender.stats.currentHp = newDefenderHp;
   }

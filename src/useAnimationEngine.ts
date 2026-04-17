@@ -8,6 +8,8 @@ import { useEffect } from 'react';
 import { useAnimationStore } from './animationStore';
 import { useGameStore } from './gameStore';
 import { useCombatAnimationStore } from './combatAnimationStore';
+import { useShockwaveStore } from './shockwaveStore';
+import { useZoneClearedStore } from './zoneClearedStore';
 import { ANIMATION } from './animationConfig';
 import { MAP } from './gameConfig';
 import { RENDER } from './renderConfig';
@@ -53,6 +55,10 @@ function eventPosition(event: GameEvent): Position {
       return { x: Math.floor(MAP.GRID_WIDTH / 2), y: event.newLavaRow };
     case 'RESONANCE_TRIGGERED':
       return event.destroyedChamberPosition;
+    case 'SANCTUM_COLLAPSE':
+      return event.sanctumPosition;
+    case 'ZONE_CLEARED':
+      return event.sanctumPosition;
   }
 }
 
@@ -100,6 +106,10 @@ function isEventVisible(event: GameEvent): boolean {
     }
     case 'RESONANCE_TRIGGERED':
       return isTileRevealed(event.destroyedChamberPosition);
+    case 'SANCTUM_COLLAPSE':
+      return isTileRevealed(event.sanctumPosition);
+    case 'ZONE_CLEARED':
+      return isTileRevealed(event.sanctumPosition);
   }
 }
 
@@ -543,6 +553,79 @@ export function useAnimationEngine(): void {
               }
             }
           }
+          continue;
+        }
+
+        // ── Special handling for ZONE_CLEARED (celebration VFX + blocking popup) ──
+        if (event.type === 'ZONE_CLEARED') {
+          if (visible) {
+            const tileSize = getTileSize();
+
+            // 1. Camera pan to sanctum
+            useAnimationStore.getState().setCameraTarget(event.sanctumPosition);
+            await wait(ANIMATION.CAMERA_MOVE_DURATION_MS + ANIMATION.PRE_ACTION_IDLE_MS);
+
+            // 2. Sanctum radial burst (tile flash on sanctum position)
+            const sanctumKey = `${event.sanctumPosition.x},${event.sanctumPosition.y}`;
+            useCombatAnimationStore.getState().addTileFlash(
+              event.sanctumPosition.x,
+              event.sanctumPosition.y,
+              ANIMATION.ZONE_CLEARED_SANCTUM_SHATTER_MS,
+            );
+            setTimeout(
+              () => useCombatAnimationStore.getState().removeTileFlash(sanctumKey),
+              ANIMATION.ZONE_CLEARED_SANCTUM_SHATTER_MS,
+            );
+
+            // 3. Expanding shockwave ring from sanctum center
+            useShockwaveStore.getState().addShockwave({
+              id: crypto.randomUUID(),
+              cx: event.sanctumPosition.x * tileSize + tileSize / 2,
+              cy: event.sanctumPosition.y * tileSize + tileSize / 2,
+              durationMs: ANIMATION.ZONE_CLEARED_SHOCKWAVE_MS,
+            });
+
+            await wait(ANIMATION.ZONE_CLEARED_SANCTUM_SHATTER_MS / 2);
+
+            // 4. Staggered per-tile flash bursts across all cleared positions
+            const allPositions = [
+              ...event.clearedUnitPositions,
+              ...event.clearedBuildingPositions,
+            ];
+            for (const pos of allPositions) {
+              const key = `${pos.x},${pos.y}`;
+              useCombatAnimationStore.getState().addTileFlash(
+                pos.x, pos.y, ANIMATION.ZONE_CLEARED_TILE_FLASH_MS,
+              );
+              setTimeout(
+                () => useCombatAnimationStore.getState().removeTileFlash(key),
+                ANIMATION.ZONE_CLEARED_TILE_FLASH_MS,
+              );
+              await wait(ANIMATION.ZONE_CLEARED_TILE_FLASH_STAGGER_MS);
+            }
+
+            // 5. Let VFX settle
+            await wait(ANIMATION.ZONE_CLEARED_SETTLE_MS);
+
+            // 6. Show popup — block until player dismisses
+            await new Promise<void>((resolve) => {
+              useZoneClearedStore.getState().show(event.zone, resolve);
+            });
+          }
+
+          // Apply event to game state (no-op for ZONE_CLEARED)
+          useGameStore.getState().applyEvent(event);
+
+          // Consume the following SANCTUM_COLLAPSE event — apply it without
+          // additional animation so units/buildings vanish from the grid now.
+          const nextQueue = useAnimationStore.getState().eventQueue;
+          if (nextQueue.length > 0 && nextQueue[0].type === 'SANCTUM_COLLAPSE') {
+            const collapseEvent = useAnimationStore.getState().shiftEvent();
+            if (collapseEvent) {
+              useGameStore.getState().applyEvent(collapseEvent);
+            }
+          }
+
           continue;
         }
 

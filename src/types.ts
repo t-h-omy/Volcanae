@@ -296,6 +296,8 @@ export interface Building {
   destroyBehavior: DestroyBehavior;
   /** Turns of resonance remaining on this chamber (0 = not resonating). Only relevant for CRYSTAL_CHAMBER. */
   resonanceTurnsRemaining: number;
+  /** Remaining cooldown turns before this building can spawn again. */
+  spawnCooldownRemaining: number;
 }
 
 /** A tile on the game grid */
@@ -384,4 +386,25 @@ export interface GameState {
   enemyUnitsSpawnedLastTurn: number;
   /** Selected difficulty level that scales enemy stats and lava speed */
   difficulty: Difficulty;
+  /**
+   * Zone lockout state for the Sanctum Collapse feature.
+   * Maps zone number (1–5) to the turn number on which the lockout expires.
+   * An entry zoneLockoutUntilTurn[z] = T means: enemy units may not cross the
+   * lower border of zone z until turn T (exclusive). Missing key = no lockout.
+   * Only written when SANCTUM_COLLAPSE.ZONE_LOCKOUT_TURNS > 0.
+   */
+  zoneLockoutUntilTurn: Partial<Record<number, number>>;
+  /**
+   * Turn number on which the spawn freeze from Sanctum Collapse expires.
+   * When state.turn < spawnFreezeUntilTurn, spawnEnemyUnits() is a no-op.
+   * Value of 0 means no active freeze.
+   */
+  spawnFreezeUntilTurn: number;
+  /**
+   * Turn number on which the lava freeze from Sanctum Collapse expires.
+   * While state.turn < lavaFreezeUntilTurn, turnsUntilLavaAdvance is not
+   * decremented during the lava phase.
+   * Value of 0 means no active freeze.
+   */
+  lavaFreezeUntilTurn: number;
 }

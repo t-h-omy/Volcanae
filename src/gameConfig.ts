@@ -1032,6 +1032,44 @@ export const ABILITIES = {
 } as const;
 
 // ============================================================================
+// SANCTUM COLLAPSE CONFIGURATION
+// ============================================================================
+
+export const SANCTUM_COLLAPSE = {
+  /**
+   * Number of turns enemy units are barred from crossing the lower border of
+   * the captured INFERNALSANCTUM's zone after a Sanctum Collapse event.
+   *
+   * The "lower border" is the row that separates the captured zone from the
+   * next lower zone (toward the player). Enemy units already below that row
+   * are unaffected; the lockout only prevents new crossings from above.
+   *
+   * Set to 0 to disable the Sanctum Collapse feature entirely. When 0:
+   *   - No zone purge occurs on INFERNALSANCTUM capture.
+   *   - No zone lockout is applied.
+   *   - No SANCTUM_COLLAPSE GameEvent is emitted.
+   *   - No new state fields are written.
+   */
+  ZONE_LOCKOUT_TURNS: 4,
+
+  /**
+   * Number of turns enemy unit spawning is completely suppressed after a
+   * Sanctum Collapse event. All LAVALAIR and INFERNALSANCTUM buildings stop
+   * producing units for this many player turns.
+   * Set to 0 to disable the spawn freeze effect while keeping other effects active.
+   */
+  SPAWN_FREEZE_TURNS: 3,
+
+  /**
+   * Number of turns the lava advance countdown is frozen after a Sanctum
+   * Collapse event. turnsUntilLavaAdvance is not decremented while the freeze
+   * is active, effectively pausing lava pressure.
+   * Set to 0 to disable the lava pause effect while keeping other effects active.
+   */
+  LAVA_FREEZE_TURNS: 2,
+} as const;
+
+// ============================================================================
 // CONVENIENCE EXPORTS
 // ============================================================================
 
@@ -1061,6 +1099,7 @@ export const GAME_CONFIG = {
   TECH_TREE,
   CRYSTAL_CHAMBER_CONFIG,
   ABILITIES,
+  SANCTUM_COLLAPSE,
 } as const;
 
 export default GAME_CONFIG;

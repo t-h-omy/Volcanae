@@ -104,4 +104,32 @@ export type GameEvent =
       destroyedChamberPosition: Position;
       survivingChamberIds: string[];
       resonanceDuration: number;
+    }
+  | {
+      type: 'SANCTUM_COLLAPSE';
+      /** Position of the captured INFERNALSANCTUM building */
+      sanctumPosition: Position;
+      /** Zone number (1–5) in which the collapse occurred */
+      zone: number;
+      /** IDs of enemy units purged from the zone */
+      purgedUnitIds: string[];
+      /** IDs of enemy buildings destroyed in the zone */
+      destroyedBuildingIds: string[];
+      /** Turn number on which the zone lockout expires (state.turn + ZONE_LOCKOUT_TURNS) */
+      lockoutUntilTurn: number;
+      /** Turn on which spawn freeze expires (0 if SPAWN_FREEZE_TURNS === 0) */
+      spawnFreezeUntilTurn: number;
+      /** Turn on which lava freeze expires (0 if LAVA_FREEZE_TURNS === 0) */
+      lavaFreezeUntilTurn: number;
+    }
+  | {
+      type: 'ZONE_CLEARED';
+      /** Zone number (1–5) that was cleared */
+      zone: number;
+      /** Tile the Infernum Sanctum was on */
+      sanctumPosition: Position;
+      /** Positions of all wiped enemy units */
+      clearedUnitPositions: Position[];
+      /** Positions of all wiped enemy buildings */
+      clearedBuildingPositions: Position[];
     };

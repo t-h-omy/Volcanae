@@ -7,7 +7,7 @@ import type { GameState, Unit, Building, Position } from './types';
 import type { Draft } from 'immer';
 import { produce } from 'immer';
 import { Faction, UnitType, UnitTag, BuildingType, TileType } from './types';
-import { UNITS, ENEMY, MAP, AI_SCORING, AI_RECRUITMENT, ENEMY_UNIT_UNLOCK, XP, DIFFICULTY_MULTIPLIER } from './gameConfig';
+import { UNITS, ENEMY, MAP, AI_SCORING, AI_RECRUITMENT, ENEMY_UNIT_UNLOCK, XP, DIFFICULTY_MULTIPLIER, SANCTUM_COLLAPSE } from './gameConfig';
 import { resolveAttack, calculateCombat, resolveBuildingAttack, buildingToCombatant, calculateCombatFromStats, unitToCombatant, resolveAttackOnBuilding } from './combatSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { initiateCapture, canCapture } from './captureSystem';
@@ -507,9 +507,22 @@ function createEnemyUnit(
 }
 
 function spawnEnemyUnits(state: Draft<GameState>, events?: GameEvent[]): void {
+  if (SANCTUM_COLLAPSE.ZONE_LOCKOUT_TURNS > 0 &&
+      SANCTUM_COLLAPSE.SPAWN_FREEZE_TURNS > 0 &&
+      state.spawnFreezeUntilTurn > 0 &&
+      state.turn < state.spawnFreezeUntilTurn) {
+    return; // spawn frozen by Sanctum Collapse
+  }
   for (const building of Object.values(state.buildings)) {
     if (building.faction !== Faction.ENEMY) continue;
     if (!isRecruitmentBuilding(building)) continue;
+
+    // Per-building spawn cooldown: skip this building for one turn after its
+    // defender was killed, giving the player a window to move onto the tile.
+    if (building.spawnCooldownRemaining > 0) {
+      building.spawnCooldownRemaining -= 1;
+      continue;
+    }
 
     // Score recruitment fresh each time so already-spawned units affect composition
     const scored = scoreRecruitmentForBuilding(state, building);
@@ -849,6 +862,18 @@ function moveEnemyUnitToward(
     const current = state.units[unitId];
     if (!current) break; // unit was destroyed (e.g. walked into lava)
     const nextPos = path[step];
+    // Zone lockout: prevent crossing into a locked-out zone.
+    if (SANCTUM_COLLAPSE.ZONE_LOCKOUT_TURNS > 0) {
+      const nextZone = getZoneForRow(nextPos.y);
+      const currentZone = getZoneForRow(state.units[unitId].position.y);
+      if (
+        nextZone > currentZone && // moving toward player (increasing zone number)
+        state.zoneLockoutUntilTurn[nextZone] !== undefined &&
+        state.turn < (state.zoneLockoutUntilTurn[nextZone] ?? 0)
+      ) {
+        break; // stop movement — cannot cross into locked zone
+      }
+    }
     const tile = state.grid[nextPos.y][nextPos.x];
     if (tile.unitId !== null) break; // blocked by a unit occupying the tile
     moveEnemyUnit(state, unitId, nextPos, events);

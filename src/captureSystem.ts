@@ -6,7 +6,8 @@
 import type { GameState, Position } from './types';
 import type { Draft } from 'immer';
 import { BuildingType, UnitTag, Faction, DestroyBehavior } from './types';
-import { MAP, XP, TECH } from './gameConfig';
+import type { GameEvent } from './gameEvents';
+import { MAP, XP, TECH, SANCTUM_COLLAPSE } from './gameConfig';
 import { increaseThreatOnStrongholdCapture } from './enemySystem';
 import { grantXp } from './levelSystem';
 import { grantArcaneCrystals, getStrongholdCapMods } from './techSystem';
@@ -175,6 +176,7 @@ export function initiateCapture(
   unitId: string,
   buildingId: string,
   suppressEffects?: boolean,
+  events?: GameEvent[],
 ): void {
   // Validate capture is allowed
   if (!canCapture(state, unitId, buildingId)) {
@@ -288,8 +290,137 @@ export function initiateCapture(
     }
   }
 
+  // If it was an Infernal Sanctum captured by the player, trigger Sanctum Collapse
+  if (buildingType === BuildingType.INFERNALSANCTUM && unitFaction === Faction.PLAYER) {
+    triggerSanctumCollapse(state, { x, y }, events ?? []);
+  }
+
   // Grant XP for capturing/destroying the building
   grantXp(state, unitId, XP.CAPTURE_BUILDING, suppressEffects);
+}
+
+/**
+ * Executes the Sanctum Collapse effect when a player captures an INFERNALSANCTUM.
+ *
+ * 1. Determines the zone of the captured sanctum using the local getZoneForPosition helper.
+ * 2. Purges all ENEMY faction units whose position falls within that zone's row range.
+ *    Each purged unit is removed from state.units and its tile cleared.
+ *    Emit one UNIT_DEATH event per purged unit.
+ * 3. Destroys all ENEMY faction buildings whose position falls within that zone's row range.
+ *    Each destroyed building is removed from state.buildings, its tile cleared,
+ *    and the appropriate destroy behavior (ruin / stronghold ruin) is applied.
+ * 4. Sets state.zoneLockoutUntilTurn[zone] = state.turn + SANCTUM_COLLAPSE.ZONE_LOCKOUT_TURNS.
+ * 5. Emits one SANCTUM_COLLAPSE event with all purged unit IDs, destroyed building IDs, and the lockout turn.
+ *
+ * Does nothing (returns immediately) if SANCTUM_COLLAPSE.ZONE_LOCKOUT_TURNS === 0.
+ */
+export function triggerSanctumCollapse(
+  state: Draft<GameState>,
+  sanctumPosition: Position,
+  events: GameEvent[],
+): void {
+  if ((SANCTUM_COLLAPSE.ZONE_LOCKOUT_TURNS as number) === 0) return;
+
+  const zone = getZoneForPosition(sanctumPosition);
+  if (zone === 0) return; // lava buffer, no valid zone
+
+  // Compute zone row range
+  const startRow = MAP.GRID_HEIGHT - MAP.LAVA_BUFFER_ROWS - zone * MAP.ZONE_HEIGHT;
+  const endRow = startRow + MAP.ZONE_HEIGHT - 1;
+
+  // Purge all enemy units in this zone
+  const purgedUnitIds: string[] = [];
+  const clearedUnitPositions: Position[] = [];
+  for (const unit of Object.values(state.units)) {
+    if (unit.faction !== Faction.ENEMY) continue;
+    if (unit.position.y >= startRow && unit.position.y <= endRow) {
+      purgedUnitIds.push(unit.id);
+      clearedUnitPositions.push({ x: unit.position.x, y: unit.position.y });
+
+      // Clear tile
+      const tile = state.grid[unit.position.y][unit.position.x];
+      if (tile.unitId === unit.id) {
+        tile.unitId = null;
+      }
+      delete state.units[unit.id];
+    }
+  }
+
+  // Destroy all enemy-owned buildings in this zone
+  const destroyedBuildingIds: string[] = [];
+  const clearedBuildingPositions: Position[] = [];
+  for (const building of Object.values(state.buildings)) {
+    if (building.faction !== Faction.ENEMY) continue;
+    if (building.position.y >= startRow && building.position.y <= endRow) {
+      destroyedBuildingIds.push(building.id);
+      clearedBuildingPositions.push({ x: building.position.x, y: building.position.y });
+
+      // Handle specialist: specialist is lost when enemy building is destroyed by collapse
+      if (building.specialistSlot) {
+        const specialistId = building.specialistSlot;
+        if (state.specialists[specialistId]) {
+          delete state.specialists[specialistId];
+        }
+      }
+
+      // Apply destroy behavior to the tile
+      const tile = state.grid[building.position.y][building.position.x];
+      const destroyBehavior = building.destroyBehavior;
+      tile.buildingId = null;
+      if (destroyBehavior === DestroyBehavior.STRONGHOLD_RUIN) {
+        tile.isStrongholdRuin = true;
+      } else if (destroyBehavior === DestroyBehavior.RUIN) {
+        tile.isRuin = true;
+      }
+      // DestroyBehavior.NONE / DestroyBehavior.RESOURCE: no ruin — terrain is restored naturally
+
+      delete state.buildings[building.id];
+    }
+  }
+
+  // Set zone lockout
+  const lockoutUntilTurn = state.turn + SANCTUM_COLLAPSE.ZONE_LOCKOUT_TURNS;
+  state.zoneLockoutUntilTurn[zone] = lockoutUntilTurn;
+
+  // Spawn freeze
+  if (SANCTUM_COLLAPSE.SPAWN_FREEZE_TURNS > 0) {
+    // Extend if a freeze is already active; never shorten an existing freeze.
+    const newSpawnFreeze = state.turn + SANCTUM_COLLAPSE.SPAWN_FREEZE_TURNS;
+    if (newSpawnFreeze > (state.spawnFreezeUntilTurn ?? 0)) {
+      state.spawnFreezeUntilTurn = newSpawnFreeze;
+    }
+  }
+
+  // Lava freeze
+  if (SANCTUM_COLLAPSE.LAVA_FREEZE_TURNS > 0) {
+    const newLavaFreeze = state.turn + SANCTUM_COLLAPSE.LAVA_FREEZE_TURNS;
+    if (newLavaFreeze > (state.lavaFreezeUntilTurn ?? 0)) {
+      state.lavaFreezeUntilTurn = newLavaFreeze;
+    }
+  }
+
+  // Emit ZONE_CLEARED event first so celebration VFX plays while entities
+  // are still visible in the live state (applied later by SANCTUM_COLLAPSE).
+  events.push({
+    type: 'ZONE_CLEARED',
+    zone,
+    sanctumPosition: { x: sanctumPosition.x, y: sanctumPosition.y },
+    clearedUnitPositions,
+    clearedBuildingPositions,
+  });
+
+  // Emit SANCTUM_COLLAPSE event (the animation engine's ZONE_CLEARED handler
+  // will consume this from the queue and apply it after the VFX + popup).
+  events.push({
+    type: 'SANCTUM_COLLAPSE',
+    sanctumPosition: { x: sanctumPosition.x, y: sanctumPosition.y },
+    zone,
+    purgedUnitIds,
+    destroyedBuildingIds,
+    lockoutUntilTurn,
+    spawnFreezeUntilTurn: state.spawnFreezeUntilTurn,
+    lavaFreezeUntilTurn: state.lavaFreezeUntilTurn,
+  });
 }
 
 // ============================================================================

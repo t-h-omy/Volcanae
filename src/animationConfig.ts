@@ -55,4 +55,14 @@ export const ANIMATION = {
   LEVEL_UP_GLOW_MID1_PX: 5,
   /** Level-up pulse: mid drop-shadow blur (px) at 80% keyframe */
   LEVEL_UP_GLOW_MID2_PX: 6,
+  /** Duration of the sanctum radial burst VFX on the building tile (ms) */
+  ZONE_CLEARED_SANCTUM_SHATTER_MS: 800,
+  /** Duration of each individual expanding shockwave ring (ms) */
+  ZONE_CLEARED_SHOCKWAVE_MS: 700,
+  /** Stagger delay between per-tile cleared-entity flash bursts (ms) */
+  ZONE_CLEARED_TILE_FLASH_STAGGER_MS: 60,
+  /** Duration of each per-tile flash burst (ms) */
+  ZONE_CLEARED_TILE_FLASH_MS: 500,
+  /** How long to wait after all VFX settle before showing the popup (ms) */
+  ZONE_CLEARED_SETTLE_MS: 200,
 } as const;

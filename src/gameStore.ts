@@ -32,10 +32,10 @@ import {
 import { checkGameConditions } from './gameConditions';
 import { useFloaterStore } from './floaterStore';
 import { useAnimationStore } from './animationStore';
-import { Faction, GamePhase, BuildingType, TileType, Difficulty } from './types';
+import { Faction, GamePhase, BuildingType, TileType, Difficulty, DestroyBehavior } from './types';
 import type { GameState, UnitType, Position, TechId } from './types';
 import type { GameEvent } from './gameEvents';
-import { MAP, POPULATION, BUILDINGS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, getLavaAdvanceInterval } from './gameConfig';
+import { MAP, POPULATION, BUILDINGS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval } from './gameConfig';
 import { saveGameState, loadGameState, clearSavedGame, hasSavedGame } from './saveSystem';
 import { computeLevelFromXp, applyLevelUps } from './levelSystem';
 import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLogic } from './techSystem';
@@ -508,13 +508,48 @@ export const useGameStore = create<GameStore>()(
     },
 
     captureBuilding: (unitId: string, buildingId: string) => {
+      let pendingEvents: GameEvent[] | null = null;
+      let pendingResolvedState: GameState | null = null;
+
       set((state) => {
-        initiateCaptureLogic(state, unitId, buildingId);
-        // Update tile discovery after player action
-        updateDiscovery(state);
-        // Check win/loss conditions after player action
-        checkGameConditions(state);
+        const unit = state.units[unitId];
+        const building = state.buildings[buildingId];
+        if (!unit || !building) return;
+
+        // Sanctum captures trigger zone-clearing VFX and need the animation queue.
+        const isSanctumCapture =
+          building.type === BuildingType.INFERNALSANCTUM &&
+          unit.faction === Faction.PLAYER;
+
+        if (isSanctumCapture) {
+          // Use snapshot → produce pattern so the animation engine can replay events
+          const snapshot: GameState = current(state);
+          const collapseEvents: GameEvent[] = [];
+
+          const resolvedState = produce(snapshot, (draft) => {
+            initiateCaptureLogic(draft, unitId, buildingId, undefined, collapseEvents);
+            updateDiscovery(draft);
+            checkGameConditions(draft);
+          });
+
+          pendingEvents = collapseEvents;
+          pendingResolvedState = resolvedState;
+
+          // Lock UI while animation plays
+          state.phase = GamePhase.ENEMY_TURN;
+          state.selectedUnitId = null;
+          state.selectedBuildingId = null;
+        } else {
+          // Non-sanctum captures: apply directly (no animation needed)
+          initiateCaptureLogic(state, unitId, buildingId);
+          updateDiscovery(state);
+          checkGameConditions(state);
+        }
       });
+
+      if (pendingEvents !== null && pendingResolvedState !== null) {
+        useAnimationStore.getState().enqueue(pendingEvents, pendingResolvedState);
+      }
     },
 
     recruitUnit: (buildingId: string, unitType: UnitType) => {
@@ -645,7 +680,15 @@ export const useGameStore = create<GameStore>()(
         // Phase 4: Lava phase
         const allEvents: GameEvent[] = [...enemyEvents];
         computedState = produce(computedState, (draft) => {
-          draft.turnsUntilLavaAdvance -= 1;
+          const lavaFrozen =
+            SANCTUM_COLLAPSE.ZONE_LOCKOUT_TURNS > 0 &&
+            SANCTUM_COLLAPSE.LAVA_FREEZE_TURNS > 0 &&
+            draft.lavaFreezeUntilTurn > 0 &&
+            draft.turn < draft.lavaFreezeUntilTurn;
+
+          if (!lavaFrozen) {
+            draft.turnsUntilLavaAdvance -= 1;
+          }
         });
 
         if (shouldLavaAdvance(computedState)) {
@@ -708,6 +751,16 @@ export const useGameStore = create<GameStore>()(
           // Check threat level
           if (draft.turn > 0 && draft.turn % ENEMY.THREAT_LEVEL_INCREASE_INTERVAL === 0) {
             draft.threatLevel += 1;
+          }
+
+          // Expire elapsed zone lockouts
+          if (SANCTUM_COLLAPSE.ZONE_LOCKOUT_TURNS > 0) {
+            for (const zoneKey of Object.keys(draft.zoneLockoutUntilTurn)) {
+              const zone = Number(zoneKey);
+              if ((draft.zoneLockoutUntilTurn[zone] ?? 0) <= draft.turn) {
+                delete draft.zoneLockoutUntilTurn[zone];
+              }
+            }
           }
 
           // Increment turn counter
@@ -1212,6 +1265,66 @@ export const useGameStore = create<GameStore>()(
             advanceLava(state);
             break;
           }
+
+          case 'SANCTUM_COLLAPSE': {
+            // Purge units
+            for (const unitId of event.purgedUnitIds) {
+              const unit = state.units[unitId];
+              if (unit) {
+                const tile = state.grid[unit.position.y][unit.position.x];
+                if (tile.unitId === unitId) tile.unitId = null;
+                delete state.units[unitId];
+                state.gameStats.unitsKilled += 1;
+              }
+            }
+            // Destroy enemy buildings
+            for (const buildingId of event.destroyedBuildingIds) {
+              const building = state.buildings[buildingId];
+              if (building) {
+                const tile = state.grid[building.position.y][building.position.x];
+                tile.buildingId = null;
+                const destroyBehavior = building.destroyBehavior;
+                if (destroyBehavior === DestroyBehavior.STRONGHOLD_RUIN) {
+                  tile.isStrongholdRuin = true;
+                } else if (destroyBehavior === DestroyBehavior.RUIN) {
+                  tile.isRuin = true;
+                }
+                delete state.buildings[buildingId];
+                state.gameStats.enemyBuildingsDestroyed += 1;
+              }
+            }
+            // Apply lockout
+            state.zoneLockoutUntilTurn[event.zone] = event.lockoutUntilTurn;
+            // Apply freeze fields
+            if (event.spawnFreezeUntilTurn > 0) {
+              state.spawnFreezeUntilTurn = Math.max(state.spawnFreezeUntilTurn, event.spawnFreezeUntilTurn);
+            }
+            if (event.lavaFreezeUntilTurn > 0) {
+              state.lavaFreezeUntilTurn = Math.max(state.lavaFreezeUntilTurn, event.lavaFreezeUntilTurn);
+            }
+            // Notification floater on the sanctum tile
+            const parts: string[] = [`🌋 Zone ${event.zone} purged!`];
+            if (event.spawnFreezeUntilTurn > state.turn) {
+              parts.push(`Spawns frozen (${event.spawnFreezeUntilTurn - state.turn}t)`);
+            }
+            if (event.lavaFreezeUntilTurn > state.turn) {
+              parts.push(`Lava paused (${event.lavaFreezeUntilTurn - state.turn}t)`);
+            }
+            const label = parts.join(' · ');
+            useFloaterStore.getState().addFloater({
+              label,
+              value: 0,
+              x: event.sanctumPosition.x,
+              y: event.sanctumPosition.y,
+              isEnemy: false,
+              floaterType: 'xp',
+            });
+            break;
+          }
+
+          case 'ZONE_CLEARED':
+            // All state mutations already applied during cascade — event is presentation-only.
+            break;
         }
       });
     },
@@ -1357,6 +1470,7 @@ export const useGameStore = create<GameStore>()(
                 recruitmentQueue: null,
                 destroyBehavior: BUILDINGS.DESTROY_BEHAVIOR[BuildingType.FARM],
                 resonanceTurnsRemaining: 0,
+                spawnCooldownRemaining: 0,
               };
               state.buildings[building.id] = building;
               tile.buildingId = building.id;
