@@ -290,6 +290,13 @@ function findBfsPath(
 ): Position[] {
   if (from.x === target.x && from.y === target.y) return [];
 
+  // Shuffle directions to avoid systematic directional bias (e.g. left-diagonal drift).
+  const dirs = [...BFS_DIRECTIONS] as [number, number][];
+  for (let i = dirs.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [dirs[i], dirs[j]] = [dirs[j], dirs[i]];
+  }
+
   const fromKey = `${from.x},${from.y}`;
   const visited = new Set<string>();
   const prev = new Map<string, Position | null>();
@@ -300,7 +307,7 @@ function findBfsPath(
   let head = 0;
   while (head < queue.length) {
     const current = queue[head++];
-    for (const [dx, dy] of BFS_DIRECTIONS) {
+    for (const [dx, dy] of dirs) {
       const nx = current.x + dx;
       const ny = current.y + dy;
       if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;

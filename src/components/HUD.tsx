@@ -1091,6 +1091,7 @@ function ConstructionPanel({
   const constructBuilding = useGameStore((s) => s.constructBuilding);
   const grid = useGameStore((s) => s.grid);
   const [confirmBuilding, setConfirmBuilding] = useState<typeof options[number] | null>(null);
+  const [collapsed, setCollapsed] = useState(false);
 
   const options = useMemo(
     () => getConstructionOptionsForTile(useGameStore.getState(), tilePos),
@@ -1104,30 +1105,39 @@ function ConstructionPanel({
       <div className="hud-panel-header">
         <span className="hud-panel-emoji">🔨</span>
         <span className="hud-panel-name">Construct Building</span>
+        <button
+          className="hud-construct-toggle"
+          onClick={() => setCollapsed((c) => !c)}
+          title={collapsed ? 'Expand' : 'Collapse'}
+        >
+          {collapsed ? '▲' : '▼'}
+        </button>
       </div>
-      <div className="hud-construct-options">
-        {options.map((opt) => {
-          const canAffordThis =
-            resources.iron >= opt.cost.iron && resources.wood >= opt.cost.wood;
-          return (
-            <button
-              key={opt.buildingType}
-              className="info-row-btn"
-              disabled={!canAffordThis}
-              onClick={() => setConfirmBuilding(opt)}
-            >
-              <span className="info-row-emoji">{opt.emoji}</span>
-              <div className="info-row-body">
-                <div className="info-row-name">
-                  {opt.label}
-                  <span className="info-badge info-badge--small">i</span>
+      {!collapsed && (
+        <div className="hud-construct-options">
+          {options.map((opt) => {
+            const canAffordThis =
+              resources.iron >= opt.cost.iron && resources.wood >= opt.cost.wood;
+            return (
+              <button
+                key={opt.buildingType}
+                className="info-row-btn"
+                disabled={!canAffordThis}
+                onClick={() => setConfirmBuilding(opt)}
+              >
+                <span className="info-row-emoji">{opt.emoji}</span>
+                <div className="info-row-body">
+                  <div className="info-row-name">
+                    {opt.label}
+                    <span className="info-badge info-badge--small">i</span>
+                  </div>
+                  <div className="info-row-cost">⛓️{opt.cost.iron} 🪵{opt.cost.wood}</div>
                 </div>
-                <div className="info-row-cost">⛓️{opt.cost.iron} 🪵{opt.cost.wood}</div>
-              </div>
-            </button>
-          );
-        })}
-      </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
       {confirmBuilding && (
         <BuildingInfoPopup
           buildingType={confirmBuilding.buildingType}

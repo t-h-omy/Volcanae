@@ -231,7 +231,7 @@ export const BUILDINGS = {
   DESTROY_BEHAVIOR: {
     STRONGHOLD: DestroyBehavior.STRONGHOLD_RUIN,
     MINE: DestroyBehavior.RUIN,
-    WOODCUTTER: DestroyBehavior.RUIN,
+    WOODCUTTER: DestroyBehavior.NONE,
     BARRACKS: DestroyBehavior.RUIN,
     ARCHER_CAMP: DestroyBehavior.RUIN,
     RIDER_CAMP: DestroyBehavior.RUIN,
