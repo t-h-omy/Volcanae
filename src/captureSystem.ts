@@ -306,8 +306,11 @@ export function initiateCapture(
  * 2. Purges all ENEMY faction units whose position falls within that zone's row range.
  *    Each purged unit is removed from state.units and its tile cleared.
  *    Emit one UNIT_DEATH event per purged unit.
- * 3. Sets state.zoneLockoutUntilTurn[zone] = state.turn + SANCTUM_COLLAPSE.ZONE_LOCKOUT_TURNS.
- * 4. Emits one SANCTUM_COLLAPSE event with all purged unit IDs and the lockout turn.
+ * 3. Destroys all ENEMY faction buildings whose position falls within that zone's row range.
+ *    Each destroyed building is removed from state.buildings, its tile cleared,
+ *    and the appropriate destroy behavior (ruin / stronghold ruin) is applied.
+ * 4. Sets state.zoneLockoutUntilTurn[zone] = state.turn + SANCTUM_COLLAPSE.ZONE_LOCKOUT_TURNS.
+ * 5. Emits one SANCTUM_COLLAPSE event with all purged unit IDs, destroyed building IDs, and the lockout turn.
  *
  * Does nothing (returns immediately) if SANCTUM_COLLAPSE.ZONE_LOCKOUT_TURNS === 0.
  */
@@ -327,18 +330,12 @@ export function triggerSanctumCollapse(
 
   // Purge all enemy units in this zone
   const purgedUnitIds: string[] = [];
+  const clearedUnitPositions: Position[] = [];
   for (const unit of Object.values(state.units)) {
     if (unit.faction !== Faction.ENEMY) continue;
     if (unit.position.y >= startRow && unit.position.y <= endRow) {
       purgedUnitIds.push(unit.id);
-
-      // Emit UNIT_DEATH event
-      events.push({
-        type: 'UNIT_DEATH',
-        unitId: unit.id,
-        position: { x: unit.position.x, y: unit.position.y },
-        faction: Faction.ENEMY,
-      });
+      clearedUnitPositions.push({ x: unit.position.x, y: unit.position.y });
 
       // Clear tile
       const tile = state.grid[unit.position.y][unit.position.x];
@@ -346,6 +343,38 @@ export function triggerSanctumCollapse(
         tile.unitId = null;
       }
       delete state.units[unit.id];
+    }
+  }
+
+  // Destroy all enemy-owned buildings in this zone
+  const destroyedBuildingIds: string[] = [];
+  const clearedBuildingPositions: Position[] = [];
+  for (const building of Object.values(state.buildings)) {
+    if (building.faction !== Faction.ENEMY) continue;
+    if (building.position.y >= startRow && building.position.y <= endRow) {
+      destroyedBuildingIds.push(building.id);
+      clearedBuildingPositions.push({ x: building.position.x, y: building.position.y });
+
+      // Handle specialist: specialist is lost when enemy building is destroyed by collapse
+      if (building.specialistSlot) {
+        const specialistId = building.specialistSlot;
+        if (state.specialists[specialistId]) {
+          delete state.specialists[specialistId];
+        }
+      }
+
+      // Apply destroy behavior to the tile
+      const tile = state.grid[building.position.y][building.position.x];
+      const destroyBehavior = building.destroyBehavior;
+      tile.buildingId = null;
+      if (destroyBehavior === DestroyBehavior.STRONGHOLD_RUIN) {
+        tile.isStrongholdRuin = true;
+      } else if (destroyBehavior === DestroyBehavior.RUIN) {
+        tile.isRuin = true;
+      }
+      // DestroyBehavior.NONE / DestroyBehavior.RESOURCE: no ruin — terrain is restored naturally
+
+      delete state.buildings[building.id];
     }
   }
 
@@ -370,12 +399,24 @@ export function triggerSanctumCollapse(
     }
   }
 
-  // Emit SANCTUM_COLLAPSE event
+  // Emit ZONE_CLEARED event first so celebration VFX plays while entities
+  // are still visible in the live state (applied later by SANCTUM_COLLAPSE).
+  events.push({
+    type: 'ZONE_CLEARED',
+    zone,
+    sanctumPosition: { x: sanctumPosition.x, y: sanctumPosition.y },
+    clearedUnitPositions,
+    clearedBuildingPositions,
+  });
+
+  // Emit SANCTUM_COLLAPSE event (the animation engine's ZONE_CLEARED handler
+  // will consume this from the queue and apply it after the VFX + popup).
   events.push({
     type: 'SANCTUM_COLLAPSE',
     sanctumPosition: { x: sanctumPosition.x, y: sanctumPosition.y },
     zone,
     purgedUnitIds,
+    destroyedBuildingIds,
     lockoutUntilTurn,
     spawnFreezeUntilTurn: state.spawnFreezeUntilTurn,
     lavaFreezeUntilTurn: state.lavaFreezeUntilTurn,

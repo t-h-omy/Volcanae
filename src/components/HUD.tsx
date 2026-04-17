@@ -43,6 +43,7 @@ import {
 } from '../types';
 import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY } from '../unitActions';
 import { getPhalanxAttackBonus, getPhalanxDefenseBonus } from '../combatSystem';
+import { useZoneClearedStore } from '../zoneClearedStore';
 import { UNIT_DESCRIPTIONS, UNIT_TAGS, TAG_INFO, BUILDING_DESCRIPTIONS } from '../descriptions';
 import './HUD.css';
 
@@ -1741,6 +1742,30 @@ function GameIntroPopup({ onDismiss }: { onDismiss: () => void }) {
 }
 
 // ============================================================================
+// ZONE CLEARED POPUP
+// ============================================================================
+
+function ZoneClearedPopup() {
+  const active = useZoneClearedStore((s) => s.active);
+  const zone = useZoneClearedStore((s) => s.zone);
+  const dismiss = useZoneClearedStore((s) => s.dismiss);
+
+  if (!active) return null;
+
+  return (
+    <div className="hud-zone-cleared-overlay">
+      <div className="hud-zone-cleared-card">
+        <span className="hud-zone-cleared-label">ZONE {zone}</span>
+        <span className="hud-zone-cleared-title">CLEARED</span>
+        <button className="hud-zone-cleared-btn" onClick={dismiss}>
+          Press On
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
 // TURN ANNOUNCEMENT POPUP
 // ============================================================================
 
@@ -2103,6 +2128,7 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
   return (
     <>
       {!hasSeenIntro && <GameIntroPopup onDismiss={handleIntroDismiss} />}
+      <ZoneClearedPopup />
       <TopBar
         onOpenTechTree={() => setShowTechTree(true)}
         showTechButton={isPlayerTurn}

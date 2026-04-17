@@ -32,7 +32,7 @@ import {
 import { checkGameConditions } from './gameConditions';
 import { useFloaterStore } from './floaterStore';
 import { useAnimationStore } from './animationStore';
-import { Faction, GamePhase, BuildingType, TileType, Difficulty } from './types';
+import { Faction, GamePhase, BuildingType, TileType, Difficulty, DestroyBehavior } from './types';
 import type { GameState, UnitType, Position, TechId } from './types';
 import type { GameEvent } from './gameEvents';
 import { MAP, POPULATION, BUILDINGS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval } from './gameConfig';
@@ -508,17 +508,47 @@ export const useGameStore = create<GameStore>()(
     },
 
     captureBuilding: (unitId: string, buildingId: string) => {
-      const collapseEvents: GameEvent[] = [];
+      let pendingEvents: GameEvent[] | null = null;
+      let pendingResolvedState: GameState | null = null;
+
       set((state) => {
-        initiateCaptureLogic(state, unitId, buildingId, undefined, collapseEvents);
-        // Update tile discovery after player action
-        updateDiscovery(state);
-        // Check win/loss conditions after player action
-        checkGameConditions(state);
+        const unit = state.units[unitId];
+        const building = state.buildings[buildingId];
+        if (!unit || !building) return;
+
+        // Sanctum captures trigger zone-clearing VFX and need the animation queue.
+        const isSanctumCapture =
+          building.type === BuildingType.INFERNALSANCTUM &&
+          unit.faction === Faction.PLAYER;
+
+        if (isSanctumCapture) {
+          // Use snapshot → produce pattern so the animation engine can replay events
+          const snapshot: GameState = current(state);
+          const collapseEvents: GameEvent[] = [];
+
+          const resolvedState = produce(snapshot, (draft) => {
+            initiateCaptureLogic(draft, unitId, buildingId, undefined, collapseEvents);
+            updateDiscovery(draft);
+            checkGameConditions(draft);
+          });
+
+          pendingEvents = collapseEvents;
+          pendingResolvedState = resolvedState;
+
+          // Lock UI while animation plays
+          state.phase = GamePhase.ENEMY_TURN;
+          state.selectedUnitId = null;
+          state.selectedBuildingId = null;
+        } else {
+          // Non-sanctum captures: apply directly (no animation needed)
+          initiateCaptureLogic(state, unitId, buildingId);
+          updateDiscovery(state);
+          checkGameConditions(state);
+        }
       });
-      // Apply any sanctum collapse events (floaters and stats)
-      for (const ev of collapseEvents) {
-        useGameStore.getState().applyEvent(ev);
+
+      if (pendingEvents !== null && pendingResolvedState !== null) {
+        useAnimationStore.getState().enqueue(pendingEvents, pendingResolvedState);
       }
     },
 
@@ -1247,6 +1277,22 @@ export const useGameStore = create<GameStore>()(
                 state.gameStats.unitsKilled += 1;
               }
             }
+            // Destroy enemy buildings
+            for (const buildingId of event.destroyedBuildingIds) {
+              const building = state.buildings[buildingId];
+              if (building) {
+                const tile = state.grid[building.position.y][building.position.x];
+                tile.buildingId = null;
+                const destroyBehavior = building.destroyBehavior;
+                if (destroyBehavior === DestroyBehavior.STRONGHOLD_RUIN) {
+                  tile.isStrongholdRuin = true;
+                } else if (destroyBehavior === DestroyBehavior.RUIN) {
+                  tile.isRuin = true;
+                }
+                delete state.buildings[buildingId];
+                state.gameStats.enemyBuildingsDestroyed += 1;
+              }
+            }
             // Apply lockout
             state.zoneLockoutUntilTurn[event.zone] = event.lockoutUntilTurn;
             // Apply freeze fields
@@ -1275,6 +1321,10 @@ export const useGameStore = create<GameStore>()(
             });
             break;
           }
+
+          case 'ZONE_CLEARED':
+            // All state mutations already applied during cascade — event is presentation-only.
+            break;
         }
       });
     },
