@@ -618,8 +618,8 @@ export function useAnimationEngine(): void {
 
           // Consume the following SANCTUM_COLLAPSE event — apply it without
           // additional animation so units/buildings vanish from the grid now.
-          const { eventQueue } = useAnimationStore.getState();
-          if (eventQueue.length > 0 && eventQueue[0].type === 'SANCTUM_COLLAPSE') {
+          const nextQueue = useAnimationStore.getState().eventQueue;
+          if (nextQueue.length > 0 && nextQueue[0].type === 'SANCTUM_COLLAPSE') {
             const collapseEvent = useAnimationStore.getState().shiftEvent();
             if (collapseEvent) {
               useGameStore.getState().applyEvent(collapseEvent);
