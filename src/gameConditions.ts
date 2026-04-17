@@ -38,9 +38,12 @@ function getZoneForPosition(position: Position): number {
 
 /**
  * Checks if the player has won.
- * Player wins when they own a STRONGHOLD in zone 5 (the northernmost zone, low Y).
- * Since strongholds can be destroyed (captured creates ruin), the player may need
- * to reconstruct one in zone 5 using a unit with BUILDANDCAPTURE tag.
+ * Win conditions (either is sufficient):
+ * 1. Player owns a STRONGHOLD in zone 5 (the northernmost zone, low Y).
+ *    Since strongholds can be destroyed (captured creates ruin), the player may need
+ *    to reconstruct one in zone 5 using a unit with BUILDANDCAPTURE tag.
+ * 2. All Infernal Sanctums have been destroyed. The game intro instructs the player
+ *    to "raze every Infernal Sanctum", so eliminating the last one is a win.
  * If win condition is met, sets state.phase to VICTORY.
  *
  * @param state - Immer draft of the game state (will be mutated)
@@ -58,12 +61,25 @@ export function checkWinCondition(state: Draft<GameState>): void {
     (b) => b.type === BuildingType.STRONGHOLD && b.faction === Faction.PLAYER
   );
 
-  // Check if any player-owned stronghold is in zone 5
+  // Win condition 1: player-owned stronghold in zone 5
   const hasZone5Stronghold = playerStrongholds.some(
     (b) => getZoneForPosition(b.position) === MAP.ZONE_COUNT
   );
 
   if (hasZone5Stronghold) {
+    state.phase = GamePhase.VICTORY;
+    return;
+  }
+
+  // Win condition 2: all Infernal Sanctums have been destroyed.
+  // Sanctums are placed in zones 4–5 at game start; destroying the last one
+  // fulfils the core objective of the game. Guard with turn > 0 to avoid a
+  // false positive if checkWinCondition is ever called before buildings are placed.
+  const hasRemainingInfernalSanctum = Object.values(state.buildings).some(
+    (b) => b.type === BuildingType.INFERNALSANCTUM
+  );
+
+  if (state.turn > 0 && !hasRemainingInfernalSanctum) {
     state.phase = GamePhase.VICTORY;
   }
 }

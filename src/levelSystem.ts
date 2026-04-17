@@ -34,11 +34,16 @@ export function computeLevelFromXp(unitType: string, xp: number): number {
  * to targetLevel. Restores HP to the new maxHp on each level gained.
  * Uses base stats from UNITS[unitType] for percent calculations.
  * Mutates the immer draft directly.
+ *
+ * @param suppressEffects - When true, skips all visual side-effects (floaters,
+ *   animations). Use when calling from inside an immer produce callback so that
+ *   stale-state re-renders don't cause the HP bar to briefly reappear.
  */
 export function applyLevelUps(
   state: Draft<GameState>,
   unitId: string,
   targetLevel: number,
+  suppressEffects?: boolean,
 ): void {
   const unit = state.units[unitId];
   if (!unit) return;
@@ -73,8 +78,12 @@ export function applyLevelUps(
     unit.level = newLevel;
   }
 
-  // Fire visual effects if unit actually levelled up
-  if (unit.level > startLevel) {
+  // Fire visual effects if unit actually levelled up and effects are not suppressed.
+  // Suppressing is required when applyLevelUps is called inside an immer produce
+  // callback (e.g. processEnemyLevelUps) because the side-effects fire against the
+  // live stores before the draft is committed, causing UnitBadge to re-render with
+  // the LEVEL_UP animation while the HP bar still reflects the pre-level-up HP.
+  if (unit.level > startLevel && !suppressEffects) {
     const { x, y } = unit.position;
     const isEnemy = unit.faction === Faction.ENEMY;
 
@@ -161,8 +170,11 @@ export function grantXp(
   if (!isLevelUp) return;
 
   if (unit.faction === Faction.ENEMY && state.phase === GamePhase.ENEMY_TURN) {
-    // Enemy units level up immediately during their own turn
-    applyLevelUps(state, unitId, targetLevel);
+    // Enemy units level up immediately during their own turn.
+    // Suppress visual effects: this runs inside an immer produce callback, so
+    // firing animations/floaters here would use stale state and cause the HP
+    // bar to briefly reappear on units that just levelled up.
+    applyLevelUps(state, unitId, targetLevel, true);
   }
   // Player units: XP is banked; player must manually trigger level-up via levelUpUnit action.
   // Enemy units during player turn: defer to processEnemyLevelUps at start of next enemy turn.
@@ -178,7 +190,10 @@ export function processEnemyLevelUps(state: Draft<GameState>): void {
     if (unit.faction !== Faction.ENEMY) continue;
     const targetLevel = computeLevelFromXp(unit.type, unit.xp);
     if (targetLevel > unit.level) {
-      applyLevelUps(state, unit.id, targetLevel);
+      // Suppress visual effects: processEnemyLevelUps runs inside runEnemyTurn's
+      // produce callback. Firing animations/floaters there would use stale state
+      // and cause the HP bar to briefly reappear on levelled-up units.
+      applyLevelUps(state, unit.id, targetLevel, true);
     }
   }
 }

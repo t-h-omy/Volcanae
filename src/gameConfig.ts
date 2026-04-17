@@ -449,6 +449,15 @@ export const AI_SCORING = {
   BASE_MOVE_TO_SAFE_RANGED_POSITION: 88,
 
   /**
+   * Base score for a ranged unit retreating away from an adjacent player unit
+   * when no safe ranged attack position can be found. This "pure retreat"
+   * candidate uses the MOVE_TO_SAFE_RANGED_POSITION action type and wins over
+   * ATTACK_UNIT (75) in most cases, preventing archers from melee-attacking
+   * instead of falling back to safety.
+   */
+  BASE_RETREAT_FROM_ADJACENT: 88,
+
+  /**
    * Bonus added when the (tile, target) pair found by MOVE_TO_SAFE_RANGED_POSITION
    * would also kill the target (no counter possible anyway).
    */
