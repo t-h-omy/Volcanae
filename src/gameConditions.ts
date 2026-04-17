@@ -78,8 +78,9 @@ export function checkWinCondition(state: Draft<GameState>): void {
  * If loss condition is met, sets state.phase to GAME_OVER.
  *
  * @param state - Immer draft of the game state (will be mutated)
+ * @param cause - What caused the potential loss: 'LAVA', 'ENEMY', or null
  */
-export function checkLossCondition(state: Draft<GameState>): void {
+export function checkLossCondition(state: Draft<GameState>, cause: 'LAVA' | 'ENEMY' | null = null): void {
   // Don't check if game is already over
   if (
     state.phase === GamePhase.VICTORY ||
@@ -94,6 +95,7 @@ export function checkLossCondition(state: Draft<GameState>): void {
 
   if (playerStrongholds.length === 0) {
     state.phase = GamePhase.GAME_OVER;
+    state.gameOverCause = cause;
   }
 }
 
@@ -107,10 +109,11 @@ export function checkLossCondition(state: Draft<GameState>): void {
  * and after lava phase resolves.
  *
  * @param state - Immer draft of the game state (will be mutated)
+ * @param cause - What caused the potential loss: 'LAVA', 'ENEMY', or null
  * @returns True if the game has ended (victory or game over)
  */
-export function checkGameConditions(state: Draft<GameState>): boolean {
+export function checkGameConditions(state: Draft<GameState>, cause: 'LAVA' | 'ENEMY' | null = null): boolean {
   checkWinCondition(state);
-  checkLossCondition(state);
+  checkLossCondition(state, cause);
   return state.phase === GamePhase.VICTORY || state.phase === GamePhase.GAME_OVER;
 }

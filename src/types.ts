@@ -407,4 +407,11 @@ export interface GameState {
    * Value of 0 means no active freeze.
    */
   lavaFreezeUntilTurn: number;
+  /**
+   * Indicates what caused the game-over loss condition.
+   * 'LAVA' — the last stronghold was consumed by lava.
+   * 'ENEMY' — the last stronghold was destroyed by Volcael forces.
+   * null — cause not yet determined or game not over.
+   */
+  gameOverCause: 'LAVA' | 'ENEMY' | null;
 }

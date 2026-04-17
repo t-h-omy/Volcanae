@@ -627,6 +627,13 @@
   margin: 0 0 16px;
 }
 
+.hud-overlay-cause {
+  font-size: 15px;
+  color: #e67e22;
+  margin: 0 0 16px;
+  font-style: italic;
+}
+
 .hud-endgame-stats {
   margin: 0 0 20px;
 }
@@ -1171,6 +1178,12 @@
 
 .hud-tech-tree-btn:hover {
   background: rgba(52, 152, 219, 0.2);
+}
+
+.hud-tech-tree-btn--notify {
+  border-color: rgba(241, 196, 15, 0.8);
+  color: #f1c40f;
+  animation: pulse-attention 1.6s ease-in-out infinite;
 }
 
 .hud-tech-tree-badge {
