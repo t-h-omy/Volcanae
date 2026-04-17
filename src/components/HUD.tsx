@@ -2139,6 +2139,19 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
   // Track crystals at the moment the player last closed the tech tree.
   // Initialised to -1 so the badge shows from game start if there is an affordable tech.
   const [crystalsAtLastTechTreeClose, setCrystalsAtLastTechTreeClose] = useState(-1);
+  // Used to detect when a new game starts (turn resets to 1) so badge tracking resets.
+  const [prevTurn, setPrevTurn] = useState(turn);
+
+  // Derived-state update: when turn resets to 1 from a higher value, a new game has
+  // started. Reset crystalsAtLastTechTreeClose so the badge shows on the fresh game.
+  // Setting state during render (not in an effect) is the React-recommended pattern
+  // for adjusting state when a prop/upstream value changes.
+  if (prevTurn !== turn) {
+    setPrevTurn(turn);
+    if (turn === 1 && prevTurn > 1) {
+      setCrystalsAtLastTechTreeClose(-1);
+    }
+  }
 
   const hasAffordableTech = useGameStore((s) => {
     const available = getAvailableTechsLogic(s);
@@ -2158,10 +2171,11 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
   }, [arcaneCrystals]);
 
   const isPlayerTurn = phase === GamePhase.PLAYER_TURN;
-  // On the very first turn of a (new) game, treat effectiveCrystalsAtClose as -1
-  // so the badge always evaluates fresh regardless of component state from a prior game.
-  const effectiveCrystalsAtClose = turn <= 1 ? -1 : crystalsAtLastTechTreeClose;
-  const showTechBadge = isPlayerTurn && hasAffordableTech && arcaneCrystals > effectiveCrystalsAtClose;
+  // Badge shows when crystals have been gained since the player last closed the tech tree
+  // AND there is at least one affordable unlocked tech available.
+  // crystalsAtLastTechTreeClose of -1 means the tech tree has never been closed this
+  // session, so any positive crystal count triggers the badge.
+  const showTechBadge = isPlayerTurn && hasAffordableTech && arcaneCrystals > crystalsAtLastTechTreeClose;
 
   return (
     <>
