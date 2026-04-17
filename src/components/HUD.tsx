@@ -23,7 +23,7 @@ import {
 } from '../constructionSystem';
 import { computeLevelFromXp } from '../levelSystem';
 import { computeUnitAiScores, computeRecruitmentScores, type ScoredAction } from '../enemySystem';
-import { renderEffect, getStrongholdCapMods } from '../techSystem';
+import { renderEffect, getStrongholdCapMods, getAvailableTechs as getAvailableTechsLogic } from '../techSystem';
 import {
   Faction,
   GamePhase,
@@ -458,10 +458,12 @@ function TopBar({
   onOpenTechTree,
   showTechButton,
   arcaneCrystals,
+  showTechBadge,
 }: {
   onOpenTechTree: () => void;
   showTechButton: boolean;
   arcaneCrystals: number;
+  showTechBadge: boolean;
 }) {
   const turn = useGameStore((s) => s.turn);
   const resources = useGameStore((s) => s.resources);
@@ -491,8 +493,9 @@ function TopBar({
       <span className="hud-stat">🌋 Lava in {turnsUntilLavaAdvance}</span>
       <span className="hud-stat">💎 {arcaneCrystals}</span>
       {showTechButton && (
-        <button className="hud-tech-tree-btn" onClick={onOpenTechTree}>
+        <button className={`hud-tech-tree-btn${showTechBadge ? ' hud-tech-tree-btn--notify' : ''}`} onClick={onOpenTechTree}>
           🔬 Tech Tree
+          {showTechBadge && <span className="hud-tech-tree-badge">!</span>}
         </button>
       )}
       <GameMenu />
@@ -1695,12 +1698,21 @@ function GameOverOverlay() {
   const gameStats = useGameStore((s) => s.gameStats);
   const initNewGame = useGameStore((s) => s.initNewGame);
   const difficulty = useGameStore((s) => s.difficulty);
+  const gameOverCause = useGameStore((s) => s.gameOverCause ?? null);
+
+  const causeText =
+    gameOverCause === 'LAVA'
+      ? 'The last Stronghold was consumed by the rising lava.'
+      : gameOverCause === 'ENEMY'
+      ? 'The last Stronghold fell to the Volcael.'
+      : null;
 
   return (
     <div className="hud-overlay">
       <div className="hud-overlay-box">
         <h1 className="hud-overlay-title hud-defeat">💀 DEFEATED</h1>
         <p className="hud-overlay-sub">You survived {turn} turns</p>
+        {causeText && <p className="hud-overlay-cause">{causeText}</p>}
         <EndGameStats stats={gameStats} />
         <button className="hud-play-again-btn" onClick={() => initNewGame(difficulty)}>
           🔄 Play Again
@@ -1740,8 +1752,8 @@ function GameIntroPopup({ onDismiss }: { onDismiss: () => void }) {
       <div className="hud-intro-card">
         <div className="hud-intro-icon">🌋</div>
         <p className="hud-intro-text">
-          Lava rises. The horde follows.<br />
-          Capture all five strongholds before the mountain swallows you whole.
+          Lava devours the land at your back. The Volcael advance from the north, racing it.<br />
+          Push forward — raze every Infernal Sanctum. If your last Stronghold falls, the war is lost.
         </p>
         <button className="hud-intro-cta" onClick={onDismiss}>
           To the Walls!
@@ -2124,16 +2136,46 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
   const arcaneCrystals = useGameStore((s) => s.arcaneCrystals);
   const [hasSeenIntro, setHasSeenIntro] = useState(false);
   const [showTechTree, setShowTechTree] = useState(false);
+  // Track crystals at the moment the player last closed the tech tree.
+  // Initialised to -1 so the badge shows from game start if there is an affordable tech.
+  const [crystalsAtLastTechTreeClose, setCrystalsAtLastTechTreeClose] = useState(-1);
+  // Used to detect when a new game starts (turn resets to 1) so badge tracking resets.
+  const [prevTurn, setPrevTurn] = useState(turn);
+
+  // Derived-state update: when turn resets to 1 from a higher value, a new game has
+  // started. Reset crystalsAtLastTechTreeClose so the badge shows on the fresh game.
+  // Setting state during render (not in an effect) is the React-recommended pattern
+  // for adjusting state when a prop/upstream value changes.
+  if (prevTurn !== turn) {
+    setPrevTurn(turn);
+    if (turn === 1 && prevTurn > 1) {
+      setCrystalsAtLastTechTreeClose(-1);
+    }
+  }
+
+  const hasAffordableTech = useGameStore((s) => {
+    const available = getAvailableTechsLogic(s);
+    return available.some((techId) => {
+      const def = TECH_TREE.find((d) => d.id === techId);
+      return s.arcaneCrystals >= (def?.cost ?? 1);
+    });
+  });
 
   const handleIntroDismiss = useCallback(() => {
     setHasSeenIntro(true);
-    // Auto-open tech tree on game start when crystals are available
-    if (useGameStore.getState().arcaneCrystals > 0) {
-      setShowTechTree(true);
-    }
   }, []);
 
+  const handleCloseTechTree = useCallback(() => {
+    setShowTechTree(false);
+    setCrystalsAtLastTechTreeClose(arcaneCrystals);
+  }, [arcaneCrystals]);
+
   const isPlayerTurn = phase === GamePhase.PLAYER_TURN;
+  // Badge shows when crystals have been gained since the player last closed the tech tree
+  // AND there is at least one affordable unlocked tech available.
+  // crystalsAtLastTechTreeClose of -1 means the tech tree has never been closed this
+  // session, so any positive crystal count triggers the badge.
+  const showTechBadge = isPlayerTurn && hasAffordableTech && arcaneCrystals > crystalsAtLastTechTreeClose;
 
   return (
     <>
@@ -2143,10 +2185,11 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
         onOpenTechTree={() => setShowTechTree(true)}
         showTechButton={isPlayerTurn}
         arcaneCrystals={arcaneCrystals}
+        showTechBadge={showTechBadge}
       />
       <BottomBar />
       <ArcaneCrystalToast />
-      {showTechTree && <TechTreeOverlay onClose={() => setShowTechTree(false)} />}
+      {showTechTree && <TechTreeOverlay onClose={handleCloseTechTree} />}
       {phase === GamePhase.GAME_OVER && <GameOverOverlay />}
       {phase === GamePhase.VICTORY && <VictoryOverlay />}
       {showTurnPopup && <TurnAnnouncementPopup turn={turn} />}

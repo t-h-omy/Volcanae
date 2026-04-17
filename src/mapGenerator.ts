@@ -661,6 +661,7 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
     zoneLockoutUntilTurn: {},
     spawnFreezeUntilTurn: 0,
     lavaFreezeUntilTurn: 0,
+    gameOverCause: null,
   };
 
   // Auto-apply CONSCRIPTION effects (unlocked at game start, not a pick)

@@ -662,7 +662,7 @@ export const useGameStore = create<GameStore>()(
 
         // Phase 3: Check game conditions after enemy turn
         let computedState = produce(afterEnemy, (draft) => {
-          checkGameConditions(draft);
+          checkGameConditions(draft, 'ENEMY');
         });
 
         // If game ended during enemy turn, enqueue events with that final state
@@ -701,7 +701,7 @@ export const useGameStore = create<GameStore>()(
 
         // Phase 5: Check game conditions after lava
         computedState = produce(computedState, (draft) => {
-          checkGameConditions(draft);
+          checkGameConditions(draft, 'LAVA');
         });
 
         if (computedState.phase === GamePhase.GAME_OVER || computedState.phase === GamePhase.VICTORY) {
@@ -1413,7 +1413,7 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         advanceLava(state);
         updateDiscovery(state);
-        checkGameConditions(state);
+        checkGameConditions(state, 'LAVA');
       });
     },
 
