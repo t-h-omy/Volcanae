@@ -1029,20 +1029,20 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
       }
     >
       {unit.stats.currentHp < unit.stats.maxHp && (
-        <div
-          className="hp-bar-wrapper"
-          style={
-            {
-              '--color-hp-red': RENDER.COLORS.HP_RED,
-              '--color-hp-green': RENDER.COLORS.HP_GREEN,
-            } as React.CSSProperties
-          }
-        >
-          <div className="hp-bar-fill" style={{ width: `${hpPct}%` }} />
-        </div>
-      )}
-      {unit.stats.currentHp < unit.stats.maxHp && (
-        <span className="unit-hp-text">{unit.stats.currentHp}</span>
+        <>
+          <div
+            className="hp-bar-wrapper"
+            style={
+              {
+                '--color-hp-red': RENDER.COLORS.HP_RED,
+                '--color-hp-green': RENDER.COLORS.HP_GREEN,
+              } as React.CSSProperties
+            }
+          >
+            <div className="hp-bar-fill" style={{ width: `${hpPct}%` }} />
+          </div>
+          <span className="unit-hp-text">{unit.stats.currentHp}</span>
+        </>
       )}
       {UNIT_LEVEL_UP[unit.type] && (
         <span className="unit-xp-text">{unit.xp} xp</span>
