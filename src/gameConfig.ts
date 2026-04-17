@@ -230,7 +230,7 @@ export const BUILDINGS = {
   /** What happens to a tile when a building of each type is destroyed */
   DESTROY_BEHAVIOR: {
     STRONGHOLD: DestroyBehavior.STRONGHOLD_RUIN,
-    MINE: DestroyBehavior.RUIN,
+    MINE: DestroyBehavior.NONE,
     WOODCUTTER: DestroyBehavior.NONE,
     BARRACKS: DestroyBehavior.RUIN,
     ARCHER_CAMP: DestroyBehavior.RUIN,
