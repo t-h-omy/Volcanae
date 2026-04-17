@@ -508,17 +508,47 @@ export const useGameStore = create<GameStore>()(
     },
 
     captureBuilding: (unitId: string, buildingId: string) => {
-      const collapseEvents: GameEvent[] = [];
+      let pendingEvents: GameEvent[] | null = null;
+      let pendingResolvedState: GameState | null = null;
+
       set((state) => {
-        initiateCaptureLogic(state, unitId, buildingId, undefined, collapseEvents);
-        // Update tile discovery after player action
-        updateDiscovery(state);
-        // Check win/loss conditions after player action
-        checkGameConditions(state);
+        const unit = state.units[unitId];
+        const building = state.buildings[buildingId];
+        if (!unit || !building) return;
+
+        // Sanctum captures trigger zone-clearing VFX and need the animation queue.
+        const isSanctumCapture =
+          building.type === BuildingType.INFERNALSANCTUM &&
+          unit.faction === Faction.PLAYER;
+
+        if (isSanctumCapture) {
+          // Use snapshot → produce pattern so the animation engine can replay events
+          const snapshot: GameState = current(state);
+          const collapseEvents: GameEvent[] = [];
+
+          const resolvedState = produce(snapshot, (draft) => {
+            initiateCaptureLogic(draft, unitId, buildingId, undefined, collapseEvents);
+            updateDiscovery(draft);
+            checkGameConditions(draft);
+          });
+
+          pendingEvents = collapseEvents;
+          pendingResolvedState = resolvedState;
+
+          // Lock UI while animation plays
+          state.phase = GamePhase.ENEMY_TURN;
+          state.selectedUnitId = null;
+          state.selectedBuildingId = null;
+        } else {
+          // Non-sanctum captures: apply directly (no animation needed)
+          initiateCaptureLogic(state, unitId, buildingId);
+          updateDiscovery(state);
+          checkGameConditions(state);
+        }
       });
-      // Apply any sanctum collapse events (floaters and stats)
-      for (const ev of collapseEvents) {
-        useGameStore.getState().applyEvent(ev);
+
+      if (pendingEvents !== null && pendingResolvedState !== null) {
+        useAnimationStore.getState().enqueue(pendingEvents, pendingResolvedState);
       }
     },
 

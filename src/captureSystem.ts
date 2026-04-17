@@ -337,14 +337,6 @@ export function triggerSanctumCollapse(
       purgedUnitIds.push(unit.id);
       clearedUnitPositions.push({ x: unit.position.x, y: unit.position.y });
 
-      // Emit UNIT_DEATH event
-      events.push({
-        type: 'UNIT_DEATH',
-        unitId: unit.id,
-        position: { x: unit.position.x, y: unit.position.y },
-        faction: Faction.ENEMY,
-      });
-
       // Clear tile
       const tile = state.grid[unit.position.y][unit.position.x];
       if (tile.unitId === unit.id) {
@@ -407,7 +399,18 @@ export function triggerSanctumCollapse(
     }
   }
 
-  // Emit SANCTUM_COLLAPSE event
+  // Emit ZONE_CLEARED event first so celebration VFX plays while entities
+  // are still visible in the live state (applied later by SANCTUM_COLLAPSE).
+  events.push({
+    type: 'ZONE_CLEARED',
+    zone,
+    sanctumPosition: { x: sanctumPosition.x, y: sanctumPosition.y },
+    clearedUnitPositions,
+    clearedBuildingPositions,
+  });
+
+  // Emit SANCTUM_COLLAPSE event (the animation engine's ZONE_CLEARED handler
+  // will consume this from the queue and apply it after the VFX + popup).
   events.push({
     type: 'SANCTUM_COLLAPSE',
     sanctumPosition: { x: sanctumPosition.x, y: sanctumPosition.y },
@@ -417,15 +420,6 @@ export function triggerSanctumCollapse(
     lockoutUntilTurn,
     spawnFreezeUntilTurn: state.spawnFreezeUntilTurn,
     lavaFreezeUntilTurn: state.lavaFreezeUntilTurn,
-  });
-
-  // Emit ZONE_CLEARED event for visual celebration
-  events.push({
-    type: 'ZONE_CLEARED',
-    zone,
-    sanctumPosition: { x: sanctumPosition.x, y: sanctumPosition.y },
-    clearedUnitPositions,
-    clearedBuildingPositions,
   });
 }
 

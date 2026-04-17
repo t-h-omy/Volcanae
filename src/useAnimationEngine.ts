@@ -613,8 +613,19 @@ export function useAnimationEngine(): void {
             });
           }
 
-          // Apply event to game state (no-op case)
+          // Apply event to game state (no-op for ZONE_CLEARED)
           useGameStore.getState().applyEvent(event);
+
+          // Consume the following SANCTUM_COLLAPSE event — apply it without
+          // additional animation so units/buildings vanish from the grid now.
+          const { eventQueue } = useAnimationStore.getState();
+          if (eventQueue.length > 0 && eventQueue[0].type === 'SANCTUM_COLLAPSE') {
+            const collapseEvent = useAnimationStore.getState().shiftEvent();
+            if (collapseEvent) {
+              useGameStore.getState().applyEvent(collapseEvent);
+            }
+          }
+
           continue;
         }
 
