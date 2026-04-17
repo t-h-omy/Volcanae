@@ -1014,7 +1014,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
 
 export const ABILITIES = {
   /** Damage multiplier applied when ASSASSIN tag attacks a full-HP target */
-  ASSASSIN_DAMAGE_MULTIPLIER: 3,
+  ASSASSIN_DAMAGE_MULTIPLIER: 6,
   /** Flat defense bonus applied when HOLD_GROUND flag is active and unit stands on own building */
   HOLD_GROUND_DEFENSE_BONUS: 20,
   /** Extra move range granted by TO_THE_FRONT flag */
