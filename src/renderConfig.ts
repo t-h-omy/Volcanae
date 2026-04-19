@@ -25,6 +25,10 @@ export const RENDER = {
     REACHABLE_OVERLAY: 'rgba(58, 123, 213, 0.35)',
     ATTACKABLE_OVERLAY: 'rgba(192, 57, 43, 0.35)',
     HEALABLE_OVERLAY: 'rgba(46, 204, 113, 0.35)',
+    /** Background colour for CANYON terrain tiles */
+    CANYON: '#5C3D1E',
+    /** Background colour for WATER terrain tiles */
+    WATER: '#4AABDB',
     HP_GREEN: '#2ecc71',
     HP_RED: '#e74c3c',
     LAVA_BOOST_BAR: '#e67e22',

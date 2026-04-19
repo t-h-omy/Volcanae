@@ -26,6 +26,7 @@ import {
   UnitType,
   UnitTag,
   BuildingType,
+  TileType,
   type Tile,
   type Unit,
   type Building,
@@ -871,6 +872,22 @@ function TileCellInner({
             zIndex: 0,
           }}
         />
+      ) : tile.terrainType === TileType.CANYON ? (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 0, backgroundColor: RENDER.COLORS.CANYON, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <svg width="100%" height="100%" viewBox="0 0 100 100" style={{ position: 'absolute', inset: 0 }}>
+            <line x1="30" y1="10" x2="35" y2="90" stroke="#3D2A12" strokeWidth="2" opacity="0.6" />
+            <line x1="60" y1="5" x2="55" y2="85" stroke="#3D2A12" strokeWidth="1.5" opacity="0.5" />
+            <line x1="70" y1="20" x2="75" y2="70" stroke="#3D2A12" strokeWidth="1" opacity="0.4" />
+          </svg>
+        </div>
+      ) : tile.terrainType === TileType.WATER ? (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 0, backgroundColor: RENDER.COLORS.WATER, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <svg width="100%" height="100%" viewBox="0 0 100 100" style={{ position: 'absolute', inset: 0 }}>
+            <path d="M10 40 Q25 35 40 40 Q55 45 70 40 Q85 35 95 40" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2" />
+            <path d="M5 55 Q20 50 35 55 Q50 60 65 55 Q80 50 95 55" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2" />
+            <path d="M10 70 Q25 65 40 70 Q55 75 70 70 Q85 65 95 70" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="1.5" />
+          </svg>
+        </div>
       ) : (
         <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
           <MissingSprite size={tileSize} />

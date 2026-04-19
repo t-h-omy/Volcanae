@@ -59,6 +59,8 @@ export const TileType = {
   PLAINS: 'PLAINS',
   FOREST: 'FOREST',
   MOUNTAIN: 'MOUNTAIN',
+  CANYON: 'CANYON',
+  WATER: 'WATER',
 } as const;
 export type TileType = (typeof TileType)[keyof typeof TileType];
 

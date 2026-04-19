@@ -434,8 +434,520 @@ function placeRuinsForZone(
 }
 
 // ============================================================================
-// GRID GENERATION
+// CANYON & LAKE GENERATION
 // ============================================================================
+
+/**
+ * Checks if a position is too close to any stronghold position.
+ * Uses Manhattan distance with TERRAIN.IMPASSABLE_MIN_DISTANCE_FROM_STRONGHOLD.
+ */
+function isTooCloseToStronghold(
+  pos: Position,
+  strongholdPositions: Position[],
+): boolean {
+  const minDist = TERRAIN.IMPASSABLE_MIN_DISTANCE_FROM_STRONGHOLD;
+  for (const sp of strongholdPositions) {
+    if (Math.abs(pos.x - sp.x) + Math.abs(pos.y - sp.y) <= minDist) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Generates the shape of a canyon (vertical, with drift and width variance).
+ * Returns the list of positions making up the canyon.
+ */
+function generateCanyonShape(startX: number, startY: number): Position[] {
+  const length = randomInRange(TERRAIN.CANYON_LENGTH_MIN, TERRAIN.CANYON_LENGTH_MAX);
+  const positions: Position[] = [];
+  const seen = new Set<string>();
+
+  let x = startX;
+  let y = startY;
+
+  for (let i = 0; i < length; i++) {
+    // Clamp to grid bounds
+    x = Math.max(0, Math.min(MAP.GRID_WIDTH - 1, x));
+    if (y < 0 || y >= MAP.GRID_HEIGHT) break;
+
+    const key = `${x},${y}`;
+    if (!seen.has(key)) {
+      positions.push({ x, y });
+      seen.add(key);
+    }
+
+    // Width variance: optionally include an adjacent tile horizontally
+    if (Math.random() < TERRAIN.CANYON_WIDTH_VARIANCE_CHANCE) {
+      const dx = Math.random() < 0.5 ? -1 : 1;
+      const nx = x + dx;
+      if (nx >= 0 && nx < MAP.GRID_WIDTH) {
+        const nkey = `${nx},${y}`;
+        if (!seen.has(nkey)) {
+          positions.push({ x: nx, y });
+          seen.add(nkey);
+        }
+      }
+    }
+
+    // Move north (decreasing Y) with horizontal drift
+    y -= 1;
+    if (Math.random() < TERRAIN.CANYON_DRIFT_CHANCE) {
+      x += Math.random() < 0.5 ? -1 : 1;
+    }
+  }
+
+  return positions;
+}
+
+/**
+ * Generates the shape of a water lake using erosion of a filled rectangle.
+ * Returns the list of positions making up the lake.
+ */
+function generateLakeShape(
+  originX: number,
+  originY: number,
+  width: number,
+  height: number,
+): Position[] {
+  // Start with a fully filled grid
+  const filled: boolean[][] = [];
+  for (let dy = 0; dy < height; dy++) {
+    const row: boolean[] = [];
+    for (let dx = 0; dx < width; dx++) {
+      row.push(true);
+    }
+    filled.push(row);
+  }
+
+  // Erosion pass: remove border tiles with probability
+  const erosionPasses = randomInRange(1, 2);
+  for (let pass = 0; pass < erosionPasses; pass++) {
+    for (let dy = 0; dy < height; dy++) {
+      for (let dx = 0; dx < width; dx++) {
+        if (!filled[dy][dx]) continue;
+        // Only erode border/edge tiles
+        const isBorder =
+          dy === 0 || dy === height - 1 || dx === 0 || dx === width - 1;
+        if (isBorder && Math.random() < TERRAIN.LAKE_EROSION_CHANCE) {
+          filled[dy][dx] = false;
+        }
+      }
+    }
+  }
+
+  // Find the largest connected component using BFS
+  const visited: boolean[][] = Array.from({ length: height }, () =>
+    Array(width).fill(false),
+  );
+  let largestComponent: Position[] = [];
+
+  for (let dy = 0; dy < height; dy++) {
+    for (let dx = 0; dx < width; dx++) {
+      if (!filled[dy][dx] || visited[dy][dx]) continue;
+      // BFS
+      const component: Position[] = [];
+      const queue: [number, number][] = [[dx, dy]];
+      visited[dy][dx] = true;
+      while (queue.length > 0) {
+        const [cx, cy] = queue.shift()!;
+        component.push({ x: originX + cx, y: originY + cy });
+        for (const [nx, ny] of [
+          [cx - 1, cy],
+          [cx + 1, cy],
+          [cx, cy - 1],
+          [cx, cy + 1],
+        ]) {
+          if (
+            nx >= 0 && nx < width && ny >= 0 && ny < height &&
+            filled[ny][nx] && !visited[ny][nx]
+          ) {
+            visited[ny][nx] = true;
+            queue.push([nx, ny]);
+          }
+        }
+      }
+      if (component.length > largestComponent.length) {
+        largestComponent = component;
+      }
+    }
+  }
+
+  return largestComponent;
+}
+
+/**
+ * Checks that placing a set of impassable positions would not reduce
+ * any affected row below the minimum passable tile threshold.
+ */
+function wouldViolateRowMinimum(
+  positions: Position[],
+  grid: Tile[][],
+  occupiedImpassable: Set<string>,
+): boolean {
+  // Count current impassable (CANYON/WATER) tiles per affected row
+  const rowsAffected = new Set(positions.map((p) => p.y));
+  for (const row of rowsAffected) {
+    if (row < 0 || row >= MAP.GRID_HEIGHT) continue;
+    let passable = 0;
+    const newImpassableInRow = new Set(
+      positions.filter((p) => p.y === row).map((p) => `${p.x},${p.y}`),
+    );
+    for (let x = 0; x < MAP.GRID_WIDTH; x++) {
+      const key = `${x},${row}`;
+      const tile = grid[row][x];
+      if (
+        !tile.isLava &&
+        tile.terrainType !== TileType.CANYON &&
+        tile.terrainType !== TileType.WATER &&
+        !occupiedImpassable.has(key) &&
+        !newImpassableInRow.has(key)
+      ) {
+        passable++;
+      }
+    }
+    if (passable < TERRAIN.MIN_PASSABLE_TILES_PER_ROW) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Places canyons in a zone. Validates row minimum and stronghold distance.
+ */
+function placeCanyonsForZone(
+  zone: number,
+  grid: Tile[][],
+  occupiedPositions: Set<string>,
+  strongholdPositions: Position[],
+): void {
+  const [startRow, endRow] = getZoneRowRange(zone);
+  const count = randomInRange(TERRAIN.CANYONS_PER_ZONE_MIN, TERRAIN.CANYONS_PER_ZONE_MAX);
+  const lavaBufferStart = MAP.GRID_HEIGHT - MAP.LAVA_BUFFER_ROWS;
+
+  for (let i = 0; i < count; i++) {
+    let placed = false;
+    let attempts = 0;
+    const maxAttempts = 20;
+
+    while (!placed && attempts < maxAttempts) {
+      attempts++;
+      // Pick a random start position not within 1 tile of map edges
+      const sx = randomInRange(1, MAP.GRID_WIDTH - 2);
+      const sy = randomInRange(startRow, endRow);
+
+      const shape = generateCanyonShape(sx, sy);
+
+      // Filter: stay within zone rows, not in lava buffer, in grid bounds
+      const validShape = shape.filter(
+        (p) =>
+          p.y >= startRow &&
+          p.y <= endRow &&
+          p.y < lavaBufferStart &&
+          p.x >= 0 &&
+          p.x < MAP.GRID_WIDTH,
+      );
+
+      if (validShape.length === 0) continue;
+
+      // Check stronghold proximity
+      const tooClose = validShape.some((p) =>
+        isTooCloseToStronghold(p, strongholdPositions),
+      );
+      if (tooClose) continue;
+
+      // Check row minimum
+      const impassableSet = new Set<string>();
+      // Collect existing impassable tiles
+      for (let y = 0; y < MAP.GRID_HEIGHT; y++) {
+        for (let x = 0; x < MAP.GRID_WIDTH; x++) {
+          if (
+            grid[y][x].terrainType === TileType.CANYON ||
+            grid[y][x].terrainType === TileType.WATER
+          ) {
+            impassableSet.add(`${x},${y}`);
+          }
+        }
+      }
+
+      if (wouldViolateRowMinimum(validShape, grid, impassableSet)) continue;
+
+      // Place the canyon
+      for (const p of validShape) {
+        grid[p.y][p.x].terrainType = TileType.CANYON;
+        markPositionOccupied(p, occupiedPositions);
+      }
+      placed = true;
+    }
+  }
+}
+
+/**
+ * Places lakes in a zone. Validates row minimum and stronghold distance.
+ */
+function placeLakesForZone(
+  zone: number,
+  grid: Tile[][],
+  occupiedPositions: Set<string>,
+  strongholdPositions: Position[],
+): void {
+  const [startRow, endRow] = getZoneRowRange(zone);
+  const count = randomInRange(TERRAIN.LAKES_PER_ZONE_MIN, TERRAIN.LAKES_PER_ZONE_MAX);
+  const lavaBufferStart = MAP.GRID_HEIGHT - MAP.LAVA_BUFFER_ROWS;
+
+  for (let i = 0; i < count; i++) {
+    let placed = false;
+    let attempts = 0;
+    const maxAttempts = 20;
+
+    while (!placed && attempts < maxAttempts) {
+      attempts++;
+      const w = randomInRange(TERRAIN.LAKE_WIDTH_MIN, TERRAIN.LAKE_WIDTH_MAX);
+      const h = randomInRange(TERRAIN.LAKE_HEIGHT_MIN, TERRAIN.LAKE_HEIGHT_MAX);
+
+      // Pick an origin so bounding box fits within zone and grid
+      const maxOriginX = MAP.GRID_WIDTH - w;
+      const maxOriginY = Math.min(endRow - h + 1, lavaBufferStart - h);
+      if (maxOriginX < 0 || maxOriginY < startRow) continue;
+
+      const ox = randomInRange(Math.max(0, 1), Math.min(maxOriginX, MAP.GRID_WIDTH - 2));
+      const oy = randomInRange(startRow, maxOriginY);
+
+      const shape = generateLakeShape(ox, oy, w, h);
+
+      // Filter: within zone, in bounds, not in lava buffer
+      const validShape = shape.filter(
+        (p) =>
+          p.y >= startRow &&
+          p.y <= endRow &&
+          p.y < lavaBufferStart &&
+          p.x >= 0 &&
+          p.x < MAP.GRID_WIDTH,
+      );
+
+      if (validShape.length === 0) continue;
+
+      // Check stronghold proximity
+      const tooClose = validShape.some((p) =>
+        isTooCloseToStronghold(p, strongholdPositions),
+      );
+      if (tooClose) continue;
+
+      // Check row minimum
+      const impassableSet = new Set<string>();
+      for (let y = 0; y < MAP.GRID_HEIGHT; y++) {
+        for (let x = 0; x < MAP.GRID_WIDTH; x++) {
+          if (
+            grid[y][x].terrainType === TileType.CANYON ||
+            grid[y][x].terrainType === TileType.WATER
+          ) {
+            impassableSet.add(`${x},${y}`);
+          }
+        }
+      }
+
+      if (wouldViolateRowMinimum(validShape, grid, impassableSet)) continue;
+
+      // Place the lake — skip tiles already occupied by another impassable type
+      for (const p of validShape) {
+        if (
+          grid[p.y][p.x].terrainType !== TileType.CANYON &&
+          grid[p.y][p.x].terrainType !== TileType.WATER
+        ) {
+          grid[p.y][p.x].terrainType = TileType.WATER;
+          markPositionOccupied(p, occupiedPositions);
+        }
+      }
+      placed = true;
+    }
+  }
+}
+
+// ============================================================================
+// TRAVERSABILITY CHECKS
+// ============================================================================
+
+/**
+ * Checks if a tile is impassable (CANYON, WATER, or lava).
+ */
+function isImpassableTile(tile: Tile): boolean {
+  return (
+    tile.isLava ||
+    tile.terrainType === TileType.CANYON ||
+    tile.terrainType === TileType.WATER
+  );
+}
+
+/**
+ * BFS flood fill from a set of starting positions, returning all reachable passable tiles.
+ */
+function bfsFloodFill(grid: Tile[][], startPositions: Position[]): Set<string> {
+  const visited = new Set<string>();
+  const queue: Position[] = [];
+
+  for (const p of startPositions) {
+    const tile = grid[p.y]?.[p.x];
+    if (tile && !isImpassableTile(tile)) {
+      const key = `${p.x},${p.y}`;
+      if (!visited.has(key)) {
+        visited.add(key);
+        queue.push(p);
+      }
+    }
+  }
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+      const nx = current.x + dx;
+      const ny = current.y + dy;
+      if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;
+      const key = `${nx},${ny}`;
+      if (visited.has(key)) continue;
+      const tile = grid[ny][nx];
+      if (isImpassableTile(tile)) continue;
+      visited.add(key);
+      queue.push({ x: nx, y: ny });
+    }
+  }
+
+  return visited;
+}
+
+/**
+ * Checks if the map is fully traversable south-to-north and north-to-south (no cul-de-sacs).
+ * Returns true if the map passes, false otherwise.
+ */
+function isMapFullyTraversable(grid: Tile[][]): boolean {
+  const southRow = MAP.GRID_HEIGHT - MAP.LAVA_BUFFER_ROWS - 1;
+  const northRow = 0;
+
+  // Collect passable tiles in south and north rows
+  const southStarts: Position[] = [];
+  const northStarts: Position[] = [];
+  for (let x = 0; x < MAP.GRID_WIDTH; x++) {
+    if (!isImpassableTile(grid[southRow][x])) {
+      southStarts.push({ x, y: southRow });
+    }
+    if (!isImpassableTile(grid[northRow][x])) {
+      northStarts.push({ x, y: northRow });
+    }
+  }
+
+  if (southStarts.length === 0 || northStarts.length === 0) return false;
+
+  // BFS from south
+  const reachableFromSouth = bfsFloodFill(grid, southStarts);
+
+  // Check that at least one north tile is reachable
+  const northReached = northStarts.some((p) => reachableFromSouth.has(`${p.x},${p.y}`));
+  if (!northReached) return false;
+
+  // BFS from north
+  const reachableFromNorth = bfsFloodFill(grid, northStarts);
+
+  // Check that at least one south tile is reachable from north
+  const southReached = southStarts.some((p) => reachableFromNorth.has(`${p.x},${p.y}`));
+  if (!southReached) return false;
+
+  return true;
+}
+
+/**
+ * Removes cul-de-sac pockets by clearing impassable terrain tiles that block
+ * bidirectional traversability. Tiles reachable from south but not from north
+ * (or vice versa) are considered adjacent to a blockage — the adjacent impassable
+ * tiles are reverted to PLAINS.
+ */
+function removeCulDeSacs(grid: Tile[][]): void {
+  const southRow = MAP.GRID_HEIGHT - MAP.LAVA_BUFFER_ROWS - 1;
+  const northRow = 0;
+
+  const southStarts: Position[] = [];
+  const northStarts: Position[] = [];
+  for (let x = 0; x < MAP.GRID_WIDTH; x++) {
+    if (!isImpassableTile(grid[southRow][x])) southStarts.push({ x, y: southRow });
+    if (!isImpassableTile(grid[northRow][x])) northStarts.push({ x, y: northRow });
+  }
+
+  const reachableFromSouth = bfsFloodFill(grid, southStarts);
+  const reachableFromNorth = bfsFloodFill(grid, northStarts);
+
+  // Find cul-de-sac pockets: tiles reachable from one direction but not the other
+  const pockets: Position[] = [];
+  for (let y = 0; y < MAP.GRID_HEIGHT; y++) {
+    for (let x = 0; x < MAP.GRID_WIDTH; x++) {
+      const key = `${x},${y}`;
+      if (isImpassableTile(grid[y][x])) continue;
+      const fromSouth = reachableFromSouth.has(key);
+      const fromNorth = reachableFromNorth.has(key);
+      if (fromSouth !== fromNorth) {
+        pockets.push({ x, y });
+      }
+    }
+  }
+
+  if (pockets.length === 0) return;
+
+  // Remove impassable terrain tiles adjacent to pocket tiles
+  const toRemove = new Set<string>();
+  for (const p of pockets) {
+    for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+      const nx = p.x + dx;
+      const ny = p.y + dy;
+      if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;
+      const tile = grid[ny][nx];
+      if (tile.terrainType === TileType.CANYON || tile.terrainType === TileType.WATER) {
+        toRemove.add(`${nx},${ny}`);
+      }
+    }
+  }
+
+  for (const key of toRemove) {
+    const [xStr, yStr] = key.split(',');
+    const x = parseInt(xStr, 10);
+    const y = parseInt(yStr, 10);
+    grid[y][x].terrainType = TileType.PLAINS;
+  }
+}
+
+/**
+ * Ensures the map is fully traversable south-to-north with no cul-de-sacs.
+ * If BFS fails, removes problematic terrain. Falls back to clearing all
+ * canyon/water tiles if needed.
+ */
+function ensureTraversability(grid: Tile[][]): void {
+  // First pass: remove cul-de-sacs
+  for (let attempt = 0; attempt < TERRAIN.MAX_TRAVERSABILITY_RETRIES; attempt++) {
+    if (isMapFullyTraversable(grid)) {
+      // Check for cul-de-sacs
+      removeCulDeSacs(grid);
+      if (isMapFullyTraversable(grid)) {
+        return; // Map is clean
+      }
+    } else {
+      // Remove cul-de-sacs which may also fix traversability
+      removeCulDeSacs(grid);
+      if (isMapFullyTraversable(grid)) {
+        return;
+      }
+    }
+  }
+
+  // Fallback: clear all canyon and water tiles
+  console.warn('Map traversability could not be ensured — clearing all canyon/water terrain.');
+  for (let y = 0; y < MAP.GRID_HEIGHT; y++) {
+    for (let x = 0; x < MAP.GRID_WIDTH; x++) {
+      if (
+        grid[y][x].terrainType === TileType.CANYON ||
+        grid[y][x].terrainType === TileType.WATER
+      ) {
+        grid[y][x].terrainType = TileType.PLAINS;
+      }
+    }
+  }
+}
 
 /**
  * Creates the initial tile grid.
@@ -524,6 +1036,15 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
   for (let zone = 1; zone <= MAP.ZONE_COUNT; zone++) {
     placeRuinsForZone(zone, grid, occupiedPositions);
   }
+
+  // Place canyons and lakes per zone
+  for (let zone = 1; zone <= MAP.ZONE_COUNT; zone++) {
+    placeCanyonsForZone(zone, grid, occupiedPositions, strongholdPositions);
+    placeLakesForZone(zone, grid, occupiedPositions, strongholdPositions);
+  }
+
+  // Verify and fix traversability
+  ensureTraversability(grid);
 
   // Generate buildings for all zones
   const allBuildings: Building[] = [];
