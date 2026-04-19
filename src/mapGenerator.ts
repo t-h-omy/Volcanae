@@ -548,9 +548,10 @@ function generateLakeShape(
       // BFS
       const component: Position[] = [];
       const queue: [number, number][] = [[dx, dy]];
+      let qi = 0;
       visited[dy][dx] = true;
-      while (queue.length > 0) {
-        const [cx, cy] = queue.shift()!;
+      while (queue.length > qi) {
+        const [cx, cy] = queue[qi++];
         component.push({ x: originX + cx, y: originY + cy });
         for (const [nx, ny] of [
           [cx - 1, cy],
@@ -797,8 +798,9 @@ function bfsFloodFill(grid: Tile[][], startPositions: Position[]): Set<string> {
     }
   }
 
-  while (queue.length > 0) {
-    const current = queue.shift()!;
+  let qi = 0;
+  while (queue.length > qi) {
+    const current = queue[qi++];
     for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
       const nx = current.x + dx;
       const ny = current.y + dy;
