@@ -1827,6 +1827,8 @@ function computeTechTreeLayout(
   nodeH: number,
 ): { positions: Record<string, { x: number; y: number }>; canvasW: number; canvasH: number } {
   // ── Build tree structure ──────────────────────────────
+  // Each node uses its first `requires` entry as its single parent.
+  // The TECH_TREE is a strict tree (no multi-parent DAG nodes).
   const childrenOf = new Map<string, string[]>();
   let rootId = '';
   for (const node of tree) {
