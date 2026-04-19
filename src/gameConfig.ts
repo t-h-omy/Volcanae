@@ -871,7 +871,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     name: 'Deep Veins',
     description: 'Mines occasionally produce bonus iron',
     requires: ['A_NOBLE_STEAD'],
-    cost: 3,
+    cost: 4,
     effects: [
       { type: 'BUILDING_PRODUCTION_MOD', buildingType: BuildingType.MINE, resource: ResourceType.IRON, chancePercent: 30, amount: 1 },
     ],
@@ -894,7 +894,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     name: 'Siege Works',
     description: 'Build Siege Camps and field devastating siege engines',
     requires: ['FAR_REACH'],
-    cost: 3,
+    cost: 4,
     effects: [
       { type: 'UNLOCK_BUILDING', buildingType: BuildingType.SIEGE_CAMP },
       { type: 'UNLOCK_UNIT',     unitType: UnitType.SIEGE },
@@ -905,7 +905,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     name: 'Clean Cuts',
     description: 'Woodcutters occasionally produce bonus wood',
     requires: ['FAR_REACH'],
-    cost: 3,
+    cost: 4,
     effects: [
       { type: 'BUILDING_PRODUCTION_MOD', buildingType: BuildingType.WOODCUTTER, resource: ResourceType.WOOD, chancePercent: 30, amount: 1 },
     ],
@@ -915,7 +915,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     name: 'To the Front',
     description: 'Units far from the front line move faster',
     requires: ['CLEAN_CUTS'],
-    cost: 5,
+    cost: 7,
     effects: [
       { type: 'FLAG', flag: TechFlag.TO_THE_FRONT },
     ],
@@ -937,7 +937,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     name: 'Hold Ground',
     description: 'Units on own buildings gain a defense bonus',
     requires: ['FIELD_DUTIES'],
-    cost: 3,
+    cost: 4,
     effects: [
       { type: 'FLAG', flag: TechFlag.HOLD_GROUND },
     ],
@@ -947,7 +947,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     name: 'Fieldwork',
     description: 'Infantry can sacrifice themselves to construct an Outpost',
     requires: ['FIELD_DUTIES'],
-    cost: 3,
+    cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.INFANTRY, tag: UnitTag.FIELDWORK },
     ],
@@ -956,8 +956,8 @@ export const TECH_TREE: TechNodeDefinition[] = [
     id: 'PHALANX_FORMATION',
     name: 'Phalanx Formation',
     description: 'Guards in formation bolster each other — gaining attack and granting defense to nearby allies',
-    requires: ['FIELD_DUTIES'],
-    cost: 3,
+    requires: ['HOLD_GROUND'],
+    cost: 7,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.GUARD, tag: UnitTag.PHALANX },
     ],
@@ -979,7 +979,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     name: 'Assassin',
     description: 'Scouts deal bonus damage with no retaliation damage when striking full-HP enemies',
     requires: ['BIG_EYES'],
-    cost: 3,
+    cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SCOUT, tag: UnitTag.ASSASSIN },
     ],
@@ -989,7 +989,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     name: 'Patch Up',
     description: 'Scouts can heal adjacent friendly units',
     requires: ['BIG_EYES'],
-    cost: 3,
+    cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SCOUT, tag: UnitTag.PATCHUP },
     ],
@@ -1013,7 +1013,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     name: 'Citadel',
     description: 'An imposing fortress that houses nobles and trains elite warriors',
     requires: ['WALLED_SETTLEMENT'],
-    cost: 3,
+    cost: 4,
     effects: [
       { type: 'STRONGHOLD_CAP_MOD', capType: 'noble', amount: 1 },
       { type: 'UNIT_STAT_MOD', unitType: UnitType.SCOUT, stat: 'maxHp', mode: 'add', value: 40 },
