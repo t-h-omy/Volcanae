@@ -1184,6 +1184,7 @@ function scoreActionsForUnit(
           if (bfsVisited.has(nkey)) continue;
           bfsVisited.add(nkey);
           const tile = state.grid[ny][nx];
+          if (tile.terrainType === TileType.CANYON || tile.terrainType === TileType.WATER) continue;
           if (tile.isLava) continue;
           if (isBlockedBuildingForEnemyMovement(state, tile.buildingId)) continue;
           if (tile.unitId !== null) continue; // must be unoccupied to land on
