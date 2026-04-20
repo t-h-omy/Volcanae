@@ -35,7 +35,7 @@ import { useAnimationStore } from './animationStore';
 import { Faction, GamePhase, BuildingType, TileType, Difficulty, DestroyBehavior } from './types';
 import type { GameState, UnitType, Position, TechId } from './types';
 import type { GameEvent } from './gameEvents';
-import { MAP, POPULATION, BUILDINGS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval } from './gameConfig';
+import { MAP, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval } from './gameConfig';
 import { saveGameState, loadGameState, clearSavedGame, hasSavedGame } from './saveSystem';
 import { computeLevelFromXp, applyLevelUps } from './levelSystem';
 import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLogic } from './techSystem';
@@ -1456,7 +1456,7 @@ export const useGameStore = create<GameStore>()(
                 captureProgress: 0,
                 isBeingCapturedBy: null,
                 lavaBoostEnabled: false,
-                discoverRadius: BUILDINGS.DISCOVER_RADIUS[BuildingType.FARM],
+                discoverRadius: BUILDING_DEFINITIONS[BuildingType.FARM].discoverRadius,
                 turnCapturedByPlayer: null,
                 wasEnemyOwnedBeforeCapture: false,
                 combatStats: null,
@@ -1468,7 +1468,7 @@ export const useGameStore = create<GameStore>()(
                 populationGrowthCounter: 0,
                 emberSpawnCounter: 0,
                 recruitmentQueue: null,
-                destroyBehavior: BUILDINGS.DESTROY_BEHAVIOR[BuildingType.FARM],
+                destroyBehavior: BUILDING_DEFINITIONS[BuildingType.FARM].destroyBehavior,
                 resonanceTurnsRemaining: 0,
                 spawnCooldownRemaining: 0,
               };

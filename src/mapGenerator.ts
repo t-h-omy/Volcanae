@@ -3,7 +3,7 @@
  * Generates the initial GameState grid with buildings, units, and zones.
  */
 
-import { MAP, UNITS, BUILDINGS, TERRAIN, POPULATION, RESOURCES, TECH_TREE, TECH, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval } from './gameConfig';
+import { MAP, UNIT_DEFINITIONS, BUILDING_DEFINITIONS, BUILDINGS, TERRAIN, POPULATION, RESOURCES, TECH_TREE, TECH, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval } from './gameConfig';
 import {
   Faction,
   UnitType,
@@ -154,12 +154,12 @@ function createBuilding(
   faction: Faction | null
 ): Building {
   const isWatchtower = type === BuildingType.WATCHTOWER;
-  const maxHp = isWatchtower ? BUILDINGS.WATCHTOWER_STATS.maxHp : 100;
+  const maxHp = isWatchtower ? BUILDING_DEFINITIONS.WATCHTOWER.combatStats!.maxHp : 100;
   const combatStats = isWatchtower
     ? {
-        attack: BUILDINGS.WATCHTOWER_STATS.attack,
-        defense: BUILDINGS.WATCHTOWER_STATS.defense,
-        attackRange: BUILDINGS.WATCHTOWER_STATS.attackRange,
+        attack: BUILDING_DEFINITIONS.WATCHTOWER.combatStats!.attack,
+        defense: BUILDING_DEFINITIONS.WATCHTOWER.combatStats!.defense,
+        attackRange: BUILDING_DEFINITIONS.WATCHTOWER.combatStats!.attackRange,
       }
     : null;
   const tags: import('./types').UnitTag[] = isWatchtower ? [UnitTag.RANGED] : [];
@@ -192,7 +192,7 @@ function createBuilding(
     captureProgress: 0,
     isBeingCapturedBy: null,
     lavaBoostEnabled: false,
-    discoverRadius: BUILDINGS.DISCOVER_RADIUS[type],
+    discoverRadius: BUILDING_DEFINITIONS[type].discoverRadius,
     turnCapturedByPlayer: null,
     wasEnemyOwnedBeforeCapture: false,
     combatStats,
@@ -204,7 +204,7 @@ function createBuilding(
     populationGrowthCounter: 0,
     emberSpawnCounter: 0,
     recruitmentQueue: null,
-    destroyBehavior: BUILDINGS.DESTROY_BEHAVIOR[type],
+    destroyBehavior: BUILDING_DEFINITIONS[type].destroyBehavior,
     resonanceTurnsRemaining: 0,
     spawnCooldownRemaining: 0,
   };
@@ -280,17 +280,17 @@ function createUnit(
     faction,
     position: { ...position },
     stats: {
-      maxHp: UNITS[type].maxHp,
-      currentHp: UNITS[type].maxHp,
-      attack: UNITS[type].attack,
-      defense: UNITS[type].defense,
-      moveRange: UNITS[type].moveRange,
-      discoverRadius: UNITS[type].discoverRadius,
-      triggerRange: UNITS[type].triggerRange,
-      movementActions: UNITS[type].movementActions,
-      attackRange: UNITS[type].attackRange,
+      maxHp: UNIT_DEFINITIONS[type].maxHp,
+      currentHp: UNIT_DEFINITIONS[type].maxHp,
+      attack: UNIT_DEFINITIONS[type].attack,
+      defense: UNIT_DEFINITIONS[type].defense,
+      moveRange: UNIT_DEFINITIONS[type].moveRange,
+      discoverRadius: UNIT_DEFINITIONS[type].discoverRadius,
+      triggerRange: UNIT_DEFINITIONS[type].triggerRange,
+      movementActions: UNIT_DEFINITIONS[type].movementActions,
+      attackRange: UNIT_DEFINITIONS[type].attackRange,
     },
-    tags: [...UNITS[type].tags],
+    tags: [...UNIT_DEFINITIONS[type].tags],
     hasMovedThisTurn: false,
     hasAttackedThisTurn: false,
     hasConstructedThisTurn: false,

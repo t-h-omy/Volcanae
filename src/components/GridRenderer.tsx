@@ -12,7 +12,7 @@ import type { Projectile } from '../combatAnimationStore';
 import { useShockwaveStore } from '../shockwaveStore';
 import { canCapture } from '../captureSystem';
 import { getConstructionOptionsForTile } from '../constructionSystem';
-import { MAP, UNIT_LEVEL_UP } from '../gameConfig';
+import { MAP, UNIT_DEFINITIONS } from '../gameConfig';
 import { ANIMATION } from '../animationConfig';
 import { UI } from '../uiConfig';
 import { RENDER } from '../renderConfig';
@@ -1075,7 +1075,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
           <span className="unit-hp-text">{unit.stats.currentHp}</span>
         </>
       )}
-      {UNIT_LEVEL_UP[unit.type] && (
+      {UNIT_DEFINITIONS[unit.type]?.levelUp?.length > 0 && (
         <span className="unit-xp-text">{unit.xp} xp</span>
       )}
       {showUnitImg ? (
