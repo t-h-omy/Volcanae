@@ -129,6 +129,7 @@ const TAG_EMOJI: Partial<Record<UnitTag, string>> = {
   [UnitTag.PHALANX]:         '🔰',
   [UnitTag.LAVABOOST]:       '🌋',
   [UnitTag.CORRUPT]:         '☠️',
+  [UnitTag.PASSIVE]:         '🕊️',
 };
 
 /** Maps recruitment buildings to their recruitable unit types */

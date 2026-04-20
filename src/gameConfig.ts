@@ -699,7 +699,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     movementActions: 1, moveRange: 2, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
     explosionDamage: 40,
-    tags: [UnitTag.SACRIFICIAL, UnitTag.EXPLOSIVE],
+    tags: [UnitTag.SACRIFICIAL, UnitTag.EXPLOSIVE, UnitTag.PASSIVE],
     cost: { iron: 0, wood: 0 },
     populationCost: { farmers: 0, nobles: 0 },
     levelUp: [
@@ -1084,6 +1084,7 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string }> = {
   [UnitTag.PHALANX]:         { label: 'Phalanx',         desc: `Grants +${ABILITIES.PHALANX_DEFENSE_BONUS_PER_CARRIER} defense to each adjacent friendly unit and gains +${ABILITIES.PHALANX_ATTACK_BONUS_PER_ALLY} attack per adjacent friendly unit. Bonuses apply during combat only.` },
   [UnitTag.LAVABOOST]:       { label: 'Lava-Boosted',    desc: 'Spawns with boosted stats when its spawning building is close to the lava front.' },
   [UnitTag.CORRUPT]:         { label: 'Corrupt',         desc: 'Can corrupt forest and mountain terrain tiles.' },
+  [UnitTag.PASSIVE]:         { label: 'Passive',         desc: 'Cannot initiate attacks. Still defends at full effectiveness when attacked by enemies.' },
 };
 
 // ============================================================================
