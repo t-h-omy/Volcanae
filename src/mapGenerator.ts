@@ -668,6 +668,16 @@ function placeCanyonsForZone(
       );
       if (tooClose) continue;
 
+      // Reject candidate if any tile would overwrite a building, ruin, forest, or mountain.
+      // Positions that are already CANYON/WATER in occupiedPositions are fine — they
+      // will simply be re-marked as CANYON (no-op for existing canyon tiles).
+      const overlapsOccupied = validShape.some((p) =>
+        isPositionOccupied(p, occupiedPositions) &&
+        grid[p.y][p.x].terrainType !== TileType.CANYON &&
+        grid[p.y][p.x].terrainType !== TileType.WATER
+      );
+      if (overlapsOccupied) continue;
+
       // Check row minimum
       const impassableSet = new Set<string>();
       // Collect existing impassable tiles
@@ -1084,7 +1094,14 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
     extraMountains = mountainPositions.length === 0 ? 1 : 0;
   }
 
-  // Place canyons and lakes per zone (before ruins and buildings so those avoid impassable tiles)
+  // Place ruins for each zone before canyons and lakes so the configured minimum
+  // number of ruins can always be placed on PLAINS tiles. Canyon/lake placement
+  // (below) will skip positions that are already occupied by ruins.
+  for (let zone = 1; zone <= MAP.ZONE_COUNT; zone++) {
+    placeRuinsForZone(zone, grid, occupiedPositions);
+  }
+
+  // Place canyons and lakes per zone (after ruins, so they skip occupied ruin tiles)
   for (let zone = 1; zone <= MAP.ZONE_COUNT; zone++) {
     placeCanyonsForZone(zone, grid, occupiedPositions, strongholdPositions);
     placeLakesForZone(zone, grid, occupiedPositions, strongholdPositions);
@@ -1092,11 +1109,6 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
 
   // Verify and fix traversability
   ensureTraversability(grid);
-
-  // Place ruins for each zone after terrain and impassable tiles are placed
-  for (let zone = 1; zone <= MAP.ZONE_COUNT; zone++) {
-    placeRuinsForZone(zone, grid, occupiedPositions);
-  }
 
   // Generate buildings for all zones
   const allBuildings: Building[] = [];
