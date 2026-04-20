@@ -84,15 +84,18 @@ function markPositionOccupied(
 }
 
 /**
- * Generates a random position within a zone that is not occupied.
+ * Generates a random position within a zone that is not occupied
+ * and (when grid is provided) not on an impassable tile (CANYON/WATER).
  * @param skipFirstRows - number of rows at the low-Y (start) end of the zone to exclude
  * @param skipLastRows  - number of rows at the high-Y (end) end of the zone to exclude
+ * @param grid          - optional grid to additionally reject CANYON/WATER tiles
  */
 function getRandomPositionInZone(
   zone: number,
   occupiedPositions: Set<string>,
   skipFirstRows = 0,
   skipLastRows = 0,
+  grid?: Tile[][],
 ): Position {
   const [zoneStart, zoneEnd] = getZoneRowRange(zone);
   const startRow = zoneStart + skipFirstRows;
@@ -103,6 +106,13 @@ function getRandomPositionInZone(
       `Invalid row skip configuration for zone ${zone}: skipFirstRows (${skipFirstRows}) + skipLastRows (${skipLastRows}) exceeds zone height`,
     );
   }
+
+  const isPassable = (x: number, y: number) => {
+    if (!grid) return true;
+    const tile = grid[y][x];
+    return tile.terrainType !== TileType.CANYON && tile.terrainType !== TileType.WATER;
+  };
+
   let attempts = 0;
   const maxAttempts = 100;
 
@@ -111,7 +121,7 @@ function getRandomPositionInZone(
     const y = startRow + Math.floor(Math.random() * (endRow - startRow + 1));
     const position = { x, y };
 
-    if (!isPositionOccupied(position, occupiedPositions)) {
+    if (!isPositionOccupied(position, occupiedPositions) && isPassable(x, y)) {
       return position;
     }
     attempts++;
@@ -121,7 +131,7 @@ function getRandomPositionInZone(
   for (let y = startRow; y <= endRow; y++) {
     for (let x = 0; x < MAP.GRID_WIDTH; x++) {
       const position = { x, y };
-      if (!isPositionOccupied(position, occupiedPositions)) {
+      if (!isPositionOccupied(position, occupiedPositions) && isPassable(x, y)) {
         return position;
       }
     }
@@ -242,7 +252,7 @@ function generateBuildingsForZone(
 
   // 2. Optional WATCHTOWER (based on configured spawn chance)
   if (Math.random() < BUILDINGS.WATCHTOWER_SPAWN_CHANCE) {
-    const watchtowerPos = getRandomPositionInZone(zone, occupiedPositions);
+    const watchtowerPos = getRandomPositionInZone(zone, occupiedPositions, 0, 0, grid);
     markPositionOccupied(watchtowerPos, occupiedPositions);
     buildings.push(
       createBuilding(BuildingType.WATCHTOWER, watchtowerPos, getFaction(false))
@@ -615,7 +625,8 @@ function wouldViolateRowMinimum(
 }
 
 /**
- * Places canyons in a zone. Validates row minimum and stronghold distance.
+ * Places canyons across the map (starting in a zone but allowed to span into
+ * neighbouring zones). Validates row minimum and stronghold distance.
  */
 function placeCanyonsForZone(
   zone: number,
@@ -634,17 +645,16 @@ function placeCanyonsForZone(
 
     while (!placed && attempts < maxAttempts) {
       attempts++;
-      // Pick a random start position not within 1 tile of map edges
+      // Pick a random start position within the zone, not within 1 tile of map edges
       const sx = randomInRange(1, MAP.GRID_WIDTH - 2);
       const sy = randomInRange(startRow, endRow);
 
       const shape = generateCanyonShape(sx, sy);
 
-      // Filter: stay within zone rows, not in lava buffer, in grid bounds
+      // Filter: in grid bounds, not in lava buffer (no zone restriction — canyons may span zones)
       const validShape = shape.filter(
         (p) =>
-          p.y >= startRow &&
-          p.y <= endRow &&
+          p.y >= 0 &&
           p.y < lavaBufferStart &&
           p.x >= 0 &&
           p.x < MAP.GRID_WIDTH,
@@ -685,7 +695,35 @@ function placeCanyonsForZone(
 }
 
 /**
- * Places lakes in a zone. Validates row minimum and stronghold distance.
+ * Checks whether any position in a candidate lake shape is adjacent
+ * (orthogonally or diagonally) to an existing WATER tile on the grid.
+ * This prevents lakes from touching each other.
+ */
+function wouldTouchExistingLake(
+  shape: Position[],
+  grid: Tile[][],
+): boolean {
+  const shapeSet = new Set(shape.map((p) => `${p.x},${p.y}`));
+  for (const p of shape) {
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        if (dx === 0 && dy === 0) continue;
+        const nx = p.x + dx;
+        const ny = p.y + dy;
+        if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;
+        // Skip tiles that are part of this same candidate shape
+        if (shapeSet.has(`${nx},${ny}`)) continue;
+        if (grid[ny][nx].terrainType === TileType.WATER) return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * Places lakes across the map (starting in a zone but allowed to span into
+ * neighbouring zones). Validates row minimum, stronghold distance, and
+ * ensures lakes do not touch each other.
  */
 function placeLakesForZone(
   zone: number,
@@ -707,9 +745,9 @@ function placeLakesForZone(
       const w = randomInRange(TERRAIN.LAKE_WIDTH_MIN, TERRAIN.LAKE_WIDTH_MAX);
       const h = randomInRange(TERRAIN.LAKE_HEIGHT_MIN, TERRAIN.LAKE_HEIGHT_MAX);
 
-      // Pick an origin so bounding box fits within zone and grid
+      // Pick an origin so bounding box starts within the zone; lake may extend beyond zone rows
       const maxOriginX = MAP.GRID_WIDTH - w;
-      const maxOriginY = Math.min(endRow - h + 1, lavaBufferStart - h);
+      const maxOriginY = Math.min(endRow, lavaBufferStart - h);
       if (maxOriginX < 0 || maxOriginY < startRow) continue;
 
       const ox = randomInRange(Math.max(0, 1), Math.min(maxOriginX, MAP.GRID_WIDTH - 2));
@@ -717,11 +755,10 @@ function placeLakesForZone(
 
       const shape = generateLakeShape(ox, oy, w, h);
 
-      // Filter: within zone, in bounds, not in lava buffer
+      // Filter: in grid bounds, not in lava buffer (no zone restriction)
       const validShape = shape.filter(
         (p) =>
-          p.y >= startRow &&
-          p.y <= endRow &&
+          p.y >= 0 &&
           p.y < lavaBufferStart &&
           p.x >= 0 &&
           p.x < MAP.GRID_WIDTH,
@@ -734,6 +771,17 @@ function placeLakesForZone(
         isTooCloseToStronghold(p, strongholdPositions),
       );
       if (tooClose) continue;
+
+      // Check that no tile overlaps with occupied positions (buildings, ruins, resources)
+      const overlapsOccupied = validShape.some((p) =>
+        isPositionOccupied(p, occupiedPositions) &&
+        grid[p.y][p.x].terrainType !== TileType.CANYON &&
+        grid[p.y][p.x].terrainType !== TileType.WATER
+      );
+      if (overlapsOccupied) continue;
+
+      // Lakes must not touch each other
+      if (wouldTouchExistingLake(validShape, grid)) continue;
 
       // Check row minimum
       const impassableSet = new Set<string>();
@@ -1034,12 +1082,7 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
     extraMountains = mountainPositions.length === 0 ? 1 : 0;
   }
 
-  // Place ruins for each zone after terrain is placed
-  for (let zone = 1; zone <= MAP.ZONE_COUNT; zone++) {
-    placeRuinsForZone(zone, grid, occupiedPositions);
-  }
-
-  // Place canyons and lakes per zone
+  // Place canyons and lakes per zone (before ruins and buildings so those avoid impassable tiles)
   for (let zone = 1; zone <= MAP.ZONE_COUNT; zone++) {
     placeCanyonsForZone(zone, grid, occupiedPositions, strongholdPositions);
     placeLakesForZone(zone, grid, occupiedPositions, strongholdPositions);
@@ -1047,6 +1090,11 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
 
   // Verify and fix traversability
   ensureTraversability(grid);
+
+  // Place ruins for each zone after terrain and impassable tiles are placed
+  for (let zone = 1; zone <= MAP.ZONE_COUNT; zone++) {
+    placeRuinsForZone(zone, grid, occupiedPositions);
+  }
 
   // Generate buildings for all zones
   const allBuildings: Building[] = [];
@@ -1088,7 +1136,7 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
   const enemyUnits: Unit[] = [];
   const difficultyMult = DIFFICULTY_MULTIPLIER[difficulty];
   for (let i = 0; i < 2; i++) {
-    const position = getRandomPositionInZone(5, occupiedPositions);
+    const position = getRandomPositionInZone(5, occupiedPositions, 0, 0, grid);
     markPositionOccupied(position, occupiedPositions);
     const unit = createUnit(UnitType.LAVA_GRUNT, Faction.ENEMY, position);
     const scaledHp = Math.round(unit.stats.maxHp * difficultyMult);
