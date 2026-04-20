@@ -772,7 +772,9 @@ function placeLakesForZone(
       );
       if (tooClose) continue;
 
-      // Check that no tile overlaps with occupied positions (buildings, ruins, resources)
+      // Reject candidate if any tile would overwrite a building, ruin, forest, or mountain.
+      // Positions that are already CANYON/WATER in occupiedPositions are fine — the
+      // placement loop below skips those tiles rather than overwriting them.
       const overlapsOccupied = validShape.some((p) =>
         isPositionOccupied(p, occupiedPositions) &&
         grid[p.y][p.x].terrainType !== TileType.CANYON &&
