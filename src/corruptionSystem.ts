@@ -8,7 +8,7 @@
 import type { GameState, Position, Unit, Building } from './types';
 import type { Draft } from 'immer';
 import { Faction, TileType, UnitTag, UnitType, BuildingType } from './types';
-import { LAVA_LAIR, UNITS, BUILDINGS, MAP } from './gameConfig';
+import { LAVA_LAIR, UNIT_DEFINITIONS, BUILDING_DEFINITIONS, MAP } from './gameConfig';
 import { generateId } from './mapGenerator';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { resolveBuildingAttack, buildingToCombatant } from './combatSystem';
@@ -117,14 +117,14 @@ export function corruptTerrain(
 
   // Create the building
   const isMagmaSpyr = buildingType === BuildingType.MAGMASPYR;
-  const maxHp = isMagmaSpyr ? LAVA_LAIR.MAGMA_SPYR_STATS.maxHp : 100;
+  const maxHp = isMagmaSpyr ? BUILDING_DEFINITIONS.MAGMASPYR.combatStats!.maxHp : 100;
 
   const combatStats = isMagmaSpyr
     ? {
-        attack: LAVA_LAIR.MAGMA_SPYR_STATS.attack,
-        defense: LAVA_LAIR.MAGMA_SPYR_STATS.defense,
-        attackRange: LAVA_LAIR.MAGMA_SPYR_STATS.attackRange,
-        maxAttacksPerTurn: LAVA_LAIR.MAGMA_SPYR_STATS.maxAttacksPerTurn,
+        attack: BUILDING_DEFINITIONS.MAGMASPYR.combatStats!.attack,
+        defense: BUILDING_DEFINITIONS.MAGMASPYR.combatStats!.defense,
+        attackRange: BUILDING_DEFINITIONS.MAGMASPYR.combatStats!.attackRange,
+        maxAttacksPerTurn: BUILDING_DEFINITIONS.MAGMASPYR.combatStats!.maxAttacksPerTurn,
       }
     : null;
 
@@ -143,7 +143,7 @@ export function corruptTerrain(
     captureProgress: 0,
     isBeingCapturedBy: null,
     lavaBoostEnabled: false,
-    discoverRadius: BUILDINGS.DISCOVER_RADIUS[buildingType],
+    discoverRadius: BUILDING_DEFINITIONS[buildingType].discoverRadius,
     turnCapturedByPlayer: null,
     wasEnemyOwnedBeforeCapture: false,
     combatStats,
@@ -155,7 +155,7 @@ export function corruptTerrain(
     populationGrowthCounter: 0,
     emberSpawnCounter: 0,
     recruitmentQueue: null,
-    destroyBehavior: BUILDINGS.DESTROY_BEHAVIOR[buildingType],
+    destroyBehavior: BUILDING_DEFINITIONS[buildingType].destroyBehavior,
     resonanceTurnsRemaining: 0,
     spawnCooldownRemaining: 0,
   };
@@ -342,7 +342,7 @@ export function processEmberNestSpawns(
     const spawnPos = { ...building.position };
 
     // Create EMBERLING unit
-    const unitConfig = UNITS[UnitType.EMBERLING];
+    const unitConfig = UNIT_DEFINITIONS[UnitType.EMBERLING];
     const newUnit: Unit = {
       id: generateId('unit'),
       type: UnitType.EMBERLING,

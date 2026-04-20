@@ -5,8 +5,8 @@
 
 import type { Draft } from 'immer';
 import type { GameState } from './types';
-import { Faction, GamePhase } from './types';
-import { UNITS, UNIT_LEVEL_UP, XP } from './gameConfig';
+import { Faction, GamePhase, UnitType } from './types';
+import { UNIT_DEFINITIONS, XP } from './gameConfig';
 import { ANIMATION } from './animationConfig';
 import { useFloaterStore } from './floaterStore';
 import { useCombatAnimationStore } from './combatAnimationStore';
@@ -16,7 +16,7 @@ import { useCombatAnimationStore } from './combatAnimationStore';
  * Never exceeds XP.MAX_LEVEL.
  */
 export function computeLevelFromXp(unitType: string, xp: number): number {
-  const levelDefs = UNIT_LEVEL_UP[unitType];
+  const levelDefs = UNIT_DEFINITIONS[unitType as UnitType]?.levelUp;
   if (!levelDefs || levelDefs.length === 0) return 1;
 
   let targetLevel = 1;
@@ -48,10 +48,10 @@ export function applyLevelUps(
   const unit = state.units[unitId];
   if (!unit) return;
 
-  const levelDefs = UNIT_LEVEL_UP[unit.type];
+  const levelDefs = UNIT_DEFINITIONS[unit.type as UnitType]?.levelUp;
   if (!levelDefs) return;
 
-  const baseStats = UNITS[unit.type as keyof typeof UNITS];
+  const baseStats = UNIT_DEFINITIONS[unit.type as UnitType];
   const startLevel = unit.level;
   let totalHeal = 0;
 

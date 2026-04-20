@@ -6,7 +6,7 @@
 import type { GameState, Building, Position, Tile, UnitPopulationCost } from './types';
 import type { Draft } from 'immer';
 import { Faction, BuildingType, UnitType, ResourceType, type UnitTag } from './types';
-import { RESOURCES, UNITS, UNIT_COSTS, POPULATION, UNIT_POPULATION_COSTS, CRYSTAL_CHAMBER_CONFIG } from './gameConfig';
+import { RESOURCES, UNIT_DEFINITIONS, POPULATION, CRYSTAL_CHAMBER_CONFIG } from './gameConfig';
 import type { UnitCost } from './gameConfig';
 import { getGrantedTags, getStatMods, getBuildingProductionMods, grantArcaneCrystals, getStrongholdCapMods } from './techSystem';
 
@@ -187,7 +187,7 @@ export function computeResourceIncome(
 // POPULATION SYSTEM
 // ============================================================================
 
-/** Default population cost for unit types not in UNIT_POPULATION_COSTS */
+/** Default population cost for unit types not in UNIT_DEFINITIONS */
 const DEFAULT_POPULATION_COST: UnitPopulationCost = { farmers: 0, nobles: 0 };
 
 /**
@@ -224,7 +224,7 @@ export function computePopulationCapacity(
 
 /**
  * Computes the total population usage from all player-owned units.
- * Sums UNIT_POPULATION_COSTS[unit.type] for each player unit.
+ * Sums UNIT_DEFINITIONS[unit.type].populationCost for each player unit.
  */
 export function computePopulationUsage(
   state: GameState | Draft<GameState>
@@ -235,7 +235,7 @@ export function computePopulationUsage(
   for (const unit of Object.values(state.units)) {
     if (unit.faction !== Faction.PLAYER) continue;
 
-    const cost = UNIT_POPULATION_COSTS[unit.type] as UnitPopulationCost | undefined;
+    const cost = UNIT_DEFINITIONS[unit.type as UnitType]?.populationCost as UnitPopulationCost | undefined;
     if (cost) {
       farmersUsed += cost.farmers;
       noblesUsed += cost.nobles;
@@ -258,7 +258,7 @@ export function canAffordPopulation(
 ): boolean {
   const capacity = computePopulationCapacity(state);
   const usage = computePopulationUsage(state);
-  const cost = (UNIT_POPULATION_COSTS[unitType] as UnitPopulationCost | undefined) ?? DEFAULT_POPULATION_COST;
+  const cost = (UNIT_DEFINITIONS[unitType]?.populationCost as UnitPopulationCost | undefined) ?? DEFAULT_POPULATION_COST;
 
   const farmerOk = cost.farmers === 0 || usage.farmersUsed + cost.farmers <= capacity.farmerCapacity;
   const nobleOk = cost.nobles === 0 || usage.noblesUsed + cost.nobles <= capacity.nobleCapacity;
@@ -373,7 +373,7 @@ export function recruitUnit(
   }
 
   // Get unit cost
-  const cost = UNIT_COSTS[unitType];
+  const cost = UNIT_DEFINITIONS[unitType]?.cost;
   if (!cost) {
     return;
   }
@@ -400,7 +400,7 @@ export function recruitUnit(
 
   // Spawn the unit immediately, but flag it as having used all actions this turn
   const unitId = generateUnitId();
-  const baseTags: UnitTag[] = [...UNITS[unitType].tags];
+  const baseTags: UnitTag[] = [...(UNIT_DEFINITIONS[unitType]?.tags ?? [])];
   // Add any tags granted by unlocked techs
   for (const tag of getGrantedTags(state, unitType)) {
     if (!baseTags.includes(tag)) baseTags.push(tag);
@@ -412,15 +412,15 @@ export function recruitUnit(
     faction: Faction.PLAYER,
     position: { ...spawnPosition },
     stats: {
-      maxHp: UNITS[unitType].maxHp,
-      currentHp: UNITS[unitType].maxHp,
-      attack: UNITS[unitType].attack,
-      defense: UNITS[unitType].defense,
-      moveRange: UNITS[unitType].moveRange,
-      discoverRadius: UNITS[unitType].discoverRadius,
-      triggerRange: UNITS[unitType].triggerRange,
-      movementActions: UNITS[unitType].movementActions,
-      attackRange: UNITS[unitType].attackRange,
+      maxHp: UNIT_DEFINITIONS[unitType].maxHp,
+      currentHp: UNIT_DEFINITIONS[unitType].maxHp,
+      attack: UNIT_DEFINITIONS[unitType].attack,
+      defense: UNIT_DEFINITIONS[unitType].defense,
+      moveRange: UNIT_DEFINITIONS[unitType].moveRange,
+      discoverRadius: UNIT_DEFINITIONS[unitType].discoverRadius,
+      triggerRange: UNIT_DEFINITIONS[unitType].triggerRange,
+      movementActions: UNIT_DEFINITIONS[unitType].movementActions,
+      attackRange: UNIT_DEFINITIONS[unitType].attackRange,
     },
     tags: baseTags,
     hasMovedThisTurn: true,

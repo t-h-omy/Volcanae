@@ -9,7 +9,7 @@ import type { Draft } from 'immer';
 import { BuildingType, Faction, UnitTag, TechFlag, TileType, DestroyBehavior } from './types';
 import { useFloaterStore } from './floaterStore';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
-import { UNITS, XP, ABILITIES, MAP } from './gameConfig';
+import { UNIT_DEFINITIONS, XP, ABILITIES, MAP } from './gameConfig';
 import { grantXp } from './levelSystem';
 
 // ============================================================================
@@ -47,7 +47,7 @@ export interface Combatant {
 
 /** Extracts combatant stats from a Unit. */
 export function unitToCombatant(unit: Unit): Combatant {
-  const baseMaxHp = (UNITS[unit.type as keyof typeof UNITS] as { maxHp: number } | undefined)?.maxHp ?? unit.stats.maxHp;
+  const baseMaxHp = (UNIT_DEFINITIONS[unit.type as keyof typeof UNIT_DEFINITIONS] as { maxHp: number } | undefined)?.maxHp ?? unit.stats.maxHp;
   return {
     currentHp: unit.stats.currentHp,
     maxHp: unit.stats.maxHp,

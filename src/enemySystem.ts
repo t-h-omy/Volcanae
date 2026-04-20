@@ -7,7 +7,7 @@ import type { GameState, Unit, Building, Position } from './types';
 import type { Draft } from 'immer';
 import { produce } from 'immer';
 import { Faction, UnitType, UnitTag, BuildingType, TileType } from './types';
-import { UNITS, ENEMY, MAP, AI_SCORING, AI_RECRUITMENT, ENEMY_UNIT_UNLOCK, XP, DIFFICULTY_MULTIPLIER, SANCTUM_COLLAPSE } from './gameConfig';
+import { UNIT_DEFINITIONS, ENEMY, MAP, AI_SCORING, AI_RECRUITMENT, XP, DIFFICULTY_MULTIPLIER, SANCTUM_COLLAPSE } from './gameConfig';
 import { resolveAttack, calculateCombat, resolveBuildingAttack, buildingToCombatant, calculateCombatFromStats, unitToCombatant, resolveAttackOnBuilding } from './combatSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { initiateCapture, canCapture } from './captureSystem';
@@ -371,7 +371,7 @@ function alliedUnitsNear(pos: Position, radius: number, excludeId: string, state
  * Units below 100hp score negative, reflecting low durability.
  */
 function calcUnitScores(unitType: UnitType): { off: number; def: number } {
-  const u = UNITS[unitType];
+  const u = UNIT_DEFINITIONS[unitType];
   const off = (u.attack / 100) + ((u.moveRange - 1) * 0.5);
   const def = (u.defense / 100) + (u.maxHp / 100) - 1;
   return { off, def };
@@ -418,7 +418,7 @@ function buildArmyProfile(units: Unit[]): ArmyProfile {
 
   for (const unit of units) {
     const { off, def } = calcUnitScores(unit.type);
-    const u = UNITS[unit.type];
+    const u = UNIT_DEFINITIONS[unit.type as UnitType];
 
     offensiveSum += off;
     defensiveSum += def;
@@ -464,14 +464,14 @@ function createEnemyUnit(
   buildingPosition: Position,
   difficultyMult: number
 ): Unit {
-  const baseHp: number = UNITS[unitType].maxHp;
-  const baseAttack: number = UNITS[unitType].attack;
-  const baseDefense: number = UNITS[unitType].defense;
+  const baseHp: number = UNIT_DEFINITIONS[unitType].maxHp;
+  const baseAttack: number = UNIT_DEFINITIONS[unitType].attack;
+  const baseDefense: number = UNIT_DEFINITIONS[unitType].defense;
 
   let finalHp: number = Math.round(baseHp * difficultyMult);
   let finalAttack: number = Math.round(baseAttack * difficultyMult);
   const finalDefense: number = Math.round(baseDefense * difficultyMult);
-  const tags: UnitTag[] = [...UNITS[unitType].tags];
+  const tags: UnitTag[] = [...UNIT_DEFINITIONS[unitType].tags];
 
   if (lavaBoostEnabled) {
     const boostFactor = calculateLavaBoostFactor(buildingPosition, lavaFrontRow);
@@ -492,11 +492,11 @@ function createEnemyUnit(
       currentHp: finalHp,
       attack: finalAttack,
       defense: finalDefense,
-      moveRange: UNITS[unitType].moveRange,
-      discoverRadius: UNITS[unitType].discoverRadius,
-      triggerRange: UNITS[unitType].triggerRange,
-      movementActions: UNITS[unitType].movementActions,
-      attackRange: UNITS[unitType].attackRange,
+      moveRange: UNIT_DEFINITIONS[unitType].moveRange,
+      discoverRadius: UNIT_DEFINITIONS[unitType].discoverRadius,
+      triggerRange: UNIT_DEFINITIONS[unitType].triggerRange,
+      movementActions: UNIT_DEFINITIONS[unitType].movementActions,
+      attackRange: UNIT_DEFINITIONS[unitType].attackRange,
     },
     tags,
     hasMovedThisTurn: true,
@@ -618,9 +618,9 @@ function scoreRecruitmentForBuilding(
   const R = AI_RECRUITMENT;
 
   // Threat-gated eligible unit types; Emberlings only spawn from Ember Nests
-  const eligibleTypes: UnitType[] = Object.entries(ENEMY_UNIT_UNLOCK)
-    .filter(([, minThreat]) => state.threatLevel >= minThreat)
-    .map(([type]) => type as UnitType)
+  const eligibleTypes: UnitType[] = (Object.entries(UNIT_DEFINITIONS) as [UnitType, { enemyUnlockThreat?: number }][])
+    .filter(([, def]) => def.enemyUnlockThreat !== undefined && state.threatLevel >= def.enemyUnlockThreat)
+    .map(([type]) => type)
     .filter(type => type !== UnitType.EMBERLING);
 
   if (eligibleTypes.length === 0) return [];
@@ -902,7 +902,7 @@ export function resolveExplosion(
   const unit = state.units[unitId];
   if (!unit) return;
 
-  const unitConfig = UNITS[unit.type] as { explosionDamage?: number };
+  const unitConfig = UNIT_DEFINITIONS[unit.type as UnitType] as { explosionDamage?: number };
   const explosionDamage = unitConfig.explosionDamage ?? 0;
   const unitPos = { x: unit.position.x, y: unit.position.y };
   const damagedUnitIds: string[] = [];

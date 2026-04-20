@@ -9,7 +9,7 @@ import { createPortal } from 'react-dom';
 import { useGameStore } from '../gameStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
-import { UNITS, UNIT_COSTS, RESOURCES, UNIT_POPULATION_COSTS, POPULATION, UNIT_LEVEL_UP, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval } from '../gameConfig';
+import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO } from '../gameConfig';
 import { UI } from '../uiConfig';
 import type { UnitPopulationCost, TechId } from '../types';
 import {
@@ -45,7 +45,6 @@ import {
 import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY } from '../unitActions';
 import { getPhalanxAttackBonus, getPhalanxDefenseBonus } from '../combatSystem';
 import { useZoneClearedStore } from '../zoneClearedStore';
-import { UNIT_DESCRIPTIONS, UNIT_TAGS, TAG_INFO, BUILDING_DESCRIPTIONS } from '../descriptions';
 import './HUD.css';
 
 // ============================================================================
@@ -567,13 +566,13 @@ function UnitInfoPopup({
   isReadOnly?: boolean;
 }) {
   const [tagPopup, setTagPopup] = useState<UnitTag | null>(null);
-  const desc = UNIT_DESCRIPTIONS[unitType];
-  const baseTags = UNIT_TAGS[unitType] ?? [];
+  const desc = UNIT_DEFINITIONS[unitType]?.description;
+  const baseTags = UNIT_DEFINITIONS[unitType]?.tags ?? [];
   const emoji = UNIT_EMOJI[unitType] ?? '?';
   const name = UNIT_NAME[unitType] ?? unitType;
 
-  // Always show base stats from UNITS config so info is consistent regardless of call site
-  const baseConfig = UNITS[unitType as keyof typeof UNITS] as
+  // Always show base stats from UNIT_DEFINITIONS so info is consistent regardless of call site
+  const baseConfig = UNIT_DEFINITIONS[unitType as keyof typeof UNIT_DEFINITIONS] as
     | { attack: number; defense: number; moveRange: number; attackRange: number; discoverRadius: number }
     | undefined;
   const stats = baseConfig
@@ -665,7 +664,7 @@ function BuildingInfoPopup({
   onClose: () => void;
   isReadOnly?: boolean;
 }) {
-  const desc = BUILDING_DESCRIPTIONS[buildingType];
+  const desc = BUILDING_DEFINITIONS[buildingType]?.description;
   const emoji = BUILDING_EMOJI[buildingType] ?? '?';
   const name = BUILDING_NAME[buildingType] ?? buildingType;
 
@@ -819,7 +818,7 @@ function SelectedUnitPanel({
   const targetLevel = computeLevelFromXp(unit.type, unit.xp);
   const canLevelUp = isPlayer && targetLevel > unit.level;
   const isMaxLevel = unit.level >= XP.MAX_LEVEL;
-  const nextLevelDef = !isMaxLevel ? UNIT_LEVEL_UP[unit.type]?.[unit.level - 1] : null;
+  const nextLevelDef = !isMaxLevel ? UNIT_DEFINITIONS[unit.type]?.levelUp?.[unit.level - 1] : null;
   const nextLevelXpRequired = nextLevelDef?.xpRequired ?? null;
 
   // Compute contextual stat bonuses from tech flags
@@ -1457,11 +1456,11 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
           ) : (
             <div className="hud-recruit-options">
               {recruitableTypes.map((unitType) => {
-                const cost = UNIT_COSTS[unitType];
+                const cost = UNIT_DEFINITIONS[unitType]?.cost;
                 const canAffordUnit = cost
                   ? resources.iron >= cost.iron && resources.wood >= cost.wood
                   : false;
-                const popCost = (UNIT_POPULATION_COSTS[unitType] as UnitPopulationCost | undefined);
+                const popCost = UNIT_DEFINITIONS[unitType]?.populationCost as UnitPopulationCost | undefined;
                 const hasPopulation = canAffordPopulation(useGameStore.getState(), unitType);
                 const canRecruitThisUnit = !isDisabled && hasSpawnSpace && canAffordUnit && hasPopulation;
                 // Compute which population resource is actually insufficient for the error message
@@ -1512,7 +1511,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
         </div>
       )}
       {confirmRecruitUnit && (() => {
-        const cost = UNIT_COSTS[confirmRecruitUnit];
+        const cost = UNIT_DEFINITIONS[confirmRecruitUnit]?.cost;
         const costLabel = cost ? `⛓️${cost.iron} 🪵${cost.wood}` : undefined;
         return (
           <UnitInfoPopup

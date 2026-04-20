@@ -7,7 +7,7 @@
  */
 
 import { UnitTag, DestroyBehavior, BuildingType, UnitType, ResourceType, TechFlag, Difficulty } from './types';
-import type { UnitPopulationCost, UnitLevelDefinition, TechNodeDefinition } from './types';
+import type { UnitLevelDefinition, TechNodeDefinition } from './types';
 
 // ============================================================================
 // MAP CONFIGURATION
@@ -58,140 +58,38 @@ export function getLavaAdvanceInterval(difficulty: Difficulty): number {
 // UNIT CONFIGURATION (standard unit defaults)
 // ============================================================================
 
-export const UNITS = {
-  INFANTRY: {
-    maxHp: 100,
-    attack: 50,
-    defense: 50,
-    movementActions: 1,
-    moveRange: 1,
-    attackRange: 1,
-    discoverRadius: 1,
-    triggerRange: 0,
-    tags: [UnitTag.BUILDANDCAPTURE],
-  },
+/** All data for a single unit type, combining stats, tags, costs and UI copy. */
+export interface UnitDefinition {
+  // ── Stats ────────────────────────────────────────────────────────────────
+  maxHp: number;
+  attack: number;
+  defense: number;
+  movementActions: number;
+  moveRange: number;
+  attackRange: number;
+  discoverRadius: number;
+  triggerRange: number;
+  /** Explosion damage radius dealt on death — only EMBERLING */
+  explosionDamage?: number;
 
-  ARCHER: {
-    maxHp: 100,
-    attack: 50,
-    defense: 20,
-    movementActions: 1,
-    moveRange: 1,
-    attackRange: 2,
-    discoverRadius: 1,
-    triggerRange: 0,
-    tags: [UnitTag.RANGED, UnitTag.BUILDANDCAPTURE],
-  },
+  // ── Tags ─────────────────────────────────────────────────────────────────
+  tags: UnitTag[];
 
-  RIDER: {
-    maxHp: 100,
-    attack: 70,
-    defense: 40,
-    movementActions: 1,
-    moveRange: 2,
-    attackRange: 1,
-    discoverRadius: 1,
-    triggerRange: 0,
-    tags: [UnitTag.BUILDANDCAPTURE],
-  },
+  // ── Costs ────────────────────────────────────────────────────────────────
+  /** Iron/wood recruitment cost ({iron:0,wood:0} for enemy-only units) */
+  cost: { iron: number; wood: number };
+  /** Population slot consumption */
+  populationCost: { farmers: number; nobles: number };
 
-  SIEGE: {
-    maxHp: 100,
-    attack: 85,
-    defense: 0,
-    movementActions: 1,
-    moveRange: 1,
-    attackRange: 3,
-    discoverRadius: 1,
-    triggerRange: 0,
-    tags: [UnitTag.RANGED, UnitTag.PREP],
-  },
+  // ── Level-up progression (index 0 = L2, index 1 = L3) ───────────────────
+  levelUp: UnitLevelDefinition[];
 
-  SCOUT: {
-    maxHp: 60,
-    attack: 30,
-    defense: 20,
-    movementActions: 1,
-    moveRange: 2,
-    attackRange: 1,
-    discoverRadius: 1,
-    triggerRange: 0,
-    tags: [],
-  },
+  // ── Enemy unlock threshold (omit for player units) ───────────────────────
+  enemyUnlockThreat?: number;
 
-  GUARD: {
-    maxHp: 100,
-    attack: 15,
-    defense: 75,
-    movementActions: 1,
-    moveRange: 1,
-    attackRange: 1,
-    discoverRadius: 1,
-    triggerRange: 0,
-    tags: [UnitTag.PREP],
-  },
-
-  LAVA_GRUNT: {
-    maxHp: 100,
-    attack: 50,
-    defense: 50,
-    movementActions: 1,
-    moveRange: 1,
-    attackRange: 1,
-    discoverRadius: 1,
-    triggerRange: 3,
-    tags: [UnitTag.BUILDANDCAPTURE, UnitTag.CORRUPT],
-  },
-
-  LAVA_ARCHER: {
-    maxHp: 100,
-    attack: 50,
-    defense: 20,
-    movementActions: 1,
-    moveRange: 1,
-    attackRange: 2,
-    discoverRadius: 1,
-    triggerRange: 3,
-    tags: [UnitTag.BUILDANDCAPTURE, UnitTag.RANGED],
-  },
-
-  LAVA_RIDER: {
-    maxHp: 100,
-    attack: 70,
-    defense: 40,
-    movementActions: 1,
-    moveRange: 2,
-    attackRange: 1,
-    discoverRadius: 1,
-    triggerRange: 3,
-    tags: [UnitTag.BUILDANDCAPTURE],
-  },
-
-  LAVA_SIEGE: {
-    maxHp: 100,
-    attack: 85,
-    defense: 0,
-    movementActions: 1,
-    moveRange: 1,
-    attackRange: 3,
-    discoverRadius: 1,
-    triggerRange: 4,
-    tags: [UnitTag.RANGED, UnitTag.PREP],
-  },
-
-  EMBERLING: {
-    maxHp: 45,
-    attack: 15,
-    defense: 10,
-    movementActions: 1,
-    moveRange: 2,
-    attackRange: 1,
-    discoverRadius: 1,
-    triggerRange: 0,
-    explosionDamage: 40,
-    tags: [UnitTag.SACRIFICIAL, UnitTag.EXPLOSIVE],
-  },
-};
+  // ── UI ───────────────────────────────────────────────────────────────────
+  description: string;
+}
 
 // ============================================================================
 // BUILDING CONFIGURATION
@@ -208,58 +106,6 @@ export const BUILDINGS = {
   STRONGHOLD_SPAWN_SKIP_FIRST_ROWS: 3,
   /** Number of rows at the end (high-Y end) of a zone where strongholds may not spawn */
   STRONGHOLD_SPAWN_SKIP_LAST_ROWS: 0,
-  /** Discover radius per building type (balanceable) */
-  DISCOVER_RADIUS: {
-    STRONGHOLD: 2,
-    MINE: 2,
-    WOODCUTTER: 2,
-    BARRACKS: 2,
-    ARCHER_CAMP: 2,
-    RIDER_CAMP: 2,
-    SIEGE_CAMP: 2,
-    WATCHTOWER: 4,
-    OUTPOST: 3,
-    LAVALAIR: 2,
-    INFERNALSANCTUM: 2,
-    FARM: 2,
-    PATRICIANHOUSE: 2,
-    MAGMASPYR: 2,
-    EMBERNEST: 2,
-    CRYSTAL_CHAMBER: 2,
-  },
-  /** What happens to a tile when a building of each type is destroyed */
-  DESTROY_BEHAVIOR: {
-    STRONGHOLD: DestroyBehavior.STRONGHOLD_RUIN,
-    MINE: DestroyBehavior.NONE,
-    WOODCUTTER: DestroyBehavior.NONE,
-    BARRACKS: DestroyBehavior.RUIN,
-    ARCHER_CAMP: DestroyBehavior.RUIN,
-    RIDER_CAMP: DestroyBehavior.RUIN,
-    SIEGE_CAMP: DestroyBehavior.RUIN,
-    WATCHTOWER: DestroyBehavior.RUIN,
-    OUTPOST: DestroyBehavior.NONE,
-    LAVALAIR: DestroyBehavior.RUIN,
-    INFERNALSANCTUM: DestroyBehavior.STRONGHOLD_RUIN,
-    FARM: DestroyBehavior.RUIN,
-    PATRICIANHOUSE: DestroyBehavior.RUIN,
-    MAGMASPYR: DestroyBehavior.RESOURCE,
-    EMBERNEST: DestroyBehavior.RESOURCE,
-    CRYSTAL_CHAMBER: DestroyBehavior.RUIN,
-  },
-  /** Watchtower combat configuration */
-  WATCHTOWER_STATS: {
-    maxHp: 150,
-    attack: 50,
-    defense: 65,
-    attackRange: 3,
-  },
-  /** Outpost combat configuration (player-built by Infantry via Fieldwork tech) */
-  OUTPOST_STATS: {
-    maxHp: 150,
-    attack: 40,
-    defense: 55,
-    attackRange: 2,
-  },
 } as const;
 
 // ============================================================================
@@ -267,14 +113,6 @@ export const BUILDINGS = {
 // ============================================================================
 
 export const LAVA_LAIR = {
-  /** Combat stats for MAGMA_SPYR buildings (created on corrupted MOUNTAIN tiles) */
-  MAGMA_SPYR_STATS: {
-    maxHp: 120,
-    attack: 30,
-    defense: 50,
-    attackRange: 2,
-    maxAttacksPerTurn: 2,
-  },
   /** Number of turns between EMBER_NEST Emberling spawns */
   EMBER_NEST_SPAWN_INTERVAL: 3,
   /** Maximum number of EMBERLINGs allowed near an EMBER_NEST (within 8 tiles) */
@@ -290,12 +128,8 @@ export const CRYSTAL_CHAMBER_CONFIG = {
   RESONANCE_DURATION: 3,
   /** Arcane crystals granted per resonating chamber per player turn */
   CRYSTALS_PER_CHAMBER_PER_TURN: 1,
-  /** Construction cost */
-  COST: { iron: 3, wood: 2 },
   /** Max HP */
   MAX_HP: 100,
-  /** Discovery radius */
-  DISCOVER_RADIUS: 2,
 } as const;
 
 // ============================================================================
@@ -593,23 +427,11 @@ export const AI_RECRUITMENT = {
 
 } as const;
 
-// ============================================================================
-// UNIT COST CONFIGURATION
-// ============================================================================
-
+/** Iron/wood cost for a unit or building */
 export interface UnitCost {
   iron: number;
   wood: number;
 }
-
-export const UNIT_COSTS: Record<string, UnitCost> = {
-  INFANTRY: { iron: 3, wood: 2 },
-  ARCHER: { iron: 2, wood: 3 },
-  RIDER: { iron: 5, wood: 2 },
-  SIEGE: { iron: 4, wood: 4 },
-  SCOUT: { iron: 0, wood: 2 },
-  GUARD: { iron: 2, wood: 0 },
-} as const;
 
 // ============================================================================
 // TERRAIN CONFIGURATION
@@ -663,40 +485,6 @@ export const TERRAIN = {
 } as const;
 
 // ============================================================================
-// CONSTRUCTION CONFIGURATION
-// ============================================================================
-
-export interface BuildingCost {
-  iron: number;
-  wood: number;
-}
-
-export const CONSTRUCTION = {
-  /** Construction cost for a Woodcutter (player) */
-  WOODCUTTER_COST: { iron: 0, wood: 0 },
-  /** Construction cost for a Mine (player) */
-  MINE_COST: { iron: 0, wood: 2 },
-  /** Construction cost for a Barracks (player) */
-  BARRACKS_COST: { iron: 2, wood: 2 },
-  /** Construction cost for an Archer Camp (player) */
-  ARCHER_CAMP_COST: { iron: 1, wood: 3 },
-  /** Construction cost for a Rider Camp (player) */
-  RIDER_CAMP_COST: { iron: 5, wood: 3 },
-  /** Construction cost for a Siege Camp (player) */
-  SIEGE_CAMP_COST: { iron: 3, wood: 5 },
-  /** Construction cost for a Farm (player, built on ruins) */
-  FARM_COST: { iron: 0, wood: 3 },
-  /** Construction cost for a Patrician House (player, built on ruins) */
-  PATRICIAN_HOUSE_COST: { iron: 3, wood: 3 },
-  /** Construction cost for a Stronghold rebuild (player) */
-  STRONGHOLD_COST: { iron: 0, wood: 0 },
-  /** Construction cost for a Lava Lair (enemy AI, not player) */
-  LAVA_LAIR_COST: { iron: 0, wood: 0 },
-  /** Construction cost for an Infernal Sanctum (enemy AI, not player) */
-  INFERNAL_SANCTUM_COST: { iron: 0, wood: 0 },
-} as const satisfies Record<string, BuildingCost>;
-
-// ============================================================================
 // POPULATION CONFIGURATION
 // ============================================================================
 
@@ -714,37 +502,6 @@ export const POPULATION = {
   /** Number of turns between each population increase (same for all housing types) */
   HOUSE_GROWTH_INTERVAL: 3,
 } as const;
-
-// ============================================================================
-// UNIT POPULATION COSTS CONFIGURATION
-// ============================================================================
-
-export const UNIT_POPULATION_COSTS: Record<string, UnitPopulationCost> = {
-  INFANTRY: { farmers: 1, nobles: 0 },
-  ARCHER: { farmers: 1, nobles: 0 },
-  RIDER: { farmers: 0, nobles: 1 },
-  SIEGE: { farmers: 1, nobles: 1 },
-  SCOUT: { farmers: 1, nobles: 0 },
-  GUARD: { farmers: 0, nobles: 1 },
-  LAVA_GRUNT: { farmers: 0, nobles: 0 },
-  LAVA_ARCHER: { farmers: 0, nobles: 0 },
-  LAVA_RIDER: { farmers: 0, nobles: 0 },
-  LAVA_SIEGE: { farmers: 0, nobles: 0 },
-  EMBERLING: { farmers: 0, nobles: 0 },
-};
-
-// ============================================================================
-// ENEMY UNIT UNLOCK CONFIGURATION
-// ============================================================================
-
-/** Minimum threat level required to unlock each enemy unit type for recruitment */
-export const ENEMY_UNIT_UNLOCK: Record<string, number> = {
-  LAVA_GRUNT: 0,
-  LAVA_ARCHER: 1,
-  LAVA_RIDER: 3,
-  LAVA_SIEGE: 5,
-  EMBERLING: 1,
-};
 
 // ============================================================================
 // UNIT XP AND LEVEL-UP CONFIGURATION
@@ -784,61 +541,304 @@ export const LEVEL_UP_VALUES = {
   HP_BOOST_EMBERLING: 10,
 } as const;
 
+// ============================================================================
+// UNIT DEFINITIONS — single source of truth per unit type
+// ============================================================================
+
 /**
- * Per-unit-type level-up definitions.
- * Index 0 = level 2, index 1 = level 3.
- * Each entry lists the cumulative XP required and the stat boosts applied.
+ * Single source of truth for all per-unit data.
+ * Replaces UNITS, UNIT_COSTS, UNIT_POPULATION_COSTS, UNIT_LEVEL_UP, and ENEMY_UNIT_UNLOCK.
  */
-export const UNIT_LEVEL_UP: Record<string, UnitLevelDefinition[]> = {
-  INFANTRY: [
-    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
-    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
-  ],
-  ARCHER: [
-    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
-    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
-  ],
-  RIDER: [
-    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
-    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
-  ],
-  SIEGE: [
-    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
-    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
-  ],
-  SCOUT: [
-    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_SCOUT }] },
-    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_SCOUT }] },
-  ],
-  GUARD: [
-    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
-    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
-  ],
-  LAVA_GRUNT: [
-    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
-    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
-  ],
-  LAVA_ARCHER: [
-    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
-    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
-  ],
-  LAVA_RIDER: [
-    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
-    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
-  ],
-  LAVA_SIEGE: [
-    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
-    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
-  ],
-  EMBERLING: [
-    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_EMBERLING }] },
-    { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_EMBERLING }] },
-  ],
+export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
+  INFANTRY: {
+    maxHp: 100, attack: 50, defense: 50,
+    movementActions: 1, moveRange: 1, attackRange: 1,
+    discoverRadius: 1, triggerRange: 0,
+    tags: [UnitTag.BUILDANDCAPTURE],
+    cost: { iron: 3, wood: 2 },
+    populationCost: { farmers: 1, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    description: 'Versatile foot soldier that can move, fight, build structures, and capture enemy buildings.',
+  },
+
+  ARCHER: {
+    maxHp: 100, attack: 50, defense: 20,
+    movementActions: 1, moveRange: 1, attackRange: 2,
+    discoverRadius: 1, triggerRange: 0,
+    tags: [UnitTag.RANGED, UnitTag.BUILDANDCAPTURE],
+    cost: { iron: 2, wood: 3 },
+    populationCost: { farmers: 1, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    description: 'Ranged attacker that strikes from 2 tiles away without stepping into melee range.',
+  },
+
+  RIDER: {
+    maxHp: 100, attack: 70, defense: 40,
+    movementActions: 1, moveRange: 2, attackRange: 1,
+    discoverRadius: 1, triggerRange: 0,
+    tags: [UnitTag.BUILDANDCAPTURE],
+    cost: { iron: 5, wood: 2 },
+    populationCost: { farmers: 0, nobles: 1 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    description: 'Swift cavalry that covers 2 tiles per move to outflank and pressure the enemy.',
+  },
+
+  SIEGE: {
+    maxHp: 100, attack: 85, defense: 0,
+    movementActions: 1, moveRange: 1, attackRange: 3,
+    discoverRadius: 1, triggerRange: 0,
+    tags: [UnitTag.RANGED, UnitTag.PREP],
+    cost: { iron: 4, wood: 4 },
+    populationCost: { farmers: 1, nobles: 1 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    description: 'Long-range bombard with 3-tile reach; cannot fire in the same turn it moves.',
+  },
+
+  SCOUT: {
+    maxHp: 60, attack: 30, defense: 20,
+    movementActions: 1, moveRange: 2, attackRange: 1,
+    discoverRadius: 1, triggerRange: 0,
+    tags: [],
+    cost: { iron: 0, wood: 2 },
+    populationCost: { farmers: 1, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_SCOUT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_SCOUT }] },
+    ],
+    description: 'Light and fast explorer. Can gain special abilities through technology upgrades.',
+  },
+
+  GUARD: {
+    maxHp: 100, attack: 15, defense: 75,
+    movementActions: 1, moveRange: 1, attackRange: 1,
+    discoverRadius: 1, triggerRange: 0,
+    tags: [UnitTag.PREP],
+    cost: { iron: 2, wood: 0 },
+    populationCost: { farmers: 0, nobles: 1 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    description: 'Heavily armored defender with high defense; cannot attack in the same turn it moves.',
+  },
+
+  LAVA_GRUNT: {
+    maxHp: 100, attack: 50, defense: 50,
+    movementActions: 1, moveRange: 1, attackRange: 1,
+    discoverRadius: 1, triggerRange: 3,
+    tags: [UnitTag.BUILDANDCAPTURE, UnitTag.CORRUPT],
+    cost: { iron: 0, wood: 0 },
+    populationCost: { farmers: 0, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    enemyUnlockThreat: 0,
+    description: 'Standard enemy foot soldier. Can corrupt terrain to create hostile buildings.',
+  },
+
+  LAVA_ARCHER: {
+    maxHp: 100, attack: 50, defense: 20,
+    movementActions: 1, moveRange: 1, attackRange: 2,
+    discoverRadius: 1, triggerRange: 3,
+    tags: [UnitTag.BUILDANDCAPTURE, UnitTag.RANGED],
+    cost: { iron: 0, wood: 0 },
+    populationCost: { farmers: 0, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    enemyUnlockThreat: 1,
+    description: 'Enemy ranged unit that attacks from 2 tiles away.',
+  },
+
+  LAVA_RIDER: {
+    maxHp: 100, attack: 70, defense: 40,
+    movementActions: 1, moveRange: 2, attackRange: 1,
+    discoverRadius: 1, triggerRange: 3,
+    tags: [UnitTag.BUILDANDCAPTURE],
+    cost: { iron: 0, wood: 0 },
+    populationCost: { farmers: 0, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    enemyUnlockThreat: 3,
+    description: 'Enemy fast cavalry that covers 2 tiles per move.',
+  },
+
+  LAVA_SIEGE: {
+    maxHp: 100, attack: 85, defense: 0,
+    movementActions: 1, moveRange: 1, attackRange: 3,
+    discoverRadius: 1, triggerRange: 4,
+    tags: [UnitTag.RANGED, UnitTag.PREP],
+    cost: { iron: 0, wood: 0 },
+    populationCost: { farmers: 0, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    enemyUnlockThreat: 5,
+    description: 'Enemy long-range bombard with 3-tile reach.',
+  },
+
+  EMBERLING: {
+    maxHp: 45, attack: 15, defense: 10,
+    movementActions: 1, moveRange: 2, attackRange: 1,
+    discoverRadius: 1, triggerRange: 0,
+    explosionDamage: 40,
+    tags: [UnitTag.SACRIFICIAL, UnitTag.EXPLOSIVE],
+    cost: { iron: 0, wood: 0 },
+    populationCost: { farmers: 0, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_EMBERLING }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_EMBERLING }] },
+    ],
+    enemyUnlockThreat: 1,
+    description: 'Fragile fire spirit that walks toward lava. Explodes on death, dealing heavy damage to all nearby enemies.',
+  },
 };
 
 // ============================================================================
-// TECH CONFIGURATION
+// BUILDING DEFINITIONS — single source of truth per building type
 // ============================================================================
+
+/** All data for a single building type, combining construction cost, combat stats and UI copy. */
+export interface BuildingDefinition {
+  discoverRadius: number;
+  destroyBehavior: DestroyBehavior;
+  /** Iron/wood construction cost ({iron:0,wood:0} for buildings not constructed by the player) */
+  constructionCost: { iron: number; wood: number };
+  /** Combat stats — only present for buildings that can attack */
+  combatStats?: {
+    maxHp: number;
+    attack: number;
+    defense: number;
+    attackRange: number;
+    maxAttacksPerTurn?: number;
+  };
+  description: string;
+}
+
+/**
+ * Single source of truth for all per-building data.
+ * Replaces BUILDINGS.DISCOVER_RADIUS, BUILDINGS.DESTROY_BEHAVIOR,
+ * BUILDINGS.WATCHTOWER_STATS, BUILDINGS.OUTPOST_STATS, LAVA_LAIR.MAGMA_SPYR_STATS,
+ * CONSTRUCTION.*_COST, CRYSTAL_CHAMBER_CONFIG.COST, and CRYSTAL_CHAMBER_CONFIG.DISCOVER_RADIUS.
+ */
+export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
+  STRONGHOLD: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.STRONGHOLD_RUIN,
+    constructionCost: { iron: 0, wood: 0 },
+    description: 'Your capital — if you lose all your strongholds, the game is over.',
+  },
+  MINE: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.NONE,
+    constructionCost: { iron: 0, wood: 2 },
+    description: 'Produces iron every turn, the primary resource for training units.',
+  },
+  WOODCUTTER: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.NONE,
+    constructionCost: { iron: 0, wood: 0 },
+    description: 'Produces wood every turn, used alongside iron for buildings and recruitment.',
+  },
+  BARRACKS: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.RUIN,
+    constructionCost: { iron: 2, wood: 2 },
+    description: 'Military hall that trains Infantry.',
+  },
+  ARCHER_CAMP: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.RUIN,
+    constructionCost: { iron: 1, wood: 3 },
+    description: 'Archery range that trains Archers.',
+  },
+  RIDER_CAMP: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.RUIN,
+    constructionCost: { iron: 5, wood: 3 },
+    description: 'Stable that trains Riders.',
+  },
+  SIEGE_CAMP: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.RUIN,
+    constructionCost: { iron: 3, wood: 5 },
+    description: 'Engineering works that trains Siege engines.',
+  },
+  WATCHTOWER: {
+    discoverRadius: 4,
+    destroyBehavior: DestroyBehavior.RUIN,
+    constructionCost: { iron: 0, wood: 0 },
+    combatStats: { maxHp: 150, attack: 50, defense: 65, attackRange: 3 },
+    description: 'Defensive tower that attacks enemies within 3 tiles and expands your vision.',
+  },
+  OUTPOST: {
+    discoverRadius: 3,
+    destroyBehavior: DestroyBehavior.NONE,
+    constructionCost: { iron: 0, wood: 0 },
+    combatStats: { maxHp: 150, attack: 40, defense: 55, attackRange: 2 },
+    description: 'Field fortification built by Infantry via Fieldwork. Attacks enemies within 2 tiles. Starting HP is based on the building unit\'s current HP, capped at 150.',
+  },
+  LAVALAIR: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.RUIN,
+    constructionCost: { iron: 0, wood: 0 },
+    description: 'Enemy spawner building. Produces Lava Grunt units.',
+  },
+  INFERNALSANCTUM: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.STRONGHOLD_RUIN,
+    constructionCost: { iron: 0, wood: 0 },
+    description: 'Enemy zone stronghold. Capturing it triggers a Sanctum Collapse.',
+  },
+  FARM: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.RUIN,
+    constructionCost: { iron: 0, wood: 3 },
+    description: 'Housing for common folk — each pop raised lets you field one more basic unit.',
+  },
+  PATRICIANHOUSE: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.RUIN,
+    constructionCost: { iron: 3, wood: 3 },
+    description: 'Noble estate — each noble raised lets you field one more elite unit.',
+  },
+  MAGMASPYR: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.RESOURCE,
+    constructionCost: { iron: 0, wood: 0 },
+    combatStats: { maxHp: 120, attack: 30, defense: 50, attackRange: 2, maxAttacksPerTurn: 2 },
+    description: 'Corrupted mountain spire that attacks nearby units multiple times per turn.',
+  },
+  EMBERNEST: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.RESOURCE,
+    constructionCost: { iron: 0, wood: 0 },
+    description: 'Corrupted forest nest that periodically spawns Emberlings.',
+  },
+  CRYSTAL_CHAMBER: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.RUIN,
+    constructionCost: { iron: 3, wood: 2 },
+    description: 'Arcane resonator. When a Crystal Chamber is consumed by lava, all surviving chambers begin resonating and generate crystals each turn.',
+  },
+};
 
 export const TECH = {
   /** Number of crystals granted at game start (before first lava consumption) */
@@ -1068,6 +1068,25 @@ export const ABILITIES = {
 } as const;
 
 // ============================================================================
+// TAG INFO — label and description for each unit tag
+// ============================================================================
+
+/** Display label and tooltip description for each UnitTag. */
+export const TAG_INFO: Record<UnitTag, { label: string; desc: string }> = {
+  [UnitTag.RANGED]:          { label: 'Ranged',          desc: 'Attacks from a distance and does not move onto a defeated enemy\'s tile.' },
+  [UnitTag.PREP]:            { label: 'Prep',            desc: 'Cannot attack in the same turn it moves. Attack first, then move — or wait a turn after moving.' },
+  [UnitTag.BUILDANDCAPTURE]: { label: 'Build & Capture', desc: 'Can construct buildings on open terrain and capture enemy strongholds.' },
+  [UnitTag.SACRIFICIAL]:     { label: 'Sacrificial',     desc: 'Prioritizes walking toward the lava to be consumed.' },
+  [UnitTag.EXPLOSIVE]:       { label: 'Explosive',       desc: 'Deals heavy area damage to all adjacent enemies when it dies.' },
+  [UnitTag.FIELDWORK]:       { label: 'Fieldwork',       desc: `Can sacrifice itself on its current tile to instantly erect an Outpost (HP scales with the unit's current HP × ${ABILITIES.FIELDWORK_HP_MULTIPLIER}). Cannot be used on ruins or resource terrain.` },
+  [UnitTag.ASSASSIN]:        { label: 'Assassin',        desc: `Deals ${ABILITIES.ASSASSIN_DAMAGE_MULTIPLIER}× damage and receives no retaliation when striking an enemy that is still at full health.` },
+  [UnitTag.PATCHUP]:         { label: 'Patch Up',        desc: `Can spend its action to restore ${ABILITIES.PATCHUP_HEAL_AMOUNT} HP on one adjacent friendly unit.` },
+  [UnitTag.PHALANX]:         { label: 'Phalanx',         desc: `Grants +${ABILITIES.PHALANX_DEFENSE_BONUS_PER_CARRIER} defense to each adjacent friendly unit and gains +${ABILITIES.PHALANX_ATTACK_BONUS_PER_ALLY} attack per adjacent friendly unit. Bonuses apply during combat only.` },
+  [UnitTag.LAVABOOST]:       { label: 'Lava-Boosted',    desc: 'Spawns with boosted stats when its spawning building is close to the lava front.' },
+  [UnitTag.CORRUPT]:         { label: 'Corrupt',         desc: 'Can corrupt forest and mountain terrain tiles.' },
+};
+
+// ============================================================================
 // SANCTUM COLLAPSE CONFIGURATION
 // ============================================================================
 
@@ -1116,21 +1135,17 @@ export const GAME_CONFIG = {
   MAP,
   LAVA,
   LAVA_LAIR,
-  UNITS,
+  UNIT_DEFINITIONS,
+  BUILDING_DEFINITIONS,
   BUILDINGS,
   RESOURCES,
   TERRAIN,
-  CONSTRUCTION,
   POPULATION,
-  UNIT_POPULATION_COSTS,
   ENEMY,
-  ENEMY_UNIT_UNLOCK,
   AI_SCORING,
   AI_RECRUITMENT,
-  UNIT_COSTS,
   XP,
   LEVEL_UP_VALUES,
-  UNIT_LEVEL_UP,
   TECH,
   TECH_TREE,
   CRYSTAL_CHAMBER_CONFIG,

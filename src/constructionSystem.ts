@@ -15,7 +15,7 @@ import type {
   Building,
   GameState,
 } from './types';
-import { CONSTRUCTION, POPULATION, BUILDINGS, LAVA_LAIR, XP, CRYSTAL_CHAMBER_CONFIG, ABILITIES } from './gameConfig';
+import { BUILDING_DEFINITIONS, POPULATION, XP, CRYSTAL_CHAMBER_CONFIG, ABILITIES } from './gameConfig';
 import { generateId } from './mapGenerator';
 import { grantXp } from './levelSystem';
 import { getStrongholdCapMods } from './techSystem';
@@ -54,18 +54,18 @@ export interface ConstructionOption {
 // COST & DISPLAY MAPPINGS
 // ============================================================================
 
-/** Maps player-constructable BuildingType to its CONSTRUCTION cost */
+/** Maps player-constructable BuildingType to its construction cost */
 const BUILDING_COST: Record<ConstructableBuilding, { iron: number; wood: number }> = {
-  [BuildingType.WOODCUTTER]: CONSTRUCTION.WOODCUTTER_COST,
-  [BuildingType.MINE]: CONSTRUCTION.MINE_COST,
-  [BuildingType.BARRACKS]: CONSTRUCTION.BARRACKS_COST,
-  [BuildingType.ARCHER_CAMP]: CONSTRUCTION.ARCHER_CAMP_COST,
-  [BuildingType.RIDER_CAMP]: CONSTRUCTION.RIDER_CAMP_COST,
-  [BuildingType.SIEGE_CAMP]: CONSTRUCTION.SIEGE_CAMP_COST,
-  [BuildingType.FARM]: CONSTRUCTION.FARM_COST,
-  [BuildingType.PATRICIANHOUSE]: CONSTRUCTION.PATRICIAN_HOUSE_COST,
-  [BuildingType.STRONGHOLD]: CONSTRUCTION.STRONGHOLD_COST,
-  [BuildingType.CRYSTAL_CHAMBER]: CRYSTAL_CHAMBER_CONFIG.COST,
+  [BuildingType.WOODCUTTER]: BUILDING_DEFINITIONS.WOODCUTTER.constructionCost,
+  [BuildingType.MINE]: BUILDING_DEFINITIONS.MINE.constructionCost,
+  [BuildingType.BARRACKS]: BUILDING_DEFINITIONS.BARRACKS.constructionCost,
+  [BuildingType.ARCHER_CAMP]: BUILDING_DEFINITIONS.ARCHER_CAMP.constructionCost,
+  [BuildingType.RIDER_CAMP]: BUILDING_DEFINITIONS.RIDER_CAMP.constructionCost,
+  [BuildingType.SIEGE_CAMP]: BUILDING_DEFINITIONS.SIEGE_CAMP.constructionCost,
+  [BuildingType.FARM]: BUILDING_DEFINITIONS.FARM.constructionCost,
+  [BuildingType.PATRICIANHOUSE]: BUILDING_DEFINITIONS.PATRICIANHOUSE.constructionCost,
+  [BuildingType.STRONGHOLD]: BUILDING_DEFINITIONS.STRONGHOLD.constructionCost,
+  [BuildingType.CRYSTAL_CHAMBER]: BUILDING_DEFINITIONS.CRYSTAL_CHAMBER.constructionCost,
 };
 
 const BUILDING_LABEL: Record<ConstructableBuilding, string> = {
@@ -262,30 +262,30 @@ function createBuildingObject(
   const isMagmaSpyr = type === BuildingType.MAGMASPYR;
   const isCrystalChamber = type === BuildingType.CRYSTAL_CHAMBER;
   const maxHp = isWatchtower
-    ? BUILDINGS.WATCHTOWER_STATS.maxHp
+    ? BUILDING_DEFINITIONS.WATCHTOWER.combatStats!.maxHp
     : isMagmaSpyr
-      ? LAVA_LAIR.MAGMA_SPYR_STATS.maxHp
+      ? BUILDING_DEFINITIONS.MAGMASPYR.combatStats!.maxHp
       : isCrystalChamber
         ? CRYSTAL_CHAMBER_CONFIG.MAX_HP
         : 100;
   const combatStats = isWatchtower
     ? {
-        attack: BUILDINGS.WATCHTOWER_STATS.attack,
-        defense: BUILDINGS.WATCHTOWER_STATS.defense,
-        attackRange: BUILDINGS.WATCHTOWER_STATS.attackRange,
+        attack: BUILDING_DEFINITIONS.WATCHTOWER.combatStats!.attack,
+        defense: BUILDING_DEFINITIONS.WATCHTOWER.combatStats!.defense,
+        attackRange: BUILDING_DEFINITIONS.WATCHTOWER.combatStats!.attackRange,
       }
     : isOutpost
       ? {
-          attack: BUILDINGS.OUTPOST_STATS.attack,
-          defense: BUILDINGS.OUTPOST_STATS.defense,
-          attackRange: BUILDINGS.OUTPOST_STATS.attackRange,
+          attack: BUILDING_DEFINITIONS.OUTPOST.combatStats!.attack,
+          defense: BUILDING_DEFINITIONS.OUTPOST.combatStats!.defense,
+          attackRange: BUILDING_DEFINITIONS.OUTPOST.combatStats!.attackRange,
         }
       : isMagmaSpyr
         ? {
-            attack: LAVA_LAIR.MAGMA_SPYR_STATS.attack,
-            defense: LAVA_LAIR.MAGMA_SPYR_STATS.defense,
-            attackRange: LAVA_LAIR.MAGMA_SPYR_STATS.attackRange,
-            maxAttacksPerTurn: LAVA_LAIR.MAGMA_SPYR_STATS.maxAttacksPerTurn,
+            attack: BUILDING_DEFINITIONS.MAGMASPYR.combatStats!.attack,
+            defense: BUILDING_DEFINITIONS.MAGMASPYR.combatStats!.defense,
+            attackRange: BUILDING_DEFINITIONS.MAGMASPYR.combatStats!.attackRange,
+            maxAttacksPerTurn: BUILDING_DEFINITIONS.MAGMASPYR.combatStats!.maxAttacksPerTurn,
           }
         : null;
   const tags: import('./types').UnitTag[] = (isWatchtower || isOutpost || isMagmaSpyr) ? [UnitTag.RANGED] : [];
@@ -319,7 +319,7 @@ function createBuildingObject(
     captureProgress: 0,
     isBeingCapturedBy: null,
     lavaBoostEnabled: false,
-    discoverRadius: BUILDINGS.DISCOVER_RADIUS[type],
+    discoverRadius: BUILDING_DEFINITIONS[type].discoverRadius,
     turnCapturedByPlayer: null,
     wasEnemyOwnedBeforeCapture: false,
     combatStats,
@@ -331,7 +331,7 @@ function createBuildingObject(
     populationGrowthCounter: 0,
     emberSpawnCounter: 0,
     recruitmentQueue: null,
-    destroyBehavior: BUILDINGS.DESTROY_BEHAVIOR[type],
+    destroyBehavior: BUILDING_DEFINITIONS[type].destroyBehavior,
     resonanceTurnsRemaining: 0,
     spawnCooldownRemaining: 0,
   };
@@ -344,7 +344,7 @@ function createBuildingObject(
  */
 export function createFieldworkOutpost(position: Position, unitCurrentHp: number): Building {
   const hp = Math.min(
-    BUILDINGS.OUTPOST_STATS.maxHp,
+    BUILDING_DEFINITIONS.OUTPOST.combatStats!.maxHp,
     Math.max(1, Math.round(unitCurrentHp * ABILITIES.FIELDWORK_HP_MULTIPLIER)),
   );
   return createBuildingObject(BuildingType.OUTPOST, position, Faction.PLAYER, hp);
