@@ -208,6 +208,7 @@ function isUnitBlockedFromLava(unit: Unit, state: Draft<GameState>): boolean {
       if (visited.has(key)) continue;
       visited.add(key);
       const tile = state.grid[ny][nx];
+      if (tile.terrainType === TileType.CANYON || tile.terrainType === TileType.WATER) continue;
       if (tile.unitId !== null || tile.isLava || isBlockedBuildingForEnemyMovement(state, tile.buildingId)) continue;
       // ny > startY means the tile is closer to lava (higher Y = toward lava)
       if (ny > startY) return false;
@@ -316,6 +317,8 @@ function findBfsPath(
       visited.add(nkey);
       const tile = state.grid[ny][nx];
       const isTarget = nx === target.x && ny === target.y;
+      // CANYON / WATER tiles are impassable — never enter, not even as the target
+      if (tile.terrainType === TileType.CANYON || tile.terrainType === TileType.WATER) continue;
       if (tile.isLava && !isTarget) continue;
       if (isBlockedBuildingForEnemyMovement(state, tile.buildingId)) continue;
       if (tile.unitId !== null && !isTarget) continue;

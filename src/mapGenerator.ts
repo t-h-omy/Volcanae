@@ -678,6 +678,9 @@ function placeCanyonsForZone(
       );
       if (overlapsOccupied) continue;
 
+      // Canyons must not touch each other
+      if (wouldTouchExistingCanyon(validShape, grid)) continue;
+
       // Check row minimum
       const impassableSet = new Set<string>();
       // Collect existing impassable tiles
@@ -705,6 +708,31 @@ function placeCanyonsForZone(
 }
 
 /**
+ * Checks whether any position in a candidate canyon shape is adjacent
+ * (orthogonally or diagonally) to an existing CANYON tile on the grid.
+ * This prevents canyons from touching each other.
+ */
+function wouldTouchExistingCanyon(
+  shape: Position[],
+  grid: Tile[][],
+): boolean {
+  const shapeSet = new Set(shape.map((p) => `${p.x},${p.y}`));
+  for (const p of shape) {
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        if (dx === 0 && dy === 0) continue;
+        const nx = p.x + dx;
+        const ny = p.y + dy;
+        if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;
+        if (shapeSet.has(`${nx},${ny}`)) continue;
+        if (grid[ny][nx].terrainType === TileType.CANYON) return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
  * Checks whether any position in a candidate lake shape is adjacent
  * (orthogonally or diagonally) to an existing WATER tile on the grid.
  * This prevents lakes from touching each other.
@@ -721,7 +749,6 @@ function wouldTouchExistingLake(
         const nx = p.x + dx;
         const ny = p.y + dy;
         if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;
-        // Skip tiles that are part of this same candidate shape
         if (shapeSet.has(`${nx},${ny}`)) continue;
         if (grid[ny][nx].terrainType === TileType.WATER) return true;
       }

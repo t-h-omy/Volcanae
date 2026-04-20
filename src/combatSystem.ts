@@ -6,7 +6,7 @@
 
 import type { Unit, Building, GameState } from './types';
 import type { Draft } from 'immer';
-import { BuildingType, Faction, UnitTag, TechFlag, DestroyBehavior } from './types';
+import { BuildingType, Faction, UnitTag, TechFlag, TileType, DestroyBehavior } from './types';
 import { useFloaterStore } from './floaterStore';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { UNITS, XP, ABILITIES, MAP } from './gameConfig';
@@ -397,9 +397,16 @@ export function resolveAttack(
   }
 
   // Melee attacker advances onto the tile the defeated defender occupied
+  // (unless the tile is impassable — canyon / water)
   if (defenderDead && !attackerDead) {
     const attackerUnit = state.units[attackerId];
-    if (attackerUnit && !attackerUnit.tags.includes(UnitTag.RANGED)) {
+    const targetTerrain = state.grid[defenderPosition.y][defenderPosition.x].terrainType;
+    if (
+      attackerUnit &&
+      !attackerUnit.tags.includes(UnitTag.RANGED) &&
+      targetTerrain !== TileType.CANYON &&
+      targetTerrain !== TileType.WATER
+    ) {
       const fromTile = state.grid[attackerUnit.position.y][attackerUnit.position.x];
       if (fromTile.unitId === attackerId) {
         fromTile.unitId = null;
@@ -718,9 +725,16 @@ export function resolveAttackOnBuilding(
   }
 
   // Melee attacker advances onto the tile the destroyed building occupied
+  // (unless the tile is impassable — canyon / water)
   if (buildingDead && !attackerDead) {
     const attackerUnit = state.units[attackerId];
-    if (attackerUnit && !attackerUnit.tags.includes(UnitTag.RANGED)) {
+    const targetTerrain = state.grid[buildingPosition.y][buildingPosition.x].terrainType;
+    if (
+      attackerUnit &&
+      !attackerUnit.tags.includes(UnitTag.RANGED) &&
+      targetTerrain !== TileType.CANYON &&
+      targetTerrain !== TileType.WATER
+    ) {
       const fromTile = state.grid[attackerUnit.position.y][attackerUnit.position.x];
       if (fromTile.unitId === attackerId) {
         fromTile.unitId = null;
