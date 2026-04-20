@@ -989,8 +989,8 @@ function scoreActionsForUnit(
   const candidates: ScoredAction[] = [];
   const triggerRange = unit.stats.triggerRange;
   const attackRange = unit.stats.attackRange;
-  // PREP tag prevents attacking after moving
-  const canAttackThisTurn = !hasUnitActed(unit) && !(unit.hasMovedThisTurn && unit.tags.includes(UnitTag.PREP));
+  // PREP tag prevents attacking after moving; PASSIVE tag prevents attacking entirely
+  const canAttackThisTurn = !hasUnitActed(unit) && !(unit.hasMovedThisTurn && unit.tags.includes(UnitTag.PREP)) && !unit.tags.includes(UnitTag.PASSIVE);
 
   // Gather player units in trigger range
   const playerUnitsInTriggerRange: Unit[] = [];

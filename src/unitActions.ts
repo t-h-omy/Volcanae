@@ -131,6 +131,7 @@ export function canUnitAttack(unit: Unit): boolean {
   if (unit.hasConstructedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
   if (unit.hasMovedThisTurn && unit.tags.includes(UnitTag.PREP)) return false;
+  if (unit.tags.includes(UnitTag.PASSIVE)) return false;
   return true;
 }
 

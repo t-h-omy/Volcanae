@@ -148,6 +148,8 @@ export const UnitTag = {
   PATCHUP: 'PATCHUP',
   /** Unit grants defense to adjacent allies and gains attack per adjacent ally */
   PHALANX: 'PHALANX',
+  /** Unit cannot initiate attacks but defends normally when attacked */
+  PASSIVE: 'PASSIVE',
 } as const;
 export type UnitTag = (typeof UnitTag)[keyof typeof UnitTag];
 
