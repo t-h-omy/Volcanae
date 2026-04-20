@@ -1025,9 +1025,9 @@ export const TECH_TREE: TechNodeDefinition[] = [
     requires: ['CONSCRIPTION'],
     cost: 2,
     effects: [
-      { type: 'STRONGHOLD_CAP_MOD', capType: 'farmer', amount: 1 },
-      { type: 'BUILDING_PRODUCTION_MOD', buildingType: BuildingType.STRONGHOLD, resource: ResourceType.WOOD, chancePercent: 50, amount: 1 },
-      { type: 'BUILDING_PRODUCTION_MOD', buildingType: BuildingType.STRONGHOLD, resource: ResourceType.IRON, chancePercent: 50, amount: 1 },
+      { type: 'STRONGHOLD_CAP_MOD', capType: 'farmer', amount: 2 },
+      { type: 'BUILDING_PRODUCTION_MOD', buildingType: BuildingType.STRONGHOLD, resource: ResourceType.WOOD, chancePercent: 100, amount: 1 },
+      { type: 'BUILDING_PRODUCTION_MOD', buildingType: BuildingType.STRONGHOLD, resource: ResourceType.IRON, chancePercent: 100, amount: 1 },
     ],
   },
   {
@@ -1037,9 +1037,9 @@ export const TECH_TREE: TechNodeDefinition[] = [
     requires: ['WALLED_SETTLEMENT'],
     cost: 4,
     effects: [
-      { type: 'STRONGHOLD_CAP_MOD', capType: 'noble', amount: 1 },
-      { type: 'UNIT_STAT_MOD', unitType: UnitType.SCOUT, stat: 'maxHp', mode: 'add', value: 40 },
-      { type: 'UNIT_STAT_MOD', unitType: UnitType.GUARD, stat: 'maxHp', mode: 'add', value: 40 },
+      { type: 'STRONGHOLD_CAP_MOD', capType: 'noble', amount: 2 },
+      { type: 'UNIT_STAT_MOD', unitType: UnitType.SCOUT, stat: 'maxHp', mode: 'add', value: 30 },
+      { type: 'UNIT_STAT_MOD', unitType: UnitType.GUARD, stat: 'maxHp', mode: 'add', value: 30 },
     ],
   },
 ];
