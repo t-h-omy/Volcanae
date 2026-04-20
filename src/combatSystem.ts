@@ -719,6 +719,21 @@ export function resolveAttackOnBuilding(
         grantXp(state, attackerId, XP.DESTROY_BUILDING, suppressFloaters);
       }
       state.gameStats.enemyBuildingsDestroyed += 1;
+    } else if (attackerFaction === Faction.ENEMY && previousBuildingFaction === Faction.PLAYER) {
+      // Player building (e.g. outpost) destroyed by enemy unit: remove from state; apply destroy behavior.
+      // Player buildings with combatStats (outposts) may be attacked and must be properly removed so that
+      // the melee advance below does not place the enemy unit onto an occupied building tile.
+      const { x, y } = building.position;
+      const destroyBehavior = building.destroyBehavior;
+      delete state.buildings[buildingId];
+      const tile = state.grid[y][x];
+      tile.buildingId = null;
+      if (destroyBehavior === DestroyBehavior.STRONGHOLD_RUIN) {
+        tile.isStrongholdRuin = true;
+      } else if (destroyBehavior === DestroyBehavior.RUIN) {
+        tile.isRuin = true;
+      }
+      // DestroyBehavior.NONE / DestroyBehavior.RESOURCE: no ruin — terrain is restored naturally
     }
   } else {
     building.hp = newBuildingHp;

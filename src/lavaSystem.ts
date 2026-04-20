@@ -161,21 +161,10 @@ export function advanceLava(state: Draft<GameState>): void {
 
         // Remove building from state
         delete state.buildings[buildingId];
-
-        // If a player Crystal Chamber was consumed, trigger resonance on survivors
-        if (building.faction === Faction.PLAYER && building.type === BuildingType.CRYSTAL_CHAMBER) {
-          for (const other of Object.values(state.buildings)) {
-            if (
-              other.faction === Faction.PLAYER &&
-              other.type === BuildingType.CRYSTAL_CHAMBER
-            ) {
-              other.resonanceTurnsRemaining = Math.max(
-                other.resonanceTurnsRemaining,
-                CRYSTAL_CHAMBER_CONFIG.RESONANCE_DURATION,
-              );
-            }
-          }
-        }
+        // Note: resonance for surviving crystal chambers is NOT applied here.
+        // It is applied to the resolvedState in advanceLavaWithEvents so that
+        // the live state only transitions to the active sprite when the
+        // per-chamber RESONANCE_TRIGGERED animation VFX fires.
       }
 
       // Clear building from tile
@@ -252,7 +241,7 @@ export function advanceLavaWithEvents(state: GameState): { newState: GameState; 
     }
   }
 
-  const newState = produce(state, (draft) => {
+  let newState = produce(state, (draft) => {
     advanceLava(draft);
   });
 
@@ -275,6 +264,23 @@ export function advanceLavaWithEvents(state: GameState): { newState: GameState; 
       }
     }
     if (survivingChamberIds.length > 0) {
+      // Apply resonance to the resolvedState for surviving chambers.
+      // advanceLava intentionally does NOT set resonanceTurnsRemaining so that the
+      // live state only switches to the active sprite when the per-chamber VFX fires
+      // in the animation engine (via activateCrystalChamber).  The resolvedState
+      // (applied at the very end of the animation sequence) must still reflect the
+      // activated chambers so the final state is correct.
+      newState = produce(newState, (draft) => {
+        for (const bId of survivingChamberIds) {
+          const b = draft.buildings[bId];
+          if (b) {
+            b.resonanceTurnsRemaining = Math.max(
+              b.resonanceTurnsRemaining,
+              CRYSTAL_CHAMBER_CONFIG.RESONANCE_DURATION,
+            );
+          }
+        }
+      });
       events.push({
         type: 'RESONANCE_TRIGGERED',
         destroyedChamberPosition,
