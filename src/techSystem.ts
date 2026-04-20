@@ -7,7 +7,7 @@
 import type { Draft } from 'immer';
 import type { GameState, TechId, TechEffect, UnitStats } from './types';
 import { Faction, TechFlag, BuildingType } from './types';
-import { TECH_TREE, ABILITIES } from './gameConfig';
+import { TECH_TREE, ABILITIES, computeResearchCost } from './gameConfig';
 
 // ============================================================================
 // PICK GRANTS
@@ -58,7 +58,7 @@ export function unlockTech(state: Draft<GameState>, techId: TechId): void {
   const def = TECH_TREE.find((d) => d.id === techId);
   if (!def) return;
 
-  const cost = def.cost ?? 1;
+  const cost = computeResearchCost(def.cost ?? 1, state.ember);
 
   // Check prerequisites
   if (!def.requires.every((reqId) => state.techNodes[reqId]?.unlocked === true)) return;

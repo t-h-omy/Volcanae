@@ -1244,7 +1244,7 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
     selectedBuildingId: null,
     selectedTilePos: null,
     pendingHealerId: null,
-    threatLevel: 0,
+    ember: 0,
     zonesUnlocked: [1, 2],
     techNodes: TECH_TREE.reduce<Record<string, TechNodeState>>((acc, def) => {
       acc[def.id] = { id: def.id, unlocked: def.id === 'CONSCRIPTION' };

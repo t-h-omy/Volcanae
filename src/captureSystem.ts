@@ -8,7 +8,7 @@ import type { Draft } from 'immer';
 import { BuildingType, UnitTag, Faction, DestroyBehavior } from './types';
 import type { GameEvent } from './gameEvents';
 import { MAP, XP, TECH, SANCTUM_COLLAPSE } from './gameConfig';
-import { increaseThreatOnStrongholdCapture } from './enemySystem';
+import { increaseEmberOnStrongholdCapture } from './enemySystem';
 import { grantXp } from './levelSystem';
 import { grantArcaneCrystals, getStrongholdCapMods } from './techSystem';
 
@@ -208,7 +208,7 @@ export function initiateCapture(
 
     if (building.type === BuildingType.STRONGHOLD) {
       updateZonesUnlocked(state);
-      increaseThreatOnStrongholdCapture(state);
+      increaseEmberOnStrongholdCapture(state);
       grantArcaneCrystals(state, TECH.CRYSTALS_ON_ZONE_STRONGHOLD);
       // Apply any stronghold cap mods from unlocked techs
       const { farmerMod, nobleMod } = getStrongholdCapMods(state);
@@ -286,7 +286,7 @@ export function initiateCapture(
     updateZonesUnlocked(state);
     // Increase threat level when player captures (destroys) a stronghold
     if (unitFaction === Faction.PLAYER) {
-      increaseThreatOnStrongholdCapture(state);
+      increaseEmberOnStrongholdCapture(state);
     }
   }
 
@@ -475,7 +475,7 @@ export function resolveCaptures(state: Draft<GameState>): void {
 
       if (building.type === BuildingType.STRONGHOLD) {
         updateZonesUnlocked(state);
-        increaseThreatOnStrongholdCapture(state);
+        increaseEmberOnStrongholdCapture(state);
         grantArcaneCrystals(state, TECH.CRYSTALS_ON_ZONE_STRONGHOLD);
         // Apply any stronghold cap mods from unlocked techs
         const { farmerMod, nobleMod } = getStrongholdCapMods(state);
@@ -551,7 +551,7 @@ export function resolveCaptures(state: Draft<GameState>): void {
     if (buildingType === BuildingType.STRONGHOLD) {
       updateZonesUnlocked(state);
       if (capturingFaction === Faction.PLAYER) {
-        increaseThreatOnStrongholdCapture(state);
+        increaseEmberOnStrongholdCapture(state);
       }
     }
 

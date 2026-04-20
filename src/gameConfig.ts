@@ -85,7 +85,7 @@ export interface UnitDefinition {
   levelUp: UnitLevelDefinition[];
 
   // ── Enemy unlock threshold (omit for player units) ───────────────────────
-  enemyUnlockThreat?: number;
+  enemyUnlockEmber?: number;
 
   // ── UI ───────────────────────────────────────────────────────────────────
   description: string;
@@ -645,7 +645,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
-    enemyUnlockThreat: 0,
+    enemyUnlockEmber: 0,
     description: 'Standard enemy foot soldier. Can corrupt terrain to create hostile buildings.',
   },
 
@@ -660,7 +660,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
-    enemyUnlockThreat: 1,
+    enemyUnlockEmber: 1,
     description: 'Enemy ranged unit that attacks from 2 tiles away.',
   },
 
@@ -675,7 +675,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
-    enemyUnlockThreat: 3,
+    enemyUnlockEmber: 3,
     description: 'Enemy fast cavalry that covers 2 tiles per move.',
   },
 
@@ -690,7 +690,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
-    enemyUnlockThreat: 5,
+    enemyUnlockEmber: 5,
     description: 'Enemy long-range bombard with 3-tile reach.',
   },
 
@@ -706,7 +706,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_EMBERLING }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_EMBERLING }] },
     ],
-    enemyUnlockThreat: 1,
+    enemyUnlockEmber: 1,
     description: 'Fragile fire spirit that walks toward lava. Explodes on death, dealing heavy damage to all nearby enemies.',
   },
 };
@@ -848,6 +848,14 @@ export const TECH = {
   /** Number of crystals granted each time the player captures a new zone stronghold */
   CRYSTALS_ON_ZONE_STRONGHOLD: 0,
 } as const;
+
+/**
+ * Compute the actual crystal cost to research a tech node at the current ember level.
+ * Actual cost = baseCost + ember.
+ */
+export function computeResearchCost(baseCost: number, ember: number): number {
+  return baseCost + ember;
+}
 
 // ============================================================================
 // TECH TREE CONFIGURATION

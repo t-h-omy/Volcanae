@@ -9,7 +9,7 @@ import { createPortal } from 'react-dom';
 import { useGameStore } from '../gameStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
-import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO } from '../gameConfig';
+import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, computeResearchCost } from '../gameConfig';
 import { UI } from '../uiConfig';
 import type { UnitPopulationCost, TechId } from '../types';
 import {
@@ -469,7 +469,7 @@ function TopBar({
 }) {
   const turn = useGameStore((s) => s.turn);
   const resources = useGameStore((s) => s.resources);
-  const threatLevel = useGameStore((s) => s.threatLevel);
+  const ember = useGameStore((s) => s.ember);
   const turnsUntilLavaAdvance = useGameStore((s) => s.turnsUntilLavaAdvance);
   const isAnimating = useAnimationStore((s) => s.isAnimating);
 
@@ -491,7 +491,7 @@ function TopBar({
       <span className="hud-stat">🪵 {resources.wood}{woodPerTurn > 0 && <span className="hud-income">(+{Number.isInteger(woodPerTurn) ? woodPerTurn : woodPerTurn.toFixed(1)})</span>}</span>
       <span className="hud-stat">🌾 {farmersUsed}/{farmerCapacity}</span>
       <span className="hud-stat">🎖️ {noblesUsed}/{nobleCapacity}</span>
-      <span className="hud-stat">⚠️ Threat {threatLevel}</span>
+      <span className="hud-stat">🔥 Ember {ember}</span>
       <span className="hud-stat">🌋 Lava in {turnsUntilLavaAdvance}</span>
       <span className="hud-stat">💎 {arcaneCrystals}</span>
       {showTechButton && (
@@ -1978,6 +1978,7 @@ function nodeCentre(id: string): { x: number; y: number } {
 function TechTreeOverlay({ onClose }: { onClose: () => void }) {
   const techNodes = useGameStore((s) => s.techNodes);
   const arcaneCrystals = useGameStore((s) => s.arcaneCrystals);
+  const ember = useGameStore((s) => s.ember);
   const unlockTech = useGameStore((s) => s.unlockTech);
   const getAvailableTechs = useGameStore((s) => s.getAvailableTechs);
 
@@ -2019,10 +2020,10 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
   }, [selectedDef, techNodes]);
 
   const handleResearch = useCallback(() => {
-    if (selectedId && selectedDef && arcaneCrystals >= (selectedDef.cost ?? 1) && availableSet.has(selectedId)) {
+    if (selectedId && selectedDef && arcaneCrystals >= computeResearchCost(selectedDef.cost ?? 1, ember) && availableSet.has(selectedId)) {
       unlockTech(selectedId);
     }
-  }, [selectedId, selectedDef, arcaneCrystals, availableSet, unlockTech]);
+  }, [selectedId, selectedDef, arcaneCrystals, ember, availableSet, unlockTech]);
 
   // Close on Escape
   useEffect(() => {
@@ -2172,7 +2173,7 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
 
             <div className="tech-detail-actions">
               {selectedState === 'available' && (() => {
-                const techCost = selectedDef?.cost ?? 1;
+                const techCost = computeResearchCost(selectedDef?.cost ?? 1, ember);
                 const canAfford = arcaneCrystals >= techCost;
                 return (
                   <button
@@ -2279,7 +2280,7 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
     const available = getAvailableTechsLogic(s);
     return available.some((techId) => {
       const def = TECH_TREE.find((d) => d.id === techId);
-      return s.arcaneCrystals >= (def?.cost ?? 1);
+      return s.arcaneCrystals >= computeResearchCost(def?.cost ?? 1, s.ember);
     });
   });
 

@@ -119,7 +119,7 @@ export function advanceLava(state: Draft<GameState>): void {
       const unit = state.units[unitId];
       // Any enemy unit destroyed by lava advance increases threat level
       if (unit && unit.faction === Faction.ENEMY) {
-        state.threatLevel += 1;
+        state.ember += 1;
       }
       if (unit && unit.faction === Faction.PLAYER) {
         state.gameStats.unitsLost += 1;
