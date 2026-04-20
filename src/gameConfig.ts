@@ -607,7 +607,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   SCOUT: {
-    maxHp: 60, attack: 30, defense: 20,
+    maxHp: 60, attack: 25, defense: 20,
     movementActions: 1, moveRange: 2, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
     tags: [],
