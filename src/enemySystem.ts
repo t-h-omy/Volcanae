@@ -135,7 +135,7 @@ function isPlayerUnitInDiscoverRadius(state: Draft<GameState>, building: Buildin
 
 function getSpawnProbability(state: Draft<GameState>, building: Building): number {
   if (isPlayerUnitInDiscoverRadius(state, building)) return 1.0;
-  const threatRatio = Math.min(state.threatLevel / ENEMY.MAX_THREAT, 1);
+  const threatRatio = Math.min(state.ember / ENEMY.MAX_THREAT, 1);
   return ENEMY.BASE_SPAWN_PROBABILITY + ENEMY.MAX_THREAT_BONUS * threatRatio;
 }
 
@@ -617,9 +617,9 @@ function scoreRecruitmentForBuilding(
 ): { type: UnitType; score: number }[] {
   const R = AI_RECRUITMENT;
 
-  // Threat-gated eligible unit types; Emberlings only spawn from Ember Nests
-  const eligibleTypes: UnitType[] = (Object.entries(UNIT_DEFINITIONS) as [UnitType, { enemyUnlockThreat?: number }][])
-    .filter(([, def]) => def.enemyUnlockThreat !== undefined && state.threatLevel >= def.enemyUnlockThreat)
+  // Ember-gated eligible unit types; Emberlings only spawn from Ember Nests
+  const eligibleTypes: UnitType[] = (Object.entries(UNIT_DEFINITIONS) as [UnitType, { enemyUnlockEmber?: number }][])
+    .filter(([, def]) => def.enemyUnlockEmber !== undefined && state.ember >= def.enemyUnlockEmber)
     .map(([type]) => type)
     .filter(type => type !== UnitType.EMBERLING);
 
@@ -836,13 +836,12 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
   // If the destination is a lava tile, destroy the unit and increment threat
   if (newTile.isLava) {
     destroyUnit(state, unitId, events);
-    state.threatLevel += 1;
+    state.ember += 1;
   }
 }
 
 // ============================================================================
 // MULTI-TILE MOVEMENT HELPER
-// ============================================================================
 
 /**
  * Moves an enemy unit up to its full moveRange toward a target position.
@@ -1867,7 +1866,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
       } else {
         // Fallback: destroy in place (should not normally happen)
         destroyUnit(state, currentUnit.id, events);
-        state.threatLevel += 1;
+        state.ember += 1;
       }
       return;
     }
@@ -1962,17 +1961,17 @@ function decideAndExecute(
 }
 
 // ============================================================================
-// THREAT SCALING
+// EMBER SCALING
 // ============================================================================
 
-export function updateThreatFromTurn(state: Draft<GameState>): void {
+export function updateEmberFromTurn(state: Draft<GameState>): void {
   if (state.turn > 0 && state.turn % 10 === 0) {
-    state.threatLevel += 1;
+    state.ember += 1;
   }
 }
 
-export function increaseThreatOnStrongholdCapture(state: Draft<GameState>): void {
-  state.threatLevel += 1;
+export function increaseEmberOnStrongholdCapture(state: Draft<GameState>): void {
+  state.ember += 1;
 }
 
 // ============================================================================

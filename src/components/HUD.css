@@ -1442,6 +1442,15 @@
   background: rgba(255, 255, 255, 0.15);
 }
 
+.tech-overlay-footer {
+  flex-shrink: 0;
+  padding: 6px 16px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  text-align: center;
+}
+
 /* ── Tech Toast ── */
 
 @keyframes tech-toast-in {

@@ -377,7 +377,7 @@ export interface GameState {
   selectedTilePos: Position | null;
   /** When non-null, the player is choosing a heal target on the map */
   pendingHealerId: string | null;
-  threatLevel: number;
+  ember: number;
   zonesUnlocked: number[];
   techNodes: Record<TechId, TechNodeState>;
   techFlags: TechFlag[];

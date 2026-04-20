@@ -748,9 +748,9 @@ export const useGameStore = create<GameStore>()(
               building.hasAttackedThisTurn = false;
             }
           }
-          // Check threat level
+          // Check ember level
           if (draft.turn > 0 && draft.turn % ENEMY.THREAT_LEVEL_INCREASE_INTERVAL === 0) {
-            draft.threatLevel += 1;
+            draft.ember += 1;
           }
 
           // Expire elapsed zone lockouts

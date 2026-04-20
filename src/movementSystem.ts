@@ -169,7 +169,7 @@ export function moveUnit(
   if (newTile.isLava && unit.faction === Faction.ENEMY) {
     newTile.unitId = null;
     delete state.units[unitId];
-    state.threatLevel += 1;
+    state.ember += 1;
     return;
   }
 
