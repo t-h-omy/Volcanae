@@ -2196,6 +2196,11 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
           </>
         )}
       </div>
+      {/* Footer caption */}
+      <div className="tech-overlay-footer">
+        🔥 Costs increase with Ember level
+      </div>
+
       {infoUnitType && (
         <UnitInfoPopup
           unitType={infoUnitType}
