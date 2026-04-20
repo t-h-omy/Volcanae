@@ -765,7 +765,7 @@
 .hud-dev-overlay-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 500;
+  z-index: 10000;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -798,6 +798,7 @@
 .hud-dev-overlay-body {
   overflow-y: auto;
   flex-grow: 1;
+  min-height: 0;
   padding: 12px 16px;
   display: flex;
   flex-direction: column;

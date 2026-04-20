@@ -5,6 +5,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useGameStore } from '../gameStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
@@ -177,7 +178,7 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  return (
+  return createPortal(
     <>
       <div className="hud-dev-overlay-backdrop" onClick={onClose}>
         <div className="hud-dev-overlay" onClick={(e) => e.stopPropagation()}>
@@ -219,7 +220,8 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
         </div>
       </div>
       {devStatsOpen && <DevStatsOverlay onClose={() => setDevStatsOpen(false)} />}
-    </>
+    </>,
+    document.body,
   );
 }
 
