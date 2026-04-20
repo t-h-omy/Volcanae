@@ -2053,7 +2053,7 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
       <div className="tech-overlay-header">
         <span>🔬 Tech Tree</span>
         {arcaneCrystals > 0 && (
-          <span className="tech-overlay-picks">💎 {arcaneCrystals} crystal{arcaneCrystals > 1 ? 's' : ''} available</span>
+          <span className="tech-overlay-picks">💎 {arcaneCrystals} crystal{arcaneCrystals > 1 ? 's' : ''} available{ember > 0 ? ` · 🔥 Ember ${ember}` : ''}</span>
         )}
         <button className="tech-overlay-close" onClick={onClose}>✕</button>
       </div>
@@ -2107,7 +2107,7 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
                 }}
               >
                 <span className="tech-node-name">{def.name}</span>
-                {isAvailable && <span className="tech-node-cost">💎 {def.cost ?? 1}</span>}
+                {isAvailable && <span className="tech-node-cost">💎 {computeResearchCost(def.cost ?? 1, ember)}</span>}
               </div>
             );
           })}
