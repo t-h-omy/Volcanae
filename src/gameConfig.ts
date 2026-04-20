@@ -58,7 +58,7 @@ export function getLavaAdvanceInterval(difficulty: Difficulty): number {
 // UNIT CONFIGURATION (standard unit defaults)
 // ============================================================================
 
-/** All data for a single unit type, combining stats, tags, costs and UI copy. */
+/** All data for a single unit type, combining stats, tags, costs and UI descriptions. */
 export interface UnitDefinition {
   // ── Stats ────────────────────────────────────────────────────────────────
   maxHp: number;
@@ -715,7 +715,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
 // BUILDING DEFINITIONS — single source of truth per building type
 // ============================================================================
 
-/** All data for a single building type, combining construction cost, combat stats and UI copy. */
+/** All data for a single building type, combining construction cost, combat stats and UI descriptions. */
 export interface BuildingDefinition {
   discoverRadius: number;
   destroyBehavior: DestroyBehavior;
