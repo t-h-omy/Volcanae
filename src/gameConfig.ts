@@ -638,6 +638,28 @@ export const TERRAIN = {
    * forest tile placement in zone 1.
    */
   ZONE1_FOREST_MAX_DISTANCE: 2,
+
+  // Canyon config
+  CANYON_LENGTH_MIN: 7,
+  CANYON_LENGTH_MAX: 15,
+  CANYON_DRIFT_CHANCE: 0.15,
+  CANYON_WIDTH_VARIANCE_CHANCE: 0.2,
+  CANYONS_PER_ZONE_MIN: 0,
+  CANYONS_PER_ZONE_MAX: 2,
+
+  // Lake config
+  LAKE_WIDTH_MIN: 3,
+  LAKE_WIDTH_MAX: 5,
+  LAKE_HEIGHT_MIN: 3,
+  LAKE_HEIGHT_MAX: 5,
+  LAKE_EROSION_CHANCE: 0.35,
+  LAKES_PER_ZONE_MIN: 0,
+  LAKES_PER_ZONE_MAX: 2,
+
+  // Traversability
+  MIN_PASSABLE_TILES_PER_ROW: 1,
+  MAX_TRAVERSABILITY_RETRIES: 10,
+  IMPASSABLE_MIN_DISTANCE_FROM_STRONGHOLD: 2,
 } as const;
 
 // ============================================================================

@@ -101,6 +101,9 @@ export function corruptTerrain(
   const tile = state.grid[tilePos.y]?.[tilePos.x];
   if (!tile) return;
 
+  // Cannot corrupt impassable natural terrain (CANYON, WATER)
+  if (tile.terrainType === TileType.CANYON || tile.terrainType === TileType.WATER) return;
+
   // Must be FOREST or MOUNTAIN terrain
   if (tile.terrainType !== TileType.FOREST && tile.terrainType !== TileType.MOUNTAIN) return;
 

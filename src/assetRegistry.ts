@@ -129,6 +129,8 @@ export const TILE_SPRITE: Partial<Record<TileType | 'lava' | 'unrevealed' | 'rui
   PLAINS:       '/sprites/tiles/terrain_grass_100px.png',
   FOREST:       '/sprites/tiles/terrain_grass_100px.png',
   MOUNTAIN:     '/sprites/tiles/terrain_grass_100px.png',
+  CANYON:       '',
+  WATER:        '',
   lava:         '/sprites/tiles/terrain_lava_100px.png',
   unrevealed:   '/sprites/tiles/terrain_undiscovered_100px.png',
   ruin:         '/sprites/buildings/ruin_standard_100px.png',

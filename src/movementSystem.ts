@@ -5,7 +5,7 @@
 
 import type { GameState, Position } from './types';
 import type { Draft } from 'immer';
-import { BuildingType, Faction, TechFlag } from './types';
+import { BuildingType, Faction, TechFlag, TileType } from './types';
 import { MAP, ABILITIES } from './gameConfig';
 import { getTilesWithinEdgeCircleRange } from './rangeUtils';
 
@@ -71,6 +71,11 @@ export function getReachableTiles(
     }
 
     const tile = state.grid[ty][tx];
+
+    // Cannot move onto CANYON or WATER tiles (impassable for all units)
+    if (tile.terrainType === TileType.CANYON || tile.terrainType === TileType.WATER) {
+      continue;
+    }
 
     // Cannot move onto undiscovered tiles (player units only)
     if (!tile.isRevealed && unit.faction === Faction.PLAYER) {
