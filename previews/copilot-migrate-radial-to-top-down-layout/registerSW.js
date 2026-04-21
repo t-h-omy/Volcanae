@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/Volcanae/previews/copilot-migrate-radial-to-top-down-layout/sw.js', { scope: '/Volcanae/previews/copilot-migrate-radial-to-top-down-layout/' })})}
