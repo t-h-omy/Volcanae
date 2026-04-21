@@ -8,6 +8,7 @@
  */
 
 import type { GameState } from './types';
+import { UnitType, UnitTag } from './types';
 
 // ============================================================================
 // CONSTANTS
@@ -61,6 +62,15 @@ export function loadGameState(): GameState | null {
       return null;
     }
 
+    // Migration: PASSIVE tag was added to Emberlings in v0.36.0 without a
+    // SAVE_VERSION bump, so saved Emberling units from before that version
+    // are missing it. Add it retroactively to all loaded Emberling units.
+    for (const unit of Object.values(s.units)) {
+      if (unit && unit.type === UnitType.EMBERLING && Array.isArray(unit.tags) && !unit.tags.includes(UnitTag.PASSIVE)) {
+        unit.tags.push(UnitTag.PASSIVE);
+      }
+    }
+
     return s as GameState;
   } catch {
     return null;
@@ -84,3 +94,4 @@ export function hasSavedGame(): boolean {
     return false;
   }
 }
+
