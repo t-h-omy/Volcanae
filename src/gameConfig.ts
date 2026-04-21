@@ -1077,12 +1077,13 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'KNIGHTS',
     name: 'Knights',
-    description: 'Heavily armoured cavalry with increased HP and defence',
+    description: 'Heavily armoured cavalry with increased HP',
     requires: ['LANCE_CHARGE'],
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.RIDER, tag: UnitTag.KNIGHT },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.RIDER, resource: 'iron', amount: 2 },
+      { type: 'UNIT_STAT_MOD',  unitType: UnitType.RIDER, stat: 'maxHp',   mode: 'add', value: 40 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.RIDER, resource: 'iron', amount: 1 },
     ],
   },
   {
@@ -1104,7 +1105,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     effects: [
       { type: 'GRANT_UNIT_TAG',  unitType: UnitType.RIDER, tag: UnitTag.OUTRIDER },
       { type: 'REMOVE_UNIT_TAG', unitType: UnitType.RIDER, tag: UnitTag.BUILDANDCAPTURE },
-      { type: 'UNIT_COST_MOD',   unitType: UnitType.RIDER, resource: 'wood', amount: 2 },
+      { type: 'UNIT_COST_MOD',   unitType: UnitType.RIDER, resource: 'wood', amount: 1 },
     ],
   },
 
@@ -1112,7 +1113,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'COVER',
     name: 'Cover',
-    description: 'Archers fire from cover and suffer no ranged counter-attacks',
+    description: 'Archers fire from cover and suffer no counter-attacks from ranged enemies.',
     requires: ['FAR_REACH'],
     cost: 4,
     effects: [
