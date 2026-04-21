@@ -110,7 +110,9 @@ export const TechEffectType = {
   UNLOCK_BUILDING:          'UNLOCK_BUILDING',
   UNLOCK_UNIT:              'UNLOCK_UNIT',
   GRANT_UNIT_TAG:           'GRANT_UNIT_TAG',
+  REMOVE_UNIT_TAG:          'REMOVE_UNIT_TAG',
   UNIT_STAT_MOD:            'UNIT_STAT_MOD',
+  UNIT_COST_MOD:            'UNIT_COST_MOD',
   BUILDING_PRODUCTION_MOD:  'BUILDING_PRODUCTION_MOD',
   FLAG:                     'FLAG',
   STRONGHOLD_CAP_MOD:       'STRONGHOLD_CAP_MOD',
@@ -150,6 +152,33 @@ export const UnitTag = {
   PHALANX: 'PHALANX',
   /** Unit cannot initiate attacks but defends normally when attacked */
   PASSIVE: 'PASSIVE',
+  // ── Deep tech tree tags ──────────────────────────────────────────────────────
+  /** Rider gains attack bonus when attacking without having moved this turn */
+  LANCE_CHARGE: 'LANCE_CHARGE',
+  /** Upgraded knight rider with boosted HP and DEF */
+  KNIGHT: 'KNIGHT',
+  /** Rider may move after attacking */
+  PURSUIT: 'PURSUIT',
+  /** Rider has reduced DEF (trade-off for PURSUIT mobility) */
+  RIDER_GLASS: 'RIDER_GLASS',
+  /** Rider with +1 MOV; loses BUILDANDCAPTURE */
+  OUTRIDER: 'OUTRIDER',
+  /** Archer does not suffer ranged counter-attacks */
+  COVER: 'COVER',
+  /** Archer with +1 MOV */
+  SKIRMISHER: 'SKIRMISHER',
+  /** Archer attacks inflict pinned status on the target */
+  PIN_DOWN: 'PIN_DOWN',
+  /** Archer hits permanently reduce target DEF */
+  DISTRACTION: 'DISTRACTION',
+  /** Siege unit fires instantly at enemy units that move into its attack range */
+  PREVENTIVE_STRIKE: 'PREVENTIVE_STRIKE',
+  /** Infantry with +15 ATK from iron discipline */
+  IRON_DISCIPLINE: 'IRON_DISCIPLINE',
+  /** Infantry grants formation bonus identical to PHALANX */
+  SHIELD_WALL: 'SHIELD_WALL',
+  /** Elite unit upgraded via noble heritage (+20 HP) */
+  NOBLE_ELITE: 'NOBLE_ELITE',
 } as const;
 export type UnitTag = (typeof UnitTag)[keyof typeof UnitTag];
 
@@ -162,7 +191,9 @@ export type TechEffect =
   | { type: 'UNLOCK_BUILDING';         buildingType: BuildingType }
   | { type: 'UNLOCK_UNIT';             unitType: UnitType }
   | { type: 'GRANT_UNIT_TAG';          unitType: UnitType; tag: UnitTag }
+  | { type: 'REMOVE_UNIT_TAG';         unitType: UnitType; tag: UnitTag }
   | { type: 'UNIT_STAT_MOD';           unitType: UnitType; stat: keyof UnitStats; mode: 'add' | 'percent'; value: number }
+  | { type: 'UNIT_COST_MOD';           unitType: UnitType; resource: 'iron' | 'wood'; amount: number }
   | { type: 'BUILDING_PRODUCTION_MOD'; buildingType: BuildingType; resource: ResourceType; chancePercent: number; amount: number }
   | { type: 'FLAG';                    flag: TechFlag }
   | { type: 'STRONGHOLD_CAP_MOD';      capType: 'farmer' | 'noble'; amount: number };
@@ -222,6 +253,8 @@ export interface Unit {
   hasCapturedThisTurn: boolean;
   xp: number;
   level: number;
+  /** Turn number until which the unit is pinned (cannot move). 0 or absent = not pinned. */
+  pinnedUntilTurn: number;
 }
 
 /** Defines a single stat boost applied when a unit reaches a new level */
