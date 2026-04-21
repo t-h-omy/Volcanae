@@ -84,9 +84,9 @@ export function buildingToCombatant(building: Building): Combatant | null {
 // ============================================================================
 
 /**
- * Returns the total PHALANX/SHIELD_WALL defense bonus for a unit.
- * Counts all adjacent friendly units (Chebyshev distance 1) that carry the PHALANX or SHIELD_WALL tag
- * and sums ABILITIES.PHALANX_DEFENSE_BONUS_PER_CARRIER / SHIELD_WALL_DEFENSE_BONUS_PER_CARRIER for each.
+ * Returns the total PHALANX defense bonus for a unit.
+ * Counts all adjacent friendly units (Chebyshev distance 1) that carry the PHALANX tag
+ * and sums ABILITIES.PHALANX_DEFENSE_BONUS_PER_CARRIER for each.
  */
 export function getPhalanxDefenseBonus(state: GameState | Draft<GameState>, unit: Unit): number {
   let bonus = 0;
@@ -105,24 +105,20 @@ export function getPhalanxDefenseBonus(state: GameState | Draft<GameState>, unit
       if (other.tags.includes(UnitTag.PHALANX)) {
         bonus += ABILITIES.PHALANX_DEFENSE_BONUS_PER_CARRIER;
       }
-      if (other.tags.includes(UnitTag.SHIELD_WALL)) {
-        bonus += ABILITIES.SHIELD_WALL_DEFENSE_BONUS_PER_CARRIER;
-      }
     }
   }
   return bonus;
 }
 
 /**
- * Returns the total PHALANX/SHIELD_WALL attack bonus for a unit that carries the PHALANX or SHIELD_WALL tag.
+ * Returns the total PHALANX attack bonus for a unit that carries the PHALANX tag.
  * Counts all adjacent friendly units (Chebyshev distance 1) regardless of their tags
  * and returns count × the respective bonus per ally.
- * Returns 0 if the unit has neither PHALANX nor SHIELD_WALL.
+ * Returns 0 if the unit does not have PHALANX.
  */
 export function getPhalanxAttackBonus(state: GameState | Draft<GameState>, unit: Unit): number {
   const hasPhalanx = unit.tags.includes(UnitTag.PHALANX);
-  const hasShieldWall = unit.tags.includes(UnitTag.SHIELD_WALL);
-  if (!hasPhalanx && !hasShieldWall) return 0;
+  if (!hasPhalanx) return 0;
   let count = 0;
   const { x, y } = unit.position;
   for (let dy = -1; dy <= 1; dy++) {
@@ -139,12 +135,7 @@ export function getPhalanxAttackBonus(state: GameState | Draft<GameState>, unit:
       count++;
     }
   }
-  if (hasPhalanx && hasShieldWall) {
-    // Both: use the larger per-ally bonus (rather than summing, which would double-stack)
-    return count * Math.max(ABILITIES.PHALANX_ATTACK_BONUS_PER_ALLY, ABILITIES.SHIELD_WALL_ATTACK_BONUS_PER_ALLY);
-  }
-  if (hasPhalanx) return count * ABILITIES.PHALANX_ATTACK_BONUS_PER_ALLY;
-  return count * ABILITIES.SHIELD_WALL_ATTACK_BONUS_PER_ALLY;
+  return count * ABILITIES.PHALANX_ATTACK_BONUS_PER_ALLY;
 }
 
 // ============================================================================

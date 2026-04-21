@@ -173,10 +173,6 @@ export const UnitTag = {
   DISTRACTION: 'DISTRACTION',
   /** Siege unit fires instantly at enemy units that move into its attack range */
   PREVENTIVE_STRIKE: 'PREVENTIVE_STRIKE',
-  /** Infantry with +15 ATK from iron discipline */
-  IRON_DISCIPLINE: 'IRON_DISCIPLINE',
-  /** Infantry grants formation bonus identical to PHALANX */
-  SHIELD_WALL: 'SHIELD_WALL',
   /** Elite unit upgraded via noble heritage (+20 HP) */
   NOBLE_ELITE: 'NOBLE_ELITE',
 } as const;

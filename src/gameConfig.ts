@@ -1169,28 +1169,6 @@ export const TECH_TREE: TechNodeDefinition[] = [
     ],
   },
 
-  // ── Branch 4 (Infantry) deep upgrades ─────────────────────────────────────
-  {
-    id: 'IRON_DISCIPLINE',
-    name: 'Iron Discipline',
-    description: 'Veterans of countless campaigns strike with greater force',
-    requires: ['FIELDWORK'],
-    cost: 4,
-    effects: [
-      { type: 'GRANT_UNIT_TAG', unitType: UnitType.INFANTRY, tag: UnitTag.IRON_DISCIPLINE },
-      { type: 'UNIT_STAT_MOD',  unitType: UnitType.INFANTRY, stat: 'attack', mode: 'add', value: 15 },
-    ],
-  },
-  {
-    id: 'SHIELD_WALL',
-    name: 'Shield Wall',
-    description: 'Infantry form a shield wall granting formation bonuses identical to Phalanx',
-    requires: ['IRON_DISCIPLINE'],
-    cost: 7,
-    effects: [
-      { type: 'GRANT_UNIT_TAG', unitType: UnitType.INFANTRY, tag: UnitTag.SHIELD_WALL },
-    ],
-  },
 ];
 
 // ============================================================================
@@ -1219,10 +1197,6 @@ export const ABILITIES = {
   LANCE_CHARGE_ATTACK_BONUS: 20,
   /** Permanent DEF reduction applied to a unit each time it is hit by a DISTRACTION archer */
   DISTRACTION_DEF_REDUCTION: 8,
-  /** Defense bonus granted to each adjacent friendly unit by a SHIELD_WALL carrier (mirrors PHALANX) */
-  SHIELD_WALL_DEFENSE_BONUS_PER_CARRIER: 8,
-  /** Attack bonus gained by a SHIELD_WALL unit per adjacent friendly unit (mirrors PHALANX) */
-  SHIELD_WALL_ATTACK_BONUS_PER_ALLY: 5,
 } as const;
 
 // ============================================================================
@@ -1254,8 +1228,6 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string }> = {
   [UnitTag.PIN_DOWN]:          { label: 'Pin Down',          desc: 'Attacks leave the target pinned — it cannot move on its next action.' },
   [UnitTag.DISTRACTION]:       { label: 'Distraction',       desc: `Each hit permanently reduces the target's DEF by ${ABILITIES.DISTRACTION_DEF_REDUCTION}.` },
   [UnitTag.PREVENTIVE_STRIKE]: { label: 'Preventive Strike', desc: 'Fires instantly at any enemy unit that moves into attack range during the enemy\'s turn.' },
-  [UnitTag.IRON_DISCIPLINE]:   { label: 'Iron Discipline',   desc: '+15 attack. Hardened veterans who hit harder in every engagement.' },
-  [UnitTag.SHIELD_WALL]:       { label: 'Shield Wall',       desc: `Grants +${ABILITIES.SHIELD_WALL_DEFENSE_BONUS_PER_CARRIER} defense to each adjacent friendly unit and gains +${ABILITIES.SHIELD_WALL_ATTACK_BONUS_PER_ALLY} attack per adjacent friendly unit. Bonuses apply during combat only.` },
   [UnitTag.NOBLE_ELITE]:       { label: 'Noble Elite',       desc: '+20 max HP. Elite unit forged in the noble tradition.' },
 };
 
