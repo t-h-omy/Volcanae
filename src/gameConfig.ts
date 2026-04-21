@@ -792,8 +792,8 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     discoverRadius: 3,
     destroyBehavior: DestroyBehavior.NONE,
     constructionCost: { iron: 0, wood: 0 },
-    combatStats: { maxHp: 150, attack: 40, defense: 55, attackRange: 2 },
-    description: 'Field fortification built by Infantry via Fieldwork. Attacks enemies within 2 tiles. Starting HP is based on the building unit\'s current HP, capped at 150.',
+    combatStats: { maxHp: 200, attack: 40, defense: 55, attackRange: 2 },
+    description: 'Field fortification built by Infantry via Fieldwork. Attacks enemies within 2 tiles. Starting HP is based on the building unit\'s current HP, capped at 200.',
   },
   LAVALAIR: {
     discoverRadius: 2,
@@ -1072,6 +1072,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.RIDER, tag: UnitTag.LANCE_CHARGE },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.RIDER, resource: 'wood', amount: 1 },
     ],
   },
   {
@@ -1082,7 +1083,6 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.RIDER, tag: UnitTag.KNIGHT },
-      { type: 'UNIT_STAT_MOD',  unitType: UnitType.RIDER, stat: 'maxHp',   mode: 'add', value: 40 },
       { type: 'UNIT_COST_MOD',  unitType: UnitType.RIDER, resource: 'iron', amount: 1 },
     ],
   },
@@ -1118,6 +1118,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.ARCHER, tag: UnitTag.COVER },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.ARCHER, resource: 'wood', amount: 1 },
     ],
   },
   {
@@ -1138,6 +1139,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.ARCHER, tag: UnitTag.PIN_DOWN },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.ARCHER, resource: 'iron', amount: 1 },
     ],
   },
   {
@@ -1160,6 +1162,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 7,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SIEGE, tag: UnitTag.PREVENTIVE_STRIKE },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.RIDER, resource: 'wood', amount: 1 },
     ],
   },
 
@@ -1181,7 +1184,7 @@ export const ABILITIES = {
   /** HP restored per PATCHUP heal action */
   PATCHUP_HEAL_AMOUNT: 50,
   /** Multiplier applied to the building unit's currentHp to determine the Outpost's starting HP */
-  FIELDWORK_HP_MULTIPLIER: 2,
+  FIELDWORK_HP_MULTIPLIER: 3,
   /** Defense bonus granted to each adjacent friendly unit by a PHALANX tag carrier */
   PHALANX_DEFENSE_BONUS_PER_CARRIER: 8,
   /** Attack bonus gained by a PHALANX unit per adjacent friendly unit */
