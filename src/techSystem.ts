@@ -109,13 +109,30 @@ function applyTechEffect(state: Draft<GameState>, effect: TechEffect): void {
         }
       }
       break;
+    case 'REMOVE_UNIT_TAG':
+      // Retroactively remove the tag from all existing player units of that type
+      for (const unit of Object.values(state.units)) {
+        if (unit.faction === Faction.PLAYER && unit.type === effect.unitType) {
+          const idx = unit.tags.indexOf(effect.tag);
+          if (idx !== -1) unit.tags.splice(idx, 1);
+        }
+      }
+      break;
     case 'UNIT_STAT_MOD':
       // Retroactively modify the stat on all existing player units of that type
       for (const unit of Object.values(state.units)) {
         if (unit.faction === Faction.PLAYER && unit.type === effect.unitType) {
+          const oldMax = unit.stats.maxHp;
           applyStatMod(unit.stats, effect.stat, effect.mode, effect.value);
+          // Keep currentHp in sync when maxHp is boosted: increase by the actual delta
+          if (effect.stat === 'maxHp' && unit.stats.maxHp > oldMax) {
+            unit.stats.currentHp = Math.min(unit.stats.currentHp + (unit.stats.maxHp - oldMax), unit.stats.maxHp);
+          }
         }
       }
+      break;
+    case 'UNIT_COST_MOD':
+      // Applied at point-of-use in recruitUnit() — no immediate state mutation
       break;
     case 'BUILDING_PRODUCTION_MOD':
       // Applied at point-of-use in collectResources() — no immediate state mutation
@@ -171,6 +188,48 @@ export function getGrantedTags(
     }
   }
   return tags;
+}
+
+/**
+ * Returns all tags that should be removed from a unit type based on unlocked techs.
+ * Used at unit spawn time to strip tags that techs remove (e.g. OUTRIDERS removes BUILDANDCAPTURE).
+ */
+export function getRemovedTags(
+  state: GameState | Draft<GameState>,
+  unitType: UnitType,
+): UnitTag[] {
+  const tags: UnitTag[] = [];
+  for (const def of TECH_TREE) {
+    if (!state.techNodes[def.id]?.unlocked) continue;
+    for (const effect of def.effects) {
+      if (effect.type === 'REMOVE_UNIT_TAG' && effect.unitType === unitType) {
+        tags.push(effect.tag);
+      }
+    }
+  }
+  return tags;
+}
+
+/**
+ * Returns the total additional iron and wood cost for a unit type based on unlocked UNIT_COST_MOD techs.
+ * Used at unit recruitment time to compute the effective cost.
+ */
+export function getCostMods(
+  state: GameState | Draft<GameState>,
+  unitType: UnitType,
+): { iron: number; wood: number } {
+  let iron = 0;
+  let wood = 0;
+  for (const def of TECH_TREE) {
+    if (!state.techNodes[def.id]?.unlocked) continue;
+    for (const effect of def.effects) {
+      if (effect.type === 'UNIT_COST_MOD' && effect.unitType === unitType) {
+        if (effect.resource === 'iron') iron += effect.amount;
+        else if (effect.resource === 'wood') wood += effect.amount;
+      }
+    }
+  }
+  return { iron, wood };
 }
 
 /**
@@ -255,8 +314,12 @@ export function renderEffect(effect: TechEffect): string {
       return `Unlocks ${effect.unitType} recruitment`;
     case 'GRANT_UNIT_TAG':
       return `${effect.unitType} gains ${effect.tag} ability`;
+    case 'REMOVE_UNIT_TAG':
+      return `${effect.unitType} loses ${effect.tag} ability`;
     case 'UNIT_STAT_MOD':
-      return `${effect.unitType} ${effect.stat} ${effect.mode === 'add' ? '+' : ''}${effect.value}${effect.mode === 'percent' ? '%' : ''}`;
+      return `${effect.unitType} ${effect.stat} ${effect.mode === 'add' ? (effect.value >= 0 ? '+' : '') : ''}${effect.value}${effect.mode === 'percent' ? '%' : ''}`;
+    case 'UNIT_COST_MOD':
+      return `${effect.unitType} cost ${effect.resource} ${effect.amount >= 0 ? '+' : ''}${effect.amount}`;
     case 'BUILDING_PRODUCTION_MOD':
       return `${effect.buildingType} ${effect.chancePercent}% chance +${effect.amount} ${effect.resource}/turn`;
     case 'FLAG':

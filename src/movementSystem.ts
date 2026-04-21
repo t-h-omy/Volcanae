@@ -5,7 +5,7 @@
 
 import type { GameState, Position } from './types';
 import type { Draft } from 'immer';
-import { BuildingType, Faction, TechFlag, TileType } from './types';
+import { BuildingType, Faction, TechFlag, TileType, UnitTag } from './types';
 import { MAP, ABILITIES } from './gameConfig';
 import { getTilesWithinEdgeCircleRange } from './rangeUtils';
 
@@ -40,6 +40,13 @@ export function getReachableTiles(
   const reachableTiles: Position[] = [];
   const unitPosition = unit.position;
   let moveRange = unit.stats.moveRange;
+
+  // SKIRMISHER / OUTRIDER tags: +1 movement range
+  if (unit.faction === Faction.PLAYER) {
+    if (unit.tags.includes(UnitTag.SKIRMISHER) || unit.tags.includes(UnitTag.OUTRIDER)) {
+      moveRange += 1;
+    }
+  }
 
   // TO_THE_FRONT tech: player units >N tiles south of the northmost player unit
   // get a movement bonus.

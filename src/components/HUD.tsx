@@ -24,7 +24,7 @@ import {
 } from '../constructionSystem';
 import { computeLevelFromXp } from '../levelSystem';
 import { computeUnitAiScores, computeRecruitmentScores, type ScoredAction } from '../enemySystem';
-import { renderEffect, getStrongholdCapMods, getAvailableTechs as getAvailableTechsLogic } from '../techSystem';
+import { renderEffect, getStrongholdCapMods, getAvailableTechs as getAvailableTechsLogic, getCostMods } from '../techSystem';
 import {
   Faction,
   GamePhase,
@@ -822,7 +822,7 @@ function SelectedUnitPanel({
   const nextLevelDef = !isMaxLevel ? UNIT_DEFINITIONS[unit.type]?.levelUp?.[unit.level - 1] : null;
   const nextLevelXpRequired = nextLevelDef?.xpRequired ?? null;
 
-  // Compute contextual stat bonuses from tech flags
+  // Compute contextual stat bonuses from tech flags and unit tags
   const statBonuses = useMemo(() => {
     const bonuses: { def: number; mov: number } = { def: 0, mov: 0 };
     if (unit.faction !== Faction.PLAYER) return bonuses;
@@ -844,6 +844,11 @@ function SelectedUnitPanel({
       if (minPlayerY !== undefined && unit.position.y - minPlayerY > ABILITIES.TO_THE_FRONT_MIN_DISTANCE) {
         bonuses.mov = ABILITIES.TO_THE_FRONT_MOVE_BONUS;
       }
+    }
+
+    // SKIRMISHER / OUTRIDER: +1 movement range (applied at runtime in movementSystem)
+    if (unit.tags.includes(UnitTag.SKIRMISHER) || unit.tags.includes(UnitTag.OUTRIDER)) {
+      bonuses.mov += 1;
     }
 
     return bonuses;
@@ -1457,7 +1462,11 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
           ) : (
             <div className="hud-recruit-options">
               {recruitableTypes.map((unitType) => {
-                const cost = UNIT_DEFINITIONS[unitType]?.cost;
+                const baseCost = UNIT_DEFINITIONS[unitType]?.cost;
+                const costMod = getCostMods(gameState, unitType);
+                const cost = baseCost
+                  ? { iron: baseCost.iron + costMod.iron, wood: baseCost.wood + costMod.wood }
+                  : baseCost;
                 const canAffordUnit = cost
                   ? resources.iron >= cost.iron && resources.wood >= cost.wood
                   : false;
@@ -1512,7 +1521,11 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
         </div>
       )}
       {confirmRecruitUnit && (() => {
-        const cost = UNIT_DEFINITIONS[confirmRecruitUnit]?.cost;
+        const baseCost = UNIT_DEFINITIONS[confirmRecruitUnit]?.cost;
+        const costMod = getCostMods(gameState, confirmRecruitUnit);
+        const cost = baseCost
+          ? { iron: baseCost.iron + costMod.iron, wood: baseCost.wood + costMod.wood }
+          : baseCost;
         const costLabel = cost ? `⛓️${cost.iron} 🪵${cost.wood}` : undefined;
         return (
           <UnitInfoPopup

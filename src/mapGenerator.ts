@@ -298,6 +298,7 @@ function createUnit(
     hasCapturedThisTurn: false,
     xp: 0,
     level: 1,
+    pinnedUntilTurn: 0,
   };
 }
 

@@ -1050,6 +1050,147 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'UNIT_STAT_MOD', unitType: UnitType.GUARD, stat: 'maxHp', mode: 'add', value: 30 },
     ],
   },
+  {
+    id: 'NOBLE_HERITAGE',
+    name: 'Noble Heritage',
+    description: 'Veteran nobility instils resilience in your elite units',
+    requires: ['CITADEL'],
+    cost: 7,
+    effects: [
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.RIDER,  tag: UnitTag.NOBLE_ELITE },
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.GUARD,  tag: UnitTag.NOBLE_ELITE },
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.SIEGE,  tag: UnitTag.NOBLE_ELITE },
+      { type: 'UNIT_STAT_MOD',  unitType: UnitType.RIDER,  stat: 'maxHp', mode: 'add', value: 20 },
+      { type: 'UNIT_STAT_MOD',  unitType: UnitType.GUARD,  stat: 'maxHp', mode: 'add', value: 20 },
+      { type: 'UNIT_STAT_MOD',  unitType: UnitType.SIEGE,  stat: 'maxHp', mode: 'add', value: 20 },
+    ],
+  },
+
+  // ── Branch 1 (Cavalry) deep upgrades ──────────────────────────────────────
+  {
+    id: 'LANCE_CHARGE',
+    name: 'Lance Charge',
+    description: 'Riders strike harder when they have not yet moved this turn',
+    requires: ['A_NOBLE_STEAD'],
+    cost: 4,
+    effects: [
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.RIDER, tag: UnitTag.LANCE_CHARGE },
+    ],
+  },
+  {
+    id: 'KNIGHTS',
+    name: 'Knights',
+    description: 'Heavily armoured cavalry with increased HP and defence',
+    requires: ['LANCE_CHARGE'],
+    cost: 4,
+    effects: [
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.RIDER, tag: UnitTag.KNIGHT },
+      { type: 'UNIT_STAT_MOD',  unitType: UnitType.RIDER, stat: 'maxHp',   mode: 'add', value: 40 },
+      { type: 'UNIT_STAT_MOD',  unitType: UnitType.RIDER, stat: 'defense', mode: 'add', value: 15 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.RIDER, resource: 'iron', amount: 2 },
+    ],
+  },
+  {
+    id: 'PURSUIT',
+    name: 'Pursuit',
+    description: 'Riders may move after attacking, but suffer reduced defence',
+    requires: ['LANCE_CHARGE'],
+    cost: 4,
+    effects: [
+      { type: 'GRANT_UNIT_TAG',  unitType: UnitType.RIDER, tag: UnitTag.PURSUIT },
+      { type: 'GRANT_UNIT_TAG',  unitType: UnitType.RIDER, tag: UnitTag.RIDER_GLASS },
+      { type: 'UNIT_STAT_MOD',   unitType: UnitType.RIDER, stat: 'defense', mode: 'add', value: -15 },
+    ],
+  },
+  {
+    id: 'OUTRIDERS',
+    name: 'Outriders',
+    description: 'Fast raiding cavalry with extended movement; loses build & capture',
+    requires: ['PURSUIT'],
+    cost: 7,
+    effects: [
+      { type: 'GRANT_UNIT_TAG',  unitType: UnitType.RIDER, tag: UnitTag.OUTRIDER },
+      { type: 'REMOVE_UNIT_TAG', unitType: UnitType.RIDER, tag: UnitTag.BUILDANDCAPTURE },
+      { type: 'UNIT_COST_MOD',   unitType: UnitType.RIDER, resource: 'wood', amount: 2 },
+    ],
+  },
+
+  // ── Branch 2 (Ranged) deep upgrades ───────────────────────────────────────
+  {
+    id: 'COVER',
+    name: 'Cover',
+    description: 'Archers fire from cover and suffer no ranged counter-attacks',
+    requires: ['FAR_REACH'],
+    cost: 4,
+    effects: [
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.ARCHER, tag: UnitTag.COVER },
+    ],
+  },
+  {
+    id: 'SKIRMISHER',
+    name: 'Skirmisher',
+    description: 'Archers gain +1 movement range to reposition quickly',
+    requires: ['COVER'],
+    cost: 4,
+    effects: [
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.ARCHER, tag: UnitTag.SKIRMISHER },
+    ],
+  },
+  {
+    id: 'PIN_DOWN',
+    name: 'Pin Down',
+    description: 'Archer hits leave the target unable to move on its next action',
+    requires: ['FAR_REACH'],
+    cost: 4,
+    effects: [
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.ARCHER, tag: UnitTag.PIN_DOWN },
+    ],
+  },
+  {
+    id: 'DISTRACTION',
+    name: 'Distraction',
+    description: 'Each archer hit permanently chips away at the target\'s defence',
+    requires: ['PIN_DOWN'],
+    cost: 7,
+    effects: [
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.ARCHER, tag: UnitTag.DISTRACTION },
+    ],
+  },
+
+  // ── Branch 3 (Fortification) deep upgrade ─────────────────────────────────
+  {
+    id: 'PREVENTIVE_STRIKE',
+    name: 'Preventive Strike',
+    description: 'Siege engines fire automatically at enemy units moving into range',
+    requires: ['SIEGE_WORKS'],
+    cost: 7,
+    effects: [
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.SIEGE, tag: UnitTag.PREVENTIVE_STRIKE },
+    ],
+  },
+
+  // ── Branch 4 (Infantry) deep upgrades ─────────────────────────────────────
+  {
+    id: 'IRON_DISCIPLINE',
+    name: 'Iron Discipline',
+    description: 'Veterans of countless campaigns strike with greater force',
+    requires: ['FIELDWORK'],
+    cost: 4,
+    effects: [
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.INFANTRY, tag: UnitTag.IRON_DISCIPLINE },
+      { type: 'UNIT_STAT_MOD',  unitType: UnitType.INFANTRY, stat: 'attack', mode: 'add', value: 15 },
+    ],
+  },
+  {
+    id: 'SHIELD_WALL',
+    name: 'Shield Wall',
+    description: 'Infantry form a shield wall granting formation bonuses identical to Phalanx',
+    requires: ['IRON_DISCIPLINE'],
+    cost: 7,
+    effects: [
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.INFANTRY, tag: UnitTag.SHIELD_WALL },
+    ],
+  },
 ];
 
 // ============================================================================
@@ -1073,6 +1214,15 @@ export const ABILITIES = {
   PHALANX_DEFENSE_BONUS_PER_CARRIER: 8,
   /** Attack bonus gained by a PHALANX unit per adjacent friendly unit */
   PHALANX_ATTACK_BONUS_PER_ALLY: 5,
+  // ── Deep tech tree abilities ─────────────────────────────────────────────────
+  /** Flat attack bonus for a LANCE_CHARGE unit that attacks without having moved */
+  LANCE_CHARGE_ATTACK_BONUS: 20,
+  /** Permanent DEF reduction applied to a unit each time it is hit by a DISTRACTION archer */
+  DISTRACTION_DEF_REDUCTION: 8,
+  /** Defense bonus granted to each adjacent friendly unit by a SHIELD_WALL carrier (mirrors PHALANX) */
+  SHIELD_WALL_DEFENSE_BONUS_PER_CARRIER: 8,
+  /** Attack bonus gained by a SHIELD_WALL unit per adjacent friendly unit (mirrors PHALANX) */
+  SHIELD_WALL_ATTACK_BONUS_PER_ALLY: 5,
 } as const;
 
 // ============================================================================
@@ -1081,18 +1231,32 @@ export const ABILITIES = {
 
 /** Display label and tooltip description for each UnitTag. */
 export const TAG_INFO: Record<UnitTag, { label: string; desc: string }> = {
-  [UnitTag.RANGED]:          { label: 'Ranged',          desc: 'Attacks from a distance and does not move onto a defeated enemy\'s tile.' },
-  [UnitTag.PREP]:            { label: 'Prep',            desc: 'Cannot attack in the same turn it moves. Attack first, then move — or wait a turn after moving.' },
-  [UnitTag.BUILDANDCAPTURE]: { label: 'Build & Capture', desc: 'Can construct buildings on open terrain and capture enemy strongholds.' },
-  [UnitTag.SACRIFICIAL]:     { label: 'Sacrificial',     desc: 'Prioritizes walking toward the lava to be consumed.' },
-  [UnitTag.EXPLOSIVE]:       { label: 'Explosive',       desc: 'Deals heavy area damage to all adjacent enemies when it dies.' },
-  [UnitTag.FIELDWORK]:       { label: 'Fieldwork',       desc: `Can sacrifice itself on its current tile to instantly erect an Outpost (HP scales with the unit's current HP × ${ABILITIES.FIELDWORK_HP_MULTIPLIER}). Cannot be used on ruins or resource terrain.` },
-  [UnitTag.ASSASSIN]:        { label: 'Assassin',        desc: `Deals ${ABILITIES.ASSASSIN_DAMAGE_MULTIPLIER}× damage and receives no retaliation when striking an enemy that is still at full health.` },
-  [UnitTag.PATCHUP]:         { label: 'Patch Up',        desc: `Can spend its action to restore ${ABILITIES.PATCHUP_HEAL_AMOUNT} HP on one adjacent friendly unit.` },
-  [UnitTag.PHALANX]:         { label: 'Phalanx',         desc: `Grants +${ABILITIES.PHALANX_DEFENSE_BONUS_PER_CARRIER} defense to each adjacent friendly unit and gains +${ABILITIES.PHALANX_ATTACK_BONUS_PER_ALLY} attack per adjacent friendly unit. Bonuses apply during combat only.` },
-  [UnitTag.LAVABOOST]:       { label: 'Lava-Boosted',    desc: 'Spawns with boosted stats when its spawning building is close to the lava front.' },
-  [UnitTag.CORRUPT]:         { label: 'Corrupt',         desc: 'Can corrupt forest and mountain terrain tiles.' },
-  [UnitTag.PASSIVE]:         { label: 'Passive',         desc: 'Cannot initiate attacks. Still defends at full effectiveness when attacked by enemies.' },
+  [UnitTag.RANGED]:            { label: 'Ranged',            desc: 'Attacks from a distance and does not move onto a defeated enemy\'s tile.' },
+  [UnitTag.PREP]:              { label: 'Prep',              desc: 'Cannot attack in the same turn it moves. Attack first, then move — or wait a turn after moving.' },
+  [UnitTag.BUILDANDCAPTURE]:   { label: 'Build & Capture',   desc: 'Can construct buildings on open terrain and capture enemy strongholds.' },
+  [UnitTag.SACRIFICIAL]:       { label: 'Sacrificial',       desc: 'Prioritizes walking toward the lava to be consumed.' },
+  [UnitTag.EXPLOSIVE]:         { label: 'Explosive',         desc: 'Deals heavy area damage to all adjacent enemies when it dies.' },
+  [UnitTag.FIELDWORK]:         { label: 'Fieldwork',         desc: `Can sacrifice itself on its current tile to instantly erect an Outpost (HP scales with the unit's current HP × ${ABILITIES.FIELDWORK_HP_MULTIPLIER}). Cannot be used on ruins or resource terrain.` },
+  [UnitTag.ASSASSIN]:          { label: 'Assassin',          desc: `Deals ${ABILITIES.ASSASSIN_DAMAGE_MULTIPLIER}× damage and receives no retaliation when striking an enemy that is still at full health.` },
+  [UnitTag.PATCHUP]:           { label: 'Patch Up',          desc: `Can spend its action to restore ${ABILITIES.PATCHUP_HEAL_AMOUNT} HP on one adjacent friendly unit.` },
+  [UnitTag.PHALANX]:           { label: 'Phalanx',           desc: `Grants +${ABILITIES.PHALANX_DEFENSE_BONUS_PER_CARRIER} defense to each adjacent friendly unit and gains +${ABILITIES.PHALANX_ATTACK_BONUS_PER_ALLY} attack per adjacent friendly unit. Bonuses apply during combat only.` },
+  [UnitTag.LAVABOOST]:         { label: 'Lava-Boosted',      desc: 'Spawns with boosted stats when its spawning building is close to the lava front.' },
+  [UnitTag.CORRUPT]:           { label: 'Corrupt',           desc: 'Can corrupt forest and mountain terrain tiles.' },
+  [UnitTag.PASSIVE]:           { label: 'Passive',           desc: 'Cannot initiate attacks. Still defends at full effectiveness when attacked by enemies.' },
+  // ── Deep tech tree tags ──────────────────────────────────────────────────────
+  [UnitTag.LANCE_CHARGE]:      { label: 'Lance Charge',      desc: `Gains +${ABILITIES.LANCE_CHARGE_ATTACK_BONUS} attack when striking without having moved this turn.` },
+  [UnitTag.KNIGHT]:            { label: 'Knight',            desc: 'Heavily armoured cavalry with boosted HP and DEF.' },
+  [UnitTag.PURSUIT]:           { label: 'Pursuit',           desc: 'May move after attacking (in the same turn).' },
+  [UnitTag.RIDER_GLASS]:       { label: 'Glass Rider',       desc: 'Reduced DEF — trade-off for the mobility gained from Pursuit.' },
+  [UnitTag.OUTRIDER]:          { label: 'Outrider',          desc: '+1 movement range. Cannot construct buildings or capture. Optimised for deep raids.' },
+  [UnitTag.COVER]:             { label: 'Cover',             desc: 'Attacks do not trigger ranged counter-attacks from the defender.' },
+  [UnitTag.SKIRMISHER]:        { label: 'Skirmisher',        desc: '+1 movement range. Archer can reposition quickly after engaging.' },
+  [UnitTag.PIN_DOWN]:          { label: 'Pin Down',          desc: 'Attacks leave the target pinned — it cannot move on its next action.' },
+  [UnitTag.DISTRACTION]:       { label: 'Distraction',       desc: `Each hit permanently reduces the target's DEF by ${ABILITIES.DISTRACTION_DEF_REDUCTION}.` },
+  [UnitTag.PREVENTIVE_STRIKE]: { label: 'Preventive Strike', desc: 'Fires instantly at any enemy unit that moves into attack range during the enemy\'s turn.' },
+  [UnitTag.IRON_DISCIPLINE]:   { label: 'Iron Discipline',   desc: '+15 attack. Hardened veterans who hit harder in every engagement.' },
+  [UnitTag.SHIELD_WALL]:       { label: 'Shield Wall',       desc: `Grants +${ABILITIES.SHIELD_WALL_DEFENSE_BONUS_PER_CARRIER} defense to each adjacent friendly unit and gains +${ABILITIES.SHIELD_WALL_ATTACK_BONUS_PER_ALLY} attack per adjacent friendly unit. Bonuses apply during combat only.` },
+  [UnitTag.NOBLE_ELITE]:       { label: 'Noble Elite',       desc: '+20 max HP. Elite unit forged in the noble tradition.' },
 };
 
 // ============================================================================

@@ -734,6 +734,7 @@ export const useGameStore = create<GameStore>()(
               unit.hasCapturedThisTurn = false;
               unit.hasConstructedThisTurn = false;
               unit.hasDestroyedThisTurn = false;
+              unit.pinnedUntilTurn = 0;
             }
           }
 

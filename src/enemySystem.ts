@@ -506,6 +506,7 @@ function createEnemyUnit(
     hasDestroyedThisTurn: true,
     xp: 0,
     level: 1,
+    pinnedUntilTurn: 0,
   };
 }
 
@@ -806,6 +807,61 @@ function scoreConstructionActions(
 // ENEMY MOVEMENT HELPER
 // ============================================================================
 
+/**
+ * Triggers PREVENTIVE_STRIKE overwatch for all player SIEGE units with the
+ * PREVENTIVE_STRIKE tag. Called after an enemy unit moves to its new position.
+ * Each player siege unit may fire at most once per turn (consumes hasAttackedThisTurn).
+ */
+function triggerPreventiveStrike(state: Draft<GameState>, enemyUnitId: string, events?: GameEvent[]): void {
+  const enemyUnit = state.units[enemyUnitId];
+  if (!enemyUnit || enemyUnit.faction !== Faction.ENEMY) return;
+
+  for (const unit of Object.values(state.units)) {
+    if (unit.faction !== Faction.PLAYER) continue;
+    if (!unit.tags.includes(UnitTag.PREVENTIVE_STRIKE)) continue;
+    if (unit.hasAttackedThisTurn) continue;
+    if (!state.units[enemyUnitId]) break; // enemy was destroyed by a previous overwatch shot
+
+    if (!isTileWithinEdgeCircleRange(
+      unit.position.x, unit.position.y,
+      enemyUnit.position.x, enemyUnit.position.y,
+      unit.stats.attackRange,
+    )) continue;
+
+    const attackerId = unit.id;
+    const defenderId = enemyUnitId;
+    const attackerPos = { x: unit.position.x, y: unit.position.y };
+    const defenderPos = { x: enemyUnit.position.x, y: enemyUnit.position.y };
+    const attackerHpBefore = unit.stats.currentHp;
+    const defenderHpBefore = enemyUnit.stats.currentHp;
+
+    resolveAttack(state, attackerId, defenderId, !!events);
+
+    if (events) {
+      const attackerAfter = state.units[attackerId];
+      const defenderAfter = state.units[defenderId];
+      events.push({
+        type: 'PLAYER_ATTACK',
+        attackerId,
+        defenderId,
+        attackerPosition: attackerPos,
+        defenderPosition: defenderPos,
+        attackerHpLost: attackerAfter ? attackerHpBefore - attackerAfter.stats.currentHp : attackerHpBefore,
+        defenderHpLost: defenderAfter ? defenderHpBefore - defenderAfter.stats.currentHp : defenderHpBefore,
+        advancedToPosition: null,
+        attackerXpGained: !defenderAfter && attackerAfter ? XP.KILL_UNIT : null,
+        defenderXpGained: null,
+      });
+      if (!defenderAfter) {
+        events.push({ type: 'UNIT_DEATH', unitId: defenderId, position: defenderPos, faction: Faction.ENEMY });
+      }
+      if (!attackerAfter) {
+        events.push({ type: 'UNIT_DEATH', unitId: attackerId, position: attackerPos, faction: Faction.PLAYER });
+      }
+    }
+  }
+}
+
 function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: Position, events?: GameEvent[]): void {
   const unit = state.units[unitId];
   if (!unit) return;
@@ -837,7 +893,11 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
   if (newTile.isLava) {
     destroyUnit(state, unitId, events);
     state.ember += 1;
+    return;
   }
+
+  // PREVENTIVE_STRIKE: player siege units with this tag fire at the newly moved unit
+  triggerPreventiveStrike(state, unitId, events);
 }
 
 // ============================================================================
@@ -2107,6 +2167,14 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
         const currentUnit = draft.units[unit.id];
         if (!currentUnit) break;
         if (hasUnitActed(currentUnit)) break;
+        // PIN_DOWN: skip movement actions for pinned units
+        if (
+          !currentUnit.hasMovedThisTurn &&
+          currentUnit.pinnedUntilTurn > 0 &&
+          currentUnit.pinnedUntilTurn >= draft.turn
+        ) {
+          currentUnit.hasMovedThisTurn = true; // mark as moved to skip movement
+        }
         decideAndExecute(currentUnit, draft, targetingIntents, recentlyLostBuildingIds, events);
       }
     }

@@ -8,7 +8,7 @@ import type { Draft } from 'immer';
 import { Faction, BuildingType, UnitType, ResourceType, type UnitTag } from './types';
 import { RESOURCES, UNIT_DEFINITIONS, POPULATION, CRYSTAL_CHAMBER_CONFIG } from './gameConfig';
 import type { UnitCost } from './gameConfig';
-import { getGrantedTags, getStatMods, getBuildingProductionMods, grantArcaneCrystals, getStrongholdCapMods } from './techSystem';
+import { getGrantedTags, getStatMods, getBuildingProductionMods, grantArcaneCrystals, getStrongholdCapMods, getRemovedTags, getCostMods } from './techSystem';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -372,11 +372,16 @@ export function recruitUnit(
     return;
   }
 
-  // Get unit cost
-  const cost = UNIT_DEFINITIONS[unitType]?.cost;
-  if (!cost) {
+  // Get unit cost and apply any UNIT_COST_MOD from unlocked techs
+  const baseCost = UNIT_DEFINITIONS[unitType]?.cost;
+  if (!baseCost) {
     return;
   }
+  const costMod = getCostMods(state, unitType);
+  const cost = {
+    iron: baseCost.iron + costMod.iron,
+    wood: baseCost.wood + costMod.wood,
+  };
 
   // Validate player can afford the unit
   if (!canAfford(state, cost)) {
@@ -405,6 +410,9 @@ export function recruitUnit(
   for (const tag of getGrantedTags(state, unitType)) {
     if (!baseTags.includes(tag)) baseTags.push(tag);
   }
+  // Remove any tags that unlocked techs strip (e.g. OUTRIDERS removes BUILDANDCAPTURE)
+  const removedTags = getRemovedTags(state, unitType);
+  const spawnTags = baseTags.filter((t) => !removedTags.includes(t));
 
   state.units[unitId] = {
     id: unitId,
@@ -422,7 +430,7 @@ export function recruitUnit(
       movementActions: UNIT_DEFINITIONS[unitType].movementActions,
       attackRange: UNIT_DEFINITIONS[unitType].attackRange,
     },
-    tags: baseTags,
+    tags: spawnTags,
     hasMovedThisTurn: true,
     hasAttackedThisTurn: true,
     hasCapturedThisTurn: true,
@@ -430,6 +438,7 @@ export function recruitUnit(
     hasDestroyedThisTurn: true,
     xp: 0,
     level: 1,
+    pinnedUntilTurn: 0,
   };
 
   // Apply stat mods from unlocked techs to the newly spawned unit
