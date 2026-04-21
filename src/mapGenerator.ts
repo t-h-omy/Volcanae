@@ -167,6 +167,7 @@ function createBuilding(
   // Population initialization for housing buildings
   let populationCount = 0;
   let populationCap = 0;
+  let strongholdNobles = 0;
   if (type === BuildingType.FARM) {
     populationCap = POPULATION.FARM_POPULATION_CAP;
     populationCount = POPULATION.HOUSE_INITIAL_POPULATION;
@@ -175,8 +176,9 @@ function createBuilding(
     populationCount = POPULATION.HOUSE_INITIAL_POPULATION;
   } else if (type === BuildingType.STRONGHOLD) {
     populationCap = POPULATION.STRONGHOLD_FARMER_CAP + POPULATION.STRONGHOLD_NOBLE_CAP;
-    // Starting strongholds begin fully populated
-    populationCount = populationCap;
+    // Starting strongholds begin fully populated — farmers and nobles tracked separately
+    populationCount = POPULATION.STRONGHOLD_FARMER_CAP;
+    strongholdNobles = POPULATION.STRONGHOLD_NOBLE_CAP;
   }
 
   return {
@@ -202,6 +204,7 @@ function createBuilding(
     populationCount,
     populationCap,
     populationGrowthCounter: 0,
+    strongholdNobles,
     emberSpawnCounter: 0,
     recruitmentQueue: null,
     destroyBehavior: BUILDING_DEFINITIONS[type].destroyBehavior,
@@ -1221,7 +1224,7 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
           if (b.type === BuildingType.FARM) {
             f += b.populationCount;
           } else if (b.type === BuildingType.STRONGHOLD) {
-            f += Math.min(b.populationCount, POPULATION.STRONGHOLD_FARMER_CAP);
+            f += b.populationCount;
           }
         }
         return f;
@@ -1233,7 +1236,7 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
           if (b.type === BuildingType.PATRICIANHOUSE) {
             n += b.populationCount;
           } else if (b.type === BuildingType.STRONGHOLD) {
-            n += Math.max(0, b.populationCount - POPULATION.STRONGHOLD_FARMER_CAP);
+            n += b.strongholdNobles;
           }
         }
         return n;
