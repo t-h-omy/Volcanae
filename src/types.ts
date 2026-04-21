@@ -159,8 +159,6 @@ export const UnitTag = {
   KNIGHT: 'KNIGHT',
   /** Rider may move after attacking */
   PURSUIT: 'PURSUIT',
-  /** Rider has reduced DEF (trade-off for PURSUIT mobility) */
-  RIDER_GLASS: 'RIDER_GLASS',
   /** Rider with +1 MOV; loses BUILDANDCAPTURE */
   OUTRIDER: 'OUTRIDER',
   /** Archer does not suffer ranged counter-attacks */
@@ -173,14 +171,21 @@ export const UnitTag = {
   DISTRACTION: 'DISTRACTION',
   /** Siege unit fires instantly at enemy units that move into its attack range */
   PREVENTIVE_STRIKE: 'PREVENTIVE_STRIKE',
-  /** Elite unit upgraded via noble heritage (+20 HP) */
-  NOBLE_ELITE: 'NOBLE_ELITE',
+  /** Elite unit with increased max HP */
+  ELITE: 'ELITE',
 } as const;
 export type UnitTag = (typeof UnitTag)[keyof typeof UnitTag];
 
 // ============================================================================
 // TECH TREE TYPES
 // ============================================================================
+
+/** A single stat modifier entry (used in TechEffect and TAG_STAT_EFFECTS) */
+export interface StatModifier {
+  stat: keyof UnitStats;
+  mode: 'add' | 'percent';
+  value: number;
+}
 
 /** A single effect granted when a tech node is unlocked */
 export type TechEffect =

@@ -7,7 +7,7 @@
  */
 
 import { UnitTag, DestroyBehavior, BuildingType, UnitType, ResourceType, TechFlag, Difficulty } from './types';
-import type { UnitLevelDefinition, TechNodeDefinition } from './types';
+import type { UnitLevelDefinition, TechNodeDefinition, StatModifier } from './types';
 
 // ============================================================================
 // MAP CONFIGURATION
@@ -1057,12 +1057,9 @@ export const TECH_TREE: TechNodeDefinition[] = [
     requires: ['CITADEL'],
     cost: 7,
     effects: [
-      { type: 'GRANT_UNIT_TAG', unitType: UnitType.RIDER,  tag: UnitTag.NOBLE_ELITE },
-      { type: 'GRANT_UNIT_TAG', unitType: UnitType.GUARD,  tag: UnitTag.NOBLE_ELITE },
-      { type: 'GRANT_UNIT_TAG', unitType: UnitType.SIEGE,  tag: UnitTag.NOBLE_ELITE },
-      { type: 'UNIT_STAT_MOD',  unitType: UnitType.RIDER,  stat: 'maxHp', mode: 'add', value: 20 },
-      { type: 'UNIT_STAT_MOD',  unitType: UnitType.GUARD,  stat: 'maxHp', mode: 'add', value: 20 },
-      { type: 'UNIT_STAT_MOD',  unitType: UnitType.SIEGE,  stat: 'maxHp', mode: 'add', value: 20 },
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.RIDER,  tag: UnitTag.ELITE },
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.GUARD,  tag: UnitTag.ELITE },
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.SIEGE,  tag: UnitTag.ELITE },
     ],
   },
 
@@ -1085,8 +1082,6 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.RIDER, tag: UnitTag.KNIGHT },
-      { type: 'UNIT_STAT_MOD',  unitType: UnitType.RIDER, stat: 'maxHp',   mode: 'add', value: 40 },
-      { type: 'UNIT_STAT_MOD',  unitType: UnitType.RIDER, stat: 'defense', mode: 'add', value: 15 },
       { type: 'UNIT_COST_MOD',  unitType: UnitType.RIDER, resource: 'iron', amount: 2 },
     ],
   },
@@ -1098,8 +1093,6 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG',  unitType: UnitType.RIDER, tag: UnitTag.PURSUIT },
-      { type: 'GRANT_UNIT_TAG',  unitType: UnitType.RIDER, tag: UnitTag.RIDER_GLASS },
-      { type: 'UNIT_STAT_MOD',   unitType: UnitType.RIDER, stat: 'defense', mode: 'add', value: -15 },
     ],
   },
   {
@@ -1197,7 +1190,34 @@ export const ABILITIES = {
   LANCE_CHARGE_ATTACK_BONUS: 20,
   /** Permanent DEF reduction applied to a unit each time it is hit by a DISTRACTION archer */
   DISTRACTION_DEF_REDUCTION: 8,
+  /** Max HP bonus granted to a unit carrying the ELITE tag */
+  ELITE_MAX_HP_BONUS: 20,
+  /** DEF change (negative = penalty) applied to a unit carrying the PURSUIT tag */
+  PURSUIT_DEFENSE_MOD: -15,
+  /** Max HP bonus granted to a unit carrying the KNIGHT tag */
+  KNIGHT_MAX_HP_BONUS: 40,
+  /** DEF bonus granted to a unit carrying the KNIGHT tag */
+  KNIGHT_DEFENSE_BONUS: 15,
 } as const;
+
+// ============================================================================
+// TAG STAT EFFECTS — stat modifiers applied when a tag is granted to a unit
+// ============================================================================
+
+/**
+ * Stat changes that are intrinsic to a tag.
+ * When a GRANT_UNIT_TAG effect is applied (either retroactively at tech unlock
+ * or at unit spawn time), these mods are also applied to the unit's stats.
+ * All values are driven by ABILITIES constants so they remain easy to balance.
+ */
+export const TAG_STAT_EFFECTS: Partial<Record<UnitTag, StatModifier[]>> = {
+  [UnitTag.ELITE]:   [{ stat: 'maxHp',   mode: 'add', value: ABILITIES.ELITE_MAX_HP_BONUS }],
+  [UnitTag.KNIGHT]:  [
+    { stat: 'maxHp',   mode: 'add', value: ABILITIES.KNIGHT_MAX_HP_BONUS },
+    { stat: 'defense', mode: 'add', value: ABILITIES.KNIGHT_DEFENSE_BONUS },
+  ],
+  [UnitTag.PURSUIT]: [{ stat: 'defense', mode: 'add', value: ABILITIES.PURSUIT_DEFENSE_MOD }],
+};
 
 // ============================================================================
 // TAG INFO — label and description for each unit tag
@@ -1219,16 +1239,15 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string }> = {
   [UnitTag.PASSIVE]:           { label: 'Passive',           desc: 'Cannot initiate attacks. Still defends at full effectiveness when attacked by enemies.' },
   // ── Deep tech tree tags ──────────────────────────────────────────────────────
   [UnitTag.LANCE_CHARGE]:      { label: 'Lance Charge',      desc: `Gains +${ABILITIES.LANCE_CHARGE_ATTACK_BONUS} attack when striking without having moved this turn.` },
-  [UnitTag.KNIGHT]:            { label: 'Knight',            desc: 'Heavily armoured cavalry with boosted HP and DEF.' },
-  [UnitTag.PURSUIT]:           { label: 'Pursuit',           desc: 'May move after attacking (in the same turn).' },
-  [UnitTag.RIDER_GLASS]:       { label: 'Glass Rider',       desc: 'Reduced DEF — trade-off for the mobility gained from Pursuit.' },
+  [UnitTag.KNIGHT]:            { label: 'Knight',            desc: `Heavily armoured cavalry with +${ABILITIES.KNIGHT_MAX_HP_BONUS} max HP and +${ABILITIES.KNIGHT_DEFENSE_BONUS} DEF.` },
+  [UnitTag.PURSUIT]:           { label: 'Pursuit',           desc: `May move after attacking (in the same turn). DEF is reduced by ${Math.abs(ABILITIES.PURSUIT_DEFENSE_MOD)} as a trade-off for the added mobility.` },
   [UnitTag.OUTRIDER]:          { label: 'Outrider',          desc: '+1 movement range. Cannot construct buildings or capture. Optimised for deep raids.' },
   [UnitTag.COVER]:             { label: 'Cover',             desc: 'Attacks do not trigger ranged counter-attacks from the defender.' },
   [UnitTag.SKIRMISHER]:        { label: 'Skirmisher',        desc: '+1 movement range. Archer can reposition quickly after engaging.' },
   [UnitTag.PIN_DOWN]:          { label: 'Pin Down',          desc: 'Attacks leave the target pinned — it cannot move on its next action.' },
   [UnitTag.DISTRACTION]:       { label: 'Distraction',       desc: `Each hit permanently reduces the target's DEF by ${ABILITIES.DISTRACTION_DEF_REDUCTION}.` },
   [UnitTag.PREVENTIVE_STRIKE]: { label: 'Preventive Strike', desc: 'Fires instantly at any enemy unit that moves into attack range during the enemy\'s turn.' },
-  [UnitTag.NOBLE_ELITE]:       { label: 'Noble Elite',       desc: '+20 max HP. Elite unit forged in the noble tradition.' },
+  [UnitTag.ELITE]:             { label: 'Elite',             desc: `+${ABILITIES.ELITE_MAX_HP_BONUS} max HP. Elite unit forged in the noble tradition.` },
 };
 
 // ============================================================================

@@ -5,9 +5,9 @@
  */
 
 import type { Draft } from 'immer';
-import type { GameState, TechId, TechEffect, UnitStats } from './types';
+import type { GameState, TechId, TechEffect, UnitStats, StatModifier } from './types';
 import { Faction, TechFlag, BuildingType } from './types';
-import { TECH_TREE, ABILITIES, computeResearchCost } from './gameConfig';
+import { TECH_TREE, ABILITIES, TAG_STAT_EFFECTS, computeResearchCost } from './gameConfig';
 
 // ============================================================================
 // PICK GRANTS
@@ -105,6 +105,15 @@ function applyTechEffect(state: Draft<GameState>, effect: TechEffect): void {
         if (unit.faction === Faction.PLAYER && unit.type === effect.unitType) {
           if (!unit.tags.includes(effect.tag)) {
             unit.tags.push(effect.tag);
+            // Apply any stat mods intrinsic to this tag
+            const oldMax = unit.stats.maxHp;
+            for (const mod of TAG_STAT_EFFECTS[effect.tag] ?? []) {
+              applyStatMod(unit.stats, mod.stat, mod.mode, mod.value);
+            }
+            // Keep currentHp in sync when maxHp is boosted
+            if (unit.stats.maxHp > oldMax) {
+              unit.stats.currentHp = Math.min(unit.stats.currentHp + (unit.stats.maxHp - oldMax), unit.stats.maxHp);
+            }
           }
         }
       }
@@ -233,19 +242,26 @@ export function getCostMods(
 }
 
 /**
- * Returns all UNIT_STAT_MOD effects for the given unit type from unlocked techs.
+ * Returns all UNIT_STAT_MOD effects for the given unit type from unlocked techs,
+ * plus any stat mods intrinsic to tags granted to that unit type by unlocked techs.
  * Used at unit spawn time to apply tech-granted stat mods to newly created units.
  */
 export function getStatMods(
   state: GameState | Draft<GameState>,
   unitType: UnitType,
-): { stat: keyof UnitStats; mode: 'add' | 'percent'; value: number }[] {
-  const mods: { stat: keyof UnitStats; mode: 'add' | 'percent'; value: number }[] = [];
+): StatModifier[] {
+  const mods: StatModifier[] = [];
   for (const def of TECH_TREE) {
     if (!state.techNodes[def.id]?.unlocked) continue;
     for (const effect of def.effects) {
       if (effect.type === 'UNIT_STAT_MOD' && effect.unitType === unitType) {
         mods.push({ stat: effect.stat, mode: effect.mode, value: effect.value });
+      }
+      // Include stat mods intrinsic to any tag granted to this unit type
+      if (effect.type === 'GRANT_UNIT_TAG' && effect.unitType === unitType) {
+        for (const mod of TAG_STAT_EFFECTS[effect.tag] ?? []) {
+          mods.push(mod);
+        }
       }
     }
   }
