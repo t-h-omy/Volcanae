@@ -1831,11 +1831,11 @@ const V_GAP = 80;
  * Compute tech-tree node positions dynamically from the TECH_TREE definition.
  *
  * Layout rules:
- *  - The root node (requires=[]) sits at the top-center.
- *  - Each dependency level is placed on a horizontal row below the previous.
- *  - Y position: depth × (nodeH + V_GAP)
- *  - X position: each parent is centered over its children; siblings are
- *    spread horizontally with H_GAP between them.
+ *  - The root node (requires=[]) sits at the left-center.
+ *  - Each dependency level is placed in a vertical column to the right of the previous.
+ *  - X position: depth × (nodeW + V_GAP)
+ *  - Y position: each parent is centered over its children; siblings are
+ *    spread vertically with H_GAP between them.
  */
 function computeTechTreeLayout(
   tree: readonly { id: string; requires: string[] }[],
@@ -1870,42 +1870,42 @@ function computeTechTreeLayout(
     }
   }
 
-  // ── Post-order: subtree width ────────────────────────────────────────────
-  const subtreeWidth = new Map<string, number>();
-  function calcWidth(id: string): number {
+  // ── Post-order: subtree height (vertical extent) ─────────────────────────
+  const subtreeHeight = new Map<string, number>();
+  function calcHeight(id: string): number {
     const children = childrenOf.get(id) ?? [];
     if (children.length === 0) {
-      subtreeWidth.set(id, nodeW);
-      return nodeW;
+      subtreeHeight.set(id, nodeH);
+      return nodeH;
     }
-    const total = children.reduce((sum, c) => sum + calcWidth(c), 0)
+    const total = children.reduce((sum, c) => sum + calcHeight(c), 0)
       + H_GAP * (children.length - 1);
-    const w = Math.max(nodeW, total);
-    subtreeWidth.set(id, w);
-    return w;
+    const h = Math.max(nodeH, total);
+    subtreeHeight.set(id, h);
+    return h;
   }
-  calcWidth(rootId);
+  calcHeight(rootId);
 
-  // ── Pre-order: assign X, Y ───────────────────────────────────────────────
+  // ── Pre-order: assign X (depth-based), Y (centered within subtree) ───────
   const rawPos: Record<string, { x: number; y: number }> = {};
-  function assignPos(id: string, centerX: number): void {
+  function assignPos(id: string, centerY: number): void {
     const depth = depthOf.get(id)!;
     rawPos[id] = {
-      x: centerX,
-      y: depth * (nodeH + V_GAP),
+      x: depth * (nodeW + V_GAP),
+      y: centerY,
     };
     const children = childrenOf.get(id) ?? [];
     if (children.length === 0) return;
-    const totalChildW = children.reduce((s, c) => s + subtreeWidth.get(c)!, 0)
+    const totalChildH = children.reduce((s, c) => s + subtreeHeight.get(c)!, 0)
       + H_GAP * (children.length - 1);
-    let cursor = centerX - totalChildW / 2;
+    let cursor = centerY - totalChildH / 2;
     for (const child of children) {
-      const cw = subtreeWidth.get(child)!;
-      assignPos(child, cursor + cw / 2);
-      cursor += cw + H_GAP;
+      const ch = subtreeHeight.get(child)!;
+      assignPos(child, cursor + ch / 2);
+      cursor += ch + H_GAP;
     }
   }
-  assignPos(rootId, subtreeWidth.get(rootId)! / 2);
+  assignPos(rootId, subtreeHeight.get(rootId)! / 2);
 
   // ── Bounding box + padding ───────────────────────────────────────────────
   const padding = 40;
@@ -2014,13 +2014,13 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  // On open, scroll the canvas so the root node is near the top-center of the viewport
+  // On open, scroll the canvas so the root node is near the left-center of the viewport
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     const rootCenter = nodeCentre(TECH_TREE.find((d) => d.requires.length === 0)?.id ?? '');
-    el.scrollLeft = rootCenter.x - el.clientWidth / 2;
-    el.scrollTop = rootCenter.y - NODE_H;
+    el.scrollLeft = rootCenter.x - NODE_W;
+    el.scrollTop = rootCenter.y - el.clientHeight / 2;
   }, []);
 
   // Canvas dimensions computed from the dynamic layout
