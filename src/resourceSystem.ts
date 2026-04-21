@@ -209,13 +209,9 @@ export function computePopulationCapacity(
     } else if (building.type === BuildingType.PATRICIANHOUSE) {
       nobleCapacity += building.populationCount;
     } else if (building.type === BuildingType.STRONGHOLD) {
-      // Stronghold contributes farmers up to STRONGHOLD_FARMER_CAP + tech mods, rest as nobles
-      const { farmerMod } = getStrongholdCapMods(state);
-      const effectiveFarmerCap = POPULATION.STRONGHOLD_FARMER_CAP + farmerMod;
-      const farmers = Math.min(building.populationCount, effectiveFarmerCap);
-      const nobles = Math.max(0, building.populationCount - effectiveFarmerCap);
-      farmerCapacity += farmers;
-      nobleCapacity += nobles;
+      // Stronghold tracks farmers (populationCount) and nobles (strongholdNobles) separately
+      farmerCapacity += building.populationCount;
+      nobleCapacity += building.strongholdNobles;
     }
   }
 
@@ -287,7 +283,25 @@ export function growHousePopulations(state: Draft<GameState>): void {
       continue;
     }
 
-    if (building.populationCount < building.populationCap) {
+    if (building.type === BuildingType.STRONGHOLD) {
+      // Grow farmers and nobles separately, farmers first
+      const { farmerMod, nobleMod } = getStrongholdCapMods(state);
+      const effectiveFarmerCap = POPULATION.STRONGHOLD_FARMER_CAP + farmerMod;
+      const effectiveNobleCap = POPULATION.STRONGHOLD_NOBLE_CAP + nobleMod;
+      const canGrowFarmer = building.populationCount < effectiveFarmerCap;
+      const canGrowNoble = building.strongholdNobles < effectiveNobleCap;
+      if (canGrowFarmer || canGrowNoble) {
+        building.populationGrowthCounter += 1;
+        if (building.populationGrowthCounter >= POPULATION.HOUSE_GROWTH_INTERVAL) {
+          if (canGrowFarmer) {
+            building.populationCount += 1;
+          } else {
+            building.strongholdNobles += 1;
+          }
+          building.populationGrowthCounter = 0;
+        }
+      }
+    } else if (building.populationCount < building.populationCap) {
       building.populationGrowthCounter += 1;
       if (building.populationGrowthCounter >= POPULATION.HOUSE_GROWTH_INTERVAL) {
         building.populationCount += 1;

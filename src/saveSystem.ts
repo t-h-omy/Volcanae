@@ -8,8 +8,8 @@
  */
 
 import type { GameState } from './types';
-import { UnitType, UnitTag } from './types';
-import { TECH_TREE } from './gameConfig';
+import { UnitType, UnitTag, BuildingType } from './types';
+import { TECH_TREE, POPULATION } from './gameConfig';
 
 // ============================================================================
 // CONSTANTS
@@ -79,6 +79,20 @@ export function loadGameState(): GameState | null {
       for (const def of TECH_TREE) {
         if (!(def.id in s.techNodes)) {
           (s.techNodes as Record<string, { id: string; unlocked: boolean }>)[def.id] = { id: def.id, unlocked: false };
+        }
+      }
+    }
+
+    // Migration: strongholds now track farmers (populationCount) and nobles
+    // (strongholdNobles) separately. Older saves used a single populationCount
+    // for both. Split it using the base caps so nobles are preserved correctly.
+    if (s.buildings && typeof s.buildings === 'object') {
+      for (const building of Object.values(s.buildings) as Array<unknown>) {
+        const b = building as Record<string, unknown>;
+        if (b && b.type === BuildingType.STRONGHOLD && b.strongholdNobles === undefined) {
+          const count = typeof b.populationCount === 'number' ? b.populationCount : 0;
+          b.populationCount = Math.min(count, POPULATION.STRONGHOLD_FARMER_CAP);
+          b.strongholdNobles = Math.max(0, count - POPULATION.STRONGHOLD_FARMER_CAP);
         }
       }
     }

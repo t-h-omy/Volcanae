@@ -1275,10 +1275,19 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   const housingLabel = building.type === BuildingType.FARM ? 'farmers'
     : building.type === BuildingType.PATRICIANHOUSE ? 'nobles'
     : 'farmers + nobles';
-  const turnsUntilNextPop =
-    isHousingBuilding && building.populationCount < building.populationCap
+  const turnsUntilNextPop = (() => {
+    if (!isHousingBuilding) return null;
+    if (building.type === BuildingType.STRONGHOLD) {
+      const { farmerMod, nobleMod } = getStrongholdCapMods(gameState);
+      const effectiveFarmerCap = POPULATION.STRONGHOLD_FARMER_CAP + farmerMod;
+      const effectiveNobleCap = POPULATION.STRONGHOLD_NOBLE_CAP + nobleMod;
+      const canGrow = building.populationCount < effectiveFarmerCap || building.strongholdNobles < effectiveNobleCap;
+      return canGrow ? POPULATION.HOUSE_GROWTH_INTERVAL - building.populationGrowthCounter : null;
+    }
+    return building.populationCount < building.populationCap
       ? POPULATION.HOUSE_GROWTH_INTERVAL - building.populationGrowthCounter
       : null;
+  })();
 
   // Dev: recruiting scores for enemy LAVA_LAIR / INFERNAL_SANCTUM
   const isEnemyRecruitingBuilding =
@@ -1406,9 +1415,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
                 const { farmerMod, nobleMod } = getStrongholdCapMods(gameState);
                 const effectiveFarmerCap = POPULATION.STRONGHOLD_FARMER_CAP + farmerMod;
                 const effectiveNobleCap = POPULATION.STRONGHOLD_NOBLE_CAP + nobleMod;
-                const farmers = Math.min(building.populationCount, effectiveFarmerCap);
-                const nobles = Math.max(0, building.populationCount - effectiveFarmerCap);
-                return <>👥 {farmers}/{effectiveFarmerCap} farmers, {nobles}/{effectiveNobleCap} nobles</>;
+                return <>👥 {building.populationCount}/{effectiveFarmerCap} farmers, {building.strongholdNobles}/{effectiveNobleCap} nobles</>;
               })()}
             </>
           ) : (

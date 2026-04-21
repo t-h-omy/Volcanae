@@ -293,6 +293,7 @@ function createBuildingObject(
   // Population initialization for housing buildings
   let populationCount = 0;
   let populationCap = 0;
+  const strongholdNobles = 0;
   if (type === BuildingType.FARM) {
     populationCap = POPULATION.FARM_POPULATION_CAP;
     populationCount = POPULATION.HOUSE_INITIAL_POPULATION;
@@ -329,6 +330,7 @@ function createBuildingObject(
     populationCount,
     populationCap,
     populationGrowthCounter: 0,
+    strongholdNobles,
     emberSpawnCounter: 0,
     recruitmentQueue: null,
     destroyBehavior: BUILDING_DEFINITIONS[type].destroyBehavior,

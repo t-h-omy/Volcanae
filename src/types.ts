@@ -320,12 +320,14 @@ export interface Building {
   tags: UnitTag[];
   /** Whether capturing this building consumes the capturing unit */
   consumesUnitOnCapture: boolean;
-  /** Current number of people in this house — only relevant for FARM and PATRICIANHOUSE */
+  /** Current number of people in this house — only relevant for FARM, PATRICIANHOUSE, and STRONGHOLD (farmers) */
   populationCount: number;
   /** Maximum population for this house — only relevant for FARM and PATRICIANHOUSE */
   populationCap: number;
-  /** Turns elapsed since last population growth — only for FARM and PATRICIANHOUSE */
+  /** Turns elapsed since last population growth — only for FARM, PATRICIANHOUSE, and STRONGHOLD */
   populationGrowthCounter: number;
+  /** Number of nobles housed in this stronghold — only relevant for STRONGHOLD */
+  strongholdNobles: number;
   /** Turns since last Emberling spawn — only for EMBERNEST */
   emberSpawnCounter: number;
   /** Queued unit type for next spawn — used by LAVALAIR/INFERNALSANCTUM dynamic recruitment */

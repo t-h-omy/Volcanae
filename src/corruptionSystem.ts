@@ -153,6 +153,7 @@ export function corruptTerrain(
     populationCount: 0,
     populationCap: 0,
     populationGrowthCounter: 0,
+    strongholdNobles: 0,
     emberSpawnCounter: 0,
     recruitmentQueue: null,
     destroyBehavior: BUILDING_DEFINITIONS[buildingType].destroyBehavior,

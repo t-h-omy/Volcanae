@@ -1467,6 +1467,7 @@ export const useGameStore = create<GameStore>()(
                 populationCount: POPULATION.FARM_POPULATION_CAP,
                 populationCap: POPULATION.FARM_POPULATION_CAP,
                 populationGrowthCounter: 0,
+                strongholdNobles: 0,
                 emberSpawnCounter: 0,
                 recruitmentQueue: null,
                 destroyBehavior: BUILDING_DEFINITIONS[BuildingType.FARM].destroyBehavior,
