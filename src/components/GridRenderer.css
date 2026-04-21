@@ -609,9 +609,16 @@
 }
 
 /* Crystal Chamber activation VFX overlay — crystal-blue radial burst */
+.tile--crystal-activating {
+  overflow: visible;
+}
+
 .tile-crystal-activate-overlay {
   position: absolute;
-  inset: 0;
+  width: 200%;
+  height: 200%;
+  top: -50%;
+  left: -50%;
   pointer-events: none;
   z-index: 4;
   background: radial-gradient(
