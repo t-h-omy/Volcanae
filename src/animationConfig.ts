@@ -6,9 +6,9 @@
 
 export const ANIMATION = {
   /** Time for viewport to pan to a new target position */
-  CAMERA_MOVE_DURATION_MS: 350,
+  CAMERA_MOVE_DURATION_MS: 220,
   /** Pause after camera arrives, before action executes */
-  PRE_ACTION_IDLE_MS: 150,
+  PRE_ACTION_IDLE_MS: 80,
   /** Pause after action resolves, before moving to next event */
   POST_ACTION_IDLE_MS: 250,
   /** Longer pause for lava advance — more dramatic weight */
