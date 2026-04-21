@@ -1917,6 +1917,16 @@ function computeTechTreeLayout(
       .map((n) => angleOf.get(n.id)!)
       .sort((a, b) => a - b);
 
+    const rFromStep = baseRadius + radiusStep * (d - 1);
+
+    // With only one node at this depth there is no neighbour to collide with,
+    // so skip the gap-based radius calculation (it would divide by sin(π) ≈ 0
+    // and produce an astronomical value).
+    if (angles.length <= 1) {
+      radii.push(rFromStep);
+      continue;
+    }
+
     let minGap = 2 * Math.PI;
     for (let i = 0; i < angles.length; i++) {
       const next = (i + 1) % angles.length;
@@ -1927,7 +1937,6 @@ function computeTechTreeLayout(
 
     // chord ≈ r·gap for small gaps; exact: 2r·sin(gap/2)
     const rFromGap = minGap > 0 ? minSpacing / (2 * Math.sin(minGap / 2)) : baseRadius;
-    const rFromStep = baseRadius + radiusStep * (d - 1);
     radii.push(Math.max(rFromGap, rFromStep));
   }
 
