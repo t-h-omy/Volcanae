@@ -208,7 +208,11 @@ function isUnitBlockedFromLava(unit: Unit, state: Draft<GameState>): boolean {
       if (visited.has(key)) continue;
       visited.add(key);
       const tile = state.grid[ny][nx];
-      if (tile.terrainType === TileType.CANYON || tile.terrainType === TileType.WATER) continue;
+      if (tile.terrainType === TileType.CANYON || tile.terrainType === TileType.WATER) {
+        // Impassable terrain in the lava direction counts as a permanent blocker
+        if (ny > startY) return true;
+        continue;
+      }
       if (tile.unitId !== null || tile.isLava || isBlockedBuildingForEnemyMovement(state, tile.buildingId)) continue;
       // ny > startY means the tile is closer to lava (higher Y = toward lava)
       if (ny > startY) return false;
