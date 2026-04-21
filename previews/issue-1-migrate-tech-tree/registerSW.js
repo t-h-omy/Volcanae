@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/Volcanae/previews/issue-1-migrate-tech-tree/sw.js', { scope: '/Volcanae/previews/issue-1-migrate-tech-tree/' })})}
