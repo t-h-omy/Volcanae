@@ -1106,7 +1106,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     id: 'OUTRIDERS',
     name: 'Outriders',
     description: 'Fast raiding cavalry with extended movement; loses build & capture',
-    requires: ['LANCE_CHARGE'],
+    requires: ['PURSUIT'],
     cost: 7,
     effects: [
       { type: 'GRANT_UNIT_TAG',  unitType: UnitType.RIDER, tag: UnitTag.OUTRIDER },
