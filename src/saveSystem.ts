@@ -9,6 +9,7 @@
 
 import type { GameState } from './types';
 import { UnitType, UnitTag } from './types';
+import { TECH_TREE } from './gameConfig';
 
 // ============================================================================
 // CONSTANTS
@@ -68,6 +69,17 @@ export function loadGameState(): GameState | null {
     for (const unit of Object.values(s.units)) {
       if (unit && unit.type === UnitType.EMBERLING && Array.isArray(unit.tags) && !unit.tags.includes(UnitTag.PASSIVE)) {
         unit.tags.push(UnitTag.PASSIVE);
+      }
+    }
+
+    // Migration: new tech nodes added to TECH_TREE without a SAVE_VERSION bump
+    // will be absent from older saves, causing them to appear permanently locked.
+    // Backfill any missing entries as unlocked=false so availability is computed correctly.
+    if (s.techNodes && typeof s.techNodes === 'object') {
+      for (const def of TECH_TREE) {
+        if (!(def.id in s.techNodes)) {
+          (s.techNodes as Record<string, { id: string; unlocked: boolean }>)[def.id] = { id: def.id, unlocked: false };
+        }
       }
     }
 

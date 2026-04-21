@@ -1822,34 +1822,32 @@ function TurnAnnouncementPopup({ turn }: { turn: number }) {
 // TECH TREE DYNAMIC LAYOUT
 // ============================================================================
 
-const NODE_W = 120;
+const NODE_W = 130;
 const NODE_H = 52;
+const H_GAP = 24;
+const V_GAP = 80;
 
 /**
  * Compute tech-tree node positions dynamically from the TECH_TREE definition.
  *
  * Layout rules:
- *  - The root node (requires=[]) sits at the centre.
- *  - Each dependency level forms a ring at increasing radius.
- *  - Children of a node are placed at equal angular intervals centred on the
- *    parent's angle, each receiving an equal share of the parent's arc.
- *  - Radii are sized so that the minimum angular gap at every level is wide
- *    enough to prevent node overlap.
+ *  - The root node (requires=[]) sits at the left-center.
+ *  - Each dependency level is placed in a vertical column to the right of the previous.
+ *  - X position: depth × (nodeW + V_GAP)
+ *  - Y position: each parent is centered over its children; siblings are
+ *    spread vertically with H_GAP between them.
  */
 function computeTechTreeLayout(
   tree: readonly { id: string; requires: string[] }[],
   nodeW: number,
   nodeH: number,
 ): { positions: Record<string, { x: number; y: number }>; canvasW: number; canvasH: number } {
-  // ── Build tree structure ──────────────────────────────
-  // Each node uses its first `requires` entry as its single parent.
-  // The TECH_TREE is a strict tree (no multi-parent DAG nodes).
+  // ── Build adjacency ──────────────────────────────────────────────────────
   const childrenOf = new Map<string, string[]>();
   let rootId = '';
   for (const node of tree) {
-    if (node.requires.length === 0) {
-      rootId = node.id;
-    } else {
+    if (node.requires.length === 0) rootId = node.id;
+    else {
       const parent = node.requires[0];
       const list = childrenOf.get(parent);
       if (list) list.push(node.id);
@@ -1858,127 +1856,87 @@ function computeTechTreeLayout(
   }
   if (!rootId) return { positions: {}, canvasW: 0, canvasH: 0 };
 
-  // ── BFS for depth ─────────────────────────────────────
+  // ── BFS for depth ────────────────────────────────────────────────────────
   const depthOf = new Map<string, number>();
   depthOf.set(rootId, 0);
   const queue = [rootId];
-  let maxDepth = 0;
-  while (queue.length > 0) {
-    const id = queue.shift()!;
+  let queueIdx = 0;
+  while (queueIdx < queue.length) {
+    const id = queue[queueIdx++];
     const d = depthOf.get(id)!;
-    if (d > maxDepth) maxDepth = d;
     for (const child of (childrenOf.get(id) ?? [])) {
       depthOf.set(child, d + 1);
       queue.push(child);
     }
   }
 
-  // ── Assign angular arcs ───────────────────────────────
-  // Each node owns an arc of the circle. Children split their parent's arc
-  // into equal portions so siblings are equally distributed from the parent.
-  const nodeArc = new Map<string, { start: number; size: number }>();
+  // ── Post-order: subtree height (vertical extent) ─────────────────────────
+  const subtreeHeight = new Map<string, number>();
+  function calcHeight(id: string): number {
+    const children = childrenOf.get(id) ?? [];
+    if (children.length === 0) {
+      subtreeHeight.set(id, nodeH);
+      return nodeH;
+    }
+    const total = children.reduce((sum, c) => sum + calcHeight(c), 0)
+      + H_GAP * (children.length - 1);
+    const h = Math.max(nodeH, total);
+    subtreeHeight.set(id, h);
+    return h;
+  }
+  calcHeight(rootId);
 
-  // Centre the first tier-1 child at −π/2 (top of screen).
-  const tier1 = childrenOf.get(rootId) ?? [];
-  const childArc0 = tier1.length > 0 ? (2 * Math.PI) / tier1.length : 0;
-  const rootStart = -Math.PI / 2 - childArc0 / 2;
-  nodeArc.set(rootId, { start: rootStart, size: 2 * Math.PI });
-
-  function assignArcs(parentId: string): void {
-    const children = childrenOf.get(parentId) ?? [];
+  // ── Pre-order: assign X (depth-based), Y (centered within subtree) ───────
+  const rawPos: Record<string, { x: number; y: number }> = {};
+  function assignPos(id: string, centerY: number): void {
+    const depth = depthOf.get(id)!;
+    rawPos[id] = {
+      x: depth * (nodeW + V_GAP),
+      y: centerY,
+    };
+    const children = childrenOf.get(id) ?? [];
     if (children.length === 0) return;
-    const pArc = nodeArc.get(parentId)!;
-    const slice = pArc.size / children.length;
-    for (let i = 0; i < children.length; i++) {
-      nodeArc.set(children[i], { start: pArc.start + i * slice, size: slice });
-      assignArcs(children[i]);
+    const totalChildH = children.reduce((s, c) => s + subtreeHeight.get(c)!, 0)
+      + H_GAP * (children.length - 1);
+    let cursor = centerY - totalChildH / 2;
+    for (const child of children) {
+      const ch = subtreeHeight.get(child)!;
+      assignPos(child, cursor + ch / 2);
+      cursor += ch + H_GAP;
     }
   }
-  assignArcs(rootId);
+  assignPos(rootId, subtreeHeight.get(rootId)! / 2);
 
-  // Each node's angle = centre of its arc
-  const angleOf = new Map<string, number>();
-  for (const [id, arc] of nodeArc) {
-    angleOf.set(id, arc.start + arc.size / 2);
-  }
-
-  // ── Compute radii per depth level ─────────────────────
-  // Ensure adjacent nodes at each level don't overlap.
-  const nodeDiag = Math.sqrt(nodeW * nodeW + nodeH * nodeH);
-  const minSpacing = nodeDiag + 24;
-  const baseRadius = 200;
-  const radiusStep = 180;
-
-  const radii: number[] = [0]; // depth 0 = centre
-  for (let d = 1; d <= maxDepth; d++) {
-    // Sort angles of all nodes at this depth to find the tightest gap.
-    const angles = tree
-      .filter((n) => depthOf.get(n.id) === d)
-      .map((n) => angleOf.get(n.id)!)
-      .sort((a, b) => a - b);
-
-    const rFromStep = baseRadius + radiusStep * (d - 1);
-
-    // With only one node at this depth there is no neighbour to collide with,
-    // so skip the gap-based radius calculation (it would divide by sin(π) ≈ 0
-    // and produce an astronomical value).
-    if (angles.length <= 1) {
-      radii.push(rFromStep);
-      continue;
-    }
-
-    let minGap = 2 * Math.PI;
-    for (let i = 0; i < angles.length; i++) {
-      const next = (i + 1) % angles.length;
-      let gap = angles[next] - angles[i];
-      if (gap <= 0) gap += 2 * Math.PI;
-      if (gap < minGap) minGap = gap;
-    }
-
-    // chord ≈ r·gap for small gaps; exact: 2r·sin(gap/2)
-    const rFromGap = minGap > 0 ? minSpacing / (2 * Math.sin(minGap / 2)) : baseRadius;
-    radii.push(Math.max(rFromGap, rFromStep));
-  }
-
-  // ── Convert to pixel positions ────────────────────────
-  const rawPositions: Record<string, { x: number; y: number }> = {};
-  for (const node of tree) {
-    const d = depthOf.get(node.id)!;
-    const r = radii[d];
-    const a = angleOf.get(node.id)!;
-    rawPositions[node.id] = { x: r * Math.cos(a), y: r * Math.sin(a) };
-  }
-
-  // Shift so every top-left corner is positive, plus padding.
+  // ── Bounding box + padding ───────────────────────────────────────────────
+  const padding = 40;
+  // Extra bottom padding so nodes aren't hidden behind the detail sheet.
+  const bottomPad = 300;
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
   let maxY = -Infinity;
-  for (const p of Object.values(rawPositions)) {
+  for (const p of Object.values(rawPos)) {
     if (p.x - nodeW / 2 < minX) minX = p.x - nodeW / 2;
     if (p.y - nodeH / 2 < minY) minY = p.y - nodeH / 2;
     if (p.x + nodeW / 2 > maxX) maxX = p.x + nodeW / 2;
     if (p.y + nodeH / 2 > maxY) maxY = p.y + nodeH / 2;
   }
-
-  const padding = 40;
-  // Extra bottom padding so nodes aren't hidden behind the detail sheet.
-  const bottomPad = 300;
   const offX = -minX + padding;
   const offY = -minY + padding;
 
   const positions: Record<string, { x: number; y: number }> = {};
-  for (const [id, p] of Object.entries(rawPositions)) {
+  for (const [id, p] of Object.entries(rawPos)) {
     positions[id] = {
       x: Math.round(p.x + offX - nodeW / 2),
       y: Math.round(p.y + offY - nodeH / 2),
     };
   }
 
-  const canvasW = Math.ceil(maxX - minX + 2 * padding);
-  const canvasH = Math.ceil(maxY - minY + padding + bottomPad);
-
-  return { positions, canvasW, canvasH };
+  return {
+    positions,
+    canvasW: Math.ceil(maxX - minX + 2 * padding),
+    canvasH: Math.ceil(maxY - minY + padding + bottomPad),
+  };
 }
 
 // Compute layout once (TECH_TREE is a module-level constant).
@@ -2056,12 +2014,12 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  // On open, scroll the canvas so the root node is centered in the viewport
+  // On open, scroll the canvas so the root node is near the left-center of the viewport
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     const rootCenter = nodeCentre(TECH_TREE.find((d) => d.requires.length === 0)?.id ?? '');
-    el.scrollLeft = rootCenter.x - el.clientWidth / 2;
+    el.scrollLeft = rootCenter.x - NODE_W;
     el.scrollTop = rootCenter.y - el.clientHeight / 2;
   }, []);
 
