@@ -366,6 +366,7 @@ export function processEmberNestSpawns(
       hasConstructedThisTurn: false,
       hasDestroyedThisTurn: false,
       hasCapturedThisTurn: false,
+      hasUsedPostAttackMoveThisTurn: false,
       xp: 0,
       level: 1,
       pinnedUntilTurn: 0,

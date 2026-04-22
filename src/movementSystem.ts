@@ -184,4 +184,9 @@ export function moveUnit(
 
   // Mark unit as having moved this turn
   unit.hasMovedThisTurn = true;
+
+  // HIT_AND_RUN: if this move happens after attacking, consume the post-attack move slot
+  if (unit.hasAttackedThisTurn && unit.tags.includes(UnitTag.HIT_AND_RUN)) {
+    unit.hasUsedPostAttackMoveThisTurn = true;
+  }
 }
