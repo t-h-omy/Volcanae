@@ -447,6 +447,58 @@ function placeRuinsForZone(
   }
 }
 
+/**
+ * Places a random number of ruins (between TERRAIN.RUINS_IN_LAVA_BUFFER_MIN and
+ * TERRAIN.RUINS_IN_LAVA_BUFFER_MAX) in the lava buffer rows.
+ * Ruins are placed by setting tile.isRuin = true on PLAINS tiles.
+ */
+function placeRuinsInLavaBuffer(
+  grid: Tile[][],
+  occupiedPositions: Set<string>
+): void {
+  const startRow = MAP.GRID_HEIGHT - MAP.LAVA_BUFFER_ROWS;
+  const endRow = MAP.GRID_HEIGHT - 1;
+  let placed = 0;
+  const target = randomInRange(TERRAIN.RUINS_IN_LAVA_BUFFER_MIN, TERRAIN.RUINS_IN_LAVA_BUFFER_MAX);
+  let attempts = 0;
+  const maxAttempts = 200;
+
+  while (placed < target && attempts < maxAttempts) {
+    const x = Math.floor(Math.random() * MAP.GRID_WIDTH);
+    const y = startRow + Math.floor(Math.random() * (endRow - startRow + 1));
+    const pos = { x, y };
+
+    if (
+      !isPositionOccupied(pos, occupiedPositions) &&
+      grid[y][x].terrainType === TileType.PLAINS &&
+      !grid[y][x].isRuin
+    ) {
+      grid[y][x].isRuin = true;
+      markPositionOccupied(pos, occupiedPositions);
+      placed++;
+    }
+    attempts++;
+  }
+
+  // Fallback: linear scan for remaining ruins
+  if (placed < target) {
+    for (let y = startRow; y <= endRow && placed < target; y++) {
+      for (let x = 0; x < MAP.GRID_WIDTH && placed < target; x++) {
+        const pos = { x, y };
+        if (
+          !isPositionOccupied(pos, occupiedPositions) &&
+          grid[y][x].terrainType === TileType.PLAINS &&
+          !grid[y][x].isRuin
+        ) {
+          grid[y][x].isRuin = true;
+          markPositionOccupied(pos, occupiedPositions);
+          placed++;
+        }
+      }
+    }
+  }
+}
+
 // ============================================================================
 // CANYON & LAKE GENERATION
 // ============================================================================
@@ -1131,6 +1183,9 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
   for (let zone = 1; zone <= MAP.ZONE_COUNT; zone++) {
     placeRuinsForZone(zone, grid, occupiedPositions);
   }
+
+  // Place ruins in the lava buffer rows (south of zone 1).
+  placeRuinsInLavaBuffer(grid, occupiedPositions);
 
   // Place canyons and lakes per zone (after ruins, so they skip occupied ruin tiles)
   for (let zone = 1; zone <= MAP.ZONE_COUNT; zone++) {

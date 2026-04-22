@@ -450,6 +450,10 @@ export const TERRAIN = {
   RUINS_PER_ZONE_MIN: 7,
   /** Maximum number of ruin tiles placed per zone */
   RUINS_PER_ZONE_MAX: 8,
+  /** Minimum number of ruin tiles placed in the lava buffer rows */
+  RUINS_IN_LAVA_BUFFER_MIN: 2,
+  /** Maximum number of ruin tiles placed in the lava buffer rows */
+  RUINS_IN_LAVA_BUFFER_MAX: 4,
   /**
    * Minimum edge-circle distance from the zone 1 stronghold for the guaranteed
    * forest tile placement in zone 1.
