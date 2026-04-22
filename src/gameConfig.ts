@@ -847,7 +847,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
   CRYSTAL_CHAMBER: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.RUIN,
-    constructionCost: { iron: 3, wood: 2 },
+    constructionCost: { iron: 4, wood: 2 },
     description: 'Arcane resonator. When a Crystal Chamber is consumed by lava, all surviving chambers begin resonating and generate crystals each turn.', // overwritten below
   },
 };
