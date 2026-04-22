@@ -508,6 +508,7 @@ function createEnemyUnit(
     hasCapturedThisTurn: true,
     hasConstructedThisTurn: true,
     hasDestroyedThisTurn: true,
+    hasUsedPostAttackMoveThisTurn: false,
     xp: 0,
     level: 1,
     pinnedUntilTurn: 0,
@@ -2198,6 +2199,7 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
         unit.hasCapturedThisTurn = false;
         unit.hasConstructedThisTurn = false;
         unit.hasDestroyedThisTurn = false;
+        unit.hasUsedPostAttackMoveThisTurn = false;
       }
     }
 

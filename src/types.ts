@@ -157,8 +157,8 @@ export const UnitTag = {
   LANCE_CHARGE: 'LANCE_CHARGE',
   /** Upgraded knight rider with boosted HP and DEF */
   KNIGHT: 'KNIGHT',
-  /** Rider may move after attacking */
-  PURSUIT: 'PURSUIT',
+  /** Rider may move before and after attacking */
+  HIT_AND_RUN: 'HIT_AND_RUN',
   /** Rider with +1 MOV; loses BUILDANDCAPTURE */
   OUTRIDER: 'OUTRIDER',
   /** Archer does not suffer ranged counter-attacks */
@@ -252,6 +252,8 @@ export interface Unit {
   hasConstructedThisTurn: boolean;
   hasDestroyedThisTurn: boolean;
   hasCapturedThisTurn: boolean;
+  /** True after a HIT_AND_RUN unit has used its post-attack move this turn. */
+  hasUsedPostAttackMoveThisTurn: boolean;
   xp: number;
   level: number;
   /** Turn number until which the unit is pinned (cannot move). 0 or absent = not pinned. */

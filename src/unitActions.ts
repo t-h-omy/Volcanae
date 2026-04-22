@@ -83,18 +83,24 @@ export function getNorthermostPlayerY(
  * Blocking rules:
  *   - hasMovedThisTurn: already moved
  *   - any non-move action flag: non-move actions end the unit's turn entirely
- *     EXCEPTION: PURSUIT — a unit with PURSUIT may move after attacking
+ *     EXCEPTION: HIT_AND_RUN — a unit with HIT_AND_RUN may move before AND after attacking
  *
  * Tag rules: none currently.
  * To add a tag that restricts movement, add it here and only here.
  */
 export function canUnitMove(unit: Unit): boolean {
-  if (unit.hasMovedThisTurn) return false;
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasConstructedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
-  // PURSUIT: unit may move even after attacking (but not after any other action)
-  if (unit.hasAttackedThisTurn) return unit.tags.includes(UnitTag.PURSUIT);
+  // HIT_AND_RUN: can move before attacking (if not yet moved) OR after attacking (post-attack move, once per turn)
+  if (unit.tags.includes(UnitTag.HIT_AND_RUN)) {
+    if (unit.hasUsedPostAttackMoveThisTurn) return false;
+    if (unit.hasAttackedThisTurn) return true; // post-attack move available
+    if (unit.hasMovedThisTurn) return false;   // pre-attack move already used
+    return true;
+  }
+  if (unit.hasMovedThisTurn) return false;
+  if (unit.hasAttackedThisTurn) return false;
   return true;
 }
 

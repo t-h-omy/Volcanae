@@ -912,14 +912,14 @@ export const ABILITIES = {
   LANCE_CHARGE_ATTACK_BONUS: 20,
   /** Permanent DEF reduction applied to a unit each time it is hit by a DISTRACTION archer */
   DISTRACTION_DEF_REDUCTION: 8,
+  /** Attack penalty applied to an archer carrying the DISTRACTION tag */
+  DISTRACTION_ATTACK_MOD: -10,
   /** Max HP bonus granted to a unit carrying the ELITE tag */
   ELITE_MAX_HP_BONUS: 20,
-  /** DEF change (negative = penalty) applied to a unit carrying the PURSUIT tag */
-  PURSUIT_DEFENSE_MOD: -15,
+  /** DEF change (negative = penalty) applied to a unit carrying the HIT_AND_RUN tag */
+  HIT_AND_RUN_DEFENSE_MOD: -15,
   /** Max HP bonus granted to a unit carrying the KNIGHT tag */
   KNIGHT_MAX_HP_BONUS: 40,
-  /** DEF bonus granted to a unit carrying the KNIGHT tag */
-  KNIGHT_DEFENSE_BONUS: 15,
   /** Move range bonus granted to SKIRMISHER-tagged archers (Skirmisher tech) */
   SKIRMISHER_MOVE_BONUS: 1,
   /** Move range bonus granted to OUTRIDER-tagged riders (Outriders tech) */
@@ -1061,6 +1061,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 7,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.GUARD, tag: UnitTag.PHALANX },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.GUARD, resource: 'iron', amount: 1 },
     ],
   },
 
@@ -1083,6 +1084,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SCOUT, tag: UnitTag.ASSASSIN },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.SCOUT, resource: 'iron', amount: 1 },
     ],
   },
   {
@@ -1093,6 +1095,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SCOUT, tag: UnitTag.PATCHUP },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.SCOUT, resource: 'wood', amount: 1 },
     ],
   },
 
@@ -1143,13 +1146,14 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.RIDER, tag: UnitTag.LANCE_CHARGE },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.RIDER, resource: 'wood', amount: 1 },
+      { type: 'REMOVE_UNIT_TAG', unitType: UnitType.RIDER, tag: UnitTag.BUILDANDCAPTURE },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.RIDER, resource: 'iron', amount: 1 },
     ],
   },
   {
     id: 'KNIGHTS',
     name: 'Knights',
-    description: `Heavily armoured cavalry with +${ABILITIES.KNIGHT_MAX_HP_BONUS} max HP and +${ABILITIES.KNIGHT_DEFENSE_BONUS} DEF`,
+    description: `Heavily armoured cavalry with +${ABILITIES.KNIGHT_MAX_HP_BONUS} max HP`,
     requires: ['LANCE_CHARGE'],
     cost: 4,
     effects: [
@@ -1158,24 +1162,24 @@ export const TECH_TREE: TechNodeDefinition[] = [
     ],
   },
   {
-    id: 'PURSUIT',
-    name: 'Pursuit',
-    description: `Riders may move after attacking; DEF is reduced by ${Math.abs(ABILITIES.PURSUIT_DEFENSE_MOD)} as a trade-off`,
+    id: 'HIT_AND_RUN',
+    name: 'Hit and Run',
+    description: `Riders can move twice: once before attacking and once after; DEF is reduced by ${Math.abs(ABILITIES.HIT_AND_RUN_DEFENSE_MOD)} as a trade-off`,
     requires: ['LANCE_CHARGE'],
     cost: 4,
     effects: [
-      { type: 'GRANT_UNIT_TAG',  unitType: UnitType.RIDER, tag: UnitTag.PURSUIT },
+      { type: 'GRANT_UNIT_TAG',  unitType: UnitType.RIDER, tag: UnitTag.HIT_AND_RUN },
+      { type: 'UNIT_COST_MOD',   unitType: UnitType.RIDER, resource: 'wood', amount: 1 },
     ],
   },
   {
     id: 'OUTRIDERS',
     name: 'Outriders',
-    description: `Fast raiding cavalry with +${ABILITIES.OUTRIDER_MOVE_BONUS} movement range; loses build & capture`,
-    requires: ['PURSUIT'],
+    description: `Fast raiding cavalry with +${ABILITIES.OUTRIDER_MOVE_BONUS} movement range`,
+    requires: ['HIT_AND_RUN'],
     cost: 7,
     effects: [
       { type: 'GRANT_UNIT_TAG',  unitType: UnitType.RIDER, tag: UnitTag.OUTRIDER },
-      { type: 'REMOVE_UNIT_TAG', unitType: UnitType.RIDER, tag: UnitTag.BUILDANDCAPTURE },
       { type: 'UNIT_COST_MOD',   unitType: UnitType.RIDER, resource: 'wood', amount: 1 },
     ],
   },
@@ -1184,7 +1188,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'COVER',
     name: 'Cover',
-    description: 'Archers fire from cover and suffer no counter-attacks from ranged enemies.',
+    description: 'Ranged enemy units cannot counter-attack.',
     requires: ['FAR_REACH'],
     cost: 4,
     effects: [
@@ -1195,11 +1199,12 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'SKIRMISHER',
     name: 'Skirmisher',
-    description: `Archers gain +${ABILITIES.SKIRMISHER_MOVE_BONUS} movement range to reposition quickly`,
+    description: `Archers gain +${ABILITIES.SKIRMISHER_MOVE_BONUS} movement range`,
     requires: ['COVER'],
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.ARCHER, tag: UnitTag.SKIRMISHER },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.ARCHER, resource: 'wood', amount: 1 },
     ],
   },
   {
@@ -1216,11 +1221,12 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'DISTRACTION',
     name: 'Distraction',
-    description: `Each archer hit permanently reduces the target's DEF by ${ABILITIES.DISTRACTION_DEF_REDUCTION}`,
+    description: `Each archer hit permanently reduces the target's DEF by ${ABILITIES.DISTRACTION_DEF_REDUCTION} and ATK by ${Math.abs(ABILITIES.DISTRACTION_ATTACK_MOD)}`,
     requires: ['PIN_DOWN'],
     cost: 7,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.ARCHER, tag: UnitTag.DISTRACTION },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.ARCHER, resource: 'iron', amount: 1 },
     ],
   },
 
@@ -1253,9 +1259,9 @@ export const TAG_STAT_EFFECTS: Partial<Record<UnitTag, StatModifier[]>> = {
   [UnitTag.ELITE]:   [{ stat: 'maxHp',   mode: 'add', value: ABILITIES.ELITE_MAX_HP_BONUS }],
   [UnitTag.KNIGHT]:  [
     { stat: 'maxHp',   mode: 'add', value: ABILITIES.KNIGHT_MAX_HP_BONUS },
-    { stat: 'defense', mode: 'add', value: ABILITIES.KNIGHT_DEFENSE_BONUS },
   ],
-  [UnitTag.PURSUIT]: [{ stat: 'defense', mode: 'add', value: ABILITIES.PURSUIT_DEFENSE_MOD }],
+  [UnitTag.HIT_AND_RUN]: [{ stat: 'defense', mode: 'add', value: ABILITIES.HIT_AND_RUN_DEFENSE_MOD }],
+  [UnitTag.DISTRACTION]: [{ stat: 'attack', mode: 'add', value: ABILITIES.DISTRACTION_ATTACK_MOD }],
 };
 
 // ============================================================================
@@ -1278,13 +1284,13 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string }> = {
   [UnitTag.PASSIVE]:           { label: 'Passive',           desc: 'Cannot initiate attacks. Still defends at full effectiveness when attacked by enemies.' },
   // ── Deep tech tree tags ──────────────────────────────────────────────────────
   [UnitTag.LANCE_CHARGE]:      { label: 'Lance Charge',      desc: `Gains +${ABILITIES.LANCE_CHARGE_ATTACK_BONUS} attack when striking without having moved this turn.` },
-  [UnitTag.KNIGHT]:            { label: 'Knight',            desc: `Heavily armoured cavalry with +${ABILITIES.KNIGHT_MAX_HP_BONUS} max HP and +${ABILITIES.KNIGHT_DEFENSE_BONUS} DEF.` },
-  [UnitTag.PURSUIT]:           { label: 'Pursuit',           desc: `May move after attacking (in the same turn). DEF is reduced by ${Math.abs(ABILITIES.PURSUIT_DEFENSE_MOD)} as a trade-off for the added mobility.` },
-  [UnitTag.OUTRIDER]:          { label: 'Outrider',          desc: `+${ABILITIES.OUTRIDER_MOVE_BONUS} movement range. Cannot construct buildings or capture. Optimised for deep raids.` },
-  [UnitTag.COVER]:             { label: 'Cover',             desc: 'Attacks do not trigger ranged counter-attacks from the defender.' },
-  [UnitTag.SKIRMISHER]:        { label: 'Skirmisher',        desc: `+${ABILITIES.SKIRMISHER_MOVE_BONUS} movement range. Archer can reposition quickly after engaging.` },
+  [UnitTag.KNIGHT]:            { label: 'Knight',            desc: `Heavily armoured cavalry with +${ABILITIES.KNIGHT_MAX_HP_BONUS} max HP.` },
+  [UnitTag.HIT_AND_RUN]:       { label: 'Hit and Run',       desc: `Can move twice: once before attacking and once after. DEF is reduced by ${Math.abs(ABILITIES.HIT_AND_RUN_DEFENSE_MOD)} as a trade-off for the added mobility.` },
+  [UnitTag.OUTRIDER]:          { label: 'Outrider',          desc: `+${ABILITIES.OUTRIDER_MOVE_BONUS} movement range. Optimised for deep raids.` },
+  [UnitTag.COVER]:             { label: 'Cover',             desc: 'Ranged enemy units cannot counter-attack.' },
+  [UnitTag.SKIRMISHER]:        { label: 'Skirmisher',        desc: `+${ABILITIES.SKIRMISHER_MOVE_BONUS} movement range.` },
   [UnitTag.PIN_DOWN]:          { label: 'Pin Down',          desc: 'Attacks leave the target pinned — it cannot move on its next action.' },
-  [UnitTag.DISTRACTION]:       { label: 'Distraction',       desc: `Each hit permanently reduces the target's DEF by ${ABILITIES.DISTRACTION_DEF_REDUCTION}.` },
+  [UnitTag.DISTRACTION]:       { label: 'Distraction',       desc: `Each hit permanently reduces the target's DEF by ${ABILITIES.DISTRACTION_DEF_REDUCTION} and ATK by ${Math.abs(ABILITIES.DISTRACTION_ATTACK_MOD)}.` },
   [UnitTag.PREVENTIVE_STRIKE]: { label: 'Preventive Strike', desc: 'Fires instantly at any enemy unit that moves into attack range during the enemy\'s turn.' },
   [UnitTag.ELITE]:             { label: 'Elite',             desc: `+${ABILITIES.ELITE_MAX_HP_BONUS} max HP. Elite unit forged in the noble tradition.` },
 };

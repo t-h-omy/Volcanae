@@ -450,6 +450,7 @@ export function recruitUnit(
     hasCapturedThisTurn: true,
     hasConstructedThisTurn: true,
     hasDestroyedThisTurn: true,
+    hasUsedPostAttackMoveThisTurn: false,
     xp: 0,
     level: 1,
     pinnedUntilTurn: 0,
