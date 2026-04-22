@@ -41,10 +41,12 @@ export function getReachableTiles(
   const unitPosition = unit.position;
   let moveRange = unit.stats.moveRange;
 
-  // SKIRMISHER / OUTRIDER tags: +1 movement range
+  // SKIRMISHER / OUTRIDER tags: bonus movement range
   if (unit.faction === Faction.PLAYER) {
-    if (unit.tags.includes(UnitTag.SKIRMISHER) || unit.tags.includes(UnitTag.OUTRIDER)) {
-      moveRange += 1;
+    if (unit.tags.includes(UnitTag.SKIRMISHER)) {
+      moveRange += ABILITIES.SKIRMISHER_MOVE_BONUS;
+    } else if (unit.tags.includes(UnitTag.OUTRIDER)) {
+      moveRange += ABILITIES.OUTRIDER_MOVE_BONUS;
     }
   }
 

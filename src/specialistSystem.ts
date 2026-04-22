@@ -34,19 +34,20 @@ import { BUILDINGS } from './gameConfig';
  * These are not yet in globalSpecialistStorage - player must find them.
  */
 export function createInitialSpecialists(): Record<string, Specialist> {
+  const spec01Params = { hpMultiplier: 1.2, attackMultiplier: 0.8 };
+  const spec02Params = { range: 10, healPercent: 0.2, defensePenalty: 0.25 };
+  const spec05Params = { range: 10, woodGrant: 3, lavaSpeedup: 1 };
+
   return {
     spec_01: {
       id: 'spec_01',
       name: 'Iron Forgemaster',
       description:
-        'Units recruited here have +20% max HP and -20% attack.',
+        `Units recruited here have +${Math.round((spec01Params.hpMultiplier - 1) * 100)}% max HP and -${Math.round((1 - spec01Params.attackMultiplier) * 100)}% attack.`,
       effects: [
         {
           type: 'RECRUIT_STAT_MOD',
-          params: {
-            hpMultiplier: 1.2,
-            attackMultiplier: 0.8,
-          },
+          params: spec01Params,
         },
       ],
       assignedBuildingId: null,
@@ -55,15 +56,11 @@ export function createInitialSpecialists(): Record<string, Specialist> {
       id: 'spec_02',
       name: 'Lava Warden',
       description:
-        'Units within range 10 heal 20% max HP at turn start but have -25% defense that turn.',
+        `Units within range ${spec02Params.range} heal ${Math.round(spec02Params.healPercent * 100)}% max HP at turn start but have -${Math.round(spec02Params.defensePenalty * 100)}% defense that turn.`,
       effects: [
         {
           type: 'AOE_HEAL_WITH_DEFENSE_PENALTY',
-          params: {
-            range: 10,
-            healPercent: 0.2,
-            defensePenalty: 0.25,
-          },
+          params: spec02Params,
         },
       ],
       assignedBuildingId: null,
@@ -102,15 +99,11 @@ export function createInitialSpecialists(): Record<string, Specialist> {
       id: 'spec_05',
       name: 'Ash Harvester',
       description:
-        'Buildings destroyed by lava within range 10 grant 3 wood. Lava advances 1 turn faster.',
+        `Buildings destroyed by lava within range ${spec05Params.range} grant ${spec05Params.woodGrant} wood. Lava advances ${spec05Params.lavaSpeedup} turn faster.`,
       effects: [
         {
           type: 'LAVA_HARVEST',
-          params: {
-            range: 10,
-            woodGrant: 3,
-            lavaSpeedup: 1,
-          },
+          params: spec05Params,
         },
       ],
       assignedBuildingId: null,

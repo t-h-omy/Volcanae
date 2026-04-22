@@ -575,7 +575,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
-    description: 'Ranged attacker that strikes from 2 tiles away without stepping into melee range.',
+    description: 'Ranged attacker that strikes from 2 tiles away without stepping into melee range.', // overwritten below
   },
 
   RIDER: {
@@ -589,7 +589,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
-    description: 'Swift cavalry that covers 2 tiles per move to outflank and pressure the enemy.',
+    description: 'Swift cavalry that covers 2 tiles per move to outflank and pressure the enemy.', // overwritten below
   },
 
   SIEGE: {
@@ -603,7 +603,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
-    description: 'Long-range bombard with 3-tile reach; cannot fire in the same turn it moves.',
+    description: 'Long-range bombard with 3-tile reach; cannot fire in the same turn it moves.', // overwritten below
   },
 
   SCOUT: {
@@ -661,7 +661,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
     enemyUnlockEmber: 1,
-    description: 'Enemy ranged unit that attacks from 2 tiles away.',
+    description: 'Enemy ranged unit that attacks from 2 tiles away.', // overwritten below
   },
 
   LAVA_RIDER: {
@@ -676,7 +676,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
     enemyUnlockEmber: 3,
-    description: 'Enemy fast cavalry that covers 2 tiles per move.',
+    description: 'Enemy fast cavalry that covers 2 tiles per move.', // overwritten below
   },
 
   LAVA_SIEGE: {
@@ -691,7 +691,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
     enemyUnlockEmber: 5,
-    description: 'Enemy long-range bombard with 3-tile reach.',
+    description: 'Enemy long-range bombard with 3-tile reach.', // overwritten below
   },
 
   EMBERLING: {
@@ -707,9 +707,21 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_EMBERLING }] },
     ],
     enemyUnlockEmber: 1,
-    description: 'Fragile fire spirit that walks toward lava. Explodes on death, dealing heavy damage to all nearby enemies.',
+    description: 'Fragile fire spirit that walks toward lava. Explodes on death, dealing heavy damage to all nearby enemies.', // overwritten below
   },
 };
+
+// Compute descriptions for UNIT_DEFINITIONS entries that reference their own stats
+{
+  const u = UNIT_DEFINITIONS;
+  u.ARCHER.description      = `Ranged attacker that strikes from ${u.ARCHER.attackRange} tiles away without stepping into melee range.`;
+  u.RIDER.description       = `Swift cavalry that covers ${u.RIDER.moveRange} tiles per move to outflank and pressure the enemy.`;
+  u.SIEGE.description       = `Long-range bombard with ${u.SIEGE.attackRange}-tile reach; cannot fire in the same turn it moves.`;
+  u.LAVA_ARCHER.description = `Enemy ranged unit that attacks from ${u.LAVA_ARCHER.attackRange} tiles away.`;
+  u.LAVA_RIDER.description  = `Enemy fast cavalry that covers ${u.LAVA_RIDER.moveRange} tiles per move.`;
+  u.LAVA_SIEGE.description  = `Enemy long-range bombard with ${u.LAVA_SIEGE.attackRange}-tile reach.`;
+  u.EMBERLING.description   = `Fragile fire spirit that walks toward lava. Explodes on death, dealing ${u.EMBERLING.explosionDamage} damage to all units within 1 tile.`;
+}
 
 // ============================================================================
 // BUILDING DEFINITIONS — single source of truth per building type
@@ -749,13 +761,13 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.NONE,
     constructionCost: { iron: 0, wood: 2 },
-    description: 'Produces iron every turn, the primary resource for training units.',
+    description: 'Produces iron every turn, the primary resource for training units.', // overwritten below
   },
   WOODCUTTER: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.NONE,
     constructionCost: { iron: 0, wood: 0 },
-    description: 'Produces wood every turn, used alongside iron for buildings and recruitment.',
+    description: 'Produces wood every turn, used alongside iron for buildings and recruitment.', // overwritten below
   },
   BARRACKS: {
     discoverRadius: 2,
@@ -786,14 +798,14 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     destroyBehavior: DestroyBehavior.RUIN,
     constructionCost: { iron: 0, wood: 0 },
     combatStats: { maxHp: 150, attack: 50, defense: 65, attackRange: 3 },
-    description: 'Defensive tower that attacks enemies within 3 tiles and expands your vision.',
+    description: 'Defensive tower that attacks enemies within 3 tiles and expands your vision.', // overwritten below
   },
   OUTPOST: {
     discoverRadius: 3,
     destroyBehavior: DestroyBehavior.NONE,
     constructionCost: { iron: 0, wood: 0 },
     combatStats: { maxHp: 200, attack: 40, defense: 55, attackRange: 2 },
-    description: 'Field fortification built by Infantry via Fieldwork. Attacks enemies within 2 tiles. Starting HP is based on the building unit\'s current HP, capped at 200.',
+    description: 'Field fortification built by Infantry via Fieldwork. Attacks enemies within 2 tiles. Starting HP is based on the building unit\'s current HP, capped at 200.', // overwritten below
   },
   LAVALAIR: {
     discoverRadius: 2,
@@ -824,21 +836,33 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     destroyBehavior: DestroyBehavior.RESOURCE,
     constructionCost: { iron: 0, wood: 0 },
     combatStats: { maxHp: 120, attack: 30, defense: 50, attackRange: 2, maxAttacksPerTurn: 2 },
-    description: 'Corrupted mountain spire that attacks nearby units multiple times per turn.',
+    description: 'Corrupted mountain spire that attacks nearby units multiple times per turn.', // overwritten below
   },
   EMBERNEST: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.RESOURCE,
     constructionCost: { iron: 0, wood: 0 },
-    description: 'Corrupted forest nest that periodically spawns Emberlings.',
+    description: 'Corrupted forest nest that periodically spawns Emberlings.', // overwritten below
   },
   CRYSTAL_CHAMBER: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.RUIN,
     constructionCost: { iron: 3, wood: 2 },
-    description: 'Arcane resonator. When a Crystal Chamber is consumed by lava, all surviving chambers begin resonating and generate crystals each turn.',
+    description: 'Arcane resonator. When a Crystal Chamber is consumed by lava, all surviving chambers begin resonating and generate crystals each turn.', // overwritten below
   },
 };
+
+// Compute descriptions for BUILDING_DEFINITIONS entries that reference their own stats or config constants
+{
+  const b = BUILDING_DEFINITIONS;
+  b.MINE.description       = `Produces ${RESOURCES.MINE_IRON_PER_TURN} iron per turn, the primary resource for training units.`;
+  b.WOODCUTTER.description = `Produces ${RESOURCES.WOODCUTTER_WOOD_PER_TURN} wood per turn, used alongside iron for buildings and recruitment.`;
+  b.WATCHTOWER.description = `Defensive tower that attacks enemies within ${b.WATCHTOWER.combatStats!.attackRange} tiles and expands your vision.`;
+  b.OUTPOST.description    = `Field fortification built by Infantry via Fieldwork. Attacks enemies within ${b.OUTPOST.combatStats!.attackRange} tiles. Starting HP is based on the building unit's current HP, capped at ${b.OUTPOST.combatStats!.maxHp}.`;
+  b.MAGMASPYR.description  = `Corrupted mountain spire that attacks nearby units up to ${b.MAGMASPYR.combatStats!.maxAttacksPerTurn} times per turn.`;
+  b.EMBERNEST.description  = `Corrupted forest nest that spawns Emberlings every ${LAVA_LAIR.EMBER_NEST_SPAWN_INTERVAL} turns.`;
+  b.CRYSTAL_CHAMBER.description = `Arcane resonator. When a Crystal Chamber is consumed by lava, all surviving chambers begin resonating and generate ${CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN} crystal${CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN !== 1 ? 's' : ''} per turn.`;
+}
 
 export const TECH = {
   /** Number of crystals granted at game start (before first lava consumption) */
@@ -856,6 +880,49 @@ export const TECH = {
 export function computeResearchCost(baseCost: number, ember: number): number {
   return baseCost + ember;
 }
+
+// ============================================================================
+// ABILITIES — Balance-tunable constants for tag/flag-based abilities
+// (Placed before TECH_TREE so node descriptions can reference these values.)
+// ============================================================================
+
+export const ABILITIES = {
+  /** Damage multiplier applied when ASSASSIN tag attacks a full-HP target */
+  ASSASSIN_DAMAGE_MULTIPLIER: 3,
+  /** Flat defense bonus applied when HOLD_GROUND flag is active and unit stands on own building */
+  HOLD_GROUND_DEFENSE_BONUS: 20,
+  /** Extra move range granted by TO_THE_FRONT flag */
+  TO_THE_FRONT_MOVE_BONUS: 1,
+  /** Minimum tile distance from lava front required for TO_THE_FRONT bonus to apply */
+  TO_THE_FRONT_MIN_DISTANCE: 7,
+  /** HP restored per PATCHUP heal action */
+  PATCHUP_HEAL_AMOUNT: 50,
+  /** Multiplier applied to the building unit's currentHp to determine the Outpost's starting HP */
+  FIELDWORK_HP_MULTIPLIER: 3,
+  /** Defense bonus granted to each adjacent friendly unit by a PHALANX tag carrier */
+  PHALANX_DEFENSE_BONUS_PER_CARRIER: 8,
+  /** Attack bonus gained by a PHALANX unit per adjacent friendly unit */
+  PHALANX_ATTACK_BONUS_PER_ALLY: 5,
+  // ── Deep tech tree abilities ─────────────────────────────────────────────────
+  /** Flat attack bonus for a LANCE_CHARGE unit that attacks without having moved */
+  LANCE_CHARGE_ATTACK_BONUS: 20,
+  /** Permanent DEF reduction applied to a unit each time it is hit by a DISTRACTION archer */
+  DISTRACTION_DEF_REDUCTION: 8,
+  /** Max HP bonus granted to a unit carrying the ELITE tag */
+  ELITE_MAX_HP_BONUS: 20,
+  /** DEF change (negative = penalty) applied to a unit carrying the PURSUIT tag */
+  PURSUIT_DEFENSE_MOD: -15,
+  /** Max HP bonus granted to a unit carrying the KNIGHT tag */
+  KNIGHT_MAX_HP_BONUS: 40,
+  /** DEF bonus granted to a unit carrying the KNIGHT tag */
+  KNIGHT_DEFENSE_BONUS: 15,
+  /** Move range bonus granted to SKIRMISHER-tagged archers (Skirmisher tech) */
+  SKIRMISHER_MOVE_BONUS: 1,
+  /** Move range bonus granted to OUTRIDER-tagged riders (Outriders tech) */
+  OUTRIDER_MOVE_BONUS: 1,
+  /** Discover radius bonus granted to Scouts by the BIG_EYES tech */
+  SCOUT_DISCOVER_BONUS: 1,
+} as const;
 
 // ============================================================================
 // TECH TREE CONFIGURATION
@@ -943,7 +1010,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'TO_THE_FRONT',
     name: 'To the Front',
-    description: 'Units far from the front line move faster',
+    description: `Units more than ${ABILITIES.TO_THE_FRONT_MIN_DISTANCE} tiles behind the front gain +${ABILITIES.TO_THE_FRONT_MOVE_BONUS} movement range`,
     requires: ['CLEAN_CUTS'],
     cost: 7,
     effects: [
@@ -965,7 +1032,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'HOLD_GROUND',
     name: 'Hold Ground',
-    description: 'Units on own buildings gain a defense bonus',
+    description: `Units on own buildings gain +${ABILITIES.HOLD_GROUND_DEFENSE_BONUS} defense`,
     requires: ['FIELD_DUTIES'],
     cost: 4,
     effects: [
@@ -975,7 +1042,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'FIELDWORK',
     name: 'Fieldwork',
-    description: 'Infantry can sacrifice themselves to construct an Outpost',
+    description: `Infantry can sacrifice themselves to build an Outpost (starting HP = unit HP × ${ABILITIES.FIELDWORK_HP_MULTIPLIER})`,
     requires: ['FIELD_DUTIES'],
     cost: 4,
     effects: [
@@ -985,7 +1052,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'PHALANX_FORMATION',
     name: 'Phalanx Formation',
-    description: 'Guards in formation bolster each other — gaining attack and granting defense to nearby allies',
+    description: `Guards in formation grant +${ABILITIES.PHALANX_DEFENSE_BONUS_PER_CARRIER} defense to each adjacent ally and gain +${ABILITIES.PHALANX_ATTACK_BONUS_PER_ALLY} attack per adjacent ally`,
     requires: ['HOLD_GROUND'],
     cost: 7,
     effects: [
@@ -997,17 +1064,17 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'BIG_EYES',
     name: 'Big Eyes',
-    description: 'Scouts see further into the fog',
+    description: `Scouts gain +${ABILITIES.SCOUT_DISCOVER_BONUS} discover radius, seeing further into the fog`,
     requires: ['CONSCRIPTION'],
     cost: 2,
     effects: [
-      { type: 'UNIT_STAT_MOD', unitType: UnitType.SCOUT, stat: 'discoverRadius', mode: 'add', value: 1 },
+      { type: 'UNIT_STAT_MOD', unitType: UnitType.SCOUT, stat: 'discoverRadius', mode: 'add', value: ABILITIES.SCOUT_DISCOVER_BONUS },
     ],
   },
   {
     id: 'ASSASSIN',
     name: 'Assassin',
-    description: 'Scouts deal bonus damage with no retaliation damage when striking full-HP enemies',
+    description: `Scouts deal ${ABILITIES.ASSASSIN_DAMAGE_MULTIPLIER}× damage and receive no retaliation when striking a full-HP enemy`,
     requires: ['BIG_EYES'],
     cost: 4,
     effects: [
@@ -1017,7 +1084,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'PATCH_UP',
     name: 'Patch Up',
-    description: 'Scouts can heal adjacent friendly units',
+    description: `Scouts can spend their action to restore ${ABILITIES.PATCHUP_HEAL_AMOUNT} HP on one adjacent friendly unit`,
     requires: ['BIG_EYES'],
     cost: 4,
     effects: [
@@ -1053,7 +1120,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'NOBLE_HERITAGE',
     name: 'Noble Heritage',
-    description: 'Veteran nobility instils resilience in your elite units',
+    description: `Grants the ELITE tag to Riders, Guards, and Siege engines — each gaining +${ABILITIES.ELITE_MAX_HP_BONUS} max HP`,
     requires: ['CITADEL'],
     cost: 7,
     effects: [
@@ -1067,7 +1134,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'LANCE_CHARGE',
     name: 'Lance Charge',
-    description: 'Riders strike harder when they have not yet moved this turn',
+    description: `Riders gain +${ABILITIES.LANCE_CHARGE_ATTACK_BONUS} attack when striking without having moved this turn`,
     requires: ['A_NOBLE_STEAD'],
     cost: 4,
     effects: [
@@ -1078,7 +1145,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'KNIGHTS',
     name: 'Knights',
-    description: 'Heavily armoured cavalry with increased HP',
+    description: `Heavily armoured cavalry with +${ABILITIES.KNIGHT_MAX_HP_BONUS} max HP and +${ABILITIES.KNIGHT_DEFENSE_BONUS} DEF`,
     requires: ['LANCE_CHARGE'],
     cost: 4,
     effects: [
@@ -1089,7 +1156,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'PURSUIT',
     name: 'Pursuit',
-    description: 'Riders may move after attacking, but suffer reduced defence',
+    description: `Riders may move after attacking; DEF is reduced by ${Math.abs(ABILITIES.PURSUIT_DEFENSE_MOD)} as a trade-off`,
     requires: ['LANCE_CHARGE'],
     cost: 4,
     effects: [
@@ -1099,7 +1166,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'OUTRIDERS',
     name: 'Outriders',
-    description: 'Fast raiding cavalry with extended movement; loses build & capture',
+    description: `Fast raiding cavalry with +${ABILITIES.OUTRIDER_MOVE_BONUS} movement range; loses build & capture`,
     requires: ['PURSUIT'],
     cost: 7,
     effects: [
@@ -1124,7 +1191,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'SKIRMISHER',
     name: 'Skirmisher',
-    description: 'Archers gain +1 movement range to reposition quickly',
+    description: `Archers gain +${ABILITIES.SKIRMISHER_MOVE_BONUS} movement range to reposition quickly`,
     requires: ['COVER'],
     cost: 4,
     effects: [
@@ -1145,7 +1212,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'DISTRACTION',
     name: 'Distraction',
-    description: 'Each archer hit permanently chips away at the target\'s defence',
+    description: `Each archer hit permanently reduces the target's DEF by ${ABILITIES.DISTRACTION_DEF_REDUCTION}`,
     requires: ['PIN_DOWN'],
     cost: 7,
     effects: [
@@ -1167,42 +1234,6 @@ export const TECH_TREE: TechNodeDefinition[] = [
   },
 
 ];
-
-// ============================================================================
-// ABILITIES — Balance-tunable constants for tag/flag-based abilities
-// ============================================================================
-
-export const ABILITIES = {
-  /** Damage multiplier applied when ASSASSIN tag attacks a full-HP target */
-  ASSASSIN_DAMAGE_MULTIPLIER: 3,
-  /** Flat defense bonus applied when HOLD_GROUND flag is active and unit stands on own building */
-  HOLD_GROUND_DEFENSE_BONUS: 20,
-  /** Extra move range granted by TO_THE_FRONT flag */
-  TO_THE_FRONT_MOVE_BONUS: 1,
-  /** Minimum tile distance from lava front required for TO_THE_FRONT bonus to apply */
-  TO_THE_FRONT_MIN_DISTANCE: 7,
-  /** HP restored per PATCHUP heal action */
-  PATCHUP_HEAL_AMOUNT: 50,
-  /** Multiplier applied to the building unit's currentHp to determine the Outpost's starting HP */
-  FIELDWORK_HP_MULTIPLIER: 3,
-  /** Defense bonus granted to each adjacent friendly unit by a PHALANX tag carrier */
-  PHALANX_DEFENSE_BONUS_PER_CARRIER: 8,
-  /** Attack bonus gained by a PHALANX unit per adjacent friendly unit */
-  PHALANX_ATTACK_BONUS_PER_ALLY: 5,
-  // ── Deep tech tree abilities ─────────────────────────────────────────────────
-  /** Flat attack bonus for a LANCE_CHARGE unit that attacks without having moved */
-  LANCE_CHARGE_ATTACK_BONUS: 20,
-  /** Permanent DEF reduction applied to a unit each time it is hit by a DISTRACTION archer */
-  DISTRACTION_DEF_REDUCTION: 8,
-  /** Max HP bonus granted to a unit carrying the ELITE tag */
-  ELITE_MAX_HP_BONUS: 20,
-  /** DEF change (negative = penalty) applied to a unit carrying the PURSUIT tag */
-  PURSUIT_DEFENSE_MOD: -15,
-  /** Max HP bonus granted to a unit carrying the KNIGHT tag */
-  KNIGHT_MAX_HP_BONUS: 40,
-  /** DEF bonus granted to a unit carrying the KNIGHT tag */
-  KNIGHT_DEFENSE_BONUS: 15,
-} as const;
 
 // ============================================================================
 // TAG STAT EFFECTS — stat modifiers applied when a tag is granted to a unit
@@ -1245,9 +1276,9 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string }> = {
   [UnitTag.LANCE_CHARGE]:      { label: 'Lance Charge',      desc: `Gains +${ABILITIES.LANCE_CHARGE_ATTACK_BONUS} attack when striking without having moved this turn.` },
   [UnitTag.KNIGHT]:            { label: 'Knight',            desc: `Heavily armoured cavalry with +${ABILITIES.KNIGHT_MAX_HP_BONUS} max HP and +${ABILITIES.KNIGHT_DEFENSE_BONUS} DEF.` },
   [UnitTag.PURSUIT]:           { label: 'Pursuit',           desc: `May move after attacking (in the same turn). DEF is reduced by ${Math.abs(ABILITIES.PURSUIT_DEFENSE_MOD)} as a trade-off for the added mobility.` },
-  [UnitTag.OUTRIDER]:          { label: 'Outrider',          desc: '+1 movement range. Cannot construct buildings or capture. Optimised for deep raids.' },
+  [UnitTag.OUTRIDER]:          { label: 'Outrider',          desc: `+${ABILITIES.OUTRIDER_MOVE_BONUS} movement range. Cannot construct buildings or capture. Optimised for deep raids.` },
   [UnitTag.COVER]:             { label: 'Cover',             desc: 'Attacks do not trigger ranged counter-attacks from the defender.' },
-  [UnitTag.SKIRMISHER]:        { label: 'Skirmisher',        desc: '+1 movement range. Archer can reposition quickly after engaging.' },
+  [UnitTag.SKIRMISHER]:        { label: 'Skirmisher',        desc: `+${ABILITIES.SKIRMISHER_MOVE_BONUS} movement range. Archer can reposition quickly after engaging.` },
   [UnitTag.PIN_DOWN]:          { label: 'Pin Down',          desc: 'Attacks leave the target pinned — it cannot move on its next action.' },
   [UnitTag.DISTRACTION]:       { label: 'Distraction',       desc: `Each hit permanently reduces the target's DEF by ${ABILITIES.DISTRACTION_DEF_REDUCTION}.` },
   [UnitTag.PREVENTIVE_STRIKE]: { label: 'Preventive Strike', desc: 'Fires instantly at any enemy unit that moves into attack range during the enemy\'s turn.' },
