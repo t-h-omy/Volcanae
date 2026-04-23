@@ -973,12 +973,13 @@ function TileCellInner({
         </div>
       )}
 
-      {/* population badge for FARM and PATRICIANHOUSE */}
-      {showPopulation && building && (
-        <div className="population-badge">
-          {building.populationCount}/{building.populationCap}
-        </div>
-      )}
+      {/* population badge for FARM, PATRICIANHOUSE, and STRONGHOLD */}
+      {showPopulation && building && (() => {
+        const popCount = building.type === BuildingType.STRONGHOLD
+          ? building.populationCount + building.strongholdNobles
+          : building.populationCount;
+        return <div className="population-badge">{popCount}/{building.populationCap}</div>;
+      })()}
 
       {/* unit rendering */}
       {showUnit && unit && <UnitBadge unit={unit} tileSize={tileSize} />}
