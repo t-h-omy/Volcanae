@@ -7,20 +7,34 @@ import type { GameState, Position } from './types';
 import type { Draft } from 'immer';
 import { BuildingType, Faction, TechFlag, TileType, UnitTag } from './types';
 import { MAP, ABILITIES } from './gameConfig';
-import { getTilesWithinEdgeCircleRange } from './rangeUtils';
 
 // ============================================================================
 // MOVEMENT CALCULATIONS
 // ============================================================================
 
+// 8-directional movement vectors shared by getReachableTiles and other helpers.
+const MOVE_DIRECTIONS: [number, number][] = [
+  [-1, -1], [0, -1], [1, -1],
+  [-1,  0],          [1,  0],
+  [-1,  1], [0,  1], [1,  1],
+];
+
 /**
  * Gets all tiles that a unit can reach from its current position.
- * A tile is reachable if:
- * - It is within the unit's move range (edge-circle range)
- * - It has been discovered / revealed (player units only)
- * - It is not a lava tile (player units only — enemy units may enter lava)
- * - It is not occupied by another unit
- * - The unit has not already moved this turn
+ *
+ * Uses an 8-directional BFS flood-fill so that impassable terrain (CANYON,
+ * WATER) blocks traversal — a unit can no longer "jump over" a single-tile
+ * canyon by exploiting a geometric range check.
+ *
+ * A tile is reachable if a path exists (within moveRange steps) where every
+ * intermediate and destination tile satisfies:
+ * - Not a CANYON or WATER tile (impassable for all units)
+ * - Not an undiscovered tile (player units only)
+ * - Not a lava tile (player units only — enemy units may enter lava)
+ * - Not occupied by another unit
+ * - Not occupied by a combat building, except neutral watchtowers (capturable)
+ *
+ * The unit must also not have already moved this turn.
  *
  * @param state - Current game state
  * @param unitId - ID of the unit to check movement for
@@ -37,7 +51,6 @@ export function getReachableTiles(
     return [];
   }
 
-  const reachableTiles: Position[] = [];
   const unitPosition = unit.position;
   let moveRange = unit.stats.moveRange;
 
@@ -64,58 +77,60 @@ export function getReachableTiles(
     }
   }
 
-  // Get candidate tiles using the edge-circle range system
-  const candidates = getTilesWithinEdgeCircleRange(
-    unitPosition.x,
-    unitPosition.y,
-    moveRange,
-    MAP.GRID_WIDTH,
-    MAP.GRID_HEIGHT,
-  );
+  // BFS flood-fill: each step costs 1 movement point.
+  // CANYON/WATER tiles block traversal — units cannot pass through them even
+  // when the destination itself is a valid tile on the far side.
+  const visited = new Set<string>();
+  const queue: Array<{ x: number; y: number; steps: number }> = [
+    { x: unitPosition.x, y: unitPosition.y, steps: 0 },
+  ];
+  visited.add(`${unitPosition.x},${unitPosition.y}`);
+  let head = 0;
 
-  for (const { x: tx, y: ty } of candidates) {
-    // Skip the unit's current position (source tile is included by getTilesWithinEdgeCircleRange)
-    if (tx === unitPosition.x && ty === unitPosition.y) {
-      continue;
-    }
+  const reachableTiles: Position[] = [];
 
-    const tile = state.grid[ty][tx];
+  while (head < queue.length) {
+    const { x, y, steps } = queue[head++];
+    if (steps >= moveRange) continue;
 
-    // Cannot move onto CANYON or WATER tiles (impassable for all units)
-    if (tile.terrainType === TileType.CANYON || tile.terrainType === TileType.WATER) {
-      continue;
-    }
+    for (const [dx, dy] of MOVE_DIRECTIONS) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;
 
-    // Cannot move onto undiscovered tiles (player units only)
-    if (!tile.isRevealed && unit.faction === Faction.PLAYER) {
-      continue;
-    }
+      const nkey = `${nx},${ny}`;
+      if (visited.has(nkey)) continue;
+      visited.add(nkey);
 
-    // Cannot move into lava tiles (player units only — enemy units may enter lava)
-    if (tile.isLava && unit.faction === Faction.PLAYER) {
-      continue;
-    }
+      const tile = state.grid[ny][nx];
 
-    // Cannot move onto tiles occupied by another unit
-    if (tile.unitId !== null) {
-      continue;
-    }
+      // CANYON/WATER: impassable — cannot enter or traverse
+      if (tile.terrainType === TileType.CANYON || tile.terrainType === TileType.WATER) continue;
 
-    // Cannot move onto tiles occupied by a building that has combat stats,
-    // except for neutral watchtowers which can be moved onto (to capture them).
-    // Owned watchtowers (player or enemy) block movement like other combat buildings.
-    if (tile.buildingId !== null) {
-      const tileBuilding = state.buildings[tile.buildingId];
-      if (tileBuilding && tileBuilding.combatStats !== null) {
-        const isNeutralWatchtower =
-          tileBuilding.type === BuildingType.WATCHTOWER && tileBuilding.faction === null;
-        if (!isNeutralWatchtower) {
-          continue;
+      // Cannot enter undiscovered tiles (player units only)
+      if (!tile.isRevealed && unit.faction === Faction.PLAYER) continue;
+
+      // Cannot enter lava tiles (player units only — enemy units may enter lava)
+      if (tile.isLava && unit.faction === Faction.PLAYER) continue;
+
+      // Cannot enter tiles occupied by another unit
+      if (tile.unitId !== null) continue;
+
+      // Cannot enter tiles occupied by a building that has combat stats,
+      // except for neutral watchtowers which can be moved onto (to capture them).
+      // Owned watchtowers (player or enemy) block movement like other combat buildings.
+      if (tile.buildingId !== null) {
+        const tileBuilding = state.buildings[tile.buildingId];
+        if (tileBuilding && tileBuilding.combatStats !== null) {
+          const isNeutralWatchtower =
+            tileBuilding.type === BuildingType.WATCHTOWER && tileBuilding.faction === null;
+          if (!isNeutralWatchtower) continue;
         }
       }
-    }
 
-    reachableTiles.push({ x: tx, y: ty });
+      reachableTiles.push({ x: nx, y: ny });
+      queue.push({ x: nx, y: ny, steps: steps + 1 });
+    }
   }
 
   return reachableTiles;
