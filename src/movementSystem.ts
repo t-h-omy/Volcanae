@@ -108,11 +108,10 @@ export function getReachableTiles(
   }
 
   // ── Check 2: BFS path reachability ───────────────────────────────────────
-  // Flood-fill from the unit's position up to moveRange steps.
-  // CANYON/WATER tiles block traversal entirely so a unit cannot "jump" over
-  // them even when the destination lies within the geometric range.
-  // The BFS is NOT pre-filtered to inRangeSet: intermediate waypoints may
-  // legitimately lie outside the geometric boundary.
+  // Flood-fill from the unit's position, restricted to tiles that are also in
+  // inRangeSet — the BFS may only use tiles within the geometric range as
+  // waypoints. CANYON/WATER tiles block traversal entirely so a unit cannot
+  // "jump" over them even when the destination lies within the geometric range.
   const visited = new Set<string>();
   const queue: Array<{ x: number; y: number; steps: number }> = [
     { x: unitPosition.x, y: unitPosition.y, steps: 0 },
@@ -133,6 +132,8 @@ export function getReachableTiles(
 
       const nkey = `${nx},${ny}`;
       if (visited.has(nkey)) continue;
+      // Only traverse tiles that are within the geometric movement range.
+      if (!inRangeSet.has(nkey)) continue;
       visited.add(nkey);
 
       const tile = state.grid[ny][nx];
@@ -166,10 +167,10 @@ export function getReachableTiles(
     }
   }
 
-  // ── Intersection ─────────────────────────────────────────────────────────
-  // A tile is a valid destination only when it satisfies both checks:
-  // within the geometric range AND reachable via a valid terrain path.
-  return bfsReachable.filter(pos => inRangeSet.has(`${pos.x},${pos.y}`));
+  // ── Result ───────────────────────────────────────────────────────────────
+  // Every tile in bfsReachable is already within the geometric range (BFS was
+  // constrained to inRangeSet) AND reachable via a valid terrain path.
+  return bfsReachable;
 }
 
 // ============================================================================
