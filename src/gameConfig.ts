@@ -103,7 +103,7 @@ export const BUILDINGS = {
   /** Probability of spawning a WATCHTOWER in each zone (0.0 to 1.0) */
   WATCHTOWER_SPAWN_CHANCE: 0.5,
   /** Number of rows at the start (low-Y end) of a zone where strongholds may not spawn */
-  STRONGHOLD_SPAWN_SKIP_FIRST_ROWS: 3,
+  STRONGHOLD_SPAWN_SKIP_FIRST_ROWS: 2,
   /** Number of rows at the end (high-Y end) of a zone where strongholds may not spawn */
   STRONGHOLD_SPAWN_SKIP_LAST_ROWS: 2,
 } as const;
