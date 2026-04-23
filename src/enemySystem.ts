@@ -2172,13 +2172,13 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
         const currentUnit = draft.units[unit.id];
         if (!currentUnit) break;
         if (hasUnitActed(currentUnit)) break;
-        // PIN_DOWN: skip movement actions for pinned units
+        // PIN_DOWN stun: skip movement and attack for stunned units
         if (
-          !currentUnit.hasMovedThisTurn &&
           currentUnit.pinnedUntilTurn > 0 &&
           currentUnit.pinnedUntilTurn >= draft.turn
         ) {
-          currentUnit.hasMovedThisTurn = true; // mark as moved to skip movement
+          currentUnit.hasMovedThisTurn = true;   // block movement
+          currentUnit.hasAttackedThisTurn = true; // block attack
         }
         decideAndExecute(currentUnit, draft, targetingIntents, recentlyLostBuildingIds, events);
       }

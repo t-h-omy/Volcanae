@@ -926,6 +926,8 @@ export const ABILITIES = {
   OUTRIDER_MOVE_BONUS: 1,
   /** Discover radius bonus granted to Scouts by the BIG_EYES tech */
   SCOUT_DISCOVER_BONUS: 1,
+  /** Probability (0–1) that a PIN_DOWN archer hit stuns the target (blocks move + attack) */
+  PIN_DOWN_STUN_CHANCE: 0.5,
 } as const;
 
 // ============================================================================
@@ -1210,7 +1212,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'PIN_DOWN',
     name: 'Pin Down',
-    description: 'Archer hits leave the target unable to move on its next action',
+    description: `Archer hits have a ${Math.round(ABILITIES.PIN_DOWN_STUN_CHANCE * 100)}% chance to stun the target for one turn — it cannot move or attack`,
     requires: ['FAR_REACH'],
     cost: 4,
     effects: [
@@ -1289,7 +1291,7 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string }> = {
   [UnitTag.OUTRIDER]:          { label: 'Outrider',          desc: `+${ABILITIES.OUTRIDER_MOVE_BONUS} movement range. Optimised for deep raids.` },
   [UnitTag.COVER]:             { label: 'Cover',             desc: 'Ranged enemy units cannot counter-attack.' },
   [UnitTag.SKIRMISHER]:        { label: 'Skirmisher',        desc: `+${ABILITIES.SKIRMISHER_MOVE_BONUS} movement range.` },
-  [UnitTag.PIN_DOWN]:          { label: 'Pin Down',          desc: 'Attacks leave the target pinned — it cannot move on its next action.' },
+  [UnitTag.PIN_DOWN]:          { label: 'Pin Down',          desc: `Each hit has a ${Math.round(ABILITIES.PIN_DOWN_STUN_CHANCE * 100)}% chance to stun the target — it cannot move or attack on its next action.` },
   [UnitTag.DISTRACTION]:       { label: 'Distraction',       desc: `Each hit permanently reduces the target's DEF by ${ABILITIES.DISTRACTION_DEF_REDUCTION}. Archer ATK is reduced by ${Math.abs(ABILITIES.DISTRACTION_ATTACK_MOD)}.` },
   [UnitTag.PREVENTIVE_STRIKE]: { label: 'Preventive Strike', desc: 'Fires instantly at any enemy unit that moves into attack range during the enemy\'s turn.' },
   [UnitTag.ELITE]:             { label: 'Elite',             desc: `+${ABILITIES.ELITE_MAX_HP_BONUS} max HP. Elite unit forged in the noble tradition.` },

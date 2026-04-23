@@ -177,6 +177,19 @@
   margin-top: 1px;
 }
 
+/* ── Unit stun symbol ── */
+
+.unit-stun-symbol {
+  position: absolute;
+  top: -6px;
+  right: -4px;
+  font-size: 12px;
+  line-height: 1;
+  pointer-events: none;
+  z-index: 4;
+  filter: drop-shadow(0 0 2px #000);
+}
+
 /* ── Unit HP text ── */
 
 .unit-hp-text {

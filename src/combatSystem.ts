@@ -414,8 +414,8 @@ export function resolveAttack(
       defender.distractionDefPenalty += reduction;
     }
 
-    // PIN_DOWN: mark the defender as pinned until the end of the current turn
-    if (attacker.tags.includes(UnitTag.PIN_DOWN)) {
+    // PIN_DOWN: stun the defender with a configurable chance (prevents move + attack)
+    if (attacker.tags.includes(UnitTag.PIN_DOWN) && Math.random() < ABILITIES.PIN_DOWN_STUN_CHANCE) {
       defender.pinnedUntilTurn = state.turn;
     }
   }

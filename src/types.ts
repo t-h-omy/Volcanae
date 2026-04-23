@@ -256,7 +256,7 @@ export interface Unit {
   hasUsedPostAttackMoveThisTurn: boolean;
   xp: number;
   level: number;
-  /** Turn number until which the unit is pinned (cannot move). 0 or absent = not pinned. */
+  /** Turn number during which the unit is stunned (cannot move or attack). 0 = not stunned. */
   pinnedUntilTurn: number;
   /**
    * Accumulated DEF reduction from DISTRACTION archer hits.
