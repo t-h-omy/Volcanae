@@ -552,6 +552,12 @@ export const LEVEL_UP_VALUES = {
 /**
  * Single source of truth for all per-unit data.
  * Replaces UNITS, UNIT_COSTS, UNIT_POPULATION_COSTS, UNIT_LEVEL_UP, and ENEMY_UNIT_UNLOCK.
+ *
+ * Description authoring: see the DESCRIPTION AUTHORING RULE above the ABILITIES
+ * constant. Descriptions that must reference the unit's own stats (attackRange,
+ * moveRange, etc.) or config constants are set in the "Compute descriptions for
+ * UNIT_DEFINITIONS" block below — use placeholder text here that contains NO
+ * hardcoded balancing numbers (mark with `// overwritten below`).
  */
 export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   INFANTRY: {
@@ -579,7 +585,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
-    description: 'Ranged attacker that strikes from 2 tiles away without stepping into melee range.', // overwritten below
+    description: 'Ranged attacker that strikes from range without stepping into melee.', // overwritten below
   },
 
   RIDER: {
@@ -593,7 +599,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
-    description: 'Swift cavalry that covers 2 tiles per move to outflank and pressure the enemy.', // overwritten below
+    description: 'Swift cavalry that outflanks and pressures the enemy.', // overwritten below
   },
 
   SIEGE: {
@@ -607,7 +613,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
-    description: 'Long-range bombard with 3-tile reach; cannot fire in the same turn it moves.', // overwritten below
+    description: 'Long-range bombard; cannot fire in the same turn it moves.', // overwritten below
   },
 
   SCOUT: {
@@ -665,7 +671,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
     enemyUnlockEmber: 1,
-    description: 'Enemy ranged unit that attacks from 2 tiles away.', // overwritten below
+    description: 'Enemy ranged unit that attacks from range.', // overwritten below
   },
 
   LAVA_RIDER: {
@@ -680,7 +686,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
     enemyUnlockEmber: 3,
-    description: 'Enemy fast cavalry that covers 2 tiles per move.', // overwritten below
+    description: 'Enemy fast cavalry.', // overwritten below
   },
 
   LAVA_SIEGE: {
@@ -695,7 +701,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
     enemyUnlockEmber: 5,
-    description: 'Enemy long-range bombard with 3-tile reach.', // overwritten below
+    description: 'Enemy long-range bombard.', // overwritten below
   },
 
   EMBERLING: {
@@ -715,7 +721,9 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 };
 
-// Compute descriptions for UNIT_DEFINITIONS entries that reference their own stats
+// Compute descriptions for UNIT_DEFINITIONS entries that reference their own stats.
+// All numeric values here are read from the unit definition or ABILITIES — never
+// hardcoded literals. See the DESCRIPTION AUTHORING RULE above ABILITIES.
 {
   const u = UNIT_DEFINITIONS;
   u.ARCHER.description      = `Ranged attacker that strikes from ${u.ARCHER.attackRange} tiles away without stepping into melee range.`;
@@ -753,6 +761,12 @@ export interface BuildingDefinition {
  * Replaces BUILDINGS.DISCOVER_RADIUS, BUILDINGS.DESTROY_BEHAVIOR,
  * BUILDINGS.WATCHTOWER_STATS, BUILDINGS.OUTPOST_STATS, LAVA_LAIR.MAGMA_SPYR_STATS,
  * CONSTRUCTION.*_COST, CRYSTAL_CHAMBER_CONFIG.COST, and CRYSTAL_CHAMBER_CONFIG.DISCOVER_RADIUS.
+ *
+ * Description authoring: see the DESCRIPTION AUTHORING RULE above the ABILITIES
+ * constant. Descriptions that must reference the building's own combatStats or
+ * config constants are set in the "Compute descriptions for BUILDING_DEFINITIONS"
+ * block below — use placeholder text here that contains NO hardcoded balancing
+ * numbers (mark with `// overwritten below`).
  */
 export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
   STRONGHOLD: {
@@ -802,14 +816,14 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     destroyBehavior: DestroyBehavior.RUIN,
     constructionCost: { iron: 0, wood: 0 },
     combatStats: { maxHp: 150, attack: 50, defense: 65, attackRange: 3 },
-    description: 'Defensive tower that attacks enemies within 3 tiles and expands your vision.', // overwritten below
+    description: 'Defensive tower that attacks nearby enemies and expands your vision.', // overwritten below
   },
   OUTPOST: {
     discoverRadius: 3,
     destroyBehavior: DestroyBehavior.NONE,
     constructionCost: { iron: 0, wood: 0 },
     combatStats: { maxHp: 200, attack: 40, defense: 55, attackRange: 2 },
-    description: 'Field fortification built by Infantry via Fieldwork. Attacks enemies within 2 tiles. Starting HP is based on the building unit\'s current HP, capped at 200.', // overwritten below
+    description: 'Field fortification built by Infantry via Fieldwork. Attacks nearby enemies. Starting HP is based on the building unit\'s current HP.', // overwritten below
   },
   LAVALAIR: {
     discoverRadius: 2,
@@ -856,7 +870,9 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
   },
 };
 
-// Compute descriptions for BUILDING_DEFINITIONS entries that reference their own stats or config constants
+// Compute descriptions for BUILDING_DEFINITIONS entries that reference their own stats or config constants.
+// All numeric values here are read from combatStats, RESOURCES, LAVA_LAIR, or CRYSTAL_CHAMBER_CONFIG —
+// never hardcoded literals. See the DESCRIPTION AUTHORING RULE above ABILITIES.
 {
   const b = BUILDING_DEFINITIONS;
   b.MINE.description       = `Produces ${RESOURCES.MINE_IRON_PER_TURN} iron per turn, the primary resource for training units.`;
@@ -888,6 +904,20 @@ export function computeResearchCost(baseCost: number, ember: number): number {
 // ============================================================================
 // ABILITIES — Balance-tunable constants for tag/flag-based abilities
 // (Placed before TECH_TREE so node descriptions can reference these values.)
+//
+// ── DESCRIPTION AUTHORING RULE (applies to ALL description fields) ──────────
+// Every numeric balancing value that appears in any description string
+// (TECH_TREE, TAG_INFO, UNIT_DEFINITIONS, BUILDING_DEFINITIONS) MUST be
+// injected via a template-literal reference to a named constant — never write
+// raw numbers directly into description text.
+//
+// ✓  `Gain +${ABILITIES.HOLD_GROUND_DEFENSE_BONUS} defense`
+// ✗  `Gain +20 defense`
+//
+// If a value does not yet have a named constant, add it here (or to the
+// relevant config object) first, then reference it in the description.
+// This keeps every visible number in sync with the actual gameplay logic
+// whenever a constant is tuned.
 // ============================================================================
 
 export const ABILITIES = {
@@ -926,6 +956,26 @@ export const ABILITIES = {
   OUTRIDER_MOVE_BONUS: 1,
   /** Discover radius bonus granted to Scouts by the BIG_EYES tech */
   SCOUT_DISCOVER_BONUS: 1,
+  /** Probability (0–1) that a PIN_DOWN archer hit stuns the target (blocks move + attack) */
+  PIN_DOWN_STUN_CHANCE: 0.5,
+  // ── Tech-tree production bonus abilities ────────────────────────────────────
+  /** % chance for a Mine to yield one extra iron per turn (DEEP_VEINS tech) */
+  DEEP_VEINS_BONUS_CHANCE: 30,
+  /** Extra iron amount produced per bonus proc (DEEP_VEINS tech) */
+  DEEP_VEINS_BONUS_AMOUNT: 1,
+  /** % chance for a Woodcutter to yield one extra wood per turn (CLEAN_CUTS tech) */
+  CLEAN_CUTS_BONUS_CHANCE: 30,
+  /** Extra wood amount produced per bonus proc (CLEAN_CUTS tech) */
+  CLEAN_CUTS_BONUS_AMOUNT: 1,
+  // ── Tech-tree stronghold/citadel abilities ───────────────────────────────────
+  /** Farmer-slot capacity added to each Stronghold by the WALLED_SETTLEMENT tech */
+  WALLED_SETTLEMENT_FARMER_BONUS: 2,
+  /** Iron/wood produced by each Stronghold per turn after WALLED_SETTLEMENT */
+  WALLED_SETTLEMENT_PRODUCTION_AMOUNT: 1,
+  /** Noble-slot capacity added to each Stronghold by the CITADEL tech */
+  CITADEL_NOBLE_BONUS: 2,
+  /** Max-HP bonus applied to Scouts and Guards by the CITADEL tech */
+  CITADEL_HP_BOOST: 30,
 } as const;
 
 // ============================================================================
@@ -936,6 +986,10 @@ export const ABILITIES = {
  * Tech tree node definitions.
  * Add a new tech node by adding one entry to this array — no logic files
  * touched, no switch statements updated, no hardcoded references.
+ *
+ * Description authoring: see the DESCRIPTION AUTHORING RULE comment above the
+ * ABILITIES constant. All numbers in `description` strings must reference
+ * ABILITIES (or another named config constant) via template literals.
  */
 export const TECH_TREE: TechNodeDefinition[] = [
   // ── Root node (auto-unlocked at game start, not a pick) ──
@@ -970,11 +1024,11 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'DEEP_VEINS',
     name: 'Deep Veins',
-    description: 'Mines occasionally produce bonus iron',
+    description: `Mines have a ${ABILITIES.DEEP_VEINS_BONUS_CHANCE}% chance to produce ${ABILITIES.DEEP_VEINS_BONUS_AMOUNT} extra iron per turn`,
     requires: ['A_NOBLE_STEAD'],
     cost: 4,
     effects: [
-      { type: 'BUILDING_PRODUCTION_MOD', buildingType: BuildingType.MINE, resource: ResourceType.IRON, chancePercent: 30, amount: 1 },
+      { type: 'BUILDING_PRODUCTION_MOD', buildingType: BuildingType.MINE, resource: ResourceType.IRON, chancePercent: ABILITIES.DEEP_VEINS_BONUS_CHANCE, amount: ABILITIES.DEEP_VEINS_BONUS_AMOUNT },
     ],
   },
 
@@ -1004,11 +1058,11 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'CLEAN_CUTS',
     name: 'Clean Cuts',
-    description: 'Woodcutters occasionally produce bonus wood',
+    description: `Woodcutters have a ${ABILITIES.CLEAN_CUTS_BONUS_CHANCE}% chance to produce ${ABILITIES.CLEAN_CUTS_BONUS_AMOUNT} extra wood per turn`,
     requires: ['FAR_REACH'],
     cost: 4,
     effects: [
-      { type: 'BUILDING_PRODUCTION_MOD', buildingType: BuildingType.WOODCUTTER, resource: ResourceType.WOOD, chancePercent: 30, amount: 1 },
+      { type: 'BUILDING_PRODUCTION_MOD', buildingType: BuildingType.WOODCUTTER, resource: ResourceType.WOOD, chancePercent: ABILITIES.CLEAN_CUTS_BONUS_CHANCE, amount: ABILITIES.CLEAN_CUTS_BONUS_AMOUNT },
     ],
   },
   {
@@ -1103,25 +1157,25 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'WALLED_SETTLEMENT',
     name: 'Walled Settlement',
-    description: 'Strongholds sustain more farmers and produce goods for the realm',
+    description: `Strongholds gain +${ABILITIES.WALLED_SETTLEMENT_FARMER_BONUS} farmer capacity and produce ${ABILITIES.WALLED_SETTLEMENT_PRODUCTION_AMOUNT} iron and ${ABILITIES.WALLED_SETTLEMENT_PRODUCTION_AMOUNT} wood per turn`,
     requires: ['CONSCRIPTION'],
     cost: 2,
     effects: [
-      { type: 'STRONGHOLD_CAP_MOD', capType: 'farmer', amount: 2 },
-      { type: 'BUILDING_PRODUCTION_MOD', buildingType: BuildingType.STRONGHOLD, resource: ResourceType.WOOD, chancePercent: 100, amount: 1 },
-      { type: 'BUILDING_PRODUCTION_MOD', buildingType: BuildingType.STRONGHOLD, resource: ResourceType.IRON, chancePercent: 100, amount: 1 },
+      { type: 'STRONGHOLD_CAP_MOD', capType: 'farmer', amount: ABILITIES.WALLED_SETTLEMENT_FARMER_BONUS },
+      { type: 'BUILDING_PRODUCTION_MOD', buildingType: BuildingType.STRONGHOLD, resource: ResourceType.WOOD, chancePercent: 100, amount: ABILITIES.WALLED_SETTLEMENT_PRODUCTION_AMOUNT },
+      { type: 'BUILDING_PRODUCTION_MOD', buildingType: BuildingType.STRONGHOLD, resource: ResourceType.IRON, chancePercent: 100, amount: ABILITIES.WALLED_SETTLEMENT_PRODUCTION_AMOUNT },
     ],
   },
   {
     id: 'CITADEL',
     name: 'Citadel',
-    description: 'An imposing fortress that houses nobles and trains elite warriors',
+    description: `Grants +${ABILITIES.CITADEL_NOBLE_BONUS} noble capacity to Strongholds and boosts Scout and Guard max HP by +${ABILITIES.CITADEL_HP_BOOST}`,
     requires: ['WALLED_SETTLEMENT'],
     cost: 4,
     effects: [
-      { type: 'STRONGHOLD_CAP_MOD', capType: 'noble', amount: 2 },
-      { type: 'UNIT_STAT_MOD', unitType: UnitType.SCOUT, stat: 'maxHp', mode: 'add', value: 30 },
-      { type: 'UNIT_STAT_MOD', unitType: UnitType.GUARD, stat: 'maxHp', mode: 'add', value: 30 },
+      { type: 'STRONGHOLD_CAP_MOD', capType: 'noble', amount: ABILITIES.CITADEL_NOBLE_BONUS },
+      { type: 'UNIT_STAT_MOD', unitType: UnitType.SCOUT, stat: 'maxHp', mode: 'add', value: ABILITIES.CITADEL_HP_BOOST },
+      { type: 'UNIT_STAT_MOD', unitType: UnitType.GUARD, stat: 'maxHp', mode: 'add', value: ABILITIES.CITADEL_HP_BOOST },
     ],
   },
   {
@@ -1210,7 +1264,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'PIN_DOWN',
     name: 'Pin Down',
-    description: 'Archer hits leave the target unable to move on its next action',
+    description: `Archer hits have a ${Math.round(ABILITIES.PIN_DOWN_STUN_CHANCE * 100)}% chance to stun the target for one turn — it cannot move or attack`,
     requires: ['FAR_REACH'],
     cost: 4,
     effects: [
@@ -1268,7 +1322,13 @@ export const TAG_STAT_EFFECTS: Partial<Record<UnitTag, StatModifier[]>> = {
 // TAG INFO — label and description for each unit tag
 // ============================================================================
 
-/** Display label and tooltip description for each UnitTag. */
+/**
+ * Display label and tooltip description for each UnitTag.
+ *
+ * Description authoring: see the DESCRIPTION AUTHORING RULE above the ABILITIES
+ * constant. All numbers in `desc` strings must reference ABILITIES (or another
+ * named config constant) via template literals — never hardcode raw numbers.
+ */
 export const TAG_INFO: Record<UnitTag, { label: string; desc: string }> = {
   [UnitTag.RANGED]:            { label: 'Ranged',            desc: 'Attacks from a distance and does not move onto a defeated enemy\'s tile.' },
   [UnitTag.PREP]:              { label: 'Prep',              desc: 'Cannot attack in the same turn it moves. Attack first, then move — or wait a turn after moving.' },
@@ -1289,7 +1349,7 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string }> = {
   [UnitTag.OUTRIDER]:          { label: 'Outrider',          desc: `+${ABILITIES.OUTRIDER_MOVE_BONUS} movement range. Optimised for deep raids.` },
   [UnitTag.COVER]:             { label: 'Cover',             desc: 'Ranged enemy units cannot counter-attack.' },
   [UnitTag.SKIRMISHER]:        { label: 'Skirmisher',        desc: `+${ABILITIES.SKIRMISHER_MOVE_BONUS} movement range.` },
-  [UnitTag.PIN_DOWN]:          { label: 'Pin Down',          desc: 'Attacks leave the target pinned — it cannot move on its next action.' },
+  [UnitTag.PIN_DOWN]:          { label: 'Pin Down',          desc: `Each hit has a ${Math.round(ABILITIES.PIN_DOWN_STUN_CHANCE * 100)}% chance to stun the target — it cannot move or attack on its next action.` },
   [UnitTag.DISTRACTION]:       { label: 'Distraction',       desc: `Each hit permanently reduces the target's DEF by ${ABILITIES.DISTRACTION_DEF_REDUCTION}. Archer ATK is reduced by ${Math.abs(ABILITIES.DISTRACTION_ATTACK_MOD)}.` },
   [UnitTag.PREVENTIVE_STRIKE]: { label: 'Preventive Strike', desc: 'Fires instantly at any enemy unit that moves into attack range during the enemy\'s turn.' },
   [UnitTag.ELITE]:             { label: 'Elite',             desc: `+${ABILITIES.ELITE_MAX_HP_BONUS} max HP. Elite unit forged in the noble tradition.` },

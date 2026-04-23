@@ -1011,6 +1011,9 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
 
   const isExhausted = hasUnitActed(unit) || noAttackTargets;
 
+  const currentTurn = useGameStore((s) => s.turn);
+  const isStunned = unit.pinnedUntilTurn >= currentTurn;
+
   const anim = useCombatAnimationStore((s) => s.unitAnimations.get(unit.id));
 
   const animClass =
@@ -1106,6 +1109,9 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
           className="lava-boost-bar"
           style={{ '--color-lava-boost': RENDER.COLORS.LAVA_BOOST_BAR } as React.CSSProperties}
         />
+      )}
+      {isStunned && (
+        <span className="unit-stun-symbol">💫</span>
       )}
     </div>
   );
