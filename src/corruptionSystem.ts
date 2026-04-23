@@ -370,9 +370,8 @@ export function processEmberNestSpawns(
       xp: 0,
       level: 1,
       pinnedUntilTurn: 0,
+      distractionDefPenalty: 0,
     };
-
-    // Snapshot BEFORE assigning to draft
     const unitSnapshot: Unit = {
       ...newUnit,
       position: { ...newUnit.position },

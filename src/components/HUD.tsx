@@ -9,7 +9,7 @@ import { createPortal } from 'react-dom';
 import { useGameStore } from '../gameStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
-import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, computeResearchCost } from '../gameConfig';
+import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, computeResearchCost } from '../gameConfig';
 import { UI } from '../uiConfig';
 import type { UnitPopulationCost, TechId } from '../types';
 import {
@@ -758,6 +758,179 @@ function RecruitScoreModal({
 }
 
 // ============================================================================
+// STAT DETAIL MODAL
+// ============================================================================
+
+/** Human-readable label for UnitStats keys */
+function statKeyToLabel(key: string): string {
+  const labels: Record<string, string> = {
+    maxHp: 'HP', currentHp: 'HP',
+    attack: 'ATK', defense: 'DEF',
+    moveRange: 'MOV', attackRange: 'RNG',
+    discoverRadius: 'VIS', triggerRange: 'TRG',
+    movementActions: 'ACT',
+  };
+  return labels[key] ?? key.toUpperCase();
+}
+
+type StatModEntry = {
+  stat: string;
+  value: number;
+  /** 'active' = contextual (not baked into unit.stats); 'applied' = baked into unit.stats */
+  kind: 'active' | 'applied';
+  source: string;
+};
+
+/**
+ * Modal overlay showing all active buffs and debuffs for a unit,
+ * with their source and whether they are contextual or permanently applied.
+ */
+function StatDetailModal({ unit, onClose }: { unit: Unit; onClose: () => void }) {
+  const gameState = useGameStore((s) => s);
+
+  const mods: StatModEntry[] = [];
+
+  // ── Contextual bonuses (not baked into unit.stats) ──────────────────────
+
+  // PHALANX formation bonuses (both factions)
+  const phalanxAtk = getPhalanxAttackBonus(gameState, unit);
+  const phalanxDef = getPhalanxDefenseBonus(gameState, unit);
+  if (phalanxAtk > 0) {
+    mods.push({ stat: 'ATK', value: phalanxAtk, kind: 'active', source: 'Phalanx Formation (adjacent guard)' });
+  }
+  if (phalanxDef > 0) {
+    mods.push({ stat: 'DEF', value: phalanxDef, kind: 'active', source: 'Phalanx Formation (adjacent guard)' });
+  }
+
+  // Player-only contextual bonuses
+  if (unit.faction === Faction.PLAYER) {
+    // HOLD_GROUND: defense when on own building
+    if (gameState.techFlags.includes(TechFlag.HOLD_GROUND)) {
+      const tile = gameState.grid[unit.position.y]?.[unit.position.x];
+      if (tile?.buildingId) {
+        const building = gameState.buildings[tile.buildingId];
+        if (building?.faction === Faction.PLAYER) {
+          mods.push({ stat: 'DEF', value: ABILITIES.HOLD_GROUND_DEFENSE_BONUS, kind: 'active', source: 'Hold Ground (standing on own building)' });
+        }
+      }
+    }
+
+    // TO_THE_FRONT: movement bonus
+    if (gameState.techFlags.includes(TechFlag.TO_THE_FRONT)) {
+      const minPlayerY = getNorthermostPlayerY(gameState);
+      if (minPlayerY !== undefined && unit.position.y - minPlayerY > ABILITIES.TO_THE_FRONT_MIN_DISTANCE) {
+        mods.push({ stat: 'MOV', value: ABILITIES.TO_THE_FRONT_MOVE_BONUS, kind: 'active', source: 'To the Front (far behind frontline)' });
+      }
+    }
+
+    // SKIRMISHER / OUTRIDER: +1 MOV applied at runtime in movementSystem
+    if (unit.tags.includes(UnitTag.SKIRMISHER)) {
+      mods.push({ stat: 'MOV', value: ABILITIES.SKIRMISHER_MOVE_BONUS, kind: 'active', source: 'Skirmisher (tag ability)' });
+    }
+    if (unit.tags.includes(UnitTag.OUTRIDER)) {
+      mods.push({ stat: 'MOV', value: ABILITIES.OUTRIDER_MOVE_BONUS, kind: 'active', source: 'Outrider (tag ability)' });
+    }
+  }
+
+  // ── Applied modifiers (permanently baked into unit.stats) ────────────────
+
+  // Tag-intrinsic stat effects (KNIGHT, ELITE, HIT_AND_RUN, DISTRACTION, …)
+  for (const tag of unit.tags) {
+    for (const mod of TAG_STAT_EFFECTS[tag] ?? []) {
+      if (mod.mode === 'add') {
+        mods.push({
+          stat: statKeyToLabel(mod.stat),
+          value: mod.value,
+          kind: 'applied',
+          source: `${TAG_INFO[tag]?.label ?? tag} (tag)`,
+        });
+      }
+    }
+  }
+
+  // Tech-based UNIT_STAT_MOD effects (player units only)
+  if (unit.faction === Faction.PLAYER) {
+    for (const def of TECH_TREE) {
+      if (!gameState.techNodes[def.id]?.unlocked) continue;
+      for (const effect of def.effects) {
+        if (effect.type === 'UNIT_STAT_MOD' && effect.unitType === unit.type && effect.mode === 'add') {
+          mods.push({
+            stat: statKeyToLabel(effect.stat),
+            value: effect.value,
+            kind: 'applied',
+            source: `${def.name} (tech)`,
+          });
+        }
+      }
+    }
+  }
+
+  // DISTRACTION combat penalty accumulated across hits
+  const distractionPenalty = unit.distractionDefPenalty ?? 0;
+  if (distractionPenalty > 0) {
+    mods.push({
+      stat: 'DEF',
+      value: -distractionPenalty,
+      kind: 'applied',
+      source: 'Distraction arrows (permanent, from archer hits)',
+    });
+  }
+
+  // Sort: contextual first, then applied; within each group bonuses before penalties
+  mods.sort((a, b) => {
+    if (a.kind !== b.kind) return a.kind === 'active' ? -1 : 1;
+    return b.value - a.value;
+  });
+
+  const bonuses = mods.filter((m) => m.value > 0);
+  const penalties = mods.filter((m) => m.value < 0);
+
+  return (
+    <Popup onClose={onClose}>
+      <div className="info-popup-header">
+        <span className="info-popup-header-emoji">📊</span>
+        <div className="info-popup-header-name">
+          {UNIT_NAME[unit.type] ?? unit.type} — Stat Details
+        </div>
+      </div>
+
+      {bonuses.length === 0 && penalties.length === 0 ? (
+        <p className="info-popup-desc">No active modifiers.</p>
+      ) : (
+        <div className="hud-stat-detail-list">
+          {bonuses.length > 0 && (
+            <div className="hud-stat-detail-section">
+              <div className="hud-stat-detail-section-title">📈 Bonuses</div>
+              {bonuses.map((m, i) => (
+                <div key={i} className="hud-stat-detail-row">
+                  <span className="hud-stat-detail-stat">{m.stat}</span>
+                  <span className="hud-stat-detail-value hud-stat-bonus">+{m.value}</span>
+                  <span className="hud-stat-detail-source">{m.source}{m.kind === 'applied' ? ' ✓' : ''}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {penalties.length > 0 && (
+            <div className="hud-stat-detail-section">
+              <div className="hud-stat-detail-section-title">📉 Penalties</div>
+              {penalties.map((m, i) => (
+                <div key={i} className="hud-stat-detail-row">
+                  <span className="hud-stat-detail-stat">{m.stat}</span>
+                  <span className="hud-stat-detail-value hud-stat-penalty">{m.value}</span>
+                  <span className="hud-stat-detail-source">{m.source}{m.kind === 'applied' ? ' ✓' : ''}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>OK</button>
+    </Popup>
+  );
+}
+
+// ============================================================================
 // SELECTED UNIT PANEL
 // ============================================================================
 
@@ -859,6 +1032,29 @@ function SelectedUnitPanel({
   const phalanxDefense = useMemo(() => getPhalanxDefenseBonus(gameState, unit), [gameState, unit]);
   const totalDefBonus = statBonuses.def + phalanxDefense;
 
+  // Compute inline stat penalties from TAG_STAT_EFFECTS (negative values baked into unit.stats)
+  const tagPenalties = useMemo(() => {
+    const p: Partial<Record<string, number>> = {};
+    for (const tag of unit.tags) {
+      for (const mod of TAG_STAT_EFFECTS[tag] ?? []) {
+        if (mod.mode === 'add' && mod.value < 0) {
+          const key = mod.stat as string;
+          p[key] = (p[key] ?? 0) + mod.value;
+        }
+      }
+    }
+    return p;
+  }, [unit.tags]);
+
+  // Accumulated DEF penalty from DISTRACTION combat hits
+  const distractionPenalty = unit.distractionDefPenalty ?? 0;
+
+  // Combined inline penalties per stat
+  const atkPenalty = tagPenalties.attack ?? 0;
+  const defPenalty = (tagPenalties.defense ?? 0) - distractionPenalty;
+
+  const [statDetailOpen, setStatDetailOpen] = useState(false);
+
   return (
     <div className={`hud-info-panel${!isPlayer ? ' hud-panel-enemy' : ''}`}>
       {/* Header — entire row is tappable to open UnitInfoPopup */}
@@ -900,24 +1096,32 @@ function SelectedUnitPanel({
           ⬆️ Level Up to Lv.{targetLevel}
         </button>
       )}
-      <div className="hud-unit-stats">
-        <span className="hud-stat-label">ATK</span>
-        <span className={`hud-stat-value${phalanxAttack > 0 ? ' hud-stat-boosted' : ''}`}>
-          {unit.stats.attack}{phalanxAttack > 0 ? `+${phalanxAttack}` : ''}
-        </span>
-        <span className="hud-stat-label">DEF</span>
-        <span className={`hud-stat-value${totalDefBonus > 0 ? ' hud-stat-boosted' : ''}`}>
-          {unit.stats.defense}{totalDefBonus > 0 ? `+${totalDefBonus}` : ''}
-        </span>
-        <span className="hud-stat-label">MOV</span>
-        <span className={`hud-stat-value${statBonuses.mov > 0 ? ' hud-stat-boosted' : ''}`}>
-          {unit.stats.moveRange}{statBonuses.mov > 0 ? `+${statBonuses.mov}` : ''}
-        </span>
-        <span className="hud-stat-label">RNG</span>
-        <span className="hud-stat-value">{unit.stats.attackRange}</span>
-        <span className="hud-stat-label">VIS</span>
-        <span className="hud-stat-value">{unit.stats.discoverRadius}</span>
-      </div>
+      <button className="hud-unit-stats-btn" onClick={() => setStatDetailOpen(true)} aria-label="View stat modifiers">
+        <div className="hud-unit-stats">
+          <span className="hud-stat-label">ATK</span>
+          <span className="hud-stat-value">
+            {unit.stats.attack}
+            {phalanxAttack > 0 && <span className="hud-stat-mod hud-stat-bonus">+{phalanxAttack}</span>}
+            {atkPenalty < 0 && <span className="hud-stat-mod hud-stat-penalty">{atkPenalty}</span>}
+          </span>
+          <span className="hud-stat-label">DEF</span>
+          <span className="hud-stat-value">
+            {unit.stats.defense}
+            {totalDefBonus > 0 && <span className="hud-stat-mod hud-stat-bonus">+{totalDefBonus}</span>}
+            {defPenalty < 0 && <span className="hud-stat-mod hud-stat-penalty">{defPenalty}</span>}
+          </span>
+          <span className="hud-stat-label">MOV</span>
+          <span className="hud-stat-value">
+            {unit.stats.moveRange}
+            {statBonuses.mov > 0 && <span className="hud-stat-mod hud-stat-bonus">+{statBonuses.mov}</span>}
+          </span>
+          <span className="hud-stat-label">RNG</span>
+          <span className="hud-stat-value">{unit.stats.attackRange}</span>
+          <span className="hud-stat-label">VIS</span>
+          <span className="hud-stat-value">{unit.stats.discoverRadius}</span>
+        </div>
+        <span className="hud-unit-stats-hint" aria-hidden="true">📊</span>
+      </button>
       {visibleTags.length > 0 && (
         <div className="hud-tag-pills">
           {visibleTags.map((tag) => (
@@ -1017,6 +1221,7 @@ function SelectedUnitPanel({
         />
       )}
       {tagPopup && <TagPopup tag={tagPopup} onClose={() => setTagPopup(null)} />}
+      {statDetailOpen && <StatDetailModal unit={unit} onClose={() => setStatDetailOpen(false)} />}
     </div>
   );
 }

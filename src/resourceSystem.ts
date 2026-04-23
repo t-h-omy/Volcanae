@@ -454,9 +454,8 @@ export function recruitUnit(
     xp: 0,
     level: 1,
     pinnedUntilTurn: 0,
+    distractionDefPenalty: 0,
   };
-
-  // Apply stat mods from unlocked techs to the newly spawned unit
   const unit = state.units[unitId];
   for (const mod of getStatMods(state, unitType)) {
     if (mod.mode === 'add') {

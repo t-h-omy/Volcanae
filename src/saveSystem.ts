@@ -97,6 +97,17 @@ export function loadGameState(): GameState | null {
       }
     }
 
+    // Migration: backfill distractionDefPenalty for units from older saves
+    // that predate the field being added to the Unit interface.
+    if (s.units && typeof s.units === 'object') {
+      for (const unit of Object.values(s.units) as Array<unknown>) {
+        const u = unit as Record<string, unknown>;
+        if (u && typeof u.distractionDefPenalty !== 'number') {
+          u.distractionDefPenalty = 0;
+        }
+      }
+    }
+
     return s as GameState;
   } catch {
     return null;

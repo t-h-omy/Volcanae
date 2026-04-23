@@ -511,6 +511,7 @@ function createEnemyUnit(
     xp: 0,
     level: 1,
     pinnedUntilTurn: 0,
+    distractionDefPenalty: 0,
   };
 }
 

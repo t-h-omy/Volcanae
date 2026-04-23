@@ -258,6 +258,11 @@ export interface Unit {
   level: number;
   /** Turn number until which the unit is pinned (cannot move). 0 or absent = not pinned. */
   pinnedUntilTurn: number;
+  /**
+   * Accumulated DEF reduction from DISTRACTION archer hits.
+   * Stored for display purposes only — the reduction is already applied to stats.defense.
+   */
+  distractionDefPenalty: number;
 }
 
 /** Defines a single stat boost applied when a unit reaches a new level */
