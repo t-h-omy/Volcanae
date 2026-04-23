@@ -2173,10 +2173,7 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
         if (!currentUnit) break;
         if (hasUnitActed(currentUnit)) break;
         // PIN_DOWN stun: skip movement and attack for stunned units
-        if (
-          currentUnit.pinnedUntilTurn > 0 &&
-          currentUnit.pinnedUntilTurn >= draft.turn
-        ) {
+        if (currentUnit.pinnedUntilTurn >= draft.turn) {
           currentUnit.hasMovedThisTurn = true;   // block movement
           currentUnit.hasAttackedThisTurn = true; // block attack
         }

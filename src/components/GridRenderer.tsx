@@ -1012,7 +1012,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
   const isExhausted = hasUnitActed(unit) || noAttackTargets;
 
   const currentTurn = useGameStore((s) => s.turn);
-  const isStunned = unit.pinnedUntilTurn > 0 && unit.pinnedUntilTurn >= currentTurn;
+  const isStunned = unit.pinnedUntilTurn >= currentTurn;
 
   const anim = useCombatAnimationStore((s) => s.unitAnimations.get(unit.id));
 
