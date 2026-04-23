@@ -912,7 +912,7 @@ export const ABILITIES = {
   LANCE_CHARGE_ATTACK_BONUS: 20,
   /** Permanent DEF reduction applied to a unit each time it is hit by a DISTRACTION archer */
   DISTRACTION_DEF_REDUCTION: 8,
-  /** Attack penalty applied to an archer carrying the DISTRACTION tag */
+  /** Attack penalty applied to the DISTRACTION archer on each hit */
   DISTRACTION_ATTACK_MOD: -10,
   /** Max HP bonus granted to a unit carrying the ELITE tag */
   ELITE_MAX_HP_BONUS: 20,
@@ -1221,7 +1221,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'DISTRACTION',
     name: 'Distraction',
-    description: `Each archer hit permanently reduces the target's DEF by ${ABILITIES.DISTRACTION_DEF_REDUCTION} and ATK by ${Math.abs(ABILITIES.DISTRACTION_ATTACK_MOD)}`,
+    description: `Each archer hit permanently reduces the target's DEF by ${ABILITIES.DISTRACTION_DEF_REDUCTION} and the ranger's own ATK by ${Math.abs(ABILITIES.DISTRACTION_ATTACK_MOD)}`,
     requires: ['PIN_DOWN'],
     cost: 7,
     effects: [
@@ -1290,7 +1290,7 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string }> = {
   [UnitTag.COVER]:             { label: 'Cover',             desc: 'Ranged enemy units cannot counter-attack.' },
   [UnitTag.SKIRMISHER]:        { label: 'Skirmisher',        desc: `+${ABILITIES.SKIRMISHER_MOVE_BONUS} movement range.` },
   [UnitTag.PIN_DOWN]:          { label: 'Pin Down',          desc: 'Attacks leave the target pinned — it cannot move on its next action.' },
-  [UnitTag.DISTRACTION]:       { label: 'Distraction',       desc: `Each hit permanently reduces the target's DEF by ${ABILITIES.DISTRACTION_DEF_REDUCTION} and ATK by ${Math.abs(ABILITIES.DISTRACTION_ATTACK_MOD)}.` },
+  [UnitTag.DISTRACTION]:       { label: 'Distraction',       desc: `Each hit permanently reduces the target's DEF by ${ABILITIES.DISTRACTION_DEF_REDUCTION} and the ranger's own ATK by ${Math.abs(ABILITIES.DISTRACTION_ATTACK_MOD)}.` },
   [UnitTag.PREVENTIVE_STRIKE]: { label: 'Preventive Strike', desc: 'Fires instantly at any enemy unit that moves into attack range during the enemy\'s turn.' },
   [UnitTag.ELITE]:             { label: 'Elite',             desc: `+${ABILITIES.ELITE_MAX_HP_BONUS} max HP. Elite unit forged in the noble tradition.` },
 };
