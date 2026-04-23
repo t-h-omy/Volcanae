@@ -105,7 +105,7 @@ export const BUILDINGS = {
   /** Number of rows at the start (low-Y end) of a zone where strongholds may not spawn */
   STRONGHOLD_SPAWN_SKIP_FIRST_ROWS: 3,
   /** Number of rows at the end (high-Y end) of a zone where strongholds may not spawn */
-  STRONGHOLD_SPAWN_SKIP_LAST_ROWS: 0,
+  STRONGHOLD_SPAWN_SKIP_LAST_ROWS: 2,
 } as const;
 
 // ============================================================================

@@ -13,14 +13,40 @@ import { getTilesWithinEdgeCircleRange } from './rangeUtils';
 // MOVEMENT CALCULATIONS
 // ============================================================================
 
+// 8-directional movement vectors shared by getReachableTiles and other helpers.
+const MOVE_DIRECTIONS: [number, number][] = [
+  [-1, -1], [0, -1], [1, -1],
+  [-1,  0],          [1,  0],
+  [-1,  1], [0,  1], [1,  1],
+];
+
 /**
  * Gets all tiles that a unit can reach from its current position.
- * A tile is reachable if:
- * - It is within the unit's move range (edge-circle range)
- * - It has been discovered / revealed (player units only)
- * - It is not a lava tile (player units only — enemy units may enter lava)
- * - It is not occupied by another unit
- * - The unit has not already moved this turn
+ *
+ * Two independent checks are applied; a tile must pass both to be shown as
+ * a valid movement destination:
+ *
+ * 1. GEOMETRIC RANGE (edge-circle):
+ *    The tile must be within the unit's movement range as computed by the
+ *    edge-circle system. This defines the movement-range shape independently
+ *    of any blocking terrain — i.e., the visual "footprint" of the range.
+ *
+ * 2. PATH REACHABILITY (BFS flood-fill):
+ *    A valid path must exist from the unit's current position to the tile,
+ *    where every tile along the path satisfies:
+ *    - Not a CANYON or WATER tile (blocks traversal for all units)
+ *    - Not an undiscovered tile (player units only)
+ *    - Not a lava tile (player units only — enemy units may enter lava)
+ *    - Not occupied by another unit
+ *    - Not occupied by a combat building, except neutral watchtowers
+ *
+ *    The BFS is step-limited to moveRange so that detour paths consuming
+ *    more movement points than the unit possesses are rejected. The BFS
+ *    explores freely (not bounded to inRangeSet) so that intermediate steps
+ *    that go "outside" the geometric range shape are permitted as waypoints
+ *    for paths that end inside it.
+ *
+ * The unit must also not have already moved this turn.
  *
  * @param state - Current game state
  * @param unitId - ID of the unit to check movement for
@@ -37,7 +63,6 @@ export function getReachableTiles(
     return [];
   }
 
-  const reachableTiles: Position[] = [];
   const unitPosition = unit.position;
   let moveRange = unit.stats.moveRange;
 
@@ -64,61 +89,88 @@ export function getReachableTiles(
     }
   }
 
-  // Get candidate tiles using the edge-circle range system
-  const candidates = getTilesWithinEdgeCircleRange(
+  // ── Check 1: geometric range ─────────────────────────────────────────────
+  // Build the set of tile keys that fall within the edge-circle range.
+  // This is computed without any knowledge of terrain or occupancy — it
+  // represents the raw movement-range shape.
+  const rangeCoords = getTilesWithinEdgeCircleRange(
     unitPosition.x,
     unitPosition.y,
     moveRange,
     MAP.GRID_WIDTH,
     MAP.GRID_HEIGHT,
   );
-
-  for (const { x: tx, y: ty } of candidates) {
-    // Skip the unit's current position (source tile is included by getTilesWithinEdgeCircleRange)
-    if (tx === unitPosition.x && ty === unitPosition.y) {
-      continue;
+  const inRangeSet = new Set<string>();
+  for (const { x, y } of rangeCoords) {
+    if (x !== unitPosition.x || y !== unitPosition.y) {
+      inRangeSet.add(`${x},${y}`);
     }
-
-    const tile = state.grid[ty][tx];
-
-    // Cannot move onto CANYON or WATER tiles (impassable for all units)
-    if (tile.terrainType === TileType.CANYON || tile.terrainType === TileType.WATER) {
-      continue;
-    }
-
-    // Cannot move onto undiscovered tiles (player units only)
-    if (!tile.isRevealed && unit.faction === Faction.PLAYER) {
-      continue;
-    }
-
-    // Cannot move into lava tiles (player units only — enemy units may enter lava)
-    if (tile.isLava && unit.faction === Faction.PLAYER) {
-      continue;
-    }
-
-    // Cannot move onto tiles occupied by another unit
-    if (tile.unitId !== null) {
-      continue;
-    }
-
-    // Cannot move onto tiles occupied by a building that has combat stats,
-    // except for neutral watchtowers which can be moved onto (to capture them).
-    // Owned watchtowers (player or enemy) block movement like other combat buildings.
-    if (tile.buildingId !== null) {
-      const tileBuilding = state.buildings[tile.buildingId];
-      if (tileBuilding && tileBuilding.combatStats !== null) {
-        const isNeutralWatchtower =
-          tileBuilding.type === BuildingType.WATCHTOWER && tileBuilding.faction === null;
-        if (!isNeutralWatchtower) {
-          continue;
-        }
-      }
-    }
-
-    reachableTiles.push({ x: tx, y: ty });
   }
 
-  return reachableTiles;
+  // ── Check 2: BFS path reachability ───────────────────────────────────────
+  // Flood-fill from the unit's position, restricted to tiles that are also in
+  // inRangeSet — the BFS may only use tiles within the geometric range as
+  // waypoints. CANYON/WATER tiles block traversal entirely so a unit cannot
+  // "jump" over them even when the destination lies within the geometric range.
+  const visited = new Set<string>();
+  const queue: Array<{ x: number; y: number; steps: number }> = [
+    { x: unitPosition.x, y: unitPosition.y, steps: 0 },
+  ];
+  visited.add(`${unitPosition.x},${unitPosition.y}`);
+  let head = 0;
+
+  const bfsReachable: Position[] = [];
+
+  while (head < queue.length) {
+    const { x, y, steps } = queue[head++];
+    if (steps >= moveRange) continue;
+
+    for (const [dx, dy] of MOVE_DIRECTIONS) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;
+
+      const nkey = `${nx},${ny}`;
+      if (visited.has(nkey)) continue;
+      // Only traverse tiles that are within the geometric movement range.
+      if (!inRangeSet.has(nkey)) continue;
+      visited.add(nkey);
+
+      const tile = state.grid[ny][nx];
+
+      // CANYON/WATER: impassable — cannot enter or traverse
+      if (tile.terrainType === TileType.CANYON || tile.terrainType === TileType.WATER) continue;
+
+      // Cannot enter undiscovered tiles (player units only)
+      if (!tile.isRevealed && unit.faction === Faction.PLAYER) continue;
+
+      // Cannot enter lava tiles (player units only — enemy units may enter lava)
+      if (tile.isLava && unit.faction === Faction.PLAYER) continue;
+
+      // Cannot enter tiles occupied by another unit
+      if (tile.unitId !== null) continue;
+
+      // Cannot enter tiles occupied by a building that has combat stats,
+      // except for neutral watchtowers which can be moved onto (to capture them).
+      // Owned watchtowers (player or enemy) block movement like other combat buildings.
+      if (tile.buildingId !== null) {
+        const tileBuilding = state.buildings[tile.buildingId];
+        if (tileBuilding && tileBuilding.combatStats !== null) {
+          const isNeutralWatchtower =
+            tileBuilding.type === BuildingType.WATCHTOWER && tileBuilding.faction === null;
+          if (!isNeutralWatchtower) continue;
+        }
+      }
+
+      bfsReachable.push({ x: nx, y: ny });
+      queue.push({ x: nx, y: ny, steps: steps + 1 });
+    }
+  }
+
+  // ── Result ───────────────────────────────────────────────────────────────
+  // Every tile in bfsReachable is already within the geometric range (BFS was
+  // constrained to inRangeSet) AND reachable via a valid terrain path.
+  return bfsReachable;
 }
 
 // ============================================================================
