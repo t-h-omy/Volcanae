@@ -407,10 +407,9 @@ export function resolveAttack(
     // Update defender HP
     defender.stats.currentHp = newDefenderHp;
 
-    // DISTRACTION: permanently reduce defender's defence stat and attack on each hit
+    // DISTRACTION: permanently reduce defender's DEF on each hit
     if (attacker.tags.includes(UnitTag.DISTRACTION)) {
       defender.stats.defense = Math.max(0, defender.stats.defense - ABILITIES.DISTRACTION_DEF_REDUCTION);
-      defender.stats.attack = Math.max(0, defender.stats.attack - Math.abs(ABILITIES.DISTRACTION_ATTACK_MOD));
     }
 
     // PIN_DOWN: mark the defender as pinned until the end of the current turn
