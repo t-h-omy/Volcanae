@@ -7,6 +7,7 @@ import type { GameState, Position } from './types';
 import type { Draft } from 'immer';
 import { BuildingType, Faction, TechFlag, TileType, UnitTag } from './types';
 import { MAP, ABILITIES } from './gameConfig';
+import { getTilesWithinEdgeCircleRange } from './rangeUtils';
 
 // ============================================================================
 // MOVEMENT CALCULATIONS
@@ -22,17 +23,28 @@ const MOVE_DIRECTIONS: [number, number][] = [
 /**
  * Gets all tiles that a unit can reach from its current position.
  *
- * Uses an 8-directional BFS flood-fill so that impassable terrain (CANYON,
- * WATER) blocks traversal — a unit can no longer "jump over" a single-tile
- * canyon by exploiting a geometric range check.
+ * Two independent checks are applied; a tile must pass both to be shown as
+ * a valid movement destination:
  *
- * A tile is reachable if a path exists (within moveRange steps) where every
- * intermediate and destination tile satisfies:
- * - Not a CANYON or WATER tile (impassable for all units)
- * - Not an undiscovered tile (player units only)
- * - Not a lava tile (player units only — enemy units may enter lava)
- * - Not occupied by another unit
- * - Not occupied by a combat building, except neutral watchtowers (capturable)
+ * 1. GEOMETRIC RANGE (edge-circle):
+ *    The tile must be within the unit's movement range as computed by the
+ *    edge-circle system. This defines the movement-range shape independently
+ *    of any blocking terrain — i.e., the visual "footprint" of the range.
+ *
+ * 2. PATH REACHABILITY (BFS flood-fill):
+ *    A valid path must exist from the unit's current position to the tile,
+ *    where every tile along the path satisfies:
+ *    - Not a CANYON or WATER tile (blocks traversal for all units)
+ *    - Not an undiscovered tile (player units only)
+ *    - Not a lava tile (player units only — enemy units may enter lava)
+ *    - Not occupied by another unit
+ *    - Not occupied by a combat building, except neutral watchtowers
+ *
+ *    The BFS is step-limited to moveRange so that detour paths consuming
+ *    more movement points than the unit possesses are rejected. The BFS
+ *    explores freely (not bounded to inRangeSet) so that intermediate steps
+ *    that go "outside" the geometric range shape are permitted as waypoints
+ *    for paths that end inside it.
  *
  * The unit must also not have already moved this turn.
  *
@@ -77,9 +89,30 @@ export function getReachableTiles(
     }
   }
 
-  // BFS flood-fill: each step costs 1 movement point.
-  // CANYON/WATER tiles block traversal — units cannot pass through them even
-  // when the destination itself is a valid tile on the far side.
+  // ── Check 1: geometric range ─────────────────────────────────────────────
+  // Build the set of tile keys that fall within the edge-circle range.
+  // This is computed without any knowledge of terrain or occupancy — it
+  // represents the raw movement-range shape.
+  const rangeCoords = getTilesWithinEdgeCircleRange(
+    unitPosition.x,
+    unitPosition.y,
+    moveRange,
+    MAP.GRID_WIDTH,
+    MAP.GRID_HEIGHT,
+  );
+  const inRangeSet = new Set<string>();
+  for (const { x, y } of rangeCoords) {
+    if (x !== unitPosition.x || y !== unitPosition.y) {
+      inRangeSet.add(`${x},${y}`);
+    }
+  }
+
+  // ── Check 2: BFS path reachability ───────────────────────────────────────
+  // Flood-fill from the unit's position up to moveRange steps.
+  // CANYON/WATER tiles block traversal entirely so a unit cannot "jump" over
+  // them even when the destination lies within the geometric range.
+  // The BFS is NOT pre-filtered to inRangeSet: intermediate waypoints may
+  // legitimately lie outside the geometric boundary.
   const visited = new Set<string>();
   const queue: Array<{ x: number; y: number; steps: number }> = [
     { x: unitPosition.x, y: unitPosition.y, steps: 0 },
@@ -87,7 +120,7 @@ export function getReachableTiles(
   visited.add(`${unitPosition.x},${unitPosition.y}`);
   let head = 0;
 
-  const reachableTiles: Position[] = [];
+  const bfsReachable: Position[] = [];
 
   while (head < queue.length) {
     const { x, y, steps } = queue[head++];
@@ -128,12 +161,15 @@ export function getReachableTiles(
         }
       }
 
-      reachableTiles.push({ x: nx, y: ny });
+      bfsReachable.push({ x: nx, y: ny });
       queue.push({ x: nx, y: ny, steps: steps + 1 });
     }
   }
 
-  return reachableTiles;
+  // ── Intersection ─────────────────────────────────────────────────────────
+  // A tile is a valid destination only when it satisfies both checks:
+  // within the geometric range AND reachable via a valid terrain path.
+  return bfsReachable.filter(pos => inRangeSet.has(`${pos.x},${pos.y}`));
 }
 
 // ============================================================================
