@@ -866,7 +866,7 @@ function StatDetailModal({ unit, onClose }: { unit: Unit; onClose: () => void })
   }
 
   // DISTRACTION combat penalty accumulated across hits
-  const distractionPenalty = unit.distractionDefPenalty ?? 0;
+  const distractionPenalty = unit.distractionDefPenalty;
   if (distractionPenalty > 0) {
     mods.push({
       stat: 'DEF',
@@ -1047,7 +1047,7 @@ function SelectedUnitPanel({
   }, [unit.tags]);
 
   // Accumulated DEF penalty from DISTRACTION combat hits
-  const distractionPenalty = unit.distractionDefPenalty ?? 0;
+  const distractionPenalty = unit.distractionDefPenalty;
 
   // Combined inline penalties per stat
   const atkPenalty = tagPenalties.attack ?? 0;

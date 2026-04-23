@@ -410,7 +410,7 @@ export function resolveAttack(
     // DISTRACTION: permanently reduce defender's DEF on each hit
     if (attacker.tags.includes(UnitTag.DISTRACTION)) {
       const reduction = Math.min(ABILITIES.DISTRACTION_DEF_REDUCTION, defender.stats.defense);
-      defender.stats.defense = Math.max(0, defender.stats.defense - ABILITIES.DISTRACTION_DEF_REDUCTION);
+      defender.stats.defense -= reduction;
       defender.distractionDefPenalty += reduction;
     }
 

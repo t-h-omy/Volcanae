@@ -102,7 +102,7 @@ export function loadGameState(): GameState | null {
     if (s.units && typeof s.units === 'object') {
       for (const unit of Object.values(s.units) as Array<unknown>) {
         const u = unit as Record<string, unknown>;
-        if (u && typeof u.distractionDefPenalty !== 'number') {
+        if (u && typeof u.id === 'string' && typeof u.distractionDefPenalty !== 'number') {
           u.distractionDefPenalty = 0;
         }
       }
