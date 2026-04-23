@@ -58,8 +58,18 @@ export function getReachableTiles(
 ): Position[] {
   const unit = state.units[unitId];
 
-  // Unit doesn't exist or has already moved
-  if (!unit || unit.hasMovedThisTurn) {
+  // Unit doesn't exist → nothing to do
+  if (!unit) return [];
+
+  // HIT_AND_RUN: allow a second move after attacking (post-attack move slot),
+  // even though hasMovedThisTurn is true from the pre-attack move.
+  const isHitAndRunPostAttack =
+    unit.tags.includes(UnitTag.HIT_AND_RUN) &&
+    unit.hasAttackedThisTurn &&
+    !unit.hasUsedPostAttackMoveThisTurn;
+
+  // All other units: blocked once they have moved this turn
+  if (unit.hasMovedThisTurn && !isHitAndRunPostAttack) {
     return [];
   }
 
