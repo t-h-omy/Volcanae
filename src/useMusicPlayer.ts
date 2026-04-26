@@ -23,18 +23,36 @@ const audio = new Audio();
 audio.volume = 0.5;
 const musicQueue = new MusicQueue();
 
+// Tracks the pending resume handler so it can be deregistered when no longer
+// needed (e.g. phase goes inactive, or a new track is loaded).
+let pendingResumeHandler: (() => void) | null = null;
+
+function clearPendingResumeHandler() {
+  if (pendingResumeHandler) {
+    window.removeEventListener('pointerdown', pendingResumeHandler);
+    window.removeEventListener('keydown', pendingResumeHandler);
+    pendingResumeHandler = null;
+  }
+}
+
 function loadNextTrack() {
+  clearPendingResumeHandler();
   const track = musicQueue.next();
   audio.src = `/music/${encodeURIComponent(track)}`;
   audio.load();
   audio.play().catch(() => {
     // Autoplay may be blocked until the user first interacts with the page.
-    // Register one-time interaction handlers to kick off playback then.
+    // Register interaction handlers to kick off playback then.  Both are
+    // removed when either fires to avoid orphaned listeners.
     const resume = () => {
+      pendingResumeHandler = null;
+      window.removeEventListener('pointerdown', resume);
+      window.removeEventListener('keydown', resume);
       audio.play().catch(() => undefined);
     };
-    window.addEventListener('pointerdown', resume, { once: true });
-    window.addEventListener('keydown', resume, { once: true });
+    pendingResumeHandler = resume;
+    window.addEventListener('pointerdown', resume);
+    window.addEventListener('keydown', resume);
   });
 }
 
@@ -48,6 +66,7 @@ export function useMusicPlayer(): void {
       // Stop playback on game-over / victory / not started yet.
       audio.pause();
       audio.src = '';
+      clearPendingResumeHandler();
       return;
     }
 
@@ -56,8 +75,12 @@ export function useMusicPlayer(): void {
     const handleEnded = () => loadNextTrack();
     audio.addEventListener('ended', handleEnded);
 
-    // Only start a new track if nothing is currently playing.
-    if (audio.paused || audio.src === '') {
+    // Only start a new track if nothing is currently playing and there is no
+    // pending autoplay-blocked play waiting for user interaction.  Without
+    // this guard, each active-phase transition (PLAYER_TURN → ENEMY_TURN →
+    // LAVA_PHASE …) would call loadNextTrack() again while audio.paused is
+    // still true, accumulating stale resume handlers and skipping queue tracks.
+    if (!pendingResumeHandler && (audio.paused || audio.src === '')) {
       loadNextTrack();
     }
 
