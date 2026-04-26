@@ -884,6 +884,63 @@
   text-align: right;
 }
 
+/* ── Options Overlay ── */
+
+.hud-options-overlay {
+  min-width: 320px;
+  max-width: 400px;
+}
+
+.hud-options-volume-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+}
+
+.hud-options-volume-label {
+  font-size: 13px;
+  color: #ccc;
+  flex-shrink: 0;
+  min-width: 72px;
+}
+
+.hud-options-volume-slider {
+  flex: 1;
+  accent-color: #3a7bd5;
+  cursor: pointer;
+  height: 4px;
+  min-width: 0;
+}
+
+.hud-options-mute-btn {
+  flex-shrink: 0;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  color: #eee;
+  font-size: 16px;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 0.15s;
+  line-height: 1;
+}
+
+.hud-options-mute-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.hud-options-mute-btn--muted {
+  border-color: rgba(255, 80, 80, 0.5);
+  background: rgba(180, 40, 40, 0.25);
+}
+
+.hud-options-mute-btn--muted:hover {
+  background: rgba(180, 40, 40, 0.4);
+}
 
 
 .hud-ai-score-btn {
