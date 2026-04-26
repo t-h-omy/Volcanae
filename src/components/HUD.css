@@ -913,6 +913,10 @@
   min-width: 0;
 }
 
+.hud-options-volume-slider--muted {
+  opacity: 0.4;
+}
+
 .hud-options-mute-btn {
   flex-shrink: 0;
   min-width: 40px;

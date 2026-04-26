@@ -365,15 +365,15 @@ function OptionsOverlay({ onClose }: { onClose: () => void }) {
             <span className="hud-options-volume-label">🔊 Volume</span>
             <input
               type="range"
-              className="hud-options-volume-slider"
+              className={`hud-options-volume-slider${muted ? ' hud-options-volume-slider--muted' : ''}`}
               min={0}
               max={1}
               step={0.01}
-              value={muted ? 0 : volume}
+              value={volume}
               onChange={(e) => {
                 const val = parseFloat(e.target.value);
                 setVolume(val);
-                if (muted && val > 0) setMuted(false);
+                if (muted) setMuted(false);
               }}
               aria-label="Sound volume"
             />
