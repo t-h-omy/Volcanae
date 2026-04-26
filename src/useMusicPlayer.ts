@@ -38,7 +38,7 @@ function clearPendingResumeHandler() {
 function loadNextTrack() {
   clearPendingResumeHandler();
   const track = musicQueue.next();
-  audio.src = `/music/${encodeURIComponent(track)}`;
+  audio.src = `${import.meta.env.BASE_URL}music/${encodeURIComponent(track)}`;
   audio.load();
   audio.play().catch(() => {
     // Autoplay may be blocked until the user first interacts with the page.
