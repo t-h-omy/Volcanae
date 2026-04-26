@@ -9,6 +9,7 @@
 
 import { useEffect } from 'react';
 import { useGameStore } from './gameStore';
+import { useSoundOptionsStore } from './soundOptionsStore';
 import { GamePhase } from './types';
 import { MusicQueue } from './musicSystem';
 
@@ -20,7 +21,12 @@ const ACTIVE_PHASES = new Set<string>([
 
 // Module-level singletons – one Audio element for the lifetime of the app.
 const audio = new Audio();
-audio.volume = 0.5;
+
+// Apply persisted sound options immediately on module load.
+{
+  const { volume, muted } = useSoundOptionsStore.getState();
+  audio.volume = muted ? 0 : volume;
+}
 const musicQueue = new MusicQueue();
 
 // Tracks the pending resume handler so it can be deregistered when no longer
@@ -58,6 +64,13 @@ function loadNextTrack() {
 
 export function useMusicPlayer(): void {
   const phase = useGameStore((s) => s.phase);
+  const volume = useSoundOptionsStore((s) => s.volume);
+  const muted = useSoundOptionsStore((s) => s.muted);
+
+  // Sync volume/muted changes to the audio element immediately.
+  useEffect(() => {
+    audio.volume = muted ? 0 : volume;
+  }, [volume, muted]);
 
   useEffect(() => {
     const isActive = phase !== null && ACTIVE_PHASES.has(phase);

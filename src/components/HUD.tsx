@@ -9,6 +9,7 @@ import { createPortal } from 'react-dom';
 import { useGameStore } from '../gameStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
+import { useSoundOptionsStore } from '../soundOptionsStore';
 import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, computeResearchCost } from '../gameConfig';
 import { UI } from '../uiConfig';
 import type { UnitPopulationCost, TechId } from '../types';
@@ -333,10 +334,70 @@ function DifficultyOverlay({
   );
 }
 
+// ============================================================================
+// OPTIONS OVERLAY
+// ============================================================================
+
+function OptionsOverlay({ onClose }: { onClose: () => void }) {
+  const volume = useSoundOptionsStore((s) => s.volume);
+  const muted = useSoundOptionsStore((s) => s.muted);
+  const setVolume = useSoundOptionsStore((s) => s.setVolume);
+  const setMuted = useSoundOptionsStore((s) => s.setMuted);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return createPortal(
+    <div className="hud-dev-overlay-backdrop" onClick={onClose}>
+      <div className="hud-dev-overlay hud-options-overlay" onClick={(e) => e.stopPropagation()}>
+        <div className="hud-dev-overlay-header">
+          <span>⚙️ Options</span>
+          <button className="hud-modal-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="hud-dev-overlay-body">
+          <div className="hud-dev-overlay-section-title">Sound</div>
+          <div className="hud-options-volume-row">
+            <span className="hud-options-volume-label">🔊 Volume</span>
+            <input
+              type="range"
+              className={`hud-options-volume-slider${muted ? ' hud-options-volume-slider--muted' : ''}`}
+              min={0}
+              max={1}
+              step={0.01}
+              value={volume}
+              onChange={(e) => {
+                const val = parseFloat(e.target.value);
+                setVolume(val);
+                if (muted) setMuted(false);
+              }}
+              aria-label="Sound volume"
+            />
+            <button
+              className={`hud-options-mute-btn${muted ? ' hud-options-mute-btn--muted' : ''}`}
+              onClick={() => setMuted(!muted)}
+              aria-label={muted ? 'Unmute' : 'Mute'}
+              title={muted ? 'Unmute' : 'Mute'}
+            >
+              {muted ? '🔇' : '🔊'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 function GameMenu() {
   const [open, setOpen] = useState(false);
   const [devOptionsOverlayOpen, setDevOptionsOverlayOpen] = useState(false);
   const [difficultyOverlayOpen, setDifficultyOverlayOpen] = useState(false);
+  const [optionsOverlayOpen, setOptionsOverlayOpen] = useState(false);
   const initNewGame = useGameStore((s) => s.initNewGame);
   const currentDifficulty = useGameStore((s) => s.difficulty);
   const saveGame = useGameStore((s) => s.saveGame);
@@ -430,6 +491,13 @@ function GameMenu() {
             <button
               className="hud-menu-item"
               role="menuitem"
+              onClick={() => { setOpen(false); setOptionsOverlayOpen(true); }}
+            >
+              ⚙️ Options
+            </button>
+            <button
+              className="hud-menu-item"
+              role="menuitem"
               onClick={() => { setOpen(false); setDevOptionsOverlayOpen(true); }}
             >
               🛠️ Dev Options
@@ -447,6 +515,9 @@ function GameMenu() {
           onSelect={handleDifficultySelect}
           onClose={() => setDifficultyOverlayOpen(false)}
         />
+      )}
+      {optionsOverlayOpen && (
+        <OptionsOverlay onClose={() => setOptionsOverlayOpen(false)} />
       )}
     </div>
   );
