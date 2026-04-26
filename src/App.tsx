@@ -1,6 +1,7 @@
 import { useEffect, useCallback, useState, useRef } from 'react'
 import { useGameStore } from './gameStore'
 import { useAnimationEngine } from './useAnimationEngine'
+import { useMusicPlayer } from './useMusicPlayer'
 import { preloadAssets } from './assetLoader'
 import { GamePhase } from './types'
 import { UI } from './uiConfig'
@@ -45,6 +46,9 @@ function App() {
 
   // Initialize animation engine
   useAnimationEngine();
+
+  // Background music
+  useMusicPlayer();
 
   useEffect(() => {
     preloadAssets().then(() => setAssetsReady(true));
