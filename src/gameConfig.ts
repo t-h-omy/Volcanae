@@ -1019,6 +1019,8 @@ export const ABILITIES = {
   SPLASH_DAMAGE_RATIO: 0.25,
   /** Crystal cost to revive a unit from a Gravestone */
   REVIVE_CRYSTAL_COST: 1,
+  /** Starting and maximum HP of a newly spawned Gravestone building */
+  GRAVESTONE_MAX_HP: 80,
 } as const;
 
 // ============================================================================

@@ -260,7 +260,9 @@ export function resolveAttack(
     attackerCombatant.attack += ABILITIES.LANCE_CHARGE_ATTACK_BONUS;
   }
 
-  // BLOODLUST: second attack uses half the normal attack value and deals no retaliation
+  // BLOODLUST: second attack uses half the normal attack value and deals no retaliation.
+  // Applied before PHALANX bonuses intentionally — PHALANX bonus is added to the
+  // already-halved value, keeping the second attack weaker than full PHALANX output.
   const isBloodlustAttack = !!attacker.bloodlustAttackAvailable;
   if (isBloodlustAttack) {
     attackerCombatant.attack = Math.floor(attackerCombatant.attack / 2);
@@ -415,8 +417,8 @@ export function resolveAttack(
           type: BuildingType.GRAVESTONE,
           faction: Faction.PLAYER,
           position: { x: defenderPosition.x, y: defenderPosition.y },
-          hp: 80,
-          maxHp: 80,
+          hp: ABILITIES.GRAVESTONE_MAX_HP,
+          maxHp: ABILITIES.GRAVESTONE_MAX_HP,
           specialistSlot: null,
           isDisabledForTurns: 0,
           wasAttackedLastEnemyTurn: false,
@@ -738,8 +740,8 @@ export function resolveBuildingAttack(
           type: BuildingType.GRAVESTONE,
           faction: Faction.PLAYER,
           position: { x: defenderPos.x, y: defenderPos.y },
-          hp: 80,
-          maxHp: 80,
+          hp: ABILITIES.GRAVESTONE_MAX_HP,
+          maxHp: ABILITIES.GRAVESTONE_MAX_HP,
           specialistSlot: null,
           isDisabledForTurns: 0,
           wasAttackedLastEnemyTurn: false,

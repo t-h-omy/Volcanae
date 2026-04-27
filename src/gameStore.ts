@@ -796,7 +796,7 @@ export const useGameStore = create<GameStore>()(
         const removedTags = getRemovedTags(state, unitType);
         const spawnTags = baseTags.filter((t) => !removedTags.includes(t));
 
-        const unitId = `unit_revived_${Date.now()}_${buildingId}`;
+        const unitId = generateId('unit');
         state.units[unitId] = {
           id: unitId,
           type: unitType,
