@@ -1218,6 +1218,16 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SIEGE,  tag: UnitTag.ELITE },
     ],
   },
+  {
+    id: 'MASTER_RECRUITER',
+    name: 'Master Recruiter',
+    description: 'Unlocks a third specialist slot.',
+    requires: ['NOBLE_HERITAGE'],
+    cost: 6,
+    effects: [
+      { type: 'SPECIALIST_SLOT_MOD', value: 1 },
+    ],
+  },
 
   // ── Branch 1 (Cavalry) deep upgrades ──────────────────────────────────────
   {

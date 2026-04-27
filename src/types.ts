@@ -117,6 +117,7 @@ export const TechEffectType = {
   BUILDING_PRODUCTION_MOD:  'BUILDING_PRODUCTION_MOD',
   FLAG:                     'FLAG',
   STRONGHOLD_CAP_MOD:       'STRONGHOLD_CAP_MOD',
+  SPECIALIST_SLOT_MOD:      'SPECIALIST_SLOT_MOD',
 } as const;
 export type TechEffectType = (typeof TechEffectType)[keyof typeof TechEffectType];
 
@@ -198,7 +199,8 @@ export type TechEffect =
   | { type: 'UNIT_COST_MOD';           unitType: UnitType; resource: 'iron' | 'wood'; amount: number }
   | { type: 'BUILDING_PRODUCTION_MOD'; buildingType: BuildingType; resource: ResourceType; chancePercent: number; amount: number }
   | { type: 'FLAG';                    flag: TechFlag }
-  | { type: 'STRONGHOLD_CAP_MOD';      capType: 'farmer' | 'noble'; amount: number };
+  | { type: 'STRONGHOLD_CAP_MOD';      capType: 'farmer' | 'noble'; amount: number }
+  | { type: 'SPECIALIST_SLOT_MOD';     value: number };
 
 /** Static definition of a tech-tree node (lives in gameConfig) */
 export interface TechNodeDefinition {
