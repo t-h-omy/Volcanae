@@ -105,6 +105,9 @@ export function loadGameState(): GameState | null {
         if (u && typeof u.id === 'string' && typeof u.distractionDefPenalty !== 'number') {
           u.distractionDefPenalty = 0;
         }
+        if (u && typeof u.id === 'string' && typeof u.lastMovedTurn !== 'number') {
+          u.lastMovedTurn = 0;
+        }
       }
     }
 

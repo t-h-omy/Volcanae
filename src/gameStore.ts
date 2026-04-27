@@ -23,6 +23,7 @@ import {
 } from './resourceSystem';
 import {
   constructBuilding as constructBuildingLogic,
+  placeMineOnTile,
 } from './constructionSystem';
 import { runEnemyTurn } from './enemySystem';
 import {
@@ -32,6 +33,7 @@ import {
 import { checkGameConditions } from './gameConditions';
 import { useFloaterStore } from './floaterStore';
 import { useAnimationStore } from './animationStore';
+import { useCaveScreamsStore } from './caveScreamsStore';
 import { Faction, GamePhase, BuildingType, TileType, Difficulty, DestroyBehavior } from './types';
 import type { GameState, UnitType, Position, TechId } from './types';
 import type { GameEvent } from './gameEvents';
@@ -127,6 +129,8 @@ interface GameActions {
   unlockTech: (techId: TechId) => void;
   /** Return the list of tech IDs available for the player to pick */
   getAvailableTechs: () => TechId[];
+  /** Seal a cave mountain tile and construct a Mine on it */
+  sealAndBuildMine: (tilePos: Position) => void;
 }
 
 // ============================================================================
@@ -202,6 +206,22 @@ export const useGameStore = create<GameStore>()(
         state.selectedTilePos = null;
         state.pendingHealerId = null;
       });
+      // After selection, check if this player unit is standing on an unresolved
+      // cave mountain tile — if so, open the screams popup (unless they arrived
+      // this turn or an encounter for this tile is already active).
+      const s = useGameStore.getState();
+      const unit = s.units[unitId];
+      if (unit && unit.faction === Faction.PLAYER) {
+        const tile = s.grid[unit.position.y]?.[unit.position.x];
+        if (tile?.hasCaveMonster) {
+          const tileKey = `${unit.position.x},${unit.position.y}`;
+          const alreadyActive = s.activeCaveEncounters.some((e) => e.mountainTileId === tileKey);
+          const arrivedThisTurn = unit.lastMovedTurn === s.turn;
+          if (!alreadyActive && !arrivedThisTurn) {
+            useCaveScreamsStore.getState().open({ x: unit.position.x, y: unit.position.y });
+          }
+        }
+      }
     },
 
     selectBuilding: (buildingId: string) => {
@@ -568,6 +588,18 @@ export const useGameStore = create<GameStore>()(
         updateDiscovery(state);
         checkGameConditions(state);
       });
+    },
+
+    sealAndBuildMine: (tilePos: Position) => {
+      set((state) => {
+        const tile = state.grid[tilePos.y]?.[tilePos.x];
+        if (!tile) return;
+        placeMineOnTile(state, tilePos);
+        tile.hasCaveMonster = false;
+        updateDiscovery(state);
+        checkGameConditions(state);
+      });
+      useCaveScreamsStore.getState().close();
     },
 
     healUnit: (healerId: string, targetId: string) => {

@@ -2086,3 +2086,69 @@
   border-color: rgba(255, 200, 80, 0.85);
   outline: none;
 }
+
+/* ── Cave Screams Popup ── */
+
+.cave-screams-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 260;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+}
+
+.cave-screams-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 28px 36px 24px;
+  border-radius: 10px;
+  background: rgba(12, 8, 4, 0.92);
+  border: 1px solid rgba(180, 140, 80, 0.35);
+  box-shadow: 0 0 36px rgba(120, 80, 20, 0.3);
+  max-width: 420px;
+  text-align: center;
+  animation: caveCardEnter 300ms ease-out both;
+}
+
+@keyframes caveCardEnter {
+  0%   { opacity: 0; transform: scale(0.9) translateY(10px); }
+  100% { opacity: 1; transform: scale(1)   translateY(0); }
+}
+
+.cave-screams-flavor {
+  font-size: 15px;
+  line-height: 1.55;
+  color: #d4c49a;
+  margin: 0;
+}
+
+.cave-screams-actions {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+.cave-screams-btn {
+  flex: 1;
+  padding: 11px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(200, 170, 100, 0.4);
+  border-radius: 6px;
+  color: #e8d8a8;
+  cursor: pointer;
+  transition: background 140ms, border-color 140ms;
+}
+
+.cave-screams-btn:hover,
+.cave-screams-btn:focus {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(220, 190, 120, 0.75);
+  outline: none;
+}

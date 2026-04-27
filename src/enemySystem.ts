@@ -512,6 +512,7 @@ function createEnemyUnit(
     level: 1,
     pinnedUntilTurn: 0,
     distractionDefPenalty: 0,
+    lastMovedTurn: 0,
   };
 }
 

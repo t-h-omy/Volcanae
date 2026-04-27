@@ -407,6 +407,38 @@ export function constructBuilding(
   state.gameStats.buildingsConstructed += 1;
 }
 
+/**
+ * Places a Mine directly on a mountain tile, bypassing unit action flags.
+ * Used by the Seal & Build Mine cave resolution path where the constructing
+ * unit may not have the BUILDANDCAPTURE tag or may have already acted.
+ * Deducts Mine construction cost from player resources.
+ */
+export function placeMineOnTile(
+  state: Draft<GameState>,
+  tilePos: Position,
+): void {
+  const tile = state.grid[tilePos.y]?.[tilePos.x];
+  if (!tile) return;
+  if (tile.buildingId !== null) return;
+  if (tile.isLava) return;
+
+  const cost = BUILDING_COST[BuildingType.MINE as ConstructableBuilding];
+  if (!cost) return;
+  if (state.resources.iron < cost.iron || state.resources.wood < cost.wood) return;
+
+  state.resources.iron -= cost.iron;
+  state.resources.wood -= cost.wood;
+
+  const newBuilding = createBuildingObject(BuildingType.MINE, tilePos, Faction.PLAYER);
+  state.buildings[newBuilding.id] = newBuilding;
+  tile.buildingId = newBuilding.id;
+
+  if (tile.isRuin) tile.isRuin = false;
+  if (tile.isStrongholdRuin) tile.isStrongholdRuin = false;
+
+  state.gameStats.buildingsConstructed += 1;
+}
+
 // ============================================================================
 // ENEMY CONSTRUCTION
 // ============================================================================

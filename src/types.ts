@@ -264,6 +264,8 @@ export interface Unit {
    * Stored for display purposes only — the reduction is already applied to stats.defense.
    */
   distractionDefPenalty: number;
+  /** Turn number during which this unit last moved. 0 = never moved (or pre-dates this field). */
+  lastMovedTurn: number;
 }
 
 /** Defines a single stat boost applied when a unit reaches a new level */

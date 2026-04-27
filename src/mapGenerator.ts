@@ -304,11 +304,10 @@ function createUnit(
     level: 1,
     pinnedUntilTurn: 0,
     distractionDefPenalty: 0,
+    lastMovedTurn: 0,
   };
 }
 
-// ============================================================================
-// TERRAIN GENERATION
 // ============================================================================
 
 /** Returns a random integer in the inclusive range [min, max]. */

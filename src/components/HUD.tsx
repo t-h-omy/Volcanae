@@ -46,6 +46,7 @@ import {
 import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY } from '../unitActions';
 import { getPhalanxAttackBonus, getPhalanxDefenseBonus } from '../combatSystem';
 import { useZoneClearedStore } from '../zoneClearedStore';
+import { useCaveScreamsStore } from '../caveScreamsStore';
 import './HUD.css';
 
 // ============================================================================
@@ -1884,15 +1885,19 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
 
 function BottomBar() {
   const phase = useGameStore((s) => s.phase);
+  const turn = useGameStore((s) => s.turn);
   const selectedUnitId = useGameStore((s) => s.selectedUnitId);
   const selectedBuildingId = useGameStore((s) => s.selectedBuildingId);
   const selectedTilePos = useGameStore((s) => s.selectedTilePos);
   const units = useGameStore((s) => s.units);
   const buildings = useGameStore((s) => s.buildings);
   const grid = useGameStore((s) => s.grid);
+  const activeCaveEncounters = useGameStore((s) => s.activeCaveEncounters);
   const endPlayerTurn = useGameStore((s) => s.endPlayerTurn);
   const captureBuilding = useGameStore((s) => s.captureBuilding);
   const isAnimating = useAnimationStore((s) => s.isAnimating);
+  const cavePopupActive = useCaveScreamsStore((s) => s.tilePos !== null);
+  const openCavePopup = useCaveScreamsStore((s) => s.open);
 
   const selectedUnit: Unit | undefined = selectedUnitId
     ? units[selectedUnitId]
@@ -1936,10 +1941,29 @@ function BottomBar() {
 
   const isPlayerTurn = phase === GamePhase.PLAYER_TURN;
 
+  // Auto-open cave screams popup at start of player's turn if a previously
+  // selected unit is still standing on an unresolved cave mountain tile.
+  useEffect(() => {
+    if (phase !== GamePhase.PLAYER_TURN || isAnimating || !selectedUnitId) return;
+    const unit = units[selectedUnitId];
+    if (!unit || unit.faction !== Faction.PLAYER) return;
+    const tile = grid[unit.position.y]?.[unit.position.x];
+    if (!tile?.hasCaveMonster) return;
+    const tileKey = `${unit.position.x},${unit.position.y}`;
+    const alreadyActive = activeCaveEncounters.some((e) => e.mountainTileId === tileKey);
+    const arrivedThisTurn = unit.lastMovedTurn === turn;
+    if (!alreadyActive && !arrivedThisTurn) {
+      useAnimationStore.getState().setCameraTarget(unit.position);
+      openCavePopup({ x: unit.position.x, y: unit.position.y });
+    }
+  // Re-run when the turn number or phase changes (new player turn starts).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [turn, phase]);
+
   return (
     <div className="hud-bottom-bar">
-      {/* Info panels */}
-      {selectedUnit && (
+      {/* Info panels — hidden while cave screams popup is active */}
+      {selectedUnit && !cavePopupActive && (
         <SelectedUnitPanel
           unit={selectedUnit}
           captureTarget={captureTarget}
@@ -1947,16 +1971,16 @@ function BottomBar() {
         />
       )}
       {/* Construction panel for BUILD_AND_CAPTURE units on constructable tiles */}
-      {selectedUnit && showConstruction && (
+      {selectedUnit && showConstruction && !cavePopupActive && (
         <ConstructionPanel
           unit={selectedUnit}
           tilePos={selectedUnit.position}
         />
       )}
-      {selectedBuilding && !selectedUnit && (
+      {selectedBuilding && !selectedUnit && !cavePopupActive && (
         <SelectedBuildingPanel building={selectedBuilding} />
       )}
-      {selectedTile && !selectedUnit && !selectedBuilding && (
+      {selectedTile && !selectedUnit && !selectedBuilding && !cavePopupActive && (
         <SelectedTilePanel tile={selectedTile} />
       )}
 
@@ -2096,6 +2120,47 @@ function ZoneClearedPopup() {
         <button className="hud-zone-cleared-btn" onClick={dismiss}>
           Press On
         </button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// CAVE SCREAMS POPUP
+// ============================================================================
+
+function CaveScreamsPopup() {
+  const tilePos = useCaveScreamsStore((s) => s.tilePos);
+  const close = useCaveScreamsStore((s) => s.close);
+  const sealAndBuildMine = useGameStore((s) => s.sealAndBuildMine);
+
+  if (!tilePos) return null;
+
+  const handleExplore = () => {
+    // Stub: full spawn logic implemented in a later prompt.
+    console.log('[Cave] Explore chosen at tile', tilePos);
+    close();
+  };
+
+  const handleSeal = () => {
+    sealAndBuildMine(tilePos);
+    // close() is called inside sealAndBuildMine after state update
+  };
+
+  return (
+    <div className="cave-screams-overlay">
+      <div className="cave-screams-card">
+        <p className="cave-screams-flavor">
+          Screams echo from deep within the entrance. Venture inside and help, or seal it and build a mine?
+        </p>
+        <div className="cave-screams-actions">
+          <button className="cave-screams-btn" onClick={handleExplore}>
+            🗡️ Explore
+          </button>
+          <button className="cave-screams-btn" onClick={handleSeal}>
+            ⛏️ Seal &amp; Build Mine
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -2588,6 +2653,7 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
     <>
       {!hasSeenIntro && <GameIntroPopup onDismiss={handleIntroDismiss} />}
       <ZoneClearedPopup />
+      <CaveScreamsPopup />
       <TopBar
         onOpenTechTree={() => setShowTechTree(true)}
         showTechButton={isPlayerTurn}
