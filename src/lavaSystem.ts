@@ -106,12 +106,34 @@ export function advanceLava(state: Draft<GameState>): void {
   // Process all tiles in the new lava row
   for (let x = 0; x < MAP.GRID_WIDTH; x++) {
     const tile = state.grid[newLavaRow][x];
+    const tileId = `${x},${newLavaRow}`;
 
     // Convert tile to lava; clear any ruins
     tile.isLava = true;
     tile.isLavaPreview = false;
     tile.isRuin = false;
     tile.isStrongholdRuin = false;
+
+    // Clear hasCaveMonster flag — the mountain is consumed, no popup
+    if (tile.hasCaveMonster) {
+      tile.hasCaveMonster = false;
+    }
+
+    // Silently remove any active cave encounter on this tile
+    const encounterIdx = state.activeCaveEncounters.findIndex(
+      (e) => e.mountainTileId === tileId
+    );
+    if (encounterIdx !== -1) {
+      const encounter = state.activeCaveEncounters[encounterIdx];
+      // Remove the cave monster unit (silent — no death animation, no hire modal)
+      delete state.units[encounter.monsterId];
+      // Ensure tile's unitId is cleared if it matches the monster
+      if (tile.unitId === encounter.monsterId) {
+        tile.unitId = null;
+      }
+      // Remove the encounter entry
+      state.activeCaveEncounters.splice(encounterIdx, 1);
+    }
 
     // Destroy any unit on this tile
     if (tile.unitId !== null) {
