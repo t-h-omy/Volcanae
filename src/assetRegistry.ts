@@ -48,6 +48,7 @@ export const UNIT_SPRITE: Partial<Record<UnitType, string>> = withBase({
   LAVA_RIDER:  '/sprites/units/Blazard_100px.png',
   LAVA_SIEGE:  '/sprites/units/Hurler_100px.png',
   EMBERLING:   '/sprites/units/Emberling_100px.png',
+  CAVE_MONSTER: '',
 });
 
 /** Maps every BuildingType value to a sprite path (empty = missing). */

@@ -489,6 +489,11 @@ export const TERRAIN = {
 
   /** Probability that a Mountain tile has a cave monster; checked once per tile at map gen */
   CAVE_MONSTER_SPAWN_CHANCE: 0.33,
+  /**
+   * Per-zone HP/ATK/DEF multiplier for the cave monster (index 0 = zone 1, index 4 = zone 5).
+   * Higher zones are deeper into enemy territory and have stronger monsters.
+   */
+  CAVE_MONSTER_ZONE_SCALE: [1.0, 1.15, 1.3, 1.5, 1.7] as const,
 } as const;
 
 // ============================================================================
@@ -721,6 +726,20 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     ],
     enemyUnlockEmber: 1,
     description: 'Fragile fire spirit that walks toward lava. Explodes on death, dealing heavy damage to all nearby enemies.', // overwritten below
+  },
+
+  CAVE_MONSTER: {
+    maxHp: 100, attack: 55, defense: 50,
+    movementActions: 1, moveRange: 1, attackRange: 1,
+    discoverRadius: 1, triggerRange: 3,
+    tags: [],
+    cost: { iron: 0, wood: 0 },
+    populationCost: { farmers: 0, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    description: 'A monstrous creature that emerged from deep within a mountain cave.',
   },
 };
 

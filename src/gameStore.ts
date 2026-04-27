@@ -33,11 +33,12 @@ import {
 import { checkGameConditions } from './gameConditions';
 import { useFloaterStore } from './floaterStore';
 import { useAnimationStore } from './animationStore';
+import { useCombatAnimationStore } from './combatAnimationStore';
 import { useCaveScreamsStore } from './caveScreamsStore';
-import { Faction, GamePhase, BuildingType, TileType, Difficulty, DestroyBehavior } from './types';
-import type { GameState, UnitType, Position, TechId } from './types';
+import { Faction, GamePhase, BuildingType, TileType, Difficulty, DestroyBehavior, UnitType } from './types';
+import type { GameState, Position, TechId } from './types';
 import type { GameEvent } from './gameEvents';
-import { MAP, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval } from './gameConfig';
+import { MAP, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval, UNIT_DEFINITIONS } from './gameConfig';
 import { saveGameState, loadGameState, clearSavedGame, hasSavedGame } from './saveSystem';
 import { computeLevelFromXp, applyLevelUps } from './levelSystem';
 import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLogic } from './techSystem';
@@ -131,6 +132,8 @@ interface GameActions {
   getAvailableTechs: () => TechId[];
   /** Seal a cave mountain tile and construct a Mine on it */
   sealAndBuildMine: (tilePos: Position) => void;
+  /** Explore a cave mountain tile: spawns a cave monster near it */
+  exploreCave: (tilePos: Position) => void;
 }
 
 // ============================================================================
@@ -600,6 +603,149 @@ export const useGameStore = create<GameStore>()(
         checkGameConditions(state);
       });
       useCaveScreamsStore.getState().close();
+    },
+
+    exploreCave: (tilePos: Position) => {
+      useCaveScreamsStore.getState().close();
+
+      // Capture the spawn position from the immer callback via a closure variable.
+      // This avoids mutating state with temp fields.
+      let vfxPos: { x: number; y: number } | null = null;
+
+      set((state) => {
+        const tile = state.grid[tilePos.y]?.[tilePos.x];
+        if (!tile) return;
+
+        // Mark cave as resolved regardless of whether spawn succeeds
+        tile.hasCaveMonster = false;
+
+        // ── Compute zone for stat scaling ────────────────────────────────
+        const zoneIndex = Math.min(
+          Math.max(0, Math.floor((MAP.GRID_HEIGHT - MAP.LAVA_BUFFER_ROWS - 1 - tilePos.y) / MAP.ZONE_HEIGHT)),
+          MAP.ZONE_COUNT - 1,
+        );
+        const scale = MAP.CAVE_MONSTER_ZONE_SCALE[zoneIndex] ?? 1.0;
+
+        const base = UNIT_DEFINITIONS[UnitType.CAVE_MONSTER];
+        const maxHp = Math.round(base.maxHp * scale);
+        const attack = Math.round(base.attack * scale);
+        const defense = Math.round(base.defense * scale);
+
+        // ── BFS to find a free spawn tile outward from the mountain ─────
+        const visited = new Set<string>();
+        visited.add(`${tilePos.x},${tilePos.y}`);
+        const queue: Array<{ x: number; y: number }> = [];
+
+        // Seed with all 8 neighbors
+        for (const [dx, dy] of [
+          [0,-1],[0,1],[-1,0],[1,0],
+          [-1,-1],[-1,1],[1,-1],[1,1],
+        ] as const) {
+          const nx = tilePos.x + dx;
+          const ny = tilePos.y + dy;
+          if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;
+          const key = `${nx},${ny}`;
+          if (!visited.has(key)) {
+            visited.add(key);
+            queue.push({ x: nx, y: ny });
+          }
+        }
+
+        /**
+         * Returns true when a tile is suitable for the monster to spawn on.
+         * Mirrors the impassability rules used for enemy movement.
+         */
+        const isFree = (x: number, y: number): boolean => {
+          const t = state.grid[y]?.[x];
+          if (!t) return false;
+          if (t.terrainType === TileType.CANYON || t.terrainType === TileType.WATER) return false;
+          if (t.isLava) return false;
+          if (t.unitId !== null) return false;
+          if (t.buildingId !== null) {
+            const b = state.buildings[t.buildingId];
+            // Tiles with combat buildings are impassable (skip neutral watchtowers too
+            // — we don't want the monster to accidentally destroy them by occupying)
+            if (b && b.combatStats !== null) return false;
+          }
+          return true;
+        };
+
+        let spawnPos: { x: number; y: number } | null = null;
+        let head = 0;
+
+        while (head < queue.length) {
+          const { x, y } = queue[head++];
+          if (isFree(x, y)) {
+            spawnPos = { x, y };
+            break;
+          }
+          // Expand BFS frontier — push unvisited neighbours of this tile
+          for (const [dx, dy] of [
+            [0,-1],[0,1],[-1,0],[1,0],
+            [-1,-1],[-1,1],[1,-1],[1,1],
+          ] as const) {
+            const nx = x + dx;
+            const ny = y + dy;
+            if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;
+            const key = `${nx},${ny}`;
+            if (!visited.has(key)) {
+              visited.add(key);
+              queue.push({ x: nx, y: ny });
+            }
+          }
+        }
+
+        if (!spawnPos) return; // No reachable free tile — abort
+
+        // ── Create the cave monster unit ─────────────────────────────────
+        const newUnit = {
+          id: generateId('unit'),
+          type: UnitType.CAVE_MONSTER,
+          faction: Faction.ENEMY,
+          position: { x: spawnPos.x, y: spawnPos.y },
+          stats: {
+            maxHp,
+            currentHp: maxHp,
+            attack,
+            defense,
+            moveRange: base.moveRange,
+            discoverRadius: base.discoverRadius,
+            triggerRange: base.triggerRange,
+            movementActions: base.movementActions,
+            attackRange: base.attackRange,
+          },
+          tags: [...base.tags],
+          // All action flags true — monster does not move or attack on spawn turn
+          hasMovedThisTurn: true,
+          hasAttackedThisTurn: true,
+          hasConstructedThisTurn: true,
+          hasDestroyedThisTurn: true,
+          hasCapturedThisTurn: true,
+          hasUsedPostAttackMoveThisTurn: false,
+          xp: 0,
+          level: 1,
+          pinnedUntilTurn: 0,
+          distractionDefPenalty: 0,
+          lastMovedTurn: 0,
+        };
+
+        state.units[newUnit.id] = newUnit;
+        state.grid[spawnPos.y][spawnPos.x].unitId = newUnit.id;
+
+        // Register the active cave encounter
+        const mountainTileId = `${tilePos.x},${tilePos.y}`;
+        state.activeCaveEncounters.push({ monsterId: newUnit.id, mountainTileId });
+
+        updateDiscovery(state);
+
+        // Capture spawn position for VFX trigger outside the immer callback
+        vfxPos = { x: spawnPos.x, y: spawnPos.y };
+      });
+
+      // Trigger a brief tile-flash on the spawn tile to make the appearance legible
+      if (vfxPos) {
+        useCombatAnimationStore.getState().addTileFlash((vfxPos as { x: number; y: number }).x, (vfxPos as { x: number; y: number }).y, 600);
+      }
     },
 
     healUnit: (healerId: string, targetId: string) => {

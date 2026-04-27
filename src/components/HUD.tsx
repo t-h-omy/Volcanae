@@ -65,6 +65,7 @@ const UNIT_EMOJI: Record<string, string> = {
   [UnitType.LAVA_RIDER]: '👾',
   [UnitType.LAVA_SIEGE]: '🐦‍🔥',
   [UnitType.EMBERLING]: '🔥',
+  [UnitType.CAVE_MONSTER]: '🐉',
 };
 
 const UNIT_NAME: Record<string, string> = {
@@ -79,6 +80,7 @@ const UNIT_NAME: Record<string, string> = {
   [UnitType.LAVA_RIDER]: 'Lava Rider',
   [UnitType.LAVA_SIEGE]: 'Lava Siege',
   [UnitType.EMBERLING]: 'Emberling',
+  [UnitType.CAVE_MONSTER]: 'Cave Monster',
 };
 
 const BUILDING_EMOJI: Record<string, string> = {
@@ -2131,15 +2133,14 @@ function ZoneClearedPopup() {
 
 function CaveScreamsPopup() {
   const tilePos = useCaveScreamsStore((s) => s.tilePos);
-  const close = useCaveScreamsStore((s) => s.close);
   const sealAndBuildMine = useGameStore((s) => s.sealAndBuildMine);
+  const exploreCave = useGameStore((s) => s.exploreCave);
 
   if (!tilePos) return null;
 
   const handleExplore = () => {
-    // Stub: full spawn logic implemented in a later prompt.
-    console.log('[Cave] Explore chosen at tile', tilePos);
-    close();
+    exploreCave(tilePos);
+    // exploreCave calls close() on the caveScreamsStore internally
   };
 
   const handleSeal = () => {
