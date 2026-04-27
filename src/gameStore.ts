@@ -759,7 +759,7 @@ export const useGameStore = create<GameStore>()(
 
       // Trigger a brief tile-flash on the spawn tile to make the appearance legible
       if (vfxPos) {
-        useCombatAnimationStore.getState().addTileFlash((vfxPos as { x: number; y: number }).x, (vfxPos as { x: number; y: number }).y, 600);
+        useCombatAnimationStore.getState().addTileFlash(vfxPos.x, vfxPos.y, 600);
       }
     },
 

@@ -668,6 +668,10 @@ export function useAnimationEngine(): void {
 
           continue;
         }
+
+        if (visible) {
+          // 1. Move camera to event position
+          useAnimationStore.getState().setCameraTarget(eventPosition(event));
           await wait(ANIMATION.CAMERA_MOVE_DURATION_MS);
 
           // 2. Pre-action idle
