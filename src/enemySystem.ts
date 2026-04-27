@@ -7,7 +7,7 @@ import type { GameState, Unit, Building, Position } from './types';
 import type { Draft } from 'immer';
 import { produce } from 'immer';
 import { Faction, UnitType, UnitTag, BuildingType, TileType } from './types';
-import { UNIT_DEFINITIONS, ENEMY, MAP, AI_SCORING, AI_RECRUITMENT, XP, DIFFICULTY_MULTIPLIER, SANCTUM_COLLAPSE } from './gameConfig';
+import { UNIT_DEFINITIONS, ENEMY, MAP, TERRAIN, AI_SCORING, AI_RECRUITMENT, XP, DIFFICULTY_MULTIPLIER, SANCTUM_COLLAPSE } from './gameConfig';
 import { resolveAttack, calculateCombat, resolveBuildingAttack, buildingToCombatant, calculateCombatFromStats, unitToCombatant, resolveAttackOnBuilding } from './combatSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { initiateCapture, canCapture } from './captureSystem';
@@ -2164,7 +2164,7 @@ function parseMountainTileId(mountainTileId: string): Position | null {
  *   4. Despawn — remove unit when standing on home mountain with no aggro.
  */
 function runCaveMonsterAi(state: Draft<GameState>, events?: GameEvent[]): void {
-  const PATROL_RADIUS = MAP.CAVE_MONSTER_PATROL_RADIUS;
+  const PATROL_RADIUS = TERRAIN.CAVE_MONSTER_PATROL_RADIUS;
 
   for (const encounter of [...state.activeCaveEncounters]) {
     const unit = state.units[encounter.monsterId];

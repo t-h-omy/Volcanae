@@ -39,7 +39,7 @@ import { useCaveScreamsStore } from './caveScreamsStore';
 import { Faction, GamePhase, BuildingType, TileType, Difficulty, DestroyBehavior, UnitType } from './types';
 import type { GameState, Position, TechId } from './types';
 import type { GameEvent } from './gameEvents';
-import { MAP, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval, UNIT_DEFINITIONS } from './gameConfig';
+import { MAP, TERRAIN, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval, UNIT_DEFINITIONS } from './gameConfig';
 import { saveGameState, loadGameState, clearSavedGame, hasSavedGame } from './saveSystem';
 import { computeLevelFromXp, applyLevelUps } from './levelSystem';
 import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLogic } from './techSystem';
@@ -642,7 +642,7 @@ export const useGameStore = create<GameStore>()(
           Math.max(0, Math.floor((MAP.GRID_HEIGHT - MAP.LAVA_BUFFER_ROWS - 1 - tilePos.y) / MAP.ZONE_HEIGHT)),
           MAP.ZONE_COUNT - 1,
         );
-        const scale = MAP.CAVE_MONSTER_ZONE_SCALE[zoneIndex] ?? 1.0;
+        const scale = TERRAIN.CAVE_MONSTER_ZONE_SCALE[zoneIndex] ?? 1.0;
 
         const base = UNIT_DEFINITIONS[UnitType.CAVE_MONSTER];
         const maxHp = Math.round(base.maxHp * scale);
@@ -762,7 +762,8 @@ export const useGameStore = create<GameStore>()(
 
       // Trigger a brief tile-flash on the spawn tile to make the appearance legible
       if (vfxPos) {
-        useCombatAnimationStore.getState().addTileFlash(vfxPos.x, vfxPos.y, 600);
+        const pos = vfxPos as { x: number; y: number };
+        useCombatAnimationStore.getState().addTileFlash(pos.x, pos.y, 600);
       }
     },
 

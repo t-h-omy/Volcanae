@@ -453,6 +453,7 @@ export function recruitUnit(
     hasUsedPostAttackMoveThisTurn: false,
     xp: 0,
     level: 1,
+    lastMovedTurn: 0,
     pinnedUntilTurn: 0,
     distractionDefPenalty: 0,
   };

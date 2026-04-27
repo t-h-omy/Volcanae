@@ -840,7 +840,8 @@ export function useAnimationEngine(): void {
       }
       // If the player swapped a specialist, apply the swap after setGameState.
       if (swapResult) {
-        useGameStore.getState().swapSpecialist(swapResult.outgoingId, swapResult.incomingId);
+        const swap = swapResult as { outgoingId: string; incomingId: string };
+        useGameStore.getState().swapSpecialist(swap.outgoingId, swap.incomingId);
       }
       useAnimationStore.getState().setIsAnimating(false);
       processing = false;
