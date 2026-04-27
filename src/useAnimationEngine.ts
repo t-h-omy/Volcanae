@@ -654,9 +654,8 @@ export function useAnimationEngine(): void {
 
           await new Promise<void>((resolve) => {
             if (available.length === 0) {
-              useSpecialistHireStore.getState().showExhausted((hired) => {
-                // pool exhausted — no hire possible
-                void hired;
+              useSpecialistHireStore.getState().showExhausted((_hired) => {
+                // pool exhausted — the hired parameter is always false; nothing to act on
                 resolve();
               });
             } else {
