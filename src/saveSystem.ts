@@ -18,7 +18,7 @@ import { TECH_TREE, POPULATION } from './gameConfig';
 const SAVE_KEY = 'volcanae-save';
 
 /** Increment this whenever the serialized shape changes incompatibly. */
-const SAVE_VERSION = 7;
+const SAVE_VERSION = 8;
 
 // ============================================================================
 // PUBLIC API

@@ -300,6 +300,7 @@ function createUnit(
     hasDestroyedThisTurn: false,
     hasCapturedThisTurn: false,
     hasUsedPostAttackMoveThisTurn: false,
+    bloodlustAttackAvailable: false,
     xp: 0,
     level: 1,
     pinnedUntilTurn: 0,
@@ -1340,6 +1341,7 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
     gameOverCause: null,
     specialistSlotCap: 2,
     activeCaveEncounters: [],
+    fortifiedGarrisonActive: false,
   };
 
   // Auto-apply CONSCRIPTION effects (unlocked at game start, not a pick)

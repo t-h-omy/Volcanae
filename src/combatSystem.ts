@@ -6,11 +6,17 @@
 
 import type { Unit, Building, GameState } from './types';
 import type { Draft } from 'immer';
-import { BuildingType, Faction, UnitTag, TechFlag, TileType, DestroyBehavior } from './types';
+import { BuildingType, Faction, UnitTag, UnitType, TechFlag, TileType, DestroyBehavior } from './types';
 import { useFloaterStore } from './floaterStore';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
-import { UNIT_DEFINITIONS, XP, ABILITIES, MAP } from './gameConfig';
+import { UNIT_DEFINITIONS, XP, ABILITIES, MAP, BUILDING_DEFINITIONS } from './gameConfig';
 import { grantXp } from './levelSystem';
+
+// Counter for generating unique gravestone building IDs within this module
+let combatSystemIdCounter = 0;
+function generateCombatBuildingId(): string {
+  return `building_grave_${Date.now()}_${++combatSystemIdCounter}`;
+}
 
 // ============================================================================
 // COMBAT RESULT INTERFACE
@@ -254,6 +260,12 @@ export function resolveAttack(
     attackerCombatant.attack += ABILITIES.LANCE_CHARGE_ATTACK_BONUS;
   }
 
+  // BLOODLUST: second attack uses half the normal attack value and deals no retaliation
+  const isBloodlustAttack = !!attacker.bloodlustAttackAvailable;
+  if (isBloodlustAttack) {
+    attackerCombatant.attack = Math.floor(attackerCombatant.attack / 2);
+  }
+
   // PHALANX: attacker gains attack bonus, defender gains defense bonus
   attackerCombatant.attack += getPhalanxAttackBonus(state, attacker);
   defenderCombatant.defense += getPhalanxDefenseBonus(state, defender);
@@ -267,6 +279,11 @@ export function resolveAttack(
 
   // COVER: attacker never suffers counter-damage
   if (attacker.tags.includes(UnitTag.COVER)) {
+    combatResult.attackerHpLost = 0;
+  }
+
+  // BLOODLUST second attack: never triggers retaliation
+  if (isBloodlustAttack) {
     combatResult.attackerHpLost = 0;
   }
 
@@ -339,10 +356,19 @@ export function resolveAttack(
     // Update attacker HP and mark as acted
     attacker.stats.currentHp = newAttackerHp;
     attacker.hasAttackedThisTurn = true;
+
+    // BLOODLUST: clear the pending second-attack flag after it is used
+    if (isBloodlustAttack) {
+      attacker.bloodlustAttackAvailable = false;
+    }
   }
 
   // Update defender
   if (defenderDead) {
+    // Capture the defender's type and tags before removal for BLOODLUST and REVIVABLE checks
+    const defenderType = defender.type;
+    const defenderTags = [...defender.tags];
+
     // Remove defender from grid
     const defenderTile = state.grid[defender.position.y][defender.position.x];
     if (defenderTile.unitId === defenderId) {
@@ -357,6 +383,67 @@ export function resolveAttack(
     // Update kill/loss stats
     if (defenderFaction === Faction.PLAYER) state.gameStats.unitsLost += 1;
     else if (attackerFaction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
+
+    // BLOODLUST: when a (non-bloodlust) attack kills an enemy, grant a second
+    // attack at half power. Only one bloodlust charge per turn.
+    if (
+      !attackerDead &&
+      !isBloodlustAttack &&
+      attacker.tags.includes(UnitTag.BLOODLUST) &&
+      defenderFaction === Faction.ENEMY &&
+      attackerFaction === Faction.PLAYER
+    ) {
+      const attackerUnit = state.units[attackerId];
+      if (attackerUnit) {
+        attackerUnit.hasAttackedThisTurn = false;
+        attackerUnit.bloodlustAttackAvailable = true;
+      }
+    }
+
+    // REVIVABLE: when a player INFANTRY with REVIVABLE dies, leave a Gravestone
+    // on their tile (only if the tile has no building already).
+    if (
+      defenderFaction === Faction.PLAYER &&
+      defenderType === UnitType.INFANTRY &&
+      defenderTags.includes(UnitTag.REVIVABLE)
+    ) {
+      const tile = state.grid[defenderPosition.y][defenderPosition.x];
+      if (!tile.buildingId) {
+        const graveId = generateCombatBuildingId();
+        state.buildings[graveId] = {
+          id: graveId,
+          type: BuildingType.GRAVESTONE,
+          faction: Faction.PLAYER,
+          position: { x: defenderPosition.x, y: defenderPosition.y },
+          hp: 80,
+          maxHp: 80,
+          specialistSlot: null,
+          isDisabledForTurns: 0,
+          wasAttackedLastEnemyTurn: false,
+          captureProgress: 0,
+          isBeingCapturedBy: null,
+          lavaBoostEnabled: false,
+          discoverRadius: BUILDING_DEFINITIONS.GRAVESTONE.discoverRadius,
+          turnCapturedByPlayer: null,
+          wasEnemyOwnedBeforeCapture: false,
+          combatStats: null,
+          hasAttackedThisTurn: false,
+          tags: [],
+          consumesUnitOnCapture: false,
+          populationCount: 0,
+          populationCap: 0,
+          populationGrowthCounter: 0,
+          strongholdNobles: 0,
+          emberSpawnCounter: 0,
+          recruitmentQueue: null,
+          destroyBehavior: BUILDING_DEFINITIONS.GRAVESTONE.destroyBehavior,
+          resonanceTurnsRemaining: 0,
+          spawnCooldownRemaining: 0,
+          gravesUnitType: defenderType,
+        };
+        tile.buildingId = graveId;
+      }
+    }
 
     // If the defender was standing on an enemy building that the player attacker
     // just conquered (melee advance), destroy/neutralize the building only for
@@ -439,6 +526,42 @@ export function resolveAttack(
       toTile.unitId = attackerId;
       attackerUnit.position.x = defenderPosition.x;
       attackerUnit.position.y = defenderPosition.y;
+    }
+  }
+
+  // SPLASH: player siege unit deals 25% of dealt damage to all surrounding enemy units
+  if (
+    !attackerDead &&
+    attackerFaction === Faction.PLAYER &&
+    attacker.tags.includes(UnitTag.SPLASH) &&
+    combatResult.defenderHpLost > 0
+  ) {
+    const splashDamage = Math.max(1, Math.round(combatResult.defenderHpLost * ABILITIES.SPLASH_DAMAGE_RATIO));
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (dx === 0 && dy === 0) continue; // skip the primary target tile
+        const nx = defenderPosition.x + dx;
+        const ny = defenderPosition.y + dy;
+        if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;
+        const splashTile = state.grid[ny]?.[nx];
+        if (!splashTile?.unitId) continue;
+        const splashTarget = state.units[splashTile.unitId];
+        if (!splashTarget || splashTarget.faction !== Faction.ENEMY) continue;
+        const splashTargetId = splashTile.unitId;
+        const newSplashHp = splashTarget.stats.currentHp - splashDamage;
+        if (!suppressFloaters) {
+          const { addFloater } = useFloaterStore.getState();
+          addFloater({ value: splashDamage, x: nx, y: ny, isEnemy: true });
+        }
+        if (newSplashHp <= 0) {
+          splashTile.unitId = null;
+          delete state.units[splashTargetId];
+          grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
+          state.gameStats.unitsKilled += 1;
+        } else {
+          splashTarget.stats.currentHp = newSplashHp;
+        }
+      }
     }
   }
 }
@@ -578,6 +701,11 @@ export function resolveBuildingAttack(
 
   // Update defender
   if (defenderDead) {
+    // Capture the defender's type and tags before removal (for REVIVABLE check)
+    const defenderType = defender.type;
+    const defenderTags = [...defender.tags];
+    const defenderPos = { x: defender.position.x, y: defender.position.y };
+
     const defenderTile = state.grid[defender.position.y][defender.position.x];
     if (defenderTile.unitId === defenderId) {
       defenderTile.unitId = null;
@@ -593,6 +721,50 @@ export function resolveBuildingAttack(
       if (spawner && spawner.faction === Faction.ENEMY &&
           (spawner.type === BuildingType.LAVALAIR || spawner.type === BuildingType.INFERNALSANCTUM)) {
         spawner.spawnCooldownRemaining = 1;
+      }
+    }
+
+    // REVIVABLE: player infantry with REVIVABLE leaves a Gravestone on death
+    if (
+      defenderFaction === Faction.PLAYER &&
+      defenderType === UnitType.INFANTRY &&
+      defenderTags.includes(UnitTag.REVIVABLE)
+    ) {
+      const tile = state.grid[defenderPos.y][defenderPos.x];
+      if (!tile.buildingId) {
+        const graveId = generateCombatBuildingId();
+        state.buildings[graveId] = {
+          id: graveId,
+          type: BuildingType.GRAVESTONE,
+          faction: Faction.PLAYER,
+          position: { x: defenderPos.x, y: defenderPos.y },
+          hp: 80,
+          maxHp: 80,
+          specialistSlot: null,
+          isDisabledForTurns: 0,
+          wasAttackedLastEnemyTurn: false,
+          captureProgress: 0,
+          isBeingCapturedBy: null,
+          lavaBoostEnabled: false,
+          discoverRadius: BUILDING_DEFINITIONS.GRAVESTONE.discoverRadius,
+          turnCapturedByPlayer: null,
+          wasEnemyOwnedBeforeCapture: false,
+          combatStats: null,
+          hasAttackedThisTurn: false,
+          tags: [],
+          consumesUnitOnCapture: false,
+          populationCount: 0,
+          populationCap: 0,
+          populationGrowthCounter: 0,
+          strongholdNobles: 0,
+          emberSpawnCounter: 0,
+          recruitmentQueue: null,
+          destroyBehavior: BUILDING_DEFINITIONS.GRAVESTONE.destroyBehavior,
+          resonanceTurnsRemaining: 0,
+          spawnCooldownRemaining: 0,
+          gravesUnitType: defenderType,
+        };
+        tile.buildingId = graveId;
       }
     }
   } else {

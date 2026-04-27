@@ -101,6 +101,7 @@ const BUILDING_EMOJI: Record<string, string> = {
   [BuildingType.MAGMASPYR]: '⛰️',
   [BuildingType.EMBERNEST]: '🌲',
   [BuildingType.CRYSTAL_CHAMBER]: '💎',
+  [BuildingType.GRAVESTONE]: '🪦',
 };
 
 const BUILDING_NAME: Record<string, string> = {
@@ -120,6 +121,7 @@ const BUILDING_NAME: Record<string, string> = {
   [BuildingType.MAGMASPYR]: 'Magma Spyr',
   [BuildingType.EMBERNEST]: 'Ember Nest',
   [BuildingType.CRYSTAL_CHAMBER]: 'Crystal Chamber',
+  [BuildingType.GRAVESTONE]: 'Gravestone',
 };
 
 const TAG_EMOJI: Partial<Record<UnitTag, string>> = {
@@ -135,6 +137,10 @@ const TAG_EMOJI: Partial<Record<UnitTag, string>> = {
   [UnitTag.LAVABOOST]:       '🌋',
   [UnitTag.CORRUPT]:         '☠️',
   [UnitTag.PASSIVE]:         '🕊️',
+  [UnitTag.BLOODLUST]:       '🩸',
+  [UnitTag.SPLASH]:          '💦',
+  [UnitTag.READY]:           '⚡',
+  [UnitTag.REVIVABLE]:       '🔮',
 };
 
 /** Maps recruitment buildings to their recruitable unit types */
@@ -1514,6 +1520,8 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   const unassignSpecialist = useGameStore((s) => s.unassignSpecialist);
   const unlockedUnits = useGameStore((s) => s.unlockedUnits);
   const showRecruitingScores = useDevOptionsStore((s) => s.showRecruitingScores);
+  const arcaneCrystals = useGameStore((s) => s.arcaneCrystals);
+  const reviveUnit = useGameStore((s) => s.reviveUnit);
 
   const [showPicker, setShowPicker] = useState(false);
   const [confirmRecruitUnit, setConfirmRecruitUnit] = useState<UnitType | null>(null);
@@ -1534,6 +1542,15 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   const isInteractionBlocked = isDisabled || isUnderAttack;
   const hasCombatStats = building.combatStats !== null;
   const canAttack = hasCombatStats && !building.hasAttackedThisTurn && building.faction !== null;
+
+  // Gravestone: revive logic
+  const isGravestone = building.type === BuildingType.GRAVESTONE && isPlayerOwned;
+  const tile = grid[building.position.y]?.[building.position.x];
+  const graveOccupied = isGravestone && tile?.unitId !== null;
+  const canRevive = isGravestone && !graveOccupied && arcaneCrystals >= ABILITIES.REVIVE_CRYSTAL_COST;
+  const handleRevive = useCallback(() => {
+    reviveUnit(building.id);
+  }, [reviveUnit, building.id]);
 
   // Specialist slot info
   const assignedSpecialist: Specialist | null =
@@ -1725,8 +1742,8 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
         </div>
       )}
 
-      {/* Specialist slot */}
-      {isPlayerOwned && (
+      {/* Specialist slot — hidden for Gravestone buildings */}
+      {isPlayerOwned && !isGravestone && (
         <div className="hud-specialist-row">
           <span className="hud-label">Specialist:</span>
           {assignedSpecialist ? (
@@ -1752,6 +1769,24 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
                 Assign Specialist
               </button>
             </div>
+          )}
+        </div>
+      )}
+
+      {/* Gravestone revive button */}
+      {isGravestone && (
+        <div className="hud-revive-row">
+          {graveOccupied ? (
+            <span className="hud-dim">A unit is standing here — move it to revive.</span>
+          ) : (
+            <button
+              className="hud-recruit-btn"
+              disabled={!canRevive}
+              onClick={handleRevive}
+              title={!canRevive ? `Need ${ABILITIES.REVIVE_CRYSTAL_COST} crystal (have ${arcaneCrystals})` : undefined}
+            >
+              🔮 Revive (💎{ABILITIES.REVIVE_CRYSTAL_COST})
+            </button>
           )}
         </div>
       )}

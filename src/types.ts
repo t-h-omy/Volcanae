@@ -51,6 +51,8 @@ export const BuildingType = {
   MAGMASPYR: 'MAGMASPYR',
   EMBERNEST: 'EMBERNEST',
   CRYSTAL_CHAMBER: 'CRYSTAL_CHAMBER',
+  /** Grave left behind by a fallen REVIVABLE infantry unit */
+  GRAVESTONE: 'GRAVESTONE',
 } as const;
 export type BuildingType = (typeof BuildingType)[keyof typeof BuildingType];
 
@@ -175,6 +177,17 @@ export const UnitTag = {
   PREVENTIVE_STRIKE: 'PREVENTIVE_STRIKE',
   /** Elite unit with increased max HP */
   ELITE: 'ELITE',
+  // ── Specialist-granted tags ──────────────────────────────────────────────────
+  /** Attack buildings (Watchtowers, Outposts) owned by the player gain +15 ATK and +1 range */
+  FORTIFIED_GARRISON: 'FORTIFIED_GARRISON',
+  /** Rider that kills an enemy can attack once more this turn at half attack with no retaliation */
+  BLOODLUST: 'BLOODLUST',
+  /** Siege unit deals 25% of dealt damage to all enemy units surrounding the target */
+  SPLASH: 'SPLASH',
+  /** Infantry unit can move and attack immediately after being recruited */
+  READY: 'READY',
+  /** Infantry unit leaves a Gravestone building on death that can be revived */
+  REVIVABLE: 'REVIVABLE',
 } as const;
 export type UnitTag = (typeof UnitTag)[keyof typeof UnitTag];
 
@@ -257,6 +270,8 @@ export interface Unit {
   hasCapturedThisTurn: boolean;
   /** True after a HIT_AND_RUN unit has used its post-attack move this turn. */
   hasUsedPostAttackMoveThisTurn: boolean;
+  /** True when a BLOODLUST rider has killed an enemy this turn and can attack once more at half power. */
+  bloodlustAttackAvailable: boolean;
   xp: number;
   level: number;
   /** Turn number during which the unit is stunned (cannot move or attack). 0 = not stunned. */
@@ -356,6 +371,11 @@ export interface Building {
   resonanceTurnsRemaining: number;
   /** Remaining cooldown turns before this building can spawn again. */
   spawnCooldownRemaining: number;
+  /**
+   * Unit type stored in this Gravestone building.
+   * Only set for GRAVESTONE buildings; undefined for all others.
+   */
+  gravesUnitType?: UnitType | null;
 }
 
 /** A tile on the game grid */
@@ -486,4 +506,10 @@ export interface GameState {
   specialistSlotCap: number;
   /** One entry per live cave monster on the map */
   activeCaveEncounters: CaveEncounter[];
+  /**
+   * Whether the FORTIFIED_GARRISON specialist effect is currently active.
+   * When true, all player-owned Watchtowers and Outposts have their attack and
+   * attack range boosted by the FORTIFIED_GARRISON constants.
+   */
+  fortifiedGarrisonActive: boolean;
 }

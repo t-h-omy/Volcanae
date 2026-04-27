@@ -42,9 +42,10 @@ import type { GameEvent } from './gameEvents';
 import { MAP, TERRAIN, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval, UNIT_DEFINITIONS } from './gameConfig';
 import { saveGameState, loadGameState, clearSavedGame, hasSavedGame } from './saveSystem';
 import { computeLevelFromXp, applyLevelUps } from './levelSystem';
-import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLogic } from './techSystem';
+import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLogic, getGrantedTags, getRemovedTags } from './techSystem';
 import { canUnitHeal, getHealTargets, canUnitFieldwork } from './unitActions';
 import { createFieldworkOutpost } from './constructionSystem';
+import { getTagsFromActiveSpecialists } from './specialistSystem';
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
@@ -139,6 +140,8 @@ interface GameActions {
   sealAndBuildMine: (tilePos: Position) => void;
   /** Explore a cave mountain tile: spawns a cave monster near it */
   exploreCave: (tilePos: Position) => void;
+  /** Revive a fallen infantry unit from a Gravestone building (costs 1 arcane crystal) */
+  reviveUnit: (buildingId: string) => void;
 }
 
 // ============================================================================
@@ -740,6 +743,7 @@ export const useGameStore = create<GameStore>()(
           hasDestroyedThisTurn: true,
           hasCapturedThisTurn: true,
           hasUsedPostAttackMoveThisTurn: false,
+          bloodlustAttackAvailable: false,
           xp: 0,
           level: 1,
           pinnedUntilTurn: 0,
@@ -765,6 +769,80 @@ export const useGameStore = create<GameStore>()(
         const pos = vfxPos as { x: number; y: number };
         useCombatAnimationStore.getState().addTileFlash(pos.x, pos.y, 600);
       }
+    },
+
+    reviveUnit: (buildingId: string) => {
+      set((state) => {
+        const building = state.buildings[buildingId];
+        if (!building || building.type !== BuildingType.GRAVESTONE) return;
+        if (building.faction !== Faction.PLAYER) return;
+        if (!building.gravesUnitType) return;
+        // Must have at least 1 arcane crystal
+        if (state.arcaneCrystals < ABILITIES.REVIVE_CRYSTAL_COST) return;
+        // Cannot revive if a unit is standing on the tile
+        const tile = state.grid[building.position.y][building.position.x];
+        if (tile.unitId !== null) return;
+
+        const unitType: UnitType = building.gravesUnitType;
+
+        // Collect tags from tech and active specialists
+        const baseTags = [...(UNIT_DEFINITIONS[unitType]?.tags ?? [])];
+        for (const tag of getGrantedTags(state, unitType)) {
+          if (!baseTags.includes(tag)) baseTags.push(tag);
+        }
+        for (const tag of getTagsFromActiveSpecialists(state, unitType)) {
+          if (!baseTags.includes(tag)) baseTags.push(tag);
+        }
+        const removedTags = getRemovedTags(state, unitType);
+        const spawnTags = baseTags.filter((t) => !removedTags.includes(t));
+
+        const unitId = `unit_revived_${Date.now()}_${buildingId}`;
+        state.units[unitId] = {
+          id: unitId,
+          type: unitType,
+          faction: Faction.PLAYER,
+          position: { x: building.position.x, y: building.position.y },
+          stats: {
+            maxHp: UNIT_DEFINITIONS[unitType].maxHp,
+            currentHp: UNIT_DEFINITIONS[unitType].maxHp,
+            attack: UNIT_DEFINITIONS[unitType].attack,
+            defense: UNIT_DEFINITIONS[unitType].defense,
+            moveRange: UNIT_DEFINITIONS[unitType].moveRange,
+            discoverRadius: UNIT_DEFINITIONS[unitType].discoverRadius,
+            triggerRange: UNIT_DEFINITIONS[unitType].triggerRange,
+            movementActions: UNIT_DEFINITIONS[unitType].movementActions,
+            attackRange: UNIT_DEFINITIONS[unitType].attackRange,
+          },
+          tags: spawnTags,
+          hasMovedThisTurn: true,
+          hasAttackedThisTurn: true,
+          hasCapturedThisTurn: true,
+          hasConstructedThisTurn: true,
+          hasDestroyedThisTurn: true,
+          hasUsedPostAttackMoveThisTurn: false,
+          bloodlustAttackAvailable: false,
+          xp: 0,
+          level: 1,
+          lastMovedTurn: 0,
+          pinnedUntilTurn: 0,
+          distractionDefPenalty: 0,
+        };
+
+        // Place the unit on the tile and remove the gravestone
+        tile.unitId = unitId;
+        tile.buildingId = null;
+        delete state.buildings[buildingId];
+
+        // Deduct the crystal cost
+        state.arcaneCrystals -= ABILITIES.REVIVE_CRYSTAL_COST;
+
+        // Deselect the building
+        if (state.selectedBuildingId === buildingId) {
+          state.selectedBuildingId = null;
+        }
+
+        updateDiscovery(state);
+      });
     },
 
     healUnit: (healerId: string, targetId: string) => {
@@ -810,6 +888,12 @@ export const useGameStore = create<GameStore>()(
         if (tile.terrainType === TileType.FOREST || tile.terrainType === TileType.MOUNTAIN) return;
         // Create an Outpost at the unit's position with HP based on the unit's current HP
         const newBuilding = createFieldworkOutpost({ x, y }, unit.stats.currentHp);
+        // Apply FORTIFIED_GARRISON bonus to the newly created Outpost if the
+        // specialist is currently active
+        if (state.fortifiedGarrisonActive && newBuilding.combatStats) {
+          newBuilding.combatStats.attack += ABILITIES.FORTIFIED_GARRISON_ATTACK_BONUS;
+          newBuilding.combatStats.attackRange += ABILITIES.FORTIFIED_GARRISON_RANGE_BONUS;
+        }
         state.buildings[newBuilding.id] = newBuilding;
         tile.buildingId = newBuilding.id;
         // Delete the unit
@@ -849,11 +933,10 @@ export const useGameStore = create<GameStore>()(
         const idx = state.globalSpecialistStorage.indexOf(outgoingId);
         if (idx !== -1 && state.specialists[incomingId] && !state.globalSpecialistStorage.includes(incomingId)) {
           // If the outgoing specialist was assigned to a building, unassign it first
+          // (this reverts its effects properly via the unassignSpecialist logic)
           const outgoing = state.specialists[outgoingId];
           if (outgoing?.assignedBuildingId) {
-            const building = state.buildings[outgoing.assignedBuildingId];
-            if (building) building.specialistSlot = null;
-            outgoing.assignedBuildingId = null;
+            unassignSpecialistLogic(state, outgoing.assignedBuildingId);
           }
           // Replace in storage at the same index so HUD slot position is stable
           state.globalSpecialistStorage[idx] = incomingId;
@@ -960,6 +1043,7 @@ export const useGameStore = create<GameStore>()(
               unit.hasConstructedThisTurn = false;
               unit.hasDestroyedThisTurn = false;
               unit.hasUsedPostAttackMoveThisTurn = false;
+              unit.bloodlustAttackAvailable = false;
               unit.pinnedUntilTurn = 0;
             }
           }

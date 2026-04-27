@@ -896,6 +896,12 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     constructionCost: { iron: 4, wood: 2 },
     description: 'Arcane resonator. When a Crystal Chamber is consumed by lava, all surviving chambers begin resonating and generate crystals each turn.', // overwritten below
   },
+  GRAVESTONE: {
+    discoverRadius: 1,
+    destroyBehavior: DestroyBehavior.NONE,
+    constructionCost: { iron: 0, wood: 0 },
+    description: 'The grave of a fallen warrior. Revive the unit by paying 1 crystal.',
+  },
 };
 
 // Compute descriptions for BUILDING_DEFINITIONS entries that reference their own stats or config constants.
@@ -1004,6 +1010,15 @@ export const ABILITIES = {
   CITADEL_NOBLE_BONUS: 2,
   /** Max-HP bonus applied to Scouts and Guards by the CITADEL tech */
   CITADEL_HP_BOOST: 30,
+  // ── Specialist-granted ability constants ────────────────────────────────────
+  /** Flat attack bonus applied to player-owned Watchtowers and Outposts by FORTIFIED_GARRISON */
+  FORTIFIED_GARRISON_ATTACK_BONUS: 15,
+  /** Attack-range bonus applied to player-owned Watchtowers and Outposts by FORTIFIED_GARRISON */
+  FORTIFIED_GARRISON_RANGE_BONUS: 1,
+  /** Fraction of dealt damage applied to each surrounding enemy by SPLASH */
+  SPLASH_DAMAGE_RATIO: 0.25,
+  /** Crystal cost to revive a unit from a Gravestone */
+  REVIVE_CRYSTAL_COST: 1,
 } as const;
 
 // ============================================================================
@@ -1391,6 +1406,11 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string }> = {
   [UnitTag.DISTRACTION]:       { label: 'Distraction',       desc: `Each hit permanently reduces the target's DEF by ${ABILITIES.DISTRACTION_DEF_REDUCTION}. Archer ATK is reduced by ${Math.abs(ABILITIES.DISTRACTION_ATTACK_MOD)}.` },
   [UnitTag.PREVENTIVE_STRIKE]: { label: 'Preventive Strike', desc: 'Fires instantly at any enemy unit that moves into attack range during the enemy\'s turn.' },
   [UnitTag.ELITE]:             { label: 'Elite',             desc: `+${ABILITIES.ELITE_MAX_HP_BONUS} max HP. Elite unit forged in the noble tradition.` },
+  [UnitTag.FORTIFIED_GARRISON]: { label: 'Fortified Garrison', desc: `Attack building gains +${ABILITIES.FORTIFIED_GARRISON_ATTACK_BONUS} ATK and +${ABILITIES.FORTIFIED_GARRISON_RANGE_BONUS} attack range.` },
+  [UnitTag.BLOODLUST]:          { label: 'Bloodlust',          desc: 'When this Rider kills an enemy, it may attack once more this turn at half attack without retaliation.' },
+  [UnitTag.SPLASH]:             { label: 'Splash',             desc: `Deals ${Math.round(ABILITIES.SPLASH_DAMAGE_RATIO * 100)}% of dealt damage to all enemy units surrounding the target.` },
+  [UnitTag.READY]:              { label: 'Ready',              desc: 'Can move and attack immediately after being recruited.' },
+  [UnitTag.REVIVABLE]:          { label: 'Revivable',          desc: `Leaves a Gravestone on death. Pay ${ABILITIES.REVIVE_CRYSTAL_COST} crystal to revive.` },
 };
 
 // ============================================================================

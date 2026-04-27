@@ -508,6 +508,7 @@ function createEnemyUnit(
     hasConstructedThisTurn: true,
     hasDestroyedThisTurn: true,
     hasUsedPostAttackMoveThisTurn: false,
+    bloodlustAttackAvailable: false,
     xp: 0,
     level: 1,
     pinnedUntilTurn: 0,
