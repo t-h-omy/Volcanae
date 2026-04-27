@@ -51,6 +51,9 @@ export function createInitialSpecialists(): Record<string, Specialist> {
         },
       ],
       assignedBuildingId: null,
+      upkeepIron: 0,
+      upkeepWood: 0,
+      dormant: false,
     },
     spec_02: {
       id: 'spec_02',
@@ -64,6 +67,9 @@ export function createInitialSpecialists(): Record<string, Specialist> {
         },
       ],
       assignedBuildingId: null,
+      upkeepIron: 0,
+      upkeepWood: 0,
+      dormant: false,
     },
     spec_03: {
       id: 'spec_03',
@@ -79,6 +85,9 @@ export function createInitialSpecialists(): Record<string, Specialist> {
         },
       ],
       assignedBuildingId: null,
+      upkeepIron: 0,
+      upkeepWood: 0,
+      dormant: false,
     },
     spec_04: {
       id: 'spec_04',
@@ -94,6 +103,9 @@ export function createInitialSpecialists(): Record<string, Specialist> {
         },
       ],
       assignedBuildingId: null,
+      upkeepIron: 0,
+      upkeepWood: 0,
+      dormant: false,
     },
     spec_05: {
       id: 'spec_05',
@@ -107,6 +119,9 @@ export function createInitialSpecialists(): Record<string, Specialist> {
         },
       ],
       assignedBuildingId: null,
+      upkeepIron: 0,
+      upkeepWood: 0,
+      dormant: false,
     },
   };
 }
@@ -274,17 +289,66 @@ export function unassignSpecialist(
 }
 
 /**
+ * Deducts upkeep costs for all hired specialists at the end of each player turn.
+ * Specialists whose upkeep cannot be paid are marked dormant (effects disabled).
+ * Specialists with zero upkeep are never affected.
+ *
+ * Must be called inside an immer-draft context (Phase 6 bookkeeping in endPlayerTurn).
+ *
+ * @param state - Immer draft of the game state (will be mutated)
+ */
+export function deductSpecialistUpkeep(state: Draft<GameState>): void {
+  // Collect all specialist IDs currently owned by the player
+  // (both in globalStorage and assigned to buildings).
+  const ownedIds = new Set<string>([
+    ...state.globalSpecialistStorage,
+    ...Object.values(state.buildings)
+      .map((b) => b.specialistSlot)
+      .filter((id): id is string => id !== null),
+  ]);
+
+  for (const specId of ownedIds) {
+    const spec = state.specialists[specId];
+    if (!spec) continue;
+
+    const iron = spec.upkeepIron ?? 0;
+    const wood = spec.upkeepWood ?? 0;
+
+    // No upkeep — always active, never touch dormant
+    if (iron === 0 && wood === 0) {
+      spec.dormant = false;
+      continue;
+    }
+
+    const canPay =
+      state.resources.iron >= iron && state.resources.wood >= wood;
+
+    if (canPay) {
+      state.resources.iron -= iron;
+      state.resources.wood -= wood;
+      spec.dormant = false;
+    } else {
+      // Cannot afford — mark dormant but do not push resources negative
+      spec.dormant = true;
+    }
+  }
+}
+
+/**
  * Applies specialist effects to the game state.
+ * Dormant specialists (upkeep unpaid) are skipped entirely.
  * STUB: Returns state unchanged for now.
  * Effects will be implemented in future prompts.
  *
  * @param state - Immer draft of the game state (will be mutated)
  */
 export function applySpecialistEffects(state: Draft<GameState>): void {
-  // Stub - effects not yet implemented
-  // Just iterate through assigned specialists and do nothing
+  // Iterate through assigned specialists and apply effects
   for (const specialist of Object.values(state.specialists)) {
     if (specialist.assignedBuildingId !== null) {
+      // Skip dormant specialists — upkeep was not paid
+      if (specialist.dormant) continue;
+
       // Effects would be applied here based on specialist.effects
       // For now, this is a no-op
     }

@@ -121,6 +121,19 @@ export function loadGameState(): GameState | null {
       gs.activeCaveEncounters = [];
     }
 
+    // Migration: backfill upkeepIron, upkeepWood, and dormant on specialist
+    // records from saves that predate these fields being added.
+    if (s.specialists && typeof s.specialists === 'object') {
+      for (const spec of Object.values(s.specialists) as Array<unknown>) {
+        const sp = spec as Record<string, unknown>;
+        if (sp && typeof sp.id === 'string') {
+          if (typeof sp.upkeepIron !== 'number') sp.upkeepIron = 0;
+          if (typeof sp.upkeepWood !== 'number') sp.upkeepWood = 0;
+          if (typeof sp.dormant !== 'boolean') sp.dormant = false;
+        }
+      }
+    }
+
     return s as GameState;
   } catch {
     return null;

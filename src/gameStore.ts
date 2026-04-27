@@ -29,6 +29,7 @@ import { runEnemyTurn } from './enemySystem';
 import {
   assignSpecialist as assignSpecialistLogic,
   unassignSpecialist as unassignSpecialistLogic,
+  deductSpecialistUpkeep,
 } from './specialistSystem';
 import { checkGameConditions } from './gameConditions';
 import { useFloaterStore } from './floaterStore';
@@ -939,6 +940,9 @@ export const useGameStore = create<GameStore>()(
         computedState = produce(computedState, (draft) => {
           // Collect resources
           collectResources(draft);
+
+          // Deduct specialist upkeep and update dormant status
+          deductSpecialistUpkeep(draft);
 
           // Grow house populations
           growHousePopulations(draft);
