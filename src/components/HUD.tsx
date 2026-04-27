@@ -2169,14 +2169,32 @@ function CaveScreamsPopup() {
 }
 
 // ============================================================================
-// CAVE MONSTER KILL MODAL (hire flow + no-survivor flow)
+// CAVE MONSTER KILL MODAL (hire flow + no-survivor flow + swap flow)
 // ============================================================================
+
+/** Specialist info popup — shown when the player taps a current specialist card in swap view */
+function SpecialistInfoPopup({ specialist, onClose }: { specialist: Specialist; onClose: () => void }) {
+  return (
+    <Popup onClose={onClose}>
+      <div className="specialist-info-header">
+        <span className="specialist-info-name">🧙 {specialist.name}</span>
+      </div>
+      <p className="info-popup-desc">{specialist.description}</p>
+      <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>Close</button>
+    </Popup>
+  );
+}
 
 function CaveMonsterKillModal() {
   const mode = useSpecialistHireStore((s) => s.mode);
   const specialistId = useSpecialistHireStore((s) => s.specialistId);
   const dismiss = useSpecialistHireStore((s) => s.dismiss);
+  const dismissSwap = useSpecialistHireStore((s) => s.dismissSwap);
   const specialists = useGameStore((s) => s.specialists);
+  const globalSpecialistStorage = useGameStore((s) => s.globalSpecialistStorage);
+
+  // ID of the current specialist whose info popup is open (swap view only)
+  const [infoSpecId, setInfoSpecId] = useState<string | null>(null);
 
   if (!mode) return null;
 
@@ -2200,32 +2218,90 @@ function CaveMonsterKillModal() {
     );
   }
 
-  const specialist = specialistId ? specialists[specialistId] : null;
-  if (!specialist) return null;
+  const incomingSpecialist = specialistId ? specialists[specialistId] : null;
+  if (!incomingSpecialist) return null;
 
-  return (
-    <div className="cave-kill-overlay">
-      <div className="cave-kill-card">
-        <p className="cave-kill-flavor">
-          <em>
-            "The creature falls. From the darkness stumbles a survivor — battered,
-            grateful, and with nowhere else to go. They offer their skills to your cause."
-          </em>
-        </p>
-        <div className="cave-kill-specialist-card">
-          <span className="cave-kill-specialist-name">🧙 {specialist.name}</span>
-          <p className="cave-kill-specialist-desc">{specialist.description}</p>
-        </div>
-        <div className="cave-kill-actions">
-          <button className="cave-kill-btn cave-kill-btn--hire" onClick={() => dismiss(true)}>
-            Hire
-          </button>
-          <button className="cave-kill-btn cave-kill-btn--sendaway" onClick={() => dismiss(false)}>
-            Send Away
-          </button>
+  if (mode === 'hire') {
+    return (
+      <div className="cave-kill-overlay">
+        <div className="cave-kill-card">
+          <p className="cave-kill-flavor">
+            <em>
+              "The creature falls. From the darkness stumbles a survivor — battered,
+              grateful, and with nowhere else to go. They offer their skills to your cause."
+            </em>
+          </p>
+          <div className="cave-kill-specialist-card">
+            <span className="cave-kill-specialist-name">🧙 {incomingSpecialist.name}</span>
+            <p className="cave-kill-specialist-desc">{incomingSpecialist.description}</p>
+          </div>
+          <div className="cave-kill-actions">
+            <button className="cave-kill-btn cave-kill-btn--hire" onClick={() => dismiss(true)}>
+              Hire
+            </button>
+            <button className="cave-kill-btn cave-kill-btn--sendaway" onClick={() => dismiss(false)}>
+              Send Away
+            </button>
+          </div>
         </div>
       </div>
-    </div>
+    );
+  }
+
+  // mode === 'swap'
+  const infoSpec = infoSpecId ? specialists[infoSpecId] : null;
+
+  return (
+    <>
+      {infoSpec && (
+        <SpecialistInfoPopup
+          specialist={infoSpec}
+          onClose={() => setInfoSpecId(null)}
+        />
+      )}
+      <div className="cave-kill-overlay">
+        <div className="cave-kill-card cave-kill-card--swap">
+          <div className="cave-kill-swap-incoming-label">Incoming Survivor</div>
+          <div className="cave-kill-specialist-card cave-kill-specialist-card--incoming">
+            <span className="cave-kill-specialist-name">🧙 {incomingSpecialist.name}</span>
+            <p className="cave-kill-specialist-desc">{incomingSpecialist.description}</p>
+          </div>
+          <div className="cave-kill-swap-divider">
+            <span className="cave-kill-swap-divider-label">Replace one of your specialists</span>
+          </div>
+          <div className="cave-kill-swap-current-row">
+            {globalSpecialistStorage.map((specId) => {
+              const spec = specialists[specId];
+              if (!spec) return null;
+              return (
+                <div key={specId} className="cave-kill-swap-current-card">
+                  <button
+                    className="cave-kill-swap-current-info"
+                    onClick={() => setInfoSpecId(specId)}
+                    title="View details"
+                  >
+                    <span className="cave-kill-specialist-name">🧙 {spec.name}</span>
+                    <p className="cave-kill-specialist-desc">{spec.description}</p>
+                    <span className="cave-kill-swap-info-hint">ℹ Details</span>
+                  </button>
+                  <button
+                    className="cave-kill-btn cave-kill-btn--replace"
+                    onClick={() => { setInfoSpecId(null); dismissSwap(specId); }}
+                  >
+                    Replace
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          <div className="cave-kill-actions">
+            <button className="cave-kill-btn cave-kill-btn--sendaway" onClick={() => { setInfoSpecId(null); dismissSwap(null); }}>
+              Send Away
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
 

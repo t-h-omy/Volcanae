@@ -535,6 +535,8 @@ export function useAnimationEngine(): void {
       // Tracks a specialist hired during this batch so the hire can be
       // applied after setGameState(resolvedState) without being overwritten.
       let hiredSpecialistId: string | null = null;
+      // Tracks a swap performed during this batch (outgoing replaced by incoming).
+      let swapResult: { incomingId: string; outgoingId: string } | null = null;
 
       while (true) {
         const event = useAnimationStore.getState().shiftEvent();
@@ -646,7 +648,7 @@ export function useAnimationEngine(): void {
           useGameStore.getState().applyEvent(event);
 
           // Draw a random specialist not already in global storage
-          const { specialists, globalSpecialistStorage } = useGameStore.getState();
+          const { specialists, globalSpecialistStorage, specialistSlotCap } = useGameStore.getState();
           const allIds = Object.keys(specialists);
           const available = allIds.filter((id) => !globalSpecialistStorage.includes(id));
 
@@ -659,10 +661,21 @@ export function useAnimationEngine(): void {
               });
             } else {
               const drawn = available[Math.floor(Math.random() * available.length)];
-              useSpecialistHireStore.getState().showHire(drawn, (hired) => {
-                if (hired) hiredSpecialistId = drawn;
-                resolve();
-              });
+              if (globalSpecialistStorage.length >= specialistSlotCap) {
+                // All slots full — show swap flow
+                useSpecialistHireStore.getState().showSwap(drawn, (outgoingId) => {
+                  if (outgoingId !== null) {
+                    swapResult = { incomingId: drawn, outgoingId };
+                  }
+                  resolve();
+                });
+              } else {
+                // Empty slot available — show hire flow
+                useSpecialistHireStore.getState().showHire(drawn, (hired) => {
+                  if (hired) hiredSpecialistId = drawn;
+                  resolve();
+                });
+              }
             }
           });
 
@@ -825,6 +838,10 @@ export function useAnimationEngine(): void {
       // (after setGameState so it isn't overwritten by the resolved state).
       if (hiredSpecialistId) {
         useGameStore.getState().hireSpecialist(hiredSpecialistId);
+      }
+      // If the player swapped a specialist, apply the swap after setGameState.
+      if (swapResult) {
+        useGameStore.getState().swapSpecialist(swapResult.outgoingId, swapResult.incomingId);
       }
       useAnimationStore.getState().setIsAnimating(false);
       processing = false;

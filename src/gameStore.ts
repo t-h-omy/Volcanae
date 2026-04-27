@@ -92,6 +92,8 @@ interface GameActions {
   unassignSpecialist: (buildingId: string) => void;
   /** Add a specialist to globalSpecialistStorage (called after cave monster hire) */
   hireSpecialist: (specialistId: string) => void;
+  /** Replace an existing specialist with a new one (called after cave monster swap) */
+  swapSpecialist: (outgoingId: string, incomingId: string) => void;
   /** End the player turn - triggers enemy turn, lava phase, then next player turn */
   endPlayerTurn: () => void;
   /** Apply a single game event from the animation queue */
@@ -836,6 +838,23 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         if (state.specialists[specialistId] && !state.globalSpecialistStorage.includes(specialistId)) {
           state.globalSpecialistStorage.push(specialistId);
+        }
+      });
+    },
+
+    swapSpecialist: (outgoingId: string, incomingId: string) => {
+      set((state) => {
+        const idx = state.globalSpecialistStorage.indexOf(outgoingId);
+        if (idx !== -1 && state.specialists[incomingId] && !state.globalSpecialistStorage.includes(incomingId)) {
+          // If the outgoing specialist was assigned to a building, unassign it first
+          const outgoing = state.specialists[outgoingId];
+          if (outgoing?.assignedBuildingId) {
+            const building = state.buildings[outgoing.assignedBuildingId];
+            if (building) building.specialistSlot = null;
+            outgoing.assignedBuildingId = null;
+          }
+          // Replace in storage at the same index so HUD slot position is stable
+          state.globalSpecialistStorage[idx] = incomingId;
         }
       });
     },
