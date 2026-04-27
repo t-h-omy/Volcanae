@@ -343,7 +343,8 @@ function placeTerrainForZone(
     const pos = getRandomPositionInZone(zone, occupiedPositions);
     markPositionOccupied(pos, occupiedPositions);
     grid[pos.y][pos.x].terrainType = TileType.MOUNTAIN;
-    if (Math.random() < TERRAIN.CAVE_MONSTER_SPAWN_CHANCE) {
+    // Zone 1 is the player's starting zone — no cave monsters there
+    if (zone !== 1 && Math.random() < TERRAIN.CAVE_MONSTER_SPAWN_CHANCE) {
       grid[pos.y][pos.x].hasCaveMonster = true;
     }
     mountainPositions.push(pos);
