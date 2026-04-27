@@ -900,7 +900,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     discoverRadius: 1,
     destroyBehavior: DestroyBehavior.NONE,
     constructionCost: { iron: 0, wood: 0 },
-    description: 'The grave of a fallen warrior. Revive the unit by paying 1 crystal.',
+    description: 'The grave of a fallen warrior.', // overwritten below (after ABILITIES)
   },
 };
 
@@ -1022,6 +1022,12 @@ export const ABILITIES = {
   /** Starting and maximum HP of a newly spawned Gravestone building */
   GRAVESTONE_MAX_HP: 80,
 } as const;
+
+// Override GRAVESTONE description now that ABILITIES is available (crystal cost is configurable).
+{
+  BUILDING_DEFINITIONS.GRAVESTONE.description =
+    `The grave of a fallen warrior. Revive the unit by paying ${ABILITIES.REVIVE_CRYSTAL_COST} crystal.`;
+}
 
 // ============================================================================
 // TECH TREE CONFIGURATION

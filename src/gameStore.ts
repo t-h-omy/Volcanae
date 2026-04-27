@@ -42,7 +42,7 @@ import type { GameEvent } from './gameEvents';
 import { MAP, TERRAIN, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval, UNIT_DEFINITIONS } from './gameConfig';
 import { saveGameState, loadGameState, clearSavedGame, hasSavedGame } from './saveSystem';
 import { computeLevelFromXp, applyLevelUps } from './levelSystem';
-import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLogic, getGrantedTags, getRemovedTags } from './techSystem';
+import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLogic, getGrantedTags, getRemovedTags, getStatMods } from './techSystem';
 import { canUnitHeal, getHealTargets, canUnitFieldwork } from './unitActions';
 import { createFieldworkOutpost } from './constructionSystem';
 import { getTagsFromActiveSpecialists } from './specialistSystem';
@@ -827,6 +827,19 @@ export const useGameStore = create<GameStore>()(
           pinnedUntilTurn: 0,
           distractionDefPenalty: 0,
         };
+
+        // Apply stat mods from unlocked tech nodes (same as recruitUnit)
+        const revivedUnit = state.units[unitId];
+        for (const mod of getStatMods(state, unitType)) {
+          if (mod.mode === 'add') {
+            (revivedUnit.stats[mod.stat] as number) += mod.value;
+          } else {
+            (revivedUnit.stats[mod.stat] as number) = Math.round(
+              (revivedUnit.stats[mod.stat] as number) * (1 + mod.value / 100),
+            );
+          }
+        }
+        revivedUnit.stats.currentHp = revivedUnit.stats.maxHp;
 
         // Place the unit on the tile and remove the gravestone
         tile.unitId = unitId;
