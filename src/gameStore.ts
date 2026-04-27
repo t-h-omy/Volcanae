@@ -90,6 +90,8 @@ interface GameActions {
   assignSpecialist: (specialistId: string, buildingId: string) => void;
   /** Unassign a specialist from a building (stub) */
   unassignSpecialist: (buildingId: string) => void;
+  /** Add a specialist to globalSpecialistStorage (called after cave monster hire) */
+  hireSpecialist: (specialistId: string) => void;
   /** End the player turn - triggers enemy turn, lava phase, then next player turn */
   endPlayerTurn: () => void;
   /** Apply a single game event from the animation queue */
@@ -287,6 +289,15 @@ export const useGameStore = create<GameStore>()(
         // Compute the resolved state (post-attack) on the snapshot
         const resolvedState = produce(snapshot, (draft) => {
           resolveAttack(draft, attackerId, targetId, true);
+          // If a cave monster is killed, remove its encounter entry from the resolved state
+          if (
+            snapshot.units[targetId]?.type === UnitType.CAVE_MONSTER &&
+            !draft.units[targetId]
+          ) {
+            draft.activeCaveEncounters = draft.activeCaveEncounters.filter(
+              (e) => e.monsterId !== targetId,
+            );
+          }
           updateDiscovery(draft);
           checkGameConditions(draft);
         });
@@ -325,6 +336,10 @@ export const useGameStore = create<GameStore>()(
         // Add UNIT_DEATH events for killed units (consumed after the attack animation)
         if (!defenderAfter) {
           events.push({ type: 'UNIT_DEATH', unitId: targetId, position: defenderPosition, faction: defenderFaction });
+          // If the killed unit was a cave monster, push the specialist-draw event
+          if (snapshot.units[targetId]?.type === UnitType.CAVE_MONSTER) {
+            events.push({ type: 'CAVE_MONSTER_KILLED', monsterId: targetId });
+          }
         }
         if (!attackerAfter) {
           events.push({ type: 'UNIT_DEATH', unitId: attackerId, position: attackerPosition, faction: attackerFaction });
@@ -817,6 +832,14 @@ export const useGameStore = create<GameStore>()(
       });
     },
 
+    hireSpecialist: (specialistId: string) => {
+      set((state) => {
+        if (state.specialists[specialistId] && !state.globalSpecialistStorage.includes(specialistId)) {
+          state.globalSpecialistStorage.push(specialistId);
+        }
+      });
+    },
+
     endPlayerTurn: () => {
       // Capture enqueue data outside the immer set so that enqueue() is called
       // after the immer draft commits. Calling enqueue() inside the set callback
@@ -1158,6 +1181,16 @@ export const useGameStore = create<GameStore>()(
               }
               delete state.units[event.unitId];
             }
+            break;
+          }
+
+          case 'CAVE_MONSTER_KILLED': {
+            // Remove the encounter entry from the live state. The encounter is
+            // also removed from the resolvedState in attackUnit's produce call,
+            // so both the incremental and final states stay consistent.
+            state.activeCaveEncounters = state.activeCaveEncounters.filter(
+              (e) => e.monsterId !== event.monsterId,
+            );
             break;
           }
 

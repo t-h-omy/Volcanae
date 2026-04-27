@@ -2152,3 +2152,113 @@
   border-color: rgba(220, 190, 120, 0.75);
   outline: none;
 }
+
+/* ── Cave Monster Kill Modal (hire / no-survivor) ── */
+
+.cave-kill-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 261;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  pointer-events: auto;
+}
+
+.cave-kill-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 30px 36px 26px;
+  border-radius: 10px;
+  background: rgba(10, 6, 2, 0.94);
+  border: 1px solid rgba(180, 140, 80, 0.4);
+  box-shadow: 0 0 40px rgba(120, 80, 20, 0.35);
+  max-width: 440px;
+  text-align: center;
+  animation: caveKillCardEnter 300ms ease-out both;
+}
+
+@keyframes caveKillCardEnter {
+  0%   { opacity: 0; transform: scale(0.9) translateY(10px); }
+  100% { opacity: 1; transform: scale(1)   translateY(0); }
+}
+
+.cave-kill-flavor {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #c8b890;
+  margin: 0;
+}
+
+.cave-kill-specialist-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 7px;
+  background: rgba(255, 220, 120, 0.06);
+  border: 1px solid rgba(200, 170, 80, 0.3);
+}
+
+.cave-kill-specialist-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffe8a0;
+}
+
+.cave-kill-specialist-desc {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #b8a870;
+  margin: 0;
+}
+
+.cave-kill-actions {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+.cave-kill-btn {
+  flex: 1;
+  padding: 11px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 140ms, border-color 140ms;
+}
+
+.cave-kill-btn--hire {
+  background: rgba(255, 200, 60, 0.2);
+  border: 1px solid rgba(255, 200, 60, 0.6);
+  color: #ffe060;
+}
+
+.cave-kill-btn--hire:hover,
+.cave-kill-btn--hire:focus {
+  background: rgba(255, 200, 60, 0.36);
+  border-color: rgba(255, 220, 80, 0.9);
+  outline: none;
+}
+
+.cave-kill-btn--sendaway,
+.cave-kill-btn--close {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(200, 170, 100, 0.35);
+  color: #c0a870;
+}
+
+.cave-kill-btn--sendaway:hover,
+.cave-kill-btn--sendaway:focus,
+.cave-kill-btn--close:hover,
+.cave-kill-btn--close:focus {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(200, 170, 100, 0.65);
+  outline: none;
+}
+

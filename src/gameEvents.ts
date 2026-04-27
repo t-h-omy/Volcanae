@@ -132,4 +132,13 @@ export type GameEvent =
       clearedUnitPositions: Position[];
       /** Positions of all wiped enemy buildings */
       clearedBuildingPositions: Position[];
+    }
+  | {
+      /**
+       * Emitted when a CAVE_MONSTER is killed in combat (not despawn).
+       * Triggers the specialist draw / hire-modal flow.
+       */
+      type: 'CAVE_MONSTER_KILLED';
+      /** ID of the cave monster unit that was killed */
+      monsterId: string;
     };

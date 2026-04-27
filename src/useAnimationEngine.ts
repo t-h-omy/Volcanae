@@ -10,6 +10,7 @@ import { useGameStore } from './gameStore';
 import { useCombatAnimationStore } from './combatAnimationStore';
 import { useShockwaveStore } from './shockwaveStore';
 import { useZoneClearedStore } from './zoneClearedStore';
+import { useSpecialistHireStore } from './specialistHireStore';
 import { ANIMATION } from './animationConfig';
 import { MAP } from './gameConfig';
 import { RENDER } from './renderConfig';
@@ -59,6 +60,9 @@ function eventPosition(event: GameEvent): Position {
       return event.sanctumPosition;
     case 'ZONE_CLEARED':
       return event.sanctumPosition;
+    case 'CAVE_MONSTER_KILLED':
+      // No camera position needed — handled as a blocking modal, not a spatial event.
+      return { x: Math.floor(MAP.GRID_WIDTH / 2), y: Math.floor(MAP.GRID_HEIGHT / 2) };
   }
 }
 
@@ -110,6 +114,9 @@ function isEventVisible(event: GameEvent): boolean {
       return isTileRevealed(event.sanctumPosition);
     case 'ZONE_CLEARED':
       return isTileRevealed(event.sanctumPosition);
+    case 'CAVE_MONSTER_KILLED':
+      // Always show the modal regardless of tile visibility.
+      return true;
   }
 }
 
@@ -525,6 +532,10 @@ export function useAnimationEngine(): void {
     let processing = false;
 
     async function processQueue() {
+      // Tracks a specialist hired during this batch so the hire can be
+      // applied after setGameState(resolvedState) without being overwritten.
+      let hiredSpecialistId: string | null = null;
+
       while (true) {
         const event = useAnimationStore.getState().shiftEvent();
         if (!event) break;
@@ -629,9 +640,34 @@ export function useAnimationEngine(): void {
           continue;
         }
 
-        if (visible) {
-          // 1. Move camera to event position
-          useAnimationStore.getState().setCameraTarget(eventPosition(event));
+        // ── Special handling for CAVE_MONSTER_KILLED (blocking specialist hire modal) ──
+        if (event.type === 'CAVE_MONSTER_KILLED') {
+          // Apply event first (removes activeCaveEncounters entry from live state)
+          useGameStore.getState().applyEvent(event);
+
+          // Draw a random specialist not already in global storage
+          const { specialists, globalSpecialistStorage } = useGameStore.getState();
+          const allIds = Object.keys(specialists);
+          const available = allIds.filter((id) => !globalSpecialistStorage.includes(id));
+
+          await new Promise<void>((resolve) => {
+            if (available.length === 0) {
+              useSpecialistHireStore.getState().showExhausted((hired) => {
+                // pool exhausted — no hire possible
+                void hired;
+                resolve();
+              });
+            } else {
+              const drawn = available[Math.floor(Math.random() * available.length)];
+              useSpecialistHireStore.getState().showHire(drawn, (hired) => {
+                if (hired) hiredSpecialistId = drawn;
+                resolve();
+              });
+            }
+          });
+
+          continue;
+        }
           await wait(ANIMATION.CAMERA_MOVE_DURATION_MS);
 
           // 2. Pre-action idle
@@ -780,6 +816,11 @@ export function useAnimationEngine(): void {
       const resolvedState = useAnimationStore.getState().resolvedState;
       if (resolvedState) {
         useGameStore.getState().setGameState(resolvedState);
+      }
+      // If the player hired a specialist during this batch, apply the hire now
+      // (after setGameState so it isn't overwritten by the resolved state).
+      if (hiredSpecialistId) {
+        useGameStore.getState().hireSpecialist(hiredSpecialistId);
       }
       useAnimationStore.getState().setIsAnimating(false);
       processing = false;

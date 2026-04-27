@@ -47,6 +47,7 @@ import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHe
 import { getPhalanxAttackBonus, getPhalanxDefenseBonus } from '../combatSystem';
 import { useZoneClearedStore } from '../zoneClearedStore';
 import { useCaveScreamsStore } from '../caveScreamsStore';
+import { useSpecialistHireStore } from '../specialistHireStore';
 import './HUD.css';
 
 // ============================================================================
@@ -2168,6 +2169,67 @@ function CaveScreamsPopup() {
 }
 
 // ============================================================================
+// CAVE MONSTER KILL MODAL (hire flow + no-survivor flow)
+// ============================================================================
+
+function CaveMonsterKillModal() {
+  const mode = useSpecialistHireStore((s) => s.mode);
+  const specialistId = useSpecialistHireStore((s) => s.specialistId);
+  const dismiss = useSpecialistHireStore((s) => s.dismiss);
+  const specialists = useGameStore((s) => s.specialists);
+
+  if (!mode) return null;
+
+  if (mode === 'exhausted') {
+    return (
+      <div className="cave-kill-overlay">
+        <div className="cave-kill-card">
+          <p className="cave-kill-flavor">
+            <em>
+              "The creature falls. You search the darkness — but find only silence.
+              Whatever was in there is gone."
+            </em>
+          </p>
+          <div className="cave-kill-actions">
+            <button className="cave-kill-btn cave-kill-btn--close" onClick={() => dismiss(false)}>
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const specialist = specialistId ? specialists[specialistId] : null;
+  if (!specialist) return null;
+
+  return (
+    <div className="cave-kill-overlay">
+      <div className="cave-kill-card">
+        <p className="cave-kill-flavor">
+          <em>
+            "The creature falls. From the darkness stumbles a survivor — battered,
+            grateful, and with nowhere else to go. They offer their skills to your cause."
+          </em>
+        </p>
+        <div className="cave-kill-specialist-card">
+          <span className="cave-kill-specialist-name">🧙 {specialist.name}</span>
+          <p className="cave-kill-specialist-desc">{specialist.description}</p>
+        </div>
+        <div className="cave-kill-actions">
+          <button className="cave-kill-btn cave-kill-btn--hire" onClick={() => dismiss(true)}>
+            Hire
+          </button>
+          <button className="cave-kill-btn cave-kill-btn--sendaway" onClick={() => dismiss(false)}>
+            Send Away
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
 // TURN ANNOUNCEMENT POPUP
 // ============================================================================
 
@@ -2655,6 +2717,7 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
       {!hasSeenIntro && <GameIntroPopup onDismiss={handleIntroDismiss} />}
       <ZoneClearedPopup />
       <CaveScreamsPopup />
+      <CaveMonsterKillModal />
       <TopBar
         onOpenTechTree={() => setShowTechTree(true)}
         showTechButton={isPlayerTurn}

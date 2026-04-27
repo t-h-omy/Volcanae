@@ -2229,6 +2229,14 @@ function runCaveMonsterAi(state: Draft<GameState>, events?: GameEvent[]): void {
 
         resolveAttack(state, attackerId, defenderId, !!events);
 
+        // If the cave monster was killed by the counter-attack, clean up its encounter
+        // entry from the state so the resolvedState is consistent.
+        if (!state.units[attackerId]) {
+          state.activeCaveEncounters = state.activeCaveEncounters.filter(
+            (e) => e.monsterId !== attackerId,
+          );
+        }
+
         if (events) {
           const attackerAfter = state.units[attackerId];
           const defenderAfter = state.units[defenderId];
@@ -2268,6 +2276,8 @@ function runCaveMonsterAi(state: Draft<GameState>, events?: GameEvent[]): void {
               position: attackerPos,
               faction: unit.faction,
             });
+            // Cave monster was counter-killed → trigger specialist draw
+            events.push({ type: 'CAVE_MONSTER_KILLED', monsterId: attackerId });
           }
         }
       } else {
