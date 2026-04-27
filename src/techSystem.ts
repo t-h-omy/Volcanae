@@ -346,7 +346,7 @@ export function renderEffect(effect: TechEffect): string {
     case 'STRONGHOLD_CAP_MOD':
       return `Stronghold +${effect.amount} ${effect.capType} cap`;
     case 'SPECIALIST_SLOT_MOD':
-      return `+${effect.value} specialist slot`;
+      return `+${effect.value} specialist slot${effect.value !== 1 ? 's' : ''}`;
     default:
       return '';
   }
