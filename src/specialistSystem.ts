@@ -314,11 +314,8 @@ export function deductSpecialistUpkeep(state: Draft<GameState>): void {
     const iron = spec.upkeepIron ?? 0;
     const wood = spec.upkeepWood ?? 0;
 
-    // No upkeep — always active, never touch dormant
-    if (iron === 0 && wood === 0) {
-      spec.dormant = false;
-      continue;
-    }
+    // No upkeep — skip entirely; dormant state is untouched
+    if (iron === 0 && wood === 0) continue;
 
     const canPay =
       state.resources.iron >= iron && state.resources.wood >= wood;
