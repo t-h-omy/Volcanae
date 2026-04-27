@@ -2453,10 +2453,16 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
 /**
  * Computes and returns all scored actions for an enemy unit, sorted by score
  * descending. Intended for dev/debug use only (AI Score inspector).
+ *
+ * CAVE_MONSTER units use a dedicated AI loop (runCaveMonsterAi) with fixed
+ * priority behaviour (Aggro → Return → Patrol → Despawn) rather than the
+ * scored-action system, so this function returns an empty array for them.
  */
 export function computeUnitAiScores(state: GameState, unitId: string): ScoredAction[] {
   const unit = state.units[unitId];
   if (!unit || unit.faction !== Faction.ENEMY) return [];
+  // Cave monsters use their own dedicated AI loop — not scored actions.
+  if (unit.type === UnitType.CAVE_MONSTER) return [];
 
   const recentlyLostBuildingIds = new Set<string>(
     Object.values(state.buildings)
