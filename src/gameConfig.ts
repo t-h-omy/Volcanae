@@ -494,6 +494,12 @@ export const TERRAIN = {
    * Higher zones are deeper into enemy territory and have stronger monsters.
    */
   CAVE_MONSTER_ZONE_SCALE: [1.0, 1.15, 1.3, 1.5, 1.7] as const,
+  /**
+   * Chebyshev-distance radius within which the cave monster will patrol.
+   * If the monster wanders outside this radius (no aggro), it returns to its home tile.
+   * Once back on the home tile it may despawn the following turn.
+   */
+  CAVE_MONSTER_PATROL_RADIUS: 2,
 } as const;
 
 // ============================================================================
