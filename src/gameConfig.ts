@@ -486,6 +486,9 @@ export const TERRAIN = {
   MIN_PASSABLE_TILES_PER_ROW: 1,
   MAX_TRAVERSABILITY_RETRIES: 10,
   IMPASSABLE_MIN_DISTANCE_FROM_STRONGHOLD: 2,
+
+  /** Probability that a Mountain tile has a cave monster; checked once per tile at map gen */
+  CAVE_MONSTER_SPAWN_CHANCE: 0.33,
 } as const;
 
 // ============================================================================
