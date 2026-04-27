@@ -554,6 +554,11 @@ function TopBar({
   const ironPerTurn = useGameStore((s) => computeResourceIncome(s).ironPerTurn);
   const woodPerTurn = useGameStore((s) => computeResourceIncome(s).woodPerTurn);
 
+  // Specialist slots
+  const specialists = useGameStore((s) => s.specialists);
+  const globalSpecialistStorage = useGameStore((s) => s.globalSpecialistStorage);
+  const specialistSlotCap = useGameStore((s) => s.specialistSlotCap);
+
   return (
     <div className="hud-top-bar">
       <span className="hud-stat">🔄 Turn {turn}</span>
@@ -571,6 +576,17 @@ function TopBar({
           {showTechBadge && <span className="hud-tech-tree-badge">!</span>}
         </button>
       )}
+      <div className="hud-specialist-slots">
+        {Array.from({ length: specialistSlotCap }, (_, i) => {
+          const specId = globalSpecialistStorage[i];
+          const spec = specId ? specialists[specId] : null;
+          return (
+            <div key={i} className={`hud-specialist-slot${spec ? ' hud-specialist-slot--filled' : ' hud-specialist-slot--empty'}`}>
+              {spec ? <span className="hud-specialist-slot-name">🧙 {spec.name}</span> : <span className="hud-specialist-slot-placeholder">—</span>}
+            </div>
+          );
+        })}
+      </div>
       <GameMenu />
     </div>
   );

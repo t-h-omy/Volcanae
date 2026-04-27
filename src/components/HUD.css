@@ -43,6 +43,51 @@
   50% { opacity: 0.5; }
 }
 
+/* ── Specialist slot strip (top bar) ── */
+
+.hud-specialist-slots {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  pointer-events: none;
+}
+
+.hud-specialist-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 72px;
+  height: 22px;
+  border-radius: 3px;
+  font-size: 11px;
+  padding: 0 5px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hud-specialist-slot--filled {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e8d9a0;
+}
+
+.hud-specialist-slot--empty {
+  background: rgba(0, 0, 0, 0.25);
+  color: rgba(255, 255, 255, 0.25);
+}
+
+.hud-specialist-slot-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hud-specialist-slot-placeholder {
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+
 /* ── Bottom Bar ── */
 
 .hud-bottom-bar {

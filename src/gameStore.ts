@@ -1404,7 +1404,8 @@ export const useGameStore = create<GameStore>()(
         if (
           state.specialists[specId] &&
           !state.globalSpecialistStorage.includes(specId) &&
-          state.specialists[specId].assignedBuildingId === null
+          state.specialists[specId].assignedBuildingId === null &&
+          state.globalSpecialistStorage.length < state.specialistSlotCap
         ) {
           state.globalSpecialistStorage.push(specId);
         }
