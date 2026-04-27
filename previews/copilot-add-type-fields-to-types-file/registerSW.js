@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/Volcanae/previews/copilot-add-type-fields-to-types-file/sw.js', { scope: '/Volcanae/previews/copilot-add-type-fields-to-types-file/' })})}
