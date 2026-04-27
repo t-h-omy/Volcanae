@@ -29,6 +29,7 @@ export const UnitType = {
   LAVA_RIDER: 'LAVA_RIDER',
   LAVA_SIEGE: 'LAVA_SIEGE',
   EMBERLING: 'EMBERLING',
+  CAVE_MONSTER: 'CAVE_MONSTER',
 } as const;
 export type UnitType = (typeof UnitType)[keyof typeof UnitType];
 
@@ -291,6 +292,12 @@ export interface Specialist {
   description: string;
   effects: SpecialistEffect[];
   assignedBuildingId: string | null;
+  /** Iron cost per turn; default 0 */
+  upkeepIron?: number;
+  /** Wood cost per turn; default 0 */
+  upkeepWood?: number;
+  /** true when upkeep could not be paid; effects inactive while true */
+  dormant?: boolean;
 }
 
 /** Combat stats for buildings that can attack (e.g. Watchtower, Magma Spyr) */
@@ -359,6 +366,8 @@ export interface Tile {
   isRuin: boolean;
   isStrongholdRuin: boolean;
   terrainType: TileType;
+  /** true on ~33% of Mountain tiles; set during map gen; cleared permanently on seal, explore, or despawn */
+  hasCaveMonster?: boolean;
 }
 
 /** Resources available to the player */
@@ -401,6 +410,14 @@ export interface GameStats {
   buildingsCapturedByEnemy: number;
   /** Player buildings (or ruins) consumed by lava */
   buildingsDestroyedByLava: number;
+}
+
+/** A live cave-monster encounter tied to a specific mountain tile */
+export interface CaveEncounter {
+  /** Unit id of the cave monster */
+  monsterId: string;
+  /** Tile id of the originating mountain */
+  mountainTileId: string;
 }
 
 /** Complete game state */
@@ -461,4 +478,8 @@ export interface GameState {
    * null — cause not yet determined or game not over.
    */
   gameOverCause: 'LAVA' | 'ENEMY' | null;
+  /** Maximum number of hired specialists allowed; starts at 2 */
+  specialistSlotCap: number;
+  /** One entry per live cave monster on the map */
+  activeCaveEncounters: CaveEncounter[];
 }

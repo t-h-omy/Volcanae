@@ -1335,6 +1335,8 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
     spawnFreezeUntilTurn: 0,
     lavaFreezeUntilTurn: 0,
     gameOverCause: null,
+    specialistSlotCap: 2,
+    activeCaveEncounters: [],
   };
 
   // Auto-apply CONSCRIPTION effects (unlocked at game start, not a pick)

@@ -108,6 +108,16 @@ export function loadGameState(): GameState | null {
       }
     }
 
+    // Migration: backfill specialistSlotCap and activeCaveEncounters for saves
+    // that predate these fields being added to GameState.
+    const gs = s as Record<string, unknown>;
+    if (typeof gs.specialistSlotCap !== 'number') {
+      gs.specialistSlotCap = 2;
+    }
+    if (!Array.isArray(gs.activeCaveEncounters)) {
+      gs.activeCaveEncounters = [];
+    }
+
     return s as GameState;
   } catch {
     return null;
