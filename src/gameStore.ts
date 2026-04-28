@@ -36,7 +36,7 @@ import { useFloaterStore } from './floaterStore';
 import { useAnimationStore } from './animationStore';
 import { useCombatAnimationStore } from './combatAnimationStore';
 import { useCaveScreamsStore } from './caveScreamsStore';
-import { Faction, GamePhase, BuildingType, TileType, Difficulty, DestroyBehavior, UnitType } from './types';
+import { Faction, GamePhase, BuildingType, TileType, Difficulty, DestroyBehavior, UnitType, UnitTag } from './types';
 import type { GameState, Position, TechId } from './types';
 import type { GameEvent } from './gameEvents';
 import { MAP, TERRAIN, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval, UNIT_DEFINITIONS } from './gameConfig';
@@ -639,6 +639,17 @@ export const useGameStore = create<GameStore>()(
 
         // Mark cave as resolved regardless of whether spawn succeeds
         tile.hasCaveMonster = false;
+
+        // Exhaust the BUILDANDCAPTURE unit standing on this tile — exploration
+        // consumes its entire turn (no further movement, attacks, or construction).
+        const unitOnTile = tile.unitId ? state.units[tile.unitId] : null;
+        if (!unitOnTile || unitOnTile.faction !== Faction.PLAYER) return;
+        if (!unitOnTile.tags.includes(UnitTag.BUILDANDCAPTURE)) return;
+        unitOnTile.hasMovedThisTurn = true;
+        unitOnTile.hasAttackedThisTurn = true;
+        unitOnTile.hasConstructedThisTurn = true;
+        unitOnTile.hasDestroyedThisTurn = true;
+        unitOnTile.hasCapturedThisTurn = true;
 
         // ── Compute zone for stat scaling ────────────────────────────────
         const zoneIndex = Math.min(

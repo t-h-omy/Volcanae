@@ -38,6 +38,11 @@ function eventPosition(event: GameEvent): Position {
     case 'ENEMY_MOVE':
       return event.to;
     case 'ENEMY_ATTACK':
+      // Pan to the cave monster (attacker) so the player can see it strike
+      if (useGameStore.getState().units[event.attackerId]?.type === UnitType.CAVE_MONSTER) {
+        return event.attackerPosition;
+      }
+      return event.defenderPosition;
     case 'PLAYER_ATTACK':
       return event.defenderPosition;
     case 'BUILDING_ATTACK':
@@ -87,6 +92,11 @@ function isEventVisible(event: GameEvent): boolean {
     case 'ENEMY_MOVE':
       return isTileRevealed(event.from) || isTileRevealed(event.to);
     case 'ENEMY_ATTACK':
+      // Cave monster attacks are always visible so the camera always pans to them
+      if (useGameStore.getState().units[event.attackerId]?.type === UnitType.CAVE_MONSTER) {
+        return true;
+      }
+      return isTileRevealed(event.attackerPosition) || isTileRevealed(event.defenderPosition);
     case 'PLAYER_ATTACK':
       return isTileRevealed(event.attackerPosition) || isTileRevealed(event.defenderPosition);
     case 'BUILDING_ATTACK':
@@ -677,6 +687,16 @@ export function useAnimationEngine(): void {
               }
             }
           });
+
+          // Apply hire/swap immediately so the specialist appears in the slots
+          // right after the modal is dismissed, without waiting for all remaining
+          // animations (e.g. lava events) to finish.
+          if (hiredSpecialistId) {
+            useGameStore.getState().hireSpecialist(hiredSpecialistId);
+          }
+          if (swapResult) {
+            useGameStore.getState().swapSpecialist(swapResult.outgoingId, swapResult.incomingId);
+          }
 
           continue;
         }

@@ -1985,6 +1985,7 @@ function BottomBar() {
     if (phase !== GamePhase.PLAYER_TURN || isAnimating || !selectedUnitId) return;
     const unit = units[selectedUnitId];
     if (!unit || unit.faction !== Faction.PLAYER) return;
+    if (!unit.tags.includes(UnitTag.BUILDANDCAPTURE)) return;
     const tile = grid[unit.position.y]?.[unit.position.x];
     if (!tile?.hasCaveMonster) return;
     const tileKey = `${unit.position.x},${unit.position.y}`;
