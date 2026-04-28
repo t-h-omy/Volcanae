@@ -1030,6 +1030,70 @@ export const ABILITIES = {
 }
 
 // ============================================================================
+// SPECIALIST DEFINITIONS — single source of truth per specialist
+// ============================================================================
+
+/** Static (balance-tunable) properties of a specialist. */
+export interface SpecialistDefinition {
+  name: string;
+  description: string;
+  effects: { type: string; params: Record<string, number | string> }[];
+  /** Iron cost per turn; default 0 */
+  upkeepIron?: number;
+  /** Wood cost per turn; default 0 */
+  upkeepWood?: number;
+}
+
+/**
+ * Single source of truth for all per-specialist data.
+ * Descriptions that reference config constants use template literals — no
+ * raw balancing numbers allowed in description strings (see DESCRIPTION
+ * AUTHORING RULE above the ABILITIES constant).
+ */
+export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
+  spec_01: {
+    name: 'Garrison Commander',
+    description:
+      `All your Watchtowers and Outposts gain +${ABILITIES.FORTIFIED_GARRISON_ATTACK_BONUS} attack and +${ABILITIES.FORTIFIED_GARRISON_RANGE_BONUS} attack range.`,
+    effects: [{ type: 'FORTIFIED_GARRISON', params: {} }],
+    upkeepIron: 0,
+    upkeepWood: 0,
+  },
+  spec_02: {
+    name: 'Bloodrider',
+    description:
+      'When one of your Riders kills an enemy, it may attack once more this turn at half attack and without retaliation.',
+    effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.RIDER, tag: UnitTag.BLOODLUST } }],
+    upkeepIron: 0,
+    upkeepWood: 0,
+  },
+  spec_03: {
+    name: 'Siege Tactician',
+    description:
+      `Your Siege units deal ${Math.round(ABILITIES.SPLASH_DAMAGE_RATIO * 100)}% of their damage to all enemy units surrounding their target.`,
+    effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.SIEGE, tag: UnitTag.SPLASH } }],
+    upkeepIron: 0,
+    upkeepWood: 0,
+  },
+  spec_04: {
+    name: 'Drill Sergeant',
+    description:
+      'Your Infantry units can move and attack immediately after being recruited.',
+    effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.INFANTRY, tag: UnitTag.READY } }],
+    upkeepIron: 0,
+    upkeepWood: 0,
+  },
+  spec_05: {
+    name: 'Deathmender',
+    description:
+      `When one of your Infantry units dies, a Gravestone is left on their tile. Pay ${ABILITIES.REVIVE_CRYSTAL_COST} crystal to revive the unit.`,
+    effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.INFANTRY, tag: UnitTag.REVIVABLE } }],
+    upkeepIron: 0,
+    upkeepWood: 0,
+  },
+};
+
+// ============================================================================
 // TECH TREE CONFIGURATION
 // ============================================================================
 
@@ -1472,6 +1536,7 @@ export const GAME_CONFIG = {
   LAVA_LAIR,
   UNIT_DEFINITIONS,
   BUILDING_DEFINITIONS,
+  SPECIALIST_DEFINITIONS,
   BUILDINGS,
   RESOURCES,
   TERRAIN,

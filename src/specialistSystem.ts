@@ -23,7 +23,7 @@
 import type { GameState, Specialist } from './types';
 import type { Draft } from 'immer';
 import { Faction, BuildingType, UnitTag, UnitType } from './types';
-import { BUILDINGS, ABILITIES } from './gameConfig';
+import { BUILDINGS, ABILITIES, SPECIALIST_DEFINITIONS } from './gameConfig';
 
 // ============================================================================
 // INITIAL SPECIALISTS
@@ -34,63 +34,20 @@ import { BUILDINGS, ABILITIES } from './gameConfig';
  * These are not yet in globalSpecialistStorage — the player must find them via cave monsters.
  */
 export function createInitialSpecialists(): Record<string, Specialist> {
-  return {
-    spec_01: {
-      id: 'spec_01',
-      name: 'Garrison Commander',
-      description:
-        `All your Watchtowers and Outposts gain +${ABILITIES.FORTIFIED_GARRISON_ATTACK_BONUS} attack and +${ABILITIES.FORTIFIED_GARRISON_RANGE_BONUS} attack range.`,
-      effects: [{ type: 'FORTIFIED_GARRISON', params: {} }],
+  const result: Record<string, Specialist> = {};
+  for (const [id, def] of Object.entries(SPECIALIST_DEFINITIONS)) {
+    result[id] = {
+      id,
+      name: def.name,
+      description: def.description,
+      effects: def.effects,
       assignedBuildingId: null,
-      upkeepIron: 0,
-      upkeepWood: 0,
+      upkeepIron: def.upkeepIron ?? 0,
+      upkeepWood: def.upkeepWood ?? 0,
       dormant: false,
-    },
-    spec_02: {
-      id: 'spec_02',
-      name: 'Bloodrider',
-      description:
-        'When one of your Riders kills an enemy, it may attack once more this turn at half attack and without retaliation.',
-      effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.RIDER, tag: UnitTag.BLOODLUST } }],
-      assignedBuildingId: null,
-      upkeepIron: 0,
-      upkeepWood: 0,
-      dormant: false,
-    },
-    spec_03: {
-      id: 'spec_03',
-      name: 'Siege Tactician',
-      description:
-        `Your Siege units deal ${Math.round(ABILITIES.SPLASH_DAMAGE_RATIO * 100)}% of their damage to all enemy units surrounding their target.`,
-      effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.SIEGE, tag: UnitTag.SPLASH } }],
-      assignedBuildingId: null,
-      upkeepIron: 0,
-      upkeepWood: 0,
-      dormant: false,
-    },
-    spec_04: {
-      id: 'spec_04',
-      name: 'Drill Sergeant',
-      description:
-        'Your Infantry units can move and attack immediately after being recruited.',
-      effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.INFANTRY, tag: UnitTag.READY } }],
-      assignedBuildingId: null,
-      upkeepIron: 0,
-      upkeepWood: 0,
-      dormant: false,
-    },
-    spec_05: {
-      id: 'spec_05',
-      name: 'Deathmender',
-      description:
-        `When one of your Infantry units dies, a Gravestone is left on their tile. Pay ${ABILITIES.REVIVE_CRYSTAL_COST} crystal to revive the unit.`,
-      effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.INFANTRY, tag: UnitTag.REVIVABLE } }],
-      assignedBuildingId: null,
-      upkeepIron: 0,
-      upkeepWood: 0,
-      dormant: false,
-    },
-  };
+    };
+  }
+  return result;
 }
 
 // ============================================================================
