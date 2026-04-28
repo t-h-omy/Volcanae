@@ -9,7 +9,7 @@
 
 import type { GameState } from './types';
 import { UnitType, UnitTag, BuildingType } from './types';
-import { TECH_TREE, POPULATION } from './gameConfig';
+import { TECH_TREE, POPULATION, SPECIALIST_DEFINITIONS } from './gameConfig';
 
 // ============================================================================
 // CONSTANTS
@@ -123,13 +123,22 @@ export function loadGameState(): GameState | null {
 
     // Migration: backfill upkeepIron, upkeepWood, and dormant on specialist
     // records from saves that predate these fields being added.
+    // Also re-sync the effects array from SPECIALIST_DEFINITIONS so that
+    // saves created before effects were stored (or with empty effects []) get
+    // the correct effect definitions.
     if (s.specialists && typeof s.specialists === 'object') {
-      for (const spec of Object.values(s.specialists) as Array<unknown>) {
+      for (const [specId, spec] of Object.entries(s.specialists) as Array<[string, unknown]>) {
         const sp = spec as Record<string, unknown>;
         if (sp && typeof sp.id === 'string') {
           if (typeof sp.upkeepIron !== 'number') sp.upkeepIron = 0;
           if (typeof sp.upkeepWood !== 'number') sp.upkeepWood = 0;
           if (typeof sp.dormant !== 'boolean') sp.dormant = false;
+          // Always re-sync effects from the authoritative SPECIALIST_DEFINITIONS
+          // so that saves with missing, empty, or stale effects are corrected.
+          const def = SPECIALIST_DEFINITIONS[specId];
+          if (def) {
+            sp.effects = def.effects;
+          }
         }
       }
     }

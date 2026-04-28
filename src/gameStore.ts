@@ -30,6 +30,7 @@ import {
   assignSpecialist as assignSpecialistLogic,
   unassignSpecialist as unassignSpecialistLogic,
   deductSpecialistUpkeep,
+  applySpecialistEffects,
 } from './specialistSystem';
 import { checkGameConditions } from './gameConditions';
 import { useFloaterStore } from './floaterStore';
@@ -194,6 +195,10 @@ export const useGameStore = create<GameStore>()(
           // Update tile discovery only for a fresh game (saved games already have it)
           updateDiscovery(state);
         }
+        // Re-apply specialist effects so that any assigned, non-dormant specialists
+        // have their effects active on existing units (handles saves where effects
+        // were missing or stale before the migration re-synced them).
+        applySpecialistEffects(state);
       });
 
       syncCameraToPlayerStronghold(stateToLoad);
@@ -1051,6 +1056,9 @@ export const useGameStore = create<GameStore>()(
 
           // Deduct specialist upkeep and update dormant status
           deductSpecialistUpkeep(draft);
+
+          // Apply (or revoke) specialist effects based on updated dormancy state
+          applySpecialistEffects(draft);
 
           // Grow house populations
           growHousePopulations(draft);

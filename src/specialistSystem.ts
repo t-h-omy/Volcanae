@@ -54,13 +54,13 @@ export function createInitialSpecialists(): Record<string, Specialist> {
 // EFFECT APPLICATION HELPERS
 // ============================================================================
 
-/** Returns true if any specialist with the given effect type is currently assigned (not in global storage). */
+/** Returns true if any specialist with the given effect type is currently assigned and non-dormant. */
 export function isSpecialistEffectActive(
   state: GameState | Draft<GameState>,
   effectType: string,
 ): boolean {
   for (const spec of Object.values(state.specialists)) {
-    if (spec.assignedBuildingId !== null && spec.effects.some((e) => e.type === effectType)) {
+    if (spec.assignedBuildingId !== null && !spec.dormant && spec.effects.some((e) => e.type === effectType)) {
       return true;
     }
   }
@@ -158,10 +158,11 @@ function revokeUnitTagFromAllUnits(
   unitType: UnitType,
   tag: UnitTag,
 ): void {
-  // Check if another still-active specialist also grants this tag to this unit type
+  // Check if another still-active (assigned and non-dormant) specialist also grants this tag to this unit type
   const stillGranted = Object.values(state.specialists).some(
     (s) =>
       s.assignedBuildingId !== null &&
+      !s.dormant &&
       s.effects.some(
         (e) =>
           e.type === 'GRANT_UNIT_TAG_ALL' &&
@@ -406,22 +407,48 @@ export function deductSpecialistUpkeep(state: Draft<GameState>): void {
 }
 
 /**
- * Applies specialist effects to the game state.
- * Dormant specialists (upkeep unpaid) are skipped entirely.
- * STUB: Returns state unchanged for now.
- * Effects will be implemented in future prompts.
+ * Applies specialist effects to the game state for all assigned, non-dormant
+ * specialists.  Called every turn after deductSpecialistUpkeep so that any
+ * dormancy changes are immediately reflected on units.
+ *
+ * - Non-dormant, assigned specialists: effects are applied (idempotent — tags
+ *   that are already present are not duplicated).
+ * - Dormant or unassigned specialists: effects are revoked (if no other active
+ *   specialist still grants them).
  *
  * @param state - Immer draft of the game state (will be mutated)
  */
 export function applySpecialistEffects(state: Draft<GameState>): void {
-  // Iterate through assigned specialists and apply effects
   for (const specialist of Object.values(state.specialists)) {
-    if (specialist.assignedBuildingId !== null) {
-      // Skip dormant specialists — upkeep was not paid
-      if (specialist.dormant) continue;
+    if (specialist.assignedBuildingId === null) continue;
 
-      // Effects would be applied here based on specialist.effects
-      // For now, this is a no-op
+    const isDormant = !!specialist.dormant;
+
+    for (const effect of specialist.effects) {
+      if (effect.type === 'FORTIFIED_GARRISON') {
+        if (!isDormant) {
+          setFortifiedGarrisonState(state, true);
+        } else {
+          // Revert garrison bonus if no other non-dormant specialist still grants it
+          if (!isSpecialistEffectActive(state, 'FORTIFIED_GARRISON')) {
+            setFortifiedGarrisonState(state, false);
+          }
+        }
+      } else if (effect.type === 'GRANT_UNIT_TAG_ALL') {
+        if (!isDormant) {
+          applyUnitTagToAllUnits(
+            state,
+            effect.params.unitType as UnitType,
+            effect.params.tag as UnitTag,
+          );
+        } else {
+          revokeUnitTagFromAllUnits(
+            state,
+            effect.params.unitType as UnitType,
+            effect.params.tag as UnitTag,
+          );
+        }
+      }
     }
   }
 }
