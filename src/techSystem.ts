@@ -154,6 +154,9 @@ function applyTechEffect(state: Draft<GameState>, effect: TechEffect): void {
         }
       }
       break;
+    case 'SPECIALIST_SLOT_MOD':
+      state.specialistSlotCap += effect.value;
+      break;
     default:
       break;
   }
@@ -342,6 +345,8 @@ export function renderEffect(effect: TechEffect): string {
       return flagDescriptions[effect.flag] ?? effect.flag;
     case 'STRONGHOLD_CAP_MOD':
       return `Stronghold +${effect.amount} ${effect.capType} cap`;
+    case 'SPECIALIST_SLOT_MOD':
+      return `+${effect.value} specialist slot${effect.value !== 1 ? 's' : ''}`;
     default:
       return '';
   }

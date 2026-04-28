@@ -486,6 +486,20 @@ export const TERRAIN = {
   MIN_PASSABLE_TILES_PER_ROW: 1,
   MAX_TRAVERSABILITY_RETRIES: 10,
   IMPASSABLE_MIN_DISTANCE_FROM_STRONGHOLD: 2,
+
+  /** Probability that a Mountain tile has a cave monster; checked once per tile at map gen */
+  CAVE_MONSTER_SPAWN_CHANCE: 0.33,
+  /**
+   * Per-zone HP/ATK/DEF multiplier for the cave monster (index 0 = zone 1, index 4 = zone 5).
+   * Higher zones are deeper into enemy territory and have stronger monsters.
+   */
+  CAVE_MONSTER_ZONE_SCALE: [1.0, 1.15, 1.3, 1.5, 1.7] as const,
+  /**
+   * Chebyshev-distance radius within which the cave monster will patrol.
+   * If the monster wanders outside this radius (no aggro), it returns to its home tile.
+   * Once back on the home tile it may despawn the following turn.
+   */
+  CAVE_MONSTER_PATROL_RADIUS: 2,
 } as const;
 
 // ============================================================================
@@ -719,6 +733,20 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     enemyUnlockEmber: 1,
     description: 'Fragile fire spirit that walks toward lava. Explodes on death, dealing heavy damage to all nearby enemies.', // overwritten below
   },
+
+  CAVE_MONSTER: {
+    maxHp: 100, attack: 55, defense: 50,
+    movementActions: 1, moveRange: 1, attackRange: 1,
+    discoverRadius: 1, triggerRange: 3,
+    tags: [],
+    cost: { iron: 0, wood: 0 },
+    populationCost: { farmers: 0, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    description: 'A monstrous creature that emerged from deep within a mountain cave.',
+  },
 };
 
 // Compute descriptions for UNIT_DEFINITIONS entries that reference their own stats.
@@ -868,6 +896,12 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     constructionCost: { iron: 4, wood: 2 },
     description: 'Arcane resonator. When a Crystal Chamber is consumed by lava, all surviving chambers begin resonating and generate crystals each turn.', // overwritten below
   },
+  GRAVESTONE: {
+    discoverRadius: 1,
+    destroyBehavior: DestroyBehavior.NONE,
+    constructionCost: { iron: 0, wood: 0 },
+    description: 'The grave of a fallen warrior.', // overwritten below (after ABILITIES)
+  },
 };
 
 // Compute descriptions for BUILDING_DEFINITIONS entries that reference their own stats or config constants.
@@ -976,7 +1010,88 @@ export const ABILITIES = {
   CITADEL_NOBLE_BONUS: 2,
   /** Max-HP bonus applied to Scouts and Guards by the CITADEL tech */
   CITADEL_HP_BOOST: 30,
+  // ── Specialist-granted ability constants ────────────────────────────────────
+  /** Flat attack bonus applied to player-owned Watchtowers and Outposts by FORTIFIED_GARRISON */
+  FORTIFIED_GARRISON_ATTACK_BONUS: 15,
+  /** Attack-range bonus applied to player-owned Watchtowers and Outposts by FORTIFIED_GARRISON */
+  FORTIFIED_GARRISON_RANGE_BONUS: 1,
+  /** Fraction of dealt damage applied to each surrounding enemy by SPLASH */
+  SPLASH_DAMAGE_RATIO: 0.25,
+  /** Crystal cost to revive a unit from a Gravestone */
+  REVIVE_CRYSTAL_COST: 1,
+  /** Starting and maximum HP of a newly spawned Gravestone building */
+  GRAVESTONE_MAX_HP: 80,
 } as const;
+
+// Override GRAVESTONE description now that ABILITIES is available (crystal cost is configurable).
+{
+  BUILDING_DEFINITIONS.GRAVESTONE.description =
+    `The grave of a fallen warrior. Revive the unit by paying ${ABILITIES.REVIVE_CRYSTAL_COST} crystal.`;
+}
+
+// ============================================================================
+// SPECIALIST DEFINITIONS — single source of truth per specialist
+// ============================================================================
+
+/** Static (balance-tunable) properties of a specialist. */
+export interface SpecialistDefinition {
+  name: string;
+  description: string;
+  effects: { type: string; params: Record<string, number | string> }[];
+  /** Iron cost per turn; default 0 */
+  upkeepIron?: number;
+  /** Wood cost per turn; default 0 */
+  upkeepWood?: number;
+}
+
+/**
+ * Single source of truth for all per-specialist data.
+ * Descriptions that reference config constants use template literals — no
+ * raw balancing numbers allowed in description strings (see DESCRIPTION
+ * AUTHORING RULE above the ABILITIES constant).
+ */
+export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
+  spec_01: {
+    name: 'Garrison Commander',
+    description:
+      `All your Watchtowers and Outposts gain +${ABILITIES.FORTIFIED_GARRISON_ATTACK_BONUS} attack and +${ABILITIES.FORTIFIED_GARRISON_RANGE_BONUS} attack range.`,
+    effects: [{ type: 'FORTIFIED_GARRISON', params: {} }],
+    upkeepIron: 0,
+    upkeepWood: 0,
+  },
+  spec_02: {
+    name: 'Bloodrider',
+    description:
+      'When one of your Riders kills an enemy, it may attack once more this turn at half attack and without retaliation.',
+    effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.RIDER, tag: UnitTag.BLOODLUST } }],
+    upkeepIron: 0,
+    upkeepWood: 0,
+  },
+  spec_03: {
+    name: 'Siege Tactician',
+    description:
+      `Your Siege units deal ${Math.round(ABILITIES.SPLASH_DAMAGE_RATIO * 100)}% of their damage to all enemy units surrounding their target.`,
+    effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.SIEGE, tag: UnitTag.SPLASH } }],
+    upkeepIron: 0,
+    upkeepWood: 0,
+  },
+  spec_04: {
+    name: 'Drill Sergeant',
+    description:
+      'Your Infantry units can move and attack immediately after being recruited.',
+    effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.INFANTRY, tag: UnitTag.READY } }],
+    upkeepIron: 0,
+    upkeepWood: 0,
+  },
+  spec_05: {
+    name: 'Deathmender',
+    description:
+      `When one of your Infantry units dies, a Gravestone is left on their tile. Pay ${ABILITIES.REVIVE_CRYSTAL_COST} crystal to revive the unit.`,
+    effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.INFANTRY, tag: UnitTag.REVIVABLE } }],
+    upkeepIron: 0,
+    upkeepWood: 0,
+  },
+};
 
 // ============================================================================
 // TECH TREE CONFIGURATION
@@ -1190,6 +1305,16 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SIEGE,  tag: UnitTag.ELITE },
     ],
   },
+  {
+    id: 'MASTER_RECRUITER',
+    name: 'Master Recruiter',
+    description: 'Unlocks a third specialist slot.',
+    requires: ['NOBLE_HERITAGE'],
+    cost: 6,
+    effects: [
+      { type: 'SPECIALIST_SLOT_MOD', value: 1 },
+    ],
+  },
 
   // ── Branch 1 (Cavalry) deep upgrades ──────────────────────────────────────
   {
@@ -1353,6 +1478,11 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string }> = {
   [UnitTag.DISTRACTION]:       { label: 'Distraction',       desc: `Each hit permanently reduces the target's DEF by ${ABILITIES.DISTRACTION_DEF_REDUCTION}. Archer ATK is reduced by ${Math.abs(ABILITIES.DISTRACTION_ATTACK_MOD)}.` },
   [UnitTag.PREVENTIVE_STRIKE]: { label: 'Preventive Strike', desc: 'Fires instantly at any enemy unit that moves into attack range during the enemy\'s turn.' },
   [UnitTag.ELITE]:             { label: 'Elite',             desc: `+${ABILITIES.ELITE_MAX_HP_BONUS} max HP. Elite unit forged in the noble tradition.` },
+  [UnitTag.FORTIFIED_GARRISON]: { label: 'Fortified Garrison', desc: `Attack building gains +${ABILITIES.FORTIFIED_GARRISON_ATTACK_BONUS} ATK and +${ABILITIES.FORTIFIED_GARRISON_RANGE_BONUS} attack range.` },
+  [UnitTag.BLOODLUST]:          { label: 'Bloodlust',          desc: 'When this Rider kills an enemy, it may attack once more this turn at half attack without retaliation.' },
+  [UnitTag.SPLASH]:             { label: 'Splash',             desc: `Deals ${Math.round(ABILITIES.SPLASH_DAMAGE_RATIO * 100)}% of dealt damage to all enemy units surrounding the target.` },
+  [UnitTag.READY]:              { label: 'Ready',              desc: 'Can move and attack immediately after being recruited.' },
+  [UnitTag.REVIVABLE]:          { label: 'Revivable',          desc: `Leaves a Gravestone on death. Pay ${ABILITIES.REVIVE_CRYSTAL_COST} crystal to revive.` },
 };
 
 // ============================================================================
@@ -1406,6 +1536,7 @@ export const GAME_CONFIG = {
   LAVA_LAIR,
   UNIT_DEFINITIONS,
   BUILDING_DEFINITIONS,
+  SPECIALIST_DEFINITIONS,
   BUILDINGS,
   RESOURCES,
   TERRAIN,

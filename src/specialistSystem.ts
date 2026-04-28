@@ -22,98 +22,165 @@
 
 import type { GameState, Specialist } from './types';
 import type { Draft } from 'immer';
-import { Faction, BuildingType } from './types';
-import { BUILDINGS } from './gameConfig';
+import { Faction, BuildingType, UnitTag, UnitType } from './types';
+import { BUILDINGS, ABILITIES, SPECIALIST_DEFINITIONS } from './gameConfig';
 
 // ============================================================================
 // INITIAL SPECIALISTS
 // ============================================================================
 
 /**
- * Creates the 5 placeholder specialists for the game.
- * These are not yet in globalSpecialistStorage - player must find them.
+ * Creates the 5 specialists for the game.
+ * These are not yet in globalSpecialistStorage — the player must find them via cave monsters.
  */
 export function createInitialSpecialists(): Record<string, Specialist> {
-  const spec01Params = { hpMultiplier: 1.2, attackMultiplier: 0.8 };
-  const spec02Params = { range: 10, healPercent: 0.2, defensePenalty: 0.25 };
-  const spec05Params = { range: 10, woodGrant: 3, lavaSpeedup: 1 };
-
-  return {
-    spec_01: {
-      id: 'spec_01',
-      name: 'Iron Forgemaster',
-      description:
-        `Units recruited here have +${Math.round((spec01Params.hpMultiplier - 1) * 100)}% max HP and -${Math.round((1 - spec01Params.attackMultiplier) * 100)}% attack.`,
-      effects: [
-        {
-          type: 'RECRUIT_STAT_MOD',
-          params: spec01Params,
-        },
-      ],
+  const result: Record<string, Specialist> = {};
+  for (const [id, def] of Object.entries(SPECIALIST_DEFINITIONS)) {
+    result[id] = {
+      id,
+      name: def.name,
+      description: def.description,
+      effects: def.effects,
       assignedBuildingId: null,
-    },
-    spec_02: {
-      id: 'spec_02',
-      name: 'Lava Warden',
-      description:
-        `Units within range ${spec02Params.range} heal ${Math.round(spec02Params.healPercent * 100)}% max HP at turn start but have -${Math.round(spec02Params.defensePenalty * 100)}% defense that turn.`,
-      effects: [
-        {
-          type: 'AOE_HEAL_WITH_DEFENSE_PENALTY',
-          params: spec02Params,
-        },
-      ],
-      assignedBuildingId: null,
-    },
-    spec_03: {
-      id: 'spec_03',
-      name: 'Master Fletcher',
-      description: 'Unlocks an upgraded unit in the Archer Camp.',
-      effects: [
-        {
-          type: 'UNLOCK_UNIT',
-          params: {
-            buildingType: BuildingType.ARCHER_CAMP,
-            unitType: 'ARCHER_ELITE',
-          },
-        },
-      ],
-      assignedBuildingId: null,
-    },
-    spec_04: {
-      id: 'spec_04',
-      name: 'Siege Engineer',
-      description: 'Unlocks an upgraded unit in the Siege Camp.',
-      effects: [
-        {
-          type: 'UNLOCK_UNIT',
-          params: {
-            buildingType: BuildingType.SIEGE_CAMP,
-            unitType: 'SIEGE_ELITE',
-          },
-        },
-      ],
-      assignedBuildingId: null,
-    },
-    spec_05: {
-      id: 'spec_05',
-      name: 'Ash Harvester',
-      description:
-        `Buildings destroyed by lava within range ${spec05Params.range} grant ${spec05Params.woodGrant} wood. Lava advances ${spec05Params.lavaSpeedup} turn faster.`,
-      effects: [
-        {
-          type: 'LAVA_HARVEST',
-          params: spec05Params,
-        },
-      ],
-      assignedBuildingId: null,
-    },
-  };
+      upkeepIron: def.upkeepIron ?? 0,
+      upkeepWood: def.upkeepWood ?? 0,
+      dormant: false,
+    };
+  }
+  return result;
 }
 
 // ============================================================================
-// VALIDATION HELPERS
+// EFFECT APPLICATION HELPERS
 // ============================================================================
+
+/** Returns true if any specialist with the given effect type is currently assigned and non-dormant. */
+export function isSpecialistEffectActive(
+  state: GameState | Draft<GameState>,
+  effectType: string,
+): boolean {
+  for (const spec of Object.values(state.specialists)) {
+    if (spec.assignedBuildingId !== null && !spec.dormant && spec.effects.some((e) => e.type === effectType)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Returns the unit tags that active (assigned) specialists grant to a given unit type.
+ * Used in recruitUnit to ensure newly spawned units carry specialist-granted tags.
+ */
+export function getTagsFromActiveSpecialists(
+  state: GameState | Draft<GameState>,
+  unitType: UnitType,
+): UnitTag[] {
+  const tags: UnitTag[] = [];
+  for (const spec of Object.values(state.specialists)) {
+    if (spec.assignedBuildingId === null || spec.dormant) continue;
+    for (const effect of spec.effects) {
+      if (
+        effect.type === 'GRANT_UNIT_TAG_ALL' &&
+        effect.params.unitType === unitType
+      ) {
+        const tag = effect.params.tag as UnitTag;
+        if (!tags.includes(tag)) tags.push(tag);
+      }
+    }
+  }
+  return tags;
+}
+
+/**
+ * Applies FORTIFIED_GARRISON stat bonus to a single building's combatStats.
+ * No-op if the building has no combatStats.
+ */
+function applyFortifiedGarrisonBonus(building: Draft<GameState>['buildings'][string]): void {
+  if (!building.combatStats) return;
+  building.combatStats.attack += ABILITIES.FORTIFIED_GARRISON_ATTACK_BONUS;
+  building.combatStats.attackRange += ABILITIES.FORTIFIED_GARRISON_RANGE_BONUS;
+}
+
+/**
+ * Reverts FORTIFIED_GARRISON stat bonus from a single building's combatStats.
+ * No-op if the building has no combatStats.
+ */
+function revertFortifiedGarrisonBonus(building: Draft<GameState>['buildings'][string]): void {
+  if (!building.combatStats) return;
+  building.combatStats.attack -= ABILITIES.FORTIFIED_GARRISON_ATTACK_BONUS;
+  building.combatStats.attackRange -= ABILITIES.FORTIFIED_GARRISON_RANGE_BONUS;
+}
+
+/**
+ * Applies or reverts the FORTIFIED_GARRISON bonus to all player-owned
+ * Watchtower and Outpost buildings, then updates state.fortifiedGarrisonActive.
+ */
+function setFortifiedGarrisonState(state: Draft<GameState>, active: boolean): void {
+  if (active === state.fortifiedGarrisonActive) return; // Already in the target state
+  for (const building of Object.values(state.buildings)) {
+    if (
+      building.faction === Faction.PLAYER &&
+      (building.type === BuildingType.WATCHTOWER || building.type === BuildingType.OUTPOST)
+    ) {
+      if (active) {
+        applyFortifiedGarrisonBonus(building);
+      } else {
+        revertFortifiedGarrisonBonus(building);
+      }
+    }
+  }
+  state.fortifiedGarrisonActive = active;
+}
+
+/**
+ * Applies GRANT_UNIT_TAG_ALL specialist effect: adds `tag` to all currently
+ * existing player units of `unitType` that don't already have it.
+ */
+function applyUnitTagToAllUnits(
+  state: Draft<GameState>,
+  unitType: UnitType,
+  tag: UnitTag,
+): void {
+  for (const unit of Object.values(state.units)) {
+    if (unit.faction === Faction.PLAYER && unit.type === unitType && !unit.tags.includes(tag)) {
+      unit.tags.push(tag);
+    }
+  }
+}
+
+/**
+ * Reverts GRANT_UNIT_TAG_ALL specialist effect: removes `tag` from all player
+ * units of `unitType`.  Only removes if no other active specialist grants the
+ * same tag to the same unit type (handles duplicate specs defensively).
+ */
+function revokeUnitTagFromAllUnits(
+  state: Draft<GameState>,
+  unitType: UnitType,
+  tag: UnitTag,
+): void {
+  // Check if another still-active (assigned and non-dormant) specialist also grants this tag to this unit type
+  const stillGranted = Object.values(state.specialists).some(
+    (s) =>
+      s.assignedBuildingId !== null &&
+      !s.dormant &&
+      s.effects.some(
+        (e) =>
+          e.type === 'GRANT_UNIT_TAG_ALL' &&
+          e.params.unitType === unitType &&
+          e.params.tag === tag,
+      ),
+  );
+  if (stillGranted) return;
+
+  for (const unit of Object.values(state.units)) {
+    if (unit.faction === Faction.PLAYER && unit.type === unitType) {
+      const idx = unit.tags.indexOf(tag);
+      if (idx !== -1) unit.tags.splice(idx, 1);
+    }
+  }
+}
+
+
 
 /**
  * Checks if a specialist can be assigned to a building.
@@ -229,6 +296,15 @@ export function assignSpecialist(
   building.specialistSlot = specialistId;
   specialist.assignedBuildingId = buildingId;
 
+  // Apply specialist effects
+  for (const effect of specialist.effects) {
+    if (effect.type === 'FORTIFIED_GARRISON') {
+      setFortifiedGarrisonState(state, true);
+    } else if (effect.type === 'GRANT_UNIT_TAG_ALL') {
+      applyUnitTagToAllUnits(state, effect.params.unitType as UnitType, effect.params.tag as UnitTag);
+    }
+  }
+
   // Disable building for the configured number of turns
   building.isDisabledForTurns = BUILDINGS.SPECIALIST_ASSIGN_DISABLE_TURNS;
 }
@@ -239,6 +315,7 @@ export function assignSpecialist(
  * - Adds specialist to globalSpecialistStorage
  * - Updates specialist.assignedBuildingId to null
  * - Disables building for SPECIALIST_ASSIGN_DISABLE_TURNS
+ * - Revokes the specialist's effects from units/buildings
  *
  * @param state - Immer draft of the game state (will be mutated)
  * @param buildingId - ID of the building to unassign from
@@ -262,11 +339,24 @@ export function unassignSpecialist(
     return;
   }
 
-  // Remove specialist from building
+  // Remove specialist from building FIRST so that revokeUnitTagFromAllUnits
+  // correctly detects that this specialist is no longer assigned.
   building.specialistSlot = null;
+  specialist.assignedBuildingId = null;
+
+  // Revoke specialist effects
+  for (const effect of specialist.effects) {
+    if (effect.type === 'FORTIFIED_GARRISON') {
+      // Only revert if no other specialist also grants FORTIFIED_GARRISON
+      if (!isSpecialistEffectActive(state, 'FORTIFIED_GARRISON')) {
+        setFortifiedGarrisonState(state, false);
+      }
+    } else if (effect.type === 'GRANT_UNIT_TAG_ALL') {
+      revokeUnitTagFromAllUnits(state, effect.params.unitType as UnitType, effect.params.tag as UnitTag);
+    }
+  }
 
   // Return specialist to global storage
-  specialist.assignedBuildingId = null;
   state.globalSpecialistStorage.push(specialistId);
 
   // Disable building for the configured number of turns
@@ -274,19 +364,91 @@ export function unassignSpecialist(
 }
 
 /**
- * Applies specialist effects to the game state.
- * STUB: Returns state unchanged for now.
- * Effects will be implemented in future prompts.
+ * Deducts upkeep costs for all hired specialists at the end of each player turn.
+ * Specialists whose upkeep cannot be paid are marked dormant (effects disabled).
+ * Specialists with zero upkeep are never affected.
+ *
+ * Must be called inside an immer-draft context (Phase 6 bookkeeping in endPlayerTurn).
+ *
+ * @param state - Immer draft of the game state (will be mutated)
+ */
+export function deductSpecialistUpkeep(state: Draft<GameState>): void {
+  // Collect all specialist IDs currently owned by the player
+  // (both in globalStorage and assigned to buildings).
+  const ownedIds = new Set<string>([
+    ...state.globalSpecialistStorage,
+    ...Object.values(state.buildings)
+      .map((b) => b.specialistSlot)
+      .filter((id): id is string => id !== null),
+  ]);
+
+  for (const specId of ownedIds) {
+    const spec = state.specialists[specId];
+    if (!spec) continue;
+
+    const iron = spec.upkeepIron ?? 0;
+    const wood = spec.upkeepWood ?? 0;
+
+    // No upkeep — skip entirely; dormant state is untouched
+    if (iron === 0 && wood === 0) continue;
+
+    const canPay =
+      state.resources.iron >= iron && state.resources.wood >= wood;
+
+    if (canPay) {
+      state.resources.iron -= iron;
+      state.resources.wood -= wood;
+      spec.dormant = false;
+    } else {
+      // Cannot afford — mark dormant but do not push resources negative
+      spec.dormant = true;
+    }
+  }
+}
+
+/**
+ * Applies specialist effects to the game state for all assigned, non-dormant
+ * specialists.  Called every turn after deductSpecialistUpkeep so that any
+ * dormancy changes are immediately reflected on units.
+ *
+ * - Non-dormant, assigned specialists: effects are applied (idempotent — tags
+ *   that are already present are not duplicated).
+ * - Dormant or unassigned specialists: effects are revoked (if no other active
+ *   specialist still grants them).
  *
  * @param state - Immer draft of the game state (will be mutated)
  */
 export function applySpecialistEffects(state: Draft<GameState>): void {
-  // Stub - effects not yet implemented
-  // Just iterate through assigned specialists and do nothing
   for (const specialist of Object.values(state.specialists)) {
-    if (specialist.assignedBuildingId !== null) {
-      // Effects would be applied here based on specialist.effects
-      // For now, this is a no-op
+    if (specialist.assignedBuildingId === null) continue;
+
+    const isDormant = !!specialist.dormant;
+
+    for (const effect of specialist.effects) {
+      if (effect.type === 'FORTIFIED_GARRISON') {
+        if (!isDormant) {
+          setFortifiedGarrisonState(state, true);
+        } else {
+          // Revert garrison bonus if no other non-dormant specialist still grants it
+          if (!isSpecialistEffectActive(state, 'FORTIFIED_GARRISON')) {
+            setFortifiedGarrisonState(state, false);
+          }
+        }
+      } else if (effect.type === 'GRANT_UNIT_TAG_ALL') {
+        if (!isDormant) {
+          applyUnitTagToAllUnits(
+            state,
+            effect.params.unitType as UnitType,
+            effect.params.tag as UnitTag,
+          );
+        } else {
+          revokeUnitTagFromAllUnits(
+            state,
+            effect.params.unitType as UnitType,
+            effect.params.tag as UnitTag,
+          );
+        }
+      }
     }
   }
 }

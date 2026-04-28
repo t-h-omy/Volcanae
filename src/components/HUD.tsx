@@ -46,6 +46,8 @@ import {
 import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY } from '../unitActions';
 import { getPhalanxAttackBonus, getPhalanxDefenseBonus } from '../combatSystem';
 import { useZoneClearedStore } from '../zoneClearedStore';
+import { useCaveScreamsStore } from '../caveScreamsStore';
+import { useSpecialistHireStore } from '../specialistHireStore';
 import './HUD.css';
 
 // ============================================================================
@@ -64,6 +66,7 @@ const UNIT_EMOJI: Record<string, string> = {
   [UnitType.LAVA_RIDER]: '👾',
   [UnitType.LAVA_SIEGE]: '🐦‍🔥',
   [UnitType.EMBERLING]: '🔥',
+  [UnitType.CAVE_MONSTER]: '🐉',
 };
 
 const UNIT_NAME: Record<string, string> = {
@@ -78,6 +81,7 @@ const UNIT_NAME: Record<string, string> = {
   [UnitType.LAVA_RIDER]: 'Lava Rider',
   [UnitType.LAVA_SIEGE]: 'Lava Siege',
   [UnitType.EMBERLING]: 'Emberling',
+  [UnitType.CAVE_MONSTER]: 'Cave Monster',
 };
 
 const BUILDING_EMOJI: Record<string, string> = {
@@ -97,6 +101,7 @@ const BUILDING_EMOJI: Record<string, string> = {
   [BuildingType.MAGMASPYR]: '⛰️',
   [BuildingType.EMBERNEST]: '🌲',
   [BuildingType.CRYSTAL_CHAMBER]: '💎',
+  [BuildingType.GRAVESTONE]: '🪦',
 };
 
 const BUILDING_NAME: Record<string, string> = {
@@ -116,6 +121,7 @@ const BUILDING_NAME: Record<string, string> = {
   [BuildingType.MAGMASPYR]: 'Magma Spyr',
   [BuildingType.EMBERNEST]: 'Ember Nest',
   [BuildingType.CRYSTAL_CHAMBER]: 'Crystal Chamber',
+  [BuildingType.GRAVESTONE]: 'Gravestone',
 };
 
 const TAG_EMOJI: Partial<Record<UnitTag, string>> = {
@@ -131,6 +137,10 @@ const TAG_EMOJI: Partial<Record<UnitTag, string>> = {
   [UnitTag.LAVABOOST]:       '🌋',
   [UnitTag.CORRUPT]:         '☠️',
   [UnitTag.PASSIVE]:         '🕊️',
+  [UnitTag.BLOODLUST]:       '🩸',
+  [UnitTag.SPLASH]:          '💦',
+  [UnitTag.READY]:           '⚡',
+  [UnitTag.REVIVABLE]:       '🔮',
 };
 
 /** Maps recruitment buildings to their recruitable unit types */
@@ -554,6 +564,11 @@ function TopBar({
   const ironPerTurn = useGameStore((s) => computeResourceIncome(s).ironPerTurn);
   const woodPerTurn = useGameStore((s) => computeResourceIncome(s).woodPerTurn);
 
+  // Specialist slots
+  const specialists = useGameStore((s) => s.specialists);
+  const globalSpecialistStorage = useGameStore((s) => s.globalSpecialistStorage);
+  const specialistSlotCap = useGameStore((s) => s.specialistSlotCap);
+
   return (
     <div className="hud-top-bar">
       <span className="hud-stat">🔄 Turn {turn}</span>
@@ -571,6 +586,17 @@ function TopBar({
           {showTechBadge && <span className="hud-tech-tree-badge">!</span>}
         </button>
       )}
+      <div className="hud-specialist-slots">
+        {Array.from({ length: specialistSlotCap }, (_, i) => {
+          const specId = globalSpecialistStorage[i];
+          const spec = specId ? specialists[specId] : null;
+          return (
+            <div key={i} className={`hud-specialist-slot${spec ? ' hud-specialist-slot--filled' : ' hud-specialist-slot--empty'}`}>
+              {spec ? <span className="hud-specialist-slot-name">🧙 {spec.name}</span> : <span className="hud-specialist-slot-placeholder">—</span>}
+            </div>
+          );
+        })}
+      </div>
       <GameMenu />
     </div>
   );
@@ -1494,6 +1520,8 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   const unassignSpecialist = useGameStore((s) => s.unassignSpecialist);
   const unlockedUnits = useGameStore((s) => s.unlockedUnits);
   const showRecruitingScores = useDevOptionsStore((s) => s.showRecruitingScores);
+  const arcaneCrystals = useGameStore((s) => s.arcaneCrystals);
+  const reviveUnit = useGameStore((s) => s.reviveUnit);
 
   const [showPicker, setShowPicker] = useState(false);
   const [confirmRecruitUnit, setConfirmRecruitUnit] = useState<UnitType | null>(null);
@@ -1514,6 +1542,15 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   const isInteractionBlocked = isDisabled || isUnderAttack;
   const hasCombatStats = building.combatStats !== null;
   const canAttack = hasCombatStats && !building.hasAttackedThisTurn && building.faction !== null;
+
+  // Gravestone: revive logic
+  const isGravestone = building.type === BuildingType.GRAVESTONE && isPlayerOwned;
+  const tile = grid[building.position.y]?.[building.position.x];
+  const graveOccupied = isGravestone && tile?.unitId !== null;
+  const canRevive = isGravestone && !graveOccupied && arcaneCrystals >= ABILITIES.REVIVE_CRYSTAL_COST;
+  const handleRevive = useCallback(() => {
+    reviveUnit(building.id);
+  }, [reviveUnit, building.id]);
 
   // Specialist slot info
   const assignedSpecialist: Specialist | null =
@@ -1705,8 +1742,8 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
         </div>
       )}
 
-      {/* Specialist slot */}
-      {isPlayerOwned && (
+      {/* Specialist slot — hidden for Gravestone buildings */}
+      {isPlayerOwned && !isGravestone && (
         <div className="hud-specialist-row">
           <span className="hud-label">Specialist:</span>
           {assignedSpecialist ? (
@@ -1732,6 +1769,24 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
                 Assign Specialist
               </button>
             </div>
+          )}
+        </div>
+      )}
+
+      {/* Gravestone revive button */}
+      {isGravestone && (
+        <div className="hud-revive-row">
+          {graveOccupied ? (
+            <span className="hud-dim">A unit is standing here — move it to revive.</span>
+          ) : (
+            <button
+              className="hud-recruit-btn"
+              disabled={!canRevive}
+              onClick={handleRevive}
+              title={!canRevive ? `Need ${ABILITIES.REVIVE_CRYSTAL_COST} crystal (have ${arcaneCrystals})` : undefined}
+            >
+              🔮 Revive (💎{ABILITIES.REVIVE_CRYSTAL_COST})
+            </button>
           )}
         </div>
       )}
@@ -1868,15 +1923,19 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
 
 function BottomBar() {
   const phase = useGameStore((s) => s.phase);
+  const turn = useGameStore((s) => s.turn);
   const selectedUnitId = useGameStore((s) => s.selectedUnitId);
   const selectedBuildingId = useGameStore((s) => s.selectedBuildingId);
   const selectedTilePos = useGameStore((s) => s.selectedTilePos);
   const units = useGameStore((s) => s.units);
   const buildings = useGameStore((s) => s.buildings);
   const grid = useGameStore((s) => s.grid);
+  const activeCaveEncounters = useGameStore((s) => s.activeCaveEncounters);
   const endPlayerTurn = useGameStore((s) => s.endPlayerTurn);
   const captureBuilding = useGameStore((s) => s.captureBuilding);
   const isAnimating = useAnimationStore((s) => s.isAnimating);
+  const cavePopupActive = useCaveScreamsStore((s) => s.tilePos !== null);
+  const openCavePopup = useCaveScreamsStore((s) => s.open);
 
   const selectedUnit: Unit | undefined = selectedUnitId
     ? units[selectedUnitId]
@@ -1920,10 +1979,30 @@ function BottomBar() {
 
   const isPlayerTurn = phase === GamePhase.PLAYER_TURN;
 
+  // Auto-open cave screams popup at start of player's turn if a previously
+  // selected unit is still standing on an unresolved cave mountain tile.
+  useEffect(() => {
+    if (phase !== GamePhase.PLAYER_TURN || isAnimating || !selectedUnitId) return;
+    const unit = units[selectedUnitId];
+    if (!unit || unit.faction !== Faction.PLAYER) return;
+    if (!unit.tags.includes(UnitTag.BUILDANDCAPTURE)) return;
+    const tile = grid[unit.position.y]?.[unit.position.x];
+    if (!tile?.hasCaveMonster) return;
+    const tileKey = `${unit.position.x},${unit.position.y}`;
+    const alreadyActive = activeCaveEncounters.some((e) => e.mountainTileId === tileKey);
+    const arrivedThisTurn = unit.lastMovedTurn === turn;
+    if (!alreadyActive && !arrivedThisTurn) {
+      useAnimationStore.getState().setCameraTarget(unit.position);
+      openCavePopup({ x: unit.position.x, y: unit.position.y });
+    }
+  // Re-run when the turn number or phase changes (new player turn starts).
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [turn, phase]);
+
   return (
     <div className="hud-bottom-bar">
-      {/* Info panels */}
-      {selectedUnit && (
+      {/* Info panels — hidden while cave screams popup is active */}
+      {selectedUnit && !cavePopupActive && (
         <SelectedUnitPanel
           unit={selectedUnit}
           captureTarget={captureTarget}
@@ -1931,16 +2010,16 @@ function BottomBar() {
         />
       )}
       {/* Construction panel for BUILD_AND_CAPTURE units on constructable tiles */}
-      {selectedUnit && showConstruction && (
+      {selectedUnit && showConstruction && !cavePopupActive && (
         <ConstructionPanel
           unit={selectedUnit}
           tilePos={selectedUnit.position}
         />
       )}
-      {selectedBuilding && !selectedUnit && (
+      {selectedBuilding && !selectedUnit && !cavePopupActive && (
         <SelectedBuildingPanel building={selectedBuilding} />
       )}
-      {selectedTile && !selectedUnit && !selectedBuilding && (
+      {selectedTile && !selectedUnit && !selectedBuilding && !cavePopupActive && (
         <SelectedTilePanel tile={selectedTile} />
       )}
 
@@ -2082,6 +2161,183 @@ function ZoneClearedPopup() {
         </button>
       </div>
     </div>
+  );
+}
+
+// ============================================================================
+// CAVE SCREAMS POPUP
+// ============================================================================
+
+function CaveScreamsPopup() {
+  const tilePos = useCaveScreamsStore((s) => s.tilePos);
+  const sealAndBuildMine = useGameStore((s) => s.sealAndBuildMine);
+  const exploreCave = useGameStore((s) => s.exploreCave);
+
+  if (!tilePos) return null;
+
+  const handleExplore = () => {
+    exploreCave(tilePos);
+    // exploreCave calls close() on the caveScreamsStore internally
+  };
+
+  const handleSeal = () => {
+    sealAndBuildMine(tilePos);
+    // close() is called inside sealAndBuildMine after state update
+  };
+
+  return (
+    <div className="cave-screams-overlay">
+      <div className="cave-screams-card">
+        <p className="cave-screams-flavor">
+          Screams echo from deep within the entrance. Venture inside and help, or seal it and build a mine?
+        </p>
+        <div className="cave-screams-actions">
+          <button className="cave-screams-btn" onClick={handleExplore}>
+            🗡️ Explore
+          </button>
+          <button className="cave-screams-btn" onClick={handleSeal}>
+            ⛏️ Seal &amp; Build Mine
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// CAVE MONSTER KILL MODAL (hire flow + no-survivor flow + swap flow)
+// ============================================================================
+
+/** Specialist info popup — shown when the player taps a current specialist card in swap view */
+function SpecialistInfoPopup({ specialist, onClose }: { specialist: Specialist; onClose: () => void }) {
+  return (
+    <Popup onClose={onClose}>
+      <div className="specialist-info-header">
+        <span className="specialist-info-name">🧙 {specialist.name}</span>
+      </div>
+      <p className="info-popup-desc">{specialist.description}</p>
+      <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>Close</button>
+    </Popup>
+  );
+}
+
+function CaveMonsterKillModal() {
+  const mode = useSpecialistHireStore((s) => s.mode);
+  const specialistId = useSpecialistHireStore((s) => s.specialistId);
+  const dismiss = useSpecialistHireStore((s) => s.dismiss);
+  const dismissSwap = useSpecialistHireStore((s) => s.dismissSwap);
+  const specialists = useGameStore((s) => s.specialists);
+  const globalSpecialistStorage = useGameStore((s) => s.globalSpecialistStorage);
+
+  // ID of the current specialist whose info popup is open (swap view only)
+  const [infoSpecId, setInfoSpecId] = useState<string | null>(null);
+
+  if (!mode) return null;
+
+  if (mode === 'exhausted') {
+    return (
+      <div className="cave-kill-overlay">
+        <div className="cave-kill-card">
+          <p className="cave-kill-flavor">
+            <em>
+              "The creature falls. You search the darkness — but find only silence.
+              Whatever was in there is gone."
+            </em>
+          </p>
+          <div className="cave-kill-actions">
+            <button className="cave-kill-btn cave-kill-btn--close" onClick={() => dismiss(false)}>
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const incomingSpecialist = specialistId ? specialists[specialistId] : null;
+  if (!incomingSpecialist) return null;
+
+  if (mode === 'hire') {
+    return (
+      <div className="cave-kill-overlay">
+        <div className="cave-kill-card">
+          <p className="cave-kill-flavor">
+            <em>
+              "The creature falls. From the darkness stumbles a survivor — battered,
+              grateful, and with nowhere else to go. They offer their skills to your cause."
+            </em>
+          </p>
+          <div className="cave-kill-specialist-card">
+            <span className="cave-kill-specialist-name">🧙 {incomingSpecialist.name}</span>
+            <p className="cave-kill-specialist-desc">{incomingSpecialist.description}</p>
+          </div>
+          <div className="cave-kill-actions">
+            <button className="cave-kill-btn cave-kill-btn--hire" onClick={() => dismiss(true)}>
+              Hire
+            </button>
+            <button className="cave-kill-btn cave-kill-btn--sendaway" onClick={() => dismiss(false)}>
+              Send Away
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // mode === 'swap'
+  const infoSpec = infoSpecId ? specialists[infoSpecId] : null;
+
+  return (
+    <>
+      {infoSpec && (
+        <SpecialistInfoPopup
+          specialist={infoSpec}
+          onClose={() => setInfoSpecId(null)}
+        />
+      )}
+      <div className="cave-kill-overlay">
+        <div className="cave-kill-card cave-kill-card--swap">
+          <div className="cave-kill-swap-incoming-label">Incoming Survivor</div>
+          <div className="cave-kill-specialist-card cave-kill-specialist-card--incoming">
+            <span className="cave-kill-specialist-name">🧙 {incomingSpecialist.name}</span>
+            <p className="cave-kill-specialist-desc">{incomingSpecialist.description}</p>
+          </div>
+          <div className="cave-kill-swap-divider">
+            <span className="cave-kill-swap-divider-label">Replace one of your specialists</span>
+          </div>
+          <div className="cave-kill-swap-current-row">
+            {globalSpecialistStorage.map((specId) => {
+              const spec = specialists[specId];
+              if (!spec) return null;
+              return (
+                <div key={specId} className="cave-kill-swap-current-card">
+                  <button
+                    className="cave-kill-swap-current-info"
+                    onClick={() => setInfoSpecId(specId)}
+                    title="View details"
+                  >
+                    <span className="cave-kill-specialist-name">🧙 {spec.name}</span>
+                    <p className="cave-kill-specialist-desc">{spec.description}</p>
+                    <span className="cave-kill-swap-info-hint">ℹ Details</span>
+                  </button>
+                  <button
+                    className="cave-kill-btn cave-kill-btn--replace"
+                    onClick={() => { setInfoSpecId(null); dismissSwap(specId); }}
+                  >
+                    Replace
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          <div className="cave-kill-actions">
+            <button className="cave-kill-btn cave-kill-btn--sendaway" onClick={() => { setInfoSpecId(null); dismissSwap(null); }}>
+              Send Away
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -2572,6 +2828,8 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
     <>
       {!hasSeenIntro && <GameIntroPopup onDismiss={handleIntroDismiss} />}
       <ZoneClearedPopup />
+      <CaveScreamsPopup />
+      <CaveMonsterKillModal />
       <TopBar
         onOpenTechTree={() => setShowTechTree(true)}
         showTechButton={isPlayerTurn}

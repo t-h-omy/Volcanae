@@ -10,6 +10,7 @@ import { useGameStore } from './gameStore';
 import { useCombatAnimationStore } from './combatAnimationStore';
 import { useShockwaveStore } from './shockwaveStore';
 import { useZoneClearedStore } from './zoneClearedStore';
+import { useSpecialistHireStore } from './specialistHireStore';
 import { ANIMATION } from './animationConfig';
 import { MAP } from './gameConfig';
 import { RENDER } from './renderConfig';
@@ -37,6 +38,11 @@ function eventPosition(event: GameEvent): Position {
     case 'ENEMY_MOVE':
       return event.to;
     case 'ENEMY_ATTACK':
+      // Pan to the cave monster (attacker) so the player can see it strike
+      if (useGameStore.getState().units[event.attackerId]?.type === UnitType.CAVE_MONSTER) {
+        return event.attackerPosition;
+      }
+      return event.defenderPosition;
     case 'PLAYER_ATTACK':
       return event.defenderPosition;
     case 'BUILDING_ATTACK':
@@ -59,6 +65,9 @@ function eventPosition(event: GameEvent): Position {
       return event.sanctumPosition;
     case 'ZONE_CLEARED':
       return event.sanctumPosition;
+    case 'CAVE_MONSTER_KILLED':
+      // No camera position needed — handled as a blocking modal, not a spatial event.
+      return { x: Math.floor(MAP.GRID_WIDTH / 2), y: Math.floor(MAP.GRID_HEIGHT / 2) };
   }
 }
 
@@ -83,6 +92,11 @@ function isEventVisible(event: GameEvent): boolean {
     case 'ENEMY_MOVE':
       return isTileRevealed(event.from) || isTileRevealed(event.to);
     case 'ENEMY_ATTACK':
+      // Cave monster attacks are always visible so the camera always pans to them
+      if (useGameStore.getState().units[event.attackerId]?.type === UnitType.CAVE_MONSTER) {
+        return true;
+      }
+      return isTileRevealed(event.attackerPosition) || isTileRevealed(event.defenderPosition);
     case 'PLAYER_ATTACK':
       return isTileRevealed(event.attackerPosition) || isTileRevealed(event.defenderPosition);
     case 'BUILDING_ATTACK':
@@ -110,6 +124,9 @@ function isEventVisible(event: GameEvent): boolean {
       return isTileRevealed(event.sanctumPosition);
     case 'ZONE_CLEARED':
       return isTileRevealed(event.sanctumPosition);
+    case 'CAVE_MONSTER_KILLED':
+      // Always show the modal regardless of tile visibility.
+      return true;
   }
 }
 
@@ -525,6 +542,12 @@ export function useAnimationEngine(): void {
     let processing = false;
 
     async function processQueue() {
+      // Tracks a specialist hired during this batch so the hire can be
+      // applied after setGameState(resolvedState) without being overwritten.
+      let hiredSpecialistId: string | null = null;
+      // Tracks a swap performed during this batch (outgoing replaced by incoming).
+      let swapResult: { incomingId: string; outgoingId: string } | null = null;
+
       while (true) {
         const event = useAnimationStore.getState().shiftEvent();
         if (!event) break;
@@ -624,6 +647,56 @@ export function useAnimationEngine(): void {
             if (collapseEvent) {
               useGameStore.getState().applyEvent(collapseEvent);
             }
+          }
+
+          continue;
+        }
+
+        // ── Special handling for CAVE_MONSTER_KILLED (blocking specialist hire modal) ──
+        if (event.type === 'CAVE_MONSTER_KILLED') {
+          // Apply event first (removes activeCaveEncounters entry from live state)
+          useGameStore.getState().applyEvent(event);
+
+          // Draw a random specialist not already in global storage
+          const { specialists, globalSpecialistStorage, specialistSlotCap } = useGameStore.getState();
+          const allIds = Object.keys(specialists);
+          const available = allIds.filter((id) => !globalSpecialistStorage.includes(id));
+
+          await new Promise<void>((resolve) => {
+            if (available.length === 0) {
+              useSpecialistHireStore.getState().showExhausted((_hired) => {
+                // pool exhausted — the hired parameter is always false; nothing to act on
+                resolve();
+              });
+            } else {
+              const drawn = available[Math.floor(Math.random() * available.length)];
+              if (globalSpecialistStorage.length >= specialistSlotCap) {
+                // All slots full — show swap flow
+                useSpecialistHireStore.getState().showSwap(drawn, (outgoingId) => {
+                  if (outgoingId !== null) {
+                    swapResult = { incomingId: drawn, outgoingId };
+                  }
+                  resolve();
+                });
+              } else {
+                // Empty slot available — show hire flow
+                useSpecialistHireStore.getState().showHire(drawn, (hired) => {
+                  if (hired) hiredSpecialistId = drawn;
+                  resolve();
+                });
+              }
+            }
+          });
+
+          // Apply hire/swap immediately so the specialist appears in the slots
+          // right after the modal is dismissed, without waiting for all remaining
+          // animations (e.g. lava events) to finish.
+          if (hiredSpecialistId) {
+            useGameStore.getState().hireSpecialist(hiredSpecialistId);
+          }
+          if (swapResult) {
+            const swap = swapResult as { outgoingId: string; incomingId: string };
+            useGameStore.getState().swapSpecialist(swap.outgoingId, swap.incomingId);
           }
 
           continue;
@@ -780,6 +853,16 @@ export function useAnimationEngine(): void {
       const resolvedState = useAnimationStore.getState().resolvedState;
       if (resolvedState) {
         useGameStore.getState().setGameState(resolvedState);
+      }
+      // If the player hired a specialist during this batch, apply the hire now
+      // (after setGameState so it isn't overwritten by the resolved state).
+      if (hiredSpecialistId) {
+        useGameStore.getState().hireSpecialist(hiredSpecialistId);
+      }
+      // If the player swapped a specialist, apply the swap after setGameState.
+      if (swapResult) {
+        const swap = swapResult as { outgoingId: string; incomingId: string };
+        useGameStore.getState().swapSpecialist(swap.outgoingId, swap.incomingId);
       }
       useAnimationStore.getState().setIsAnimating(false);
       processing = false;

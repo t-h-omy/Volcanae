@@ -5,10 +5,11 @@
 
 import type { GameState, Building, Position, Tile, UnitPopulationCost } from './types';
 import type { Draft } from 'immer';
-import { Faction, BuildingType, UnitType, ResourceType, type UnitTag } from './types';
+import { Faction, BuildingType, UnitType, UnitTag, ResourceType } from './types';
 import { RESOURCES, UNIT_DEFINITIONS, POPULATION, CRYSTAL_CHAMBER_CONFIG } from './gameConfig';
 import type { UnitCost } from './gameConfig';
 import { getGrantedTags, getStatMods, getBuildingProductionMods, grantArcaneCrystals, getStrongholdCapMods, getRemovedTags, getCostMods } from './techSystem';
+import { getTagsFromActiveSpecialists } from './specialistSystem';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -424,9 +425,16 @@ export function recruitUnit(
   for (const tag of getGrantedTags(state, unitType)) {
     if (!baseTags.includes(tag)) baseTags.push(tag);
   }
+  // Add any tags granted by active specialists
+  for (const tag of getTagsFromActiveSpecialists(state, unitType)) {
+    if (!baseTags.includes(tag)) baseTags.push(tag);
+  }
   // Remove any tags that unlocked techs strip (e.g. OUTRIDERS removes BUILDANDCAPTURE)
   const removedTags = getRemovedTags(state, unitType);
   const spawnTags = baseTags.filter((t) => !removedTags.includes(t));
+
+  // READY: unit can act immediately after recruitment
+  const isReady = spawnTags.includes(UnitTag.READY);
 
   state.units[unitId] = {
     id: unitId,
@@ -445,14 +453,16 @@ export function recruitUnit(
       attackRange: UNIT_DEFINITIONS[unitType].attackRange,
     },
     tags: spawnTags,
-    hasMovedThisTurn: true,
-    hasAttackedThisTurn: true,
-    hasCapturedThisTurn: true,
-    hasConstructedThisTurn: true,
-    hasDestroyedThisTurn: true,
+    hasMovedThisTurn: !isReady,
+    hasAttackedThisTurn: !isReady,
+    hasCapturedThisTurn: !isReady,
+    hasConstructedThisTurn: !isReady,
+    hasDestroyedThisTurn: !isReady,
     hasUsedPostAttackMoveThisTurn: false,
+    bloodlustAttackAvailable: false,
     xp: 0,
     level: 1,
+    lastMovedTurn: 0,
     pinnedUntilTurn: 0,
     distractionDefPenalty: 0,
   };

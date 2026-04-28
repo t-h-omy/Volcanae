@@ -367,10 +367,12 @@ export function processEmberNestSpawns(
       hasDestroyedThisTurn: false,
       hasCapturedThisTurn: false,
       hasUsedPostAttackMoveThisTurn: false,
+      bloodlustAttackAvailable: false,
       xp: 0,
       level: 1,
       pinnedUntilTurn: 0,
       distractionDefPenalty: 0,
+      lastMovedTurn: 0,
     };
     const unitSnapshot: Unit = {
       ...newUnit,

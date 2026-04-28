@@ -9,7 +9,7 @@
 
 import type { GameState } from './types';
 import { UnitType, UnitTag, BuildingType } from './types';
-import { TECH_TREE, POPULATION } from './gameConfig';
+import { TECH_TREE, POPULATION, SPECIALIST_DEFINITIONS } from './gameConfig';
 
 // ============================================================================
 // CONSTANTS
@@ -18,7 +18,7 @@ import { TECH_TREE, POPULATION } from './gameConfig';
 const SAVE_KEY = 'volcanae-save';
 
 /** Increment this whenever the serialized shape changes incompatibly. */
-const SAVE_VERSION = 7;
+const SAVE_VERSION = 8;
 
 // ============================================================================
 // PUBLIC API
@@ -104,6 +104,41 @@ export function loadGameState(): GameState | null {
         const u = unit as Record<string, unknown>;
         if (u && typeof u.id === 'string' && typeof u.distractionDefPenalty !== 'number') {
           u.distractionDefPenalty = 0;
+        }
+        if (u && typeof u.id === 'string' && typeof u.lastMovedTurn !== 'number') {
+          u.lastMovedTurn = 0;
+        }
+      }
+    }
+
+    // Migration: backfill specialistSlotCap and activeCaveEncounters for saves
+    // that predate these fields being added to GameState.
+    const gs = (s as unknown) as Record<string, unknown>;
+    if (typeof gs.specialistSlotCap !== 'number') {
+      gs.specialistSlotCap = 2;
+    }
+    if (!Array.isArray(gs.activeCaveEncounters)) {
+      gs.activeCaveEncounters = [];
+    }
+
+    // Migration: backfill upkeepIron, upkeepWood, and dormant on specialist
+    // records from saves that predate these fields being added.
+    // Also re-sync the effects array from SPECIALIST_DEFINITIONS so that
+    // saves created before effects were stored (or with empty effects []) get
+    // the correct effect definitions.
+    if (s.specialists && typeof s.specialists === 'object') {
+      for (const [specId, spec] of Object.entries(s.specialists) as Array<[string, unknown]>) {
+        const sp = spec as Record<string, unknown>;
+        if (sp && typeof sp.id === 'string') {
+          if (typeof sp.upkeepIron !== 'number') sp.upkeepIron = 0;
+          if (typeof sp.upkeepWood !== 'number') sp.upkeepWood = 0;
+          if (typeof sp.dormant !== 'boolean') sp.dormant = false;
+          // Always re-sync effects from the authoritative SPECIALIST_DEFINITIONS
+          // so that saves with missing, empty, or stale effects are corrected.
+          const def = SPECIALIST_DEFINITIONS[specId];
+          if (def) {
+            sp.effects = def.effects;
+          }
         }
       }
     }

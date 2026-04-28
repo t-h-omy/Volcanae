@@ -43,6 +43,51 @@
   50% { opacity: 0.5; }
 }
 
+/* ── Specialist slot strip (top bar) ── */
+
+.hud-specialist-slots {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  pointer-events: none;
+}
+
+.hud-specialist-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 72px;
+  height: 22px;
+  border-radius: 3px;
+  font-size: 11px;
+  padding: 0 5px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hud-specialist-slot--filled {
+  background: rgba(255, 255, 255, 0.1);
+  color: #e8d9a0;
+}
+
+.hud-specialist-slot--empty {
+  background: rgba(0, 0, 0, 0.25);
+  color: rgba(255, 255, 255, 0.25);
+}
+
+.hud-specialist-slot-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hud-specialist-slot-placeholder {
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+
 /* ── Bottom Bar ── */
 
 .hud-bottom-bar {
@@ -2040,4 +2085,293 @@
   background: rgba(255, 160, 30, 0.35);
   border-color: rgba(255, 200, 80, 0.85);
   outline: none;
+}
+
+/* ── Cave Screams Popup ── */
+
+.cave-screams-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 260;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  pointer-events: auto;
+}
+
+.cave-screams-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 28px 36px 24px;
+  border-radius: 10px;
+  background: rgba(12, 8, 4, 0.92);
+  border: 1px solid rgba(180, 140, 80, 0.35);
+  box-shadow: 0 0 36px rgba(120, 80, 20, 0.3);
+  max-width: 420px;
+  text-align: center;
+  animation: caveCardEnter 300ms ease-out both;
+}
+
+@keyframes caveCardEnter {
+  0%   { opacity: 0; transform: scale(0.9) translateY(10px); }
+  100% { opacity: 1; transform: scale(1)   translateY(0); }
+}
+
+.cave-screams-flavor {
+  font-size: 15px;
+  line-height: 1.55;
+  color: #d4c49a;
+  margin: 0;
+}
+
+.cave-screams-actions {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+.cave-screams-btn {
+  flex: 1;
+  padding: 11px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(200, 170, 100, 0.4);
+  border-radius: 6px;
+  color: #e8d8a8;
+  cursor: pointer;
+  transition: background 140ms, border-color 140ms;
+}
+
+.cave-screams-btn:hover,
+.cave-screams-btn:focus {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(220, 190, 120, 0.75);
+  outline: none;
+}
+
+/* ── Cave Monster Kill Modal (hire / no-survivor) ── */
+
+.cave-kill-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 261;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  pointer-events: auto;
+}
+
+.cave-kill-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 30px 36px 26px;
+  border-radius: 10px;
+  background: rgba(10, 6, 2, 0.94);
+  border: 1px solid rgba(180, 140, 80, 0.4);
+  box-shadow: 0 0 40px rgba(120, 80, 20, 0.35);
+  max-width: 440px;
+  text-align: center;
+  animation: caveKillCardEnter 300ms ease-out both;
+}
+
+@keyframes caveKillCardEnter {
+  0%   { opacity: 0; transform: scale(0.9) translateY(10px); }
+  100% { opacity: 1; transform: scale(1)   translateY(0); }
+}
+
+.cave-kill-flavor {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #c8b890;
+  margin: 0;
+}
+
+.cave-kill-specialist-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 7px;
+  background: rgba(255, 220, 120, 0.06);
+  border: 1px solid rgba(200, 170, 80, 0.3);
+}
+
+.cave-kill-specialist-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffe8a0;
+}
+
+.cave-kill-specialist-desc {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #b8a870;
+  margin: 0;
+}
+
+.cave-kill-actions {
+  display: flex;
+  gap: 12px;
+  width: 100%;
+}
+
+.cave-kill-btn {
+  flex: 1;
+  padding: 11px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 140ms, border-color 140ms;
+}
+
+.cave-kill-btn--hire {
+  background: rgba(255, 200, 60, 0.2);
+  border: 1px solid rgba(255, 200, 60, 0.6);
+  color: #ffe060;
+}
+
+.cave-kill-btn--hire:hover,
+.cave-kill-btn--hire:focus {
+  background: rgba(255, 200, 60, 0.36);
+  border-color: rgba(255, 220, 80, 0.9);
+  outline: none;
+}
+
+.cave-kill-btn--sendaway,
+.cave-kill-btn--close {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(200, 170, 100, 0.35);
+  color: #c0a870;
+}
+
+.cave-kill-btn--sendaway:hover,
+.cave-kill-btn--sendaway:focus,
+.cave-kill-btn--close:hover,
+.cave-kill-btn--close:focus {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(200, 170, 100, 0.65);
+  outline: none;
+}
+
+/* ── Swap flow extensions ── */
+
+.cave-kill-card--swap {
+  max-width: 520px;
+  gap: 16px;
+}
+
+.cave-kill-swap-incoming-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: rgba(255, 220, 100, 0.65);
+  text-align: center;
+}
+
+.cave-kill-specialist-card--incoming {
+  border-color: rgba(255, 220, 80, 0.45);
+  background: rgba(255, 220, 60, 0.08);
+}
+
+.cave-kill-swap-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.cave-kill-swap-divider::before,
+.cave-kill-swap-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(180, 140, 80, 0.3);
+}
+
+.cave-kill-swap-divider-label {
+  font-size: 11px;
+  color: rgba(180, 150, 90, 0.7);
+  white-space: nowrap;
+  letter-spacing: 1px;
+}
+
+.cave-kill-swap-current-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.cave-kill-swap-current-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  flex: 1;
+  min-width: 120px;
+  max-width: 180px;
+}
+
+.cave-kill-swap-current-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(180, 150, 80, 0.28);
+  cursor: pointer;
+  text-align: left;
+  transition: background 130ms, border-color 130ms;
+  width: 100%;
+}
+
+.cave-kill-swap-current-info:hover,
+.cave-kill-swap-current-info:focus {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(200, 170, 100, 0.55);
+  outline: none;
+}
+
+.cave-kill-swap-info-hint {
+  font-size: 11px;
+  color: rgba(180, 160, 100, 0.6);
+  margin-top: 2px;
+}
+
+.cave-kill-btn--replace {
+  background: rgba(255, 80, 60, 0.14);
+  border: 1px solid rgba(255, 100, 70, 0.5);
+  color: #ff9070;
+}
+
+.cave-kill-btn--replace:hover,
+.cave-kill-btn--replace:focus {
+  background: rgba(255, 80, 60, 0.28);
+  border-color: rgba(255, 120, 90, 0.85);
+  outline: none;
+}
+
+/* ── Specialist info popup (used inside swap modal) ── */
+
+.specialist-info-header {
+  margin-bottom: 12px;
+}
+
+.specialist-info-name {
+  font-size: 17px;
+  font-weight: 700;
+  color: #ffe8a0;
 }

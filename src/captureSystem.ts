@@ -7,7 +7,7 @@ import type { GameState, Position } from './types';
 import type { Draft } from 'immer';
 import { BuildingType, UnitTag, Faction, DestroyBehavior } from './types';
 import type { GameEvent } from './gameEvents';
-import { MAP, XP, TECH, SANCTUM_COLLAPSE } from './gameConfig';
+import { MAP, XP, TECH, SANCTUM_COLLAPSE, ABILITIES } from './gameConfig';
 import { increaseEmberOnStrongholdCapture } from './enemySystem';
 import { grantXp } from './levelSystem';
 import { grantArcaneCrystals, getStrongholdCapMods } from './techSystem';
@@ -215,6 +215,17 @@ export function initiateCapture(
       if (farmerMod + nobleMod > 0) {
         building.populationCap += farmerMod + nobleMod;
       }
+    }
+
+    // FORTIFIED_GARRISON: apply the combat stat bonus to a newly player-owned
+    // Watchtower if the specialist effect is currently active.
+    if (
+      building.type === BuildingType.WATCHTOWER &&
+      state.fortifiedGarrisonActive &&
+      building.combatStats
+    ) {
+      building.combatStats.attack += ABILITIES.FORTIFIED_GARRISON_ATTACK_BONUS;
+      building.combatStats.attackRange += ABILITIES.FORTIFIED_GARRISON_RANGE_BONUS;
     }
 
     // Grant XP to player unit for capturing the building (if it still exists)

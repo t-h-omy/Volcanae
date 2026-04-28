@@ -23,24 +23,30 @@ import {
 } from './resourceSystem';
 import {
   constructBuilding as constructBuildingLogic,
+  placeMineOnTile,
 } from './constructionSystem';
 import { runEnemyTurn } from './enemySystem';
 import {
   assignSpecialist as assignSpecialistLogic,
   unassignSpecialist as unassignSpecialistLogic,
+  deductSpecialistUpkeep,
+  applySpecialistEffects,
 } from './specialistSystem';
 import { checkGameConditions } from './gameConditions';
 import { useFloaterStore } from './floaterStore';
 import { useAnimationStore } from './animationStore';
-import { Faction, GamePhase, BuildingType, TileType, Difficulty, DestroyBehavior } from './types';
-import type { GameState, UnitType, Position, TechId } from './types';
+import { useCombatAnimationStore } from './combatAnimationStore';
+import { useCaveScreamsStore } from './caveScreamsStore';
+import { Faction, GamePhase, BuildingType, TileType, Difficulty, DestroyBehavior, UnitType, UnitTag } from './types';
+import type { GameState, Position, TechId } from './types';
 import type { GameEvent } from './gameEvents';
-import { MAP, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval } from './gameConfig';
+import { MAP, TERRAIN, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval, UNIT_DEFINITIONS } from './gameConfig';
 import { saveGameState, loadGameState, clearSavedGame, hasSavedGame } from './saveSystem';
 import { computeLevelFromXp, applyLevelUps } from './levelSystem';
-import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLogic } from './techSystem';
+import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLogic, getGrantedTags, getRemovedTags, getStatMods } from './techSystem';
 import { canUnitHeal, getHealTargets, canUnitFieldwork } from './unitActions';
 import { createFieldworkOutpost } from './constructionSystem';
+import { getTagsFromActiveSpecialists } from './specialistSystem';
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
@@ -87,6 +93,10 @@ interface GameActions {
   assignSpecialist: (specialistId: string, buildingId: string) => void;
   /** Unassign a specialist from a building (stub) */
   unassignSpecialist: (buildingId: string) => void;
+  /** Add a specialist to globalSpecialistStorage (called after cave monster hire) */
+  hireSpecialist: (specialistId: string) => void;
+  /** Replace an existing specialist with a new one (called after cave monster swap) */
+  swapSpecialist: (outgoingId: string, incomingId: string) => void;
   /** End the player turn - triggers enemy turn, lava phase, then next player turn */
   endPlayerTurn: () => void;
   /** Apply a single game event from the animation queue */
@@ -127,6 +137,12 @@ interface GameActions {
   unlockTech: (techId: TechId) => void;
   /** Return the list of tech IDs available for the player to pick */
   getAvailableTechs: () => TechId[];
+  /** Seal a cave mountain tile and construct a Mine on it */
+  sealAndBuildMine: (tilePos: Position) => void;
+  /** Explore a cave mountain tile: spawns a cave monster near it */
+  exploreCave: (tilePos: Position) => void;
+  /** Revive a fallen infantry unit from a Gravestone building (costs 1 arcane crystal) */
+  reviveUnit: (buildingId: string) => void;
 }
 
 // ============================================================================
@@ -179,6 +195,10 @@ export const useGameStore = create<GameStore>()(
           // Update tile discovery only for a fresh game (saved games already have it)
           updateDiscovery(state);
         }
+        // Re-apply specialist effects so that any assigned, non-dormant specialists
+        // have their effects active on existing units (handles saves where effects
+        // were missing or stale before the migration re-synced them).
+        applySpecialistEffects(state);
       });
 
       syncCameraToPlayerStronghold(stateToLoad);
@@ -202,6 +222,22 @@ export const useGameStore = create<GameStore>()(
         state.selectedTilePos = null;
         state.pendingHealerId = null;
       });
+      // After selection, check if this player unit is standing on an unresolved
+      // cave mountain tile — if so, open the screams popup (unless they arrived
+      // this turn or an encounter for this tile is already active).
+      const s = useGameStore.getState();
+      const unit = s.units[unitId];
+      if (unit && unit.faction === Faction.PLAYER) {
+        const tile = s.grid[unit.position.y]?.[unit.position.x];
+        if (tile?.hasCaveMonster) {
+          const tileKey = `${unit.position.x},${unit.position.y}`;
+          const alreadyActive = s.activeCaveEncounters.some((e) => e.mountainTileId === tileKey);
+          const arrivedThisTurn = unit.lastMovedTurn === s.turn;
+          if (!alreadyActive && !arrivedThisTurn) {
+            useCaveScreamsStore.getState().open({ x: unit.position.x, y: unit.position.y });
+          }
+        }
+      }
     },
 
     selectBuilding: (buildingId: string) => {
@@ -264,6 +300,15 @@ export const useGameStore = create<GameStore>()(
         // Compute the resolved state (post-attack) on the snapshot
         const resolvedState = produce(snapshot, (draft) => {
           resolveAttack(draft, attackerId, targetId, true);
+          // If a cave monster is killed, remove its encounter entry from the resolved state
+          if (
+            snapshot.units[targetId]?.type === UnitType.CAVE_MONSTER &&
+            !draft.units[targetId]
+          ) {
+            draft.activeCaveEncounters = draft.activeCaveEncounters.filter(
+              (e) => e.monsterId !== targetId,
+            );
+          }
           updateDiscovery(draft);
           checkGameConditions(draft);
         });
@@ -302,6 +347,10 @@ export const useGameStore = create<GameStore>()(
         // Add UNIT_DEATH events for killed units (consumed after the attack animation)
         if (!defenderAfter) {
           events.push({ type: 'UNIT_DEATH', unitId: targetId, position: defenderPosition, faction: defenderFaction });
+          // If the killed unit was a cave monster, push the specialist-draw event
+          if (snapshot.units[targetId]?.type === UnitType.CAVE_MONSTER) {
+            events.push({ type: 'CAVE_MONSTER_KILLED', monsterId: targetId });
+          }
         }
         if (!attackerAfter) {
           events.push({ type: 'UNIT_DEATH', unitId: attackerId, position: attackerPosition, faction: attackerFaction });
@@ -570,6 +619,261 @@ export const useGameStore = create<GameStore>()(
       });
     },
 
+    sealAndBuildMine: (tilePos: Position) => {
+      set((state) => {
+        const tile = state.grid[tilePos.y]?.[tilePos.x];
+        if (!tile) return;
+        placeMineOnTile(state, tilePos);
+        tile.hasCaveMonster = false;
+        updateDiscovery(state);
+        checkGameConditions(state);
+      });
+      useCaveScreamsStore.getState().close();
+    },
+
+    exploreCave: (tilePos: Position) => {
+      useCaveScreamsStore.getState().close();
+
+      // Capture the spawn position from the immer callback via a closure variable.
+      // This avoids mutating state with temp fields.
+      let vfxPos: { x: number; y: number } | null = null;
+
+      set((state) => {
+        const tile = state.grid[tilePos.y]?.[tilePos.x];
+        if (!tile) return;
+
+        // Mark cave as resolved regardless of whether spawn succeeds
+        tile.hasCaveMonster = false;
+
+        // Exhaust the BUILDANDCAPTURE unit standing on this tile — exploration
+        // consumes its entire turn (no further movement, attacks, or construction).
+        const unitOnTile = tile.unitId ? state.units[tile.unitId] : null;
+        if (!unitOnTile || unitOnTile.faction !== Faction.PLAYER) return;
+        if (!unitOnTile.tags.includes(UnitTag.BUILDANDCAPTURE)) return;
+        unitOnTile.hasMovedThisTurn = true;
+        unitOnTile.hasAttackedThisTurn = true;
+        unitOnTile.hasConstructedThisTurn = true;
+        unitOnTile.hasDestroyedThisTurn = true;
+        unitOnTile.hasCapturedThisTurn = true;
+
+        // ── Compute zone for stat scaling ────────────────────────────────
+        const zoneIndex = Math.min(
+          Math.max(0, Math.floor((MAP.GRID_HEIGHT - MAP.LAVA_BUFFER_ROWS - 1 - tilePos.y) / MAP.ZONE_HEIGHT)),
+          MAP.ZONE_COUNT - 1,
+        );
+        const scale = TERRAIN.CAVE_MONSTER_ZONE_SCALE[zoneIndex] ?? 1.0;
+
+        const base = UNIT_DEFINITIONS[UnitType.CAVE_MONSTER];
+        const maxHp = Math.round(base.maxHp * scale);
+        const attack = Math.round(base.attack * scale);
+        const defense = Math.round(base.defense * scale);
+
+        // ── BFS to find a free spawn tile outward from the mountain ─────
+        const visited = new Set<string>();
+        visited.add(`${tilePos.x},${tilePos.y}`);
+        const queue: Array<{ x: number; y: number }> = [];
+
+        // Seed with all 8 neighbors
+        for (const [dx, dy] of [
+          [0,-1],[0,1],[-1,0],[1,0],
+          [-1,-1],[-1,1],[1,-1],[1,1],
+        ] as const) {
+          const nx = tilePos.x + dx;
+          const ny = tilePos.y + dy;
+          if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;
+          const key = `${nx},${ny}`;
+          if (!visited.has(key)) {
+            visited.add(key);
+            queue.push({ x: nx, y: ny });
+          }
+        }
+
+        /**
+         * Returns true when a tile is suitable for the monster to spawn on.
+         * Mirrors the impassability rules used for enemy movement.
+         */
+        const isFree = (x: number, y: number): boolean => {
+          const t = state.grid[y]?.[x];
+          if (!t) return false;
+          if (t.terrainType === TileType.CANYON || t.terrainType === TileType.WATER) return false;
+          if (t.isLava) return false;
+          if (t.unitId !== null) return false;
+          if (t.buildingId !== null) {
+            const b = state.buildings[t.buildingId];
+            // Tiles with combat buildings are impassable (skip neutral watchtowers too
+            // — we don't want the monster to accidentally destroy them by occupying)
+            if (b && b.combatStats !== null) return false;
+          }
+          return true;
+        };
+
+        let spawnPos: { x: number; y: number } | null = null;
+        let head = 0;
+
+        while (head < queue.length) {
+          const { x, y } = queue[head++];
+          if (isFree(x, y)) {
+            spawnPos = { x, y };
+            break;
+          }
+          // Expand BFS frontier — push unvisited neighbours of this tile
+          for (const [dx, dy] of [
+            [0,-1],[0,1],[-1,0],[1,0],
+            [-1,-1],[-1,1],[1,-1],[1,1],
+          ] as const) {
+            const nx = x + dx;
+            const ny = y + dy;
+            if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;
+            const key = `${nx},${ny}`;
+            if (!visited.has(key)) {
+              visited.add(key);
+              queue.push({ x: nx, y: ny });
+            }
+          }
+        }
+
+        if (!spawnPos) return; // No reachable free tile — abort
+
+        // ── Create the cave monster unit ─────────────────────────────────
+        const newUnit = {
+          id: generateId('unit'),
+          type: UnitType.CAVE_MONSTER,
+          faction: Faction.ENEMY,
+          position: { x: spawnPos.x, y: spawnPos.y },
+          stats: {
+            maxHp,
+            currentHp: maxHp,
+            attack,
+            defense,
+            moveRange: base.moveRange,
+            discoverRadius: base.discoverRadius,
+            triggerRange: base.triggerRange,
+            movementActions: base.movementActions,
+            attackRange: base.attackRange,
+          },
+          tags: [...base.tags],
+          // All action flags true — monster does not move or attack on spawn turn
+          hasMovedThisTurn: true,
+          hasAttackedThisTurn: true,
+          hasConstructedThisTurn: true,
+          hasDestroyedThisTurn: true,
+          hasCapturedThisTurn: true,
+          hasUsedPostAttackMoveThisTurn: false,
+          bloodlustAttackAvailable: false,
+          xp: 0,
+          level: 1,
+          pinnedUntilTurn: 0,
+          distractionDefPenalty: 0,
+          lastMovedTurn: 0,
+        };
+
+        state.units[newUnit.id] = newUnit;
+        state.grid[spawnPos.y][spawnPos.x].unitId = newUnit.id;
+
+        // Register the active cave encounter
+        const mountainTileId = `${tilePos.x},${tilePos.y}`;
+        state.activeCaveEncounters.push({ monsterId: newUnit.id, mountainTileId });
+
+        updateDiscovery(state);
+
+        // Capture spawn position for VFX trigger outside the immer callback
+        vfxPos = { x: spawnPos.x, y: spawnPos.y };
+      });
+
+      // Trigger a brief tile-flash on the spawn tile to make the appearance legible
+      if (vfxPos) {
+        const pos = vfxPos as { x: number; y: number };
+        useCombatAnimationStore.getState().addTileFlash(pos.x, pos.y, 600);
+      }
+    },
+
+    reviveUnit: (buildingId: string) => {
+      set((state) => {
+        const building = state.buildings[buildingId];
+        if (!building || building.type !== BuildingType.GRAVESTONE) return;
+        if (building.faction !== Faction.PLAYER) return;
+        if (!building.gravesUnitType) return;
+        // Must have at least 1 arcane crystal
+        if (state.arcaneCrystals < ABILITIES.REVIVE_CRYSTAL_COST) return;
+        // Cannot revive if a unit is standing on the tile
+        const tile = state.grid[building.position.y][building.position.x];
+        if (tile.unitId !== null) return;
+
+        const unitType: UnitType = building.gravesUnitType;
+
+        // Collect tags from tech and active specialists
+        const baseTags = [...(UNIT_DEFINITIONS[unitType]?.tags ?? [])];
+        for (const tag of getGrantedTags(state, unitType)) {
+          if (!baseTags.includes(tag)) baseTags.push(tag);
+        }
+        for (const tag of getTagsFromActiveSpecialists(state, unitType)) {
+          if (!baseTags.includes(tag)) baseTags.push(tag);
+        }
+        const removedTags = getRemovedTags(state, unitType);
+        const spawnTags = baseTags.filter((t) => !removedTags.includes(t));
+
+        const unitId = generateId('unit');
+        state.units[unitId] = {
+          id: unitId,
+          type: unitType,
+          faction: Faction.PLAYER,
+          position: { x: building.position.x, y: building.position.y },
+          stats: {
+            maxHp: UNIT_DEFINITIONS[unitType].maxHp,
+            currentHp: UNIT_DEFINITIONS[unitType].maxHp,
+            attack: UNIT_DEFINITIONS[unitType].attack,
+            defense: UNIT_DEFINITIONS[unitType].defense,
+            moveRange: UNIT_DEFINITIONS[unitType].moveRange,
+            discoverRadius: UNIT_DEFINITIONS[unitType].discoverRadius,
+            triggerRange: UNIT_DEFINITIONS[unitType].triggerRange,
+            movementActions: UNIT_DEFINITIONS[unitType].movementActions,
+            attackRange: UNIT_DEFINITIONS[unitType].attackRange,
+          },
+          tags: spawnTags,
+          hasMovedThisTurn: true,
+          hasAttackedThisTurn: true,
+          hasCapturedThisTurn: true,
+          hasConstructedThisTurn: true,
+          hasDestroyedThisTurn: true,
+          hasUsedPostAttackMoveThisTurn: false,
+          bloodlustAttackAvailable: false,
+          xp: 0,
+          level: 1,
+          lastMovedTurn: 0,
+          pinnedUntilTurn: 0,
+          distractionDefPenalty: 0,
+        };
+
+        // Apply stat mods from unlocked tech nodes (same as recruitUnit)
+        const revivedUnit = state.units[unitId];
+        for (const mod of getStatMods(state, unitType)) {
+          if (mod.mode === 'add') {
+            (revivedUnit.stats[mod.stat] as number) += mod.value;
+          } else {
+            (revivedUnit.stats[mod.stat] as number) = Math.round(
+              (revivedUnit.stats[mod.stat] as number) * (1 + mod.value / 100),
+            );
+          }
+        }
+        revivedUnit.stats.currentHp = revivedUnit.stats.maxHp;
+
+        // Place the unit on the tile and remove the gravestone
+        tile.unitId = unitId;
+        tile.buildingId = null;
+        delete state.buildings[buildingId];
+
+        // Deduct the crystal cost
+        state.arcaneCrystals -= ABILITIES.REVIVE_CRYSTAL_COST;
+
+        // Deselect the building
+        if (state.selectedBuildingId === buildingId) {
+          state.selectedBuildingId = null;
+        }
+
+        updateDiscovery(state);
+      });
+    },
+
     healUnit: (healerId: string, targetId: string) => {
       set((state) => {
         const healer = state.units[healerId];
@@ -613,6 +917,12 @@ export const useGameStore = create<GameStore>()(
         if (tile.terrainType === TileType.FOREST || tile.terrainType === TileType.MOUNTAIN) return;
         // Create an Outpost at the unit's position with HP based on the unit's current HP
         const newBuilding = createFieldworkOutpost({ x, y }, unit.stats.currentHp);
+        // Apply FORTIFIED_GARRISON bonus to the newly created Outpost if the
+        // specialist is currently active
+        if (state.fortifiedGarrisonActive && newBuilding.combatStats) {
+          newBuilding.combatStats.attack += ABILITIES.FORTIFIED_GARRISON_ATTACK_BONUS;
+          newBuilding.combatStats.attackRange += ABILITIES.FORTIFIED_GARRISON_RANGE_BONUS;
+        }
         state.buildings[newBuilding.id] = newBuilding;
         tile.buildingId = newBuilding.id;
         // Delete the unit
@@ -636,6 +946,30 @@ export const useGameStore = create<GameStore>()(
     unassignSpecialist: (buildingId: string) => {
       set((state) => {
         unassignSpecialistLogic(state, buildingId);
+      });
+    },
+
+    hireSpecialist: (specialistId: string) => {
+      set((state) => {
+        if (state.specialists[specialistId] && !state.globalSpecialistStorage.includes(specialistId)) {
+          state.globalSpecialistStorage.push(specialistId);
+        }
+      });
+    },
+
+    swapSpecialist: (outgoingId: string, incomingId: string) => {
+      set((state) => {
+        const idx = state.globalSpecialistStorage.indexOf(outgoingId);
+        if (idx !== -1 && state.specialists[incomingId] && !state.globalSpecialistStorage.includes(incomingId)) {
+          // If the outgoing specialist was assigned to a building, unassign it first
+          // (this reverts its effects properly via the unassignSpecialist logic)
+          const outgoing = state.specialists[outgoingId];
+          if (outgoing?.assignedBuildingId) {
+            unassignSpecialistLogic(state, outgoing.assignedBuildingId);
+          }
+          // Replace in storage at the same index so HUD slot position is stable
+          state.globalSpecialistStorage[idx] = incomingId;
+        }
       });
     },
 
@@ -720,6 +1054,12 @@ export const useGameStore = create<GameStore>()(
           // Collect resources
           collectResources(draft);
 
+          // Deduct specialist upkeep and update dormant status
+          deductSpecialistUpkeep(draft);
+
+          // Apply (or revoke) specialist effects based on updated dormancy state
+          applySpecialistEffects(draft);
+
           // Grow house populations
           growHousePopulations(draft);
 
@@ -735,6 +1075,7 @@ export const useGameStore = create<GameStore>()(
               unit.hasConstructedThisTurn = false;
               unit.hasDestroyedThisTurn = false;
               unit.hasUsedPostAttackMoveThisTurn = false;
+              unit.bloodlustAttackAvailable = false;
               unit.pinnedUntilTurn = 0;
             }
           }
@@ -980,6 +1321,16 @@ export const useGameStore = create<GameStore>()(
               }
               delete state.units[event.unitId];
             }
+            break;
+          }
+
+          case 'CAVE_MONSTER_KILLED': {
+            // Remove the encounter entry from the live state. The encounter is
+            // also removed from the resolvedState in attackUnit's produce call,
+            // so both the incremental and final states stay consistent.
+            state.activeCaveEncounters = state.activeCaveEncounters.filter(
+              (e) => e.monsterId !== event.monsterId,
+            );
             break;
           }
 
@@ -1404,7 +1755,8 @@ export const useGameStore = create<GameStore>()(
         if (
           state.specialists[specId] &&
           !state.globalSpecialistStorage.includes(specId) &&
-          state.specialists[specId].assignedBuildingId === null
+          state.specialists[specId].assignedBuildingId === null &&
+          state.globalSpecialistStorage.length < state.specialistSlotCap
         ) {
           state.globalSpecialistStorage.push(specId);
         }

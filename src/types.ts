@@ -29,6 +29,7 @@ export const UnitType = {
   LAVA_RIDER: 'LAVA_RIDER',
   LAVA_SIEGE: 'LAVA_SIEGE',
   EMBERLING: 'EMBERLING',
+  CAVE_MONSTER: 'CAVE_MONSTER',
 } as const;
 export type UnitType = (typeof UnitType)[keyof typeof UnitType];
 
@@ -50,6 +51,8 @@ export const BuildingType = {
   MAGMASPYR: 'MAGMASPYR',
   EMBERNEST: 'EMBERNEST',
   CRYSTAL_CHAMBER: 'CRYSTAL_CHAMBER',
+  /** Grave left behind by a fallen REVIVABLE infantry unit */
+  GRAVESTONE: 'GRAVESTONE',
 } as const;
 export type BuildingType = (typeof BuildingType)[keyof typeof BuildingType];
 
@@ -116,6 +119,7 @@ export const TechEffectType = {
   BUILDING_PRODUCTION_MOD:  'BUILDING_PRODUCTION_MOD',
   FLAG:                     'FLAG',
   STRONGHOLD_CAP_MOD:       'STRONGHOLD_CAP_MOD',
+  SPECIALIST_SLOT_MOD:      'SPECIALIST_SLOT_MOD',
 } as const;
 export type TechEffectType = (typeof TechEffectType)[keyof typeof TechEffectType];
 
@@ -173,6 +177,17 @@ export const UnitTag = {
   PREVENTIVE_STRIKE: 'PREVENTIVE_STRIKE',
   /** Elite unit with increased max HP */
   ELITE: 'ELITE',
+  // ── Specialist-granted tags ──────────────────────────────────────────────────
+  /** Attack buildings (Watchtowers, Outposts) owned by the player gain +15 ATK and +1 range */
+  FORTIFIED_GARRISON: 'FORTIFIED_GARRISON',
+  /** Rider that kills an enemy can attack once more this turn at half attack with no retaliation */
+  BLOODLUST: 'BLOODLUST',
+  /** Siege unit deals 25% of dealt damage to all enemy units surrounding the target */
+  SPLASH: 'SPLASH',
+  /** Infantry unit can move and attack immediately after being recruited */
+  READY: 'READY',
+  /** Infantry unit leaves a Gravestone building on death that can be revived */
+  REVIVABLE: 'REVIVABLE',
 } as const;
 export type UnitTag = (typeof UnitTag)[keyof typeof UnitTag];
 
@@ -197,7 +212,8 @@ export type TechEffect =
   | { type: 'UNIT_COST_MOD';           unitType: UnitType; resource: 'iron' | 'wood'; amount: number }
   | { type: 'BUILDING_PRODUCTION_MOD'; buildingType: BuildingType; resource: ResourceType; chancePercent: number; amount: number }
   | { type: 'FLAG';                    flag: TechFlag }
-  | { type: 'STRONGHOLD_CAP_MOD';      capType: 'farmer' | 'noble'; amount: number };
+  | { type: 'STRONGHOLD_CAP_MOD';      capType: 'farmer' | 'noble'; amount: number }
+  | { type: 'SPECIALIST_SLOT_MOD';     value: number };
 
 /** Static definition of a tech-tree node (lives in gameConfig) */
 export interface TechNodeDefinition {
@@ -254,6 +270,8 @@ export interface Unit {
   hasCapturedThisTurn: boolean;
   /** True after a HIT_AND_RUN unit has used its post-attack move this turn. */
   hasUsedPostAttackMoveThisTurn: boolean;
+  /** True when a BLOODLUST rider has killed an enemy this turn and can attack once more at half power. */
+  bloodlustAttackAvailable: boolean;
   xp: number;
   level: number;
   /** Turn number during which the unit is stunned (cannot move or attack). 0 = not stunned. */
@@ -263,6 +281,8 @@ export interface Unit {
    * Stored for display purposes only — the reduction is already applied to stats.defense.
    */
   distractionDefPenalty: number;
+  /** Turn number during which this unit last moved. 0 = never moved (or pre-dates this field). */
+  lastMovedTurn: number;
 }
 
 /** Defines a single stat boost applied when a unit reaches a new level */
@@ -291,6 +311,12 @@ export interface Specialist {
   description: string;
   effects: SpecialistEffect[];
   assignedBuildingId: string | null;
+  /** Iron cost per turn; default 0 */
+  upkeepIron?: number;
+  /** Wood cost per turn; default 0 */
+  upkeepWood?: number;
+  /** true when upkeep could not be paid; effects inactive while true */
+  dormant?: boolean;
 }
 
 /** Combat stats for buildings that can attack (e.g. Watchtower, Magma Spyr) */
@@ -345,6 +371,11 @@ export interface Building {
   resonanceTurnsRemaining: number;
   /** Remaining cooldown turns before this building can spawn again. */
   spawnCooldownRemaining: number;
+  /**
+   * Unit type stored in this Gravestone building.
+   * Only set for GRAVESTONE buildings; undefined for all others.
+   */
+  gravesUnitType?: UnitType | null;
 }
 
 /** A tile on the game grid */
@@ -359,6 +390,8 @@ export interface Tile {
   isRuin: boolean;
   isStrongholdRuin: boolean;
   terrainType: TileType;
+  /** true on ~33% of Mountain tiles; set during map gen; cleared permanently on seal, explore, or despawn */
+  hasCaveMonster?: boolean;
 }
 
 /** Resources available to the player */
@@ -401,6 +434,14 @@ export interface GameStats {
   buildingsCapturedByEnemy: number;
   /** Player buildings (or ruins) consumed by lava */
   buildingsDestroyedByLava: number;
+}
+
+/** A live cave-monster encounter tied to a specific mountain tile */
+export interface CaveEncounter {
+  /** Unit id of the cave monster */
+  monsterId: string;
+  /** Tile id of the originating mountain */
+  mountainTileId: string;
 }
 
 /** Complete game state */
@@ -461,4 +502,14 @@ export interface GameState {
    * null — cause not yet determined or game not over.
    */
   gameOverCause: 'LAVA' | 'ENEMY' | null;
+  /** Maximum number of hired specialists allowed; starts at 2 */
+  specialistSlotCap: number;
+  /** One entry per live cave monster on the map */
+  activeCaveEncounters: CaveEncounter[];
+  /**
+   * Whether the FORTIFIED_GARRISON specialist effect is currently active.
+   * When true, all player-owned Watchtowers and Outposts have their attack and
+   * attack range boosted by the FORTIFIED_GARRISON constants.
+   */
+  fortifiedGarrisonActive: boolean;
 }
