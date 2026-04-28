@@ -1005,7 +1005,7 @@ export const ABILITIES = {
   /** Farmer-slot capacity added to each Stronghold by the WALLED_SETTLEMENT tech */
   WALLED_SETTLEMENT_FARMER_BONUS: 2,
   /** Iron/wood produced by each Stronghold per turn after WALLED_SETTLEMENT */
-  WALLED_SETTLEMENT_PRODUCTION_AMOUNT: 1,
+  WALLED_SETTLEMENT_PRODUCTION_AMOUNT: 2,
   /** Noble-slot capacity added to each Stronghold by the CITADEL tech */
   CITADEL_NOBLE_BONUS: 2,
   /** Max-HP bonus applied to Scouts and Guards by the CITADEL tech */
