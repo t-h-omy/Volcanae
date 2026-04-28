@@ -466,7 +466,7 @@ export const TERRAIN = {
   ZONE1_FOREST_MAX_DISTANCE: 2,
 
   // Canyon config
-  CANYON_LENGTH_MIN: 7,
+  CANYON_LENGTH_MIN: 8,
   CANYON_LENGTH_MAX: 15,
   CANYON_DRIFT_CHANCE: 0.25,
   CANYON_WIDTH_VARIANCE_CHANCE: 0.2,
@@ -478,7 +478,7 @@ export const TERRAIN = {
   LAKE_WIDTH_MAX: 5,
   LAKE_HEIGHT_MIN: 3,
   LAKE_HEIGHT_MAX: 5,
-  LAKE_EROSION_CHANCE: 0.25,
+  LAKE_EROSION_CHANCE: 0.22,
   LAKES_PER_ZONE_MIN: 0,
   LAKES_PER_ZONE_MAX: 2,
 
@@ -499,7 +499,7 @@ export const TERRAIN = {
    * If the monster wanders outside this radius (no aggro), it returns to its home tile.
    * Once back on the home tile it may despawn the following turn.
    */
-  CAVE_MONSTER_PATROL_RADIUS: 2,
+  CAVE_MONSTER_PATROL_RADIUS: 3,
 } as const;
 
 // ============================================================================
@@ -735,9 +735,9 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   CAVE_MONSTER: {
-    maxHp: 100, attack: 55, defense: 50,
+    maxHp: 200, attack: 40, defense: 35,
     movementActions: 1, moveRange: 1, attackRange: 1,
-    discoverRadius: 1, triggerRange: 3,
+    discoverRadius: 3, triggerRange: 3,
     tags: [],
     cost: { iron: 0, wood: 0 },
     populationCost: { farmers: 0, nobles: 0 },
@@ -842,7 +842,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
   WATCHTOWER: {
     discoverRadius: 4,
     destroyBehavior: DestroyBehavior.RUIN,
-    constructionCost: { iron: 0, wood: 0 },
+    constructionCost: { iron: 1, wood: 1 },
     combatStats: { maxHp: 150, attack: 50, defense: 65, attackRange: 3 },
     description: 'Defensive tower that attacks nearby enemies and expands your vision.', // overwritten below
   },
@@ -962,7 +962,7 @@ export const ABILITIES = {
   /** Extra move range granted by TO_THE_FRONT flag */
   TO_THE_FRONT_MOVE_BONUS: 1,
   /** Minimum tile distance from lava front required for TO_THE_FRONT bonus to apply */
-  TO_THE_FRONT_MIN_DISTANCE: 7,
+  TO_THE_FRONT_MIN_DISTANCE: 6,
   /** HP restored per PATCHUP heal action */
   PATCHUP_HEAL_AMOUNT: 50,
   /** Multiplier applied to the building unit's currentHp to determine the Outpost's starting HP */
@@ -983,7 +983,7 @@ export const ABILITIES = {
   /** DEF change (negative = penalty) applied to a unit carrying the HIT_AND_RUN tag */
   HIT_AND_RUN_DEFENSE_MOD: -15,
   /** Max HP bonus granted to a unit carrying the KNIGHT tag */
-  KNIGHT_MAX_HP_BONUS: 40,
+  KNIGHT_MAX_HP_BONUS: 30,
   /** Move range bonus granted to SKIRMISHER-tagged archers (Skirmisher tech) */
   SKIRMISHER_MOVE_BONUS: 1,
   /** Move range bonus granted to OUTRIDER-tagged riders (Outriders tech) */
