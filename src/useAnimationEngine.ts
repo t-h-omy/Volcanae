@@ -695,7 +695,8 @@ export function useAnimationEngine(): void {
             useGameStore.getState().hireSpecialist(hiredSpecialistId);
           }
           if (swapResult) {
-            useGameStore.getState().swapSpecialist(swapResult.outgoingId, swapResult.incomingId);
+            const swap = swapResult as { outgoingId: string; incomingId: string };
+            useGameStore.getState().swapSpecialist(swap.outgoingId, swap.incomingId);
           }
 
           continue;
