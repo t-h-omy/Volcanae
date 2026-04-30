@@ -603,7 +603,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   RIDER: {
-    maxHp: 100, attack: 70, defense: 40,
+    maxHp: 80, attack: 65, defense: 35,
     movementActions: 1, moveRange: 2, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
     tags: [UnitTag.BUILDANDCAPTURE],
