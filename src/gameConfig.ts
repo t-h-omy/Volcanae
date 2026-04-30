@@ -447,9 +447,9 @@ export const TERRAIN = {
   /** Maximum number of mountain tiles placed per zone */
   MOUNTAINS_PER_ZONE_MAX: 3,
   /** Minimum number of ruin tiles placed per zone */
-  RUINS_PER_ZONE_MIN: 7,
+  RUINS_PER_ZONE_MIN: 6,
   /** Maximum number of ruin tiles placed per zone */
-  RUINS_PER_ZONE_MAX: 8,
+  RUINS_PER_ZONE_MAX: 7,
   /** Minimum number of ruin tiles placed in the lava buffer rows */
   RUINS_IN_LAVA_BUFFER_MIN: 2,
   /** Maximum number of ruin tiles placed in the lava buffer rows */
@@ -469,15 +469,15 @@ export const TERRAIN = {
   CANYON_LENGTH_MIN: 8,
   CANYON_LENGTH_MAX: 15,
   CANYON_DRIFT_CHANCE: 0.25,
-  CANYON_WIDTH_VARIANCE_CHANCE: 0.2,
+  CANYON_WIDTH_VARIANCE_CHANCE: 0.75,
   CANYONS_PER_ZONE_MIN: 0,
   CANYONS_PER_ZONE_MAX: 2,
 
   // Lake config
   LAKE_WIDTH_MIN: 3,
-  LAKE_WIDTH_MAX: 5,
+  LAKE_WIDTH_MAX: 6,
   LAKE_HEIGHT_MIN: 3,
-  LAKE_HEIGHT_MAX: 5,
+  LAKE_HEIGHT_MAX: 6,
   LAKE_EROSION_CHANCE: 0.22,
   LAKES_PER_ZONE_MIN: 0,
   LAKES_PER_ZONE_MAX: 2,
@@ -493,7 +493,7 @@ export const TERRAIN = {
    * Per-zone HP/ATK/DEF multiplier for the cave monster (index 0 = zone 1, index 4 = zone 5).
    * Higher zones are deeper into enemy territory and have stronger monsters.
    */
-  CAVE_MONSTER_ZONE_SCALE: [1.0, 1.15, 1.3, 1.5, 1.7] as const,
+  CAVE_MONSTER_ZONE_SCALE: [1.0, 1.3, 1.6, 1.9, 2.2] as const,
   /**
    * Chebyshev-distance radius within which the cave monster will patrol.
    * If the monster wanders outside this radius (no aggro), it returns to its home tile.
@@ -516,7 +516,7 @@ export const POPULATION = {
   /** Noble capacity provided by a Stronghold */
   STRONGHOLD_NOBLE_CAP: 1,
   /** Initial population when a housing building is constructed */
-  HOUSE_INITIAL_POPULATION: 1,
+  HOUSE_INITIAL_POPULATION: 0,
   /** Number of turns between each population increase (same for all housing types) */
   HOUSE_GROWTH_INTERVAL: 3,
 } as const;
@@ -552,7 +552,7 @@ export const LEVEL_UP_VALUES = {
   XP_TO_LEVEL_3: 7,
   /** Max-HP flat boost per level for most unit types */
   HP_BOOST_DEFAULT: 20,
-  HP_BOOST_DEFAULT2: 40,
+  HP_BOOST_DEFAULT2: 30,
   /** Max-HP flat boost per level for Scout units */
   HP_BOOST_SCOUT: 15,
   /** Max-HP flat boost per level for Emberling units */
@@ -659,7 +659,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   LAVA_GRUNT: {
-    maxHp: 100, attack: 50, defense: 50,
+    maxHp: 100, attack: 60, defense: 50,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 3,
     tags: [UnitTag.BUILDANDCAPTURE, UnitTag.CORRUPT],
@@ -674,7 +674,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   LAVA_ARCHER: {
-    maxHp: 100, attack: 50, defense: 20,
+    maxHp: 100, attack: 55, defense: 20,
     movementActions: 1, moveRange: 1, attackRange: 2,
     discoverRadius: 1, triggerRange: 3,
     tags: [UnitTag.BUILDANDCAPTURE, UnitTag.RANGED],
@@ -689,7 +689,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   LAVA_RIDER: {
-    maxHp: 100, attack: 70, defense: 40,
+    maxHp: 100, attack: 75, defense: 40,
     movementActions: 1, moveRange: 2, attackRange: 1,
     discoverRadius: 1, triggerRange: 3,
     tags: [UnitTag.BUILDANDCAPTURE],
@@ -731,11 +731,11 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_EMBERLING }] },
     ],
     enemyUnlockEmber: 1,
-    description: 'Fragile fire spirit that walks toward lava. Explodes on death, dealing heavy damage to all nearby enemies.', // overwritten below
+    description: 'Fragile fire spirit that walks toward lava. Explodes when it cannot move closer to lava.', // overwritten below
   },
 
   CAVE_MONSTER: {
-    maxHp: 200, attack: 40, defense: 35,
+    maxHp: 200, attack: 60, defense: 40,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 3, triggerRange: 3,
     tags: [],
