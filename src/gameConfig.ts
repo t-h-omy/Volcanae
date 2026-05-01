@@ -514,7 +514,7 @@ export const POPULATION = {
   /** Farmer capacity provided by a Stronghold */
   STRONGHOLD_FARMER_CAP: 2,
   /** Noble capacity provided by a Stronghold */
-  STRONGHOLD_NOBLE_CAP: 1,
+  STRONGHOLD_NOBLE_CAP: 2,
   /** Initial population when a housing building is constructed */
   HOUSE_INITIAL_POPULATION: 0,
   /** Number of turns between each population increase (same for all housing types) */
