@@ -447,11 +447,11 @@ export const TERRAIN = {
   /** Maximum number of mountain tiles placed per zone */
   MOUNTAINS_PER_ZONE_MAX: 3,
   /** Minimum number of ruin tiles placed per zone */
-  RUINS_PER_ZONE_MIN: 6,
+  RUINS_PER_ZONE_MIN: 7,
   /** Maximum number of ruin tiles placed per zone */
-  RUINS_PER_ZONE_MAX: 7,
+  RUINS_PER_ZONE_MAX: 8,
   /** Minimum number of ruin tiles placed in the lava buffer rows */
-  RUINS_IN_LAVA_BUFFER_MIN: 2,
+  RUINS_IN_LAVA_BUFFER_MIN: 3,
   /** Maximum number of ruin tiles placed in the lava buffer rows */
   RUINS_IN_LAVA_BUFFER_MAX: 4,
   /**
@@ -516,7 +516,7 @@ export const POPULATION = {
   /** Noble capacity provided by a Stronghold */
   STRONGHOLD_NOBLE_CAP: 2,
   /** Initial population when a housing building is constructed */
-  HOUSE_INITIAL_POPULATION: 0,
+  HOUSE_INITIAL_POPULATION: 1,
   /** Number of turns between each population increase (same for all housing types) */
   HOUSE_GROWTH_INTERVAL: 3,
 } as const;
