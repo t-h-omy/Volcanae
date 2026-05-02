@@ -575,7 +575,7 @@ export const LEVEL_UP_VALUES = {
  */
 export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   INFANTRY: {
-    maxHp: 100, attack: 50, defense: 50,
+    maxHp: 100, attack: 40, defense: 40,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
     tags: [UnitTag.BUILDANDCAPTURE],
