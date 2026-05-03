@@ -575,7 +575,7 @@ export const LEVEL_UP_VALUES = {
  */
 export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   INFANTRY: {
-    maxHp: 100, attack: 40, defense: 40,
+    maxHp: 100, attack: 40, defense: 50,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
     tags: [UnitTag.BUILDANDCAPTURE],
@@ -589,7 +589,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   ARCHER: {
-    maxHp: 100, attack: 50, defense: 20,
+    maxHp: 100, attack: 50, defense: 25,
     movementActions: 1, moveRange: 1, attackRange: 2,
     discoverRadius: 1, triggerRange: 0,
     tags: [UnitTag.RANGED, UnitTag.BUILDANDCAPTURE],
@@ -617,7 +617,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   SIEGE: {
-    maxHp: 100, attack: 85, defense: 0,
+    maxHp: 100, attack: 90, defense: 0,
     movementActions: 1, moveRange: 1, attackRange: 3,
     discoverRadius: 1, triggerRange: 0,
     tags: [UnitTag.RANGED, UnitTag.PREP],
@@ -645,7 +645,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   GUARD: {
-    maxHp: 100, attack: 15, defense: 75,
+    maxHp: 100, attack: 20, defense: 75,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
     tags: [UnitTag.PREP],
@@ -659,7 +659,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   LAVA_GRUNT: {
-    maxHp: 100, attack: 60, defense: 50,
+    maxHp: 100, attack: 50, defense: 50,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 3,
     tags: [UnitTag.BUILDANDCAPTURE, UnitTag.CORRUPT],
@@ -689,7 +689,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   LAVA_RIDER: {
-    maxHp: 100, attack: 75, defense: 40,
+    maxHp: 100, attack: 70, defense: 30,
     movementActions: 1, moveRange: 2, attackRange: 1,
     discoverRadius: 1, triggerRange: 3,
     tags: [UnitTag.BUILDANDCAPTURE],
@@ -735,7 +735,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   CAVE_MONSTER: {
-    maxHp: 200, attack: 60, defense: 40,
+    maxHp: 150, attack: 55, defense: 40,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 3, triggerRange: 3,
     tags: [],
