@@ -103,9 +103,9 @@ export const BUILDINGS = {
   /** Probability of spawning a WATCHTOWER in each zone (0.0 to 1.0) */
   WATCHTOWER_SPAWN_CHANCE: 0.5,
   /** Number of rows at the start (low-Y end) of a zone where strongholds may not spawn */
-  STRONGHOLD_SPAWN_SKIP_FIRST_ROWS: 2,
+  STRONGHOLD_SPAWN_SKIP_FIRST_ROWS: 3,
   /** Number of rows at the end (high-Y end) of a zone where strongholds may not spawn */
-  STRONGHOLD_SPAWN_SKIP_LAST_ROWS: 2,
+  STRONGHOLD_SPAWN_SKIP_LAST_ROWS: 1,
 } as const;
 
 // ============================================================================
@@ -161,9 +161,9 @@ export const ENEMY = {
   /** Bonus enemy spawn per 3 threat levels */
   ENEMY_THREAT_SPAWN_BONUS: 0,
   /** Base probability (0.0–1.0) of spawning a unit per recruitment building per turn when no player unit is in discover radius and threat is 0 */
-  BASE_SPAWN_PROBABILITY: 0.06,
+  BASE_SPAWN_PROBABILITY: 0.1,
   /** Maximum additional probability granted at max threat (0.0–1.0) */
-  MAX_THREAT_BONUS: 0.5,
+  MAX_THREAT_BONUS: 0.3,
   /** Threat level at which the full MAX_THREAT_BONUS is reached */
   MAX_THREAT: 25,
   /** Number of player turns between automatic threat level increases */
