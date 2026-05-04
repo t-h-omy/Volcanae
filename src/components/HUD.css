@@ -70,6 +70,8 @@
 .hud-specialist-slot--filled {
   background: rgba(255, 255, 255, 0.1);
   color: #e8d9a0;
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 .hud-specialist-slot--empty {
