@@ -569,6 +569,10 @@ function TopBar({
   const globalSpecialistStorage = useGameStore((s) => s.globalSpecialistStorage);
   const specialistSlotCap = useGameStore((s) => s.specialistSlotCap);
 
+  // Which specialist slot's info popup is currently open (index into slots)
+  const [openSpecialistInfo, setOpenSpecialistInfo] = useState<string | null>(null);
+  const openSpec = openSpecialistInfo ? specialists[openSpecialistInfo] : null;
+
   return (
     <div className="hud-top-bar">
       <span className="hud-stat">🔄 Turn {turn}</span>
@@ -590,13 +594,31 @@ function TopBar({
         {Array.from({ length: specialistSlotCap }, (_, i) => {
           const specId = globalSpecialistStorage[i];
           const spec = specId ? specialists[specId] : null;
+          if (spec) {
+            return (
+              <button
+                key={i}
+                className={`hud-specialist-slot hud-specialist-slot--filled${spec.dormant ? ' hud-specialist-slot--dormant' : ''}`}
+                onClick={() => setOpenSpecialistInfo(spec.id)}
+                title={`${spec.name} — click for info`}
+              >
+                <span className="hud-specialist-slot-name">🧙 {spec.name}</span>
+              </button>
+            );
+          }
           return (
-            <div key={i} className={`hud-specialist-slot${spec ? ' hud-specialist-slot--filled' : ' hud-specialist-slot--empty'}`}>
-              {spec ? <span className="hud-specialist-slot-name">🧙 {spec.name}</span> : <span className="hud-specialist-slot-placeholder">—</span>}
+            <div key={i} className="hud-specialist-slot hud-specialist-slot--empty">
+              <span className="hud-specialist-slot-placeholder">—</span>
             </div>
           );
         })}
       </div>
+      {openSpec && (
+        <SpecialistInfoPopup
+          specialist={openSpec}
+          onClose={() => setOpenSpecialistInfo(null)}
+        />
+      )}
       <GameMenu />
     </div>
   );
@@ -1327,68 +1349,6 @@ function SelectedUnitPanel({
 // SPECIALIST PICKER MODAL
 // ============================================================================
 
-function SpecialistPickerModal({
-  buildingId,
-  onClose,
-}: {
-  buildingId: string;
-  onClose: () => void;
-}) {
-  const specialists = useGameStore((s) => s.specialists);
-  const globalSpecialistStorage = useGameStore((s) => s.globalSpecialistStorage);
-  const assignSpecialist = useGameStore((s) => s.assignSpecialist);
-
-  const available: Specialist[] = globalSpecialistStorage
-    .map((id) => specialists[id])
-    .filter(Boolean) as Specialist[];
-
-  const handleAssign = useCallback(
-    (specialistId: string) => {
-      assignSpecialist(specialistId, buildingId);
-      onClose();
-    },
-    [assignSpecialist, buildingId, onClose]
-  );
-
-  return (
-    <div className="hud-modal-backdrop" onClick={onClose}>
-      <div className="hud-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="hud-modal-header">
-          <span>🧙 Assign Specialist</span>
-          <button className="hud-modal-close" onClick={onClose}>
-            ✕
-          </button>
-        </div>
-        {available.length === 0 ? (
-          <p className="hud-dim" style={{ padding: '12px' }}>
-            No specialists available.
-          </p>
-        ) : (
-          <ul className="hud-modal-list">
-            {available.map((sp) => (
-              <li key={sp.id} className="hud-modal-item">
-                <div className="hud-modal-item-info">
-                  <span className="hud-modal-item-name">{sp.name}</span>
-                  <span className="hud-modal-item-desc">{sp.description}</span>
-                  <span className="hud-modal-item-effects">
-                    {sp.effects.map((e) => e.type).join(', ')}
-                  </span>
-                </div>
-                <button
-                  className="hud-modal-assign-btn"
-                  onClick={() => handleAssign(sp.id)}
-                >
-                  Assign
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ============================================================================
 // CONSTRUCTION PANEL (shown when a BUILD_AND_CAPTURE unit is on a constructable tile)
 // ============================================================================
@@ -1511,19 +1471,15 @@ function SelectedTilePanel({ tile }: { tile: Tile }) {
 // ============================================================================
 
 function SelectedBuildingPanel({ building }: { building: Building }) {
-  const specialists = useGameStore((s) => s.specialists);
-  const globalSpecialistStorage = useGameStore((s) => s.globalSpecialistStorage);
   const resources = useGameStore((s) => s.resources);
   const grid = useGameStore((s) => s.grid);
   const gameState = useGameStore((s) => s);
   const recruitUnit = useGameStore((s) => s.recruitUnit);
-  const unassignSpecialist = useGameStore((s) => s.unassignSpecialist);
   const unlockedUnits = useGameStore((s) => s.unlockedUnits);
   const showRecruitingScores = useDevOptionsStore((s) => s.showRecruitingScores);
   const arcaneCrystals = useGameStore((s) => s.arcaneCrystals);
   const reviveUnit = useGameStore((s) => s.reviveUnit);
 
-  const [showPicker, setShowPicker] = useState(false);
   const [confirmRecruitUnit, setConfirmRecruitUnit] = useState<UnitType | null>(null);
   const [recruitScoreModal, setRecruitScoreModal] = useState(false);
   const [recruitScores, setRecruitScores] = useState<{ type: UnitType; score: number }[]>([]);
@@ -1539,7 +1495,6 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   const isPlayerOwned = building.faction === Faction.PLAYER;
   const isDisabled = building.isDisabledForTurns > 0;
   const isUnderAttack = building.wasAttackedLastEnemyTurn;
-  const isInteractionBlocked = isDisabled || isUnderAttack;
   const hasCombatStats = building.combatStats !== null;
   const canAttack = hasCombatStats && !building.hasAttackedThisTurn && building.faction !== null;
 
@@ -1552,10 +1507,6 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
     reviveUnit(building.id);
   }, [reviveUnit, building.id]);
 
-  // Specialist slot info
-  const assignedSpecialist: Specialist | null =
-    building.specialistSlot ? specialists[building.specialistSlot] ?? null : null;
-
   // Recruitment info — filter by tech-unlocked units
   const allRecruitableTypes = BUILDING_RECRUITS[building.type] ?? [];
   const recruitableTypes = allRecruitableTypes.filter((ut) => unlockedUnits.includes(ut));
@@ -1565,17 +1516,6 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
     () => (recruitableTypes.length > 0 ? hasSpawnSpaceAt(grid, building.position) : false),
     [recruitableTypes.length, building.position, grid]
   );
-
-  const handleUnassign = useCallback(() => {
-    unassignSpecialist(building.id);
-  }, [unassignSpecialist, building.id]);
-
-  // Global specialist storage (shown on any player stronghold)
-  const showGlobalStorage =
-    building.type === BuildingType.STRONGHOLD && isPlayerOwned;
-  const globalSpecialists: Specialist[] = globalSpecialistStorage
-    .map((id) => specialists[id])
-    .filter(Boolean) as Specialist[];
 
   // Production info for resource buildings
   const isMine = building.type === BuildingType.MINE && isPlayerOwned;
@@ -1742,37 +1682,6 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
         </div>
       )}
 
-      {/* Specialist slot — hidden for Gravestone buildings */}
-      {isPlayerOwned && !isGravestone && (
-        <div className="hud-specialist-row">
-          <span className="hud-label">Specialist:</span>
-          {assignedSpecialist ? (
-            <div className="hud-specialist-assigned">
-              <span className="hud-value">{assignedSpecialist.name}</span>
-              <span className="hud-specialist-desc">{assignedSpecialist.description}</span>
-              <button
-                className="hud-specialist-btn hud-unassign-btn"
-                disabled={isInteractionBlocked}
-                onClick={handleUnassign}
-              >
-                Unassign
-              </button>
-            </div>
-          ) : (
-            <div className="hud-specialist-empty">
-              <span className="hud-dim">Empty</span>
-              <button
-                className="hud-specialist-btn hud-assign-btn"
-                disabled={isInteractionBlocked || globalSpecialistStorage.length === 0}
-                onClick={() => setShowPicker(true)}
-              >
-                Assign Specialist
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Gravestone revive button */}
       {isGravestone && (
         <div className="hud-revive-row">
@@ -1878,33 +1787,6 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
           />
         );
       })()}
-
-      {/* Global specialist storage (stronghold only) */}
-      {showGlobalStorage && (
-        <div className="hud-global-specialists">
-          <span className="hud-label">Specialist Storage:</span>
-          {globalSpecialists.length === 0 ? (
-            <span className="hud-dim"> None</span>
-          ) : (
-            <ul className="hud-specialist-list">
-              {globalSpecialists.map((sp) => (
-                <li key={sp.id}>
-                  <span className="hud-specialist-storage-name">{sp.name}</span>
-                  <span className="hud-specialist-storage-desc"> — {sp.description}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-
-      {/* Specialist picker modal */}
-      {showPicker && (
-        <SpecialistPickerModal
-          buildingId={building.id}
-          onClose={() => setShowPicker(false)}
-        />
-      )}
 
       {buildingInfoOpen && (
         <BuildingInfoPopup
@@ -2208,14 +2090,26 @@ function CaveScreamsPopup() {
 // CAVE MONSTER KILL MODAL (hire flow + no-survivor flow + swap flow)
 // ============================================================================
 
-/** Specialist info popup — shown when the player taps a current specialist card in swap view */
+/** Specialist info popup — shown when clicking a filled specialist slot in the top bar, or in swap view */
 function SpecialistInfoPopup({ specialist, onClose }: { specialist: Specialist; onClose: () => void }) {
+  const iron = specialist.upkeepIron ?? 0;
+  const wood = specialist.upkeepWood ?? 0;
+  const hasUpkeep = iron > 0 || wood > 0;
+  const isDormant = !!specialist.dormant;
+
   return (
     <Popup onClose={onClose}>
       <div className="specialist-info-header">
         <span className="specialist-info-name">🧙 {specialist.name}</span>
+        {isDormant && <span className="specialist-info-dormant"> ⚠️ Inactive</span>}
       </div>
       <p className="info-popup-desc">{specialist.description}</p>
+      {hasUpkeep && (
+        <div className="specialist-info-upkeep">
+          Upkeep:{iron > 0 && <span> ⛓️{iron}</span>}{wood > 0 && <span> 🪵{wood}</span>}
+          {isDormant && <span className="specialist-info-dormant-note"> — cannot pay upkeep</span>}
+        </div>
+      )}
       <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>Close</button>
     </Popup>
   );

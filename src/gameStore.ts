@@ -27,10 +27,10 @@ import {
 } from './constructionSystem';
 import { runEnemyTurn } from './enemySystem';
 import {
-  assignSpecialist as assignSpecialistLogic,
-  unassignSpecialist as unassignSpecialistLogic,
   deductSpecialistUpkeep,
   applySpecialistEffects,
+  applyEffectsForSpecialist,
+  revokeEffectsForSpecialist,
 } from './specialistSystem';
 import { checkGameConditions } from './gameConditions';
 import { useFloaterStore } from './floaterStore';
@@ -89,10 +89,6 @@ interface GameActions {
   cancelHealMode: () => void;
   /** Sacrifice a FIELDWORK unit to build a Watchtower at its position */
   fieldworkUnit: (unitId: string) => void;
-  /** Assign a specialist to a building (stub) */
-  assignSpecialist: (specialistId: string, buildingId: string) => void;
-  /** Unassign a specialist from a building (stub) */
-  unassignSpecialist: (buildingId: string) => void;
   /** Add a specialist to globalSpecialistStorage (called after cave monster hire) */
   hireSpecialist: (specialistId: string) => void;
   /** Replace an existing specialist with a new one (called after cave monster swap) */
@@ -937,22 +933,12 @@ export const useGameStore = create<GameStore>()(
       });
     },
 
-    assignSpecialist: (specialistId: string, buildingId: string) => {
-      set((state) => {
-        assignSpecialistLogic(state, specialistId, buildingId);
-      });
-    },
-
-    unassignSpecialist: (buildingId: string) => {
-      set((state) => {
-        unassignSpecialistLogic(state, buildingId);
-      });
-    },
-
     hireSpecialist: (specialistId: string) => {
       set((state) => {
         if (state.specialists[specialistId] && !state.globalSpecialistStorage.includes(specialistId)) {
           state.globalSpecialistStorage.push(specialistId);
+          // Apply the specialist's effects immediately on hire
+          applyEffectsForSpecialist(state, state.specialists[specialistId]);
         }
       });
     },
@@ -961,14 +947,17 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         const idx = state.globalSpecialistStorage.indexOf(outgoingId);
         if (idx !== -1 && state.specialists[incomingId] && !state.globalSpecialistStorage.includes(incomingId)) {
-          // If the outgoing specialist was assigned to a building, unassign it first
-          // (this reverts its effects properly via the unassignSpecialist logic)
+          // Revoke effects of the outgoing specialist before removing it
           const outgoing = state.specialists[outgoingId];
-          if (outgoing?.assignedBuildingId) {
-            unassignSpecialistLogic(state, outgoing.assignedBuildingId);
+          if (outgoing) {
+            // Temporarily remove from storage so revoke checks see it as no longer active
+            state.globalSpecialistStorage.splice(idx, 1);
+            revokeEffectsForSpecialist(state, outgoing);
+            // Insert incoming at the same index so HUD slot position is stable
+            state.globalSpecialistStorage.splice(idx, 0, incomingId);
+            // Apply effects of the incoming specialist immediately
+            applyEffectsForSpecialist(state, state.specialists[incomingId]);
           }
-          // Replace in storage at the same index so HUD slot position is stable
-          state.globalSpecialistStorage[idx] = incomingId;
         }
       });
     },

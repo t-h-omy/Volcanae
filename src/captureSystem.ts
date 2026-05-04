@@ -250,23 +250,6 @@ export function initiateCapture(
 
   // All other cases: destroy the building and create a ruin
 
-  // Handle specialist
-  if (building.specialistSlot) {
-    const specialistId = building.specialistSlot;
-    if (unitFaction === Faction.PLAYER) {
-      // Player captures: move specialist to global storage
-      state.globalSpecialistStorage.push(specialistId);
-      if (state.specialists[specialistId]) {
-        state.specialists[specialistId].assignedBuildingId = null;
-      }
-    } else {
-      // Enemy captures: specialist is lost
-      if (state.specialists[specialistId]) {
-        delete state.specialists[specialistId];
-      }
-    }
-  }
-
   const { x, y } = building.position;
   const buildingType = building.type;
   const destroyBehavior = building.destroyBehavior;
@@ -365,14 +348,6 @@ export function triggerSanctumCollapse(
     if (building.position.y >= startRow && building.position.y <= endRow) {
       destroyedBuildingIds.push(building.id);
       clearedBuildingPositions.push({ x: building.position.x, y: building.position.y });
-
-      // Handle specialist: specialist is lost when enemy building is destroyed by collapse
-      if (building.specialistSlot) {
-        const specialistId = building.specialistSlot;
-        if (state.specialists[specialistId]) {
-          delete state.specialists[specialistId];
-        }
-      }
 
       // Apply destroy behavior to the tile
       const tile = state.grid[building.position.y][building.position.x];
@@ -512,23 +487,6 @@ export function resolveCaptures(state: Draft<GameState>): void {
     }
 
     // All other cases: destroy the building and create a ruin
-
-    // Handle specialist
-    if (building.specialistSlot) {
-      const specialistId = building.specialistSlot;
-      if (capturingUnit.faction === Faction.PLAYER) {
-        // Player captures: move specialist to global storage
-        state.globalSpecialistStorage.push(specialistId);
-        if (state.specialists[specialistId]) {
-          state.specialists[specialistId].assignedBuildingId = null;
-        }
-      } else {
-        // Enemy captures: specialist is lost
-        if (state.specialists[specialistId]) {
-          delete state.specialists[specialistId];
-        }
-      }
-    }
 
     const { x, y } = building.position;
     const buildingType = building.type;

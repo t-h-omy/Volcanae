@@ -1,29 +1,20 @@
 /**
  * Specialist system module for Volcanae.
- * Implements specialist assignment, unassignment, and storage.
+ * Implements global specialist storage, effect application, and upkeep.
  *
  * Rules:
- * - Unassigned specialists are stored in state.globalSpecialistStorage (array of specialist IDs)
- * - All player-owned STRONGHOLDs show the global specialist storage in their UI
- * - Assigning a specialist:
- *   - Flow: globalSpecialistStorage to building.specialistSlot
- *   - Cost: building is disabled for SPECIALIST_ASSIGN_DISABLE_TURNS (1 turn)
- *   - Cannot assign if building was attacked last enemy turn
- *   - Cannot assign if building already has a specialist
- * - Unassigning a specialist:
- *   - Flow: building.specialistSlot to globalSpecialistStorage
- *   - Cost: building is disabled for SPECIALIST_ASSIGN_DISABLE_TURNS (1 turn)
- *   - Cannot unassign if building was attacked last enemy turn
- * - When lava destroys a player building with a specialist: specialist goes to globalSpecialistStorage
- *   (handled in lavaSystem.ts)
- * - When enemy captures a player building with a specialist: specialist is LOST
- *   (handled in captureSystem.ts)
+ * - Specialists are global: a specialist is active as soon as it is in
+ *   state.globalSpecialistStorage.
+ * - No building assignment is required or used.
+ * - Upkeep is deducted once per player turn; specialists that cannot pay
+ *   become dormant and their effects are revoked.
+ * - Zero-upkeep specialists are never dormant.
  */
 
 import type { GameState, Specialist } from './types';
 import type { Draft } from 'immer';
 import { Faction, BuildingType, UnitTag, UnitType } from './types';
-import { BUILDINGS, ABILITIES, SPECIALIST_DEFINITIONS } from './gameConfig';
+import { ABILITIES, SPECIALIST_DEFINITIONS } from './gameConfig';
 
 // ============================================================================
 // INITIAL SPECIALISTS
@@ -54,13 +45,14 @@ export function createInitialSpecialists(): Record<string, Specialist> {
 // EFFECT APPLICATION HELPERS
 // ============================================================================
 
-/** Returns true if any specialist with the given effect type is currently assigned and non-dormant. */
+/** Returns true if any globally-owned, non-dormant specialist has the given effect type. */
 export function isSpecialistEffectActive(
   state: GameState | Draft<GameState>,
   effectType: string,
 ): boolean {
-  for (const spec of Object.values(state.specialists)) {
-    if (spec.assignedBuildingId !== null && !spec.dormant && spec.effects.some((e) => e.type === effectType)) {
+  for (const specId of state.globalSpecialistStorage) {
+    const spec = state.specialists[specId];
+    if (spec && !spec.dormant && spec.effects.some((e) => e.type === effectType)) {
       return true;
     }
   }
@@ -68,7 +60,7 @@ export function isSpecialistEffectActive(
 }
 
 /**
- * Returns the unit tags that active (assigned) specialists grant to a given unit type.
+ * Returns the unit tags that globally-owned, non-dormant specialists grant to a given unit type.
  * Used in recruitUnit to ensure newly spawned units carry specialist-granted tags.
  */
 export function getTagsFromActiveSpecialists(
@@ -76,8 +68,9 @@ export function getTagsFromActiveSpecialists(
   unitType: UnitType,
 ): UnitTag[] {
   const tags: UnitTag[] = [];
-  for (const spec of Object.values(state.specialists)) {
-    if (spec.assignedBuildingId === null || spec.dormant) continue;
+  for (const specId of state.globalSpecialistStorage) {
+    const spec = state.specialists[specId];
+    if (!spec || spec.dormant) continue;
     for (const effect of spec.effects) {
       if (
         effect.type === 'GRANT_UNIT_TAG_ALL' &&
@@ -150,26 +143,28 @@ function applyUnitTagToAllUnits(
 
 /**
  * Reverts GRANT_UNIT_TAG_ALL specialist effect: removes `tag` from all player
- * units of `unitType`.  Only removes if no other active specialist grants the
- * same tag to the same unit type (handles duplicate specs defensively).
+ * units of `unitType`.  Only removes if no other globally-owned, non-dormant
+ * specialist also grants the same tag to the same unit type.
  */
 function revokeUnitTagFromAllUnits(
   state: Draft<GameState>,
   unitType: UnitType,
   tag: UnitTag,
 ): void {
-  // Check if another still-active (assigned and non-dormant) specialist also grants this tag to this unit type
-  const stillGranted = Object.values(state.specialists).some(
-    (s) =>
-      s.assignedBuildingId !== null &&
+  // Check if another still-active (in globalStorage and non-dormant) specialist also grants this tag
+  const stillGranted = state.globalSpecialistStorage.some((specId) => {
+    const s = state.specialists[specId];
+    return (
+      s &&
       !s.dormant &&
       s.effects.some(
         (e) =>
           e.type === 'GRANT_UNIT_TAG_ALL' &&
           e.params.unitType === unitType &&
           e.params.tag === tag,
-      ),
-  );
+      )
+    );
+  });
   if (stillGranted) return;
 
   for (const unit of Object.values(state.units)) {
@@ -181,122 +176,20 @@ function revokeUnitTagFromAllUnits(
 }
 
 
-
-/**
- * Checks if a specialist can be assigned to a building.
- */
-function canAssignSpecialist(
-  state: GameState | Draft<GameState>,
-  specialistId: string,
-  buildingId: string
-): { valid: boolean; reason?: string } {
-  const specialist = state.specialists[specialistId];
-  const building = state.buildings[buildingId];
-
-  // Check if specialist exists
-  if (!specialist) {
-    return { valid: false, reason: 'Specialist not found' };
-  }
-
-  // Check if building exists
-  if (!building) {
-    return { valid: false, reason: 'Building not found' };
-  }
-
-  // Check if specialist is in global storage (unassigned)
-  if (!state.globalSpecialistStorage.includes(specialistId)) {
-    return { valid: false, reason: 'Specialist is not available in storage' };
-  }
-
-  // Check if building belongs to player
-  if (building.faction !== Faction.PLAYER) {
-    return { valid: false, reason: 'Building does not belong to player' };
-  }
-
-  // Check if building was attacked last enemy turn
-  if (building.wasAttackedLastEnemyTurn) {
-    return { valid: false, reason: 'Building was attacked last enemy turn' };
-  }
-
-  // Check if building already has a specialist
-  if (building.specialistSlot !== null) {
-    return { valid: false, reason: 'Building already has a specialist' };
-  }
-
-  return { valid: true };
-}
-
-/**
- * Checks if a specialist can be unassigned from a building.
- */
-function canUnassignSpecialist(
-  state: GameState | Draft<GameState>,
-  buildingId: string
-): { valid: boolean; reason?: string } {
-  const building = state.buildings[buildingId];
-
-  // Check if building exists
-  if (!building) {
-    return { valid: false, reason: 'Building not found' };
-  }
-
-  // Check if building belongs to player
-  if (building.faction !== Faction.PLAYER) {
-    return { valid: false, reason: 'Building does not belong to player' };
-  }
-
-  // Check if building has a specialist to unassign
-  if (building.specialistSlot === null) {
-    return { valid: false, reason: 'Building has no specialist to unassign' };
-  }
-
-  // Check if building was attacked last enemy turn
-  if (building.wasAttackedLastEnemyTurn) {
-    return { valid: false, reason: 'Building was attacked last enemy turn' };
-  }
-
-  return { valid: true };
-}
-
 // ============================================================================
-// SPECIALIST ACTIONS
+// SPECIALIST ACTIONS (hire / apply / revoke for individual specialists)
 // ============================================================================
 
 /**
- * Assigns a specialist from global storage to a building.
- * - Removes specialist from globalSpecialistStorage
- * - Adds specialist to building.specialistSlot
- * - Updates specialist.assignedBuildingId
- * - Disables building for SPECIALIST_ASSIGN_DISABLE_TURNS
- *
- * @param state - Immer draft of the game state (will be mutated)
- * @param specialistId - ID of the specialist to assign
- * @param buildingId - ID of the building to assign to
+ * Applies the effects of a single specialist to the current game state.
+ * Safe to call multiple times — all effect application is idempotent.
+ * Called immediately when a specialist is added to globalSpecialistStorage.
  */
-export function assignSpecialist(
+export function applyEffectsForSpecialist(
   state: Draft<GameState>,
-  specialistId: string,
-  buildingId: string
+  specialist: Specialist,
 ): void {
-  const validation = canAssignSpecialist(state, specialistId, buildingId);
-
-  if (!validation.valid) {
-    // In production, could log or throw an error
-    return;
-  }
-
-  const specialist = state.specialists[specialistId];
-  const building = state.buildings[buildingId];
-
-  // Remove specialist from global storage (validation ensures it exists)
-  const storageIndex = state.globalSpecialistStorage.indexOf(specialistId);
-  state.globalSpecialistStorage.splice(storageIndex, 1);
-
-  // Assign specialist to building
-  building.specialistSlot = specialistId;
-  specialist.assignedBuildingId = buildingId;
-
-  // Apply specialist effects
+  if (specialist.dormant) return;
   for (const effect of specialist.effects) {
     if (effect.type === 'FORTIFIED_GARRISON') {
       setFortifiedGarrisonState(state, true);
@@ -304,50 +197,18 @@ export function assignSpecialist(
       applyUnitTagToAllUnits(state, effect.params.unitType as UnitType, effect.params.tag as UnitTag);
     }
   }
-
-  // Disable building for the configured number of turns
-  building.isDisabledForTurns = BUILDINGS.SPECIALIST_ASSIGN_DISABLE_TURNS;
 }
 
 /**
- * Unassigns a specialist from a building and returns it to global storage.
- * - Removes specialist from building.specialistSlot
- * - Adds specialist to globalSpecialistStorage
- * - Updates specialist.assignedBuildingId to null
- * - Disables building for SPECIALIST_ASSIGN_DISABLE_TURNS
- * - Revokes the specialist's effects from units/buildings
- *
- * @param state - Immer draft of the game state (will be mutated)
- * @param buildingId - ID of the building to unassign from
+ * Revokes the effects of a single specialist from the current game state.
+ * Called immediately when a specialist is removed from globalSpecialistStorage.
  */
-export function unassignSpecialist(
+export function revokeEffectsForSpecialist(
   state: Draft<GameState>,
-  buildingId: string
+  specialist: Specialist,
 ): void {
-  const validation = canUnassignSpecialist(state, buildingId);
-
-  if (!validation.valid) {
-    // In production, could log or throw an error
-    return;
-  }
-
-  const building = state.buildings[buildingId];
-  const specialistId = building.specialistSlot as string;
-  const specialist = state.specialists[specialistId];
-
-  if (!specialist) {
-    return;
-  }
-
-  // Remove specialist from building FIRST so that revokeUnitTagFromAllUnits
-  // correctly detects that this specialist is no longer assigned.
-  building.specialistSlot = null;
-  specialist.assignedBuildingId = null;
-
-  // Revoke specialist effects
   for (const effect of specialist.effects) {
     if (effect.type === 'FORTIFIED_GARRISON') {
-      // Only revert if no other specialist also grants FORTIFIED_GARRISON
       if (!isSpecialistEffectActive(state, 'FORTIFIED_GARRISON')) {
         setFortifiedGarrisonState(state, false);
       }
@@ -355,16 +216,10 @@ export function unassignSpecialist(
       revokeUnitTagFromAllUnits(state, effect.params.unitType as UnitType, effect.params.tag as UnitTag);
     }
   }
-
-  // Return specialist to global storage
-  state.globalSpecialistStorage.push(specialistId);
-
-  // Disable building for the configured number of turns
-  building.isDisabledForTurns = BUILDINGS.SPECIALIST_ASSIGN_DISABLE_TURNS;
 }
 
 /**
- * Deducts upkeep costs for all hired specialists at the end of each player turn.
+ * Deducts upkeep costs for all globally-owned specialists at the end of each player turn.
  * Specialists whose upkeep cannot be paid are marked dormant (effects disabled).
  * Specialists with zero upkeep are never affected.
  *
@@ -373,16 +228,7 @@ export function unassignSpecialist(
  * @param state - Immer draft of the game state (will be mutated)
  */
 export function deductSpecialistUpkeep(state: Draft<GameState>): void {
-  // Collect all specialist IDs currently owned by the player
-  // (both in globalStorage and assigned to buildings).
-  const ownedIds = new Set<string>([
-    ...state.globalSpecialistStorage,
-    ...Object.values(state.buildings)
-      .map((b) => b.specialistSlot)
-      .filter((id): id is string => id !== null),
-  ]);
-
-  for (const specId of ownedIds) {
+  for (const specId of state.globalSpecialistStorage) {
     const spec = state.specialists[specId];
     if (!spec) continue;
 
@@ -407,20 +253,19 @@ export function deductSpecialistUpkeep(state: Draft<GameState>): void {
 }
 
 /**
- * Applies specialist effects to the game state for all assigned, non-dormant
- * specialists.  Called every turn after deductSpecialistUpkeep so that any
- * dormancy changes are immediately reflected on units.
+ * Applies specialist effects to the game state for all globally-owned specialists.
+ * Called every turn after deductSpecialistUpkeep so that any dormancy changes are
+ * immediately reflected on units.
  *
- * - Non-dormant, assigned specialists: effects are applied (idempotent — tags
- *   that are already present are not duplicated).
- * - Dormant or unassigned specialists: effects are revoked (if no other active
- *   specialist still grants them).
+ * - Non-dormant specialists in globalSpecialistStorage: effects are applied (idempotent).
+ * - Dormant specialists: effects are revoked (if no other active specialist still grants them).
  *
  * @param state - Immer draft of the game state (will be mutated)
  */
 export function applySpecialistEffects(state: Draft<GameState>): void {
-  for (const specialist of Object.values(state.specialists)) {
-    if (specialist.assignedBuildingId === null) continue;
+  for (const specId of state.globalSpecialistStorage) {
+    const specialist = state.specialists[specId];
+    if (!specialist) continue;
 
     const isDormant = !!specialist.dormant;
 
