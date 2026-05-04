@@ -589,7 +589,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   SWORDSMAN: {
-    dangerou00, attack: 55, defense: 50,
+    maxHp: 115, attack: 55, defense: 50,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
     tags: [],
@@ -795,6 +795,13 @@ export interface BuildingDefinition {
     attackRange: number;
     maxAttacksPerTurn?: number;
   };
+  /**
+   * Maximum number of units of the recruitable type(s) per building of this type.
+   * The global cap = (number of player-owned buildings of this type) × unitLimit.
+   * Only relevant for recruitment buildings; undefined means no cap.
+   * Default value: 5.
+   */
+  unitLimit?: number;
   description: string;
 }
 
@@ -815,6 +822,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.STRONGHOLD_RUIN,
     constructionCost: { iron: 0, wood: 0 },
+    unitLimit: 5,
     description: 'Your capital — if you lose all your strongholds, the game is over.',
   },
   MINE: {
@@ -833,24 +841,28 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.RUIN,
     constructionCost: { iron: 2, wood: 2 },
+    unitLimit: 5,
     description: 'Military hall that trains Infantry.',
   },
   ARCHER_CAMP: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.RUIN,
     constructionCost: { iron: 1, wood: 3 },
+    unitLimit: 5,
     description: 'Archery range that trains Archers.',
   },
   RIDER_CAMP: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.RUIN,
     constructionCost: { iron: 5, wood: 3 },
+    unitLimit: 5,
     description: 'Stable that trains Riders.',
   },
   SIEGE_CAMP: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.RUIN,
     constructionCost: { iron: 3, wood: 5 },
+    unitLimit: 5,
     description: 'Engineering works that trains Siege engines.',
   },
   WATCHTOWER: {

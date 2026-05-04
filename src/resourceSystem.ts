@@ -6,7 +6,7 @@
 import type { GameState, Building, Position, Tile, UnitPopulationCost } from './types';
 import type { Draft } from 'immer';
 import { Faction, BuildingType, UnitType, UnitTag, ResourceType } from './types';
-import { RESOURCES, UNIT_DEFINITIONS, POPULATION, CRYSTAL_CHAMBER_CONFIG } from './gameConfig';
+import { RESOURCES, UNIT_DEFINITIONS, POPULATION, CRYSTAL_CHAMBER_CONFIG, BUILDING_DEFINITIONS } from './gameConfig';
 import type { UnitCost } from './gameConfig';
 import { getGrantedTags, getStatMods, getBuildingProductionMods, grantArcaneCrystals, getStrongholdCapMods, getRemovedTags, getCostMods } from './techSystem';
 import { getTagsFromActiveSpecialists } from './specialistSystem';
@@ -70,7 +70,7 @@ function isRecruitmentBuilding(building: Building): boolean {
 /**
  * Gets an array of unit types that can be recruited from a building type.
  */
-function getRecruitableUnitTypes(buildingType: BuildingType): UnitType[] {
+export function getRecruitableUnitTypes(buildingType: BuildingType): UnitType[] {
   switch (buildingType) {
     case BuildingType.BARRACKS:
       return [UnitType.INFANTRY, UnitType.SWORDSMAN];
@@ -87,9 +87,42 @@ function getRecruitableUnitTypes(buildingType: BuildingType): UnitType[] {
   }
 }
 
-// ============================================================================
-// RESOURCE COLLECTION
-// ============================================================================
+/**
+ * Computes the current unit count and global cap for a recruitment building type.
+ *
+ * - `current`: number of player-owned units whose type can be recruited from this building.
+ * - `limit`: (number of player-owned buildings of this type) × unitLimit from BUILDING_DEFINITIONS.
+ *   Returns Infinity when the building type has no unitLimit defined (uncapped).
+ */
+export function computeRecruitmentBuildingUsage(
+  state: GameState | Draft<GameState>,
+  buildingType: BuildingType,
+): { current: number; limit: number } {
+  const unitLimit = BUILDING_DEFINITIONS[buildingType]?.unitLimit;
+  if (unitLimit === undefined) {
+    return { current: 0, limit: Infinity };
+  }
+
+  const recruitableTypes = new Set(getRecruitableUnitTypes(buildingType));
+
+  let current = 0;
+  for (const unit of Object.values(state.units)) {
+    if (unit.faction === Faction.PLAYER && recruitableTypes.has(unit.type as UnitType)) {
+      current += 1;
+    }
+  }
+
+  let buildingCount = 0;
+  for (const building of Object.values(state.buildings)) {
+    if (building.faction === Faction.PLAYER && building.type === buildingType) {
+      buildingCount += 1;
+    }
+  }
+
+  return { current, limit: buildingCount * unitLimit };
+}
+
+
 
 /**
  * Collects resources from all player-owned, non-disabled resource buildings.
@@ -405,6 +438,12 @@ export function recruitUnit(
 
   // Validate player has enough population capacity
   if (!canAffordPopulation(state, unitType)) {
+    return;
+  }
+
+  // Validate recruitment building unit limit
+  const { current, limit } = computeRecruitmentBuildingUsage(state, building.type);
+  if (current >= limit) {
     return;
   }
 
