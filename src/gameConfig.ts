@@ -799,7 +799,7 @@ export interface BuildingDefinition {
    * Maximum number of units of the recruitable type(s) per building of this type.
    * The global cap = (number of player-owned buildings of this type) × unitLimit.
    * Only relevant for recruitment buildings; undefined means no cap.
-   * Default value: 5.
+   * All current recruitment buildings use 5.
    */
   unitLimit?: number;
   description: string;
