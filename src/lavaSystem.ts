@@ -164,23 +164,6 @@ export function advanceLava(state: Draft<GameState>): void {
           state.gameStats.buildingsDestroyedByLava += 1;
         }
 
-        // Handle specialist storage
-        if (building.specialistSlot !== null) {
-          const specialistId = building.specialistSlot;
-
-          if (building.faction === Faction.PLAYER) {
-            // Player building: specialist goes to global storage
-            const specialist = state.specialists[specialistId];
-            if (specialist) {
-              specialist.assignedBuildingId = null;
-              state.globalSpecialistStorage.push(specialistId);
-            }
-          } else {
-            // Enemy building or neutral: specialist is lost
-            delete state.specialists[specialistId];
-          }
-        }
-
         // Remove building from state
         delete state.buildings[buildingId];
         // Note: resonance for surviving crystal chambers is NOT applied here.

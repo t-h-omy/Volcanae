@@ -27,10 +27,10 @@ import {
 } from './constructionSystem';
 import { runEnemyTurn } from './enemySystem';
 import {
-  assignSpecialist as assignSpecialistLogic,
-  unassignSpecialist as unassignSpecialistLogic,
   deductSpecialistUpkeep,
   applySpecialistEffects,
+  applyEffectsForSpecialist,
+  revokeEffectsForSpecialist,
 } from './specialistSystem';
 import { checkGameConditions } from './gameConditions';
 import { useFloaterStore } from './floaterStore';
@@ -89,10 +89,6 @@ interface GameActions {
   cancelHealMode: () => void;
   /** Sacrifice a FIELDWORK unit to build a Watchtower at its position */
   fieldworkUnit: (unitId: string) => void;
-  /** Assign a specialist to a building (stub) */
-  assignSpecialist: (specialistId: string, buildingId: string) => void;
-  /** Unassign a specialist from a building (stub) */
-  unassignSpecialist: (buildingId: string) => void;
   /** Add a specialist to globalSpecialistStorage (called after cave monster hire) */
   hireSpecialist: (specialistId: string) => void;
   /** Replace an existing specialist with a new one (called after cave monster swap) */
@@ -141,6 +137,8 @@ interface GameActions {
   sealAndBuildMine: (tilePos: Position) => void;
   /** Explore a cave mountain tile: spawns a cave monster near it */
   exploreCave: (tilePos: Position) => void;
+  /** Permanently dismiss a cave tile without spawning a monster, building a mine, or exhausting the unit */
+  ignoreCave: (tilePos: Position) => void;
   /** Revive a fallen infantry unit from a Gravestone building (costs 1 arcane crystal) */
   reviveUnit: (buildingId: string) => void;
 }
@@ -225,9 +223,12 @@ export const useGameStore = create<GameStore>()(
       // After selection, check if this player unit is standing on an unresolved
       // cave mountain tile — if so, open the screams popup (unless they arrived
       // this turn or an encounter for this tile is already active).
+      // Only open the popup when the unit has the BUILDANDCAPTURE tag and can
+      // actually execute at least one cave action; otherwise leave the cave
+      // unresolved so a valid unit can act on it later.
       const s = useGameStore.getState();
       const unit = s.units[unitId];
-      if (unit && unit.faction === Faction.PLAYER) {
+      if (unit && unit.faction === Faction.PLAYER && unit.tags.includes(UnitTag.BUILDANDCAPTURE)) {
         const tile = s.grid[unit.position.y]?.[unit.position.x];
         if (tile?.hasCaveMonster) {
           const tileKey = `${unit.position.x},${unit.position.y}`;
@@ -623,6 +624,27 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         const tile = state.grid[tilePos.y]?.[tilePos.x];
         if (!tile) return;
+
+        // Sealing & building a mine is a construction action — exhaust the
+        // BUILDANDCAPTURE unit on the tile so it cannot act again this turn.
+        const unitOnTile = tile.unitId ? state.units[tile.unitId] : null;
+        if (!unitOnTile || unitOnTile.faction !== Faction.PLAYER) return;
+        if (!unitOnTile.tags.includes(UnitTag.BUILDANDCAPTURE)) return;
+        unitOnTile.hasMovedThisTurn = true;
+        unitOnTile.hasAttackedThisTurn = true;
+        unitOnTile.hasConstructedThisTurn = true;
+        unitOnTile.hasDestroyedThisTurn = true;
+        unitOnTile.hasCapturedThisTurn = true;
+
+        // Also clear the activeCaveEncounters entry for this tile if one exists
+        const mountainTileId = `${tilePos.x},${tilePos.y}`;
+        const encounterIdx = state.activeCaveEncounters.findIndex(
+          (e) => e.mountainTileId === mountainTileId,
+        );
+        if (encounterIdx !== -1) {
+          state.activeCaveEncounters.splice(encounterIdx, 1);
+        }
+
         placeMineOnTile(state, tilePos);
         tile.hasCaveMonster = false;
         updateDiscovery(state);
@@ -787,6 +809,27 @@ export const useGameStore = create<GameStore>()(
       }
     },
 
+    ignoreCave: (tilePos: Position) => {
+      set((state) => {
+        const tile = state.grid[tilePos.y]?.[tilePos.x];
+        if (!tile) return;
+
+        // Permanently dismiss this cave: clear the monster marker and any
+        // active encounter entry. The mountain becomes a normal mountain.
+        // The unit is NOT exhausted — it can still move and act this turn.
+        tile.hasCaveMonster = false;
+
+        const mountainTileId = `${tilePos.x},${tilePos.y}`;
+        const encounterIdx = state.activeCaveEncounters.findIndex(
+          (e) => e.mountainTileId === mountainTileId,
+        );
+        if (encounterIdx !== -1) {
+          state.activeCaveEncounters.splice(encounterIdx, 1);
+        }
+      });
+      useCaveScreamsStore.getState().close();
+    },
+
     reviveUnit: (buildingId: string) => {
       set((state) => {
         const building = state.buildings[buildingId];
@@ -937,22 +980,12 @@ export const useGameStore = create<GameStore>()(
       });
     },
 
-    assignSpecialist: (specialistId: string, buildingId: string) => {
-      set((state) => {
-        assignSpecialistLogic(state, specialistId, buildingId);
-      });
-    },
-
-    unassignSpecialist: (buildingId: string) => {
-      set((state) => {
-        unassignSpecialistLogic(state, buildingId);
-      });
-    },
-
     hireSpecialist: (specialistId: string) => {
       set((state) => {
         if (state.specialists[specialistId] && !state.globalSpecialistStorage.includes(specialistId)) {
           state.globalSpecialistStorage.push(specialistId);
+          // Apply the specialist's effects immediately on hire
+          applyEffectsForSpecialist(state, state.specialists[specialistId]);
         }
       });
     },
@@ -961,14 +994,17 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         const idx = state.globalSpecialistStorage.indexOf(outgoingId);
         if (idx !== -1 && state.specialists[incomingId] && !state.globalSpecialistStorage.includes(incomingId)) {
-          // If the outgoing specialist was assigned to a building, unassign it first
-          // (this reverts its effects properly via the unassignSpecialist logic)
+          // Revoke effects of the outgoing specialist before removing it
           const outgoing = state.specialists[outgoingId];
-          if (outgoing?.assignedBuildingId) {
-            unassignSpecialistLogic(state, outgoing.assignedBuildingId);
+          if (outgoing) {
+            // Temporarily remove from storage so revoke checks see it as no longer active
+            state.globalSpecialistStorage.splice(idx, 1);
+            revokeEffectsForSpecialist(state, outgoing);
+            // Insert incoming at the same index so HUD slot position is stable
+            state.globalSpecialistStorage.splice(idx, 0, incomingId);
+            // Apply effects of the incoming specialist immediately
+            applyEffectsForSpecialist(state, state.specialists[incomingId]);
           }
-          // Replace in storage at the same index so HUD slot position is stable
-          state.globalSpecialistStorage[idx] = incomingId;
         }
       });
     },
@@ -1694,6 +1730,12 @@ export const useGameStore = create<GameStore>()(
         toTile.unitId = attackerId;
         attacker.position.x = toPosition.x;
         attacker.position.y = toPosition.y;
+        // Mark as moved this turn so that cave-popup eligibility checks
+        // treat this as "just arrived" and do not show the popup immediately.
+        if (attacker.faction === Faction.PLAYER) {
+          attacker.lastMovedTurn = state.turn;
+          attacker.hasMovedThisTurn = true;
+        }
       });
     },
 

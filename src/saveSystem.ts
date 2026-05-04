@@ -143,6 +143,34 @@ export function loadGameState(): GameState | null {
       }
     }
 
+    // Migration: specialists are now global (active as soon as they are in
+    // globalSpecialistStorage). If old saves have specialists with
+    // assignedBuildingId set, migrate them into globalSpecialistStorage and
+    // clear the assignment. Also clear any building.specialistSlot references.
+    if (s.specialists && typeof s.specialists === 'object') {
+      const gss = gs.globalSpecialistStorage as string[];
+      const slotCap = typeof gs.specialistSlotCap === 'number' ? gs.specialistSlotCap : 2;
+      for (const [specId, spec] of Object.entries(s.specialists) as Array<[string, unknown]>) {
+        const sp = spec as Record<string, unknown>;
+        if (sp && typeof sp.id === 'string' && sp.assignedBuildingId != null) {
+          // Move to globalSpecialistStorage if room is available and not already there
+          if (!gss.includes(specId) && gss.length < slotCap) {
+            gss.push(specId);
+          }
+          sp.assignedBuildingId = null;
+        }
+      }
+    }
+    // Clear building.specialistSlot so that buildings no longer carry specialists
+    if (s.buildings && typeof s.buildings === 'object') {
+      for (const building of Object.values(s.buildings) as Array<unknown>) {
+        const b = building as Record<string, unknown>;
+        if (b && b.specialistSlot != null) {
+          b.specialistSlot = null;
+        }
+      }
+    }
+
     return s as GameState;
   } catch {
     return null;
