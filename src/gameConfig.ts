@@ -589,7 +589,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   SWORDSMAN: {
-    dangerou00, attack: 55, defense: 50,
+    maxHp: 100, attack: 55, defense: 50,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
     tags: [UnitTag.BUILDANDCAPTURE],
