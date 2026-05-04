@@ -137,6 +137,8 @@ interface GameActions {
   sealAndBuildMine: (tilePos: Position) => void;
   /** Explore a cave mountain tile: spawns a cave monster near it */
   exploreCave: (tilePos: Position) => void;
+  /** Permanently dismiss a cave tile without spawning a monster, building a mine, or exhausting the unit */
+  ignoreCave: (tilePos: Position) => void;
   /** Revive a fallen infantry unit from a Gravestone building (costs 1 arcane crystal) */
   reviveUnit: (buildingId: string) => void;
 }
@@ -221,9 +223,12 @@ export const useGameStore = create<GameStore>()(
       // After selection, check if this player unit is standing on an unresolved
       // cave mountain tile — if so, open the screams popup (unless they arrived
       // this turn or an encounter for this tile is already active).
+      // Only open the popup when the unit has the BUILDANDCAPTURE tag and can
+      // actually execute at least one cave action; otherwise leave the cave
+      // unresolved so a valid unit can act on it later.
       const s = useGameStore.getState();
       const unit = s.units[unitId];
-      if (unit && unit.faction === Faction.PLAYER) {
+      if (unit && unit.faction === Faction.PLAYER && unit.tags.includes(UnitTag.BUILDANDCAPTURE)) {
         const tile = s.grid[unit.position.y]?.[unit.position.x];
         if (tile?.hasCaveMonster) {
           const tileKey = `${unit.position.x},${unit.position.y}`;
@@ -619,6 +624,27 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         const tile = state.grid[tilePos.y]?.[tilePos.x];
         if (!tile) return;
+
+        // Sealing & building a mine is a construction action — exhaust the
+        // BUILDANDCAPTURE unit on the tile so it cannot act again this turn.
+        const unitOnTile = tile.unitId ? state.units[tile.unitId] : null;
+        if (!unitOnTile || unitOnTile.faction !== Faction.PLAYER) return;
+        if (!unitOnTile.tags.includes(UnitTag.BUILDANDCAPTURE)) return;
+        unitOnTile.hasMovedThisTurn = true;
+        unitOnTile.hasAttackedThisTurn = true;
+        unitOnTile.hasConstructedThisTurn = true;
+        unitOnTile.hasDestroyedThisTurn = true;
+        unitOnTile.hasCapturedThisTurn = true;
+
+        // Also clear the activeCaveEncounters entry for this tile if one exists
+        const mountainTileId = `${tilePos.x},${tilePos.y}`;
+        const encounterIdx = state.activeCaveEncounters.findIndex(
+          (e) => e.mountainTileId === mountainTileId,
+        );
+        if (encounterIdx !== -1) {
+          state.activeCaveEncounters.splice(encounterIdx, 1);
+        }
+
         placeMineOnTile(state, tilePos);
         tile.hasCaveMonster = false;
         updateDiscovery(state);
@@ -781,6 +807,27 @@ export const useGameStore = create<GameStore>()(
         const pos = vfxPos as { x: number; y: number };
         useCombatAnimationStore.getState().addTileFlash(pos.x, pos.y, 600);
       }
+    },
+
+    ignoreCave: (tilePos: Position) => {
+      set((state) => {
+        const tile = state.grid[tilePos.y]?.[tilePos.x];
+        if (!tile) return;
+
+        // Permanently dismiss this cave: clear the monster marker and any
+        // active encounter entry. The mountain becomes a normal mountain.
+        // The unit is NOT exhausted — it can still move and act this turn.
+        tile.hasCaveMonster = false;
+
+        const mountainTileId = `${tilePos.x},${tilePos.y}`;
+        const encounterIdx = state.activeCaveEncounters.findIndex(
+          (e) => e.mountainTileId === mountainTileId,
+        );
+        if (encounterIdx !== -1) {
+          state.activeCaveEncounters.splice(encounterIdx, 1);
+        }
+      });
+      useCaveScreamsStore.getState().close();
     },
 
     reviveUnit: (buildingId: string) => {
@@ -1683,6 +1730,12 @@ export const useGameStore = create<GameStore>()(
         toTile.unitId = attackerId;
         attacker.position.x = toPosition.x;
         attacker.position.y = toPosition.y;
+        // Mark as moved this turn so that cave-popup eligibility checks
+        // treat this as "just arrived" and do not show the popup immediately.
+        if (attacker.faction === Faction.PLAYER) {
+          attacker.lastMovedTurn = state.turn;
+          attacker.hasMovedThisTurn = true;
+        }
       });
     },
 
