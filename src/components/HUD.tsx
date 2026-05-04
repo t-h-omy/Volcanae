@@ -19,6 +19,7 @@ import {
   computePopulationCapacity,
   canAffordPopulation,
   computeResourceIncome,
+  computeRecruitmentBuildingUsage,
 } from '../resourceSystem';
 import {
   getConstructionOptionsForTile,
@@ -1513,6 +1514,14 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   const allRecruitableTypes = BUILDING_RECRUITS[building.type] ?? [];
   const recruitableTypes = allRecruitableTypes.filter((ut) => unlockedUnits.includes(ut));
 
+  // Unit limit info for recruitment buildings
+  const isRecruitmentBuilding =
+    isPlayerOwned && BUILDING_DEFINITIONS[building.type]?.unitLimit !== undefined;
+  const { current: recruitedUnits, limit: unitLimit } = isRecruitmentBuilding
+    ? computeRecruitmentBuildingUsage(gameState, building.type)
+    : { current: 0, limit: Infinity };
+  const atUnitLimit = isFinite(unitLimit) && recruitedUnits >= unitLimit;
+
   // Check whether there is a free tile to spawn a unit (building tile or adjacent)
   const hasSpawnSpace = useMemo(
     () => (recruitableTypes.length > 0 ? hasSpawnSpaceAt(grid, building.position) : false),
@@ -1684,6 +1693,16 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
         </div>
       )}
 
+      {/* Unit limit for recruitment buildings */}
+      {isRecruitmentBuilding && isFinite(unitLimit) && (
+        <div className="hud-production-row">
+          🗡️ {recruitedUnits}/{unitLimit} units
+          {atUnitLimit && (
+            <span className="hud-dim"> — Build more to raise the limit</span>
+          )}
+        </div>
+      )}
+
       {/* Gravestone revive button */}
       {isGravestone && (
         <div className="hud-revive-row">
@@ -1721,7 +1740,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
                   : false;
                 const popCost = UNIT_DEFINITIONS[unitType]?.populationCost as UnitPopulationCost | undefined;
                 const hasPopulation = canAffordPopulation(useGameStore.getState(), unitType);
-                const canRecruitThisUnit = !isDisabled && hasSpawnSpace && canAffordUnit && hasPopulation;
+                const canRecruitThisUnit = !isDisabled && hasSpawnSpace && canAffordUnit && hasPopulation && !atUnitLimit;
                 // Compute which population resource is actually insufficient for the error message
                 let popWarningMsg: string | null = null;
                 if (!hasPopulation && canAffordUnit && popCost) {
