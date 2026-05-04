@@ -991,7 +991,7 @@ export const ABILITIES = {
   /** Discover radius bonus granted to Scouts by the BIG_EYES tech */
   SCOUT_DISCOVER_BONUS: 1,
   /** Probability (0–1) that a PIN_DOWN archer hit stuns the target (blocks move + attack) */
-  PIN_DOWN_STUN_CHANCE: 0.5,
+  PIN_DOWN_STUN_CHANCE: 0.25,
   // ── Tech-tree production bonus abilities ────────────────────────────────────
   /** % chance for a Mine to yield one extra iron per turn (DEEP_VEINS tech) */
   DEEP_VEINS_BONUS_CHANCE: 30,
@@ -1020,7 +1020,7 @@ export const ABILITIES = {
   /** Crystal cost to revive a unit from a Gravestone */
   REVIVE_CRYSTAL_COST: 1,
   /** Starting and maximum HP of a newly spawned Gravestone building */
-  GRAVESTONE_MAX_HP: 80,
+  GRAVESTONE_MAX_HP: 25,
 } as const;
 
 // Override GRAVESTONE description now that ABILITIES is available (crystal cost is configurable).
@@ -1056,15 +1056,15 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
     description:
       `All your Watchtowers and Outposts gain +${ABILITIES.FORTIFIED_GARRISON_ATTACK_BONUS} attack and +${ABILITIES.FORTIFIED_GARRISON_RANGE_BONUS} attack range.`,
     effects: [{ type: 'FORTIFIED_GARRISON', params: {} }],
-    upkeepIron: 0,
-    upkeepWood: 0,
+    upkeepIron: 1,
+    upkeepWood: 2,
   },
   spec_02: {
     name: 'Bloodrider',
     description:
       'When one of your Riders kills an enemy, it may attack once more this turn at half attack and without retaliation.',
     effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.RIDER, tag: UnitTag.BLOODLUST } }],
-    upkeepIron: 0,
+    upkeepIron: 3,
     upkeepWood: 0,
   },
   spec_03: {
@@ -1073,14 +1073,14 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
       `Your Siege units deal ${Math.round(ABILITIES.SPLASH_DAMAGE_RATIO * 100)}% of their damage to all enemy units surrounding their target.`,
     effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.SIEGE, tag: UnitTag.SPLASH } }],
     upkeepIron: 0,
-    upkeepWood: 0,
+    upkeepWood: 2,
   },
   spec_04: {
     name: 'Drill Sergeant',
     description:
       'Your Infantry units can move and attack immediately after being recruited.',
     effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.INFANTRY, tag: UnitTag.READY } }],
-    upkeepIron: 0,
+    upkeepIron: 2,
     upkeepWood: 0,
   },
   spec_05: {
@@ -1088,8 +1088,8 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
     description:
       `When one of your Infantry units dies, a Gravestone is left on their tile. Pay ${ABILITIES.REVIVE_CRYSTAL_COST} crystal to revive the unit.`,
     effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.INFANTRY, tag: UnitTag.REVIVABLE } }],
-    upkeepIron: 0,
-    upkeepWood: 0,
+    upkeepIron: 1,
+    upkeepWood: 1,
   },
 };
 
