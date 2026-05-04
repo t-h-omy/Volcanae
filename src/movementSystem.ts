@@ -99,6 +99,11 @@ export function getReachableTiles(
     }
   }
 
+  // HIT_AND_RUN post-attack move: cap range to the configured post-attack value.
+  if (isHitAndRunPostAttack) {
+    moveRange = Math.min(moveRange, ABILITIES.HIT_AND_RUN_POST_ATTACK_MOVE_RANGE);
+  }
+
   // ── Check 1: geometric range ─────────────────────────────────────────────
   // Build the set of tile keys that fall within the edge-circle range.
   // This is computed without any knowledge of terrain or occupancy — it

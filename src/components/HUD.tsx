@@ -56,6 +56,7 @@ import './HUD.css';
 
 const UNIT_EMOJI: Record<string, string> = {
   [UnitType.INFANTRY]: '⚔️',
+  [UnitType.SWORDSMAN]: '🗡️',
   [UnitType.ARCHER]: '🏹',
   [UnitType.RIDER]: '🐴',
   [UnitType.SIEGE]: '💣',
@@ -71,6 +72,7 @@ const UNIT_EMOJI: Record<string, string> = {
 
 const UNIT_NAME: Record<string, string> = {
   [UnitType.INFANTRY]: 'Infantry',
+  [UnitType.SWORDSMAN]: 'Swordsman',
   [UnitType.ARCHER]: 'Archer',
   [UnitType.RIDER]: 'Rider',
   [UnitType.SIEGE]: 'Siege',
@@ -145,7 +147,7 @@ const TAG_EMOJI: Partial<Record<UnitTag, string>> = {
 
 /** Maps recruitment buildings to their recruitable unit types */
 const BUILDING_RECRUITS: Partial<Record<string, UnitType[]>> = {
-  [BuildingType.BARRACKS]: [UnitType.INFANTRY],
+  [BuildingType.BARRACKS]: [UnitType.INFANTRY, UnitType.SWORDSMAN],
   [BuildingType.ARCHER_CAMP]: [UnitType.ARCHER],
   [BuildingType.RIDER_CAMP]: [UnitType.RIDER],
   [BuildingType.SIEGE_CAMP]: [UnitType.SIEGE],
