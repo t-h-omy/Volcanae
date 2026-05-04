@@ -592,7 +592,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     dangerou00, attack: 55, defense: 50,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
-    tags: [],
+    tags: [UnitTag.BUILDANDCAPTURE],
     cost: { iron: 5, wood: 3 },
     populationCost: { farmers: 1, nobles: 0 },
     levelUp: [
