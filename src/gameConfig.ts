@@ -575,11 +575,11 @@ export const LEVEL_UP_VALUES = {
  */
 export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   INFANTRY: {
-    maxHp: 100, attack: 40, defense: 50,
+    maxHp: 100, attack: 40, defense: 40,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
     tags: [UnitTag.BUILDANDCAPTURE],
-    cost: { iron: 3, wood: 2 },
+    cost: { iron: 2, wood: 3 },
     populationCost: { farmers: 1, nobles: 0 },
     levelUp: [
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
@@ -589,7 +589,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   SWORDSMAN: {
-    maxHp: 130, attack: 60, defense: 60,
+    dangerou00, attack: 55, defense: 50,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
     tags: [],
@@ -599,7 +599,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
-    description: 'Elite heavy infantry with superior combat strength. Unlocked by the Swordsman training tech.',
+    description: 'Heavy infantry with superior combat strength. Unlocked by the Swordsman training tech.',
   },
 
   ARCHER: {
