@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/Volcanae/previews/copilot-investigate-specialist-cave-monster-systems/sw.js', { scope: '/Volcanae/previews/copilot-investigate-specialist-cave-monster-systems/' })})}
