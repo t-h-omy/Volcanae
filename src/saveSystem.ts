@@ -152,7 +152,7 @@ export function loadGameState(): GameState | null {
       const slotCap = typeof gs.specialistSlotCap === 'number' ? gs.specialistSlotCap : 2;
       for (const [specId, spec] of Object.entries(s.specialists) as Array<[string, unknown]>) {
         const sp = spec as Record<string, unknown>;
-        if (sp && typeof sp.id === 'string' && sp.assignedBuildingId !== null && sp.assignedBuildingId !== undefined) {
+        if (sp && typeof sp.id === 'string' && sp.assignedBuildingId != null) {
           // Move to globalSpecialistStorage if room is available and not already there
           if (!gss.includes(specId) && gss.length < slotCap) {
             gss.push(specId);
@@ -165,7 +165,7 @@ export function loadGameState(): GameState | null {
     if (s.buildings && typeof s.buildings === 'object') {
       for (const building of Object.values(s.buildings) as Array<unknown>) {
         const b = building as Record<string, unknown>;
-        if (b && b.specialistSlot !== null && b.specialistSlot !== undefined) {
+        if (b && b.specialistSlot != null) {
           b.specialistSlot = null;
         }
       }
