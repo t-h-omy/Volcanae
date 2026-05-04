@@ -185,9 +185,9 @@ export const UnitTag = {
   BLOODLUST: 'BLOODLUST',
   /** Siege unit deals 25% of dealt damage to all enemy units surrounding the target */
   SPLASH: 'SPLASH',
-  /** Infantry unit can move and attack immediately after being recruited */
+  /** Spearman unit can move and attack immediately after being recruited */
   READY: 'READY',
-  /** Infantry unit leaves a Gravestone building on death that can be revived */
+  /** Spearman unit leaves a Gravestone building on death that can be revived */
   REVIVABLE: 'REVIVABLE',
 } as const;
 export type UnitTag = (typeof UnitTag)[keyof typeof UnitTag];

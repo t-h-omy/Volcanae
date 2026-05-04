@@ -12,7 +12,8 @@ import type { Projectile } from '../combatAnimationStore';
 import { useShockwaveStore } from '../shockwaveStore';
 import { canCapture } from '../captureSystem';
 import { getConstructionOptionsForTile } from '../constructionSystem';
-import { MAP, UNIT_DEFINITIONS } from '../gameConfig';
+import { MAP, POPULATION, UNIT_DEFINITIONS } from '../gameConfig';
+import { getStrongholdCapMods } from '../techSystem';
 import { ANIMATION } from '../animationConfig';
 import { UI } from '../uiConfig';
 import { RENDER } from '../renderConfig';
@@ -136,6 +137,10 @@ export default function GridRenderer() {
   const healUnit = useGameStore((s) => s.healUnit);
   const pendingHealerId = useGameStore((s) => s.pendingHealerId);
   const cancelHealMode = useGameStore((s) => s.cancelHealMode);
+  const strongholdTotalCap = useGameStore((s) => {
+    const { farmerMod, nobleMod } = getStrongholdCapMods(s);
+    return POPULATION.STRONGHOLD_FARMER_CAP + farmerMod + POPULATION.STRONGHOLD_NOBLE_CAP + nobleMod;
+  });
 
   // ── Animation store selectors ──
   const isAnimating = useAnimationStore((s) => s.isAnimating);
@@ -695,6 +700,7 @@ export default function GridRenderer() {
                 isAttackable={isAttackable}
                 isHealable={isHealable}
                 isSelected={isSelected}
+                strongholdTotalCap={strongholdTotalCap}
                 onClick={() => handleTileClick(x, y)}
               />
             );
@@ -728,6 +734,8 @@ interface TileCellProps {
   isAttackable: boolean;
   isHealable: boolean;
   isSelected: boolean;
+  /** Pre-computed total population cap for STRONGHOLD buildings (farmers + nobles, including tech mods). */
+  strongholdTotalCap: number;
   onClick: () => void;
 }
 
@@ -740,6 +748,7 @@ function TileCellInner({
   isAttackable,
   isHealable,
   isSelected,
+  strongholdTotalCap,
   onClick,
 }: TileCellProps) {
   const buildingIconSize = tileSize;
@@ -978,7 +987,10 @@ function TileCellInner({
         const popCount = building.type === BuildingType.STRONGHOLD
           ? building.populationCount + building.strongholdNobles
           : building.populationCount;
-        return <div className="population-badge">{popCount}/{building.populationCap}</div>;
+        const capDisplay = building.type === BuildingType.STRONGHOLD
+          ? strongholdTotalCap
+          : building.populationCap;
+        return <div className="population-badge">{popCount}/{capDisplay}</div>;
       })()}
 
       {/* unit rendering */}

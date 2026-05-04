@@ -446,10 +446,16 @@ export const TERRAIN = {
   MOUNTAINS_PER_ZONE_MIN: 2,
   /** Maximum number of mountain tiles placed per zone */
   MOUNTAINS_PER_ZONE_MAX: 3,
-  /** Minimum number of ruin tiles placed per zone */
+  /** Minimum number of ruin tiles placed per zone (used if no zone-specific override is set) */
   RUINS_PER_ZONE_MIN: 7,
-  /** Maximum number of ruin tiles placed per zone */
+  /** Maximum number of ruin tiles placed per zone (used if no zone-specific override is set) */
   RUINS_PER_ZONE_MAX: 8,
+  /**
+   * Optional per-zone ruin min/max overrides.
+   * Keys are zone numbers (1–5). Missing keys fall back to RUINS_PER_ZONE_MIN/MAX.
+   * Example: { 1: { min: 4, max: 5 }, 5: { min: 10, max: 12 } }
+   */
+  RUINS_PER_ZONE_OVERRIDES: {} as Record<number, { min: number; max: number }>,
   /** Minimum number of ruin tiles placed in the lava buffer rows */
   RUINS_IN_LAVA_BUFFER_MIN: 3,
   /** Maximum number of ruin tiles placed in the lava buffer rows */
@@ -842,7 +848,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     destroyBehavior: DestroyBehavior.RUIN,
     constructionCost: { iron: 2, wood: 2 },
     unitLimit: 5,
-    description: 'Military hall that trains Infantry.',
+    description: 'Military hall that trains Spearman and Swordsman.',
   },
   ARCHER_CAMP: {
     discoverRadius: 2,
@@ -877,7 +883,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     destroyBehavior: DestroyBehavior.NONE,
     constructionCost: { iron: 0, wood: 0 },
     combatStats: { maxHp: 200, attack: 40, defense: 55, attackRange: 2 },
-    description: 'Field fortification built by Infantry via Fieldwork. Attacks nearby enemies. Starting HP is based on the building unit\'s current HP.', // overwritten below
+    description: 'Field fortification built by Spearmen via Fieldwork. Attacks nearby enemies. Starting HP is based on the building unit\'s current HP.', // overwritten below
   },
   LAVALAIR: {
     discoverRadius: 2,
@@ -938,7 +944,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
   b.MINE.description       = `Produces ${RESOURCES.MINE_IRON_PER_TURN} iron per turn, the primary resource for training units.`;
   b.WOODCUTTER.description = `Produces ${RESOURCES.WOODCUTTER_WOOD_PER_TURN} wood per turn, used alongside iron for buildings and recruitment.`;
   b.WATCHTOWER.description = `Defensive tower that attacks enemies within ${b.WATCHTOWER.combatStats!.attackRange} tiles and expands your vision.`;
-  b.OUTPOST.description    = `Field fortification built by Infantry via Fieldwork. Attacks enemies within ${b.OUTPOST.combatStats!.attackRange} tiles. Starting HP is based on the building unit's current HP, capped at ${b.OUTPOST.combatStats!.maxHp}.`;
+  b.OUTPOST.description    = `Field fortification built by Spearmen via Fieldwork. Attacks enemies within ${b.OUTPOST.combatStats!.attackRange} tiles. Starting HP is based on the building unit's current HP, capped at ${b.OUTPOST.combatStats!.maxHp}.`;
   b.MAGMASPYR.description  = `Corrupted mountain spire that attacks nearby units up to ${b.MAGMASPYR.combatStats!.maxAttacksPerTurn} times per turn.`;
   b.EMBERNEST.description  = `Corrupted forest nest that spawns Emberlings every ${LAVA_LAIR.EMBER_NEST_SPAWN_INTERVAL} turns.`;
   b.CRYSTAL_CHAMBER.description = `Arcane resonator. When a Crystal Chamber is consumed by lava, all surviving chambers begin resonating and generate ${CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN} crystal${CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN !== 1 ? 's' : ''} per turn.`;
@@ -1108,7 +1114,7 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
   spec_04: {
     name: 'Drill Sergeant',
     description:
-      'Your Infantry units can move and attack immediately after being recruited.',
+      'Your Spearman units can move and attack immediately after being recruited.',
     effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.INFANTRY, tag: UnitTag.READY } }],
     upkeepIron: 2,
     upkeepWood: 0,
@@ -1116,7 +1122,7 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
   spec_05: {
     name: 'Deathmender',
     description:
-      `When one of your Infantry units dies, a Gravestone is left on their tile. Pay ${ABILITIES.REVIVE_CRYSTAL_COST} crystal to revive the unit.`,
+      `When one of your Spearman units dies, a Gravestone is left on their tile. Pay ${ABILITIES.REVIVE_CRYSTAL_COST} crystal to revive the unit.`,
     effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.INFANTRY, tag: UnitTag.REVIVABLE } }],
     upkeepIron: 1,
     upkeepWood: 1,
@@ -1245,7 +1251,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'FIELDWORK',
     name: 'Fieldwork',
-    description: `Infantry can sacrifice themselves to build an Outpost (starting HP = unit HP × ${ABILITIES.FIELDWORK_HP_MULTIPLIER})`,
+    description: `Spearmen can sacrifice themselves to build an Outpost (starting HP = unit HP × ${ABILITIES.FIELDWORK_HP_MULTIPLIER})`,
     requires: ['FIELD_DUTIES'],
     cost: 4,
     effects: [

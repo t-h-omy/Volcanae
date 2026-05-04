@@ -72,7 +72,7 @@ const UNIT_EMOJI: Record<string, string> = {
 };
 
 const UNIT_NAME: Record<string, string> = {
-  [UnitType.INFANTRY]: 'Infantry',
+  [UnitType.INFANTRY]: 'Spearman',
   [UnitType.SWORDSMAN]: 'Swordsman',
   [UnitType.ARCHER]: 'Archer',
   [UnitType.RIDER]: 'Rider',
