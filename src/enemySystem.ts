@@ -2155,14 +2155,91 @@ function parseMountainTileId(mountainTileId: string): Position | null {
 }
 
 /**
+ * Resolve a cave monster's attack against a player unit, emitting the
+ * appropriate events and cleaning up the encounter if the monster is
+ * counter-killed.  Shared by the direct-attack path (already in range) and
+ * the post-move attack path (moved into range this turn).
+ */
+function resolveCaveMonsterAttack(
+  state: Draft<GameState>,
+  attackerId: string,
+  defenderId: string,
+  events?: GameEvent[],
+): void {
+  const attacker = state.units[attackerId];
+  const defender = state.units[defenderId];
+  if (!attacker || !defender) return;
+
+  const attackerPos = { x: attacker.position.x, y: attacker.position.y };
+  const defenderPos = { x: defender.position.x, y: defender.position.y };
+  const attackerHpBefore = attacker.stats.currentHp;
+  const defenderHpBefore = defender.stats.currentHp;
+  const defenderFaction = defender.faction;
+
+  resolveAttack(state, attackerId, defenderId, !!events);
+
+  // If the cave monster was killed by the counter-attack, clean up its encounter
+  // entry from the state so the resolved state is consistent.
+  if (!state.units[attackerId]) {
+    state.activeCaveEncounters = state.activeCaveEncounters.filter(
+      (e) => e.monsterId !== attackerId,
+    );
+  }
+
+  if (events) {
+    const attackerAfter = state.units[attackerId];
+    const defenderAfter = state.units[defenderId];
+    const advancedToPosition = (
+      !defenderAfter &&
+      attackerAfter &&
+      (attackerAfter.position.x !== attackerPos.x || attackerAfter.position.y !== attackerPos.y)
+    ) ? { x: attackerAfter.position.x, y: attackerAfter.position.y } : null;
+    events.push({
+      type: 'ENEMY_ATTACK',
+      attackerId,
+      defenderId,
+      attackerPosition: attackerPos,
+      defenderPosition: defenderPos,
+      attackerHpLost: attackerAfter
+        ? attackerHpBefore - attackerAfter.stats.currentHp
+        : attackerHpBefore,
+      defenderHpLost: defenderAfter
+        ? defenderHpBefore - defenderAfter.stats.currentHp
+        : defenderHpBefore,
+      advancedToPosition,
+      attackerXpGained: !defenderAfter && attackerAfter ? XP.KILL_UNIT : null,
+      defenderXpGained: !attackerAfter ? XP.KILL_UNIT : null,
+    });
+    if (!defenderAfter) {
+      events.push({
+        type: 'UNIT_DEATH',
+        unitId: defenderId,
+        position: defenderPos,
+        faction: defenderFaction,
+      });
+    }
+    if (!attackerAfter) {
+      events.push({
+        type: 'UNIT_DEATH',
+        unitId: attackerId,
+        position: attackerPos,
+        faction: Faction.ENEMY,
+      });
+      // Cave monster was counter-killed → trigger specialist draw
+      events.push({ type: 'CAVE_MONSTER_KILLED', monsterId: attackerId });
+    }
+  }
+}
+
+/**
  * Dedicated AI loop for all CAVE_MONSTER units.
  * Runs once per enemy turn, before the standard enemy unit loop.
- * Implements four mutually-exclusive priority actions:
+ * Implements three mutually-exclusive priority actions:
  *
- *   1. Aggro — move toward or attack the nearest player unit (no range cap).
- *   2. Return — move toward home mountain if outside patrol radius.
- *   3. Patrol — move to a random reachable tile within patrol radius.
- *   4. Despawn — remove unit when standing on home mountain with no aggro.
+ *   1. Attack — if a player unit is already in attack range, strike it.
+ *   2. Move + Attack — if a player unit is within PATROL_RADIUS (nearby),
+ *      move toward it; after moving, attack if now in range.
+ *   3. Return — move toward the home mountain; despawn upon arrival.
  */
 function runCaveMonsterAi(state: Draft<GameState>, events?: GameEvent[]): void {
   const PATROL_RADIUS = TERRAIN.CAVE_MONSTER_PATROL_RADIUS;
@@ -2183,28 +2260,38 @@ function runCaveMonsterAi(state: Draft<GameState>, events?: GameEvent[]): void {
     const homePos = parseMountainTileId(encounter.mountainTileId);
     if (!homePos) continue;
 
-    // ── Priority 1: Aggro ────────────────────────────────────────────────
-    // Find the nearest player unit reachable by BFS or already in attack range.
     const playerUnits = Object.values(state.units).filter(
       (u) => u.faction === Faction.PLAYER,
     );
 
+    // ── Priority 1: Attack a player unit already in attack range ─────────
+    let directTarget: Unit | null = null;
+    for (const playerUnit of playerUnits) {
+      if (isTileWithinEdgeCircleRange(
+        unit.position.x, unit.position.y,
+        playerUnit.position.x, playerUnit.position.y,
+        unit.stats.attackRange,
+      )) {
+        directTarget = playerUnit;
+        break;
+      }
+    }
+
+    if (directTarget) {
+      resolveCaveMonsterAttack(state, unit.id, directTarget.id, events);
+      continue;
+    }
+
+    // ── Priority 2: Move toward a nearby player, then attack if in range ──
+    // "Nearby" = within PATROL_RADIUS Chebyshev distance of the monster's
+    // current position.  Once the player moves out of that range the monster
+    // stops chasing and falls through to return-home (Priority 3).
     let aggroTarget: Unit | null = null;
     let aggroPathLen = Infinity;
 
     for (const playerUnit of playerUnits) {
-      // Already in attack range?
-      const inAttackRange = isTileWithinEdgeCircleRange(
-        unit.position.x, unit.position.y,
-        playerUnit.position.x, playerUnit.position.y,
-        unit.stats.attackRange,
-      );
-      if (inAttackRange) {
-        aggroTarget = playerUnit;
-        aggroPathLen = 0;
-        break; // prefer the unit we can attack immediately
-      }
-      // Reachable by movement?
+      const dist = chebyshevDistance(unit.position, playerUnit.position);
+      if (dist > PATROL_RADIUS) continue; // outside aggro range
       const path = findBfsPath(unit.position, playerUnit.position, state);
       if (path.length > 0 && path.length < aggroPathLen) {
         aggroPathLen = path.length;
@@ -2213,126 +2300,35 @@ function runCaveMonsterAi(state: Draft<GameState>, events?: GameEvent[]): void {
     }
 
     if (aggroTarget) {
-      const inAttackRange = isTileWithinEdgeCircleRange(
-        unit.position.x, unit.position.y,
-        aggroTarget.position.x, aggroTarget.position.y,
-        unit.stats.attackRange,
-      );
-
-      if (inAttackRange) {
-        // Attack
-        const attackerPos = { x: unit.position.x, y: unit.position.y };
-        const defenderPos = { x: aggroTarget.position.x, y: aggroTarget.position.y };
-        const attackerHpBefore = unit.stats.currentHp;
-        const defenderHpBefore = aggroTarget.stats.currentHp;
-        const attackerId = unit.id;
-        const defenderId = aggroTarget.id;
-
-        resolveAttack(state, attackerId, defenderId, !!events);
-
-        // If the cave monster was killed by the counter-attack, clean up its encounter
-        // entry from the state so the resolvedState is consistent.
-        if (!state.units[attackerId]) {
-          state.activeCaveEncounters = state.activeCaveEncounters.filter(
-            (e) => e.monsterId !== attackerId,
-          );
-        }
-
-        if (events) {
-          const attackerAfter = state.units[attackerId];
-          const defenderAfter = state.units[defenderId];
-          const advancedToPosition = (
-            !defenderAfter &&
-            attackerAfter &&
-            (attackerAfter.position.x !== attackerPos.x || attackerAfter.position.y !== attackerPos.y)
-          ) ? { x: attackerAfter.position.x, y: attackerAfter.position.y } : null;
-          events.push({
-            type: 'ENEMY_ATTACK',
-            attackerId,
-            defenderId,
-            attackerPosition: attackerPos,
-            defenderPosition: defenderPos,
-            attackerHpLost: attackerAfter
-              ? attackerHpBefore - attackerAfter.stats.currentHp
-              : attackerHpBefore,
-            defenderHpLost: defenderAfter
-              ? defenderHpBefore - defenderAfter.stats.currentHp
-              : defenderHpBefore,
-            advancedToPosition,
-            attackerXpGained: !defenderAfter && attackerAfter ? XP.KILL_UNIT : null,
-            defenderXpGained: !attackerAfter ? XP.KILL_UNIT : null,
-          });
-          if (!defenderAfter) {
-            events.push({
-              type: 'UNIT_DEATH',
-              unitId: defenderId,
-              position: defenderPos,
-              faction: aggroTarget.faction,
-            });
-          }
-          if (!attackerAfter) {
-            events.push({
-              type: 'UNIT_DEATH',
-              unitId: attackerId,
-              position: attackerPos,
-              faction: unit.faction,
-            });
-            // Cave monster was counter-killed → trigger specialist draw
-            events.push({ type: 'CAVE_MONSTER_KILLED', monsterId: attackerId });
-          }
-        }
-      } else {
-        // Move toward the aggro target
-        moveEnemyUnitToward(state, unit.id, aggroTarget.position, events);
+      moveEnemyUnitToward(state, unit.id, aggroTarget.position, events);
+      // Re-fetch the unit — it may have been destroyed (e.g. PREVENTIVE_STRIKE)
+      const movedUnit = state.units[unit.id];
+      if (!movedUnit) {
+        state.activeCaveEncounters = state.activeCaveEncounters.filter(
+          (e) => e.monsterId !== encounter.monsterId,
+        );
+        continue;
       }
-      continue; // Priority 1 consumed the action
-    }
-
-    // ── Priority 2: Return ───────────────────────────────────────────────
-    // If outside patrol radius, move back toward home mountain.
-    const distFromHome = chebyshevDistance(unit.position, homePos);
-    if (distFromHome > PATROL_RADIUS) {
-      moveEnemyUnitToward(state, unit.id, homePos, events);
-      continue; // Priority 2 consumed the action
-    }
-
-    // ── Priority 3: Patrol ───────────────────────────────────────────────
-    // Move to a random reachable tile within patrol radius.
-    // Collect all tiles within patrol radius of home that are free.
-    const patrolCandidates: Position[] = [];
-    for (let dy = -PATROL_RADIUS; dy <= PATROL_RADIUS; dy++) {
-      for (let dx = -PATROL_RADIUS; dx <= PATROL_RADIUS; dx++) {
-        if (dx === 0 && dy === 0) continue; // don't stay in place via this path
-        const nx = homePos.x + dx;
-        const ny = homePos.y + dy;
-        if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;
-        if (chebyshevDistance({ x: nx, y: ny }, homePos) > PATROL_RADIUS) continue;
-        const tile = state.grid[ny][nx];
-        if (tile.terrainType === TileType.CANYON || tile.terrainType === TileType.WATER) continue;
-        if (tile.isLava) continue;
-        if (tile.unitId !== null && tile.unitId !== unit.id) continue;
-        if (isBlockedBuildingForEnemyMovement(state, tile.buildingId)) continue;
-        // Must be reachable within move range
-        const path = findBfsPath(unit.position, { x: nx, y: ny }, state);
-        if (path.length > 0 && path.length <= unit.stats.moveRange) {
-          patrolCandidates.push({ x: nx, y: ny });
-        }
+      // If the target is now in attack range after moving, attack in the same turn
+      if (
+        state.units[aggroTarget.id] &&
+        isTileWithinEdgeCircleRange(
+          movedUnit.position.x, movedUnit.position.y,
+          aggroTarget.position.x, aggroTarget.position.y,
+          movedUnit.stats.attackRange,
+        )
+      ) {
+        resolveCaveMonsterAttack(state, movedUnit.id, aggroTarget.id, events);
       }
+      continue;
     }
 
-    if (patrolCandidates.length > 0) {
-      const target = patrolCandidates[Math.floor(Math.random() * patrolCandidates.length)];
-      moveEnemyUnit(state, unit.id, target, events);
-      continue; // Priority 3 consumed the action
-    }
-
-    // ── Priority 4: Despawn ──────────────────────────────────────────────
-    // Only fires if monster is on the home mountain tile and hasn't acted.
+    // ── Priority 3: Return to home mountain; despawn on arrival ──────────
     const onHomeTile =
       unit.position.x === homePos.x && unit.position.y === homePos.y;
 
-    if (onHomeTile && !unit.hasMovedThisTurn && !unit.hasAttackedThisTurn) {
-      // Remove the unit
+    if (onHomeTile) {
+      // Despawn: monster has returned to its mountain with no nearby threat.
       const tile = state.grid[unit.position.y][unit.position.x];
       if (tile.unitId === unit.id) tile.unitId = null;
       // Defensively destroy any Mine that may have been placed on the mountain tile
@@ -2353,6 +2349,16 @@ function runCaveMonsterAi(state: Draft<GameState>, events?: GameEvent[]): void {
         });
       }
       delete state.units[unit.id];
+      state.activeCaveEncounters = state.activeCaveEncounters.filter(
+        (e) => e.monsterId !== encounter.monsterId,
+      );
+      continue;
+    }
+
+    // Not on home tile — move toward home mountain
+    moveEnemyUnitToward(state, unit.id, homePos, events);
+    // If destroyed en route (e.g. lava), clean up the encounter
+    if (!state.units[unit.id]) {
       state.activeCaveEncounters = state.activeCaveEncounters.filter(
         (e) => e.monsterId !== encounter.monsterId,
       );
@@ -2463,6 +2469,7 @@ export function computeUnitAiScores(state: GameState, unitId: string): ScoredAct
   const unit = state.units[unitId];
   if (!unit || unit.faction !== Faction.ENEMY) return [];
   // Cave monsters use their own dedicated AI loop — not scored actions.
+  // Priority order: Attack → Move+Attack (nearby) → Return/Despawn.
   if (unit.type === UnitType.CAVE_MONSTER) return [];
 
   const recentlyLostBuildingIds = new Set<string>(
