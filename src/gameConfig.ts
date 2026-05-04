@@ -588,6 +588,20 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     description: 'Versatile foot soldier that can move, fight, build structures, and capture enemy buildings.',
   },
 
+  SWORDSMAN: {
+    maxHp: 130, attack: 60, defense: 60,
+    movementActions: 1, moveRange: 1, attackRange: 1,
+    discoverRadius: 1, triggerRange: 0,
+    tags: [],
+    cost: { iron: 5, wood: 3 },
+    populationCost: { farmers: 1, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    description: 'Elite heavy infantry with superior combat strength. Unlocked by the Swordsman training tech.',
+  },
+
   ARCHER: {
     maxHp: 100, attack: 50, defense: 25,
     movementActions: 1, moveRange: 1, attackRange: 2,
@@ -982,6 +996,8 @@ export const ABILITIES = {
   ELITE_MAX_HP_BONUS: 20,
   /** DEF change (negative = penalty) applied to a unit carrying the HIT_AND_RUN tag */
   HIT_AND_RUN_DEFENSE_MOD: -15,
+  /** Maximum movement range allowed for a HIT_AND_RUN post-attack move */
+  HIT_AND_RUN_POST_ATTACK_MOVE_RANGE: 1,
   /** Max HP bonus granted to a unit carrying the KNIGHT tag */
   KNIGHT_MAX_HP_BONUS: 30,
   /** Move range bonus granted to SKIRMISHER-tagged archers (Skirmisher tech) */
@@ -1004,8 +1020,10 @@ export const ABILITIES = {
   // ── Tech-tree stronghold/citadel abilities ───────────────────────────────────
   /** Farmer-slot capacity added to each Stronghold by the WALLED_SETTLEMENT tech */
   WALLED_SETTLEMENT_FARMER_BONUS: 2,
-  /** Iron/wood produced by each Stronghold per turn after WALLED_SETTLEMENT */
-  WALLED_SETTLEMENT_PRODUCTION_AMOUNT: 2,
+  /** Iron produced by each Stronghold per turn after WALLED_SETTLEMENT */
+  WALLED_SETTLEMENT_IRON_AMOUNT: 2,
+  /** Wood produced by each Stronghold per turn after WALLED_SETTLEMENT */
+  WALLED_SETTLEMENT_WOOD_AMOUNT: 1,
   /** Noble-slot capacity added to each Stronghold by the CITADEL tech */
   CITADEL_NOBLE_BONUS: 2,
   /** Max-HP bonus applied to Scouts and Guards by the CITADEL tech */
@@ -1223,6 +1241,16 @@ export const TECH_TREE: TechNodeDefinition[] = [
     ],
   },
   {
+    id: 'UNLOCK_SWORDSMAN',
+    name: 'Swordsman Training',
+    description: 'Unlocks the Swordsman — elite heavy infantry with superior attack and defense — recruitable at the Barracks',
+    requires: ['FIELD_DUTIES'],
+    cost: 4,
+    effects: [
+      { type: 'UNLOCK_UNIT', unitType: UnitType.SWORDSMAN },
+    ],
+  },
+  {
     id: 'PHALANX_FORMATION',
     name: 'Phalanx Formation',
     description: `Guards in formation grant +${ABILITIES.PHALANX_DEFENSE_BONUS_PER_CARRIER} defense to each adjacent ally and gain +${ABILITIES.PHALANX_ATTACK_BONUS_PER_ALLY} attack per adjacent ally`,
@@ -1272,13 +1300,13 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'WALLED_SETTLEMENT',
     name: 'Walled Settlement',
-    description: `Strongholds gain +${ABILITIES.WALLED_SETTLEMENT_FARMER_BONUS} farmer capacity and produce ${ABILITIES.WALLED_SETTLEMENT_PRODUCTION_AMOUNT} iron and ${ABILITIES.WALLED_SETTLEMENT_PRODUCTION_AMOUNT} wood per turn`,
+    description: `Strongholds gain +${ABILITIES.WALLED_SETTLEMENT_FARMER_BONUS} farmer capacity and produce +${ABILITIES.WALLED_SETTLEMENT_IRON_AMOUNT} iron and +${ABILITIES.WALLED_SETTLEMENT_WOOD_AMOUNT} wood per turn`,
     requires: ['CONSCRIPTION'],
     cost: 2,
     effects: [
       { type: 'STRONGHOLD_CAP_MOD', capType: 'farmer', amount: ABILITIES.WALLED_SETTLEMENT_FARMER_BONUS },
-      { type: 'BUILDING_PRODUCTION_MOD', buildingType: BuildingType.STRONGHOLD, resource: ResourceType.WOOD, chancePercent: 100, amount: ABILITIES.WALLED_SETTLEMENT_PRODUCTION_AMOUNT },
-      { type: 'BUILDING_PRODUCTION_MOD', buildingType: BuildingType.STRONGHOLD, resource: ResourceType.IRON, chancePercent: 100, amount: ABILITIES.WALLED_SETTLEMENT_PRODUCTION_AMOUNT },
+      { type: 'BUILDING_PRODUCTION_MOD', buildingType: BuildingType.STRONGHOLD, resource: ResourceType.WOOD, chancePercent: 100, amount: ABILITIES.WALLED_SETTLEMENT_WOOD_AMOUNT },
+      { type: 'BUILDING_PRODUCTION_MOD', buildingType: BuildingType.STRONGHOLD, resource: ResourceType.IRON, chancePercent: 100, amount: ABILITIES.WALLED_SETTLEMENT_IRON_AMOUNT },
     ],
   },
   {
@@ -1343,7 +1371,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'HIT_AND_RUN',
     name: 'Hit and Run',
-    description: `Riders can move twice: once before attacking and once after; DEF is reduced by ${Math.abs(ABILITIES.HIT_AND_RUN_DEFENSE_MOD)} as a trade-off`,
+    description: `Riders can move twice: once before attacking and once after (max ${ABILITIES.HIT_AND_RUN_POST_ATTACK_MOVE_RANGE} tile post-attack); DEF is reduced by ${Math.abs(ABILITIES.HIT_AND_RUN_DEFENSE_MOD)} as a trade-off`,
     requires: ['LANCE_CHARGE'],
     cost: 4,
     effects: [
@@ -1470,7 +1498,7 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string }> = {
   // ── Deep tech tree tags ──────────────────────────────────────────────────────
   [UnitTag.LANCE_CHARGE]:      { label: 'Lance Charge',      desc: `Gains +${ABILITIES.LANCE_CHARGE_ATTACK_BONUS} attack when striking without having moved this turn.` },
   [UnitTag.KNIGHT]:            { label: 'Knight',            desc: `Heavily armoured cavalry with +${ABILITIES.KNIGHT_MAX_HP_BONUS} max HP.` },
-  [UnitTag.HIT_AND_RUN]:       { label: 'Hit and Run',       desc: `Can move twice: once before attacking and once after. DEF is reduced by ${Math.abs(ABILITIES.HIT_AND_RUN_DEFENSE_MOD)} as a trade-off for the added mobility.` },
+  [UnitTag.HIT_AND_RUN]:       { label: 'Hit and Run',       desc: `Can move twice: once before attacking and once after (max ${ABILITIES.HIT_AND_RUN_POST_ATTACK_MOVE_RANGE} tile post-attack). DEF is reduced by ${Math.abs(ABILITIES.HIT_AND_RUN_DEFENSE_MOD)} as a trade-off for the added mobility.` },
   [UnitTag.OUTRIDER]:          { label: 'Outrider',          desc: `+${ABILITIES.OUTRIDER_MOVE_BONUS} movement range. Optimised for deep raids.` },
   [UnitTag.COVER]:             { label: 'Cover',             desc: 'Ranged enemy units cannot counter-attack.' },
   [UnitTag.SKIRMISHER]:        { label: 'Skirmisher',        desc: `+${ABILITIES.SKIRMISHER_MOVE_BONUS} movement range.` },

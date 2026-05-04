@@ -18,6 +18,7 @@ export type Faction = (typeof Faction)[keyof typeof Faction];
 export const UnitType = {
   // Player units
   INFANTRY: 'INFANTRY',
+  SWORDSMAN: 'SWORDSMAN',
   ARCHER: 'ARCHER',
   RIDER: 'RIDER',
   SIEGE: 'SIEGE',

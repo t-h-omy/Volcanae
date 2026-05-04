@@ -73,7 +73,7 @@ function isRecruitmentBuilding(building: Building): boolean {
 function getRecruitableUnitTypes(buildingType: BuildingType): UnitType[] {
   switch (buildingType) {
     case BuildingType.BARRACKS:
-      return [UnitType.INFANTRY];
+      return [UnitType.INFANTRY, UnitType.SWORDSMAN];
     case BuildingType.ARCHER_CAMP:
       return [UnitType.ARCHER];
     case BuildingType.RIDER_CAMP:
