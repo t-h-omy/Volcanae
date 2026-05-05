@@ -95,7 +95,7 @@ export function getRecruitableUnitTypes(buildingType: BuildingType): UnitType[] 
  *   Returns Infinity when the building type has no unitLimit defined (uncapped).
  */
 export function computeRecruitmentBuildingUsage(
-  state: GameState | Draft<GameState>,
+  state: Pick<GameState, 'units' | 'buildings'>,
   buildingType: BuildingType,
 ): { current: number; limit: number } {
   const unitLimit = BUILDING_DEFINITIONS[buildingType]?.unitLimit;
