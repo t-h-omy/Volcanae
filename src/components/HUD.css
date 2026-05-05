@@ -1709,6 +1709,7 @@
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.6);
+  pointer-events: auto;
 }
 
 .info-popup-card {
