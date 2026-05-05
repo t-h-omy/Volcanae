@@ -1040,16 +1040,18 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
   }, [unit, gameState]);
 
   const contextualMov = useMemo(() => {
-    let mov = 0;
-    if (unit.faction !== Faction.PLAYER) return mov;
+    let techBonus = 0;
+    let tagBonus = 0;
+    if (unit.faction !== Faction.PLAYER) return { total: 0, techBonus: 0, tagBonus: 0 };
     if (gameState.techFlags.includes(TechFlag.TO_THE_FRONT)) {
       const minPlayerY = getNorthermostPlayerY(gameState);
       if (minPlayerY !== undefined && unit.position.y - minPlayerY > ABILITIES.TO_THE_FRONT_MIN_DISTANCE) {
-        mov += ABILITIES.TO_THE_FRONT_MOVE_BONUS;
+        techBonus += ABILITIES.TO_THE_FRONT_MOVE_BONUS;
       }
     }
-    if (unit.tags.includes(UnitTag.SKIRMISHER) || unit.tags.includes(UnitTag.OUTRIDER)) mov += 1;
-    return mov;
+    if (unit.tags.includes(UnitTag.SKIRMISHER)) tagBonus += ABILITIES.SKIRMISHER_MOVE_BONUS;
+    if (unit.tags.includes(UnitTag.OUTRIDER)) tagBonus += ABILITIES.OUTRIDER_MOVE_BONUS;
+    return { total: techBonus + tagBonus, techBonus, tagBonus };
   }, [unit, gameState]);
 
   // ── Modifier maps for inline stat display ─────────────────────────────────
@@ -1080,7 +1082,7 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
     if (phalanxAttack !== 0) addC('attack', phalanxAttack);
     if (phalanxDefense !== 0) addC('defense', phalanxDefense);
     if (contextualDef !== 0) addC('defense', contextualDef);
-    if (contextualMov !== 0) addC('moveRange', contextualMov);
+    if (contextualMov.total !== 0) addC('moveRange', contextualMov.total);
 
     const hasAnyMap: Record<string, boolean> = {};
     const netMap: Record<string, number> = {};
@@ -1106,12 +1108,9 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
   if (phalanxDefense > 0) mods.push({ stat: 'DEF', value: phalanxDefense, kind: 'active', source: 'Phalanx Formation (adjacent guard)' });
   if (unit.faction === Faction.PLAYER) {
     if (contextualDef > 0) mods.push({ stat: 'DEF', value: contextualDef, kind: 'active', source: 'Hold Ground (standing on own building)' });
-    if (contextualMov > 0) {
-      if (unit.tags.includes(UnitTag.SKIRMISHER)) mods.push({ stat: 'MOV', value: ABILITIES.SKIRMISHER_MOVE_BONUS, kind: 'active', source: 'Skirmisher (tag ability)' });
-      if (unit.tags.includes(UnitTag.OUTRIDER)) mods.push({ stat: 'MOV', value: ABILITIES.OUTRIDER_MOVE_BONUS, kind: 'active', source: 'Outrider (tag ability)' });
-      const techMovBonus = contextualMov - (unit.tags.includes(UnitTag.SKIRMISHER) ? ABILITIES.SKIRMISHER_MOVE_BONUS : 0) - (unit.tags.includes(UnitTag.OUTRIDER) ? ABILITIES.OUTRIDER_MOVE_BONUS : 0);
-      if (techMovBonus > 0) mods.push({ stat: 'MOV', value: techMovBonus, kind: 'active', source: 'To the Front (far behind frontline)' });
-    }
+    if (unit.tags.includes(UnitTag.SKIRMISHER)) mods.push({ stat: 'MOV', value: ABILITIES.SKIRMISHER_MOVE_BONUS, kind: 'active', source: 'Skirmisher (tag ability)' });
+    if (unit.tags.includes(UnitTag.OUTRIDER)) mods.push({ stat: 'MOV', value: ABILITIES.OUTRIDER_MOVE_BONUS, kind: 'active', source: 'Outrider (tag ability)' });
+    if (contextualMov.techBonus > 0) mods.push({ stat: 'MOV', value: contextualMov.techBonus, kind: 'active', source: 'To the Front (far behind frontline)' });
   }
   for (const tag of unit.tags) {
     for (const mod of TAG_STAT_EFFECTS[tag] ?? []) {
