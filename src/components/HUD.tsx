@@ -2204,7 +2204,7 @@ function SpecialistInfoPopup({ specialist, onClose, onDismiss }: { specialist: S
           {isDormant && <span className="specialist-info-dormant-note"> — cannot pay upkeep</span>}
         </div>
       )}
-      {confirmingDismiss ? (
+      {confirmingDismiss && onDismiss ? (
         <div className="specialist-dismiss-confirm">
           <p className="specialist-dismiss-confirm-text">
             Dismiss <strong>{specialist.name}</strong> permanently? Their effects will stop immediately, their slot becomes free, and they cannot be recovered.
