@@ -1009,25 +1009,27 @@ function TileCellInner({
         </div>
       )}
 
-      {/* population badge for FARM, PATRICIANHOUSE, and STRONGHOLD */}
-      {showPopulation && building && (() => {
-        const popCount = building.type === BuildingType.STRONGHOLD
-          ? building.populationCount + building.strongholdNobles
-          : building.populationCount;
-        const capDisplay = building.type === BuildingType.STRONGHOLD
-          ? strongholdTotalCap
-          : building.populationCap;
-        return <div className="population-badge">{popCount}/{capDisplay}</div>;
-      })()}
-
-      {/* unit-limit badge for player-owned recruitment buildings */}
-      {showUnitLimit && building && (() => {
-        const usage = recruitmentUsage[building.type as BuildingType]!;
-        // For STRONGHOLD, position top-left to avoid overlapping the population badge (bottom-center).
-        const isStronghold = building.type === BuildingType.STRONGHOLD;
+      {/* stacked badges at bottom-center: population (FARM/PATRICIANHOUSE/STRONGHOLD)
+          and/or unit-limit (recruitment buildings).  Rendered in a shared flex column
+          so that when both are present (e.g. STRONGHOLD) they stack without overlap. */}
+      {(showPopulation || showUnitLimit) && building && (() => {
+        const popBadge = showPopulation && (() => {
+          const popCount = building.type === BuildingType.STRONGHOLD
+            ? building.populationCount + building.strongholdNobles
+            : building.populationCount;
+          const capDisplay = building.type === BuildingType.STRONGHOLD
+            ? strongholdTotalCap
+            : building.populationCap;
+          return <div className="population-badge">{popCount}/{capDisplay}</div>;
+        })();
+        const unitBadge = showUnitLimit && (() => {
+          const usage = recruitmentUsage[building.type as BuildingType]!;
+          return <div className="unit-limit-badge">⚔️{usage.current}/{usage.limit}</div>;
+        })();
         return (
-          <div className={isStronghold ? 'unit-limit-badge unit-limit-badge--stronghold' : 'unit-limit-badge'}>
-            ⚔️{usage.current}/{usage.limit}
+          <div className="building-badges">
+            {popBadge}
+            {unitBadge}
           </div>
         );
       })()}
