@@ -1183,6 +1183,10 @@
   color: #e74c3c;
 }
 
+.hud-stat-neutral {
+  color: #ffffff;
+}
+
 /* Keep legacy class for any remaining references */
 .hud-stat-boosted {
   color: #2ecc71;
