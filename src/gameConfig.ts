@@ -474,12 +474,12 @@ export const TERRAIN = {
    * Minimum edge-circle distance from the zone 1 stronghold for the guaranteed
    * mountain tile placement in zone 1.
    */
-  ZONE1_MOUNTAIN_MIN_DISTANCE: 2,
+  ZONE1_MOUNTAIN_MIN_DISTANCE: 1,
   /**
    * Maximum edge-circle distance from the zone 1 stronghold for the guaranteed
    * mountain tile placement in zone 1.
    */
-  ZONE1_MOUNTAIN_MAX_DISTANCE: 4,
+  ZONE1_MOUNTAIN_MAX_DISTANCE: 3,
 
   // Canyon config
   CANYON_LENGTH_MIN: 8,
@@ -509,7 +509,7 @@ export const TERRAIN = {
    * Per-zone HP/ATK/DEF multiplier for the cave monster (index 0 = zone 1, index 4 = zone 5).
    * Higher zones are deeper into enemy territory and have stronger monsters.
    */
-  CAVE_MONSTER_ZONE_SCALE: [1.0, 1.3, 1.6, 1.9, 2.2] as const,
+  CAVE_MONSTER_ZONE_SCALE: [1.0, 1.2, 1.4, 1.6, 1.8] as const,
   /**
    * Chebyshev-distance radius within which the cave monster will patrol.
    * If the monster wanders outside this radius (no aggro), it returns to its home tile.
