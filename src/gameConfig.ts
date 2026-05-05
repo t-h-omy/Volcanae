@@ -1035,23 +1035,23 @@ export const ABILITIES = {
   /** Discover radius bonus granted to Scouts by the BIG_EYES tech */
   SCOUT_DISCOVER_BONUS: 1,
   /** Probability (0–1) that a PIN_DOWN archer hit stuns the target (blocks move + attack) */
-  PIN_DOWN_STUN_CHANCE: 0.25,
+  PIN_DOWN_STUN_CHANCE: 0.3,
   // ── Tech-tree production bonus abilities ────────────────────────────────────
   /** % chance for a Mine to yield one extra iron per turn (DEEP_VEINS tech) */
-  DEEP_VEINS_BONUS_CHANCE: 30,
+  DEEP_VEINS_BONUS_CHANCE: 40,
   /** Extra iron amount produced per bonus proc (DEEP_VEINS tech) */
   DEEP_VEINS_BONUS_AMOUNT: 1,
   /** % chance for a Woodcutter to yield one extra wood per turn (CLEAN_CUTS tech) */
-  CLEAN_CUTS_BONUS_CHANCE: 30,
+  CLEAN_CUTS_BONUS_CHANCE: 40,
   /** Extra wood amount produced per bonus proc (CLEAN_CUTS tech) */
   CLEAN_CUTS_BONUS_AMOUNT: 1,
   // ── Tech-tree stronghold/citadel abilities ───────────────────────────────────
   /** Farmer-slot capacity added to each Stronghold by the WALLED_SETTLEMENT tech */
   WALLED_SETTLEMENT_FARMER_BONUS: 2,
   /** Iron produced by each Stronghold per turn after WALLED_SETTLEMENT */
-  WALLED_SETTLEMENT_IRON_AMOUNT: 2,
+  WALLED_SETTLEMENT_IRON_AMOUNT: 1,
   /** Wood produced by each Stronghold per turn after WALLED_SETTLEMENT */
-  WALLED_SETTLEMENT_WOOD_AMOUNT: 1,
+  WALLED_SETTLEMENT_WOOD_AMOUNT: 2,
   /** Noble-slot capacity added to each Stronghold by the CITADEL tech */
   CITADEL_NOBLE_BONUS: 2,
   /** Max-HP bonus applied to Scouts and Guards by the CITADEL tech */
@@ -1102,15 +1102,15 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
     description:
       `All your Watchtowers and Outposts gain +${ABILITIES.FORTIFIED_GARRISON_ATTACK_BONUS} attack and +${ABILITIES.FORTIFIED_GARRISON_RANGE_BONUS} attack range.`,
     effects: [{ type: 'FORTIFIED_GARRISON', params: {} }],
-    upkeepIron: 1,
-    upkeepWood: 2,
+    upkeepIron: 0,
+    upkeepWood: 1,
   },
   spec_02: {
     name: 'Bloodrider',
     description:
       'When one of your Riders kills an enemy, it may attack once more this turn at half attack and without retaliation.',
     effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.RIDER, tag: UnitTag.BLOODLUST } }],
-    upkeepIron: 3,
+    upkeepIron: 2,
     upkeepWood: 0,
   },
   spec_03: {
@@ -1126,16 +1126,16 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
     description:
       'Your Spearman units can move and attack immediately after being recruited.',
     effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.SPEARMAN, tag: UnitTag.READY } }],
-    upkeepIron: 2,
-    upkeepWood: 0,
+    upkeepIron: 1,
+    upkeepWood: 1,
   },
   spec_05: {
     name: 'Deathmender',
     description:
       `When one of your Spearman units dies, a Gravestone is left on their tile. Pay ${ABILITIES.REVIVE_CRYSTAL_COST} crystal to revive the unit.`,
     effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.SPEARMAN, tag: UnitTag.REVIVABLE } }],
-    upkeepIron: 1,
-    upkeepWood: 1,
+    upkeepIron: 0,
+    upkeepWood: 0,
   },
 };
 
@@ -1576,7 +1576,7 @@ export const SANCTUM_COLLAPSE = {
    * is active, effectively pausing lava pressure.
    * Set to 0 to disable the lava pause effect while keeping other effects active.
    */
-  LAVA_FREEZE_TURNS: 2,
+  LAVA_FREEZE_TURNS: 3,
 } as const;
 
 // ============================================================================
