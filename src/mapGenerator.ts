@@ -402,6 +402,55 @@ function guaranteeForestNearStronghold(
 }
 
 /**
+ * Ensures at least one MOUNTAIN tile exists within edge-circle range
+ * [ZONE1_MOUNTAIN_MIN_DISTANCE, ZONE1_MOUNTAIN_MAX_DISTANCE] of the zone 1 stronghold.
+ * If no mountain was placed in that range during placeTerrainForZone, places one additional MOUNTAIN tile.
+ * This guarantees the player has access to iron strategy via Mine construction.
+ * Uses separate balancing values from forest generation (ZONE1_MOUNTAIN_MIN/MAX_DISTANCE).
+ */
+function guaranteeMountainNearStronghold(
+  zone1StrongholdPos: Position,
+  grid: Tile[][],
+  occupiedPositions: Set<string>
+): void {
+  const { x: sx, y: sy } = zone1StrongholdPos;
+  const minDist = TERRAIN.ZONE1_MOUNTAIN_MIN_DISTANCE;
+  const maxDist = TERRAIN.ZONE1_MOUNTAIN_MAX_DISTANCE;
+
+  // Get all tiles within the max edge-circle range
+  const tilesInMaxRange = getTilesWithinEdgeCircleRange(
+    sx, sy, maxDist, MAP.GRID_WIDTH, MAP.GRID_HEIGHT
+  );
+
+  // Filter to the ring [minDist, maxDist]: within maxDist but NOT within (minDist - 1)
+  const tilesInRing = tilesInMaxRange.filter(({ x, y }) =>
+    !isTileWithinEdgeCircleRange(sx, sy, x, y, minDist - 1)
+  );
+
+  // Check if any mountain already exists in the ring
+  const mountainExists = tilesInRing.some(({ x, y }) =>
+    grid[y][x].terrainType === TileType.MOUNTAIN
+  );
+
+  if (mountainExists) return;
+
+  // No mountain in range — find valid positions for one
+  const candidates = tilesInRing.filter(({ x, y }) => {
+    if (isPositionOccupied({ x, y }, occupiedPositions)) return false;
+    if (grid[y][x].terrainType !== TileType.PLAINS) return false;
+    if (grid[y][x].isLava) return false;
+    return true;
+  });
+
+  if (candidates.length > 0) {
+    const chosen = candidates[Math.floor(Math.random() * candidates.length)];
+    grid[chosen.y][chosen.x].terrainType = TileType.MOUNTAIN;
+    // Zone 1 is the player's starting zone — no cave monsters there
+    markPositionOccupied({ x: chosen.x, y: chosen.y }, occupiedPositions);
+  }
+}
+
+/**
  * Places a random number of ruins in the zone.
  * Uses zone-specific min/max from TERRAIN.RUINS_PER_ZONE_OVERRIDES when available,
  * falling back to TERRAIN.RUINS_PER_ZONE_MIN / TERRAIN.RUINS_PER_ZONE_MAX.
@@ -1178,9 +1227,10 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
       zone, grid, occupiedPositions, config
     );
 
-    // After zone 1 terrain: guarantee forest near stronghold
+    // After zone 1 terrain: guarantee forest and mountain near stronghold
     if (zone === 1) {
       guaranteeForestNearStronghold(strongholdPositions[0], grid, occupiedPositions);
+      guaranteeMountainNearStronghold(strongholdPositions[0], grid, occupiedPositions);
     }
 
     // Zone-balance check: if zone got 0 of a type, next zone gets at least 1 extra
