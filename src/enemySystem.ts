@@ -212,7 +212,12 @@ function isUnitBlockedFromLava(unit: Unit, state: Draft<GameState>): boolean {
         // Impassable terrain — cannot be traversed in any direction
         continue;
       }
-      if (tile.unitId !== null || tile.isLava || isBlockedBuildingForEnemyMovement(state, tile.buildingId)) continue;
+      if (tile.unitId !== null || isBlockedBuildingForEnemyMovement(state, tile.buildingId)) continue;
+      // Lava tiles ahead are valid sacrifice destinations — unit is not blocked
+      if (tile.isLava) {
+        if (ny > startY) return false;
+        continue; // lava at same or lower Y — not a valid sacrifice destination, skip
+      }
       // ny > startY means the tile is closer to lava (higher Y = toward lava)
       if (ny > startY) return false;
       queue.push({ x: nx, y: ny, steps: steps + 1 });

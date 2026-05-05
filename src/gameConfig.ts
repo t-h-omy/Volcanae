@@ -470,6 +470,16 @@ export const TERRAIN = {
    * forest tile placement in zone 1.
    */
   ZONE1_FOREST_MAX_DISTANCE: 2,
+  /**
+   * Minimum edge-circle distance from the zone 1 stronghold for the guaranteed
+   * mountain tile placement in zone 1.
+   */
+  ZONE1_MOUNTAIN_MIN_DISTANCE: 2,
+  /**
+   * Maximum edge-circle distance from the zone 1 stronghold for the guaranteed
+   * mountain tile placement in zone 1.
+   */
+  ZONE1_MOUNTAIN_MAX_DISTANCE: 4,
 
   // Canyon config
   CANYON_LENGTH_MIN: 8,
