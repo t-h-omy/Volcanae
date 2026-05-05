@@ -495,10 +495,9 @@ export interface GameState {
    */
   spawnFreezeUntilTurn: number;
   /**
-   * Turn number on which the lava freeze from Sanctum Collapse expires.
-   * While state.turn < lavaFreezeUntilTurn, turnsUntilLavaAdvance is not
-   * decremented during the lava phase.
-   * Value of 0 means no active freeze.
+   * Legacy field retained for save-file compatibility. No longer written by
+   * Sanctum Collapse (which now increments turnsUntilLavaAdvance directly).
+   * Value is always 0 in new saves.
    */
   lavaFreezeUntilTurn: number;
   /**

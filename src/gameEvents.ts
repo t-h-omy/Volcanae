@@ -119,8 +119,8 @@ export type GameEvent =
       lockoutUntilTurn: number;
       /** Turn on which spawn freeze expires (0 if SPAWN_FREEZE_TURNS === 0) */
       spawnFreezeUntilTurn: number;
-      /** Turn on which lava freeze expires (0 if LAVA_FREEZE_TURNS === 0) */
-      lavaFreezeUntilTurn: number;
+      /** Amount added to turnsUntilLavaAdvance on Sanctum Collapse (0 if LAVA_ADVANCE_BONUS_TURNS === 0) */
+      lavaAdvanceBonus: number;
     }
   | {
       type: 'ZONE_CLEARED';
