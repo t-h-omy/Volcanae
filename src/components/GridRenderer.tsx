@@ -140,8 +140,12 @@ export default function GridRenderer() {
   const cancelHealMode = useGameStore((s) => s.cancelHealMode);
   const strongholdTotalCap = useGameStore((s) => getStrongholdEffectiveCap(s).totalCap);
   // Precompute recruitment usage (current/limit) for each player-owned recruitment building type.
-  // Computed once here so TileCell components don't each need to iterate all units/buildings.
-  const recruitmentUsage = useGameStore((s) => {
+  // Uses stable s.units / s.buildings selectors + useMemo so the result object is only
+  // recreated when actual unit or building state changes — avoids an infinite re-render loop
+  // that would occur if the selector returned a new object reference on every call.
+  const _recruitUnits = useGameStore((s) => s.units);
+  const _recruitBuildings = useGameStore((s) => s.buildings);
+  const recruitmentUsage = useMemo(() => {
     const result: Partial<Record<BuildingType, { current: number; limit: number }>> = {};
     const recruitingTypes = [
       BuildingType.STRONGHOLD,
@@ -152,11 +156,14 @@ export default function GridRenderer() {
     ] as BuildingType[];
     for (const bt of recruitingTypes) {
       if (BUILDING_DEFINITIONS[bt]?.unitLimit !== undefined) {
-        result[bt] = computeRecruitmentBuildingUsage(s, bt);
+        result[bt] = computeRecruitmentBuildingUsage(
+          { units: _recruitUnits, buildings: _recruitBuildings },
+          bt,
+        );
       }
     }
     return result;
-  });
+  }, [_recruitUnits, _recruitBuildings]);
 
   // ── Animation store selectors ──
   const isAnimating = useAnimationStore((s) => s.isAnimating);
@@ -1317,6 +1324,7 @@ function DamageFloaterLayer({ tileSize }: { tileSize: number }) {
           '--color-heal-floater': RENDER.COLORS.HEAL_FLOATER,
           '--color-levelup-floater': RENDER.COLORS.LEVEL_UP_FLOATER,
           '--color-xp-floater': RENDER.COLORS.XP_FLOATER,
+          '--color-revive-floater': RENDER.COLORS.REVIVE_FLOATER,
           '--damage-floater-font-size': `${UI.DAMAGE_FLOATER_FONT_SIZE_PX}px`,
           '--levelup-floater-font-size': `${UI.LEVEL_UP_FLOATER_FONT_SIZE_PX}px`,
           '--xp-floater-font-size': `${UI.XP_FLOATER_FONT_SIZE_PX}px`,
@@ -1331,9 +1339,11 @@ function DamageFloaterLayer({ tileSize }: { tileSize: number }) {
               ? 'floater-levelup'
               : floater.floaterType === 'xp'
                 ? 'floater-xp'
-                : floater.isEnemy
-                  ? 'floater-enemy'
-                  : 'floater-player';
+                : floater.floaterType === 'revive'
+                  ? 'floater-revive'
+                  : floater.isEnemy
+                    ? 'floater-enemy'
+                    : 'floater-player';
         const content =
           floater.label !== undefined
             ? floater.label
