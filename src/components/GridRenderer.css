@@ -304,8 +304,8 @@
 .population-badge {
   font-size: 9px;
   font-weight: bold;
-  color: white;
-  background: rgba(0, 0, 0, 0.65);
+  color: #cdf;
+  background: rgba(0, 30, 60, 0.75);
   padding: 0 3px;
   border-radius: 3px;
   line-height: 1.3;

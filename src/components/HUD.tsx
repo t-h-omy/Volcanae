@@ -1070,6 +1070,87 @@ function StatDetailModal({ unit, onClose }: { unit: Unit; onClose: () => void })
 }
 
 // ============================================================================
+// BUILDING STAT DETAIL MODAL
+// ============================================================================
+
+/**
+ * Modal overlay showing combat stat modifiers for an attack building
+ * (Watchtower, Outpost, etc.), using the same style as StatDetailModal.
+ */
+function BuildingStatDetailModal({ building, onClose }: { building: Building; onClose: () => void }) {
+  const fortifiedGarrisonActive = useGameStore((s) => s.fortifiedGarrisonActive);
+
+  if (!building.combatStats) return null;
+
+  const isGarrisonBuilding =
+    building.faction === Faction.PLAYER &&
+    (building.type === BuildingType.WATCHTOWER || building.type === BuildingType.OUTPOST);
+
+  type BuildingModEntry = { stat: string; value: number; source: string };
+  const mods: BuildingModEntry[] = [];
+
+  if (isGarrisonBuilding && fortifiedGarrisonActive) {
+    mods.push({
+      stat: 'ATK',
+      value: ABILITIES.FORTIFIED_GARRISON_ATTACK_BONUS,
+      source: 'Fortified Garrison (specialist)',
+    });
+    mods.push({
+      stat: 'RNG',
+      value: ABILITIES.FORTIFIED_GARRISON_RANGE_BONUS,
+      source: 'Fortified Garrison (specialist)',
+    });
+  }
+
+  const bonuses = mods.filter((m) => m.value > 0);
+  const penalties = mods.filter((m) => m.value < 0);
+
+  return (
+    <Popup onClose={onClose}>
+      <div className="info-popup-header">
+        <span className="info-popup-header-emoji">📊</span>
+        <div className="info-popup-header-name">
+          {BUILDING_NAME[building.type] ?? building.type} — Stat Details
+        </div>
+      </div>
+
+      {bonuses.length === 0 && penalties.length === 0 ? (
+        <p className="info-popup-desc">No active modifiers.</p>
+      ) : (
+        <div className="hud-stat-detail-list">
+          {bonuses.length > 0 && (
+            <div className="hud-stat-detail-section">
+              <div className="hud-stat-detail-section-title">📈 Bonuses</div>
+              {bonuses.map((m, i) => (
+                <div key={i} className="hud-stat-detail-row">
+                  <span className="hud-stat-detail-stat">{m.stat}</span>
+                  <span className="hud-stat-detail-value hud-stat-bonus">+{m.value}</span>
+                  <span className="hud-stat-detail-source">{m.source} ✓</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {penalties.length > 0 && (
+            <div className="hud-stat-detail-section">
+              <div className="hud-stat-detail-section-title">📉 Penalties</div>
+              {penalties.map((m, i) => (
+                <div key={i} className="hud-stat-detail-row">
+                  <span className="hud-stat-detail-stat">{m.stat}</span>
+                  <span className="hud-stat-detail-value hud-stat-penalty">{m.value}</span>
+                  <span className="hud-stat-detail-source">{m.source} ✓</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>OK</button>
+    </Popup>
+  );
+}
+
+// ============================================================================
 // SELECTED UNIT PANEL
 // ============================================================================
 
@@ -1104,7 +1185,6 @@ function SelectedUnitPanel({
   })();
   const [aiScoreModal, setAiScoreModal] = useState(false);
   const [aiScores, setAiScores] = useState<ScoredAction[]>([]);
-  const [unitInfoOpen, setUnitInfoOpen] = useState(false);
   const [tagPopup, setTagPopup] = useState<UnitTag | null>(null);
   const levelUpUnit = useGameStore((s) => s.levelUpUnit);
   const startHealMode = useGameStore((s) => s.startHealMode);
@@ -1133,6 +1213,7 @@ function SelectedUnitPanel({
   const isMaxLevel = unit.level >= XP.MAX_LEVEL;
   const nextLevelDef = !isMaxLevel ? UNIT_DEFINITIONS[unit.type]?.levelUp?.[unit.level - 1] : null;
   const nextLevelXpRequired = nextLevelDef?.xpRequired ?? null;
+  const unitDesc = UNIT_DEFINITIONS[unit.type]?.description;
 
   // Compute contextual stat bonuses from tech flags and unit tags
   const statBonuses = useMemo(() => {
@@ -1234,15 +1315,13 @@ function SelectedUnitPanel({
 
   return (
     <div className={`hud-info-panel${!isPlayer ? ' hud-panel-enemy' : ''}`}>
-      {/* Header — entire row is tappable to open UnitInfoPopup */}
-      <button className="hud-panel-header-btn" onClick={() => setUnitInfoOpen(true)} aria-label={`View ${UNIT_NAME[unit.type] ?? unit.type} info`}>
+      {/* Header */}
+      <div className="hud-panel-header">
         <span className="hud-panel-emoji">{UNIT_EMOJI[unit.type] ?? '?'}</span>
-        <span className="hud-panel-name">
-          {UNIT_NAME[unit.type] ?? unit.type}
-          <span className="info-badge" aria-hidden="true">i</span>
-        </span>
+        <span className="hud-panel-name">{UNIT_NAME[unit.type] ?? unit.type}</span>
         {!isPlayer && <span className="hud-faction-label hud-faction-enemy">🔴 Enemy</span>}
-      </button>
+      </div>
+      {unitDesc && <p className="hud-unit-desc">{unitDesc}</p>}
       <div className="hud-hp-row">
         <div className="hud-hp-bar">
           <div className="hud-hp-fill" style={{ width: `${hpPct}%` }} />
@@ -1394,13 +1473,6 @@ function SelectedUnitPanel({
       {aiScoreModal && (
         <AiScoreModal scores={aiScores} onClose={() => setAiScoreModal(false)} />
       )}
-      {unitInfoOpen && (
-        <UnitInfoPopup
-          unitType={unit.type}
-          onClose={() => setUnitInfoOpen(false)}
-          isReadOnly
-        />
-      )}
       {tagPopup && <TagPopup tag={tagPopup} onClose={() => setTagPopup(null)} />}
       {statDetailOpen && <StatDetailModal unit={unit} onClose={() => setStatDetailOpen(false)} />}
     </div>
@@ -1546,6 +1618,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   const [recruitScoreModal, setRecruitScoreModal] = useState(false);
   const [recruitScores, setRecruitScores] = useState<{ type: UnitType; score: number }[]>([]);
   const [buildingInfoOpen, setBuildingInfoOpen] = useState(false);
+  const [buildingStatDetailOpen, setBuildingStatDetailOpen] = useState(false);
 
   const factionLabel =
     building.faction === Faction.PLAYER
@@ -1559,6 +1632,20 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   const isUnderAttack = building.wasAttackedLastEnemyTurn;
   const hasCombatStats = building.combatStats !== null;
   const canAttack = hasCombatStats && !building.hasAttackedThisTurn && building.faction !== null;
+
+  // Combat stat modifier display (FORTIFIED_GARRISON applied to player Watchtowers/Outposts)
+  const fortifiedGarrisonActive = gameState.fortifiedGarrisonActive;
+  const isGarrisonBuilding =
+    isPlayerOwned &&
+    (building.type === BuildingType.WATCHTOWER || building.type === BuildingType.OUTPOST);
+  const garrisonAtkMod = isGarrisonBuilding && fortifiedGarrisonActive ? ABILITIES.FORTIFIED_GARRISON_ATTACK_BONUS : 0;
+  const garrisonRngMod = isGarrisonBuilding && fortifiedGarrisonActive ? ABILITIES.FORTIFIED_GARRISON_RANGE_BONUS : 0;
+
+  const showBuildingStatMod = (mod: number) => {
+    if (mod > 0) return <span className="hud-stat-mod hud-stat-bonus">+{mod}</span>;
+    if (mod < 0) return <span className="hud-stat-mod hud-stat-penalty">{mod}</span>;
+    return null;
+  };
 
   // Gravestone: revive logic
   const isGravestone = building.type === BuildingType.GRAVESTONE && isPlayerOwned;
@@ -1641,18 +1728,27 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
         </div>
       )}
 
-      {/* Combat stats for attacking buildings */}
+      {/* Combat stats for attacking buildings — clickable to show modifier details */}
       {hasCombatStats && building.combatStats && (
-        <div className="hud-unit-stats">
-          <span className="hud-stat-label">ATK</span>
-          <span className="hud-stat-value">{building.combatStats.attack}</span>
-          <span className="hud-stat-label">DEF</span>
-          <span className="hud-stat-value">{building.combatStats.defense}</span>
-          <span className="hud-stat-label">RNG</span>
-          <span className="hud-stat-value">{building.combatStats.attackRange}</span>
-          <span className="hud-stat-label">VIS</span>
-          <span className="hud-stat-value">{building.discoverRadius}</span>
-        </div>
+        <button className="hud-unit-stats-btn" onClick={() => setBuildingStatDetailOpen(true)} aria-label="View stat modifiers">
+          <div className="hud-unit-stats">
+            <span className="hud-stat-label">ATK</span>
+            <span className="hud-stat-value">
+              {building.combatStats.attack - garrisonAtkMod}
+              {showBuildingStatMod(garrisonAtkMod)}
+            </span>
+            <span className="hud-stat-label">DEF</span>
+            <span className="hud-stat-value">{building.combatStats.defense}</span>
+            <span className="hud-stat-label">RNG</span>
+            <span className="hud-stat-value">
+              {building.combatStats.attackRange - garrisonRngMod}
+              {showBuildingStatMod(garrisonRngMod)}
+            </span>
+            <span className="hud-stat-label">VIS</span>
+            <span className="hud-stat-value">{building.discoverRadius}</span>
+          </div>
+          <span className="hud-unit-stats-hint" aria-hidden="true">📊</span>
+        </button>
       )}
 
       {/* Tag pills for attacking buildings */}
@@ -1878,6 +1974,9 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
           isReadOnly
           onClose={() => setBuildingInfoOpen(false)}
         />
+      )}
+      {buildingStatDetailOpen && (
+        <BuildingStatDetailModal building={building} onClose={() => setBuildingStatDetailOpen(false)} />
       )}
     </div>
   );

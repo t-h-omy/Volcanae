@@ -177,6 +177,13 @@
   opacity: 0.8;
 }
 
+.hud-unit-desc {
+  font-size: 11px;
+  color: #bbbbbb;
+  margin: 2px 0 4px;
+  line-height: 1.4;
+}
+
 /* ── HP Bar (in info panel) ── */
 
 .hud-hp-row {
