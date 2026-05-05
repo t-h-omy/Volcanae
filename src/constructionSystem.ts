@@ -18,7 +18,6 @@ import type {
 import { BUILDING_DEFINITIONS, POPULATION, XP, CRYSTAL_CHAMBER_CONFIG, ABILITIES } from './gameConfig';
 import { generateId } from './mapGenerator';
 import { grantXp } from './levelSystem';
-import { getStrongholdCapMods } from './techSystem';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -374,12 +373,6 @@ export function constructBuilding(
 
   // Create the new building
   const newBuilding = createBuildingObject(buildingType, tilePos, Faction.PLAYER);
-
-  // Apply stronghold cap mods from unlocked techs
-  if (buildingType === BuildingType.STRONGHOLD) {
-    const { farmerMod, nobleMod } = getStrongholdCapMods(state);
-    newBuilding.populationCap += farmerMod + nobleMod;
-  }
 
   // Add building to state
   state.buildings[newBuilding.id] = newBuilding;

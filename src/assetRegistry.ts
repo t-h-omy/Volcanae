@@ -36,7 +36,7 @@ function withBase<K extends string>(raw: Partial<Record<K, string>>): Partial<Re
 /** Maps every UnitType value to a sprite path (empty = missing). */
 export const UNIT_SPRITE: Partial<Record<UnitType, string>> = withBase({
   // Player units
-  INFANTRY:    '/sprites/units/Spearman_100px.png',
+  SPEARMAN:    '/sprites/units/Spearman_100px.png',
   SWORDSMAN:   '/sprites/units/Swordsman_100px.png',
   ARCHER:      '/sprites/units/Archer_100px.png',
   RIDER:       '/sprites/units/Rider_100px.png',

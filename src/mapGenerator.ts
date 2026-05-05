@@ -401,8 +401,9 @@ function guaranteeForestNearStronghold(
 }
 
 /**
- * Places a random number of ruins (between TERRAIN.RUINS_PER_ZONE_MIN and TERRAIN.RUINS_PER_ZONE_MAX)
- * in the zone.
+ * Places a random number of ruins in the zone.
+ * Uses zone-specific min/max from TERRAIN.RUINS_PER_ZONE_OVERRIDES when available,
+ * falling back to TERRAIN.RUINS_PER_ZONE_MIN / TERRAIN.RUINS_PER_ZONE_MAX.
  * Ruins are placed by setting tile.isRuin = true on PLAINS tiles
  * (not on FOREST or MOUNTAIN tiles).
  */
@@ -413,7 +414,10 @@ function placeRuinsForZone(
 ): void {
   const [startRow, endRow] = getZoneRowRange(zone);
   let placed = 0;
-  const target = randomInRange(TERRAIN.RUINS_PER_ZONE_MIN, TERRAIN.RUINS_PER_ZONE_MAX);
+  const zoneOverride = TERRAIN.RUINS_PER_ZONE_OVERRIDES[zone];
+  const ruinMin = zoneOverride !== undefined ? zoneOverride.min : TERRAIN.RUINS_PER_ZONE_MIN;
+  const ruinMax = zoneOverride !== undefined ? zoneOverride.max : TERRAIN.RUINS_PER_ZONE_MAX;
+  const target = randomInRange(ruinMin, ruinMax);
   let attempts = 0;
   const maxAttempts = 200;
 
@@ -1232,8 +1236,8 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
   }
 
   // Create player unit on zone 1 stronghold
-  const playerInfantry = createUnit(
-    UnitType.INFANTRY,
+  const playerSpearman = createUnit(
+    UnitType.SPEARMAN,
     Faction.PLAYER,
     zone1Stronghold.position
   );
@@ -1255,7 +1259,7 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
 
   // Convert units array to record
   const units: Record<string, Unit> = {};
-  units[playerInfantry.id] = playerInfantry;
+  units[playerSpearman.id] = playerSpearman;
   for (const unit of enemyUnits) {
     units[unit.id] = unit;
   }
