@@ -8,7 +8,7 @@ import type { Draft } from 'immer';
 import { Faction, BuildingType, UnitType, UnitTag, ResourceType } from './types';
 import { RESOURCES, UNIT_DEFINITIONS, POPULATION, CRYSTAL_CHAMBER_CONFIG, BUILDING_DEFINITIONS } from './gameConfig';
 import type { UnitCost } from './gameConfig';
-import { getGrantedTags, getStatMods, getBuildingProductionMods, grantArcaneCrystals, getStrongholdCapMods, getRemovedTags, getCostMods } from './techSystem';
+import { getGrantedTags, getStatMods, getBuildingProductionMods, grantArcaneCrystals, getStrongholdEffectiveCap, getRemovedTags, getCostMods } from './techSystem';
 import { getTagsFromActiveSpecialists } from './specialistSystem';
 
 // ============================================================================
@@ -73,7 +73,7 @@ function isRecruitmentBuilding(building: Building): boolean {
 export function getRecruitableUnitTypes(buildingType: BuildingType): UnitType[] {
   switch (buildingType) {
     case BuildingType.BARRACKS:
-      return [UnitType.INFANTRY, UnitType.SWORDSMAN];
+      return [UnitType.SPEARMAN, UnitType.SWORDSMAN];
     case BuildingType.ARCHER_CAMP:
       return [UnitType.ARCHER];
     case BuildingType.RIDER_CAMP:
@@ -217,6 +217,27 @@ export function computeResourceIncome(
   return { ironPerTurn, woodPerTurn };
 }
 
+/**
+ * Computes the total specialist upkeep that will be deducted from player resources
+ * each turn for all active (non-dormant) specialists in globalSpecialistStorage.
+ *
+ * Use this alongside computeResourceIncome to show the player their NET income
+ * (gross income minus upkeep) so the two numbers are directly comparable.
+ */
+export function computeSpecialistUpkeep(
+  state: GameState | Draft<GameState>,
+): { ironUpkeep: number; woodUpkeep: number } {
+  let ironUpkeep = 0;
+  let woodUpkeep = 0;
+  for (const specId of state.globalSpecialistStorage) {
+    const spec = state.specialists[specId];
+    if (!spec || spec.dormant) continue;
+    ironUpkeep += spec.upkeepIron ?? 0;
+    woodUpkeep += spec.upkeepWood ?? 0;
+  }
+  return { ironUpkeep, woodUpkeep };
+}
+
 // ============================================================================
 // POPULATION SYSTEM
 // ============================================================================
@@ -318,12 +339,11 @@ export function growHousePopulations(state: Draft<GameState>): void {
     }
 
     if (building.type === BuildingType.STRONGHOLD) {
-      // Grow farmers and nobles separately, farmers first
-      const { farmerMod, nobleMod } = getStrongholdCapMods(state);
-      const effectiveFarmerCap = POPULATION.STRONGHOLD_FARMER_CAP + farmerMod;
-      const effectiveNobleCap = POPULATION.STRONGHOLD_NOBLE_CAP + nobleMod;
-      const canGrowFarmer = building.populationCount < effectiveFarmerCap;
-      const canGrowNoble = building.strongholdNobles < effectiveNobleCap;
+      // Grow farmers and nobles separately, farmers first.
+      // getStrongholdEffectiveCap is the single source of truth for the cap.
+      const { farmerCap, nobleCap } = getStrongholdEffectiveCap(state);
+      const canGrowFarmer = building.populationCount < farmerCap;
+      const canGrowNoble = building.strongholdNobles < nobleCap;
       if (canGrowFarmer || canGrowNoble) {
         building.populationGrowthCounter += 1;
         if (building.populationGrowthCounter >= POPULATION.HOUSE_GROWTH_INTERVAL) {

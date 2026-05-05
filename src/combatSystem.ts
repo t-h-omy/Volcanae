@@ -402,11 +402,11 @@ export function resolveAttack(
       }
     }
 
-    // REVIVABLE: when a player INFANTRY with REVIVABLE dies, leave a Gravestone
+    // REVIVABLE: when a player SPEARMAN with REVIVABLE dies, leave a Gravestone
     // on their tile (only if the tile has no building already).
     if (
       defenderFaction === Faction.PLAYER &&
-      defenderType === UnitType.INFANTRY &&
+      defenderType === UnitType.SPEARMAN &&
       defenderTags.includes(UnitTag.REVIVABLE)
     ) {
       const tile = state.grid[defenderPosition.y][defenderPosition.x];
@@ -726,10 +726,10 @@ export function resolveBuildingAttack(
       }
     }
 
-    // REVIVABLE: player infantry with REVIVABLE leaves a Gravestone on death
+    // REVIVABLE: player Spearman with REVIVABLE leaves a Gravestone on death
     if (
       defenderFaction === Faction.PLAYER &&
-      defenderType === UnitType.INFANTRY &&
+      defenderType === UnitType.SPEARMAN &&
       defenderTags.includes(UnitTag.REVIVABLE)
     ) {
       const tile = state.grid[defenderPos.y][defenderPos.x];

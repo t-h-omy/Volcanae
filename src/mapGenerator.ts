@@ -1237,7 +1237,7 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
 
   // Create player unit on zone 1 stronghold
   const playerSpearman = createUnit(
-    UnitType.INFANTRY,
+    UnitType.SPEARMAN,
     Faction.PLAYER,
     zone1Stronghold.position
   );

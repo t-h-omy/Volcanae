@@ -10,7 +10,7 @@ import type { GameEvent } from './gameEvents';
 import { MAP, XP, TECH, SANCTUM_COLLAPSE, ABILITIES } from './gameConfig';
 import { increaseEmberOnStrongholdCapture } from './enemySystem';
 import { grantXp } from './levelSystem';
-import { grantArcaneCrystals, getStrongholdCapMods } from './techSystem';
+import { grantArcaneCrystals } from './techSystem';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -210,15 +210,7 @@ export function initiateCapture(
       updateZonesUnlocked(state);
       increaseEmberOnStrongholdCapture(state);
       grantArcaneCrystals(state, TECH.CRYSTALS_ON_ZONE_STRONGHOLD);
-      // Apply any stronghold cap mods from unlocked techs
-      const { farmerMod, nobleMod } = getStrongholdCapMods(state);
-      if (farmerMod + nobleMod > 0) {
-        building.populationCap += farmerMod + nobleMod;
-      }
     }
-
-    // FORTIFIED_GARRISON: apply the combat stat bonus to a newly player-owned
-    // Watchtower if the specialist effect is currently active.
     if (
       building.type === BuildingType.WATCHTOWER &&
       state.fortifiedGarrisonActive &&
@@ -463,11 +455,6 @@ export function resolveCaptures(state: Draft<GameState>): void {
         updateZonesUnlocked(state);
         increaseEmberOnStrongholdCapture(state);
         grantArcaneCrystals(state, TECH.CRYSTALS_ON_ZONE_STRONGHOLD);
-        // Apply any stronghold cap mods from unlocked techs
-        const { farmerMod, nobleMod } = getStrongholdCapMods(state);
-        if (farmerMod + nobleMod > 0) {
-          building.populationCap += farmerMod + nobleMod;
-        }
       }
 
       capturingUnit.hasCapturedThisTurn = true;

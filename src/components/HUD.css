@@ -32,6 +32,12 @@
   margin-left: 2px;
 }
 
+.hud-income-negative {
+  font-size: 0.8em;
+  color: #e07070;
+  margin-left: 2px;
+}
+
 .hud-enemy-turn-label {
   color: #ff9944;
   font-weight: bold;

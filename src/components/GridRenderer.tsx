@@ -12,8 +12,8 @@ import type { Projectile } from '../combatAnimationStore';
 import { useShockwaveStore } from '../shockwaveStore';
 import { canCapture } from '../captureSystem';
 import { getConstructionOptionsForTile } from '../constructionSystem';
-import { MAP, POPULATION, UNIT_DEFINITIONS } from '../gameConfig';
-import { getStrongholdCapMods } from '../techSystem';
+import { MAP, UNIT_DEFINITIONS } from '../gameConfig';
+import { getStrongholdEffectiveCap } from '../techSystem';
 import { ANIMATION } from '../animationConfig';
 import { UI } from '../uiConfig';
 import { RENDER } from '../renderConfig';
@@ -137,10 +137,7 @@ export default function GridRenderer() {
   const healUnit = useGameStore((s) => s.healUnit);
   const pendingHealerId = useGameStore((s) => s.pendingHealerId);
   const cancelHealMode = useGameStore((s) => s.cancelHealMode);
-  const strongholdTotalCap = useGameStore((s) => {
-    const { farmerMod, nobleMod } = getStrongholdCapMods(s);
-    return POPULATION.STRONGHOLD_FARMER_CAP + farmerMod + POPULATION.STRONGHOLD_NOBLE_CAP + nobleMod;
-  });
+  const strongholdTotalCap = useGameStore((s) => getStrongholdEffectiveCap(s).totalCap);
 
   // ── Animation store selectors ──
   const isAnimating = useAnimationStore((s) => s.isAnimating);

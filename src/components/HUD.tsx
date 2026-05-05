@@ -19,6 +19,7 @@ import {
   computePopulationCapacity,
   canAffordPopulation,
   computeResourceIncome,
+  computeSpecialistUpkeep,
   computeRecruitmentBuildingUsage,
 } from '../resourceSystem';
 import {
@@ -26,7 +27,7 @@ import {
 } from '../constructionSystem';
 import { computeLevelFromXp } from '../levelSystem';
 import { computeUnitAiScores, computeRecruitmentScores, type ScoredAction } from '../enemySystem';
-import { renderEffect, getStrongholdCapMods, getAvailableTechs as getAvailableTechsLogic, getCostMods } from '../techSystem';
+import { renderEffect, getStrongholdEffectiveCap, getAvailableTechs as getAvailableTechsLogic, getCostMods } from '../techSystem';
 import {
   Faction,
   GamePhase,
@@ -56,7 +57,7 @@ import './HUD.css';
 // ============================================================================
 
 const UNIT_EMOJI: Record<string, string> = {
-  [UnitType.INFANTRY]: '⚔️',
+  [UnitType.SPEARMAN]: '⚔️',
   [UnitType.SWORDSMAN]: '🗡️',
   [UnitType.ARCHER]: '🏹',
   [UnitType.RIDER]: '🐴',
@@ -72,7 +73,7 @@ const UNIT_EMOJI: Record<string, string> = {
 };
 
 const UNIT_NAME: Record<string, string> = {
-  [UnitType.INFANTRY]: 'Spearman',
+  [UnitType.SPEARMAN]: 'Spearman',
   [UnitType.SWORDSMAN]: 'Swordsman',
   [UnitType.ARCHER]: 'Archer',
   [UnitType.RIDER]: 'Rider',
@@ -148,7 +149,7 @@ const TAG_EMOJI: Partial<Record<UnitTag, string>> = {
 
 /** Maps recruitment buildings to their recruitable unit types */
 const BUILDING_RECRUITS: Partial<Record<string, UnitType[]>> = {
-  [BuildingType.BARRACKS]: [UnitType.INFANTRY, UnitType.SWORDSMAN],
+  [BuildingType.BARRACKS]: [UnitType.SPEARMAN, UnitType.SWORDSMAN],
   [BuildingType.ARCHER_CAMP]: [UnitType.ARCHER],
   [BuildingType.RIDER_CAMP]: [UnitType.RIDER],
   [BuildingType.SIEGE_CAMP]: [UnitType.SIEGE],
@@ -563,9 +564,11 @@ function TopBar({
   const farmerCapacity = useGameStore((s) => computePopulationCapacity(s).farmerCapacity);
   const nobleCapacity = useGameStore((s) => computePopulationCapacity(s).nobleCapacity);
 
-  // Resource income per turn
+  // Resource income per turn (gross) and specialist upkeep; net shown in HUD
   const ironPerTurn = useGameStore((s) => computeResourceIncome(s).ironPerTurn);
   const woodPerTurn = useGameStore((s) => computeResourceIncome(s).woodPerTurn);
+  const ironUpkeep = useGameStore((s) => computeSpecialistUpkeep(s).ironUpkeep);
+  const woodUpkeep = useGameStore((s) => computeSpecialistUpkeep(s).woodUpkeep);
 
   // Specialist slots
   const specialists = useGameStore((s) => s.specialists);
@@ -580,8 +583,8 @@ function TopBar({
     <div className="hud-top-bar">
       <span className="hud-stat">🔄 Turn {turn}</span>
       {isAnimating && <span className="hud-stat hud-enemy-turn-label">⚔️ Enemy Turn...</span>}
-      <span className="hud-stat">⛓️ {resources.iron}{ironPerTurn > 0 && <span className="hud-income">(+{Number.isInteger(ironPerTurn) ? ironPerTurn : ironPerTurn.toFixed(1)})</span>}</span>
-      <span className="hud-stat">🪵 {resources.wood}{woodPerTurn > 0 && <span className="hud-income">(+{Number.isInteger(woodPerTurn) ? woodPerTurn : woodPerTurn.toFixed(1)})</span>}</span>
+      <span className="hud-stat">⛓️ {resources.iron}{(() => { const net = ironPerTurn - ironUpkeep; return net !== 0 ? <span className={net > 0 ? 'hud-income' : 'hud-income-negative'}>({net > 0 ? '+' : ''}{Number.isInteger(net) ? net : net.toFixed(1)})</span> : null; })()}</span>
+      <span className="hud-stat">🪵 {resources.wood}{(() => { const net = woodPerTurn - woodUpkeep; return net !== 0 ? <span className={net > 0 ? 'hud-income' : 'hud-income-negative'}>({net > 0 ? '+' : ''}{Number.isInteger(net) ? net : net.toFixed(1)})</span> : null; })()}</span>
       <span className="hud-stat">🌾 {farmersUsed}/{farmerCapacity}</span>
       <span className="hud-stat">🎖️ {noblesUsed}/{nobleCapacity}</span>
       <span className="hud-stat">🔥 Ember {ember}</span>
@@ -1542,10 +1545,8 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   const turnsUntilNextPop = (() => {
     if (!isHousingBuilding) return null;
     if (building.type === BuildingType.STRONGHOLD) {
-      const { farmerMod, nobleMod } = getStrongholdCapMods(gameState);
-      const effectiveFarmerCap = POPULATION.STRONGHOLD_FARMER_CAP + farmerMod;
-      const effectiveNobleCap = POPULATION.STRONGHOLD_NOBLE_CAP + nobleMod;
-      const canGrow = building.populationCount < effectiveFarmerCap || building.strongholdNobles < effectiveNobleCap;
+      const { farmerCap, nobleCap } = getStrongholdEffectiveCap(gameState);
+      const canGrow = building.populationCount < farmerCap || building.strongholdNobles < nobleCap;
       return canGrow ? POPULATION.HOUSE_GROWTH_INTERVAL - building.populationGrowthCounter : null;
     }
     return building.populationCount < building.populationCap
@@ -1676,10 +1677,8 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
           {building.type === BuildingType.STRONGHOLD ? (
             <>
               {(() => {
-                const { farmerMod, nobleMod } = getStrongholdCapMods(gameState);
-                const effectiveFarmerCap = POPULATION.STRONGHOLD_FARMER_CAP + farmerMod;
-                const effectiveNobleCap = POPULATION.STRONGHOLD_NOBLE_CAP + nobleMod;
-                return <>👥 {building.populationCount}/{effectiveFarmerCap} farmers, {building.strongholdNobles}/{effectiveNobleCap} nobles</>;
+                const { farmerCap, nobleCap } = getStrongholdEffectiveCap(gameState);
+                return <>👥 {building.populationCount}/{farmerCap} farmers, {building.strongholdNobles}/{nobleCap} nobles</>;
               })()}
             </>
           ) : (

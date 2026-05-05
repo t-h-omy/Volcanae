@@ -580,7 +580,7 @@ export const LEVEL_UP_VALUES = {
  * hardcoded balancing numbers (mark with `// overwritten below`).
  */
 export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
-  INFANTRY: {
+  SPEARMAN: {
     maxHp: 100, attack: 40, defense: 45,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
@@ -1115,7 +1115,7 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
     name: 'Drill Sergeant',
     description:
       'Your Spearman units can move and attack immediately after being recruited.',
-    effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.INFANTRY, tag: UnitTag.READY } }],
+    effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.SPEARMAN, tag: UnitTag.READY } }],
     upkeepIron: 2,
     upkeepWood: 0,
   },
@@ -1123,7 +1123,7 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
     name: 'Deathmender',
     description:
       `When one of your Spearman units dies, a Gravestone is left on their tile. Pay ${ABILITIES.REVIVE_CRYSTAL_COST} crystal to revive the unit.`,
-    effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.INFANTRY, tag: UnitTag.REVIVABLE } }],
+    effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.SPEARMAN, tag: UnitTag.REVIVABLE } }],
     upkeepIron: 1,
     upkeepWood: 1,
   },
@@ -1153,7 +1153,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'UNLOCK_BUILDING', buildingType: BuildingType.BARRACKS },
       { type: 'UNLOCK_BUILDING', buildingType: BuildingType.FARM },
       { type: 'UNLOCK_BUILDING', buildingType: BuildingType.CRYSTAL_CHAMBER },
-      { type: 'UNLOCK_UNIT',     unitType: UnitType.INFANTRY },
+      { type: 'UNLOCK_UNIT',     unitType: UnitType.SPEARMAN },
       { type: 'UNLOCK_UNIT',     unitType: UnitType.SCOUT },
       { type: 'UNLOCK_UNIT',     unitType: UnitType.GUARD },
     ],
@@ -1255,7 +1255,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     requires: ['FIELD_DUTIES'],
     cost: 4,
     effects: [
-      { type: 'GRANT_UNIT_TAG', unitType: UnitType.INFANTRY, tag: UnitTag.FIELDWORK },
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.SPEARMAN, tag: UnitTag.FIELDWORK },
     ],
   },
   {

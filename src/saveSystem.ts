@@ -18,7 +18,7 @@ import { TECH_TREE, POPULATION, SPECIALIST_DEFINITIONS } from './gameConfig';
 const SAVE_KEY = 'volcanae-save';
 
 /** Increment this whenever the serialized shape changes incompatibly. */
-const SAVE_VERSION = 8;
+const SAVE_VERSION = 9;
 
 // ============================================================================
 // PUBLIC API
@@ -46,7 +46,7 @@ export function loadGameState(): GameState | null {
 
     const parsed = JSON.parse(raw) as { version: number; state: GameState };
 
-    if (parsed.version !== SAVE_VERSION) return null;
+    if (parsed.version > SAVE_VERSION || parsed.version < 8) return null;
     if (!parsed.state || typeof parsed.state !== 'object') return null;
 
     const s = parsed.state;
@@ -61,6 +61,17 @@ export function loadGameState(): GameState | null {
       typeof s.resources !== 'object'
     ) {
       return null;
+    }
+
+    // Migration v8 → v9: UnitType INFANTRY renamed to SPEARMAN.
+    // Convert all saved unit types and any stored specialist/tech effect params.
+    if (parsed.version < 9 && s.units && typeof s.units === 'object') {
+      for (const unit of Object.values(s.units) as Array<unknown>) {
+        const u = unit as Record<string, unknown>;
+        if (u && u.type === 'INFANTRY') {
+          u.type = 'SPEARMAN';
+        }
+      }
     }
 
     // Migration: PASSIVE tag was added to Emberlings in v0.36.0 without a

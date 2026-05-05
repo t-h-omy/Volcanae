@@ -7,7 +7,7 @@
 import type { Draft } from 'immer';
 import type { GameState, TechId, TechEffect, UnitStats, StatModifier } from './types';
 import { Faction, TechFlag, BuildingType } from './types';
-import { TECH_TREE, ABILITIES, TAG_STAT_EFFECTS, computeResearchCost } from './gameConfig';
+import { TECH_TREE, ABILITIES, TAG_STAT_EFFECTS, computeResearchCost, POPULATION } from './gameConfig';
 
 // ============================================================================
 // PICK GRANTS
@@ -147,12 +147,8 @@ function applyTechEffect(state: Draft<GameState>, effect: TechEffect): void {
       // Applied at point-of-use in collectResources() — no immediate state mutation
       break;
     case 'STRONGHOLD_CAP_MOD':
-      // Retroactively update populationCap on all existing player-owned strongholds
-      for (const building of Object.values(state.buildings)) {
-        if (building.faction === Faction.PLAYER && building.type === BuildingType.STRONGHOLD) {
-          building.populationCap += effect.amount;
-        }
-      }
+      // Cap is computed dynamically by getStrongholdEffectiveCap() at point-of-use.
+      // No mutation needed here; building.populationCap is not authoritative for Strongholds.
       break;
     case 'SPECIALIST_SLOT_MOD':
       state.specialistSlotCap += effect.value;
@@ -310,6 +306,25 @@ export function getStrongholdCapMods(
     }
   }
   return { farmerMod, nobleMod };
+}
+
+/**
+ * Computes the effective (tech-adjusted) population caps for a Stronghold.
+ * This is the single source of truth for the Stronghold cap and must be used
+ * by all consumers — both game logic and display — so that tech modifiers
+ * cannot diverge between them.
+ *
+ * @returns farmerCap  — maximum farmer population per Stronghold
+ *          nobleCap   — maximum noble population per Stronghold
+ *          totalCap   — combined cap (farmerCap + nobleCap)
+ */
+export function getStrongholdEffectiveCap(
+  state: GameState | Draft<GameState>,
+): { farmerCap: number; nobleCap: number; totalCap: number } {
+  const { farmerMod, nobleMod } = getStrongholdCapMods(state);
+  const farmerCap = POPULATION.STRONGHOLD_FARMER_CAP + farmerMod;
+  const nobleCap = POPULATION.STRONGHOLD_NOBLE_CAP + nobleMod;
+  return { farmerCap, nobleCap, totalCap: farmerCap + nobleCap };
 }
 
 // ============================================================================
