@@ -897,7 +897,7 @@ function RecruitScoreModal({
 }
 
 // ============================================================================
-// STAT DETAIL MODAL
+// STAT HELPERS (used by UnitCombinedInfoPopup and BuildingStatDetailModal)
 // ============================================================================
 
 /** Human-readable label for UnitStats keys */
@@ -920,162 +920,13 @@ type StatModEntry = {
   source: string;
 };
 
-/**
- * Modal overlay showing all active buffs and debuffs for a unit,
- * with their source and whether they are contextual or permanently applied.
- */
-function StatDetailModal({ unit, onClose }: { unit: Unit; onClose: () => void }) {
-  const gameState = useGameStore((s) => s);
-
-  const mods: StatModEntry[] = [];
-
-  // ── Contextual bonuses (not baked into unit.stats) ──────────────────────
-
-  // PHALANX formation bonuses (both factions)
-  const phalanxAtk = getPhalanxAttackBonus(gameState, unit);
-  const phalanxDef = getPhalanxDefenseBonus(gameState, unit);
-  if (phalanxAtk > 0) {
-    mods.push({ stat: 'ATK', value: phalanxAtk, kind: 'active', source: 'Phalanx Formation (adjacent guard)' });
-  }
-  if (phalanxDef > 0) {
-    mods.push({ stat: 'DEF', value: phalanxDef, kind: 'active', source: 'Phalanx Formation (adjacent guard)' });
-  }
-
-  // Player-only contextual bonuses
-  if (unit.faction === Faction.PLAYER) {
-    // HOLD_GROUND: defense when on own building
-    if (gameState.techFlags.includes(TechFlag.HOLD_GROUND)) {
-      const tile = gameState.grid[unit.position.y]?.[unit.position.x];
-      if (tile?.buildingId) {
-        const building = gameState.buildings[tile.buildingId];
-        if (building?.faction === Faction.PLAYER) {
-          mods.push({ stat: 'DEF', value: ABILITIES.HOLD_GROUND_DEFENSE_BONUS, kind: 'active', source: 'Hold Ground (standing on own building)' });
-        }
-      }
-    }
-
-    // TO_THE_FRONT: movement bonus
-    if (gameState.techFlags.includes(TechFlag.TO_THE_FRONT)) {
-      const minPlayerY = getNorthermostPlayerY(gameState);
-      if (minPlayerY !== undefined && unit.position.y - minPlayerY > ABILITIES.TO_THE_FRONT_MIN_DISTANCE) {
-        mods.push({ stat: 'MOV', value: ABILITIES.TO_THE_FRONT_MOVE_BONUS, kind: 'active', source: 'To the Front (far behind frontline)' });
-      }
-    }
-
-    // SKIRMISHER / OUTRIDER: +1 MOV applied at runtime in movementSystem
-    if (unit.tags.includes(UnitTag.SKIRMISHER)) {
-      mods.push({ stat: 'MOV', value: ABILITIES.SKIRMISHER_MOVE_BONUS, kind: 'active', source: 'Skirmisher (tag ability)' });
-    }
-    if (unit.tags.includes(UnitTag.OUTRIDER)) {
-      mods.push({ stat: 'MOV', value: ABILITIES.OUTRIDER_MOVE_BONUS, kind: 'active', source: 'Outrider (tag ability)' });
-    }
-  }
-
-  // ── Applied modifiers (permanently baked into unit.stats) ────────────────
-
-  // Tag-intrinsic stat effects (KNIGHT, ELITE, HIT_AND_RUN, DISTRACTION, …)
-  for (const tag of unit.tags) {
-    for (const mod of TAG_STAT_EFFECTS[tag] ?? []) {
-      if (mod.mode === 'add') {
-        mods.push({
-          stat: statKeyToLabel(mod.stat),
-          value: mod.value,
-          kind: 'applied',
-          source: `${TAG_INFO[tag]?.label ?? tag} (tag)`,
-        });
-      }
-    }
-  }
-
-  // Tech-based UNIT_STAT_MOD effects (player units only)
-  if (unit.faction === Faction.PLAYER) {
-    for (const def of TECH_TREE) {
-      if (!gameState.techNodes[def.id]?.unlocked) continue;
-      for (const effect of def.effects) {
-        if (effect.type === 'UNIT_STAT_MOD' && effect.unitType === unit.type && effect.mode === 'add') {
-          mods.push({
-            stat: statKeyToLabel(effect.stat),
-            value: effect.value,
-            kind: 'applied',
-            source: `${def.name} (tech)`,
-          });
-        }
-      }
-    }
-  }
-
-  // DISTRACTION combat penalty accumulated across hits
-  const distractionPenalty = unit.distractionDefPenalty;
-  if (distractionPenalty > 0) {
-    mods.push({
-      stat: 'DEF',
-      value: -distractionPenalty,
-      kind: 'applied',
-      source: 'Distraction arrows (permanent, from archer hits)',
-    });
-  }
-
-  // Sort: contextual first, then applied; within each group bonuses before penalties
-  mods.sort((a, b) => {
-    if (a.kind !== b.kind) return a.kind === 'active' ? -1 : 1;
-    return b.value - a.value;
-  });
-
-  const bonuses = mods.filter((m) => m.value > 0);
-  const penalties = mods.filter((m) => m.value < 0);
-
-  return (
-    <Popup onClose={onClose}>
-      <div className="info-popup-header">
-        <span className="info-popup-header-emoji">📊</span>
-        <div className="info-popup-header-name">
-          {UNIT_NAME[unit.type] ?? unit.type} — Stat Details
-        </div>
-      </div>
-
-      {bonuses.length === 0 && penalties.length === 0 ? (
-        <p className="info-popup-desc">No active modifiers.</p>
-      ) : (
-        <div className="hud-stat-detail-list">
-          {bonuses.length > 0 && (
-            <div className="hud-stat-detail-section">
-              <div className="hud-stat-detail-section-title">📈 Bonuses</div>
-              {bonuses.map((m, i) => (
-                <div key={i} className="hud-stat-detail-row">
-                  <span className="hud-stat-detail-stat">{m.stat}</span>
-                  <span className="hud-stat-detail-value hud-stat-bonus">+{m.value}</span>
-                  <span className="hud-stat-detail-source">{m.source}{m.kind === 'applied' ? ' ✓' : ''}</span>
-                </div>
-              ))}
-            </div>
-          )}
-          {penalties.length > 0 && (
-            <div className="hud-stat-detail-section">
-              <div className="hud-stat-detail-section-title">📉 Penalties</div>
-              {penalties.map((m, i) => (
-                <div key={i} className="hud-stat-detail-row">
-                  <span className="hud-stat-detail-stat">{m.stat}</span>
-                  <span className="hud-stat-detail-value hud-stat-penalty">{m.value}</span>
-                  <span className="hud-stat-detail-source">{m.source}{m.kind === 'applied' ? ' ✓' : ''}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>OK</button>
-    </Popup>
-  );
-}
-
 // ============================================================================
 // BUILDING STAT DETAIL MODAL
 // ============================================================================
 
 /**
  * Modal overlay showing combat stat modifiers for an attack building
- * (Watchtower, Outpost, etc.), using the same style as StatDetailModal.
+ * (Watchtower, Outpost, etc.).
  */
 function BuildingStatDetailModal({ building, onClose }: { building: Building; onClose: () => void }) {
   const fortifiedGarrisonActive = useGameStore((s) => s.fortifiedGarrisonActive);
@@ -1151,6 +1002,220 @@ function BuildingStatDetailModal({ building, onClose }: { building: Building; on
 }
 
 // ============================================================================
+// UNIT COMBINED INFO POPUP
+// ============================================================================
+
+/**
+ * Single merged popup for a selected unit — combines what was previously
+ * UnitInfoPopup (description, base stats, tags) and StatDetailModal
+ * (live stats with buff/debuff badges, modifier breakdown with sources).
+ *
+ * Opened from SelectedUnitPanel via both the header (i) button and the
+ * stats bar button so that there is exactly ONE popup for unit info.
+ */
+function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => void }) {
+  const [tagPopup, setTagPopup] = useState<UnitTag | null>(null);
+  const gameState = useGameStore((s) => s);
+
+  const desc = UNIT_DEFINITIONS[unit.type]?.description;
+  const visibleTags = unit.tags.filter((t) => !HIDDEN_UNIT_TAGS.has(t));
+  const emoji = UNIT_EMOJI[unit.type] ?? '?';
+  const name = UNIT_NAME[unit.type] ?? unit.type;
+
+  // ── Contextual runtime bonuses (not baked into unit.stats) ───────────────
+  const phalanxAttack = getPhalanxAttackBonus(gameState, unit);
+  const phalanxDefense = getPhalanxDefenseBonus(gameState, unit);
+
+  const contextualDef = useMemo(() => {
+    let def = 0;
+    if (unit.faction !== Faction.PLAYER) return def;
+    if (gameState.techFlags.includes(TechFlag.HOLD_GROUND)) {
+      const tile = gameState.grid[unit.position.y]?.[unit.position.x];
+      if (tile?.buildingId) {
+        const building = gameState.buildings[tile.buildingId];
+        if (building?.faction === Faction.PLAYER) def += ABILITIES.HOLD_GROUND_DEFENSE_BONUS;
+      }
+    }
+    return def;
+  }, [unit, gameState]);
+
+  const contextualMov = useMemo(() => {
+    let mov = 0;
+    if (unit.faction !== Faction.PLAYER) return mov;
+    if (gameState.techFlags.includes(TechFlag.TO_THE_FRONT)) {
+      const minPlayerY = getNorthermostPlayerY(gameState);
+      if (minPlayerY !== undefined && unit.position.y - minPlayerY > ABILITIES.TO_THE_FRONT_MIN_DISTANCE) {
+        mov += ABILITIES.TO_THE_FRONT_MOVE_BONUS;
+      }
+    }
+    if (unit.tags.includes(UnitTag.SKIRMISHER) || unit.tags.includes(UnitTag.OUTRIDER)) mov += 1;
+    return mov;
+  }, [unit, gameState]);
+
+  // ── Modifier maps for inline stat display ─────────────────────────────────
+  // applied = baked into unit.stats; contextual = runtime-only
+  const { applied, net, hasAny } = useMemo(() => {
+    const appliedMap: Partial<Record<string, number>> = {};
+    const contextualMap: Partial<Record<string, number>> = {};
+
+    const addA = (stat: string, v: number) => { appliedMap[stat] = (appliedMap[stat] ?? 0) + v; };
+    const addC = (stat: string, v: number) => { contextualMap[stat] = (contextualMap[stat] ?? 0) + v; };
+
+    for (const tag of unit.tags) {
+      for (const mod of TAG_STAT_EFFECTS[tag] ?? []) {
+        if (mod.mode === 'add') addA(mod.stat as string, mod.value);
+      }
+    }
+    if (unit.faction === Faction.PLAYER) {
+      for (const def of TECH_TREE) {
+        if (!gameState.techNodes[def.id]?.unlocked) continue;
+        for (const effect of def.effects) {
+          if (effect.type === 'UNIT_STAT_MOD' && effect.unitType === unit.type && effect.mode === 'add') {
+            addA(effect.stat as string, effect.value);
+          }
+        }
+      }
+    }
+    if (unit.distractionDefPenalty > 0) addA('defense', -unit.distractionDefPenalty);
+    if (phalanxAttack !== 0) addC('attack', phalanxAttack);
+    if (phalanxDefense !== 0) addC('defense', phalanxDefense);
+    if (contextualDef !== 0) addC('defense', contextualDef);
+    if (contextualMov !== 0) addC('moveRange', contextualMov);
+
+    const hasAnyMap: Record<string, boolean> = {};
+    const netMap: Record<string, number> = {};
+    for (const k of new Set([...Object.keys(appliedMap), ...Object.keys(contextualMap)])) {
+      hasAnyMap[k] = true;
+      netMap[k] = (appliedMap[k] ?? 0) + (contextualMap[k] ?? 0);
+    }
+    return { applied: appliedMap, net: netMap, hasAny: hasAnyMap };
+  }, [unit, gameState, phalanxAttack, phalanxDefense, contextualDef, contextualMov]);
+
+  const showNetMod = (statKey: string) => {
+    if (!hasAny[statKey]) return null;
+    const n = net[statKey] ?? 0;
+    if (n > 0) return <span className="hud-stat-mod hud-stat-bonus">+{n}</span>;
+    if (n < 0) return <span className="hud-stat-mod hud-stat-penalty">{n}</span>;
+    return <span className="hud-stat-mod hud-stat-neutral">±0</span>;
+  };
+
+  // ── Full modifier list for breakdown section ───────────────────────────────
+  const mods: StatModEntry[] = [];
+
+  if (phalanxAttack > 0) mods.push({ stat: 'ATK', value: phalanxAttack, kind: 'active', source: 'Phalanx Formation (adjacent guard)' });
+  if (phalanxDefense > 0) mods.push({ stat: 'DEF', value: phalanxDefense, kind: 'active', source: 'Phalanx Formation (adjacent guard)' });
+  if (unit.faction === Faction.PLAYER) {
+    if (contextualDef > 0) mods.push({ stat: 'DEF', value: contextualDef, kind: 'active', source: 'Hold Ground (standing on own building)' });
+    if (contextualMov > 0) {
+      if (unit.tags.includes(UnitTag.SKIRMISHER)) mods.push({ stat: 'MOV', value: ABILITIES.SKIRMISHER_MOVE_BONUS, kind: 'active', source: 'Skirmisher (tag ability)' });
+      if (unit.tags.includes(UnitTag.OUTRIDER)) mods.push({ stat: 'MOV', value: ABILITIES.OUTRIDER_MOVE_BONUS, kind: 'active', source: 'Outrider (tag ability)' });
+      const techMovBonus = contextualMov - (unit.tags.includes(UnitTag.SKIRMISHER) ? ABILITIES.SKIRMISHER_MOVE_BONUS : 0) - (unit.tags.includes(UnitTag.OUTRIDER) ? ABILITIES.OUTRIDER_MOVE_BONUS : 0);
+      if (techMovBonus > 0) mods.push({ stat: 'MOV', value: techMovBonus, kind: 'active', source: 'To the Front (far behind frontline)' });
+    }
+  }
+  for (const tag of unit.tags) {
+    for (const mod of TAG_STAT_EFFECTS[tag] ?? []) {
+      if (mod.mode === 'add') mods.push({ stat: statKeyToLabel(mod.stat), value: mod.value, kind: 'applied', source: `${TAG_INFO[tag]?.label ?? tag} (tag)` });
+    }
+  }
+  if (unit.faction === Faction.PLAYER) {
+    for (const def of TECH_TREE) {
+      if (!gameState.techNodes[def.id]?.unlocked) continue;
+      for (const effect of def.effects) {
+        if (effect.type === 'UNIT_STAT_MOD' && effect.unitType === unit.type && effect.mode === 'add') {
+          mods.push({ stat: statKeyToLabel(effect.stat), value: effect.value, kind: 'applied', source: `${def.name} (tech)` });
+        }
+      }
+    }
+  }
+  if (unit.distractionDefPenalty > 0) mods.push({ stat: 'DEF', value: -unit.distractionDefPenalty, kind: 'applied', source: 'Distraction arrows (permanent, from archer hits)' });
+
+  mods.sort((a, b) => {
+    if (a.kind !== b.kind) return a.kind === 'active' ? -1 : 1;
+    return b.value - a.value;
+  });
+  const bonuses = mods.filter((m) => m.value > 0);
+  const penalties = mods.filter((m) => m.value < 0);
+
+  return (
+    <>
+      <Popup onClose={onClose}>
+        {/* Header */}
+        <div className="info-popup-header">
+          <span className="info-popup-header-emoji">{emoji}</span>
+          <div className="info-popup-header-name">{name}</div>
+        </div>
+
+        {/* Description */}
+        {desc && <p className="info-popup-desc">{desc}</p>}
+
+        {/* Live stats with buff/debuff badges */}
+        <div className="info-popup-stats">
+          {([
+            ['ATK', 'attack', unit.stats.attack] as const,
+            ['DEF', 'defense', unit.stats.defense] as const,
+            ['MOV', 'moveRange', unit.stats.moveRange] as const,
+            ['RNG', 'attackRange', unit.stats.attackRange] as const,
+            ['VIS', 'discoverRadius', unit.stats.discoverRadius] as const,
+          ]).map(([label, key, rawVal]) => (
+            <div key={label} className="info-popup-stat-cell">
+              <div className="info-popup-stat-label">{label}</div>
+              <div className="info-popup-stat-value">
+                {rawVal - (applied[key] ?? 0)}
+                {showNetMod(key)}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Modifier breakdown — only shown when there are active modifiers */}
+        {(bonuses.length > 0 || penalties.length > 0) && (
+          <div className="hud-stat-detail-list">
+            {bonuses.length > 0 && (
+              <div className="hud-stat-detail-section">
+                <div className="hud-stat-detail-section-title">📈 Bonuses</div>
+                {bonuses.map((m, i) => (
+                  <div key={i} className="hud-stat-detail-row">
+                    <span className="hud-stat-detail-stat">{m.stat}</span>
+                    <span className="hud-stat-detail-value hud-stat-bonus">+{m.value}</span>
+                    <span className="hud-stat-detail-source">{m.source}{m.kind === 'applied' ? ' ✓' : ''}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {penalties.length > 0 && (
+              <div className="hud-stat-detail-section">
+                <div className="hud-stat-detail-section-title">📉 Penalties</div>
+                {penalties.map((m, i) => (
+                  <div key={i} className="hud-stat-detail-row">
+                    <span className="hud-stat-detail-stat">{m.stat}</span>
+                    <span className="hud-stat-detail-value hud-stat-penalty">{m.value}</span>
+                    <span className="hud-stat-detail-source">{m.source}{m.kind === 'applied' ? ' ✓' : ''}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tag pills */}
+        {visibleTags.length > 0 && (
+          <div className="info-popup-tags">
+            {visibleTags.map((tag) => (
+              <InfoTagPill key={tag} tag={tag} onClick={() => setTagPopup(tag)} />
+            ))}
+          </div>
+        )}
+
+        <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>OK</button>
+      </Popup>
+
+      {tagPopup && <TagPopup tag={tagPopup} onClose={() => setTagPopup(null)} />}
+    </>
+  );
+}
+
+// ============================================================================
 // SELECTED UNIT PANEL
 // ============================================================================
 
@@ -1185,6 +1250,7 @@ function SelectedUnitPanel({
   })();
   const [aiScoreModal, setAiScoreModal] = useState(false);
   const [aiScores, setAiScores] = useState<ScoredAction[]>([]);
+  const [unitInfoOpen, setUnitInfoOpen] = useState(false);
   const [tagPopup, setTagPopup] = useState<UnitTag | null>(null);
   const levelUpUnit = useGameStore((s) => s.levelUpUnit);
   const startHealMode = useGameStore((s) => s.startHealMode);
@@ -1213,7 +1279,6 @@ function SelectedUnitPanel({
   const isMaxLevel = unit.level >= XP.MAX_LEVEL;
   const nextLevelDef = !isMaxLevel ? UNIT_DEFINITIONS[unit.type]?.levelUp?.[unit.level - 1] : null;
   const nextLevelXpRequired = nextLevelDef?.xpRequired ?? null;
-  const unitDesc = UNIT_DEFINITIONS[unit.type]?.description;
 
   // Compute contextual stat bonuses from tech flags and unit tags
   const statBonuses = useMemo(() => {
@@ -1301,8 +1366,6 @@ function SelectedUnitPanel({
     return { applied, net, hasAny };
   }, [unit, gameState, phalanxAttack, phalanxDefense, statBonuses]);
 
-  const [statDetailOpen, setStatDetailOpen] = useState(false);
-
   // Renders one green/red/neutral badge for the net modifier of a stat key.
   // Returns null when there are no modifiers at all for that stat.
   const showNetMod = (statKey: string) => {
@@ -1315,13 +1378,15 @@ function SelectedUnitPanel({
 
   return (
     <div className={`hud-info-panel${!isPlayer ? ' hud-panel-enemy' : ''}`}>
-      {/* Header */}
-      <div className="hud-panel-header">
+      {/* Header — entire row is tappable to open UnitCombinedInfoPopup */}
+      <button className="hud-panel-header-btn" onClick={() => setUnitInfoOpen(true)} aria-label={`View ${UNIT_NAME[unit.type] ?? unit.type} info`}>
         <span className="hud-panel-emoji">{UNIT_EMOJI[unit.type] ?? '?'}</span>
-        <span className="hud-panel-name">{UNIT_NAME[unit.type] ?? unit.type}</span>
+        <span className="hud-panel-name">
+          {UNIT_NAME[unit.type] ?? unit.type}
+          <span className="info-badge" aria-hidden="true">i</span>
+        </span>
         {!isPlayer && <span className="hud-faction-label hud-faction-enemy">🔴 Enemy</span>}
-      </div>
-      {unitDesc && <p className="hud-unit-desc">{unitDesc}</p>}
+      </button>
       <div className="hud-hp-row">
         <div className="hud-hp-bar">
           <div className="hud-hp-fill" style={{ width: `${hpPct}%` }} />
@@ -1352,7 +1417,7 @@ function SelectedUnitPanel({
           ⬆️ Level Up to Lv.{targetLevel}
         </button>
       )}
-      <button className="hud-unit-stats-btn" onClick={() => setStatDetailOpen(true)} aria-label="View stat modifiers">
+      <button className="hud-unit-stats-btn" onClick={() => setUnitInfoOpen(true)} aria-label="View stat details and modifiers">
         <div className="hud-unit-stats">
           <span className="hud-stat-label">ATK</span>
           <span className="hud-stat-value">
@@ -1473,8 +1538,10 @@ function SelectedUnitPanel({
       {aiScoreModal && (
         <AiScoreModal scores={aiScores} onClose={() => setAiScoreModal(false)} />
       )}
+      {unitInfoOpen && (
+        <UnitCombinedInfoPopup unit={unit} onClose={() => setUnitInfoOpen(false)} />
+      )}
       {tagPopup && <TagPopup tag={tagPopup} onClose={() => setTagPopup(null)} />}
-      {statDetailOpen && <StatDetailModal unit={unit} onClose={() => setStatDetailOpen(false)} />}
     </div>
   );
 }
