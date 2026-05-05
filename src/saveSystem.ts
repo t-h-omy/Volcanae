@@ -64,7 +64,8 @@ export function loadGameState(): GameState | null {
     }
 
     // Migration v8 → v9: UnitType INFANTRY renamed to SPEARMAN.
-    // Convert all saved unit types and any stored specialist/tech effect params.
+    // Only unit records need migration here — specialist effects are re-synced
+    // from SPECIALIST_DEFINITIONS below, and tech effects are never persisted.
     if (parsed.version < 9 && s.units && typeof s.units === 'object') {
       for (const unit of Object.values(s.units) as Array<unknown>) {
         const u = unit as Record<string, unknown>;

@@ -579,12 +579,24 @@ function TopBar({
   const [openSpecialistInfo, setOpenSpecialistInfo] = useState<string | null>(null);
   const openSpec = openSpecialistInfo ? specialists[openSpecialistInfo] : null;
 
+  /** Renders a net-income badge (green for positive, red for negative, hidden for zero). */
+  const NetIncomeBadge = ({ gross, upkeep }: { gross: number; upkeep: number }) => {
+    const net = gross - upkeep;
+    if (net === 0) return null;
+    const formatted = Number.isInteger(net) ? String(net) : net.toFixed(1);
+    return (
+      <span className={net > 0 ? 'hud-income' : 'hud-income-negative'}>
+        ({net > 0 ? '+' : ''}{formatted})
+      </span>
+    );
+  };
+
   return (
     <div className="hud-top-bar">
       <span className="hud-stat">🔄 Turn {turn}</span>
       {isAnimating && <span className="hud-stat hud-enemy-turn-label">⚔️ Enemy Turn...</span>}
-      <span className="hud-stat">⛓️ {resources.iron}{(() => { const net = ironPerTurn - ironUpkeep; return net !== 0 ? <span className={net > 0 ? 'hud-income' : 'hud-income-negative'}>({net > 0 ? '+' : ''}{Number.isInteger(net) ? net : net.toFixed(1)})</span> : null; })()}</span>
-      <span className="hud-stat">🪵 {resources.wood}{(() => { const net = woodPerTurn - woodUpkeep; return net !== 0 ? <span className={net > 0 ? 'hud-income' : 'hud-income-negative'}>({net > 0 ? '+' : ''}{Number.isInteger(net) ? net : net.toFixed(1)})</span> : null; })()}</span>
+      <span className="hud-stat">⛓️ {resources.iron}<NetIncomeBadge gross={ironPerTurn} upkeep={ironUpkeep} /></span>
+      <span className="hud-stat">🪵 {resources.wood}<NetIncomeBadge gross={woodPerTurn} upkeep={woodUpkeep} /></span>
       <span className="hud-stat">🌾 {farmersUsed}/{farmerCapacity}</span>
       <span className="hud-stat">🎖️ {noblesUsed}/{nobleCapacity}</span>
       <span className="hud-stat">🔥 Ember {ember}</span>
