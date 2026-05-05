@@ -65,4 +65,8 @@ export const ANIMATION = {
   ZONE_CLEARED_TILE_FLASH_MS: 500,
   /** How long to wait after all VFX settle before showing the popup (ms) */
   ZONE_CLEARED_SETTLE_MS: 200,
+  /** Duration of the expanding shockwave ring for an Emberling explosion (ms) */
+  EXPLOSION_SHOCKWAVE_MS: 500,
+  /** Duration of the tile flash burst at the Emberling explosion center (ms) */
+  EXPLOSION_TILE_FLASH_MS: 600,
 } as const;

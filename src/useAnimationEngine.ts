@@ -830,6 +830,31 @@ export function useAnimationEngine(): void {
           continue;
         }
 
+        // ── Special handling for EXPLOSION (Emberling explode VFX) ──
+        if (event.type === 'EXPLOSION' && visible) {
+          const tileSize = getTileSize();
+          const flashKey = `${event.position.x},${event.position.y}`;
+
+          // Tile flash at explosion center
+          useCombatAnimationStore.getState().addTileFlash(
+            event.position.x,
+            event.position.y,
+            ANIMATION.EXPLOSION_TILE_FLASH_MS,
+          );
+          setTimeout(
+            () => useCombatAnimationStore.getState().removeTileFlash(flashKey),
+            ANIMATION.EXPLOSION_TILE_FLASH_MS,
+          );
+
+          // Expanding shockwave ring from explosion center
+          useShockwaveStore.getState().addShockwave({
+            id: crypto.randomUUID(),
+            cx: event.position.x * tileSize + tileSize / 2,
+            cy: event.position.y * tileSize + tileSize / 2,
+            durationMs: ANIMATION.EXPLOSION_SHOCKWAVE_MS,
+          });
+        }
+
         // ── Special handling for standalone UNIT_DEATH (e.g. from lava) ──
         if (event.type === 'UNIT_DEATH' && visible) {
           const unitStillExists = useGameStore.getState().units[event.unitId];

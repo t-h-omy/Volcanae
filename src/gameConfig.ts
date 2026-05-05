@@ -1132,8 +1132,11 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
   spec_05: {
     name: 'Deathmender',
     description:
-      `When one of your Spearman units dies, a Gravestone is left on their tile. Pay ${ABILITIES.REVIVE_CRYSTAL_COST} crystal to revive the unit.`,
-    effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.SPEARMAN, tag: UnitTag.REVIVABLE } }],
+      `When one of your Spearman or Swordsman units dies, a Gravestone is left on their tile. Pay ${ABILITIES.REVIVE_CRYSTAL_COST} crystal to revive the unit.`,
+    effects: [
+      { type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.SPEARMAN,  tag: UnitTag.REVIVABLE } },
+      { type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.SWORDSMAN, tag: UnitTag.REVIVABLE } },
+    ],
     upkeepIron: 0,
     upkeepWood: 0,
   },
