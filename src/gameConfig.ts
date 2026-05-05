@@ -619,7 +619,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   ARCHER: {
-    maxHp: 100, attack: 50, defense: 25,
+    maxHp: 100, attack: 50, defense: 35,
     movementActions: 1, moveRange: 1, attackRange: 2,
     discoverRadius: 1, triggerRange: 0,
     tags: [UnitTag.RANGED, UnitTag.BUILDANDCAPTURE],
@@ -749,7 +749,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   EMBERLING: {
-    maxHp: 45, attack: 15, defense: 10,
+    maxHp: 45, attack: 0, defense: 15,
     movementActions: 1, moveRange: 2, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
     explosionDamage: 40,
