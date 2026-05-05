@@ -12,8 +12,9 @@ import type { Projectile } from '../combatAnimationStore';
 import { useShockwaveStore } from '../shockwaveStore';
 import { canCapture } from '../captureSystem';
 import { getConstructionOptionsForTile } from '../constructionSystem';
-import { MAP, UNIT_DEFINITIONS } from '../gameConfig';
+import { MAP, UNIT_DEFINITIONS, BUILDING_DEFINITIONS } from '../gameConfig';
 import { getStrongholdEffectiveCap } from '../techSystem';
+import { computeRecruitmentBuildingUsage } from '../resourceSystem';
 import { ANIMATION } from '../animationConfig';
 import { UI } from '../uiConfig';
 import { RENDER } from '../renderConfig';
@@ -138,6 +139,24 @@ export default function GridRenderer() {
   const pendingHealerId = useGameStore((s) => s.pendingHealerId);
   const cancelHealMode = useGameStore((s) => s.cancelHealMode);
   const strongholdTotalCap = useGameStore((s) => getStrongholdEffectiveCap(s).totalCap);
+  // Precompute recruitment usage (current/limit) for each player-owned recruitment building type.
+  // Computed once here so TileCell components don't each need to iterate all units/buildings.
+  const recruitmentUsage = useGameStore((s) => {
+    const result: Partial<Record<BuildingType, { current: number; limit: number }>> = {};
+    const recruitingTypes = [
+      BuildingType.STRONGHOLD,
+      BuildingType.BARRACKS,
+      BuildingType.ARCHER_CAMP,
+      BuildingType.RIDER_CAMP,
+      BuildingType.SIEGE_CAMP,
+    ] as BuildingType[];
+    for (const bt of recruitingTypes) {
+      if (BUILDING_DEFINITIONS[bt]?.unitLimit !== undefined) {
+        result[bt] = computeRecruitmentBuildingUsage(s, bt);
+      }
+    }
+    return result;
+  });
 
   // ── Animation store selectors ──
   const isAnimating = useAnimationStore((s) => s.isAnimating);
@@ -698,6 +717,7 @@ export default function GridRenderer() {
                 isHealable={isHealable}
                 isSelected={isSelected}
                 strongholdTotalCap={strongholdTotalCap}
+                recruitmentUsage={recruitmentUsage}
                 onClick={() => handleTileClick(x, y)}
               />
             );
@@ -733,6 +753,8 @@ interface TileCellProps {
   isSelected: boolean;
   /** Pre-computed total population cap for STRONGHOLD buildings (farmers + nobles, including tech mods). */
   strongholdTotalCap: number;
+  /** Pre-computed recruitment usage per building type (current units / cap). */
+  recruitmentUsage: Partial<Record<BuildingType, { current: number; limit: number }>>;
   onClick: () => void;
 }
 
@@ -746,6 +768,7 @@ function TileCellInner({
   isHealable,
   isSelected,
   strongholdTotalCap,
+  recruitmentUsage,
   onClick,
 }: TileCellProps) {
   const buildingIconSize = tileSize;
@@ -821,6 +844,13 @@ function TileCellInner({
     building &&
     building.faction === Faction.PLAYER &&
     (building.type === BuildingType.FARM || building.type === BuildingType.PATRICIANHOUSE || building.type === BuildingType.STRONGHOLD);
+
+  // Unit-limit badge for player-owned recruitment buildings
+  const showUnitLimit =
+    showBuilding &&
+    building &&
+    building.faction === Faction.PLAYER &&
+    recruitmentUsage[building.type as BuildingType] !== undefined;
 
   const isResonating = building?.type === BuildingType.CRYSTAL_CHAMBER && building.resonanceTurnsRemaining > 0;
   const isCrystalActivating = useCombatAnimationStore(
@@ -988,6 +1018,18 @@ function TileCellInner({
           ? strongholdTotalCap
           : building.populationCap;
         return <div className="population-badge">{popCount}/{capDisplay}</div>;
+      })()}
+
+      {/* unit-limit badge for player-owned recruitment buildings */}
+      {showUnitLimit && building && (() => {
+        const usage = recruitmentUsage[building.type as BuildingType]!;
+        // For STRONGHOLD, position top-left to avoid overlapping the population badge (bottom-center).
+        const isStronghold = building.type === BuildingType.STRONGHOLD;
+        return (
+          <div className={isStronghold ? 'unit-limit-badge unit-limit-badge--stronghold' : 'unit-limit-badge'}>
+            ⚔️{usage.current}/{usage.limit}
+          </div>
+        );
       })()}
 
       {/* unit rendering */}

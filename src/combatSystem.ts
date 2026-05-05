@@ -441,6 +441,7 @@ export function resolveAttack(
           destroyBehavior: BUILDING_DEFINITIONS.GRAVESTONE.destroyBehavior,
           resonanceTurnsRemaining: 0,
           spawnCooldownRemaining: 0,
+          lastRecruitmentTurn: 0,
           gravesUnitType: defenderType,
         };
         tile.buildingId = graveId;
@@ -764,6 +765,7 @@ export function resolveBuildingAttack(
           destroyBehavior: BUILDING_DEFINITIONS.GRAVESTONE.destroyBehavior,
           resonanceTurnsRemaining: 0,
           spawnCooldownRemaining: 0,
+          lastRecruitmentTurn: 0,
           gravesUnitType: defenderType,
         };
         tile.buildingId = graveId;

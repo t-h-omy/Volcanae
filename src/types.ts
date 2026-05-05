@@ -373,6 +373,11 @@ export interface Building {
   /** Remaining cooldown turns before this building can spawn again. */
   spawnCooldownRemaining: number;
   /**
+   * The turn number on which this building last recruited a unit.
+   * 0 means it has never recruited. Used to enforce the 1-recruit-per-turn limit.
+   */
+  lastRecruitmentTurn: number;
+  /**
    * Unit type stored in this Gravestone building.
    * Only set for GRAVESTONE buildings; undefined for all others.
    */

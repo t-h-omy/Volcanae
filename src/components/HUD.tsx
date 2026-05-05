@@ -1237,13 +1237,13 @@ function SelectedUnitPanel({
         <div className="hud-unit-stats">
           <span className="hud-stat-label">ATK</span>
           <span className="hud-stat-value">
-            {unit.stats.attack}
+            {unit.stats.attack - atkPenalty}
             {phalanxAttack > 0 && <span className="hud-stat-mod hud-stat-bonus">+{phalanxAttack}</span>}
             {atkPenalty < 0 && <span className="hud-stat-mod hud-stat-penalty">{atkPenalty}</span>}
           </span>
           <span className="hud-stat-label">DEF</span>
           <span className="hud-stat-value">
-            {unit.stats.defense}
+            {unit.stats.defense - defPenalty}
             {totalDefBonus > 0 && <span className="hud-stat-mod hud-stat-bonus">+{totalDefBonus}</span>}
             {defPenalty < 0 && <span className="hud-stat-mod hud-stat-penalty">{defPenalty}</span>}
           </span>
@@ -1536,6 +1536,8 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
     ? computeRecruitmentBuildingUsage(gameState, building.type)
     : { current: 0, limit: Infinity };
   const atUnitLimit = isFinite(unitLimit) && recruitedUnits >= unitLimit;
+  // Per-building recruitment limit: only 1 unit per turn per building
+  const alreadyRecruitedThisTurn = isPlayerOwned && building.lastRecruitmentTurn === gameState.turn;
 
   // Check whether there is a free tile to spawn a unit (building tile or adjacent)
   const hasSpawnSpace = useMemo(
@@ -1713,6 +1715,12 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
           )}
         </div>
       )}
+      {/* Per-building recruitment turn limit indicator */}
+      {alreadyRecruitedThisTurn && (
+        <div className="hud-production-row hud-dim">
+          ⏳ Already recruited this turn
+        </div>
+      )}
 
       {/* Gravestone revive button */}
       {isGravestone && (
@@ -1751,7 +1759,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
                   : false;
                 const popCost = UNIT_DEFINITIONS[unitType]?.populationCost as UnitPopulationCost | undefined;
                 const hasPopulation = canAffordPopulation(useGameStore.getState(), unitType);
-                const canRecruitThisUnit = !isDisabled && hasSpawnSpace && canAffordUnit && hasPopulation && !atUnitLimit;
+                const canRecruitThisUnit = !isDisabled && hasSpawnSpace && canAffordUnit && hasPopulation && !atUnitLimit && !alreadyRecruitedThisTurn;
                 // Compute which population resource is actually insufficient for the error message
                 let popWarningMsg: string | null = null;
                 if (!hasPopulation && canAffordUnit && popCost) {
