@@ -1868,6 +1868,7 @@ export const useGameStore = create<GameStore>()(
                 destroyBehavior: BUILDING_DEFINITIONS[BuildingType.FARM].destroyBehavior,
                 resonanceTurnsRemaining: 0,
                 spawnCooldownRemaining: 0,
+                lastRecruitmentTurn: 0,
               };
               state.buildings[building.id] = building;
               tile.buildingId = building.id;

@@ -210,6 +210,7 @@ function createBuilding(
     destroyBehavior: BUILDING_DEFINITIONS[type].destroyBehavior,
     resonanceTurnsRemaining: 0,
     spawnCooldownRemaining: 0,
+    lastRecruitmentTurn: 0,
   };
 }/**
  * Generates all buildings for a zone.

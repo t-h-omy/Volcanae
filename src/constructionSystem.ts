@@ -335,6 +335,7 @@ function createBuildingObject(
     destroyBehavior: BUILDING_DEFINITIONS[type].destroyBehavior,
     resonanceTurnsRemaining: 0,
     spawnCooldownRemaining: 0,
+    lastRecruitmentTurn: 0,
   };
 }
 

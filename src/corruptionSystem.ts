@@ -159,6 +159,7 @@ export function corruptTerrain(
     destroyBehavior: BUILDING_DEFINITIONS[buildingType].destroyBehavior,
     resonanceTurnsRemaining: 0,
     spawnCooldownRemaining: 0,
+    lastRecruitmentTurn: 0,
   };
 
   // Add building to state

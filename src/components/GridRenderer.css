@@ -284,13 +284,24 @@
   50%      { background-color: rgba(226, 88, 34, 0.4); }
 }
 
-/* ── Population badge for FARM and PATRICIANHOUSE ── */
+/* ── Stacked building badges (population + unit-limit) at bottom-center of tile ── */
 
-.population-badge {
+.building-badges {
   position: absolute;
   bottom: 2px;
   left: 50%;
   transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  z-index: 3;
+  pointer-events: none;
+}
+
+/* ── Population badge (child of .building-badges) ── */
+
+.population-badge {
   font-size: 9px;
   font-weight: bold;
   color: white;
@@ -298,9 +309,20 @@
   padding: 0 3px;
   border-radius: 3px;
   line-height: 1.3;
-  z-index: 3;
   white-space: nowrap;
-  pointer-events: none;
+}
+
+/* ── Unit-limit badge for recruitment buildings (child of .building-badges) ── */
+
+.unit-limit-badge {
+  font-size: 9px;
+  font-weight: bold;
+  color: #ffd;
+  background: rgba(50, 30, 0, 0.75);
+  padding: 0 3px;
+  border-radius: 3px;
+  line-height: 1.3;
+  white-space: nowrap;
 }
 
 /* ── Emberling hover explosion icon ── */

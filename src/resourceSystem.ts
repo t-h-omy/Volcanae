@@ -467,6 +467,11 @@ export function recruitUnit(
     return;
   }
 
+  // Validate this building has not already recruited this turn
+  if (building.lastRecruitmentTurn === state.turn) {
+    return;
+  }
+
   // Find spawn position — reject if no free tile available
   const spawnPosition = findSpawnPosition(state, building.position);
   if (spawnPosition === null) {
@@ -540,6 +545,9 @@ export function recruitUnit(
 
   // Place unit on the grid
   state.grid[spawnPosition.y][spawnPosition.x].unitId = unitId;
+
+  // Mark this building as having recruited this turn
+  building.lastRecruitmentTurn = state.turn;
 
   // Update recruitment stats
   state.gameStats.unitsRecruited += 1;

@@ -1167,30 +1167,68 @@ function SelectedUnitPanel({
   // Compute PHALANX formation bonuses (works for both factions)
   const phalanxAttack = useMemo(() => getPhalanxAttackBonus(gameState, unit), [gameState, unit]);
   const phalanxDefense = useMemo(() => getPhalanxDefenseBonus(gameState, unit), [gameState, unit]);
-  const totalDefBonus = statBonuses.def + phalanxDefense;
+  // Unified modifier map: applied = baked into unit.stats; contextual = runtime-only.
+  // Used to show white base value + one green/red/neutral net modifier badge per stat.
+  const inlineStatMods = useMemo(() => {
+    const applied: Partial<Record<string, number>> = {};
+    const contextual: Partial<Record<string, number>> = {};
 
-  // Compute inline stat penalties from TAG_STAT_EFFECTS (negative values baked into unit.stats)
-  const tagPenalties = useMemo(() => {
-    const p: Partial<Record<string, number>> = {};
+    const addApplied = (stat: string, value: number) => {
+      applied[stat] = (applied[stat] ?? 0) + value;
+    };
+    const addContextual = (stat: string, value: number) => {
+      contextual[stat] = (contextual[stat] ?? 0) + value;
+    };
+
+    // TAG_STAT_EFFECTS — positive and negative — baked into unit.stats at grant time
     for (const tag of unit.tags) {
       for (const mod of TAG_STAT_EFFECTS[tag] ?? []) {
-        if (mod.mode === 'add' && mod.value < 0) {
-          const key = mod.stat as string;
-          p[key] = (p[key] ?? 0) + mod.value;
+        if (mod.mode === 'add') addApplied(mod.stat as string, mod.value);
+      }
+    }
+
+    // Tech UNIT_STAT_MOD effects — baked into unit.stats at unlock time (player only)
+    if (unit.faction === Faction.PLAYER) {
+      for (const def of TECH_TREE) {
+        if (!gameState.techNodes[def.id]?.unlocked) continue;
+        for (const effect of def.effects) {
+          if (effect.type === 'UNIT_STAT_MOD' && effect.unitType === unit.type && effect.mode === 'add') {
+            addApplied(effect.stat as string, effect.value);
+          }
         }
       }
     }
-    return p;
-  }, [unit.tags]);
 
-  // Accumulated DEF penalty from DISTRACTION combat hits
-  const distractionPenalty = unit.distractionDefPenalty;
+    // Accumulated DISTRACTION DEF penalty — baked into unit.stats.defense via combat hits
+    if (unit.distractionDefPenalty > 0) addApplied('defense', -unit.distractionDefPenalty);
 
-  // Combined inline penalties per stat
-  const atkPenalty = tagPenalties.attack ?? 0;
-  const defPenalty = (tagPenalties.defense ?? 0) - distractionPenalty;
+    // Contextual bonuses — applied at runtime, not reflected in unit.stats
+    if (phalanxAttack !== 0) addContextual('attack', phalanxAttack);
+    if (phalanxDefense !== 0) addContextual('defense', phalanxDefense);
+    if (statBonuses.def !== 0) addContextual('defense', statBonuses.def);
+    if (statBonuses.mov !== 0) addContextual('moveRange', statBonuses.mov);
+
+    const hasAny: Record<string, boolean> = {};
+    const net: Record<string, number> = {};
+    for (const k of new Set([...Object.keys(applied), ...Object.keys(contextual)])) {
+      hasAny[k] = true;
+      net[k] = (applied[k] ?? 0) + (contextual[k] ?? 0);
+    }
+
+    return { applied, net, hasAny };
+  }, [unit, gameState, phalanxAttack, phalanxDefense, statBonuses]);
 
   const [statDetailOpen, setStatDetailOpen] = useState(false);
+
+  // Renders one green/red/neutral badge for the net modifier of a stat key.
+  // Returns null when there are no modifiers at all for that stat.
+  const showNetMod = (statKey: string) => {
+    if (!inlineStatMods.hasAny[statKey]) return null;
+    const n = inlineStatMods.net[statKey] ?? 0;
+    if (n > 0) return <span className="hud-stat-mod hud-stat-bonus">+{n}</span>;
+    if (n < 0) return <span className="hud-stat-mod hud-stat-penalty">{n}</span>;
+    return <span className="hud-stat-mod hud-stat-neutral">±0</span>;
+  };
 
   return (
     <div className={`hud-info-panel${!isPlayer ? ' hud-panel-enemy' : ''}`}>
@@ -1237,25 +1275,29 @@ function SelectedUnitPanel({
         <div className="hud-unit-stats">
           <span className="hud-stat-label">ATK</span>
           <span className="hud-stat-value">
-            {unit.stats.attack}
-            {phalanxAttack > 0 && <span className="hud-stat-mod hud-stat-bonus">+{phalanxAttack}</span>}
-            {atkPenalty < 0 && <span className="hud-stat-mod hud-stat-penalty">{atkPenalty}</span>}
+            {unit.stats.attack - (inlineStatMods.applied.attack ?? 0)}
+            {showNetMod('attack')}
           </span>
           <span className="hud-stat-label">DEF</span>
           <span className="hud-stat-value">
-            {unit.stats.defense}
-            {totalDefBonus > 0 && <span className="hud-stat-mod hud-stat-bonus">+{totalDefBonus}</span>}
-            {defPenalty < 0 && <span className="hud-stat-mod hud-stat-penalty">{defPenalty}</span>}
+            {unit.stats.defense - (inlineStatMods.applied.defense ?? 0)}
+            {showNetMod('defense')}
           </span>
           <span className="hud-stat-label">MOV</span>
           <span className="hud-stat-value">
-            {unit.stats.moveRange}
-            {statBonuses.mov > 0 && <span className="hud-stat-mod hud-stat-bonus">+{statBonuses.mov}</span>}
+            {unit.stats.moveRange - (inlineStatMods.applied.moveRange ?? 0)}
+            {showNetMod('moveRange')}
           </span>
           <span className="hud-stat-label">RNG</span>
-          <span className="hud-stat-value">{unit.stats.attackRange}</span>
+          <span className="hud-stat-value">
+            {unit.stats.attackRange - (inlineStatMods.applied.attackRange ?? 0)}
+            {showNetMod('attackRange')}
+          </span>
           <span className="hud-stat-label">VIS</span>
-          <span className="hud-stat-value">{unit.stats.discoverRadius}</span>
+          <span className="hud-stat-value">
+            {unit.stats.discoverRadius - (inlineStatMods.applied.discoverRadius ?? 0)}
+            {showNetMod('discoverRadius')}
+          </span>
         </div>
         <span className="hud-unit-stats-hint" aria-hidden="true">📊</span>
       </button>
@@ -1536,6 +1578,8 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
     ? computeRecruitmentBuildingUsage(gameState, building.type)
     : { current: 0, limit: Infinity };
   const atUnitLimit = isFinite(unitLimit) && recruitedUnits >= unitLimit;
+  // Per-building recruitment limit: only 1 unit per turn per building
+  const alreadyRecruitedThisTurn = isPlayerOwned && building.lastRecruitmentTurn === gameState.turn;
 
   // Check whether there is a free tile to spawn a unit (building tile or adjacent)
   const hasSpawnSpace = useMemo(
@@ -1713,6 +1757,12 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
           )}
         </div>
       )}
+      {/* Per-building recruitment turn limit indicator */}
+      {alreadyRecruitedThisTurn && (
+        <div className="hud-production-row hud-dim">
+          ⏳ Already recruited this turn
+        </div>
+      )}
 
       {/* Gravestone revive button */}
       {isGravestone && (
@@ -1751,7 +1801,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
                   : false;
                 const popCost = UNIT_DEFINITIONS[unitType]?.populationCost as UnitPopulationCost | undefined;
                 const hasPopulation = canAffordPopulation(useGameStore.getState(), unitType);
-                const canRecruitThisUnit = !isDisabled && hasSpawnSpace && canAffordUnit && hasPopulation && !atUnitLimit;
+                const canRecruitThisUnit = !isDisabled && hasSpawnSpace && canAffordUnit && hasPopulation && !atUnitLimit && !alreadyRecruitedThisTurn;
                 // Compute which population resource is actually insufficient for the error message
                 let popWarningMsg: string | null = null;
                 if (!hasPopulation && canAffordUnit && popCost) {

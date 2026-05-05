@@ -123,6 +123,17 @@ export function loadGameState(): GameState | null {
       }
     }
 
+    // Migration: backfill lastRecruitmentTurn on building records from saves
+    // that predate the per-building recruitment-per-turn limit.
+    if (s.buildings && typeof s.buildings === 'object') {
+      for (const building of Object.values(s.buildings) as Array<unknown>) {
+        const b = building as Record<string, unknown>;
+        if (b && typeof b.id === 'string' && typeof b.lastRecruitmentTurn !== 'number') {
+          b.lastRecruitmentTurn = 0;
+        }
+      }
+    }
+
     // Migration: backfill specialistSlotCap and activeCaveEncounters for saves
     // that predate these fields being added to GameState.
     const gs = (s as unknown) as Record<string, unknown>;
