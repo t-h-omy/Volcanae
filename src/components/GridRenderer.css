@@ -420,6 +420,11 @@
   font-size: var(--xp-floater-font-size, 12px);
 }
 
+.damage-floater.floater-revive {
+  color: var(--color-revive-floater, #c77dff);
+  font-size: var(--levelup-floater-font-size, 16px);
+}
+
 @keyframes floatUp {
   0%   { transform: translateX(-50%) translateY(0);                    opacity: 1; }
   100% { transform: translateX(-50%) translateY(var(--float-rise, -20px)); opacity: 0; }

@@ -574,6 +574,7 @@ function TopBar({
   const specialists = useGameStore((s) => s.specialists);
   const globalSpecialistStorage = useGameStore((s) => s.globalSpecialistStorage);
   const specialistSlotCap = useGameStore((s) => s.specialistSlotCap);
+  const dismissSpecialist = useGameStore((s) => s.dismissSpecialist);
 
   // Which specialist slot's info popup is currently open (index into slots)
   const [openSpecialistInfo, setOpenSpecialistInfo] = useState<string | null>(null);
@@ -635,6 +636,7 @@ function TopBar({
         <SpecialistInfoPopup
           specialist={openSpec}
           onClose={() => setOpenSpecialistInfo(null)}
+          onDismiss={() => { dismissSpecialist(openSpec.id); setOpenSpecialistInfo(null); }}
         />
       )}
       <GameMenu />
@@ -2182,11 +2184,12 @@ function CaveScreamsPopup() {
 // ============================================================================
 
 /** Specialist info popup — shown when clicking a filled specialist slot in the top bar, or in swap view */
-function SpecialistInfoPopup({ specialist, onClose }: { specialist: Specialist; onClose: () => void }) {
+function SpecialistInfoPopup({ specialist, onClose, onDismiss }: { specialist: Specialist; onClose: () => void; onDismiss?: () => void }) {
   const iron = specialist.upkeepIron ?? 0;
   const wood = specialist.upkeepWood ?? 0;
   const hasUpkeep = iron > 0 || wood > 0;
   const isDormant = !!specialist.dormant;
+  const [confirmingDismiss, setConfirmingDismiss] = useState(false);
 
   return (
     <Popup onClose={onClose}>
@@ -2201,7 +2204,24 @@ function SpecialistInfoPopup({ specialist, onClose }: { specialist: Specialist; 
           {isDormant && <span className="specialist-info-dormant-note"> — cannot pay upkeep</span>}
         </div>
       )}
-      <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>Close</button>
+      {confirmingDismiss ? (
+        <div className="specialist-dismiss-confirm">
+          <p className="specialist-dismiss-confirm-text">
+            Dismiss <strong>{specialist.name}</strong> permanently? Their effects will stop immediately, their slot becomes free, and they cannot be recovered.
+          </p>
+          <div className="specialist-dismiss-confirm-actions">
+            <button className="info-popup-btn info-popup-btn--danger" onClick={onDismiss}>Confirm Dismiss</button>
+            <button className="info-popup-btn info-popup-btn--secondary" onClick={() => setConfirmingDismiss(false)}>Cancel</button>
+          </div>
+        </div>
+      ) : (
+        <div className="specialist-info-actions">
+          <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>Close</button>
+          {onDismiss && (
+            <button className="info-popup-btn info-popup-btn--dismiss" onClick={() => setConfirmingDismiss(true)}>Dismiss Specialist</button>
+          )}
+        </div>
+      )}
     </Popup>
   );
 }

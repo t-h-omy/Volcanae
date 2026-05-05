@@ -141,6 +141,8 @@ interface GameActions {
   ignoreCave: (tilePos: Position) => void;
   /** Revive a fallen infantry unit from a Gravestone building (costs 1 arcane crystal) */
   reviveUnit: (buildingId: string) => void;
+  /** Permanently dismiss a recruited specialist, removing them from globalSpecialistStorage */
+  dismissSpecialist: (specialistId: string) => void;
 }
 
 // ============================================================================
@@ -913,7 +915,33 @@ export const useGameStore = create<GameStore>()(
           state.selectedBuildingId = null;
         }
 
+        // Trigger purple revive VFX
+        const { addFloater } = useFloaterStore.getState();
+        addFloater({
+          value: 0,
+          label: '✨ Revived!',
+          x: building.position.x,
+          y: building.position.y,
+          isEnemy: false,
+          floaterType: 'revive',
+        });
+
         updateDiscovery(state);
+      });
+    },
+
+    dismissSpecialist: (specialistId: string) => {
+      set((state) => {
+        const idx = state.globalSpecialistStorage.indexOf(specialistId);
+        if (idx === -1) return; // Not in storage — safe no-op
+        const specialist = state.specialists[specialistId];
+        if (!specialist) return;
+        // Remove from storage first so revoke sees it as no longer active
+        state.globalSpecialistStorage.splice(idx, 1);
+        // Revoke all effects
+        revokeEffectsForSpecialist(state, specialist);
+        // Clear dormant flag so it doesn't carry stale state if somehow reused
+        specialist.dormant = false;
       });
     },
 

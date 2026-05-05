@@ -403,14 +403,14 @@ export function resolveAttack(
     }
 
     // REVIVABLE: when a player SPEARMAN with REVIVABLE dies, leave a Gravestone
-    // on their tile (only if the tile has no building already).
+    // on their tile (only if the tile is free: no building, no unit, no ruin).
     if (
       defenderFaction === Faction.PLAYER &&
       defenderType === UnitType.SPEARMAN &&
       defenderTags.includes(UnitTag.REVIVABLE)
     ) {
       const tile = state.grid[defenderPosition.y][defenderPosition.x];
-      if (!tile.buildingId) {
+      if (!tile.buildingId && !tile.unitId && !tile.isRuin && !tile.isStrongholdRuin) {
         const graveId = generateCombatBuildingId();
         state.buildings[graveId] = {
           id: graveId,
@@ -734,7 +734,7 @@ export function resolveBuildingAttack(
       defenderTags.includes(UnitTag.REVIVABLE)
     ) {
       const tile = state.grid[defenderPos.y][defenderPos.x];
-      if (!tile.buildingId) {
+      if (!tile.buildingId && !tile.unitId && !tile.isRuin && !tile.isStrongholdRuin) {
         const graveId = generateCombatBuildingId();
         state.buildings[graveId] = {
           id: graveId,

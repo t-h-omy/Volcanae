@@ -38,6 +38,8 @@ export const RENDER = {
     LEVEL_UP_FLOATER: '#f1c40f',
     /** Colour of the XP-gain floater text */
     XP_FLOATER: '#e8c94f',
+    /** Colour of the revive floater text */
+    REVIVE_FLOATER: '#c77dff',
     /** Drop-shadow colour used in the level-up pulse animation */
     LEVEL_UP_GLOW: 'gold',
   },

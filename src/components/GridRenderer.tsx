@@ -1317,6 +1317,7 @@ function DamageFloaterLayer({ tileSize }: { tileSize: number }) {
           '--color-heal-floater': RENDER.COLORS.HEAL_FLOATER,
           '--color-levelup-floater': RENDER.COLORS.LEVEL_UP_FLOATER,
           '--color-xp-floater': RENDER.COLORS.XP_FLOATER,
+          '--color-revive-floater': RENDER.COLORS.REVIVE_FLOATER,
           '--damage-floater-font-size': `${UI.DAMAGE_FLOATER_FONT_SIZE_PX}px`,
           '--levelup-floater-font-size': `${UI.LEVEL_UP_FLOATER_FONT_SIZE_PX}px`,
           '--xp-floater-font-size': `${UI.XP_FLOATER_FONT_SIZE_PX}px`,
@@ -1331,9 +1332,11 @@ function DamageFloaterLayer({ tileSize }: { tileSize: number }) {
               ? 'floater-levelup'
               : floater.floaterType === 'xp'
                 ? 'floater-xp'
-                : floater.isEnemy
-                  ? 'floater-enemy'
-                  : 'floater-player';
+                : floater.floaterType === 'revive'
+                  ? 'floater-revive'
+                  : floater.isEnemy
+                    ? 'floater-enemy'
+                    : 'floater-player';
         const content =
           floater.label !== undefined
             ? floater.label
