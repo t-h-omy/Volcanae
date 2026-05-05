@@ -1571,12 +1571,12 @@ export const SANCTUM_COLLAPSE = {
   SPAWN_FREEZE_TURNS: 3,
 
   /**
-   * Number of turns the lava advance countdown is frozen after a Sanctum
-   * Collapse event. turnsUntilLavaAdvance is not decremented while the freeze
-   * is active, effectively pausing lava pressure.
-   * Set to 0 to disable the lava pause effect while keeping other effects active.
+   * Amount added to turnsUntilLavaAdvance when a Sanctum Collapse is triggered.
+   * This directly increases the countdown until the next lava advance, buying
+   * the player extra time without fully freezing the lava clock.
+   * Set to 0 to disable this bonus while keeping other Sanctum Collapse effects active.
    */
-  LAVA_FREEZE_TURNS: 3,
+  LAVA_ADVANCE_BONUS_TURNS: 3,
 } as const;
 
 // ============================================================================

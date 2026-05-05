@@ -369,12 +369,9 @@ export function triggerSanctumCollapse(
     }
   }
 
-  // Lava freeze
-  if (SANCTUM_COLLAPSE.LAVA_FREEZE_TURNS > 0) {
-    const newLavaFreeze = state.turn + SANCTUM_COLLAPSE.LAVA_FREEZE_TURNS;
-    if (newLavaFreeze > (state.lavaFreezeUntilTurn ?? 0)) {
-      state.lavaFreezeUntilTurn = newLavaFreeze;
-    }
+  // Lava advance bonus: increase the countdown so lava is delayed
+  if (SANCTUM_COLLAPSE.LAVA_ADVANCE_BONUS_TURNS > 0) {
+    state.turnsUntilLavaAdvance += SANCTUM_COLLAPSE.LAVA_ADVANCE_BONUS_TURNS;
   }
 
   // Emit ZONE_CLEARED event first so celebration VFX plays while entities
@@ -397,7 +394,7 @@ export function triggerSanctumCollapse(
     destroyedBuildingIds,
     lockoutUntilTurn,
     spawnFreezeUntilTurn: state.spawnFreezeUntilTurn,
-    lavaFreezeUntilTurn: state.lavaFreezeUntilTurn,
+    lavaAdvanceBonus: SANCTUM_COLLAPSE.LAVA_ADVANCE_BONUS_TURNS,
   });
 }
 

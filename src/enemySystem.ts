@@ -941,11 +941,11 @@ function moveEnemyUnitToward(
       const nextZone = getZoneForRow(nextPos.y);
       const currentZone = getZoneForRow(state.units[unitId].position.y);
       if (
-        nextZone > currentZone && // moving toward player (increasing zone number)
+        nextZone < currentZone && // moving toward player (decreasing zone number toward zone 1)
         state.zoneLockoutUntilTurn[nextZone] !== undefined &&
         state.turn < (state.zoneLockoutUntilTurn[nextZone] ?? 0)
       ) {
-        break; // stop movement — cannot cross into locked zone
+        break; // stop movement — cannot cross from above into locked zone
       }
     }
     const tile = state.grid[nextPos.y][nextPos.x];

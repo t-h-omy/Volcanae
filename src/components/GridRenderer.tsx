@@ -1027,7 +1027,7 @@ function TileCellInner({
           const capDisplay = building.type === BuildingType.STRONGHOLD
             ? strongholdTotalCap
             : building.populationCap;
-          return <div className="population-badge">{popCount}/{capDisplay}</div>;
+          return <div className="population-badge">👥{popCount}/{capDisplay}</div>;
         })();
         const unitBadge = showUnitLimit && (() => {
           const usage = recruitmentUsage[building.type as BuildingType]!;
