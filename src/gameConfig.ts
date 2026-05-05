@@ -765,7 +765,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   CAVE_MONSTER: {
-    maxHp: 150, attack: 55, defense: 40,
+   maxHp: 120, attack: 55, defense: 40,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 3, triggerRange: 3,
     tags: [],
