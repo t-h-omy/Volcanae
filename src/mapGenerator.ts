@@ -858,7 +858,10 @@ function hasOversizedDeadend(grid: Tile[][], zone: number): boolean {
     for (let x = 0; x < MAP.GRID_WIDTH; x++) {
       if (isImpassableTile(grid[y][x])) continue;
       const key = `${x},${y}`;
-      // Only check tiles reachable from at least one band (skip isolated pockets)
+      // Skip isolated pockets: tiles unreachable from both bands cannot form a
+      // meaningful deadend relative to the forward-flow path, and checking them
+      // would produce false positives (Infinity distance) for terrain disconnected
+      // from the main traversal corridor within this zone.
       if (!distFromSouth.has(key) && !distFromNorth.has(key)) continue;
       const d = distFromCore.get(key) ?? Infinity;
       if (d > maxDepth) return true;
@@ -885,7 +888,10 @@ function wouldCreateOversizedDeadend(
     if (p.y < 0 || p.y >= MAP.GRID_HEIGHT || p.x < 0 || p.x >= MAP.GRID_WIDTH) continue;
     if (!isImpassableTile(grid[p.y][p.x])) {
       reverts.push({ pos: p, terrainType: grid[p.y][p.x].terrainType });
-      grid[p.y][p.x].terrainType = TileType.CANYON; // placeholder for impassable
+      // Mark as CANYON regardless of whether this is a canyon or lake candidate —
+      // the specific impassable type does not matter for deadend BFS; only
+      // passability (isImpassableTile) is checked during validation.
+      grid[p.y][p.x].terrainType = TileType.CANYON;
     }
   }
 
