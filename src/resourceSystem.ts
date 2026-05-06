@@ -6,7 +6,7 @@
 import type { GameState, Building, Position, Tile, UnitPopulationCost } from './types';
 import type { Draft } from 'immer';
 import { Faction, BuildingType, UnitType, UnitTag, ResourceType } from './types';
-import { RESOURCES, UNIT_DEFINITIONS, POPULATION, CRYSTAL_CHAMBER_CONFIG, BUILDING_DEFINITIONS } from './gameConfig';
+import { RESOURCES, UNIT_DEFINITIONS, POPULATION, CRYSTAL_CHAMBER_CONFIG, BUILDING_DEFINITIONS, TECH_TREE } from './gameConfig';
 import type { UnitCost } from './gameConfig';
 import { getGrantedTags, getStatMods, getBuildingProductionMods, grantArcaneCrystals, getStrongholdEffectiveCap, getRemovedTags, getCostMods } from './techSystem';
 import { getTagsFromActiveSpecialists } from './specialistSystem';
@@ -215,6 +215,117 @@ export function computeResourceIncome(
   }
 
   return { ironPerTurn, woodPerTurn };
+}
+
+// ============================================================================
+// RESOURCE INCOME BREAKDOWN (for HUD display)
+// ============================================================================
+
+/** A single line in the resource income breakdown */
+export interface ResourceIncomeEntry {
+  /** Human-readable source label */
+  label: string;
+  /** Iron amount (positive = income, negative = cost) */
+  iron: number;
+  /** Wood amount (positive = income, negative = cost) */
+  wood: number;
+}
+
+/**
+ * Returns a detailed, source-attributed breakdown of resource income for the
+ * current player turn.  All amounts are deterministic expected values
+ * (probabilistic bonuses are included as fractions).
+ *
+ * The breakdown mirrors the logic in `computeResourceIncome` and
+ * `computeSpecialistUpkeep` exactly so UI numbers always match gameplay.
+ */
+export function computeResourceIncomeBreakdown(
+  state: GameState | Draft<GameState>,
+): ResourceIncomeEntry[] {
+  const entries: ResourceIncomeEntry[] = [];
+
+  // Pre-build a map from "buildingType|resource|amount|chance" → tech name so
+  // attribution is O(techs × effects) once instead of per-building.
+  const modKeyToTechName = new Map<string, string>();
+  for (const t of TECH_TREE) {
+    if (!state.techNodes[t.id]?.unlocked) continue;
+    for (const e of t.effects) {
+      if (e.type === 'BUILDING_PRODUCTION_MOD') {
+        const key = `${e.buildingType}|${e.resource}|${e.amount}|${e.chancePercent}`;
+        if (!modKeyToTechName.has(key)) {
+          modKeyToTechName.set(key, t.name);
+        }
+      }
+    }
+  }
+
+  // Per-building-type counters and per-tech bonus accumulators
+  let mineCount = 0;
+  let woodcutterCount = 0;
+  const techIron: Record<string, number> = {};
+  const techWood: Record<string, number> = {};
+
+  for (const building of Object.values(state.buildings)) {
+    if (building.faction !== Faction.PLAYER) continue;
+    if (building.isDisabledForTurns > 0) continue;
+
+    if (building.type === BuildingType.MINE) {
+      mineCount++;
+    } else if (building.type === BuildingType.WOODCUTTER) {
+      woodcutterCount++;
+    }
+
+    for (const mod of getBuildingProductionMods(state, building.type)) {
+      const expected = mod.amount * (mod.chancePercent / 100);
+      const key = `${building.type}|${mod.resource}|${mod.amount}|${mod.chancePercent}`;
+      const techName = modKeyToTechName.get(key) ?? 'Tech bonus';
+      if (mod.resource === ResourceType.IRON) {
+        techIron[techName] = (techIron[techName] ?? 0) + expected;
+      } else if (mod.resource === ResourceType.WOOD) {
+        techWood[techName] = (techWood[techName] ?? 0) + expected;
+      }
+    }
+  }
+
+  if (mineCount > 0) {
+    entries.push({
+      label: `Mine ×${mineCount}`,
+      iron: mineCount * RESOURCES.MINE_IRON_PER_TURN,
+      wood: 0,
+    });
+  }
+  if (woodcutterCount > 0) {
+    entries.push({
+      label: `Woodcutter ×${woodcutterCount}`,
+      iron: 0,
+      wood: woodcutterCount * RESOURCES.WOODCUTTER_WOOD_PER_TURN,
+    });
+  }
+
+  // Tech-attributed building production bonuses
+  const techNames = new Set([...Object.keys(techIron), ...Object.keys(techWood)]);
+  for (const name of techNames) {
+    const iron = techIron[name] ?? 0;
+    const wood = techWood[name] ?? 0;
+    entries.push({ label: name, iron, wood });
+  }
+
+  // Specialist upkeep (negative modifiers)
+  for (const specId of state.globalSpecialistStorage) {
+    const spec = state.specialists[specId];
+    if (!spec || spec.dormant) continue;
+    const iron = spec.upkeepIron ?? 0;
+    const wood = spec.upkeepWood ?? 0;
+    if (iron > 0 || wood > 0) {
+      entries.push({
+        label: `${spec.name} (upkeep)`,
+        iron: -iron,
+        wood: -wood,
+      });
+    }
+  }
+
+  return entries;
 }
 
 /**

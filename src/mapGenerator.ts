@@ -1213,7 +1213,23 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
     strongholdPositions.push(pos);
   }
 
-  // Place terrain for each zone with zone-balance carry-forward
+  // Place canyons and lakes immediately after stronghold positions are locked in.
+  // This ensures every subsequent feature (terrain, ruins, buildings) is placed only
+  // on tiles that are not already occupied by impassable water or canyon terrain.
+  // Canyon and lake are rolled independently for every zone — no shared roll and no
+  // if/else that makes them mutually exclusive; a zone may contain either, both, or neither.
+  for (let zone = 1; zone <= MAP.ZONE_COUNT; zone++) {
+    placeCanyonsForZone(zone, grid, occupiedPositions, strongholdPositions);
+    placeLakesForZone(zone, grid, occupiedPositions, strongholdPositions);
+  }
+
+  // Verify and fix traversability immediately after all impassable terrain is placed,
+  // before any other features are added on top of the final terrain layout.
+  ensureTraversability(grid);
+
+  // Place terrain for each zone with zone-balance carry-forward.
+  // Canyon/lake positions are already in occupiedPositions, so forests and mountains
+  // are automatically placed only on valid (non-water, non-canyon) tiles.
   let extraForests = 0;
   let extraMountains = 0;
 
@@ -1238,24 +1254,15 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
     extraMountains = mountainPositions.length === 0 ? 1 : 0;
   }
 
-  // Place ruins for each zone before canyons and lakes so the configured minimum
-  // number of ruins can always be placed on PLAINS tiles. Canyon/lake placement
-  // (below) will skip positions that are already occupied by ruins.
+  // Place ruins after canyons and lakes so ruins only land on genuinely valid
+  // PLAINS tiles. placeRuinsForZone checks terrainType === PLAINS and skips
+  // occupied positions, so it naturally avoids all canyon and water tiles.
   for (let zone = 1; zone <= MAP.ZONE_COUNT; zone++) {
     placeRuinsForZone(zone, grid, occupiedPositions);
   }
 
   // Place ruins in the lava buffer rows (south of zone 1).
   placeRuinsInLavaBuffer(grid, occupiedPositions);
-
-  // Place canyons and lakes per zone (after ruins, so they skip occupied ruin tiles)
-  for (let zone = 1; zone <= MAP.ZONE_COUNT; zone++) {
-    placeCanyonsForZone(zone, grid, occupiedPositions, strongholdPositions);
-    placeLakesForZone(zone, grid, occupiedPositions, strongholdPositions);
-  }
-
-  // Verify and fix traversability
-  ensureTraversability(grid);
 
   // Generate buildings for all zones
   const allBuildings: Building[] = [];

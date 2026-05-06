@@ -415,6 +415,7 @@ export function placeMineOnTile(
   if (!tile) return;
   if (tile.buildingId !== null) return;
   if (tile.isLava) return;
+  if (tile.terrainType !== TileType.MOUNTAIN) return;
 
   const cost = BUILDING_COST[BuildingType.MINE as ConstructableBuilding];
   if (!cost) return;

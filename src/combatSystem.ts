@@ -4,7 +4,7 @@
  * Supports both unit-vs-unit and building-vs-unit combat.
  */
 
-import type { Unit, Building, GameState } from './types';
+import type { Unit, Building, GameState, Tile } from './types';
 import type { Draft } from 'immer';
 import { BuildingType, Faction, UnitTag, UnitType, TechFlag, TileType, DestroyBehavior } from './types';
 import { useFloaterStore } from './floaterStore';
@@ -16,6 +16,24 @@ import { grantXp } from './levelSystem';
 let combatSystemIdCounter = 0;
 function generateCombatBuildingId(): string {
   return `building_grave_${Date.now()}_${++combatSystemIdCounter}`;
+}
+
+/**
+ * Returns true if the given tile is a valid spawn location for a Gravestone.
+ * The tile must be free of buildings, units, ruin flags, impassable terrain,
+ * and lava. Forests, water, and canyons are explicitly excluded.
+ */
+function isValidGravestoneTile(tile: Tile): boolean {
+  return (
+    !tile.buildingId &&
+    !tile.unitId &&
+    !tile.isRuin &&
+    !tile.isStrongholdRuin &&
+    !tile.isLava &&
+    tile.terrainType !== TileType.FOREST &&
+    tile.terrainType !== TileType.WATER &&
+    tile.terrainType !== TileType.CANYON
+  );
 }
 
 // ============================================================================
@@ -410,7 +428,7 @@ export function resolveAttack(
       defenderTags.includes(UnitTag.REVIVABLE)
     ) {
       const tile = state.grid[defenderPosition.y][defenderPosition.x];
-      if (!tile.buildingId && !tile.unitId && !tile.isRuin && !tile.isStrongholdRuin) {
+      if (isValidGravestoneTile(tile)) {
         const graveId = generateCombatBuildingId();
         state.buildings[graveId] = {
           id: graveId,
@@ -734,7 +752,7 @@ export function resolveBuildingAttack(
       defenderTags.includes(UnitTag.REVIVABLE)
     ) {
       const tile = state.grid[defenderPos.y][defenderPos.x];
-      if (!tile.buildingId && !tile.unitId && !tile.isRuin && !tile.isStrongholdRuin) {
+      if (isValidGravestoneTile(tile)) {
         const graveId = generateCombatBuildingId();
         state.buildings[graveId] = {
           id: graveId,

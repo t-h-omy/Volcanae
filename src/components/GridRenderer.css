@@ -727,9 +727,9 @@
 }
 
 @keyframes shockwaveExpand {
-  0%   { transform: translate(-50%, -50%) scale(0);   opacity: 1; }
+  0%   { transform: translate(-50%, -50%) scale(0);                             opacity: 1; }
   60%  { opacity: 0.6; }
-  100% { transform: translate(-50%, -50%) scale(6.5); opacity: 0; }
+  100% { transform: translate(-50%, -50%) scale(var(--sw-final-scale, 6.5)); opacity: 0; }
 }
 
 /* ── Per-tile cleared flash burst (zone cleared) ── */
