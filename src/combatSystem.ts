@@ -4,7 +4,7 @@
  * Supports both unit-vs-unit and building-vs-unit combat.
  */
 
-import type { Unit, Building, GameState } from './types';
+import type { Unit, Building, GameState, Tile } from './types';
 import type { Draft } from 'immer';
 import { BuildingType, Faction, UnitTag, UnitType, TechFlag, TileType, DestroyBehavior } from './types';
 import { useFloaterStore } from './floaterStore';
@@ -23,7 +23,7 @@ function generateCombatBuildingId(): string {
  * The tile must be free of buildings, units, ruin flags, impassable terrain,
  * and lava. Forests, water, and canyons are explicitly excluded.
  */
-function isValidGravestoneTile(tile: import('./types').Tile): boolean {
+function isValidGravestoneTile(tile: Tile): boolean {
   return (
     !tile.buildingId &&
     !tile.unitId &&
