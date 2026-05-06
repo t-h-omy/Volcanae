@@ -516,6 +516,20 @@ export const TERRAIN = {
    * Once back on the home tile it may despawn the following turn.
    */
   CAVE_MONSTER_PATROL_RADIUS: 3,
+
+  // Long-deadend prevention (canyon/lake placement validation)
+  /** Maximum BFS distance from the forward core before a side deadend is considered oversized */
+  WORLDGEN_MAX_DEADEND_DEPTH: 12,
+  /**
+   * Slack added to the shortest south-to-north path when computing the forward core.
+   * Tiles within shortestPath + WORLDGEN_MAIN_PATH_SLACK are included in the core.
+   */
+  WORLDGEN_MAIN_PATH_SLACK: 4,
+  /**
+   * Number of rows at the south and north edges of each zone that form the
+   * "south band" and "north band" for forward-core BFS seeding.
+   */
+  WORLDGEN_DEADEND_BAND_ROWS: 2,
 } as const;
 
 // ============================================================================
