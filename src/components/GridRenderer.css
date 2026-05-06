@@ -242,6 +242,37 @@
   transition: opacity 0.2s;
 }
 
+/* ── Contact Shadow ── */
+
+/* Soft oval shadow under every unit. Light from bottom-left → offset toward top-right.
+   pointer-events: none so it never interferes with clicks or hover. */
+.unit-contact-shadow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 52%;
+  height: 14%;
+  transform: translate(calc(-50% + 4px), calc(-50% - 4px));
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.40) 0%, transparent 78%);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Building shadow is wider/taller than unit shadow because buildings have a larger footprint. */
+.building-contact-shadow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 68%;
+  height: 20%;
+  transform: translate(calc(-50% + 5px), calc(-50% - 5px));
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.28) 0%, transparent 76%);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 1;
+}
+
 /* ── Terrain background icon (faint, behind buildings/units) ── */
 
 .tile-terrain-icon {

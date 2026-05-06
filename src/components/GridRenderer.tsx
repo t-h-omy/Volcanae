@@ -983,6 +983,8 @@ function TileCellInner({
       {/* building sprite or missing-sprite */}
       {showBuilding && building && (
         <>
+          {/* contact shadow sits behind the building sprite */}
+          <div className="building-contact-shadow" />
           {typeof buildingSpritePath === 'string' && buildingSpritePath !== '' && !buildingSpriteError ? (
             <img
               src={buildingSpritePath}
@@ -1042,7 +1044,13 @@ function TileCellInner({
       })()}
 
       {/* unit rendering */}
-      {showUnit && unit && <UnitBadge unit={unit} tileSize={tileSize} />}
+      {showUnit && unit && (
+        <>
+          {/* contact shadow sits behind the unit sprite */}
+          <div className="unit-contact-shadow" />
+          <UnitBadge unit={unit} tileSize={tileSize} />
+        </>
+      )}
     </div>
   );
 }

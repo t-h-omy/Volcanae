@@ -2452,6 +2452,7 @@
   white-space: nowrap;
   border-radius: 4px;
   transition: background 0.12s;
+  pointer-events: auto;
 }
 
 .hud-stat--clickable:hover {
