@@ -846,12 +846,16 @@ export function useAnimationEngine(): void {
             ANIMATION.EXPLOSION_TILE_FLASH_MS,
           );
 
-          // Expanding shockwave ring from explosion center
+          // Expanding shockwave ring from explosion center.
+          // The ring box-shadow has a 3px spread on a 0×0 element; to reach a
+          // visual radius of 1.5 tiles the final scale must be 1.5*tileSize/3.
+          const explosionFinalScale = Math.round((1.5 * tileSize) / 3);
           useShockwaveStore.getState().addShockwave({
             id: crypto.randomUUID(),
             cx: event.position.x * tileSize + tileSize / 2,
             cy: event.position.y * tileSize + tileSize / 2,
             durationMs: ANIMATION.EXPLOSION_SHOCKWAVE_MS,
+            finalScale: explosionFinalScale,
           });
         }
 

@@ -21,6 +21,7 @@ import {
   computeResourceIncome,
   computeSpecialistUpkeep,
   computeRecruitmentBuildingUsage,
+  computeResourceIncomeBreakdown,
 } from '../resourceSystem';
 import {
   getConstructionOptionsForTile,
@@ -580,6 +581,9 @@ function TopBar({
   const [openSpecialistInfo, setOpenSpecialistInfo] = useState<string | null>(null);
   const openSpec = openSpecialistInfo ? specialists[openSpecialistInfo] : null;
 
+  // Resource info popup state: 'iron' | 'wood' | null
+  const [resourcePopup, setResourcePopup] = useState<'iron' | 'wood' | null>(null);
+
   /** Renders a net-income badge (green for positive, red for negative, hidden for zero). */
   const NetIncomeBadge = ({ gross, upkeep }: { gross: number; upkeep: number }) => {
     const net = gross - upkeep;
@@ -596,8 +600,8 @@ function TopBar({
     <div className="hud-top-bar">
       <span className="hud-stat">🔄 Turn {turn}</span>
       {isAnimating && <span className="hud-stat hud-enemy-turn-label">⚔️ Enemy Turn...</span>}
-      <span className="hud-stat">⛓️ {resources.iron}<NetIncomeBadge gross={ironPerTurn} upkeep={ironUpkeep} /></span>
-      <span className="hud-stat">🪵 {resources.wood}<NetIncomeBadge gross={woodPerTurn} upkeep={woodUpkeep} /></span>
+      <button className="hud-stat hud-stat--clickable" onClick={() => setResourcePopup('iron')}>⛓️ {resources.iron}<NetIncomeBadge gross={ironPerTurn} upkeep={ironUpkeep} /></button>
+      <button className="hud-stat hud-stat--clickable" onClick={() => setResourcePopup('wood')}>🪵 {resources.wood}<NetIncomeBadge gross={woodPerTurn} upkeep={woodUpkeep} /></button>
       <span className="hud-stat">🌾 {farmersUsed}/{farmerCapacity}</span>
       <span className="hud-stat">🎖️ {noblesUsed}/{nobleCapacity}</span>
       <span className="hud-stat">🔥 Ember {ember}</span>
@@ -639,6 +643,13 @@ function TopBar({
           onDismiss={() => { dismissSpecialist(openSpec.id); setOpenSpecialistInfo(null); }}
         />
       )}
+      {resourcePopup && (
+        <ResourceInfoPopup
+          resourceType={resourcePopup}
+          current={resourcePopup === 'iron' ? resources.iron : resources.wood}
+          onClose={() => setResourcePopup(null)}
+        />
+      )}
       <GameMenu />
     </div>
   );
@@ -671,6 +682,65 @@ function TagPopup({ tag, onClose }: { tag: UnitTag; onClose: () => void }) {
       <div className="info-popup-header-name" style={{ marginBottom: 10 }}>{info.label}</div>
       <p className="info-popup-desc" style={{ marginBottom: 16 }}>{info.desc}</p>
       <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>OK</button>
+    </Popup>
+  );
+}
+
+/** Resource info popup — shows current amount, income breakdown, and net income */
+function ResourceInfoPopup({
+  resourceType,
+  current,
+  onClose,
+}: {
+  resourceType: 'iron' | 'wood';
+  current: number;
+  onClose: () => void;
+}) {
+  // Compute breakdown only when popup is mounted (i.e. when it is visible)
+  const entries = useGameStore((s) => computeResourceIncomeBreakdown(s));
+  const isIron = resourceType === 'iron';
+  const emoji = isIron ? '⛓️' : '🪵';
+  const label = isIron ? 'Iron' : 'Wood';
+
+  const totalIncome = entries.reduce((sum, e) => sum + (isIron ? e.iron : e.wood), 0);
+
+  /** Format a numeric amount as a signed string with one decimal only if needed */
+  const fmt = (n: number): string => {
+    const sign = n >= 0 ? '+' : '';
+    return `${sign}${Number.isInteger(n) ? n : n.toFixed(1)}`;
+  };
+
+  // Filter entries that have a non-zero contribution for this resource type
+  const relevantEntries = entries.filter((e) => (isIron ? e.iron : e.wood) !== 0);
+
+  return (
+    <Popup onClose={onClose}>
+      <div className="info-popup-header">
+        <span className="info-popup-header-emoji">{emoji}</span>
+        <div className="info-popup-header-name">{label}</div>
+      </div>
+      <div className="resource-popup-current">Current: {current}</div>
+      <div className="resource-popup-section-title">Income this turn</div>
+      {relevantEntries.length === 0 ? (
+        <div className="resource-popup-row resource-popup-row--none">No income sources</div>
+      ) : (
+        relevantEntries.map((e, i) => {
+          const amount = isIron ? e.iron : e.wood;
+          return (
+            <div key={i} className={`resource-popup-row${amount < 0 ? ' resource-popup-row--negative' : ''}`}>
+              <span className="resource-popup-row-label">{e.label}</span>
+              <span className="resource-popup-row-value">{fmt(amount)}</span>
+            </div>
+          );
+        })
+      )}
+      <div className="resource-popup-total">
+        <span>Net income</span>
+        <span className={totalIncome >= 0 ? 'resource-popup-total-positive' : 'resource-popup-total-negative'}>
+          {fmt(totalIncome)}
+        </span>
+      </div>
+      <button className="info-popup-btn info-popup-btn--secondary" style={{ marginTop: 14 }} onClick={onClose}>Close</button>
     </Popup>
   );
 }

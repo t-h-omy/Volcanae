@@ -1446,6 +1446,7 @@ function ShockwaveLayer() {
             left: sw.cx,
             top: sw.cy,
             '--shockwave-duration': `${sw.durationMs}ms`,
+            ...(sw.finalScale !== undefined ? { '--sw-final-scale': sw.finalScale } : {}),
           } as React.CSSProperties}
           onAnimationEnd={() => remove(sw.id)}
         />
