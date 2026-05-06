@@ -518,16 +518,29 @@ export const TERRAIN = {
   CAVE_MONSTER_PATROL_RADIUS: 3,
 
   // Long-deadend prevention (canyon/lake placement validation)
-  /** Maximum BFS distance from the forward core before a side deadend is considered oversized */
+  /**
+   * A canyon or lake candidate is rejected if it would create a side pocket where any
+   * walkable tile is more than this many BFS steps away from the "forward core"
+   * (the main south-to-north corridor through the zone).
+   * Increase to allow deeper side branches; decrease to keep the map more open.
+   */
   WORLDGEN_MAX_DEADEND_DEPTH: 12,
   /**
-   * Slack added to the shortest south-to-north path when computing the forward core.
-   * Tiles within shortestPath + WORLDGEN_MAIN_PATH_SLACK are included in the core.
+   * Controls how wide the "forward core" is.
+   * The core consists of every walkable tile whose combined BFS distance to the south band
+   * AND to the north band is at most (shortestSouthToNorthPath + WORLDGEN_MAIN_PATH_SLACK).
+   * A value of 0 would include only tiles that lie exactly on a shortest path; higher values
+   * widen the core to include tiles that take a slight detour, making the deadend check
+   * more lenient about terrain placed near (but not on) the critical corridor.
    */
   WORLDGEN_MAIN_PATH_SLACK: 4,
   /**
-   * Number of rows at the south and north edges of each zone that form the
-   * "south band" and "north band" for forward-core BFS seeding.
+   * How many rows at each end of a zone are used as BFS seeds for the south-to-north
+   * distance calculation.
+   * The bottom N rows of a zone form the "south band" (seed for distanceFromSouth) and
+   * the top N rows form the "north band" (seed for distanceFromNorth).
+   * Increasing this makes the bands wider, so more tiles qualify as band-adjacent
+   * starting points for the forward-core BFS.
    */
   WORLDGEN_DEADEND_BAND_ROWS: 2,
 } as const;
