@@ -1248,7 +1248,11 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
   // Place ruins in the lava buffer rows (south of zone 1).
   placeRuinsInLavaBuffer(grid, occupiedPositions);
 
-  // Place canyons and lakes per zone (after ruins, so they skip occupied ruin tiles)
+  // Place canyons and lakes per zone (after ruins, so they skip occupied ruin tiles).
+  // Canyon and lake are rolled independently for every zone: each calls randomInRange
+  // separately with its own CANYONS_PER_ZONE and LAKES_PER_ZONE config range.
+  // There is no shared roll and no if/else that makes them mutually exclusive.
+  // A zone may contain a canyon only, a lake only, both, or neither.
   for (let zone = 1; zone <= MAP.ZONE_COUNT; zone++) {
     placeCanyonsForZone(zone, grid, occupiedPositions, strongholdPositions);
     placeLakesForZone(zone, grid, occupiedPositions, strongholdPositions);
