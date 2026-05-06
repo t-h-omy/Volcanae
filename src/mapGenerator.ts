@@ -741,6 +741,187 @@ function wouldViolateRowMinimum(
 }
 
 /**
+ * BFS from a set of starting positions, returning a map of tile-key → distance.
+ * Traversal is constrained to passable tiles within [zoneStartRow, zoneEndRow].
+ */
+function bfsDistancesInZone(
+  grid: Tile[][],
+  startPositions: Position[],
+  zoneStartRow: number,
+  zoneEndRow: number,
+): Map<string, number> {
+  const dist = new Map<string, number>();
+  const queue: Array<[number, number, number]> = []; // [x, y, d]
+
+  for (const p of startPositions) {
+    if (p.y < zoneStartRow || p.y > zoneEndRow) continue;
+    const tile = grid[p.y]?.[p.x];
+    if (!tile || isImpassableTile(tile)) continue;
+    const key = `${p.x},${p.y}`;
+    if (!dist.has(key)) {
+      dist.set(key, 0);
+      queue.push([p.x, p.y, 0]);
+    }
+  }
+
+  let qi = 0;
+  while (qi < queue.length) {
+    const [cx, cy, d] = queue[qi++];
+    for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]] as const) {
+      const nx = cx + dx;
+      const ny = cy + dy;
+      if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < zoneStartRow || ny > zoneEndRow) continue;
+      const key = `${nx},${ny}`;
+      if (dist.has(key)) continue;
+      if (isImpassableTile(grid[ny][nx])) continue;
+      dist.set(key, d + 1);
+      queue.push([nx, ny, d + 1]);
+    }
+  }
+
+  return dist;
+}
+
+/**
+ * Returns true if any walkable tile in the zone is farther than
+ * TERRAIN.WORLDGEN_MAX_DEADEND_DEPTH from the "forward core" —
+ * the set of tiles that lie on or near a shortest south-to-north path.
+ *
+ * Algorithm:
+ * 1. BFS distances from the south band (high-Y rows).
+ * 2. BFS distances from the north band (low-Y rows).
+ * 3. Shortest south-to-north path length.
+ * 4. Forward core = tiles where distSouth + distNorth <= shortest + SLACK.
+ * 5. BFS from core; flag any reachable tile farther than MAX_DEADEND_DEPTH.
+ */
+function hasOversizedDeadend(grid: Tile[][], zone: number): boolean {
+  const [zoneStartRow, zoneEndRow] = getZoneRowRange(zone);
+  const bandRows = TERRAIN.WORLDGEN_DEADEND_BAND_ROWS;
+
+  // South band: high-Y rows (bottom of zone, near lava)
+  const southBand: Position[] = [];
+  const southBandStart = Math.max(zoneStartRow, zoneEndRow - bandRows + 1);
+  for (let y = southBandStart; y <= zoneEndRow; y++) {
+    for (let x = 0; x < MAP.GRID_WIDTH; x++) {
+      if (!isImpassableTile(grid[y][x])) southBand.push({ x, y });
+    }
+  }
+
+  // North band: low-Y rows (top of zone, toward enemy)
+  const northBand: Position[] = [];
+  const northBandEnd = Math.min(zoneEndRow, zoneStartRow + bandRows - 1);
+  for (let y = zoneStartRow; y <= northBandEnd; y++) {
+    for (let x = 0; x < MAP.GRID_WIDTH; x++) {
+      if (!isImpassableTile(grid[y][x])) northBand.push({ x, y });
+    }
+  }
+
+  if (southBand.length === 0 || northBand.length === 0) return false;
+
+  const distFromSouth = bfsDistancesInZone(grid, southBand, zoneStartRow, zoneEndRow);
+  const distFromNorth = bfsDistancesInZone(grid, northBand, zoneStartRow, zoneEndRow);
+
+  // Shortest south-to-north path: min over all tiles of (dSouth + dNorth)
+  let shortestPath = Infinity;
+  for (const [key, ds] of distFromSouth) {
+    const dn = distFromNorth.get(key);
+    if (dn !== undefined && ds + dn < shortestPath) {
+      shortestPath = ds + dn;
+    }
+  }
+
+  // No passable path between bands — traversability handles this separately
+  if (shortestPath === Infinity) return false;
+
+  // Build forward core: tiles within slack of the shortest path
+  const slack = TERRAIN.WORLDGEN_MAIN_PATH_SLACK;
+  const coreStarts: Position[] = [];
+  for (let y = zoneStartRow; y <= zoneEndRow; y++) {
+    for (let x = 0; x < MAP.GRID_WIDTH; x++) {
+      if (isImpassableTile(grid[y][x])) continue;
+      const key = `${x},${y}`;
+      const ds = distFromSouth.get(key) ?? Infinity;
+      const dn = distFromNorth.get(key) ?? Infinity;
+      if (ds + dn <= shortestPath + slack) {
+        coreStarts.push({ x, y });
+      }
+    }
+  }
+
+  if (coreStarts.length === 0) return false;
+
+  // BFS from core; measure distance to every reachable zone tile
+  const distFromCore = bfsDistancesInZone(grid, coreStarts, zoneStartRow, zoneEndRow);
+  const maxDepth = TERRAIN.WORLDGEN_MAX_DEADEND_DEPTH;
+
+  for (let y = zoneStartRow; y <= zoneEndRow; y++) {
+    for (let x = 0; x < MAP.GRID_WIDTH; x++) {
+      if (isImpassableTile(grid[y][x])) continue;
+      const key = `${x},${y}`;
+      // Skip isolated pockets: tiles unreachable from both bands cannot form a
+      // meaningful deadend relative to the forward-flow path, and checking them
+      // would produce false positives (Infinity distance) for terrain disconnected
+      // from the main traversal corridor within this zone.
+      if (!distFromSouth.has(key) && !distFromNorth.has(key)) continue;
+      const d = distFromCore.get(key) ?? Infinity;
+      if (d > maxDepth) return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * Temporarily marks the candidate positions as impassable on the grid,
+ * checks for oversized deadends in the origin zone and any neighbouring
+ * zones the shape overlaps, then reverts the grid to its original state.
+ * Returns true if the candidate would create an oversized deadend.
+ */
+function wouldCreateOversizedDeadend(
+  shape: Position[],
+  grid: Tile[][],
+  originZone: number,
+): boolean {
+  // Temporarily apply the shape as impassable terrain
+  const reverts: Array<{ pos: Position; terrainType: TileType }> = [];
+  for (const p of shape) {
+    if (p.y < 0 || p.y >= MAP.GRID_HEIGHT || p.x < 0 || p.x >= MAP.GRID_WIDTH) continue;
+    if (!isImpassableTile(grid[p.y][p.x])) {
+      reverts.push({ pos: p, terrainType: grid[p.y][p.x].terrainType });
+      // Mark as CANYON regardless of whether this is a canyon or lake candidate —
+      // the specific impassable type does not matter for deadend BFS; only
+      // passability (isImpassableTile) is checked during validation.
+      grid[p.y][p.x].terrainType = TileType.CANYON;
+    }
+  }
+
+  // Determine all zones touched by the shape
+  const affectedZones = new Set<number>([originZone]);
+  for (const p of shape) {
+    for (let z = 1; z <= MAP.ZONE_COUNT; z++) {
+      if (z === originZone) continue;
+      const [zs, ze] = getZoneRowRange(z);
+      if (p.y >= zs && p.y <= ze) affectedZones.add(z);
+    }
+  }
+
+  let oversized = false;
+  for (const zone of affectedZones) {
+    if (hasOversizedDeadend(grid, zone)) {
+      oversized = true;
+      break;
+    }
+  }
+
+  // Revert temporary changes
+  for (const { pos, terrainType } of reverts) {
+    grid[pos.y][pos.x].terrainType = terrainType;
+  }
+
+  return oversized;
+}
+
+/**
  * Places canyons across the map (starting in a zone but allowed to span into
  * neighbouring zones). Validates row minimum and stronghold distance.
  */
@@ -812,6 +993,9 @@ function placeCanyonsForZone(
       }
 
       if (wouldViolateRowMinimum(validShape, grid, impassableSet)) continue;
+
+      // Reject candidate if it would create an oversized side deadend
+      if (wouldCreateOversizedDeadend(validShape, grid, zone)) continue;
 
       // Place the canyon
       for (const p of validShape) {
@@ -952,6 +1136,9 @@ function placeLakesForZone(
       }
 
       if (wouldViolateRowMinimum(validShape, grid, impassableSet)) continue;
+
+      // Reject candidate if it would create an oversized side deadend
+      if (wouldCreateOversizedDeadend(validShape, grid, zone)) continue;
 
       // Place the lake — skip tiles already occupied by another impassable type
       for (const p of validShape) {
