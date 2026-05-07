@@ -268,8 +268,8 @@
   position: absolute;
   top: 46%;
   left: 54%;
-  width: 108%;
-  height: 48%;
+  width: 135%;
+  height: 85%;
   transform: translate(-50%, -50%);
   background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.38) 0%, transparent 68%);
   border-radius: 50%;
@@ -280,8 +280,8 @@
 /* Building shadow is wider/taller than unit shadow because buildings have a larger footprint. */
 .building-contact-shadow {
   position: absolute;
-  top: 20%;
-  left: 50%;
+  top: 35%;
+  left: 55%;
   width: 90%;
   height: 40%;
   transform: translate(calc(-50% + 5px), -50%);
