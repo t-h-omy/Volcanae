@@ -283,7 +283,7 @@
   top: 45%;
   left: 60%;
   width: 90%;
-  height: 40%;
+  height: 60%;
   transform: translate(calc(-50% + 5px), -50%);
   background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.42) 0%, transparent 70%);
   border-radius: 50%;
