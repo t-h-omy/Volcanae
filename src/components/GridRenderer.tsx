@@ -943,7 +943,7 @@ function TileCellInner({
       {/* terrain resource overlay (forest / mountain on top of grass) */}
       {showTerrainResource && (
         <>
-          <div className="building-contact-shadow" />
+          <div className={tile.terrainType === TileType.FOREST ? 'forest-contact-shadow' : 'building-contact-shadow'} />
           <img
             src={terrainResourcePath}
             alt=""

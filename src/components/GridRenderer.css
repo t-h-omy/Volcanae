@@ -261,6 +261,22 @@
   z-index: 1;
 }
 
+/* Forest shadow covers the full tile canopy and is nudged slightly toward the top-right
+   so that the bottom-left edge of the shadow peeks out from under the forest sprite, giving
+   a sense of depth. Larger oval than the building shadow because the forest fills the whole tile. */
+.forest-contact-shadow {
+  position: absolute;
+  top: 54%;
+  left: 54%;
+  width: 108%;
+  height: 48%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.38) 0%, transparent 68%);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 1;
+}
+
 /* Building shadow is wider/taller than unit shadow because buildings have a larger footprint. */
 .building-contact-shadow {
   position: absolute;
