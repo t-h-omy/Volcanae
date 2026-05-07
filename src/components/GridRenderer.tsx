@@ -942,23 +942,29 @@ function TileCellInner({
 
       {/* terrain resource overlay (forest / mountain on top of grass) */}
       {showTerrainResource && (
-        <img
-          src={terrainResourcePath}
-          alt=""
-          onError={() => setTerrainResSpriteError(true)}
-          style={fullTileOverlayStyle}
-        />
+        <>
+          <div className={tile.terrainType === TileType.FOREST ? 'forest-contact-shadow' : 'building-contact-shadow'} />
+          <img
+            src={terrainResourcePath}
+            alt=""
+            onError={() => setTerrainResSpriteError(true)}
+            style={fullTileOverlayStyle}
+          />
+        </>
       )}
 
       {/* ruin overlay — rendered on top of the terrain tile so transparent
           areas in the ruin PNG reveal the ground beneath */}
       {showRuinOverlay && (
-        <img
-          src={ruinSpritePath}
-          alt=""
-          onError={() => setRuinSpriteError(true)}
-          style={fullTileOverlayStyle}
-        />
+        <>
+          <div className="building-contact-shadow" />
+          <img
+            src={ruinSpritePath}
+            alt=""
+            onError={() => setRuinSpriteError(true)}
+            style={fullTileOverlayStyle}
+          />
+        </>
       )}
 
       {/* corruption visual overlay */}
@@ -983,6 +989,8 @@ function TileCellInner({
       {/* building sprite or missing-sprite */}
       {showBuilding && building && (
         <>
+          {/* contact shadow sits behind the building sprite */}
+          <div className="building-contact-shadow" />
           {typeof buildingSpritePath === 'string' && buildingSpritePath !== '' && !buildingSpriteError ? (
             <img
               src={buildingSpritePath}
@@ -1042,7 +1050,13 @@ function TileCellInner({
       })()}
 
       {/* unit rendering */}
-      {showUnit && unit && <UnitBadge unit={unit} tileSize={tileSize} />}
+      {showUnit && unit && (
+        <>
+          {/* contact shadow sits behind the unit sprite */}
+          <div className="unit-contact-shadow" />
+          <UnitBadge unit={unit} tileSize={tileSize} />
+        </>
+      )}
     </div>
   );
 }

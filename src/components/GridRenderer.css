@@ -98,7 +98,7 @@
 
 .grid-tile {
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -240,6 +240,55 @@
   line-height: 1;
   z-index: 1;
   transition: opacity 0.2s;
+}
+
+/* ── Contact Shadow ── */
+
+/* Soft oval shadow under every unit. Anchored near the sprite's feet (~70 % from top
+   of the tile) so it is visible below the unit graphic instead of hidden behind it.
+   Light from bottom-left → centre shifted slightly toward top-right.
+   pointer-events: none so it never interferes with clicks or hover. */
+.unit-contact-shadow {
+  position: absolute;
+  top: 70%;
+  left: 50%;
+  width: 90%;
+  height: 40%;
+  transform: translate(calc(-50% + 5px), -50%);
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.42) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Forest shadow covers the full tile canopy and is nudged slightly toward the top-right
+   so that the bottom-left edge of the shadow peeks out from under the forest sprite, giving
+   a sense of depth. Larger oval than the building shadow because the forest fills the whole tile. */
+.forest-contact-shadow {
+  position: absolute;
+  top: 46%;
+  left: 54%;
+  width: 135%;
+  height: 85%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.38) 0%, transparent 68%);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Building shadow is wider/taller than unit shadow because buildings have a larger footprint. */
+.building-contact-shadow {
+  position: absolute;
+  top: 45%;
+  left: 60%;
+  width: 90%;
+  height: 40%;
+  transform: translate(calc(-50% + 5px), -50%);
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.42) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 1;
 }
 
 /* ── Terrain background icon (faint, behind buildings/units) ── */
