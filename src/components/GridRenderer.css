@@ -98,7 +98,7 @@
 
 .grid-tile {
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   display: flex;
   align-items: center;
   justify-content: center;
