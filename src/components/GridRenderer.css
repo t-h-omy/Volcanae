@@ -280,8 +280,8 @@
 /* Building shadow is wider/taller than unit shadow because buildings have a larger footprint. */
 .building-contact-shadow {
   position: absolute;
-  top: 40%;
-  left: 55%;
+  top: 45%;
+  left: 60%;
   width: 90%;
   height: 40%;
   transform: translate(calc(-50% + 5px), -50%);
