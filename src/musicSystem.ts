@@ -8,7 +8,8 @@
 
 /** All music tracks served from public/music/.  Add new filenames here. */
 export const MUSIC_TRACKS: readonly string[] = [
-  'Volcanae_ The Rising Front (Take 2).mp3',
+  'Game Track 1 - The Rising Front.mp3',
+  'Game Track 2 - The Road Reveals.mp3',
 ] as const;
 
 /**
