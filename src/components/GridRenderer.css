@@ -266,7 +266,7 @@
    a sense of depth. Larger oval than the building shadow because the forest fills the whole tile. */
 .forest-contact-shadow {
   position: absolute;
-  top: 54%;
+  top: 46%;
   left: 54%;
   width: 108%;
   height: 48%;
@@ -280,7 +280,7 @@
 /* Building shadow is wider/taller than unit shadow because buildings have a larger footprint. */
 .building-contact-shadow {
   position: absolute;
-  top: 70%;
+  top: 40%;
   left: 50%;
   width: 90%;
   height: 40%;
