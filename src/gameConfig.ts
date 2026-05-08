@@ -1094,6 +1094,8 @@ export const ABILITIES = {
   REVIVE_CRYSTAL_COST: 1,
   /** Starting and maximum HP of a newly spawned Gravestone building */
   GRAVESTONE_MAX_HP: 25,
+  /** Damage dealt by a PREVENTIVE_STRIKE shot as a percentage of normal attack damage */
+  PREVENTIVE_STRIKE_DAMAGE_PERCENT: 50,
 } as const;
 
 // Override GRAVESTONE description now that ABILITIES is available (crystal cost is configurable).
@@ -1507,7 +1509,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'PREVENTIVE_STRIKE',
     name: 'Preventive Strike',
-    description: 'Siege engines fire automatically at enemy units moving into range',
+    description: `Siege engines automatically fire at enemy units that move from outside into their attack range, dealing ${ABILITIES.PREVENTIVE_STRIKE_DAMAGE_PERCENT}% of their normal attack damage`,
     requires: ['SIEGE_WORKS'],
     cost: 7,
     effects: [
@@ -1570,7 +1572,7 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string }> = {
   [UnitTag.SKIRMISHER]:        { label: 'Skirmisher',        desc: `+${ABILITIES.SKIRMISHER_MOVE_BONUS} movement range.` },
   [UnitTag.PIN_DOWN]:          { label: 'Pin Down',          desc: `Each hit has a ${Math.round(ABILITIES.PIN_DOWN_STUN_CHANCE * 100)}% chance to stun the target — it cannot move or attack on its next action.` },
   [UnitTag.DISTRACTION]:       { label: 'Distraction',       desc: `Each hit permanently reduces the target's DEF by ${ABILITIES.DISTRACTION_DEF_REDUCTION}. Archer ATK is reduced by ${Math.abs(ABILITIES.DISTRACTION_ATTACK_MOD)}.` },
-  [UnitTag.PREVENTIVE_STRIKE]: { label: 'Preventive Strike', desc: 'Fires instantly at any enemy unit that moves into attack range during the enemy\'s turn.' },
+  [UnitTag.PREVENTIVE_STRIKE]: { label: 'Preventive Strike', desc: `When an enemy moves from outside into this siege unit's attack range, it automatically fires once, dealing ${ABILITIES.PREVENTIVE_STRIKE_DAMAGE_PERCENT}% of its normal attack damage.` },
   [UnitTag.ELITE]:             { label: 'Elite',             desc: `+${ABILITIES.ELITE_MAX_HP_BONUS} max HP. Elite unit forged in the noble tradition.` },
   [UnitTag.FORTIFIED_GARRISON]: { label: 'Fortified Garrison', desc: `Attack building gains +${ABILITIES.FORTIFIED_GARRISON_ATTACK_BONUS} ATK and +${ABILITIES.FORTIFIED_GARRISON_RANGE_BONUS} attack range.` },
   [UnitTag.BLOODLUST]:          { label: 'Bloodlust',          desc: 'When this Rider kills an enemy, it may attack once more this turn at half attack without retaliation.' },
