@@ -674,11 +674,11 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   SIEGE: {
-    maxHp: 100, attack: 90, defense: 0,
+    maxHp: 70, attack: 80, defense: 0,
     movementActions: 1, moveRange: 1, attackRange: 3,
     discoverRadius: 1, triggerRange: 0,
     tags: [UnitTag.RANGED, UnitTag.PREP],
-    cost: { iron: 6, wood: 6 },
+    cost: { iron: 7, wood: 7 },
     populationCost: { farmers: 1, nobles: 1 },
     levelUp: [
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
