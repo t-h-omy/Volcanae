@@ -2424,7 +2424,7 @@ function SpecialistUpkeepLine({ iron, wood, isDormant }: { iron: number; wood: n
   return (
     <div className="specialist-info-upkeep">
       {hasUpkeep ? (
-        <>Upkeep:{iron > 0 && <span> ⛓️{iron}</span>}{wood > 0 && <span> 🪵{wood}</span>}
+        <>Upkeep: {iron > 0 && <span>⛓️{iron}</span>}{iron > 0 && wood > 0 && ' '}{wood > 0 && <span>🪵{wood}</span>}
           {isDormant && <span className="specialist-info-dormant-note"> — cannot pay upkeep</span>}
         </>
       ) : (
