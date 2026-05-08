@@ -300,10 +300,14 @@ export const useGameStore = create<GameStore>()(
         // without nesting immer producers (same pattern as endPlayerTurn).
         const snapshot: GameState = current(state);
 
+        // Collect IDs of any cave monsters killed by SPLASH (not the primary target).
+        // Populated inside the produce callback and used to push CAVE_MONSTER_KILLED events.
+        const splashKilledCaveMonsterIds: string[] = [];
+
         // Compute the resolved state (post-attack) on the snapshot
         const resolvedState = produce(snapshot, (draft) => {
           resolveAttack(draft, attackerId, targetId, true);
-          // If a cave monster is killed, remove its encounter entry from the resolved state
+          // If the primary target is a cave monster that was killed, remove its encounter entry
           if (
             snapshot.units[targetId]?.type === UnitType.CAVE_MONSTER &&
             !draft.units[targetId]
@@ -311,6 +315,20 @@ export const useGameStore = create<GameStore>()(
             draft.activeCaveEncounters = draft.activeCaveEncounters.filter(
               (e) => e.monsterId !== targetId,
             );
+          }
+          // Any other CAVE_MONSTER unit that died during this attack (e.g. SPLASH AoE) also
+          // needs its encounter entry removed and a CAVE_MONSTER_KILLED reward event.
+          for (const unitId of Object.keys(snapshot.units)) {
+            if (unitId === targetId) continue; // primary target handled above
+            if (
+              snapshot.units[unitId].type === UnitType.CAVE_MONSTER &&
+              !draft.units[unitId]
+            ) {
+              splashKilledCaveMonsterIds.push(unitId);
+              draft.activeCaveEncounters = draft.activeCaveEncounters.filter(
+                (e) => e.monsterId !== unitId,
+              );
+            }
           }
           updateDiscovery(draft);
           checkGameConditions(draft);
@@ -357,6 +375,10 @@ export const useGameStore = create<GameStore>()(
         }
         if (!attackerAfter) {
           events.push({ type: 'UNIT_DEATH', unitId: attackerId, position: attackerPosition, faction: attackerFaction });
+        }
+        // Push CAVE_MONSTER_KILLED events for any cave monsters killed by SPLASH AoE
+        for (const monsterId of splashKilledCaveMonsterIds) {
+          events.push({ type: 'CAVE_MONSTER_KILLED', monsterId });
         }
 
         pendingEvents = events;

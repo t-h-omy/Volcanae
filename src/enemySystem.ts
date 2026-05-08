@@ -7,13 +7,13 @@ import type { GameState, Unit, Building, Position } from './types';
 import type { Draft } from 'immer';
 import { produce } from 'immer';
 import { Faction, UnitType, UnitTag, BuildingType, TileType } from './types';
-import { UNIT_DEFINITIONS, ENEMY, MAP, TERRAIN, AI_SCORING, AI_RECRUITMENT, XP, DIFFICULTY_MULTIPLIER, SANCTUM_COLLAPSE } from './gameConfig';
+import { UNIT_DEFINITIONS, ENEMY, MAP, TERRAIN, AI_SCORING, AI_RECRUITMENT, XP, DIFFICULTY_MULTIPLIER, SANCTUM_COLLAPSE, ABILITIES } from './gameConfig';
 import { resolveAttack, calculateCombat, resolveBuildingAttack, buildingToCombatant, calculateCombatFromStats, unitToCombatant, resolveAttackOnBuilding } from './combatSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { initiateCapture, canCapture } from './captureSystem';
 import { corruptTerrain, processMagmaSpyrAttacks, processEmberNestSpawns } from './corruptionSystem';
 import { enemyConstructBuilding } from './constructionSystem';
-import { processEnemyLevelUps } from './levelSystem';
+import { processEnemyLevelUps, grantXp } from './levelSystem';
 import type { GameEvent } from './gameEvents';
 import { hasUnitActed } from './unitActions';
 
@@ -823,10 +823,19 @@ function scoreConstructionActions(
  * Triggers PREVENTIVE_STRIKE overwatch for all player SIEGE units with the
  * PREVENTIVE_STRIKE tag. Called after an enemy unit moves to its new position.
  * Each player siege unit may fire at most once per turn (consumes hasAttackedThisTurn).
+ * Only fires when the enemy enters range (was outside range before the move).
+ * No counter-attack is applied — this is a one-directional reaction shot.
  */
-function triggerPreventiveStrike(state: Draft<GameState>, enemyUnitId: string, events?: GameEvent[]): void {
+function triggerPreventiveStrike(
+  state: Draft<GameState>,
+  enemyUnitId: string,
+  fromPosition: Position,
+  events?: GameEvent[],
+): void {
   const enemyUnit = state.units[enemyUnitId];
   if (!enemyUnit || enemyUnit.faction !== Faction.ENEMY) return;
+
+  const suppressFloaters = !!events;
 
   for (const unit of Object.values(state.units)) {
     if (unit.faction !== Faction.PLAYER) continue;
@@ -834,11 +843,20 @@ function triggerPreventiveStrike(state: Draft<GameState>, enemyUnitId: string, e
     if (unit.hasAttackedThisTurn) continue;
     if (!state.units[enemyUnitId]) break; // enemy was destroyed by a previous overwatch shot
 
-    if (!isTileWithinEdgeCircleRange(
+    // Only fire if the enemy moved from outside this siege unit's range INTO range
+    const wasInRange = isTileWithinEdgeCircleRange(
+      unit.position.x, unit.position.y,
+      fromPosition.x, fromPosition.y,
+      unit.stats.attackRange,
+    );
+    if (wasInRange) continue; // enemy was already in range — not a range-entry event
+
+    const isInRange = isTileWithinEdgeCircleRange(
       unit.position.x, unit.position.y,
       enemyUnit.position.x, enemyUnit.position.y,
       unit.stats.attackRange,
-    )) continue;
+    );
+    if (!isInRange) continue; // enemy is not in range after the move either
 
     const attackerId = unit.id;
     const defenderId = enemyUnitId;
@@ -847,7 +865,39 @@ function triggerPreventiveStrike(state: Draft<GameState>, enemyUnitId: string, e
     const attackerHpBefore = unit.stats.currentHp;
     const defenderHpBefore = enemyUnit.stats.currentHp;
 
-    resolveAttack(state, attackerId, defenderId, !!events);
+    // Calculate one-directional Preventive Strike damage:
+    // PREVENTIVE_STRIKE_DAMAGE_PERCENT% of the damage the siege unit would deal in a
+    // normal attack against this specific enemy unit.
+    const attackerCombatant = unitToCombatant(unit);
+    const defenderCombatant = unitToCombatant(enemyUnit);
+    const normalCombat = calculateCombatFromStats(attackerCombatant, defenderCombatant);
+    const strikeRaw = normalCombat.defenderHpLost * (ABILITIES.PREVENTIVE_STRIKE_DAMAGE_PERCENT / 100);
+    const strikeDamage = Math.max(1, Math.round(strikeRaw));
+
+    const newDefenderHp = enemyUnit.stats.currentHp - strikeDamage;
+    const defenderDead = newDefenderHp <= 0;
+
+    // Update game stats
+    state.gameStats.damageDealt += strikeDamage;
+
+    if (defenderDead) {
+      // Remove enemy from grid
+      const defenderTile = state.grid[enemyUnit.position.y][enemyUnit.position.x];
+      if (defenderTile.unitId === defenderId) {
+        defenderTile.unitId = null;
+      }
+      delete state.units[defenderId];
+      state.gameStats.unitsKilled += 1;
+      // Grant XP to the siege unit for the kill
+      grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
+    } else {
+      enemyUnit.stats.currentHp = newDefenderHp;
+    }
+
+    // Mark siege unit as having fired this turn (one shot per turn).
+    // Note: Preventive Strike is one-directional — the siege unit deals damage but
+    // receives no counter-attack, so attacker HP never decreases during this shot.
+    unit.hasAttackedThisTurn = true;
 
     if (events) {
       const attackerAfter = state.units[attackerId];
@@ -866,9 +916,6 @@ function triggerPreventiveStrike(state: Draft<GameState>, enemyUnitId: string, e
       });
       if (!defenderAfter) {
         events.push({ type: 'UNIT_DEATH', unitId: defenderId, position: defenderPos, faction: Faction.ENEMY });
-      }
-      if (!attackerAfter) {
-        events.push({ type: 'UNIT_DEATH', unitId: attackerId, position: attackerPos, faction: Faction.PLAYER });
       }
     }
   }
@@ -909,7 +956,8 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
   }
 
   // PREVENTIVE_STRIKE: player siege units with this tag fire at the newly moved unit
-  triggerPreventiveStrike(state, unitId, events);
+  // Pass fromPosition so the trigger can check for range-entry (not already in range)
+  triggerPreventiveStrike(state, unitId, from, events);
 }
 
 // ============================================================================

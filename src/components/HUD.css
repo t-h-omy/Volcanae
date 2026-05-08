@@ -2395,6 +2395,20 @@
 
 /* ── Specialist info popup: dismiss button and confirmation ── */
 
+.specialist-info-upkeep {
+  font-size: 13px;
+  color: #b8a870;
+  margin-bottom: 8px;
+}
+
+.specialist-info-no-upkeep {
+  color: #7a8a70;
+}
+
+.specialist-info-dormant-note {
+  color: #e08060;
+}
+
 .specialist-info-actions {
   display: flex;
   gap: 8px;
