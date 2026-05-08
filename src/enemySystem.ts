@@ -894,7 +894,9 @@ function triggerPreventiveStrike(
       enemyUnit.stats.currentHp = newDefenderHp;
     }
 
-    // Mark siege unit as having fired this turn (one shot per turn)
+    // Mark siege unit as having fired this turn (one shot per turn).
+    // Note: Preventive Strike is one-directional — the siege unit deals damage but
+    // receives no counter-attack, so attacker HP never decreases during this shot.
     unit.hasAttackedThisTurn = true;
 
     if (events) {
