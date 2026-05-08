@@ -636,7 +636,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
     tags: [UnitTag.BUILDANDCAPTURE],
-    cost: { iron: 5, wood: 3 },
+    cost: { iron: 7, wood: 4 },
     populationCost: { farmers: 1, nobles: 0 },
     levelUp: [
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
