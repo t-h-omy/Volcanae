@@ -2418,11 +2418,26 @@ function CaveScreamsPopup() {
 // CAVE MONSTER KILL MODAL (hire flow + no-survivor flow + swap flow)
 // ============================================================================
 
+/** Small inline upkeep display used inside specialist cards across hire/swap/info popups. */
+function SpecialistUpkeepLine({ iron, wood, isDormant }: { iron: number; wood: number; isDormant?: boolean }) {
+  const hasUpkeep = iron > 0 || wood > 0;
+  return (
+    <div className="specialist-info-upkeep">
+      {hasUpkeep ? (
+        <>Upkeep:{iron > 0 && <span> ⛓️{iron}</span>}{wood > 0 && <span> 🪵{wood}</span>}
+          {isDormant && <span className="specialist-info-dormant-note"> — cannot pay upkeep</span>}
+        </>
+      ) : (
+        <span className="specialist-info-no-upkeep">No upkeep</span>
+      )}
+    </div>
+  );
+}
+
 /** Specialist info popup — shown when clicking a filled specialist slot in the top bar, or in swap view */
 function SpecialistInfoPopup({ specialist, onClose, onDismiss }: { specialist: Specialist; onClose: () => void; onDismiss?: () => void }) {
   const iron = specialist.upkeepIron ?? 0;
   const wood = specialist.upkeepWood ?? 0;
-  const hasUpkeep = iron > 0 || wood > 0;
   const isDormant = !!specialist.dormant;
   const [confirmingDismiss, setConfirmingDismiss] = useState(false);
 
@@ -2433,12 +2448,7 @@ function SpecialistInfoPopup({ specialist, onClose, onDismiss }: { specialist: S
         {isDormant && <span className="specialist-info-dormant"> ⚠️ Inactive</span>}
       </div>
       <p className="info-popup-desc">{specialist.description}</p>
-      {hasUpkeep && (
-        <div className="specialist-info-upkeep">
-          Upkeep:{iron > 0 && <span> ⛓️{iron}</span>}{wood > 0 && <span> 🪵{wood}</span>}
-          {isDormant && <span className="specialist-info-dormant-note"> — cannot pay upkeep</span>}
-        </div>
-      )}
+      <SpecialistUpkeepLine iron={iron} wood={wood} isDormant={isDormant} />
       {confirmingDismiss && onDismiss ? (
         <div className="specialist-dismiss-confirm">
           <p className="specialist-dismiss-confirm-text">
@@ -2510,6 +2520,7 @@ function CaveMonsterKillModal() {
           <div className="cave-kill-specialist-card">
             <span className="cave-kill-specialist-name">🧙 {incomingSpecialist.name}</span>
             <p className="cave-kill-specialist-desc">{incomingSpecialist.description}</p>
+            <SpecialistUpkeepLine iron={incomingSpecialist.upkeepIron ?? 0} wood={incomingSpecialist.upkeepWood ?? 0} />
           </div>
           <div className="cave-kill-actions">
             <button className="cave-kill-btn cave-kill-btn--hire" onClick={() => dismiss(true)}>
@@ -2541,6 +2552,7 @@ function CaveMonsterKillModal() {
           <div className="cave-kill-specialist-card cave-kill-specialist-card--incoming">
             <span className="cave-kill-specialist-name">🧙 {incomingSpecialist.name}</span>
             <p className="cave-kill-specialist-desc">{incomingSpecialist.description}</p>
+            <SpecialistUpkeepLine iron={incomingSpecialist.upkeepIron ?? 0} wood={incomingSpecialist.upkeepWood ?? 0} />
           </div>
           <div className="cave-kill-swap-divider">
             <span className="cave-kill-swap-divider-label">Replace one of your specialists</span>
