@@ -483,18 +483,18 @@ export const TERRAIN = {
 
   // Canyon config
   CANYON_LENGTH_MIN: 8,
-  CANYON_LENGTH_MAX: 15,
+  CANYON_LENGTH_MAX: 13,
   CANYON_DRIFT_CHANCE: 0.25,
   CANYON_WIDTH_VARIANCE_CHANCE: 0.75,
   CANYONS_PER_ZONE_MIN: 0,
   CANYONS_PER_ZONE_MAX: 2,
 
   // Lake config
-  LAKE_WIDTH_MIN: 3,
-  LAKE_WIDTH_MAX: 6,
-  LAKE_HEIGHT_MIN: 3,
-  LAKE_HEIGHT_MAX: 6,
-  LAKE_EROSION_CHANCE: 0.22,
+  LAKE_WIDTH_MIN: 2,
+  LAKE_WIDTH_MAX: 5,
+  LAKE_HEIGHT_MIN: 2,
+  LAKE_HEIGHT_MAX: 5,
+  LAKE_EROSION_CHANCE: 0.3,
   LAKES_PER_ZONE_MIN: 0,
   LAKES_PER_ZONE_MAX: 2,
 
@@ -1095,7 +1095,7 @@ export const ABILITIES = {
   /** Starting and maximum HP of a newly spawned Gravestone building */
   GRAVESTONE_MAX_HP: 25,
   /** Damage dealt by a PREVENTIVE_STRIKE shot as a percentage of normal attack damage */
-  PREVENTIVE_STRIKE_DAMAGE_PERCENT: 50,
+  PREVENTIVE_STRIKE_DAMAGE_PERCENT: 25,
 } as const;
 
 // Override GRAVESTONE description now that ABILITIES is available (crystal cost is configurable).
