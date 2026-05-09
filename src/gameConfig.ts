@@ -438,14 +438,26 @@ export interface UnitCost {
 // ============================================================================
 
 export const TERRAIN = {
-  /** Minimum number of forest tiles placed per zone */
+  /** Minimum number of forest tiles placed per zone (used if no zone-specific override is set) */
   FORESTS_PER_ZONE_MIN: 2,
-  /** Maximum number of forest tiles placed per zone */
+  /** Maximum number of forest tiles placed per zone (used if no zone-specific override is set) */
   FORESTS_PER_ZONE_MAX: 3,
-  /** Minimum number of mountain tiles placed per zone */
+  /**
+   * Optional per-zone forest min/max overrides.
+   * Keys are zone numbers (1–5). Missing keys fall back to FORESTS_PER_ZONE_MIN/MAX.
+   * Example: { 1: { min: 1, max: 2 }, 3: { min: 3, max: 5 } }
+   */
+  FORESTS_PER_ZONE_OVERRIDES: {} as Record<number, { min: number; max: number }>,
+  /** Minimum number of mountain tiles placed per zone (used if no zone-specific override is set) */
   MOUNTAINS_PER_ZONE_MIN: 2,
-  /** Maximum number of mountain tiles placed per zone */
+  /** Maximum number of mountain tiles placed per zone (used if no zone-specific override is set) */
   MOUNTAINS_PER_ZONE_MAX: 3,
+  /**
+   * Optional per-zone mountain min/max overrides.
+   * Keys are zone numbers (1–5). Missing keys fall back to MOUNTAINS_PER_ZONE_MIN/MAX.
+   * Example: { 1: { min: 1, max: 2 }, 3: { min: 3, max: 5 } }
+   */
+  MOUNTAINS_PER_ZONE_OVERRIDES: {} as Record<number, { min: number; max: number }>,
   /** Minimum number of ruin tiles placed per zone (used if no zone-specific override is set) */
   RUINS_PER_ZONE_MIN: 7,
   /** Maximum number of ruin tiles placed per zone (used if no zone-specific override is set) */
