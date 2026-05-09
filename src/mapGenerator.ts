@@ -1421,9 +1421,17 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
   let extraMountains = 0;
 
   for (let zone = 1; zone <= MAP.ZONE_COUNT; zone++) {
+    const forestOverride = TERRAIN.FORESTS_PER_ZONE_OVERRIDES[zone];
+    const forestMin = forestOverride !== undefined ? forestOverride.min : TERRAIN.FORESTS_PER_ZONE_MIN;
+    const forestMax = forestOverride !== undefined ? forestOverride.max : TERRAIN.FORESTS_PER_ZONE_MAX;
+
+    const mountainOverride = TERRAIN.MOUNTAINS_PER_ZONE_OVERRIDES[zone];
+    const mountainMin = mountainOverride !== undefined ? mountainOverride.min : TERRAIN.MOUNTAINS_PER_ZONE_MIN;
+    const mountainMax = mountainOverride !== undefined ? mountainOverride.max : TERRAIN.MOUNTAINS_PER_ZONE_MAX;
+
     const config = {
-      forests: randomInRange(TERRAIN.FORESTS_PER_ZONE_MIN, TERRAIN.FORESTS_PER_ZONE_MAX) + extraForests,
-      mountains: randomInRange(TERRAIN.MOUNTAINS_PER_ZONE_MIN, TERRAIN.MOUNTAINS_PER_ZONE_MAX) + extraMountains,
+      forests: randomInRange(forestMin, forestMax) + extraForests,
+      mountains: randomInRange(mountainMin, mountainMax) + extraMountains,
     };
 
     const { forestPositions, mountainPositions } = placeTerrainForZone(
