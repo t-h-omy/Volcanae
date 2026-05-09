@@ -144,6 +144,19 @@ export function loadGameState(): GameState | null {
       gs.activeCaveEncounters = [];
     }
 
+    // Migration: backfill emberLevelSources for saves that predate source tracking.
+    // Because historical data is unavailable, fall back conservatively: attribute the
+    // full current ember level to "other" so old saves do not show inflated source rows.
+    if (typeof gs.emberLevelSources !== 'object' || gs.emberLevelSources === null) {
+      const currentEmber = typeof gs.ember === 'number' ? gs.ember : 0;
+      gs.emberLevelSources = { turns: 0, emberlingSacrifices: 0, other: currentEmber };
+    } else {
+      const els = gs.emberLevelSources as Record<string, unknown>;
+      if (typeof els.turns !== 'number') els.turns = 0;
+      if (typeof els.emberlingSacrifices !== 'number') els.emberlingSacrifices = 0;
+      if (typeof els.other !== 'number') els.other = 0;
+    }
+
     // Migration: backfill upkeepIron, upkeepWood, and dormant on specialist
     // records from saves that predate these fields being added.
     // Also re-sync the effects array from SPECIALIST_DEFINITIONS so that

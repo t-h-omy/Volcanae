@@ -1559,6 +1559,7 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
     selectedTilePos: null,
     pendingHealerId: null,
     ember: 0,
+    emberLevelSources: { turns: 0, emberlingSacrifices: 0, other: 0 },
     zonesUnlocked: [1, 2],
     techNodes: TECH_TREE.reduce<Record<string, TechNodeState>>((acc, def) => {
       acc[def.id] = { id: def.id, unlocked: def.id === 'CONSCRIPTION' };
