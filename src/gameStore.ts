@@ -1737,7 +1737,7 @@ export const useGameStore = create<GameStore>()(
             // Notification floater on the sanctum tile
             let label: string;
             if (event.lavaAdvanceBonus > 0) {
-              label = `Infernal Sanctum destroyed! Lava advance delayed by +${event.lavaAdvanceBonus}.`;
+              label = `Infernal Sanctum destroyed! Lava advance delayed by +${event.lavaAdvanceBonus}`;
             } else {
               label = `🌋 Zone ${event.zone} purged!`;
               if (event.spawnFreezeUntilTurn > state.turn) {

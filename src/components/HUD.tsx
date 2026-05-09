@@ -735,7 +735,7 @@ function ResourceInfoPopup({
         )}
         <div className="resource-popup-total">
           <span>Per turn</span>
-          <span className={crystalsPerTurn >= 0 ? 'resource-popup-total-positive' : 'resource-popup-total-negative'}>
+          <span className="resource-popup-total-positive">
             +{crystalsPerTurn}
           </span>
         </div>

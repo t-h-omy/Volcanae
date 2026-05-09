@@ -2000,9 +2000,18 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
         moveEnemyUnit(state, currentUnit.id, action.targetPosition, events);
       } else {
         // Fallback: destroy in place (should not normally happen)
+        const fallbackPos = { x: currentUnit.position.x, y: currentUnit.position.y };
         destroyUnit(state, currentUnit.id, events);
         state.ember += 1;
         state.emberLevelSources.emberlingSacrifices += 1;
+        if (events) {
+          events.push({
+            type: 'EMBER_LEVEL_UP',
+            position: fallbackPos,
+            amount: 1,
+            isEmberlingSacrifice: true,
+          });
+        }
       }
       return;
     }
