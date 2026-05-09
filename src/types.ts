@@ -468,6 +468,18 @@ export interface GameState {
   /** When non-null, the player is choosing a heal target on the map */
   pendingHealerId: string | null;
   ember: number;
+  /**
+   * Cumulative breakdown of where Ember Level increases have come from.
+   * Used by the Ember Level info popup to show a source attribution.
+   */
+  emberLevelSources: {
+    /** Total gained from turn-based natural progression */
+    turns: number;
+    /** Total gained from Emberling sacrifices to lava */
+    emberlingSacrifices: number;
+    /** Total gained from all other sources (stronghold captures, lava advance, etc.) */
+    other: number;
+  };
   zonesUnlocked: number[];
   techNodes: Record<TechId, TechNodeState>;
   techFlags: TechFlag[];

@@ -141,4 +141,17 @@ export type GameEvent =
       type: 'CAVE_MONSTER_KILLED';
       /** ID of the cave monster unit that was killed */
       monsterId: string;
+    }
+  | {
+      /**
+       * Emitted when Ember Level increases due to an Emberling sacrifice.
+       * Used to show player-facing feedback (floater + log).
+       */
+      type: 'EMBER_LEVEL_UP';
+      /** Position of the unit that caused the ember increase (sacrifice tile) */
+      position: Position;
+      /** Amount by which Ember Level increased */
+      amount: number;
+      /** Whether the source was an Emberling sacrifice (true) or another cause (false) */
+      isEmberlingSacrifice: boolean;
     };

@@ -950,8 +950,23 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
 
   // If the destination is a lava tile, destroy the unit and increment threat
   if (newTile.isLava) {
+    const isSacrifice = unit.tags.includes(UnitTag.SACRIFICIAL);
+    const sacrificePos = { x: targetPosition.x, y: targetPosition.y };
     destroyUnit(state, unitId, events);
     state.ember += 1;
+    if (isSacrifice) {
+      state.emberLevelSources.emberlingSacrifices += 1;
+    } else {
+      state.emberLevelSources.other += 1;
+    }
+    if (events) {
+      events.push({
+        type: 'EMBER_LEVEL_UP',
+        position: sacrificePos,
+        amount: 1,
+        isEmberlingSacrifice: isSacrifice,
+      });
+    }
     return;
   }
 
@@ -1987,6 +2002,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
         // Fallback: destroy in place (should not normally happen)
         destroyUnit(state, currentUnit.id, events);
         state.ember += 1;
+        state.emberLevelSources.emberlingSacrifices += 1;
       }
       return;
     }
@@ -2087,11 +2103,13 @@ function decideAndExecute(
 export function updateEmberFromTurn(state: Draft<GameState>): void {
   if (state.turn > 0 && state.turn % 10 === 0) {
     state.ember += 1;
+    state.emberLevelSources.turns += 1;
   }
 }
 
 export function increaseEmberOnStrongholdCapture(state: Draft<GameState>): void {
   state.ember += 1;
+  state.emberLevelSources.other += 1;
 }
 
 // ============================================================================

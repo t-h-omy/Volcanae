@@ -1172,6 +1172,7 @@ export const useGameStore = create<GameStore>()(
           // Check ember level
           if (draft.turn > 0 && draft.turn % ENEMY.THREAT_LEVEL_INCREASE_INTERVAL === 0) {
             draft.ember += 1;
+            draft.emberLevelSources.turns += 1;
           }
 
           // Expire elapsed zone lockouts
@@ -1734,14 +1735,15 @@ export const useGameStore = create<GameStore>()(
               state.turnsUntilLavaAdvance += event.lavaAdvanceBonus;
             }
             // Notification floater on the sanctum tile
-            const parts: string[] = [`🌋 Zone ${event.zone} purged!`];
-            if (event.spawnFreezeUntilTurn > state.turn) {
-              parts.push(`Spawns frozen (${event.spawnFreezeUntilTurn - state.turn}t)`);
-            }
+            let label: string;
             if (event.lavaAdvanceBonus > 0) {
-              parts.push(`+${event.lavaAdvanceBonus} lava turns`);
+              label = `Infernal Sanctum destroyed! Lava advance delayed by +${event.lavaAdvanceBonus}.`;
+            } else {
+              label = `🌋 Zone ${event.zone} purged!`;
+              if (event.spawnFreezeUntilTurn > state.turn) {
+                label += ` · Spawns frozen (${event.spawnFreezeUntilTurn - state.turn}t)`;
+              }
             }
-            const label = parts.join(' · ');
             useFloaterStore.getState().addFloater({
               label,
               value: 0,
@@ -1756,6 +1758,22 @@ export const useGameStore = create<GameStore>()(
           case 'ZONE_CLEARED':
             // All state mutations already applied during cascade — event is presentation-only.
             break;
+
+          case 'EMBER_LEVEL_UP': {
+            // State was already mutated in enemySystem — this is presentation-only.
+            const sacrificeLabel = event.isEmberlingSacrifice
+              ? `Emberling sacrificed to lava · 🔥 Ember Level +${event.amount}`
+              : `Enemy consumed by lava · 🔥 Ember Level +${event.amount}`;
+            useFloaterStore.getState().addFloater({
+              label: sacrificeLabel,
+              value: 0,
+              x: event.position.x,
+              y: event.position.y,
+              isEnemy: true,
+              floaterType: 'xp',
+            });
+            break;
+          }
         }
       });
     },

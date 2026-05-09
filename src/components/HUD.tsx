@@ -22,6 +22,7 @@ import {
   computeSpecialistUpkeep,
   computeRecruitmentBuildingUsage,
   computeResourceIncomeBreakdown,
+  computeCrystalIncomePerTurn,
 } from '../resourceSystem';
 import {
   getConstructionOptionsForTile,
@@ -581,8 +582,14 @@ function TopBar({
   const [openSpecialistInfo, setOpenSpecialistInfo] = useState<string | null>(null);
   const openSpec = openSpecialistInfo ? specialists[openSpecialistInfo] : null;
 
-  // Resource info popup state: 'iron' | 'wood' | null
-  const [resourcePopup, setResourcePopup] = useState<'iron' | 'wood' | null>(null);
+  // Resource info popup state: 'iron' | 'wood' | 'crystal' | null
+  const [resourcePopup, setResourcePopup] = useState<'iron' | 'wood' | 'crystal' | null>(null);
+
+  // Ember info popup
+  const [emberPopupOpen, setEmberPopupOpen] = useState(false);
+
+  // Crystal income per turn
+  const crystalsPerTurn = useGameStore((s) => computeCrystalIncomePerTurn(s).crystalsPerTurn);
 
   /** Renders a net-income badge (green for positive, red for negative, hidden for zero). */
   const NetIncomeBadge = ({ gross, upkeep }: { gross: number; upkeep: number }) => {
@@ -604,9 +611,11 @@ function TopBar({
       <button className="hud-stat hud-stat--clickable" onClick={() => setResourcePopup('wood')}>🪵 {resources.wood}<NetIncomeBadge gross={woodPerTurn} upkeep={woodUpkeep} /></button>
       <span className="hud-stat">🌾 {farmersUsed}/{farmerCapacity}</span>
       <span className="hud-stat">🎖️ {noblesUsed}/{nobleCapacity}</span>
-      <span className="hud-stat">🔥 Ember {ember}</span>
+      <button className="hud-stat hud-stat--clickable" onClick={() => setEmberPopupOpen(true)}>🔥 Ember {ember}</button>
       <span className="hud-stat">🌋 Lava in {turnsUntilLavaAdvance}</span>
-      <span className="hud-stat">💎 {arcaneCrystals}</span>
+      <button className="hud-stat hud-stat--clickable" onClick={() => setResourcePopup('crystal')}>
+        💎 {arcaneCrystals}{crystalsPerTurn > 0 && <span className="hud-income">(+{crystalsPerTurn})</span>}
+      </button>
       {showTechButton && (
         <button className={`hud-tech-tree-btn${showTechBadge ? ' hud-tech-tree-btn--notify' : ''}`} onClick={onOpenTechTree}>
           🔬 Tech Tree
@@ -646,9 +655,12 @@ function TopBar({
       {resourcePopup && (
         <ResourceInfoPopup
           resourceType={resourcePopup}
-          current={resourcePopup === 'iron' ? resources.iron : resources.wood}
+          current={resourcePopup === 'iron' ? resources.iron : resourcePopup === 'wood' ? resources.wood : arcaneCrystals}
           onClose={() => setResourcePopup(null)}
         />
+      )}
+      {emberPopupOpen && (
+        <EmberInfoPopup onClose={() => setEmberPopupOpen(false)} />
       )}
       <GameMenu />
     </div>
@@ -692,12 +704,49 @@ function ResourceInfoPopup({
   current,
   onClose,
 }: {
-  resourceType: 'iron' | 'wood';
+  resourceType: 'iron' | 'wood' | 'crystal';
   current: number;
   onClose: () => void;
 }) {
-  // Compute breakdown only when popup is mounted (i.e. when it is visible)
+  // Crystal popup uses a dedicated layout
+  const crystalIncome = useGameStore((s) => computeCrystalIncomePerTurn(s));
+  // Iron/wood breakdown (only computed when needed)
   const entries = useGameStore((s) => computeResourceIncomeBreakdown(s));
+
+  if (resourceType === 'crystal') {
+    const { crystalsPerTurn, resonatingChambers } = crystalIncome;
+    return (
+      <Popup onClose={onClose}>
+        <div className="info-popup-header">
+          <span className="info-popup-header-emoji">💎</span>
+          <div className="info-popup-header-name">Arcane Crystals</div>
+        </div>
+        <div className="resource-popup-current">Current: {current}</div>
+        <div className="resource-popup-section-title">Income this turn</div>
+        {resonatingChambers === 0 ? (
+          <div className="resource-popup-row resource-popup-row--none">
+            No active Crystal Chambers
+          </div>
+        ) : (
+          <div className="resource-popup-row">
+            <span className="resource-popup-row-label">Crystal Chamber ×{resonatingChambers} (resonating)</span>
+            <span className="resource-popup-row-value">+{crystalsPerTurn}</span>
+          </div>
+        )}
+        <div className="resource-popup-total">
+          <span>Per turn</span>
+          <span className={crystalsPerTurn >= 0 ? 'resource-popup-total-positive' : 'resource-popup-total-negative'}>
+            +{crystalsPerTurn}
+          </span>
+        </div>
+        <p className="info-popup-desc" style={{ marginTop: 10, marginBottom: 8, fontSize: '0.82em', opacity: 0.8 }}>
+          Crystals are used to research technologies. Crystal Chambers generate crystals while resonating — resonance activates when a chamber is consumed by lava.
+        </p>
+        <button className="info-popup-btn info-popup-btn--secondary" style={{ marginTop: 6 }} onClick={onClose}>Close</button>
+      </Popup>
+    );
+  }
+
   const isIron = resourceType === 'iron';
   const emoji = isIron ? '⛓️' : '🪵';
   const label = isIron ? 'Iron' : 'Wood';
@@ -753,6 +802,47 @@ function InfoTagPill({ tag, onClick }: { tag: UnitTag; onClick: () => void }) {
       {info?.label ?? tag}
       <span className="info-popup-tag-pill-i">i</span>
     </button>
+  );
+}
+
+/** Ember Level info popup — explains what Ember Level does and shows source breakdown */
+function EmberInfoPopup({ onClose }: { onClose: () => void }) {
+  const ember = useGameStore((s) => s.ember);
+  const sources = useGameStore((s) => s.emberLevelSources);
+  const { turns, emberlingSacrifices, other } = sources;
+
+  return (
+    <Popup onClose={onClose}>
+      <div className="info-popup-header">
+        <span className="info-popup-header-emoji">🔥</span>
+        <div className="info-popup-header-name">Ember Level</div>
+      </div>
+      <div className="resource-popup-current">Current Ember Level: {ember}</div>
+      <p className="info-popup-desc" style={{ margin: '8px 0', fontSize: '0.85em' }}>
+        Higher Ember Level increases enemy pressure. It raises the probability that enemy
+        spawners recruit new units each turn and unlocks stronger enemy unit types over time.
+      </p>
+      <div className="resource-popup-section-title">Source breakdown</div>
+      <div className="resource-popup-row">
+        <span className="resource-popup-row-label">Turn progression</span>
+        <span className="resource-popup-row-value">+{turns}</span>
+      </div>
+      <div className="resource-popup-row">
+        <span className="resource-popup-row-label">Emberling sacrifices</span>
+        <span className="resource-popup-row-value">+{emberlingSacrifices}</span>
+      </div>
+      {other > 0 && (
+        <div className="resource-popup-row">
+          <span className="resource-popup-row-label">Other sources</span>
+          <span className="resource-popup-row-value">+{other}</span>
+        </div>
+      )}
+      <div className="resource-popup-total">
+        <span>Total</span>
+        <span>{ember}</span>
+      </div>
+      <button className="info-popup-btn info-popup-btn--secondary" style={{ marginTop: 14 }} onClick={onClose}>Close</button>
+    </Popup>
   );
 }
 
@@ -2997,35 +3087,6 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
 }
 
 // ============================================================================
-// ARCANE CRYSTAL TOAST
-// ============================================================================
-
-function ArcaneCrystalToast() {
-  const arcaneCrystals = useGameStore((s) => s.arcaneCrystals);
-  const prevCrystalsRef = useRef(arcaneCrystals);
-  const toastRef = useRef<HTMLDivElement>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(() => {
-    if (arcaneCrystals > prevCrystalsRef.current) {
-      if (timerRef.current) clearTimeout(timerRef.current);
-      const el = toastRef.current;
-      if (el) el.style.display = 'block';
-      timerRef.current = setTimeout(() => {
-        if (el) el.style.display = 'none';
-      }, 3000);
-    }
-    prevCrystalsRef.current = arcaneCrystals;
-  }, [arcaneCrystals]);
-
-  return (
-    <div ref={toastRef} className="tech-toast" style={{ display: 'none' }}>
-      💎 New arcane crystal available!
-    </div>
-  );
-}
-
-// ============================================================================
 // MAIN HUD COMPONENT
 // ============================================================================
 
@@ -3089,7 +3150,6 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
         showTechBadge={showTechBadge}
       />
       <BottomBar />
-      <ArcaneCrystalToast />
       {showTechTree && <TechTreeOverlay onClose={handleCloseTechTree} />}
       {phase === GamePhase.GAME_OVER && <GameOverOverlay />}
       {phase === GamePhase.VICTORY && <VictoryOverlay />}

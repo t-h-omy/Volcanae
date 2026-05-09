@@ -350,6 +350,35 @@ export function computeSpecialistUpkeep(
 }
 
 // ============================================================================
+// CRYSTAL INCOME
+// ============================================================================
+
+/**
+ * Returns the number of arcane crystals that would be granted this turn from
+ * all currently resonating player-owned Crystal Chambers.
+ * Matches the logic in collectResources so UI numbers always match gameplay.
+ */
+export function computeCrystalIncomePerTurn(
+  state: GameState | Draft<GameState>,
+): { crystalsPerTurn: number; resonatingChambers: number } {
+  let resonatingChambers = 0;
+  for (const building of Object.values(state.buildings)) {
+    if (
+      building.faction === Faction.PLAYER &&
+      building.type === BuildingType.CRYSTAL_CHAMBER &&
+      building.isDisabledForTurns <= 0 &&
+      building.resonanceTurnsRemaining > 0
+    ) {
+      resonatingChambers++;
+    }
+  }
+  return {
+    crystalsPerTurn: resonatingChambers * CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN,
+    resonatingChambers,
+  };
+}
+
+// ============================================================================
 // POPULATION SYSTEM
 // ============================================================================
 

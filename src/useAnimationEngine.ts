@@ -68,6 +68,8 @@ function eventPosition(event: GameEvent): Position {
     case 'CAVE_MONSTER_KILLED':
       // No camera position needed — handled as a blocking modal, not a spatial event.
       return { x: Math.floor(MAP.GRID_WIDTH / 2), y: Math.floor(MAP.GRID_HEIGHT / 2) };
+    case 'EMBER_LEVEL_UP':
+      return event.position;
   }
 }
 
@@ -127,6 +129,8 @@ function isEventVisible(event: GameEvent): boolean {
     case 'CAVE_MONSTER_KILLED':
       // Always show the modal regardless of tile visibility.
       return true;
+    case 'EMBER_LEVEL_UP':
+      return isTileRevealed(event.position);
   }
 }
 
