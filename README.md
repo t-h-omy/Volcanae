@@ -47,11 +47,11 @@ Spells are unlocked individually through the tech tree. The eight available spel
 |-------|--------|
 | 🔄 Transpose | Swap the Mage with a friendly unit |
 | 🔥 Emberbind | Destroy a nearby Ember Nest, summoning a leashed Ember Demon |
-| 🩸 Brandmark | Mark an enemy; heals the Mage when that enemy is killed |
+| 🩸 Brandmark | Fully heal a friendly unit; the healed unit gains the BRANDMARKED tag and loses HP each turn, spawning a hostile Ember Demon on death |
 | 💀 Raise Skeleton | Animate a Gravestone as a Skeleton unit |
 | ❄️ Frostcraft | Freeze a water tile, making it passable |
 | ☠️ Grave Trap | Place a trap that stuns the next unit to enter |
 | 💥 Explode | Deal area damage around a target tile |
-| 💎 Crystal Tower | Spend gold to construct a defensive Crystal Tower |
+| 💎 Crystal Tower | Sacrifice the Mage to erect a permanent Crystal Tower on its tile |
 
 A summoned Ember Demon is **leashed** to its controller Mage — if the Mage moves more than `MAGE.EMBER_DEMON_LEASH_RANGE` tiles away (see `src/gameConfig.ts` for all balance numbers), the demon defects to the enemy at end of turn. The UI highlights both tiles with a purple glow and switches to a red warning glow when the leash is about to break.
