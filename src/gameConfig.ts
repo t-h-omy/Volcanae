@@ -133,6 +133,75 @@ export const CRYSTAL_CHAMBER_CONFIG = {
 } as const;
 
 // ============================================================================
+// MAGE SYSTEM CONFIGURATION
+// ============================================================================
+
+export const MAGE = {
+  // ── Mage unit ────────────────────────────────────────────────────────
+  /** Default spell range (edge-circle range) before SPELL_REACH is researched */
+  SPELL_RANGE_BASE: 2,
+  /** Range bonus granted by the SPELL_REACH tech */
+  SPELL_RANGE_BONUS: 1,
+  /** Crystal Chamber per-building unit limit (max live mages per chamber) */
+  CHAMBER_UNIT_LIMIT: 1,
+
+  // ── Mage stat block ──────────────────────────────────────────────────
+  MAGE_MAX_HP: 60,
+  MAGE_ATTACK: 0,
+  MAGE_DEFENSE: 25,
+  MAGE_MOVE_RANGE: 1,
+  MAGE_ATTACK_RANGE: 1,
+  MAGE_DISCOVER_RADIUS: 2,
+  MAGE_COST_IRON: 2,
+  MAGE_COST_WOOD: 5,
+  MAGE_POP_FARMERS: 0,
+  MAGE_POP_NOBLES: 1,
+
+  // ── Ember Demon stat block (used for both summoned and hostile demons) ──
+  EMBER_DEMON_MAX_HP: 120,
+  EMBER_DEMON_ATTACK: 70,
+  EMBER_DEMON_DEFENSE: 40,
+  EMBER_DEMON_MOVE_RANGE: 1,
+  EMBER_DEMON_ATTACK_RANGE: 1,
+  EMBER_DEMON_DISCOVER_RADIUS: 1,
+  EMBER_DEMON_TRIGGER_RANGE: 3,
+  /** Tile range within which a Mage must remain to keep its summoned demon LEASHED */
+  EMBER_DEMON_LEASH_RANGE: 2,
+  /** Crystals granted to the player when a hostile EMBER_DEMON is killed by the player */
+  EMBER_DEMON_KILL_CRYSTAL_REWARD: 1,
+
+  // ── Skeleton stat block ──────────────────────────────────────────────
+  SKELETON_MAX_HP: 60,
+  SKELETON_ATTACK: 35,
+  SKELETON_DEFENSE: 20,
+  SKELETON_MOVE_RANGE: 1,
+  SKELETON_ATTACK_RANGE: 1,
+  SKELETON_DISCOVER_RADIUS: 1,
+
+  // ── Spell parameters ─────────────────────────────────────────────────
+  /** HP lost by a BRANDMARKED unit at the end of every player turn */
+  BRANDMARK_HP_LOSS_PER_TURN: 5,
+  /** Number of turns a unit is stunned after stepping on a GRAVE_TRAP (this turn + next) */
+  GRAVE_TRAP_STUN_TURNS: 2,
+  /** Percentage of the sacrificed unit's CURRENT HP dealt to each adjacent enemy by Explode */
+  EXPLODE_DAMAGE_PERCENT: 50,
+
+  // ── Crystal Tower stat block ─────────────────────────────────────────
+  CRYSTAL_TOWER_MAX_HP: 200,
+  CRYSTAL_TOWER_ATTACK: 40,
+  CRYSTAL_TOWER_DEFENSE: 55,
+  CRYSTAL_TOWER_ATTACK_RANGE: 2,
+  CRYSTAL_TOWER_MAX_ATTACKS_PER_TURN: 1,
+  /** Crystals granted when an enemy unit is killed by a CRYSTAL_TOWER */
+  CRYSTAL_TOWER_KILL_CRYSTAL_REWARD: 1,
+  CRYSTAL_TOWER_DISCOVER_RADIUS: 3,
+
+  // ── GRAVE_HARVEST tech parameters ────────────────────────────────────
+  /** Per-turn percent chance for each player-owned GRAVESTONE to grant 1 crystal */
+  GRAVE_HARVEST_CRYSTAL_CHANCE: 25,
+} as const;
+
+// ============================================================================
 // RESOURCE CONFIGURATION
 // ============================================================================
 
@@ -818,45 +887,45 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   MAGE: {
-    maxHp: 70, attack: 35, defense: 20,
-    movementActions: 1, moveRange: 2, attackRange: 1,
-    discoverRadius: 1, triggerRange: 0,
-    tags: [UnitTag.MAGE],
-    cost: { iron: 3, wood: 5 },
-    populationCost: { farmers: 0, nobles: 1 },
+    maxHp: MAGE.MAGE_MAX_HP, attack: MAGE.MAGE_ATTACK, defense: MAGE.MAGE_DEFENSE,
+    movementActions: 1, moveRange: MAGE.MAGE_MOVE_RANGE, attackRange: MAGE.MAGE_ATTACK_RANGE,
+    discoverRadius: MAGE.MAGE_DISCOVER_RADIUS, triggerRange: 0,
+    tags: [UnitTag.MAGE, UnitTag.PASSIVE, UnitTag.PREP],
+    cost: { iron: MAGE.MAGE_COST_IRON, wood: MAGE.MAGE_COST_WOOD },
+    populationCost: { farmers: MAGE.MAGE_POP_FARMERS, nobles: MAGE.MAGE_POP_NOBLES },
     levelUp: [
-      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
-      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_SCOUT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_SCOUT }] },
     ],
-    description: 'Magical caster recruited from active Crystal Chambers. Can cast powerful spells unlocked in the tech tree.',
+    description: 'Arcane caster that casts spells instead of attacking. Recruited from active Crystal Chambers.', // overwritten below
   },
 
   EMBER_DEMON: {
-    maxHp: 120, attack: 70, defense: 35,
-    movementActions: 1, moveRange: 2, attackRange: 1,
-    discoverRadius: 1, triggerRange: 0,
-    tags: [UnitTag.SUMMONED],
+    maxHp: MAGE.EMBER_DEMON_MAX_HP, attack: MAGE.EMBER_DEMON_ATTACK, defense: MAGE.EMBER_DEMON_DEFENSE,
+    movementActions: 1, moveRange: MAGE.EMBER_DEMON_MOVE_RANGE, attackRange: MAGE.EMBER_DEMON_ATTACK_RANGE,
+    discoverRadius: MAGE.EMBER_DEMON_DISCOVER_RADIUS, triggerRange: MAGE.EMBER_DEMON_TRIGGER_RANGE,
+    tags: [],
     cost: { iron: 0, wood: 0 },
     populationCost: { farmers: 0, nobles: 0 },
     levelUp: [
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
-      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
     ],
-    description: 'Powerful demonic unit. Can be summoned by a Mage or spawned as a hostile enemy.',
+    description: 'Powerful demonic unit. Can be summoned by a Mage or encountered as a hostile enemy.', // overwritten below
   },
 
   SKELETON: {
-    maxHp: 60, attack: 40, defense: 25,
-    movementActions: 1, moveRange: 1, attackRange: 1,
-    discoverRadius: 1, triggerRange: 0,
-    tags: [UnitTag.SUMMONED],
+    maxHp: MAGE.SKELETON_MAX_HP, attack: MAGE.SKELETON_ATTACK, defense: MAGE.SKELETON_DEFENSE,
+    movementActions: 1, moveRange: MAGE.SKELETON_MOVE_RANGE, attackRange: MAGE.SKELETON_ATTACK_RANGE,
+    discoverRadius: MAGE.SKELETON_DISCOVER_RADIUS, triggerRange: 0,
+    tags: [],
     cost: { iron: 0, wood: 0 },
     populationCost: { farmers: 0, nobles: 0 },
     levelUp: [
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
-    description: 'Undead unit raised from a gravestone by a Mage.',
+    description: 'Undead warrior raised from a gravestone by a Mage via the Raise Skeleton spell.', // overwritten below
   },
 };
 
@@ -872,6 +941,9 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   u.LAVA_RIDER.description  = `Enemy fast cavalry that covers ${u.LAVA_RIDER.moveRange} tiles per move.`;
   u.LAVA_SIEGE.description  = `Enemy long-range bombard with ${u.LAVA_SIEGE.attackRange}-tile reach.`;
   u.EMBERLING.description   = `Fragile fire spirit that walks toward lava. Explodes on death, dealing ${u.EMBERLING.explosionDamage} damage to all units within 1 tile.`;
+  u.MAGE.description        = `Arcane caster that casts spells within ${MAGE.SPELL_RANGE_BASE} tiles instead of attacking. Recruited from active Crystal Chambers.`;
+  u.EMBER_DEMON.description = `Powerful demonic unit with ${MAGE.EMBER_DEMON_MAX_HP} HP. Can be summoned by a Mage or encountered as a hostile enemy.`;
+  u.SKELETON.description    = `Undead warrior raised from a gravestone by a Mage via the Raise Skeleton spell.`;
 }
 
 // ============================================================================
@@ -1029,14 +1101,20 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     discoverRadius: 1,
     destroyBehavior: DestroyBehavior.NONE,
     constructionCost: { iron: 0, wood: 0 },
-    description: 'A hidden stun trap conjured from a gravestone.', // overwritten below (after ABILITIES)
+    description: 'A magic trap forged from a gravestone.', // overwritten below (after MAGE)
   },
   CRYSTAL_TOWER: {
-    discoverRadius: 2,
+    discoverRadius: 3,
     destroyBehavior: DestroyBehavior.RUIN,
     constructionCost: { iron: 0, wood: 0 },
-    combatStats: { maxHp: 150, attack: 55, defense: 40, attackRange: 3 },
-    description: 'A powerful arcane tower raised by sacrificing a Mage.', // overwritten below (after ABILITIES)
+    combatStats: {
+      maxHp: MAGE.CRYSTAL_TOWER_MAX_HP,
+      attack: MAGE.CRYSTAL_TOWER_ATTACK,
+      defense: MAGE.CRYSTAL_TOWER_DEFENSE,
+      attackRange: MAGE.CRYSTAL_TOWER_ATTACK_RANGE,
+      maxAttacksPerTurn: MAGE.CRYSTAL_TOWER_MAX_ATTACKS_PER_TURN,
+    },
+    description: 'Arcane combat tower raised by sacrificing a Mage.', // overwritten below (after MAGE)
   },
 };
 
@@ -1177,9 +1255,9 @@ export const ABILITIES = {
   BUILDING_DEFINITIONS.GRAVESTONE.description =
     `The grave of a fallen warrior. Revive the unit by paying ${ABILITIES.REVIVE_CRYSTAL_COST} crystal.`;
   BUILDING_DEFINITIONS.GRAVE_TRAP.description =
-    `A hidden stun trap conjured from a gravestone. Stuns any enemy that steps on it for ${ABILITIES.GRAVE_TRAP_STUN_TURNS} turns.`;
+    `A magic trap forged from a gravestone. The next unit to step onto it is stunned for ${MAGE.GRAVE_TRAP_STUN_TURNS} turns and the trap is consumed.`;
   BUILDING_DEFINITIONS.CRYSTAL_TOWER.description =
-    `A powerful arcane tower raised by sacrificing a Mage. Attacks enemies within ${BUILDING_DEFINITIONS.CRYSTAL_TOWER.combatStats?.attackRange ?? 'N/A'} tiles.`;
+    `Arcane combat tower. Attacks enemies within ${MAGE.CRYSTAL_TOWER_ATTACK_RANGE} tiles. Each enemy unit it kills generates ${MAGE.CRYSTAL_TOWER_KILL_CRYSTAL_REWARD} crystal.`;
 }
 
 // ============================================================================
@@ -1658,10 +1736,10 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string }> = {
   [UnitTag.READY]:              { label: 'Ready',              desc: 'Can move and attack immediately after being recruited.' },
   [UnitTag.REVIVABLE]:          { label: 'Revivable',          desc: `Leaves a Gravestone on death. Pay ${ABILITIES.REVIVE_CRYSTAL_COST} crystal to revive.` },
   // ── Mage system tags ────────────────────────────────────────────────────────
-  [UnitTag.MAGE]:               { label: 'Mage',               desc: 'Magical caster unit. Can cast spells unlocked in the tech tree.' },
-  [UnitTag.SUMMONED]:           { label: 'Summoned',           desc: 'This unit was summoned rather than recruited. Does not consume population and cannot be healed.' },
-  [UnitTag.BRANDMARKED]:        { label: 'Brandmarked',        desc: `Carries the Brandmark Heal mark. Loses ${ABILITIES.BRANDMARK_DAMAGE_PER_TURN} HP per turn; transforms into a hostile Ember Demon on death.` },
-  [UnitTag.LEASHED]:            { label: 'Leashed',            desc: `Summoned unit controlled by a Mage. Defects to the enemy if its controller Mage is more than ${ABILITIES.LEASH_RANGE} tiles away or dies.` },
+  [UnitTag.MAGE]:               { label: 'Mage',               desc: `Wields arcane magic. Casts spells within ${MAGE.SPELL_RANGE_BASE} tiles instead of attacking. Carries the PREP tag — a Mage that has moved this turn cannot cast or attack.` },
+  [UnitTag.SUMMONED]:           { label: 'Summoned',           desc: 'Conjured by magic. Does not consume population, cannot be healed, and does not leave a gravestone on death.' },
+  [UnitTag.BRANDMARKED]:        { label: 'Brandmarked',        desc: `Marked by Brandmark Heal. Loses ${MAGE.BRANDMARK_HP_LOSS_PER_TURN} HP at the end of every player turn. On death, leaves behind a hostile Ember Demon.` },
+  [UnitTag.LEASHED]:            { label: 'Leashed',            desc: `Summoned creature bound to a Mage. If the Mage moves out of ${MAGE.EMBER_DEMON_LEASH_RANGE} tiles or dies, the leashed unit defects to the enemy.` },
 };
 
 // ============================================================================
@@ -1713,6 +1791,7 @@ export const GAME_CONFIG = {
   MAP,
   LAVA,
   LAVA_LAIR,
+  MAGE,
   UNIT_DEFINITIONS,
   BUILDING_DEFINITIONS,
   SPECIALIST_DEFINITIONS,
