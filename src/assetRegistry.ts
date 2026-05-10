@@ -141,3 +141,9 @@ export const TILE_SPRITE: Partial<Record<TileType | 'lava' | 'unrevealed' | 'rui
   ruin:         '/sprites/buildings/ruin_standard_100px.png',
   strongholdRuin: '/sprites/buildings/ruin_stronghold_100px.png',
 });
+
+/**
+ * Sprite path for the ice overlay rendered on top of frozen WATER tiles.
+ * TODO: Replace empty string with a real ice overlay PNG once art is available.
+ */
+export const ICE_OVERLAY_SPRITE = withBase({ ice: '' }).ice ?? '';

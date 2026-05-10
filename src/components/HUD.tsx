@@ -167,6 +167,18 @@ const BUILDING_RECRUITS: Partial<Record<string, UnitType[]>> = {
   [BuildingType.STRONGHOLD]: [UnitType.SCOUT, UnitType.GUARD],
 };
 
+/** Emoji + name label for each spell button */
+const SPELL_LABELS: Record<string, string> = {
+  [SpellId.TRANSPOSE]:      '🔄 Transpose',
+  [SpellId.EMBERBIND]:      '🔥 Emberbind',
+  [SpellId.BRANDMARK_HEAL]: '🩸 Brandmark',
+  [SpellId.RAISE_SKELETON]: '💀 Raise Skeleton',
+  [SpellId.FROSTCRAFT]:     '❄️ Frostcraft',
+  [SpellId.GRAVE_TRAP]:     '☠️ Grave Trap',
+  [SpellId.EXPLODE]:        '💥 Explode',
+  [SpellId.CRYSTAL_TOWER]:  '💎 Crystal Tower',
+};
+
 // ============================================================================
 // GAME MENU
 // ============================================================================
@@ -1427,6 +1439,15 @@ function SelectedUnitPanel({
   const fieldworkUnit = useGameStore((s) => s.fieldworkUnit);
   const [confirmFieldwork, setConfirmFieldwork] = useState(false);
 
+  // Spell casting (Mage only)
+  const isMage = unit.type === UnitType.MAGE;
+  const unlockedSpells = useGameStore((s) => s.unlockedSpells);
+  const startSpellCast = useGameStore((s) => s.startSpellCast);
+  const cancelSpellCast = useGameStore((s) => s.cancelSpellCast);
+  const pendingSpellCast = useGameStore((s) => s.pendingSpellCast);
+  const canCast = isMage && isPlayer && canUnitCast(unit);
+  const isInSpellCastMode = pendingSpellCast?.mageId === unit.id;
+
   const healTargets = useMemo(
     () => (canHeal ? getHealTargets(gameState, unit.id) : []),
     [canHeal, gameState, unit.id],
@@ -1656,6 +1677,28 @@ function SelectedUnitPanel({
               {isInHealMode ? '💊 Choose target…' : '💊 Heal'}
             </button>
           )}
+          {isMage && isPlayer && unlockedSpells.length > 0 && (
+            <div className="hud-spell-row">
+              {unlockedSpells.map((spellId) => (
+                <button
+                  key={spellId}
+                  className={`hud-spell-btn${isInSpellCastMode && pendingSpellCast?.spellId === spellId ? ' hud-spell-active' : ''}`}
+                  disabled={!canCast}
+                  onClick={() => startSpellCast(unit.id, spellId)}
+                >
+                  {SPELL_LABELS[spellId] ?? spellId}
+                </button>
+              ))}
+              {isInSpellCastMode && (
+                <button
+                  className="hud-spell-cancel-btn"
+                  onClick={cancelSpellCast}
+                >
+                  ✖ Cancel cast
+                </button>
+              )}
+            </div>
+          )}
           {canFieldwork && (
             <>
               {!confirmFieldwork ? (
@@ -1884,6 +1927,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
 
   // Gravestone: revive logic
   const isGravestone = building.type === BuildingType.GRAVESTONE && isPlayerOwned;
+  const isGraveTrap = building.type === BuildingType.GRAVE_TRAP && isPlayerOwned;
   const tile = grid[building.position.y]?.[building.position.x];
   const graveOccupied = isGravestone && tile?.unitId !== null;
   const canRevive = isGravestone && !graveOccupied && arcaneCrystals >= ABILITIES.REVIVE_CRYSTAL_COST;
@@ -2112,6 +2156,13 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
               🔮 Revive (💎{ABILITIES.REVIVE_CRYSTAL_COST})
             </button>
           )}
+        </div>
+      )}
+
+      {/* Grave Trap description */}
+      {isGraveTrap && (
+        <div className="hud-revive-row">
+          <span className="hud-dim">Will stun the next unit to enter — any faction.</span>
         </div>
       )}
 

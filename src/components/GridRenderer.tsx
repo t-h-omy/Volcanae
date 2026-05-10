@@ -35,6 +35,8 @@ import {
 } from '../types';
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
 import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, canUnitConstruct, canUnitCapture, hasUnitActed, getHealTargets } from '../unitActions';
+import { getValidSpellTargets } from '../spellSystem';
+import { MAGE } from '../gameConfig';
 import './GridRenderer.css';
 
 // ============================================================================
@@ -138,6 +140,9 @@ export default function GridRenderer() {
   const healUnit = useGameStore((s) => s.healUnit);
   const pendingHealerId = useGameStore((s) => s.pendingHealerId);
   const cancelHealMode = useGameStore((s) => s.cancelHealMode);
+  const pendingSpellCast = useGameStore((s) => s.pendingSpellCast);
+  const cancelSpellCast = useGameStore((s) => s.cancelSpellCast);
+  const castSpell = useGameStore((s) => s.castSpell);
   const strongholdTotalCap = useGameStore((s) => getStrongholdEffectiveCap(s).totalCap);
   // Precompute recruitment usage (current/limit) for each player-owned recruitment building type.
   // Uses stable s.units / s.buildings selectors + useMemo so the result object is only
@@ -517,6 +522,72 @@ export default function GridRenderer() {
     return set;
   }, [pendingHealerId, units]);
 
+  // Spell target highlighting: when a spell cast is pending, show valid target tiles
+  const spellTargetSet = useMemo<Set<string>>(() => {
+    if (!pendingSpellCast) return new Set();
+    const targets = getValidSpellTargets(
+      useGameStore.getState(),
+      pendingSpellCast.mageId,
+      pendingSpellCast.spellId,
+    );
+    const set = new Set<string>();
+    for (const p of targets) set.add(posKey(p.x, p.y));
+    return set;
+  }, [pendingSpellCast, units, buildings, grid]);
+
+  // Leash visual: when a Mage (with leashed demons) or an Ember Demon is selected,
+  // highlight both the demon tile and the mage tile.
+  const leashSet = useMemo<Set<string>>(() => {
+    const set = new Set<string>();
+    if (!selectedUnit) return set;
+    if (selectedUnit.type === UnitType.MAGE) {
+      // Find all leashed demons controlled by this mage
+      for (const u of Object.values(units)) {
+        if (u.type === UnitType.EMBER_DEMON && u.controllerMageId === selectedUnit.id) {
+          set.add(posKey(u.position.x, u.position.y));
+          set.add(posKey(selectedUnit.position.x, selectedUnit.position.y));
+        }
+      }
+    } else if (selectedUnit.type === UnitType.EMBER_DEMON && selectedUnit.controllerMageId) {
+      const mage = units[selectedUnit.controllerMageId];
+      if (mage) {
+        set.add(posKey(selectedUnit.position.x, selectedUnit.position.y));
+        set.add(posKey(mage.position.x, mage.position.y));
+      }
+    }
+    return set;
+  }, [selectedUnit, units]);
+
+  // Leash-warn set: tiles that are at risk (mage is out of leash range of demon)
+  const leashWarnSet = useMemo<Set<string>>(() => {
+    const set = new Set<string>();
+    if (!selectedUnit) return set;
+    let mage: typeof selectedUnit | undefined;
+    let demons: (typeof selectedUnit)[] = [];
+    if (selectedUnit.type === UnitType.MAGE) {
+      mage = selectedUnit;
+      demons = Object.values(units).filter(
+        (u) => u.type === UnitType.EMBER_DEMON && u.controllerMageId === selectedUnit.id,
+      );
+    } else if (selectedUnit.type === UnitType.EMBER_DEMON && selectedUnit.controllerMageId) {
+      mage = units[selectedUnit.controllerMageId];
+      demons = [selectedUnit];
+    }
+    if (!mage) return set;
+    for (const demon of demons) {
+      const inRange = isTileWithinEdgeCircleRange(
+        mage.position.x, mage.position.y,
+        demon.position.x, demon.position.y,
+        MAGE.EMBER_DEMON_LEASH_RANGE,
+      );
+      if (!inRange) {
+        set.add(posKey(demon.position.x, demon.position.y));
+        set.add(posKey(mage.position.x, mage.position.y));
+      }
+    }
+    return set;
+  }, [selectedUnit, units]);
+
   // ── Tile click ──
   const handleTileClick = useCallback(
     (x: number, y: number) => {
@@ -534,6 +605,16 @@ export default function GridRenderer() {
       if (pendingHealerId) {
         // Clicked outside healable tiles — cancel heal mode
         cancelHealMode();
+        return;
+      }
+
+      // Priority 0.5 — Spell cast mode: clicking a valid target casts the spell; anything else cancels
+      if (pendingSpellCast && spellTargetSet.has(key)) {
+        castSpell({ x, y });
+        return;
+      }
+      if (pendingSpellCast) {
+        cancelSpellCast();
         return;
       }
 
@@ -640,7 +721,7 @@ export default function GridRenderer() {
         clearSelection();
       }
     },
-    [grid, selectedUnitId, selectedBuildingId, selectedUnit, selectedBuilding, attackableSet, healableSet, reachableSet, units, buildings, selectUnit, selectBuilding, selectTile, clearSelection, moveUnit, attackUnit, attackBuilding, buildingAttackUnit, buildingAttackBuilding, healUnit, pendingHealerId, cancelHealMode, isAnimating],
+    [grid, selectedUnitId, selectedBuildingId, selectedUnit, selectedBuilding, attackableSet, healableSet, spellTargetSet, reachableSet, units, buildings, selectUnit, selectBuilding, selectTile, clearSelection, moveUnit, attackUnit, attackBuilding, buildingAttackUnit, buildingAttackBuilding, healUnit, pendingHealerId, cancelHealMode, pendingSpellCast, castSpell, cancelSpellCast, isAnimating],
   );
 
   // Right-click / tap-hold → deselect (only when not used for drag-panning)
@@ -708,6 +789,9 @@ export default function GridRenderer() {
             const isReachable = reachableSet.has(key);
             const isAttackable = attackableSet.has(key);
             const isHealable = healableSet.has(key);
+            const isSpellTarget = spellTargetSet.has(key);
+            const isLeashed = leashSet.has(key);
+            const isLeashWarn = leashWarnSet.has(key);
             const isSelected =
               (tile.unitId != null && tile.unitId === selectedUnitId) ||
               (tile.buildingId != null && tile.buildingId === selectedBuildingId);
@@ -722,6 +806,9 @@ export default function GridRenderer() {
                 isReachable={isReachable}
                 isAttackable={isAttackable}
                 isHealable={isHealable}
+                isSpellTarget={isSpellTarget}
+                isLeashed={isLeashed}
+                isLeashWarn={isLeashWarn}
                 isSelected={isSelected}
                 strongholdTotalCap={strongholdTotalCap}
                 recruitmentUsage={recruitmentUsage}
@@ -757,6 +844,9 @@ interface TileCellProps {
   isReachable: boolean;
   isAttackable: boolean;
   isHealable: boolean;
+  isSpellTarget: boolean;
+  isLeashed: boolean;
+  isLeashWarn: boolean;
   isSelected: boolean;
   /** Pre-computed total population cap for STRONGHOLD buildings (farmers + nobles, including tech mods). */
   strongholdTotalCap: number;
@@ -773,6 +863,9 @@ function TileCellInner({
   isReachable,
   isAttackable,
   isHealable,
+  isSpellTarget,
+  isLeashed,
+  isLeashWarn,
   isSelected,
   strongholdTotalCap,
   recruitmentUsage,
@@ -892,7 +985,13 @@ function TileCellInner({
 
   return (
     <div
-      className={['grid-tile', isSelected && 'tile-selected', isResonating && 'tile--resonating', isCrystalActivating && 'tile--crystal-activating'].filter(Boolean).join(' ')}
+      className={[
+        'grid-tile',
+        isSelected && 'tile-selected',
+        isResonating && 'tile--resonating',
+        isCrystalActivating && 'tile--crystal-activating',
+        isLeashWarn ? 'tile--leash-warn' : isLeashed ? 'tile--leashed' : null,
+      ].filter(Boolean).join(' ')}
       style={{
         width: tileSize,
         height: tileSize,
@@ -975,6 +1074,12 @@ function TileCellInner({
         <div className="tile-overlay" style={{ backgroundColor: highlightOverlay }} />
       )}
 
+      {/* spell target overlay */}
+      {isSpellTarget && <div className="tile-overlay tile--spell-target" />}
+
+      {/* ice overlay — frozen water tile */}
+      {tile.isIce && tile.isRevealed && <div className="tile-overlay tile--ice" />}
+
       {/* crystal chamber activation VFX overlay */}
       {isCrystalActivating && <div className="tile-crystal-activate-overlay" />}
 
@@ -1009,7 +1114,10 @@ function TileCellInner({
         </>
       )}
 
-      {/* building HP bar for attacking buildings (e.g. watchtower, magma spyr) */}
+      {/* GRAVE_TRAP magic-glyph overlay — pulsing rune on top of gravestone sprite */}
+      {showBuilding && building && building.type === BuildingType.GRAVE_TRAP && tile.isRevealed && (
+        <div className="tile-overlay tile--grave-trap-glyph" aria-hidden="true">☠️</div>
+      )}
       {showBuilding && building && building.combatStats && building.faction && building.hp < building.maxHp && (
         <div
           className="hp-bar-wrapper building-hp-bar"
