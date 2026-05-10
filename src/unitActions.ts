@@ -58,7 +58,7 @@ export function hasUnitActed(unit: Unit): boolean {
     unit.hasCapturedThisTurn ||
     unit.hasConstructedThisTurn ||
     unit.hasDestroyedThisTurn ||
-    unit.hasCastThisTurn === true
+    !!unit.hasCastThisTurn
   );
 }
 

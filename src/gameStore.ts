@@ -37,10 +37,10 @@ import { useFloaterStore } from './floaterStore';
 import { useAnimationStore } from './animationStore';
 import { useCombatAnimationStore } from './combatAnimationStore';
 import { useCaveScreamsStore } from './caveScreamsStore';
-import { Faction, GamePhase, BuildingType, TileType, Difficulty, DestroyBehavior, UnitType, UnitTag } from './types';
+import { Faction, GamePhase, BuildingType, TileType, Difficulty, DestroyBehavior, UnitType, UnitTag, TechFlag } from './types';
 import type { GameState, Position, TechId, SpellId } from './types';
 import type { GameEvent } from './gameEvents';
-import { MAP, TERRAIN, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval, UNIT_DEFINITIONS } from './gameConfig';
+import { MAP, TERRAIN, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval, UNIT_DEFINITIONS, MAGE } from './gameConfig';
 import { saveGameState, loadGameState, clearSavedGame, hasSavedGame } from './saveSystem';
 import { computeLevelFromXp, applyLevelUps } from './levelSystem';
 import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLogic, getGrantedTags, getRemovedTags, getStatMods } from './techSystem';
@@ -1204,7 +1204,22 @@ export const useGameStore = create<GameStore>()(
               unit.hasDestroyedThisTurn = false;
               unit.hasUsedPostAttackMoveThisTurn = false;
               unit.bloodlustAttackAvailable = false;
-              unit.pinnedUntilTurn = 0;
+              // Only clear multi-turn stuns that have already expired so that
+              // Grave Trap's 2-turn stun persists across the turn boundary.
+              if (unit.pinnedUntilTurn !== 0 && unit.pinnedUntilTurn <= draft.turn) {
+                unit.pinnedUntilTurn = 0;
+              }
+            }
+          }
+
+          // GRAVE_HARVEST: each player-owned Gravestone has a per-turn chance to yield 1 crystal
+          if (draft.techFlags.includes(TechFlag.GRAVE_HARVEST)) {
+            for (const b of Object.values(draft.buildings)) {
+              if (b.type === BuildingType.GRAVESTONE && b.faction === Faction.PLAYER) {
+                if (Math.random() * 100 < MAGE.GRAVE_HARVEST_CRYSTAL_CHANCE) {
+                  draft.arcaneCrystals += 1;
+                }
+              }
             }
           }
 

@@ -169,6 +169,28 @@ export function getValidSpellTargets(
       return [{ ...mage.position }];
     }
 
+    case 'RAISE_SKELETON': {
+      const targets: Position[] = [];
+      for (const building of Object.values(state.buildings)) {
+        if (building.type !== BuildingType.GRAVESTONE) continue;
+        if (!isTileInSpellRange(mage, building.position, range)) continue;
+        const tile = state.grid[building.position.y]?.[building.position.x];
+        if (!tile || tile.unitId !== null) continue;
+        targets.push({ ...building.position });
+      }
+      return targets;
+    }
+
+    case 'GRAVE_TRAP': {
+      const targets: Position[] = [];
+      for (const building of Object.values(state.buildings)) {
+        if (building.type !== BuildingType.GRAVESTONE) continue;
+        if (!isTileInSpellRange(mage, building.position, range)) continue;
+        targets.push({ ...building.position });
+      }
+      return targets;
+    }
+
     default:
       return [];
   }
@@ -398,7 +420,7 @@ function handleCrystalTower(
       maxAttacksPerTurn: MAGE.CRYSTAL_TOWER_MAX_ATTACKS_PER_TURN,
     },
     hasAttackedThisTurn: false,
-    tags: [UnitTag.RANGED] as import('./types').UnitTag[],
+    tags: [UnitTag.RANGED] as UnitTag[],
     consumesUnitOnCapture: false,
     populationCount: 0,
     populationCap: 0,
@@ -442,6 +464,133 @@ function handleCrystalTower(
   return true;
 }
 
+/** Destroys a gravestone and raises a Skeleton (Raise Skeleton). */
+function handleRaiseSkeleton(
+  state: Draft<GameState>,
+  targetPosition: Position,
+): boolean {
+  const tile = state.grid[targetPosition.y]?.[targetPosition.x];
+  if (!tile) return false;
+  const graveId = tile.buildingId;
+  if (!graveId) return false;
+  const grave = state.buildings[graveId];
+  if (!grave || grave.type !== BuildingType.GRAVESTONE) return false;
+  if (tile.unitId !== null) return false;
+
+  // Consume gravestone
+  delete state.buildings[graveId];
+  tile.buildingId = null;
+
+  // Spawn Skeleton
+  const skeletonId = generateId('unit_skeleton');
+  state.units[skeletonId] = {
+    id: skeletonId,
+    type: UnitType.SKELETON,
+    faction: Faction.PLAYER,
+    position: { x: targetPosition.x, y: targetPosition.y },
+    stats: {
+      maxHp: MAGE.SKELETON_MAX_HP,
+      currentHp: MAGE.SKELETON_MAX_HP,
+      attack: MAGE.SKELETON_ATTACK,
+      defense: MAGE.SKELETON_DEFENSE,
+      moveRange: MAGE.SKELETON_MOVE_RANGE,
+      attackRange: MAGE.SKELETON_ATTACK_RANGE,
+      discoverRadius: MAGE.SKELETON_DISCOVER_RADIUS,
+      triggerRange: 0,
+      movementActions: 1,
+    },
+    tags: [UnitTag.SUMMONED],
+    hasMovedThisTurn: true,
+    hasAttackedThisTurn: true,
+    hasCapturedThisTurn: true,
+    hasConstructedThisTurn: true,
+    hasDestroyedThisTurn: true,
+    hasUsedPostAttackMoveThisTurn: false,
+    bloodlustAttackAvailable: false,
+    xp: 0,
+    level: 1,
+    lastMovedTurn: 0,
+    pinnedUntilTurn: 0,
+    distractionDefPenalty: 0,
+  };
+  tile.unitId = skeletonId;
+
+  useFloaterStore.getState().addFloater({
+    value: 0,
+    label: '💀 Raised',
+    x: targetPosition.x,
+    y: targetPosition.y,
+    isEnemy: false,
+    floaterType: 'revive',
+  });
+
+  return true;
+}
+
+/** Converts a gravestone into a Grave Trap (Grave Trap). */
+function handleGraveTrap(
+  state: Draft<GameState>,
+  targetPosition: Position,
+): boolean {
+  const tile = state.grid[targetPosition.y]?.[targetPosition.x];
+  if (!tile) return false;
+  const graveId = tile.buildingId;
+  if (!graveId) return false;
+  const grave = state.buildings[graveId];
+  if (!grave || grave.type !== BuildingType.GRAVESTONE) return false;
+
+  // Replace with a GRAVE_TRAP building
+  const trapId = generateId('building');
+  const trap = {
+    id: trapId,
+    type: BuildingType.GRAVE_TRAP,
+    faction: Faction.PLAYER as typeof Faction.PLAYER,
+    position: { x: targetPosition.x, y: targetPosition.y },
+    hp: 1,
+    maxHp: 1,
+    specialistSlot: null,
+    isDisabledForTurns: 0,
+    wasAttackedLastEnemyTurn: false,
+    captureProgress: 0,
+    isBeingCapturedBy: null,
+    lavaBoostEnabled: false,
+    discoverRadius: BUILDING_DEFINITIONS.GRAVE_TRAP.discoverRadius,
+    turnCapturedByPlayer: null,
+    wasEnemyOwnedBeforeCapture: false,
+    combatStats: null,
+    hasAttackedThisTurn: false,
+    tags: [] as UnitTag[],
+    consumesUnitOnCapture: false,
+    populationCount: 0,
+    populationCap: 0,
+    populationGrowthCounter: 0,
+    strongholdNobles: 0,
+    emberSpawnCounter: 0,
+    recruitmentQueue: null,
+    destroyBehavior: BUILDING_DEFINITIONS.GRAVE_TRAP.destroyBehavior,
+    resonanceTurnsRemaining: 0,
+    spawnCooldownRemaining: 0,
+    lastRecruitmentTurn: 0,
+    trapStunTurns: MAGE.GRAVE_TRAP_STUN_TURNS,
+  };
+
+  // Remove old gravestone
+  delete state.buildings[graveId];
+  state.buildings[trapId] = trap;
+  tile.buildingId = trapId;
+
+  useFloaterStore.getState().addFloater({
+    value: 0,
+    label: '☠️ Trapped',
+    x: targetPosition.x,
+    y: targetPosition.y,
+    isEnemy: false,
+    floaterType: 'revive',
+  });
+
+  return true;
+}
+
 /** Validates and applies a spell. Returns true on success. */
 export function castSpell(
   state: Draft<GameState>,
@@ -475,6 +624,10 @@ export function castSpell(
       return handleBrandmarkHeal(state, mage, targetPosition);
     case 'CRYSTAL_TOWER':
       return handleCrystalTower(state, mage);
+    case 'RAISE_SKELETON':
+      return handleRaiseSkeleton(state, targetPosition);
+    case 'GRAVE_TRAP':
+      return handleGraveTrap(state, targetPosition);
     default:
       return false;
   }

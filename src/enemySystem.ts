@@ -16,6 +16,7 @@ import { enemyConstructBuilding } from './constructionSystem';
 import { processEnemyLevelUps, grantXp } from './levelSystem';
 import type { GameEvent } from './gameEvents';
 import { hasUnitActed } from './unitActions';
+import { checkGraveTrapTrigger } from './movementSystem';
 
 // ============================================================================
 // ID GENERATION
@@ -973,6 +974,9 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
   // PREVENTIVE_STRIKE: player siege units with this tag fire at the newly moved unit
   // Pass fromPosition so the trigger can check for range-entry (not already in range)
   triggerPreventiveStrike(state, unitId, from, events);
+
+  // GRAVE_TRAP: check if the enemy unit landed on a player trap
+  checkGraveTrapTrigger(state, unitId);
 }
 
 // ============================================================================
