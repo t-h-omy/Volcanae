@@ -115,7 +115,7 @@ const BUILDING_EMOJI: Record<string, string> = {
   [BuildingType.EMBERNEST]: '🌲',
   [BuildingType.CRYSTAL_CHAMBER]: '💎',
   [BuildingType.GRAVESTONE]: '🪦',
-  [BuildingType.GRAVE_TRAP]: '🪦✨',
+  [BuildingType.GRAVE_TRAP]: '☠️',
 };
 
 const BUILDING_NAME: Record<string, string> = {
