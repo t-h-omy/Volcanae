@@ -40,6 +40,7 @@ import {
   TechEffectType,
   TechFlag,
   Difficulty,
+  SpellId,
   type Building,
   type Unit,
   type Specialist,
@@ -47,7 +48,7 @@ import {
   type Tile,
   type GameStats,
 } from '../types';
-import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY } from '../unitActions';
+import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast } from '../unitActions';
 import { getPhalanxAttackBonus, getPhalanxDefenseBonus } from '../combatSystem';
 import { useZoneClearedStore } from '../zoneClearedStore';
 import { useCaveScreamsStore } from '../caveScreamsStore';
@@ -72,6 +73,9 @@ const UNIT_EMOJI: Record<string, string> = {
   [UnitType.LAVA_SIEGE]: '🐦‍🔥',
   [UnitType.EMBERLING]: '🔥',
   [UnitType.CAVE_MONSTER]: '🐉',
+  [UnitType.MAGE]: '🧙',
+  [UnitType.EMBER_DEMON]: '😈',
+  [UnitType.SKELETON]: '💀',
 };
 
 const UNIT_NAME: Record<string, string> = {
@@ -88,6 +92,9 @@ const UNIT_NAME: Record<string, string> = {
   [UnitType.LAVA_SIEGE]: 'Lava Siege',
   [UnitType.EMBERLING]: 'Emberling',
   [UnitType.CAVE_MONSTER]: 'Cave Monster',
+  [UnitType.MAGE]: 'Mage',
+  [UnitType.EMBER_DEMON]: 'Ember Demon',
+  [UnitType.SKELETON]: 'Skeleton',
 };
 
 const BUILDING_EMOJI: Record<string, string> = {
@@ -108,6 +115,7 @@ const BUILDING_EMOJI: Record<string, string> = {
   [BuildingType.EMBERNEST]: '🌲',
   [BuildingType.CRYSTAL_CHAMBER]: '💎',
   [BuildingType.GRAVESTONE]: '🪦',
+  [BuildingType.GRAVE_TRAP]: '🪦✨',
 };
 
 const BUILDING_NAME: Record<string, string> = {
@@ -128,6 +136,7 @@ const BUILDING_NAME: Record<string, string> = {
   [BuildingType.EMBERNEST]: 'Ember Nest',
   [BuildingType.CRYSTAL_CHAMBER]: 'Crystal Chamber',
   [BuildingType.GRAVESTONE]: 'Gravestone',
+  [BuildingType.GRAVE_TRAP]: 'Grave Trap',
 };
 
 const TAG_EMOJI: Partial<Record<UnitTag, string>> = {
