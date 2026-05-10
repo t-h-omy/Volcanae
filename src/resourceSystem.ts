@@ -63,7 +63,8 @@ function isRecruitmentBuilding(building: Building): boolean {
     building.type === BuildingType.ARCHER_CAMP ||
     building.type === BuildingType.RIDER_CAMP ||
     building.type === BuildingType.SIEGE_CAMP ||
-    building.type === BuildingType.STRONGHOLD
+    building.type === BuildingType.STRONGHOLD ||
+    (building.type === BuildingType.CRYSTAL_CHAMBER && building.resonanceTurnsRemaining > 0)
   );
 }
 
@@ -82,6 +83,8 @@ export function getRecruitableUnitTypes(buildingType: BuildingType): UnitType[] 
       return [UnitType.SIEGE];
     case BuildingType.STRONGHOLD:
       return [UnitType.SCOUT, UnitType.GUARD];
+    case BuildingType.CRYSTAL_CHAMBER:
+      return [UnitType.MAGE];
     default:
       return [];
   }

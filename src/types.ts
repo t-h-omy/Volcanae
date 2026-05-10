@@ -151,8 +151,9 @@ export type TechEffectType = (typeof TechEffectType)[keyof typeof TechEffectType
 
 /** Typed tech flags granted by the tech tree */
 export const TechFlag = {
-  TO_THE_FRONT: 'TO_THE_FRONT',
-  HOLD_GROUND:  'HOLD_GROUND',
+  TO_THE_FRONT:   'TO_THE_FRONT',
+  HOLD_GROUND:    'HOLD_GROUND',
+  GRAVE_HARVEST:  'GRAVE_HARVEST',
 } as const;
 export type TechFlag = (typeof TechFlag)[keyof typeof TechFlag];
 

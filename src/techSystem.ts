@@ -7,7 +7,7 @@
 import type { Draft } from 'immer';
 import type { GameState, TechId, TechEffect, UnitStats, StatModifier } from './types';
 import { Faction, TechFlag, BuildingType } from './types';
-import { TECH_TREE, ABILITIES, TAG_STAT_EFFECTS, computeResearchCost, POPULATION } from './gameConfig';
+import { TECH_TREE, ABILITIES, TAG_STAT_EFFECTS, computeResearchCost, POPULATION, MAGE } from './gameConfig';
 
 // ============================================================================
 // PICK GRANTS
@@ -335,6 +335,7 @@ export function getStrongholdEffectiveCap(
 const flagDescriptions: Record<TechFlag, string> = {
   [TechFlag.TO_THE_FRONT]: `Units >${ABILITIES.TO_THE_FRONT_MIN_DISTANCE} tiles south of the northmost player unit: +${ABILITIES.TO_THE_FRONT_MOVE_BONUS} movement`,
   [TechFlag.HOLD_GROUND]: 'Units on own buildings: defense bonus',
+  [TechFlag.GRAVE_HARVEST]: `Each player-owned Gravestone has a ${MAGE.GRAVE_HARVEST_CRYSTAL_CHANCE}% chance per turn to grant 1 crystal`,
 };
 
 /**

@@ -6,7 +6,7 @@
  * animationConfig.ts, uiConfig.ts, renderConfig.ts, and inputConfig.ts.
  */
 
-import { UnitTag, DestroyBehavior, BuildingType, UnitType, ResourceType, TechFlag, Difficulty } from './types';
+import { UnitTag, DestroyBehavior, BuildingType, UnitType, ResourceType, TechFlag, Difficulty, SpellId } from './types';
 import type { UnitLevelDefinition, TechNodeDefinition, StatModifier } from './types';
 
 // ============================================================================
@@ -1089,6 +1089,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.RUIN,
     constructionCost: { iron: 4, wood: 2 },
+    unitLimit: MAGE.CHAMBER_UNIT_LIMIT,
     description: 'Arcane resonator. When a Crystal Chamber is consumed by lava, all surviving chambers begin resonating and generate crystals each turn.', // overwritten below
   },
   GRAVESTONE: {
@@ -1671,6 +1672,116 @@ export const TECH_TREE: TechNodeDefinition[] = [
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SIEGE, tag: UnitTag.PREVENTIVE_STRIKE },
       { type: 'UNIT_COST_MOD',  unitType: UnitType.RIDER, resource: 'wood', amount: 2 },
+    ],
+  },
+
+  // ── Branch 6: Magic — root and 3 specialization paths ────────────────────
+  {
+    id: 'ARCANE_AWAKENING',
+    name: 'Arcane Awakening',
+    description: `Unlocks the Mage unit (recruited from active Crystal Chambers) and the Transpose spell. Spell range: ${MAGE.SPELL_RANGE_BASE} tiles.`,
+    requires: ['CONSCRIPTION'],
+    cost: 2,
+    effects: [
+      { type: 'UNLOCK_UNIT',  unitType: UnitType.MAGE },
+      { type: 'UNLOCK_SPELL', spellId: SpellId.TRANSPOSE },
+    ],
+  },
+
+  // ── Summoner path ────────────────────────────────────────────────────────
+  {
+    id: 'EMBERBIND',
+    name: 'Emberbind',
+    description: `Unlocks Emberbind: target an Ember Nest within ${MAGE.SPELL_RANGE_BASE} tiles to summon a friendly Ember Demon. The nest is destroyed (forest restored). The demon is leashed to its mage within ${MAGE.EMBER_DEMON_LEASH_RANGE} tiles.`,
+    requires: ['ARCANE_AWAKENING'],
+    cost: 4,
+    effects: [
+      { type: 'UNLOCK_SPELL', spellId: SpellId.EMBERBIND },
+    ],
+  },
+  {
+    id: 'BRANDMARK_HEAL',
+    name: 'Brandmark Heal',
+    description: `Unlocks Brandmark Heal: fully restore one player unit's HP, but it loses ${MAGE.BRANDMARK_HP_LOSS_PER_TURN} HP each turn. If the marked unit dies, a hostile Ember Demon rises in its place.`,
+    requires: ['EMBERBIND'],
+    cost: 4,
+    effects: [
+      { type: 'UNLOCK_SPELL', spellId: SpellId.BRANDMARK_HEAL },
+    ],
+  },
+  {
+    id: 'CRYSTAL_TOWER',
+    name: 'Crystal Tower',
+    description: `Unlocks Crystal Tower: sacrifice a Mage to erect a permanent Crystal Tower on its tile. Each enemy it kills grants ${MAGE.CRYSTAL_TOWER_KILL_CRYSTAL_REWARD} crystal.`,
+    requires: ['BRANDMARK_HEAL'],
+    cost: 7,
+    effects: [
+      { type: 'UNLOCK_SPELL', spellId: SpellId.CRYSTAL_TOWER },
+    ],
+  },
+
+  // ── Necromancer path ─────────────────────────────────────────────────────
+  {
+    id: 'RAISE_SKELETON',
+    name: 'Raise Skeleton',
+    description: `Unlocks Raise Skeleton: target a Gravestone within ${MAGE.SPELL_RANGE_BASE} tiles to raise a Skeleton (Summoned). The gravestone is consumed.`,
+    requires: ['ARCANE_AWAKENING'],
+    cost: 4,
+    effects: [
+      { type: 'UNLOCK_UNIT',  unitType: UnitType.SKELETON },
+      { type: 'UNLOCK_SPELL', spellId: SpellId.RAISE_SKELETON },
+    ],
+  },
+  {
+    id: 'GRAVE_TRAP',
+    name: 'Grave Trap',
+    description: `Unlocks Grave Trap: convert a Gravestone within ${MAGE.SPELL_RANGE_BASE} tiles into a magical trap. The next unit to step onto it (any faction) is stunned for ${MAGE.GRAVE_TRAP_STUN_TURNS} turns.`,
+    requires: ['RAISE_SKELETON'],
+    cost: 4,
+    effects: [
+      { type: 'UNLOCK_SPELL', spellId: SpellId.GRAVE_TRAP },
+    ],
+  },
+  {
+    id: 'GRAVE_HARVEST',
+    name: 'Grave Harvest',
+    description: `Each player-owned Gravestone has a ${MAGE.GRAVE_HARVEST_CRYSTAL_CHANCE}% chance per turn to grant 1 arcane crystal.`,
+    requires: ['GRAVE_TRAP'],
+    cost: 7,
+    effects: [
+      { type: 'FLAG', flag: TechFlag.GRAVE_HARVEST },
+    ],
+  },
+
+  // ── Elementalist path ────────────────────────────────────────────────────
+  {
+    id: 'FROSTCRAFT',
+    name: 'Frostcraft',
+    description: `Unlocks Frostcraft: freeze a Water tile within ${MAGE.SPELL_RANGE_BASE} tiles. Player units may walk on the resulting Ice; enemy units cannot. Ice persists until consumed by lava.`,
+    requires: ['ARCANE_AWAKENING'],
+    cost: 4,
+    effects: [
+      { type: 'UNLOCK_SPELL', spellId: SpellId.FROSTCRAFT },
+    ],
+  },
+  {
+    id: 'EXPLODE',
+    name: 'Explode',
+    description: `Unlocks Explode: sacrifice a player unit within ${MAGE.SPELL_RANGE_BASE} tiles. Deals ${MAGE.EXPLODE_DAMAGE_PERCENT}% of its current HP to each adjacent enemy. The sacrificed unit leaves a gravestone unless its tag set forbids it.`,
+    requires: ['FROSTCRAFT'],
+    cost: 4,
+    effects: [
+      { type: 'UNLOCK_SPELL', spellId: SpellId.EXPLODE },
+    ],
+  },
+  {
+    id: 'SPELL_REACH',
+    name: 'Spell Reach',
+    description: `Increases the Mage's spell range by +${MAGE.SPELL_RANGE_BONUS} (to ${MAGE.SPELL_RANGE_BASE + MAGE.SPELL_RANGE_BONUS} tiles).`,
+    requires: ['EXPLODE'],
+    cost: 7,
+    effects: [
+      { type: 'SPELL_RANGE_MOD', amount: MAGE.SPELL_RANGE_BONUS },
     ],
   },
 
