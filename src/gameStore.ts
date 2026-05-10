@@ -1020,12 +1020,13 @@ export const useGameStore = create<GameStore>()(
     },
 
     castSpell: (targetPosition: Position) => {
-      const pendingSpell = get().pendingSpellCast;
+      let castSpellId: import('./types').SpellId | null = null;
       set((state) => {
         if (!state.pendingSpellCast) return;
         const { mageId, spellId } = state.pendingSpellCast;
         const ok = castSpellLogic(state, mageId, spellId, targetPosition);
         if (!ok) return;
+        castSpellId = spellId;
         const mage = state.units[mageId];
         if (mage) {
           // Casting is symmetric with attacking: set hasCastThisTurn only.
@@ -1047,13 +1048,11 @@ export const useGameStore = create<GameStore>()(
         checkGameConditions(state);
       });
       // Fire SFX triggers outside the immer mutation (side-effect).
-      // triggerSfx is a no-op until real audio assets are wired.
-      if (pendingSpell) {
-        const { spellId } = pendingSpell;
-        if (spellId === 'EMBERBIND' || spellId === 'RAISE_SKELETON') {
-          // spell_cast + summon — both triggers fire for summon spells
+      // triggerSpellSfx is a no-op until real audio assets are wired.
+      if (castSpellId !== null) {
+        if (castSpellId === 'EMBERBIND' || castSpellId === 'RAISE_SKELETON') {
           triggerSpellSfx('summon');
-        } else if (spellId === 'FROSTCRAFT') {
+        } else if (castSpellId === 'FROSTCRAFT') {
           triggerSpellSfx('freeze');
         } else {
           triggerSpellSfx('spell_cast');
