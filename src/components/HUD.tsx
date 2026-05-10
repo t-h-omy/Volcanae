@@ -165,6 +165,7 @@ const BUILDING_RECRUITS: Partial<Record<string, UnitType[]>> = {
   [BuildingType.RIDER_CAMP]: [UnitType.RIDER],
   [BuildingType.SIEGE_CAMP]: [UnitType.SIEGE],
   [BuildingType.STRONGHOLD]: [UnitType.SCOUT, UnitType.GUARD],
+  [BuildingType.CRYSTAL_CHAMBER]: [UnitType.MAGE],
 };
 
 /** Emoji + name label for each spell button */
@@ -1955,6 +1956,10 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
     [recruitableTypes.length, building.position, grid]
   );
 
+  // Crystal Chamber mage recruitment: chamber must be resonating
+  const chamberNotResonating =
+    building.type === BuildingType.CRYSTAL_CHAMBER && building.resonanceTurnsRemaining <= 0;
+
   // Production info for resource buildings
   const isMine = building.type === BuildingType.MINE && isPlayerOwned;
   const isWoodcutter = building.type === BuildingType.WOODCUTTER && isPlayerOwned;
@@ -2170,7 +2175,9 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
       {recruitableTypes.length > 0 && isPlayerOwned && (
         <div className="hud-recruit-row">
           <span className="hud-label">Recruit:</span>
-          {!hasSpawnSpace ? (
+          {chamberNotResonating ? (
+            <span className="hud-dim">Chamber must be resonating to recruit</span>
+          ) : !hasSpawnSpace ? (
             <span className="hud-dim">No space</span>
           ) : (
             <div className="hud-recruit-options">
@@ -3051,9 +3058,7 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
             {selectedState === 'locked' && unmetPrereqs.length > 0 && (
               <p className="tech-detail-text">Requires: {unmetPrereqs.join(', ')}</p>
             )}
-            {selectedState !== 'unlocked' && (
-              <p className="tech-detail-text">This tech will enable the following:</p>
-            )}
+            <p className="tech-detail-text">{selectedDef.description}</p>
 
             <div className="tech-detail-effects">
               {selectedDef.effects.map((e, i) => {
@@ -3084,6 +3089,16 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
                       <span className="tech-effect-tile-name">{unitLabel} gains {tagLabel}</span>
                       <span className="info-badge">i</span>
                     </button>
+                  );
+                }
+                if (e.type === TechEffectType.UNLOCK_SPELL) {
+                  const label = SPELL_LABELS[e.spellId];
+                  const [emoji, ...rest] = label ? label.split(' ') : ['🔮', e.spellId];
+                  return (
+                    <span key={i} className="tech-effect-tile tech-effect-tile--spell">
+                      <span className="tech-effect-tile-emoji">{emoji}</span>
+                      <span className="tech-effect-tile-name">{rest.join(' ') || e.spellId}</span>
+                    </span>
                   );
                 }
                 return (
