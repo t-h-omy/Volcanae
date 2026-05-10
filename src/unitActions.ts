@@ -22,6 +22,10 @@
  * 7. Reset it in end-of-turn resets in gameStore.ts and enemySystem.ts.
  * 8. Initialize to false in mapGenerator.ts and all unit creation sites.
  *
+ * Current action flags: hasMovedThisTurn, hasAttackedThisTurn,
+ *   hasCapturedThisTurn, hasConstructedThisTurn, hasDestroyedThisTurn,
+ *   hasCastThisTurn.
+ *
  * ── CROSS-BLOCKING RULES ────────────────────────────────────────────────────
  * Move does not block attack (move → attack is the normal sequence).
  * Any non-move action blocks everything, including further movement.
@@ -38,6 +42,7 @@ import type { ConstructionOption } from './constructionSystem';
 import { canCapture } from './captureSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { MAP } from './gameConfig';
+export { canUnitCast } from './spellSystem';
 
 // ── HELPER ───────────────────────────────────────────────────────────────────
 
@@ -52,7 +57,8 @@ export function hasUnitActed(unit: Unit): boolean {
     unit.hasAttackedThisTurn ||
     unit.hasCapturedThisTurn ||
     unit.hasConstructedThisTurn ||
-    unit.hasDestroyedThisTurn
+    unit.hasDestroyedThisTurn ||
+    !!unit.hasCastThisTurn
   );
 }
 
@@ -94,6 +100,7 @@ export function canUnitMove(unit: Unit): boolean {
   if (unit.hasDestroyedThisTurn) return false;
   // HIT_AND_RUN: can move before attacking (if not yet moved) OR after attacking (post-attack move, once per turn)
   if (unit.tags.includes(UnitTag.HIT_AND_RUN)) {
+    if (unit.hasCastThisTurn) return false;
     if (unit.hasUsedPostAttackMoveThisTurn) return false;
     if (unit.hasAttackedThisTurn) return true; // post-attack move available
     if (unit.hasMovedThisTurn) return false;   // pre-attack move already used
@@ -101,6 +108,7 @@ export function canUnitMove(unit: Unit): boolean {
   }
   if (unit.hasMovedThisTurn) return false;
   if (unit.hasAttackedThisTurn) return false;
+  if (unit.hasCastThisTurn) return false;
   return true;
 }
 
@@ -138,6 +146,7 @@ export function getMovableTiles(
  */
 export function canUnitAttack(unit: Unit): boolean {
   if (unit.hasAttackedThisTurn) return false;
+  if (unit.hasCastThisTurn) return false;
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasConstructedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;

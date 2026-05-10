@@ -153,6 +153,14 @@ function applyTechEffect(state: Draft<GameState>, effect: TechEffect): void {
     case 'SPECIALIST_SLOT_MOD':
       state.specialistSlotCap += effect.value;
       break;
+    case 'UNLOCK_SPELL':
+      if (!state.unlockedSpells.includes(effect.spellId)) {
+        state.unlockedSpells.push(effect.spellId);
+      }
+      break;
+    case 'SPELL_RANGE_MOD':
+      // Applied on demand by getMageSpellRange() — no immediate state mutation needed.
+      break;
     default:
       break;
   }
@@ -363,6 +371,10 @@ export function renderEffect(effect: TechEffect): string {
       return `Stronghold +${effect.amount} ${effect.capType} cap`;
     case 'SPECIALIST_SLOT_MOD':
       return `+${effect.value} specialist slot${effect.value !== 1 ? 's' : ''}`;
+    case 'UNLOCK_SPELL':
+      return `Unlocks ${effect.spellId} spell`;
+    case 'SPELL_RANGE_MOD':
+      return `Spell range +${effect.amount}`;
     default:
       return '';
   }

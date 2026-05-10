@@ -38,7 +38,7 @@ import { useAnimationStore } from './animationStore';
 import { useCombatAnimationStore } from './combatAnimationStore';
 import { useCaveScreamsStore } from './caveScreamsStore';
 import { Faction, GamePhase, BuildingType, TileType, Difficulty, DestroyBehavior, UnitType, UnitTag } from './types';
-import type { GameState, Position, TechId } from './types';
+import type { GameState, Position, TechId, SpellId } from './types';
 import type { GameEvent } from './gameEvents';
 import { MAP, TERRAIN, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval, UNIT_DEFINITIONS } from './gameConfig';
 import { saveGameState, loadGameState, clearSavedGame, hasSavedGame } from './saveSystem';
@@ -47,6 +47,7 @@ import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLo
 import { canUnitHeal, getHealTargets, canUnitFieldwork } from './unitActions';
 import { createFieldworkOutpost } from './constructionSystem';
 import { getTagsFromActiveSpecialists } from './specialistSystem';
+import { castSpell as castSpellLogic } from './spellSystem';
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
@@ -87,6 +88,12 @@ interface GameActions {
   startHealMode: (healerId: string) => void;
   /** Cancel heal-target-selection mode */
   cancelHealMode: () => void;
+  /** Enter spell-cast target-selection mode */
+  startSpellCast: (mageId: string, spellId: SpellId) => void;
+  /** Cancel spell-cast target-selection mode */
+  cancelSpellCast: () => void;
+  /** Apply a spell cast at the given target position */
+  castSpell: (targetPosition: Position) => void;
   /** Sacrifice a FIELDWORK unit to build a Watchtower at its position */
   fieldworkUnit: (unitId: string) => void;
   /** Add a specialist to globalSpecialistStorage (called after cave monster hire) */
@@ -996,6 +1003,46 @@ export const useGameStore = create<GameStore>()(
       });
     },
 
+    startSpellCast: (mageId: string, spellId: SpellId) => {
+      set((state) => {
+        state.pendingHealerId = null; // mutually exclusive with heal mode
+        state.pendingSpellCast = { mageId, spellId };
+      });
+    },
+
+    cancelSpellCast: () => {
+      set((state) => {
+        state.pendingSpellCast = null;
+      });
+    },
+
+    castSpell: (targetPosition: Position) => {
+      set((state) => {
+        if (!state.pendingSpellCast) return;
+        const { mageId, spellId } = state.pendingSpellCast;
+        const ok = castSpellLogic(state, mageId, spellId, targetPosition);
+        if (!ok) return;
+        const mage = state.units[mageId];
+        if (mage) {
+          // Casting is symmetric with attacking: set hasCastThisTurn only.
+          // - canUnitMove and canUnitAttack are updated to treat
+          //   hasCastThisTurn the same way they already treat
+          //   hasAttackedThisTurn — so a mage cannot move OR attack after
+          //   casting.
+          // - The reverse direction (move-then-cast) is blocked by the PREP
+          //   tag inside canUnitCast. A non-PREP mage would be free to move
+          //   and then cast, which is the correct behavior if PREP is ever
+          //   stripped via a future tech.
+          // Do NOT set hasMovedThisTurn or hasAttackedThisTurn here — that
+          // would over-constrain the rules and break the symmetry.
+          mage.hasCastThisTurn = true;
+        }
+        state.pendingSpellCast = null;
+        updateDiscovery(state);
+        checkGameConditions(state);
+      });
+    },
+
     fieldworkUnit: (unitId: string) => {
       set((state) => {
         const unit = state.units[unitId];
@@ -1149,6 +1196,7 @@ export const useGameStore = create<GameStore>()(
             if (unit.faction === Faction.PLAYER) {
               unit.hasMovedThisTurn = false;
               unit.hasAttackedThisTurn = false;
+              unit.hasCastThisTurn = false;
               unit.hasCapturedThisTurn = false;
               unit.hasConstructedThisTurn = false;
               unit.hasDestroyedThisTurn = false;
