@@ -1013,6 +1013,7 @@ export const useGameStore = create<GameStore>()(
     cancelSpellCast: () => {
       set((state) => {
         state.pendingSpellCast = null;
+        state.pendingTransposeFirstUnitId = null;
       });
     },
 
@@ -1038,6 +1039,7 @@ export const useGameStore = create<GameStore>()(
           mage.hasCastThisTurn = true;
         }
         state.pendingSpellCast = null;
+        state.pendingTransposeFirstUnitId = null;
         updateDiscovery(state);
         checkGameConditions(state);
       });

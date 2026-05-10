@@ -58,7 +58,7 @@ export function hasUnitActed(unit: Unit): boolean {
     unit.hasCapturedThisTurn ||
     unit.hasConstructedThisTurn ||
     unit.hasDestroyedThisTurn ||
-    !!unit.hasCastThisTurn
+    unit.hasCastThisTurn === true
   );
 }
 
@@ -335,6 +335,7 @@ export function getHealTargets(
       const other = state.units[tile.unitId];
       if (!other) continue;
       if (other.faction !== unit.faction) continue;
+      if (other.tags.includes(UnitTag.SUMMONED)) continue;
       if (other.stats.currentHp >= other.stats.maxHp) continue;
       targets.push(other.id);
     }

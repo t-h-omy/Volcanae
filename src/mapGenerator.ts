@@ -1602,6 +1602,7 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
     activeCaveEncounters: [],
     fortifiedGarrisonActive: false,
     pendingSpellCast: null,
+    pendingTransposeFirstUnitId: null,
   };
 
   // Auto-apply CONSCRIPTION effects (unlocked at game start, not a pick)

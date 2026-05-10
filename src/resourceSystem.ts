@@ -111,6 +111,8 @@ export function computeRecruitmentBuildingUsage(
   let current = 0;
   for (const unit of Object.values(state.units)) {
     if (unit.faction === Faction.PLAYER && recruitableTypes.has(unit.type as UnitType)) {
+      // Summoned units do not count toward building unit limits
+      if (unit.tags.includes(UnitTag.SUMMONED)) continue;
       current += 1;
     }
   }
@@ -428,6 +430,8 @@ export function computePopulationUsage(
 
   for (const unit of Object.values(state.units)) {
     if (unit.faction !== Faction.PLAYER) continue;
+    // Summoned units (EMBER_DEMON, SKELETON) do not consume population
+    if (unit.tags.includes(UnitTag.SUMMONED)) continue;
 
     const cost = UNIT_DEFINITIONS[unit.type as UnitType]?.populationCost as UnitPopulationCost | undefined;
     if (cost) {

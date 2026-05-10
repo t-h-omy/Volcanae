@@ -590,4 +590,9 @@ export interface GameState {
    * (analogous to `pendingHealerId`). Mutually exclusive with `pendingHealerId`.
    */
   pendingSpellCast: { mageId: string; spellId: SpellId } | null;
+  /**
+   * Transpose is a two-step spell: first click records the first unit here;
+   * second click completes the swap. Cleared when the spell is confirmed or cancelled.
+   */
+  pendingTransposeFirstUnitId: string | null;
 }

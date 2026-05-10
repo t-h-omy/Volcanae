@@ -9,7 +9,7 @@ import type { Draft } from 'immer';
 import { BuildingType, Faction, UnitTag, UnitType, TechFlag, TileType, DestroyBehavior } from './types';
 import { useFloaterStore } from './floaterStore';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
-import { UNIT_DEFINITIONS, XP, ABILITIES, MAP, BUILDING_DEFINITIONS } from './gameConfig';
+import { UNIT_DEFINITIONS, XP, ABILITIES, MAP, BUILDING_DEFINITIONS, MAGE } from './gameConfig';
 import { grantXp } from './levelSystem';
 
 // Counter for generating unique gravestone building IDs within this module
@@ -422,8 +422,10 @@ export function resolveAttack(
 
     // REVIVABLE: when a player SPEARMAN or SWORDSMAN with REVIVABLE dies, leave a Gravestone
     // on their tile (only if the tile is free: no building, no unit, no ruin).
+    // Summoned units never spawn gravestones.
     if (
       defenderFaction === Faction.PLAYER &&
+      !defenderTags.includes(UnitTag.SUMMONED) &&
       (defenderType === UnitType.SPEARMAN || defenderType === UnitType.SWORDSMAN) &&
       defenderTags.includes(UnitTag.REVIVABLE)
     ) {
@@ -735,6 +737,15 @@ export function resolveBuildingAttack(
     if (defenderFaction === Faction.PLAYER) state.gameStats.unitsLost += 1;
     else if (buildingFaction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
 
+    // CRYSTAL_TOWER: grant crystals when a Crystal Tower kills an enemy unit
+    if (
+      buildingFaction === Faction.PLAYER &&
+      defenderFaction === Faction.ENEMY &&
+      building.type === BuildingType.CRYSTAL_TOWER
+    ) {
+      state.arcaneCrystals += MAGE.CRYSTAL_TOWER_KILL_CRYSTAL_REWARD;
+    }
+
     // If the dead defender was standing on an enemy spawner building, set a spawn
     // cooldown so the player has a window to move onto the tile and capture.
     if (buildingFaction === Faction.PLAYER && defenderFaction === Faction.ENEMY && defenderTile.buildingId) {
@@ -746,8 +757,10 @@ export function resolveBuildingAttack(
     }
 
     // REVIVABLE: player Spearman or Swordsman with REVIVABLE leaves a Gravestone on death
+    // Summoned units never spawn gravestones.
     if (
       defenderFaction === Faction.PLAYER &&
+      !defenderTags.includes(UnitTag.SUMMONED) &&
       (defenderType === UnitType.SPEARMAN || defenderType === UnitType.SWORDSMAN) &&
       defenderTags.includes(UnitTag.REVIVABLE)
     ) {
