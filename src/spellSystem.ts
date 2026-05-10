@@ -15,10 +15,11 @@ import type { Draft } from 'immer';
 import type { GameState, Position, Unit } from './types';
 import type { SpellId } from './types';
 import { Faction, UnitTag, BuildingType, TileType, UnitType } from './types';
-import { MAGE, TECH_TREE, BUILDING_DEFINITIONS, ABILITIES } from './gameConfig';
+import { MAGE, TECH_TREE, BUILDING_DEFINITIONS, ABILITIES, MAP } from './gameConfig';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { generateId } from './mapGenerator';
 import { useFloaterStore } from './floaterStore';
+import { tryCreateGravestone } from './combatSystem';
 
 /** Returns the effective spell range for a mage in the current state. */
 export function getMageSpellRange(
@@ -187,6 +188,33 @@ export function getValidSpellTargets(
         if (building.type !== BuildingType.GRAVESTONE) continue;
         if (!isTileInSpellRange(mage, building.position, range)) continue;
         targets.push({ ...building.position });
+      }
+      return targets;
+    }
+
+    case 'FROSTCRAFT': {
+      const targets: Position[] = [];
+      for (let y = 0; y < state.grid.length; y++) {
+        for (let x = 0; x < state.grid[y].length; x++) {
+          const tile = state.grid[y][x];
+          if (tile.terrainType !== TileType.WATER) continue;
+          if (tile.isIce) continue;
+          if (tile.isLava) continue;
+          if (!isTileInSpellRange(mage, { x, y }, range)) continue;
+          targets.push({ x, y });
+        }
+      }
+      return targets;
+    }
+
+    case 'EXPLODE': {
+      const targets: Position[] = [];
+      for (const unit of Object.values(state.units)) {
+        if (unit.faction !== Faction.PLAYER) continue;
+        if (unit.id === mageId) continue;
+        if (unit.tags.includes(UnitTag.MAGE)) continue;
+        if (!isTileInSpellRange(mage, unit.position, range)) continue;
+        targets.push({ ...unit.position });
       }
       return targets;
     }
@@ -591,6 +619,99 @@ function handleGraveTrap(
   return true;
 }
 
+/** Freezes a water tile (Frostcraft). */
+function handleFrostcraft(
+  state: Draft<GameState>,
+  targetPosition: Position,
+): boolean {
+  const tile = state.grid[targetPosition.y]?.[targetPosition.x];
+  if (!tile) return false;
+  if (tile.terrainType !== TileType.WATER) return false;
+  if (tile.isIce) return false;
+  if (tile.isLava) return false;
+
+  tile.isIce = true;
+
+  useFloaterStore.getState().addFloater({
+    value: 0,
+    label: '❄️ Frozen',
+    x: targetPosition.x,
+    y: targetPosition.y,
+    isEnemy: false,
+    floaterType: 'revive',
+  });
+
+  return true;
+}
+
+/** Sacrifices a player unit and deals splash damage to adjacent enemies (Explode). */
+function handleExplode(
+  state: Draft<GameState>,
+  mage: Unit,
+  targetPosition: Position,
+): boolean {
+  const tile = state.grid[targetPosition.y]?.[targetPosition.x];
+  if (!tile) return false;
+  const targetUnitId = tile.unitId;
+  if (!targetUnitId) return false;
+  const target = state.units[targetUnitId];
+  if (!target) return false;
+  if (target.faction !== Faction.PLAYER) return false;
+  if (target.id === mage.id) return false;
+  if (target.tags.includes(UnitTag.MAGE)) return false;
+
+  const dmg = Math.ceil(target.stats.currentHp * MAGE.EXPLODE_DAMAGE_PERCENT / 100);
+
+  // Deal dmg to each adjacent enemy unit (bypass defense — flat damage)
+  const DIRS: [number, number][] = [
+    [-1, -1], [0, -1], [1, -1],
+    [-1,  0],          [1,  0],
+    [-1,  1], [0,  1], [1,  1],
+  ];
+  for (const [dx, dy] of DIRS) {
+    const nx = targetPosition.x + dx;
+    const ny = targetPosition.y + dy;
+    if (nx < 0 || ny < 0 || nx >= MAP.GRID_WIDTH || ny >= MAP.GRID_HEIGHT) continue;
+    const adjTile = state.grid[ny][nx];
+    if (!adjTile.unitId) continue;
+    const adjUnit = state.units[adjTile.unitId];
+    if (!adjUnit || adjUnit.faction !== Faction.ENEMY) continue;
+
+    adjUnit.stats.currentHp -= dmg;
+    if (adjUnit.stats.currentHp <= 0) {
+      adjTile.unitId = null;
+      delete state.units[adjUnit.id];
+      state.gameStats.unitsKilled += 1;
+    }
+  }
+
+  // Handle sacrificed unit's death
+  const sacrificedType = target.type;
+  const sacrificedTags = [...target.tags];
+  const sacrificedFaction = target.faction;
+  const sacrificedPos = { x: targetPosition.x, y: targetPosition.y };
+
+  tile.unitId = null;
+  delete state.units[targetUnitId];
+  state.gameStats.unitsLost += 1;
+
+  if (!sacrificedTags.includes(UnitTag.SUMMONED)) {
+    // Attempt gravestone (only for REVIVABLE SPEARMAN/SWORDSMAN)
+    tryCreateGravestone(state, sacrificedFaction, sacrificedType, sacrificedTags, sacrificedPos);
+  }
+
+  useFloaterStore.getState().addFloater({
+    value: 0,
+    label: '💥 Explode',
+    x: targetPosition.x,
+    y: targetPosition.y,
+    isEnemy: true,
+    floaterType: 'damage',
+  });
+
+  return true;
+}
+
 /** Validates and applies a spell. Returns true on success. */
 export function castSpell(
   state: Draft<GameState>,
@@ -628,6 +749,10 @@ export function castSpell(
       return handleRaiseSkeleton(state, targetPosition);
     case 'GRAVE_TRAP':
       return handleGraveTrap(state, targetPosition);
+    case 'FROSTCRAFT':
+      return handleFrostcraft(state, targetPosition);
+    case 'EXPLODE':
+      return handleExplode(state, mage, targetPosition);
     default:
       return false;
   }

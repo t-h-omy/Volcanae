@@ -155,7 +155,12 @@ export function getReachableTiles(
       const tile = state.grid[ny][nx];
 
       // CANYON/WATER: impassable — cannot enter or traverse
-      if (tile.terrainType === TileType.CANYON || tile.terrainType === TileType.WATER) continue;
+      // Exception: frozen (isIce) water tiles are passable for player units.
+      if (tile.terrainType === TileType.CANYON) continue;
+      if (tile.terrainType === TileType.WATER) {
+        if (!tile.isIce) continue;
+        if (unit.faction === Faction.ENEMY) continue;
+      }
 
       // Cannot enter undiscovered tiles (player units only)
       if (!tile.isRevealed && unit.faction === Faction.PLAYER) continue;

@@ -36,8 +36,70 @@ function isValidGravestoneTile(tile: Tile): boolean {
   );
 }
 
-// ============================================================================
-// COMBAT RESULT INTERFACE
+/**
+ * Attempts to spawn a Gravestone building at the unit's last tile.
+ * Conditions: player unit, not SUMMONED, has REVIVABLE tag, tile is valid.
+ * Does nothing if any condition is not met.
+ *
+ * @param state - Immer draft of the game state
+ * @param unit  - The unit that just died (still has position but already removed from units map)
+ * @param unitType - The unit's type (captured before deletion)
+ * @param unitTags - The unit's tags (captured before deletion)
+ * @param unitFaction - The unit's faction (captured before deletion)
+ * @param position - The tile position where the unit died
+ */
+export function tryCreateGravestone(
+  state: Draft<GameState>,
+  unitFaction: Faction,
+  unitType: UnitType,
+  unitTags: UnitTag[],
+  position: { x: number; y: number },
+): void {
+  if (unitFaction !== Faction.PLAYER) return;
+  if (unitTags.includes(UnitTag.SUMMONED)) return;
+  if (unitType !== UnitType.SPEARMAN && unitType !== UnitType.SWORDSMAN) return;
+  if (!unitTags.includes(UnitTag.REVIVABLE)) return;
+
+  const tile = state.grid[position.y][position.x];
+  if (!isValidGravestoneTile(tile)) return;
+
+  const graveId = generateCombatBuildingId();
+  state.buildings[graveId] = {
+    id: graveId,
+    type: BuildingType.GRAVESTONE,
+    faction: Faction.PLAYER,
+    position: { x: position.x, y: position.y },
+    hp: ABILITIES.GRAVESTONE_MAX_HP,
+    maxHp: ABILITIES.GRAVESTONE_MAX_HP,
+    specialistSlot: null,
+    isDisabledForTurns: 0,
+    wasAttackedLastEnemyTurn: false,
+    captureProgress: 0,
+    isBeingCapturedBy: null,
+    lavaBoostEnabled: false,
+    discoverRadius: BUILDING_DEFINITIONS.GRAVESTONE.discoverRadius,
+    turnCapturedByPlayer: null,
+    wasEnemyOwnedBeforeCapture: false,
+    combatStats: null,
+    hasAttackedThisTurn: false,
+    tags: [],
+    consumesUnitOnCapture: false,
+    populationCount: 0,
+    populationCap: 0,
+    populationGrowthCounter: 0,
+    strongholdNobles: 0,
+    emberSpawnCounter: 0,
+    recruitmentQueue: null,
+    destroyBehavior: BUILDING_DEFINITIONS.GRAVESTONE.destroyBehavior,
+    resonanceTurnsRemaining: 0,
+    spawnCooldownRemaining: 0,
+    lastRecruitmentTurn: 0,
+    gravesUnitType: unitType,
+  };
+  tile.buildingId = graveId;
+}
+
+
 // ============================================================================
 
 export interface CombatResult {
@@ -423,50 +485,7 @@ export function resolveAttack(
     // REVIVABLE: when a player SPEARMAN or SWORDSMAN with REVIVABLE dies, leave a Gravestone
     // on their tile (only if the tile is free: no building, no unit, no ruin).
     // Summoned units never spawn gravestones.
-    if (
-      defenderFaction === Faction.PLAYER &&
-      !defenderTags.includes(UnitTag.SUMMONED) &&
-      (defenderType === UnitType.SPEARMAN || defenderType === UnitType.SWORDSMAN) &&
-      defenderTags.includes(UnitTag.REVIVABLE)
-    ) {
-      const tile = state.grid[defenderPosition.y][defenderPosition.x];
-      if (isValidGravestoneTile(tile)) {
-        const graveId = generateCombatBuildingId();
-        state.buildings[graveId] = {
-          id: graveId,
-          type: BuildingType.GRAVESTONE,
-          faction: Faction.PLAYER,
-          position: { x: defenderPosition.x, y: defenderPosition.y },
-          hp: ABILITIES.GRAVESTONE_MAX_HP,
-          maxHp: ABILITIES.GRAVESTONE_MAX_HP,
-          specialistSlot: null,
-          isDisabledForTurns: 0,
-          wasAttackedLastEnemyTurn: false,
-          captureProgress: 0,
-          isBeingCapturedBy: null,
-          lavaBoostEnabled: false,
-          discoverRadius: BUILDING_DEFINITIONS.GRAVESTONE.discoverRadius,
-          turnCapturedByPlayer: null,
-          wasEnemyOwnedBeforeCapture: false,
-          combatStats: null,
-          hasAttackedThisTurn: false,
-          tags: [],
-          consumesUnitOnCapture: false,
-          populationCount: 0,
-          populationCap: 0,
-          populationGrowthCounter: 0,
-          strongholdNobles: 0,
-          emberSpawnCounter: 0,
-          recruitmentQueue: null,
-          destroyBehavior: BUILDING_DEFINITIONS.GRAVESTONE.destroyBehavior,
-          resonanceTurnsRemaining: 0,
-          spawnCooldownRemaining: 0,
-          lastRecruitmentTurn: 0,
-          gravesUnitType: defenderType,
-        };
-        tile.buildingId = graveId;
-      }
-    }
+    tryCreateGravestone(state, defenderFaction, defenderType, defenderTags, defenderPosition);
 
     // If the defender was standing on an enemy building that the player attacker
     // just conquered (melee advance), destroy/neutralize the building only for
@@ -758,50 +777,7 @@ export function resolveBuildingAttack(
 
     // REVIVABLE: player Spearman or Swordsman with REVIVABLE leaves a Gravestone on death
     // Summoned units never spawn gravestones.
-    if (
-      defenderFaction === Faction.PLAYER &&
-      !defenderTags.includes(UnitTag.SUMMONED) &&
-      (defenderType === UnitType.SPEARMAN || defenderType === UnitType.SWORDSMAN) &&
-      defenderTags.includes(UnitTag.REVIVABLE)
-    ) {
-      const tile = state.grid[defenderPos.y][defenderPos.x];
-      if (isValidGravestoneTile(tile)) {
-        const graveId = generateCombatBuildingId();
-        state.buildings[graveId] = {
-          id: graveId,
-          type: BuildingType.GRAVESTONE,
-          faction: Faction.PLAYER,
-          position: { x: defenderPos.x, y: defenderPos.y },
-          hp: ABILITIES.GRAVESTONE_MAX_HP,
-          maxHp: ABILITIES.GRAVESTONE_MAX_HP,
-          specialistSlot: null,
-          isDisabledForTurns: 0,
-          wasAttackedLastEnemyTurn: false,
-          captureProgress: 0,
-          isBeingCapturedBy: null,
-          lavaBoostEnabled: false,
-          discoverRadius: BUILDING_DEFINITIONS.GRAVESTONE.discoverRadius,
-          turnCapturedByPlayer: null,
-          wasEnemyOwnedBeforeCapture: false,
-          combatStats: null,
-          hasAttackedThisTurn: false,
-          tags: [],
-          consumesUnitOnCapture: false,
-          populationCount: 0,
-          populationCap: 0,
-          populationGrowthCounter: 0,
-          strongholdNobles: 0,
-          emberSpawnCounter: 0,
-          recruitmentQueue: null,
-          destroyBehavior: BUILDING_DEFINITIONS.GRAVESTONE.destroyBehavior,
-          resonanceTurnsRemaining: 0,
-          spawnCooldownRemaining: 0,
-          lastRecruitmentTurn: 0,
-          gravesUnitType: defenderType,
-        };
-        tile.buildingId = graveId;
-      }
-    }
+    tryCreateGravestone(state, defenderFaction, defenderType, defenderTags, defenderPos);
   } else {
     defender.stats.currentHp = newDefenderHp;
   }

@@ -108,9 +108,10 @@ export function advanceLava(state: Draft<GameState>): void {
     const tile = state.grid[newLavaRow][x];
     const tileId = `${x},${newLavaRow}`;
 
-    // Convert tile to lava; clear any ruins
+    // Convert tile to lava; clear any ruins or ice
     tile.isLava = true;
     tile.isLavaPreview = false;
+    tile.isIce = false;
     tile.isRuin = false;
     tile.isStrongholdRuin = false;
 
