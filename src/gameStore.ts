@@ -7,7 +7,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { current, produce } from 'immer';
 import { generateInitialGameState, generateId } from './mapGenerator';
-import { resolveAttack, resolveBuildingAttack, resolveAttackOnBuilding, resolveBuildingAttackOnBuilding } from './combatSystem';
+import { resolveAttack, resolveBuildingAttack, resolveAttackOnBuilding, resolveBuildingAttackOnBuilding, handleBrandmarkedUnitDeath } from './combatSystem';
 import { moveUnit as moveUnitLogic } from './movementSystem';
 import {
   initiateCapture as initiateCaptureLogic,
@@ -48,6 +48,7 @@ import { canUnitHeal, getHealTargets, canUnitFieldwork } from './unitActions';
 import { createFieldworkOutpost } from './constructionSystem';
 import { getTagsFromActiveSpecialists } from './specialistSystem';
 import { castSpell as castSpellLogic } from './spellSystem';
+import { isTileWithinEdgeCircleRange } from './rangeUtils';
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
@@ -1192,6 +1193,58 @@ export const useGameStore = create<GameStore>()(
 
           // Recalculate tile discovery
           updateDiscovery(draft);
+
+          // Brandmark tick: every BRANDMARKED player unit loses HP at end of turn.
+          // Collect dying unit IDs first so we don't mutate the collection mid-loop.
+          const brandmarkDying: string[] = [];
+          for (const unit of Object.values(draft.units)) {
+            if (unit.faction !== Faction.PLAYER) continue;
+            if (!unit.tags.includes(UnitTag.BRANDMARKED)) continue;
+            unit.stats.currentHp -= MAGE.BRANDMARK_HP_LOSS_PER_TURN;
+            if (unit.stats.currentHp <= 0) {
+              brandmarkDying.push(unit.id);
+            }
+          }
+          for (const unitId of brandmarkDying) {
+            const unit = draft.units[unitId];
+            if (unit) handleBrandmarkedUnitDeath(draft, unit);
+          }
+
+          // Leash defection: any player-faction LEASHED unit defects if its
+          // controlling Mage is dead or out of leash range.
+          for (const unit of Object.values(draft.units)) {
+            if (!unit.tags.includes(UnitTag.LEASHED)) continue;
+            if (unit.faction !== Faction.PLAYER) continue;
+
+            const mage = unit.controllerMageId ? draft.units[unit.controllerMageId] : null;
+            let defects = false;
+            if (!mage || mage.faction !== Faction.PLAYER) {
+              defects = true;
+            } else {
+              const inRange = isTileWithinEdgeCircleRange(
+                mage.position.x, mage.position.y,
+                unit.position.x, unit.position.y,
+                MAGE.EMBER_DEMON_LEASH_RANGE,
+              );
+              if (!inRange) defects = true;
+            }
+
+            if (defects) {
+              unit.faction = Faction.ENEMY;
+              unit.controllerMageId = null;
+              unit.tags = unit.tags.filter((t) =>
+                t !== UnitTag.LEASHED && t !== UnitTag.SUMMONED
+              );
+              useFloaterStore.getState().addFloater({
+                value: 0,
+                label: '⚠️ Defected!',
+                x: unit.position.x,
+                y: unit.position.y,
+                isEnemy: true,
+                floaterType: 'revive',
+              });
+            }
+          }
 
           // Reset all player units for new turn
           for (const unit of Object.values(draft.units)) {
