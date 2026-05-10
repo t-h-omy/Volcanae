@@ -10,7 +10,7 @@ import { useGameStore } from '../gameStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
 import { useSoundOptionsStore } from '../soundOptionsStore';
-import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, computeResearchCost } from '../gameConfig';
+import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, computeResearchCost, MAGE } from '../gameConfig';
 import { UI } from '../uiConfig';
 import type { UnitPopulationCost, TechId } from '../types';
 import {
@@ -178,6 +178,18 @@ const SPELL_LABELS: Record<string, string> = {
   [SpellId.GRAVE_TRAP]:     '☠️ Grave Trap',
   [SpellId.EXPLODE]:        '💥 Explode',
   [SpellId.CRYSTAL_TOWER]:  '💎 Crystal Tower',
+};
+
+/** Short description of each spell shown in cast-mode and on hover */
+const SPELL_DESCRIPTIONS: Record<string, string> = {
+  [SpellId.TRANSPOSE]:      `Swap two units of the same faction within ${MAGE.SPELL_RANGE_BASE} tiles. Select the first unit, then the second.`,
+  [SpellId.EMBERBIND]:      `Target an Ember Nest within ${MAGE.SPELL_RANGE_BASE} tiles to summon a friendly Ember Demon. The nest is destroyed.`,
+  [SpellId.BRANDMARK_HEAL]: `Fully restore a player unit's HP. It loses ${MAGE.BRANDMARK_HP_LOSS_PER_TURN} HP each turn. On death, a hostile Ember Demon rises in its place.`,
+  [SpellId.RAISE_SKELETON]: `Target a Gravestone within ${MAGE.SPELL_RANGE_BASE} tiles to raise a Skeleton (Summoned). The gravestone is consumed.`,
+  [SpellId.FROSTCRAFT]:     `Freeze a Water tile within ${MAGE.SPELL_RANGE_BASE} tiles. Player units may walk on the resulting Ice; enemy units cannot.`,
+  [SpellId.GRAVE_TRAP]:     `Convert a Gravestone within ${MAGE.SPELL_RANGE_BASE} tiles into a magical trap. The next unit to step on it is stunned for ${MAGE.GRAVE_TRAP_STUN_TURNS} turns.`,
+  [SpellId.EXPLODE]:        `Sacrifice a player unit within ${MAGE.SPELL_RANGE_BASE} tiles. Deals ${MAGE.EXPLODE_DAMAGE_PERCENT}% of its current HP to each adjacent enemy.`,
+  [SpellId.CRYSTAL_TOWER]:  `Sacrifice this Mage to erect a permanent Crystal Tower on its tile. Each enemy it kills grants 1 crystal.`,
 };
 
 // ============================================================================
@@ -1446,6 +1458,7 @@ function SelectedUnitPanel({
   const startSpellCast = useGameStore((s) => s.startSpellCast);
   const cancelSpellCast = useGameStore((s) => s.cancelSpellCast);
   const pendingSpellCast = useGameStore((s) => s.pendingSpellCast);
+  const pendingTransposeFirstUnitId = useGameStore((s) => s.pendingTransposeFirstUnitId);
   const canCast = isMage && isPlayer && canUnitCast(unit);
   const isInSpellCastMode = pendingSpellCast?.mageId === unit.id;
 
@@ -1686,10 +1699,18 @@ function SelectedUnitPanel({
                   className={`hud-spell-btn${isInSpellCastMode && pendingSpellCast?.spellId === spellId ? ' hud-spell-active' : ''}`}
                   disabled={!canCast}
                   onClick={() => startSpellCast(unit.id, spellId)}
+                  title={SPELL_DESCRIPTIONS[spellId] ?? ''}
                 >
                   {SPELL_LABELS[spellId] ?? spellId}
                 </button>
               ))}
+              {isInSpellCastMode && pendingSpellCast && (
+                <p className="hud-spell-desc">
+                  {pendingSpellCast.spellId === SpellId.TRANSPOSE && pendingTransposeFirstUnitId
+                    ? 'First unit selected — now click the second unit to swap.'
+                    : SPELL_DESCRIPTIONS[pendingSpellCast.spellId] ?? ''}
+                </p>
+              )}
               {isInSpellCastMode && (
                 <button
                   className="hud-spell-cancel-btn"

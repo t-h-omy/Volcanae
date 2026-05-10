@@ -141,6 +141,7 @@ export default function GridRenderer() {
   const pendingHealerId = useGameStore((s) => s.pendingHealerId);
   const cancelHealMode = useGameStore((s) => s.cancelHealMode);
   const pendingSpellCast = useGameStore((s) => s.pendingSpellCast);
+  const pendingTransposeFirstUnitId = useGameStore((s) => s.pendingTransposeFirstUnitId);
   const cancelSpellCast = useGameStore((s) => s.cancelSpellCast);
   const castSpell = useGameStore((s) => s.castSpell);
   const strongholdTotalCap = useGameStore((s) => getStrongholdEffectiveCap(s).totalCap);
@@ -533,7 +534,7 @@ export default function GridRenderer() {
     const set = new Set<string>();
     for (const p of targets) set.add(posKey(p.x, p.y));
     return set;
-  }, [pendingSpellCast, units, buildings, grid]);
+  }, [pendingSpellCast, pendingTransposeFirstUnitId, units, buildings, grid]);
 
   // Leash visual: when a Mage (with leashed demons) or an Ember Demon is selected,
   // highlight both the demon tile and the mage tile.
