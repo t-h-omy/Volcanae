@@ -143,6 +143,12 @@ export function loadGameState(): GameState | null {
     if (!Array.isArray(gs.activeCaveEncounters)) {
       gs.activeCaveEncounters = [];
     }
+    if (!Array.isArray(gs.unlockedSpells)) {
+      gs.unlockedSpells = [];
+    }
+    if (!('pendingSpellCast' in gs)) {
+      gs.pendingSpellCast = null;
+    }
 
     // Migration: backfill emberLevelSources for saves that predate source tracking.
     // Because historical data is unavailable, fall back conservatively: attribute the

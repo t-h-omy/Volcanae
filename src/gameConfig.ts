@@ -816,6 +816,48 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     ],
     description: 'A monstrous creature that emerged from deep within a mountain cave.',
   },
+
+  MAGE: {
+    maxHp: 70, attack: 35, defense: 20,
+    movementActions: 1, moveRange: 2, attackRange: 1,
+    discoverRadius: 1, triggerRange: 0,
+    tags: [UnitTag.MAGE],
+    cost: { iron: 3, wood: 5 },
+    populationCost: { farmers: 0, nobles: 1 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    description: 'Magical caster recruited from active Crystal Chambers. Can cast powerful spells unlocked in the tech tree.',
+  },
+
+  EMBER_DEMON: {
+    maxHp: 120, attack: 70, defense: 35,
+    movementActions: 1, moveRange: 2, attackRange: 1,
+    discoverRadius: 1, triggerRange: 0,
+    tags: [UnitTag.SUMMONED],
+    cost: { iron: 0, wood: 0 },
+    populationCost: { farmers: 0, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    description: 'Powerful demonic unit. Can be summoned by a Mage or spawned as a hostile enemy.',
+  },
+
+  SKELETON: {
+    maxHp: 60, attack: 40, defense: 25,
+    movementActions: 1, moveRange: 1, attackRange: 1,
+    discoverRadius: 1, triggerRange: 0,
+    tags: [UnitTag.SUMMONED],
+    cost: { iron: 0, wood: 0 },
+    populationCost: { farmers: 0, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    description: 'Undead unit raised from a gravestone by a Mage.',
+  },
 };
 
 // Compute descriptions for UNIT_DEFINITIONS entries that reference their own stats.
@@ -983,6 +1025,19 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     constructionCost: { iron: 0, wood: 0 },
     description: 'The grave of a fallen warrior.', // overwritten below (after ABILITIES)
   },
+  GRAVE_TRAP: {
+    discoverRadius: 1,
+    destroyBehavior: DestroyBehavior.NONE,
+    constructionCost: { iron: 0, wood: 0 },
+    description: 'A hidden stun trap conjured from a gravestone.', // overwritten below (after ABILITIES)
+  },
+  CRYSTAL_TOWER: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.RUIN,
+    constructionCost: { iron: 0, wood: 0 },
+    combatStats: { maxHp: 150, attack: 55, defense: 40, attackRange: 3 },
+    description: 'A powerful arcane tower raised by sacrificing a Mage.', // overwritten below (after ABILITIES)
+  },
 };
 
 // Compute descriptions for BUILDING_DEFINITIONS entries that reference their own stats or config constants.
@@ -1108,12 +1163,23 @@ export const ABILITIES = {
   GRAVESTONE_MAX_HP: 25,
   /** Damage dealt by a PREVENTIVE_STRIKE shot as a percentage of normal attack damage */
   PREVENTIVE_STRIKE_DAMAGE_PERCENT: 25,
+  // ── Mage system ability constants ────────────────────────────────────────────
+  /** Number of turns a unit triggered by a GRAVE_TRAP is stunned */
+  GRAVE_TRAP_STUN_TURNS: 2,
+  /** Number of HP lost per turn by a BRANDMARKED unit */
+  BRANDMARK_DAMAGE_PER_TURN: 10,
+  /** Leash range (in tiles) within which a LEASHED unit must remain relative to its controller Mage */
+  LEASH_RANGE: 4,
 } as const;
 
 // Override GRAVESTONE description now that ABILITIES is available (crystal cost is configurable).
 {
   BUILDING_DEFINITIONS.GRAVESTONE.description =
     `The grave of a fallen warrior. Revive the unit by paying ${ABILITIES.REVIVE_CRYSTAL_COST} crystal.`;
+  BUILDING_DEFINITIONS.GRAVE_TRAP.description =
+    `A hidden stun trap conjured from a gravestone. Stuns any enemy that steps on it for ${ABILITIES.GRAVE_TRAP_STUN_TURNS} turns.`;
+  BUILDING_DEFINITIONS.CRYSTAL_TOWER.description =
+    `A powerful arcane tower raised by sacrificing a Mage. Attacks enemies within ${BUILDING_DEFINITIONS.CRYSTAL_TOWER.combatStats?.attackRange ?? 'N/A'} tiles.`;
 }
 
 // ============================================================================
@@ -1591,6 +1657,11 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string }> = {
   [UnitTag.SPLASH]:             { label: 'Splash',             desc: `Deals ${Math.round(ABILITIES.SPLASH_DAMAGE_RATIO * 100)}% of dealt damage to all enemy units surrounding the target.` },
   [UnitTag.READY]:              { label: 'Ready',              desc: 'Can move and attack immediately after being recruited.' },
   [UnitTag.REVIVABLE]:          { label: 'Revivable',          desc: `Leaves a Gravestone on death. Pay ${ABILITIES.REVIVE_CRYSTAL_COST} crystal to revive.` },
+  // ── Mage system tags ────────────────────────────────────────────────────────
+  [UnitTag.MAGE]:               { label: 'Mage',               desc: 'Magical caster unit. Can cast spells unlocked in the tech tree.' },
+  [UnitTag.SUMMONED]:           { label: 'Summoned',           desc: 'This unit was summoned rather than recruited. Does not consume population and cannot be healed.' },
+  [UnitTag.BRANDMARKED]:        { label: 'Brandmarked',        desc: `Carries the Brandmark Heal mark. Loses ${ABILITIES.BRANDMARK_DAMAGE_PER_TURN} HP per turn; transforms into a hostile Ember Demon on death.` },
+  [UnitTag.LEASHED]:            { label: 'Leashed',            desc: `Summoned unit controlled by a Mage. Defects to the enemy if its controller Mage is more than ${ABILITIES.LEASH_RANGE} tiles away or dies.` },
 };
 
 // ============================================================================

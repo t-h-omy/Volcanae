@@ -24,6 +24,12 @@ export const UnitType = {
   SIEGE: 'SIEGE',
   SCOUT: 'SCOUT',
   GUARD: 'GUARD',
+  /** Player magical caster, recruited from active Crystal Chambers */
+  MAGE: 'MAGE',
+  /** Strong demonic unit; can be summoned by player or spawned hostile */
+  EMBER_DEMON: 'EMBER_DEMON',
+  /** Undead unit raised from a gravestone */
+  SKELETON: 'SKELETON',
   // Enemy units
   LAVA_GRUNT: 'LAVA_GRUNT',
   LAVA_ARCHER: 'LAVA_ARCHER',
@@ -54,6 +60,10 @@ export const BuildingType = {
   CRYSTAL_CHAMBER: 'CRYSTAL_CHAMBER',
   /** Grave left behind by a fallen REVIVABLE infantry unit */
   GRAVESTONE: 'GRAVESTONE',
+  /** A stun trap created from a gravestone via the Grave Trap spell */
+  GRAVE_TRAP: 'GRAVE_TRAP',
+  /** Combat building created by sacrificing a Mage via the Crystal Tower spell */
+  CRYSTAL_TOWER: 'CRYSTAL_TOWER',
 } as const;
 export type BuildingType = (typeof BuildingType)[keyof typeof BuildingType];
 
@@ -109,6 +119,19 @@ export type DestroyBehavior = (typeof DestroyBehavior)[keyof typeof DestroyBehav
 /** Tech node identifier — deliberately open so nodes are defined in config, not hardcoded */
 export type TechId = string;
 
+/** Spell identifiers for the Mage spell system */
+export const SpellId = {
+  TRANSPOSE:      'TRANSPOSE',
+  EMBERBIND:      'EMBERBIND',
+  BRANDMARK_HEAL: 'BRANDMARK_HEAL',
+  RAISE_SKELETON: 'RAISE_SKELETON',
+  FROSTCRAFT:     'FROSTCRAFT',
+  GRAVE_TRAP:     'GRAVE_TRAP',
+  EXPLODE:        'EXPLODE',
+  CRYSTAL_TOWER:  'CRYSTAL_TOWER',
+} as const;
+export type SpellId = (typeof SpellId)[keyof typeof SpellId];
+
 /** Discriminator for tech-tree effect payloads */
 export const TechEffectType = {
   UNLOCK_BUILDING:          'UNLOCK_BUILDING',
@@ -121,6 +144,8 @@ export const TechEffectType = {
   FLAG:                     'FLAG',
   STRONGHOLD_CAP_MOD:       'STRONGHOLD_CAP_MOD',
   SPECIALIST_SLOT_MOD:      'SPECIALIST_SLOT_MOD',
+  UNLOCK_SPELL:             'UNLOCK_SPELL',
+  SPELL_RANGE_MOD:          'SPELL_RANGE_MOD',
 } as const;
 export type TechEffectType = (typeof TechEffectType)[keyof typeof TechEffectType];
 
@@ -189,6 +214,15 @@ export const UnitTag = {
   READY: 'READY',
   /** Spearman unit leaves a Gravestone building on death that can be revived */
   REVIVABLE: 'REVIVABLE',
+  // ── Mage system tags ────────────────────────────────────────────────────────
+  /** Descriptive tag identifying caster units; used by spell systems */
+  MAGE: 'MAGE',
+  /** Unit was summoned, not recruited; modifies several systems */
+  SUMMONED: 'SUMMONED',
+  /** Unit carries the Brandmark Heal mark; loses HP each turn; on death becomes a hostile Ember Demon */
+  BRANDMARKED: 'BRANDMARKED',
+  /** Summoned unit that defects to the enemy faction if its controller mage is out of leash range or dead */
+  LEASHED: 'LEASHED',
 } as const;
 export type UnitTag = (typeof UnitTag)[keyof typeof UnitTag];
 
@@ -214,7 +248,9 @@ export type TechEffect =
   | { type: 'BUILDING_PRODUCTION_MOD'; buildingType: BuildingType; resource: ResourceType; chancePercent: number; amount: number }
   | { type: 'FLAG';                    flag: TechFlag }
   | { type: 'STRONGHOLD_CAP_MOD';      capType: 'farmer' | 'noble'; amount: number }
-  | { type: 'SPECIALIST_SLOT_MOD';     value: number };
+  | { type: 'SPECIALIST_SLOT_MOD';     value: number }
+  | { type: 'UNLOCK_SPELL';            spellId: SpellId }
+  | { type: 'SPELL_RANGE_MOD';         amount: number };
 
 /** Static definition of a tech-tree node (lives in gameConfig) */
 export interface TechNodeDefinition {
@@ -284,6 +320,13 @@ export interface Unit {
   distractionDefPenalty: number;
   /** Turn number during which this unit last moved. 0 = never moved (or pre-dates this field). */
   lastMovedTurn: number;
+  /**
+   * Set on player-summoned EMBER_DEMON; the id of the Mage that controls it via leash.
+   * `null` or `undefined` means no controller. Cleared on defection.
+   */
+  controllerMageId?: string | null;
+  /** Set on Mage units; true after the unit has cast a spell this turn. Reset each player turn. */
+  hasCastThisTurn?: boolean;
 }
 
 /** Defines a single stat boost applied when a unit reaches a new level */
@@ -382,6 +425,11 @@ export interface Building {
    * Only set for GRAVESTONE buildings; undefined for all others.
    */
   gravesUnitType?: UnitType | null;
+  /**
+   * For GRAVE_TRAP buildings: number of turns a triggering unit is stunned.
+   * Defaults to ABILITIES.GRAVE_TRAP_STUN_TURNS at creation time.
+   */
+  trapStunTurns?: number;
 }
 
 /** A tile on the game grid */
@@ -398,6 +446,11 @@ export interface Tile {
   terrainType: TileType;
   /** true on ~33% of Mountain tiles; set during map gen; cleared permanently on seal, explore, or despawn */
   hasCaveMonster?: boolean;
+  /**
+   * true for tiles frozen by Frostcraft. Tile remains `terrainType === TileType.WATER` underneath;
+   * the boolean overlays passability rules. Cleared when consumed by lava or otherwise destroyed.
+   */
+  isIce?: boolean;
 }
 
 /** Resources available to the player */
@@ -486,6 +539,8 @@ export interface GameState {
   arcaneCrystals: number;
   unlockedBuildings: BuildingType[];
   unlockedUnits: UnitType[];
+  /** Spell ids unlocked via the tech tree (mutated by applyTechEffect on UNLOCK_SPELL). */
+  unlockedSpells: SpellId[];
   /** Accumulated game statistics for the end-game screen */
   gameStats: GameStats;
   /** Number of enemy units that were spawned during the most recent enemy turn */
@@ -529,4 +584,9 @@ export interface GameState {
    * attack range boosted by the FORTIFIED_GARRISON constants.
    */
   fortifiedGarrisonActive: boolean;
+  /**
+   * When non-null, the player is choosing a spell target on the map
+   * (analogous to `pendingHealerId`). Mutually exclusive with `pendingHealerId`.
+   */
+  pendingSpellCast: { mageId: string; spellId: SpellId } | null;
 }
