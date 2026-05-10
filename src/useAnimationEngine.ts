@@ -29,6 +29,11 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 /**
+ * Sound effect keys for spell actions.
+ * Trigger implementation lives in soundOptionsStore.ts (triggerSpellSfx).
+ */
+
+/**
  * Returns the Position the camera should center on for each event type.
  */
 function eventPosition(event: GameEvent): Position {

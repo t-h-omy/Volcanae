@@ -56,3 +56,24 @@ export const useSoundOptionsStore = create<SoundOptionsState>()((set) => ({
     });
   },
 }));
+
+/**
+ * Triggers a named spell sound effect.
+ * Currently a no-op — wire to real audio files once assets are available.
+ *
+ * Keys:
+ *   'spell_cast' — generic spell confirmation
+ *   'summon'     — Emberbind / Raise Skeleton
+ *   'freeze'     — Frostcraft ice creation
+ *
+ * TODO: replace the no-op body with:
+ *   const { volume, muted } = useSoundOptionsStore.getState();
+ *   if (muted || volume === 0) return;
+ *   const audio = new Audio(SFX_PATHS[key]);
+ *   audio.volume = volume;
+ *   audio.play().catch(() => undefined);
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function triggerSpellSfx(_key: 'spell_cast' | 'summon' | 'freeze'): void {
+  // no-op until audio assets are available
+}

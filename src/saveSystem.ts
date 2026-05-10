@@ -18,7 +18,7 @@ import { TECH_TREE, POPULATION, SPECIALIST_DEFINITIONS } from './gameConfig';
 const SAVE_KEY = 'volcanae-save';
 
 /** Increment this whenever the serialized shape changes incompatibly. */
-const SAVE_VERSION = 9;
+const SAVE_VERSION = 10;
 
 // ============================================================================
 // PUBLIC API
@@ -148,6 +148,47 @@ export function loadGameState(): GameState | null {
     }
     if (!('pendingSpellCast' in gs)) {
       gs.pendingSpellCast = null;
+    }
+    if (!('pendingTransposeFirstUnitId' in gs)) {
+      gs.pendingTransposeFirstUnitId = null;
+    }
+
+    // Migration: backfill Mage-system per-unit fields added in MS-01–MS-09.
+    if (s.units && typeof s.units === 'object') {
+      for (const unit of Object.values(s.units) as Array<unknown>) {
+        const u = unit as Record<string, unknown>;
+        if (u && typeof u.id === 'string') {
+          if (typeof u.hasCastThisTurn !== 'boolean') {
+            u.hasCastThisTurn = false;
+          }
+          if (!('controllerMageId' in u)) {
+            u.controllerMageId = null;
+          }
+        }
+      }
+    }
+
+    // Migration: backfill isIce on tile records from saves that predate Frostcraft.
+    if (s.grid && Array.isArray(s.grid)) {
+      for (const row of s.grid as Array<unknown>) {
+        if (!Array.isArray(row)) continue;
+        for (const tile of row as Array<unknown>) {
+          const t = tile as Record<string, unknown>;
+          if (t && typeof t.terrainType === 'string' && typeof t.isIce !== 'boolean') {
+            t.isIce = false;
+          }
+        }
+      }
+    }
+
+    // Migration: backfill trapStunTurns on building records from saves that predate GRAVE_TRAP.
+    if (s.buildings && typeof s.buildings === 'object') {
+      for (const building of Object.values(s.buildings) as Array<unknown>) {
+        const b = building as Record<string, unknown>;
+        if (b && typeof b.id === 'string' && !('trapStunTurns' in b)) {
+          b.trapStunTurns = undefined;
+        }
+      }
     }
 
     // Migration: backfill emberLevelSources for saves that predate source tracking.

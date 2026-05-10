@@ -37,6 +37,7 @@ import { useFloaterStore } from './floaterStore';
 import { useAnimationStore } from './animationStore';
 import { useCombatAnimationStore } from './combatAnimationStore';
 import { useCaveScreamsStore } from './caveScreamsStore';
+import { triggerSpellSfx } from './soundOptionsStore';
 import { Faction, GamePhase, BuildingType, TileType, Difficulty, DestroyBehavior, UnitType, UnitTag, TechFlag } from './types';
 import type { GameState, Position, TechId, SpellId } from './types';
 import type { GameEvent } from './gameEvents';
@@ -1019,6 +1020,7 @@ export const useGameStore = create<GameStore>()(
     },
 
     castSpell: (targetPosition: Position) => {
+      const pendingSpell = get().pendingSpellCast;
       set((state) => {
         if (!state.pendingSpellCast) return;
         const { mageId, spellId } = state.pendingSpellCast;
@@ -1044,6 +1046,19 @@ export const useGameStore = create<GameStore>()(
         updateDiscovery(state);
         checkGameConditions(state);
       });
+      // Fire SFX triggers outside the immer mutation (side-effect).
+      // triggerSfx is a no-op until real audio assets are wired.
+      if (pendingSpell) {
+        const { spellId } = pendingSpell;
+        if (spellId === 'EMBERBIND' || spellId === 'RAISE_SKELETON') {
+          // spell_cast + summon — both triggers fire for summon spells
+          triggerSpellSfx('summon');
+        } else if (spellId === 'FROSTCRAFT') {
+          triggerSpellSfx('freeze');
+        } else {
+          triggerSpellSfx('spell_cast');
+        }
+      }
     },
 
     fieldworkUnit: (unitId: string) => {
