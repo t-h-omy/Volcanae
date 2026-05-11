@@ -7,7 +7,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { current, produce } from 'immer';
 import { generateInitialGameState, generateId } from './mapGenerator';
-import { resolveAttack, resolveBuildingAttack, resolveAttackOnBuilding, resolveBuildingAttackOnBuilding } from './combatSystem';
+import { resolveAttack, resolveBuildingAttack, resolveAttackOnBuilding, resolveBuildingAttackOnBuilding, handleBrandmarkedUnitDeath } from './combatSystem';
 import { moveUnit as moveUnitLogic } from './movementSystem';
 import {
   initiateCapture as initiateCaptureLogic,
@@ -37,16 +37,22 @@ import { useFloaterStore } from './floaterStore';
 import { useAnimationStore } from './animationStore';
 import { useCombatAnimationStore } from './combatAnimationStore';
 import { useCaveScreamsStore } from './caveScreamsStore';
-import { Faction, GamePhase, BuildingType, TileType, Difficulty, DestroyBehavior, UnitType, UnitTag } from './types';
-import type { GameState, Position, TechId } from './types';
+import { triggerSpellSfx } from './soundOptionsStore';
+import { Faction, GamePhase, BuildingType, TileType, Difficulty, DestroyBehavior, UnitType, UnitTag, TechFlag } from './types';
+import type { GameState, Position, TechId, SpellId } from './types';
 import type { GameEvent } from './gameEvents';
-import { MAP, TERRAIN, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval, UNIT_DEFINITIONS } from './gameConfig';
+import { MAP, TERRAIN, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval, UNIT_DEFINITIONS, MAGE } from './gameConfig';
+import { RENDER } from './renderConfig';
+import { ANIMATION } from './animationConfig';
 import { saveGameState, loadGameState, clearSavedGame, hasSavedGame } from './saveSystem';
 import { computeLevelFromXp, applyLevelUps } from './levelSystem';
 import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLogic, getGrantedTags, getRemovedTags, getStatMods } from './techSystem';
 import { canUnitHeal, getHealTargets, canUnitFieldwork } from './unitActions';
 import { createFieldworkOutpost } from './constructionSystem';
 import { getTagsFromActiveSpecialists } from './specialistSystem';
+import { castSpell as castSpellLogic } from './spellSystem';
+import { isTileWithinEdgeCircleRange } from './rangeUtils';
+import { useShockwaveStore } from './shockwaveStore';
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
@@ -87,6 +93,12 @@ interface GameActions {
   startHealMode: (healerId: string) => void;
   /** Cancel heal-target-selection mode */
   cancelHealMode: () => void;
+  /** Enter spell-cast target-selection mode */
+  startSpellCast: (mageId: string, spellId: SpellId) => void;
+  /** Cancel spell-cast target-selection mode */
+  cancelSpellCast: () => void;
+  /** Apply a spell cast at the given target position */
+  castSpell: (targetPosition: Position) => void;
   /** Sacrifice a FIELDWORK unit to build a Watchtower at its position */
   fieldworkUnit: (unitId: string) => void;
   /** Add a specialist to globalSpecialistStorage (called after cave monster hire) */
@@ -143,6 +155,8 @@ interface GameActions {
   reviveUnit: (buildingId: string) => void;
   /** Permanently dismiss a recruited specialist, removing them from globalSpecialistStorage */
   dismissSpecialist: (specialistId: string) => void;
+  /** Finalize pending Brandmark transforms: remove queued units and spawn hostile Ember Demons */
+  finalizeBrandmarkTransforms: () => void;
 }
 
 // ============================================================================
@@ -967,6 +981,60 @@ export const useGameStore = create<GameStore>()(
       });
     },
 
+    finalizeBrandmarkTransforms: () => {
+      set((state) => {
+        const pending = state.pendingBrandmarkTransforms;
+        if (pending.length === 0) return;
+        for (const { unitId, position } of pending) {
+          const original = state.units[unitId];
+          if (!original) continue;
+          // Remove the original unit from its tile and from the units map
+          const tile = state.grid[position.y]?.[position.x];
+          if (tile && tile.unitId === unitId) tile.unitId = null;
+          delete state.units[unitId];
+          state.gameStats.unitsLost += 1;
+          // Spawn a hostile Ember Demon at the tile if it's now free
+          if (tile && tile.unitId === null) {
+            const newId = generateId('unit_demon');
+            state.units[newId] = {
+              id: newId,
+              type: UnitType.EMBER_DEMON,
+              faction: Faction.ENEMY,
+              position: { x: position.x, y: position.y },
+              stats: {
+                currentHp: MAGE.EMBER_DEMON_MAX_HP,
+                maxHp: MAGE.EMBER_DEMON_MAX_HP,
+                attack: MAGE.EMBER_DEMON_ATTACK,
+                defense: MAGE.EMBER_DEMON_DEFENSE,
+                moveRange: MAGE.EMBER_DEMON_MOVE_RANGE,
+                attackRange: MAGE.EMBER_DEMON_ATTACK_RANGE,
+                discoverRadius: MAGE.EMBER_DEMON_DISCOVER_RADIUS,
+                triggerRange: MAGE.EMBER_DEMON_TRIGGER_RANGE,
+                movementActions: 1,
+              },
+              tags: [],
+              controllerMageId: null,
+              hasMovedThisTurn: true,
+              hasAttackedThisTurn: true,
+              hasCapturedThisTurn: true,
+              hasConstructedThisTurn: true,
+              hasDestroyedThisTurn: true,
+              hasUsedPostAttackMoveThisTurn: false,
+              hasCastThisTurn: false,
+              bloodlustAttackAvailable: false,
+              pinnedUntilTurn: 0,
+              xp: 0,
+              level: 1,
+              lastMovedTurn: state.turn,
+              distractionDefPenalty: 0,
+            };
+            tile.unitId = newId;
+          }
+        }
+        state.pendingBrandmarkTransforms = [];
+      });
+    },
+
     healUnit: (healerId: string, targetId: string) => {
       set((state) => {
         const healer = state.units[healerId];
@@ -994,6 +1062,75 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         state.pendingHealerId = null;
       });
+    },
+
+    startSpellCast: (mageId: string, spellId: SpellId) => {
+      set((state) => {
+        state.pendingHealerId = null; // mutually exclusive with heal mode
+        state.pendingSpellCast = { mageId, spellId };
+      });
+    },
+
+    cancelSpellCast: () => {
+      set((state) => {
+        state.pendingSpellCast = null;
+        state.pendingTransposeFirstUnitId = null;
+      });
+    },
+
+    castSpell: (targetPosition: Position) => {
+      let castSpellId: import('./types').SpellId | null = null;
+      set((state) => {
+        if (!state.pendingSpellCast) return;
+        const { mageId, spellId } = state.pendingSpellCast;
+        const ok = castSpellLogic(state, mageId, spellId, targetPosition);
+        if (!ok) return;
+        castSpellId = spellId;
+        const mage = state.units[mageId];
+        if (mage) {
+          // Casting is symmetric with attacking: set hasCastThisTurn only.
+          // - canUnitMove and canUnitAttack are updated to treat
+          //   hasCastThisTurn the same way they already treat
+          //   hasAttackedThisTurn — so a mage cannot move OR attack after
+          //   casting.
+          // - The reverse direction (move-then-cast) is blocked by the PREP
+          //   tag inside canUnitCast. A non-PREP mage would be free to move
+          //   and then cast, which is the correct behavior if PREP is ever
+          //   stripped via a future tech.
+          // Do NOT set hasMovedThisTurn or hasAttackedThisTurn here — that
+          // would over-constrain the rules and break the symmetry.
+          mage.hasCastThisTurn = true;
+        }
+        state.pendingSpellCast = null;
+        state.pendingTransposeFirstUnitId = null;
+        updateDiscovery(state);
+        checkGameConditions(state);
+      });
+      // Fire SFX triggers outside the immer mutation (side-effect).
+      // triggerSpellSfx is a no-op until real audio assets are wired.
+      if (castSpellId !== null) {
+        if (castSpellId === 'EMBERBIND' || castSpellId === 'RAISE_SKELETON') {
+          triggerSpellSfx('summon');
+        } else if (castSpellId === 'FROSTCRAFT') {
+          triggerSpellSfx('freeze');
+        } else {
+          triggerSpellSfx('spell_cast');
+        }
+        // EXPLODE: add shockwave ring to match emberling explosion VFX
+        if (castSpellId === 'EXPLODE') {
+          const tileSize = typeof window !== 'undefined' && window.innerWidth <= RENDER.MOBILE_BREAKPOINT
+            ? RENDER.TILE_SIZE_MOBILE
+            : RENDER.TILE_SIZE_DESKTOP;
+          const explosionFinalScale = Math.round((1.5 * tileSize) / 3);
+          useShockwaveStore.getState().addShockwave({
+            id: crypto.randomUUID(),
+            cx: targetPosition.x * tileSize + tileSize / 2,
+            cy: targetPosition.y * tileSize + tileSize / 2,
+            durationMs: ANIMATION.EXPLOSION_SHOCKWAVE_MS,
+            finalScale: explosionFinalScale,
+          });
+        }
+      }
     },
 
     fieldworkUnit: (unitId: string) => {
@@ -1070,6 +1207,16 @@ export const useGameStore = create<GameStore>()(
       let pendingResolvedState: GameState | null = null;
 
       set((state) => {
+        // Auto-deselect when the player ends their turn — no unit, building,
+        // or tile remains highlighted across the enemy turn boundary.
+        state.selectedUnitId = null;
+        state.selectedBuildingId = null;
+        state.selectedTilePos = null;
+        // Cancel any pending action modes.
+        state.pendingHealerId = null;
+        state.pendingSpellCast = null;
+        state.pendingTransposeFirstUnitId = null;
+
         // Phase 1: Resolve all pending captures (instant, no animation)
         resolveCaptures(state);
 
@@ -1144,17 +1291,85 @@ export const useGameStore = create<GameStore>()(
           // Recalculate tile discovery
           updateDiscovery(draft);
 
+          // Brandmark tick: every BRANDMARKED player unit loses HP at end of turn.
+          // Collect dying unit IDs first so we don't mutate the collection mid-loop.
+          const brandmarkDying: string[] = [];
+          for (const unit of Object.values(draft.units)) {
+            if (unit.faction !== Faction.PLAYER) continue;
+            if (!unit.tags.includes(UnitTag.BRANDMARKED)) continue;
+            unit.stats.currentHp -= MAGE.BRANDMARK_HP_LOSS_PER_TURN;
+            if (unit.stats.currentHp <= 0) {
+              brandmarkDying.push(unit.id);
+            }
+          }
+          for (const unitId of brandmarkDying) {
+            const unit = draft.units[unitId];
+            if (unit) handleBrandmarkedUnitDeath(draft, unit);
+          }
+
+          // Leash defection: any player-faction LEASHED unit defects if its
+          // controlling Mage is dead or out of leash range.
+          for (const unit of Object.values(draft.units)) {
+            if (!unit.tags.includes(UnitTag.LEASHED)) continue;
+            if (unit.faction !== Faction.PLAYER) continue;
+
+            const mage = unit.controllerMageId ? draft.units[unit.controllerMageId] : null;
+            let defects = false;
+            if (!mage || mage.faction !== Faction.PLAYER) {
+              defects = true;
+            } else {
+              const inRange = isTileWithinEdgeCircleRange(
+                mage.position.x, mage.position.y,
+                unit.position.x, unit.position.y,
+                MAGE.EMBER_DEMON_LEASH_RANGE,
+              );
+              if (!inRange) defects = true;
+            }
+
+            if (defects) {
+              unit.faction = Faction.ENEMY;
+              unit.controllerMageId = null;
+              unit.tags = unit.tags.filter((t) =>
+                t !== UnitTag.LEASHED && t !== UnitTag.SUMMONED
+              );
+              useFloaterStore.getState().addFloater({
+                value: 0,
+                label: '⚠️ Defected!',
+                x: unit.position.x,
+                y: unit.position.y,
+                isEnemy: true,
+                floaterType: 'revive',
+              });
+            }
+          }
+
           // Reset all player units for new turn
           for (const unit of Object.values(draft.units)) {
             if (unit.faction === Faction.PLAYER) {
               unit.hasMovedThisTurn = false;
               unit.hasAttackedThisTurn = false;
+              unit.hasCastThisTurn = false;
               unit.hasCapturedThisTurn = false;
               unit.hasConstructedThisTurn = false;
               unit.hasDestroyedThisTurn = false;
               unit.hasUsedPostAttackMoveThisTurn = false;
               unit.bloodlustAttackAvailable = false;
-              unit.pinnedUntilTurn = 0;
+              // Only clear multi-turn stuns that have already expired so that
+              // Grave Trap's 2-turn stun persists across the turn boundary.
+              if (unit.pinnedUntilTurn !== 0 && unit.pinnedUntilTurn <= draft.turn) {
+                unit.pinnedUntilTurn = 0;
+              }
+            }
+          }
+
+          // GRAVE_HARVEST: each player-owned Gravestone has a per-turn chance to yield 1 crystal
+          if (draft.techFlags.includes(TechFlag.GRAVE_HARVEST)) {
+            for (const b of Object.values(draft.buildings)) {
+              if (b.type === BuildingType.GRAVESTONE && b.faction === Faction.PLAYER) {
+                if (Math.random() * 100 < MAGE.GRAVE_HARVEST_CRYSTAL_CHANCE) {
+                  draft.arcaneCrystals += 1;
+                }
+              }
             }
           }
 

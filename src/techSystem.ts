@@ -7,7 +7,7 @@
 import type { Draft } from 'immer';
 import type { GameState, TechId, TechEffect, UnitStats, StatModifier } from './types';
 import { Faction, TechFlag, BuildingType } from './types';
-import { TECH_TREE, ABILITIES, TAG_STAT_EFFECTS, computeResearchCost, POPULATION } from './gameConfig';
+import { TECH_TREE, ABILITIES, TAG_STAT_EFFECTS, computeResearchCost, POPULATION, MAGE, SPELL_DEFINITIONS } from './gameConfig';
 
 // ============================================================================
 // PICK GRANTS
@@ -152,6 +152,14 @@ function applyTechEffect(state: Draft<GameState>, effect: TechEffect): void {
       break;
     case 'SPECIALIST_SLOT_MOD':
       state.specialistSlotCap += effect.value;
+      break;
+    case 'UNLOCK_SPELL':
+      if (!state.unlockedSpells.includes(effect.spellId)) {
+        state.unlockedSpells.push(effect.spellId);
+      }
+      break;
+    case 'SPELL_RANGE_MOD':
+      // Applied on demand by getMageSpellRange() — no immediate state mutation needed.
       break;
     default:
       break;
@@ -335,6 +343,7 @@ export function getStrongholdEffectiveCap(
 const flagDescriptions: Record<TechFlag, string> = {
   [TechFlag.TO_THE_FRONT]: `Units >${ABILITIES.TO_THE_FRONT_MIN_DISTANCE} tiles south of the northmost player unit: +${ABILITIES.TO_THE_FRONT_MOVE_BONUS} movement`,
   [TechFlag.HOLD_GROUND]: 'Units on own buildings: defense bonus',
+  [TechFlag.GRAVE_HARVEST]: `Each player-owned Gravestone has a ${MAGE.GRAVE_HARVEST_CRYSTAL_CHANCE}% chance per turn to grant 1 crystal`,
 };
 
 /**
@@ -362,6 +371,12 @@ export function renderEffect(effect: TechEffect): string {
       return `Stronghold +${effect.amount} ${effect.capType} cap`;
     case 'SPECIALIST_SLOT_MOD':
       return `+${effect.value} specialist slot${effect.value !== 1 ? 's' : ''}`;
+    case 'UNLOCK_SPELL': {
+      const def = SPELL_DEFINITIONS[effect.spellId];
+      return `Unlocks ${def?.name ?? effect.spellId}`;
+    }
+    case 'SPELL_RANGE_MOD':
+      return `Spell range +${effect.amount}`;
     default:
       return '';
   }

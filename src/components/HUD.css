@@ -2543,3 +2543,120 @@
 .resource-popup-total-negative {
   color: #e07070;
 }
+
+/* ── Mage spell buttons ── */
+
+.hud-spell-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 5px;
+}
+
+.hud-spell-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(60, 90, 200, 0.55);
+  border: 1px solid rgba(100, 140, 255, 0.7);
+  border-radius: 5px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 5px 9px;
+  min-height: 32px;
+  white-space: nowrap;
+  touch-action: manipulation;
+  transition: background 0.15s;
+}
+
+.hud-spell-btn-label {
+  font-size: 13px;
+}
+
+.hud-spell-btn-cost {
+  font-size: 11px;
+  opacity: 0.7;
+  margin-left: 2px;
+}
+
+.hud-spell-btn:hover:not(:disabled) {
+  background: rgba(80, 120, 255, 0.7);
+}
+
+.hud-spell-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.hud-spell-btn.hud-spell-active {
+  background: rgba(80, 180, 255, 0.65);
+  border-color: rgba(80, 180, 255, 0.9);
+  animation: spell-btn-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes spell-btn-pulse {
+  0%, 100% { box-shadow: 0 0 4px rgba(80, 180, 255, 0.4); }
+  50%       { box-shadow: 0 0 12px rgba(80, 180, 255, 0.8); }
+}
+
+.hud-spell-cancel-btn {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(180, 60, 60, 0.55);
+  border: 1px solid rgba(255, 100, 100, 0.7);
+  border-radius: 5px;
+  color: #fff;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 5px 9px;
+  min-height: 32px;
+  white-space: nowrap;
+  touch-action: manipulation;
+  transition: background 0.15s;
+}
+
+.hud-spell-cancel-btn:hover {
+  background: rgba(220, 80, 80, 0.7);
+}
+
+.hud-spell-desc {
+  width: 100%;
+  margin: 3px 0 1px;
+  font-size: 11px;
+  color: rgba(200, 220, 255, 0.88);
+  line-height: 1.35;
+  font-style: italic;
+}
+
+/* ── Spell panel (collapsible) ─────────────────────────────────────── */
+.hud-spell-panel {
+  margin-top: 5px;
+  padding: 6px 8px;
+}
+
+.hud-spell-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+/* ── Cast-mode focused view ─────────────────────────────────────────── */
+.hud-spell-cast-panel {
+  padding: 8px 10px;
+}
+
+.hud-spell-cast-hint {
+  font-size: 0.9rem;
+  opacity: 0.9;
+  margin: 8px 0 12px;
+}
+
+.hud-spell-cast-cancel {
+  background: rgba(180, 60, 60, 0.85);
+}
+
+.hud-spell-cast-cancel:hover {
+  background: rgba(220, 80, 80, 0.9);
+}

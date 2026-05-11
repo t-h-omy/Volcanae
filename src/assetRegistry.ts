@@ -43,6 +43,9 @@ export const UNIT_SPRITE: Partial<Record<UnitType, string>> = withBase({
   SIEGE:       '/sprites/units/Catapult_100px.png',
   SCOUT:       '/sprites/units/Scout_100px.png',
   GUARD:       '/sprites/units/Guard_100px.png',
+  MAGE:        '/sprites/units/Mage_100px.png',
+  EMBER_DEMON: '/sprites/units/Ember_Demon_Player_100px.png',
+  SKELETON:    '/sprites/units/Skeleton_100px.png',
   // Enemy units
   LAVA_GRUNT:  '/sprites/units/Grunt_100px.png',
   LAVA_ARCHER: '/sprites/units/Spitter_100px.png',
@@ -71,6 +74,9 @@ export const BUILDING_SPRITE: Partial<Record<BuildingType, string>> = withBase({
   EMBERNEST:       '/sprites/buildings/ember_nest_100px.png',
   CRYSTAL_CHAMBER: '/sprites/buildings/crystal_chamber_100px.png',
   GRAVESTONE:      '/sprites/buildings/gravestone_100px.png',
+  // TODO: replace GRAVE_TRAP and CRYSTAL_TOWER with real art when available
+  GRAVE_TRAP:      '/sprites/buildings/grave_trap_100px.png',
+  CRYSTAL_TOWER:   '/sprites/buildings/crystal_tower_100px.png',
 });
 
 /**
@@ -139,3 +145,9 @@ export const TILE_SPRITE: Partial<Record<TileType | 'lava' | 'unrevealed' | 'rui
   ruin:         '/sprites/buildings/ruin_standard_100px.png',
   strongholdRuin: '/sprites/buildings/ruin_stronghold_100px.png',
 });
+
+/**
+ * Sprite path for the ice overlay rendered on top of frozen WATER tiles.
+ * TODO: Replace empty string with a real ice overlay PNG once art is available.
+ */
+export const ICE_OVERLAY_SPRITE = withBase({ ice: '' }).ice ?? '';

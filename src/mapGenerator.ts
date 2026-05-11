@@ -1577,6 +1577,7 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
     arcaneCrystals: TECH.CRYSTALS_ON_GAME_START,
     unlockedBuildings: [],
     unlockedUnits: [],
+    unlockedSpells: [],
     gameStats: {
       unitsKilled: 0,
       unitsLost: 0,
@@ -1600,6 +1601,9 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
     specialistSlotCap: 2,
     activeCaveEncounters: [],
     fortifiedGarrisonActive: false,
+    pendingSpellCast: null,
+    pendingTransposeFirstUnitId: null,
+    pendingBrandmarkTransforms: [],
   };
 
   // Auto-apply CONSCRIPTION effects (unlocked at game start, not a pick)

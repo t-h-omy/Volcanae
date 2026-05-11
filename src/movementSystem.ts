@@ -8,6 +8,7 @@ import type { Draft } from 'immer';
 import { BuildingType, Faction, TechFlag, TileType, UnitTag } from './types';
 import { MAP, ABILITIES } from './gameConfig';
 import { getTilesWithinEdgeCircleRange } from './rangeUtils';
+import { useFloaterStore } from './floaterStore';
 
 // ============================================================================
 // MOVEMENT CALCULATIONS
@@ -154,7 +155,12 @@ export function getReachableTiles(
       const tile = state.grid[ny][nx];
 
       // CANYON/WATER: impassable — cannot enter or traverse
-      if (tile.terrainType === TileType.CANYON || tile.terrainType === TileType.WATER) continue;
+      // Exception: frozen (isIce) water tiles are passable for player units.
+      if (tile.terrainType === TileType.CANYON) continue;
+      if (tile.terrainType === TileType.WATER) {
+        if (!tile.isIce) continue;
+        if (unit.faction === Faction.ENEMY) continue;
+      }
 
       // Cannot enter undiscovered tiles (player units only)
       if (!tile.isRevealed && unit.faction === Faction.PLAYER) continue;
@@ -191,6 +197,37 @@ export function getReachableTiles(
 // ============================================================================
 // MOVEMENT RESOLUTION
 // ============================================================================
+
+/**
+ * Checks whether the tile a unit just entered contains a GRAVE_TRAP building.
+ * If it does, stuns the unit and destroys the trap.
+ */
+export function checkGraveTrapTrigger(
+  state: Draft<GameState>,
+  unitId: string,
+): void {
+  const unit = state.units[unitId];
+  if (!unit) return;
+  const tile = state.grid[unit.position.y]?.[unit.position.x];
+  if (!tile || !tile.buildingId) return;
+  const building = state.buildings[tile.buildingId];
+  if (!building || building.type !== BuildingType.GRAVE_TRAP) return;
+
+  const stunTurns = building.trapStunTurns ?? 1;
+  unit.pinnedUntilTurn = state.turn + stunTurns - 1;
+
+  delete state.buildings[tile.buildingId];
+  tile.buildingId = null;
+
+  useFloaterStore.getState().addFloater({
+    value: 0,
+    label: '💫 Stunned',
+    x: unit.position.x,
+    y: unit.position.y,
+    isEnemy: unit.faction !== Faction.PLAYER,
+    floaterType: 'revive',
+  });
+}
 
 /**
  * Moves a unit to a target position by mutating the draft state.
@@ -257,4 +294,7 @@ export function moveUnit(
   if (unit.hasAttackedThisTurn && unit.tags.includes(UnitTag.HIT_AND_RUN)) {
     unit.hasUsedPostAttackMoveThisTurn = true;
   }
+
+  // GRAVE_TRAP: check if the unit landed on a trap
+  checkGraveTrapTrigger(state, unitId);
 }

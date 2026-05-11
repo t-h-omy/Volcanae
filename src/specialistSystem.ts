@@ -113,7 +113,8 @@ function setFortifiedGarrisonState(state: Draft<GameState>, active: boolean): vo
   for (const building of Object.values(state.buildings)) {
     if (
       building.faction === Faction.PLAYER &&
-      (building.type === BuildingType.WATCHTOWER || building.type === BuildingType.OUTPOST)
+      (building.type === BuildingType.WATCHTOWER || building.type === BuildingType.OUTPOST ||
+       building.type === BuildingType.CRYSTAL_TOWER)
     ) {
       if (active) {
         applyFortifiedGarrisonBonus(building);

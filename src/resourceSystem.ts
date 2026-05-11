@@ -63,7 +63,8 @@ function isRecruitmentBuilding(building: Building): boolean {
     building.type === BuildingType.ARCHER_CAMP ||
     building.type === BuildingType.RIDER_CAMP ||
     building.type === BuildingType.SIEGE_CAMP ||
-    building.type === BuildingType.STRONGHOLD
+    building.type === BuildingType.STRONGHOLD ||
+    (building.type === BuildingType.CRYSTAL_CHAMBER && building.resonanceTurnsRemaining > 0)
   );
 }
 
@@ -82,6 +83,8 @@ export function getRecruitableUnitTypes(buildingType: BuildingType): UnitType[] 
       return [UnitType.SIEGE];
     case BuildingType.STRONGHOLD:
       return [UnitType.SCOUT, UnitType.GUARD];
+    case BuildingType.CRYSTAL_CHAMBER:
+      return [UnitType.MAGE];
     default:
       return [];
   }
@@ -108,6 +111,8 @@ export function computeRecruitmentBuildingUsage(
   let current = 0;
   for (const unit of Object.values(state.units)) {
     if (unit.faction === Faction.PLAYER && recruitableTypes.has(unit.type as UnitType)) {
+      // Summoned units do not count toward building unit limits
+      if (unit.tags.includes(UnitTag.SUMMONED)) continue;
       current += 1;
     }
   }
@@ -425,6 +430,8 @@ export function computePopulationUsage(
 
   for (const unit of Object.values(state.units)) {
     if (unit.faction !== Faction.PLAYER) continue;
+    // Summoned units (EMBER_DEMON, SKELETON) do not consume population
+    if (unit.tags.includes(UnitTag.SUMMONED)) continue;
 
     const cost = UNIT_DEFINITIONS[unit.type as UnitType]?.populationCost as UnitPopulationCost | undefined;
     if (cost) {

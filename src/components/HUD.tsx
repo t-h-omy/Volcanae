@@ -10,7 +10,7 @@ import { useGameStore } from '../gameStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
 import { useSoundOptionsStore } from '../soundOptionsStore';
-import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, computeResearchCost } from '../gameConfig';
+import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, computeResearchCost, SPELL_DEFINITIONS } from '../gameConfig';
 import { UI } from '../uiConfig';
 import type { UnitPopulationCost, TechId } from '../types';
 import {
@@ -40,6 +40,7 @@ import {
   TechEffectType,
   TechFlag,
   Difficulty,
+  SpellId,
   type Building,
   type Unit,
   type Specialist,
@@ -47,7 +48,7 @@ import {
   type Tile,
   type GameStats,
 } from '../types';
-import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY } from '../unitActions';
+import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast } from '../unitActions';
 import { getPhalanxAttackBonus, getPhalanxDefenseBonus } from '../combatSystem';
 import { useZoneClearedStore } from '../zoneClearedStore';
 import { useCaveScreamsStore } from '../caveScreamsStore';
@@ -72,6 +73,9 @@ const UNIT_EMOJI: Record<string, string> = {
   [UnitType.LAVA_SIEGE]: '🐦‍🔥',
   [UnitType.EMBERLING]: '🔥',
   [UnitType.CAVE_MONSTER]: '🐉',
+  [UnitType.MAGE]: '🧙',
+  [UnitType.EMBER_DEMON]: '😈',
+  [UnitType.SKELETON]: '💀',
 };
 
 const UNIT_NAME: Record<string, string> = {
@@ -88,6 +92,9 @@ const UNIT_NAME: Record<string, string> = {
   [UnitType.LAVA_SIEGE]: 'Lava Siege',
   [UnitType.EMBERLING]: 'Emberling',
   [UnitType.CAVE_MONSTER]: 'Cave Monster',
+  [UnitType.MAGE]: 'Mage',
+  [UnitType.EMBER_DEMON]: 'Ember Demon',
+  [UnitType.SKELETON]: 'Skeleton',
 };
 
 const BUILDING_EMOJI: Record<string, string> = {
@@ -108,6 +115,7 @@ const BUILDING_EMOJI: Record<string, string> = {
   [BuildingType.EMBERNEST]: '🌲',
   [BuildingType.CRYSTAL_CHAMBER]: '💎',
   [BuildingType.GRAVESTONE]: '🪦',
+  [BuildingType.GRAVE_TRAP]: '☠️',
 };
 
 const BUILDING_NAME: Record<string, string> = {
@@ -128,6 +136,7 @@ const BUILDING_NAME: Record<string, string> = {
   [BuildingType.EMBERNEST]: 'Ember Nest',
   [BuildingType.CRYSTAL_CHAMBER]: 'Crystal Chamber',
   [BuildingType.GRAVESTONE]: 'Gravestone',
+  [BuildingType.GRAVE_TRAP]: 'Grave Trap',
 };
 
 const TAG_EMOJI: Partial<Record<UnitTag, string>> = {
@@ -156,6 +165,7 @@ const BUILDING_RECRUITS: Partial<Record<string, UnitType[]>> = {
   [BuildingType.RIDER_CAMP]: [UnitType.RIDER],
   [BuildingType.SIEGE_CAMP]: [UnitType.SIEGE],
   [BuildingType.STRONGHOLD]: [UnitType.SCOUT, UnitType.GUARD],
+  [BuildingType.CRYSTAL_CHAMBER]: [UnitType.MAGE],
 };
 
 // ============================================================================
@@ -698,6 +708,24 @@ function TagPopup({ tag, onClose }: { tag: UnitTag; onClose: () => void }) {
   );
 }
 
+/** Spell info popup — shown when clicking a spell tile in the tech tree */
+function SpellInfoPopup({ spellId, onClose }: { spellId: SpellId; onClose: () => void }) {
+  const def = SPELL_DEFINITIONS[spellId];
+  if (!def) return null;
+  return (
+    <Popup onClose={onClose}>
+      <div className="info-popup-header">
+        <span className="info-popup-header-emoji">{def.emoji}</span>
+        <div>
+          <div className="info-popup-header-name">{def.name}</div>
+        </div>
+      </div>
+      <p className="info-popup-desc" style={{ marginBottom: 16 }}>{def.description}</p>
+      <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>OK</button>
+    </Popup>
+  );
+}
+
 /** Resource info popup — shows current amount, income breakdown, and net income */
 function ResourceInfoPopup({
   resourceType,
@@ -1095,7 +1123,8 @@ function BuildingStatDetailModal({ building, onClose }: { building: Building; on
 
   const isGarrisonBuilding =
     building.faction === Faction.PLAYER &&
-    (building.type === BuildingType.WATCHTOWER || building.type === BuildingType.OUTPOST);
+    (building.type === BuildingType.WATCHTOWER || building.type === BuildingType.OUTPOST ||
+     building.type === BuildingType.CRYSTAL_TOWER);
 
   type BuildingModEntry = { stat: string; value: number; source: string };
   const mods: BuildingModEntry[] = [];
@@ -1417,6 +1446,29 @@ function SelectedUnitPanel({
   const pendingHealerId = useGameStore((s) => s.pendingHealerId);
   const fieldworkUnit = useGameStore((s) => s.fieldworkUnit);
   const [confirmFieldwork, setConfirmFieldwork] = useState(false);
+  const castSpell = useGameStore((s) => s.castSpell);
+
+  // Spell casting (Mage only)
+  const isMage = unit.type === UnitType.MAGE;
+  const unlockedSpells = useGameStore((s) => s.unlockedSpells);
+  const startSpellCast = useGameStore((s) => s.startSpellCast);
+  const cancelSpellCast = useGameStore((s) => s.cancelSpellCast);
+  const pendingSpellCast = useGameStore((s) => s.pendingSpellCast);
+  const pendingTransposeFirstUnitId = useGameStore((s) => s.pendingTransposeFirstUnitId);
+  const arcaneCrystals = useGameStore((s) => s.arcaneCrystals);
+  const canCast = isMage && isPlayer && canUnitCast(unit) && arcaneCrystals >= 1;
+  const isInSpellCastMode = pendingSpellCast?.mageId === unit.id;
+  const [confirmCrystalTower, setConfirmCrystalTower] = useState(false);
+  const [spellsCollapsed, setSpellsCollapsed] = useState(false);
+
+  // Crystal Tower can only be placed on the mage's own empty tile (no ruin)
+  const crystalTowerBlocked = isMage && (() => {
+    const tile = gameState.grid[unit.position.y]?.[unit.position.x];
+    if (!tile) return true;
+    if (tile.buildingId !== null) return true;
+    if (tile.isRuin || tile.isStrongholdRuin) return true;
+    return false;
+  })();
 
   const healTargets = useMemo(
     () => (canHeal ? getHealTargets(gameState, unit.id) : []),
@@ -1535,6 +1587,30 @@ function SelectedUnitPanel({
     return <span className="hud-stat-mod hud-stat-neutral">±0</span>;
   };
 
+  // Cast-mode focused view: replaces the unit panel while the mage is casting a spell
+  if (isInSpellCastMode && pendingSpellCast) {
+    const spellDef = SPELL_DEFINITIONS[pendingSpellCast.spellId];
+    const hintText =
+      spellDef?.targetHintSecondPick && pendingTransposeFirstUnitId
+        ? spellDef.targetHintSecondPick
+        : spellDef?.targetHint ?? 'Select a target.';
+    return (
+      <div className="hud-info-panel hud-spell-cast-panel">
+        <div className="hud-panel-header">
+          <span className="hud-panel-emoji">{spellDef?.emoji ?? '✨'}</span>
+          <span className="hud-panel-name">Casting {spellDef?.name ?? 'spell'}</span>
+        </div>
+        <p className="hud-spell-cast-hint">{hintText}</p>
+        <button
+          className="hud-capture-btn hud-spell-cast-cancel"
+          onClick={() => cancelSpellCast()}
+        >
+          ❌ Cancel cast
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className={`hud-info-panel${!isPlayer ? ' hud-panel-enemy' : ''}`}>
       {/* Header — entire row is tappable to open UnitCombinedInfoPopup */}
@@ -1640,12 +1716,84 @@ function SelectedUnitPanel({
           )}
           {canHeal && (
             <button
-              className={`hud-capture-btn${isInHealMode ? ' hud-heal-active' : ''}`}
+              className={`hud-spell-btn${isInHealMode ? ' hud-heal-active' : ''}`}
               disabled={healTargets.length === 0}
               onClick={handleHealClick}
             >
-              {isInHealMode ? '💊 Choose target…' : '💊 Heal'}
+              <span className="hud-spell-btn-label">{isInHealMode ? '💊 Choose target…' : '💊 Heal'}</span>
             </button>
+          )}
+          {isMage && isPlayer && unlockedSpells.length > 0 && (
+            <div className="hud-info-panel hud-spell-panel">
+              <div className="hud-panel-header">
+                <span className="hud-panel-emoji">✨</span>
+                <span className="hud-panel-name">Spells</span>
+                <button
+                  className="hud-construct-toggle"
+                  onClick={() => setSpellsCollapsed((c) => !c)}
+                  title={spellsCollapsed ? 'Expand' : 'Collapse'}
+                >
+                  {spellsCollapsed ? '▲' : '▼'}
+                </button>
+              </div>
+              {!spellsCollapsed && (
+                <div className="hud-spell-options">
+                  {unlockedSpells.filter((id) => id !== SpellId.CRYSTAL_TOWER).map((spellId) => {
+                    const def = SPELL_DEFINITIONS[spellId];
+                    return (
+                      <button
+                        key={spellId}
+                        className="hud-spell-btn"
+                        disabled={!canCast}
+                        onClick={() => startSpellCast(unit.id, spellId)}
+                        title={`${def?.description ?? ''} (costs 💎1)`}
+                      >
+                        <span className="hud-spell-btn-label">{def ? `${def.emoji} ${def.name}` : spellId}</span>
+                        <span className="hud-spell-btn-cost">💎1</span>
+                      </button>
+                    );
+                  })}
+                  {unlockedSpells.includes(SpellId.CRYSTAL_TOWER) && (
+                    <>
+                      {!confirmCrystalTower ? (
+                        <button
+                          className="hud-spell-btn"
+                          disabled={!canCast || crystalTowerBlocked}
+                          onClick={() => setConfirmCrystalTower(true)}
+                          title={`${SPELL_DEFINITIONS[SpellId.CRYSTAL_TOWER]?.description ?? ''} (costs 💎1)`}
+                        >
+                          <span className="hud-spell-btn-label">{SPELL_DEFINITIONS[SpellId.CRYSTAL_TOWER] ? `${SPELL_DEFINITIONS[SpellId.CRYSTAL_TOWER].emoji} ${SPELL_DEFINITIONS[SpellId.CRYSTAL_TOWER].name}` : SpellId.CRYSTAL_TOWER}</span>
+                          <span className="hud-spell-btn-cost">💎1</span>
+                        </button>
+                      ) : (
+                        <div className="hud-fieldwork-confirm">
+                          <div className="hud-warning hud-capture-warning">
+                            ⚠️ This Mage will be consumed to build the tower!
+                          </div>
+                          <button
+                            className="hud-capture-btn"
+                            onClick={() => {
+                              startSpellCast(unit.id, SpellId.CRYSTAL_TOWER);
+                              castSpell(unit.position);
+                              cancelSpellCast();
+                              setConfirmCrystalTower(false);
+                            }}
+                          >
+                            ✅ Build Crystal Tower
+                          </button>
+                          <button
+                            className="hud-capture-btn"
+                            onClick={() => setConfirmCrystalTower(false)}
+                          >
+                            ❌ Cancel
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           )}
           {canFieldwork && (
             <>
@@ -1863,7 +2011,8 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   const fortifiedGarrisonActive = gameState.fortifiedGarrisonActive;
   const isGarrisonBuilding =
     isPlayerOwned &&
-    (building.type === BuildingType.WATCHTOWER || building.type === BuildingType.OUTPOST);
+    (building.type === BuildingType.WATCHTOWER || building.type === BuildingType.OUTPOST ||
+     building.type === BuildingType.CRYSTAL_TOWER);
   const garrisonAtkMod = isGarrisonBuilding && fortifiedGarrisonActive ? ABILITIES.FORTIFIED_GARRISON_ATTACK_BONUS : 0;
   const garrisonRngMod = isGarrisonBuilding && fortifiedGarrisonActive ? ABILITIES.FORTIFIED_GARRISON_RANGE_BONUS : 0;
 
@@ -1875,6 +2024,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
 
   // Gravestone: revive logic
   const isGravestone = building.type === BuildingType.GRAVESTONE && isPlayerOwned;
+  const isGraveTrap = building.type === BuildingType.GRAVE_TRAP && isPlayerOwned;
   const tile = grid[building.position.y]?.[building.position.x];
   const graveOccupied = isGravestone && tile?.unitId !== null;
   const canRevive = isGravestone && !graveOccupied && arcaneCrystals >= ABILITIES.REVIVE_CRYSTAL_COST;
@@ -1901,6 +2051,10 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
     () => (recruitableTypes.length > 0 ? hasSpawnSpaceAt(grid, building.position) : false),
     [recruitableTypes.length, building.position, grid]
   );
+
+  // Crystal Chamber mage recruitment: chamber must be resonating
+  const chamberNotResonating =
+    building.type === BuildingType.CRYSTAL_CHAMBER && building.resonanceTurnsRemaining <= 0;
 
   // Production info for resource buildings
   const isMine = building.type === BuildingType.MINE && isPlayerOwned;
@@ -2073,7 +2227,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
       )}
 
       {/* Unit limit for recruitment buildings */}
-      {isRecruitmentBuilding && isFinite(unitLimit) && (
+      {isRecruitmentBuilding && isFinite(unitLimit) && recruitableTypes.length > 0 && (
         <div className="hud-production-row">
           🗡️ {recruitedUnits}/{unitLimit} units
           {atUnitLimit && (
@@ -2106,11 +2260,20 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
         </div>
       )}
 
+      {/* Grave Trap description */}
+      {isGraveTrap && (
+        <div className="hud-revive-row">
+          <span className="hud-dim">Will stun the next unit to enter — any faction.</span>
+        </div>
+      )}
+
       {/* Recruitment */}
       {recruitableTypes.length > 0 && isPlayerOwned && (
         <div className="hud-recruit-row">
           <span className="hud-label">Recruit:</span>
-          {!hasSpawnSpace ? (
+          {chamberNotResonating ? (
+            <span className="hud-dim">Chamber must be resonating to recruit</span>
+          ) : !hasSpawnSpace ? (
             <span className="hud-dim">No space</span>
           ) : (
             <div className="hud-recruit-options">
@@ -2848,6 +3011,7 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
   const [infoUnitType, setInfoUnitType] = useState<UnitType | null>(null);
   const [infoBuildingType, setInfoBuildingType] = useState<BuildingType | null>(null);
   const [infoUnitTag, setInfoUnitTag] = useState<UnitTag | null>(null);
+  const [infoSpellId, setInfoSpellId] = useState<SpellId | null>(null);
 
   const availableIds: TechId[] = useMemo(() => {
     // Depend on techNodes + arcaneCrystals to re-derive when state changes
@@ -2991,9 +3155,7 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
             {selectedState === 'locked' && unmetPrereqs.length > 0 && (
               <p className="tech-detail-text">Requires: {unmetPrereqs.join(', ')}</p>
             )}
-            {selectedState !== 'unlocked' && (
-              <p className="tech-detail-text">This tech will enable the following:</p>
-            )}
+            <p className="tech-detail-text">{selectedDef.description}</p>
 
             <div className="tech-detail-effects">
               {selectedDef.effects.map((e, i) => {
@@ -3022,6 +3184,16 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
                     <button key={i} className="tech-effect-tile" onClick={() => setInfoUnitTag(e.tag)}>
                       <span className="tech-effect-tile-emoji">{TAG_EMOJI[e.tag] ?? '✦'}</span>
                       <span className="tech-effect-tile-name">{unitLabel} gains {tagLabel}</span>
+                      <span className="info-badge">i</span>
+                    </button>
+                  );
+                }
+                if (e.type === TechEffectType.UNLOCK_SPELL) {
+                  const def = SPELL_DEFINITIONS[e.spellId];
+                  return (
+                    <button key={i} className="tech-effect-tile" onClick={() => setInfoSpellId(e.spellId)}>
+                      <span className="tech-effect-tile-emoji">{def?.emoji ?? '✨'}</span>
+                      <span className="tech-effect-tile-name">{def?.name ?? e.spellId}</span>
                       <span className="info-badge">i</span>
                     </button>
                   );
@@ -3080,6 +3252,12 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
         <TagPopup
           tag={infoUnitTag}
           onClose={() => setInfoUnitTag(null)}
+        />
+      )}
+      {infoSpellId && (
+        <SpellInfoPopup
+          spellId={infoSpellId}
+          onClose={() => setInfoSpellId(null)}
         />
       )}
     </div>

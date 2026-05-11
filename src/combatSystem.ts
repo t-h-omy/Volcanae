@@ -8,8 +8,9 @@ import type { Unit, Building, GameState, Tile } from './types';
 import type { Draft } from 'immer';
 import { BuildingType, Faction, UnitTag, UnitType, TechFlag, TileType, DestroyBehavior } from './types';
 import { useFloaterStore } from './floaterStore';
+import { useCombatAnimationStore } from './combatAnimationStore';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
-import { UNIT_DEFINITIONS, XP, ABILITIES, MAP, BUILDING_DEFINITIONS } from './gameConfig';
+import { UNIT_DEFINITIONS, XP, ABILITIES, MAP, BUILDING_DEFINITIONS, MAGE } from './gameConfig';
 import { grantXp } from './levelSystem';
 
 // Counter for generating unique gravestone building IDs within this module
@@ -36,9 +37,187 @@ function isValidGravestoneTile(tile: Tile): boolean {
   );
 }
 
-// ============================================================================
-// COMBAT RESULT INTERFACE
-// ============================================================================
+/**
+ * Attempts to spawn a Gravestone building at the unit's last tile.
+ * Conditions: player unit, not SUMMONED, has REVIVABLE tag, tile is valid.
+ * Does nothing if any condition is not met.
+ *
+ * @param state - Immer draft of the game state
+ * @param unit  - The unit that just died (still has position but already removed from units map)
+ * @param unitType - The unit's type (captured before deletion)
+ * @param unitTags - The unit's tags (captured before deletion)
+ * @param unitFaction - The unit's faction (captured before deletion)
+ * @param position - The tile position where the unit died
+ */
+export function tryCreateGravestone(
+  state: Draft<GameState>,
+  unitFaction: Faction,
+  unitType: UnitType,
+  unitTags: UnitTag[],
+  position: { x: number; y: number },
+): void {
+  if (unitFaction !== Faction.PLAYER) return;
+  if (unitTags.includes(UnitTag.SUMMONED)) return;
+  if (unitType !== UnitType.SPEARMAN && unitType !== UnitType.SWORDSMAN) return;
+  if (!unitTags.includes(UnitTag.REVIVABLE)) return;
+
+  const tile = state.grid[position.y][position.x];
+  if (!isValidGravestoneTile(tile)) return;
+
+  const graveId = generateCombatBuildingId();
+  state.buildings[graveId] = {
+    id: graveId,
+    type: BuildingType.GRAVESTONE,
+    faction: Faction.PLAYER,
+    position: { x: position.x, y: position.y },
+    hp: ABILITIES.GRAVESTONE_MAX_HP,
+    maxHp: ABILITIES.GRAVESTONE_MAX_HP,
+    specialistSlot: null,
+    isDisabledForTurns: 0,
+    wasAttackedLastEnemyTurn: false,
+    captureProgress: 0,
+    isBeingCapturedBy: null,
+    lavaBoostEnabled: false,
+    discoverRadius: BUILDING_DEFINITIONS.GRAVESTONE.discoverRadius,
+    turnCapturedByPlayer: null,
+    wasEnemyOwnedBeforeCapture: false,
+    combatStats: null,
+    hasAttackedThisTurn: false,
+    tags: [],
+    consumesUnitOnCapture: false,
+    populationCount: 0,
+    populationCap: 0,
+    populationGrowthCounter: 0,
+    strongholdNobles: 0,
+    emberSpawnCounter: 0,
+    recruitmentQueue: null,
+    destroyBehavior: BUILDING_DEFINITIONS.GRAVESTONE.destroyBehavior,
+    resonanceTurnsRemaining: 0,
+    spawnCooldownRemaining: 0,
+    lastRecruitmentTurn: 0,
+    gravesUnitType: unitType,
+  };
+  tile.buildingId = graveId;
+}
+
+/**
+ * Returns true iff a Gravestone should be created on a unit's tile when
+ * that unit dies. Used by both the regular death path (REVIVABLE-gated,
+ * defaultOn=false) and the Explode spell (defaultOn=true).
+ */
+export function shouldLeaveGravestone(
+  unit: Pick<Unit, 'faction' | 'tags' | 'type'>,
+  options: { defaultOn: boolean },
+): boolean {
+  if (unit.faction !== Faction.PLAYER) return false;
+  if (unit.tags.includes(UnitTag.SUMMONED)) return false;
+  if (unit.tags.includes(UnitTag.NO_GRAVESTONE)) return false;
+  if (options.defaultOn) return true;
+  // Legacy rule: REVIVABLE-gated, only for SPEARMAN/SWORDSMAN.
+  return (
+    unit.tags.includes(UnitTag.REVIVABLE) &&
+    (unit.type === UnitType.SPEARMAN || unit.type === UnitType.SWORDSMAN)
+  );
+}
+
+/**
+ * Creates a Gravestone at a position if the tile is valid.
+ */
+export function createGravestoneAt(
+  state: Draft<GameState>,
+  position: { x: number; y: number },
+  gravesUnitType: UnitType | null,
+): void {
+  const tile = state.grid[position.y]?.[position.x];
+  if (!tile || !isValidGravestoneTile(tile)) return;
+  const graveId = generateCombatBuildingId();
+  state.buildings[graveId] = {
+    id: graveId,
+    type: BuildingType.GRAVESTONE,
+    faction: Faction.PLAYER,
+    position: { x: position.x, y: position.y },
+    hp: ABILITIES.GRAVESTONE_MAX_HP,
+    maxHp: ABILITIES.GRAVESTONE_MAX_HP,
+    specialistSlot: null,
+    isDisabledForTurns: 0,
+    wasAttackedLastEnemyTurn: false,
+    captureProgress: 0,
+    isBeingCapturedBy: null,
+    lavaBoostEnabled: false,
+    discoverRadius: BUILDING_DEFINITIONS.GRAVESTONE.discoverRadius,
+    turnCapturedByPlayer: null,
+    wasEnemyOwnedBeforeCapture: false,
+    combatStats: null,
+    hasAttackedThisTurn: false,
+    tags: [],
+    consumesUnitOnCapture: false,
+    populationCount: 0,
+    populationCap: 0,
+    populationGrowthCounter: 0,
+    strongholdNobles: 0,
+    emberSpawnCounter: 0,
+    recruitmentQueue: null,
+    destroyBehavior: BUILDING_DEFINITIONS.GRAVESTONE.destroyBehavior,
+    resonanceTurnsRemaining: 0,
+    spawnCooldownRemaining: 0,
+    lastRecruitmentTurn: 0,
+    gravesUnitType,
+  };
+  tile.buildingId = graveId;
+}
+
+/**
+ * Handles the death of a BRANDMARKED player unit.
+ * Stage 1: sets HP to 0 (un-targetable) and queues the unit for a
+ * deferred demon-spawn in `pendingBrandmarkTransforms`. The actual unit
+ * removal and Ember Demon spawn happen via `finalizeBrandmarkTransforms`
+ * once the TRANSFORM_TO_DEMON animation completes.
+ *
+ * Called both from the per-turn brandmark tick (gameStore.ts) and from
+ * combat kill paths when a BRANDMARKED unit is killed by an enemy.
+ */
+export function handleBrandmarkedUnitDeath(
+  state: Draft<GameState>,
+  unit: Unit,
+): void {
+  const pos = { x: unit.position.x, y: unit.position.y };
+  const unitId = unit.id;
+
+  // Stage 1: set HP to 0 so the unit is un-targetable, but keep it in state
+  // for the transform animation. The caller must NOT delete the unit.
+  unit.stats.currentHp = 0;
+
+  // Push to deferred transform queue (guard against duplicates)
+  const alreadyQueued = state.pendingBrandmarkTransforms.some(
+    (t) => t.unitId === unitId,
+  );
+  if (!alreadyQueued) {
+    state.pendingBrandmarkTransforms.push({ unitId, position: { ...pos } });
+  }
+
+  // Dispatch transform animation to the combat-animation store (safe: different
+  // store — this call is allowed from within an immer producer on a Draft).
+  useCombatAnimationStore.getState().setUnitAnimation(unitId, {
+    type: 'TRANSFORM_TO_DEMON',
+    durationMs: 600,
+  });
+
+  // After the animation finishes: clear the animation entry and show the
+  // "Demon risen" floater. The actual demon spawn happens in
+  // finalizeBrandmarkTransforms, which is triggered from useAnimationEngine
+  // after the resolved state is applied.
+  setTimeout(() => {
+    useCombatAnimationStore.getState().setUnitAnimation(unitId, null);
+    useFloaterStore.getState().addFloater({
+      value: 0,
+      label: '😈 Risen',
+      x: pos.x,
+      y: pos.y,
+      isEnemy: true,
+      floaterType: 'damage',
+    });
+  }, 600);
+}
 
 export interface CombatResult {
   /** HP lost by the attacker (from counterattack) */
@@ -360,18 +539,26 @@ export function resolveAttack(
 
   // Update attacker
   if (attackerDead) {
-    // Remove attacker from grid
-    const attackerTile = state.grid[attacker.position.y][attacker.position.x];
-    if (attackerTile.unitId === attackerId) {
-      attackerTile.unitId = null;
+    // Capture tags before removal (for BRANDMARKED check)
+    const attackerTags = [...attacker.tags];
+    if (attackerTags.includes(UnitTag.BRANDMARKED)) {
+      // BRANDMARKED: defer unit removal and Ember Demon spawn to finalizeBrandmarkTransforms;
+      // unitsLost is counted in finalizeBrandmarkTransforms after the animation completes.
+      handleBrandmarkedUnitDeath(state, attacker);
+    } else {
+      // Remove attacker from grid
+      const attackerTile = state.grid[attacker.position.y][attacker.position.x];
+      if (attackerTile.unitId === attackerId) {
+        attackerTile.unitId = null;
+      }
+      // Remove attacker from units
+      delete state.units[attackerId];
+      // Update kill/loss stats
+      if (attackerFaction === Faction.PLAYER) state.gameStats.unitsLost += 1;
+      else if (defenderFaction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
     }
-    // Remove attacker from units
-    delete state.units[attackerId];
-    // Grant XP to defender for killing the attacker
+    // Grant XP to defender for killing the attacker (regardless of BRANDMARKED)
     grantXp(state, defenderId, XP.KILL_UNIT, suppressFloaters);
-    // Update kill/loss stats
-    if (attackerFaction === Faction.PLAYER) state.gameStats.unitsLost += 1;
-    else if (defenderFaction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
   } else {
     // Update attacker HP and mark as acted
     attacker.stats.currentHp = newAttackerHp;
@@ -385,24 +572,36 @@ export function resolveAttack(
 
   // Update defender
   if (defenderDead) {
-    // Capture the defender's type and tags before removal for BLOODLUST and REVIVABLE checks
+    // Capture the defender's type and tags before removal for BLOODLUST, REVIVABLE, and BRANDMARKED checks
     const defenderType = defender.type;
     const defenderTags = [...defender.tags];
 
-    // Remove defender from grid
-    const defenderTile = state.grid[defender.position.y][defender.position.x];
-    if (defenderTile.unitId === defenderId) {
-      defenderTile.unitId = null;
+    if (defenderTags.includes(UnitTag.BRANDMARKED)) {
+      // BRANDMARKED: defer unit removal and Ember Demon spawn to finalizeBrandmarkTransforms;
+      // unitsLost is counted in finalizeBrandmarkTransforms after the animation completes.
+      handleBrandmarkedUnitDeath(state, defender);
+    } else {
+      // Remove defender from grid
+      const defenderTile = state.grid[defender.position.y][defender.position.x];
+      if (defenderTile.unitId === defenderId) {
+        defenderTile.unitId = null;
+      }
+      // Remove defender from units
+      delete state.units[defenderId];
+      // Update kill/loss stats
+      if (defenderFaction === Faction.PLAYER) state.gameStats.unitsLost += 1;
+      else if (attackerFaction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
     }
-    // Remove defender from units
-    delete state.units[defenderId];
-    // Grant XP to attacker for killing the defender
+
+    // Grant XP to attacker for killing the defender (regardless of BRANDMARKED)
     if (!attackerDead) {
       grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
     }
-    // Update kill/loss stats
-    if (defenderFaction === Faction.PLAYER) state.gameStats.unitsLost += 1;
-    else if (attackerFaction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
+
+    // EMBER_DEMON kill: grant crystal reward when player kills a hostile Ember Demon
+    if (attackerFaction === Faction.PLAYER && defenderFaction === Faction.ENEMY && defenderType === UnitType.EMBER_DEMON) {
+      state.arcaneCrystals += MAGE.EMBER_DEMON_KILL_CRYSTAL_REWARD;
+    }
 
     // BLOODLUST: when a (non-bloodlust) attack kills an enemy, grant a second
     // attack at half power. Only one bloodlust charge per turn.
@@ -420,49 +619,16 @@ export function resolveAttack(
       }
     }
 
-    // REVIVABLE: when a player SPEARMAN or SWORDSMAN with REVIVABLE dies, leave a Gravestone
-    // on their tile (only if the tile is free: no building, no unit, no ruin).
-    if (
-      defenderFaction === Faction.PLAYER &&
-      (defenderType === UnitType.SPEARMAN || defenderType === UnitType.SWORDSMAN) &&
-      defenderTags.includes(UnitTag.REVIVABLE)
-    ) {
-      const tile = state.grid[defenderPosition.y][defenderPosition.x];
-      if (isValidGravestoneTile(tile)) {
-        const graveId = generateCombatBuildingId();
-        state.buildings[graveId] = {
-          id: graveId,
-          type: BuildingType.GRAVESTONE,
-          faction: Faction.PLAYER,
-          position: { x: defenderPosition.x, y: defenderPosition.y },
-          hp: ABILITIES.GRAVESTONE_MAX_HP,
-          maxHp: ABILITIES.GRAVESTONE_MAX_HP,
-          specialistSlot: null,
-          isDisabledForTurns: 0,
-          wasAttackedLastEnemyTurn: false,
-          captureProgress: 0,
-          isBeingCapturedBy: null,
-          lavaBoostEnabled: false,
-          discoverRadius: BUILDING_DEFINITIONS.GRAVESTONE.discoverRadius,
-          turnCapturedByPlayer: null,
-          wasEnemyOwnedBeforeCapture: false,
-          combatStats: null,
-          hasAttackedThisTurn: false,
-          tags: [],
-          consumesUnitOnCapture: false,
-          populationCount: 0,
-          populationCap: 0,
-          populationGrowthCounter: 0,
-          strongholdNobles: 0,
-          emberSpawnCounter: 0,
-          recruitmentQueue: null,
-          destroyBehavior: BUILDING_DEFINITIONS.GRAVESTONE.destroyBehavior,
-          resonanceTurnsRemaining: 0,
-          spawnCooldownRemaining: 0,
-          lastRecruitmentTurn: 0,
-          gravesUnitType: defenderType,
-        };
-        tile.buildingId = graveId;
+    // REVIVABLE/default-on gravestone: when a player unit with the right conditions dies,
+    // leave a Gravestone on their tile.
+    // Summoned and NO_GRAVESTONE units never leave gravestones.
+    // BRANDMARKED units are handled separately above (deferred via pendingBrandmarkTransforms).
+    if (!defenderTags.includes(UnitTag.BRANDMARKED)) {
+      if (shouldLeaveGravestone(
+        { faction: defenderFaction, tags: defenderTags, type: defenderType },
+        { defaultOn: false },
+      )) {
+        createGravestoneAt(state, defenderPosition, defenderType);
       }
     }
 
@@ -722,71 +888,61 @@ export function resolveBuildingAttack(
 
   // Update defender
   if (defenderDead) {
-    // Capture the defender's type and tags before removal (for REVIVABLE check)
+    // Capture the defender's type and tags before removal (for REVIVABLE and BRANDMARKED checks)
     const defenderType = defender.type;
     const defenderTags = [...defender.tags];
     const defenderPos = { x: defender.position.x, y: defender.position.y };
 
-    const defenderTile = state.grid[defender.position.y][defender.position.x];
-    if (defenderTile.unitId === defenderId) {
-      defenderTile.unitId = null;
+    if (defenderTags.includes(UnitTag.BRANDMARKED)) {
+      // BRANDMARKED: defer unit removal and Ember Demon spawn to finalizeBrandmarkTransforms;
+      // unitsLost is counted in finalizeBrandmarkTransforms after the animation completes.
+      handleBrandmarkedUnitDeath(state, defender);
+    } else {
+      const defenderTile = state.grid[defender.position.y][defender.position.x];
+      if (defenderTile.unitId === defenderId) {
+        defenderTile.unitId = null;
+      }
+      delete state.units[defenderId];
+      if (defenderFaction === Faction.PLAYER) state.gameStats.unitsLost += 1;
+      else if (buildingFaction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
     }
-    delete state.units[defenderId];
-    if (defenderFaction === Faction.PLAYER) state.gameStats.unitsLost += 1;
-    else if (buildingFaction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
+
+    // CRYSTAL_TOWER: grant crystals when a Crystal Tower kills an enemy unit
+    if (
+      buildingFaction === Faction.PLAYER &&
+      defenderFaction === Faction.ENEMY &&
+      building.type === BuildingType.CRYSTAL_TOWER
+    ) {
+      state.arcaneCrystals += MAGE.CRYSTAL_TOWER_KILL_CRYSTAL_REWARD;
+      // Crystal floater is emitted by the animation engine AFTER the death animation.
+    }
+
+    // EMBER_DEMON kill: grant crystal reward when player building kills a hostile Ember Demon
+    if (buildingFaction === Faction.PLAYER && defenderFaction === Faction.ENEMY && defenderType === UnitType.EMBER_DEMON) {
+      state.arcaneCrystals += MAGE.EMBER_DEMON_KILL_CRYSTAL_REWARD;
+    }
 
     // If the dead defender was standing on an enemy spawner building, set a spawn
     // cooldown so the player has a window to move onto the tile and capture.
-    if (buildingFaction === Faction.PLAYER && defenderFaction === Faction.ENEMY && defenderTile.buildingId) {
-      const spawner = state.buildings[defenderTile.buildingId];
+    // (defenderTile may have a new unitId if BRANDMARKED spawned a demon — use the original position)
+    const defenderTileAfter = state.grid[defenderPos.y][defenderPos.x];
+    if (buildingFaction === Faction.PLAYER && defenderFaction === Faction.ENEMY && defenderTileAfter.buildingId) {
+      const spawner = state.buildings[defenderTileAfter.buildingId];
       if (spawner && spawner.faction === Faction.ENEMY &&
           (spawner.type === BuildingType.LAVALAIR || spawner.type === BuildingType.INFERNALSANCTUM)) {
         spawner.spawnCooldownRemaining = 1;
       }
     }
 
-    // REVIVABLE: player Spearman or Swordsman with REVIVABLE leaves a Gravestone on death
-    if (
-      defenderFaction === Faction.PLAYER &&
-      (defenderType === UnitType.SPEARMAN || defenderType === UnitType.SWORDSMAN) &&
-      defenderTags.includes(UnitTag.REVIVABLE)
-    ) {
-      const tile = state.grid[defenderPos.y][defenderPos.x];
-      if (isValidGravestoneTile(tile)) {
-        const graveId = generateCombatBuildingId();
-        state.buildings[graveId] = {
-          id: graveId,
-          type: BuildingType.GRAVESTONE,
-          faction: Faction.PLAYER,
-          position: { x: defenderPos.x, y: defenderPos.y },
-          hp: ABILITIES.GRAVESTONE_MAX_HP,
-          maxHp: ABILITIES.GRAVESTONE_MAX_HP,
-          specialistSlot: null,
-          isDisabledForTurns: 0,
-          wasAttackedLastEnemyTurn: false,
-          captureProgress: 0,
-          isBeingCapturedBy: null,
-          lavaBoostEnabled: false,
-          discoverRadius: BUILDING_DEFINITIONS.GRAVESTONE.discoverRadius,
-          turnCapturedByPlayer: null,
-          wasEnemyOwnedBeforeCapture: false,
-          combatStats: null,
-          hasAttackedThisTurn: false,
-          tags: [],
-          consumesUnitOnCapture: false,
-          populationCount: 0,
-          populationCap: 0,
-          populationGrowthCounter: 0,
-          strongholdNobles: 0,
-          emberSpawnCounter: 0,
-          recruitmentQueue: null,
-          destroyBehavior: BUILDING_DEFINITIONS.GRAVESTONE.destroyBehavior,
-          resonanceTurnsRemaining: 0,
-          spawnCooldownRemaining: 0,
-          lastRecruitmentTurn: 0,
-          gravesUnitType: defenderType,
-        };
-        tile.buildingId = graveId;
+    // REVIVABLE/default-on gravestone: when a player unit with the right conditions dies,
+    // leave a Gravestone on their tile.
+    // BRANDMARKED units are handled separately above (deferred via pendingBrandmarkTransforms).
+    if (!defenderTags.includes(UnitTag.BRANDMARKED)) {
+      if (shouldLeaveGravestone(
+        { faction: defenderFaction, tags: defenderTags, type: defenderType },
+        { defaultOn: false },
+      )) {
+        createGravestoneAt(state, defenderPos, defenderType);
       }
     }
   } else {
@@ -891,12 +1047,19 @@ export function resolveAttackOnBuilding(
 
   // Update attacker
   if (attackerDead) {
-    const attackerTile = state.grid[attacker.position.y][attacker.position.x];
-    if (attackerTile.unitId === attackerId) {
-      attackerTile.unitId = null;
+    const attackerTags = [...attacker.tags];
+    if (attackerTags.includes(UnitTag.BRANDMARKED)) {
+      // BRANDMARKED: defer unit removal and Ember Demon spawn to finalizeBrandmarkTransforms;
+      // unitsLost is counted in finalizeBrandmarkTransforms after the animation completes.
+      handleBrandmarkedUnitDeath(state, attacker);
+    } else {
+      const attackerTile = state.grid[attacker.position.y][attacker.position.x];
+      if (attackerTile.unitId === attackerId) {
+        attackerTile.unitId = null;
+      }
+      delete state.units[attackerId];
+      if (attackerFaction === Faction.PLAYER) state.gameStats.unitsLost += 1;
     }
-    delete state.units[attackerId];
-    if (attackerFaction === Faction.PLAYER) state.gameStats.unitsLost += 1;
   } else {
     attacker.stats.currentHp = newAttackerHp;
     attacker.hasAttackedThisTurn = true;
