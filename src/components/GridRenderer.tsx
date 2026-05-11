@@ -1200,18 +1200,14 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
 
   const anim = useCombatAnimationStore((s) => s.unitAnimations.get(unit.id));
 
-  const animClass =
-    anim?.type === 'HIT'
-      ? 'anim-hit'
-      : anim?.type === 'DYING'
-        ? 'anim-dying'
-        : anim?.type === 'LEVEL_UP'
-          ? 'anim-levelup'
-          : anim?.type === 'XP_GAIN'
-            ? 'anim-xpgain'
-            : anim?.type === 'TRANSFORM_TO_DEMON'
-              ? 'unit--transforming'
-              : '';
+  const ANIM_CLASS_MAP: Partial<Record<string, string>> = {
+    HIT: 'anim-hit',
+    DYING: 'anim-dying',
+    LEVEL_UP: 'anim-levelup',
+    XP_GAIN: 'anim-xpgain',
+    TRANSFORM_TO_DEMON: 'unit--transforming',
+  };
+  const animClass = (anim ? (ANIM_CLASS_MAP[anim.type] ?? '') : '');
 
   const animStyle: React.CSSProperties | undefined =
     anim?.type === 'LUNGE' || anim?.type === 'RECOIL'
