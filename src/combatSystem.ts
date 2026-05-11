@@ -866,6 +866,14 @@ export function resolveBuildingAttack(
       building.type === BuildingType.CRYSTAL_TOWER
     ) {
       state.arcaneCrystals += MAGE.CRYSTAL_TOWER_KILL_CRYSTAL_REWARD;
+      useFloaterStore.getState().addFloater({
+        value: 0,
+        label: `💎 +${MAGE.CRYSTAL_TOWER_KILL_CRYSTAL_REWARD} Crystal`,
+        x: defenderPos.x,
+        y: defenderPos.y,
+        isEnemy: false,
+        floaterType: 'revive',
+      });
     }
 
     // EMBER_DEMON kill: grant crystal reward when player building kills a hostile Ember Demon

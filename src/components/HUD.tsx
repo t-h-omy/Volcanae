@@ -1451,6 +1451,7 @@ function SelectedUnitPanel({
   const pendingHealerId = useGameStore((s) => s.pendingHealerId);
   const fieldworkUnit = useGameStore((s) => s.fieldworkUnit);
   const [confirmFieldwork, setConfirmFieldwork] = useState(false);
+  const castSpell = useGameStore((s) => s.castSpell);
 
   // Spell casting (Mage only)
   const isMage = unit.type === UnitType.MAGE;
@@ -1461,6 +1462,16 @@ function SelectedUnitPanel({
   const pendingTransposeFirstUnitId = useGameStore((s) => s.pendingTransposeFirstUnitId);
   const canCast = isMage && isPlayer && canUnitCast(unit);
   const isInSpellCastMode = pendingSpellCast?.mageId === unit.id;
+  const [confirmCrystalTower, setConfirmCrystalTower] = useState(false);
+
+  // Crystal Tower can only be placed on the mage's own empty tile (no ruin)
+  const crystalTowerBlocked = isMage && (() => {
+    const tile = gameState.grid[unit.position.y]?.[unit.position.x];
+    if (!tile) return true;
+    if (tile.buildingId !== null) return true;
+    if (tile.isRuin || tile.isStrongholdRuin) return true;
+    return false;
+  })();
 
   const healTargets = useMemo(
     () => (canHeal ? getHealTargets(gameState, unit.id) : []),
@@ -1693,7 +1704,7 @@ function SelectedUnitPanel({
           )}
           {isMage && isPlayer && unlockedSpells.length > 0 && (
             <div className="hud-spell-row">
-              {unlockedSpells.map((spellId) => (
+              {unlockedSpells.filter((id) => id !== SpellId.CRYSTAL_TOWER).map((spellId) => (
                 <button
                   key={spellId}
                   className={`hud-spell-btn${isInSpellCastMode && pendingSpellCast?.spellId === spellId ? ' hud-spell-active' : ''}`}
@@ -1720,6 +1731,43 @@ function SelectedUnitPanel({
                 </button>
               )}
             </div>
+          )}
+          {isMage && isPlayer && unlockedSpells.includes(SpellId.CRYSTAL_TOWER) && (
+            <>
+              {!confirmCrystalTower ? (
+                <button
+                  className="hud-spell-btn"
+                  disabled={!canCast || crystalTowerBlocked}
+                  onClick={() => setConfirmCrystalTower(true)}
+                  title={SPELL_DESCRIPTIONS[SpellId.CRYSTAL_TOWER] ?? ''}
+                >
+                  {SPELL_LABELS[SpellId.CRYSTAL_TOWER]}
+                </button>
+              ) : (
+                <div className="hud-fieldwork-confirm">
+                  <div className="hud-warning hud-capture-warning">
+                    ⚠️ This Mage will be consumed to build the tower!
+                  </div>
+                  <button
+                    className="hud-capture-btn"
+                    onClick={() => {
+                      startSpellCast(unit.id, SpellId.CRYSTAL_TOWER);
+                      castSpell(unit.position);
+                      cancelSpellCast();
+                      setConfirmCrystalTower(false);
+                    }}
+                  >
+                    ✅ Build Crystal Tower
+                  </button>
+                  <button
+                    className="hud-capture-btn"
+                    onClick={() => setConfirmCrystalTower(false)}
+                  >
+                    ❌ Cancel
+                  </button>
+                </div>
+              )}
+            </>
           )}
           {canFieldwork && (
             <>
@@ -2152,7 +2200,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
       )}
 
       {/* Unit limit for recruitment buildings */}
-      {isRecruitmentBuilding && isFinite(unitLimit) && (
+      {isRecruitmentBuilding && isFinite(unitLimit) && recruitableTypes.length > 0 && (
         <div className="hud-production-row">
           🗡️ {recruitedUnits}/{unitLimit} units
           {atUnitLimit && (

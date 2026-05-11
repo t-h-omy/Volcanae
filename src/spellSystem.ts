@@ -19,6 +19,7 @@ import { MAGE, TECH_TREE, BUILDING_DEFINITIONS, ABILITIES, MAP } from './gameCon
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { generateId } from './mapGenerator';
 import { useFloaterStore } from './floaterStore';
+import { useCombatAnimationStore } from './combatAnimationStore';
 import { tryCreateGravestone } from './combatSystem';
 
 /** Returns the effective spell range for a mage in the current state. */
@@ -708,6 +709,8 @@ function handleExplode(
     isEnemy: true,
     floaterType: 'damage',
   });
+
+  useCombatAnimationStore.getState().addTileFlash(targetPosition.x, targetPosition.y, 600);
 
   return true;
 }
