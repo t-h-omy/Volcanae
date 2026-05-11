@@ -12,7 +12,6 @@ import { useCombatAnimationStore } from './combatAnimationStore';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { UNIT_DEFINITIONS, XP, ABILITIES, MAP, BUILDING_DEFINITIONS, MAGE } from './gameConfig';
 import { grantXp } from './levelSystem';
-import { generateId } from './mapGenerator';
 
 // Counter for generating unique gravestone building IDs within this module
 let combatSystemIdCounter = 0;
