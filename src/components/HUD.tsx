@@ -732,6 +732,23 @@ function TagPopup({ tag, onClose }: { tag: UnitTag; onClose: () => void }) {
   );
 }
 
+/** Spell info popup — shown when clicking a spell tile in the tech tree */
+function SpellInfoPopup({ spellId, onClose }: { spellId: string; onClose: () => void }) {
+  const label = SPELL_LABELS[spellId];
+  const desc = SPELL_DESCRIPTIONS[spellId];
+  const [emoji, ...rest] = label ? label.split(' ') : ['🔮', spellId];
+  return (
+    <Popup onClose={onClose}>
+      <div className="info-popup-header">
+        <span className="info-popup-header-emoji">{emoji}</span>
+        <div className="info-popup-header-name">{rest.join(' ') || spellId}</div>
+      </div>
+      <p className="info-popup-desc" style={{ marginBottom: 16 }}>{desc ?? ''}</p>
+      <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>OK</button>
+    </Popup>
+  );
+}
+
 /** Resource info popup — shows current amount, income breakdown, and net income */
 function ResourceInfoPopup({
   resourceType,
@@ -1460,7 +1477,8 @@ function SelectedUnitPanel({
   const cancelSpellCast = useGameStore((s) => s.cancelSpellCast);
   const pendingSpellCast = useGameStore((s) => s.pendingSpellCast);
   const pendingTransposeFirstUnitId = useGameStore((s) => s.pendingTransposeFirstUnitId);
-  const canCast = isMage && isPlayer && canUnitCast(unit);
+  const arcaneCrystals = useGameStore((s) => s.arcaneCrystals);
+  const canCast = isMage && isPlayer && canUnitCast(unit) && arcaneCrystals >= 1;
   const isInSpellCastMode = pendingSpellCast?.mageId === unit.id;
   const [confirmCrystalTower, setConfirmCrystalTower] = useState(false);
 
@@ -1695,11 +1713,11 @@ function SelectedUnitPanel({
           )}
           {canHeal && (
             <button
-              className={`hud-capture-btn${isInHealMode ? ' hud-heal-active' : ''}`}
+              className={`hud-spell-btn${isInHealMode ? ' hud-heal-active' : ''}`}
               disabled={healTargets.length === 0}
               onClick={handleHealClick}
             >
-              {isInHealMode ? '💊 Choose target…' : '💊 Heal'}
+              <span className="hud-spell-btn-label">{isInHealMode ? '💊 Choose target…' : '💊 Heal'}</span>
             </button>
           )}
           {isMage && isPlayer && unlockedSpells.length > 0 && (
@@ -1710,9 +1728,10 @@ function SelectedUnitPanel({
                   className={`hud-spell-btn${isInSpellCastMode && pendingSpellCast?.spellId === spellId ? ' hud-spell-active' : ''}`}
                   disabled={!canCast}
                   onClick={() => startSpellCast(unit.id, spellId)}
-                  title={SPELL_DESCRIPTIONS[spellId] ?? ''}
+                  title={`${SPELL_DESCRIPTIONS[spellId] ?? ''} (costs 💎1)`}
                 >
-                  {SPELL_LABELS[spellId] ?? spellId}
+                  <span className="hud-spell-btn-label">{SPELL_LABELS[spellId] ?? spellId}</span>
+                  <span className="hud-spell-btn-cost">💎1</span>
                 </button>
               ))}
               {isInSpellCastMode && pendingSpellCast && (
@@ -1739,9 +1758,10 @@ function SelectedUnitPanel({
                   className="hud-spell-btn"
                   disabled={!canCast || crystalTowerBlocked}
                   onClick={() => setConfirmCrystalTower(true)}
-                  title={SPELL_DESCRIPTIONS[SpellId.CRYSTAL_TOWER] ?? ''}
+                  title={`${SPELL_DESCRIPTIONS[SpellId.CRYSTAL_TOWER] ?? ''} (costs 💎1)`}
                 >
-                  {SPELL_LABELS[SpellId.CRYSTAL_TOWER]}
+                  <span className="hud-spell-btn-label">{SPELL_LABELS[SpellId.CRYSTAL_TOWER]}</span>
+                  <span className="hud-spell-btn-cost">💎1</span>
                 </button>
               ) : (
                 <div className="hud-fieldwork-confirm">
@@ -2984,6 +3004,7 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
   const [infoUnitType, setInfoUnitType] = useState<UnitType | null>(null);
   const [infoBuildingType, setInfoBuildingType] = useState<BuildingType | null>(null);
   const [infoUnitTag, setInfoUnitTag] = useState<UnitTag | null>(null);
+  const [infoSpellId, setInfoSpellId] = useState<string | null>(null);
 
   const availableIds: TechId[] = useMemo(() => {
     // Depend on techNodes + arcaneCrystals to re-derive when state changes
@@ -3164,10 +3185,11 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
                   const label = SPELL_LABELS[e.spellId];
                   const [emoji, ...rest] = label ? label.split(' ') : ['🔮', e.spellId];
                   return (
-                    <span key={i} className="tech-effect-tile tech-effect-tile--spell">
+                    <button key={i} className="tech-effect-tile" onClick={() => setInfoSpellId(e.spellId)}>
                       <span className="tech-effect-tile-emoji">{emoji}</span>
                       <span className="tech-effect-tile-name">{rest.join(' ') || e.spellId}</span>
-                    </span>
+                      <span className="info-badge">i</span>
+                    </button>
                   );
                 }
                 return (
@@ -3224,6 +3246,12 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
         <TagPopup
           tag={infoUnitTag}
           onClose={() => setInfoUnitTag(null)}
+        />
+      )}
+      {infoSpellId && (
+        <SpellInfoPopup
+          spellId={infoSpellId}
+          onClose={() => setInfoSpellId(null)}
         />
       )}
     </div>

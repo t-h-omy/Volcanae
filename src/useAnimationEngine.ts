@@ -11,10 +11,11 @@ import { useCombatAnimationStore } from './combatAnimationStore';
 import { useShockwaveStore } from './shockwaveStore';
 import { useZoneClearedStore } from './zoneClearedStore';
 import { useSpecialistHireStore } from './specialistHireStore';
+import { useFloaterStore } from './floaterStore';
 import { ANIMATION } from './animationConfig';
-import { MAP } from './gameConfig';
+import { MAP, MAGE } from './gameConfig';
 import { RENDER } from './renderConfig';
-import { UnitTag, UnitType } from './types';
+import { BuildingType, UnitTag, UnitType } from './types';
 import type { GameEvent } from './gameEvents';
 import type { Position } from './types';
 
@@ -422,6 +423,21 @@ async function playBuildingAttackAnimation(
     await wait(ANIMATION.DIE_FLASH_DURATION_MS + ANIMATION.DIE_FADE_DURATION_MS);
     for (const id of dyingIds) {
       useCombatAnimationStore.getState().setUnitAnimation(id, null);
+    }
+  }
+
+  // Crystal Tower: show crystal gain floater AFTER death animation
+  if (visible && dyingIds.size > 0) {
+    const attackingBuilding = useGameStore.getState().buildings[event.buildingId];
+    if (attackingBuilding?.type === BuildingType.CRYSTAL_TOWER) {
+      useFloaterStore.getState().addFloater({
+        value: 0,
+        label: `💎 +${MAGE.CRYSTAL_TOWER_KILL_CRYSTAL_REWARD}`,
+        x: event.defenderPosition.x,
+        y: event.defenderPosition.y,
+        isEnemy: false,
+        floaterType: 'revive',
+      });
     }
   }
 

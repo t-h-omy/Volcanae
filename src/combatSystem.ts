@@ -8,6 +8,7 @@ import type { Unit, Building, GameState, Tile } from './types';
 import type { Draft } from 'immer';
 import { BuildingType, Faction, UnitTag, UnitType, TechFlag, TileType, DestroyBehavior } from './types';
 import { useFloaterStore } from './floaterStore';
+import { useCombatAnimationStore } from './combatAnimationStore';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { UNIT_DEFINITIONS, XP, ABILITIES, MAP, BUILDING_DEFINITIONS, MAGE } from './gameConfig';
 import { grantXp } from './levelSystem';
@@ -161,14 +162,10 @@ export function handleBrandmarkedUnitDeath(
   };
   tile.unitId = demonId;
 
-  useFloaterStore.getState().addFloater({
-    value: 0,
-    label: '😈 Demon rises',
-    x: pos.x,
-    y: pos.y,
-    isEnemy: true,
-    floaterType: 'revive',
-  });
+  // VFX: flash the tile to signal the transformation (shown when kill is processed)
+  const flashKey = `${pos.x},${pos.y}`;
+  useCombatAnimationStore.getState().addTileFlash(pos.x, pos.y, 700);
+  setTimeout(() => useCombatAnimationStore.getState().removeTileFlash(flashKey), 700);
 }
 
 
@@ -866,14 +863,7 @@ export function resolveBuildingAttack(
       building.type === BuildingType.CRYSTAL_TOWER
     ) {
       state.arcaneCrystals += MAGE.CRYSTAL_TOWER_KILL_CRYSTAL_REWARD;
-      useFloaterStore.getState().addFloater({
-        value: 0,
-        label: `💎 +${MAGE.CRYSTAL_TOWER_KILL_CRYSTAL_REWARD} Crystal`,
-        x: defenderPos.x,
-        y: defenderPos.y,
-        isEnemy: false,
-        floaterType: 'revive',
-      });
+      // Crystal floater is emitted by the animation engine AFTER the death animation.
     }
 
     // EMBER_DEMON kill: grant crystal reward when player building kills a hostile Ember Demon

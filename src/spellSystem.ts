@@ -156,6 +156,7 @@ export function getValidSpellTargets(
         if (unit.id === mageId) continue;
         if (unit.tags.includes(UnitTag.SUMMONED)) continue;
         if (unit.tags.includes(UnitTag.MAGE)) continue;
+        if (unit.tags.includes(UnitTag.BRANDMARKED)) continue; // already brandmarked
         if (!isTileInSpellRange(mage, unit.position, range)) continue;
         targets.push({ ...unit.position });
       }
@@ -394,11 +395,10 @@ function handleBrandmarkHeal(
   if (target.id === mage.id) return false;
   if (target.tags.includes(UnitTag.SUMMONED)) return false;
   if (target.tags.includes(UnitTag.MAGE)) return false;
+  if (target.tags.includes(UnitTag.BRANDMARKED)) return false; // only unbrandmarked units
 
   target.stats.currentHp = target.stats.maxHp;
-  if (!target.tags.includes(UnitTag.BRANDMARKED)) {
-    target.tags.push(UnitTag.BRANDMARKED);
-  }
+  target.tags.push(UnitTag.BRANDMARKED);
 
   useFloaterStore.getState().addFloater({
     value: 0,
@@ -679,6 +679,13 @@ function handleExplode(
     if (!adjUnit || adjUnit.faction !== Faction.ENEMY) continue;
 
     adjUnit.stats.currentHp -= dmg;
+    // Damage floater for each hit enemy
+    useFloaterStore.getState().addFloater({
+      value: dmg,
+      x: nx,
+      y: ny,
+      isEnemy: true,
+    });
     if (adjUnit.stats.currentHp <= 0) {
       adjTile.unitId = null;
       delete state.units[adjUnit.id];
@@ -701,16 +708,10 @@ function handleExplode(
     tryCreateGravestone(state, sacrificedFaction, sacrificedType, sacrificedTags, sacrificedPos);
   }
 
-  useFloaterStore.getState().addFloater({
-    value: 0,
-    label: '💥 Explode',
-    x: targetPosition.x,
-    y: targetPosition.y,
-    isEnemy: true,
-    floaterType: 'damage',
-  });
-
+  // Tile flash (same duration as emberling explosion VFX)
+  const flashKey = `${targetPosition.x},${targetPosition.y}`;
   useCombatAnimationStore.getState().addTileFlash(targetPosition.x, targetPosition.y, 600);
+  setTimeout(() => useCombatAnimationStore.getState().removeTileFlash(flashKey), 600);
 
   return true;
 }
@@ -729,9 +730,15 @@ export function castSpell(
   if (!canUnitCast(mage)) return false;
   if (!isSpellUnlocked(state, spellId)) return false;
 
-  // TRANSPOSE is special: first click does NOT count as a cast
+  // All spells cost 1 arcane crystal
+  if (state.arcaneCrystals < 1) return false;
+
+  // TRANSPOSE is special: first click selects the first unit (no cast yet),
+  // second click performs the swap. Deduct crystal only on the actual swap.
   if (spellId === 'TRANSPOSE') {
-    return handleTranspose(state, mage, targetPosition);
+    const result = handleTranspose(state, mage, targetPosition);
+    if (result) state.arcaneCrystals -= 1;
+    return result;
   }
 
   // For all other spells, validate target is in getValidSpellTargets
@@ -741,22 +748,25 @@ export function castSpell(
   );
   if (!isValidTarget) return false;
 
+  let success = false;
   switch (spellId) {
     case 'EMBERBIND':
-      return handleEmberbind(state, mage, targetPosition);
+      success = handleEmberbind(state, mage, targetPosition); break;
     case 'BRANDMARK_HEAL':
-      return handleBrandmarkHeal(state, mage, targetPosition);
+      success = handleBrandmarkHeal(state, mage, targetPosition); break;
     case 'CRYSTAL_TOWER':
-      return handleCrystalTower(state, mage);
+      success = handleCrystalTower(state, mage); break;
     case 'RAISE_SKELETON':
-      return handleRaiseSkeleton(state, targetPosition);
+      success = handleRaiseSkeleton(state, targetPosition); break;
     case 'GRAVE_TRAP':
-      return handleGraveTrap(state, targetPosition);
+      success = handleGraveTrap(state, targetPosition); break;
     case 'FROSTCRAFT':
-      return handleFrostcraft(state, targetPosition);
+      success = handleFrostcraft(state, targetPosition); break;
     case 'EXPLODE':
-      return handleExplode(state, mage, targetPosition);
+      success = handleExplode(state, mage, targetPosition); break;
     default:
       return false;
   }
+  if (success) state.arcaneCrystals -= 1;
+  return success;
 }

@@ -2549,20 +2549,35 @@
 .hud-spell-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 4px;
+  gap: 5px;
+  margin-top: 5px;
 }
 
 .hud-spell-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   background: rgba(60, 90, 200, 0.55);
   border: 1px solid rgba(100, 140, 255, 0.7);
-  border-radius: 4px;
+  border-radius: 5px;
   color: #fff;
   cursor: pointer;
-  font-size: 12px;
-  padding: 3px 8px;
+  font-size: 13px;
+  padding: 5px 9px;
+  min-height: 32px;
   white-space: nowrap;
+  touch-action: manipulation;
   transition: background 0.15s;
+}
+
+.hud-spell-btn-label {
+  font-size: 13px;
+}
+
+.hud-spell-btn-cost {
+  font-size: 11px;
+  opacity: 0.7;
+  margin-left: 2px;
 }
 
 .hud-spell-btn:hover:not(:disabled) {
@@ -2586,14 +2601,18 @@
 }
 
 .hud-spell-cancel-btn {
+  display: inline-flex;
+  align-items: center;
   background: rgba(180, 60, 60, 0.55);
   border: 1px solid rgba(255, 100, 100, 0.7);
-  border-radius: 4px;
+  border-radius: 5px;
   color: #fff;
   cursor: pointer;
-  font-size: 12px;
-  padding: 3px 8px;
+  font-size: 13px;
+  padding: 5px 9px;
+  min-height: 32px;
   white-space: nowrap;
+  touch-action: manipulation;
   transition: background 0.15s;
 }
 

@@ -159,6 +159,7 @@ export default function GridRenderer() {
       BuildingType.ARCHER_CAMP,
       BuildingType.RIDER_CAMP,
       BuildingType.SIEGE_CAMP,
+      BuildingType.CRYSTAL_CHAMBER,
     ] as BuildingType[];
     for (const bt of recruitingTypes) {
       if (BUILDING_DEFINITIONS[bt]?.unitLimit !== undefined) {

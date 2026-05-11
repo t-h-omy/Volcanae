@@ -42,6 +42,8 @@ import { Faction, GamePhase, BuildingType, TileType, Difficulty, DestroyBehavior
 import type { GameState, Position, TechId, SpellId } from './types';
 import type { GameEvent } from './gameEvents';
 import { MAP, TERRAIN, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval, UNIT_DEFINITIONS, MAGE } from './gameConfig';
+import { RENDER } from './renderConfig';
+import { ANIMATION } from './animationConfig';
 import { saveGameState, loadGameState, clearSavedGame, hasSavedGame } from './saveSystem';
 import { computeLevelFromXp, applyLevelUps } from './levelSystem';
 import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLogic, getGrantedTags, getRemovedTags, getStatMods } from './techSystem';
@@ -50,6 +52,7 @@ import { createFieldworkOutpost } from './constructionSystem';
 import { getTagsFromActiveSpecialists } from './specialistSystem';
 import { castSpell as castSpellLogic } from './spellSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
+import { useShockwaveStore } from './shockwaveStore';
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
@@ -1056,6 +1059,20 @@ export const useGameStore = create<GameStore>()(
           triggerSpellSfx('freeze');
         } else {
           triggerSpellSfx('spell_cast');
+        }
+        // EXPLODE: add shockwave ring to match emberling explosion VFX
+        if (castSpellId === 'EXPLODE') {
+          const tileSize = typeof window !== 'undefined' && window.innerWidth <= RENDER.MOBILE_BREAKPOINT
+            ? RENDER.TILE_SIZE_MOBILE
+            : RENDER.TILE_SIZE_DESKTOP;
+          const explosionFinalScale = Math.round((1.5 * tileSize) / 3);
+          useShockwaveStore.getState().addShockwave({
+            id: crypto.randomUUID(),
+            cx: targetPosition.x * tileSize + tileSize / 2,
+            cy: targetPosition.y * tileSize + tileSize / 2,
+            durationMs: ANIMATION.EXPLOSION_SHOCKWAVE_MS,
+            finalScale: explosionFinalScale,
+          });
         }
       }
     },
