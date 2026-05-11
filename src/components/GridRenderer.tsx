@@ -14,7 +14,7 @@ import { canCapture } from '../captureSystem';
 import { getConstructionOptionsForTile } from '../constructionSystem';
 import { MAP, UNIT_DEFINITIONS, BUILDING_DEFINITIONS } from '../gameConfig';
 import { getStrongholdEffectiveCap } from '../techSystem';
-import { computeRecruitmentBuildingUsage } from '../resourceSystem';
+import { computeRecruitmentBuildingUsage, canBuildingEverRecruit } from '../resourceSystem';
 import { ANIMATION } from '../animationConfig';
 import { UI } from '../uiConfig';
 import { RENDER } from '../renderConfig';
@@ -145,6 +145,7 @@ export default function GridRenderer() {
   const cancelSpellCast = useGameStore((s) => s.cancelSpellCast);
   const castSpell = useGameStore((s) => s.castSpell);
   const strongholdTotalCap = useGameStore((s) => getStrongholdEffectiveCap(s).totalCap);
+  const unlockedUnits = useGameStore((s) => s.unlockedUnits);
   // Precompute recruitment usage (current/limit) for each player-owned recruitment building type.
   // Uses stable s.units / s.buildings selectors + useMemo so the result object is only
   // recreated when actual unit or building state changes — avoids an infinite re-render loop
@@ -952,7 +953,8 @@ function TileCellInner({
     showBuilding &&
     building &&
     building.faction === Faction.PLAYER &&
-    recruitmentUsage[building.type as BuildingType] !== undefined;
+    recruitmentUsage[building.type as BuildingType] !== undefined &&
+    canBuildingEverRecruit({ unlockedUnits }, building);
 
   const isResonating = building?.type === BuildingType.CRYSTAL_CHAMBER && building.resonanceTurnsRemaining > 0;
   const isCrystalActivating = useCombatAnimationStore(
@@ -1149,7 +1151,8 @@ function TileCellInner({
         })();
         const unitBadge = showUnitLimit && (() => {
           const usage = recruitmentUsage[building.type as BuildingType]!;
-          return <div className="unit-limit-badge">⚔️{usage.current}/{usage.limit}</div>;
+          const badgeEmoji = building.type === BuildingType.CRYSTAL_CHAMBER ? '🔮' : '⚔️';
+          return <div className="unit-limit-badge">{badgeEmoji}{usage.current}/{usage.limit}</div>;
         })();
         return (
           <div className="building-badges">

@@ -774,3 +774,51 @@ export function castSpell(
   if (success) state.arcaneCrystals -= 1;
   return success;
 }
+
+// ============================================================================
+// LEASH HELPERS (MS-21)
+// ============================================================================
+
+/**
+ * Defects a player-faction unit that has lost its leash. Mutates state.
+ * Returns true if the unit defected.
+ */
+export function checkAndDefectLeash(
+  state: Draft<GameState>,
+  unitId: string,
+): boolean {
+  const unit = state.units[unitId];
+  if (!unit) return false;
+  if (unit.faction !== Faction.PLAYER) return false;
+  if (!unit.tags.includes(UnitTag.LEASHED)) return false;
+
+  const mage = unit.controllerMageId ? state.units[unit.controllerMageId] : null;
+  let defects = false;
+  if (!mage || mage.faction !== Faction.PLAYER) {
+    defects = true;
+  } else {
+    const inRange = isTileWithinEdgeCircleRange(
+      mage.position.x, mage.position.y,
+      unit.position.x, unit.position.y,
+      MAGE.EMBER_DEMON_LEASH_RANGE,
+    );
+    if (!inRange) defects = true;
+  }
+  if (!defects) return false;
+
+  unit.faction = Faction.ENEMY;
+  unit.controllerMageId = null;
+  unit.tags = unit.tags.filter((t) => t !== UnitTag.LEASHED && t !== UnitTag.SUMMONED);
+  return true;
+}
+
+/** Scans every leashed unit and defects those out of range / orphaned. */
+export function sweepLeashes(state: Draft<GameState>): string[] {
+  const defectedIds: string[] = [];
+  for (const u of Object.values(state.units)) {
+    if (u.tags.includes(UnitTag.LEASHED) && checkAndDefectLeash(state, u.id)) {
+      defectedIds.push(u.id);
+    }
+  }
+  return defectedIds;
+}

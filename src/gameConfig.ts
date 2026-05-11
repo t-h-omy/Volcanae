@@ -1207,7 +1207,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
   b.OUTPOST.description    = `Field fortification built by Spearmen via Fieldwork. Attacks enemies within ${b.OUTPOST.combatStats!.attackRange} tiles. Starting HP is based on the building unit's current HP, capped at ${b.OUTPOST.combatStats!.maxHp}.`;
   b.MAGMASPYR.description  = `Corrupted mountain spire that attacks nearby units up to ${b.MAGMASPYR.combatStats!.maxAttacksPerTurn} times per turn.`;
   b.EMBERNEST.description  = `Corrupted forest nest that spawns Emberlings every ${LAVA_LAIR.EMBER_NEST_SPAWN_INTERVAL} turns.`;
-  b.CRYSTAL_CHAMBER.description = `Arcane resonator. When a Crystal Chamber is consumed by lava, all surviving chambers begin resonating and generate ${CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN} crystal${CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN !== 1 ? 's' : ''} per turn.`;
+  b.CRYSTAL_CHAMBER.description = `Arcane resonator. When a Crystal Chamber is consumed by lava, all surviving chambers begin resonating and generate ${CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN} crystal${CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN !== 1 ? 's' : ''} per turn. While active, can recruit up to ${MAGE.CHAMBER_UNIT_LIMIT} Mage at a time once Arcane Awakening is researched.`;
 }
 
 export const TECH = {

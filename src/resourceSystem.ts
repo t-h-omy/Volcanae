@@ -54,17 +54,42 @@ function findSpawnPosition(
   return null;
 }
 
+/** True if the building TYPE is a recruitment building (ignores state). */
+export function isRecruitmentBuildingType(type: BuildingType): boolean {
+  return (
+    type === BuildingType.BARRACKS ||
+    type === BuildingType.ARCHER_CAMP ||
+    type === BuildingType.RIDER_CAMP ||
+    type === BuildingType.SIEGE_CAMP ||
+    type === BuildingType.STRONGHOLD ||
+    type === BuildingType.CRYSTAL_CHAMBER
+  );
+}
+
+/**
+ * Permissive recruit check used by the map-layer badge: returns true for
+ * any building whose TYPE can recruit, ignoring conditional state like
+ * resonance. For CRYSTAL_CHAMBER this still requires that MAGE has been
+ * unlocked by tech, so the badge doesn't appear before research.
+ */
+export function canBuildingEverRecruit(
+  state: { unlockedUnits: UnitType[] },
+  building: Building,
+): boolean {
+  if (!isRecruitmentBuildingType(building.type)) return false;
+  if (building.type === BuildingType.CRYSTAL_CHAMBER) {
+    return state.unlockedUnits.includes(UnitType.MAGE);
+  }
+  return true;
+}
+
 /**
  * Checks if a building is a recruitment building.
  */
 function isRecruitmentBuilding(building: Building): boolean {
   return (
-    building.type === BuildingType.BARRACKS ||
-    building.type === BuildingType.ARCHER_CAMP ||
-    building.type === BuildingType.RIDER_CAMP ||
-    building.type === BuildingType.SIEGE_CAMP ||
-    building.type === BuildingType.STRONGHOLD ||
-    (building.type === BuildingType.CRYSTAL_CHAMBER && building.resonanceTurnsRemaining > 0)
+    isRecruitmentBuildingType(building.type) &&
+    (building.type !== BuildingType.CRYSTAL_CHAMBER || building.resonanceTurnsRemaining > 0)
   );
 }
 
