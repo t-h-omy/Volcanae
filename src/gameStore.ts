@@ -1151,6 +1151,16 @@ export const useGameStore = create<GameStore>()(
       let pendingResolvedState: GameState | null = null;
 
       set((state) => {
+        // Auto-deselect when the player ends their turn — no unit, building,
+        // or tile remains highlighted across the enemy turn boundary.
+        state.selectedUnitId = null;
+        state.selectedBuildingId = null;
+        state.selectedTilePos = null;
+        // Cancel any pending action modes.
+        state.pendingHealerId = null;
+        state.pendingSpellCast = null;
+        state.pendingTransposeFirstUnitId = null;
+
         // Phase 1: Resolve all pending captures (instant, no animation)
         resolveCaptures(state);
 

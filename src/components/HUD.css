@@ -2628,3 +2628,35 @@
   line-height: 1.35;
   font-style: italic;
 }
+
+/* ── Spell panel (collapsible) ─────────────────────────────────────── */
+.hud-spell-panel {
+  margin-top: 5px;
+  padding: 6px 8px;
+}
+
+.hud-spell-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+/* ── Cast-mode focused view ─────────────────────────────────────────── */
+.hud-spell-cast-panel {
+  padding: 8px 10px;
+}
+
+.hud-spell-cast-hint {
+  font-size: 0.9rem;
+  opacity: 0.9;
+  margin: 8px 0 12px;
+}
+
+.hud-spell-cast-cancel {
+  background: rgba(180, 60, 60, 0.85);
+}
+
+.hud-spell-cast-cancel:hover {
+  background: rgba(220, 80, 80, 0.9);
+}

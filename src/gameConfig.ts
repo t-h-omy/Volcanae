@@ -202,6 +202,81 @@ export const MAGE = {
 } as const;
 
 // ============================================================================
+// SPELL DEFINITIONS
+// ============================================================================
+
+export interface SpellDefinition {
+  id: SpellId;
+  name: string;
+  emoji: string;
+  description: string;
+  /** Hint shown in the cast-mode focused HUD before the first target pick */
+  targetHint: string;
+  /** Optional second-pick hint (only Transpose uses this) */
+  targetHintSecondPick?: string;
+}
+
+export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
+  [SpellId.TRANSPOSE]: {
+    id: SpellId.TRANSPOSE,
+    name: 'Transpose',
+    emoji: '🔄',
+    description: `Swap the positions of two units of the same faction within ${MAGE.SPELL_RANGE_BASE} tiles of the Mage.`,
+    targetHint: 'Select the first unit to swap.',
+    targetHintSecondPick: 'Select the second unit (same faction as the first).',
+  },
+  [SpellId.EMBERBIND]: {
+    id: SpellId.EMBERBIND,
+    name: 'Emberbind',
+    emoji: '🔥',
+    description: `Target an Ember Nest within ${MAGE.SPELL_RANGE_BASE} tiles. The nest is destroyed (forest restored) and a friendly Ember Demon appears, leashed within ${MAGE.EMBER_DEMON_LEASH_RANGE} tiles of its Mage.`,
+    targetHint: 'Select an Ember Nest within range.',
+  },
+  [SpellId.BRANDMARK_HEAL]: {
+    id: SpellId.BRANDMARK_HEAL,
+    name: 'Brandmark Heal',
+    emoji: '🩸',
+    description: `Fully heal one player unit and mark it. The marked unit loses ${MAGE.BRANDMARK_HP_LOSS_PER_TURN} HP at the end of each turn. On death, a hostile Ember Demon rises in its place.`,
+    targetHint: 'Select one of your own units within range (not another Mage).',
+  },
+  [SpellId.RAISE_SKELETON]: {
+    id: SpellId.RAISE_SKELETON,
+    name: 'Raise Skeleton',
+    emoji: '💀',
+    description: `Target a Gravestone within ${MAGE.SPELL_RANGE_BASE} tiles to raise a Skeleton. The gravestone is consumed.`,
+    targetHint: 'Select a player Gravestone within range.',
+  },
+  [SpellId.FROSTCRAFT]: {
+    id: SpellId.FROSTCRAFT,
+    name: 'Frostcraft',
+    emoji: '❄️',
+    description: `Freeze a Water tile within ${MAGE.SPELL_RANGE_BASE} tiles. Player units may walk on the ice; enemies cannot. The ice persists until consumed by lava.`,
+    targetHint: 'Select a water tile within range.',
+  },
+  [SpellId.GRAVE_TRAP]: {
+    id: SpellId.GRAVE_TRAP,
+    name: 'Grave Trap',
+    emoji: '☠️',
+    description: `Convert a Gravestone within ${MAGE.SPELL_RANGE_BASE} tiles into a magical trap. The next unit to step onto it (any faction) is stunned for ${MAGE.GRAVE_TRAP_STUN_TURNS} turns.`,
+    targetHint: 'Select a player Gravestone within range.',
+  },
+  [SpellId.EXPLODE]: {
+    id: SpellId.EXPLODE,
+    name: 'Explode',
+    emoji: '💥',
+    description: `Sacrifice a player unit within ${MAGE.SPELL_RANGE_BASE} tiles. It deals ${MAGE.EXPLODE_DAMAGE_PERCENT}% of its current HP to each adjacent enemy. The sacrificed unit leaves a gravestone unless a tag forbids it.`,
+    targetHint: 'Select one of your own units within range to sacrifice.',
+  },
+  [SpellId.CRYSTAL_TOWER]: {
+    id: SpellId.CRYSTAL_TOWER,
+    name: 'Crystal Tower',
+    emoji: '💎',
+    description: `Sacrifice the Mage to erect a permanent Crystal Tower on its tile. Each enemy unit the tower kills generates ${MAGE.CRYSTAL_TOWER_KILL_CRYSTAL_REWARD} crystal.`,
+    targetHint: "The Mage will be consumed where it stands. Confirm by selecting the Mage's tile.",
+  },
+};
+
+// ============================================================================
 // RESOURCE CONFIGURATION
 // ============================================================================
 
@@ -1677,7 +1752,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'ARCANE_AWAKENING',
     name: 'Arcane Awakening',
-    description: `Unlocks the Mage unit (recruited from active Crystal Chambers) and the Transpose spell. Spell range: ${MAGE.SPELL_RANGE_BASE} tiles.`,
+    description: `Unlocks the Mage unit (recruited from active Crystal Chambers) and the Transpose spell.`,
     requires: ['CONSCRIPTION'],
     cost: 2,
     effects: [
@@ -1690,7 +1765,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'EMBERBIND',
     name: 'Emberbind',
-    description: `Unlocks Emberbind: target an Ember Nest within ${MAGE.SPELL_RANGE_BASE} tiles to summon a friendly Ember Demon. The nest is destroyed (forest restored). The demon is leashed to its mage within ${MAGE.EMBER_DEMON_LEASH_RANGE} tiles.`,
+    description: `Unlocks the Emberbind spell.`,
     requires: ['ARCANE_AWAKENING'],
     cost: 4,
     effects: [
@@ -1700,7 +1775,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'BRANDMARK_HEAL',
     name: 'Brandmark Heal',
-    description: `Unlocks Brandmark Heal: fully restore one player unit's HP, but it loses ${MAGE.BRANDMARK_HP_LOSS_PER_TURN} HP each turn. If the marked unit dies, a hostile Ember Demon rises in its place.`,
+    description: `Unlocks the Brandmark Heal spell.`,
     requires: ['EMBERBIND'],
     cost: 4,
     effects: [
@@ -1710,7 +1785,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'CRYSTAL_TOWER',
     name: 'Crystal Tower',
-    description: `Unlocks Crystal Tower: sacrifice a Mage to erect a permanent Crystal Tower on its tile. Each enemy it kills grants ${MAGE.CRYSTAL_TOWER_KILL_CRYSTAL_REWARD} crystal.`,
+    description: `Unlocks the Crystal Tower spell.`,
     requires: ['BRANDMARK_HEAL'],
     cost: 7,
     effects: [
@@ -1722,7 +1797,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'RAISE_SKELETON',
     name: 'Raise Skeleton',
-    description: `Unlocks Raise Skeleton: target a Gravestone within ${MAGE.SPELL_RANGE_BASE} tiles to raise a Skeleton (Summoned). The gravestone is consumed.`,
+    description: `Unlocks the Raise Skeleton spell.`,
     requires: ['ARCANE_AWAKENING'],
     cost: 4,
     effects: [
@@ -1733,7 +1808,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'GRAVE_TRAP',
     name: 'Grave Trap',
-    description: `Unlocks Grave Trap: convert a Gravestone within ${MAGE.SPELL_RANGE_BASE} tiles into a magical trap. The next unit to step onto it (any faction) is stunned for ${MAGE.GRAVE_TRAP_STUN_TURNS} turns.`,
+    description: `Unlocks the Grave Trap spell.`,
     requires: ['RAISE_SKELETON'],
     cost: 4,
     effects: [
@@ -1755,7 +1830,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'FROSTCRAFT',
     name: 'Frostcraft',
-    description: `Unlocks Frostcraft: freeze a Water tile within ${MAGE.SPELL_RANGE_BASE} tiles. Player units may walk on the resulting Ice; enemy units cannot. Ice persists until consumed by lava.`,
+    description: `Unlocks the Frostcraft spell.`,
     requires: ['ARCANE_AWAKENING'],
     cost: 4,
     effects: [
@@ -1765,7 +1840,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'EXPLODE',
     name: 'Explode',
-    description: `Unlocks Explode: sacrifice a player unit within ${MAGE.SPELL_RANGE_BASE} tiles. Deals ${MAGE.EXPLODE_DAMAGE_PERCENT}% of its current HP to each adjacent enemy. The sacrificed unit leaves a gravestone unless its tag set forbids it.`,
+    description: `Unlocks the Explode spell.`,
     requires: ['FROSTCRAFT'],
     cost: 4,
     effects: [
@@ -1901,6 +1976,7 @@ export const GAME_CONFIG = {
   LAVA,
   LAVA_LAIR,
   MAGE,
+  SPELL_DEFINITIONS,
   UNIT_DEFINITIONS,
   BUILDING_DEFINITIONS,
   SPECIALIST_DEFINITIONS,

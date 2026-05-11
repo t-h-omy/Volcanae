@@ -10,7 +10,7 @@ import { useGameStore } from '../gameStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
 import { useSoundOptionsStore } from '../soundOptionsStore';
-import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, computeResearchCost, MAGE } from '../gameConfig';
+import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, computeResearchCost, SPELL_DEFINITIONS } from '../gameConfig';
 import { UI } from '../uiConfig';
 import type { UnitPopulationCost, TechId } from '../types';
 import {
@@ -166,30 +166,6 @@ const BUILDING_RECRUITS: Partial<Record<string, UnitType[]>> = {
   [BuildingType.SIEGE_CAMP]: [UnitType.SIEGE],
   [BuildingType.STRONGHOLD]: [UnitType.SCOUT, UnitType.GUARD],
   [BuildingType.CRYSTAL_CHAMBER]: [UnitType.MAGE],
-};
-
-/** Emoji + name label for each spell button */
-const SPELL_LABELS: Record<string, string> = {
-  [SpellId.TRANSPOSE]:      '🔄 Transpose',
-  [SpellId.EMBERBIND]:      '🔥 Emberbind',
-  [SpellId.BRANDMARK_HEAL]: '🩸 Brandmark',
-  [SpellId.RAISE_SKELETON]: '💀 Raise Skeleton',
-  [SpellId.FROSTCRAFT]:     '❄️ Frostcraft',
-  [SpellId.GRAVE_TRAP]:     '☠️ Grave Trap',
-  [SpellId.EXPLODE]:        '💥 Explode',
-  [SpellId.CRYSTAL_TOWER]:  '💎 Crystal Tower',
-};
-
-/** Short description of each spell shown in cast-mode and on hover */
-const SPELL_DESCRIPTIONS: Record<string, string> = {
-  [SpellId.TRANSPOSE]:      `Swap two units of the same faction within ${MAGE.SPELL_RANGE_BASE} tiles. Select the first unit, then the second.`,
-  [SpellId.EMBERBIND]:      `Target an Ember Nest within ${MAGE.SPELL_RANGE_BASE} tiles to summon a friendly Ember Demon. The nest is destroyed.`,
-  [SpellId.BRANDMARK_HEAL]: `Fully restore a player unit's HP. It loses ${MAGE.BRANDMARK_HP_LOSS_PER_TURN} HP each turn. On death, a hostile Ember Demon rises in its place.`,
-  [SpellId.RAISE_SKELETON]: `Target a Gravestone within ${MAGE.SPELL_RANGE_BASE} tiles to raise a Skeleton (Summoned). The gravestone is consumed.`,
-  [SpellId.FROSTCRAFT]:     `Freeze a Water tile within ${MAGE.SPELL_RANGE_BASE} tiles. Player units may walk on the resulting Ice; enemy units cannot.`,
-  [SpellId.GRAVE_TRAP]:     `Convert a Gravestone within ${MAGE.SPELL_RANGE_BASE} tiles into a magical trap. The next unit to step on it is stunned for ${MAGE.GRAVE_TRAP_STUN_TURNS} turns.`,
-  [SpellId.EXPLODE]:        `Sacrifice a player unit within ${MAGE.SPELL_RANGE_BASE} tiles. Deals ${MAGE.EXPLODE_DAMAGE_PERCENT}% of its current HP to each adjacent enemy.`,
-  [SpellId.CRYSTAL_TOWER]:  `Sacrifice this Mage to erect a permanent Crystal Tower on its tile. Each enemy it kills grants 1 crystal.`,
 };
 
 // ============================================================================
@@ -733,17 +709,18 @@ function TagPopup({ tag, onClose }: { tag: UnitTag; onClose: () => void }) {
 }
 
 /** Spell info popup — shown when clicking a spell tile in the tech tree */
-function SpellInfoPopup({ spellId, onClose }: { spellId: string; onClose: () => void }) {
-  const label = SPELL_LABELS[spellId];
-  const desc = SPELL_DESCRIPTIONS[spellId];
-  const [emoji, ...rest] = label ? label.split(' ') : ['🔮', spellId];
+function SpellInfoPopup({ spellId, onClose }: { spellId: SpellId; onClose: () => void }) {
+  const def = SPELL_DEFINITIONS[spellId];
+  if (!def) return null;
   return (
     <Popup onClose={onClose}>
       <div className="info-popup-header">
-        <span className="info-popup-header-emoji">{emoji}</span>
-        <div className="info-popup-header-name">{rest.join(' ') || spellId}</div>
+        <span className="info-popup-header-emoji">{def.emoji}</span>
+        <div>
+          <div className="info-popup-header-name">{def.name}</div>
+        </div>
       </div>
-      <p className="info-popup-desc" style={{ marginBottom: 16 }}>{desc ?? ''}</p>
+      <p className="info-popup-desc" style={{ marginBottom: 16 }}>{def.description}</p>
       <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>OK</button>
     </Popup>
   );
@@ -1481,6 +1458,7 @@ function SelectedUnitPanel({
   const canCast = isMage && isPlayer && canUnitCast(unit) && arcaneCrystals >= 1;
   const isInSpellCastMode = pendingSpellCast?.mageId === unit.id;
   const [confirmCrystalTower, setConfirmCrystalTower] = useState(false);
+  const [spellsCollapsed, setSpellsCollapsed] = useState(false);
 
   // Crystal Tower can only be placed on the mage's own empty tile (no ruin)
   const crystalTowerBlocked = isMage && (() => {
@@ -1608,6 +1586,30 @@ function SelectedUnitPanel({
     return <span className="hud-stat-mod hud-stat-neutral">±0</span>;
   };
 
+  // Cast-mode focused view: replaces the unit panel while the mage is casting a spell
+  if (isInSpellCastMode && pendingSpellCast) {
+    const spellDef = SPELL_DEFINITIONS[pendingSpellCast.spellId];
+    const hintText =
+      spellDef?.targetHintSecondPick && pendingTransposeFirstUnitId
+        ? spellDef.targetHintSecondPick
+        : spellDef?.targetHint ?? 'Select a target.';
+    return (
+      <div className="hud-info-panel hud-spell-cast-panel">
+        <div className="hud-panel-header">
+          <span className="hud-panel-emoji">{spellDef?.emoji ?? '✨'}</span>
+          <span className="hud-panel-name">Casting {spellDef?.name ?? 'spell'}</span>
+        </div>
+        <p className="hud-spell-cast-hint">{hintText}</p>
+        <button
+          className="hud-capture-btn hud-spell-cast-cancel"
+          onClick={() => cancelSpellCast()}
+        >
+          ❌ Cancel cast
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className={`hud-info-panel${!isPlayer ? ' hud-panel-enemy' : ''}`}>
       {/* Header — entire row is tappable to open UnitCombinedInfoPopup */}
@@ -1721,73 +1723,76 @@ function SelectedUnitPanel({
             </button>
           )}
           {isMage && isPlayer && unlockedSpells.length > 0 && (
-            <div className="hud-spell-row">
-              {unlockedSpells.filter((id) => id !== SpellId.CRYSTAL_TOWER).map((spellId) => (
+            <div className="hud-info-panel hud-spell-panel">
+              <div className="hud-panel-header">
+                <span className="hud-panel-emoji">✨</span>
+                <span className="hud-panel-name">Spells</span>
                 <button
-                  key={spellId}
-                  className={`hud-spell-btn${isInSpellCastMode && pendingSpellCast?.spellId === spellId ? ' hud-spell-active' : ''}`}
-                  disabled={!canCast}
-                  onClick={() => startSpellCast(unit.id, spellId)}
-                  title={`${SPELL_DESCRIPTIONS[spellId] ?? ''} (costs 💎1)`}
+                  className="hud-construct-toggle"
+                  onClick={() => setSpellsCollapsed((c) => !c)}
+                  title={spellsCollapsed ? 'Expand' : 'Collapse'}
                 >
-                  <span className="hud-spell-btn-label">{SPELL_LABELS[spellId] ?? spellId}</span>
-                  <span className="hud-spell-btn-cost">💎1</span>
+                  {spellsCollapsed ? '▲' : '▼'}
                 </button>
-              ))}
-              {isInSpellCastMode && pendingSpellCast && (
-                <p className="hud-spell-desc">
-                  {pendingSpellCast.spellId === SpellId.TRANSPOSE && pendingTransposeFirstUnitId
-                    ? 'First unit selected — now click the second unit to swap.'
-                    : SPELL_DESCRIPTIONS[pendingSpellCast.spellId] ?? ''}
-                </p>
-              )}
-              {isInSpellCastMode && (
-                <button
-                  className="hud-spell-cancel-btn"
-                  onClick={cancelSpellCast}
-                >
-                  ✖ Cancel cast
-                </button>
-              )}
-            </div>
-          )}
-          {isMage && isPlayer && unlockedSpells.includes(SpellId.CRYSTAL_TOWER) && (
-            <>
-              {!confirmCrystalTower ? (
-                <button
-                  className="hud-spell-btn"
-                  disabled={!canCast || crystalTowerBlocked}
-                  onClick={() => setConfirmCrystalTower(true)}
-                  title={`${SPELL_DESCRIPTIONS[SpellId.CRYSTAL_TOWER] ?? ''} (costs 💎1)`}
-                >
-                  <span className="hud-spell-btn-label">{SPELL_LABELS[SpellId.CRYSTAL_TOWER]}</span>
-                  <span className="hud-spell-btn-cost">💎1</span>
-                </button>
-              ) : (
-                <div className="hud-fieldwork-confirm">
-                  <div className="hud-warning hud-capture-warning">
-                    ⚠️ This Mage will be consumed to build the tower!
-                  </div>
-                  <button
-                    className="hud-capture-btn"
-                    onClick={() => {
-                      startSpellCast(unit.id, SpellId.CRYSTAL_TOWER);
-                      castSpell(unit.position);
-                      cancelSpellCast();
-                      setConfirmCrystalTower(false);
-                    }}
-                  >
-                    ✅ Build Crystal Tower
-                  </button>
-                  <button
-                    className="hud-capture-btn"
-                    onClick={() => setConfirmCrystalTower(false)}
-                  >
-                    ❌ Cancel
-                  </button>
+              </div>
+              {!spellsCollapsed && (
+                <div className="hud-spell-options">
+                  {unlockedSpells.filter((id) => id !== SpellId.CRYSTAL_TOWER).map((spellId) => {
+                    const def = SPELL_DEFINITIONS[spellId];
+                    return (
+                      <button
+                        key={spellId}
+                        className="hud-spell-btn"
+                        disabled={!canCast}
+                        onClick={() => startSpellCast(unit.id, spellId)}
+                        title={`${def?.description ?? ''} (costs 💎1)`}
+                      >
+                        <span className="hud-spell-btn-label">{def ? `${def.emoji} ${def.name}` : spellId}</span>
+                        <span className="hud-spell-btn-cost">💎1</span>
+                      </button>
+                    );
+                  })}
+                  {unlockedSpells.includes(SpellId.CRYSTAL_TOWER) && (
+                    <>
+                      {!confirmCrystalTower ? (
+                        <button
+                          className="hud-spell-btn"
+                          disabled={!canCast || crystalTowerBlocked}
+                          onClick={() => setConfirmCrystalTower(true)}
+                          title={`${SPELL_DEFINITIONS[SpellId.CRYSTAL_TOWER]?.description ?? ''} (costs 💎1)`}
+                        >
+                          <span className="hud-spell-btn-label">{SPELL_DEFINITIONS[SpellId.CRYSTAL_TOWER] ? `${SPELL_DEFINITIONS[SpellId.CRYSTAL_TOWER].emoji} ${SPELL_DEFINITIONS[SpellId.CRYSTAL_TOWER].name}` : SpellId.CRYSTAL_TOWER}</span>
+                          <span className="hud-spell-btn-cost">💎1</span>
+                        </button>
+                      ) : (
+                        <div className="hud-fieldwork-confirm">
+                          <div className="hud-warning hud-capture-warning">
+                            ⚠️ This Mage will be consumed to build the tower!
+                          </div>
+                          <button
+                            className="hud-capture-btn"
+                            onClick={() => {
+                              startSpellCast(unit.id, SpellId.CRYSTAL_TOWER);
+                              castSpell(unit.position);
+                              cancelSpellCast();
+                              setConfirmCrystalTower(false);
+                            }}
+                          >
+                            ✅ Build Crystal Tower
+                          </button>
+                          <button
+                            className="hud-capture-btn"
+                            onClick={() => setConfirmCrystalTower(false)}
+                          >
+                            ❌ Cancel
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
-            </>
+            </div>
           )}
           {canFieldwork && (
             <>
@@ -3004,7 +3009,7 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
   const [infoUnitType, setInfoUnitType] = useState<UnitType | null>(null);
   const [infoBuildingType, setInfoBuildingType] = useState<BuildingType | null>(null);
   const [infoUnitTag, setInfoUnitTag] = useState<UnitTag | null>(null);
-  const [infoSpellId, setInfoSpellId] = useState<string | null>(null);
+  const [infoSpellId, setInfoSpellId] = useState<SpellId | null>(null);
 
   const availableIds: TechId[] = useMemo(() => {
     // Depend on techNodes + arcaneCrystals to re-derive when state changes
@@ -3182,12 +3187,11 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
                   );
                 }
                 if (e.type === TechEffectType.UNLOCK_SPELL) {
-                  const label = SPELL_LABELS[e.spellId];
-                  const [emoji, ...rest] = label ? label.split(' ') : ['🔮', e.spellId];
+                  const def = SPELL_DEFINITIONS[e.spellId];
                   return (
                     <button key={i} className="tech-effect-tile" onClick={() => setInfoSpellId(e.spellId)}>
-                      <span className="tech-effect-tile-emoji">{emoji}</span>
-                      <span className="tech-effect-tile-name">{rest.join(' ') || e.spellId}</span>
+                      <span className="tech-effect-tile-emoji">{def?.emoji ?? '✨'}</span>
+                      <span className="tech-effect-tile-name">{def?.name ?? e.spellId}</span>
                       <span className="info-badge">i</span>
                     </button>
                   );

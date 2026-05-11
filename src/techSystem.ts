@@ -7,7 +7,7 @@
 import type { Draft } from 'immer';
 import type { GameState, TechId, TechEffect, UnitStats, StatModifier } from './types';
 import { Faction, TechFlag, BuildingType } from './types';
-import { TECH_TREE, ABILITIES, TAG_STAT_EFFECTS, computeResearchCost, POPULATION, MAGE } from './gameConfig';
+import { TECH_TREE, ABILITIES, TAG_STAT_EFFECTS, computeResearchCost, POPULATION, MAGE, SPELL_DEFINITIONS } from './gameConfig';
 
 // ============================================================================
 // PICK GRANTS
@@ -371,8 +371,10 @@ export function renderEffect(effect: TechEffect): string {
       return `Stronghold +${effect.amount} ${effect.capType} cap`;
     case 'SPECIALIST_SLOT_MOD':
       return `+${effect.value} specialist slot${effect.value !== 1 ? 's' : ''}`;
-    case 'UNLOCK_SPELL':
-      return `Unlocks ${effect.spellId} spell`;
+    case 'UNLOCK_SPELL': {
+      const def = SPELL_DEFINITIONS[effect.spellId];
+      return `Unlocks ${def?.name ?? effect.spellId}`;
+    }
     case 'SPELL_RANGE_MOD':
       return `Spell range +${effect.amount}`;
     default:
