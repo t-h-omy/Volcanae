@@ -1123,7 +1123,8 @@ function BuildingStatDetailModal({ building, onClose }: { building: Building; on
 
   const isGarrisonBuilding =
     building.faction === Faction.PLAYER &&
-    (building.type === BuildingType.WATCHTOWER || building.type === BuildingType.OUTPOST);
+    (building.type === BuildingType.WATCHTOWER || building.type === BuildingType.OUTPOST ||
+     building.type === BuildingType.CRYSTAL_TOWER);
 
   type BuildingModEntry = { stat: string; value: number; source: string };
   const mods: BuildingModEntry[] = [];
@@ -2010,7 +2011,8 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   const fortifiedGarrisonActive = gameState.fortifiedGarrisonActive;
   const isGarrisonBuilding =
     isPlayerOwned &&
-    (building.type === BuildingType.WATCHTOWER || building.type === BuildingType.OUTPOST);
+    (building.type === BuildingType.WATCHTOWER || building.type === BuildingType.OUTPOST ||
+     building.type === BuildingType.CRYSTAL_TOWER);
   const garrisonAtkMod = isGarrisonBuilding && fortifiedGarrisonActive ? ABILITIES.FORTIFIED_GARRISON_ATTACK_BONUS : 0;
   const garrisonRngMod = isGarrisonBuilding && fortifiedGarrisonActive ? ABILITIES.FORTIFIED_GARRISON_RANGE_BONUS : 0;
 

@@ -20,7 +20,7 @@ import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { generateId } from './mapGenerator';
 import { useFloaterStore } from './floaterStore';
 import { useCombatAnimationStore } from './combatAnimationStore';
-import { tryCreateGravestone } from './combatSystem';
+import { shouldLeaveGravestone, createGravestoneAt } from './combatSystem';
 
 /** Returns the effective spell range for a mage in the current state. */
 export function getMageSpellRange(
@@ -64,7 +64,7 @@ export function isSpellUnlocked(
  * already treat hasAttackedThisTurn.
  */
 export function canUnitCast(unit: Unit): boolean {
-  if (!unit.tags.includes(UnitTag.MAGE)) return false;
+  if (unit.type !== UnitType.MAGE) return false;
   if (unit.hasCastThisTurn) return false;
   if (unit.hasAttackedThisTurn) return false;
   if (unit.hasCapturedThisTurn) return false;
@@ -155,7 +155,7 @@ export function getValidSpellTargets(
         if (unit.faction !== Faction.PLAYER) continue;
         if (unit.id === mageId) continue;
         if (unit.tags.includes(UnitTag.SUMMONED)) continue;
-        if (unit.tags.includes(UnitTag.MAGE)) continue;
+        if (unit.type === UnitType.MAGE) continue;
         if (unit.tags.includes(UnitTag.BRANDMARKED)) continue; // already brandmarked
         if (!isTileInSpellRange(mage, unit.position, range)) continue;
         targets.push({ ...unit.position });
@@ -214,7 +214,7 @@ export function getValidSpellTargets(
       for (const unit of Object.values(state.units)) {
         if (unit.faction !== Faction.PLAYER) continue;
         if (unit.id === mageId) continue;
-        if (unit.tags.includes(UnitTag.MAGE)) continue;
+        if (unit.type === UnitType.MAGE) continue;
         if (!isTileInSpellRange(mage, unit.position, range)) continue;
         targets.push({ ...unit.position });
       }
@@ -394,10 +394,11 @@ function handleBrandmarkHeal(
   if (target.faction !== Faction.PLAYER) return false;
   if (target.id === mage.id) return false;
   if (target.tags.includes(UnitTag.SUMMONED)) return false;
-  if (target.tags.includes(UnitTag.MAGE)) return false;
+  if (target.type === UnitType.MAGE) return false;
   if (target.tags.includes(UnitTag.BRANDMARKED)) return false; // only unbrandmarked units
 
   target.stats.currentHp = target.stats.maxHp;
+  target.stats.attack += MAGE.BRANDMARK_ATTACK_BONUS;
   target.tags.push(UnitTag.BRANDMARKED);
 
   useFloaterStore.getState().addFloater({
@@ -659,7 +660,7 @@ function handleExplode(
   if (!target) return false;
   if (target.faction !== Faction.PLAYER) return false;
   if (target.id === mage.id) return false;
-  if (target.tags.includes(UnitTag.MAGE)) return false;
+  if (target.type === UnitType.MAGE) return false;
 
   const dmg = Math.ceil(target.stats.currentHp * MAGE.EXPLODE_DAMAGE_PERCENT / 100);
 
@@ -703,9 +704,12 @@ function handleExplode(
   delete state.units[targetUnitId];
   state.gameStats.unitsLost += 1;
 
-  if (!sacrificedTags.includes(UnitTag.SUMMONED)) {
-    // Attempt gravestone (only for REVIVABLE SPEARMAN/SWORDSMAN)
-    tryCreateGravestone(state, sacrificedFaction, sacrificedType, sacrificedTags, sacrificedPos);
+  // Default-on gravestone: any non-SUMMONED, non-NO_GRAVESTONE player unit leaves a gravestone
+  if (shouldLeaveGravestone(
+    { faction: sacrificedFaction, tags: sacrificedTags, type: sacrificedType },
+    { defaultOn: true },
+  )) {
+    createGravestoneAt(state, sacrificedPos, sacrificedType);
   }
 
   // Tile flash (same duration as emberling explosion VFX)
@@ -726,7 +730,7 @@ export function castSpell(
   const mage = state.units[mageId];
   if (!mage) return false;
   if (mage.faction !== Faction.PLAYER) return false;
-  if (!mage.tags.includes(UnitTag.MAGE)) return false;
+  if (mage.type !== UnitType.MAGE) return false;
   if (!canUnitCast(mage)) return false;
   if (!isSpellUnlocked(state, spellId)) return false;
 

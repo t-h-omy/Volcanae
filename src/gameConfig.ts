@@ -181,6 +181,8 @@ export const MAGE = {
   // ── Spell parameters ─────────────────────────────────────────────────
   /** HP lost by a BRANDMARKED unit at the end of every player turn */
   BRANDMARK_HP_LOSS_PER_TURN: 5,
+  /** Flat ATK bonus while the BRANDMARKED tag is on a unit */
+  BRANDMARK_ATTACK_BONUS: 20,
   /** Number of turns a unit is stunned after stepping on a GRAVE_TRAP (this turn + next) */
   GRAVE_TRAP_STUN_TURNS: 2,
   /** Percentage of the sacrificed unit's CURRENT HP dealt to each adjacent enemy by Explode */
@@ -236,7 +238,7 @@ export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
     id: SpellId.BRANDMARK_HEAL,
     name: 'Brandmark Heal',
     emoji: '🩸',
-    description: `Fully heal one player unit and mark it. The marked unit loses ${MAGE.BRANDMARK_HP_LOSS_PER_TURN} HP at the end of each turn. On death, a hostile Ember Demon rises in its place.`,
+    description: `Fully heal one player unit, grant +${MAGE.BRANDMARK_ATTACK_BONUS} ATK, and mark it with the brand. The marked unit loses ${MAGE.BRANDMARK_HP_LOSS_PER_TURN} HP at the end of each turn. On death, a hostile Ember Demon rises in its place.`,
     targetHint: 'Select one of your own units within range (not another Mage).',
   },
   [SpellId.RAISE_SKELETON]: {
@@ -965,7 +967,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     maxHp: MAGE.MAGE_MAX_HP, attack: MAGE.MAGE_ATTACK, defense: MAGE.MAGE_DEFENSE,
     movementActions: 1, moveRange: MAGE.MAGE_MOVE_RANGE, attackRange: MAGE.MAGE_ATTACK_RANGE,
     discoverRadius: MAGE.MAGE_DISCOVER_RADIUS, triggerRange: 0,
-    tags: [UnitTag.MAGE, UnitTag.PASSIVE, UnitTag.PREP],
+    tags: [UnitTag.PASSIVE, UnitTag.PREP],
     cost: { iron: MAGE.MAGE_COST_IRON, wood: MAGE.MAGE_COST_WOOD },
     populationCost: { farmers: MAGE.MAGE_POP_FARMERS, nobles: MAGE.MAGE_POP_NOBLES },
     levelUp: [
@@ -1877,6 +1879,7 @@ export const TAG_STAT_EFFECTS: Partial<Record<UnitTag, StatModifier[]>> = {
   ],
   [UnitTag.HIT_AND_RUN]: [{ stat: 'defense', mode: 'add', value: ABILITIES.HIT_AND_RUN_DEFENSE_MOD }],
   [UnitTag.DISTRACTION]: [{ stat: 'attack', mode: 'add', value: ABILITIES.DISTRACTION_ATTACK_MOD }],
+  [UnitTag.BRANDMARKED]: [{ stat: 'attack', mode: 'add', value: MAGE.BRANDMARK_ATTACK_BONUS }],
 };
 
 // ============================================================================
@@ -1920,10 +1923,10 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string }> = {
   [UnitTag.READY]:              { label: 'Ready',              desc: 'Can move and attack immediately after being recruited.' },
   [UnitTag.REVIVABLE]:          { label: 'Revivable',          desc: `Leaves a Gravestone on death. Pay ${ABILITIES.REVIVE_CRYSTAL_COST} crystal to revive.` },
   // ── Mage system tags ────────────────────────────────────────────────────────
-  [UnitTag.MAGE]:               { label: 'Mage',               desc: `Wields arcane magic. Casts spells within ${MAGE.SPELL_RANGE_BASE} tiles instead of attacking. Carries the PREP tag — a Mage that has moved this turn cannot cast or attack.` },
   [UnitTag.SUMMONED]:           { label: 'Summoned',           desc: 'Conjured by magic. Does not consume population, cannot be healed, and does not leave a gravestone on death.' },
-  [UnitTag.BRANDMARKED]:        { label: 'Brandmarked',        desc: `Marked by Brandmark Heal. Loses ${MAGE.BRANDMARK_HP_LOSS_PER_TURN} HP at the end of every player turn. On death, leaves behind a hostile Ember Demon.` },
+  [UnitTag.BRANDMARKED]:        { label: 'Brandmarked',        desc: `+${MAGE.BRANDMARK_ATTACK_BONUS} ATK. Loses ${MAGE.BRANDMARK_HP_LOSS_PER_TURN} HP at the end of every player turn. On death, leaves behind a hostile Ember Demon.` },
   [UnitTag.LEASHED]:            { label: 'Leashed',            desc: `Summoned creature bound to a Mage. If the Mage moves out of ${MAGE.EMBER_DEMON_LEASH_RANGE} tiles or dies, the leashed unit defects to the enemy.` },
+  [UnitTag.NO_GRAVESTONE]:      { label: 'No Gravestone',      desc: 'Leaves no body. Cannot become a Gravestone on death.' },
 };
 
 // ============================================================================

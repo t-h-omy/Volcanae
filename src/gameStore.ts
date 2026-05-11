@@ -155,6 +155,8 @@ interface GameActions {
   reviveUnit: (buildingId: string) => void;
   /** Permanently dismiss a recruited specialist, removing them from globalSpecialistStorage */
   dismissSpecialist: (specialistId: string) => void;
+  /** Finalize pending Brandmark transforms: remove queued units and spawn hostile Ember Demons */
+  finalizeBrandmarkTransforms: () => void;
 }
 
 // ============================================================================
@@ -976,6 +978,60 @@ export const useGameStore = create<GameStore>()(
         revokeEffectsForSpecialist(state, specialist);
         // Clear dormant flag so it doesn't carry stale state if somehow reused
         specialist.dormant = false;
+      });
+    },
+
+    finalizeBrandmarkTransforms: () => {
+      set((state) => {
+        const pending = state.pendingBrandmarkTransforms;
+        if (pending.length === 0) return;
+        for (const { unitId, position } of pending) {
+          const original = state.units[unitId];
+          if (!original) continue;
+          // Remove the original unit from its tile and from the units map
+          const tile = state.grid[position.y]?.[position.x];
+          if (tile && tile.unitId === unitId) tile.unitId = null;
+          delete state.units[unitId];
+          state.gameStats.unitsLost += 1;
+          // Spawn a hostile Ember Demon at the tile if it's now free
+          if (tile && tile.unitId === null) {
+            const newId = generateId('unit_demon');
+            state.units[newId] = {
+              id: newId,
+              type: UnitType.EMBER_DEMON,
+              faction: Faction.ENEMY,
+              position: { x: position.x, y: position.y },
+              stats: {
+                currentHp: MAGE.EMBER_DEMON_MAX_HP,
+                maxHp: MAGE.EMBER_DEMON_MAX_HP,
+                attack: MAGE.EMBER_DEMON_ATTACK,
+                defense: MAGE.EMBER_DEMON_DEFENSE,
+                moveRange: MAGE.EMBER_DEMON_MOVE_RANGE,
+                attackRange: MAGE.EMBER_DEMON_ATTACK_RANGE,
+                discoverRadius: MAGE.EMBER_DEMON_DISCOVER_RADIUS,
+                triggerRange: MAGE.EMBER_DEMON_TRIGGER_RANGE,
+                movementActions: 1,
+              },
+              tags: [],
+              controllerMageId: null,
+              hasMovedThisTurn: true,
+              hasAttackedThisTurn: true,
+              hasCapturedThisTurn: true,
+              hasConstructedThisTurn: true,
+              hasDestroyedThisTurn: true,
+              hasUsedPostAttackMoveThisTurn: false,
+              hasCastThisTurn: false,
+              bloodlustAttackAvailable: false,
+              pinnedUntilTurn: 0,
+              xp: 0,
+              level: 1,
+              lastMovedTurn: state.turn,
+              distractionDefPenalty: 0,
+            };
+            tile.unitId = newId;
+          }
+        }
+        state.pendingBrandmarkTransforms = [];
       });
     },
 

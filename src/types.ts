@@ -216,14 +216,14 @@ export const UnitTag = {
   /** Spearman unit leaves a Gravestone building on death that can be revived */
   REVIVABLE: 'REVIVABLE',
   // ── Mage system tags ────────────────────────────────────────────────────────
-  /** Descriptive tag identifying caster units; used by spell systems */
-  MAGE: 'MAGE',
   /** Unit was summoned, not recruited; modifies several systems */
   SUMMONED: 'SUMMONED',
   /** Unit carries the Brandmark Heal mark; loses HP each turn; on death becomes a hostile Ember Demon */
   BRANDMARKED: 'BRANDMARKED',
   /** Summoned unit that defects to the enemy faction if its controller mage is out of leash range or dead */
   LEASHED: 'LEASHED',
+  /** Leaves no body on death. Cannot become a Gravestone. */
+  NO_GRAVESTONE: 'NO_GRAVESTONE',
 } as const;
 export type UnitTag = (typeof UnitTag)[keyof typeof UnitTag];
 
@@ -595,4 +595,11 @@ export interface GameState {
    * second click completes the swap. Cleared when the spell is confirmed or cancelled.
    */
   pendingTransposeFirstUnitId: string | null;
+  /**
+   * Units pending the two-stage Brandmark transform. Each entry is a player
+   * unit whose HP has reached 0 but has not yet been replaced by an Ember Demon.
+   * Entries are processed (unit removed, demon spawned) by finalizeBrandmarkTransforms
+   * after the TRANSFORM_TO_DEMON animation completes.
+   */
+  pendingBrandmarkTransforms: Array<{ unitId: string; position: Position }>;
 }

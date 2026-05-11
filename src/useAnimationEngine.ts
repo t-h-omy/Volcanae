@@ -908,6 +908,10 @@ export function useAnimationEngine(): void {
       if (resolvedState) {
         useGameStore.getState().setGameState(resolvedState);
       }
+      // Finalize any pending Brandmark transforms (deferred demon spawn + unit removal).
+      // Idempotent: no-ops on empty queue. Must run after setGameState so the
+      // resolved pendingBrandmarkTransforms list is in the live store.
+      useGameStore.getState().finalizeBrandmarkTransforms();
       // If the player hired a specialist during this batch, apply the hire now
       // (after setGameState so it isn't overwritten by the resolved state).
       if (hiredSpecialistId) {

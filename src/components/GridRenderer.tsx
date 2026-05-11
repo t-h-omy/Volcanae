@@ -1209,7 +1209,9 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
           ? 'anim-levelup'
           : anim?.type === 'XP_GAIN'
             ? 'anim-xpgain'
-            : '';
+            : anim?.type === 'TRANSFORM_TO_DEMON'
+              ? 'unit--transforming'
+              : '';
 
   const animStyle: React.CSSProperties | undefined =
     anim?.type === 'LUNGE' || anim?.type === 'RECOIL'

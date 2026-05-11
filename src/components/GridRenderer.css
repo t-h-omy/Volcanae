@@ -664,6 +664,20 @@
   100% { filter: brightness(1)   drop-shadow(0 0 0px gold); }
 }
 
+/* ── Brandmark Transform Animation ── */
+
+.unit--transforming {
+  animation: transform-to-demon 600ms ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes transform-to-demon {
+  0%   { filter: hue-rotate(0deg)   brightness(1);    transform: scale(1);    }
+  40%  { filter: hue-rotate(-30deg) brightness(1.5);  transform: scale(1.1);  }
+  70%  { filter: hue-rotate(-60deg) brightness(2);    transform: scale(1.2);  }
+  100% { filter: hue-rotate(-90deg) brightness(0.5);  transform: scale(0);    }
+}
+
 /* ── Projectile Layer ── */
 
 .projectile-layer {

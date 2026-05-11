@@ -1603,6 +1603,7 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
     fortifiedGarrisonActive: false,
     pendingSpellCast: null,
     pendingTransposeFirstUnitId: null,
+    pendingBrandmarkTransforms: [],
   };
 
   // Auto-apply CONSCRIPTION effects (unlocked at game start, not a pick)

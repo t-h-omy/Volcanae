@@ -102,13 +102,80 @@ export function tryCreateGravestone(
 }
 
 /**
+ * Returns true iff a Gravestone should be created on a unit's tile when
+ * that unit dies. Used by both the regular death path (REVIVABLE-gated,
+ * defaultOn=false) and the Explode spell (defaultOn=true).
+ */
+export function shouldLeaveGravestone(
+  unit: Pick<Unit, 'faction' | 'tags' | 'type'>,
+  options: { defaultOn: boolean },
+): boolean {
+  if (unit.faction !== Faction.PLAYER) return false;
+  if (unit.tags.includes(UnitTag.SUMMONED)) return false;
+  if (unit.tags.includes(UnitTag.NO_GRAVESTONE)) return false;
+  if (options.defaultOn) return true;
+  // Legacy rule: REVIVABLE-gated, only for SPEARMAN/SWORDSMAN.
+  return (
+    unit.tags.includes(UnitTag.REVIVABLE) &&
+    (unit.type === UnitType.SPEARMAN || unit.type === UnitType.SWORDSMAN)
+  );
+}
+
+/**
+ * Creates a Gravestone at a position if the tile is valid.
+ */
+export function createGravestoneAt(
+  state: Draft<GameState>,
+  position: { x: number; y: number },
+  gravesUnitType: UnitType | null,
+): void {
+  const tile = state.grid[position.y]?.[position.x];
+  if (!tile || !isValidGravestoneTile(tile)) return;
+  const graveId = generateCombatBuildingId();
+  state.buildings[graveId] = {
+    id: graveId,
+    type: BuildingType.GRAVESTONE,
+    faction: Faction.PLAYER,
+    position: { x: position.x, y: position.y },
+    hp: ABILITIES.GRAVESTONE_MAX_HP,
+    maxHp: ABILITIES.GRAVESTONE_MAX_HP,
+    specialistSlot: null,
+    isDisabledForTurns: 0,
+    wasAttackedLastEnemyTurn: false,
+    captureProgress: 0,
+    isBeingCapturedBy: null,
+    lavaBoostEnabled: false,
+    discoverRadius: BUILDING_DEFINITIONS.GRAVESTONE.discoverRadius,
+    turnCapturedByPlayer: null,
+    wasEnemyOwnedBeforeCapture: false,
+    combatStats: null,
+    hasAttackedThisTurn: false,
+    tags: [],
+    consumesUnitOnCapture: false,
+    populationCount: 0,
+    populationCap: 0,
+    populationGrowthCounter: 0,
+    strongholdNobles: 0,
+    emberSpawnCounter: 0,
+    recruitmentQueue: null,
+    destroyBehavior: BUILDING_DEFINITIONS.GRAVESTONE.destroyBehavior,
+    resonanceTurnsRemaining: 0,
+    spawnCooldownRemaining: 0,
+    lastRecruitmentTurn: 0,
+    gravesUnitType,
+  };
+  tile.buildingId = graveId;
+}
+
+/**
  * Handles the death of a BRANDMARKED player unit.
- * Removes the unit from the grid and spawns a hostile EMBER_DEMON in its place.
+ * Stage 1: sets HP to 0 (un-targetable) and queues the unit for a
+ * deferred demon-spawn in `pendingBrandmarkTransforms`. The actual unit
+ * removal and Ember Demon spawn happen via `finalizeBrandmarkTransforms`
+ * once the TRANSFORM_TO_DEMON animation completes.
+ *
  * Called both from the per-turn brandmark tick (gameStore.ts) and from
  * combat kill paths when a BRANDMARKED unit is killed by an enemy.
- *
- * NOTE: This function DOES remove the unit from state.units and updates unitsLost.
- * The caller must not delete the unit again.
  */
 export function handleBrandmarkedUnitDeath(
   state: Draft<GameState>,
@@ -117,58 +184,41 @@ export function handleBrandmarkedUnitDeath(
   const pos = { x: unit.position.x, y: unit.position.y };
   const unitId = unit.id;
 
-  // Clear tile
-  const tile = state.grid[pos.y][pos.x];
-  if (tile.unitId === unitId) {
-    tile.unitId = null;
+  // Stage 1: set HP to 0 so the unit is un-targetable, but keep it in state
+  // for the transform animation. The caller must NOT delete the unit.
+  unit.stats.currentHp = 0;
+
+  // Push to deferred transform queue (guard against duplicates)
+  const alreadyQueued = state.pendingBrandmarkTransforms.some(
+    (t) => t.unitId === unitId,
+  );
+  if (!alreadyQueued) {
+    state.pendingBrandmarkTransforms.push({ unitId, position: { ...pos } });
   }
 
-  // Remove unit
-  delete state.units[unitId];
-  state.gameStats.unitsLost += 1;
+  // Dispatch transform animation to the combat-animation store (safe: different
+  // store — this call is allowed from within an immer producer on a Draft).
+  useCombatAnimationStore.getState().setUnitAnimation(unitId, {
+    type: 'TRANSFORM_TO_DEMON',
+    durationMs: 600,
+  });
 
-  // Spawn a hostile (enemy-faction) EMBER_DEMON — this is a wild demon, no leash
-  const demonId = generateId('unit_demon');
-  state.units[demonId] = {
-    id: demonId,
-    type: UnitType.EMBER_DEMON,
-    faction: Faction.ENEMY,
-    position: { x: pos.x, y: pos.y },
-    stats: {
-      maxHp: MAGE.EMBER_DEMON_MAX_HP,
-      currentHp: MAGE.EMBER_DEMON_MAX_HP,
-      attack: MAGE.EMBER_DEMON_ATTACK,
-      defense: MAGE.EMBER_DEMON_DEFENSE,
-      moveRange: MAGE.EMBER_DEMON_MOVE_RANGE,
-      attackRange: MAGE.EMBER_DEMON_ATTACK_RANGE,
-      discoverRadius: MAGE.EMBER_DEMON_DISCOVER_RADIUS,
-      triggerRange: MAGE.EMBER_DEMON_TRIGGER_RANGE,
-      movementActions: 1,
-    },
-    tags: [],
-    controllerMageId: null,
-    hasMovedThisTurn: true,
-    hasAttackedThisTurn: true,
-    hasCapturedThisTurn: true,
-    hasConstructedThisTurn: true,
-    hasDestroyedThisTurn: true,
-    hasUsedPostAttackMoveThisTurn: false,
-    bloodlustAttackAvailable: false,
-    xp: 0,
-    level: 1,
-    lastMovedTurn: 0,
-    pinnedUntilTurn: 0,
-    distractionDefPenalty: 0,
-  };
-  tile.unitId = demonId;
-
-  // VFX: flash the tile to signal the transformation (shown when kill is processed)
-  const flashKey = `${pos.x},${pos.y}`;
-  useCombatAnimationStore.getState().addTileFlash(pos.x, pos.y, 700);
-  setTimeout(() => useCombatAnimationStore.getState().removeTileFlash(flashKey), 700);
+  // After the animation finishes: clear the animation entry and show the
+  // "Demon risen" floater. The actual demon spawn happens in
+  // finalizeBrandmarkTransforms, which is triggered from useAnimationEngine
+  // after the resolved state is applied.
+  setTimeout(() => {
+    useCombatAnimationStore.getState().setUnitAnimation(unitId, null);
+    useFloaterStore.getState().addFloater({
+      value: 0,
+      label: '😈 Risen',
+      x: pos.x,
+      y: pos.y,
+      isEnemy: true,
+      floaterType: 'damage',
+    });
+  }, 600);
 }
-
-
 
 export interface CombatResult {
   /** HP lost by the attacker (from counterattack) */
@@ -493,7 +543,8 @@ export function resolveAttack(
     // Capture tags before removal (for BRANDMARKED check)
     const attackerTags = [...attacker.tags];
     if (attackerTags.includes(UnitTag.BRANDMARKED)) {
-      // BRANDMARKED: spawn hostile Ember Demon instead of normal death; unitsLost handled inside
+      // BRANDMARKED: defer unit removal and Ember Demon spawn to finalizeBrandmarkTransforms;
+      // unitsLost is counted in finalizeBrandmarkTransforms after the animation completes.
       handleBrandmarkedUnitDeath(state, attacker);
     } else {
       // Remove attacker from grid
@@ -527,12 +578,9 @@ export function resolveAttack(
     const defenderTags = [...defender.tags];
 
     if (defenderTags.includes(UnitTag.BRANDMARKED)) {
-      // BRANDMARKED: spawn hostile Ember Demon instead of normal death; unitsLost handled inside
+      // BRANDMARKED: defer unit removal and Ember Demon spawn to finalizeBrandmarkTransforms;
+      // unitsLost is counted in finalizeBrandmarkTransforms after the animation completes.
       handleBrandmarkedUnitDeath(state, defender);
-      // unitsLost is already incremented by handleBrandmarkedUnitDeath; only track player kill of enemy
-      if (attackerFaction === Faction.PLAYER && defenderFaction !== Faction.PLAYER) {
-        state.gameStats.unitsKilled += 1;
-      }
     } else {
       // Remove defender from grid
       const defenderTile = state.grid[defender.position.y][defender.position.x];
@@ -572,11 +620,17 @@ export function resolveAttack(
       }
     }
 
-    // REVIVABLE: when a player SPEARMAN or SWORDSMAN with REVIVABLE dies, leave a Gravestone
-    // on their tile (only if the tile is free: no building, no unit, no ruin).
-    // Summoned units never spawn gravestones. BRANDMARKED units already handled above.
+    // REVIVABLE/default-on gravestone: when a player unit with the right conditions dies,
+    // leave a Gravestone on their tile.
+    // Summoned and NO_GRAVESTONE units never leave gravestones.
+    // BRANDMARKED units are handled separately above (deferred via pendingBrandmarkTransforms).
     if (!defenderTags.includes(UnitTag.BRANDMARKED)) {
-      tryCreateGravestone(state, defenderFaction, defenderType, defenderTags, defenderPosition);
+      if (shouldLeaveGravestone(
+        { faction: defenderFaction, tags: defenderTags, type: defenderType },
+        { defaultOn: false },
+      )) {
+        createGravestoneAt(state, defenderPosition, defenderType);
+      }
     }
 
     // If the defender was standing on an enemy building that the player attacker
@@ -841,11 +895,9 @@ export function resolveBuildingAttack(
     const defenderPos = { x: defender.position.x, y: defender.position.y };
 
     if (defenderTags.includes(UnitTag.BRANDMARKED)) {
-      // BRANDMARKED: spawn hostile Ember Demon instead of normal death; unitsLost handled inside
+      // BRANDMARKED: defer unit removal and Ember Demon spawn to finalizeBrandmarkTransforms;
+      // unitsLost is counted in finalizeBrandmarkTransforms after the animation completes.
       handleBrandmarkedUnitDeath(state, defender);
-      if (buildingFaction === Faction.PLAYER && defenderFaction === Faction.ENEMY) {
-        state.gameStats.unitsKilled += 1;
-      }
     } else {
       const defenderTile = state.grid[defender.position.y][defender.position.x];
       if (defenderTile.unitId === defenderId) {
@@ -883,10 +935,16 @@ export function resolveBuildingAttack(
       }
     }
 
-    // REVIVABLE: player Spearman or Swordsman with REVIVABLE leaves a Gravestone on death
-    // Summoned units never spawn gravestones. BRANDMARKED units already handled above.
+    // REVIVABLE/default-on gravestone: when a player unit with the right conditions dies,
+    // leave a Gravestone on their tile.
+    // BRANDMARKED units are handled separately above (deferred via pendingBrandmarkTransforms).
     if (!defenderTags.includes(UnitTag.BRANDMARKED)) {
-      tryCreateGravestone(state, defenderFaction, defenderType, defenderTags, defenderPos);
+      if (shouldLeaveGravestone(
+        { faction: defenderFaction, tags: defenderTags, type: defenderType },
+        { defaultOn: false },
+      )) {
+        createGravestoneAt(state, defenderPos, defenderType);
+      }
     }
   } else {
     defender.stats.currentHp = newDefenderHp;
@@ -992,7 +1050,8 @@ export function resolveAttackOnBuilding(
   if (attackerDead) {
     const attackerTags = [...attacker.tags];
     if (attackerTags.includes(UnitTag.BRANDMARKED)) {
-      // BRANDMARKED: spawn hostile Ember Demon instead of normal death; unitsLost handled inside
+      // BRANDMARKED: defer unit removal and Ember Demon spawn to finalizeBrandmarkTransforms;
+      // unitsLost is counted in finalizeBrandmarkTransforms after the animation completes.
       handleBrandmarkedUnitDeath(state, attacker);
     } else {
       const attackerTile = state.grid[attacker.position.y][attacker.position.x];

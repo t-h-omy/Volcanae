@@ -152,6 +152,19 @@ export function loadGameState(): GameState | null {
     if (!('pendingTransposeFirstUnitId' in gs)) {
       gs.pendingTransposeFirstUnitId = null;
     }
+    if (!Array.isArray(gs.pendingBrandmarkTransforms)) {
+      gs.pendingBrandmarkTransforms = [];
+    }
+
+    // Migration: remove the legacy MAGE tag from all saved units (tag was removed in Bundle 2).
+    if (s.units && typeof s.units === 'object') {
+      for (const unit of Object.values(s.units) as Array<unknown>) {
+        const u = unit as Record<string, unknown>;
+        if (u && Array.isArray(u.tags)) {
+          u.tags = (u.tags as string[]).filter((t) => t !== 'MAGE');
+        }
+      }
+    }
 
     // Migration: backfill Mage-system per-unit fields added in MS-01–MS-09.
     if (s.units && typeof s.units === 'object') {
