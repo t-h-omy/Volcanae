@@ -43,10 +43,9 @@ export const UNIT_SPRITE: Partial<Record<UnitType, string>> = withBase({
   SIEGE:       '/sprites/units/Catapult_100px.png',
   SCOUT:       '/sprites/units/Scout_100px.png',
   GUARD:       '/sprites/units/Guard_100px.png',
-  // TODO: replace MAGE, EMBER_DEMON, SKELETON with real art when available
-  MAGE:        '',
-  EMBER_DEMON: '',
-  SKELETON:    '',
+  MAGE:        '/sprites/units/Mage_100px.png',
+  EMBER_DEMON: '/sprites/units/Ember_Demon_Player_100px.png',
+  SKELETON:    '/sprites/units/Skeleton_100px.png',
   // Enemy units
   LAVA_GRUNT:  '/sprites/units/Grunt_100px.png',
   LAVA_ARCHER: '/sprites/units/Spitter_100px.png',
@@ -76,8 +75,8 @@ export const BUILDING_SPRITE: Partial<Record<BuildingType, string>> = withBase({
   CRYSTAL_CHAMBER: '/sprites/buildings/crystal_chamber_100px.png',
   GRAVESTONE:      '/sprites/buildings/gravestone_100px.png',
   // TODO: replace GRAVE_TRAP and CRYSTAL_TOWER with real art when available
-  GRAVE_TRAP:      '',
-  CRYSTAL_TOWER:   '',
+  GRAVE_TRAP:      '/sprites/buildings/grave_trap_100px.png',
+  CRYSTAL_TOWER:   '/sprites/buildings/crystal_tower_100px.png',
 });
 
 /**
