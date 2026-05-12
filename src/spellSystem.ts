@@ -155,7 +155,6 @@ export function getValidSpellTargets(
         if (unit.faction !== Faction.PLAYER) continue;
         if (unit.id === mageId) continue;
         if (unit.tags.includes(UnitTag.SUMMONED)) continue;
-        if (unit.type === UnitType.MAGE) continue;
         if (unit.tags.includes(UnitTag.BRANDMARKED)) continue; // already brandmarked
         if (!isTileInSpellRange(mage, unit.position, range)) continue;
         targets.push({ ...unit.position });
@@ -164,11 +163,12 @@ export function getValidSpellTargets(
     }
 
     case 'CRYSTAL_TOWER': {
-      // Single valid tile: the mage's own tile, no existing building, no ruin
+      // Single valid tile: the mage's own tile, no existing building, no ruin, no forest/mountain
       const tile = state.grid[mage.position.y]?.[mage.position.x];
       if (!tile) return [];
       if (tile.buildingId !== null) return [];
       if (tile.isRuin || tile.isStrongholdRuin) return [];
+      if (tile.terrainType === TileType.FOREST || tile.terrainType === TileType.MOUNTAIN) return [];
       return [{ ...mage.position }];
     }
 
@@ -394,7 +394,6 @@ function handleBrandmarkHeal(
   if (target.faction !== Faction.PLAYER) return false;
   if (target.id === mage.id) return false;
   if (target.tags.includes(UnitTag.SUMMONED)) return false;
-  if (target.type === UnitType.MAGE) return false;
   if (target.tags.includes(UnitTag.BRANDMARKED)) return false; // only unbrandmarked units
 
   target.stats.currentHp = target.stats.maxHp;
@@ -423,6 +422,7 @@ function handleCrystalTower(
   if (!tile) return false;
   if (tile.buildingId !== null) return false;
   if (tile.isRuin || tile.isStrongholdRuin) return false;
+  if (tile.terrainType === TileType.FOREST || tile.terrainType === TileType.MOUNTAIN) return false;
 
   const towerHp = MAGE.CRYSTAL_TOWER_MAX_HP;
   const towerId = generateId('building');
@@ -529,12 +529,12 @@ function handleRaiseSkeleton(
       triggerRange: 0,
       movementActions: 1,
     },
-    tags: [UnitTag.SUMMONED],
-    hasMovedThisTurn: true,
-    hasAttackedThisTurn: true,
-    hasCapturedThisTurn: true,
-    hasConstructedThisTurn: true,
-    hasDestroyedThisTurn: true,
+    tags: [UnitTag.SUMMONED, UnitTag.READY],
+    hasMovedThisTurn: false,
+    hasAttackedThisTurn: false,
+    hasCapturedThisTurn: false,
+    hasConstructedThisTurn: false,
+    hasDestroyedThisTurn: false,
     hasUsedPostAttackMoveThisTurn: false,
     bloodlustAttackAvailable: false,
     xp: 0,
@@ -800,7 +800,7 @@ export function checkAndDefectLeash(
     const inRange = isTileWithinEdgeCircleRange(
       mage.position.x, mage.position.y,
       unit.position.x, unit.position.y,
-      MAGE.EMBER_DEMON_LEASH_RANGE,
+      getMageSpellRange(state),
     );
     if (!inRange) defects = true;
   }

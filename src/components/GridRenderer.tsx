@@ -21,7 +21,7 @@ import { RENDER } from '../renderConfig';
 import { INPUT } from '../inputConfig';
 import { computeLevelFromXp } from '../levelSystem';
 import { useZoomStore } from '../zoomStore';
-import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE, RESOURCE_SPRITE, ENEMY_BUILDING_SPRITE, PLAYER_BUILDING_SPRITE, TERRAIN_RESOURCE_SPRITE, CRYSTAL_CHAMBER_ACTIVE_SPRITE } from '../assetRegistry';
+import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE, RESOURCE_SPRITE, ENEMY_BUILDING_SPRITE, PLAYER_BUILDING_SPRITE, TERRAIN_RESOURCE_SPRITE, CRYSTAL_CHAMBER_ACTIVE_SPRITE, ENEMY_UNIT_SPRITE, PLAYER_UNIT_SPRITE } from '../assetRegistry';
 import MissingSprite from './MissingSprite';
 import {
   Faction,
@@ -1118,10 +1118,6 @@ function TileCellInner({
         </>
       )}
 
-      {/* GRAVE_TRAP magic-glyph overlay — pulsing rune on top of gravestone sprite */}
-      {showBuilding && building && building.type === BuildingType.GRAVE_TRAP && tile.isRevealed && (
-        <div className="tile-overlay tile--grave-trap-glyph" aria-hidden="true">☠️</div>
-      )}
       {showBuilding && building && building.combatStats && building.faction && building.hp < building.maxHp && (
         <div
           className="hp-bar-wrapper building-hp-bar"
@@ -1185,7 +1181,13 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
   const hasLavaBoost = unit.tags.includes(UnitTag.LAVABOOST);
   const unitEmojiSize = tileSize;
 
-  const unitSpritePath = UNIT_SPRITE[unit.type];
+  // Unit sprite selection — faction-specific overrides take priority over UNIT_SPRITE.
+  const unitSpritePath =
+    unit.faction === Faction.ENEMY && ENEMY_UNIT_SPRITE[unit.type]
+      ? ENEMY_UNIT_SPRITE[unit.type]
+      : unit.faction === Faction.PLAYER && PLAYER_UNIT_SPRITE[unit.type]
+        ? PLAYER_UNIT_SPRITE[unit.type]
+        : UNIT_SPRITE[unit.type];
   const [unitSpriteError, setUnitSpriteError] = useState(false);
   const showUnitImg = typeof unitSpritePath === 'string' && unitSpritePath !== '' && !unitSpriteError;
 

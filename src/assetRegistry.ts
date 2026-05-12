@@ -55,6 +55,22 @@ export const UNIT_SPRITE: Partial<Record<UnitType, string>> = withBase({
   CAVE_MONSTER: '/sprites/units/Cave_Monster_100px.png',
 });
 
+/**
+ * Player-faction overrides for unit sprites.
+ * Only entries listed here override UNIT_SPRITE when unit.faction === PLAYER.
+ */
+export const PLAYER_UNIT_SPRITE: Partial<Record<UnitType, string>> = withBase({
+  EMBER_DEMON: '/sprites/units/Ember_Demon_Player_100px.png',
+});
+
+/**
+ * Enemy-faction overrides for unit sprites.
+ * Only entries listed here override UNIT_SPRITE when unit.faction === ENEMY.
+ */
+export const ENEMY_UNIT_SPRITE: Partial<Record<UnitType, string>> = withBase({
+  EMBER_DEMON: '/sprites/units/Ember_Demon_Enemy.png',
+});
+
 /** Maps every BuildingType value to a sprite path (empty = missing). */
 export const BUILDING_SPRITE: Partial<Record<BuildingType, string>> = withBase({
   STRONGHOLD:      '/sprites/buildings/stronghold_100px.png',

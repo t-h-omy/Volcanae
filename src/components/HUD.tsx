@@ -1460,13 +1460,15 @@ function SelectedUnitPanel({
   const isInSpellCastMode = pendingSpellCast?.mageId === unit.id;
   const [confirmCrystalTower, setConfirmCrystalTower] = useState(false);
   const [spellsCollapsed, setSpellsCollapsed] = useState(false);
+  const [castModeInfoSpellId, setCastModeInfoSpellId] = useState<SpellId | null>(null);
 
-  // Crystal Tower can only be placed on the mage's own empty tile (no ruin)
+  // Crystal Tower can only be placed on the mage's own empty tile (no ruin, no forest/mountain)
   const crystalTowerBlocked = isMage && (() => {
     const tile = gameState.grid[unit.position.y]?.[unit.position.x];
     if (!tile) return true;
     if (tile.buildingId !== null) return true;
     if (tile.isRuin || tile.isStrongholdRuin) return true;
+    if (tile.terrainType === TileType.FOREST || tile.terrainType === TileType.MOUNTAIN) return true;
     return false;
   })();
 
@@ -1598,7 +1600,14 @@ function SelectedUnitPanel({
       <div className="hud-info-panel hud-spell-cast-panel">
         <div className="hud-panel-header">
           <span className="hud-panel-emoji">{spellDef?.emoji ?? '✨'}</span>
-          <span className="hud-panel-name">Casting {spellDef?.name ?? 'spell'}</span>
+          <button
+            className="hud-spell-cast-name-btn"
+            onClick={() => setCastModeInfoSpellId(pendingSpellCast.spellId)}
+            title="View spell info"
+          >
+            Casting {spellDef?.name ?? 'spell'}
+            <span className="info-badge" aria-hidden="true">i</span>
+          </button>
         </div>
         <p className="hud-spell-cast-hint">{hintText}</p>
         <button
@@ -1607,6 +1616,12 @@ function SelectedUnitPanel({
         >
           ❌ Cancel cast
         </button>
+        {castModeInfoSpellId && (
+          <SpellInfoPopup
+            spellId={castModeInfoSpellId}
+            onClose={() => setCastModeInfoSpellId(null)}
+          />
+        )}
       </div>
     );
   }
