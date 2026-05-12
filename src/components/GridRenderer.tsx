@@ -1147,7 +1147,7 @@ function TileCellInner({
         })();
         const unitBadge = showUnitLimit && (() => {
           const usage = recruitmentUsage[building.type as BuildingType]!;
-          const badgeEmoji = building.type === BuildingType.CRYSTAL_CHAMBER ? '🔮' : '⚔️';
+          const badgeEmoji = '⚔️';
           return <div className="unit-limit-badge">{badgeEmoji}{usage.current}/{usage.limit}</div>;
         })();
         return (
