@@ -1135,6 +1135,7 @@ function scoreActionsForUnit(
   const playerUnitsInTriggerRange: Unit[] = [];
   for (const u of Object.values(state.units)) {
     if (u.faction !== Faction.PLAYER) continue;
+    if (u.stats.currentHp <= 0) continue; // skip 0-HP BRANDMARKED units mid-transform
     if (isTileWithinEdgeCircleRange(unit.position.x, unit.position.y, u.position.x, u.position.y, triggerRange)) {
       playerUnitsInTriggerRange.push(u);
     }

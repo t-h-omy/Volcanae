@@ -8,10 +8,10 @@ import type { Unit, Building, GameState, Tile } from './types';
 import type { Draft } from 'immer';
 import { BuildingType, Faction, UnitTag, UnitType, TechFlag, TileType, DestroyBehavior } from './types';
 import { useFloaterStore } from './floaterStore';
-import { useCombatAnimationStore } from './combatAnimationStore';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { UNIT_DEFINITIONS, XP, ABILITIES, MAP, BUILDING_DEFINITIONS, MAGE } from './gameConfig';
 import { grantXp } from './levelSystem';
+import { generateId } from './mapGenerator';
 
 // Counter for generating unique gravestone building IDs within this module
 let combatSystemIdCounter = 0;
@@ -194,29 +194,84 @@ export function handleBrandmarkedUnitDeath(
   if (!alreadyQueued) {
     state.pendingBrandmarkTransforms.push({ unitId, position: { ...pos } });
   }
+}
 
-  // Dispatch transform animation to the combat-animation store (safe: different
-  // store — this call is allowed from within an immer producer on a Draft).
-  useCombatAnimationStore.getState().setUnitAnimation(unitId, {
-    type: 'TRANSFORM_TO_DEMON',
-    durationMs: 600,
-  });
+/**
+ * Immediately removes a dead BRANDMARKED player unit and spawns a hostile Ember Demon.
+ * Used during combat resolution (enemy attacks, building attacks) so that the fully
+ * resolved state has the demon already placed — avoiding 0-HP zombie units surviving
+ * in the resolved state and an incorrectly-timed transform animation.
+ *
+ * The demon is placed on the original tile if free, otherwise tries the four cardinal
+ * adjacent tiles. If no free tile can be found, the demon is not spawned.
+ */
+export function completeBrandmarkTransformInPlace(
+  state: Draft<GameState>,
+  unitId: string,
+  position: { x: number; y: number },
+): void {
+  const tile = state.grid[position.y]?.[position.x];
+  if (tile && tile.unitId === unitId) tile.unitId = null;
+  delete state.units[unitId];
+  state.gameStats.unitsLost += 1;
 
-  // After the animation finishes: clear the animation entry and show the
-  // "Demon risen" floater. The actual demon spawn happens in
-  // finalizeBrandmarkTransforms, which is triggered from useAnimationEngine
-  // after the resolved state is applied.
-  setTimeout(() => {
-    useCombatAnimationStore.getState().setUnitAnimation(unitId, null);
-    useFloaterStore.getState().addFloater({
-      value: 0,
-      label: '😈 Risen',
-      x: pos.x,
-      y: pos.y,
-      isEnemy: true,
-      floaterType: 'damage',
-    });
-  }, 600);
+  // Try to spawn demon on original tile, then adjacent tiles
+  let spawnPos: { x: number; y: number } | null = null;
+  const spawnTile = state.grid[position.y]?.[position.x];
+  if (spawnTile && !spawnTile.unitId && !spawnTile.isLava) {
+    spawnPos = { ...position };
+  } else {
+    const adjacents = [
+      { x: position.x - 1, y: position.y },
+      { x: position.x + 1, y: position.y },
+      { x: position.x, y: position.y - 1 },
+      { x: position.x, y: position.y + 1 },
+    ];
+    for (const adj of adjacents) {
+      if (adj.x < 0 || adj.y < 0 || adj.x >= (state.grid[0]?.length ?? 0) || adj.y >= state.grid.length) continue;
+      const t = state.grid[adj.y]?.[adj.x];
+      if (t && !t.unitId && !t.isLava) {
+        spawnPos = adj;
+        break;
+      }
+    }
+  }
+  if (!spawnPos) return;
+
+  const newId = generateId('unit_demon');
+  state.units[newId] = {
+    id: newId,
+    type: UnitType.EMBER_DEMON,
+    faction: Faction.ENEMY,
+    position: { x: spawnPos.x, y: spawnPos.y },
+    stats: {
+      currentHp: UNIT_DEFINITIONS.EMBER_DEMON.maxHp,
+      maxHp: UNIT_DEFINITIONS.EMBER_DEMON.maxHp,
+      attack: UNIT_DEFINITIONS.EMBER_DEMON.attack,
+      defense: UNIT_DEFINITIONS.EMBER_DEMON.defense,
+      moveRange: UNIT_DEFINITIONS.EMBER_DEMON.moveRange,
+      attackRange: UNIT_DEFINITIONS.EMBER_DEMON.attackRange,
+      discoverRadius: UNIT_DEFINITIONS.EMBER_DEMON.discoverRadius,
+      triggerRange: UNIT_DEFINITIONS.EMBER_DEMON.triggerRange,
+      movementActions: 1,
+    },
+    tags: [],
+    controllerMageId: null,
+    hasMovedThisTurn: true,
+    hasAttackedThisTurn: true,
+    hasCapturedThisTurn: true,
+    hasConstructedThisTurn: true,
+    hasDestroyedThisTurn: true,
+    hasUsedPostAttackMoveThisTurn: false,
+    hasCastThisTurn: false,
+    bloodlustAttackAvailable: false,
+    pinnedUntilTurn: 0,
+    xp: 0,
+    level: 1,
+    lastMovedTurn: state.turn,
+    distractionDefPenalty: 0,
+  };
+  state.grid[spawnPos.y][spawnPos.x].unitId = newId;
 }
 
 export interface CombatResult {
@@ -542,9 +597,8 @@ export function resolveAttack(
     // Capture tags before removal (for BRANDMARKED check)
     const attackerTags = [...attacker.tags];
     if (attackerTags.includes(UnitTag.BRANDMARKED)) {
-      // BRANDMARKED: defer unit removal and Ember Demon spawn to finalizeBrandmarkTransforms;
-      // unitsLost is counted in finalizeBrandmarkTransforms after the animation completes.
-      handleBrandmarkedUnitDeath(state, attacker);
+      // BRANDMARKED: immediately complete the transform so the resolved state is clean.
+      completeBrandmarkTransformInPlace(state, attackerId, { x: attacker.position.x, y: attacker.position.y });
     } else {
       // Remove attacker from grid
       const attackerTile = state.grid[attacker.position.y][attacker.position.x];
@@ -577,9 +631,8 @@ export function resolveAttack(
     const defenderTags = [...defender.tags];
 
     if (defenderTags.includes(UnitTag.BRANDMARKED)) {
-      // BRANDMARKED: defer unit removal and Ember Demon spawn to finalizeBrandmarkTransforms;
-      // unitsLost is counted in finalizeBrandmarkTransforms after the animation completes.
-      handleBrandmarkedUnitDeath(state, defender);
+      // BRANDMARKED: immediately complete the transform so the resolved state is clean.
+      completeBrandmarkTransformInPlace(state, defenderId, { x: defender.position.x, y: defender.position.y });
     } else {
       // Remove defender from grid
       const defenderTile = state.grid[defender.position.y][defender.position.x];
@@ -894,9 +947,8 @@ export function resolveBuildingAttack(
     const defenderPos = { x: defender.position.x, y: defender.position.y };
 
     if (defenderTags.includes(UnitTag.BRANDMARKED)) {
-      // BRANDMARKED: defer unit removal and Ember Demon spawn to finalizeBrandmarkTransforms;
-      // unitsLost is counted in finalizeBrandmarkTransforms after the animation completes.
-      handleBrandmarkedUnitDeath(state, defender);
+      // BRANDMARKED: immediately complete the transform so the resolved state is clean.
+      completeBrandmarkTransformInPlace(state, defenderId, defenderPos);
     } else {
       const defenderTile = state.grid[defender.position.y][defender.position.x];
       if (defenderTile.unitId === defenderId) {

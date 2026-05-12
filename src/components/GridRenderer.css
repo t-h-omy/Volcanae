@@ -877,3 +877,22 @@
   pointer-events: none;
 }
 
+
+/* ── Leash line SVG overlay ── */
+
+.leash-line-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 10;
+  overflow: visible;
+}
+
+.leash-line-dash {
+  animation: leash-dash-flow 1.2s linear infinite;
+}
+
+@keyframes leash-dash-flow {
+  to { stroke-dashoffset: -26; }
+}
