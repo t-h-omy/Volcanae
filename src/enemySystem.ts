@@ -16,6 +16,7 @@ import { enemyConstructBuilding } from './constructionSystem';
 import { processEnemyLevelUps, grantXp } from './levelSystem';
 import type { GameEvent } from './gameEvents';
 import { hasUnitActed } from './unitActions';
+import { sweepLeashes } from './spellSystem';
 import { checkGraveTrapTrigger } from './movementSystem';
 
 // ============================================================================
@@ -2506,6 +2507,8 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
         }
         decideAndExecute(currentUnit, draft, targetingIntents, recentlyLostBuildingIds, events);
       }
+      // Sweep leashes after each enemy unit's turn to handle mage displacement
+      sweepLeashes(draft);
     }
 
     // 3b. Magma Spyr attacks (after unit movement)

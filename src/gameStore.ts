@@ -50,7 +50,7 @@ import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLo
 import { canUnitHeal, getHealTargets, canUnitFieldwork } from './unitActions';
 import { createFieldworkOutpost } from './constructionSystem';
 import { getTagsFromActiveSpecialists } from './specialistSystem';
-import { castSpell as castSpellLogic } from './spellSystem';
+import { castSpell as castSpellLogic, sweepLeashes } from './spellSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { useShockwaveStore } from './shockwaveStore';
 
@@ -289,6 +289,23 @@ export const useGameStore = create<GameStore>()(
         moveUnitLogic(state, unitId, targetPosition);
         // Update tile discovery after player action
         updateDiscovery(state);
+        // Defect any leashed units that are now out of range
+        const defectedIds = sweepLeashes(state);
+        if (defectedIds.length > 0) {
+          if (defectedIds.includes(state.selectedUnitId ?? '')) {
+            state.selectedUnitId = null;
+          }
+          const { addFloater } = useFloaterStore.getState();
+          for (const id of defectedIds) {
+            const u = state.units[id];
+            if (!u) continue;
+            addFloater({
+              label: '⚠️ Defected!',
+              x: u.position.x, y: u.position.y,
+              isEnemy: true, floaterType: 'damage', value: 0,
+            });
+          }
+        }
         // Check win/loss conditions after player action
         checkGameConditions(state);
       });
