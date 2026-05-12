@@ -856,7 +856,23 @@
 /* ── Ice overlay (frozen water tile) ── */
 
 .tile--ice {
-  background: rgba(160, 230, 255, 0.55);
+  background:
+    repeating-linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.30) 0px,
+      rgba(255, 255, 255, 0.30) 3px,
+      transparent 3px,
+      transparent 14px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(255, 255, 255, 0.15) 0px,
+      rgba(255, 255, 255, 0.15) 3px,
+      transparent 3px,
+      transparent 14px
+    ),
+    rgba(220, 248, 255, 0.75);
+  border: 2px solid rgba(180, 240, 255, 0.80);
   z-index: 1;
   pointer-events: none;
 }

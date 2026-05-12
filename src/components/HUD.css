@@ -2660,3 +2660,22 @@
 .hud-spell-cast-cancel:hover {
   background: rgba(220, 80, 80, 0.9);
 }
+
+.hud-spell-cast-name-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: #eee;
+  cursor: pointer;
+  padding: 0;
+  font-size: inherit;
+  font-weight: inherit;
+  text-align: left;
+}
+
+.hud-spell-cast-name-btn:hover {
+  text-decoration: underline;
+  opacity: 0.85;
+}
