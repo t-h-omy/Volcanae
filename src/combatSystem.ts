@@ -197,47 +197,40 @@ export function handleBrandmarkedUnitDeath(
 }
 
 /**
- * Immediately removes a dead BRANDMARKED player unit and spawns a hostile Ember Demon.
- * Used during combat resolution (enemy attacks, building attacks) so that the fully
- * resolved state has the demon already placed — avoiding 0-HP zombie units surviving
- * in the resolved state and an incorrectly-timed transform animation.
- *
- * The demon is placed on the original tile if free, otherwise tries the four cardinal
- * adjacent tiles. If no free tile can be found, the demon is not spawned.
+ * Finds the best available spawn position for an Ember Demon near `origin`.
+ * Tries the origin tile first, then the four cardinal adjacent tiles.
+ * Returns `null` if no free tile is found.
  */
-export function completeBrandmarkTransformInPlace(
+export function findEmberDemonSpawnPos(
   state: Draft<GameState>,
-  unitId: string,
-  position: { x: number; y: number },
-): void {
-  const tile = state.grid[position.y]?.[position.x];
-  if (tile && tile.unitId === unitId) tile.unitId = null;
-  delete state.units[unitId];
-  state.gameStats.unitsLost += 1;
-
-  // Try to spawn demon on original tile, then adjacent tiles
-  let spawnPos: { x: number; y: number } | null = null;
-  const spawnTile = state.grid[position.y]?.[position.x];
-  if (spawnTile && !spawnTile.unitId && !spawnTile.isLava) {
-    spawnPos = { ...position };
-  } else {
-    const adjacents = [
-      { x: position.x - 1, y: position.y },
-      { x: position.x + 1, y: position.y },
-      { x: position.x, y: position.y - 1 },
-      { x: position.x, y: position.y + 1 },
-    ];
-    for (const adj of adjacents) {
-      if (adj.x < 0 || adj.y < 0 || adj.x >= (state.grid[0]?.length ?? 0) || adj.y >= state.grid.length) continue;
-      const t = state.grid[adj.y]?.[adj.x];
-      if (t && !t.unitId && !t.isLava) {
-        spawnPos = adj;
-        break;
-      }
-    }
+  origin: { x: number; y: number },
+): { x: number; y: number } | null {
+  const originTile = state.grid[origin.y]?.[origin.x];
+  if (originTile && !originTile.unitId && !originTile.isLava) {
+    return { ...origin };
   }
-  if (!spawnPos) return;
+  const adjacents = [
+    { x: origin.x - 1, y: origin.y },
+    { x: origin.x + 1, y: origin.y },
+    { x: origin.x, y: origin.y - 1 },
+    { x: origin.x, y: origin.y + 1 },
+  ];
+  for (const adj of adjacents) {
+    if (adj.x < 0 || adj.y < 0 || adj.x >= (state.grid[0]?.length ?? 0) || adj.y >= state.grid.length) continue;
+    const t = state.grid[adj.y]?.[adj.x];
+    if (t && !t.unitId && !t.isLava) return adj;
+  }
+  return null;
+}
 
+/**
+ * Spawns a hostile (enemy-faction) Ember Demon at `spawnPos`.
+ * The demon starts with all actions spent (exhausted for this turn).
+ */
+export function spawnEnemyEmberDemon(
+  state: Draft<GameState>,
+  spawnPos: { x: number; y: number },
+): void {
   const newId = generateId('unit_demon');
   state.units[newId] = {
     id: newId,
@@ -272,6 +265,29 @@ export function completeBrandmarkTransformInPlace(
     distractionDefPenalty: 0,
   };
   state.grid[spawnPos.y][spawnPos.x].unitId = newId;
+}
+
+/**
+ * Immediately removes a dead BRANDMARKED player unit and spawns a hostile Ember Demon.
+ * Used during combat resolution (enemy attacks, building attacks) so that the fully
+ * resolved state has the demon already placed — avoiding 0-HP zombie units surviving
+ * in the resolved state and an incorrectly-timed transform animation.
+ *
+ * The demon is placed on the original tile if free, otherwise tries the four cardinal
+ * adjacent tiles. If no free tile can be found, the demon is not spawned.
+ */
+export function completeBrandmarkTransformInPlace(
+  state: Draft<GameState>,
+  unitId: string,
+  position: { x: number; y: number },
+): void {
+  const tile = state.grid[position.y]?.[position.x];
+  if (tile && tile.unitId === unitId) tile.unitId = null;
+  delete state.units[unitId];
+  state.gameStats.unitsLost += 1;
+
+  const spawnPos = findEmberDemonSpawnPos(state, position);
+  if (spawnPos) spawnEnemyEmberDemon(state, spawnPos);
 }
 
 export interface CombatResult {

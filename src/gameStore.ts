@@ -7,7 +7,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { current, produce } from 'immer';
 import { generateInitialGameState, generateId } from './mapGenerator';
-import { resolveAttack, resolveBuildingAttack, resolveAttackOnBuilding, resolveBuildingAttackOnBuilding, handleBrandmarkedUnitDeath, shouldLeaveGravestone, createGravestoneAt } from './combatSystem';
+import { resolveAttack, resolveBuildingAttack, resolveAttackOnBuilding, resolveBuildingAttackOnBuilding, handleBrandmarkedUnitDeath, shouldLeaveGravestone, createGravestoneAt, findEmberDemonSpawnPos, spawnEnemyEmberDemon } from './combatSystem';
 import { moveUnit as moveUnitLogic } from './movementSystem';
 import {
   initiateCapture as initiateCaptureLogic,
@@ -1022,62 +1022,8 @@ export const useGameStore = create<GameStore>()(
           });
 
           // Spawn a hostile Ember Demon at the tile if free, or an adjacent tile
-          let spawnPos: { x: number; y: number } | null = null;
-          const spawnTile = state.grid[position.y]?.[position.x];
-          if (spawnTile && spawnTile.unitId === null) {
-            spawnPos = { x: position.x, y: position.y };
-          } else {
-            const adjacents = [
-              { x: position.x - 1, y: position.y },
-              { x: position.x + 1, y: position.y },
-              { x: position.x, y: position.y - 1 },
-              { x: position.x, y: position.y + 1 },
-            ];
-            for (const adj of adjacents) {
-              if (adj.x < 0 || adj.y < 0 || adj.x >= (state.grid[0]?.length ?? 0) || adj.y >= state.grid.length) continue;
-              const t = state.grid[adj.y]?.[adj.x];
-              if (t && !t.unitId && !t.isLava) {
-                spawnPos = adj;
-                break;
-              }
-            }
-          }
-          if (spawnPos) {
-            const newId = generateId('unit_demon');
-            state.units[newId] = {
-              id: newId,
-              type: UnitType.EMBER_DEMON,
-              faction: Faction.ENEMY,
-              position: { x: spawnPos.x, y: spawnPos.y },
-              stats: {
-                currentHp: UNIT_DEFINITIONS.EMBER_DEMON.maxHp,
-                maxHp: UNIT_DEFINITIONS.EMBER_DEMON.maxHp,
-                attack: UNIT_DEFINITIONS.EMBER_DEMON.attack,
-                defense: UNIT_DEFINITIONS.EMBER_DEMON.defense,
-                moveRange: UNIT_DEFINITIONS.EMBER_DEMON.moveRange,
-                attackRange: UNIT_DEFINITIONS.EMBER_DEMON.attackRange,
-                discoverRadius: UNIT_DEFINITIONS.EMBER_DEMON.discoverRadius,
-                triggerRange: UNIT_DEFINITIONS.EMBER_DEMON.triggerRange,
-                movementActions: 1,
-              },
-              tags: [],
-              controllerMageId: null,
-              hasMovedThisTurn: true,
-              hasAttackedThisTurn: true,
-              hasCapturedThisTurn: true,
-              hasConstructedThisTurn: true,
-              hasDestroyedThisTurn: true,
-              hasUsedPostAttackMoveThisTurn: false,
-              hasCastThisTurn: false,
-              bloodlustAttackAvailable: false,
-              pinnedUntilTurn: 0,
-              xp: 0,
-              level: 1,
-              lastMovedTurn: state.turn,
-              distractionDefPenalty: 0,
-            };
-            state.grid[spawnPos.y][spawnPos.x].unitId = newId;
-          }
+          const spawnPos = findEmberDemonSpawnPos(state, position);
+          if (spawnPos) spawnEnemyEmberDemon(state, spawnPos);
         }
         state.pendingBrandmarkTransforms = [];
       });

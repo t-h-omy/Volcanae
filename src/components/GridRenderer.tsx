@@ -1617,6 +1617,12 @@ function ShockwaveLayer() {
 // LEASH LINE LAYER
 // ============================================================================
 
+interface LeashPair {
+  magePos: { x: number; y: number };
+  demonPos: { x: number; y: number };
+  warn: boolean;
+}
+
 /**
  * Renders SVG curves connecting each leashed Ember Demon to its controlling Mage
  * when either unit is selected. Provides "magic leash" visual feedback.
@@ -1626,9 +1632,9 @@ function LeashLineLayer({ tileSize }: { tileSize: number }) {
   const units = useGameStore((s) => s.units);
   const selectedUnit = selectedUnitId ? units[selectedUnitId] : undefined;
 
-  const pairs = useMemo<{ magePos: { x: number; y: number }; demonPos: { x: number; y: number }; warn: boolean }[]>(() => {
+  const pairs = useMemo<LeashPair[]>(() => {
     if (!selectedUnit) return [];
-    const result: { magePos: { x: number; y: number }; demonPos: { x: number; y: number }; warn: boolean }[] = [];
+    const result: LeashPair[] = [];
 
     let mage: typeof selectedUnit | undefined;
     let demons: (typeof selectedUnit)[] = [];
