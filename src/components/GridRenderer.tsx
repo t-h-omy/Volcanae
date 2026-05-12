@@ -145,7 +145,6 @@ export default function GridRenderer() {
   const cancelSpellCast = useGameStore((s) => s.cancelSpellCast);
   const castSpell = useGameStore((s) => s.castSpell);
   const strongholdTotalCap = useGameStore((s) => getStrongholdEffectiveCap(s).totalCap);
-  const unlockedUnits = useGameStore((s) => s.unlockedUnits);
   // Precompute recruitment usage (current/limit) for each player-owned recruitment building type.
   // Uses stable s.units / s.buildings selectors + useMemo so the result object is only
   // recreated when actual unit or building state changes — avoids an infinite re-render loop
@@ -949,6 +948,7 @@ function TileCellInner({
     (building.type === BuildingType.FARM || building.type === BuildingType.PATRICIANHOUSE || building.type === BuildingType.STRONGHOLD);
 
   // Unit-limit badge for player-owned recruitment buildings
+  const unlockedUnits = useGameStore((s) => s.unlockedUnits);
   const showUnitLimit =
     showBuilding &&
     building &&
