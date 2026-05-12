@@ -616,6 +616,36 @@ export default function GridRenderer() {
         return;
       }
       if (pendingSpellCast) {
+        // Provide feedback when clicking a blocked EMBERBIND or RAISE_SKELETON target
+        // (e.g. an embernest or gravestone with a unit on it).
+        if (pendingSpellCast.spellId === 'EMBERBIND' && tile.buildingId) {
+          const b = buildings[tile.buildingId];
+          if (b?.type === BuildingType.EMBERNEST && tile.unitId) {
+            useFloaterStore.getState().addFloater({
+              value: 0,
+              label: '🚫 Occupied',
+              x,
+              y,
+              isEnemy: false,
+              floaterType: 'damage',
+            });
+            return;
+          }
+        }
+        if (pendingSpellCast.spellId === 'RAISE_SKELETON' && tile.buildingId) {
+          const b = buildings[tile.buildingId];
+          if (b?.type === BuildingType.GRAVESTONE && tile.unitId) {
+            useFloaterStore.getState().addFloater({
+              value: 0,
+              label: '🚫 Occupied',
+              x,
+              y,
+              isEnemy: false,
+              floaterType: 'damage',
+            });
+            return;
+          }
+        }
         cancelSpellCast();
         return;
       }
@@ -823,6 +853,7 @@ export default function GridRenderer() {
         <BuildIndicatorLayer tileSize={tileSize} />
         <LevelUpIndicatorLayer tileSize={tileSize} />
         <DamageFloaterLayer tileSize={tileSize} />
+        <LeashLineLayer tileSize={tileSize} />
         <ProjectileLayer />
         <ShockwaveLayer />
       </div>
@@ -1579,5 +1610,118 @@ function ShockwaveLayer() {
         />
       ))}
     </div>
+  );
+}
+
+// ============================================================================
+// LEASH LINE LAYER
+// ============================================================================
+
+interface LeashPair {
+  magePos: { x: number; y: number };
+  demonPos: { x: number; y: number };
+  warn: boolean;
+}
+
+/**
+ * Renders SVG curves connecting each leashed Ember Demon to its controlling Mage
+ * when either unit is selected. Provides "magic leash" visual feedback.
+ */
+function LeashLineLayer({ tileSize }: { tileSize: number }) {
+  const selectedUnitId = useGameStore((s) => s.selectedUnitId);
+  const units = useGameStore((s) => s.units);
+  const selectedUnit = selectedUnitId ? units[selectedUnitId] : undefined;
+
+  const pairs = useMemo<LeashPair[]>(() => {
+    if (!selectedUnit) return [];
+    const result: LeashPair[] = [];
+
+    let mage: typeof selectedUnit | undefined;
+    let demons: (typeof selectedUnit)[] = [];
+
+    if (selectedUnit.type === UnitType.MAGE) {
+      mage = selectedUnit;
+      demons = Object.values(units).filter(
+        (u) => u.type === UnitType.EMBER_DEMON && u.controllerMageId === selectedUnit.id,
+      );
+    } else if (selectedUnit.type === UnitType.EMBER_DEMON && selectedUnit.controllerMageId) {
+      mage = units[selectedUnit.controllerMageId];
+      demons = [selectedUnit];
+    }
+
+    if (!mage) return result;
+    for (const demon of demons) {
+      const inRange = isTileWithinEdgeCircleRange(
+        mage.position.x, mage.position.y,
+        demon.position.x, demon.position.y,
+        MAGE.EMBER_DEMON_LEASH_RANGE,
+      );
+      result.push({ magePos: mage.position, demonPos: demon.position, warn: !inRange });
+    }
+    return result;
+  }, [selectedUnit, units]);
+
+  if (pairs.length === 0) return null;
+
+  const half = tileSize / 2;
+
+  return (
+    <svg
+      className="leash-line-layer"
+      style={{ width: MAP.GRID_WIDTH * tileSize, height: MAP.GRID_HEIGHT * tileSize }}
+    >
+      {pairs.map((pair, i) => {
+        const mx = pair.magePos.x * tileSize + half;
+        const my = pair.magePos.y * tileSize + half;
+        const dx = pair.demonPos.x * tileSize + half;
+        const dy = pair.demonPos.y * tileSize + half;
+
+        // Control points: perpendicular offset for a flowing curve
+        const lx = dx - mx;
+        const ly = dy - my;
+        const len = Math.sqrt(lx * lx + ly * ly) || 1;
+        const px = (-ly / len) * tileSize * 0.8;
+        const py = (lx / len) * tileSize * 0.8;
+
+        const cp1x = mx + lx / 3 + px;
+        const cp1y = my + ly / 3 + py;
+        const cp2x = mx + (lx * 2) / 3 - px;
+        const cp2y = my + (ly * 2) / 3 - py;
+
+        const d = `M ${mx},${my} C ${cp1x},${cp1y} ${cp2x},${cp2y} ${dx},${dy}`;
+        const color = pair.warn ? '#ff3333' : '#ff8800';
+
+        return (
+          <g key={i}>
+            {/* glow backdrop */}
+            <path
+              d={d}
+              stroke={color}
+              strokeWidth={8}
+              fill="none"
+              strokeLinecap="round"
+              opacity={0.25}
+              filter="url(#leash-blur)"
+            />
+            {/* main line with dash animation */}
+            <path
+              d={d}
+              stroke={color}
+              strokeWidth={2.5}
+              fill="none"
+              strokeLinecap="round"
+              strokeDasharray="8 5"
+              className="leash-line-dash"
+              opacity={0.9}
+            />
+          </g>
+        );
+      })}
+      <defs>
+        <filter id="leash-blur" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="4" />
+        </filter>
+      </defs>
+    </svg>
   );
 }

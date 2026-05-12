@@ -7,7 +7,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { current, produce } from 'immer';
 import { generateInitialGameState, generateId } from './mapGenerator';
-import { resolveAttack, resolveBuildingAttack, resolveAttackOnBuilding, resolveBuildingAttackOnBuilding, handleBrandmarkedUnitDeath } from './combatSystem';
+import { resolveAttack, resolveBuildingAttack, resolveAttackOnBuilding, resolveBuildingAttackOnBuilding, handleBrandmarkedUnitDeath, shouldLeaveGravestone, createGravestoneAt, findEmberDemonSpawnPos, spawnEnemyEmberDemon } from './combatSystem';
 import { moveUnit as moveUnitLogic } from './movementSystem';
 import {
   initiateCapture as initiateCaptureLogic,
@@ -1010,43 +1010,20 @@ export const useGameStore = create<GameStore>()(
           if (tile && tile.unitId === unitId) tile.unitId = null;
           delete state.units[unitId];
           state.gameStats.unitsLost += 1;
-          // Spawn a hostile Ember Demon at the tile if it's now free
-          if (tile && tile.unitId === null) {
-            const newId = generateId('unit_demon');
-            state.units[newId] = {
-              id: newId,
-              type: UnitType.EMBER_DEMON,
-              faction: Faction.ENEMY,
-              position: { x: position.x, y: position.y },
-              stats: {
-                currentHp: UNIT_DEFINITIONS.EMBER_DEMON.maxHp,
-                maxHp: UNIT_DEFINITIONS.EMBER_DEMON.maxHp,
-                attack: UNIT_DEFINITIONS.EMBER_DEMON.attack,
-                defense: UNIT_DEFINITIONS.EMBER_DEMON.defense,
-                moveRange: UNIT_DEFINITIONS.EMBER_DEMON.moveRange,
-                attackRange: UNIT_DEFINITIONS.EMBER_DEMON.attackRange,
-                discoverRadius: UNIT_DEFINITIONS.EMBER_DEMON.discoverRadius,
-                triggerRange: UNIT_DEFINITIONS.EMBER_DEMON.triggerRange,
-                movementActions: 1,
-              },
-              tags: [],
-              controllerMageId: null,
-              hasMovedThisTurn: true,
-              hasAttackedThisTurn: true,
-              hasCapturedThisTurn: true,
-              hasConstructedThisTurn: true,
-              hasDestroyedThisTurn: true,
-              hasUsedPostAttackMoveThisTurn: false,
-              hasCastThisTurn: false,
-              bloodlustAttackAvailable: false,
-              pinnedUntilTurn: 0,
-              xp: 0,
-              level: 1,
-              lastMovedTurn: state.turn,
-              distractionDefPenalty: 0,
-            };
-            tile.unitId = newId;
-          }
+
+          // Show "Risen" floater for the player-turn tick brandmark death path
+          useFloaterStore.getState().addFloater({
+            value: 0,
+            label: '😈 Risen',
+            x: position.x,
+            y: position.y,
+            isEnemy: true,
+            floaterType: 'damage',
+          });
+
+          // Spawn a hostile Ember Demon at the tile if free, or an adjacent tile
+          const spawnPos = findEmberDemonSpawnPos(state, position);
+          if (spawnPos) spawnEnemyEmberDemon(state, spawnPos);
         }
         state.pendingBrandmarkTransforms = [];
       });
@@ -1626,11 +1603,37 @@ export const useGameStore = create<GameStore>()(
           case 'UNIT_DEATH': {
             const unit = state.units[event.unitId];
             if (unit) {
+              // Show "Risen" floater for BRANDMARKED units — the deferred animation
+              // was removed from handleBrandmarkedUnitDeath, so we show it here at
+              // the correct point in the animation timeline.
+              if (unit.tags.includes(UnitTag.BRANDMARKED)) {
+                useFloaterStore.getState().addFloater({
+                  value: 0,
+                  label: '😈 Risen',
+                  x: unit.position.x,
+                  y: unit.position.y,
+                  isEnemy: true,
+                  floaterType: 'damage',
+                });
+              }
               const tile = state.grid[unit.position.y][unit.position.x];
               if (tile.unitId === event.unitId) {
                 tile.unitId = null;
               }
+              // Create a gravestone immediately when a qualifying player unit dies.
+              // This keeps the gravestone in sync with the animation (unit disappears,
+              // gravestone appears right away) rather than waiting for setGameState.
+              const unitFaction = unit.faction;
+              const unitType = unit.type;
+              const unitTags = [...unit.tags];
+              const deathPos = { x: unit.position.x, y: unit.position.y };
               delete state.units[event.unitId];
+              if (!unitTags.includes(UnitTag.BRANDMARKED) && shouldLeaveGravestone(
+                { faction: unitFaction, tags: unitTags, type: unitType },
+                { defaultOn: false },
+              )) {
+                createGravestoneAt(state, deathPos, unitType);
+              }
             }
             break;
           }

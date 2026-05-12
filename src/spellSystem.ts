@@ -119,7 +119,7 @@ export function getValidSpellTargets(
         return targets;
       } else {
         // Second pick: a different unit of the same faction as the first pick,
-        // within mage range AND within mage range of the first unit's position.
+        // within mage spell range (no constraint on proximity to first unit).
         const first = state.units[firstId];
         if (!first) return [];
         const targets: Position[] = [];
@@ -127,11 +127,6 @@ export function getValidSpellTargets(
           if (unit.id === firstId || unit.id === mageId) continue;
           if (unit.faction !== first.faction) continue;
           if (!isTileInSpellRange(mage, unit.position, range)) continue;
-          if (!isTileWithinEdgeCircleRange(
-            first.position.x, first.position.y,
-            unit.position.x, unit.position.y,
-            range,
-          )) continue;
           targets.push({ ...unit.position });
         }
         return targets;
@@ -142,9 +137,10 @@ export function getValidSpellTargets(
       const targets: Position[] = [];
       for (const building of Object.values(state.buildings)) {
         if (building.type !== BuildingType.EMBERNEST) continue;
-        if (isTileInSpellRange(mage, building.position, range)) {
-          targets.push({ ...building.position });
-        }
+        if (!isTileInSpellRange(mage, building.position, range)) continue;
+        const tile = state.grid[building.position.y]?.[building.position.x];
+        if (tile?.unitId) continue; // occupied — not a valid target
+        targets.push({ ...building.position });
       }
       return targets;
     }
@@ -263,11 +259,6 @@ function handleTranspose(
   if (!secondUnit) return false;
   if (secondUnit.faction !== firstUnit.faction) return false;
   if (!isTileInSpellRange(mage, secondUnit.position, range)) return false;
-  if (!isTileWithinEdgeCircleRange(
-    firstUnit.position.x, firstUnit.position.y,
-    secondUnit.position.x, secondUnit.position.y,
-    range,
-  )) return false;
 
   // Perform the swap
   const posA = { ...firstUnit.position };
@@ -396,6 +387,7 @@ function handleBrandmarkHeal(
   if (target.tags.includes(UnitTag.SUMMONED)) return false;
   if (target.tags.includes(UnitTag.BRANDMARKED)) return false; // only unbrandmarked units
 
+  target.stats.maxHp *= 2;
   target.stats.currentHp = target.stats.maxHp;
   target.stats.attack += MAGE.BRANDMARK_ATTACK_BONUS;
   target.tags.push(UnitTag.BRANDMARKED);
