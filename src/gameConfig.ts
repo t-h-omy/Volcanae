@@ -931,7 +931,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   MAGE: {
-    maxHp: 60, attack: 0, defense: 25,
+    maxHp: 70, attack: 0, defense: 30,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
     tags: [UnitTag.PASSIVE, UnitTag.PREP],
@@ -955,11 +955,11 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
     ],
-    description: 'Powerful demonic unit. Can be summoned by a Mage or encountered as a hostile enemy.', // overwritten below
+    description: 'Powerful demonic unit..', // overwritten below
   },
 
   SKELETON: {
-    maxHp: 60, attack: 35, defense: 20,
+    maxHp: 70, attack: 40, defense: 35,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
     tags: [],
@@ -969,7 +969,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
-    description: 'Undead warrior raised from a gravestone by a Mage via the Raise Skeleton spell.', // overwritten below
+    description: 'Undead warrior raised from a gravestone.', // overwritten below
   },
 };
 
@@ -986,8 +986,8 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   u.LAVA_SIEGE.description  = `Enemy long-range bombard with ${u.LAVA_SIEGE.attackRange}-tile reach.`;
   u.EMBERLING.description   = `Fragile fire spirit that walks toward lava. Explodes on death, dealing ${u.EMBERLING.explosionDamage} damage to all units within 1 tile.`;
   u.MAGE.description        = `Arcane caster that casts spells within ${MAGE.SPELL_RANGE_BASE} tiles instead of attacking. Recruited from active Crystal Chambers.`;
-  u.EMBER_DEMON.description = `Powerful demonic unit with ${u.EMBER_DEMON.maxHp} HP. Can be summoned by a Mage or encountered as a hostile enemy.`;
-  u.SKELETON.description    = `Undead warrior raised from a gravestone by a Mage via the Raise Skeleton spell.`;
+  u.EMBER_DEMON.description = `Powerful demonic unit.`;
+  u.SKELETON.description    = `Undead warrior raised from a gravestone.`;
 }
 
 // ============================================================================
