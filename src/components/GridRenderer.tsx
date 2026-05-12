@@ -1118,10 +1118,6 @@ function TileCellInner({
         </>
       )}
 
-      {/* GRAVE_TRAP magic-glyph overlay — pulsing rune on top of gravestone sprite */}
-      {showBuilding && building && building.type === BuildingType.GRAVE_TRAP && tile.isRevealed && (
-        <div className="tile-overlay tile--grave-trap-glyph" aria-hidden="true">⛤</div>
-      )}
       {showBuilding && building && building.combatStats && building.faction && building.hp < building.maxHp && (
         <div
           className="hp-bar-wrapper building-hp-bar"

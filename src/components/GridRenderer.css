@@ -877,20 +877,3 @@
   pointer-events: none;
 }
 
-/* ── GRAVE_TRAP magic-glyph overlay ── */
-
-.tile--grave-trap-glyph {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.4em;
-  z-index: 3;
-  pointer-events: none;
-  animation: grave-trap-glyph-pulse 2s ease-in-out infinite;
-  background: transparent;
-}
-
-@keyframes grave-trap-glyph-pulse {
-  0%, 100% { opacity: 0.55; transform: scale(0.95); }
-  50%       { opacity: 1;    transform: scale(1.05); }
-}
