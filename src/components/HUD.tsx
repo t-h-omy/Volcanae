@@ -10,7 +10,7 @@ import { useGameStore } from '../gameStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
 import { useSoundOptionsStore } from '../soundOptionsStore';
-import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, computeResearchCost, SPELL_DEFINITIONS } from '../gameConfig';
+import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, computeResearchCost, SPELL_DEFINITIONS, MAGE } from '../gameConfig';
 import { UI } from '../uiConfig';
 import type { UnitPopulationCost, TechId } from '../types';
 import {
@@ -50,6 +50,7 @@ import {
 } from '../types';
 import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast } from '../unitActions';
 import { getPhalanxAttackBonus, getPhalanxDefenseBonus } from '../combatSystem';
+import { getMageSpellRange } from '../spellSystem';
 import { useZoneClearedStore } from '../zoneClearedStore';
 import { useCaveScreamsStore } from '../caveScreamsStore';
 import { useSpecialistHireStore } from '../specialistHireStore';
@@ -935,7 +936,7 @@ function UnitInfoPopup({
               ['ATK', stats.attack],
               ['DEF', stats.defense],
               ['MOV', stats.moveRange],
-              ['RNG', stats.attackRange],
+              unitType === UnitType.MAGE ? ['SPL', MAGE.SPELL_RANGE_BASE] as const : ['RNG', stats.attackRange] as const,
               ['VIS', stats.discoverRadius],
             ] as const).map(([l, v]) => (
               <div key={l} className="info-popup-stat-cell">
@@ -1345,7 +1346,7 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
             ['MOV', 'moveRange', unit.stats.moveRange] as const,
             ['RNG', 'attackRange', unit.stats.attackRange] as const,
             ['VIS', 'discoverRadius', unit.stats.discoverRadius] as const,
-          ]).map(([label, key, rawVal]) => (
+          ]).filter(([label]) => unit.type !== UnitType.MAGE || label !== 'RNG').map(([label, key, rawVal]) => (
             <div key={label} className="info-popup-stat-cell">
               <div className="info-popup-stat-label">{label}</div>
               <div className="info-popup-stat-value">
@@ -1354,6 +1355,19 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
               </div>
             </div>
           ))}
+          {unit.type === UnitType.MAGE && (() => {
+            const spellRange = getMageSpellRange(gameState);
+            const spellBonus = spellRange - MAGE.SPELL_RANGE_BASE;
+            return (
+              <div key="SPL" className="info-popup-stat-cell">
+                <div className="info-popup-stat-label">SPL</div>
+                <div className="info-popup-stat-value">
+                  {MAGE.SPELL_RANGE_BASE}
+                  {spellBonus > 0 && <span className="hud-stat-mod hud-stat-bonus">+{spellBonus}</span>}
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Modifier breakdown — only shown when there are active modifiers */}
@@ -1684,11 +1698,23 @@ function SelectedUnitPanel({
             {unit.stats.moveRange - (inlineStatMods.applied.moveRange ?? 0)}
             {showNetMod('moveRange')}
           </span>
-          <span className="hud-stat-label">RNG</span>
-          <span className="hud-stat-value">
-            {unit.stats.attackRange - (inlineStatMods.applied.attackRange ?? 0)}
-            {showNetMod('attackRange')}
-          </span>
+          {isMage ? (() => {
+            const spellRange = getMageSpellRange(gameState);
+            const spellBonus = spellRange - MAGE.SPELL_RANGE_BASE;
+            return (<>
+              <span className="hud-stat-label">SPL</span>
+              <span className="hud-stat-value">
+                {MAGE.SPELL_RANGE_BASE}
+                {spellBonus > 0 && <span className="hud-stat-mod hud-stat-bonus">+{spellBonus}</span>}
+              </span>
+            </>);
+          })() : (<>
+            <span className="hud-stat-label">RNG</span>
+            <span className="hud-stat-value">
+              {unit.stats.attackRange - (inlineStatMods.applied.attackRange ?? 0)}
+              {showNetMod('attackRange')}
+            </span>
+          </>)}
           <span className="hud-stat-label">VIS</span>
           <span className="hud-stat-value">
             {unit.stats.discoverRadius - (inlineStatMods.applied.discoverRadius ?? 0)}

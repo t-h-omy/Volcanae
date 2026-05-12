@@ -130,6 +130,8 @@ export const CRYSTAL_CHAMBER_CONFIG = {
   CRYSTALS_PER_CHAMBER_PER_TURN: 1,
   /** Max HP */
   MAX_HP: 100,
+  /** Per-building unit limit (max live Mages per Crystal Chamber) */
+  CHAMBER_UNIT_LIMIT: 1,
 } as const;
 
 // ============================================================================
@@ -142,41 +144,12 @@ export const MAGE = {
   SPELL_RANGE_BASE: 2,
   /** Range bonus granted by the SPELL_REACH tech */
   SPELL_RANGE_BONUS: 1,
-  /** Crystal Chamber per-building unit limit (max live mages per chamber) */
-  CHAMBER_UNIT_LIMIT: 1,
 
-  // ── Mage stat block ──────────────────────────────────────────────────
-  MAGE_MAX_HP: 60,
-  MAGE_ATTACK: 0,
-  MAGE_DEFENSE: 25,
-  MAGE_MOVE_RANGE: 1,
-  MAGE_ATTACK_RANGE: 1,
-  MAGE_DISCOVER_RADIUS: 1,
-  MAGE_COST_IRON: 2,
-  MAGE_COST_WOOD: 5,
-  MAGE_POP_FARMERS: 0,
-  MAGE_POP_NOBLES: 1,
-
-  // ── Ember Demon stat block (used for both summoned and hostile demons) ──
-  EMBER_DEMON_MAX_HP: 120,
-  EMBER_DEMON_ATTACK: 70,
-  EMBER_DEMON_DEFENSE: 40,
-  EMBER_DEMON_MOVE_RANGE: 1,
-  EMBER_DEMON_ATTACK_RANGE: 1,
-  EMBER_DEMON_DISCOVER_RADIUS: 1,
-  EMBER_DEMON_TRIGGER_RANGE: 3,
+  // ── Ember Demon spell/leash parameters ──────────────────────────────
   /** Tile range within which a Mage must remain to keep its summoned demon LEASHED */
   EMBER_DEMON_LEASH_RANGE: 2,
   /** Crystals granted to the player when a hostile EMBER_DEMON is killed by the player */
   EMBER_DEMON_KILL_CRYSTAL_REWARD: 1,
-
-  // ── Skeleton stat block ──────────────────────────────────────────────
-  SKELETON_MAX_HP: 60,
-  SKELETON_ATTACK: 35,
-  SKELETON_DEFENSE: 20,
-  SKELETON_MOVE_RANGE: 1,
-  SKELETON_ATTACK_RANGE: 1,
-  SKELETON_DISCOVER_RADIUS: 1,
 
   // ── Spell parameters ─────────────────────────────────────────────────
   /** HP lost by a BRANDMARKED unit at the end of every player turn */
@@ -188,15 +161,9 @@ export const MAGE = {
   /** Percentage of the sacrificed unit's CURRENT HP dealt to each adjacent enemy by Explode */
   EXPLODE_DAMAGE_PERCENT: 50,
 
-  // ── Crystal Tower stat block ─────────────────────────────────────────
-  CRYSTAL_TOWER_MAX_HP: 200,
-  CRYSTAL_TOWER_ATTACK: 40,
-  CRYSTAL_TOWER_DEFENSE: 55,
-  CRYSTAL_TOWER_ATTACK_RANGE: 2,
-  CRYSTAL_TOWER_MAX_ATTACKS_PER_TURN: 1,
+  // ── Crystal Tower reward ─────────────────────────────────────────────
   /** Crystals granted when an enemy unit is killed by a CRYSTAL_TOWER */
   CRYSTAL_TOWER_KILL_CRYSTAL_REWARD: 1,
-  CRYSTAL_TOWER_DISCOVER_RADIUS: 3,
 
   // ── GRAVE_HARVEST tech parameters ────────────────────────────────────
   /** Per-turn percent chance for each player-owned GRAVESTONE to grant 1 crystal */
@@ -964,12 +931,12 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   MAGE: {
-    maxHp: MAGE.MAGE_MAX_HP, attack: MAGE.MAGE_ATTACK, defense: MAGE.MAGE_DEFENSE,
-    movementActions: 1, moveRange: MAGE.MAGE_MOVE_RANGE, attackRange: MAGE.MAGE_ATTACK_RANGE,
-    discoverRadius: MAGE.MAGE_DISCOVER_RADIUS, triggerRange: 0,
+    maxHp: 60, attack: 0, defense: 25,
+    movementActions: 1, moveRange: 1, attackRange: 1,
+    discoverRadius: 1, triggerRange: 0,
     tags: [UnitTag.PASSIVE, UnitTag.PREP],
-    cost: { iron: MAGE.MAGE_COST_IRON, wood: MAGE.MAGE_COST_WOOD },
-    populationCost: { farmers: MAGE.MAGE_POP_FARMERS, nobles: MAGE.MAGE_POP_NOBLES },
+    cost: { iron: 2, wood: 5 },
+    populationCost: { farmers: 0, nobles: 1 },
     levelUp: [
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_SCOUT }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_SCOUT }] },
@@ -978,9 +945,9 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   EMBER_DEMON: {
-    maxHp: MAGE.EMBER_DEMON_MAX_HP, attack: MAGE.EMBER_DEMON_ATTACK, defense: MAGE.EMBER_DEMON_DEFENSE,
-    movementActions: 1, moveRange: MAGE.EMBER_DEMON_MOVE_RANGE, attackRange: MAGE.EMBER_DEMON_ATTACK_RANGE,
-    discoverRadius: MAGE.EMBER_DEMON_DISCOVER_RADIUS, triggerRange: MAGE.EMBER_DEMON_TRIGGER_RANGE,
+    maxHp: 120, attack: 70, defense: 40,
+    movementActions: 1, moveRange: 1, attackRange: 1,
+    discoverRadius: 1, triggerRange: 3,
     tags: [],
     cost: { iron: 0, wood: 0 },
     populationCost: { farmers: 0, nobles: 0 },
@@ -992,9 +959,9 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   SKELETON: {
-    maxHp: MAGE.SKELETON_MAX_HP, attack: MAGE.SKELETON_ATTACK, defense: MAGE.SKELETON_DEFENSE,
-    movementActions: 1, moveRange: MAGE.SKELETON_MOVE_RANGE, attackRange: MAGE.SKELETON_ATTACK_RANGE,
-    discoverRadius: MAGE.SKELETON_DISCOVER_RADIUS, triggerRange: 0,
+    maxHp: 60, attack: 35, defense: 20,
+    movementActions: 1, moveRange: 1, attackRange: 1,
+    discoverRadius: 1, triggerRange: 0,
     tags: [],
     cost: { iron: 0, wood: 0 },
     populationCost: { farmers: 0, nobles: 0 },
@@ -1019,7 +986,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   u.LAVA_SIEGE.description  = `Enemy long-range bombard with ${u.LAVA_SIEGE.attackRange}-tile reach.`;
   u.EMBERLING.description   = `Fragile fire spirit that walks toward lava. Explodes on death, dealing ${u.EMBERLING.explosionDamage} damage to all units within 1 tile.`;
   u.MAGE.description        = `Arcane caster that casts spells within ${MAGE.SPELL_RANGE_BASE} tiles instead of attacking. Recruited from active Crystal Chambers.`;
-  u.EMBER_DEMON.description = `Powerful demonic unit with ${MAGE.EMBER_DEMON_MAX_HP} HP. Can be summoned by a Mage or encountered as a hostile enemy.`;
+  u.EMBER_DEMON.description = `Powerful demonic unit with ${u.EMBER_DEMON.maxHp} HP. Can be summoned by a Mage or encountered as a hostile enemy.`;
   u.SKELETON.description    = `Undead warrior raised from a gravestone by a Mage via the Raise Skeleton spell.`;
 }
 
@@ -1166,7 +1133,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.RUIN,
     constructionCost: { iron: 4, wood: 2 },
-    unitLimit: MAGE.CHAMBER_UNIT_LIMIT,
+    unitLimit: CRYSTAL_CHAMBER_CONFIG.CHAMBER_UNIT_LIMIT,
     description: 'Arcane resonator. When a Crystal Chamber is consumed by lava, all surviving chambers begin resonating and generate crystals each turn.', // overwritten below
   },
   GRAVESTONE: {
@@ -1186,11 +1153,11 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     destroyBehavior: DestroyBehavior.RUIN,
     constructionCost: { iron: 0, wood: 0 },
     combatStats: {
-      maxHp: MAGE.CRYSTAL_TOWER_MAX_HP,
-      attack: MAGE.CRYSTAL_TOWER_ATTACK,
-      defense: MAGE.CRYSTAL_TOWER_DEFENSE,
-      attackRange: MAGE.CRYSTAL_TOWER_ATTACK_RANGE,
-      maxAttacksPerTurn: MAGE.CRYSTAL_TOWER_MAX_ATTACKS_PER_TURN,
+      maxHp: 200,
+      attack: 40,
+      defense: 55,
+      attackRange: 2,
+      maxAttacksPerTurn: 1,
     },
     description: 'Arcane combat tower raised by sacrificing a Mage.', // overwritten below (after MAGE)
   },
@@ -1207,7 +1174,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
   b.OUTPOST.description    = `Field fortification built by Spearmen via Fieldwork. Attacks enemies within ${b.OUTPOST.combatStats!.attackRange} tiles. Starting HP is based on the building unit's current HP, capped at ${b.OUTPOST.combatStats!.maxHp}.`;
   b.MAGMASPYR.description  = `Corrupted mountain spire that attacks nearby units up to ${b.MAGMASPYR.combatStats!.maxAttacksPerTurn} times per turn.`;
   b.EMBERNEST.description  = `Corrupted forest nest that spawns Emberlings every ${LAVA_LAIR.EMBER_NEST_SPAWN_INTERVAL} turns.`;
-  b.CRYSTAL_CHAMBER.description = `Arcane resonator. When a Crystal Chamber is consumed by lava, all surviving chambers begin resonating and generate ${CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN} crystal${CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN !== 1 ? 's' : ''} per turn. While active, can recruit up to ${MAGE.CHAMBER_UNIT_LIMIT} Mage at a time once Arcane Awakening is researched.`;
+  b.CRYSTAL_CHAMBER.description = `Arcane resonator. When a Crystal Chamber is consumed by lava, all surviving chambers begin resonating and generate ${CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN} crystal${CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN !== 1 ? 's' : ''} per turn. While active, can recruit up to ${CRYSTAL_CHAMBER_CONFIG.CHAMBER_UNIT_LIMIT} Mage at a time once Arcane Awakening is researched.`;
 }
 
 export const TECH = {
@@ -1333,7 +1300,7 @@ export const ABILITIES = {
   BUILDING_DEFINITIONS.GRAVE_TRAP.description =
     `A magic trap forged from a gravestone. The next unit to step onto it is stunned for ${MAGE.GRAVE_TRAP_STUN_TURNS} turns and the trap is consumed.`;
   BUILDING_DEFINITIONS.CRYSTAL_TOWER.description =
-    `Arcane combat tower. Attacks enemies within ${MAGE.CRYSTAL_TOWER_ATTACK_RANGE} tiles. Each enemy unit it kills generates ${MAGE.CRYSTAL_TOWER_KILL_CRYSTAL_REWARD} crystal.`;
+    `Arcane combat tower. Attacks enemies within ${BUILDING_DEFINITIONS.CRYSTAL_TOWER.combatStats!.attackRange} tiles. Each enemy unit it kills generates ${MAGE.CRYSTAL_TOWER_KILL_CRYSTAL_REWARD} crystal.`;
 }
 
 // ============================================================================

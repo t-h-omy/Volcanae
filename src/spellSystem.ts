@@ -15,7 +15,7 @@ import type { Draft } from 'immer';
 import type { GameState, Position, Unit } from './types';
 import type { SpellId } from './types';
 import { Faction, UnitTag, BuildingType, TileType, UnitType } from './types';
-import { MAGE, TECH_TREE, BUILDING_DEFINITIONS, ABILITIES, MAP } from './gameConfig';
+import { MAGE, TECH_TREE, BUILDING_DEFINITIONS, ABILITIES, MAP, UNIT_DEFINITIONS } from './gameConfig';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { generateId } from './mapGenerator';
 import { useFloaterStore } from './floaterStore';
@@ -340,14 +340,14 @@ function handleEmberbind(
     faction: Faction.PLAYER,
     position: { ...spawnPos },
     stats: {
-      maxHp: MAGE.EMBER_DEMON_MAX_HP,
-      currentHp: MAGE.EMBER_DEMON_MAX_HP,
-      attack: MAGE.EMBER_DEMON_ATTACK,
-      defense: MAGE.EMBER_DEMON_DEFENSE,
-      moveRange: MAGE.EMBER_DEMON_MOVE_RANGE,
-      attackRange: MAGE.EMBER_DEMON_ATTACK_RANGE,
-      discoverRadius: MAGE.EMBER_DEMON_DISCOVER_RADIUS,
-      triggerRange: MAGE.EMBER_DEMON_TRIGGER_RANGE,
+      maxHp: UNIT_DEFINITIONS.EMBER_DEMON.maxHp,
+      currentHp: UNIT_DEFINITIONS.EMBER_DEMON.maxHp,
+      attack: UNIT_DEFINITIONS.EMBER_DEMON.attack,
+      defense: UNIT_DEFINITIONS.EMBER_DEMON.defense,
+      moveRange: UNIT_DEFINITIONS.EMBER_DEMON.moveRange,
+      attackRange: UNIT_DEFINITIONS.EMBER_DEMON.attackRange,
+      discoverRadius: UNIT_DEFINITIONS.EMBER_DEMON.discoverRadius,
+      triggerRange: UNIT_DEFINITIONS.EMBER_DEMON.triggerRange,
       movementActions: 1,
     },
     tags: [UnitTag.SUMMONED, UnitTag.LEASHED],
@@ -424,7 +424,7 @@ function handleCrystalTower(
   if (tile.isRuin || tile.isStrongholdRuin) return false;
   if (tile.terrainType === TileType.FOREST || tile.terrainType === TileType.MOUNTAIN) return false;
 
-  const towerHp = MAGE.CRYSTAL_TOWER_MAX_HP;
+  const towerHp = BUILDING_DEFINITIONS.CRYSTAL_TOWER.combatStats!.maxHp;
   const towerId = generateId('building');
   const newBuilding = {
     id: towerId,
@@ -439,15 +439,15 @@ function handleCrystalTower(
     captureProgress: 0,
     isBeingCapturedBy: null,
     lavaBoostEnabled: false,
-    discoverRadius: MAGE.CRYSTAL_TOWER_DISCOVER_RADIUS,
+    discoverRadius: BUILDING_DEFINITIONS.CRYSTAL_TOWER.discoverRadius,
     turnCapturedByPlayer: null,
     wasEnemyOwnedBeforeCapture: false,
     combatStats: {
-      attack: MAGE.CRYSTAL_TOWER_ATTACK,
-      defense: MAGE.CRYSTAL_TOWER_DEFENSE,
-      attackRange: MAGE.CRYSTAL_TOWER_ATTACK_RANGE,
+      attack: BUILDING_DEFINITIONS.CRYSTAL_TOWER.combatStats!.attack,
+      defense: BUILDING_DEFINITIONS.CRYSTAL_TOWER.combatStats!.defense,
+      attackRange: BUILDING_DEFINITIONS.CRYSTAL_TOWER.combatStats!.attackRange,
       maxHp: towerHp,
-      maxAttacksPerTurn: MAGE.CRYSTAL_TOWER_MAX_ATTACKS_PER_TURN,
+      maxAttacksPerTurn: BUILDING_DEFINITIONS.CRYSTAL_TOWER.combatStats!.maxAttacksPerTurn,
     },
     hasAttackedThisTurn: false,
     tags: [UnitTag.RANGED] as UnitTag[],
@@ -519,13 +519,13 @@ function handleRaiseSkeleton(
     faction: Faction.PLAYER,
     position: { x: targetPosition.x, y: targetPosition.y },
     stats: {
-      maxHp: MAGE.SKELETON_MAX_HP,
-      currentHp: MAGE.SKELETON_MAX_HP,
-      attack: MAGE.SKELETON_ATTACK,
-      defense: MAGE.SKELETON_DEFENSE,
-      moveRange: MAGE.SKELETON_MOVE_RANGE,
-      attackRange: MAGE.SKELETON_ATTACK_RANGE,
-      discoverRadius: MAGE.SKELETON_DISCOVER_RADIUS,
+      maxHp: UNIT_DEFINITIONS.SKELETON.maxHp,
+      currentHp: UNIT_DEFINITIONS.SKELETON.maxHp,
+      attack: UNIT_DEFINITIONS.SKELETON.attack,
+      defense: UNIT_DEFINITIONS.SKELETON.defense,
+      moveRange: UNIT_DEFINITIONS.SKELETON.moveRange,
+      attackRange: UNIT_DEFINITIONS.SKELETON.attackRange,
+      discoverRadius: UNIT_DEFINITIONS.SKELETON.discoverRadius,
       triggerRange: 0,
       movementActions: 1,
     },
