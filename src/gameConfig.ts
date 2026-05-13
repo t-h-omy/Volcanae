@@ -803,7 +803,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     movementActions: 1, moveRange: 1, attackRange: 3,
     discoverRadius: 1, triggerRange: 0,
     tags: [UnitTag.RANGED, UnitTag.PREP],
-    cost: { iron: 7, wood: 7 },
+    cost: { iron: 5, wood: 7 },
     populationCost: { farmers: 1, nobles: 1 },
     levelUp: [
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
@@ -935,7 +935,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
     tags: [UnitTag.PASSIVE, UnitTag.PREP],
-    cost: { iron: 2, wood: 5 },
+    cost: { iron: 2, wood: 6 },
     populationCost: { farmers: 0, nobles: 1 },
     levelUp: [
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_SCOUT }] },
@@ -1060,7 +1060,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
   ARCHER_CAMP: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.RUIN,
-    constructionCost: { iron: 1, wood: 3 },
+    constructionCost: { iron: 1, wood: 5 },
     unitLimit: 5,
     description: 'Archery range that trains Archers.',
   },
@@ -1074,7 +1074,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
   SIEGE_CAMP: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.RUIN,
-    constructionCost: { iron: 3, wood: 5 },
+    constructionCost: { iron: 3, wood: 6 },
     unitLimit: 5,
     description: 'Engineering works that trains Siege engines.',
   },
@@ -1088,7 +1088,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
   OUTPOST: {
     discoverRadius: 3,
     destroyBehavior: DestroyBehavior.NONE,
-    constructionCost: { iron: 0, wood: 0 },
+    constructionCost: { iron: 0, wood: 2 },
     combatStats: { maxHp: 200, attack: 40, defense: 55, attackRange: 2 },
     description: 'Field fortification built by Spearmen via Fieldwork. Attacks nearby enemies. Starting HP is based on the building unit\'s current HP.', // overwritten below
   },
@@ -1113,7 +1113,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
   PATRICIANHOUSE: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.RUIN,
-    constructionCost: { iron: 3, wood: 3 },
+    constructionCost: { iron: 2, wood: 4 },
     description: 'Noble estate — each noble raised lets you field one more elite unit.',
   },
   MAGMASPYR: {
