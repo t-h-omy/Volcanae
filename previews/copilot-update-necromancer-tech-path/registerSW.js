@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/Volcanae/previews/copilot-update-necromancer-tech-path/sw.js', { scope: '/Volcanae/previews/copilot-update-necromancer-tech-path/' })})}
