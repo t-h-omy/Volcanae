@@ -1083,7 +1083,10 @@ export function resolveAttackOnBuilding(
       delete state.units[attackerId];
       if (attackerFaction === Faction.PLAYER) state.gameStats.unitsLost += 1;
       // When a player unit with the right conditions dies from a building counter-attack,
-      // leave a Gravestone on their tile.
+      // leave a Gravestone on their tile. `defaultOn: false` means a gravestone is only
+      // created when the unit carries an explicit tag (REVIVABLE from Deathmender, or
+      // LEAVES_GRAVESTONE from the Necromancer tech tree) — ordinary units do not leave
+      // gravestones just because they died.
       if (shouldLeaveGravestone(
         { faction: attackerFaction, tags: attackerTags },
         { defaultOn: false },
