@@ -233,7 +233,7 @@ export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
     id: SpellId.EXPLODE,
     name: 'Explode',
     emoji: '💥',
-    description: `Sacrifice a player unit within ${MAGE.SPELL_RANGE_BASE} tiles. It deals ${MAGE.EXPLODE_DAMAGE_PERCENT}% of its current HP to each adjacent enemy. The sacrificed unit leaves a gravestone unless a tag forbids it.`,
+    description: `Sacrifice a player unit within ${MAGE.SPELL_RANGE_BASE} tiles. It deals ${MAGE.EXPLODE_DAMAGE_PERCENT}% of its current HP to each adjacent enemy. The unit is fully consumed — no gravestone is left.`,
     targetHint: 'Select one of your own units within range to sacrifice.',
   },
   [SpellId.CRYSTAL_TOWER]: {
@@ -1721,12 +1721,13 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'ARCANE_AWAKENING',
     name: 'Arcane Awakening',
-    description: `Unlocks the Mage unit (recruited from active Crystal Chambers) and the Transpose spell.`,
+    description: `Unlocks the Mage unit (recruited from active Crystal Chambers), the Transpose spell, and the Frostcraft spell.`,
     requires: ['CONSCRIPTION'],
     cost: 2,
     effects: [
       { type: 'UNLOCK_UNIT',  unitType: UnitType.MAGE },
       { type: 'UNLOCK_SPELL', spellId: SpellId.TRANSPOSE },
+      { type: 'UNLOCK_SPELL', spellId: SpellId.FROSTCRAFT },
     ],
   },
 
@@ -1766,14 +1767,16 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'RAISE_SKELETON',
     name: 'Raise Skeleton',
-    description: `Unlocks the Raise Skeleton spell.`,
+    description: `Unlocks the Raise Skeleton spell and the Skeleton unit. Spearmen, Scouts, and Guards now leave Gravestones on death.`,
     requires: ['ARCANE_AWAKENING'],
     cost: 4,
     effects: [
       { type: 'UNLOCK_UNIT',  unitType: UnitType.SKELETON },
       { type: 'UNLOCK_SPELL', spellId: SpellId.RAISE_SKELETON },
+      { type: 'FLAG', flag: TechFlag.GRAVESTONE_BASIC },
     ],
   },
+  // ── Necromancer path branch a: utility ──────────────────────────────────
   {
     id: 'GRAVE_TRAP',
     name: 'Grave Trap',
@@ -1794,23 +1797,34 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'FLAG', flag: TechFlag.GRAVE_HARVEST },
     ],
   },
-
-  // ── Elementalist path ────────────────────────────────────────────────────
+  // ── Necromancer path branch b: gravestone expansion ──────────────────────
   {
-    id: 'FROSTCRAFT',
-    name: 'Frostcraft',
-    description: `Unlocks the Frostcraft spell.`,
-    requires: ['ARCANE_AWAKENING'],
+    id: 'GRAVE_WARRIORS',
+    name: 'Grave Warriors',
+    description: `Riders, Swordsmen, and Archers now leave Gravestones on death.`,
+    requires: ['RAISE_SKELETON'],
     cost: 4,
     effects: [
-      { type: 'UNLOCK_SPELL', spellId: SpellId.FROSTCRAFT },
+      { type: 'FLAG', flag: TechFlag.GRAVESTONE_WARRIORS },
     ],
   },
+  {
+    id: 'GRAVE_ENGINES',
+    name: 'Grave Engines',
+    description: `Siege engines and Mages now leave Gravestones on death.`,
+    requires: ['GRAVE_WARRIORS'],
+    cost: 7,
+    effects: [
+      { type: 'FLAG', flag: TechFlag.GRAVESTONE_ENGINES },
+    ],
+  },
+
+  // ── Elementalist path ────────────────────────────────────────────────────
   {
     id: 'EXPLODE',
     name: 'Explode',
     description: `Unlocks the Explode spell.`,
-    requires: ['FROSTCRAFT'],
+    requires: ['ARCANE_AWAKENING'],
     cost: 4,
     effects: [
       { type: 'UNLOCK_SPELL', spellId: SpellId.EXPLODE },

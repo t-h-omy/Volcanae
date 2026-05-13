@@ -151,9 +151,15 @@ export type TechEffectType = (typeof TechEffectType)[keyof typeof TechEffectType
 
 /** Typed tech flags granted by the tech tree */
 export const TechFlag = {
-  TO_THE_FRONT:   'TO_THE_FRONT',
-  HOLD_GROUND:    'HOLD_GROUND',
-  GRAVE_HARVEST:  'GRAVE_HARVEST',
+  TO_THE_FRONT:        'TO_THE_FRONT',
+  HOLD_GROUND:         'HOLD_GROUND',
+  GRAVE_HARVEST:       'GRAVE_HARVEST',
+  /** Necromancer tech 1: Spearmen, Scouts, and Guards leave Gravestones on death. */
+  GRAVESTONE_BASIC:    'GRAVESTONE_BASIC',
+  /** Necromancer tech 1.b1: Riders, Swordsmen, and Archers leave Gravestones on death. */
+  GRAVESTONE_WARRIORS: 'GRAVESTONE_WARRIORS',
+  /** Necromancer tech 1.b2: Siege engines and Mages leave Gravestones on death. */
+  GRAVESTONE_ENGINES:  'GRAVESTONE_ENGINES',
 } as const;
 export type TechFlag = (typeof TechFlag)[keyof typeof TechFlag];
 

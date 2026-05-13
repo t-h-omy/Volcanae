@@ -1630,7 +1630,7 @@ export const useGameStore = create<GameStore>()(
               delete state.units[event.unitId];
               if (!unitTags.includes(UnitTag.BRANDMARKED) && shouldLeaveGravestone(
                 { faction: unitFaction, tags: unitTags, type: unitType },
-                { defaultOn: false },
+                { defaultOn: false, techFlags: state.techFlags },
               )) {
                 createGravestoneAt(state, deathPos, unitType);
               }

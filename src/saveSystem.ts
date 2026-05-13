@@ -95,6 +95,17 @@ export function loadGameState(): GameState | null {
       }
     }
 
+    // Migration: Frostcraft was previously a standalone tech node; it is now
+    // included in Arcane Awakening. If ARCANE_AWAKENING is already unlocked
+    // but FROSTCRAFT is not yet in unlockedSpells, backfill it.
+    {
+      const tn = s.techNodes as Record<string, { id: string; unlocked: boolean }> | undefined;
+      const us = s.unlockedSpells as string[] | undefined;
+      if (tn?.['ARCANE_AWAKENING']?.unlocked && Array.isArray(us) && !us.includes('FROSTCRAFT')) {
+        us.push('FROSTCRAFT');
+      }
+    }
+
     // Migration: strongholds now track farmers (populationCount) and nobles
     // (strongholdNobles) separately. Older saves used a single populationCount
     // for both. Split it using the base caps so nobles are preserved correctly.

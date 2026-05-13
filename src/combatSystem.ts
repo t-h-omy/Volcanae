@@ -102,18 +102,44 @@ export function tryCreateGravestone(
 
 /**
  * Returns true iff a Gravestone should be created on a unit's tile when
- * that unit dies. Used by both the regular death path (REVIVABLE-gated,
- * defaultOn=false) and the Explode spell (defaultOn=true).
+ * that unit dies.
+ *
+ * @param unit       - Faction, tags, and type of the dying unit.
+ * @param options    - `defaultOn`: if true, any eligible unit qualifies (used
+ *                     for paths that always leave gravestones).
+ *                     `techFlags`: active tech flags used to check necromancer
+ *                     gravestone tiers (GRAVESTONE_BASIC / _WARRIORS / _ENGINES).
  */
 export function shouldLeaveGravestone(
   unit: Pick<Unit, 'faction' | 'tags' | 'type'>,
-  options: { defaultOn: boolean },
+  options: { defaultOn: boolean; techFlags?: TechFlag[] },
 ): boolean {
   if (unit.faction !== Faction.PLAYER) return false;
   if (unit.tags.includes(UnitTag.SUMMONED)) return false;
   if (unit.tags.includes(UnitTag.NO_GRAVESTONE)) return false;
   if (options.defaultOn) return true;
-  // Legacy rule: REVIVABLE-gated, only for SPEARMAN/SWORDSMAN.
+
+  const tf = options.techFlags ?? [];
+
+  // Necromancer tech tier 1: Spearmen, Scouts, Guards
+  if (
+    tf.includes(TechFlag.GRAVESTONE_BASIC) &&
+    (unit.type === UnitType.SPEARMAN || unit.type === UnitType.SCOUT || unit.type === UnitType.GUARD)
+  ) return true;
+
+  // Necromancer tech tier 1.b1: Riders, Swordsmen, Archers
+  if (
+    tf.includes(TechFlag.GRAVESTONE_WARRIORS) &&
+    (unit.type === UnitType.RIDER || unit.type === UnitType.SWORDSMAN || unit.type === UnitType.ARCHER)
+  ) return true;
+
+  // Necromancer tech tier 1.b2: Siege engines, Mages
+  if (
+    tf.includes(TechFlag.GRAVESTONE_ENGINES) &&
+    (unit.type === UnitType.SIEGE || unit.type === UnitType.MAGE)
+  ) return true;
+
+  // Legacy rule: REVIVABLE-gated, only for SPEARMAN/SWORDSMAN (Deathmender specialist).
   return (
     unit.tags.includes(UnitTag.REVIVABLE) &&
     (unit.type === UnitType.SPEARMAN || unit.type === UnitType.SWORDSMAN)
@@ -695,7 +721,7 @@ export function resolveAttack(
     if (!defenderTags.includes(UnitTag.BRANDMARKED)) {
       if (shouldLeaveGravestone(
         { faction: defenderFaction, tags: defenderTags, type: defenderType },
-        { defaultOn: false },
+        { defaultOn: false, techFlags: state.techFlags },
       )) {
         createGravestoneAt(state, defenderPosition, defenderType);
       }
@@ -1008,7 +1034,7 @@ export function resolveBuildingAttack(
     if (!defenderTags.includes(UnitTag.BRANDMARKED)) {
       if (shouldLeaveGravestone(
         { faction: defenderFaction, tags: defenderTags, type: defenderType },
-        { defaultOn: false },
+        { defaultOn: false, techFlags: state.techFlags },
       )) {
         createGravestoneAt(state, defenderPos, defenderType);
       }
