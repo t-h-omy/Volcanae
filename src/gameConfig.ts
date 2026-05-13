@@ -205,7 +205,7 @@ export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
     id: SpellId.BRANDMARK_HEAL,
     name: 'Brandmark Heal',
     emoji: '🩸',
-    description: `Fully heal one player unit, grant +${MAGE.BRANDMARK_ATTACK_BONUS} ATK, and mark it with the brand. The marked unit loses ${MAGE.BRANDMARK_HP_LOSS_PER_TURN} HP at the end of each turn. On death, a hostile Ember Demon rises in its place.`,
+    description: `Fully heal one player unit, double its max HP, grant +${MAGE.BRANDMARK_ATTACK_BONUS} ATK, and mark it with the brand. The marked unit loses ${MAGE.BRANDMARK_HP_LOSS_PER_TURN} HP at the end of each turn. On death, a hostile Ember Demon rises in its place.`,
     targetHint: 'Select one of your own units within range (not another Mage).',
   },
   [SpellId.RAISE_SKELETON]: {
