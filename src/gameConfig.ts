@@ -1773,7 +1773,9 @@ export const TECH_TREE: TechNodeDefinition[] = [
     effects: [
       { type: 'UNLOCK_UNIT',  unitType: UnitType.SKELETON },
       { type: 'UNLOCK_SPELL', spellId: SpellId.RAISE_SKELETON },
-      { type: 'FLAG', flag: TechFlag.GRAVESTONE_BASIC },
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.SPEARMAN, tag: UnitTag.LEAVES_GRAVESTONE },
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.SCOUT,    tag: UnitTag.LEAVES_GRAVESTONE },
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.GUARD,    tag: UnitTag.LEAVES_GRAVESTONE },
     ],
   },
   // ── Necromancer path branch a: utility ──────────────────────────────────
@@ -1805,7 +1807,9 @@ export const TECH_TREE: TechNodeDefinition[] = [
     requires: ['RAISE_SKELETON'],
     cost: 4,
     effects: [
-      { type: 'FLAG', flag: TechFlag.GRAVESTONE_WARRIORS },
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.RIDER,    tag: UnitTag.LEAVES_GRAVESTONE },
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.SWORDSMAN, tag: UnitTag.LEAVES_GRAVESTONE },
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.ARCHER,   tag: UnitTag.LEAVES_GRAVESTONE },
     ],
   },
   {
@@ -1815,7 +1819,8 @@ export const TECH_TREE: TechNodeDefinition[] = [
     requires: ['GRAVE_WARRIORS'],
     cost: 7,
     effects: [
-      { type: 'FLAG', flag: TechFlag.GRAVESTONE_ENGINES },
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.SIEGE, tag: UnitTag.LEAVES_GRAVESTONE },
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.MAGE,  tag: UnitTag.LEAVES_GRAVESTONE },
     ],
   },
 
@@ -1908,6 +1913,7 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string }> = {
   [UnitTag.BRANDMARKED]:        { label: 'Brandmarked',        desc: `+${MAGE.BRANDMARK_ATTACK_BONUS} ATK. Loses ${MAGE.BRANDMARK_HP_LOSS_PER_TURN} HP at the end of every player turn. On death, leaves behind a hostile Ember Demon.` },
   [UnitTag.LEASHED]:            { label: 'Leashed',            desc: `Summoned creature bound to a Mage. If the Mage moves out of ${MAGE.EMBER_DEMON_LEASH_RANGE} tiles or dies, the leashed unit defects to the enemy.` },
   [UnitTag.NO_GRAVESTONE]:      { label: 'No Gravestone',      desc: 'Leaves no body. Cannot become a Gravestone on death.' },
+  [UnitTag.LEAVES_GRAVESTONE]:  { label: 'Leaves Gravestone',  desc: 'Leaves a Gravestone on death.' },
 };
 
 // ============================================================================

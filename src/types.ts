@@ -151,15 +151,9 @@ export type TechEffectType = (typeof TechEffectType)[keyof typeof TechEffectType
 
 /** Typed tech flags granted by the tech tree */
 export const TechFlag = {
-  TO_THE_FRONT:        'TO_THE_FRONT',
-  HOLD_GROUND:         'HOLD_GROUND',
-  GRAVE_HARVEST:       'GRAVE_HARVEST',
-  /** Necromancer tech 1: Spearmen, Scouts, and Guards leave Gravestones on death. */
-  GRAVESTONE_BASIC:    'GRAVESTONE_BASIC',
-  /** Necromancer tech 1.b1: Riders, Swordsmen, and Archers leave Gravestones on death. */
-  GRAVESTONE_WARRIORS: 'GRAVESTONE_WARRIORS',
-  /** Necromancer tech 1.b2: Siege engines and Mages leave Gravestones on death. */
-  GRAVESTONE_ENGINES:  'GRAVESTONE_ENGINES',
+  TO_THE_FRONT:  'TO_THE_FRONT',
+  HOLD_GROUND:   'HOLD_GROUND',
+  GRAVE_HARVEST: 'GRAVE_HARVEST',
 } as const;
 export type TechFlag = (typeof TechFlag)[keyof typeof TechFlag];
 
@@ -230,6 +224,8 @@ export const UnitTag = {
   LEASHED: 'LEASHED',
   /** Leaves no body on death. Cannot become a Gravestone. */
   NO_GRAVESTONE: 'NO_GRAVESTONE',
+  /** Unit leaves a Gravestone on death (granted by Necromancer tech tree). */
+  LEAVES_GRAVESTONE: 'LEAVES_GRAVESTONE',
 } as const;
 export type UnitTag = (typeof UnitTag)[keyof typeof UnitTag];
 
