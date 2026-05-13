@@ -634,6 +634,11 @@ export function resolveAttack(
       if (attackerUnit) {
         attackerUnit.hasAttackedThisTurn = false;
         attackerUnit.bloodlustAttackAvailable = true;
+        // Block all non-attack actions so the bloodlust charge only grants
+        // a second attack, not the ability to capture or construct.
+        attackerUnit.hasCapturedThisTurn = true;
+        attackerUnit.hasConstructedThisTurn = true;
+        attackerUnit.hasDestroyedThisTurn = true;
       }
     }
 
@@ -669,9 +674,10 @@ export function resolveAttack(
             grantXp(state, attackerId, XP.DESTROY_BUILDING, suppressFloaters);
           } else if (
             bld.type !== BuildingType.LAVALAIR &&
-            bld.type !== BuildingType.INFERNALSANCTUM
+            bld.type !== BuildingType.INFERNALSANCTUM &&
+            bld.type !== BuildingType.EMBERNEST
           ) {
-            // Other enemy buildings (but NOT spawners) are destroyed
+            // Other enemy buildings (but NOT spawners or corrupted terrain) are destroyed
             const destroyBehavior = bld.destroyBehavior;
             const bldId = tileOfDead.buildingId!;
             delete state.buildings[bldId];
@@ -685,10 +691,10 @@ export function resolveAttack(
             state.gameStats.enemyBuildingsDestroyed += 1;
             grantXp(state, attackerId, XP.DESTROY_BUILDING, suppressFloaters);
           }
-          // LAVALAIR / INFERNALSANCTUM: remain as enemy buildings.
+          // LAVALAIR / INFERNALSANCTUM / EMBERNEST: remain as enemy buildings.
           // Set a spawn cooldown so the building skips one spawn cycle,
           // giving the player a turn to move onto the tile and capture.
-          if (bld.type === BuildingType.LAVALAIR || bld.type === BuildingType.INFERNALSANCTUM) {
+          if (bld.type === BuildingType.LAVALAIR || bld.type === BuildingType.INFERNALSANCTUM || bld.type === BuildingType.EMBERNEST) {
             bld.spawnCooldownRemaining = 1;
           }
         }
@@ -1063,6 +1069,8 @@ export function resolveAttackOnBuilding(
   // Update attacker
   if (attackerDead) {
     const attackerTags = [...attacker.tags];
+    const attackerType = attacker.type;
+    const attackerPos = { x: attacker.position.x, y: attacker.position.y };
     if (attackerTags.includes(UnitTag.BRANDMARKED)) {
       // BRANDMARKED: defer unit removal and Ember Demon spawn to finalizeBrandmarkTransforms;
       // unitsLost is counted in finalizeBrandmarkTransforms after the animation completes.
@@ -1074,6 +1082,17 @@ export function resolveAttackOnBuilding(
       }
       delete state.units[attackerId];
       if (attackerFaction === Faction.PLAYER) state.gameStats.unitsLost += 1;
+      // When a player unit with the right conditions dies from a building counter-attack,
+      // leave a Gravestone on their tile. `defaultOn: false` means a gravestone is only
+      // created when the unit carries an explicit tag (REVIVABLE from Deathmender, or
+      // LEAVES_GRAVESTONE from the Necromancer tech tree) — ordinary units do not leave
+      // gravestones just because they died.
+      if (shouldLeaveGravestone(
+        { faction: attackerFaction, tags: attackerTags },
+        { defaultOn: false },
+      )) {
+        createGravestoneAt(state, attackerPos, attackerType);
+      }
     }
   } else {
     attacker.stats.currentHp = newAttackerHp;
