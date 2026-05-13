@@ -549,14 +549,16 @@ export function resolveAttack(
 
   // Update attacker
   if (attackerDead) {
-    // Capture tags before removal (for BRANDMARKED check)
+    // Capture tags and position before removal (for BRANDMARKED and GRAVESTONE checks)
     const attackerTags = [...attacker.tags];
+    const attackerType = attacker.type;
+    const attackerPos = { x: attacker.position.x, y: attacker.position.y };
     if (attackerTags.includes(UnitTag.BRANDMARKED)) {
       // BRANDMARKED: immediately complete the transform so the resolved state is clean.
-      completeBrandmarkTransformInPlace(state, attackerId, { x: attacker.position.x, y: attacker.position.y });
+      completeBrandmarkTransformInPlace(state, attackerId, attackerPos);
     } else {
       // Remove attacker from grid
-      const attackerTile = state.grid[attacker.position.y][attacker.position.x];
+      const attackerTile = state.grid[attackerPos.y][attackerPos.x];
       if (attackerTile.unitId === attackerId) {
         attackerTile.unitId = null;
       }
@@ -565,6 +567,14 @@ export function resolveAttack(
       // Update kill/loss stats
       if (attackerFaction === Faction.PLAYER) state.gameStats.unitsLost += 1;
       else if (defenderFaction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
+      // When a player unit with the right conditions dies from a counter-attack,
+      // leave a Gravestone on their tile.
+      if (shouldLeaveGravestone(
+        { faction: attackerFaction, tags: attackerTags },
+        { defaultOn: false },
+      )) {
+        createGravestoneAt(state, attackerPos, attackerType);
+      }
     }
     // Grant XP to defender for killing the attacker (regardless of BRANDMARKED)
     grantXp(state, defenderId, XP.KILL_UNIT, suppressFloaters);
