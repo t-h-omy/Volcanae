@@ -20,7 +20,6 @@ import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { generateId } from './mapGenerator';
 import { useFloaterStore } from './floaterStore';
 import { useCombatAnimationStore } from './combatAnimationStore';
-import { shouldLeaveGravestone, createGravestoneAt } from './combatSystem';
 
 /** Returns the effective spell range for a mage in the current state. */
 export function getMageSpellRange(
@@ -687,22 +686,11 @@ function handleExplode(
   }
 
   // Handle sacrificed unit's death
-  const sacrificedType = target.type;
-  const sacrificedTags = [...target.tags];
-  const sacrificedFaction = target.faction;
-  const sacrificedPos = { x: targetPosition.x, y: targetPosition.y };
-
   tile.unitId = null;
   delete state.units[targetUnitId];
   state.gameStats.unitsLost += 1;
 
-  // Default-on gravestone: any non-SUMMONED, non-NO_GRAVESTONE player unit leaves a gravestone
-  if (shouldLeaveGravestone(
-    { faction: sacrificedFaction, tags: sacrificedTags, type: sacrificedType },
-    { defaultOn: true },
-  )) {
-    createGravestoneAt(state, sacrificedPos, sacrificedType);
-  }
+  // Note: Explode intentionally does NOT leave a Gravestone — the unit is consumed entirely.
 
   // Tile flash (same duration as emberling explosion VFX)
   const flashKey = `${targetPosition.x},${targetPosition.y}`;

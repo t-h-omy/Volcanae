@@ -341,9 +341,12 @@ export function getStrongholdEffectiveCap(
 
 /** Human-readable descriptions for FLAG effects */
 const flagDescriptions: Record<TechFlag, string> = {
-  [TechFlag.TO_THE_FRONT]: `Units >${ABILITIES.TO_THE_FRONT_MIN_DISTANCE} tiles south of the northmost player unit: +${ABILITIES.TO_THE_FRONT_MOVE_BONUS} movement`,
-  [TechFlag.HOLD_GROUND]: 'Units on own buildings: defense bonus',
-  [TechFlag.GRAVE_HARVEST]: `Each player-owned Gravestone has a ${MAGE.GRAVE_HARVEST_CRYSTAL_CHANCE}% chance per turn to grant 1 crystal`,
+  [TechFlag.TO_THE_FRONT]:        `Units >${ABILITIES.TO_THE_FRONT_MIN_DISTANCE} tiles south of the northmost player unit: +${ABILITIES.TO_THE_FRONT_MOVE_BONUS} movement`,
+  [TechFlag.HOLD_GROUND]:         'Units on own buildings: defense bonus',
+  [TechFlag.GRAVE_HARVEST]:       `Each player-owned Gravestone has a ${MAGE.GRAVE_HARVEST_CRYSTAL_CHANCE}% chance per turn to grant 1 crystal`,
+  [TechFlag.GRAVESTONE_BASIC]:    'Spearmen, Scouts, and Guards leave Gravestones on death',
+  [TechFlag.GRAVESTONE_WARRIORS]: 'Riders, Swordsmen, and Archers leave Gravestones on death',
+  [TechFlag.GRAVESTONE_ENGINES]:  'Siege engines and Mages leave Gravestones on death',
 };
 
 /**
