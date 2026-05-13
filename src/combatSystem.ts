@@ -38,112 +38,25 @@ function isValidGravestoneTile(tile: Tile): boolean {
 }
 
 /**
- * Attempts to spawn a Gravestone building at the unit's last tile.
- * Conditions: player unit, not SUMMONED, has REVIVABLE tag, tile is valid.
- * Does nothing if any condition is not met.
- *
- * @param state - Immer draft of the game state
- * @param unit  - The unit that just died (still has position but already removed from units map)
- * @param unitType - The unit's type (captured before deletion)
- * @param unitTags - The unit's tags (captured before deletion)
- * @param unitFaction - The unit's faction (captured before deletion)
- * @param position - The tile position where the unit died
- */
-export function tryCreateGravestone(
-  state: Draft<GameState>,
-  unitFaction: Faction,
-  unitType: UnitType,
-  unitTags: UnitTag[],
-  position: { x: number; y: number },
-): void {
-  if (unitFaction !== Faction.PLAYER) return;
-  if (unitTags.includes(UnitTag.SUMMONED)) return;
-  if (unitType !== UnitType.SPEARMAN && unitType !== UnitType.SWORDSMAN) return;
-  if (!unitTags.includes(UnitTag.REVIVABLE)) return;
-
-  const tile = state.grid[position.y][position.x];
-  if (!isValidGravestoneTile(tile)) return;
-
-  const graveId = generateCombatBuildingId();
-  state.buildings[graveId] = {
-    id: graveId,
-    type: BuildingType.GRAVESTONE,
-    faction: Faction.PLAYER,
-    position: { x: position.x, y: position.y },
-    hp: ABILITIES.GRAVESTONE_MAX_HP,
-    maxHp: ABILITIES.GRAVESTONE_MAX_HP,
-    specialistSlot: null,
-    isDisabledForTurns: 0,
-    wasAttackedLastEnemyTurn: false,
-    captureProgress: 0,
-    isBeingCapturedBy: null,
-    lavaBoostEnabled: false,
-    discoverRadius: BUILDING_DEFINITIONS.GRAVESTONE.discoverRadius,
-    turnCapturedByPlayer: null,
-    wasEnemyOwnedBeforeCapture: false,
-    combatStats: null,
-    hasAttackedThisTurn: false,
-    tags: [],
-    consumesUnitOnCapture: false,
-    populationCount: 0,
-    populationCap: 0,
-    populationGrowthCounter: 0,
-    strongholdNobles: 0,
-    emberSpawnCounter: 0,
-    recruitmentQueue: null,
-    destroyBehavior: BUILDING_DEFINITIONS.GRAVESTONE.destroyBehavior,
-    resonanceTurnsRemaining: 0,
-    spawnCooldownRemaining: 0,
-    lastRecruitmentTurn: 0,
-    gravesUnitType: unitType,
-  };
-  tile.buildingId = graveId;
-}
-
-/**
  * Returns true iff a Gravestone should be created on a unit's tile when
  * that unit dies.
  *
- * @param unit       - Faction, tags, and type of the dying unit.
- * @param options    - `defaultOn`: if true, any eligible unit qualifies (used
- *                     for paths that always leave gravestones).
- *                     `techFlags`: active tech flags used to check necromancer
- *                     gravestone tiers (GRAVESTONE_BASIC / _WARRIORS / _ENGINES).
+ * A unit qualifies when it is a player unit (not SUMMONED, not NO_GRAVESTONE)
+ * and carries either the LEAVES_GRAVESTONE tag (granted by the Necromancer
+ * tech tree) or the REVIVABLE tag (granted by the Deathmender specialist).
+ *
+ * @param unit     - Faction and tags of the dying unit.
+ * @param options  - `defaultOn`: if true, any otherwise-eligible unit qualifies.
  */
 export function shouldLeaveGravestone(
-  unit: Pick<Unit, 'faction' | 'tags' | 'type'>,
-  options: { defaultOn: boolean; techFlags?: TechFlag[] },
+  unit: Pick<Unit, 'faction' | 'tags'>,
+  options: { defaultOn: boolean },
 ): boolean {
   if (unit.faction !== Faction.PLAYER) return false;
   if (unit.tags.includes(UnitTag.SUMMONED)) return false;
   if (unit.tags.includes(UnitTag.NO_GRAVESTONE)) return false;
   if (options.defaultOn) return true;
-
-  const tf = options.techFlags ?? [];
-
-  // Necromancer tech tier 1: Spearmen, Scouts, Guards
-  if (
-    tf.includes(TechFlag.GRAVESTONE_BASIC) &&
-    (unit.type === UnitType.SPEARMAN || unit.type === UnitType.SCOUT || unit.type === UnitType.GUARD)
-  ) return true;
-
-  // Necromancer tech tier 1.b1: Riders, Swordsmen, Archers
-  if (
-    tf.includes(TechFlag.GRAVESTONE_WARRIORS) &&
-    (unit.type === UnitType.RIDER || unit.type === UnitType.SWORDSMAN || unit.type === UnitType.ARCHER)
-  ) return true;
-
-  // Necromancer tech tier 1.b2: Siege engines, Mages
-  if (
-    tf.includes(TechFlag.GRAVESTONE_ENGINES) &&
-    (unit.type === UnitType.SIEGE || unit.type === UnitType.MAGE)
-  ) return true;
-
-  // Legacy rule: REVIVABLE-gated, only for SPEARMAN/SWORDSMAN (Deathmender specialist).
-  return (
-    unit.tags.includes(UnitTag.REVIVABLE) &&
-    (unit.type === UnitType.SPEARMAN || unit.type === UnitType.SWORDSMAN)
-  );
+  return unit.tags.includes(UnitTag.LEAVES_GRAVESTONE) || unit.tags.includes(UnitTag.REVIVABLE);
 }
 
 /**
@@ -714,14 +627,13 @@ export function resolveAttack(
       }
     }
 
-    // REVIVABLE/default-on gravestone: when a player unit with the right conditions dies,
-    // leave a Gravestone on their tile.
+    // When a player unit with the right conditions dies, leave a Gravestone on their tile.
     // Summoned and NO_GRAVESTONE units never leave gravestones.
     // BRANDMARKED units are handled separately above (deferred via pendingBrandmarkTransforms).
     if (!defenderTags.includes(UnitTag.BRANDMARKED)) {
       if (shouldLeaveGravestone(
-        { faction: defenderFaction, tags: defenderTags, type: defenderType },
-        { defaultOn: false, techFlags: state.techFlags },
+        { faction: defenderFaction, tags: defenderTags },
+        { defaultOn: false },
       )) {
         createGravestoneAt(state, defenderPosition, defenderType);
       }
@@ -1028,13 +940,12 @@ export function resolveBuildingAttack(
       }
     }
 
-    // REVIVABLE/default-on gravestone: when a player unit with the right conditions dies,
-    // leave a Gravestone on their tile.
+    // When a player unit with the right conditions dies, leave a Gravestone on their tile.
     // BRANDMARKED units are handled separately above (deferred via pendingBrandmarkTransforms).
     if (!defenderTags.includes(UnitTag.BRANDMARKED)) {
       if (shouldLeaveGravestone(
-        { faction: defenderFaction, tags: defenderTags, type: defenderType },
-        { defaultOn: false, techFlags: state.techFlags },
+        { faction: defenderFaction, tags: defenderTags },
+        { defaultOn: false },
       )) {
         createGravestoneAt(state, defenderPos, defenderType);
       }

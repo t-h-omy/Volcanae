@@ -157,6 +157,7 @@ const TAG_EMOJI: Partial<Record<UnitTag, string>> = {
   [UnitTag.SPLASH]:          '💦',
   [UnitTag.READY]:           '⚡',
   [UnitTag.REVIVABLE]:       '🔮',
+  [UnitTag.LEAVES_GRAVESTONE]: '🪦',
 };
 
 /** Maps recruitment buildings to their recruitable unit types */

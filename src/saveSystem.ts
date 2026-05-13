@@ -278,6 +278,46 @@ export function loadGameState(): GameState | null {
       }
     }
 
+    // Migration: GRAVESTONE_BASIC/WARRIORS/ENGINES TechFlags were replaced by
+    // the LEAVES_GRAVESTONE unit tag. Backfill the new tag on units that would
+    // have been covered by the old flags, then strip the old flags.
+    {
+      const techFlags = gs.techFlags as string[] | undefined;
+      if (Array.isArray(techFlags)) {
+        const basicActive    = techFlags.includes('GRAVESTONE_BASIC');
+        const warriorsActive = techFlags.includes('GRAVESTONE_WARRIORS');
+        const enginesActive  = techFlags.includes('GRAVESTONE_ENGINES');
+
+        if (basicActive || warriorsActive || enginesActive) {
+          const basicTypes    = new Set(['SPEARMAN', 'SCOUT', 'GUARD']);
+          const warriorTypes  = new Set(['RIDER', 'SWORDSMAN', 'ARCHER']);
+          const engineTypes   = new Set(['SIEGE', 'MAGE']);
+
+          if (s.units && typeof s.units === 'object') {
+            for (const unit of Object.values(s.units) as Array<unknown>) {
+              const u = unit as Record<string, unknown>;
+              if (!u || u.faction !== 'PLAYER' || !Array.isArray(u.tags)) continue;
+              const t = u.type as string;
+              if (
+                (basicActive    && basicTypes.has(t))   ||
+                (warriorsActive && warriorTypes.has(t)) ||
+                (enginesActive  && engineTypes.has(t))
+              ) {
+                if (!(u.tags as string[]).includes('LEAVES_GRAVESTONE')) {
+                  (u.tags as string[]).push('LEAVES_GRAVESTONE');
+                }
+              }
+            }
+          }
+
+          // Remove the now-obsolete flags from the saved state
+          gs.techFlags = techFlags.filter(
+            (f) => f !== 'GRAVESTONE_BASIC' && f !== 'GRAVESTONE_WARRIORS' && f !== 'GRAVESTONE_ENGINES',
+          );
+        }
+      }
+    }
+
     return s as GameState;
   } catch {
     return null;
