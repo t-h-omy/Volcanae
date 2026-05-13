@@ -5,7 +5,7 @@
 
 import type { GameState, Position } from './types';
 import type { Draft } from 'immer';
-import { BuildingType, UnitTag, Faction, DestroyBehavior } from './types';
+import { BuildingType, UnitTag, UnitType, Faction, DestroyBehavior } from './types';
 import type { GameEvent } from './gameEvents';
 import { MAP, XP, TECH, SANCTUM_COLLAPSE, ABILITIES } from './gameConfig';
 import { increaseEmberOnStrongholdCapture } from './enemySystem';
@@ -314,11 +314,13 @@ export function triggerSanctumCollapse(
   const startRow = MAP.GRID_HEIGHT - MAP.LAVA_BUFFER_ROWS - zone * MAP.ZONE_HEIGHT;
   const endRow = startRow + MAP.ZONE_HEIGHT - 1;
 
-  // Purge all enemy units in this zone
+  // Purge all enemy units in this zone, but preserve CAVE_MONSTER units —
+  // they belong to fixed encounter tiles and are not part of the zone army.
   const purgedUnitIds: string[] = [];
   const clearedUnitPositions: Position[] = [];
   for (const unit of Object.values(state.units)) {
     if (unit.faction !== Faction.ENEMY) continue;
+    if (unit.type === UnitType.CAVE_MONSTER) continue;
     if (unit.position.y >= startRow && unit.position.y <= endRow) {
       purgedUnitIds.push(unit.id);
       clearedUnitPositions.push({ x: unit.position.x, y: unit.position.y });

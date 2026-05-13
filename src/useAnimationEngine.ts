@@ -52,7 +52,7 @@ function eventPosition(event: GameEvent): Position {
     case 'PLAYER_ATTACK':
       return event.defenderPosition;
     case 'BUILDING_ATTACK':
-      return event.defenderPosition;
+      return event.buildingPosition;
     case 'BUILDING_ATTACK_BUILDING':
       return event.targetBuildingPosition;
     case 'UNIT_ATTACK_BUILDING':
