@@ -15,25 +15,18 @@ import type { Draft } from 'immer';
 import type { GameState, Position, Unit } from './types';
 import type { SpellId } from './types';
 import { Faction, UnitTag, BuildingType, TileType, UnitType } from './types';
-import { MAGE, TECH_TREE, BUILDING_DEFINITIONS, ABILITIES, MAP, UNIT_DEFINITIONS } from './gameConfig';
+import { MAGE, BUILDING_DEFINITIONS, ABILITIES, MAP, UNIT_DEFINITIONS } from './gameConfig';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { generateId } from './mapGenerator';
 import { useFloaterStore } from './floaterStore';
 import { useCombatAnimationStore } from './combatAnimationStore';
 import { shouldLeaveGravestone, createGravestoneAt } from './combatSystem';
 
-/** Returns the effective spell range for a mage in the current state. */
+/** Returns the effective spell range for a mage (its attack range). */
 export function getMageSpellRange(
-  state: GameState | Draft<GameState>,
+  mage: Unit | Draft<Unit>,
 ): number {
-  let range = MAGE.SPELL_RANGE_BASE;
-  for (const def of TECH_TREE) {
-    if (!state.techNodes[def.id]?.unlocked) continue;
-    for (const eff of def.effects) {
-      if (eff.type === 'SPELL_RANGE_MOD') range += eff.amount;
-    }
-  }
-  return range;
+  return mage.stats.attackRange;
 }
 
 /** True iff `spellId` has been unlocked by tech. */
@@ -102,7 +95,7 @@ export function getValidSpellTargets(
 ): Position[] {
   const mage = state.units[mageId];
   if (!mage) return [];
-  const range = getMageSpellRange(state);
+  const range = getMageSpellRange(mage);
 
   switch (spellId) {
     case 'TRANSPOSE': {
@@ -231,7 +224,7 @@ function handleTranspose(
   targetPosition: Position,
 ): boolean {
   const firstId = state.pendingTransposeFirstUnitId;
-  const range = getMageSpellRange(state);
+  const range = getMageSpellRange(mage);
 
   if (!firstId) {
     // First pick: record it and return false so the mage is NOT spent yet.
@@ -790,7 +783,7 @@ export function checkAndDefectLeash(
     const inRange = isTileWithinEdgeCircleRange(
       mage.position.x, mage.position.y,
       unit.position.x, unit.position.y,
-      getMageSpellRange(state),
+      getMageSpellRange(mage),
     );
     if (!inRange) defects = true;
   }

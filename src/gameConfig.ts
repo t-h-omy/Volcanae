@@ -192,7 +192,7 @@ export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
     id: SpellId.TRANSPOSE,
     name: 'Transpose',
     emoji: '🔄',
-    description: `Swap the positions of two units of the same faction within ${MAGE.SPELL_RANGE_BASE} tiles of the Mage.`,
+    description: `Swap the positions of two units of the same faction within range of the Mage.`,
     targetHint: 'Select the first unit to swap.',
     targetHintSecondPick: 'Select the second unit (same faction as the first).',
   },
@@ -200,7 +200,7 @@ export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
     id: SpellId.EMBERBIND,
     name: 'Emberbind',
     emoji: '🔥',
-    description: `Target an Ember Nest within ${MAGE.SPELL_RANGE_BASE} tiles. The nest is destroyed (forest restored) and a friendly Ember Demon appears, leashed within ${MAGE.EMBER_DEMON_LEASH_RANGE} tiles of its Mage.`,
+    description: `Target an Ember Nest within range. The nest is destroyed (forest restored) and a friendly Ember Demon appears, leashed within ${MAGE.EMBER_DEMON_LEASH_RANGE} tiles of its Mage.`,
     targetHint: 'Select an Ember Nest within range.',
   },
   [SpellId.BRANDMARK_HEAL]: {
@@ -214,28 +214,28 @@ export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
     id: SpellId.RAISE_SKELETON,
     name: 'Raise Skeleton',
     emoji: '💀',
-    description: `Target a Gravestone within ${MAGE.SPELL_RANGE_BASE} tiles to raise a Skeleton. The gravestone is consumed.`,
+    description: `Target a Gravestone within range to raise a Skeleton. The gravestone is consumed.`,
     targetHint: 'Select a player Gravestone within range.',
   },
   [SpellId.FROSTCRAFT]: {
     id: SpellId.FROSTCRAFT,
     name: 'Frostcraft',
     emoji: '❄️',
-    description: `Freeze a Water tile within ${MAGE.SPELL_RANGE_BASE} tiles. Player units may walk on the ice; enemies cannot. The ice persists until consumed by lava.`,
+    description: `Freeze a Water tile within range. Player units may walk on the ice; enemies cannot. The ice persists until consumed by lava.`,
     targetHint: 'Select a water tile within range.',
   },
   [SpellId.GRAVE_TRAP]: {
     id: SpellId.GRAVE_TRAP,
     name: 'Grave Trap',
     emoji: '☠️',
-    description: `Convert a Gravestone within ${MAGE.SPELL_RANGE_BASE} tiles into a magical trap. The next unit to step onto it (any faction) is stunned for ${MAGE.GRAVE_TRAP_STUN_TURNS} turns.`,
+    description: `Convert a Gravestone within range into a magical trap. The next unit to step onto it (any faction) is stunned for ${MAGE.GRAVE_TRAP_STUN_TURNS} turns.`,
     targetHint: 'Select a player Gravestone within range.',
   },
   [SpellId.EXPLODE]: {
     id: SpellId.EXPLODE,
     name: 'Explode',
     emoji: '💥',
-    description: `Sacrifice a player unit within ${MAGE.SPELL_RANGE_BASE} tiles. It deals ${MAGE.EXPLODE_DAMAGE_PERCENT}% of its current HP to each adjacent enemy. The unit is fully consumed — no gravestone is left.`,
+    description: `Sacrifice a player unit within range. It deals ${MAGE.EXPLODE_DAMAGE_PERCENT}% of its current HP to each adjacent enemy. The unit is fully consumed — no gravestone is left.`,
     targetHint: 'Select one of your own units within range to sacrifice.',
   },
   [SpellId.CRYSTAL_TOWER]: {
@@ -934,7 +934,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
 
   MAGE: {
     maxHp: 70, attack: 0, defense: 30,
-    movementActions: 1, moveRange: 1, attackRange: 1,
+    movementActions: 1, moveRange: 1, attackRange: 2,
     discoverRadius: 1, triggerRange: 0,
     tags: [UnitTag.PASSIVE, UnitTag.PREP],
     cost: { iron: 2, wood: 6 },
@@ -987,7 +987,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   u.LAVA_RIDER.description  = `Enemy fast cavalry that covers ${u.LAVA_RIDER.moveRange} tiles per move.`;
   u.LAVA_SIEGE.description  = `Enemy long-range bombard with ${u.LAVA_SIEGE.attackRange}-tile reach.`;
   u.EMBERLING.description   = `Fragile fire spirit that walks toward lava. Explodes on death, dealing ${u.EMBERLING.explosionDamage} damage to all units within 1 tile.`;
-  u.MAGE.description        = `Arcane caster that casts spells within ${MAGE.SPELL_RANGE_BASE} tiles instead of attacking. Recruited from active Crystal Chambers.`;
+  u.MAGE.description        = `Arcane caster that casts spells instead of attacking, with ${u.MAGE.attackRange}-tile range. Recruited from active Crystal Chambers.`;
   u.EMBER_DEMON.description = `Powerful demonic unit.`;
   u.SKELETON.description    = `Undead warrior raised from a gravestone.`;
 }
@@ -1840,11 +1840,11 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'SPELL_REACH',
     name: 'Spell Reach',
-    description: `Increases the Mage's spell range by +${MAGE.SPELL_RANGE_BONUS} (to ${MAGE.SPELL_RANGE_BASE + MAGE.SPELL_RANGE_BONUS} tiles).`,
+    description: `Increases the Mage's attack range by +${MAGE.SPELL_RANGE_BONUS} (to ${MAGE.SPELL_RANGE_BASE + MAGE.SPELL_RANGE_BONUS} tiles).`,
     requires: ['EXPLODE'],
     cost: 7,
     effects: [
-      { type: 'SPELL_RANGE_MOD', amount: MAGE.SPELL_RANGE_BONUS },
+      { type: 'UNIT_STAT_MOD', unitType: UnitType.MAGE, stat: 'attackRange', mode: 'add', value: MAGE.SPELL_RANGE_BONUS },
     ],
   },
 
