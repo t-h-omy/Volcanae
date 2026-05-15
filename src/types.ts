@@ -145,7 +145,6 @@ export const TechEffectType = {
   STRONGHOLD_CAP_MOD:       'STRONGHOLD_CAP_MOD',
   SPECIALIST_SLOT_MOD:      'SPECIALIST_SLOT_MOD',
   UNLOCK_SPELL:             'UNLOCK_SPELL',
-  SPELL_RANGE_MOD:          'SPELL_RANGE_MOD',
 } as const;
 export type TechEffectType = (typeof TechEffectType)[keyof typeof TechEffectType];
 
@@ -252,8 +251,7 @@ export type TechEffect =
   | { type: 'FLAG';                    flag: TechFlag }
   | { type: 'STRONGHOLD_CAP_MOD';      capType: 'farmer' | 'noble'; amount: number }
   | { type: 'SPECIALIST_SLOT_MOD';     value: number }
-  | { type: 'UNLOCK_SPELL';            spellId: SpellId }
-  | { type: 'SPELL_RANGE_MOD';         amount: number };
+  | { type: 'UNLOCK_SPELL';            spellId: SpellId };
 
 /** Static definition of a tech-tree node (lives in gameConfig) */
 export interface TechNodeDefinition {

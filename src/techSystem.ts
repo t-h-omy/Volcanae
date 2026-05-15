@@ -158,9 +158,6 @@ function applyTechEffect(state: Draft<GameState>, effect: TechEffect): void {
         state.unlockedSpells.push(effect.spellId);
       }
       break;
-    case 'SPELL_RANGE_MOD':
-      // Applied on demand by getMageSpellRange() — no immediate state mutation needed.
-      break;
     default:
       break;
   }
@@ -375,8 +372,6 @@ export function renderEffect(effect: TechEffect): string {
       const def = SPELL_DEFINITIONS[effect.spellId];
       return `Unlocks ${def?.name ?? effect.spellId}`;
     }
-    case 'SPELL_RANGE_MOD':
-      return `Spell range +${effect.amount}`;
     default:
       return '';
   }
