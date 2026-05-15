@@ -1840,7 +1840,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'SPELL_REACH',
     name: 'Spell Reach',
-    description: `Increases the Mage's attack range by +${MAGE.SPELL_RANGE_BONUS} (to ${MAGE.SPELL_RANGE_BASE + MAGE.SPELL_RANGE_BONUS} tiles).`,
+    description: `Increases the Mage's attack range by +${MAGE.SPELL_RANGE_BONUS} (to ${UNIT_DEFINITIONS.MAGE.attackRange + MAGE.SPELL_RANGE_BONUS} tiles).`,
     requires: ['EXPLODE'],
     cost: 7,
     effects: [
