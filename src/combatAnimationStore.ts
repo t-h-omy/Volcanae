@@ -16,7 +16,8 @@ export type UnitAnimationState =
   | { type: 'DYING' }
   | { type: 'LEVEL_UP' }
   | { type: 'XP_GAIN' }
-  | { type: 'TRANSFORM_TO_DEMON'; durationMs: number };
+  | { type: 'TRANSFORM_TO_DEMON'; durationMs: number }
+  | { type: 'DEFECT_TO_ENEMY'; durationMs: number };
 
 export type BuildingAnimationState = 'CRYSTAL_ACTIVATE' | 'SANCTUM_SHATTER';
 

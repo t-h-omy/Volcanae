@@ -387,7 +387,7 @@ function handleBrandmarkHeal(
   if (target.tags.includes(UnitTag.SUMMONED)) return false;
   if (target.tags.includes(UnitTag.BRANDMARKED)) return false; // only unbrandmarked units
 
-  target.stats.maxHp *= 2;
+  target.stats.maxHp *= MAGE.BRANDMARK_HP_MULTIPLIER;
   target.stats.currentHp = target.stats.maxHp;
   target.stats.attack += MAGE.BRANDMARK_ATTACK_BONUS;
   target.tags.push(UnitTag.BRANDMARKED);

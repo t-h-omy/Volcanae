@@ -12,7 +12,7 @@ import type { Projectile } from '../combatAnimationStore';
 import { useShockwaveStore } from '../shockwaveStore';
 import { canCapture } from '../captureSystem';
 import { getConstructionOptionsForTile } from '../constructionSystem';
-import { MAP, UNIT_DEFINITIONS, BUILDING_DEFINITIONS } from '../gameConfig';
+import { MAP, UNIT_DEFINITIONS, BUILDING_DEFINITIONS, TAG_INFO } from '../gameConfig';
 import { getStrongholdEffectiveCap } from '../techSystem';
 import { computeRecruitmentBuildingUsage, canBuildingEverRecruit } from '../resourceSystem';
 import { ANIMATION } from '../animationConfig';
@@ -1242,6 +1242,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
     LEVEL_UP: 'anim-levelup',
     XP_GAIN: 'anim-xpgain',
     TRANSFORM_TO_DEMON: 'unit--transforming',
+    DEFECT_TO_ENEMY: 'unit--defecting',
   };
   const animClass = (anim ? (ANIM_CLASS_MAP[anim.type] ?? '') : '');
 
@@ -1254,6 +1255,10 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
       : undefined;
 
   const isEmberling = unit.type === UnitType.EMBERLING;
+
+  const tagIcons = unit.tags
+    .map((tag) => TAG_INFO[tag]?.icon)
+    .filter((icon): icon is string => !!icon);
 
   return (
     <div
@@ -1330,6 +1335,13 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
       )}
       {isStunned && (
         <span className="unit-stun-symbol">💫</span>
+      )}
+      {tagIcons.length > 0 && (
+        <div className="unit-tag-icons">
+          {tagIcons.map((icon, i) => (
+            <span key={i} className="unit-tag-icon">{icon}</span>
+          ))}
+        </div>
       )}
     </div>
   );

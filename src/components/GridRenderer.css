@@ -678,6 +678,39 @@
   100% { filter: hue-rotate(-90deg) brightness(0.5);  transform: scale(0);    }
 }
 
+/* ── Defect to Enemy Animation ── */
+
+.unit--defecting {
+  animation: defect-to-enemy 600ms ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes defect-to-enemy {
+  0%   { filter: hue-rotate(0deg)    brightness(1);   }
+  25%  { filter: hue-rotate(-20deg)  brightness(2.5) saturate(3); }
+  60%  { filter: hue-rotate(-40deg)  brightness(1.8) saturate(2); }
+  100% { filter: hue-rotate(0deg)    brightness(1);   }
+}
+
+/* ── Unit Tag Icons ── */
+
+.unit-tag-icons {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  display: flex;
+  flex-direction: row-reverse;
+  gap: 1px;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.unit-tag-icon {
+  font-size: 9px;
+  line-height: 1;
+  filter: drop-shadow(0 0 2px #000);
+}
+
 /* ── Projectile Layer ── */
 
 .projectile-layer {

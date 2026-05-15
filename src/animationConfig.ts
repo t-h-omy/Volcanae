@@ -69,4 +69,6 @@ export const ANIMATION = {
   EXPLOSION_SHOCKWAVE_MS: 500,
   /** Duration of the tile flash burst at the Emberling explosion center (ms) */
   EXPLOSION_TILE_FLASH_MS: 600,
+  /** Duration of the lava-flash VFX played when a leashed unit defects to the enemy (ms) */
+  DEFECT_VFX_DURATION_MS: 600,
 } as const;

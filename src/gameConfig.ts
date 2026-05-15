@@ -156,6 +156,8 @@ export const MAGE = {
   BRANDMARK_HP_LOSS_PER_TURN: 5,
   /** Flat ATK bonus while the BRANDMARKED tag is on a unit */
   BRANDMARK_ATTACK_BONUS: 20,
+  /** Max HP multiplier applied when a unit is branded (e.g. 2 = double max HP) */
+  BRANDMARK_HP_MULTIPLIER: 2,
   /** Number of turns a unit is stunned after stepping on a GRAVE_TRAP (this turn + next) */
   GRAVE_TRAP_STUN_TURNS: 2,
   /** Percentage of the sacrificed unit's CURRENT HP dealt to each adjacent enemy by Explode */
@@ -205,7 +207,7 @@ export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
     id: SpellId.BRANDMARK_HEAL,
     name: 'Brandmark Heal',
     emoji: '🩸',
-    description: `Fully heal one player unit, double its max HP, grant +${MAGE.BRANDMARK_ATTACK_BONUS} ATK, and mark it with the brand. The marked unit loses ${MAGE.BRANDMARK_HP_LOSS_PER_TURN} HP at the end of each turn. On death, a hostile Ember Demon rises in its place.`,
+    description: `Fully heal one player unit, multiply its max HP by ${MAGE.BRANDMARK_HP_MULTIPLIER}×, grant +${MAGE.BRANDMARK_ATTACK_BONUS} ATK, and mark it with the brand. The marked unit loses ${MAGE.BRANDMARK_HP_LOSS_PER_TURN} HP at the end of each turn. On death, a hostile Ember Demon rises in its place.`,
     targetHint: 'Select one of your own units within range (not another Mage).',
   },
   [SpellId.RAISE_SKELETON]: {
@@ -1879,7 +1881,7 @@ export const TAG_STAT_EFFECTS: Partial<Record<UnitTag, StatModifier[]>> = {
  * constant. All numbers in `desc` strings must reference ABILITIES (or another
  * named config constant) via template literals — never hardcode raw numbers.
  */
-export const TAG_INFO: Record<UnitTag, { label: string; desc: string }> = {
+export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: string }> = {
   [UnitTag.RANGED]:            { label: 'Ranged',            desc: 'Attacks from a distance and does not move onto a defeated enemy\'s tile.' },
   [UnitTag.PREP]:              { label: 'Prep',              desc: 'Cannot attack in the same turn it moves. Attack first, then move — or wait a turn after moving.' },
   [UnitTag.BUILDANDCAPTURE]:   { label: 'Build & Capture',   desc: 'Can construct buildings on open terrain and capture enemy strongholds.' },
@@ -1910,7 +1912,7 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string }> = {
   [UnitTag.REVIVABLE]:          { label: 'Revivable',          desc: `Leaves a Gravestone on death. Pay ${ABILITIES.REVIVE_CRYSTAL_COST} crystal to revive.` },
   // ── Mage system tags ────────────────────────────────────────────────────────
   [UnitTag.SUMMONED]:           { label: 'Summoned',           desc: 'Conjured by magic. Does not consume population, cannot be healed, and does not leave a gravestone on death.' },
-  [UnitTag.BRANDMARKED]:        { label: 'Brandmarked',        desc: `+${MAGE.BRANDMARK_ATTACK_BONUS} ATK. Loses ${MAGE.BRANDMARK_HP_LOSS_PER_TURN} HP at the end of every player turn. On death, leaves behind a hostile Ember Demon.` },
+  [UnitTag.BRANDMARKED]:        { label: 'Brandmarked',        desc: `+${MAGE.BRANDMARK_ATTACK_BONUS} ATK. Loses ${MAGE.BRANDMARK_HP_LOSS_PER_TURN} HP at the end of every player turn. On death, leaves behind a hostile Ember Demon.`, icon: '🩸' },
   [UnitTag.LEASHED]:            { label: 'Leashed',            desc: `Summoned creature bound to a Mage. If the Mage moves out of ${MAGE.EMBER_DEMON_LEASH_RANGE} tiles or dies, the leashed unit defects to the enemy.` },
   [UnitTag.NO_GRAVESTONE]:      { label: 'No Gravestone',      desc: 'Leaves no body. Cannot become a Gravestone on death.' },
   [UnitTag.LEAVES_GRAVESTONE]:  { label: 'Leaves Gravestone',  desc: 'Leaves a Gravestone on death.' },

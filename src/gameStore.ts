@@ -296,6 +296,9 @@ export const useGameStore = create<GameStore>()(
             state.selectedUnitId = null;
           }
           const { addFloater } = useFloaterStore.getState();
+          const { setUnitAnimation } = useCombatAnimationStore.getState();
+          const { setCameraTarget } = useAnimationStore.getState();
+          let firstPos: { x: number; y: number } | null = null;
           for (const id of defectedIds) {
             const u = state.units[id];
             if (!u) continue;
@@ -304,7 +307,11 @@ export const useGameStore = create<GameStore>()(
               x: u.position.x, y: u.position.y,
               isEnemy: true, floaterType: 'damage', value: 0,
             });
+            if (!firstPos) firstPos = { x: u.position.x, y: u.position.y };
+            setUnitAnimation(id, { type: 'DEFECT_TO_ENEMY', durationMs: ANIMATION.DEFECT_VFX_DURATION_MS });
+            setTimeout(() => useCombatAnimationStore.getState().setUnitAnimation(id, null), ANIMATION.DEFECT_VFX_DURATION_MS);
           }
+          if (firstPos) setCameraTarget(firstPos);
         }
         // Check win/loss conditions after player action
         checkGameConditions(state);
@@ -1334,6 +1341,9 @@ export const useGameStore = create<GameStore>()(
                 isEnemy: true,
                 floaterType: 'revive',
               });
+              useAnimationStore.getState().setCameraTarget({ x: unit.position.x, y: unit.position.y });
+              useCombatAnimationStore.getState().setUnitAnimation(unit.id, { type: 'DEFECT_TO_ENEMY', durationMs: ANIMATION.DEFECT_VFX_DURATION_MS });
+              setTimeout(() => useCombatAnimationStore.getState().setUnitAnimation(unit.id, null), ANIMATION.DEFECT_VFX_DURATION_MS);
             }
           }
 
