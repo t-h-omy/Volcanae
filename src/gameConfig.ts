@@ -745,7 +745,7 @@ export const LEVEL_UP_VALUES = {
  */
 export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   SPEARMAN: {
-    maxHp: 100, attack: 40, defense: 45,
+    maxHp: 100, attack: 40, defense: 40,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
     tags: [UnitTag.BUILDANDCAPTURE],
@@ -829,7 +829,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   GUARD: {
-    maxHp: 100, attack: 20, defense: 75,
+    maxHp: 100, attack: 20, defense: 65,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
     tags: [UnitTag.PREP],
@@ -1229,16 +1229,16 @@ export const ABILITIES = {
   /** Multiplier applied to the building unit's currentHp to determine the Outpost's starting HP */
   FIELDWORK_HP_MULTIPLIER: 3,
   /** Defense bonus granted to each adjacent friendly unit by a PHALANX tag carrier */
-  PHALANX_DEFENSE_BONUS_PER_CARRIER: 8,
+  PHALANX_DEFENSE_BONUS_PER_CARRIER: 7,
   /** Attack bonus gained by a PHALANX unit per adjacent friendly unit */
   PHALANX_ATTACK_BONUS_PER_ALLY: 5,
   // ── Deep tech tree abilities ─────────────────────────────────────────────────
   /** Flat attack bonus for a LANCE_CHARGE unit that attacks without having moved */
   LANCE_CHARGE_ATTACK_BONUS: 20,
   /** Permanent DEF reduction applied to the target each time it is hit by a DISTRACTION archer */
-  DISTRACTION_DEF_REDUCTION: 8,
+  DISTRACTION_DEF_REDUCTION: 6,
   /** Static ATK penalty applied to archers carrying the DISTRACTION tag */
-  DISTRACTION_ATTACK_MOD: -10,
+  DISTRACTION_ATTACK_MOD: -15,
   /** Max HP bonus granted to a unit carrying the ELITE tag */
   ELITE_MAX_HP_BONUS: 20,
   /** DEF change (negative = penalty) applied to a unit carrying the HIT_AND_RUN tag */
@@ -1246,7 +1246,7 @@ export const ABILITIES = {
   /** Maximum movement range allowed for a HIT_AND_RUN post-attack move */
   HIT_AND_RUN_POST_ATTACK_MOVE_RANGE: 1,
   /** Max HP bonus granted to a unit carrying the KNIGHT tag */
-  KNIGHT_MAX_HP_BONUS: 30,
+  KNIGHT_MAX_HP_BONUS: 20,
   /** Move range bonus granted to SKIRMISHER-tagged archers (Skirmisher tech) */
   SKIRMISHER_MOVE_BONUS: 1,
   /** Move range bonus granted to OUTRIDER-tagged riders (Outriders tech) */
