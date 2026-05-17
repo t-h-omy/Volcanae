@@ -23,6 +23,7 @@ import {
 } from './resourceSystem';
 import {
   constructBuilding as constructBuildingLogic,
+  convertBuilding as convertBuildingLogic,
   placeMineOnTile,
 } from './constructionSystem';
 import { runEnemyTurn } from './enemySystem';
@@ -87,6 +88,8 @@ interface GameActions {
   recruitUnit: (buildingId: string, unitType: UnitType) => void;
   /** Construct a building on a tile using a unit */
   constructBuilding: (unitId: string, tilePos: Position, buildingType: BuildingType) => void;
+  /** Convert a player-owned Ruin building to a different Ruin-buildable building */
+  convertBuilding: (unitId: string, newBuildingType: BuildingType) => void;
   /** Heal an adjacent friendly unit using a PATCHUP unit */
   healUnit: (healerId: string, targetId: string) => void;
   /** Enter heal-target-selection mode */
@@ -674,6 +677,18 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         constructBuildingLogic(state, unitId, tilePos, buildingType);
         // Recompute population capacity after building construction
+        const capacity = computePopulationCapacity(state);
+        state.resources.farmers = capacity.farmerCapacity;
+        state.resources.nobles = capacity.nobleCapacity;
+        updateDiscovery(state);
+        checkGameConditions(state);
+      });
+    },
+
+    convertBuilding: (unitId: string, newBuildingType: BuildingType) => {
+      set((state) => {
+        convertBuildingLogic(state, unitId, newBuildingType);
+        // Recompute population capacity after conversion (building types may differ)
         const capacity = computePopulationCapacity(state);
         state.resources.farmers = capacity.farmerCapacity;
         state.resources.nobles = capacity.nobleCapacity;

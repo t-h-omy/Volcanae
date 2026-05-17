@@ -215,6 +215,15 @@ export function loadGameState(): GameState | null {
       }
     }
 
+    // Migration: backfill buildingsConverted in gameStats for saves that predate
+    // the building conversion mechanic.
+    if (s.gameStats && typeof s.gameStats === 'object') {
+      const gstats = s.gameStats as unknown as Record<string, unknown>;
+      if (typeof gstats.buildingsConverted !== 'number') {
+        gstats.buildingsConverted = 0;
+      }
+    }
+
     // Migration: backfill emberLevelSources for saves that predate source tracking.
     // Because historical data is unavailable, fall back conservatively: attribute the
     // full current ember level to "other" so old saves do not show inflated source rows.

@@ -482,6 +482,8 @@ export interface GameStats {
   unitsRecruited: number;
   /** Player buildings constructed */
   buildingsConstructed: number;
+  /** Player buildings converted (replaced via conversion mechanic) */
+  buildingsConverted: number;
   /** Tech nodes unlocked */
   techsUnlocked: number;
   /** Enemy buildings destroyed by the player */
