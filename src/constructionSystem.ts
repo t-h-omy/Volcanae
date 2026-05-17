@@ -197,6 +197,10 @@ export function getConversionTargetsForTile(
 /**
  * Returns true if the given unit can initiate a building conversion at its
  * current position.
+ *
+ * Action-flag rules mirror canUnitConstruct in unitActions.ts exactly — a
+ * conversion consumes the same action slot as construction and must change
+ * whenever canUnitConstruct changes.
  */
 export function canUnitConvertBuilding(
   state: GameState | Draft<GameState>,
@@ -205,14 +209,13 @@ export function canUnitConvertBuilding(
   const unit = state.units[unitId];
   if (!unit) return false;
   if (unit.faction !== Faction.PLAYER) return false;
-  if (!unit.tags.includes(UnitTag.BUILDANDCAPTURE)) return false;
-  // A unit may convert after moving (movement is a separate action slot).
-  // All other non-move action flags consume the unit's action for the turn.
+  // Action-flag checks — must stay in sync with canUnitConstruct (unitActions.ts)
   if (unit.hasConstructedThisTurn) return false;
+  if (unit.hasMovedThisTurn) return false;
   if (unit.hasAttackedThisTurn) return false;
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
-  if (unit.hasCastThisTurn) return false;
+  if (!unit.tags.includes(UnitTag.BUILDANDCAPTURE)) return false;
 
   const tile = state.grid[unit.position.y]?.[unit.position.x];
   if (!tile || !tile.buildingId) return false;
