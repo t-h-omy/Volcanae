@@ -278,6 +278,10 @@ export function convertBuilding(
   //    (handles cost deduction, isRuin clearing, tile updates, XP grant, stats update)
   constructBuilding(state, unitId, position, newBuildingType);
 
+  // constructBuilding increments buildingsConstructed; undo that since this is
+  // a conversion, not a net-new construction. Only buildingsConverted is incremented.
+  state.gameStats.buildingsConstructed = Math.max(0, state.gameStats.buildingsConstructed - 1);
+
   // 4. Track conversion in game stats
   state.gameStats.buildingsConverted = (state.gameStats.buildingsConverted ?? 0) + 1;
 }

@@ -1876,7 +1876,7 @@ function SelectedUnitPanel({
 // ============================================================================
 
 // ============================================================================
-// CONSTRUCTION PANEL (shown when a BUILD_AND_CAPTURE unit is on a constructable tile)
+// CONSTRUCTION PANEL (shown when a BUILDANDCAPTURE unit is on a constructable tile)
 // ============================================================================
 
 function ConstructionPanel({
@@ -1954,7 +1954,7 @@ function ConstructionPanel({
 }
 
 // ============================================================================
-// CONVERSION PANEL (shown when a BUILD_AND_CAPTURE unit is on a convertible Player building)
+// CONVERSION PANEL (shown when a BUILDANDCAPTURE unit is on a convertible Player building)
 // ============================================================================
 
 function ConversionPanel({
@@ -2525,7 +2525,7 @@ function BottomBar() {
     }
   }, [selectedUnitId, captureTargetId, captureBuilding]);
 
-  // Construction panel: show when a player BUILD_AND_CAPTURE unit is selected
+  // Construction panel: show when a player BUILDANDCAPTURE unit is selected
   // and its tile has construction options
   const showConstruction = useGameStore((s) => {
     if (!selectedUnit || selectedUnit.faction !== Faction.PLAYER) return false;
@@ -2573,14 +2573,14 @@ function BottomBar() {
           onCapture={handleCapture}
         />
       )}
-      {/* Construction panel for BUILD_AND_CAPTURE units on constructable tiles */}
+      {/* Construction panel for BUILDANDCAPTURE units on constructable tiles */}
       {selectedUnit && showConstruction && !cavePopupActive && (
         <ConstructionPanel
           unit={selectedUnit}
           tilePos={selectedUnit.position}
         />
       )}
-      {/* Conversion panel for BUILD_AND_CAPTURE units on own Ruin buildings */}
+      {/* Conversion panel for BUILDANDCAPTURE units on own Ruin buildings */}
       {selectedUnit && showConversion && !cavePopupActive && (
         <ConversionPanel unit={selectedUnit} />
       )}
