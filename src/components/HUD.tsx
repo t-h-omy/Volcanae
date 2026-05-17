@@ -26,6 +26,8 @@ import {
 } from '../resourceSystem';
 import {
   getConstructionOptionsForTile,
+  getConversionTargetsForTile,
+  canUnitConvertBuilding,
 } from '../constructionSystem';
 import { computeLevelFromXp } from '../levelSystem';
 import { computeUnitAiScores, computeRecruitmentScores, type ScoredAction } from '../enemySystem';
@@ -1952,8 +1954,94 @@ function ConstructionPanel({
 }
 
 // ============================================================================
-// SELECTED TILE PANEL
+// CONVERSION PANEL (shown when a BUILD_AND_CAPTURE unit is on a convertible Player building)
 // ============================================================================
+
+function ConversionPanel({
+  unit,
+}: {
+  unit: Unit;
+}) {
+  const resources = useGameStore((s) => s.resources);
+  const buildings = useGameStore((s) => s.buildings);
+  const convertBuilding = useGameStore((s) => s.convertBuilding);
+  const [confirmBuilding, setConfirmBuilding] = useState<ReturnType<typeof getConversionTargetsForTile>[number] | null>(null);
+  const [collapsed, setCollapsed] = useState(false);
+
+  const currentBuilding = useMemo(() => {
+    const tile = useGameStore.getState().grid[unit.position.y]?.[unit.position.x];
+    return tile?.buildingId ? buildings[tile.buildingId] : undefined;
+  }, [unit.position.x, unit.position.y, buildings]);
+
+  const options = useMemo(
+    () => {
+      if (!currentBuilding) return [];
+      return getConversionTargetsForTile(useGameStore.getState(), currentBuilding.type);
+    },
+    [currentBuilding],
+  );
+
+  if (options.length === 0) return null;
+
+  const currentBuildingName = currentBuilding
+    ? (BUILDING_NAME[currentBuilding.type] ?? currentBuilding.type)
+    : 'Building';
+
+  return (
+    <div className="hud-info-panel hud-construction-panel">
+      <div className="hud-panel-header">
+        <span className="hud-panel-emoji">🔄</span>
+        <span className="hud-panel-name">Convert {currentBuildingName}</span>
+        <button
+          className="hud-construct-toggle"
+          onClick={() => setCollapsed((c) => !c)}
+          title={collapsed ? 'Expand' : 'Collapse'}
+        >
+          {collapsed ? '▲' : '▼'}
+        </button>
+      </div>
+      {!collapsed && (
+        <div className="hud-construct-options">
+          {options.map((opt) => {
+            const canAffordThis =
+              resources.iron >= opt.cost.iron && resources.wood >= opt.cost.wood;
+            return (
+              <button
+                key={opt.buildingType}
+                className="info-row-btn"
+                disabled={!canAffordThis}
+                onClick={() => setConfirmBuilding(opt)}
+              >
+                <span className="info-row-emoji">{opt.emoji}</span>
+                <div className="info-row-body">
+                  <div className="info-row-name">
+                    {opt.label}
+                    <span className="info-badge info-badge--small">i</span>
+                  </div>
+                  <div className="info-row-cost">⛓️{opt.cost.iron} 🪵{opt.cost.wood}</div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {confirmBuilding && (
+        <BuildingInfoPopup
+          buildingType={confirmBuilding.buildingType}
+          cost={confirmBuilding.cost}
+          actionLabel="Convert"
+          onAction={() => {
+            convertBuilding(unit.id, confirmBuilding.buildingType);
+            setConfirmBuilding(null);
+          }}
+          onClose={() => setConfirmBuilding(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+
 
 function SelectedTilePanel({ tile }: { tile: Tile }) {
   const terrainEmoji =
@@ -2447,6 +2535,12 @@ function BottomBar() {
     return options.length > 0;
   });
 
+  // Conversion panel: show when a player BUILD_AND_CAPTURE unit is on a convertible building
+  const showConversion = useGameStore((s) => {
+    if (!selectedUnit) return false;
+    return canUnitConvertBuilding(s, selectedUnit.id);
+  });
+
   const isPlayerTurn = phase === GamePhase.PLAYER_TURN;
 
   // Auto-open cave screams popup at start of player's turn if a previously
@@ -2486,6 +2580,10 @@ function BottomBar() {
           tilePos={selectedUnit.position}
         />
       )}
+      {/* Conversion panel for BUILD_AND_CAPTURE units on own Ruin buildings */}
+      {selectedUnit && showConversion && !cavePopupActive && (
+        <ConversionPanel unit={selectedUnit} />
+      )}
       {selectedBuilding && !selectedUnit && !cavePopupActive && (
         <SelectedBuildingPanel building={selectedBuilding} />
       )}
@@ -2523,6 +2621,8 @@ function EndGameStats({ stats }: { stats: GameStats }) {
         <span className="hud-endgame-stat-value">{stats.unitsRecruited}</span>
         <span className="hud-endgame-stat-label">🏗️ Buildings constructed</span>
         <span className="hud-endgame-stat-value">{stats.buildingsConstructed}</span>
+        <span className="hud-endgame-stat-label">🔄 Buildings converted</span>
+        <span className="hud-endgame-stat-value">{stats.buildingsConverted}</span>
         <span className="hud-endgame-stat-label">🔬 Techs unlocked</span>
         <span className="hud-endgame-stat-value">{stats.techsUnlocked}</span>
         <span className="hud-endgame-stat-label">💥 Enemy buildings destroyed</span>

@@ -107,6 +107,37 @@ function makeOption(buildingType: ConstructableBuilding): ConstructionOption {
 }
 
 // ============================================================================
+// RUIN BUILDING CONSTANTS
+// ============================================================================
+
+/**
+ * The set of building types that are buildable on Ruin tiles. Single source
+ * of truth, used by getConstructionOptionsForTile, canUnitConvertBuilding,
+ * and getConversionTargetsForTile.
+ */
+export const RUIN_BUILDABLE_TYPES: BuildingType[] = [
+  BuildingType.BARRACKS,
+  BuildingType.ARCHER_CAMP,
+  BuildingType.RIDER_CAMP,
+  BuildingType.SIEGE_CAMP,
+  BuildingType.FARM,
+  BuildingType.PATRICIANHOUSE,
+  BuildingType.CRYSTAL_CHAMBER,
+];
+
+/**
+ * Returns the list of building types that can be constructed on a Ruin tile,
+ * filtered by tech-unlock status.
+ */
+export function getRuinBuildingOptions(
+  state: GameState | Draft<GameState>,
+): ConstructionOption[] {
+  return RUIN_BUILDABLE_TYPES
+    .filter((bt) => state.unlockedBuildings.includes(bt))
+    .map((bt) => makeOption(bt as ConstructableBuilding));
+}
+
+// ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
 
@@ -139,25 +170,116 @@ export function getConstructionOptionsForTile(
 
   // Ruin → all non-terrain player buildings that are tech-unlocked
   if (tile.isRuin) {
-    const ruinBuildings = [
-      BuildingType.BARRACKS,
-      BuildingType.ARCHER_CAMP,
-      BuildingType.RIDER_CAMP,
-      BuildingType.SIEGE_CAMP,
-      BuildingType.FARM,
-      BuildingType.PATRICIANHOUSE,
-    ];
-    for (const bt of ruinBuildings) {
-      if (state.unlockedBuildings.includes(bt)) {
-        options.push(makeOption(bt));
-      }
-    }
-    if (state.unlockedBuildings.includes(BuildingType.CRYSTAL_CHAMBER)) {
-      options.push(makeOption(BuildingType.CRYSTAL_CHAMBER));
-    }
+    options.push(...getRuinBuildingOptions(state));
   }
 
   return options;
+}
+
+// ============================================================================
+// CONVERSION FUNCTIONS
+// ============================================================================
+
+/**
+ * Returns the construction options for a building conversion at the given tile,
+ * excluding the building currently on the tile. Mirrors getConstructionOptionsForTile
+ * but with the current-building exclusion.
+ */
+export function getConversionTargetsForTile(
+  state: GameState | Draft<GameState>,
+  currentBuildingType: BuildingType,
+): ConstructionOption[] {
+  return getRuinBuildingOptions(state).filter(
+    (opt) => opt.buildingType !== currentBuildingType,
+  );
+}
+
+/**
+ * Returns true if the given unit can initiate a building conversion at its
+ * current position.
+ */
+export function canUnitConvertBuilding(
+  state: GameState | Draft<GameState>,
+  unitId: string,
+): boolean {
+  const unit = state.units[unitId];
+  if (!unit) return false;
+  if (unit.faction !== Faction.PLAYER) return false;
+  if (!unit.tags.includes(UnitTag.BUILDANDCAPTURE)) return false;
+  // A unit may convert after moving (movement is a separate action slot).
+  // All other non-move action flags consume the unit's action for the turn.
+  if (unit.hasConstructedThisTurn) return false;
+  if (unit.hasAttackedThisTurn) return false;
+  if (unit.hasCapturedThisTurn) return false;
+  if (unit.hasDestroyedThisTurn) return false;
+  if (unit.hasCastThisTurn) return false;
+
+  const tile = state.grid[unit.position.y]?.[unit.position.x];
+  if (!tile || !tile.buildingId) return false;
+
+  const building = state.buildings[tile.buildingId];
+  if (!building || building.faction !== Faction.PLAYER) return false;
+
+  // Only buildings that are themselves Ruin-buildable can be converted.
+  // This implicitly excludes Watchtower, Stronghold, Mine, Woodcutter, etc.
+  if (!RUIN_BUILDABLE_TYPES.includes(building.type)) return false;
+
+  // At least one alternative conversion target must exist.
+  const alternatives = getConversionTargetsForTile(state, building.type);
+  return alternatives.length > 0;
+}
+
+/**
+ * Executes the building conversion.
+ * Assumes canUnitConvertBuilding(state, unitId) === true.
+ */
+export function convertBuilding(
+  state: Draft<GameState>,
+  unitId: string,
+  newBuildingType: BuildingType,
+): void {
+  if (!canUnitConvertBuilding(state, unitId)) {
+    throw new Error(`Cannot convert building with unit ${unitId}`);
+  }
+
+  const unit = state.units[unitId];
+  const position = unit.position;
+  const tile = state.grid[position.y][position.x];
+  const oldBuildingId = tile.buildingId;
+  if (!oldBuildingId) {
+    throw new Error(`No building to convert at (${position.x},${position.y})`);
+  }
+
+  const oldBuilding = state.buildings[oldBuildingId];
+  if (oldBuilding.type === newBuildingType) {
+    throw new Error(`Cannot convert building to same type`);
+  }
+
+  // Verify the target is in the valid conversion-options list
+  const conversionTargets = getConversionTargetsForTile(state, oldBuilding.type);
+  if (!conversionTargets.some((opt) => opt.buildingType === newBuildingType)) {
+    throw new Error(`Invalid conversion target: ${newBuildingType}`);
+  }
+
+  // Verify resources (constructBuilding will also check, but we want a clear error)
+  const cost = BUILDING_COST[newBuildingType as ConstructableBuilding];
+  if (!cost || state.resources.iron < cost.iron || state.resources.wood < cost.wood) {
+    throw new Error(`Insufficient resources for conversion`);
+  }
+
+  // 1. Destroy old building
+  delete state.buildings[oldBuildingId];
+  tile.buildingId = null;
+
+  // 2. Re-mark tile as Ruin so constructBuilding's Ruin-branch works
+  tile.isRuin = true;
+
+  // 3. Construct new building via the existing flow
+  //    (handles cost deduction, isRuin clearing, tile updates, XP grant, stats update)
+  constructBuilding(state, unitId, position, newBuildingType);
+
+  // 4. Track conversion in game stats
+  state.gameStats.buildingsConverted = (state.gameStats.buildingsConverted ?? 0) + 1;
 }
 
 /**

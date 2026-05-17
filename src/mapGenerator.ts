@@ -1585,6 +1585,7 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
       damageReceived: 0,
       unitsRecruited: 0,
       buildingsConstructed: 0,
+      buildingsConverted: 0,
       techsUnlocked: 0,
       enemyBuildingsDestroyed: 0,
       enemyBuildingsCaptured: 0,
