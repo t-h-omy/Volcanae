@@ -398,15 +398,18 @@ export const useGameStore = create<GameStore>()(
       // Fire AFTER the immer set() completes so the game state is already updated.
       // The unit was deleted synchronously; a ghost overlay handles the visuals.
       if (slideKillGhostData !== null) {
+        // Cast away the potential `never` narrowing TypeScript applies to `let`
+        // variables that are mutated inside a callback (immer set()).
+        const d = slideKillGhostData as NonNullable<typeof slideKillGhostData>;
         const ghostId = `slide-kill-${unitId}-${Date.now()}`;
         const ghost = {
           id: ghostId,
-          unitType: slideKillGhostData.unitType,
-          faction: slideKillGhostData.faction,
-          deathTileX: slideKillGhostData.deathTileX,
-          deathTileY: slideKillGhostData.deathTileY,
-          slideDx: slideKillGhostData.slideDx,
-          slideDy: slideKillGhostData.slideDy,
+          unitType: d.unitType,
+          faction: d.faction,
+          deathTileX: d.deathTileX,
+          deathTileY: d.deathTileY,
+          slideDx: d.slideDx,
+          slideDy: d.slideDy,
           phase: 'slide' as const,
         };
         const store = useCombatAnimationStore.getState();
