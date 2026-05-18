@@ -15,6 +15,7 @@ import {
 } from './captureSystem';
 import { updateDiscovery } from './discoverySystem';
 import { advanceLava, advanceLavaWithEvents, shouldLavaAdvance } from './lavaSystem';
+import { processTileStatusEndOfTurn } from './tileStatusSystem';
 import {
   collectResources,
   recruitUnit as recruitUnitLogic,
@@ -1260,8 +1261,14 @@ export const useGameStore = create<GameStore>()(
           return;
         }
 
+        // Phase 3.5: Tile status end-of-turn processing (before lava tick)
+        const tileStatusEvents: GameEvent[] = [];
+        computedState = produce(computedState, (draft) => {
+          processTileStatusEndOfTurn(draft, tileStatusEvents);
+        });
+
         // Phase 4: Lava phase
-        const allEvents: GameEvent[] = [...enemyEvents];
+        const allEvents: GameEvent[] = [...enemyEvents, ...tileStatusEvents];
         computedState = produce(computedState, (draft) => {
           draft.turnsUntilLavaAdvance -= 1;
         });
