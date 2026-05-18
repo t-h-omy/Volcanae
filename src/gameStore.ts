@@ -398,10 +398,11 @@ export const useGameStore = create<GameStore>()(
       // Fire AFTER the immer set() completes so the game state is already updated.
       // The unit was deleted synchronously; a ghost overlay handles the visuals.
       if (slideKillGhostData !== null) {
+        const ghostDataSnapshot = slideKillGhostData;
         const ghostId = `slide-kill-${unitId}-${Date.now()}`;
         const ghost = {
           id: ghostId,
-          ...slideKillGhostData,
+          ...ghostDataSnapshot,
           phase: 'slide' as const,
         };
         const store = useCombatAnimationStore.getState();

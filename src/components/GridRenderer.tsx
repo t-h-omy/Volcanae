@@ -1117,6 +1117,10 @@ function TileCellInner({
       {/* lava-preview overlay */}
       {overlay && <div className="tile-overlay" style={{ backgroundColor: overlay }} />}
 
+      {/* ice overlay — frozen tile status; rendered here (below terrain sprites and buildings)
+          so the frost tint shows on the ground but mountain/forest/building sprites sit on top */}
+      {tile.status === TileStatus.FROZEN && tile.isRevealed && <div className="tile-overlay tile--ice" />}
+
       {/* terrain resource overlay (forest / mountain on top of grass) */}
       {showTerrainResource && (
         <>
@@ -1157,9 +1161,6 @@ function TileCellInner({
 
       {/* slide-preview overlay — secondary destination when moving onto a FROZEN tile */}
       {isSlidePreview && <div className="tile-overlay tile--slide-preview" />}
-
-      {/* ice overlay — frozen tile */}
-      {tile.status === TileStatus.FROZEN && tile.isRevealed && <div className="tile-overlay tile--ice" />}
 
       {/* corrupted tile overlay */}
       {tile.status === TileStatus.CORRUPTED && tile.isRevealed && <div className="tile-overlay tile--corrupted" />}
