@@ -593,6 +593,8 @@ export default function GridRenderer() {
 
   // Slide preview: for each FROZEN destination in the reachable set, compute
   // where the unit would slide to and highlight that secondary destination.
+  // Direction is sign(frozenTile - unit), which is identical to what moveUnit
+  // computes as moveDx/moveDy — so the preview always matches the actual slide.
   const slidePreviewSet = useMemo<Set<string>>(() => {
     const set = new Set<string>();
     if (!selectedUnit || selectedUnit.faction !== Faction.PLAYER) return set;
