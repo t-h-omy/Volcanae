@@ -1977,7 +1977,9 @@ export const SANCTUM_COLLAPSE = {
  * FOREST or MOUNTAIN (e.g. by corruption) genuinely cannot receive any status.
  */
 export const TILE_STATUS_WHITELIST: Record<TileType, TileStatus[]> = {
+  /** All three statuses apply to PLAINS terrain. */
   [TileType.PLAINS]: [TileStatus.CORRUPTED, TileStatus.FROZEN, TileStatus.BURNING],
+  /** WATER cannot BURN (water is non-combustible by design). CORRUPTED and FROZEN are valid. */
   [TileType.WATER]: [TileStatus.CORRUPTED, TileStatus.FROZEN],
   [TileType.CANYON]: [],
   [TileType.EMPTY]: [],

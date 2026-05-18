@@ -607,7 +607,7 @@ function handleGraveTrap(
   return true;
 }
 
-/** Freezes a tile (Frostcraft). Works on any terrain where FROZEN is whitelisted. */
+/** Freezes a tile (Frostcraft). Works on any terrain where FROZEN is whitelisted (currently PLAINS and WATER). */
 function handleFrostcraft(
   state: Draft<GameState>,
   targetPosition: Position,
