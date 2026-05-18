@@ -6,7 +6,7 @@
  * animationConfig.ts, uiConfig.ts, renderConfig.ts, and inputConfig.ts.
  */
 
-import { UnitTag, DestroyBehavior, BuildingType, UnitType, ResourceType, TechFlag, Difficulty, SpellId, TileType, TileStatus } from './types';
+import { UnitTag, DestroyBehavior, BuildingType, UnitType, ResourceType, TechFlag, Difficulty, SpellId, TileType, TileStatus, TerrainTag } from './types';
 import type { UnitLevelDefinition, TechNodeDefinition, StatModifier } from './types';
 
 // ============================================================================
@@ -1995,6 +1995,32 @@ export const BURNING_TILE_DAMAGE = 15;
 // ============================================================================
 // CONVENIENCE EXPORTS
 // ============================================================================
+
+/**
+ * Tooltip definitions for terrain tags (shown in the tile-info panel).
+ * Mirrors the structure of TAG_INFO for unit tags.
+ */
+export const TERRAIN_TAG_INFO: Record<TerrainTag, { label: string; desc: string }> = {
+  [TerrainTag.CORRUPTED]: {
+    label: 'Corrupted',
+    desc:
+      'Player units on this tile are isolated from ally tag interactions. ' +
+      'No Phalanx bonuses, no Patchup healing, no Pin Down / Distraction / Splash effects on attack, ' +
+      'and no tag-based attack bonuses (Knight, Lance Charge, Assassin, Bloodlust). ' +
+      'Base stats, movement, ranged capability, and persistent effects (Brandmarked) remain unchanged.',
+  },
+  [TerrainTag.FROZEN]: {
+    label: 'Frozen',
+    desc:
+      'Units that end movement on this tile slide one additional tile in their movement direction. ' +
+      'Sliding into water, canyon, or lava is fatal. ' +
+      'Spawning directly onto a frozen tile triggers no slide.',
+  },
+  [TerrainTag.BURNING]: {
+    label: 'Burning',
+    desc: `Non-lava units on this tile take ${BURNING_TILE_DAMAGE} damage at the end of each turn.`,
+  },
+};
 
 /**
  * Full game configuration object combining all config sections.

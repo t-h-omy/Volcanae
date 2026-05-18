@@ -10,10 +10,10 @@
  */
 
 import type { Draft } from 'immer';
-import { TileType, TileStatus, Faction } from './types';
+import { TileType, TileStatus, Faction, UnitTag } from './types';
 import type { GameState, Position } from './types';
 import type { GameEvent } from './gameEvents';
-import { TILE_STATUS_WHITELIST } from './gameConfig';
+import { TILE_STATUS_WHITELIST, BURNING_TILE_DAMAGE } from './gameConfig';
 
 // ============================================================================
 // QUERY HELPERS
@@ -131,15 +131,71 @@ export function isUnitOnCorruptedTile(
 
 /**
  * End-of-turn processing for tile statuses. Called once per player turn,
- * before the lava tick.
+ * before the lava tick (Phase 3.5 in endPlayerTurn).
  *
- * Currently a no-op — BURNING tile damage and status expiry will be filled
- * in during Part 6. The wiring point is established here so Part 6 only
- * needs to fill in this function body.
+ * BURNING: every non-LAVA unit standing on a BURNING tile takes
+ * BURNING_TILE_DAMAGE hp. Units that die emit a UNIT_DEATH event.
+ * A TILE_DAMAGE event is emitted for each unit that takes damage (for floaters).
  */
 export function processTileStatusEndOfTurn(
-  _state: Draft<GameState>,
-  _events?: GameEvent[],
+  state: Draft<GameState>,
+  events?: GameEvent[],
 ): void {
-  // Filled in Part 6.
+  // Collect IDs of units that die from burn damage; process after the scan loop
+  // to avoid mutating the grid while we iterate it.
+  const burnDying: Array<{ unitId: string; position: { x: number; y: number }; faction: (typeof Faction)[keyof typeof Faction] }> = [];
+
+  for (let y = 0; y < state.grid.length; y++) {
+    for (let x = 0; x < state.grid[y].length; x++) {
+      const tile = state.grid[y][x];
+      if (tile.status !== TileStatus.BURNING) continue;
+      if (!tile.unitId) continue;
+
+      const unit = state.units[tile.unitId];
+      if (!unit) continue;
+      // LAVA-tagged units are immune to BURNING tile damage.
+      if (unit.tags.includes(UnitTag.LAVA)) continue;
+
+      const damage = Math.min(BURNING_TILE_DAMAGE, unit.stats.currentHp);
+      unit.stats.currentHp -= damage;
+
+      if (events) {
+        events.push({
+          type: 'TILE_DAMAGE',
+          unitId: unit.id,
+          position: { x: unit.position.x, y: unit.position.y },
+          amount: damage,
+        });
+      }
+
+      if (unit.stats.currentHp <= 0) {
+        burnDying.push({
+          unitId: unit.id,
+          position: { x: unit.position.x, y: unit.position.y },
+          faction: unit.faction,
+        });
+      }
+    }
+  }
+
+  // Process deaths: remove dead units and emit UNIT_DEATH events.
+  for (const { unitId, position, faction } of burnDying) {
+    const tile = state.grid[position.y]?.[position.x];
+    if (tile && tile.unitId === unitId) {
+      tile.unitId = null;
+    }
+    if (faction === Faction.PLAYER) {
+      state.gameStats.unitsLost += 1;
+    }
+    delete state.units[unitId];
+
+    if (events) {
+      events.push({
+        type: 'UNIT_DEATH',
+        unitId,
+        position,
+        faction,
+      });
+    }
+  }
 }

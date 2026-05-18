@@ -910,6 +910,54 @@
   pointer-events: none;
 }
 
+/* ── Corrupted tile overlay ── */
+
+.tile--corrupted {
+  background:
+    repeating-linear-gradient(
+      45deg,
+      rgba(120, 0, 180, 0.20) 0px,
+      rgba(120, 0, 180, 0.20) 3px,
+      transparent 3px,
+      transparent 14px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(80, 0, 140, 0.15) 0px,
+      rgba(80, 0, 140, 0.15) 3px,
+      transparent 3px,
+      transparent 14px
+    ),
+    rgba(60, 0, 100, 0.55);
+  border: 2px solid rgba(160, 60, 255, 0.75);
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* ── Burning tile overlay ── */
+
+.tile--burning {
+  background:
+    repeating-linear-gradient(
+      45deg,
+      rgba(255, 120, 0, 0.25) 0px,
+      rgba(255, 120, 0, 0.25) 3px,
+      transparent 3px,
+      transparent 14px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(255, 60, 0, 0.18) 0px,
+      rgba(255, 60, 0, 0.18) 3px,
+      transparent 3px,
+      transparent 14px
+    ),
+    rgba(180, 40, 0, 0.50);
+  border: 2px solid rgba(255, 120, 0, 0.80);
+  z-index: 1;
+  pointer-events: none;
+}
+
 /* ── Slide-preview overlay (secondary FROZEN-slide destination) ── */
 
 .tile--slide-preview {

@@ -1147,6 +1147,12 @@ function TileCellInner({
       {/* ice overlay — frozen tile */}
       {tile.status === TileStatus.FROZEN && tile.isRevealed && <div className="tile-overlay tile--ice" />}
 
+      {/* corrupted tile overlay */}
+      {tile.status === TileStatus.CORRUPTED && tile.isRevealed && <div className="tile-overlay tile--corrupted" />}
+
+      {/* burning tile overlay */}
+      {tile.status === TileStatus.BURNING && tile.isRevealed && <div className="tile-overlay tile--burning" />}
+
       {/* crystal chamber activation VFX overlay */}
       {isCrystalActivating && <div className="tile-crystal-activate-overlay" />}
 

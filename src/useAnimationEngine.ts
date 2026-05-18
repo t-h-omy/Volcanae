@@ -76,6 +76,8 @@ function eventPosition(event: GameEvent): Position {
       return { x: Math.floor(MAP.GRID_WIDTH / 2), y: Math.floor(MAP.GRID_HEIGHT / 2) };
     case 'EMBER_LEVEL_UP':
       return event.position;
+    case 'TILE_DAMAGE':
+      return event.position;
   }
 }
 
@@ -136,6 +138,8 @@ function isEventVisible(event: GameEvent): boolean {
       // Always show the modal regardless of tile visibility.
       return true;
     case 'EMBER_LEVEL_UP':
+      return isTileRevealed(event.position);
+    case 'TILE_DAMAGE':
       return isTileRevealed(event.position);
   }
 }

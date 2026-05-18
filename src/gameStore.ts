@@ -15,7 +15,7 @@ import {
 } from './captureSystem';
 import { updateDiscovery } from './discoverySystem';
 import { advanceLava, advanceLavaWithEvents, shouldLavaAdvance } from './lavaSystem';
-import { processTileStatusEndOfTurn, isUnitOnCorruptedTile } from './tileStatusSystem';
+import { processTileStatusEndOfTurn, isUnitOnCorruptedTile, applyTileStatus, clearTileStatus } from './tileStatusSystem';
 import {
   collectResources,
   recruitUnit as recruitUnitLogic,
@@ -40,7 +40,7 @@ import { useAnimationStore } from './animationStore';
 import { useCombatAnimationStore } from './combatAnimationStore';
 import { useCaveScreamsStore } from './caveScreamsStore';
 import { triggerSpellSfx } from './soundOptionsStore';
-import { Faction, GamePhase, BuildingType, TileType, Difficulty, DestroyBehavior, UnitType, UnitTag, TechFlag } from './types';
+import { Faction, GamePhase, BuildingType, TileType, TileStatus, Difficulty, DestroyBehavior, UnitType, UnitTag, TechFlag } from './types';
 import type { GameState, Position, TechId, SpellId } from './types';
 import type { GameEvent } from './gameEvents';
 import { MAP, TERRAIN, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval, UNIT_DEFINITIONS, MAGE } from './gameConfig';
@@ -143,6 +143,10 @@ interface GameActions {
   debugAddRuin: () => void;
   /** Debug: add 5 arcane crystals */
   debugAddCrystals: () => void;
+  /** Debug: apply a tile status to the currently selected tile */
+  debugApplyTileStatus: (status: string) => void;
+  /** Debug: clear tile status from the currently selected tile */
+  debugClearTileStatus: () => void;
   /** Level up a player unit if they have enough XP */
   levelUpUnit: (unitId: string) => void;
   /** Unlock a tech node and spend one pending pick */
@@ -2028,6 +2032,18 @@ export const useGameStore = create<GameStore>()(
             // All state mutations already applied during cascade — event is presentation-only.
             break;
 
+          case 'TILE_DAMAGE': {
+            // Emit a damage floater at the affected tile.
+            useFloaterStore.getState().addFloater({
+              value: event.amount,
+              x: event.position.x,
+              y: event.position.y,
+              isEnemy: false,
+              floaterType: 'damage',
+            });
+            break;
+          }
+
           case 'EMBER_LEVEL_UP': {
             // State was already mutated in enemySystem — this is presentation-only.
             const sacrificeLabel = event.isEmberlingSacrifice
@@ -2239,6 +2255,21 @@ export const useGameStore = create<GameStore>()(
     debugAddCrystals: () => {
       set((state) => {
         state.arcaneCrystals += 5;
+      });
+    },
+
+    debugApplyTileStatus: (status: string) => {
+      set((state) => {
+        if (!state.selectedTilePos) return;
+        const newStatus = status as TileStatus;
+        applyTileStatus(state, state.selectedTilePos, newStatus);
+      });
+    },
+
+    debugClearTileStatus: () => {
+      set((state) => {
+        if (!state.selectedTilePos) return;
+        clearTileStatus(state, state.selectedTilePos);
       });
     },
 
