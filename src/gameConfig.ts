@@ -1967,16 +1967,23 @@ export const SANCTUM_COLLAPSE = {
  * Status application that is not whitelisted will only CLEAR existing statuses
  * but NOT set the new status.
  *
- * IMPORTANT: This whitelist applies ONLY to the terrain (the underlying tile type),
- * NOT to objects placed on it (Mountain, Forest, Ruin, Building). A tile with
- * a Mountain on Plains terrain is treated like Plains for status purposes.
+ * IMPORTANT: This whitelist is checked against `tile.terrainType` (the underlying
+ * terrain), NOT the visual objects on the tile (Mountain, Forest, Ruin, Building).
+ * For example, a PLAINS tile with a Mountain object on it has terrainType PLAINS
+ * and may receive any status that PLAINS allows.
+ *
+ * FOREST and MOUNTAIN entries are present to satisfy the exhaustive Record type
+ * (every TileType key must appear). Tiles whose terrainType has been changed to
+ * FOREST or MOUNTAIN (e.g. by corruption) genuinely cannot receive any status.
  */
 export const TILE_STATUS_WHITELIST: Record<TileType, TileStatus[]> = {
   [TileType.PLAINS]: [TileStatus.CORRUPTED, TileStatus.FROZEN, TileStatus.BURNING],
   [TileType.WATER]: [TileStatus.CORRUPTED, TileStatus.FROZEN],
   [TileType.CANYON]: [],
   [TileType.EMPTY]: [],
+  /** Corrupted terrain — no status allowed; entry required by exhaustive Record type. */
   [TileType.FOREST]: [],
+  /** Corrupted terrain — no status allowed; entry required by exhaustive Record type. */
   [TileType.MOUNTAIN]: [],
 };
 
