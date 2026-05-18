@@ -293,7 +293,24 @@ export const useGameStore = create<GameStore>()(
     },
 
     moveUnit: (unitId: string, targetPosition: Position) => {
+      // Capture unit info before the mutation in case the unit is slide-killed
+      let slideKillGhostData: {
+        unitType: UnitType;
+        faction: Faction;
+        deathTileX: number;
+        deathTileY: number;
+        slideDx: number;
+        slideDy: number;
+      } | null = null;
+
       set((state) => {
+        // Snapshot the unit before moveUnitLogic so we can detect a slide-kill
+        const unitBefore = state.units[unitId];
+        const posBeforeX = unitBefore?.position.x ?? 0;
+        const posBeforeY = unitBefore?.position.y ?? 0;
+        const unitTypeBefore = unitBefore?.type;
+        const factionBefore = unitBefore?.faction;
+
         moveUnitLogic(state, unitId, targetPosition);
         // Update tile discovery after player action
         updateDiscovery(state);
@@ -321,6 +338,31 @@ export const useGameStore = create<GameStore>()(
           setTimeout(() => {
             useCombatAnimationStore.getState().setUnitAnimation(unitId, null);
           }, totalMs);
+        }
+
+        // ── Slide-kill detection ─────────────────────────────────────────────
+        // If the unit existed before the move but is now gone, it was killed
+        // while sliding off a FROZEN tile into a lethal tile.
+        if (!unitAfterMove && unitTypeBefore !== undefined && factionBefore !== undefined) {
+          // The slide direction = targetPosition - original position
+          const slideDirX = targetPosition.x - posBeforeX;
+          const slideDirY = targetPosition.y - posBeforeY;
+          // The death tile = frozen tile (targetPosition) + slide direction
+          const deathTileX = targetPosition.x + slideDirX;
+          const deathTileY = targetPosition.y + slideDirY;
+          const tileSize =
+            typeof window !== 'undefined' && window.innerWidth <= RENDER.MOBILE_BREAKPOINT
+              ? RENDER.TILE_SIZE_MOBILE
+              : RENDER.TILE_SIZE_DESKTOP;
+          // Pixel offset: from death tile back to frozen tile (same semantics as SLIDE)
+          slideKillGhostData = {
+            unitType: unitTypeBefore,
+            faction: factionBefore,
+            deathTileX,
+            deathTileY,
+            slideDx: -slideDirX * tileSize,
+            slideDy: -slideDirY * tileSize,
+          };
         }
         // ── End ice-slide animation ──────────────────────────────────────────
 
@@ -351,6 +393,38 @@ export const useGameStore = create<GameStore>()(
         // Check win/loss conditions after player action
         checkGameConditions(state);
       });
+
+      // ── Slide-kill ghost animation ───────────────────────────────────────
+      // Fire AFTER the immer set() completes so the game state is already updated.
+      // The unit was deleted synchronously; a ghost overlay handles the visuals.
+      if (slideKillGhostData !== null) {
+        const ghostId = `slide-kill-${unitId}-${Date.now()}`;
+        const ghost = {
+          id: ghostId,
+          ...slideKillGhostData,
+          phase: 'slide' as const,
+        };
+        const store = useCombatAnimationStore.getState();
+        store.addSlideKillGhost(ghost);
+
+        // Phase 1 — slide in
+        const slideTotalMs = ANIMATION.SLIDE_PAUSE_MS + ANIMATION.SLIDE_DURATION_MS;
+        setTimeout(() => {
+          useCombatAnimationStore.getState().setSlideKillGhostPhase(ghostId, 'dying');
+
+          // Phase 2 — skull flash (same timing as normal combat DYING)
+          const dyingTotalMs = ANIMATION.DIE_FLASH_DURATION_MS + ANIMATION.DIE_FADE_DURATION_MS;
+          setTimeout(() => {
+            useCombatAnimationStore.getState().setSlideKillGhostPhase(ghostId, 'falling');
+
+            // Phase 3 — shrink and disappear
+            setTimeout(() => {
+              useCombatAnimationStore.getState().removeSlideKillGhost(ghostId);
+            }, ANIMATION.SLIDE_KILL_FALL_DURATION_MS);
+          }, dyingTotalMs);
+        }, slideTotalMs);
+      }
+      // ── End slide-kill ghost animation ───────────────────────────────────
     },
 
     attackUnit: (attackerId: string, targetId: string) => {

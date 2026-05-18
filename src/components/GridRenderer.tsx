@@ -8,7 +8,7 @@ import { useGameStore } from '../gameStore';
 import { useFloaterStore } from '../floaterStore';
 import { useAnimationStore } from '../animationStore';
 import { useCombatAnimationStore } from '../combatAnimationStore';
-import type { Projectile } from '../combatAnimationStore';
+import type { Projectile, SlideKillGhost } from '../combatAnimationStore';
 import { useShockwaveStore } from '../shockwaveStore';
 import { canCapture } from '../captureSystem';
 import { getConstructionOptionsForTile } from '../constructionSystem';
@@ -881,6 +881,7 @@ export default function GridRenderer() {
         <DamageFloaterLayer tileSize={tileSize} />
         <LeashLineLayer tileSize={tileSize} />
         <ProjectileLayer />
+        <SlideKillGhostLayer tileSize={tileSize} />
         <ShockwaveLayer />
       </div>
       <div className="zoom-controls">
@@ -1645,6 +1646,86 @@ function ProjectileSprite({
 
 // ============================================================================
 // SHOCKWAVE LAYER
+// ============================================================================
+
+// ============================================================================
+// SLIDE-KILL GHOST LAYER
+// ============================================================================
+
+/**
+ * Renders ghost visuals for units that have been deleted from game state
+ * while they were sliding into a lethal tile (LAVA / CANYON / WATER).
+ * The sequence is: slide → skull-flash (DYING) → fall/shrink to nothing.
+ */
+function SlideKillGhostLayer({ tileSize }: { tileSize: number }) {
+  const ghosts = useCombatAnimationStore((s) => s.slideKillGhosts);
+  return (
+    <div className="slide-kill-ghost-layer">
+      {Array.from(ghosts.values()).map((ghost) => (
+        <SlideKillGhostSprite key={ghost.id} ghost={ghost} tileSize={tileSize} />
+      ))}
+    </div>
+  );
+}
+
+function SlideKillGhostSprite({ ghost, tileSize }: { ghost: SlideKillGhost; tileSize: number }) {
+  const spritePath =
+    ghost.faction === Faction.ENEMY && ENEMY_UNIT_SPRITE[ghost.unitType]
+      ? ENEMY_UNIT_SPRITE[ghost.unitType]
+      : ghost.faction === Faction.PLAYER && PLAYER_UNIT_SPRITE[ghost.unitType]
+        ? PLAYER_UNIT_SPRITE[ghost.unitType]
+        : UNIT_SPRITE[ghost.unitType];
+  const showImg = typeof spritePath === 'string' && spritePath !== '';
+
+  const tilePixelX = ghost.deathTileX * tileSize;
+  const tilePixelY = ghost.deathTileY * tileSize;
+  const phaseClass = `slide-kill-ghost--${ghost.phase}`;
+
+  return (
+    <div
+      className={`slide-kill-ghost ${phaseClass}`}
+      style={
+        {
+          width: tileSize,
+          height: tileSize,
+          transform: `translate(${tilePixelX}px, ${tilePixelY}px)`,
+          '--slide-start-x': `${ghost.slideDx}px`,
+          '--slide-start-y': `${ghost.slideDy}px`,
+          '--slide-kill-slide-duration': `${ANIMATION.SLIDE_DURATION_MS}ms`,
+          '--slide-kill-slide-pause': `${ANIMATION.SLIDE_PAUSE_MS}ms`,
+          '--die-flash-duration': `${ANIMATION.DIE_FLASH_DURATION_MS}ms`,
+          '--die-fade-duration': `${ANIMATION.DIE_FADE_DURATION_MS}ms`,
+          '--slide-kill-fall-duration': `${ANIMATION.SLIDE_KILL_FALL_DURATION_MS}ms`,
+        } as React.CSSProperties
+      }
+    >
+      {/* sprite/emoji */}
+      {showImg ? (
+        <img
+          src={spritePath as string}
+          className="slide-kill-ghost__sprite"
+          width={tileSize}
+          height={tileSize}
+          alt=""
+        />
+      ) : (
+        <div className="slide-kill-ghost__sprite">
+          <MissingSprite size={tileSize} />
+        </div>
+      )}
+      {/* skull emoji — visible only during 'dying' phase */}
+      {ghost.phase === 'dying' && (
+        <span
+          className="slide-kill-ghost__skull"
+          style={{ fontSize: `${tileSize}px` }}
+        >
+          💀
+        </span>
+      )}
+    </div>
+  );
+}
+
 // ============================================================================
 
 function ShockwaveLayer() {

@@ -75,4 +75,6 @@ export const ANIMATION = {
   EXPLOSION_TILE_FLASH_MS: 600,
   /** Duration of the lava-flash VFX played when a leashed unit defects to the enemy (ms) */
   DEFECT_VFX_DURATION_MS: 600,
+  /** Duration of the fall/sink animation played after the skull phase of a slide-kill (ms) */
+  SLIDE_KILL_FALL_DURATION_MS: 400,
 } as const;

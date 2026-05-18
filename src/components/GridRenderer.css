@@ -734,6 +734,61 @@
   z-index: 11;
 }
 
+/* ── Slide-kill ghost overlay ── */
+
+.slide-kill-ghost-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 12;
+}
+
+.slide-kill-ghost {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+/* Phase: sliding — reuses the same slide-from-ice keyframe */
+.slide-kill-ghost--slide .slide-kill-ghost__sprite {
+  animation: slide-from-ice var(--slide-kill-slide-duration, 300ms) ease-in var(--slide-kill-slide-pause, 100ms) both;
+}
+
+/* Phase: dying — skull flash identical to the combat DYING class */
+.slide-kill-ghost--dying .slide-kill-ghost__sprite {
+  animation: dyingUnitFlash var(--die-flash-duration, 450ms) linear forwards,
+             dyingFadeOut var(--die-fade-duration, 200ms) linear var(--die-flash-duration, 450ms) forwards;
+}
+
+.slide-kill-ghost--dying .slide-kill-ghost__skull {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  line-height: 1;
+  opacity: 0;
+  animation: dyingSkullFlash var(--die-flash-duration, 450ms) linear forwards,
+             dyingFadeOut var(--die-fade-duration, 200ms) linear var(--die-flash-duration, 450ms) forwards;
+}
+
+/* Phase: falling — unit shrinks and fades down */
+.slide-kill-ghost--falling .slide-kill-ghost__sprite {
+  animation: slideKillFall var(--slide-kill-fall-duration, 400ms) ease-in forwards;
+}
+
+@keyframes slideKillFall {
+  0%   { transform: scale(1) translateY(0);     opacity: 1; }
+  60%  { transform: scale(0.45) translateY(8px); opacity: 0.7; }
+  100% { transform: scale(0) translateY(16px);   opacity: 0; }
+}
+
 .projectile-emoji {
   position: absolute;
   top: 0;
