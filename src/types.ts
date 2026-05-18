@@ -344,6 +344,12 @@ export interface Unit {
   /** Turn number during which this unit last moved. 0 = never moved (or pre-dates this field). */
   lastMovedTurn: number;
   /**
+   * The direction of the unit's last move action as a normalised (dx, dy) vector.
+   * `null` / `undefined` means the unit has not moved this turn (or was placed without a move).
+   * Used by the FROZEN-tile slippery mechanic to determine slide direction.
+   */
+  lastMovementDirection?: { dx: number; dy: number } | null;
+  /**
    * Set on player-summoned EMBER_DEMON; the id of the Mage that controls it via leash.
    * `null` or `undefined` means no controller. Cleared on defection.
    */

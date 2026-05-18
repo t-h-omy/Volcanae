@@ -230,6 +230,104 @@ export function checkGraveTrapTrigger(
 }
 
 /**
+ * Resolves a slide from a FROZEN tile.
+ *
+ * Called after a unit lands on a FROZEN tile. The slide moves the unit one
+ * additional step in the same direction it arrived from. Chain slides are
+ * intentionally not supported: landing on a second FROZEN tile after sliding
+ * just moves the unit there without triggering another slide.
+ *
+ * Slide destination resolution (in order):
+ *  - Out of bounds                → stay on FROZEN tile, no effect
+ *  - MOUNTAIN terrain             → stay (impassable)
+ *  - Tile occupied by another unit → stay
+ *  - Tile with impassable building → stay
+ *  - LAVA tile                    → unit dies; enemy units sacrifice to lava (ember +1)
+ *  - CANYON terrain               → unit dies
+ *  - WATER (not FROZEN)           → unit drowns
+ *  - Any other tile (incl. FROZEN) → unit moves there; no further slide
+ */
+function resolveSlide(
+  state: Draft<GameState>,
+  unitId: string,
+  dx: number,
+  dy: number,
+): void {
+  const unit = state.units[unitId];
+  if (!unit) return;
+
+  const slideX = unit.position.x + dx;
+  const slideY = unit.position.y + dy;
+
+  // Out of bounds → stay
+  if (slideX < 0 || slideX >= MAP.GRID_WIDTH || slideY < 0 || slideY >= MAP.GRID_HEIGHT) return;
+
+  const slideTile = state.grid[slideY]?.[slideX];
+  if (!slideTile) return;
+
+  // MOUNTAIN (impassable solid terrain) → stay
+  if (slideTile.terrainType === TileType.MOUNTAIN) return;
+
+  // Tile occupied by another unit → stay
+  if (slideTile.unitId !== null) return;
+
+  // Tile with impassable building → stay
+  if (slideTile.buildingId !== null) {
+    const bld = state.buildings[slideTile.buildingId];
+    if (bld && bld.combatStats !== null) {
+      const isNeutralWatchtower = bld.type === BuildingType.WATCHTOWER && bld.faction === null;
+      if (!isNeutralWatchtower) return;
+    }
+  }
+
+  // ── Death cases ────────────────────────────────────────────────────────────
+
+  // LAVA tile → unit destroyed; enemy unit sacrifices to lava (ember +1)
+  if (slideTile.isLava) {
+    const currentTile = state.grid[unit.position.y][unit.position.x];
+    if (currentTile.unitId === unitId) currentTile.unitId = null;
+    if (unit.faction === Faction.ENEMY) {
+      state.ember += 1;
+    } else {
+      state.gameStats.unitsLost += 1;
+    }
+    delete state.units[unitId];
+    return;
+  }
+
+  // CANYON terrain → unit destroyed
+  if (slideTile.terrainType === TileType.CANYON) {
+    const currentTile = state.grid[unit.position.y][unit.position.x];
+    if (currentTile.unitId === unitId) currentTile.unitId = null;
+    if (unit.faction === Faction.PLAYER) {
+      state.gameStats.unitsLost += 1;
+    }
+    delete state.units[unitId];
+    return;
+  }
+
+  // WATER (not FROZEN) → unit drowns
+  if (slideTile.terrainType === TileType.WATER && slideTile.status !== TileStatus.FROZEN) {
+    const currentTile = state.grid[unit.position.y][unit.position.x];
+    if (currentTile.unitId === unitId) currentTile.unitId = null;
+    if (unit.faction === Faction.PLAYER) {
+      state.gameStats.unitsLost += 1;
+    }
+    delete state.units[unitId];
+    return;
+  }
+
+  // ── Normal slide ───────────────────────────────────────────────────────────
+  // Any other passable tile (including another FROZEN tile): move there.
+  // No further slide is triggered (chain slides are intentionally prevented).
+  const currentTile = state.grid[unit.position.y][unit.position.x];
+  if (currentTile.unitId === unitId) currentTile.unitId = null;
+  slideTile.unitId = unitId;
+  unit.position.x = slideX;
+  unit.position.y = slideY;
+}
+
+/**
  * Moves a unit to a target position by mutating the draft state.
  * - Validates the move is legal
  * - Updates the unit's position
@@ -266,6 +364,11 @@ export function moveUnit(
   const oldTile = state.grid[unit.position.y][unit.position.x];
   const newTile = state.grid[targetPosition.y][targetPosition.x];
 
+  // Compute movement direction (normalised to {-1,0,1}) before position update.
+  // Stored on the unit so the slide resolver (and future systems) can reference it.
+  const moveDx = Math.sign(targetPosition.x - unit.position.x);
+  const moveDy = Math.sign(targetPosition.y - unit.position.y);
+
   // Update grid: remove unit from old tile
   if (oldTile.unitId === unitId) {
     oldTile.unitId = null;
@@ -289,6 +392,7 @@ export function moveUnit(
   // Mark unit as having moved this turn
   unit.hasMovedThisTurn = true;
   unit.lastMovedTurn = state.turn;
+  unit.lastMovementDirection = { dx: moveDx, dy: moveDy };
 
   // HIT_AND_RUN: if this move happens after attacking, consume the post-attack move slot
   if (unit.hasAttackedThisTurn && unit.tags.includes(UnitTag.HIT_AND_RUN)) {
@@ -297,4 +401,10 @@ export function moveUnit(
 
   // GRAVE_TRAP: check if the unit landed on a trap
   checkGraveTrapTrigger(state, unitId);
+
+  // FROZEN tile: trigger the slippery slide mechanic.
+  // Re-fetch the unit — it must still be alive (not killed by a GRAVE_TRAP or other effect).
+  if (newTile.status === TileStatus.FROZEN && state.units[unitId]) {
+    resolveSlide(state, unitId, moveDx, moveDy);
+  }
 }

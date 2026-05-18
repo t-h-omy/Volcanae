@@ -910,6 +910,15 @@
   pointer-events: none;
 }
 
+/* ── Slide-preview overlay (secondary FROZEN-slide destination) ── */
+
+.tile--slide-preview {
+  background: rgba(130, 220, 255, 0.35);
+  border: 2px dashed rgba(100, 200, 255, 0.80);
+  z-index: 1;
+  pointer-events: none;
+}
+
 
 /* ── Leash line SVG overlay ── */
 

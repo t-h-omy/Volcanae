@@ -591,6 +591,27 @@ export default function GridRenderer() {
     return set;
   }, [selectedUnit, units]);
 
+  // Slide preview: for each FROZEN destination in the reachable set, compute
+  // where the unit would slide to and highlight that secondary destination.
+  const slidePreviewSet = useMemo<Set<string>>(() => {
+    const set = new Set<string>();
+    if (!selectedUnit || selectedUnit.faction !== Faction.PLAYER) return set;
+    for (const key of reachableSet) {
+      const [kx, ky] = key.split(',').map(Number);
+      const tile = grid[ky]?.[kx];
+      if (!tile || tile.status !== TileStatus.FROZEN) continue;
+      // Implied slide direction: from unit position toward this frozen destination
+      const dx = Math.sign(kx - selectedUnit.position.x);
+      const dy = Math.sign(ky - selectedUnit.position.y);
+      if (dx === 0 && dy === 0) continue; // same tile (shouldn't happen)
+      const slideX = kx + dx;
+      const slideY = ky + dy;
+      if (slideX < 0 || slideX >= MAP.GRID_WIDTH || slideY < 0 || slideY >= MAP.GRID_HEIGHT) continue;
+      set.add(`${slideX},${slideY}`);
+    }
+    return set;
+  }, [selectedUnit, reachableSet, grid]);
+
   // ── Tile click ──
   const handleTileClick = useCallback(
     (x: number, y: number) => {
@@ -825,6 +846,7 @@ export default function GridRenderer() {
             const isSpellTarget = spellTargetSet.has(key);
             const isLeashed = leashSet.has(key);
             const isLeashWarn = leashWarnSet.has(key);
+            const isSlidePreview = slidePreviewSet.has(key);
             const isSelected =
               (tile.unitId != null && tile.unitId === selectedUnitId) ||
               (tile.buildingId != null && tile.buildingId === selectedBuildingId);
@@ -842,6 +864,7 @@ export default function GridRenderer() {
                 isSpellTarget={isSpellTarget}
                 isLeashed={isLeashed}
                 isLeashWarn={isLeashWarn}
+                isSlidePreview={isSlidePreview}
                 isSelected={isSelected}
                 strongholdTotalCap={strongholdTotalCap}
                 recruitmentUsage={recruitmentUsage}
@@ -881,6 +904,8 @@ interface TileCellProps {
   isSpellTarget: boolean;
   isLeashed: boolean;
   isLeashWarn: boolean;
+  /** Whether this tile is the predicted slide destination from an adjacent FROZEN tile. */
+  isSlidePreview: boolean;
   isSelected: boolean;
   /** Pre-computed total population cap for STRONGHOLD buildings (farmers + nobles, including tech mods). */
   strongholdTotalCap: number;
@@ -900,6 +925,7 @@ function TileCellInner({
   isSpellTarget,
   isLeashed,
   isLeashWarn,
+  isSlidePreview,
   isSelected,
   strongholdTotalCap,
   recruitmentUsage,
@@ -1112,6 +1138,9 @@ function TileCellInner({
 
       {/* spell target overlay */}
       {isSpellTarget && <div className="tile-overlay tile--spell-target" />}
+
+      {/* slide-preview overlay — secondary destination when moving onto a FROZEN tile */}
+      {isSlidePreview && <div className="tile-overlay tile--slide-preview" />}
 
       {/* ice overlay — frozen tile */}
       {tile.status === TileStatus.FROZEN && tile.isRevealed && <div className="tile-overlay tile--ice" />}
