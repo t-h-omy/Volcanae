@@ -8,7 +8,7 @@
  */
 
 import type { GameState } from './types';
-import { UnitType, UnitTag, BuildingType } from './types';
+import { UnitType, UnitTag, BuildingType, TileStatus } from './types';
 import { TECH_TREE, POPULATION, SPECIALIST_DEFINITIONS } from './gameConfig';
 
 // ============================================================================
@@ -192,15 +192,18 @@ export function loadGameState(): GameState | null {
       }
     }
 
-    // Migration: backfill isIce on tile records from saves that predate Frostcraft.
+    // Migration: isIce field replaced by tile.status === TileStatus.FROZEN.
+    // Upgrade saved tiles that have isIce=true to status:FROZEN, then remove the field.
     if (s.grid && Array.isArray(s.grid)) {
       for (const row of s.grid as Array<unknown>) {
         if (!Array.isArray(row)) continue;
         for (const tile of row as Array<unknown>) {
           const t = tile as Record<string, unknown>;
-          if (t && typeof t.terrainType === 'string' && typeof t.isIce !== 'boolean') {
-            t.isIce = false;
+          if (!t || typeof t.terrainType !== 'string') continue;
+          if (t.isIce === true) {
+            t.status = TileStatus.FROZEN;
           }
+          delete t.isIce;
         }
       }
     }

@@ -29,6 +29,7 @@ import {
   UnitTag,
   BuildingType,
   TileType,
+  TileStatus,
   type Tile,
   type Unit,
   type Building,
@@ -1112,8 +1113,8 @@ function TileCellInner({
       {/* spell target overlay */}
       {isSpellTarget && <div className="tile-overlay tile--spell-target" />}
 
-      {/* ice overlay — frozen water tile */}
-      {tile.isIce && tile.isRevealed && <div className="tile-overlay tile--ice" />}
+      {/* ice overlay — frozen tile */}
+      {tile.status === TileStatus.FROZEN && tile.isRevealed && <div className="tile-overlay tile--ice" />}
 
       {/* crystal chamber activation VFX overlay */}
       {isCrystalActivating && <div className="tile-crystal-activate-overlay" />}

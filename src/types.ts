@@ -469,11 +469,6 @@ export interface Tile {
   terrainType: TileType;
   /** true on ~33% of Mountain tiles; set during map gen; cleared permanently on seal, explore, or despawn */
   hasCaveMonster?: boolean;
-  /**
-   * true for tiles frozen by Frostcraft. Tile remains `terrainType === TileType.WATER` underneath;
-   * the boolean overlays passability rules. Cleared when consumed by lava or otherwise destroyed.
-   */
-  isIce?: boolean;
   /** Current tile status (CORRUPTED, FROZEN, BURNING). Mutually exclusive — a new status overwrites the previous one. */
   status?: TileStatus | null;
 }

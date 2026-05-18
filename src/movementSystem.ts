@@ -5,7 +5,7 @@
 
 import type { GameState, Position } from './types';
 import type { Draft } from 'immer';
-import { BuildingType, Faction, TechFlag, TileType, UnitTag } from './types';
+import { BuildingType, Faction, TechFlag, TileType, TileStatus, UnitTag } from './types';
 import { MAP, ABILITIES } from './gameConfig';
 import { getTilesWithinEdgeCircleRange } from './rangeUtils';
 import { useFloaterStore } from './floaterStore';
@@ -155,10 +155,10 @@ export function getReachableTiles(
       const tile = state.grid[ny][nx];
 
       // CANYON/WATER: impassable — cannot enter or traverse
-      // Exception: frozen (isIce) water tiles are passable for player units.
+      // Exception: frozen (status === FROZEN) water tiles are passable for player units.
       if (tile.terrainType === TileType.CANYON) continue;
       if (tile.terrainType === TileType.WATER) {
-        if (!tile.isIce) continue;
+        if (tile.status !== TileStatus.FROZEN) continue;
         if (unit.faction === Faction.ENEMY) continue;
       }
 

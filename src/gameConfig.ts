@@ -846,7 +846,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     maxHp: 100, attack: 50, defense: 50,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 3,
-    tags: [UnitTag.BUILDANDCAPTURE, UnitTag.CORRUPT],
+    tags: [UnitTag.BUILDANDCAPTURE, UnitTag.CORRUPT, UnitTag.LAVA],
     cost: { iron: 0, wood: 0 },
     populationCost: { farmers: 0, nobles: 0 },
     levelUp: [
@@ -861,7 +861,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     maxHp: 100, attack: 55, defense: 20,
     movementActions: 1, moveRange: 1, attackRange: 2,
     discoverRadius: 1, triggerRange: 3,
-    tags: [UnitTag.BUILDANDCAPTURE, UnitTag.RANGED],
+    tags: [UnitTag.BUILDANDCAPTURE, UnitTag.RANGED, UnitTag.LAVA],
     cost: { iron: 0, wood: 0 },
     populationCost: { farmers: 0, nobles: 0 },
     levelUp: [
@@ -876,7 +876,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     maxHp: 100, attack: 70, defense: 30,
     movementActions: 1, moveRange: 2, attackRange: 1,
     discoverRadius: 1, triggerRange: 3,
-    tags: [UnitTag.BUILDANDCAPTURE],
+    tags: [UnitTag.BUILDANDCAPTURE, UnitTag.LAVA],
     cost: { iron: 0, wood: 0 },
     populationCost: { farmers: 0, nobles: 0 },
     levelUp: [
@@ -891,7 +891,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     maxHp: 100, attack: 85, defense: 0,
     movementActions: 1, moveRange: 1, attackRange: 3,
     discoverRadius: 1, triggerRange: 4,
-    tags: [UnitTag.RANGED, UnitTag.PREP],
+    tags: [UnitTag.RANGED, UnitTag.PREP, UnitTag.LAVA],
     cost: { iron: 0, wood: 0 },
     populationCost: { farmers: 0, nobles: 0 },
     levelUp: [
@@ -907,7 +907,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     movementActions: 1, moveRange: 2, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
     explosionDamage: 40,
-    tags: [UnitTag.SACRIFICIAL, UnitTag.EXPLOSIVE, UnitTag.PASSIVE],
+    tags: [UnitTag.SACRIFICIAL, UnitTag.EXPLOSIVE, UnitTag.PASSIVE, UnitTag.LAVA],
     cost: { iron: 0, wood: 0 },
     populationCost: { farmers: 0, nobles: 0 },
     levelUp: [
@@ -950,7 +950,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     maxHp: 120, attack: 70, defense: 40,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 3,
-    tags: [],
+    tags: [UnitTag.LAVA],
     cost: { iron: 0, wood: 0 },
     populationCost: { farmers: 0, nobles: 0 },
     levelUp: [

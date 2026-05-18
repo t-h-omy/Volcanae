@@ -187,7 +187,7 @@ export function spawnEnemyEmberDemon(
       triggerRange: UNIT_DEFINITIONS.EMBER_DEMON.triggerRange,
       movementActions: 1,
     },
-    tags: [],
+    tags: [UnitTag.LAVA],
     controllerMageId: null,
     hasMovedThisTurn: true,
     hasAttackedThisTurn: true,
