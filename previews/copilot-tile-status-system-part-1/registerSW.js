@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/Volcanae/previews/copilot-tile-status-system-part-1/sw.js', { scope: '/Volcanae/previews/copilot-tile-status-system-part-1/' })})}
