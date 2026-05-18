@@ -838,15 +838,20 @@ function ResourceInfoPopup({
   );
 }
 
-/** Tappable tag pill used in panels and popups */
-function InfoTagPill({ tag, onClick }: { tag: UnitTag; onClick: () => void }) {
-  const info = TAG_INFO[tag];
+/** Shared base for tappable tag pills — renders a labelled button with an "i" badge */
+function TagPillBase({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button className="info-popup-tag-pill" onClick={onClick}>
-      {info?.label ?? tag}
+      {label}
       <span className="info-popup-tag-pill-i">i</span>
     </button>
   );
+}
+
+/** Tappable tag pill used in panels and popups */
+function InfoTagPill({ tag, onClick }: { tag: UnitTag; onClick: () => void }) {
+  const info = TAG_INFO[tag];
+  return <TagPillBase label={info?.label ?? tag} onClick={onClick} />;
 }
 
 /** Tag info popup for terrain tags (tile status) */
@@ -865,12 +870,7 @@ function TerrainTagPopup({ tag, onClose }: { tag: TerrainTag; onClose: () => voi
 /** Tappable terrain-tag pill for terrain status (used in SelectedTilePanel) */
 function TerrainTagPill({ tag, onClick }: { tag: TerrainTag; onClick: () => void }) {
   const info = TERRAIN_TAG_INFO[tag];
-  return (
-    <button className="info-popup-tag-pill" onClick={onClick}>
-      {info?.label ?? tag}
-      <span className="info-popup-tag-pill-i">i</span>
-    </button>
-  );
+  return <TagPillBase label={info?.label ?? tag} onClick={onClick} />;
 }
 
 /** Ember Level info popup — explains what Ember Level does and shows source breakdown */

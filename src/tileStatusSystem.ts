@@ -143,7 +143,7 @@ export function processTileStatusEndOfTurn(
 ): void {
   // Collect IDs of units that die from burn damage; process after the scan loop
   // to avoid mutating the grid while we iterate it.
-  const burnDying: Array<{ unitId: string; position: { x: number; y: number }; faction: (typeof Faction)[keyof typeof Faction] }> = [];
+  const burnDying: Array<{ unitId: string; position: Position; faction: Faction }> = [];
 
   for (let y = 0; y < state.grid.length; y++) {
     for (let x = 0; x < state.grid[y].length; x++) {
