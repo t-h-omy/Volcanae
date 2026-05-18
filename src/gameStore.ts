@@ -398,9 +398,13 @@ export const useGameStore = create<GameStore>()(
       // Fire AFTER the immer set() completes so the game state is already updated.
       // The unit was deleted synchronously; a ghost overlay handles the visuals.
       if (slideKillGhostData !== null) {
-        // Cast away the potential `never` narrowing TypeScript applies to `let`
-        // variables that are mutated inside a callback (immer set()).
-        const d = slideKillGhostData as NonNullable<typeof slideKillGhostData>;
+        // Cast away the incorrect `never` narrowing TypeScript applies after a
+        // `let` variable is mutated inside an immer set() callback.
+        const d = slideKillGhostData as {
+          unitType: UnitType; faction: Faction;
+          deathTileX: number; deathTileY: number;
+          slideDx: number; slideDy: number;
+        };
         const ghostId = `slide-kill-${unitId}-${Date.now()}`;
         const ghost = {
           id: ghostId,
