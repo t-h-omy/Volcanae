@@ -17,7 +17,13 @@ export type UnitAnimationState =
   | { type: 'LEVEL_UP' }
   | { type: 'XP_GAIN' }
   | { type: 'TRANSFORM_TO_DEMON'; durationMs: number }
-  | { type: 'DEFECT_TO_ENEMY'; durationMs: number };
+  | { type: 'DEFECT_TO_ENEMY'; durationMs: number }
+  /**
+   * Ice-slide animation: unit visually appears at the frozen tile first,
+   * then slides to its actual grid position (slide destination).
+   * dx/dy are the pixel offsets from slide destination back to the frozen tile.
+   */
+  | { type: 'SLIDE'; dx: number; dy: number };
 
 export type BuildingAnimationState = 'CRYSTAL_ACTIVATE' | 'SANCTUM_SHATTER';
 

@@ -1290,7 +1290,13 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
           transform: `translate(${anim.dx}px, ${anim.dy}px)`,
           transition: `transform ${anim.type === 'LUNGE' ? ANIMATION.MELEE_LUNGE_DURATION_MS / 2 : ANIMATION.RANGED_RECOIL_DURATION_MS}ms ease-out`,
         }
-      : undefined;
+      : anim?.type === 'SLIDE'
+        ? ({
+            '--slide-start-x': `${anim.dx}px`,
+            '--slide-start-y': `${anim.dy}px`,
+            animation: `slide-from-ice ${ANIMATION.SLIDE_DURATION_MS}ms ease-in ${ANIMATION.SLIDE_PAUSE_MS}ms both`,
+          } as React.CSSProperties)
+        : undefined;
 
   const isEmberling = unit.type === UnitType.EMBERLING;
 

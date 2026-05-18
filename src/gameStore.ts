@@ -297,6 +297,33 @@ export const useGameStore = create<GameStore>()(
         moveUnitLogic(state, unitId, targetPosition);
         // Update tile discovery after player action
         updateDiscovery(state);
+
+        // ── Ice-slide animation ──────────────────────────────────────────────
+        // If the unit ended up at a different tile than the player clicked, a
+        // slide was triggered. Animate the unit sliding from the frozen tile
+        // (where the player tapped) to its actual final position.
+        const unitAfterMove = state.units[unitId];
+        if (
+          unitAfterMove &&
+          (unitAfterMove.position.x !== targetPosition.x ||
+            unitAfterMove.position.y !== targetPosition.y)
+        ) {
+          // Pixel offset: from slide destination → frozen tile (unit appears here first)
+          const tileSize =
+            typeof window !== 'undefined' && window.innerWidth <= RENDER.MOBILE_BREAKPOINT
+              ? RENDER.TILE_SIZE_MOBILE
+              : RENDER.TILE_SIZE_DESKTOP;
+          const slideDx = (targetPosition.x - unitAfterMove.position.x) * tileSize;
+          const slideDy = (targetPosition.y - unitAfterMove.position.y) * tileSize;
+          const { setUnitAnimation } = useCombatAnimationStore.getState();
+          setUnitAnimation(unitId, { type: 'SLIDE', dx: slideDx, dy: slideDy });
+          const totalMs = ANIMATION.SLIDE_PAUSE_MS + ANIMATION.SLIDE_DURATION_MS + 60;
+          setTimeout(() => {
+            useCombatAnimationStore.getState().setUnitAnimation(unitId, null);
+          }, totalMs);
+        }
+        // ── End ice-slide animation ──────────────────────────────────────────
+
         // Defect any leashed units that are now out of range
         const defectedIds = sweepLeashes(state);
         if (defectedIds.length > 0) {

@@ -576,6 +576,17 @@
 /* ── Combat Animations ── */
 
 /* Hit shake — rapid horizontal oscillation */
+/* ── Ice-slide animation ── */
+
+@keyframes slide-from-ice {
+  from {
+    transform: translate(var(--slide-start-x, 0px), var(--slide-start-y, 0px));
+  }
+  to {
+    transform: translate(0, 0);
+  }
+}
+
 .anim-hit .unit-main-emoji,
 .anim-hit .unit-main-img,
 .anim-hit .missing-sprite {
