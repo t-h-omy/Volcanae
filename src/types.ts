@@ -156,6 +156,22 @@ export const TechFlag = {
 } as const;
 export type TechFlag = (typeof TechFlag)[keyof typeof TechFlag];
 
+/** Statuses that can be applied to a tile. Mutually exclusive — a new status overwrites the previous one. */
+export const TileStatus = {
+  CORRUPTED: 'CORRUPTED',
+  FROZEN: 'FROZEN',
+  BURNING: 'BURNING',
+} as const;
+export type TileStatus = (typeof TileStatus)[keyof typeof TileStatus];
+
+/** Terrain tags used for UI and tile-info display purposes. */
+export const TerrainTag = {
+  CORRUPTED: 'CORRUPTED',
+  FROZEN: 'FROZEN',
+  BURNING: 'BURNING',
+} as const;
+export type TerrainTag = (typeof TerrainTag)[keyof typeof TerrainTag];
+
 /** Tags that can be applied to units */
 export const UnitTag = {
   /** Unit has ranged attack capability */
@@ -215,6 +231,8 @@ export const UnitTag = {
   /** Spearman unit leaves a Gravestone building on death that can be revived */
   REVIVABLE: 'REVIVABLE',
   // ── Mage system tags ────────────────────────────────────────────────────────
+  /** Lava-faction unit. Immune to BURNING tile damage. Persists across faction changes (e.g., player-controlled Ember Demons retain LAVA). */
+  LAVA: 'LAVA',
   /** Unit was summoned, not recruited; modifies several systems */
   SUMMONED: 'SUMMONED',
   /** Unit carries the Brandmark Heal mark; loses HP each turn; on death becomes a hostile Ember Demon */
@@ -452,6 +470,8 @@ export interface Tile {
    * the boolean overlays passability rules. Cleared when consumed by lava or otherwise destroyed.
    */
   isIce?: boolean;
+  /** Current tile status (CORRUPTED, FROZEN, BURNING). Mutually exclusive — a new status overwrites the previous one. */
+  status?: TileStatus | null;
 }
 
 /** Resources available to the player */

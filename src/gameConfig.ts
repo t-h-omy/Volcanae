@@ -6,7 +6,7 @@
  * animationConfig.ts, uiConfig.ts, renderConfig.ts, and inputConfig.ts.
  */
 
-import { UnitTag, DestroyBehavior, BuildingType, UnitType, ResourceType, TechFlag, Difficulty, SpellId } from './types';
+import { UnitTag, DestroyBehavior, BuildingType, UnitType, ResourceType, TechFlag, Difficulty, SpellId, TileType, TileStatus } from './types';
 import type { UnitLevelDefinition, TechNodeDefinition, StatModifier } from './types';
 
 // ============================================================================
@@ -1916,6 +1916,8 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   [UnitTag.LEASHED]:            { label: 'Leashed',            desc: `Summoned creature bound to a Mage. If the Mage moves out of ${MAGE.EMBER_DEMON_LEASH_RANGE} tiles or dies, the leashed unit defects to the enemy.` },
   [UnitTag.NO_GRAVESTONE]:      { label: 'No Gravestone',      desc: 'Leaves no body. Cannot become a Gravestone on death.' },
   [UnitTag.LEAVES_GRAVESTONE]:  { label: 'Leaves Gravestone',  desc: 'Leaves a Gravestone on death.' },
+  // ── Tile-status tags ────────────────────────────────────────────────────────
+  [UnitTag.LAVA]:               { label: 'Lava',               desc: 'Lava-faction unit. Immune to BURNING tile damage. Retained even when faction changes.' },
 };
 
 // ============================================================================
@@ -1955,6 +1957,31 @@ export const SANCTUM_COLLAPSE = {
    */
   LAVA_ADVANCE_BONUS_TURNS: 3,
 } as const;
+
+// ============================================================================
+// TILE STATUS CONFIGURATION
+// ============================================================================
+
+/**
+ * Defines which tile statuses are allowed on which terrain.
+ * Status application that is not whitelisted will only CLEAR existing statuses
+ * but NOT set the new status.
+ *
+ * IMPORTANT: This whitelist applies ONLY to the terrain (the underlying tile type),
+ * NOT to objects placed on it (Mountain, Forest, Ruin, Building). A tile with
+ * a Mountain on Plains terrain is treated like Plains for status purposes.
+ */
+export const TILE_STATUS_WHITELIST: Record<TileType, TileStatus[]> = {
+  [TileType.PLAINS]: [TileStatus.CORRUPTED, TileStatus.FROZEN, TileStatus.BURNING],
+  [TileType.WATER]: [TileStatus.CORRUPTED, TileStatus.FROZEN],
+  [TileType.CANYON]: [],
+  [TileType.EMPTY]: [],
+  [TileType.FOREST]: [],
+  [TileType.MOUNTAIN]: [],
+};
+
+/** Damage dealt to each non-LAVA unit standing on a BURNING tile at end of turn. */
+export const BURNING_TILE_DAMAGE = 15;
 
 // ============================================================================
 // CONVENIENCE EXPORTS
