@@ -1981,9 +1981,9 @@ export const TILE_STATUS_WHITELIST: Record<TileType, TileStatus[]> = {
   [TileType.WATER]: [TileStatus.CORRUPTED, TileStatus.FROZEN],
   [TileType.CANYON]: [],
   [TileType.EMPTY]: [],
-  /** Corrupted terrain — no status allowed; entry required by exhaustive Record type. */
+  /** Entry required for type exhaustiveness; no statuses allowed on FOREST terrain. */
   [TileType.FOREST]: [],
-  /** Corrupted terrain — no status allowed; entry required by exhaustive Record type. */
+  /** Entry required for type exhaustiveness; no statuses allowed on MOUNTAIN terrain. */
   [TileType.MOUNTAIN]: [],
 };
 

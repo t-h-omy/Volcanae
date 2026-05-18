@@ -27,7 +27,7 @@ export function isStatusAllowedOnTerrain(
   status: TileStatus,
 ): boolean {
   const allowed = TILE_STATUS_WHITELIST[terrainType] ?? [];
-  return (allowed as TileStatus[]).includes(status);
+  return allowed.includes(status);
 }
 
 // ============================================================================

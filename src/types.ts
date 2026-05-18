@@ -164,7 +164,11 @@ export const TileStatus = {
 } as const;
 export type TileStatus = (typeof TileStatus)[keyof typeof TileStatus];
 
-/** Terrain tags used for UI and tile-info display purposes. */
+/**
+ * Terrain tags used for UI tile-info display (e.g., tooltip badges).
+ * Values mirror TileStatus intentionally: the UI maps TileStatus → TerrainTag
+ * so that rendering code stays decoupled from the game-state type.
+ */
 export const TerrainTag = {
   CORRUPTED: 'CORRUPTED',
   FROZEN: 'FROZEN',
