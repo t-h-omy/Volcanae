@@ -239,13 +239,15 @@ export function checkGraveTrapTrigger(
  *
  * Slide destination resolution (in order):
  *  - Out of bounds                → stay on FROZEN tile, no effect
- *  - MOUNTAIN terrain             → stay (impassable)
  *  - Tile occupied by another unit → stay
- *  - Tile with impassable building → stay
+ *  - Tile with impassable building (combatStats !== null, except neutral Watchtower) → stay
  *  - LAVA tile                    → unit dies; enemy units sacrifice to lava (ember +1)
  *  - CANYON terrain               → unit dies
  *  - WATER (not FROZEN)           → unit drowns
- *  - Any other tile (incl. FROZEN) → unit moves there; no further slide
+ *  - Any other tile (incl. MOUNTAIN, FROZEN, resource/walkable buildings) → unit moves there; no further slide
+ *
+ * Note: MOUNTAIN terrain is intentionally NOT a slide-stopper — units can walk
+ * onto mountain tiles in normal movement, so slides must be consistent.
  */
 function resolveSlide(
   state: Draft<GameState>,
@@ -265,13 +267,12 @@ function resolveSlide(
   const slideTile = state.grid[slideY]?.[slideX];
   if (!slideTile) return;
 
-  // MOUNTAIN (impassable solid terrain) → stay
-  if (slideTile.terrainType === TileType.MOUNTAIN) return;
-
   // Tile occupied by another unit → stay
   if (slideTile.unitId !== null) return;
 
-  // Tile with impassable building → stay
+  // Tile with impassable building (combat buildings) → stay.
+  // Resource buildings (MINE, WOODCUTTER, etc.) and other walkable buildings
+  // (combatStats === null) do NOT block slides — consistent with normal movement.
   if (slideTile.buildingId !== null) {
     const bld = state.buildings[slideTile.buildingId];
     if (bld && bld.combatStats !== null) {

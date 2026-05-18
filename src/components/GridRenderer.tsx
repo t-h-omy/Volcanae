@@ -609,10 +609,23 @@ export default function GridRenderer() {
       const slideX = kx + dx;
       const slideY = ky + dy;
       if (slideX < 0 || slideX >= MAP.GRID_WIDTH || slideY < 0 || slideY >= MAP.GRID_HEIGHT) continue;
+      const slideDest = grid[slideY]?.[slideX];
+      if (!slideDest) continue;
+      // Mirror the resolveSlide blocking conditions so the preview matches actual behaviour.
+      // A unit on the slide destination means the slide would be blocked — skip.
+      if (slideDest.unitId !== null) continue;
+      // A combat building (combatStats !== null, except neutral Watchtower) blocks the slide.
+      if (slideDest.buildingId !== null) {
+        const bld = buildings[slideDest.buildingId];
+        if (bld && bld.combatStats !== null) {
+          const isNeutralWatchtower = bld.type === BuildingType.WATCHTOWER && bld.faction === null;
+          if (!isNeutralWatchtower) continue;
+        }
+      }
       set.add(`${slideX},${slideY}`);
     }
     return set;
-  }, [selectedUnit, reachableSet, grid]);
+  }, [selectedUnit, reachableSet, grid, buildings]);
 
   // ── Tile click ──
   const handleTileClick = useCallback(
