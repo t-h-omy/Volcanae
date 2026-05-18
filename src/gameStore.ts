@@ -15,7 +15,7 @@ import {
 } from './captureSystem';
 import { updateDiscovery } from './discoverySystem';
 import { advanceLava, advanceLavaWithEvents, shouldLavaAdvance } from './lavaSystem';
-import { processTileStatusEndOfTurn } from './tileStatusSystem';
+import { processTileStatusEndOfTurn, isUnitOnCorruptedTile } from './tileStatusSystem';
 import {
   collectResources,
   recruitUnit as recruitUnitLogic,
@@ -1056,6 +1056,8 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         const healer = state.units[healerId];
         if (!healer || !canUnitHeal(healer)) return;
+        // CORRUPTED tile: PATCHUP heal is suppressed.
+        if (isUnitOnCorruptedTile(state, healerId)) return;
         const targets = getHealTargets(state, healerId);
         if (!targets.includes(targetId)) return;
         const target = state.units[targetId];

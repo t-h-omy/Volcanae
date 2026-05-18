@@ -1983,10 +1983,10 @@ export const TILE_STATUS_WHITELIST: Record<TileType, TileStatus[]> = {
   [TileType.WATER]: [TileStatus.CORRUPTED, TileStatus.FROZEN],
   [TileType.CANYON]: [],
   [TileType.EMPTY]: [],
-  /** Entry required for type exhaustiveness; no statuses allowed on FOREST terrain. */
-  [TileType.FOREST]: [],
-  /** Entry required for type exhaustiveness; no statuses allowed on MOUNTAIN terrain. */
-  [TileType.MOUNTAIN]: [],
+  /** Entry required for type exhaustiveness; CORRUPTED is allowed on FOREST (Magma Spyr can hit units there). */
+  [TileType.FOREST]: [TileStatus.CORRUPTED],
+  /** Entry required for type exhaustiveness; CORRUPTED is allowed on MOUNTAIN (Magma Spyr can hit units there). */
+  [TileType.MOUNTAIN]: [TileStatus.CORRUPTED],
 };
 
 /** Damage dealt to each non-LAVA unit standing on a BURNING tile at end of turn. */

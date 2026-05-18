@@ -7,11 +7,12 @@
 
 import type { GameState, Position, Unit, Building } from './types';
 import type { Draft } from 'immer';
-import { Faction, TileType, UnitTag, UnitType, BuildingType } from './types';
+import { Faction, TileType, UnitTag, UnitType, BuildingType, TileStatus } from './types';
 import { LAVA_LAIR, UNIT_DEFINITIONS, BUILDING_DEFINITIONS, MAP } from './gameConfig';
 import { generateId } from './mapGenerator';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { resolveBuildingAttack, buildingToCombatant } from './combatSystem';
+import { applyTileStatus } from './tileStatusSystem';
 import type { GameEvent } from './gameEvents';
 
 // Adjacency offsets (orthogonal + diagonal)
@@ -269,6 +270,11 @@ export function processMagmaSpyrAttacks(
       const defenderId = target.unit.id;
 
       resolveBuildingAttack(state, building.id, defenderId, suppressFloaters);
+
+      // MAGMA_SPYR: corrupt the tile of the hit player unit.
+      // applyTileStatus respects the whitelist; silently no-ops for terrain
+      // types where CORRUPTED is not allowed.
+      applyTileStatus(state, defenderPos, TileStatus.CORRUPTED);
 
       const buildingAfter = state.buildings[building.id];
       const defenderAfter = state.units[defenderId];
