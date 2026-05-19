@@ -154,4 +154,17 @@ export type GameEvent =
       amount: number;
       /** Whether the source was an Emberling sacrifice (true) or another cause (false) */
       isEmberlingSacrifice: boolean;
+    }
+  | {
+      /**
+       * Emitted when a unit takes damage from a tile status (e.g. BURNING).
+       * Causes a damage floater to appear at the unit's position.
+       */
+      type: 'TILE_DAMAGE';
+      /** ID of the unit that took damage */
+      unitId: string;
+      /** Position where the floater should appear */
+      position: Position;
+      /** Amount of damage dealt */
+      amount: number;
     };

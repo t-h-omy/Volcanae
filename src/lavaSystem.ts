@@ -108,10 +108,13 @@ export function advanceLava(state: Draft<GameState>): void {
     const tile = state.grid[newLavaRow][x];
     const tileId = `${x},${newLavaRow}`;
 
-    // Convert tile to lava; clear any ruins or ice
+    // Convert tile to lava; clear any ruins, status, or frozen overlay.
+    // Note: we directly null the status here rather than calling clearTileStatus()
+    // because the lava will consume the tile anyway — the drown side-effect from
+    // thawing FROZEN water would be redundant (the unit is destroyed below).
     tile.isLava = true;
     tile.isLavaPreview = false;
-    tile.isIce = false;
+    tile.status = null;
     tile.isRuin = false;
     tile.isStrongholdRuin = false;
 

@@ -6,7 +6,7 @@
  * animationConfig.ts, uiConfig.ts, renderConfig.ts, and inputConfig.ts.
  */
 
-import { UnitTag, DestroyBehavior, BuildingType, UnitType, ResourceType, TechFlag, Difficulty, SpellId } from './types';
+import { UnitTag, DestroyBehavior, BuildingType, UnitType, ResourceType, TechFlag, Difficulty, SpellId, TileType, TileStatus, TerrainTag } from './types';
 import type { UnitLevelDefinition, TechNodeDefinition, StatModifier } from './types';
 
 // ============================================================================
@@ -846,7 +846,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     maxHp: 100, attack: 50, defense: 50,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 3,
-    tags: [UnitTag.BUILDANDCAPTURE, UnitTag.CORRUPT],
+    tags: [UnitTag.BUILDANDCAPTURE, UnitTag.CORRUPT, UnitTag.LAVA],
     cost: { iron: 0, wood: 0 },
     populationCost: { farmers: 0, nobles: 0 },
     levelUp: [
@@ -861,7 +861,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     maxHp: 100, attack: 55, defense: 20,
     movementActions: 1, moveRange: 1, attackRange: 2,
     discoverRadius: 1, triggerRange: 3,
-    tags: [UnitTag.BUILDANDCAPTURE, UnitTag.RANGED],
+    tags: [UnitTag.BUILDANDCAPTURE, UnitTag.RANGED, UnitTag.LAVA],
     cost: { iron: 0, wood: 0 },
     populationCost: { farmers: 0, nobles: 0 },
     levelUp: [
@@ -876,7 +876,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     maxHp: 100, attack: 70, defense: 30,
     movementActions: 1, moveRange: 2, attackRange: 1,
     discoverRadius: 1, triggerRange: 3,
-    tags: [UnitTag.BUILDANDCAPTURE],
+    tags: [UnitTag.BUILDANDCAPTURE, UnitTag.LAVA],
     cost: { iron: 0, wood: 0 },
     populationCost: { farmers: 0, nobles: 0 },
     levelUp: [
@@ -891,7 +891,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     maxHp: 100, attack: 85, defense: 0,
     movementActions: 1, moveRange: 1, attackRange: 3,
     discoverRadius: 1, triggerRange: 4,
-    tags: [UnitTag.RANGED, UnitTag.PREP],
+    tags: [UnitTag.RANGED, UnitTag.PREP, UnitTag.LAVA],
     cost: { iron: 0, wood: 0 },
     populationCost: { farmers: 0, nobles: 0 },
     levelUp: [
@@ -907,7 +907,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     movementActions: 1, moveRange: 2, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
     explosionDamage: 40,
-    tags: [UnitTag.SACRIFICIAL, UnitTag.EXPLOSIVE, UnitTag.PASSIVE],
+    tags: [UnitTag.SACRIFICIAL, UnitTag.EXPLOSIVE, UnitTag.PASSIVE, UnitTag.LAVA],
     cost: { iron: 0, wood: 0 },
     populationCost: { farmers: 0, nobles: 0 },
     levelUp: [
@@ -950,7 +950,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     maxHp: 120, attack: 70, defense: 40,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 3,
-    tags: [],
+    tags: [UnitTag.LAVA],
     cost: { iron: 0, wood: 0 },
     populationCost: { farmers: 0, nobles: 0 },
     levelUp: [
@@ -1917,6 +1917,8 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   [UnitTag.LEASHED]:            { label: 'Leashed',            desc: `Summoned creature bound to a Mage. If the Mage moves out of ${MAGE.EMBER_DEMON_LEASH_RANGE} tiles or dies, the leashed unit defects to the enemy.` },
   [UnitTag.NO_GRAVESTONE]:      { label: 'No Gravestone',      desc: 'Leaves no body. Cannot become a Gravestone on death.' },
   [UnitTag.LEAVES_GRAVESTONE]:  { label: 'Leaves Gravestone',  desc: 'Leaves a Gravestone on death.' },
+  // ── Tile-status tags ────────────────────────────────────────────────────────
+  [UnitTag.LAVA]:               { label: 'Lava',               desc: 'Lava-faction unit. Immune to BURNING tile damage. Retained even when faction changes.' },
 };
 
 // ============================================================================
@@ -1958,8 +1960,68 @@ export const SANCTUM_COLLAPSE = {
 } as const;
 
 // ============================================================================
+// TILE STATUS CONFIGURATION
+// ============================================================================
+
+/**
+ * Defines which tile statuses are allowed on which terrain.
+ * Status application that is not whitelisted will only CLEAR existing statuses
+ * but NOT set the new status.
+ *
+ * IMPORTANT: This whitelist is checked against `tile.terrainType` (the underlying
+ * terrain), NOT the visual objects on the tile (Mountain, Forest, Ruin, Building).
+ * For example, a PLAINS tile with a Mountain object on it has terrainType PLAINS
+ * and may receive any status that PLAINS allows.
+ *
+ * FOREST and MOUNTAIN entries are present to satisfy the exhaustive Record type
+ * (every TileType key must appear). Tiles whose terrainType has been changed to
+ * FOREST or MOUNTAIN (e.g. by corruption) genuinely cannot receive any status.
+ */
+export const TILE_STATUS_WHITELIST: Record<TileType, TileStatus[]> = {
+  /** All three statuses apply to PLAINS terrain. */
+  [TileType.PLAINS]: [TileStatus.CORRUPTED, TileStatus.FROZEN, TileStatus.BURNING],
+  /** WATER cannot BURN (water is non-combustible by design). CORRUPTED and FROZEN are valid. */
+  [TileType.WATER]: [TileStatus.CORRUPTED, TileStatus.FROZEN],
+  [TileType.CANYON]: [],
+  [TileType.EMPTY]: [],
+  /** Entry required for type exhaustiveness; CORRUPTED is allowed on FOREST (Magma Spyr can hit units there). */
+  [TileType.FOREST]: [TileStatus.CORRUPTED],
+  /** Entry required for type exhaustiveness; CORRUPTED is allowed on MOUNTAIN (Magma Spyr can hit units there). */
+  [TileType.MOUNTAIN]: [TileStatus.CORRUPTED],
+};
+
+/** Damage dealt to each non-LAVA unit standing on a BURNING tile at end of turn. */
+export const BURNING_TILE_DAMAGE = 15;
+
+// ============================================================================
 // CONVENIENCE EXPORTS
 // ============================================================================
+
+/**
+ * Tooltip definitions for terrain tags (shown in the tile-info panel).
+ * Mirrors the structure of TAG_INFO for unit tags.
+ */
+export const TERRAIN_TAG_INFO: Record<TerrainTag, { label: string; desc: string }> = {
+  [TerrainTag.CORRUPTED]: {
+    label: 'Corrupted',
+    desc:
+      'Player units on this tile are isolated from ally tag interactions. ' +
+      'No Phalanx bonuses, no Patchup healing, no Pin Down / Distraction / Splash effects on attack, ' +
+      'and no tag-based attack bonuses (Knight, Lance Charge, Assassin, Bloodlust). ' +
+      'Base stats, movement, ranged capability, and persistent effects (Brandmarked) remain unchanged.',
+  },
+  [TerrainTag.FROZEN]: {
+    label: 'Frozen',
+    desc:
+      'Units that end movement on this tile slide one additional tile in their movement direction. ' +
+      'Sliding into water, canyon, or lava is fatal. ' +
+      'Spawning directly onto a frozen tile triggers no slide.',
+  },
+  [TerrainTag.BURNING]: {
+    label: 'Burning',
+    desc: `Non-lava units on this tile take ${BURNING_TILE_DAMAGE} damage at the end of each turn.`,
+  },
+};
 
 /**
  * Full game configuration object combining all config sections.

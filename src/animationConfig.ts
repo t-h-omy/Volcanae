@@ -25,6 +25,10 @@ export const ANIMATION = {
   RANGED_PROJECTILE_MAX_MS: 700,
   /** Ranged attacker recoil duration (ms) */
   RANGED_RECOIL_DURATION_MS: 180,
+  /** Ice-slide animation: how long the unit pauses visually on the frozen tile (ms) */
+  SLIDE_PAUSE_MS: 100,
+  /** Ice-slide animation: travel duration from frozen tile to slide destination (ms) */
+  SLIDE_DURATION_MS: 300,
   /** Hit shake duration (ms) */
   HIT_SHAKE_DURATION_MS: 280,
   /** Die skull-flash duration (ms) */
@@ -71,4 +75,6 @@ export const ANIMATION = {
   EXPLOSION_TILE_FLASH_MS: 600,
   /** Duration of the lava-flash VFX played when a leashed unit defects to the enemy (ms) */
   DEFECT_VFX_DURATION_MS: 600,
+  /** Duration of the fall/sink animation played after the skull phase of a slide-kill (ms) */
+  SLIDE_KILL_FALL_DURATION_MS: 400,
 } as const;

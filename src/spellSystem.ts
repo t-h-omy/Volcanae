@@ -14,12 +14,13 @@
 import type { Draft } from 'immer';
 import type { GameState, Position, Unit } from './types';
 import type { SpellId } from './types';
-import { Faction, UnitTag, BuildingType, TileType, UnitType } from './types';
+import { Faction, UnitTag, BuildingType, TileType, TileStatus, UnitType } from './types';
 import { MAGE, BUILDING_DEFINITIONS, ABILITIES, MAP, UNIT_DEFINITIONS } from './gameConfig';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { generateId } from './mapGenerator';
 import { useFloaterStore } from './floaterStore';
 import { useCombatAnimationStore } from './combatAnimationStore';
+import { isStatusAllowedOnTerrain, applyTileStatus } from './tileStatusSystem';
 import { shouldLeaveGravestone, createGravestoneAt } from './combatSystem';
 
 /** Returns the effective spell range for a mage (its attack range). */
@@ -188,8 +189,8 @@ export function getValidSpellTargets(
       for (let y = 0; y < state.grid.length; y++) {
         for (let x = 0; x < state.grid[y].length; x++) {
           const tile = state.grid[y][x];
-          if (tile.terrainType !== TileType.WATER) continue;
-          if (tile.isIce) continue;
+          if (!isStatusAllowedOnTerrain(tile.terrainType, TileStatus.FROZEN)) continue;
+          if (tile.status === TileStatus.FROZEN) continue;
           if (tile.isLava) continue;
           if (!isTileInSpellRange(mage, { x, y }, range)) continue;
           targets.push({ x, y });
@@ -334,7 +335,7 @@ function handleEmberbind(
       triggerRange: UNIT_DEFINITIONS.EMBER_DEMON.triggerRange,
       movementActions: 1,
     },
-    tags: [UnitTag.SUMMONED, UnitTag.LEASHED],
+    tags: [UnitTag.SUMMONED, UnitTag.LEASHED, UnitTag.LAVA],
     controllerMageId: mage.id,
     hasMovedThisTurn: true,
     hasAttackedThisTurn: true,
@@ -606,18 +607,18 @@ function handleGraveTrap(
   return true;
 }
 
-/** Freezes a water tile (Frostcraft). */
+/** Freezes a tile (Frostcraft). Works on any terrain where FROZEN is whitelisted (currently PLAINS and WATER). */
 function handleFrostcraft(
   state: Draft<GameState>,
   targetPosition: Position,
 ): boolean {
   const tile = state.grid[targetPosition.y]?.[targetPosition.x];
   if (!tile) return false;
-  if (tile.terrainType !== TileType.WATER) return false;
-  if (tile.isIce) return false;
+  if (!isStatusAllowedOnTerrain(tile.terrainType, TileStatus.FROZEN)) return false;
+  if (tile.status === TileStatus.FROZEN) return false;
   if (tile.isLava) return false;
 
-  tile.isIce = true;
+  applyTileStatus(state, targetPosition, TileStatus.FROZEN);
 
   useFloaterStore.getState().addFloater({
     value: 0,

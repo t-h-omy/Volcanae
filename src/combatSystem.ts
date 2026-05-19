@@ -12,6 +12,7 @@ import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { UNIT_DEFINITIONS, XP, ABILITIES, MAP, BUILDING_DEFINITIONS, MAGE } from './gameConfig';
 import { grantXp } from './levelSystem';
 import { generateId } from './mapGenerator';
+import { isUnitOnCorruptedTile } from './tileStatusSystem';
 
 // Counter for generating unique gravestone building IDs within this module
 let combatSystemIdCounter = 0;
@@ -187,7 +188,7 @@ export function spawnEnemyEmberDemon(
       triggerRange: UNIT_DEFINITIONS.EMBER_DEMON.triggerRange,
       movementActions: 1,
     },
-    tags: [],
+    tags: [UnitTag.LAVA],
     controllerMageId: null,
     hasMovedThisTurn: true,
     hasAttackedThisTurn: true,
@@ -302,6 +303,8 @@ export function buildingToCombatant(building: Building): Combatant | null {
  * and sums ABILITIES.PHALANX_DEFENSE_BONUS_PER_CARRIER for each.
  */
 export function getPhalanxDefenseBonus(state: GameState | Draft<GameState>, unit: Unit): number {
+  // CORRUPTED tile: this unit receives no PHALANX defense bonus from any ally.
+  if (isUnitOnCorruptedTile(state, unit.id)) return 0;
   let bonus = 0;
   const { x, y } = unit.position;
   for (let dy = -1; dy <= 1; dy++) {
@@ -315,6 +318,8 @@ export function getPhalanxDefenseBonus(state: GameState | Draft<GameState>, unit
       const other = state.units[tile.unitId];
       if (!other) continue;
       if (other.faction !== unit.faction) continue;
+      // CORRUPTED: an ally on a corrupted tile contributes no PHALANX defense bonus.
+      if (isUnitOnCorruptedTile(state, other.id)) continue;
       if (other.tags.includes(UnitTag.PHALANX)) {
         bonus += ABILITIES.PHALANX_DEFENSE_BONUS_PER_CARRIER;
       }
@@ -332,6 +337,8 @@ export function getPhalanxDefenseBonus(state: GameState | Draft<GameState>, unit
 export function getPhalanxAttackBonus(state: GameState | Draft<GameState>, unit: Unit): number {
   const hasPhalanx = unit.tags.includes(UnitTag.PHALANX);
   if (!hasPhalanx) return 0;
+  // CORRUPTED tile: this unit receives no PHALANX attack bonus.
+  if (isUnitOnCorruptedTile(state, unit.id)) return 0;
   let count = 0;
   const { x, y } = unit.position;
   for (let dy = -1; dy <= 1; dy++) {
@@ -345,6 +352,8 @@ export function getPhalanxAttackBonus(state: GameState | Draft<GameState>, unit:
       const other = state.units[tile.unitId];
       if (!other) continue;
       if (other.faction !== unit.faction) continue;
+      // CORRUPTED: an ally on a corrupted tile contributes no PHALANX attack bonus.
+      if (isUnitOnCorruptedTile(state, other.id)) continue;
       count++;
     }
   }
@@ -451,6 +460,11 @@ export function resolveAttack(
   // Calculate combat result (with HOLD_GROUND defense bonus if applicable)
   const attackerCombatant = unitToCombatant(attacker);
   const defenderCombatant = unitToCombatant(defender);
+
+  // Compute once: whether the attacker is standing on a CORRUPTED tile.
+  // Used to suppress specific tag effects below (see §5.1).
+  const attackerOnCorrupted = isUnitOnCorruptedTile(state, attackerId);
+
   if (state.techFlags.includes(TechFlag.HOLD_GROUND) && defender.faction === Faction.PLAYER) {
     const tile = state.grid[defender.position.y]?.[defender.position.x];
     const buildingId = tile?.buildingId;
@@ -462,9 +476,16 @@ export function resolveAttack(
     }
   }
 
-  // LANCE_CHARGE: attacker gains attack bonus when it has not yet moved this turn
-  if (attacker.tags.includes(UnitTag.LANCE_CHARGE) && !attacker.hasMovedThisTurn) {
+  // LANCE_CHARGE: attacker gains attack bonus when it has not yet moved this turn.
+  // Suppressed on CORRUPTED tile.
+  if (attacker.tags.includes(UnitTag.LANCE_CHARGE) && !attacker.hasMovedThisTurn && !attackerOnCorrupted) {
     attackerCombatant.attack += ABILITIES.LANCE_CHARGE_ATTACK_BONUS;
+  }
+
+  // ASSASSIN: bonus damage vs. full-HP targets is suppressed on CORRUPTED tile.
+  // Strip the tag from the combatant so `calculateCombatFromStats` does not apply the multiplier.
+  if (attackerOnCorrupted) {
+    attackerCombatant.tags = attackerCombatant.tags.filter(t => t !== UnitTag.ASSASSIN);
   }
 
   // BLOODLUST: second attack uses half the normal attack value and deals no retaliation.
@@ -481,8 +502,9 @@ export function resolveAttack(
 
   const combatResult = calculateCombatFromStats(attackerCombatant, defenderCombatant);
 
-  // ASSASSIN: no retaliation damage when ability is activated (defender at full HP)
-  if (attacker.tags.includes(UnitTag.ASSASSIN) && defender.stats.currentHp === defender.stats.maxHp) {
+  // ASSASSIN: no retaliation damage when ability is activated (defender at full HP).
+  // The ability is already suppressed on CORRUPTED tile (tag stripped from combatant above).
+  if (attacker.tags.includes(UnitTag.ASSASSIN) && !attackerOnCorrupted && defender.stats.currentHp === defender.stats.maxHp) {
     combatResult.attackerHpLost = 0;
   }
 
@@ -623,10 +645,12 @@ export function resolveAttack(
 
     // BLOODLUST: when a (non-bloodlust) attack kills an enemy, grant a second
     // attack at half power. Only one bloodlust charge per turn.
+    // Suppressed on CORRUPTED tile.
     if (
       !attackerDead &&
       !isBloodlustAttack &&
       attacker.tags.includes(UnitTag.BLOODLUST) &&
+      !attackerOnCorrupted &&
       defenderFaction === Faction.ENEMY &&
       attackerFaction === Faction.PLAYER
     ) {
@@ -704,15 +728,17 @@ export function resolveAttack(
     // Update defender HP
     defender.stats.currentHp = newDefenderHp;
 
-    // DISTRACTION: permanently reduce defender's DEF on each hit
-    if (attacker.tags.includes(UnitTag.DISTRACTION)) {
+    // DISTRACTION: permanently reduce defender's DEF on each hit.
+    // Suppressed on CORRUPTED tile.
+    if (attacker.tags.includes(UnitTag.DISTRACTION) && !attackerOnCorrupted) {
       const reduction = Math.min(ABILITIES.DISTRACTION_DEF_REDUCTION, defender.stats.defense);
       defender.stats.defense -= reduction;
       defender.distractionDefPenalty += reduction;
     }
 
-    // PIN_DOWN: stun the defender with a configurable chance (prevents move + attack)
-    if (attacker.tags.includes(UnitTag.PIN_DOWN) && Math.random() < ABILITIES.PIN_DOWN_STUN_CHANCE) {
+    // PIN_DOWN: stun the defender with a configurable chance (prevents move + attack).
+    // Suppressed on CORRUPTED tile.
+    if (attacker.tags.includes(UnitTag.PIN_DOWN) && !attackerOnCorrupted && Math.random() < ABILITIES.PIN_DOWN_STUN_CHANCE) {
       defender.pinnedUntilTurn = state.turn;
     }
   }
@@ -739,9 +765,11 @@ export function resolveAttack(
     }
   }
 
-  // SPLASH: player siege unit deals 25% of dealt damage to all surrounding enemy units
+  // SPLASH: player siege unit deals 25% of dealt damage to all surrounding enemy units.
+  // Suppressed on CORRUPTED tile.
   if (
     !attackerDead &&
+    !attackerOnCorrupted &&
     attackerFaction === Faction.PLAYER &&
     attacker.tags.includes(UnitTag.SPLASH) &&
     combatResult.defenderHpLost > 0
@@ -1002,6 +1030,12 @@ export function resolveAttackOnBuilding(
   // PHALANX: attacker gains attack bonus from adjacent friendly units
   attackerCombatant.attack += getPhalanxAttackBonus(state, attacker);
 
+  // ASSASSIN: bonus damage vs. full-HP buildings is suppressed on CORRUPTED tile.
+  const attackerOnCorrupted = isUnitOnCorruptedTile(state, attackerId);
+  if (attackerOnCorrupted) {
+    attackerCombatant.tags = attackerCombatant.tags.filter(t => t !== UnitTag.ASSASSIN);
+  }
+
   // Calculate combat - if building has combat stats use them for defense, otherwise use 0
   const defenderStats: Combatant = buildingCombatant ?? {
     currentHp: building.hp,
@@ -1018,8 +1052,9 @@ export function resolveAttackOnBuilding(
 
   const combatResult = calculateCombatFromStats(attackerCombatant, defenderStats);
 
-  // ASSASSIN: no retaliation damage when ability is activated (building at full HP)
-  if (attacker.tags.includes(UnitTag.ASSASSIN) && building.hp === building.maxHp) {
+  // ASSASSIN: no retaliation damage when ability is activated (building at full HP).
+  // Suppressed on CORRUPTED tile (tag already stripped from combatant above).
+  if (attacker.tags.includes(UnitTag.ASSASSIN) && !attackerOnCorrupted && building.hp === building.maxHp) {
     combatResult.attackerHpLost = 0;
   }
 

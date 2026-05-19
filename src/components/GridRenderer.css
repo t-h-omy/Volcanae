@@ -576,6 +576,17 @@
 /* ── Combat Animations ── */
 
 /* Hit shake — rapid horizontal oscillation */
+/* ── Ice-slide animation ── */
+
+@keyframes slide-from-ice {
+  from {
+    transform: translate(var(--slide-start-x, 0px), var(--slide-start-y, 0px));
+  }
+  to {
+    transform: translate(0, 0);
+  }
+}
+
 .anim-hit .unit-main-emoji,
 .anim-hit .unit-main-img,
 .anim-hit .missing-sprite {
@@ -721,6 +732,61 @@
   height: 100%;
   pointer-events: none;
   z-index: 11;
+}
+
+/* ── Slide-kill ghost overlay ── */
+
+.slide-kill-ghost-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 12;
+}
+
+.slide-kill-ghost {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+/* Phase: sliding — reuses the same slide-from-ice keyframe */
+.slide-kill-ghost--slide .slide-kill-ghost__sprite {
+  animation: slide-from-ice var(--slide-kill-slide-duration, 300ms) ease-in var(--slide-kill-slide-pause, 100ms) both;
+}
+
+/* Phase: dying — skull flash identical to the combat DYING class */
+.slide-kill-ghost--dying .slide-kill-ghost__sprite {
+  animation: dyingUnitFlash var(--die-flash-duration, 450ms) linear forwards,
+             dyingFadeOut var(--die-fade-duration, 200ms) linear var(--die-flash-duration, 450ms) forwards;
+}
+
+.slide-kill-ghost--dying .slide-kill-ghost__skull {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  line-height: 1;
+  opacity: 0;
+  animation: dyingSkullFlash var(--die-flash-duration, 450ms) linear forwards,
+             dyingFadeOut var(--die-fade-duration, 200ms) linear var(--die-flash-duration, 450ms) forwards;
+}
+
+/* Phase: falling — unit shrinks and fades down */
+.slide-kill-ghost--falling .slide-kill-ghost__sprite {
+  animation: slideKillFall var(--slide-kill-fall-duration, 400ms) ease-in forwards;
+}
+
+@keyframes slideKillFall {
+  0%   { transform: scale(1) translateY(0);     opacity: 1; }
+  60%  { transform: scale(0.45) translateY(8px); opacity: 0.7; }
+  100% { transform: scale(0) translateY(16px);   opacity: 0; }
 }
 
 .projectile-emoji {
@@ -906,6 +972,63 @@
     ),
     rgba(220, 248, 255, 0.75);
   border: 2px solid rgba(180, 240, 255, 0.80);
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* ── Corrupted tile overlay ── */
+
+.tile--corrupted {
+  background:
+    repeating-linear-gradient(
+      45deg,
+      rgba(120, 0, 180, 0.20) 0px,
+      rgba(120, 0, 180, 0.20) 3px,
+      transparent 3px,
+      transparent 14px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(80, 0, 140, 0.15) 0px,
+      rgba(80, 0, 140, 0.15) 3px,
+      transparent 3px,
+      transparent 14px
+    ),
+    rgba(60, 0, 100, 0.55);
+  border: 2px solid rgba(160, 60, 255, 0.75);
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* ── Burning tile overlay ── */
+
+.tile--burning {
+  background:
+    repeating-linear-gradient(
+      45deg,
+      rgba(255, 120, 0, 0.25) 0px,
+      rgba(255, 120, 0, 0.25) 3px,
+      transparent 3px,
+      transparent 14px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(255, 60, 0, 0.18) 0px,
+      rgba(255, 60, 0, 0.18) 3px,
+      transparent 3px,
+      transparent 14px
+    ),
+    rgba(180, 40, 0, 0.50);
+  border: 2px solid rgba(255, 120, 0, 0.80);
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* ── Slide-preview overlay (secondary FROZEN-slide destination) ── */
+
+.tile--slide-preview {
+  background: rgba(130, 220, 255, 0.35);
+  border: 2px dashed rgba(100, 200, 255, 0.80);
   z-index: 1;
   pointer-events: none;
 }

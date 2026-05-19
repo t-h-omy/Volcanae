@@ -8,7 +8,7 @@ import { useGameStore } from '../gameStore';
 import { useFloaterStore } from '../floaterStore';
 import { useAnimationStore } from '../animationStore';
 import { useCombatAnimationStore } from '../combatAnimationStore';
-import type { Projectile } from '../combatAnimationStore';
+import type { Projectile, SlideKillGhost } from '../combatAnimationStore';
 import { useShockwaveStore } from '../shockwaveStore';
 import { canCapture } from '../captureSystem';
 import { getConstructionOptionsForTile } from '../constructionSystem';
@@ -29,6 +29,7 @@ import {
   UnitTag,
   BuildingType,
   TileType,
+  TileStatus,
   type Tile,
   type Unit,
   type Building,
@@ -590,6 +591,42 @@ export default function GridRenderer() {
     return set;
   }, [selectedUnit, units]);
 
+  // Slide preview: for each FROZEN destination in the reachable set, compute
+  // where the unit would slide to and highlight that secondary destination.
+  // Direction is sign(frozenTile - unit), which is identical to what moveUnit
+  // computes as moveDx/moveDy — so the preview always matches the actual slide.
+  const slidePreviewSet = useMemo<Set<string>>(() => {
+    const set = new Set<string>();
+    if (!selectedUnit || selectedUnit.faction !== Faction.PLAYER) return set;
+    for (const key of reachableSet) {
+      const [kx, ky] = key.split(',').map(Number);
+      const tile = grid[ky]?.[kx];
+      if (!tile || tile.status !== TileStatus.FROZEN) continue;
+      // Implied slide direction: from unit position toward this frozen destination
+      const dx = Math.sign(kx - selectedUnit.position.x);
+      const dy = Math.sign(ky - selectedUnit.position.y);
+      if (dx === 0 && dy === 0) continue; // same tile (shouldn't happen)
+      const slideX = kx + dx;
+      const slideY = ky + dy;
+      if (slideX < 0 || slideX >= MAP.GRID_WIDTH || slideY < 0 || slideY >= MAP.GRID_HEIGHT) continue;
+      const slideDest = grid[slideY]?.[slideX];
+      if (!slideDest) continue;
+      // Mirror the resolveSlide blocking conditions so the preview matches actual behaviour.
+      // A unit on the slide destination means the slide would be blocked — skip.
+      if (slideDest.unitId !== null) continue;
+      // A combat building (combatStats !== null, except neutral Watchtower) blocks the slide.
+      if (slideDest.buildingId !== null) {
+        const bld = buildings[slideDest.buildingId];
+        if (bld && bld.combatStats !== null) {
+          const isNeutralWatchtower = bld.type === BuildingType.WATCHTOWER && bld.faction === null;
+          if (!isNeutralWatchtower) continue;
+        }
+      }
+      set.add(`${slideX},${slideY}`);
+    }
+    return set;
+  }, [selectedUnit, reachableSet, grid, buildings]);
+
   // ── Tile click ──
   const handleTileClick = useCallback(
     (x: number, y: number) => {
@@ -824,6 +861,7 @@ export default function GridRenderer() {
             const isSpellTarget = spellTargetSet.has(key);
             const isLeashed = leashSet.has(key);
             const isLeashWarn = leashWarnSet.has(key);
+            const isSlidePreview = slidePreviewSet.has(key);
             const isSelected =
               (tile.unitId != null && tile.unitId === selectedUnitId) ||
               (tile.buildingId != null && tile.buildingId === selectedBuildingId);
@@ -841,6 +879,7 @@ export default function GridRenderer() {
                 isSpellTarget={isSpellTarget}
                 isLeashed={isLeashed}
                 isLeashWarn={isLeashWarn}
+                isSlidePreview={isSlidePreview}
                 isSelected={isSelected}
                 strongholdTotalCap={strongholdTotalCap}
                 recruitmentUsage={recruitmentUsage}
@@ -855,6 +894,7 @@ export default function GridRenderer() {
         <DamageFloaterLayer tileSize={tileSize} />
         <LeashLineLayer tileSize={tileSize} />
         <ProjectileLayer />
+        <SlideKillGhostLayer tileSize={tileSize} />
         <ShockwaveLayer />
       </div>
       <div className="zoom-controls">
@@ -880,6 +920,8 @@ interface TileCellProps {
   isSpellTarget: boolean;
   isLeashed: boolean;
   isLeashWarn: boolean;
+  /** Whether this tile is the predicted slide destination from an adjacent FROZEN tile. */
+  isSlidePreview: boolean;
   isSelected: boolean;
   /** Pre-computed total population cap for STRONGHOLD buildings (farmers + nobles, including tech mods). */
   strongholdTotalCap: number;
@@ -899,6 +941,7 @@ function TileCellInner({
   isSpellTarget,
   isLeashed,
   isLeashWarn,
+  isSlidePreview,
   isSelected,
   strongholdTotalCap,
   recruitmentUsage,
@@ -1074,6 +1117,10 @@ function TileCellInner({
       {/* lava-preview overlay */}
       {overlay && <div className="tile-overlay" style={{ backgroundColor: overlay }} />}
 
+      {/* ice overlay — frozen tile status; rendered here (below terrain sprites and buildings)
+          so the frost tint shows on the ground but mountain/forest/building sprites sit on top */}
+      {tile.status === TileStatus.FROZEN && tile.isRevealed && <div className="tile-overlay tile--ice" />}
+
       {/* terrain resource overlay (forest / mountain on top of grass) */}
       {showTerrainResource && (
         <>
@@ -1112,8 +1159,14 @@ function TileCellInner({
       {/* spell target overlay */}
       {isSpellTarget && <div className="tile-overlay tile--spell-target" />}
 
-      {/* ice overlay — frozen water tile */}
-      {tile.isIce && tile.isRevealed && <div className="tile-overlay tile--ice" />}
+      {/* slide-preview overlay — secondary destination when moving onto a FROZEN tile */}
+      {isSlidePreview && <div className="tile-overlay tile--slide-preview" />}
+
+      {/* corrupted tile overlay */}
+      {tile.status === TileStatus.CORRUPTED && tile.isRevealed && <div className="tile-overlay tile--corrupted" />}
+
+      {/* burning tile overlay */}
+      {tile.status === TileStatus.BURNING && tile.isRevealed && <div className="tile-overlay tile--burning" />}
 
       {/* crystal chamber activation VFX overlay */}
       {isCrystalActivating && <div className="tile-crystal-activate-overlay" />}
@@ -1252,7 +1305,13 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
           transform: `translate(${anim.dx}px, ${anim.dy}px)`,
           transition: `transform ${anim.type === 'LUNGE' ? ANIMATION.MELEE_LUNGE_DURATION_MS / 2 : ANIMATION.RANGED_RECOIL_DURATION_MS}ms ease-out`,
         }
-      : undefined;
+      : anim?.type === 'SLIDE'
+        ? ({
+            '--slide-start-x': `${anim.dx}px`,
+            '--slide-start-y': `${anim.dy}px`,
+            animation: `slide-from-ice ${ANIMATION.SLIDE_DURATION_MS}ms ease-in ${ANIMATION.SLIDE_PAUSE_MS}ms both`,
+          } as React.CSSProperties)
+        : undefined;
 
   const isEmberling = unit.type === UnitType.EMBERLING;
 
@@ -1601,6 +1660,86 @@ function ProjectileSprite({
 
 // ============================================================================
 // SHOCKWAVE LAYER
+// ============================================================================
+
+// ============================================================================
+// SLIDE-KILL GHOST LAYER
+// ============================================================================
+
+/**
+ * Renders ghost visuals for units that have been deleted from game state
+ * while they were sliding into a lethal tile (LAVA / CANYON / WATER).
+ * The sequence is: slide → skull-flash (DYING) → fall/shrink to nothing.
+ */
+function SlideKillGhostLayer({ tileSize }: { tileSize: number }) {
+  const ghosts = useCombatAnimationStore((s) => s.slideKillGhosts);
+  return (
+    <div className="slide-kill-ghost-layer">
+      {Array.from(ghosts.values()).map((ghost) => (
+        <SlideKillGhostSprite key={ghost.id} ghost={ghost} tileSize={tileSize} />
+      ))}
+    </div>
+  );
+}
+
+function SlideKillGhostSprite({ ghost, tileSize }: { ghost: SlideKillGhost; tileSize: number }) {
+  const spritePath =
+    ghost.faction === Faction.ENEMY && ENEMY_UNIT_SPRITE[ghost.unitType]
+      ? ENEMY_UNIT_SPRITE[ghost.unitType]
+      : ghost.faction === Faction.PLAYER && PLAYER_UNIT_SPRITE[ghost.unitType]
+        ? PLAYER_UNIT_SPRITE[ghost.unitType]
+        : UNIT_SPRITE[ghost.unitType];
+  const showImg = typeof spritePath === 'string' && spritePath !== '';
+
+  const tilePixelX = ghost.deathTileX * tileSize;
+  const tilePixelY = ghost.deathTileY * tileSize;
+  const phaseClass = `slide-kill-ghost--${ghost.phase}`;
+
+  return (
+    <div
+      className={`slide-kill-ghost ${phaseClass}`}
+      style={
+        {
+          width: tileSize,
+          height: tileSize,
+          transform: `translate(${tilePixelX}px, ${tilePixelY}px)`,
+          '--slide-start-x': `${ghost.slideDx}px`,
+          '--slide-start-y': `${ghost.slideDy}px`,
+          '--slide-kill-slide-duration': `${ANIMATION.SLIDE_DURATION_MS}ms`,
+          '--slide-kill-slide-pause': `${ANIMATION.SLIDE_PAUSE_MS}ms`,
+          '--die-flash-duration': `${ANIMATION.DIE_FLASH_DURATION_MS}ms`,
+          '--die-fade-duration': `${ANIMATION.DIE_FADE_DURATION_MS}ms`,
+          '--slide-kill-fall-duration': `${ANIMATION.SLIDE_KILL_FALL_DURATION_MS}ms`,
+        } as React.CSSProperties
+      }
+    >
+      {/* sprite/emoji */}
+      {showImg ? (
+        <img
+          src={spritePath as string}
+          className="slide-kill-ghost__sprite"
+          width={tileSize}
+          height={tileSize}
+          alt=""
+        />
+      ) : (
+        <div className="slide-kill-ghost__sprite">
+          <MissingSprite size={tileSize} />
+        </div>
+      )}
+      {/* skull emoji — visible only during 'dying' phase */}
+      {ghost.phase === 'dying' && (
+        <span
+          className="slide-kill-ghost__skull"
+          style={{ fontSize: `${tileSize}px` }}
+        >
+          💀
+        </span>
+      )}
+    </div>
+  );
+}
+
 // ============================================================================
 
 function ShockwaveLayer() {

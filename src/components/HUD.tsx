@@ -10,7 +10,7 @@ import { useGameStore } from '../gameStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
 import { useSoundOptionsStore } from '../soundOptionsStore';
-import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, computeResearchCost, SPELL_DEFINITIONS } from '../gameConfig';
+import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, computeResearchCost, SPELL_DEFINITIONS, TERRAIN_TAG_INFO } from '../gameConfig';
 import { UI } from '../uiConfig';
 import type { UnitPopulationCost, TechId } from '../types';
 import {
@@ -39,6 +39,8 @@ import {
   UnitTag,
   BuildingType,
   TileType,
+  TileStatus,
+  TerrainTag,
   TechEffectType,
   TechFlag,
   Difficulty,
@@ -198,6 +200,9 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
   const debugAddFarmers = useGameStore((s) => s.debugAddFarmers);
   const debugAddRuin = useGameStore((s) => s.debugAddRuin);
   const debugAddCrystals = useGameStore((s) => s.debugAddCrystals);
+  const debugApplyTileStatus = useGameStore((s) => s.debugApplyTileStatus);
+  const debugClearTileStatus = useGameStore((s) => s.debugClearTileStatus);
+  const selectedTilePos = useGameStore((s) => s.selectedTilePos);
   const [devStatsOpen, setDevStatsOpen] = useState(false);
 
   useEffect(() => {
@@ -246,6 +251,14 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
             <button className="hud-dev-action-btn" onClick={debugAddFarmers}>🌾 Add Farm (zone 1)</button>
             <button className="hud-dev-action-btn" onClick={debugAddRuin}>🗿 Add Ruin (near unit)</button>
             <button className="hud-dev-action-btn" onClick={debugAddCrystals}>💎 +5 Crystals</button>
+            <div className="hud-dev-overlay-section-title">Tile Status (selected tile)</div>
+            <div style={{ fontSize: '0.8em', opacity: 0.7, marginBottom: 4 }}>
+              {selectedTilePos ? `Selected: (${selectedTilePos.x}, ${selectedTilePos.y})` : 'No tile selected'}
+            </div>
+            <button className="hud-dev-action-btn" disabled={!selectedTilePos} onClick={() => debugApplyTileStatus(TileStatus.CORRUPTED)}>☠️ Apply CORRUPTED</button>
+            <button className="hud-dev-action-btn" disabled={!selectedTilePos} onClick={() => debugApplyTileStatus(TileStatus.FROZEN)}>❄️ Apply FROZEN</button>
+            <button className="hud-dev-action-btn" disabled={!selectedTilePos} onClick={() => debugApplyTileStatus(TileStatus.BURNING)}>🔥 Apply BURNING</button>
+            <button className="hud-dev-action-btn" disabled={!selectedTilePos} onClick={debugClearTileStatus}>🧹 Clear Status</button>
           </div>
         </div>
       </div>
@@ -825,15 +838,39 @@ function ResourceInfoPopup({
   );
 }
 
-/** Tappable tag pill used in panels and popups */
-function InfoTagPill({ tag, onClick }: { tag: UnitTag; onClick: () => void }) {
-  const info = TAG_INFO[tag];
+/** Shared base for tappable tag pills — renders a labelled button with an "i" badge */
+function TagPillBase({ label, onClick }: { label: string; onClick: () => void }) {
   return (
     <button className="info-popup-tag-pill" onClick={onClick}>
-      {info?.label ?? tag}
+      {label}
       <span className="info-popup-tag-pill-i">i</span>
     </button>
   );
+}
+
+/** Tappable tag pill used in panels and popups */
+function InfoTagPill({ tag, onClick }: { tag: UnitTag; onClick: () => void }) {
+  const info = TAG_INFO[tag];
+  return <TagPillBase label={info?.label ?? tag} onClick={onClick} />;
+}
+
+/** Tag info popup for terrain tags (tile status) */
+function TerrainTagPopup({ tag, onClose }: { tag: TerrainTag; onClose: () => void }) {
+  const info = TERRAIN_TAG_INFO[tag];
+  if (!info) return null;
+  return (
+    <Popup onClose={onClose}>
+      <div className="info-popup-header-name" style={{ marginBottom: 10 }}>{info.label}</div>
+      <p className="info-popup-desc" style={{ marginBottom: 16 }}>{info.desc}</p>
+      <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>OK</button>
+    </Popup>
+  );
+}
+
+/** Tappable terrain-tag pill for terrain status (used in SelectedTilePanel) */
+function TerrainTagPill({ tag, onClick }: { tag: TerrainTag; onClick: () => void }) {
+  const info = TERRAIN_TAG_INFO[tag];
+  return <TagPillBase label={info?.label ?? tag} onClick={onClick} />;
 }
 
 /** Ember Level info popup — explains what Ember Level does and shows source breakdown */
@@ -2043,7 +2080,16 @@ function ConversionPanel({
 
 
 
+/** Mapping from TileStatus to TerrainTag (same values, conceptually distinct). */
+const TILE_STATUS_TO_TERRAIN_TAG: Record<TileStatus, TerrainTag> = {
+  [TileStatus.CORRUPTED]: TerrainTag.CORRUPTED,
+  [TileStatus.FROZEN]: TerrainTag.FROZEN,
+  [TileStatus.BURNING]: TerrainTag.BURNING,
+};
+
 function SelectedTilePanel({ tile }: { tile: Tile }) {
+  const [infoTerrainTag, setInfoTerrainTag] = useState<TerrainTag | null>(null);
+
   const terrainEmoji =
     tile.terrainType === TileType.FOREST
       ? '🌲'
@@ -2062,6 +2108,8 @@ function SelectedTilePanel({ tile }: { tile: Tile }) {
           ? 'Plains'
           : 'Empty';
 
+  const terrainTag = tile.status != null ? TILE_STATUS_TO_TERRAIN_TAG[tile.status] : null;
+
   return (
     <div className="hud-info-panel">
       <div className="hud-panel-header">
@@ -2073,6 +2121,14 @@ function SelectedTilePanel({ tile }: { tile: Tile }) {
       )}
       {tile.isRuin && !tile.isStrongholdRuin && (
         <div className="hud-tile-feature">🪨 Ruin</div>
+      )}
+      {terrainTag && (
+        <div className="hud-unit-tags" style={{ marginTop: 6 }}>
+          <TerrainTagPill tag={terrainTag} onClick={() => setInfoTerrainTag(terrainTag)} />
+        </div>
+      )}
+      {infoTerrainTag && (
+        <TerrainTagPopup tag={infoTerrainTag} onClose={() => setInfoTerrainTag(null)} />
       )}
     </div>
   );

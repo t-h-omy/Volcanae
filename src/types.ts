@@ -156,6 +156,26 @@ export const TechFlag = {
 } as const;
 export type TechFlag = (typeof TechFlag)[keyof typeof TechFlag];
 
+/** Statuses that can be applied to a tile. Mutually exclusive — a new status overwrites the previous one. */
+export const TileStatus = {
+  CORRUPTED: 'CORRUPTED',
+  FROZEN: 'FROZEN',
+  BURNING: 'BURNING',
+} as const;
+export type TileStatus = (typeof TileStatus)[keyof typeof TileStatus];
+
+/**
+ * Terrain tags used for UI tile-info display (e.g., tooltip badges).
+ * Values mirror TileStatus intentionally: the UI maps TileStatus → TerrainTag
+ * so that rendering code stays decoupled from the game-state type.
+ */
+export const TerrainTag = {
+  CORRUPTED: 'CORRUPTED',
+  FROZEN: 'FROZEN',
+  BURNING: 'BURNING',
+} as const;
+export type TerrainTag = (typeof TerrainTag)[keyof typeof TerrainTag];
+
 /** Tags that can be applied to units */
 export const UnitTag = {
   /** Unit has ranged attack capability */
@@ -215,6 +235,8 @@ export const UnitTag = {
   /** Spearman unit leaves a Gravestone building on death that can be revived */
   REVIVABLE: 'REVIVABLE',
   // ── Mage system tags ────────────────────────────────────────────────────────
+  /** Lava-faction unit. Immune to BURNING tile damage. Persists across faction changes (e.g., player-controlled Ember Demons retain LAVA). */
+  LAVA: 'LAVA',
   /** Unit was summoned, not recruited; modifies several systems */
   SUMMONED: 'SUMMONED',
   /** Unit carries the Brandmark Heal mark; loses HP each turn; on death becomes a hostile Ember Demon */
@@ -321,6 +343,12 @@ export interface Unit {
   distractionDefPenalty: number;
   /** Turn number during which this unit last moved. 0 = never moved (or pre-dates this field). */
   lastMovedTurn: number;
+  /**
+   * The direction of the unit's last move action as a normalised (dx, dy) vector.
+   * `null` / `undefined` means the unit has not moved this turn (or was placed without a move).
+   * Used by the FROZEN-tile slippery mechanic to determine slide direction.
+   */
+  lastMovementDirection?: { dx: number; dy: number } | null;
   /**
    * Set on player-summoned EMBER_DEMON; the id of the Mage that controls it via leash.
    * `null` or `undefined` means no controller. Cleared on defection.
@@ -447,11 +475,8 @@ export interface Tile {
   terrainType: TileType;
   /** true on ~33% of Mountain tiles; set during map gen; cleared permanently on seal, explore, or despawn */
   hasCaveMonster?: boolean;
-  /**
-   * true for tiles frozen by Frostcraft. Tile remains `terrainType === TileType.WATER` underneath;
-   * the boolean overlays passability rules. Cleared when consumed by lava or otherwise destroyed.
-   */
-  isIce?: boolean;
+  /** Current tile status (CORRUPTED, FROZEN, BURNING). Mutually exclusive — a new status overwrites the previous one. */
+  status?: TileStatus | null;
 }
 
 /** Resources available to the player */

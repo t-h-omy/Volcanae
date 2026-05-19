@@ -1362,6 +1362,7 @@ function createGrid(): Tile[][] {
         isRuin: false,
         isStrongholdRuin: false,
         terrainType: TileType.PLAINS,
+        status: null,
       });
     }
     grid.push(row);

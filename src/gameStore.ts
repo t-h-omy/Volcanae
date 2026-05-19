@@ -15,6 +15,7 @@ import {
 } from './captureSystem';
 import { updateDiscovery } from './discoverySystem';
 import { advanceLava, advanceLavaWithEvents, shouldLavaAdvance } from './lavaSystem';
+import { processTileStatusEndOfTurn, isUnitOnCorruptedTile, applyTileStatus, clearTileStatus } from './tileStatusSystem';
 import {
   collectResources,
   recruitUnit as recruitUnitLogic,
@@ -39,7 +40,7 @@ import { useAnimationStore } from './animationStore';
 import { useCombatAnimationStore } from './combatAnimationStore';
 import { useCaveScreamsStore } from './caveScreamsStore';
 import { triggerSpellSfx } from './soundOptionsStore';
-import { Faction, GamePhase, BuildingType, TileType, Difficulty, DestroyBehavior, UnitType, UnitTag, TechFlag } from './types';
+import { Faction, GamePhase, BuildingType, TileType, TileStatus, Difficulty, DestroyBehavior, UnitType, UnitTag, TechFlag } from './types';
 import type { GameState, Position, TechId, SpellId } from './types';
 import type { GameEvent } from './gameEvents';
 import { MAP, TERRAIN, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval, UNIT_DEFINITIONS, MAGE } from './gameConfig';
@@ -142,6 +143,10 @@ interface GameActions {
   debugAddRuin: () => void;
   /** Debug: add 5 arcane crystals */
   debugAddCrystals: () => void;
+  /** Debug: apply a tile status to the currently selected tile */
+  debugApplyTileStatus: (status: string) => void;
+  /** Debug: clear tile status from the currently selected tile */
+  debugClearTileStatus: () => void;
   /** Level up a player unit if they have enough XP */
   levelUpUnit: (unitId: string) => void;
   /** Unlock a tech node and spend one pending pick */
@@ -288,10 +293,79 @@ export const useGameStore = create<GameStore>()(
     },
 
     moveUnit: (unitId: string, targetPosition: Position) => {
+      // Capture unit info before the mutation in case the unit is slide-killed
+      let slideKillGhostData: {
+        unitType: UnitType;
+        faction: Faction;
+        deathTileX: number;
+        deathTileY: number;
+        slideDx: number;
+        slideDy: number;
+      } | null = null;
+
       set((state) => {
+        // Snapshot the unit before moveUnitLogic so we can detect a slide-kill
+        const unitBefore = state.units[unitId];
+        const posBeforeX = unitBefore?.position.x ?? 0;
+        const posBeforeY = unitBefore?.position.y ?? 0;
+        const unitTypeBefore = unitBefore?.type;
+        const factionBefore = unitBefore?.faction;
+
         moveUnitLogic(state, unitId, targetPosition);
         // Update tile discovery after player action
         updateDiscovery(state);
+
+        // ── Ice-slide animation ──────────────────────────────────────────────
+        // If the unit ended up at a different tile than the player clicked, a
+        // slide was triggered. Animate the unit sliding from the frozen tile
+        // (where the player tapped) to its actual final position.
+        const unitAfterMove = state.units[unitId];
+        if (
+          unitAfterMove &&
+          (unitAfterMove.position.x !== targetPosition.x ||
+            unitAfterMove.position.y !== targetPosition.y)
+        ) {
+          // Pixel offset: from slide destination → frozen tile (unit appears here first)
+          const tileSize =
+            typeof window !== 'undefined' && window.innerWidth <= RENDER.MOBILE_BREAKPOINT
+              ? RENDER.TILE_SIZE_MOBILE
+              : RENDER.TILE_SIZE_DESKTOP;
+          const slideDx = (targetPosition.x - unitAfterMove.position.x) * tileSize;
+          const slideDy = (targetPosition.y - unitAfterMove.position.y) * tileSize;
+          const { setUnitAnimation } = useCombatAnimationStore.getState();
+          setUnitAnimation(unitId, { type: 'SLIDE', dx: slideDx, dy: slideDy });
+          const totalMs = ANIMATION.SLIDE_PAUSE_MS + ANIMATION.SLIDE_DURATION_MS + 60;
+          setTimeout(() => {
+            useCombatAnimationStore.getState().setUnitAnimation(unitId, null);
+          }, totalMs);
+        }
+
+        // ── Slide-kill detection ─────────────────────────────────────────────
+        // If the unit existed before the move but is now gone, it was killed
+        // while sliding off a FROZEN tile into a lethal tile.
+        if (!unitAfterMove && unitTypeBefore !== undefined && factionBefore !== undefined) {
+          // The slide direction = targetPosition - original position
+          const slideDirX = targetPosition.x - posBeforeX;
+          const slideDirY = targetPosition.y - posBeforeY;
+          // The death tile = frozen tile (targetPosition) + slide direction
+          const deathTileX = targetPosition.x + slideDirX;
+          const deathTileY = targetPosition.y + slideDirY;
+          const tileSize =
+            typeof window !== 'undefined' && window.innerWidth <= RENDER.MOBILE_BREAKPOINT
+              ? RENDER.TILE_SIZE_MOBILE
+              : RENDER.TILE_SIZE_DESKTOP;
+          // Pixel offset: from death tile back to frozen tile (same semantics as SLIDE)
+          slideKillGhostData = {
+            unitType: unitTypeBefore,
+            faction: factionBefore,
+            deathTileX,
+            deathTileY,
+            slideDx: -slideDirX * tileSize,
+            slideDy: -slideDirY * tileSize,
+          };
+        }
+        // ── End ice-slide animation ──────────────────────────────────────────
+
         // Defect any leashed units that are now out of range
         const defectedIds = sweepLeashes(state);
         if (defectedIds.length > 0) {
@@ -319,6 +393,50 @@ export const useGameStore = create<GameStore>()(
         // Check win/loss conditions after player action
         checkGameConditions(state);
       });
+
+      // ── Slide-kill ghost animation ───────────────────────────────────────
+      // Fire AFTER the immer set() completes so the game state is already updated.
+      // The unit was deleted synchronously; a ghost overlay handles the visuals.
+      if (slideKillGhostData !== null) {
+        // Cast away the incorrect `never` narrowing TypeScript applies after a
+        // `let` variable is mutated inside an immer set() callback.
+        const d = slideKillGhostData as {
+          unitType: UnitType; faction: Faction;
+          deathTileX: number; deathTileY: number;
+          slideDx: number; slideDy: number;
+        };
+        const ghostId = `slide-kill-${unitId}-${Date.now()}`;
+        const ghost = {
+          id: ghostId,
+          unitType: d.unitType,
+          faction: d.faction,
+          deathTileX: d.deathTileX,
+          deathTileY: d.deathTileY,
+          slideDx: d.slideDx,
+          slideDy: d.slideDy,
+          phase: 'slide' as const,
+        };
+        const store = useCombatAnimationStore.getState();
+        store.addSlideKillGhost(ghost);
+
+        // Phase 1 — slide in
+        const slideTotalMs = ANIMATION.SLIDE_PAUSE_MS + ANIMATION.SLIDE_DURATION_MS;
+        setTimeout(() => {
+          useCombatAnimationStore.getState().setSlideKillGhostPhase(ghostId, 'dying');
+
+          // Phase 2 — skull flash (same timing as normal combat DYING)
+          const dyingTotalMs = ANIMATION.DIE_FLASH_DURATION_MS + ANIMATION.DIE_FADE_DURATION_MS;
+          setTimeout(() => {
+            useCombatAnimationStore.getState().setSlideKillGhostPhase(ghostId, 'falling');
+
+            // Phase 3 — shrink and disappear
+            setTimeout(() => {
+              useCombatAnimationStore.getState().removeSlideKillGhost(ghostId);
+            }, ANIMATION.SLIDE_KILL_FALL_DURATION_MS);
+          }, dyingTotalMs);
+        }, slideTotalMs);
+      }
+      // ── End slide-kill ghost animation ───────────────────────────────────
     },
 
     attackUnit: (attackerId: string, targetId: string) => {
@@ -1055,6 +1173,8 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         const healer = state.units[healerId];
         if (!healer || !canUnitHeal(healer)) return;
+        // CORRUPTED tile: PATCHUP heal is suppressed.
+        if (isUnitOnCorruptedTile(state, healerId)) return;
         const targets = getHealTargets(state, healerId);
         if (!targets.includes(targetId)) return;
         const target = state.units[targetId];
@@ -1260,8 +1380,14 @@ export const useGameStore = create<GameStore>()(
           return;
         }
 
+        // Phase 3.5: Tile status end-of-turn processing (before lava tick)
+        const tileStatusEvents: GameEvent[] = [];
+        computedState = produce(computedState, (draft) => {
+          processTileStatusEndOfTurn(draft, tileStatusEvents);
+        });
+
         // Phase 4: Lava phase
-        const allEvents: GameEvent[] = [...enemyEvents];
+        const allEvents: GameEvent[] = [...enemyEvents, ...tileStatusEvents];
         computedState = produce(computedState, (draft) => {
           draft.turnsUntilLavaAdvance -= 1;
         });
@@ -2019,6 +2145,18 @@ export const useGameStore = create<GameStore>()(
             // All state mutations already applied during cascade — event is presentation-only.
             break;
 
+          case 'TILE_DAMAGE': {
+            // Emit a damage floater at the affected tile.
+            useFloaterStore.getState().addFloater({
+              value: event.amount,
+              x: event.position.x,
+              y: event.position.y,
+              isEnemy: false,
+              floaterType: 'damage',
+            });
+            break;
+          }
+
           case 'EMBER_LEVEL_UP': {
             // State was already mutated in enemySystem — this is presentation-only.
             const sacrificeLabel = event.isEmberlingSacrifice
@@ -2230,6 +2368,21 @@ export const useGameStore = create<GameStore>()(
     debugAddCrystals: () => {
       set((state) => {
         state.arcaneCrystals += 5;
+      });
+    },
+
+    debugApplyTileStatus: (status: string) => {
+      set((state) => {
+        if (!state.selectedTilePos) return;
+        const newStatus = status as TileStatus;
+        applyTileStatus(state, state.selectedTilePos, newStatus);
+      });
+    },
+
+    debugClearTileStatus: () => {
+      set((state) => {
+        if (!state.selectedTilePos) return;
+        clearTileStatus(state, state.selectedTilePos);
       });
     },
 
