@@ -21,7 +21,7 @@ import { RENDER } from '../renderConfig';
 import { INPUT } from '../inputConfig';
 import { computeLevelFromXp } from '../levelSystem';
 import { useZoomStore } from '../zoomStore';
-import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE, RESOURCE_SPRITE, ENEMY_BUILDING_SPRITE, PLAYER_BUILDING_SPRITE, TERRAIN_RESOURCE_SPRITE, CRYSTAL_CHAMBER_ACTIVE_SPRITE, ENEMY_UNIT_SPRITE, PLAYER_UNIT_SPRITE } from '../assetRegistry';
+import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE, TILE_STATUS_SPRITE, RESOURCE_SPRITE, ENEMY_BUILDING_SPRITE, PLAYER_BUILDING_SPRITE, TERRAIN_RESOURCE_SPRITE, CRYSTAL_CHAMBER_ACTIVE_SPRITE, ENEMY_UNIT_SPRITE, PLAYER_UNIT_SPRITE } from '../assetRegistry';
 import MissingSprite from './MissingSprite';
 import {
   Faction,
@@ -952,11 +952,17 @@ function TileCellInner({
   // ── Tile sprite path ──
   // Ruin tiles use the underlying terrain as their base; the ruin graphic is
   // rendered as a separate overlay so its transparent areas show the ground.
+  // When the tile has an active status and a dedicated status sprite exists for
+  // that terrain+status combination, it replaces the plain base terrain sprite.
+  const tileStatusSpritePath: string | undefined =
+    tile.isRevealed && tile.status
+      ? TILE_STATUS_SPRITE[tile.terrainType]?.[tile.status]
+      : undefined;
   const tileSpritePath: string | undefined = tile.isLava
     ? TILE_SPRITE['lava']
     : !tile.isRevealed
       ? TILE_SPRITE['unrevealed']
-      : TILE_SPRITE[tile.terrainType];
+      : (tileStatusSpritePath ?? TILE_SPRITE[tile.terrainType]);
 
   // ── Ruin overlay sprite (rendered on top of terrain, like a building) ──
   const ruinSpritePath: string | undefined = tile.isRevealed
@@ -1116,10 +1122,6 @@ function TileCellInner({
 
       {/* lava-preview overlay */}
       {overlay && <div className="tile-overlay" style={{ backgroundColor: overlay }} />}
-
-      {/* ice overlay — frozen tile status; rendered here (below terrain sprites and buildings)
-          so the frost tint shows on the ground but mountain/forest/building sprites sit on top */}
-      {tile.status === TileStatus.FROZEN && tile.isRevealed && <div className="tile-overlay tile--ice" />}
 
       {/* terrain resource overlay (forest / mountain on top of grass) */}
       {showTerrainResource && (
