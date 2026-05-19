@@ -1036,8 +1036,8 @@ export const useGameStore = create<GameStore>()(
         // Revive is only available when the Deathmender specialist (or another
         // source) grants the REVIVABLE tag to this unit type. LEAVES_GRAVESTONE
         // from the tech tree allows gravestones to spawn but NOT to be revived.
-        const revivableTags = getTagsFromActiveSpecialists(state, building.gravesUnitType);
-        if (!revivableTags.includes(UnitTag.REVIVABLE)) return;
+        const specialistTags = getTagsFromActiveSpecialists(state, building.gravesUnitType);
+        if (!specialistTags.includes(UnitTag.REVIVABLE)) return;
         // Cannot revive if a unit is standing on the tile
         const tile = state.grid[building.position.y][building.position.x];
         if (tile.unitId !== null) return;
