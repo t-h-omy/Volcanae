@@ -562,7 +562,7 @@ export const TERRAIN = {
    * Keys are zone numbers (1–5). Missing keys fall back to FORESTS_PER_ZONE_MIN/MAX.
    * Example: { 1: { min: 1, max: 2 }, 3: { min: 3, max: 5 } }
    */
-  FORESTS_PER_ZONE_OVERRIDES: {} as Record<number, { min: number; max: number }>,
+  FORESTS_PER_ZONE_OVERRIDES: { 1: { min: 3, max: 3 } } as Record<number, { min: number; max: number }>,
   /** Minimum number of mountain tiles placed per zone (used if no zone-specific override is set) */
   MOUNTAINS_PER_ZONE_MIN: 2,
   /** Maximum number of mountain tiles placed per zone (used if no zone-specific override is set) */
@@ -582,7 +582,7 @@ export const TERRAIN = {
    * Keys are zone numbers (1–5). Missing keys fall back to RUINS_PER_ZONE_MIN/MAX.
    * Example: { 1: { min: 4, max: 5 }, 5: { min: 10, max: 12 } }
    */
-  RUINS_PER_ZONE_OVERRIDES: { 1: { min: 8, max: 8 } } as Record<number, { min: number; max: number }>,
+  RUINS_PER_ZONE_OVERRIDES: { 1: { min: 7, max: 7 } } as Record<number, { min: number; max: number }>,
   /** Minimum number of ruin tiles placed in the lava buffer rows */
   RUINS_IN_LAVA_BUFFER_MIN: 3,
   /** Maximum number of ruin tiles placed in the lava buffer rows */
@@ -1037,7 +1037,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.STRONGHOLD_RUIN,
     constructionCost: { iron: 0, wood: 0 },
-    unitLimit: 5,
+    unitLimit: 4,
     description: 'Your capital — if you lose all your strongholds, the game is over.',
   },
   MINE: {
@@ -1056,28 +1056,28 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.RUIN,
     constructionCost: { iron: 2, wood: 2 },
-    unitLimit: 5,
+    unitLimit: 4,
     description: 'Military hall that trains Spearman and Swordsman.',
   },
   ARCHER_CAMP: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.RUIN,
     constructionCost: { iron: 1, wood: 5 },
-    unitLimit: 5,
+    unitLimit: 4,
     description: 'Archery range that trains Archers.',
   },
   RIDER_CAMP: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.RUIN,
     constructionCost: { iron: 5, wood: 3 },
-    unitLimit: 5,
+    unitLimit: 4,
     description: 'Stable that trains Riders.',
   },
   SIEGE_CAMP: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.RUIN,
     constructionCost: { iron: 3, wood: 6 },
-    unitLimit: 5,
+    unitLimit: 4,
     description: 'Engineering works that trains Siege engines.',
   },
   WATCHTOWER: {
@@ -1501,7 +1501,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SPEARMAN, tag: UnitTag.FIELDWORK },
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SWORDSMAN, tag: UnitTag.FIELDWORK },
       { type: 'UNIT_COST_MOD',  unitType: UnitType.SPEARMAN, resource: 'wood', amount: 1 },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.SWORDSMAN, resource: 'iron', amount: 1 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.SWORDSMAN, resource: 'wood', amount: 1 },
     ],
   },
   {
@@ -1535,6 +1535,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 2,
     effects: [
       { type: 'UNIT_STAT_MOD', unitType: UnitType.SCOUT, stat: 'discoverRadius', mode: 'add', value: ABILITIES.SCOUT_DISCOVER_BONUS },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.SCOUT, resource: 'wood', amount: 2 },
     ],
   },
   {
@@ -1597,9 +1598,9 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.RIDER,  tag: UnitTag.ELITE },
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.GUARD,  tag: UnitTag.ELITE },
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SIEGE,  tag: UnitTag.ELITE },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.RIDER, resource: 'iron', amount: 2 },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.GUARD, resource: 'iron', amount: 2 },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.SIEGE, resource: 'iron', amount: 2 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.RIDER, resource: 'iron', amount: 1 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.GUARD, resource: 'iron', amount: 1 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.SIEGE, resource: 'iron', amount: 1 },
     ],
   },
   {
@@ -1623,7 +1624,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.RIDER, tag: UnitTag.LANCE_CHARGE },
       { type: 'REMOVE_UNIT_TAG', unitType: UnitType.RIDER, tag: UnitTag.BUILDANDCAPTURE },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.RIDER, resource: 'iron', amount: 2 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.RIDER, resource: 'iron', amount: 1 },
     ],
   },
   {
@@ -1634,7 +1635,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.RIDER, tag: UnitTag.KNIGHT },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.RIDER, resource: 'iron', amount: 2 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.RIDER, resource: 'iron', amount: 1 },
     ],
   },
   {
@@ -1645,7 +1646,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG',  unitType: UnitType.RIDER, tag: UnitTag.HIT_AND_RUN },
-      { type: 'UNIT_COST_MOD',   unitType: UnitType.RIDER, resource: 'wood', amount: 2 },
+      { type: 'UNIT_COST_MOD',   unitType: UnitType.RIDER, resource: 'wood', amount: 1 },
     ],
   },
   {
@@ -1656,7 +1657,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 7,
     effects: [
       { type: 'GRANT_UNIT_TAG',  unitType: UnitType.RIDER, tag: UnitTag.OUTRIDER },
-      { type: 'UNIT_COST_MOD',   unitType: UnitType.RIDER, resource: 'wood', amount: 2 },
+      { type: 'UNIT_COST_MOD',   unitType: UnitType.RIDER, resource: 'wood', amount: 1 },
     ],
   },
 
@@ -1677,10 +1678,10 @@ export const TECH_TREE: TechNodeDefinition[] = [
     name: 'Skirmisher',
     description: `Archers gain +${ABILITIES.SKIRMISHER_MOVE_BONUS} movement range`,
     requires: ['COVER'],
-    cost: 4,
+    cost: 7,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.ARCHER, tag: UnitTag.SKIRMISHER },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.ARCHER, resource: 'wood', amount: 2 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.ARCHER, resource: 'wood', amount: 1 },
     ],
   },
   {
@@ -1702,7 +1703,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 7,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.ARCHER, tag: UnitTag.DISTRACTION },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.ARCHER, resource: 'iron', amount: 2 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.ARCHER, resource: 'iron', amount: 1 },
     ],
   },
 
