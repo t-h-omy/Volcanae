@@ -33,6 +33,7 @@ function isValidGravestoneTile(tile: Tile): boolean {
     !tile.isStrongholdRuin &&
     !tile.isLava &&
     tile.terrainType !== TileType.FOREST &&
+    tile.terrainType !== TileType.MOUNTAIN &&
     tile.terrainType !== TileType.WATER &&
     tile.terrainType !== TileType.CANYON
   );
@@ -762,6 +763,12 @@ export function resolveAttack(
       toTile.unitId = attackerId;
       attackerUnit.position.x = defenderPosition.x;
       attackerUnit.position.y = defenderPosition.y;
+      // Mark the attacker as having moved this turn so the cave-popup eligibility
+      // check in selectUnit / the HUD useEffect treats this as "just arrived" and
+      // does not open the popup on the same turn as the melee advance.
+      if (attackerFaction === Faction.PLAYER) {
+        attackerUnit.lastMovedTurn = state.turn;
+      }
     }
   }
 

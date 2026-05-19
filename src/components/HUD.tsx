@@ -54,6 +54,7 @@ import {
 } from '../types';
 import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast } from '../unitActions';
 import { getPhalanxAttackBonus, getPhalanxDefenseBonus } from '../combatSystem';
+import { getTagsFromActiveSpecialists } from '../specialistSystem';
 import { useZoneClearedStore } from '../zoneClearedStore';
 import { useCaveScreamsStore } from '../caveScreamsStore';
 import { useSpecialistHireStore } from '../specialistHireStore';
@@ -2187,7 +2188,14 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   const isGraveTrap = building.type === BuildingType.GRAVE_TRAP && isPlayerOwned;
   const tile = grid[building.position.y]?.[building.position.x];
   const graveOccupied = isGravestone && tile?.unitId !== null;
-  const canRevive = isGravestone && !graveOccupied && arcaneCrystals >= ABILITIES.REVIVE_CRYSTAL_COST;
+  // Revive is only available when the Deathmender specialist (or another source) grants
+  // the REVIVABLE tag to the buried unit type. LEAVES_GRAVESTONE from the tech tree
+  // lets gravestones spawn but does NOT unlock the revive action.
+  const graveRevivable =
+    isGravestone &&
+    building.gravesUnitType !== null &&
+    getTagsFromActiveSpecialists(gameState, building.gravesUnitType).includes(UnitTag.REVIVABLE);
+  const canRevive = graveRevivable && !graveOccupied && arcaneCrystals >= ABILITIES.REVIVE_CRYSTAL_COST;
   const handleRevive = useCallback(() => {
     reviveUnit(building.id);
   }, [reviveUnit, building.id]);
@@ -2402,8 +2410,8 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
         </div>
       )}
 
-      {/* Gravestone revive button */}
-      {isGravestone && (
+      {/* Gravestone revive button — only shown when the Deathmender specialist grants REVIVABLE */}
+      {graveRevivable && (
         <div className="hud-revive-row">
           {graveOccupied ? (
             <span className="hud-dim">A unit is standing here — move it to revive.</span>
