@@ -1033,6 +1033,11 @@ export const useGameStore = create<GameStore>()(
         if (!building.gravesUnitType) return;
         // Must have at least 1 arcane crystal
         if (state.arcaneCrystals < ABILITIES.REVIVE_CRYSTAL_COST) return;
+        // Revive is only available when the Deathmender specialist (or another
+        // source) grants the REVIVABLE tag to this unit type. LEAVES_GRAVESTONE
+        // from the tech tree allows gravestones to spawn but NOT to be revived.
+        const specialistTags = getTagsFromActiveSpecialists(state, building.gravesUnitType);
+        if (!specialistTags.includes(UnitTag.REVIVABLE)) return;
         // Cannot revive if a unit is standing on the tile
         const tile = state.grid[building.position.y][building.position.x];
         if (tile.unitId !== null) return;
