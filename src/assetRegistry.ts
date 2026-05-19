@@ -16,7 +16,8 @@
  * - All sprites: **transparent background** PNG
  */
 
-import type { UnitType, BuildingType, TileType } from './types';
+import type { UnitType, BuildingType, TileType, TileStatus } from './types';
+import { TileType as TT, TileStatus as TS } from './types';
 
 /**
  * Prepend the Vite public base URL to every non-empty sprite path in a map.
@@ -154,13 +155,37 @@ export const TILE_SPRITE: Partial<Record<TileType | 'lava' | 'unrevealed' | 'rui
   PLAINS:       '/sprites/tiles/terrain_grass_100px.png',
   FOREST:       '/sprites/tiles/terrain_grass_100px.png',
   MOUNTAIN:     '/sprites/tiles/terrain_grass_100px.png',
-  CANYON:       '',
-  WATER:        '',
+  CANYON:       '/sprites/tiles/terrain_canyon_100px.png',
+  WATER:        '/sprites/tiles/terrain_water_100px.png',
   lava:         '/sprites/tiles/terrain_lava_100px.png',
   unrevealed:   '/sprites/tiles/terrain_undiscovered_100px.png',
   ruin:         '/sprites/buildings/ruin_standard_100px.png',
   strongholdRuin: '/sprites/buildings/ruin_stronghold_100px.png',
 });
+
+/**
+ * Status-specific terrain sprites.
+ * When a tile has an active TileStatus and a sprite exists for that
+ * terrain+status combination, this sprite replaces the base TILE_SPRITE.
+ * Terrains not listed here fall back to the base terrain sprite + CSS overlay.
+ */
+export const TILE_STATUS_SPRITE: Partial<Record<TileType, Partial<Record<TileStatus, string>>>> = {
+  [TT.PLAINS]: withBase({
+    [TS.FROZEN]:    '/sprites/tiles/terrain_grass_frozen_100px.png',
+    [TS.BURNING]:   '/sprites/tiles/terrain_grass_burning_100px.png',
+    [TS.CORRUPTED]: '/sprites/tiles/terrain_grass_corrupted_100px.png',
+  }),
+  [TT.FOREST]: withBase({
+    [TS.CORRUPTED]: '/sprites/tiles/terrain_grass_corrupted_100px.png',
+  }),
+  [TT.MOUNTAIN]: withBase({
+    [TS.CORRUPTED]: '/sprites/tiles/terrain_grass_corrupted_100px.png',
+  }),
+  [TT.WATER]: withBase({
+    [TS.FROZEN]:    '/sprites/tiles/terrain_water__frozen_100px.png',
+    [TS.CORRUPTED]: '/sprites/tiles/terrain_water_corrupted_100px.png',
+  }),
+};
 
 /**
  * Sprite path for the ice overlay rendered on top of frozen WATER tiles.
