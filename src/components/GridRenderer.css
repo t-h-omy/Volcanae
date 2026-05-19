@@ -1056,16 +1056,13 @@
 /* ── Leash warning wiggle (out-of-range) ── */
 
 .leash-line-warn-wiggle {
-  animation: leash-dash-flow 1.2s linear infinite, leash-warn-wiggle 0.25s ease-in-out infinite;
+  animation: leash-dash-flow 1.2s linear infinite, leash-warn-wiggle 0.25s ease-in-out infinite alternate;
   transform-origin: center;
 }
 
 @keyframes leash-warn-wiggle {
-  0%   { stroke-width: 2.5; opacity: 0.9; }
-  25%  { stroke-width: 3.5; opacity: 1.0; }
-  50%  { stroke-width: 2.5; opacity: 0.9; }
-  75%  { stroke-width: 3.5; opacity: 1.0; }
-  100% { stroke-width: 2.5; opacity: 0.9; }
+  from { stroke-width: 2.5; opacity: 0.9; }
+  to   { stroke-width: 3.5; opacity: 1.0; }
 }
 
 /* ── Leash burst VFX (defection) ── */

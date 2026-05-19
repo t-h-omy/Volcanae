@@ -1806,11 +1806,9 @@ function LeashPathGroup({ pair, tileSize, index, filterId }: {
 
   const d = `M ${mx},${my} C ${cp1x},${cp1y} ${cp2x},${cp2y} ${dx},${dy}`;
   const color = pair.warn || pair.burst ? '#ff3333' : '#ff8800';
-  const dashClass = pair.warn
-    ? 'leash-line-dash leash-line-warn-wiggle'
-    : pair.burst
-      ? 'leash-line-dash leash-line-burst'
-      : 'leash-line-dash';
+  let dashClass = 'leash-line-dash';
+  if (pair.warn) dashClass += ' leash-line-warn-wiggle';
+  else if (pair.burst) dashClass += ' leash-line-burst';
 
   return (
     <g key={index}>
