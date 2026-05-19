@@ -145,6 +145,10 @@ export function getMovableTiles(
  * To add a tag that restricts attack, add it here and only here.
  */
 export function canUnitAttack(unit: Unit): boolean {
+  // A pending bloodlust second-attack bypasses the "spent" flags that were
+  // intentionally set by the bloodlust logic to block all non-attack actions
+  // after the kill. hasAttackedThisTurn was already reset to false.
+  if (unit.bloodlustAttackAvailable) return true;
   if (unit.hasAttackedThisTurn) return false;
   if (unit.hasCastThisTurn) return false;
   if (unit.hasCapturedThisTurn) return false;
