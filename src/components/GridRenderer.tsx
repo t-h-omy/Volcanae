@@ -893,6 +893,7 @@ export default function GridRenderer() {
         <LevelUpIndicatorLayer tileSize={tileSize} />
         <DamageFloaterLayer tileSize={tileSize} />
         <LeashLineLayer tileSize={tileSize} />
+        <CrystalTowerConnectionLayer tileSize={tileSize} />
         <ProjectileLayer />
         <SlideKillGhostLayer tileSize={tileSize} />
         <ShockwaveLayer />
@@ -1284,10 +1285,12 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
     return getAttackTargets(unit, s.units, s.buildings, s.grid).size === 0;
   });
 
-  const isExhausted = hasUnitActed(unit) || noAttackTargets;
-
   const currentTurn = useGameStore((s) => s.turn);
   const isStunned = unit.pinnedUntilTurn >= currentTurn;
+
+  // A unit recruited this turn also gets the toned-down filter — it can't act this turn.
+  const isRecruitedThisTurn = (unit.recruitedOnTurn ?? 0) === currentTurn && currentTurn > 0;
+  const isExhausted = isRecruitedThisTurn || hasUnitActed(unit) || noAttackTargets;
 
   const anim = useCombatAnimationStore((s) => s.unitAnimations.get(unit.id));
 
@@ -1774,18 +1777,80 @@ interface LeashPair {
   magePos: { x: number; y: number };
   demonPos: { x: number; y: number };
   warn: boolean;
+  burst?: boolean;
+}
+
+/** Renders a single leash SVG path group. Shared by selection-based and burst-VFX pairs. */
+function LeashPathGroup({ pair, tileSize, index, filterId }: {
+  pair: LeashPair;
+  tileSize: number;
+  index: number;
+  filterId: string;
+}) {
+  const half = tileSize / 2;
+  const mx = pair.magePos.x * tileSize + half;
+  const my = pair.magePos.y * tileSize + half;
+  const dx = pair.demonPos.x * tileSize + half;
+  const dy = pair.demonPos.y * tileSize + half;
+
+  const lx = dx - mx;
+  const ly = dy - my;
+  const len = Math.sqrt(lx * lx + ly * ly) || 1;
+  const px = (-ly / len) * tileSize * 0.8;
+  const py = (lx / len) * tileSize * 0.8;
+
+  const cp1x = mx + lx / 3 + px;
+  const cp1y = my + ly / 3 + py;
+  const cp2x = mx + (lx * 2) / 3 - px;
+  const cp2y = my + (ly * 2) / 3 - py;
+
+  const d = `M ${mx},${my} C ${cp1x},${cp1y} ${cp2x},${cp2y} ${dx},${dy}`;
+  const color = pair.warn || pair.burst ? '#ff3333' : '#ff8800';
+  const dashClass = pair.warn
+    ? 'leash-line-dash leash-line-warn-wiggle'
+    : pair.burst
+      ? 'leash-line-dash leash-line-burst'
+      : 'leash-line-dash';
+
+  return (
+    <g key={index}>
+      {/* glow backdrop */}
+      <path
+        d={d}
+        stroke={color}
+        strokeWidth={pair.burst ? 14 : 8}
+        fill="none"
+        strokeLinecap="round"
+        opacity={pair.burst ? 0.45 : 0.25}
+        filter={`url(#${filterId})`}
+      />
+      {/* main line with dash animation */}
+      <path
+        d={d}
+        stroke={color}
+        strokeWidth={2.5}
+        fill="none"
+        strokeLinecap="round"
+        strokeDasharray="8 5"
+        className={dashClass}
+        opacity={0.9}
+      />
+    </g>
+  );
 }
 
 /**
  * Renders SVG curves connecting each leashed Ember Demon to its controlling Mage
- * when either unit is selected. Provides "magic leash" visual feedback.
+ * when either unit is selected, AND always for leash-burst VFX pairs.
+ * Provides "magic leash" visual feedback.
  */
 function LeashLineLayer({ tileSize }: { tileSize: number }) {
   const selectedUnitId = useGameStore((s) => s.selectedUnitId);
   const units = useGameStore((s) => s.units);
   const selectedUnit = selectedUnitId ? units[selectedUnitId] : undefined;
+  const burstPairs = useCombatAnimationStore((s) => s.leashBurstPairs);
 
-  const pairs = useMemo<LeashPair[]>(() => {
+  const selectionPairs = useMemo<LeashPair[]>(() => {
     if (!selectedUnit) return [];
     const result: LeashPair[] = [];
 
@@ -1814,35 +1879,119 @@ function LeashLineLayer({ tileSize }: { tileSize: number }) {
     return result;
   }, [selectedUnit, units]);
 
-  if (pairs.length === 0) return null;
+  // Build burst-VFX pairs, excluding any already shown by selection.
+  const effectiveBurstPairs = useMemo<LeashPair[]>(() => {
+    const selKeys = new Set(selectionPairs.map((p) => `${p.demonPos.x},${p.demonPos.y}`));
+    return burstPairs
+      .filter((bp) => !selKeys.has(`${bp.demonPos.x},${bp.demonPos.y}`))
+      .map((bp) => ({ magePos: bp.magePos, demonPos: bp.demonPos, warn: false, burst: true }));
+  }, [burstPairs, selectionPairs]);
 
-  const half = tileSize / 2;
+  if (selectionPairs.length === 0 && effectiveBurstPairs.length === 0) return null;
 
   return (
     <svg
       className="leash-line-layer"
       style={{ width: MAP.GRID_WIDTH * tileSize, height: MAP.GRID_HEIGHT * tileSize }}
     >
+      {selectionPairs.map((pair, i) => (
+        <LeashPathGroup key={`sel-${i}`} pair={pair} tileSize={tileSize} index={i} filterId="leash-blur" />
+      ))}
+      {effectiveBurstPairs.map((pair, i) => (
+        <LeashPathGroup key={`burst-${i}`} pair={pair} tileSize={tileSize} index={i} filterId="leash-blur" />
+      ))}
+      <defs>
+        <filter id="leash-blur" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="4" />
+        </filter>
+      </defs>
+    </svg>
+  );
+}
+
+// ============================================================================
+// CRYSTAL TOWER CONNECTION LAYER
+// ============================================================================
+
+/**
+ * Renders turquoise SVG curves between each selected Crystal Tower (or Crystal Chamber)
+ * and all player-owned Crystal Chambers (or Crystal Towers) within the tower's attack range.
+ * Visually communicates the attack bonus synergy.
+ */
+function CrystalTowerConnectionLayer({ tileSize }: { tileSize: number }) {
+  const selectedBuildingId = useGameStore((s) => s.selectedBuildingId);
+  const buildings = useGameStore((s) => s.buildings);
+  const selectedBuilding = selectedBuildingId ? buildings[selectedBuildingId] : undefined;
+
+  interface TowerChamberPair {
+    towerPos: { x: number; y: number };
+    chamberPos: { x: number; y: number };
+  }
+
+  const pairs = useMemo<TowerChamberPair[]>(() => {
+    if (!selectedBuilding || selectedBuilding.faction !== Faction.PLAYER) return [];
+    const result: TowerChamberPair[] = [];
+
+    if (selectedBuilding.type === BuildingType.CRYSTAL_TOWER && selectedBuilding.combatStats) {
+      const range = selectedBuilding.combatStats.attackRange;
+      for (const b of Object.values(buildings)) {
+        if (b.type === BuildingType.CRYSTAL_CHAMBER && b.faction === Faction.PLAYER) {
+          if (isTileWithinEdgeCircleRange(
+            selectedBuilding.position.x, selectedBuilding.position.y,
+            b.position.x, b.position.y,
+            range,
+          )) {
+            result.push({ towerPos: selectedBuilding.position, chamberPos: b.position });
+          }
+        }
+      }
+    } else if (selectedBuilding.type === BuildingType.CRYSTAL_CHAMBER) {
+      // Also show connections when the chamber is selected — find any tower that has this chamber in range.
+      for (const b of Object.values(buildings)) {
+        if (b.type === BuildingType.CRYSTAL_TOWER && b.faction === Faction.PLAYER && b.combatStats) {
+          const range = b.combatStats.attackRange;
+          if (isTileWithinEdgeCircleRange(
+            b.position.x, b.position.y,
+            selectedBuilding.position.x, selectedBuilding.position.y,
+            range,
+          )) {
+            result.push({ towerPos: b.position, chamberPos: selectedBuilding.position });
+          }
+        }
+      }
+    }
+
+    return result;
+  }, [selectedBuilding, buildings]);
+
+  if (pairs.length === 0) return null;
+
+  const half = tileSize / 2;
+  const color = '#00ddc0';
+
+  return (
+    <svg
+      className="leash-line-layer crystal-tower-connection-layer"
+      style={{ width: MAP.GRID_WIDTH * tileSize, height: MAP.GRID_HEIGHT * tileSize }}
+    >
       {pairs.map((pair, i) => {
-        const mx = pair.magePos.x * tileSize + half;
-        const my = pair.magePos.y * tileSize + half;
-        const dx = pair.demonPos.x * tileSize + half;
-        const dy = pair.demonPos.y * tileSize + half;
+        const tx = pair.towerPos.x * tileSize + half;
+        const ty = pair.towerPos.y * tileSize + half;
+        const cx = pair.chamberPos.x * tileSize + half;
+        const cy = pair.chamberPos.y * tileSize + half;
 
-        // Control points: perpendicular offset for a flowing curve
-        const lx = dx - mx;
-        const ly = dy - my;
+        const lx = cx - tx;
+        const ly = cy - ty;
         const len = Math.sqrt(lx * lx + ly * ly) || 1;
-        const px = (-ly / len) * tileSize * 0.8;
-        const py = (lx / len) * tileSize * 0.8;
+        const px = (-ly / len) * tileSize * 0.6;
+        const py = (lx / len) * tileSize * 0.6;
 
-        const cp1x = mx + lx / 3 + px;
-        const cp1y = my + ly / 3 + py;
-        const cp2x = mx + (lx * 2) / 3 - px;
-        const cp2y = my + (ly * 2) / 3 - py;
+        const cp1x = tx + lx / 3 + px;
+        const cp1y = ty + ly / 3 + py;
+        const cp2x = tx + (lx * 2) / 3 - px;
+        const cp2y = ty + (ly * 2) / 3 - py;
 
-        const d = `M ${mx},${my} C ${cp1x},${cp1y} ${cp2x},${cp2y} ${dx},${dy}`;
-        const color = pair.warn ? '#ff3333' : '#ff8800';
+        const d = `M ${tx},${ty} C ${cp1x},${cp1y} ${cp2x},${cp2y} ${cx},${cy}`;
 
         return (
           <g key={i}>
@@ -1854,7 +2003,7 @@ function LeashLineLayer({ tileSize }: { tileSize: number }) {
               fill="none"
               strokeLinecap="round"
               opacity={0.25}
-              filter="url(#leash-blur)"
+              filter="url(#tower-chamber-blur)"
             />
             {/* main line with dash animation */}
             <path
@@ -1864,14 +2013,14 @@ function LeashLineLayer({ tileSize }: { tileSize: number }) {
               fill="none"
               strokeLinecap="round"
               strokeDasharray="8 5"
-              className="leash-line-dash"
+              className="tower-chamber-line-dash"
               opacity={0.9}
             />
           </g>
         );
       })}
       <defs>
-        <filter id="leash-blur" x="-50%" y="-50%" width="200%" height="200%">
+        <filter id="tower-chamber-blur" x="-50%" y="-50%" width="200%" height="200%">
           <feGaussianBlur stdDeviation="4" />
         </filter>
       </defs>

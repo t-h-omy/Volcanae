@@ -843,6 +843,23 @@ export function resolveBuildingAttack(
   const buildingCombatant = buildingToCombatant(building)!;
   const defenderCombatant = unitToCombatant(defender);
 
+  // CRYSTAL_TOWER synergy: each player-owned Crystal Chamber within attack range
+  // grants a flat attack bonus to the tower.
+  if (building.type === BuildingType.CRYSTAL_TOWER && buildingFaction === Faction.PLAYER && building.combatStats) {
+    const attackRange = building.combatStats.attackRange;
+    for (const b of Object.values(state.buildings)) {
+      if (b.type === BuildingType.CRYSTAL_CHAMBER && b.faction === Faction.PLAYER) {
+        if (isTileWithinEdgeCircleRange(
+          building.position.x, building.position.y,
+          b.position.x, b.position.y,
+          attackRange,
+        )) {
+          buildingCombatant.attack += MAGE.CRYSTAL_TOWER_CHAMBER_ATTACK_BONUS;
+        }
+      }
+    }
+  }
+
   // HOLD_GROUND: if the flag is active and the defender is a player unit
   // standing on a player-owned building, add a flat defense bonus.
   if (state.techFlags.includes(TechFlag.HOLD_GROUND) && defender.faction === Faction.PLAYER) {

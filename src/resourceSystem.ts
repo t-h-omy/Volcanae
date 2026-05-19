@@ -701,6 +701,7 @@ export function recruitUnit(
     lastMovedTurn: 0,
     pinnedUntilTurn: 0,
     distractionDefPenalty: 0,
+    recruitedOnTurn: state.turn,
   };
   const unit = state.units[unitId];
   for (const mod of getStatMods(state, unitType)) {

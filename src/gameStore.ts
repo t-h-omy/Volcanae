@@ -52,7 +52,7 @@ import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLo
 import { canUnitHeal, getHealTargets, canUnitFieldwork } from './unitActions';
 import { createFieldworkOutpost } from './constructionSystem';
 import { getTagsFromActiveSpecialists } from './specialistSystem';
-import { castSpell as castSpellLogic, sweepLeashes } from './spellSystem';
+import { castSpell as castSpellLogic } from './spellSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { useShockwaveStore } from './shockwaveStore';
 
@@ -366,30 +366,10 @@ export const useGameStore = create<GameStore>()(
         }
         // ── End ice-slide animation ──────────────────────────────────────────
 
-        // Defect any leashed units that are now out of range
-        const defectedIds = sweepLeashes(state);
-        if (defectedIds.length > 0) {
-          if (defectedIds.includes(state.selectedUnitId ?? '')) {
-            state.selectedUnitId = null;
-          }
-          const { addFloater } = useFloaterStore.getState();
-          const { setUnitAnimation } = useCombatAnimationStore.getState();
-          const { setCameraTarget } = useAnimationStore.getState();
-          let firstPos: { x: number; y: number } | null = null;
-          for (const id of defectedIds) {
-            const u = state.units[id];
-            if (!u) continue;
-            addFloater({
-              label: '⚠️ Defected!',
-              x: u.position.x, y: u.position.y,
-              isEnemy: true, floaterType: 'damage', value: 0,
-            });
-            if (!firstPos) firstPos = { x: u.position.x, y: u.position.y };
-            setUnitAnimation(id, { type: 'DEFECT_TO_ENEMY', durationMs: ANIMATION.DEFECT_VFX_DURATION_MS });
-            setTimeout(() => useCombatAnimationStore.getState().setUnitAnimation(id, null), ANIMATION.DEFECT_VFX_DURATION_MS);
-          }
-          if (firstPos) setCameraTarget(firstPos);
-        }
+        // NOTE: Leash-loss defection is now checked only at the end of the player
+        // turn (in endPlayerTurn) rather than immediately after each move.  This
+        // gives the player the whole turn to reposition before the demon defects.
+
         // Check win/loss conditions after player action
         checkGameConditions(state);
       });
@@ -1456,6 +1436,7 @@ export const useGameStore = create<GameStore>()(
 
           // Leash defection: any player-faction LEASHED unit defects if its
           // controlling Mage is dead or out of leash range.
+          // The demon's mage/position is captured for the burst VFX BEFORE mutating.
           for (const unit of Object.values(draft.units)) {
             if (!unit.tags.includes(UnitTag.LEASHED)) continue;
             if (unit.faction !== Faction.PLAYER) continue;
@@ -1474,22 +1455,36 @@ export const useGameStore = create<GameStore>()(
             }
 
             if (defects) {
+              // Capture positions and IDs for burst VFX before mutating state.
+              const demonId = unit.id;
+              const demonPos = { x: unit.position.x, y: unit.position.y };
+              const mageId = unit.controllerMageId ?? '';
+              const magePos = mage ? { x: mage.position.x, y: mage.position.y } : demonPos;
+
               unit.faction = Faction.ENEMY;
               unit.controllerMageId = null;
               unit.tags = unit.tags.filter((t) =>
                 t !== UnitTag.LEASHED && t !== UnitTag.SUMMONED
               );
+
+              // Strong visual feedback: camera moves to demon, leash burst VFX fires,
+              // DEFECT_TO_ENEMY animation plays, floater appears.
+              const combatStore = useCombatAnimationStore.getState();
+              useAnimationStore.getState().setCameraTarget(demonPos);
+              combatStore.addLeashBurstPair({ mageId, demonId, magePos, demonPos });
+              combatStore.setUnitAnimation(demonId, { type: 'DEFECT_TO_ENEMY', durationMs: ANIMATION.DEFECT_VFX_DURATION_MS });
               useFloaterStore.getState().addFloater({
                 value: 0,
                 label: '⚠️ Defected!',
-                x: unit.position.x,
-                y: unit.position.y,
+                x: demonPos.x,
+                y: demonPos.y,
                 isEnemy: true,
                 floaterType: 'revive',
               });
-              useAnimationStore.getState().setCameraTarget({ x: unit.position.x, y: unit.position.y });
-              useCombatAnimationStore.getState().setUnitAnimation(unit.id, { type: 'DEFECT_TO_ENEMY', durationMs: ANIMATION.DEFECT_VFX_DURATION_MS });
-              setTimeout(() => useCombatAnimationStore.getState().setUnitAnimation(unit.id, null), ANIMATION.DEFECT_VFX_DURATION_MS);
+              setTimeout(() => {
+                useCombatAnimationStore.getState().setUnitAnimation(demonId, null);
+                useCombatAnimationStore.getState().removeLeashBurstPair(demonId);
+              }, ANIMATION.LEASH_BURST_VFX_DURATION_MS);
             }
           }
 

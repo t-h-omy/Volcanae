@@ -131,6 +131,9 @@ export function loadGameState(): GameState | null {
         if (u && typeof u.id === 'string' && typeof u.lastMovedTurn !== 'number') {
           u.lastMovedTurn = 0;
         }
+        if (u && typeof u.id === 'string' && typeof u.recruitedOnTurn !== 'number') {
+          u.recruitedOnTurn = 0;
+        }
       }
     }
 
