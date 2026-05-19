@@ -1291,8 +1291,6 @@ export const ABILITIES = {
   // ── Mage system ability constants ────────────────────────────────────────────
   /** Number of turns a unit triggered by a GRAVE_TRAP is stunned */
   GRAVE_TRAP_STUN_TURNS: 2,
-  /** Leash range (in tiles) within which a LEASHED unit must remain relative to its controller Mage */
-  LEASH_RANGE: 4,
 } as const;
 
 // Override GRAVESTONE description now that ABILITIES is available (crystal cost is configurable).

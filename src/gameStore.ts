@@ -2028,7 +2028,21 @@ export const useGameStore = create<GameStore>()(
           case 'BUILDING_CAPTURE': {
             const building = state.buildings[event.buildingId];
             if (building) {
-              building.faction = event.newFaction;
+              // Enemy captures always destroy the building (non-STRONGHOLD/WATCHTOWER captures
+              // by the player are applied directly without events). Delete it and apply the
+              // destroy behavior immediately so the ruin sprite appears during animation
+              // rather than waiting for setGameState at the end of the enemy turn.
+              const { x, y } = building.position;
+              const destroyBehavior = building.destroyBehavior;
+              delete state.buildings[event.buildingId];
+              const captureTile = state.grid[y][x];
+              captureTile.buildingId = null;
+              if (destroyBehavior === DestroyBehavior.STRONGHOLD_RUIN) {
+                captureTile.isStrongholdRuin = true;
+              } else if (destroyBehavior === DestroyBehavior.RUIN) {
+                captureTile.isRuin = true;
+              }
+              // DestroyBehavior.NONE / RESOURCE: no ruin — terrain is restored naturally
             }
             // XP floater for the capturing unit.
             if (event.xpGained) {
