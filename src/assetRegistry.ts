@@ -48,11 +48,14 @@ export const UNIT_SPRITE: Partial<Record<UnitType, string>> = withBase({
   EMBER_DEMON: '/sprites/units/Ember_Demon_Player_100px.png',
   SKELETON:    '/sprites/units/Skeleton_100px.png',
   // Enemy units
-  LAVA_GRUNT:  '/sprites/units/Grunt_100px.png',
-  LAVA_ARCHER: '/sprites/units/Spitter_100px.png',
-  LAVA_RIDER:  '/sprites/units/Blazard_100px.png',
-  LAVA_SIEGE:  '/sprites/units/Hurler_100px.png',
-  EMBERLING:   '/sprites/units/Emberling_100px.png',
+  LAVA_GRUNT:   '/sprites/units/Grunt_100px.png',
+  LAVA_ARCHER:  '/sprites/units/Spitter_100px.png',
+  LAVA_RIDER:   '/sprites/units/Blazard_100px.png',
+  LAVA_SIEGE:   '/sprites/units/Hurler_100px.png',
+  // TODO: replace with dedicated sprites when assets are ready
+  LAVA_REAPER:  '/sprites/units/Grunt_100px.png',
+  LAVA_LANCER:  '/sprites/units/Blazard_100px.png',
+  EMBERLING:    '/sprites/units/Emberling_100px.png',
   CAVE_MONSTER: '/sprites/units/Cave_Monster_100px.png',
 });
 

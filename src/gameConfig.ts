@@ -481,6 +481,9 @@ export const AI_RECRUITMENT = {
   BASE_SCORE_RIDER: 0,
   BASE_SCORE_SIEGE: 0,
   BASE_SCORE_EMBERLING: 0,
+  // Counter units — placeholder base scores; detailed scoring added in Part 8
+  BASE_SCORE_REAPER: 0,
+  BASE_SCORE_LANCER: 0,
 
   // ── Classification thresholds ───────────────────────────────────────────
   /** Unit offensiveScore >= this → counted as offensive */
@@ -904,6 +907,36 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     ],
     enemyUnlockEmber: 5,
     description: 'Enemy long-range bombard.', // overwritten below
+  },
+
+  LAVA_REAPER: {
+    maxHp: 100, attack: 50, defense: 35,
+    movementActions: 1, moveRange: 1, attackRange: 1,
+    discoverRadius: 1, triggerRange: 3,
+    tags: [UnitTag.CLEAVE, UnitTag.RAGE, UnitTag.CORRUPT, UnitTag.LAVA],
+    cost: { iron: 0, wood: 0 },
+    populationCost: { farmers: 0, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    enemyUnlockEmber: 3,
+    description: 'Brutal cluster-breaker. Cleaves into adjacent enemies and grows stronger when surrounded.',
+  },
+
+  LAVA_LANCER: {
+    maxHp: 80, attack: 60, defense: 30,
+    movementActions: 1, moveRange: 2, attackRange: 1,
+    discoverRadius: 1, triggerRange: 3,
+    tags: [UnitTag.PIERCE, UnitTag.ALERT, UnitTag.LAVA],
+    cost: { iron: 0, wood: 0 },
+    populationCost: { farmers: 0, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    enemyUnlockEmber: 4,
+    description: 'Fast lancer that pierces through front lines, dealing full damage to units behind the target. Immune to stun.',
   },
 
   EMBERLING: {
