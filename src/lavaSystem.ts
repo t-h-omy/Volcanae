@@ -143,18 +143,24 @@ export function advanceLava(state: Draft<GameState>): void {
     if (tile.unitId !== null) {
       const unitId = tile.unitId;
       const unit = state.units[unitId];
-      // Any enemy unit destroyed by lava advance increases threat level
-      if (unit && unit.faction === Faction.ENEMY) {
-        state.ember += 1;
-        state.emberLevelSources.other += 1;
+      // Units in UNDERGROUND or EMERGING tunnel states are below the surface —
+      // they are immune to lava advance on their tile grid position.
+      if (unit && (unit.tunnelState === 'UNDERGROUND' || unit.tunnelState === 'EMERGING')) {
+        tile.unitId = null; // The hole/tile is consumed but the unit survives
+      } else {
+        // Any enemy unit destroyed by lava advance increases threat level
+        if (unit && unit.faction === Faction.ENEMY) {
+          state.ember += 1;
+          state.emberLevelSources.other += 1;
+        }
+        if (unit && unit.faction === Faction.PLAYER) {
+          state.gameStats.unitsLost += 1;
+        }
+        // Remove unit from state
+        delete state.units[unitId];
+        // Clear unit from tile
+        tile.unitId = null;
       }
-      if (unit && unit.faction === Faction.PLAYER) {
-        state.gameStats.unitsLost += 1;
-      }
-      // Remove unit from state
-      delete state.units[unitId];
-      // Clear unit from tile
-      tile.unitId = null;
     }
 
     // Destroy any building on this tile

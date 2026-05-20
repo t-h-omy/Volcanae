@@ -78,6 +78,18 @@ function eventPosition(event: GameEvent): Position {
       return event.position;
     case 'TILE_DAMAGE':
       return event.position;
+    case 'CLEAVE_DAMAGE':
+      return event.position;
+    case 'PIERCE_DAMAGE':
+      return event.position;
+    case 'STUN_APPLIED':
+      return event.position;
+    case 'TUNNEL_DIG_IN':
+      return event.position;
+    case 'TUNNEL_EMERGE_WARNING':
+      return event.position;
+    case 'TUNNEL_EMERGE':
+      return event.position;
   }
 }
 
@@ -140,6 +152,18 @@ function isEventVisible(event: GameEvent): boolean {
     case 'EMBER_LEVEL_UP':
       return isTileRevealed(event.position);
     case 'TILE_DAMAGE':
+      return isTileRevealed(event.position);
+    case 'CLEAVE_DAMAGE':
+      return isTileRevealed(event.position);
+    case 'PIERCE_DAMAGE':
+      return isTileRevealed(event.position);
+    case 'STUN_APPLIED':
+      return isTileRevealed(event.position);
+    case 'TUNNEL_DIG_IN':
+      return isTileRevealed(event.position);
+    case 'TUNNEL_EMERGE_WARNING':
+      return isTileRevealed(event.position);
+    case 'TUNNEL_EMERGE':
       return isTileRevealed(event.position);
   }
 }

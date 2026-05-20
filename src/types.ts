@@ -40,6 +40,7 @@ export const UnitType = {
   LAVA_BREAKER: 'LAVA_BREAKER',
   LAVA_PYROCLAST: 'LAVA_PYROCLAST',
   LAVA_BEAST: 'LAVA_BEAST',
+  LAVA_BURROWER: 'LAVA_BURROWER',
   EMBERLING: 'EMBERLING',
   CAVE_MONSTER: 'CAVE_MONSTER',
 } as const;
@@ -388,6 +389,17 @@ export interface Unit {
    * Used to apply the exhausted visual filter to freshly recruited units.
    */
   recruitedOnTurn?: number;
+
+  /** Current tunnel state for units with TUNNEL tag. */
+  tunnelState?: 'IDLE' | 'DIGGING_IN' | 'UNDERGROUND' | 'EMERGING' | null;
+  /** Tile where the unit dug in (used for visualization of the hole). */
+  tunnelStartPosition?: Position | null;
+  /** Tile where the unit will emerge. */
+  tunnelPlannedEmergence?: Position | null;
+  /** Turns the unit has spent underground (counts toward TUNNEL_MAX_RETRY_TURNS). */
+  tunnelTurnsUnderground?: number;
+  /** Turn number until which this unit cannot dig in again. */
+  tunnelCooldownUntil?: number;
 }
 
 /** Defines a single stat boost applied when a unit reaches a new level */

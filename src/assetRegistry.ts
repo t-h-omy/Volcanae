@@ -58,6 +58,7 @@ export const UNIT_SPRITE: Partial<Record<UnitType, string>> = withBase({
   LAVA_BREAKER:   '/sprites/units/Grunt_100px.png',
   LAVA_PYROCLAST: '/sprites/units/Spitter_100px.png',
   LAVA_BEAST:     '/sprites/units/Hurler_100px.png',
+  LAVA_BURROWER:  '/sprites/units/Grunt_100px.png',
   EMBERLING:    '/sprites/units/Emberling_100px.png',
   CAVE_MONSTER: '/sprites/units/Cave_Monster_100px.png',
 });
@@ -198,3 +199,17 @@ export const TILE_STATUS_SPRITE: Partial<Record<TileType, Partial<Record<TileSta
  * TODO: Replace empty string with a real ice overlay PNG once art is available.
  */
 export const ICE_OVERLAY_SPRITE = withBase({ ice: '' }).ice ?? '';
+
+/**
+ * Sprite path for the tunnel hole overlay.
+ * Rendered on `tunnelStartPosition` while a TUNNEL unit is DIGGING_IN or UNDERGROUND.
+ * Empty string = pink MissingSprite placeholder until real art is ready.
+ */
+export const TUNNEL_HOLE_SPRITE = withBase({ hole: '' }).hole ?? '';
+
+/**
+ * Sprite path for the earthquake / emergence warning indicator.
+ * Rendered on `tunnelPlannedEmergence` while a TUNNEL unit is in EMERGING state.
+ * Empty string = pink MissingSprite placeholder until real art is ready.
+ */
+export const TUNNEL_EARTHQUAKE_SPRITE = withBase({ earthquake: '' }).earthquake ?? '';

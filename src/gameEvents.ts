@@ -203,4 +203,35 @@ export type GameEvent =
       unitId: string;
       /** Position of the stunned unit */
       position: Position;
+    }
+  | {
+      /**
+       * Emitted when a TUNNEL unit digs in. The unit is removed from the tile.
+       * Renderers should place a hole sprite at `position` while tunnelState is
+       * DIGGING_IN or UNDERGROUND.
+       */
+      type: 'TUNNEL_DIG_IN';
+      unitId: string;
+      /** Tile where the unit dug in (hole origin). */
+      position: Position;
+    }
+  | {
+      /**
+       * Emitted one turn before emergence to warn the player.
+       * Renderers should place an earthquake indicator on `position`.
+       */
+      type: 'TUNNEL_EMERGE_WARNING';
+      unitId: string;
+      /** Tile where the unit will emerge next turn. */
+      position: Position;
+    }
+  | {
+      /**
+       * Emitted when a TUNNEL unit emerges on the surface.
+       * Renderers should trigger the emergence animation on `position`.
+       */
+      type: 'TUNNEL_EMERGE';
+      unitId: string;
+      /** Tile where the unit emerged. */
+      position: Position;
     };

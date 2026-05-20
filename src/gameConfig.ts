@@ -487,6 +487,7 @@ export const AI_RECRUITMENT = {
   BASE_SCORE_BREAKER: 0,
   BASE_SCORE_PYROCLAST: 0,
   BASE_SCORE_BEAST: 0,
+  BASE_SCORE_BURROWER: 0,
 
   // ── Classification thresholds ───────────────────────────────────────────
   /** Unit offensiveScore >= this → counted as offensive */
@@ -985,6 +986,21 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     ],
     enemyUnlockEmber: 6,
     description: 'Resilient lava beast that resists damage from summoned units and grows enraged in dense clusters.',
+  },
+
+  LAVA_BURROWER: {
+    maxHp: 75, attack: 60, defense: 25,
+    movementActions: 1, moveRange: 1, attackRange: 1,
+    discoverRadius: 1, triggerRange: 3,
+    tags: [UnitTag.TUNNEL, UnitTag.RAGE, UnitTag.CORRUPT, UnitTag.LAVA],
+    cost: { iron: 0, wood: 0 },
+    populationCost: { farmers: 0, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    enemyUnlockEmber: 5,
+    description: 'Bypasses the frontline by digging underground. Emerges south of the player line, damaging adjacent enemies and corrupting the tile.',
   },
 
   EMBERLING: {

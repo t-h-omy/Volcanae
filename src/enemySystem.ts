@@ -18,6 +18,7 @@ import type { GameEvent } from './gameEvents';
 import { hasUnitActed } from './unitActions';
 import { sweepLeashes } from './spellSystem';
 import { checkGraveTrapTrigger } from './movementSystem';
+import { tryBeginTunnel, processTunnelTurn } from './tunnelSystem';
 
 // ============================================================================
 // ID GENERATION
@@ -664,6 +665,7 @@ function scoreRecruitmentForBuilding(
       [UnitType.LAVA_BREAKER]: R.BASE_SCORE_BREAKER,
       [UnitType.LAVA_PYROCLAST]: R.BASE_SCORE_PYROCLAST,
       [UnitType.LAVA_BEAST]: R.BASE_SCORE_BEAST,
+      [UnitType.LAVA_BURROWER]: R.BASE_SCORE_BURROWER,
     };
     let score = baseScores[unitType] ?? 0;
 
@@ -2514,6 +2516,16 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
         if (currentUnit.pinnedUntilTurn >= draft.turn) {
           currentUnit.hasMovedThisTurn = true;   // block movement
           currentUnit.hasAttackedThisTurn = true; // block attack
+        }
+        // Tunnel mechanic — pre-empts normal AI for TUNNEL-tagged units
+        if (currentUnit.tags.includes(UnitTag.TUNNEL)) {
+          if (currentUnit.tunnelState && currentUnit.tunnelState !== 'IDLE') {
+            const consumed = processTunnelTurn(draft, currentUnit.id, events);
+            if (consumed) break; // Skip normal AI turn
+          } else {
+            const began = tryBeginTunnel(draft, currentUnit.id, events);
+            if (began) break; // Skip normal AI turn (tunnel just started)
+          }
         }
         decideAndExecute(currentUnit, draft, targetingIntents, recentlyLostBuildingIds, events);
       }
