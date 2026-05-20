@@ -59,6 +59,17 @@ export interface Projectile {
   durationMs: number;
 }
 
+/**
+ * A leash connection that is currently playing a "burst" defection VFX.
+ * The pair is shown regardless of which unit is selected, until cleared.
+ */
+export interface LeashBurstPair {
+  mageId: string;
+  demonId: string;
+  magePos: { x: number; y: number };
+  demonPos: { x: number; y: number };
+}
+
 interface CombatAnimationState {
   unitAnimations: Map<string, UnitAnimationState>;
   buildingAnimations: Map<string, BuildingAnimationState>;
@@ -67,6 +78,8 @@ interface CombatAnimationState {
   tileFlashes: Map<string, { durationMs: number }>;
   /** Ghost units rendered during slide-into-lethal-tile death animations */
   slideKillGhosts: Map<string, SlideKillGhost>;
+  /** Leash pairs that are visually "bursting" — shown always, ignoring selection */
+  leashBurstPairs: LeashBurstPair[];
 }
 
 interface CombatAnimationActions {
@@ -79,6 +92,8 @@ interface CombatAnimationActions {
   addSlideKillGhost: (ghost: SlideKillGhost) => void;
   setSlideKillGhostPhase: (id: string, phase: SlideKillGhost['phase']) => void;
   removeSlideKillGhost: (id: string) => void;
+  addLeashBurstPair: (pair: LeashBurstPair) => void;
+  removeLeashBurstPair: (demonId: string) => void;
 }
 
 type CombatAnimationStore = CombatAnimationState & CombatAnimationActions;
@@ -93,6 +108,7 @@ export const useCombatAnimationStore = create<CombatAnimationStore>((set) => ({
   projectiles: [],
   tileFlashes: new Map(),
   slideKillGhosts: new Map(),
+  leashBurstPairs: [],
 
   setUnitAnimation: (unitId, anim) => {
     set((state) => {
@@ -168,5 +184,17 @@ export const useCombatAnimationStore = create<CombatAnimationStore>((set) => ({
       next.delete(id);
       return { slideKillGhosts: next };
     });
+  },
+
+  addLeashBurstPair: (pair) => {
+    set((state) => ({
+      leashBurstPairs: [...state.leashBurstPairs, pair],
+    }));
+  },
+
+  removeLeashBurstPair: (demonId) => {
+    set((state) => ({
+      leashBurstPairs: state.leashBurstPairs.filter((p) => p.demonId !== demonId),
+    }));
   },
 }));

@@ -356,6 +356,12 @@ export interface Unit {
   controllerMageId?: string | null;
   /** Set on Mage units; true after the unit has cast a spell this turn. Reset each player turn. */
   hasCastThisTurn?: boolean;
+  /**
+   * The turn number on which this unit was recruited/spawned.
+   * 0 means it was not recruited this turn (or predates the field).
+   * Used to apply the exhausted visual filter to freshly recruited units.
+   */
+  recruitedOnTurn?: number;
 }
 
 /** Defines a single stat boost applied when a unit reaches a new level */

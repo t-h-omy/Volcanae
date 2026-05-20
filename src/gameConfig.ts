@@ -167,6 +167,10 @@ export const MAGE = {
   /** Crystals granted when an enemy unit is killed by a CRYSTAL_TOWER */
   CRYSTAL_TOWER_KILL_CRYSTAL_REWARD: 1,
 
+  // ── Crystal Tower ↔ Crystal Chamber synergy ─────────────────────────
+  /** Attack bonus added to a Crystal Tower per player-owned Crystal Chamber within its attack range */
+  CRYSTAL_TOWER_CHAMBER_ATTACK_BONUS: 10,
+
   // ── GRAVE_HARVEST tech parameters ────────────────────────────────────
   /** Per-turn percent chance for each player-owned GRAVESTONE to grant 1 crystal */
   GRAVE_HARVEST_CRYSTAL_CHANCE: 25,
@@ -1176,7 +1180,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
   b.OUTPOST.description    = `Field fortification built by Spearmen via Fieldwork. Attacks enemies within ${b.OUTPOST.combatStats!.attackRange} tiles. Starting HP is based on the building unit's current HP, capped at ${b.OUTPOST.combatStats!.maxHp}.`;
   b.MAGMASPYR.description  = `Corrupted mountain spire that attacks nearby units up to ${b.MAGMASPYR.combatStats!.maxAttacksPerTurn} times per turn.`;
   b.EMBERNEST.description  = `Corrupted forest nest that spawns Emberlings every ${LAVA_LAIR.EMBER_NEST_SPAWN_INTERVAL} turns.`;
-  b.CRYSTAL_CHAMBER.description = `Arcane resonator. When a Crystal Chamber is consumed by lava, all surviving chambers begin resonating and generate ${CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN} crystal${CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN !== 1 ? 's' : ''} per turn. While active, can recruit up to ${CRYSTAL_CHAMBER_CONFIG.CHAMBER_UNIT_LIMIT} Mage at a time once Arcane Awakening is researched.`;
+  b.CRYSTAL_CHAMBER.description = `Arcane resonator. When a Crystal Chamber is consumed by lava, all surviving chambers begin resonating and generate ${CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN} crystal${CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN !== 1 ? 's' : ''} per turn. While active, Mages can be recruited once Arcane Awakening is researched.`;
 }
 
 export const TECH = {
@@ -1300,7 +1304,7 @@ export const ABILITIES = {
   BUILDING_DEFINITIONS.GRAVE_TRAP.description =
     `A magic trap forged from a gravestone. The next unit to step onto it is stunned for ${MAGE.GRAVE_TRAP_STUN_TURNS} turns and the trap is consumed.`;
   BUILDING_DEFINITIONS.CRYSTAL_TOWER.description =
-    `Arcane combat tower. Attacks enemies within ${BUILDING_DEFINITIONS.CRYSTAL_TOWER.combatStats!.attackRange} tiles. Each enemy unit it kills generates ${MAGE.CRYSTAL_TOWER_KILL_CRYSTAL_REWARD} crystal.`;
+    `Arcane combat tower. Attacks enemies within ${BUILDING_DEFINITIONS.CRYSTAL_TOWER.combatStats!.attackRange} tiles. Each enemy unit it kills generates ${MAGE.CRYSTAL_TOWER_KILL_CRYSTAL_REWARD} crystal. Gains +${MAGE.CRYSTAL_TOWER_CHAMBER_ATTACK_BONUS} attack per connected Crystal Chamber within range.`;
 }
 
 // ============================================================================
