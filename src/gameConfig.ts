@@ -2007,6 +2007,8 @@ export const TUNNEL_EMERGE_DAMAGE = 20;
 export const TUNNEL_COOLDOWN_TURNS = 2;
 /** TUNNEL: maximum number of turns the unit can stay underground while waiting for a free emergence tile. */
 export const TUNNEL_MAX_RETRY_TURNS = 1;
+/** TUNNEL: HP multiplier applied when a unit is forced to emerge with no valid free tile (last-resort fallback). */
+export const TUNNEL_FORCED_EMERGE_HP_MULTIPLIER = 0.7;
 
 /** EMBER_PORTAL: maximum distance from the caster to an exit tile. */
 export const EMBER_PORTAL_EXIT_RANGE = 6;

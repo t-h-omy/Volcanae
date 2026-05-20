@@ -22,6 +22,7 @@ import {
   TUNNEL_EMERGE_DAMAGE,
   TUNNEL_COOLDOWN_TURNS,
   TUNNEL_MAX_RETRY_TURNS,
+  TUNNEL_FORCED_EMERGE_HP_MULTIPLIER,
   MAP,
 } from './gameConfig';
 import { applyTileStatus } from './tileStatusSystem';
@@ -72,22 +73,21 @@ function findEmergenceTile(
 }
 
 /**
- * Find a fallback emergence tile within 1 tile of `center` (Chebyshev).
+ * Find a fallback emergence tile within Chebyshev distance 1 of `center`.
  * Used when the planned emergence tile becomes invalid and retry budget is exhausted.
- * Returns the closest valid free tile, or null.
+ * Returns the first valid free tile found in raster order, or null.
  */
 function findFallbackEmergence(
   state: Draft<GameState>,
   center: Position,
 ): Position | null {
-  for (let dy = 0; dy <= 1; dy++) {
-    for (let dx = -dy; dx <= dy; dx++) {
-      for (const [cx, cy] of [[center.x + dx, center.y + dy], [center.x - dx, center.y - dy]] as const) {
-        if (cx === center.x && cy === center.y && dy === 0) {
-          if (isTileFreeForUnit(state, cx, cy)) return { x: cx, y: cy };
-          continue;
-        }
-        if (isTileFreeForUnit(state, cx, cy)) return { x: cx, y: cy };
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue; // skip the center itself
+      const nx = center.x + dx;
+      const ny = center.y + dy;
+      if (isTileFreeForUnit(state, nx, ny)) {
+        return { x: nx, y: ny };
       }
     }
   }
@@ -231,8 +231,8 @@ export function processTunnelTurn(
         return true;
       }
 
-      // Last resort: force-emerge on planned tile with 30% HP reduction
-      unit.stats.currentHp = Math.max(1, Math.floor(unit.stats.currentHp * 0.7));
+      // Last resort: force-emerge on planned tile with HP reduction
+      unit.stats.currentHp = Math.max(1, Math.floor(unit.stats.currentHp * TUNNEL_FORCED_EMERGE_HP_MULTIPLIER));
       unit.tunnelState = 'EMERGING';
       events?.push({
         type: 'TUNNEL_EMERGE_WARNING',

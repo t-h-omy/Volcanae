@@ -190,6 +190,18 @@ export function advanceLava(state: Draft<GameState>): void {
 
   // Update lava preview for next rows
   updateLavaPreview(state);
+
+  // Clear stale tunnel references for underground units whose dig-in position
+  // has just been consumed by lava. These units exist in state.units with no
+  // tile reference (tile.unitId was cleared when they dug in), so the tile loop
+  // above does not reach them. Clear tunnelStartPosition so that the hole-sprite
+  // overlay is not rendered on a lava tile.
+  for (const unit of Object.values(state.units)) {
+    if (unit.tunnelState !== 'UNDERGROUND' && unit.tunnelState !== 'EMERGING') continue;
+    if (unit.tunnelStartPosition && unit.tunnelStartPosition.y === newLavaRow) {
+      unit.tunnelStartPosition = null;
+    }
+  }
 }
 
 // ============================================================================
