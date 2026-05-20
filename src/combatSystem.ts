@@ -855,7 +855,9 @@ export function resolveAttack(
           const cleaveTargetId = cleaveTile.unitId;
           const cleaveTarget = state.units[cleaveTargetId];
           if (!cleaveTarget || cleaveTarget.faction === attacker.faction) continue;
-          // CLEAVE ignores PHALANX — subtract raw stats.defense only.
+          // CLEAVE ignores PHALANX — use stats.defense (raw runtime defense) which does NOT
+          // include the PHALANX bonus; that bonus is only added to defenderCombatant during
+          // the primary combat calculation via getPhalanxDefenseBonus.
           // Minimum 1 ensures the tag is always meaningful even against high-defense targets.
           const finalCleaveDamage = Math.max(1, cleaveDamage - cleaveTarget.stats.defense);
           const newCleaveHp = cleaveTarget.stats.currentHp - finalCleaveDamage;
@@ -879,7 +881,9 @@ export function resolveAttack(
 
   // PIERCE secondary: deal the full (pre-multiplier) primary damage to the unit or building
   // on the tile directly behind the defender (relative to the attacker).
-  // Applies regardless of faction — PIERCE is geometric, not faction-aware (intentional friendly-fire).
+  // Applies regardless of faction — PIERCE is geometric, not faction-aware.
+  // WARNING: this includes intentional friendly-fire. A PIERCE attacker can harm its own
+  // allies if they stand directly behind the primary defender.
   // Suppressed on CORRUPTED tile.
   if (
     !attackerDead &&
@@ -918,15 +922,15 @@ export function resolveAttack(
         const rearBuilding = state.buildings[behindTile.buildingId];
         if (rearBuilding) {
           // Apply same defense-subtraction pattern as unit hits; use combatStats.defense if present.
-          // Minimum 1 ensures the tag always registers a hit. Full building-death handling is left
-          // to normal combat (HP is clamped at 1 here).
+          // Minimum 1 ensures the tag always registers a hit. HP is reduced to 0 (not deleted
+          // inline) — building removal triggers normally on the next attack that targets it.
           const buildingDefense = rearBuilding.combatStats?.defense ?? 0;
           const finalPierceBuildingDamage = Math.max(1, fullPrimaryDamage - buildingDefense);
           if (!suppressFloaters) {
             const { addFloater } = useFloaterStore.getState();
             addFloater({ value: finalPierceBuildingDamage, x: behindPos.x, y: behindPos.y, isEnemy: rearBuilding.faction === Faction.ENEMY });
           }
-          rearBuilding.hp = Math.max(1, rearBuilding.hp - finalPierceBuildingDamage);
+          rearBuilding.hp = Math.max(0, rearBuilding.hp - finalPierceBuildingDamage);
         }
       }
     }
