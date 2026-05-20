@@ -484,6 +484,9 @@ export const AI_RECRUITMENT = {
   // Counter units — placeholder base scores; detailed scoring added in Part 8
   BASE_SCORE_REAPER: 0,
   BASE_SCORE_LANCER: 0,
+  BASE_SCORE_BREAKER: 0,
+  BASE_SCORE_PYROCLAST: 0,
+  BASE_SCORE_BEAST: 0,
 
   // ── Classification thresholds ───────────────────────────────────────────
   /** Unit offensiveScore >= this → counted as offensive */
@@ -937,6 +940,51 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     ],
     enemyUnlockEmber: 4,
     description: 'Fast lancer that pierces through front lines, dealing full damage to units behind the target. Immune to stun.',
+  },
+
+  LAVA_BREAKER: {
+    maxHp: 110, attack: 55, defense: 40,
+    movementActions: 1, moveRange: 1, attackRange: 1,
+    discoverRadius: 1, triggerRange: 3,
+    tags: [UnitTag.PUNCTURE, UnitTag.BLOCK, UnitTag.LAVA],
+    cost: { iron: 0, wood: 0 },
+    populationCost: { farmers: 0, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    enemyUnlockEmber: 4,
+    description: 'Heavily armored brute that ignores defensive bonuses and stuns heavily armored targets. Resistant to melee damage.',
+  },
+
+  LAVA_PYROCLAST: {
+    maxHp: 70, attack: 40, defense: 20,
+    movementActions: 1, moveRange: 1, attackRange: 2,
+    discoverRadius: 1, triggerRange: 4,
+    tags: [UnitTag.BURN, UnitTag.RANGED, UnitTag.PREP, UnitTag.LAVA],
+    cost: { iron: 0, wood: 0 },
+    populationCost: { farmers: 0, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    enemyUnlockEmber: 5,
+    description: 'Ranged firestarter that scorches the target\'s tile, forcing player units to abandon static positions.',
+  },
+
+  LAVA_BEAST: {
+    maxHp: 130, attack: 50, defense: 45,
+    movementActions: 1, moveRange: 1, attackRange: 1,
+    discoverRadius: 1, triggerRange: 3,
+    tags: [UnitTag.RAGE, UnitTag.IRONBLOOD, UnitTag.CORRUPT, UnitTag.LAVA],
+    cost: { iron: 0, wood: 0 },
+    populationCost: { farmers: 0, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    enemyUnlockEmber: 6,
+    description: 'Resilient lava beast that resists damage from summoned units and grows enraged in dense clusters.',
   },
 
   EMBERLING: {

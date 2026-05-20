@@ -661,6 +661,9 @@ function scoreRecruitmentForBuilding(
       [UnitType.LAVA_SIEGE]: R.BASE_SCORE_SIEGE,
       [UnitType.LAVA_REAPER]: R.BASE_SCORE_REAPER,
       [UnitType.LAVA_LANCER]: R.BASE_SCORE_LANCER,
+      [UnitType.LAVA_BREAKER]: R.BASE_SCORE_BREAKER,
+      [UnitType.LAVA_PYROCLAST]: R.BASE_SCORE_PYROCLAST,
+      [UnitType.LAVA_BEAST]: R.BASE_SCORE_BEAST,
     };
     let score = baseScores[unitType] ?? 0;
 

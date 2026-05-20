@@ -53,8 +53,11 @@ export const UNIT_SPRITE: Partial<Record<UnitType, string>> = withBase({
   LAVA_RIDER:   '/sprites/units/Blazard_100px.png',
   LAVA_SIEGE:   '/sprites/units/Hurler_100px.png',
   // TODO: replace with dedicated sprites when assets are ready
-  LAVA_REAPER:  '/sprites/units/Grunt_100px.png',
-  LAVA_LANCER:  '/sprites/units/Blazard_100px.png',
+  LAVA_REAPER:    '/sprites/units/Grunt_100px.png',
+  LAVA_LANCER:    '/sprites/units/Blazard_100px.png',
+  LAVA_BREAKER:   '/sprites/units/Grunt_100px.png',
+  LAVA_PYROCLAST: '/sprites/units/Spitter_100px.png',
+  LAVA_BEAST:     '/sprites/units/Hurler_100px.png',
   EMBERLING:    '/sprites/units/Emberling_100px.png',
   CAVE_MONSTER: '/sprites/units/Cave_Monster_100px.png',
 });
