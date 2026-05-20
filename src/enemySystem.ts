@@ -1000,7 +1000,15 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
       const portal = getUsablePortalAtEntrance(state, movedUnit.position);
       if (portal && portal.casterId !== movedUnit.id) {
         const exitTile = state.grid[portal.exitPos.y]?.[portal.exitPos.x];
-        if (exitTile && !exitTile.unitId) {
+        // Validate exit tile: must exist, be free, not be lava, not be canyon,
+        // and have no building (a building may have been placed there since portal creation)
+        const exitPassable =
+          exitTile &&
+          !exitTile.unitId &&
+          !exitTile.isLava &&
+          exitTile.terrainType !== TileType.CANYON &&
+          exitTile.buildingId === null;
+        if (exitPassable) {
           const entranceTile = state.grid[movedUnit.position.y][movedUnit.position.x];
           const teleportFrom = { x: movedUnit.position.x, y: movedUnit.position.y };
           entranceTile.unitId = null;
@@ -1017,7 +1025,7 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
             });
           }
         }
-        // If exit is blocked the unit remains at entrance (already moved there)
+        // If exit is invalid or blocked the unit remains at entrance (already moved there)
       }
     }
   }
