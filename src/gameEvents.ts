@@ -167,4 +167,30 @@ export type GameEvent =
       position: Position;
       /** Amount of damage dealt */
       amount: number;
+    }
+  | {
+      /**
+       * Emitted when a CLEAVE attacker deals AoE damage to a unit in the
+       * intersection of tiles adjacent to both attacker and defender.
+       */
+      type: 'CLEAVE_DAMAGE';
+      /** ID of the unit that took cleave damage */
+      unitId: string;
+      /** Position where the floater should appear */
+      position: Position;
+      /** Amount of cleave damage dealt */
+      amount: number;
+    }
+  | {
+      /**
+       * Emitted when a PIERCE attacker deals full damage to the unit or
+       * building directly behind the primary defender.
+       */
+      type: 'PIERCE_DAMAGE';
+      /** ID of the unit that took pierce damage (null for buildings) */
+      unitId: string | null;
+      /** Position where the floater should appear */
+      position: Position;
+      /** Amount of pierce damage dealt */
+      amount: number;
     };
