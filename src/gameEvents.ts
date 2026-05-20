@@ -193,4 +193,14 @@ export type GameEvent =
       position: Position;
       /** Amount of pierce damage dealt */
       amount: number;
+    }
+  | {
+      /**
+       * Emitted when a PUNCTURE attacker stuns a high-DEF defender.
+       */
+      type: 'STUN_APPLIED';
+      /** ID of the unit that was stunned */
+      unitId: string;
+      /** Position of the stunned unit */
+      position: Position;
     };

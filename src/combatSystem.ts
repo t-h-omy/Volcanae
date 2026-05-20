@@ -6,13 +6,13 @@
 
 import type { Unit, Building, GameState, Tile } from './types';
 import type { Draft } from 'immer';
-import { BuildingType, Faction, UnitTag, UnitType, TechFlag, TileType, DestroyBehavior } from './types';
+import { BuildingType, Faction, UnitTag, UnitType, TechFlag, TileType, TileStatus, DestroyBehavior } from './types';
 import { useFloaterStore } from './floaterStore';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
-import { UNIT_DEFINITIONS, XP, ABILITIES, MAP, BUILDING_DEFINITIONS, MAGE, CLEAVE_DAMAGE_MULTIPLIER, PIERCE_PRIMARY_DAMAGE_MULTIPLIER, RAGE_ATK_PER_ADJACENT, RAGE_MAX_ADJACENT_COUNT } from './gameConfig';
+import { UNIT_DEFINITIONS, XP, ABILITIES, MAP, BUILDING_DEFINITIONS, MAGE, CLEAVE_DAMAGE_MULTIPLIER, PIERCE_PRIMARY_DAMAGE_MULTIPLIER, RAGE_ATK_PER_ADJACENT, RAGE_MAX_ADJACENT_COUNT, BLOCK_MELEE_DAMAGE_MULTIPLIER, IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER, PUNCTURE_STUN_BASE_DEF_THRESHOLD, PUNCTURE_STUN_DURATION } from './gameConfig';
 import { grantXp } from './levelSystem';
 import { generateId } from './mapGenerator';
-import { isUnitOnCorruptedTile } from './tileStatusSystem';
+import { isUnitOnCorruptedTile, applyTileStatus } from './tileStatusSystem';
 
 // Counter for generating unique gravestone building IDs within this module
 let combatSystemIdCounter = 0;
@@ -514,6 +514,13 @@ export function resolveAttack(
     attackerCombatant.attack += Math.min(adjacentEnemyCount, RAGE_MAX_ADJACENT_COUNT) * RAGE_ATK_PER_ADJACENT;
   }
 
+  // PUNCTURE: bypass all defensive bonuses — reset defender's effective defense to
+  // the raw base stat, ignoring PHALANX, HOLD_GROUND, and any other bonuses added above.
+  // Suppressed on CORRUPTED tile.
+  if (attacker.tags.includes(UnitTag.PUNCTURE) && !attackerOnCorrupted) {
+    defenderCombatant.defense = defender.stats.defense;
+  }
+
   const combatResult = calculateCombatFromStats(attackerCombatant, defenderCombatant);
 
   // ASSASSIN: no retaliation damage when ability is activated (defender at full HP).
@@ -538,6 +545,18 @@ export function resolveAttack(
   const fullPrimaryDamage = combatResult.defenderHpLost;
   if (attacker.tags.includes(UnitTag.PIERCE) && !attackerOnCorrupted) {
     combatResult.defenderHpLost = Math.floor(combatResult.defenderHpLost * PIERCE_PRIMARY_DAMAGE_MULTIPLIER);
+  }
+
+  // BLOCK: defender takes halved damage from melee attackers (attackRange === 1).
+  // NOT suppressed on corrupted tiles — defensive self-property.
+  if (defender.tags.includes(UnitTag.BLOCK) && attacker.stats.attackRange === 1) {
+    combatResult.defenderHpLost = Math.floor(combatResult.defenderHpLost * BLOCK_MELEE_DAMAGE_MULTIPLIER);
+  }
+
+  // IRONBLOOD: defender takes reduced damage from SUMMONED attackers.
+  // NOT suppressed on corrupted tiles — defensive self-property.
+  if (defender.tags.includes(UnitTag.IRONBLOOD) && attacker.tags.includes(UnitTag.SUMMONED)) {
+    combatResult.defenderHpLost = Math.floor(combatResult.defenderHpLost * IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER);
   }
 
   // Apply damage to defender
@@ -765,6 +784,20 @@ export function resolveAttack(
         defender.pinnedUntilTurn = state.turn;
       }
     }
+
+    // PUNCTURE: stun the defender for PUNCTURE_STUN_DURATION turns when its base DEF
+    // exceeds PUNCTURE_STUN_BASE_DEF_THRESHOLD. Uses raw stats.defense (base value),
+    // consistent with the DEF-bypass above. ALERT defenders are immune to the stun
+    // but still receive the DEF-bypass damage reduction.
+    // Suppressed on CORRUPTED tile.
+    if (
+      attacker.tags.includes(UnitTag.PUNCTURE) &&
+      !attackerOnCorrupted &&
+      defender.stats.defense > PUNCTURE_STUN_BASE_DEF_THRESHOLD &&
+      !defender.tags.includes(UnitTag.ALERT)
+    ) {
+      defender.pinnedUntilTurn = state.turn + PUNCTURE_STUN_DURATION;
+    }
   }
 
   // Melee attacker advances onto the tile the defeated defender occupied
@@ -934,6 +967,14 @@ export function resolveAttack(
         }
       }
     }
+  }
+
+  // BURN: apply BURNING status to the tile the defender occupied.
+  // applyTileStatus enforces the whitelist, so non-combustible terrain (WATER, CANYON, etc.)
+  // will not receive BURNING. It also clears any existing status first (e.g. FROZEN).
+  // Suppressed on CORRUPTED tile.
+  if (!attackerDead && attacker.tags.includes(UnitTag.BURN) && !attackerOnCorrupted) {
+    applyTileStatus(state, defenderPosition, TileStatus.BURNING);
   }
 }
 
