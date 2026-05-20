@@ -1606,6 +1606,7 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
     pendingSpellCast: null,
     pendingTransposeFirstUnitId: null,
     pendingBrandmarkTransforms: [],
+    portals: {},
   };
 
   // Auto-apply CONSCRIPTION effects (unlocked at game start, not a pick)

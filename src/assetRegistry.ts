@@ -59,6 +59,7 @@ export const UNIT_SPRITE: Partial<Record<UnitType, string>> = withBase({
   LAVA_PYROCLAST: '/sprites/units/Spitter_100px.png',
   LAVA_BEAST:     '/sprites/units/Hurler_100px.png',
   LAVA_BURROWER:  '/sprites/units/Grunt_100px.png',
+  LAVA_HEXCASTER: '/sprites/units/Blazard_100px.png',  // placeholder
   EMBERLING:    '/sprites/units/Emberling_100px.png',
   CAVE_MONSTER: '/sprites/units/Cave_Monster_100px.png',
 });
@@ -213,3 +214,17 @@ export const TUNNEL_HOLE_SPRITE = withBase({ hole: '' }).hole ?? '';
  * Empty string = pink MissingSprite placeholder until real art is ready.
  */
 export const TUNNEL_EARTHQUAKE_SPRITE = withBase({ earthquake: '' }).earthquake ?? '';
+
+/**
+ * Sprite path for a portal entrance tile overlay.
+ * Rendered on the entrance tile while a portal is active.
+ * Empty string = pink MissingSprite placeholder until real art is ready.
+ */
+export const PORTAL_ENTRANCE_SPRITE = withBase({ portal_entrance: '' }).portal_entrance ?? '';
+
+/**
+ * Sprite path for a portal exit tile overlay.
+ * Rendered on the exit tile while a portal is active.
+ * Empty string = pink MissingSprite placeholder until real art is ready.
+ */
+export const PORTAL_EXIT_SPRITE = withBase({ portal_exit: '' }).portal_exit ?? '';

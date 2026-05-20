@@ -41,6 +41,7 @@ export const UnitType = {
   LAVA_PYROCLAST: 'LAVA_PYROCLAST',
   LAVA_BEAST: 'LAVA_BEAST',
   LAVA_BURROWER: 'LAVA_BURROWER',
+  LAVA_HEXCASTER: 'LAVA_HEXCASTER',
   EMBERLING: 'EMBERLING',
   CAVE_MONSTER: 'CAVE_MONSTER',
 } as const;
@@ -400,6 +401,9 @@ export interface Unit {
   tunnelTurnsUnderground?: number;
   /** Turn number until which this unit cannot dig in again. */
   tunnelCooldownUntil?: number;
+
+  /** Turn number until which this unit (a LAVA_HEXCASTER) cannot cast a new portal. */
+  portalCastCooldownUntil?: number;
 }
 
 /** Defines a single stat boost applied when a unit reaches a new level */
@@ -575,6 +579,28 @@ export interface CaveEncounter {
   mountainTileId: string;
 }
 
+/**
+ * An active portal created by a LAVA_HEXCASTER.
+ * The entrance tile is placed adjacent to the caster; the exit is deep in
+ * the player backline. Enemy units (except the caster and SACRIFICIAL units)
+ * that step onto the entrance are teleported to the exit.
+ */
+export interface Portal {
+  id: string;
+  /** ID of the hexcaster that created this portal */
+  casterId: string;
+  /** Tile position where allied units enter the portal */
+  entrancePos: Position;
+  /** Tile position where allied units exit the portal */
+  exitPos: Position;
+  /** Turn on which the portal was created */
+  createdTurn: number;
+  /** Turn on which the portal expires and is automatically removed */
+  expiresTurn: number;
+  /** Earliest turn on which the portal is usable (createdTurn + EMBER_PORTAL_USE_COOLDOWN_TURNS) */
+  usableFromTurn: number;
+}
+
 /** Complete game state */
 export interface GameState {
   turn: number;
@@ -673,4 +699,10 @@ export interface GameState {
    * after the TRANSFORM_TO_DEMON animation completes.
    */
   pendingBrandmarkTransforms: Array<{ unitId: string; position: Position }>;
+  /**
+   * All active portals created by LAVA_HEXCASTER units.
+   * Keyed by portal ID. Portals are cleaned up at the start of each enemy turn
+   * by cleanupPortals() in portalSystem.ts.
+   */
+  portals: Record<string, Portal>;
 }

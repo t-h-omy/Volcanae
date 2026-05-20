@@ -19,6 +19,7 @@ import { hasUnitActed } from './unitActions';
 import { sweepLeashes } from './spellSystem';
 import { checkGraveTrapTrigger } from './movementSystem';
 import { tryBeginTunnel, processTunnelTurn } from './tunnelSystem';
+import { cleanupPortals, tryPlanPortalCast, castPortal, getUsablePortalAtEntrance } from './portalSystem';
 
 // ============================================================================
 // ID GENERATION
@@ -666,6 +667,7 @@ function scoreRecruitmentForBuilding(
       [UnitType.LAVA_PYROCLAST]: R.BASE_SCORE_PYROCLAST,
       [UnitType.LAVA_BEAST]: R.BASE_SCORE_BEAST,
       [UnitType.LAVA_BURROWER]: R.BASE_SCORE_BURROWER,
+      [UnitType.LAVA_HEXCASTER]: R.BASE_SCORE_HEXCASTER,
     };
     let score = baseScores[unitType] ?? 0;
 
@@ -989,6 +991,36 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
 
   // GRAVE_TRAP: check if the enemy unit landed on a player trap
   checkGraveTrapTrigger(state, unitId);
+
+  // PORTAL: check if the unit stepped onto a portal entrance
+  if (state.units[unitId]) {
+    const movedUnit = state.units[unitId];
+    // Only non-caster, non-SACRIFICIAL enemy units may use portals
+    if (!movedUnit.tags.includes(UnitTag.SACRIFICIAL)) {
+      const portal = getUsablePortalAtEntrance(state, movedUnit.position);
+      if (portal && portal.casterId !== movedUnit.id) {
+        const exitTile = state.grid[portal.exitPos.y]?.[portal.exitPos.x];
+        if (exitTile && !exitTile.unitId) {
+          const entranceTile = state.grid[movedUnit.position.y][movedUnit.position.x];
+          const teleportFrom = { x: movedUnit.position.x, y: movedUnit.position.y };
+          entranceTile.unitId = null;
+          movedUnit.position = { x: portal.exitPos.x, y: portal.exitPos.y };
+          exitTile.unitId = movedUnit.id;
+          // Reset lastMovementDirection so FROZEN-slide doesn't fire on the exit tile
+          movedUnit.lastMovementDirection = null;
+          if (events) {
+            events.push({
+              type: 'PORTAL_USED',
+              unitId: movedUnit.id,
+              fromPos: teleportFrom,
+              toPos: { x: portal.exitPos.x, y: portal.exitPos.y },
+            });
+          }
+        }
+        // If exit is blocked the unit remains at entrance (already moved there)
+      }
+    }
+  }
 }
 
 // ============================================================================
@@ -2491,6 +2523,9 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
     // 2. Process Ember Nest spawns (at start of enemy turn)
     processEmberNestSpawns(draft, events);
 
+    // 2a. Clean up expired/orphaned portals at the start of each enemy turn
+    cleanupPortals(draft, events);
+
     // 2b. Cave monster AI (dedicated, separate from standard enemy AI)
     runCaveMonsterAi(draft, events);
 
@@ -2526,6 +2561,16 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
             const began = tryBeginTunnel(draft, currentUnit.id, events);
             if (began) break; // Skip normal AI turn (tunnel just started)
           }
+        }
+        // Portal mechanic — hexcasters never attack; they cast a portal each turn
+        if (currentUnit.tags.includes(UnitTag.EMBER_PORTAL)) {
+          const cast = tryPlanPortalCast(draft, currentUnit.id);
+          if (cast) {
+            castPortal(draft, currentUnit.id, cast.entrancePos, cast.exitPos, events);
+            // Hexcaster's action is fully consumed by casting — skip normal AI
+            break;
+          }
+          // If no cast possible, fall through to standard movement (toward player)
         }
         decideAndExecute(currentUnit, draft, targetingIntents, recentlyLostBuildingIds, events);
       }

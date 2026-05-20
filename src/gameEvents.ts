@@ -234,4 +234,37 @@ export type GameEvent =
       unitId: string;
       /** Tile where the unit emerged. */
       position: Position;
+    }
+  | {
+      /**
+       * Emitted when a LAVA_HEXCASTER creates a portal pair.
+       * Renderers should display entrance and exit sprites.
+       */
+      type: 'PORTAL_CREATED';
+      casterId: string;
+      portalId: string;
+      /** Tile where allied units enter the portal. */
+      entrancePos: Position;
+      /** Tile where allied units exit the portal. */
+      exitPos: Position;
+    }
+  | {
+      /**
+       * Emitted when an enemy unit teleports through a portal.
+       */
+      type: 'PORTAL_USED';
+      unitId: string;
+      /** Portal entrance tile. */
+      fromPos: Position;
+      /** Portal exit tile. */
+      toPos: Position;
+    }
+  | {
+      /**
+       * Emitted when a portal is removed (expired or caster died).
+       */
+      type: 'PORTAL_CLOSED';
+      portalId: string;
+      /** Portal entrance tile (for renderer clean-up). */
+      position: Position;
     };

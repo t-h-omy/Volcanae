@@ -488,6 +488,7 @@ export const AI_RECRUITMENT = {
   BASE_SCORE_PYROCLAST: 0,
   BASE_SCORE_BEAST: 0,
   BASE_SCORE_BURROWER: 0,
+  BASE_SCORE_HEXCASTER: 0,
 
   // ── Classification thresholds ───────────────────────────────────────────
   /** Unit offensiveScore >= this → counted as offensive */
@@ -1001,6 +1002,21 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     ],
     enemyUnlockEmber: 5,
     description: 'Bypasses the frontline by digging underground. Emerges south of the player line, damaging adjacent enemies and corrupting the tile.',
+  },
+
+  LAVA_HEXCASTER: {
+    maxHp: 60, attack: 0, defense: 20,
+    movementActions: 1, moveRange: 1, attackRange: 0,
+    discoverRadius: 2, triggerRange: 5,
+    tags: [UnitTag.EMBER_PORTAL, UnitTag.PASSIVE, UnitTag.PREP, UnitTag.LAVA],
+    cost: { iron: 0, wood: 0 },
+    populationCost: { farmers: 0, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    enemyUnlockEmber: 7,
+    description: 'Glass-cannon caster that opens portals behind the player line, allowing enemy units to teleport into the backline.',
   },
 
   EMBERLING: {
