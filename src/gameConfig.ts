@@ -481,14 +481,14 @@ export const AI_RECRUITMENT = {
   BASE_SCORE_RIDER: 0,
   BASE_SCORE_SIEGE: 0,
   BASE_SCORE_EMBERLING: 0,
-  // Counter units — placeholder base scores; detailed scoring added in Part 8
-  BASE_SCORE_REAPER: 0,
-  BASE_SCORE_LANCER: 0,
-  BASE_SCORE_BREAKER: 0,
-  BASE_SCORE_PYROCLAST: 0,
-  BASE_SCORE_BEAST: 0,
-  BASE_SCORE_BURROWER: 0,
-  BASE_SCORE_HEXCASTER: 0,
+  // Counter units — base scores for recruitment priority
+  BASE_SCORE_REAPER: 60,
+  BASE_SCORE_LANCER: 55,
+  BASE_SCORE_BREAKER: 55,
+  BASE_SCORE_PYROCLAST: 50,
+  BASE_SCORE_BEAST: 50,
+  BASE_SCORE_BURROWER: 55,
+  BASE_SCORE_HEXCASTER: 70,
 
   // ── Classification thresholds ───────────────────────────────────────────
   /** Unit offensiveScore >= this → counted as offensive */

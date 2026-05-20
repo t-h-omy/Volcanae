@@ -7,7 +7,7 @@ import type { GameState, Unit, Building, Position } from './types';
 import type { Draft } from 'immer';
 import { produce } from 'immer';
 import { Faction, UnitType, UnitTag, BuildingType, TileType } from './types';
-import { UNIT_DEFINITIONS, ENEMY, MAP, TERRAIN, AI_SCORING, AI_RECRUITMENT, XP, DIFFICULTY_MULTIPLIER, SANCTUM_COLLAPSE, ABILITIES } from './gameConfig';
+import { UNIT_DEFINITIONS, ENEMY, MAP, TERRAIN, AI_SCORING, AI_RECRUITMENT, XP, DIFFICULTY_MULTIPLIER, SANCTUM_COLLAPSE, ABILITIES, COUNTER_UNIT_SCORING, PUNCTURE_STUN_BASE_DEF_THRESHOLD } from './gameConfig';
 import { resolveAttack, calculateCombat, resolveBuildingAttack, buildingToCombatant, calculateCombatFromStats, unitToCombatant, resolveAttackOnBuilding } from './combatSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { initiateCapture, canCapture } from './captureSystem';
@@ -100,6 +100,19 @@ interface ArmyProfile {
   fastRatio: number;
   siegeRatio: number;
   rangedRatio: number;
+
+  /** Raw count of Mage units. */
+  mageCount: number;
+  /** Raw count of Guard units. */
+  guardCount: number;
+  /** Count of units with base DEF > PUNCTURE_STUN_BASE_DEF_THRESHOLD. */
+  highDefCount: number;
+  /** Count of SUMMONED units (Ember Demons, Skeletons). */
+  summonedCount: number;
+  /** True if any unit has the BRANDMARKED tag. */
+  brandmarkActive: boolean;
+  /** Ratio of units with moveRange === 1 (static formation indicator). */
+  staticRatio: number;
 }
 
 // ============================================================================
@@ -420,6 +433,8 @@ function buildArmyProfile(units: Unit[]): ArmyProfile {
       siegeCount: 0, rangedCount: 0,
       slowMeleeRatio: 0, meleeRatio: 0, fastRatio: 0,
       siegeRatio: 0, rangedRatio: 0,
+      mageCount: 0, guardCount: 0, highDefCount: 0,
+      summonedCount: 0, brandmarkActive: false, staticRatio: 0,
     };
   }
 
@@ -427,6 +442,10 @@ function buildArmyProfile(units: Unit[]): ArmyProfile {
   let offensiveSum = 0, defensiveSum = 0;
   let slowMeleeCount = 0, meleeCount = 0, fastCount = 0;
   let siegeCount = 0, rangedCount = 0;
+  let mageCount = 0, guardCount = 0, highDefCount = 0;
+  let summonedCount = 0;
+  let brandmarkActive = false;
+  let staticCount = 0;
 
   for (const unit of units) {
     const { off, def } = calcUnitScores(unit.type);
@@ -447,6 +466,13 @@ function buildArmyProfile(units: Unit[]): ArmyProfile {
     if (isFast) fastCount++;
     if (isRanged) rangedCount++;
     if (isSiege) siegeCount++;
+
+    if (unit.type === UnitType.MAGE) mageCount++;
+    if (unit.type === UnitType.GUARD) guardCount++;
+    if (u.defense > PUNCTURE_STUN_BASE_DEF_THRESHOLD) highDefCount++;
+    if (unit.tags.includes(UnitTag.SUMMONED)) summonedCount++;
+    if (unit.tags.includes(UnitTag.BRANDMARKED)) brandmarkActive = true;
+    if (u.moveRange === 1) staticCount++;
   }
 
   return {
@@ -465,6 +491,12 @@ function buildArmyProfile(units: Unit[]): ArmyProfile {
     fastRatio: fastCount / total,
     siegeRatio: siegeCount / total,
     rangedRatio: rangedCount / total,
+    mageCount,
+    guardCount,
+    highDefCount,
+    summonedCount,
+    brandmarkActive,
+    staticRatio: staticCount / total,
   };
 }
 
