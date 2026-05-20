@@ -837,6 +837,10 @@ function triggerPreventiveStrike(
   const enemyUnit = state.units[enemyUnitId];
   if (!enemyUnit || enemyUnit.faction !== Faction.ENEMY) return;
 
+  // Do not fire at enemies that are in fog of war — the player cannot see them.
+  const enemyTile = state.grid[enemyUnit.position.y]?.[enemyUnit.position.x];
+  if (!enemyTile?.isRevealed) return;
+
   const suppressFloaters = !!events;
 
   for (const unit of Object.values(state.units)) {

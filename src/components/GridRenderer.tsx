@@ -1165,11 +1165,11 @@ function TileCellInner({
       {/* slide-preview overlay — secondary destination when moving onto a FROZEN tile */}
       {isSlidePreview && <div className="tile-overlay tile--slide-preview" />}
 
-      {/* corrupted tile overlay */}
-      {tile.status === TileStatus.CORRUPTED && tile.isRevealed && <div className="tile-overlay tile--corrupted" />}
+      {/* corrupted tile overlay — only shown as a CSS fallback when no dedicated status sprite exists */}
+      {tile.status === TileStatus.CORRUPTED && tile.isRevealed && !tileStatusSpritePath && <div className="tile-overlay tile--corrupted" />}
 
-      {/* burning tile overlay */}
-      {tile.status === TileStatus.BURNING && tile.isRevealed && <div className="tile-overlay tile--burning" />}
+      {/* burning tile overlay — only shown as a CSS fallback when no dedicated status sprite exists */}
+      {tile.status === TileStatus.BURNING && tile.isRevealed && !tileStatusSpritePath && <div className="tile-overlay tile--burning" />}
 
       {/* crystal chamber activation VFX overlay */}
       {isCrystalActivating && <div className="tile-crystal-activate-overlay" />}

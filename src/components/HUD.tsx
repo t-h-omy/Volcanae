@@ -119,6 +119,7 @@ const BUILDING_EMOJI: Record<string, string> = {
   [BuildingType.MAGMASPYR]: '⛰️',
   [BuildingType.EMBERNEST]: '🌲',
   [BuildingType.CRYSTAL_CHAMBER]: '💎',
+  [BuildingType.CRYSTAL_TOWER]: '🔮',
   [BuildingType.GRAVESTONE]: '🪦',
   [BuildingType.GRAVE_TRAP]: '☠️',
 };
@@ -140,6 +141,7 @@ const BUILDING_NAME: Record<string, string> = {
   [BuildingType.MAGMASPYR]: 'Magma Spyr',
   [BuildingType.EMBERNEST]: 'Ember Nest',
   [BuildingType.CRYSTAL_CHAMBER]: 'Crystal Chamber',
+  [BuildingType.CRYSTAL_TOWER]: 'Crystal Tower',
   [BuildingType.GRAVESTONE]: 'Gravestone',
   [BuildingType.GRAVE_TRAP]: 'Grave Trap',
 };
@@ -2098,7 +2100,11 @@ function SelectedTilePanel({ tile }: { tile: Tile }) {
         ? '⛰️'
         : tile.terrainType === TileType.PLAINS
           ? '🌾'
-          : '🟫';
+          : tile.terrainType === TileType.CANYON
+            ? '🏜️'
+            : tile.terrainType === TileType.WATER
+              ? '🌊'
+              : '🟫';
 
   const terrainName =
     tile.terrainType === TileType.FOREST
@@ -2107,7 +2113,11 @@ function SelectedTilePanel({ tile }: { tile: Tile }) {
         ? 'Mountain'
         : tile.terrainType === TileType.PLAINS
           ? 'Plains'
-          : 'Empty';
+          : tile.terrainType === TileType.CANYON
+            ? 'Canyon'
+            : tile.terrainType === TileType.WATER
+              ? 'Water'
+              : 'Empty';
 
   const terrainTag = tile.status != null ? TILE_STATUS_TO_TERRAIN_TAG[tile.status] : null;
 
