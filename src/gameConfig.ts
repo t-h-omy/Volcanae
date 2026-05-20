@@ -1873,6 +1873,57 @@ export const TAG_STAT_EFFECTS: Partial<Record<UnitTag, StatModifier[]>> = {
   [UnitTag.BRANDMARKED]: [{ stat: 'attack', mode: 'add', value: MAGE.BRANDMARK_ATTACK_BONUS }],
 };
 
+
+// ============================================================================
+// COUNTER-TAG MECHANICS
+// ============================================================================
+
+/** Multiplier applied to primary attack damage when computing CLEAVE AoE damage. */
+export const CLEAVE_DAMAGE_MULTIPLIER = 0.4;
+
+/** Multiplier applied to defender damage when the attacker has PIERCE. */
+export const PIERCE_PRIMARY_DAMAGE_MULTIPLIER = 0.5;
+
+/** ATK bonus per adjacent enemy, granted to units with RAGE. */
+export const RAGE_ATK_PER_ADJACENT = 6;
+/** Maximum number of adjacent enemies that contribute to RAGE bonus. */
+export const RAGE_MAX_ADJACENT_COUNT = 3;
+
+/** Damage multiplier when a SUMMONED unit attacks a unit with IRONBLOOD. */
+export const IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER = 0.6;
+
+/** Damage multiplier when a melee unit (attackRange === 1) attacks a unit with BLOCK. */
+export const BLOCK_MELEE_DAMAGE_MULTIPLIER = 0.5;
+
+/** Base DEF threshold above which PUNCTURE-stun is triggered. */
+export const PUNCTURE_STUN_BASE_DEF_THRESHOLD = 65;
+/** Duration in turns of the stun applied by PUNCTURE. */
+export const PUNCTURE_STUN_DURATION = 1;
+
+/** TUNNEL: minimum number of tiles the unit must move south while underground. */
+export const TUNNEL_RANGE_MIN = 3;
+/** TUNNEL: maximum number of tiles the unit can move south while underground. */
+export const TUNNEL_RANGE_MAX = 4;
+/** TUNNEL: damage applied to enemy units adjacent to the emergence tile. */
+export const TUNNEL_EMERGE_DAMAGE = 20;
+/** TUNNEL: cooldown turns after emergence before the unit can dig again. */
+export const TUNNEL_COOLDOWN_TURNS = 2;
+/** TUNNEL: maximum number of turns the unit can stay underground while waiting for a free emergence tile. */
+export const TUNNEL_MAX_RETRY_TURNS = 1;
+
+/** EMBER_PORTAL: maximum distance from the caster to an exit tile. */
+export const EMBER_PORTAL_EXIT_RANGE = 6;
+/** EMBER_PORTAL: minimum tiles south of the southernmost player unit the exit must be placed. */
+export const EMBER_PORTAL_MIN_DISTANCE_SOUTH_OF_FRONTLINE = 2;
+/** EMBER_PORTAL: turns after creation before the portal can be used. */
+export const EMBER_PORTAL_USE_COOLDOWN_TURNS = 1;
+/** EMBER_PORTAL: total lifetime of a portal in turns; expires automatically. */
+export const EMBER_PORTAL_LIFETIME_TURNS = 3;
+/** EMBER_PORTAL: maximum simultaneous portals per caster. */
+export const EMBER_PORTAL_MAX_PER_CASTER = 2;
+/** EMBER_PORTAL: HP of the portal exit tile when treated as a destructible entity. */
+export const EMBER_PORTAL_HP = 1;
+
 // ============================================================================
 // TAG INFO — label and description for each unit tag
 // ============================================================================
@@ -1921,6 +1972,17 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   [UnitTag.LEAVES_GRAVESTONE]:  { label: 'Leaves Gravestone',  desc: 'Leaves a Gravestone on death.' },
   // ── Tile-status tags ────────────────────────────────────────────────────────
   [UnitTag.LAVA]:               { label: 'Lava',               desc: 'Lava-faction unit. Immune to BURNING tile damage. Retained even when faction changes.' },
+  // ── Counter tags ────────────────────────────────────────────────────────────
+  [UnitTag.CLEAVE]:       { label: 'Cleave',      desc: `On hit, deals ${CLEAVE_DAMAGE_MULTIPLIER * 100}% damage to all enemy units adjacent to both attacker and defender. Ignores Phalanx defense.` },
+  [UnitTag.PIERCE]:       { label: 'Pierce',      desc: `Deals ${PIERCE_PRIMARY_DAMAGE_MULTIPLIER * 100}% damage to the target and full damage to the unit or building directly behind the target.` },
+  [UnitTag.RAGE]:         { label: 'Rage',        desc: `Gains +${RAGE_ATK_PER_ADJACENT} attack per enemy adjacent to this unit, up to ${RAGE_MAX_ADJACENT_COUNT} enemies (max +${RAGE_ATK_PER_ADJACENT * RAGE_MAX_ADJACENT_COUNT}).` },
+  [UnitTag.ALERT]:        { label: 'Alert',       desc: 'Immune to stun effects.' },
+  [UnitTag.IRONBLOOD]:    { label: 'Ironblood',   desc: `Takes only ${IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER * 100}% damage from attacks by summoned units.` },
+  [UnitTag.BLOCK]:        { label: 'Block',       desc: `Takes only ${BLOCK_MELEE_DAMAGE_MULTIPLIER * 100}% damage from melee attackers.` },
+  [UnitTag.PUNCTURE]:     { label: 'Puncture',    desc: `Ignores defensive bonuses on the target. Stuns targets with base DEF above ${PUNCTURE_STUN_BASE_DEF_THRESHOLD} for ${PUNCTURE_STUN_DURATION} turn(s).` },
+  [UnitTag.BURN]:         { label: 'Burn',        desc: 'Attacks set the target\'s tile to Burning, dealing damage to non-lava units standing there at end of turn.' },
+  [UnitTag.TUNNEL]:       { label: 'Tunnel',      desc: `Digs underground and re-emerges ${TUNNEL_RANGE_MIN}–${TUNNEL_RANGE_MAX} tiles south. Deals ${TUNNEL_EMERGE_DAMAGE} damage to enemies adjacent to the emergence tile. Sets the emergence tile to Corrupted.` },
+  [UnitTag.EMBER_PORTAL]: { label: 'Ember Portal', desc: 'Creates a portal pair behind the player frontline. Allied lava-faction units stepping on the entrance teleport to the exit. Exit tile is corrupted on creation.' },
 };
 
 // ============================================================================
@@ -1994,6 +2056,44 @@ export const TILE_STATUS_WHITELIST: Record<TileType, TileStatus[]> = {
 
 /** Damage dealt to each non-LAVA unit standing on a BURNING tile at end of turn. */
 export const BURNING_TILE_DAMAGE = 15;
+
+// ============================================================================
+// COUNTER-UNIT RECRUITMENT SCORING
+// ============================================================================
+
+/** Recruitment scoring bonuses/penalties for new counter units. */
+export const COUNTER_UNIT_SCORING = {
+  // LAVA_REAPER
+  REAPER_BONUS_CLUSTER_TARGET: 30,
+  REAPER_BONUS_SLOW_MELEE_HEAVY: 20,
+  REAPER_PENALTY_FAST_PLAYER: -15,
+  // LAVA_LANCER
+  LANCER_BONUS_BACKLINE_FORMATION: 25,
+  LANCER_BONUS_MAGE_PRESENT: 30,
+  LANCER_PENALTY_OVERREPRESENTED: -20,
+  // LAVA_BREAKER
+  BREAKER_BONUS_GUARDS_PRESENT: 25,
+  BREAKER_BONUS_MELEE_PROTECTION_NEEDED: 15,
+  BREAKER_PENALTY_PLAYER_RANGED: -20,
+  // LAVA_PYROCLAST
+  PYROCLAST_BONUS_STATIC_FORMATION: 25,
+  PYROCLAST_BONUS_RANGED_GAP: 15,
+  PYROCLAST_PENALTY_MOBILE_PLAYER: -20,
+  // LAVA_BURROWER
+  BURROWER_BONUS_DENSE_FORMATION: 30,
+  BURROWER_BONUS_BACKLINE_TARGETS: 25,
+  BURROWER_BONUS_FRONTLINE_BYPASS: 20,
+  BURROWER_PENALTY_SPREAD_PLAYER: -15,
+  // LAVA_BEAST
+  BEAST_BONUS_SUMMONED_PRESENT: 25,
+  BEAST_BONUS_BRANDMARK_ACTIVE: 20,
+  BEAST_BONUS_CLUSTER_TARGET: 20,
+  // LAVA_HEXCASTER
+  HEXCASTER_BACKLINE_THRESHOLD: 50,
+  HEXCASTER_BONUS_HIGH_BACKLINE_VALUE: 35,
+  HEXCASTER_BONUS_PLAYER_DOMINATING: 25,
+  HEXCASTER_PENALTY_NO_PORTAL_USERS: -30,
+} as const;
 
 // ============================================================================
 // CONVENIENCE EXPORTS

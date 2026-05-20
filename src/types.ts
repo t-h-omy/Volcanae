@@ -247,6 +247,27 @@ export const UnitTag = {
   NO_GRAVESTONE: 'NO_GRAVESTONE',
   /** Unit leaves a Gravestone on death (granted by Necromancer tech tree). */
   LEAVES_GRAVESTONE: 'LEAVES_GRAVESTONE',
+  // ── Counter tags (enemy units that break dominant player strategies) ──────
+  /** On hit, deals AoE damage to enemy units adjacent to both attacker and defender. Ignores Phalanx defense. */
+  CLEAVE: 'CLEAVE',
+  /** On hit, deals 50% damage to the target and full damage to the unit/building directly behind the target. */
+  PIERCE: 'PIERCE',
+  /** Gains attack bonus per enemy adjacent to this unit, capped. */
+  RAGE: 'RAGE',
+  /** Immune to stun effects (e.g. PIN_DOWN). */
+  ALERT: 'ALERT',
+  /** Takes reduced damage from attacks by SUMMONED units. */
+  IRONBLOOD: 'IRONBLOOD',
+  /** Takes reduced damage from melee (attackRange === 1) attackers. */
+  BLOCK: 'BLOCK',
+  /** On hit, ignores defensive bonuses on the target and stuns targets with base DEF above a threshold. */
+  PUNCTURE: 'PUNCTURE',
+  /** On hit, sets the target's tile to BURNING status. */
+  BURN: 'BURN',
+  /** Can dig underground to bypass the frontline and emerge behind it, dealing AoE damage on emergence and corrupting the emergence tile. */
+  TUNNEL: 'TUNNEL',
+  /** Caster ability: creates portals behind the player frontline; allied lava-faction units stepping on the entrance teleport to the exit. */
+  EMBER_PORTAL: 'EMBER_PORTAL',
 } as const;
 export type UnitTag = (typeof UnitTag)[keyof typeof UnitTag];
 
