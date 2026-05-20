@@ -106,6 +106,8 @@ export const BUILDINGS = {
   STRONGHOLD_SPAWN_SKIP_FIRST_ROWS: 3,
   /** Number of rows at the end (high-Y end) of a zone where strongholds may not spawn */
   STRONGHOLD_SPAWN_SKIP_LAST_ROWS: 1,
+  /** Minimum number of tiles between the stronghold and the left/right map border */
+  STRONGHOLD_SPAWN_BORDER_MARGIN: 1,
 } as const;
 
 // ============================================================================
