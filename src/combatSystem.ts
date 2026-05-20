@@ -855,7 +855,8 @@ export function resolveAttack(
           const cleaveTargetId = cleaveTile.unitId;
           const cleaveTarget = state.units[cleaveTargetId];
           if (!cleaveTarget || cleaveTarget.faction === attacker.faction) continue;
-          // CLEAVE ignores PHALANX — subtract raw stats.defense only
+          // CLEAVE ignores PHALANX — subtract raw stats.defense only.
+          // Minimum 1 ensures the tag is always meaningful even against high-defense targets.
           const finalCleaveDamage = Math.max(1, cleaveDamage - cleaveTarget.stats.defense);
           const newCleaveHp = cleaveTarget.stats.currentHp - finalCleaveDamage;
           if (!suppressFloaters) {
@@ -878,7 +879,8 @@ export function resolveAttack(
 
   // PIERCE secondary: deal the full (pre-multiplier) primary damage to the unit or building
   // on the tile directly behind the defender (relative to the attacker).
-  // Applies regardless of faction. Suppressed on CORRUPTED tile.
+  // Applies regardless of faction — PIERCE is geometric, not faction-aware (intentional friendly-fire).
+  // Suppressed on CORRUPTED tile.
   if (
     !attackerDead &&
     !attackerOnCorrupted &&
@@ -915,13 +917,16 @@ export function resolveAttack(
       } else if (behindTile.buildingId) {
         const rearBuilding = state.buildings[behindTile.buildingId];
         if (rearBuilding) {
-          const newBuildingHp = rearBuilding.hp - fullPrimaryDamage;
+          // Apply same defense-subtraction pattern as unit hits; use combatStats.defense if present.
+          // Minimum 1 ensures the tag always registers a hit. Full building-death handling is left
+          // to normal combat (HP is clamped at 1 here).
+          const buildingDefense = rearBuilding.combatStats?.defense ?? 0;
+          const finalPierceBuildingDamage = Math.max(1, fullPrimaryDamage - buildingDefense);
           if (!suppressFloaters) {
             const { addFloater } = useFloaterStore.getState();
-            addFloater({ value: fullPrimaryDamage, x: behindPos.x, y: behindPos.y, isEnemy: rearBuilding.faction === Faction.ENEMY });
+            addFloater({ value: finalPierceBuildingDamage, x: behindPos.x, y: behindPos.y, isEnemy: rearBuilding.faction === Faction.ENEMY });
           }
-          // Clamp HP to 1 — full building-death handling is left to normal combat
-          rearBuilding.hp = Math.max(1, newBuildingHp);
+          rearBuilding.hp = Math.max(1, rearBuilding.hp - finalPierceBuildingDamage);
         }
       }
     }
