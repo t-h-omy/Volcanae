@@ -114,6 +114,7 @@ interface ArmyProfile {
   /** Ratio of units with moveRange === 1 (static formation indicator). */
   staticRatio: number;
 }
+type ZoneId = number;
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -630,6 +631,56 @@ function getZoneForRow(row: number): number {
 }
 
 /**
+ * Approximate frontline stagnation check using current frontline units.
+ * Without explicit historical row snapshots in GameState, this checks whether
+ * any unit currently on the southernmost enemy row has moved recently.
+ */
+function isEnemyFrontlineStagnant(state: GameState): boolean {
+  const STAGNATION_WINDOW_TURNS = 3;
+  const enemyUnits = Object.values(state.units).filter(u => u.faction === Faction.ENEMY);
+  if (enemyUnits.length === 0) return false;
+
+  const southernmostEnemyRow = enemyUnits.reduce((max, u) => Math.max(max, u.position.y), -1);
+  const stagnantSinceTurn = state.turn - STAGNATION_WINDOW_TURNS;
+
+  const frontlineMovedRecently = enemyUnits.some(
+    u => u.position.y === southernmostEnemyRow && u.lastMovedTurn >= stagnantSinceTurn
+  );
+
+  return !frontlineMovedRecently;
+}
+
+/** Estimate of player backline value: weighted sum of mages, archers, crystal chambers. */
+function computePlayerBacklineValue(state: GameState): number {
+  const playerUnits = Object.values(state.units).filter(u => u.faction === Faction.PLAYER);
+  const mageCount = playerUnits.filter(u => u.type === UnitType.MAGE).length;
+  const archerCount = playerUnits.filter(u => u.type === UnitType.ARCHER).length;
+  const crystalChamberCount = Object.values(state.buildings).filter(
+    b => b.faction === Faction.PLAYER && b.type === BuildingType.CRYSTAL_CHAMBER
+  ).length;
+
+  return mageCount * 30 + archerCount * 10 + crystalChamberCount * 20;
+}
+
+/** Number of zones (sanctum regions) where the player has captured the sanctum. */
+function countPlayerControlledZones(state: GameState): number {
+  const controlledZones = new Set<number>();
+  for (const building of Object.values(state.buildings)) {
+    if (building.faction !== Faction.PLAYER) continue;
+    if (building.type !== BuildingType.INFERNALSANCTUM) continue;
+    controlledZones.add(getZoneForRow(building.position.y));
+  }
+  return controlledZones.size;
+}
+
+/** Count of enemy units of a specific type in a given zone. */
+function countEnemyUnitTypeInZone(state: GameState, zoneId: ZoneId, type: UnitType): number {
+  return Object.values(state.units).filter(
+    u => u.faction === Faction.ENEMY && u.type === type && getZoneForRow(u.position.y) === zoneId
+  ).length;
+}
+
+/**
  * Scores all eligible unit types for a single LAVA_LAIR or INFERNAL_SANCTUM
  * building and returns them sorted by score descending.
  *
@@ -665,6 +716,7 @@ function scoreRecruitmentForBuilding(
   building: Building,
 ): { type: UnitType; score: number }[] {
   const R = AI_RECRUITMENT;
+  const C = COUNTER_UNIT_SCORING;
 
   // Ember-gated eligible unit types; Emberlings only spawn from Ember Nests
   const eligibleTypes: UnitType[] = (Object.entries(UNIT_DEFINITIONS) as [UnitType, { enemyUnlockEmber?: number }][])
@@ -693,13 +745,13 @@ function scoreRecruitmentForBuilding(
       [UnitType.LAVA_ARCHER]: R.BASE_SCORE_ARCHER,
       [UnitType.LAVA_RIDER]: R.BASE_SCORE_RIDER,
       [UnitType.LAVA_SIEGE]: R.BASE_SCORE_SIEGE,
-      [UnitType.LAVA_REAPER]: R.BASE_SCORE_REAPER,
-      [UnitType.LAVA_LANCER]: R.BASE_SCORE_LANCER,
-      [UnitType.LAVA_BREAKER]: R.BASE_SCORE_BREAKER,
-      [UnitType.LAVA_PYROCLAST]: R.BASE_SCORE_PYROCLAST,
-      [UnitType.LAVA_BEAST]: R.BASE_SCORE_BEAST,
-      [UnitType.LAVA_BURROWER]: R.BASE_SCORE_BURROWER,
-      [UnitType.LAVA_HEXCASTER]: R.BASE_SCORE_HEXCASTER,
+      [UnitType.LAVA_REAPER]: C.BASE_SCORE_REAPER,
+      [UnitType.LAVA_LANCER]: C.BASE_SCORE_LANCER,
+      [UnitType.LAVA_BREAKER]: C.BASE_SCORE_BREAKER,
+      [UnitType.LAVA_PYROCLAST]: C.BASE_SCORE_PYROCLAST,
+      [UnitType.LAVA_BEAST]: C.BASE_SCORE_BEAST,
+      [UnitType.LAVA_BURROWER]: C.BASE_SCORE_BURROWER,
+      [UnitType.LAVA_HEXCASTER]: C.BASE_SCORE_HEXCASTER,
     };
     let score = baseScores[unitType] ?? 0;
 
@@ -784,6 +836,106 @@ function scoreRecruitmentForBuilding(
       // Penalty when siege is over-represented in zone
       if (zoneProfile.totalCount > 0 && zoneProfile.siegeRatio >= R.SIEGE_OVERREPRESENTED_THRESHOLD) {
         score -= R.SIEGE_PENALTY_OVERREPRESENTED;
+      }
+    }
+
+    // ── LAVA_REAPER scoring ──────────────────────────────────────────
+    if (unitType === UnitType.LAVA_REAPER) {
+      if (playerProfile.meleeRatio >= 0.5 && playerProfile.totalCount >= 6) {
+        score += C.REAPER_BONUS_CLUSTER_TARGET;
+      }
+      if (playerProfile.slowMeleeRatio >= 0.4) {
+        score += C.REAPER_BONUS_SLOW_MELEE_HEAVY;
+      }
+      if (playerProfile.fastRatio >= 0.3) {
+        score += C.REAPER_PENALTY_FAST_PLAYER;
+      }
+    }
+
+    // ── LAVA_LANCER scoring ──────────────────────────────────────────
+    if (unitType === UnitType.LAVA_LANCER) {
+      if (playerProfile.rangedCount >= 2 && playerProfile.meleeCount >= 2) {
+        score += C.LANCER_BONUS_BACKLINE_FORMATION;
+      }
+      if (playerProfile.mageCount > 0) {
+        score += C.LANCER_BONUS_MAGE_PRESENT * playerProfile.mageCount;
+      }
+      if (countEnemyUnitTypeInZone(state, buildingZone, UnitType.LAVA_LANCER) >= 2) {
+        score += C.LANCER_PENALTY_OVERREPRESENTED;
+      }
+    }
+
+    // ── LAVA_BREAKER scoring ─────────────────────────────────────────
+    if (unitType === UnitType.LAVA_BREAKER) {
+      if (playerProfile.guardCount >= 2) {
+        score += C.BREAKER_BONUS_GUARDS_PRESENT * playerProfile.guardCount;
+      }
+      if (zoneProfile.meleeCount >= 3) {
+        score += C.BREAKER_BONUS_MELEE_PROTECTION_NEEDED;
+      }
+      if (playerProfile.rangedRatio >= 0.4) {
+        score += C.BREAKER_PENALTY_PLAYER_RANGED;
+      }
+    }
+
+    // ── LAVA_PYROCLAST scoring ───────────────────────────────────────
+    if (unitType === UnitType.LAVA_PYROCLAST) {
+      if (playerProfile.slowMeleeRatio >= 0.4 && playerProfile.rangedRatio >= 0.3) {
+        score += C.PYROCLAST_BONUS_STATIC_FORMATION;
+      }
+      if (zoneProfile.rangedCount < 2) {
+        score += C.PYROCLAST_BONUS_RANGED_GAP;
+      }
+      if (playerProfile.fastRatio >= 0.4) {
+        score += C.PYROCLAST_PENALTY_MOBILE_PLAYER;
+      }
+    }
+
+    // ── LAVA_BURROWER scoring ────────────────────────────────────────
+    if (unitType === UnitType.LAVA_BURROWER) {
+      if (playerProfile.totalCount >= 6 && playerProfile.meleeRatio >= 0.4) {
+        score += C.BURROWER_BONUS_DENSE_FORMATION;
+      }
+      if (playerProfile.mageCount > 0 || playerProfile.rangedCount >= 3) {
+        score += C.BURROWER_BONUS_BACKLINE_TARGETS;
+      }
+      if (isEnemyFrontlineStagnant(state)) {
+        score += C.BURROWER_BONUS_FRONTLINE_BYPASS;
+      }
+      if (playerProfile.fastRatio >= 0.3) {
+        score += C.BURROWER_PENALTY_SPREAD_PLAYER;
+      }
+    }
+
+    // ── LAVA_BEAST scoring ───────────────────────────────────────────
+    if (unitType === UnitType.LAVA_BEAST) {
+      if (playerProfile.summonedCount > 0) {
+        score += C.BEAST_BONUS_SUMMONED_PRESENT * playerProfile.summonedCount;
+      }
+      if (playerProfile.brandmarkActive) {
+        score += C.BEAST_BONUS_BRANDMARK_ACTIVE;
+      }
+      if (playerProfile.meleeRatio >= 0.5 && playerProfile.totalCount >= 6) {
+        score += C.BEAST_BONUS_CLUSTER_TARGET;
+      }
+    }
+
+    // ── LAVA_HEXCASTER scoring ───────────────────────────────────────
+    if (unitType === UnitType.LAVA_HEXCASTER) {
+      // Hard limit: max 1 hexcaster per zone
+      if (countEnemyUnitTypeInZone(state, buildingZone, UnitType.LAVA_HEXCASTER) >= 1) {
+        score = -Infinity;
+      } else {
+        const backlineValue = computePlayerBacklineValue(state);
+        if (backlineValue >= C.HEXCASTER_BACKLINE_THRESHOLD) {
+          score += C.HEXCASTER_BONUS_HIGH_BACKLINE_VALUE;
+        }
+        if (countPlayerControlledZones(state) >= 2) {
+          score += C.HEXCASTER_BONUS_PLAYER_DOMINATING;
+        }
+        if (zoneProfile.totalCount < 2) {
+          score += C.HEXCASTER_PENALTY_NO_PORTAL_USERS;
+        }
       }
     }
 
