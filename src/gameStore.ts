@@ -344,9 +344,10 @@ export const useGameStore = create<GameStore>()(
         // If the unit existed before the move but is now gone, it was killed
         // while sliding off a FROZEN tile into a lethal tile.
         if (!unitAfterMove && unitTypeBefore !== undefined && factionBefore !== undefined) {
-          // The slide direction = targetPosition - original position
-          const slideDirX = targetPosition.x - posBeforeX;
-          const slideDirY = targetPosition.y - posBeforeY;
+          // The slide direction is always ±1 regardless of how far the unit moved.
+          // Use Math.sign() so a 2-tile move doesn't produce a 2-tile slide visual.
+          const slideDirX = Math.sign(targetPosition.x - posBeforeX);
+          const slideDirY = Math.sign(targetPosition.y - posBeforeY);
           // The death tile = frozen tile (targetPosition) + slide direction
           const deathTileX = targetPosition.x + slideDirX;
           const deathTileY = targetPosition.y + slideDirY;
