@@ -455,7 +455,8 @@ export function resolveAttack(
   const attackerFaction = attacker.faction;
   const defenderFaction = defender.faction;
 
-  // Capture defender's position before it is potentially removed from state
+  // Capture positions before they are potentially mutated by melee-advance or unit removal
+  const attackerPosition = { x: attacker.position.x, y: attacker.position.y };
   const defenderPosition = { x: defender.position.x, y: defender.position.y };
 
   // Calculate combat result (with HOLD_GROUND defense bonus if applicable)
@@ -879,9 +880,9 @@ export function resolveAttack(
     if (cleaveDamage > 0) {
       for (let cy = 0; cy < state.grid.length; cy++) {
         for (let cx = 0; cx < state.grid[cy].length; cx++) {
-          if (cx === attacker.position.x && cy === attacker.position.y) continue;
+          if (cx === attackerPosition.x && cy === attackerPosition.y) continue;
           if (cx === defenderPosition.x && cy === defenderPosition.y) continue;
-          if (!isTileWithinEdgeCircleRange(attacker.position.x, attacker.position.y, cx, cy, 1)) continue;
+          if (!isTileWithinEdgeCircleRange(attackerPosition.x, attackerPosition.y, cx, cy, 1)) continue;
           if (!isTileWithinEdgeCircleRange(defenderPosition.x, defenderPosition.y, cx, cy, 1)) continue;
           const cleaveTile = state.grid[cy]?.[cx];
           if (!cleaveTile?.unitId) continue;
@@ -923,8 +924,8 @@ export function resolveAttack(
     !attackerOnCorrupted &&
     attacker.tags.includes(UnitTag.PIERCE)
   ) {
-    const dx = defenderPosition.x - attacker.position.x;
-    const dy = defenderPosition.y - attacker.position.y;
+    const dx = defenderPosition.x - attackerPosition.x;
+    const dy = defenderPosition.y - attackerPosition.y;
     const behindPos = { x: defenderPosition.x + dx, y: defenderPosition.y + dy };
     if (
       behindPos.y >= 0 && behindPos.y < state.grid.length &&
