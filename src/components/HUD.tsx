@@ -2203,7 +2203,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   // lets gravestones spawn but does NOT unlock the revive action.
   const graveRevivable =
     isGravestone &&
-    building.gravesUnitType !== null &&
+    building.gravesUnitType != null &&
     getTagsFromActiveSpecialists(gameState, building.gravesUnitType).includes(UnitTag.REVIVABLE);
   const canRevive = graveRevivable && !graveOccupied && arcaneCrystals >= ABILITIES.REVIVE_CRYSTAL_COST;
   const handleRevive = useCallback(() => {
