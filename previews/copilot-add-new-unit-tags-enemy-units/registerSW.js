@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/Volcanae/previews/copilot-add-new-unit-tags-enemy-units/sw.js', { scope: '/Volcanae/previews/copilot-add-new-unit-tags-enemy-units/' })})}
