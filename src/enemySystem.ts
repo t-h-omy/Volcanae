@@ -747,11 +747,11 @@ function scoreRecruitmentForBuilding(
       [UnitType.LAVA_SIEGE]: R.BASE_SCORE_SIEGE,
       [UnitType.REAPER]: C.BASE_SCORE_REAPER,
       [UnitType.LANCER]: C.BASE_SCORE_LANCER,
-      [UnitType.BULLWARK]: C.BASE_SCORE_BREAKER,
-      [UnitType.KINDLER]: C.BASE_SCORE_PYROCLAST,
-      [UnitType.GRIMBEAK]: C.BASE_SCORE_BEAST,
-      [UnitType.RIFTWORM]: C.BASE_SCORE_BURROWER,
-      [UnitType.RIFT_LORD]: C.BASE_SCORE_HEXCASTER,
+      [UnitType.BULLWARK]: C.BASE_SCORE_BULLWARK,
+      [UnitType.KINDLER]: C.BASE_SCORE_KINDLER,
+      [UnitType.GRIMBEAK]: C.BASE_SCORE_GRIMBEAK,
+      [UnitType.RIFTWORM]: C.BASE_SCORE_RIFTWORM,
+      [UnitType.RIFT_LORD]: C.BASE_SCORE_RIFT_LORD,
     };
     let score = baseScores[unitType] ?? 0;
 
@@ -868,55 +868,55 @@ function scoreRecruitmentForBuilding(
     // ── BULLWARK scoring ─────────────────────────────────────────
     if (unitType === UnitType.BULLWARK) {
       if (playerProfile.guardCount >= 2) {
-        score += C.BREAKER_BONUS_GUARDS_PRESENT * playerProfile.guardCount;
+        score += C.BULLWARK_BONUS_GUARDS_PRESENT * playerProfile.guardCount;
       }
       if (zoneProfile.meleeCount >= 3) {
-        score += C.BREAKER_BONUS_MELEE_PROTECTION_NEEDED;
+        score += C.BULLWARK_BONUS_MELEE_PROTECTION_NEEDED;
       }
       if (playerProfile.rangedRatio >= 0.4) {
-        score += C.BREAKER_PENALTY_PLAYER_RANGED;
+        score += C.BULLWARK_PENALTY_PLAYER_RANGED;
       }
     }
 
     // ── KINDLER scoring ───────────────────────────────────────
     if (unitType === UnitType.KINDLER) {
       if (playerProfile.slowMeleeRatio >= 0.4 && playerProfile.rangedRatio >= 0.3) {
-        score += C.PYROCLAST_BONUS_STATIC_FORMATION;
+        score += C.KINDLER_BONUS_STATIC_FORMATION;
       }
       if (zoneProfile.rangedCount < 2) {
-        score += C.PYROCLAST_BONUS_RANGED_GAP;
+        score += C.KINDLER_BONUS_RANGED_GAP;
       }
       if (playerProfile.fastRatio >= 0.4) {
-        score += C.PYROCLAST_PENALTY_MOBILE_PLAYER;
+        score += C.KINDLER_PENALTY_MOBILE_PLAYER;
       }
     }
 
     // ── RIFTWORM scoring ────────────────────────────────────────
     if (unitType === UnitType.RIFTWORM) {
       if (playerProfile.totalCount >= 6 && playerProfile.meleeRatio >= 0.4) {
-        score += C.BURROWER_BONUS_DENSE_FORMATION;
+        score += C.RIFTWORM_BONUS_DENSE_FORMATION;
       }
       if (playerProfile.mageCount > 0 || playerProfile.rangedCount >= 3) {
-        score += C.BURROWER_BONUS_BACKLINE_TARGETS;
+        score += C.RIFTWORM_BONUS_BACKLINE_TARGETS;
       }
       if (isEnemyFrontlineStagnant(state)) {
-        score += C.BURROWER_BONUS_FRONTLINE_BYPASS;
+        score += C.RIFTWORM_BONUS_FRONTLINE_BYPASS;
       }
       if (playerProfile.fastRatio >= 0.3) {
-        score += C.BURROWER_PENALTY_SPREAD_PLAYER;
+        score += C.RIFTWORM_PENALTY_SPREAD_PLAYER;
       }
     }
 
     // ── GRIMBEAK scoring ───────────────────────────────────────────
     if (unitType === UnitType.GRIMBEAK) {
       if (playerProfile.summonedCount > 0) {
-        score += C.BEAST_BONUS_SUMMONED_PRESENT * playerProfile.summonedCount;
+        score += C.GRIMBEAK_BONUS_SUMMONED_PRESENT * playerProfile.summonedCount;
       }
       if (playerProfile.brandmarkActive) {
-        score += C.BEAST_BONUS_BRANDMARK_ACTIVE;
+        score += C.GRIMBEAK_BONUS_BRANDMARK_ACTIVE;
       }
       if (playerProfile.meleeRatio >= 0.5 && playerProfile.totalCount >= 6) {
-        score += C.BEAST_BONUS_CLUSTER_TARGET;
+        score += C.GRIMBEAK_BONUS_CLUSTER_TARGET;
       }
     }
 
@@ -927,14 +927,14 @@ function scoreRecruitmentForBuilding(
         score = -Infinity;
       } else {
         const backlineValue = computePlayerBacklineValue(state);
-        if (backlineValue >= C.HEXCASTER_BACKLINE_THRESHOLD) {
-          score += C.HEXCASTER_BONUS_HIGH_BACKLINE_VALUE;
+        if (backlineValue >= C.RIFT_LORD_BACKLINE_THRESHOLD) {
+          score += C.RIFT_LORD_BONUS_HIGH_BACKLINE_VALUE;
         }
         if (countPlayerControlledZones(state) >= 2) {
-          score += C.HEXCASTER_BONUS_PLAYER_DOMINATING;
+          score += C.RIFT_LORD_BONUS_PLAYER_DOMINATING;
         }
         if (zoneProfile.totalCount < 2) {
-          score += C.HEXCASTER_PENALTY_NO_PORTAL_USERS;
+          score += C.RIFT_LORD_PENALTY_NO_PORTAL_USERS;
         }
       }
     }

@@ -205,7 +205,7 @@ describe('Part 8: AI recruitment scoring', () => {
    * 8.4 Test 3: BULLWARK is preferred when the player has Guard units.
    *
    * Setup: 6 GUARD units.
-   * Triggers: BREAKER_BONUS_GUARDS_PRESENT × guardCount (6×25 = 150), giving
+   * Triggers: BULLWARK_BONUS_GUARDS_PRESENT × guardCount (6×25 = 150), giving
    *           total 205 — comfortably above REAPER's cluster+slow-melee (110).
    */
   it('recruits BULLWARK preferentially when player has Guard units', () => {
@@ -246,8 +246,8 @@ describe('Part 8: AI recruitment scoring', () => {
    * Setup: 4 SPEARMANs + 2 MAGEs (player); 1 LAVA_GRUNT enemy unit with
    * lastMovedTurn=0 at row 5. With turn=10, stagnantSinceTurn=7:
    *   lastMovedTurn(0) < stagnantSinceTurn(7) → stagnant=true.
-   * Triggers: BURROWER_BONUS_DENSE_FORMATION + BURROWER_BONUS_BACKLINE_TARGETS
-   *         + BURROWER_BONUS_FRONTLINE_BYPASS (stagnant).
+   * Triggers: RIFTWORM_BONUS_DENSE_FORMATION + RIFTWORM_BONUS_BACKLINE_TARGETS
+   *         + RIFTWORM_BONUS_FRONTLINE_BYPASS (stagnant).
    */
   it('recruits RIFTWORM preferentially when the enemy frontline is stagnant', () => {
     const lair = makeLavaLair(5);
@@ -268,8 +268,8 @@ describe('Part 8: AI recruitment scoring', () => {
    * 8.4 Test 6: GRIMBEAK is preferred when the player has summoned units.
    *
    * Setup: 6 SKELETON units tagged with SUMMONED.
-   * Triggers: BEAST_BONUS_SUMMONED_PRESENT × summonedCount (6×25 = 150)
-   *         + BEAST_BONUS_CLUSTER_TARGET (meleeRatio≥0.5 & totalCount≥6, +20).
+   * Triggers: GRIMBEAK_BONUS_SUMMONED_PRESENT × summonedCount (6×25 = 150)
+   *         + GRIMBEAK_BONUS_CLUSTER_TARGET (meleeRatio≥0.5 & totalCount≥6, +20).
    * Total = 50 + 150 + 20 = 220, well above REAPER (110).
    */
   it('recruits GRIMBEAK preferentially when player has summoned units', () => {
