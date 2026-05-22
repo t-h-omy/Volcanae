@@ -745,13 +745,13 @@ function scoreRecruitmentForBuilding(
       [UnitType.LAVA_ARCHER]: R.BASE_SCORE_ARCHER,
       [UnitType.LAVA_RIDER]: R.BASE_SCORE_RIDER,
       [UnitType.LAVA_SIEGE]: R.BASE_SCORE_SIEGE,
-      [UnitType.LAVA_REAPER]: C.BASE_SCORE_REAPER,
-      [UnitType.LAVA_LANCER]: C.BASE_SCORE_LANCER,
-      [UnitType.LAVA_BREAKER]: C.BASE_SCORE_BREAKER,
-      [UnitType.LAVA_PYROCLAST]: C.BASE_SCORE_PYROCLAST,
-      [UnitType.LAVA_BEAST]: C.BASE_SCORE_BEAST,
-      [UnitType.LAVA_BURROWER]: C.BASE_SCORE_BURROWER,
-      [UnitType.LAVA_HEXCASTER]: C.BASE_SCORE_HEXCASTER,
+      [UnitType.REAPER]: C.BASE_SCORE_REAPER,
+      [UnitType.LANCER]: C.BASE_SCORE_LANCER,
+      [UnitType.BULLWARK]: C.BASE_SCORE_BREAKER,
+      [UnitType.KINDLER]: C.BASE_SCORE_PYROCLAST,
+      [UnitType.GRIMBEAK]: C.BASE_SCORE_BEAST,
+      [UnitType.RIFTWORM]: C.BASE_SCORE_BURROWER,
+      [UnitType.RIFT_LORD]: C.BASE_SCORE_HEXCASTER,
     };
     let score = baseScores[unitType] ?? 0;
 
@@ -839,8 +839,8 @@ function scoreRecruitmentForBuilding(
       }
     }
 
-    // ── LAVA_REAPER scoring ──────────────────────────────────────────
-    if (unitType === UnitType.LAVA_REAPER) {
+    // ── REAPER scoring ──────────────────────────────────────────
+    if (unitType === UnitType.REAPER) {
       if (playerProfile.meleeRatio >= 0.5 && playerProfile.totalCount >= 6) {
         score += C.REAPER_BONUS_CLUSTER_TARGET;
       }
@@ -852,21 +852,21 @@ function scoreRecruitmentForBuilding(
       }
     }
 
-    // ── LAVA_LANCER scoring ──────────────────────────────────────────
-    if (unitType === UnitType.LAVA_LANCER) {
+    // ── LANCER scoring ──────────────────────────────────────────
+    if (unitType === UnitType.LANCER) {
       if (playerProfile.rangedCount >= 2 && playerProfile.meleeCount >= 2) {
         score += C.LANCER_BONUS_BACKLINE_FORMATION;
       }
       if (playerProfile.mageCount > 0) {
         score += C.LANCER_BONUS_MAGE_PRESENT * playerProfile.mageCount;
       }
-      if (countEnemyUnitTypeInZone(state, buildingZone, UnitType.LAVA_LANCER) >= 2) {
+      if (countEnemyUnitTypeInZone(state, buildingZone, UnitType.LANCER) >= 2) {
         score += C.LANCER_PENALTY_OVERREPRESENTED;
       }
     }
 
-    // ── LAVA_BREAKER scoring ─────────────────────────────────────────
-    if (unitType === UnitType.LAVA_BREAKER) {
+    // ── BULLWARK scoring ─────────────────────────────────────────
+    if (unitType === UnitType.BULLWARK) {
       if (playerProfile.guardCount >= 2) {
         score += C.BREAKER_BONUS_GUARDS_PRESENT * playerProfile.guardCount;
       }
@@ -878,8 +878,8 @@ function scoreRecruitmentForBuilding(
       }
     }
 
-    // ── LAVA_PYROCLAST scoring ───────────────────────────────────────
-    if (unitType === UnitType.LAVA_PYROCLAST) {
+    // ── KINDLER scoring ───────────────────────────────────────
+    if (unitType === UnitType.KINDLER) {
       if (playerProfile.slowMeleeRatio >= 0.4 && playerProfile.rangedRatio >= 0.3) {
         score += C.PYROCLAST_BONUS_STATIC_FORMATION;
       }
@@ -891,8 +891,8 @@ function scoreRecruitmentForBuilding(
       }
     }
 
-    // ── LAVA_BURROWER scoring ────────────────────────────────────────
-    if (unitType === UnitType.LAVA_BURROWER) {
+    // ── RIFTWORM scoring ────────────────────────────────────────
+    if (unitType === UnitType.RIFTWORM) {
       if (playerProfile.totalCount >= 6 && playerProfile.meleeRatio >= 0.4) {
         score += C.BURROWER_BONUS_DENSE_FORMATION;
       }
@@ -907,8 +907,8 @@ function scoreRecruitmentForBuilding(
       }
     }
 
-    // ── LAVA_BEAST scoring ───────────────────────────────────────────
-    if (unitType === UnitType.LAVA_BEAST) {
+    // ── GRIMBEAK scoring ───────────────────────────────────────────
+    if (unitType === UnitType.GRIMBEAK) {
       if (playerProfile.summonedCount > 0) {
         score += C.BEAST_BONUS_SUMMONED_PRESENT * playerProfile.summonedCount;
       }
@@ -920,10 +920,10 @@ function scoreRecruitmentForBuilding(
       }
     }
 
-    // ── LAVA_HEXCASTER scoring ───────────────────────────────────────
-    if (unitType === UnitType.LAVA_HEXCASTER) {
+    // ── RIFT_LORD scoring ───────────────────────────────────────
+    if (unitType === UnitType.RIFT_LORD) {
       // Hard limit: max 1 hexcaster per zone
-      if (countEnemyUnitTypeInZone(state, buildingZone, UnitType.LAVA_HEXCASTER) >= 1) {
+      if (countEnemyUnitTypeInZone(state, buildingZone, UnitType.RIFT_LORD) >= 1) {
         score = -Infinity;
       } else {
         const backlineValue = computePlayerBacklineValue(state);

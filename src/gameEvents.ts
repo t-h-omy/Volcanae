@@ -237,7 +237,7 @@ export type GameEvent =
     }
   | {
       /**
-       * Emitted when a LAVA_HEXCASTER creates a portal pair.
+       * Emitted when a RIFT_LORD creates a portal pair.
        * Renderers should display entrance and exit sprites.
        */
       type: 'PORTAL_CREATED';

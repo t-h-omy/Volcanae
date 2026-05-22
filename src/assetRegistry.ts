@@ -52,14 +52,13 @@ export const UNIT_SPRITE: Partial<Record<UnitType, string>> = withBase({
   LAVA_ARCHER:  '/sprites/units/Spitter_100px.png',
   LAVA_RIDER:   '/sprites/units/Blazard_100px.png',
   LAVA_SIEGE:   '/sprites/units/Hurler_100px.png',
-  // TODO: replace with dedicated sprites when assets are ready
-  LAVA_REAPER:    '/sprites/units/Grunt_100px.png',
-  LAVA_LANCER:    '/sprites/units/Blazard_100px.png',
-  LAVA_BREAKER:   '/sprites/units/Grunt_100px.png',
-  LAVA_PYROCLAST: '/sprites/units/Spitter_100px.png',
-  LAVA_BEAST:     '/sprites/units/Hurler_100px.png',
-  LAVA_BURROWER:  '/sprites/units/Grunt_100px.png',
-  LAVA_HEXCASTER: '/sprites/units/Blazard_100px.png',  // placeholder
+  REAPER:    '/sprites/units/Reaper_100px.png',
+  LANCER:    '/sprites/units/Lancer_100px.png',
+  BULLWARK:  '/sprites/units/Bullwark_100px.png',
+  KINDLER:   '/sprites/units/Kindler_100px.png',
+  GRIMBEAK:  '/sprites/units/Grimbeak_100px.png',
+  RIFTWORM:  '/sprites/units/Riftworm_100px.png',
+  RIFT_LORD: '/sprites/units/RiftLord_100px.png',
   EMBERLING:    '/sprites/units/Emberling_100px.png',
   CAVE_MONSTER: '/sprites/units/Cave_Monster_100px.png',
 });
@@ -204,9 +203,8 @@ export const ICE_OVERLAY_SPRITE = withBase({ ice: '' }).ice ?? '';
 /**
  * Sprite path for the tunnel hole overlay.
  * Rendered on `tunnelStartPosition` while a TUNNEL unit is DIGGING_IN or UNDERGROUND.
- * Empty string = pink MissingSprite placeholder until real art is ready.
  */
-export const TUNNEL_HOLE_SPRITE = withBase({ hole: '' }).hole ?? '';
+export const TUNNEL_HOLE_SPRITE = withBase({ hole: '/sprites/buildings/riftworm_tunnel_100px.png' }).hole ?? '';
 
 /**
  * Sprite path for the earthquake / emergence warning indicator.

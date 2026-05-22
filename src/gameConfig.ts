@@ -914,7 +914,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     description: 'Enemy long-range bombard.', // overwritten below
   },
 
-  LAVA_REAPER: {
+  REAPER: {
     maxHp: 100, attack: 50, defense: 35,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 3,
@@ -929,7 +929,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     description: 'Brutal cluster-breaker. Cleaves into adjacent enemies and grows stronger when surrounded.',
   },
 
-  LAVA_LANCER: {
+  LANCER: {
     maxHp: 80, attack: 60, defense: 30,
     movementActions: 1, moveRange: 2, attackRange: 1,
     discoverRadius: 1, triggerRange: 3,
@@ -944,7 +944,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     description: 'Fast lancer that pierces through front lines, dealing full damage to units behind the target. Immune to stun.',
   },
 
-  LAVA_BREAKER: {
+  BULLWARK: {
     maxHp: 110, attack: 55, defense: 40,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 3,
@@ -959,7 +959,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     description: 'Heavily armored brute that ignores defensive bonuses and stuns heavily armored targets. Resistant to melee damage.',
   },
 
-  LAVA_PYROCLAST: {
+  KINDLER: {
     maxHp: 70, attack: 40, defense: 20,
     movementActions: 1, moveRange: 1, attackRange: 2,
     discoverRadius: 1, triggerRange: 4,
@@ -974,7 +974,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     description: 'Ranged firestarter that scorches the target\'s tile, forcing player units to abandon static positions.',
   },
 
-  LAVA_BEAST: {
+  GRIMBEAK: {
     maxHp: 130, attack: 50, defense: 45,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 3,
@@ -989,7 +989,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     description: 'Resilient lava beast that resists damage from summoned units and grows enraged in dense clusters.',
   },
 
-  LAVA_BURROWER: {
+  RIFTWORM: {
     maxHp: 75, attack: 60, defense: 25,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 3,
@@ -1004,7 +1004,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     description: 'Bypasses the frontline by digging underground. Emerges south of the player line, damaging adjacent enemies and corrupting the tile.',
   },
 
-  LAVA_HEXCASTER: {
+  RIFT_LORD: {
     maxHp: 60, attack: 0, defense: 20,
     movementActions: 1, moveRange: 1, attackRange: 0,
     discoverRadius: 2, triggerRange: 5,
@@ -2186,32 +2186,32 @@ export const COUNTER_UNIT_SCORING = {
   BASE_SCORE_BURROWER: 55,
   BASE_SCORE_BEAST: 50,
   BASE_SCORE_HEXCASTER: 70,
-  // LAVA_REAPER
+  // REAPER
   REAPER_BONUS_CLUSTER_TARGET: 30,
   REAPER_BONUS_SLOW_MELEE_HEAVY: 20,
   REAPER_PENALTY_FAST_PLAYER: -15,
-  // LAVA_LANCER
+  // LANCER
   LANCER_BONUS_BACKLINE_FORMATION: 25,
   LANCER_BONUS_MAGE_PRESENT: 30,
   LANCER_PENALTY_OVERREPRESENTED: -20,
-  // LAVA_BREAKER
+  // BULLWARK
   BREAKER_BONUS_GUARDS_PRESENT: 25,
   BREAKER_BONUS_MELEE_PROTECTION_NEEDED: 15,
   BREAKER_PENALTY_PLAYER_RANGED: -20,
-  // LAVA_PYROCLAST
+  // KINDLER
   PYROCLAST_BONUS_STATIC_FORMATION: 25,
   PYROCLAST_BONUS_RANGED_GAP: 15,
   PYROCLAST_PENALTY_MOBILE_PLAYER: -20,
-  // LAVA_BURROWER
+  // RIFTWORM
   BURROWER_BONUS_DENSE_FORMATION: 30,
   BURROWER_BONUS_BACKLINE_TARGETS: 25,
   BURROWER_BONUS_FRONTLINE_BYPASS: 20,
   BURROWER_PENALTY_SPREAD_PLAYER: -15,
-  // LAVA_BEAST
+  // GRIMBEAK
   BEAST_BONUS_SUMMONED_PRESENT: 25,
   BEAST_BONUS_BRANDMARK_ACTIVE: 20,
   BEAST_BONUS_CLUSTER_TARGET: 20,
-  // LAVA_HEXCASTER
+  // RIFT_LORD
   HEXCASTER_BACKLINE_THRESHOLD: 50,
   HEXCASTER_BONUS_HIGH_BACKLINE_VALUE: 35,
   HEXCASTER_BONUS_PLAYER_DOMINATING: 25,

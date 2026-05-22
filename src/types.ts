@@ -35,13 +35,13 @@ export const UnitType = {
   LAVA_ARCHER: 'LAVA_ARCHER',
   LAVA_RIDER: 'LAVA_RIDER',
   LAVA_SIEGE: 'LAVA_SIEGE',
-  LAVA_REAPER: 'LAVA_REAPER',
-  LAVA_LANCER: 'LAVA_LANCER',
-  LAVA_BREAKER: 'LAVA_BREAKER',
-  LAVA_PYROCLAST: 'LAVA_PYROCLAST',
-  LAVA_BEAST: 'LAVA_BEAST',
-  LAVA_BURROWER: 'LAVA_BURROWER',
-  LAVA_HEXCASTER: 'LAVA_HEXCASTER',
+  REAPER: 'REAPER',
+  LANCER: 'LANCER',
+  BULLWARK: 'BULLWARK',
+  KINDLER: 'KINDLER',
+  GRIMBEAK: 'GRIMBEAK',
+  RIFTWORM: 'RIFTWORM',
+  RIFT_LORD: 'RIFT_LORD',
   EMBERLING: 'EMBERLING',
   CAVE_MONSTER: 'CAVE_MONSTER',
 } as const;
@@ -402,7 +402,7 @@ export interface Unit {
   /** Turn number until which this unit cannot dig in again. */
   tunnelCooldownUntil?: number;
 
-  /** Turn number until which this unit (a LAVA_HEXCASTER) cannot cast a new portal. */
+  /** Turn number until which this unit (a RIFT_LORD) cannot cast a new portal. */
   portalCastCooldownUntil?: number;
 }
 
@@ -580,7 +580,7 @@ export interface CaveEncounter {
 }
 
 /**
- * An active portal created by a LAVA_HEXCASTER.
+ * An active portal created by a RIFT_LORD.
  * The entrance tile is placed adjacent to the caster; the exit is deep in
  * the player backline. Enemy units (except the caster and SACRIFICIAL units)
  * that step onto the entrance are teleported to the exit.
@@ -700,7 +700,7 @@ export interface GameState {
    */
   pendingBrandmarkTransforms: Array<{ unitId: string; position: Position }>;
   /**
-   * All active portals created by LAVA_HEXCASTER units.
+   * All active portals created by RIFT_LORD units.
    * Keyed by portal ID. Portals are cleaned up at the start of each enemy turn
    * by cleanupPortals() in portalSystem.ts.
    */

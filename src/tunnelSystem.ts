@@ -2,7 +2,7 @@
  * Tunnel system for Volcanae.
  *
  * Implements the multi-turn tunnel state machine for units with the TUNNEL tag
- * (currently LAVA_BURROWER).
+ * (currently RIFTWORM).
  *
  * Map orientation reminder:
  *   - Zone 1 (player stronghold) is at HIGH Y (south).

@@ -1,7 +1,7 @@
 /**
  * Portal system for Volcanae.
  *
- * Implements the EMBER_PORTAL mechanic for the LAVA_HEXCASTER unit.
+ * Implements the EMBER_PORTAL mechanic for the RIFT_LORD unit.
  * The caster places a portal pair: an entrance tile adjacent to itself and
  * an exit tile deep in the player backline. Enemy units (except the caster
  * and SACRIFICIAL units) that step onto the entrance are teleported to the exit.

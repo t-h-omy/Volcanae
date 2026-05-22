@@ -169,57 +169,57 @@ function scoreFor(
 
 describe('Part 8: AI recruitment scoring', () => {
   /**
-   * 8.4 Test 1: LAVA_REAPER is preferred when the player has a slow-melee cluster.
+   * 8.4 Test 1: REAPER is preferred when the player has a slow-melee cluster.
    *
    * Setup: 6 SPEARMAN units (all slow-melee, moveRange=1, attackRange=1).
    * Triggers: REAPER_BONUS_CLUSTER_TARGET (meleeRatio≥0.5 & totalCount≥6)
    *         + REAPER_BONUS_SLOW_MELEE_HEAVY (slowMeleeRatio≥0.4).
    */
-  it('recruits LAVA_REAPER preferentially when player has a slow-melee cluster', () => {
+  it('recruits REAPER preferentially when player has a slow-melee cluster', () => {
     const lair = makeLavaLair(5);
     const playerUnits = Array.from({ length: 6 }, () => makePlayerUnit(UnitType.SPEARMAN));
     const state = makeState(playerUnits, [lair], /* ember */ 10);
 
     const scores = computeRecruitmentScores(state, lair.id)!;
     expect(scores).not.toBeNull();
-    expect(topType(scores)).toBe(UnitType.LAVA_REAPER);
+    expect(topType(scores)).toBe(UnitType.REAPER);
   });
 
   /**
-   * 8.4 Test 2: LAVA_LANCER is preferred when the player has Mage units.
+   * 8.4 Test 2: LANCER is preferred when the player has Mage units.
    *
    * Setup: 3 MAGE units.
    * Triggers: LANCER_BONUS_MAGE_PRESENT × mageCount (3×30 = 90).
    */
-  it('recruits LAVA_LANCER preferentially when player has Mage units', () => {
+  it('recruits LANCER preferentially when player has Mage units', () => {
     const lair = makeLavaLair(5);
     const playerUnits = Array.from({ length: 3 }, () => makePlayerUnit(UnitType.MAGE));
     const state = makeState(playerUnits, [lair], /* ember */ 10);
 
     const scores = computeRecruitmentScores(state, lair.id)!;
     expect(scores).not.toBeNull();
-    expect(topType(scores)).toBe(UnitType.LAVA_LANCER);
+    expect(topType(scores)).toBe(UnitType.LANCER);
   });
 
   /**
-   * 8.4 Test 3: LAVA_BREAKER is preferred when the player has Guard units.
+   * 8.4 Test 3: BULLWARK is preferred when the player has Guard units.
    *
    * Setup: 6 GUARD units.
    * Triggers: BREAKER_BONUS_GUARDS_PRESENT × guardCount (6×25 = 150), giving
    *           total 205 — comfortably above REAPER's cluster+slow-melee (110).
    */
-  it('recruits LAVA_BREAKER preferentially when player has Guard units', () => {
+  it('recruits BULLWARK preferentially when player has Guard units', () => {
     const lair = makeLavaLair(5);
     const playerUnits = Array.from({ length: 6 }, () => makePlayerUnit(UnitType.GUARD));
     const state = makeState(playerUnits, [lair], /* ember */ 10);
 
     const scores = computeRecruitmentScores(state, lair.id)!;
     expect(scores).not.toBeNull();
-    expect(topType(scores)).toBe(UnitType.LAVA_BREAKER);
+    expect(topType(scores)).toBe(UnitType.BULLWARK);
   });
 
   /**
-   * 8.4 Test 4: LAVA_PYROCLAST is preferred for a static mixed formation.
+   * 8.4 Test 4: KINDLER is preferred for a static mixed formation.
    *
    * Setup: 3 SPEARMANs (slow-melee) + 2 ARCHERs (ranged, moveRange=1).
    * - slowMeleeRatio = 3/5 = 0.60 ≥ 0.4  ✓
@@ -227,7 +227,7 @@ describe('Part 8: AI recruitment scoring', () => {
    * - totalCount = 5 (< 6) prevents the BURROWER dense-formation bonus.
    * - meleeRatio = 3/5 = 0.60 but totalCount < 6 → REAPER cluster blocked.
    */
-  it('recruits LAVA_PYROCLAST preferentially when player has a static mixed formation', () => {
+  it('recruits KINDLER preferentially when player has a static mixed formation', () => {
     const lair = makeLavaLair(5);
     const playerUnits = [
       ...Array.from({ length: 3 }, () => makePlayerUnit(UnitType.SPEARMAN)),
@@ -237,11 +237,11 @@ describe('Part 8: AI recruitment scoring', () => {
 
     const scores = computeRecruitmentScores(state, lair.id)!;
     expect(scores).not.toBeNull();
-    expect(topType(scores)).toBe(UnitType.LAVA_PYROCLAST);
+    expect(topType(scores)).toBe(UnitType.KINDLER);
   });
 
   /**
-   * 8.4 Test 5: LAVA_BURROWER is preferred when the enemy frontline is stagnant.
+   * 8.4 Test 5: RIFTWORM is preferred when the enemy frontline is stagnant.
    *
    * Setup: 4 SPEARMANs + 2 MAGEs (player); 1 LAVA_GRUNT enemy unit with
    * lastMovedTurn=0 at row 5. With turn=10, stagnantSinceTurn=7:
@@ -249,7 +249,7 @@ describe('Part 8: AI recruitment scoring', () => {
    * Triggers: BURROWER_BONUS_DENSE_FORMATION + BURROWER_BONUS_BACKLINE_TARGETS
    *         + BURROWER_BONUS_FRONTLINE_BYPASS (stagnant).
    */
-  it('recruits LAVA_BURROWER preferentially when the enemy frontline is stagnant', () => {
+  it('recruits RIFTWORM preferentially when the enemy frontline is stagnant', () => {
     const lair = makeLavaLair(5);
     const playerUnits = [
       ...Array.from({ length: 4 }, () => makePlayerUnit(UnitType.SPEARMAN)),
@@ -261,18 +261,18 @@ describe('Part 8: AI recruitment scoring', () => {
 
     const scores = computeRecruitmentScores(state, lair.id)!;
     expect(scores).not.toBeNull();
-    expect(topType(scores)).toBe(UnitType.LAVA_BURROWER);
+    expect(topType(scores)).toBe(UnitType.RIFTWORM);
   });
 
   /**
-   * 8.4 Test 6: LAVA_BEAST is preferred when the player has summoned units.
+   * 8.4 Test 6: GRIMBEAK is preferred when the player has summoned units.
    *
    * Setup: 6 SKELETON units tagged with SUMMONED.
    * Triggers: BEAST_BONUS_SUMMONED_PRESENT × summonedCount (6×25 = 150)
    *         + BEAST_BONUS_CLUSTER_TARGET (meleeRatio≥0.5 & totalCount≥6, +20).
    * Total = 50 + 150 + 20 = 220, well above REAPER (110).
    */
-  it('recruits LAVA_BEAST preferentially when player has summoned units', () => {
+  it('recruits GRIMBEAK preferentially when player has summoned units', () => {
     const lair = makeLavaLair(5);
     const playerUnits = Array.from({ length: 6 }, () =>
       makePlayerUnit(UnitType.SKELETON, [UnitTag.SUMMONED]),
@@ -281,24 +281,24 @@ describe('Part 8: AI recruitment scoring', () => {
 
     const scores = computeRecruitmentScores(state, lair.id)!;
     expect(scores).not.toBeNull();
-    expect(topType(scores)).toBe(UnitType.LAVA_BEAST);
+    expect(topType(scores)).toBe(UnitType.GRIMBEAK);
   });
 
   /**
-   * 8.4 Test 7: LAVA_HEXCASTER is hard-capped at 1 per zone.
+   * 8.4 Test 7: RIFT_LORD is hard-capped at 1 per zone.
    *
-   * When a LAVA_HEXCASTER is already present in the building's zone, the
+   * When a RIFT_LORD is already present in the building's zone, the
    * scorer must return −Infinity for HEXCASTER (hard limit enforced).
    */
-  it('never scores LAVA_HEXCASTER above −Infinity when one is already in the zone', () => {
+  it('never scores RIFT_LORD above −Infinity when one is already in the zone', () => {
     const lair = makeLavaLair(5);
     // Place an existing HEXCASTER in zone 5 (same row as the lair)
-    const existingHexcaster = makeEnemyUnit(UnitType.LAVA_HEXCASTER, 5);
+    const existingHexcaster = makeEnemyUnit(UnitType.RIFT_LORD, 5);
     const state = makeState([existingHexcaster], [lair], /* ember */ 10);
 
     const scores = computeRecruitmentScores(state, lair.id)!;
     expect(scores).not.toBeNull();
-    expect(scoreFor(scores, UnitType.LAVA_HEXCASTER)).toBe(-Infinity);
-    expect(topType(scores)).not.toBe(UnitType.LAVA_HEXCASTER);
+    expect(scoreFor(scores, UnitType.RIFT_LORD)).toBe(-Infinity);
+    expect(topType(scores)).not.toBe(UnitType.RIFT_LORD);
   });
 });
