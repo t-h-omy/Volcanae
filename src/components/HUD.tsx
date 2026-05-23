@@ -2527,6 +2527,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
             costLabel={costLabel}
             actionLabel="Recruit"
             onAction={() => {
+              // TODO: player spawn VFX once recruitment emits an event
               recruitUnit(building.id, confirmRecruitUnit);
               setConfirmRecruitUnit(null);
             }}

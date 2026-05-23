@@ -102,4 +102,20 @@ export const ANIMATION = {
   SPELL_CAST_MS: 650,
   /** Duration of the mage spell impact ring on the target tile (ms) */
   SPELL_IMPACT_MS: 650,
+  /** Duration of the stun-applied burst (ms) — reuses SPELL_IMPACT plumbing */
+  STUN_APPLIED_BURST_MS: 500,
+  /** Duration of the burning-terrain damage flame cue (ms) */
+  BURNING_DAMAGE_VFX_MS: 400,
+  /** Duration of the corruption-applied dark-purple pulse (ms) */
+  CORRUPTION_APPLIED_VFX_MS: 500,
+  /** Duration of the portal entrance/exit pop (ms) */
+  PORTAL_VFX_MS: 500,
+  /** Duration of the unit-spawn pop (ms) */
+  SPAWN_VFX_MS: 450,
+  /** Duration of the building-capture wash (ms) */
+  CAPTURE_VFX_MS: 500,
+  /** Duration of the invalid-action red edge pulse (ms) — kept very short */
+  INVALID_ACTION_VFX_MS: 250,
+  /** Duration of the pierce connection line (ms) */
+  PIERCE_LINE_MS: 320,
 } as const;

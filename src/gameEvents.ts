@@ -342,4 +342,14 @@ export type GameEvent =
       attackerId: string;
       defenderId: string;
       defenderPosition: Position;
+    }
+  | {
+      /**
+       * Emitted when a tile's status flips to CORRUPTED via applyTileStatus
+       * (e.g. Riftworm emergence, lava unit corruption ability). Purely a
+       * feedback event; the tile's status has already been set by the call
+       * that triggered it.
+       */
+      type: 'CORRUPTION_APPLIED';
+      position: Position;
     };

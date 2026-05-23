@@ -15,7 +15,7 @@ import { useFloaterStore } from './floaterStore';
 import { ANIMATION } from './animationConfig';
 import { MAP, MAGE } from './gameConfig';
 import { RENDER } from './renderConfig';
-import { BuildingType, UnitTag, UnitType } from './types';
+import { BuildingType, Faction, UnitTag, UnitType } from './types';
 import type { GameEvent } from './gameEvents';
 import type { Position } from './types';
 
@@ -104,6 +104,8 @@ function eventPosition(event: GameEvent): Position {
       return event.position;
     case 'DEFENSE_BONUS_IGNORED':
       return event.defenderPosition;
+    case 'CORRUPTION_APPLIED':
+      return event.position;
   }
 }
 
@@ -193,6 +195,8 @@ function isEventVisible(event: GameEvent): boolean {
       return isTileRevealed(event.position);
     case 'DEFENSE_BONUS_IGNORED':
       return isTileRevealed(event.defenderPosition);
+    case 'CORRUPTION_APPLIED':
+      return isTileRevealed(event.position);
   }
 }
 
@@ -1077,6 +1081,13 @@ export function useAnimationEngine(): void {
               y: event.position.y * tileSize + tileSize / 2,
             };
             const projId = crypto.randomUUID();
+            useCombatAnimationStore.getState().addLineVfx({
+              id: crypto.randomUUID(),
+              fromPx,
+              toPx,
+              variant: 'PIERCE_LINE',
+              durationMs: ANIMATION.PIERCE_LINE_MS,
+            });
             useCombatAnimationStore.getState().addProjectile({
               id: projId,
               fromPx,
@@ -1175,6 +1186,122 @@ export function useAnimationEngine(): void {
             // onAnimationEnd cleanup. The attack's HIT_SHAKE already provides timing.
           }
           // No game-state effect.
+          useGameStore.getState().applyEvent(event);
+          continue;
+        }
+
+        // ── Special handling for STUN_APPLIED ──
+        if (event.type === 'STUN_APPLIED') {
+          if (visible) {
+            useCombatAnimationStore.getState().addTileVfx({
+              id: crypto.randomUUID(),
+              x: event.position.x,
+              y: event.position.y,
+              variant: 'SPELL_IMPACT_STUN',
+              durationMs: ANIMATION.STUN_APPLIED_BURST_MS,
+            });
+          }
+          // Do not block on the VFX duration — the persistent stun indicator
+          // (driven by unit.pinnedUntilTurn) takes over as the long-term cue.
+          useGameStore.getState().applyEvent(event);
+          continue;
+        }
+
+        // ── Special handling for TILE_DAMAGE ──
+        if (event.type === 'TILE_DAMAGE') {
+          if (visible) {
+            useCombatAnimationStore.getState().addTileVfx({
+              id: crypto.randomUUID(),
+              x: event.position.x,
+              y: event.position.y,
+              variant: 'BURNING_DAMAGE',
+              durationMs: ANIMATION.BURNING_DAMAGE_VFX_MS,
+            });
+          }
+          // applyEvent emits the damage floater. The VFX is short enough that the
+          // floater rises through it visibly.
+          useGameStore.getState().applyEvent(event);
+          continue;
+        }
+
+        // ── Special handling for CORRUPTION_APPLIED ──
+        if (event.type === 'CORRUPTION_APPLIED') {
+          if (visible) {
+            useCombatAnimationStore.getState().addTileVfx({
+              id: crypto.randomUUID(),
+              x: event.position.x,
+              y: event.position.y,
+              variant: 'CORRUPTION_APPLIED',
+              durationMs: ANIMATION.CORRUPTION_APPLIED_VFX_MS,
+            });
+          }
+          // No state effect; applyEvent will silently no-op.
+          useGameStore.getState().applyEvent(event);
+          continue;
+        }
+
+        // ── Special handling for PORTAL_USED ──
+        if (event.type === 'PORTAL_USED') {
+          if (visible) {
+            const store = useCombatAnimationStore.getState();
+            store.addTileVfx({
+              id: crypto.randomUUID(),
+              x: event.fromPos.x,
+              y: event.fromPos.y,
+              variant: 'SPELL_IMPACT_PORTAL_ENTER',
+              durationMs: ANIMATION.PORTAL_VFX_MS,
+            });
+            store.addTileVfx({
+              id: crypto.randomUUID(),
+              x: event.toPos.x,
+              y: event.toPos.y,
+              variant: 'SPELL_IMPACT_PORTAL_EXIT',
+              durationMs: ANIMATION.PORTAL_VFX_MS,
+            });
+          }
+          // No state effect to apply per-event; resolved state at queue end has
+          // the final position.
+          useGameStore.getState().applyEvent(event);
+          continue;
+        }
+
+        // ── Special handling for ENEMY_SPAWN ──
+        if (event.type === 'ENEMY_SPAWN') {
+          if (visible) {
+            useCombatAnimationStore.getState().addTileVfx({
+              id: crypto.randomUUID(),
+              x: event.position.x,
+              y: event.position.y,
+              variant: 'SPELL_IMPACT_SPAWN_ENEMY',
+              durationMs: ANIMATION.SPAWN_VFX_MS,
+            });
+          }
+          // applyEvent places the unit on the tile so the sprite appears under
+          // the spawn pop.
+          useGameStore.getState().applyEvent(event);
+          // Preserve the existing longer post-action idle inline (every other
+          // special-handling block uses `continue`, which skips the generic
+          // post-action wait; reproduce SPAWN_PAUSE_MS here instead).
+          if (visible) {
+            await wait(ANIMATION.SPAWN_PAUSE_MS);
+          }
+          continue;
+        }
+
+        // ── Special handling for BUILDING_CAPTURE ──
+        if (event.type === 'BUILDING_CAPTURE') {
+          if (visible) {
+            useCombatAnimationStore.getState().addTileVfx({
+              id: crypto.randomUUID(),
+              x: event.position.x,
+              y: event.position.y,
+              variant: event.newFaction === Faction.PLAYER
+                ? 'SPELL_IMPACT_CAPTURE_PLAYER'
+                : 'SPELL_IMPACT_CAPTURE_ENEMY',
+              durationMs: ANIMATION.CAPTURE_VFX_MS,
+            });
+          }
+          // applyEvent flips the building faction so the sprite recolours under the wash.
           useGameStore.getState().applyEvent(event);
           continue;
         }

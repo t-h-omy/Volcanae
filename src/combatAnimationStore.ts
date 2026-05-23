@@ -86,7 +86,17 @@ export type TileVfxVariant =
   | 'BURROW_DUST'
   | 'STUN_BLOCKED_SHIELD'
   | 'DEFENSE_IGNORED'
-  | 'SPELL_IMPACT';
+  | 'SPELL_IMPACT'
+  | 'SPELL_IMPACT_STUN'
+  | 'SPELL_IMPACT_PORTAL_ENTER'
+  | 'SPELL_IMPACT_PORTAL_EXIT'
+  | 'SPELL_IMPACT_SPAWN_PLAYER'
+  | 'SPELL_IMPACT_SPAWN_ENEMY'
+  | 'SPELL_IMPACT_CAPTURE_PLAYER'
+  | 'SPELL_IMPACT_CAPTURE_ENEMY'
+  | 'BURNING_DAMAGE'
+  | 'CORRUPTION_APPLIED'
+  | 'INVALID_ACTION';
 
 export interface TileVfx {
   id: string;
@@ -100,7 +110,8 @@ export interface TileVfx {
 
 export type LineVfxVariant =
   | 'FIRE_SPIT'
-  | 'SPELL_CAST';
+  | 'SPELL_CAST'
+  | 'PIERCE_LINE';
 
 export interface LineVfx {
   id: string;

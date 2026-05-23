@@ -669,6 +669,16 @@ export default function GridRenderer() {
   }, [portals]);
 
   // ── Tile click ──
+  const triggerInvalidActionVfx = useCallback((x: number, y: number) => {
+    useCombatAnimationStore.getState().addTileVfx({
+      id: crypto.randomUUID(),
+      x,
+      y,
+      variant: 'INVALID_ACTION',
+      durationMs: ANIMATION.INVALID_ACTION_VFX_MS,
+    });
+  }, []);
+
   const handleTileClick = useCallback(
     (x: number, y: number) => {
       if (dragState.current.isDragging) return;
@@ -684,6 +694,7 @@ export default function GridRenderer() {
       }
       if (pendingHealerId) {
         // Clicked outside healable tiles — cancel heal mode
+        triggerInvalidActionVfx(x, y);
         cancelHealMode();
         return;
       }
@@ -724,6 +735,7 @@ export default function GridRenderer() {
             return;
           }
         }
+        triggerInvalidActionVfx(x, y);
         cancelSpellCast();
         return;
       }
@@ -831,7 +843,7 @@ export default function GridRenderer() {
         clearSelection();
       }
     },
-    [grid, selectedUnitId, selectedBuildingId, selectedUnit, selectedBuilding, attackableSet, healableSet, spellTargetSet, reachableSet, units, buildings, selectUnit, selectBuilding, selectTile, clearSelection, moveUnit, attackUnit, attackBuilding, buildingAttackUnit, buildingAttackBuilding, healUnit, pendingHealerId, cancelHealMode, pendingSpellCast, castSpell, cancelSpellCast, isAnimating],
+    [grid, selectedUnitId, selectedBuildingId, selectedUnit, selectedBuilding, attackableSet, healableSet, spellTargetSet, reachableSet, units, buildings, selectUnit, selectBuilding, selectTile, clearSelection, moveUnit, attackUnit, attackBuilding, buildingAttackUnit, buildingAttackBuilding, healUnit, pendingHealerId, cancelHealMode, pendingSpellCast, castSpell, cancelSpellCast, isAnimating, triggerInvalidActionVfx],
   );
 
   // Right-click / tap-hold → deselect (only when not used for drag-panning)
