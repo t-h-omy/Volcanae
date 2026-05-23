@@ -1427,12 +1427,11 @@ export const useGameStore = create<GameStore>()(
           // Brandmark tick: every BRANDMARKED player unit loses HP at end of turn.
           // Collect dying unit IDs first so we don't mutate the collection mid-loop.
           const brandmarkDying: string[] = [];
-          const brandmarkFloater = useFloaterStore.getState().addFloater;
           for (const unit of Object.values(draft.units)) {
             if (unit.faction !== Faction.PLAYER) continue;
             if (!unit.tags.includes(UnitTag.BRANDMARKED)) continue;
             unit.stats.currentHp -= MAGE.BRANDMARK_HP_LOSS_PER_TURN;
-            brandmarkFloater({
+            useFloaterStore.getState().addFloater({
               value: MAGE.BRANDMARK_HP_LOSS_PER_TURN,
               x: unit.position.x,
               y: unit.position.y,

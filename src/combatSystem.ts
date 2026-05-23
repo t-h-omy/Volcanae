@@ -35,7 +35,7 @@ function isValidGravestoneTile(tile: Tile): boolean {
     !tile.isLava &&
     tile.terrainType !== TileType.FOREST &&
     tile.terrainType !== TileType.MOUNTAIN &&
-    !(tile.terrainType === TileType.WATER && tile.status !== TileStatus.FROZEN) &&
+    (tile.terrainType !== TileType.WATER || tile.status === TileStatus.FROZEN) &&
     tile.terrainType !== TileType.CANYON
   );
 }
