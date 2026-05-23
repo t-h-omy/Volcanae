@@ -70,6 +70,18 @@ export interface LeashBurstPair {
   demonPos: { x: number; y: number };
 }
 
+/**
+ * A cleave slash VFX rendered as an expanding ring centred on the attacker.
+ */
+export interface CleaveVfx {
+  id: string;
+  /** Grid column of the attacker */
+  cx: number;
+  /** Grid row of the attacker */
+  cy: number;
+  durationMs: number;
+}
+
 interface CombatAnimationState {
   unitAnimations: Map<string, UnitAnimationState>;
   buildingAnimations: Map<string, BuildingAnimationState>;
@@ -80,6 +92,8 @@ interface CombatAnimationState {
   slideKillGhosts: Map<string, SlideKillGhost>;
   /** Leash pairs that are visually "bursting" — shown always, ignoring selection */
   leashBurstPairs: LeashBurstPair[];
+  /** Active cleave slash VFX */
+  cleaveVfxList: CleaveVfx[];
 }
 
 interface CombatAnimationActions {
@@ -94,6 +108,8 @@ interface CombatAnimationActions {
   removeSlideKillGhost: (id: string) => void;
   addLeashBurstPair: (pair: LeashBurstPair) => void;
   removeLeashBurstPair: (demonId: string) => void;
+  addCleaveVfx: (vfx: CleaveVfx) => void;
+  removeCleaveVfx: (id: string) => void;
 }
 
 type CombatAnimationStore = CombatAnimationState & CombatAnimationActions;
@@ -109,6 +125,7 @@ export const useCombatAnimationStore = create<CombatAnimationStore>((set) => ({
   tileFlashes: new Map(),
   slideKillGhosts: new Map(),
   leashBurstPairs: [],
+  cleaveVfxList: [],
 
   setUnitAnimation: (unitId, anim) => {
     set((state) => {
@@ -195,6 +212,16 @@ export const useCombatAnimationStore = create<CombatAnimationStore>((set) => ({
   removeLeashBurstPair: (demonId) => {
     set((state) => ({
       leashBurstPairs: state.leashBurstPairs.filter((p) => p.demonId !== demonId),
+    }));
+  },
+
+  addCleaveVfx: (vfx) => {
+    set((state) => ({ cleaveVfxList: [...state.cleaveVfxList, vfx] }));
+  },
+
+  removeCleaveVfx: (id) => {
+    set((state) => ({
+      cleaveVfxList: state.cleaveVfxList.filter((v) => v.id !== id),
     }));
   },
 }));

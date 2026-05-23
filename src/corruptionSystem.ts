@@ -86,6 +86,7 @@ export function corruptTerrain(
   state: Draft<GameState>,
   unitId: string,
   tilePos: Position,
+  events?: GameEvent[],
 ): void {
   const unit = state.units[unitId];
   if (!unit) return;
@@ -174,6 +175,20 @@ export function corruptTerrain(
   if (combatStats !== null) {
     evictUnitFromAttackBuildingTile(state, tilePos);
   }
+
+  // Emit event so the animation engine can add the building to the live state
+  // immediately, making the sprite visible during animation rather than waiting
+  // for setGameState at turn end.
+  events?.push({
+    type: 'TILE_CORRUPTED',
+    position: { ...tilePos },
+    building: {
+      ...newBuilding,
+      position: { ...newBuilding.position },
+      combatStats: newBuilding.combatStats ? { ...newBuilding.combatStats } : null,
+      tags: [...newBuilding.tags],
+    },
+  });
 
   // Mark unit as having acted
   unit.hasConstructedThisTurn = true;
@@ -274,7 +289,7 @@ export function processMagmaSpyrAttacks(
       // MAGMA_SPYR: corrupt the tile of the hit player unit.
       // applyTileStatus respects the whitelist; silently no-ops for terrain
       // types where CORRUPTED is not allowed.
-      applyTileStatus(state, defenderPos, TileStatus.CORRUPTED);
+      const tileCorrupted = applyTileStatus(state, defenderPos, TileStatus.CORRUPTED);
 
       const buildingAfter = state.buildings[building.id];
       const defenderAfter = state.units[defenderId];
@@ -287,6 +302,7 @@ export function processMagmaSpyrAttacks(
         defenderPosition: defenderPos,
         buildingHpLost: buildingAfter ? buildingHpBefore - buildingAfter.hp : buildingHpBefore,
         defenderHpLost: defenderAfter ? defenderHpBefore - defenderAfter.stats.currentHp : defenderHpBefore,
+        tileCorruptedPosition: tileCorrupted ? { ...defenderPos } : undefined,
       });
 
       if (!defenderAfter) {

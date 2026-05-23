@@ -8,6 +8,7 @@ import type { Unit, Building, GameState, Tile } from './types';
 import type { Draft } from 'immer';
 import { BuildingType, Faction, UnitTag, UnitType, TechFlag, TileType, TileStatus, DestroyBehavior } from './types';
 import { useFloaterStore } from './floaterStore';
+import type { GameEvent } from './gameEvents';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { UNIT_DEFINITIONS, XP, ABILITIES, MAP, BUILDING_DEFINITIONS, MAGE, CLEAVE_DAMAGE_MULTIPLIER, PIERCE_PRIMARY_DAMAGE_MULTIPLIER, RAGE_ATK_PER_ADJACENT, RAGE_MAX_ADJACENT_COUNT, BLOCK_MELEE_DAMAGE_MULTIPLIER, IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER, PUNCTURE_STUN_BASE_DEF_THRESHOLD, PUNCTURE_STUN_DURATION } from './gameConfig';
 import { grantXp } from './levelSystem';
@@ -34,7 +35,7 @@ function isValidGravestoneTile(tile: Tile): boolean {
     !tile.isLava &&
     tile.terrainType !== TileType.FOREST &&
     tile.terrainType !== TileType.MOUNTAIN &&
-    tile.terrainType !== TileType.WATER &&
+    (tile.terrainType !== TileType.WATER || tile.status === TileStatus.FROZEN) &&
     tile.terrainType !== TileType.CANYON
   );
 }
@@ -441,7 +442,8 @@ export function resolveAttack(
   state: Draft<GameState>,
   attackerId: string,
   defenderId: string,
-  suppressFloaters?: boolean
+  suppressFloaters?: boolean,
+  outEvents?: GameEvent[],
 ): void {
   const attacker = state.units[attackerId];
   const defender = state.units[defenderId];
@@ -855,11 +857,24 @@ export function resolveAttack(
           const { addFloater } = useFloaterStore.getState();
           addFloater({ value: splashDamage, x: nx, y: ny, isEnemy: true });
         }
+        outEvents?.push({
+          type: 'SPLASH_DAMAGE',
+          unitId: splashTargetId,
+          position: { x: nx, y: ny },
+          amount: splashDamage,
+          isEnemy: true,
+        });
         if (newSplashHp <= 0) {
           splashTile.unitId = null;
           delete state.units[splashTargetId];
           grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
           state.gameStats.unitsKilled += 1;
+          outEvents?.push({
+            type: 'UNIT_DEATH',
+            unitId: splashTargetId,
+            position: { x: nx, y: ny },
+            faction: splashTarget.faction,
+          });
         } else {
           splashTarget.stats.currentHp = newSplashHp;
         }
@@ -899,12 +914,26 @@ export function resolveAttack(
             const { addFloater } = useFloaterStore.getState();
             addFloater({ value: finalCleaveDamage, x: cx, y: cy, isEnemy: cleaveTarget.faction === Faction.ENEMY });
           }
+          outEvents?.push({
+            type: 'CLEAVE_DAMAGE',
+            unitId: cleaveTargetId,
+            position: { x: cx, y: cy },
+            amount: finalCleaveDamage,
+            isEnemy: cleaveTarget.faction === Faction.ENEMY,
+            attackerPosition: { ...attackerPosition },
+          });
           if (newCleaveHp <= 0) {
             cleaveTile.unitId = null;
             delete state.units[cleaveTargetId];
             if (cleaveTarget.faction === Faction.PLAYER) state.gameStats.unitsLost += 1;
             else if (attacker.faction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
             grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
+            outEvents?.push({
+              type: 'UNIT_DEATH',
+              unitId: cleaveTargetId,
+              position: { x: cx, y: cy },
+              faction: cleaveTarget.faction,
+            });
           } else {
             cleaveTarget.stats.currentHp = newCleaveHp;
           }
@@ -942,12 +971,28 @@ export function resolveAttack(
             const { addFloater } = useFloaterStore.getState();
             addFloater({ value: finalPierceDamage, x: behindPos.x, y: behindPos.y, isEnemy: rearUnit.faction === Faction.ENEMY });
           }
+          outEvents?.push({
+            type: 'PIERCE_DAMAGE',
+            unitId: rearUnitId,
+            buildingId: null,
+            position: { ...behindPos },
+            amount: finalPierceDamage,
+            isEnemy: rearUnit.faction === Faction.ENEMY,
+            attackerPosition: { ...attackerPosition },
+            primaryDefenderPosition: { ...defenderPosition },
+          });
           if (newRearHp <= 0) {
             behindTile.unitId = null;
             delete state.units[rearUnitId];
             if (rearUnit.faction === Faction.PLAYER) state.gameStats.unitsLost += 1;
             else if (attacker.faction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
             grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
+            outEvents?.push({
+              type: 'UNIT_DEATH',
+              unitId: rearUnitId,
+              position: { ...behindPos },
+              faction: rearUnit.faction,
+            });
           } else {
             rearUnit.stats.currentHp = newRearHp;
           }
@@ -964,6 +1009,16 @@ export function resolveAttack(
             const { addFloater } = useFloaterStore.getState();
             addFloater({ value: finalPierceBuildingDamage, x: behindPos.x, y: behindPos.y, isEnemy: rearBuilding.faction === Faction.ENEMY });
           }
+          outEvents?.push({
+            type: 'PIERCE_DAMAGE',
+            unitId: null,
+            buildingId: rearBuilding.id,
+            position: { ...behindPos },
+            amount: finalPierceBuildingDamage,
+            isEnemy: rearBuilding.faction === Faction.ENEMY,
+            attackerPosition: { ...attackerPosition },
+            primaryDefenderPosition: { ...defenderPosition },
+          });
           rearBuilding.hp = Math.max(0, rearBuilding.hp - finalPierceBuildingDamage);
         }
       }

@@ -1137,3 +1137,39 @@
 @keyframes tower-chamber-dash-flow {
   to { stroke-dashoffset: -26; }
 }
+
+/* ── Cleave VFX: expanding slash ring around attacker ── */
+
+.cleave-vfx-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 13;
+}
+
+.cleave-vfx-ring {
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 3px rgba(220, 60, 20, 0.9),
+    0 0 10px 5px rgba(255, 120, 30, 0.55);
+  transform: translate(-50%, -50%) scale(0);
+  animation: cleaveSlash var(--cleave-duration, 350ms) ease-out forwards;
+}
+
+.cleave-vfx-ring::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(255, 80, 10, 0.45);
+  animation: cleaveSlash var(--cleave-duration, 350ms) 50ms ease-out forwards;
+}
+
+@keyframes cleaveSlash {
+  0%   { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+  50%  { opacity: 0.85; }
+  100% { transform: translate(-50%, -50%) scale(var(--cleave-final-scale, 21)); opacity: 0; }
+}

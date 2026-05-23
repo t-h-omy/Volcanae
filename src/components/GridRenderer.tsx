@@ -8,7 +8,7 @@ import { useGameStore } from '../gameStore';
 import { useFloaterStore } from '../floaterStore';
 import { useAnimationStore } from '../animationStore';
 import { useCombatAnimationStore } from '../combatAnimationStore';
-import type { Projectile, SlideKillGhost } from '../combatAnimationStore';
+import type { Projectile, SlideKillGhost, CleaveVfx } from '../combatAnimationStore';
 import { useShockwaveStore } from '../shockwaveStore';
 import { canCapture } from '../captureSystem';
 import { getConstructionOptionsForTile } from '../constructionSystem';
@@ -946,6 +946,7 @@ export default function GridRenderer() {
         <ProjectileLayer />
         <SlideKillGhostLayer tileSize={tileSize} />
         <ShockwaveLayer />
+        <CleaveVfxLayer tileSize={tileSize} />
       </div>
       <div className="zoom-controls">
         <button onClick={() => handleZoomButton(-RENDER.ZOOM_STEP)}>−</button>
@@ -2113,5 +2114,32 @@ function CrystalTowerConnectionLayer({ tileSize }: { tileSize: number }) {
         </filter>
       </defs>
     </svg>
+  );
+}
+
+// ============================================================================
+// CLEAVE VFX LAYER
+// ============================================================================
+
+function CleaveVfxLayer({ tileSize }: { tileSize: number }) {
+  const cleaveVfxList = useCombatAnimationStore((s) => s.cleaveVfxList);
+  // The ring element has 0×0 size with a box-shadow spread of 3px.
+  // To visually expand to 1.25 tile widths the scale must equal (1.25 * tileSize) / 3.
+  const finalScale = Math.round((1.25 * tileSize) / 3);
+  return (
+    <div className="cleave-vfx-layer">
+      {cleaveVfxList.map((vfx: CleaveVfx) => (
+        <div
+          key={vfx.id}
+          className="cleave-vfx-ring"
+          style={{
+            left: vfx.cx * tileSize + tileSize / 2,
+            top: vfx.cy * tileSize + tileSize / 2,
+            '--cleave-final-scale': finalScale,
+            '--cleave-duration': `${vfx.durationMs}ms`,
+          } as React.CSSProperties}
+        />
+      ))}
+    </div>
   );
 }
