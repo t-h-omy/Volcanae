@@ -1207,14 +1207,16 @@ export const useGameStore = create<GameStore>()(
 
     castSpell: (targetPosition: Position) => {
       let castSpellId: import('./types').SpellId | null = null;
+      let magePosition: Position | null = null;
       set((state) => {
         if (!state.pendingSpellCast) return;
         const { mageId, spellId } = state.pendingSpellCast;
         const ok = castSpellLogic(state, mageId, spellId, targetPosition);
         if (!ok) return;
         castSpellId = spellId;
-        const mage = state.units[mageId];
-        if (mage) {
+        const mageAfter = state.units[mageId];
+        if (mageAfter) {
+          magePosition = { x: mageAfter.position.x, y: mageAfter.position.y };
           // Casting is symmetric with attacking: set hasCastThisTurn only.
           // - canUnitMove and canUnitAttack are updated to treat
           //   hasCastThisTurn the same way they already treat
@@ -1226,7 +1228,7 @@ export const useGameStore = create<GameStore>()(
           //   stripped via a future tech.
           // Do NOT set hasMovedThisTurn or hasAttackedThisTurn here — that
           // would over-constrain the rules and break the symmetry.
-          mage.hasCastThisTurn = true;
+          mageAfter.hasCastThisTurn = true;
         }
         state.pendingSpellCast = null;
         state.pendingTransposeFirstUnitId = null;
@@ -1255,6 +1257,39 @@ export const useGameStore = create<GameStore>()(
             cy: targetPosition.y * tileSize + tileSize / 2,
             durationMs: ANIMATION.EXPLOSION_SHOCKWAVE_MS,
             finalScale: explosionFinalScale,
+          });
+        }
+        // SPELL_CAST line from mage to target tile + SPELL_IMPACT ring on target.
+        // Mirrors the EXPLODE shockwave pattern above: tile-size lookup, then dispatch.
+        // magePosition is captured from inside the immer callback — cast to silence
+        // TypeScript's closure-assignment narrowing.
+        const capturedMagePosition = magePosition as Position | null;
+        if (capturedMagePosition !== null) {
+          const tileSize = typeof window !== 'undefined' && window.innerWidth <= RENDER.MOBILE_BREAKPOINT
+            ? RENDER.TILE_SIZE_MOBILE
+            : RENDER.TILE_SIZE_DESKTOP;
+          const fromPx = {
+            x: capturedMagePosition.x * tileSize + tileSize / 2,
+            y: capturedMagePosition.y * tileSize + tileSize / 2,
+          };
+          const toPx = {
+            x: targetPosition.x * tileSize + tileSize / 2,
+            y: targetPosition.y * tileSize + tileSize / 2,
+          };
+          const store = useCombatAnimationStore.getState();
+          store.addLineVfx({
+            id: crypto.randomUUID(),
+            fromPx,
+            toPx,
+            variant: 'SPELL_CAST',
+            durationMs: ANIMATION.SPELL_CAST_MS,
+          });
+          store.addTileVfx({
+            id: crypto.randomUUID(),
+            x: targetPosition.x,
+            y: targetPosition.y,
+            variant: 'SPELL_IMPACT',
+            durationMs: ANIMATION.SPELL_IMPACT_MS,
           });
         }
       }

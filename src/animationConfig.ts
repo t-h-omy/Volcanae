@@ -91,4 +91,15 @@ export const ANIMATION = {
   BURROW_EMERGE_COVER_DELAY_MS: 120,
   /** Delay after TUNNEL_EMERGE state is applied before firing the cleave rings on damaged adjacent tiles (ms) */
   BURROW_EMERGE_AOE_DELAY_MS: 120,
+  /** Duration of the fire-spit line VFX min/max. Distance-scaled like a projectile. */
+  FIRE_SPIT_MIN_MS: 300,
+  FIRE_SPIT_MAX_MS: 450,
+  /** Duration of the lava shield burst shown when a stun is blocked (ms) */
+  STUN_BLOCKED_SHIELD_MS: 600,
+  /** Duration of the cracked-shield VFX shown when PUNCTURE bypasses defense (ms) */
+  DEFENSE_IGNORED_MS: 500,
+  /** Duration of the mage spell-cast line from caster to target tile (ms) */
+  SPELL_CAST_MS: 650,
+  /** Duration of the mage spell impact ring on the target tile (ms) */
+  SPELL_IMPACT_MS: 650,
 } as const;

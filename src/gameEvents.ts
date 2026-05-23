@@ -317,4 +317,29 @@ export type GameEvent =
       portalId: string;
       /** Portal entrance tile (for renderer clean-up). */
       position: Position;
+    }
+  | {
+      /**
+       * Emitted when an attacker would have applied a stun (PUNCTURE on a
+       * high-DEF defender, or PIN_DOWN proc) but the stun was prevented by
+       * the defender's ALERT immunity. Purely a feedback event — does not
+       * change game state.
+       */
+      type: 'STUN_BLOCKED';
+      unitId: string;
+      position: Position;
+      source: 'PUNCTURE' | 'PIN_DOWN';
+      reason: 'ALERT';
+    }
+  | {
+      /**
+       * Emitted when an attacker's PUNCTURE tag bypassed a defender's defense
+       * bonus AND a defense bonus was actually present to bypass. Not emitted
+       * when the defender had no bonus to ignore.
+       * Purely a feedback event — does not change game state.
+       */
+      type: 'DEFENSE_BONUS_IGNORED';
+      attackerId: string;
+      defenderId: string;
+      defenderPosition: Position;
     };

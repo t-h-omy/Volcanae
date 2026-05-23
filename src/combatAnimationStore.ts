@@ -83,8 +83,10 @@ export interface CleaveVfx {
 }
 
 export type TileVfxVariant =
-  | 'BURROW_DUST';
-//   Future phases extend this union. Do not add other variants now.
+  | 'BURROW_DUST'
+  | 'STUN_BLOCKED_SHIELD'
+  | 'DEFENSE_IGNORED'
+  | 'SPELL_IMPACT';
 
 export interface TileVfx {
   id: string;
@@ -97,10 +99,8 @@ export interface TileVfx {
 }
 
 export type LineVfxVariant =
-  | 'NOOP_PLACEHOLDER';
-//   Future phases replace this with FIRE_SPIT, SPELL_CAST, PIERCE_LINE.
-//   Keep the placeholder so the union is non-empty and the layer compiles.
-//   Do not invent additional variants in this phase.
+  | 'FIRE_SPIT'
+  | 'SPELL_CAST';
 
 export interface LineVfx {
   id: string;

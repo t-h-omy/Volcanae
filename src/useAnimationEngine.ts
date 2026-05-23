@@ -100,6 +100,10 @@ function eventPosition(event: GameEvent): Position {
       return event.fromPos;
     case 'PORTAL_CLOSED':
       return event.position;
+    case 'STUN_BLOCKED':
+      return event.position;
+    case 'DEFENSE_BONUS_IGNORED':
+      return event.defenderPosition;
   }
 }
 
@@ -185,6 +189,10 @@ function isEventVisible(event: GameEvent): boolean {
       return isTileRevealed(event.fromPos) || isTileRevealed(event.toPos);
     case 'PORTAL_CLOSED':
       return isTileRevealed(event.position);
+    case 'STUN_BLOCKED':
+      return isTileRevealed(event.position);
+    case 'DEFENSE_BONUS_IGNORED':
+      return isTileRevealed(event.defenderPosition);
   }
 }
 
@@ -254,6 +262,16 @@ function projectileChar(unitType: string): string {
   return '•';
 }
 
+/**
+ * True when this attacker should visually shoot a fire-spit line instead of
+ * a generic emoji projectile. Driven by tags, not by UnitType, so any future
+ * unit with BURN + RANGED automatically participates.
+ */
+function usesFireSpitVfx(attacker: { tags: UnitTag[] } | undefined): boolean {
+  if (!attacker) return false;
+  return attacker.tags.includes(UnitTag.BURN) && attacker.tags.includes(UnitTag.RANGED);
+}
+
 // ============================================================================
 // COMBAT ANIMATION CHOREOGRAPHY
 // ============================================================================
@@ -301,16 +319,33 @@ async function playAttackAnimation(
       const recoilDy = (fromPx.y - toPx.y) * 0.15;
 
       store.setUnitAnimation(event.attackerId, { type: 'RECOIL', dx: recoilDx, dy: recoilDy });
-      store.addProjectile({
-        id: crypto.randomUUID(),
-        fromPx,
-        toPx,
-        emoji: projectileChar(attacker?.type ?? ''),
-        rotationDeg: angleBetween(fromPx, toPx),
-        durationMs: projectileDuration,
-      });
 
-      await wait(projectileDuration);
+      const fireSpitDuration = clamp(
+        distance * ANIMATION.RANGED_PROJECTILE_MS_PER_TILE,
+        ANIMATION.FIRE_SPIT_MIN_MS,
+        ANIMATION.FIRE_SPIT_MAX_MS,
+      );
+
+      if (usesFireSpitVfx(attacker)) {
+        store.addLineVfx({
+          id: crypto.randomUUID(),
+          fromPx,
+          toPx,
+          variant: 'FIRE_SPIT',
+          durationMs: fireSpitDuration,
+        });
+        await wait(fireSpitDuration);
+      } else {
+        store.addProjectile({
+          id: crypto.randomUUID(),
+          fromPx,
+          toPx,
+          emoji: projectileChar(attacker?.type ?? ''),
+          rotationDeg: angleBetween(fromPx, toPx),
+          durationMs: projectileDuration,
+        });
+        await wait(projectileDuration);
+      }
       useCombatAnimationStore.getState().setUnitAnimation(event.attackerId, null);
     } else {
       // ── Melee: lunge toward defender ──
@@ -536,16 +571,33 @@ async function playUnitAttackBuildingAnimation(
       const recoilDy = (fromPx.y - toPx.y) * 0.15;
 
       store.setUnitAnimation(event.attackerId, { type: 'RECOIL', dx: recoilDx, dy: recoilDy });
-      store.addProjectile({
-        id: crypto.randomUUID(),
-        fromPx,
-        toPx,
-        emoji: projectileChar(attacker?.type ?? ''),
-        rotationDeg: angleBetween(fromPx, toPx),
-        durationMs: projectileDuration,
-      });
 
-      await wait(projectileDuration);
+      const fireSpitDuration = clamp(
+        distance * ANIMATION.RANGED_PROJECTILE_MS_PER_TILE,
+        ANIMATION.FIRE_SPIT_MIN_MS,
+        ANIMATION.FIRE_SPIT_MAX_MS,
+      );
+
+      if (usesFireSpitVfx(attacker)) {
+        store.addLineVfx({
+          id: crypto.randomUUID(),
+          fromPx,
+          toPx,
+          variant: 'FIRE_SPIT',
+          durationMs: fireSpitDuration,
+        });
+        await wait(fireSpitDuration);
+      } else {
+        store.addProjectile({
+          id: crypto.randomUUID(),
+          fromPx,
+          toPx,
+          emoji: projectileChar(attacker?.type ?? ''),
+          rotationDeg: angleBetween(fromPx, toPx),
+          durationMs: projectileDuration,
+        });
+        await wait(projectileDuration);
+      }
       useCombatAnimationStore.getState().setUnitAnimation(event.attackerId, null);
     } else {
       // Melee: lunge toward building
@@ -1089,6 +1141,41 @@ export function useAnimationEngine(): void {
             }
           }
           if (visible) await wait(ANIMATION.POST_ACTION_IDLE_MS);
+          continue;
+        }
+
+        // ── Special handling for STUN_BLOCKED ──
+        if (event.type === 'STUN_BLOCKED') {
+          if (visible) {
+            useCombatAnimationStore.getState().addTileVfx({
+              id: crypto.randomUUID(),
+              x: event.position.x,
+              y: event.position.y,
+              variant: 'STUN_BLOCKED_SHIELD',
+              durationMs: ANIMATION.STUN_BLOCKED_SHIELD_MS,
+            });
+            await wait(ANIMATION.STUN_BLOCKED_SHIELD_MS);
+          }
+          // STUN_BLOCKED has no game-state effect. applyEvent is a silent no-op for it.
+          useGameStore.getState().applyEvent(event);
+          continue;
+        }
+
+        // ── Special handling for DEFENSE_BONUS_IGNORED ──
+        if (event.type === 'DEFENSE_BONUS_IGNORED') {
+          if (visible) {
+            useCombatAnimationStore.getState().addTileVfx({
+              id: crypto.randomUUID(),
+              x: event.defenderPosition.x,
+              y: event.defenderPosition.y,
+              variant: 'DEFENSE_IGNORED',
+              durationMs: ANIMATION.DEFENSE_IGNORED_MS,
+            });
+            // Do NOT await the full duration here. The VFX plays out via the layer's
+            // onAnimationEnd cleanup. The attack's HIT_SHAKE already provides timing.
+          }
+          // No game-state effect.
+          useGameStore.getState().applyEvent(event);
           continue;
         }
 

@@ -1228,3 +1228,139 @@
   55%  { opacity: 0.95; transform: scale(1.25); }
   100% { opacity: 0;    transform: scale(1.40); }
 }
+
+/* ── STUN_BLOCKED_SHIELD — lava shield rejecting a stun attempt ────────── */
+
+.tile-vfx--stun-blocked-shield {
+  /* Centered circular shield. The unit sprite remains visible underneath. */
+  background:
+    radial-gradient(circle at 50% 50%,
+      rgba(255, 179, 107, 0.0) 0%,
+      rgba(255, 179, 107, 0.0) 36%,
+      rgba(217, 74, 30, 0.85) 42%,
+      rgba(122, 31, 14, 0.95) 50%,
+      rgba(122, 31, 14, 0.0) 58%);
+  border-radius: 50%;
+  transform: scale(0.75);
+  opacity: 0;
+  animation: stunBlockedShield var(--tile-vfx-duration, 600ms) ease-out forwards;
+}
+
+@keyframes stunBlockedShield {
+  0%   { opacity: 0;    transform: scale(0.75) rotate(-10deg); }
+  25%  { opacity: 1;    transform: scale(1.12) rotate(0deg);   }
+  60%  { opacity: 0.95; transform: scale(1.0)  rotate(8deg);   }
+  100% { opacity: 0;    transform: scale(1.05) rotate(8deg);   }
+}
+
+/* ── DEFENSE_IGNORED — cracked shield with a lava-orange slash ─────────── */
+
+.tile-vfx--defense-ignored {
+  /* Symbolic shield shape via clip-path. The slash is the ::before pseudo. */
+  background: linear-gradient(135deg,
+    rgba(220, 220, 240, 0.0) 0%,
+    rgba(220, 220, 240, 0.45) 40%,
+    rgba(220, 220, 240, 0.45) 60%,
+    rgba(220, 220, 240, 0.0) 100%);
+  clip-path: polygon(50% 8%, 82% 22%, 76% 70%, 50% 92%, 24% 70%, 18% 22%);
+  opacity: 0;
+  animation: defenseIgnoredShield var(--tile-vfx-duration, 500ms) ease-out forwards;
+}
+
+.tile-vfx--defense-ignored::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  /* Diagonal slash */
+  background: linear-gradient(135deg,
+    transparent 42%,
+    rgba(255, 122, 58, 0.0) 45%,
+    rgba(255, 210, 122, 1.0) 49%,
+    rgba(255, 122, 58, 1.0) 51%,
+    rgba(255, 122, 58, 0.0) 55%,
+    transparent 58%);
+  clip-path: polygon(50% 8%, 82% 22%, 76% 70%, 50% 92%, 24% 70%, 18% 22%);
+  animation: defenseIgnoredSlash var(--tile-vfx-duration, 500ms) ease-out forwards;
+}
+
+@keyframes defenseIgnoredShield {
+  0%   { opacity: 0;    transform: scale(0.9); }
+  20%  { opacity: 1;    transform: scale(1.0); }
+  70%  { opacity: 0.85; transform: scale(1.0); }
+  100% { opacity: 0;    transform: scale(1.05); }
+}
+
+@keyframes defenseIgnoredSlash {
+  0%   { opacity: 0; transform: translateX(-15%); }
+  35%  { opacity: 1; transform: translateX(0%);   }
+  100% { opacity: 0; transform: translateX(10%);  }
+}
+
+/* ── SPELL_IMPACT — clean blue ring + small gold core ──────────────────── */
+
+.tile-vfx--spell-impact {
+  /* Centred ring; the unit/building underneath remains readable. */
+  background:
+    radial-gradient(circle at 50% 50%,
+      rgba(224, 184, 74, 0.0) 0%,
+      rgba(224, 184, 74, 0.85) 14%,
+      rgba(224, 184, 74, 0.0) 22%,
+      rgba(47, 111, 204, 0.85) 38%,
+      rgba(30, 76, 153, 0.45) 50%,
+      rgba(30, 76, 153, 0.0) 60%);
+  border-radius: 50%;
+  transform: scale(0.5);
+  opacity: 0;
+  animation: spellImpact var(--tile-vfx-duration, 650ms) ease-out forwards;
+}
+
+@keyframes spellImpact {
+  0%   { opacity: 0;    transform: scale(0.50); }
+  25%  { opacity: 1;    transform: scale(1.05); }
+  60%  { opacity: 0.85; transform: scale(1.15); }
+  100% { opacity: 0;    transform: scale(1.30); }
+}
+
+/* ── FIRE_SPIT — thick layered fire line ──────────────────────────────── */
+
+.line-vfx--fire-spit {
+  fill: none;
+  stroke: #7A1F0E;
+  stroke-width: 14;
+  stroke-linecap: round;
+  opacity: 0;
+  animation: fireSpitLayer var(--line-vfx-duration, 400ms) ease-out forwards;
+  /* Layered glow via stacked drop-shadows gives the "outer + middle + core"
+     look without rendering three SVG <line> elements. */
+  filter:
+    drop-shadow(0 0 2px rgba(255, 122, 58, 0.9))
+    drop-shadow(0 0 6px rgba(255, 210, 122, 0.6));
+}
+
+@keyframes fireSpitLayer {
+  0%   { opacity: 0;    stroke-width: 6;  }
+  20%  { opacity: 1;    stroke-width: 14; }
+  70%  { opacity: 0.9;  stroke-width: 12; }
+  100% { opacity: 0;    stroke-width: 10; }
+}
+
+/* ── SPELL_CAST — clean blue line with gold dash highlight ─────────────── */
+
+.line-vfx--spell-cast {
+  fill: none;
+  stroke: #2F6FCC;
+  stroke-width: 7;
+  stroke-linecap: round;
+  opacity: 0;
+  animation: spellCastLayer var(--line-vfx-duration, 650ms) ease-out forwards;
+  filter:
+    drop-shadow(0 0 2px rgba(224, 184, 74, 0.9))
+    drop-shadow(0 0 6px rgba(30, 76, 153, 0.55));
+}
+
+@keyframes spellCastLayer {
+  0%   { opacity: 0;    stroke-width: 3; }
+  15%  { opacity: 1;    stroke-width: 7; }
+  85%  { opacity: 0.9;  stroke-width: 6; }
+  100% { opacity: 0;    stroke-width: 5; }
+}

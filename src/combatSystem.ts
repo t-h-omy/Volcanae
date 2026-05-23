@@ -521,7 +521,16 @@ export function resolveAttack(
   // the raw base stat, ignoring PHALANX, HOLD_GROUND, and any other bonuses added above.
   // Suppressed on CORRUPTED tile.
   if (attacker.tags.includes(UnitTag.PUNCTURE) && !attackerOnCorrupted) {
+    const bonusPresent = defenderCombatant.defense > defender.stats.defense;
     defenderCombatant.defense = defender.stats.defense;
+    if (bonusPresent) {
+      outEvents?.push({
+        type: 'DEFENSE_BONUS_IGNORED',
+        attackerId: attacker.id,
+        defenderId: defender.id,
+        defenderPosition: { x: defender.position.x, y: defender.position.y },
+      });
+    }
   }
 
   const combatResult = calculateCombatFromStats(attackerCombatant, defenderCombatant);
@@ -785,6 +794,14 @@ export function resolveAttack(
     if (attacker.tags.includes(UnitTag.PIN_DOWN) && !attackerOnCorrupted && Math.random() < ABILITIES.PIN_DOWN_STUN_CHANCE) {
       if (!defender.tags.includes(UnitTag.ALERT)) {
         defender.pinnedUntilTurn = state.turn;
+      } else {
+        outEvents?.push({
+          type: 'STUN_BLOCKED',
+          unitId: defender.id,
+          position: { x: defender.position.x, y: defender.position.y },
+          source: 'PIN_DOWN',
+          reason: 'ALERT',
+        });
       }
     }
 
@@ -796,10 +813,19 @@ export function resolveAttack(
     if (
       attacker.tags.includes(UnitTag.PUNCTURE) &&
       !attackerOnCorrupted &&
-      defender.stats.defense > PUNCTURE_STUN_BASE_DEF_THRESHOLD &&
-      !defender.tags.includes(UnitTag.ALERT)
+      defender.stats.defense > PUNCTURE_STUN_BASE_DEF_THRESHOLD
     ) {
-      defender.pinnedUntilTurn = state.turn + PUNCTURE_STUN_DURATION;
+      if (!defender.tags.includes(UnitTag.ALERT)) {
+        defender.pinnedUntilTurn = state.turn + PUNCTURE_STUN_DURATION;
+      } else {
+        outEvents?.push({
+          type: 'STUN_BLOCKED',
+          unitId: defender.id,
+          position: { x: defender.position.x, y: defender.position.y },
+          source: 'PUNCTURE',
+          reason: 'ALERT',
+        });
+      }
     }
   }
 
