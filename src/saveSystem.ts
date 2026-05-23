@@ -18,7 +18,7 @@ import { TECH_TREE, POPULATION, SPECIALIST_DEFINITIONS } from './gameConfig';
 const SAVE_KEY = 'volcanae-save';
 
 /** Increment this whenever the serialized shape changes incompatibly. */
-const SAVE_VERSION = 10;
+const SAVE_VERSION = 11;
 
 // ============================================================================
 // PUBLIC API
@@ -71,6 +71,28 @@ export function loadGameState(): GameState | null {
         const u = unit as Record<string, unknown>;
         if (u && u.type === 'INFANTRY') {
           u.type = 'SPEARMAN';
+        }
+      }
+    }
+
+    // Migration v10 → v11: 7 enemy UnitType string values were renamed.
+    //   LAVA_REAPER → REAPER, LAVA_LANCER → LANCER, LAVA_BREAKER → BULLWARK,
+    //   LAVA_PYROCLAST → KINDLER, LAVA_BEAST → GRIMBEAK,
+    //   LAVA_BURROWER → RIFTWORM, LAVA_HEXCASTER → RIFT_LORD
+    if (parsed.version < 11 && s.units && typeof s.units === 'object') {
+      const unitTypeRenames: Record<string, string> = {
+        LAVA_REAPER:    'REAPER',
+        LAVA_LANCER:    'LANCER',
+        LAVA_BREAKER:   'BULLWARK',
+        LAVA_PYROCLAST: 'KINDLER',
+        LAVA_BEAST:     'GRIMBEAK',
+        LAVA_BURROWER:  'RIFTWORM',
+        LAVA_HEXCASTER: 'RIFT_LORD',
+      };
+      for (const unit of Object.values(s.units) as Array<unknown>) {
+        const u = unit as Record<string, unknown>;
+        if (u && typeof u.type === 'string' && u.type in unitTypeRenames) {
+          u.type = unitTypeRenames[u.type];
         }
       }
     }

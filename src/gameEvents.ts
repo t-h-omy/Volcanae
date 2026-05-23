@@ -167,4 +167,104 @@ export type GameEvent =
       position: Position;
       /** Amount of damage dealt */
       amount: number;
+    }
+  | {
+      /**
+       * Emitted when a CLEAVE attacker deals AoE damage to a unit in the
+       * intersection of tiles adjacent to both attacker and defender.
+       */
+      type: 'CLEAVE_DAMAGE';
+      /** ID of the unit that took cleave damage */
+      unitId: string;
+      /** Position where the floater should appear */
+      position: Position;
+      /** Amount of cleave damage dealt */
+      amount: number;
+    }
+  | {
+      /**
+       * Emitted when a PIERCE attacker deals full damage to the unit or
+       * building directly behind the primary defender.
+       */
+      type: 'PIERCE_DAMAGE';
+      /** ID of the unit that took pierce damage (null for buildings) */
+      unitId: string | null;
+      /** Position where the floater should appear */
+      position: Position;
+      /** Amount of pierce damage dealt */
+      amount: number;
+    }
+  | {
+      /**
+       * Emitted when a PUNCTURE attacker stuns a high-DEF defender.
+       */
+      type: 'STUN_APPLIED';
+      /** ID of the unit that was stunned */
+      unitId: string;
+      /** Position of the stunned unit */
+      position: Position;
+    }
+  | {
+      /**
+       * Emitted when a TUNNEL unit digs in. The unit is removed from the tile.
+       * Renderers should place a hole sprite at `position` while tunnelState is
+       * DIGGING_IN or UNDERGROUND.
+       */
+      type: 'TUNNEL_DIG_IN';
+      unitId: string;
+      /** Tile where the unit dug in (hole origin). */
+      position: Position;
+    }
+  | {
+      /**
+       * Emitted one turn before emergence to warn the player.
+       * Renderers should place an earthquake indicator on `position`.
+       */
+      type: 'TUNNEL_EMERGE_WARNING';
+      unitId: string;
+      /** Tile where the unit will emerge next turn. */
+      position: Position;
+    }
+  | {
+      /**
+       * Emitted when a TUNNEL unit emerges on the surface.
+       * Renderers should trigger the emergence animation on `position`.
+       */
+      type: 'TUNNEL_EMERGE';
+      unitId: string;
+      /** Tile where the unit emerged. */
+      position: Position;
+    }
+  | {
+      /**
+       * Emitted when a RIFT_LORD creates a portal pair.
+       * Renderers should display entrance and exit sprites.
+       */
+      type: 'PORTAL_CREATED';
+      casterId: string;
+      portalId: string;
+      /** Tile where allied units enter the portal. */
+      entrancePos: Position;
+      /** Tile where allied units exit the portal. */
+      exitPos: Position;
+    }
+  | {
+      /**
+       * Emitted when an enemy unit teleports through a portal.
+       */
+      type: 'PORTAL_USED';
+      unitId: string;
+      /** Portal entrance tile. */
+      fromPos: Position;
+      /** Portal exit tile. */
+      toPos: Position;
+    }
+  | {
+      /**
+       * Emitted when a portal is removed (expired or caster died).
+       */
+      type: 'PORTAL_CLOSED';
+      portalId: string;
+      /** Portal entrance tile (for renderer clean-up). */
+      position: Position;
     };

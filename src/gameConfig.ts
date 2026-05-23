@@ -481,6 +481,14 @@ export const AI_RECRUITMENT = {
   BASE_SCORE_RIDER: 0,
   BASE_SCORE_SIEGE: 0,
   BASE_SCORE_EMBERLING: 0,
+  // Counter units — base scores for recruitment priority
+  BASE_SCORE_REAPER: 60,
+  BASE_SCORE_LANCER: 55,
+  BASE_SCORE_BULLWARK: 55,
+  BASE_SCORE_KINDLER: 50,
+  BASE_SCORE_GRIMBEAK: 50,
+  BASE_SCORE_RIFTWORM: 55,
+  BASE_SCORE_RIFT_LORD: 70,
 
   // ── Classification thresholds ───────────────────────────────────────────
   /** Unit offensiveScore >= this → counted as offensive */
@@ -904,6 +912,111 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     ],
     enemyUnlockEmber: 5,
     description: 'Enemy long-range bombard.', // overwritten below
+  },
+
+  REAPER: {
+    maxHp: 100, attack: 50, defense: 35,
+    movementActions: 1, moveRange: 1, attackRange: 1,
+    discoverRadius: 1, triggerRange: 3,
+    tags: [UnitTag.CLEAVE, UnitTag.RAGE, UnitTag.CORRUPT, UnitTag.LAVA],
+    cost: { iron: 0, wood: 0 },
+    populationCost: { farmers: 0, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    enemyUnlockEmber: 3,
+    description: 'Brutal cluster-breaker. Cleaves into adjacent enemies and grows stronger when surrounded.',
+  },
+
+  LANCER: {
+    maxHp: 80, attack: 60, defense: 30,
+    movementActions: 1, moveRange: 2, attackRange: 1,
+    discoverRadius: 1, triggerRange: 3,
+    tags: [UnitTag.PIERCE, UnitTag.ALERT, UnitTag.LAVA],
+    cost: { iron: 0, wood: 0 },
+    populationCost: { farmers: 0, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    enemyUnlockEmber: 4,
+    description: 'Fast lancer that pierces through front lines, dealing full damage to units behind the target. Immune to stun.',
+  },
+
+  BULLWARK: {
+    maxHp: 110, attack: 55, defense: 40,
+    movementActions: 1, moveRange: 1, attackRange: 1,
+    discoverRadius: 1, triggerRange: 3,
+    tags: [UnitTag.PUNCTURE, UnitTag.BLOCK, UnitTag.LAVA],
+    cost: { iron: 0, wood: 0 },
+    populationCost: { farmers: 0, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    enemyUnlockEmber: 4,
+    description: 'Heavily armored brute that ignores defensive bonuses and stuns heavily armored targets. Resistant to melee damage.',
+  },
+
+  KINDLER: {
+    maxHp: 70, attack: 40, defense: 20,
+    movementActions: 1, moveRange: 1, attackRange: 2,
+    discoverRadius: 1, triggerRange: 4,
+    tags: [UnitTag.BURN, UnitTag.RANGED, UnitTag.PREP, UnitTag.LAVA],
+    cost: { iron: 0, wood: 0 },
+    populationCost: { farmers: 0, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    enemyUnlockEmber: 5,
+    description: 'Ranged firestarter that scorches the target\'s tile, forcing player units to abandon static positions.',
+  },
+
+  GRIMBEAK: {
+    maxHp: 130, attack: 50, defense: 45,
+    movementActions: 1, moveRange: 1, attackRange: 1,
+    discoverRadius: 1, triggerRange: 3,
+    tags: [UnitTag.RAGE, UnitTag.IRONBLOOD, UnitTag.CORRUPT, UnitTag.LAVA],
+    cost: { iron: 0, wood: 0 },
+    populationCost: { farmers: 0, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    enemyUnlockEmber: 6,
+    description: 'Resilient lava beast that resists damage from summoned units and grows enraged in dense clusters.',
+  },
+
+  RIFTWORM: {
+    maxHp: 75, attack: 60, defense: 25,
+    movementActions: 1, moveRange: 1, attackRange: 1,
+    discoverRadius: 1, triggerRange: 3,
+    tags: [UnitTag.TUNNEL, UnitTag.RAGE, UnitTag.CORRUPT, UnitTag.LAVA],
+    cost: { iron: 0, wood: 0 },
+    populationCost: { farmers: 0, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    enemyUnlockEmber: 5,
+    description: 'Bypasses the frontline by digging underground. Emerges south of the player line, damaging adjacent enemies and corrupting the tile.',
+  },
+
+  RIFT_LORD: {
+    maxHp: 60, attack: 0, defense: 20,
+    movementActions: 1, moveRange: 1, attackRange: 0,
+    discoverRadius: 2, triggerRange: 5,
+    tags: [UnitTag.EMBER_PORTAL, UnitTag.PASSIVE, UnitTag.PREP, UnitTag.LAVA],
+    cost: { iron: 0, wood: 0 },
+    populationCost: { farmers: 0, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    enemyUnlockEmber: 7,
+    description: 'Glass-cannon caster that opens portals behind the player line, allowing enemy units to teleport into the backline.',
   },
 
   EMBERLING: {
@@ -1873,6 +1986,59 @@ export const TAG_STAT_EFFECTS: Partial<Record<UnitTag, StatModifier[]>> = {
   [UnitTag.BRANDMARKED]: [{ stat: 'attack', mode: 'add', value: MAGE.BRANDMARK_ATTACK_BONUS }],
 };
 
+
+// ============================================================================
+// COUNTER-TAG MECHANICS
+// ============================================================================
+
+/** Multiplier applied to primary attack damage when computing CLEAVE AoE damage. */
+export const CLEAVE_DAMAGE_MULTIPLIER = 0.4;
+
+/** Multiplier applied to defender damage when the attacker has PIERCE. */
+export const PIERCE_PRIMARY_DAMAGE_MULTIPLIER = 0.5;
+
+/** ATK bonus per adjacent enemy, granted to units with RAGE. */
+export const RAGE_ATK_PER_ADJACENT = 6;
+/** Maximum number of adjacent enemies that contribute to RAGE bonus. */
+export const RAGE_MAX_ADJACENT_COUNT = 3;
+
+/** Damage multiplier when a SUMMONED unit attacks a unit with IRONBLOOD. */
+export const IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER = 0.6;
+
+/** Damage multiplier when a melee unit (attackRange === 1) attacks a unit with BLOCK. */
+export const BLOCK_MELEE_DAMAGE_MULTIPLIER = 0.5;
+
+/** Base DEF threshold above which PUNCTURE-stun is triggered. */
+export const PUNCTURE_STUN_BASE_DEF_THRESHOLD = 65;
+/** Duration in turns of the stun applied by PUNCTURE. */
+export const PUNCTURE_STUN_DURATION = 1;
+
+/** TUNNEL: minimum number of tiles the unit must move south while underground. */
+export const TUNNEL_RANGE_MIN = 3;
+/** TUNNEL: maximum number of tiles the unit can move south while underground. */
+export const TUNNEL_RANGE_MAX = 4;
+/** TUNNEL: damage applied to enemy units adjacent to the emergence tile. */
+export const TUNNEL_EMERGE_DAMAGE = 20;
+/** TUNNEL: cooldown turns after emergence before the unit can dig again. */
+export const TUNNEL_COOLDOWN_TURNS = 2;
+/** TUNNEL: maximum number of turns the unit can stay underground while waiting for a free emergence tile. */
+export const TUNNEL_MAX_RETRY_TURNS = 1;
+/** TUNNEL: HP multiplier applied when a unit is forced to emerge with no valid free tile (last-resort fallback). */
+export const TUNNEL_FORCED_EMERGE_HP_MULTIPLIER = 0.7;
+
+/** EMBER_PORTAL: maximum distance from the caster to an exit tile. */
+export const EMBER_PORTAL_EXIT_RANGE = 6;
+/** EMBER_PORTAL: minimum tiles south of the southernmost player unit the exit must be placed. */
+export const EMBER_PORTAL_MIN_DISTANCE_SOUTH_OF_FRONTLINE = 2;
+/** EMBER_PORTAL: turns after creation before the portal can be used. */
+export const EMBER_PORTAL_USE_COOLDOWN_TURNS = 1;
+/** EMBER_PORTAL: total lifetime of a portal in turns; expires automatically. */
+export const EMBER_PORTAL_LIFETIME_TURNS = 3;
+/** EMBER_PORTAL: maximum simultaneous portals per caster. */
+export const EMBER_PORTAL_MAX_PER_CASTER = 2;
+/** EMBER_PORTAL: HP of the portal exit tile when treated as a destructible entity. */
+export const EMBER_PORTAL_HP = 1;
+
 // ============================================================================
 // TAG INFO — label and description for each unit tag
 // ============================================================================
@@ -1921,6 +2087,17 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   [UnitTag.LEAVES_GRAVESTONE]:  { label: 'Leaves Gravestone',  desc: 'Leaves a Gravestone on death.' },
   // ── Tile-status tags ────────────────────────────────────────────────────────
   [UnitTag.LAVA]:               { label: 'Lava',               desc: 'Lava-faction unit. Immune to BURNING tile damage. Retained even when faction changes.' },
+  // ── Counter tags ────────────────────────────────────────────────────────────
+  [UnitTag.CLEAVE]:       { label: 'Cleave',      desc: `On hit, deals ${CLEAVE_DAMAGE_MULTIPLIER * 100}% damage to all enemy units adjacent to both attacker and defender. Ignores Phalanx defense.` },
+  [UnitTag.PIERCE]:       { label: 'Pierce',      desc: `Deals ${PIERCE_PRIMARY_DAMAGE_MULTIPLIER * 100}% damage to the target and full damage to the unit or building directly behind the target.` },
+  [UnitTag.RAGE]:         { label: 'Rage',        desc: `Gains +${RAGE_ATK_PER_ADJACENT} attack per enemy adjacent to this unit, up to ${RAGE_MAX_ADJACENT_COUNT} enemies (max +${RAGE_ATK_PER_ADJACENT * RAGE_MAX_ADJACENT_COUNT}).` },
+  [UnitTag.ALERT]:        { label: 'Alert',       desc: 'Immune to stun effects.' },
+  [UnitTag.IRONBLOOD]:    { label: 'Ironblood',   desc: `Takes only ${IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER * 100}% damage from attacks by summoned units.` },
+  [UnitTag.BLOCK]:        { label: 'Block',       desc: `Takes only ${BLOCK_MELEE_DAMAGE_MULTIPLIER * 100}% damage from melee attackers.` },
+  [UnitTag.PUNCTURE]:     { label: 'Puncture',    desc: `Ignores defensive bonuses on the target. Stuns targets with base DEF above ${PUNCTURE_STUN_BASE_DEF_THRESHOLD} for ${PUNCTURE_STUN_DURATION} turn(s).` },
+  [UnitTag.BURN]:         { label: 'Burn',        desc: 'Attacks set the target\'s tile to Burning, dealing damage to non-lava units standing there at end of turn.' },
+  [UnitTag.TUNNEL]:       { label: 'Tunnel',      desc: `Digs underground and re-emerges ${TUNNEL_RANGE_MIN}–${TUNNEL_RANGE_MAX} tiles south. Deals ${TUNNEL_EMERGE_DAMAGE} damage to enemies adjacent to the emergence tile. Sets the emergence tile to Corrupted.` },
+  [UnitTag.EMBER_PORTAL]: { label: 'Ember Portal', desc: 'Creates a portal pair behind the player frontline. Allied lava-faction units stepping on the entrance teleport to the exit. Exit tile is corrupted on creation.' },
 };
 
 // ============================================================================
@@ -1994,6 +2171,52 @@ export const TILE_STATUS_WHITELIST: Record<TileType, TileStatus[]> = {
 
 /** Damage dealt to each non-LAVA unit standing on a BURNING tile at end of turn. */
 export const BURNING_TILE_DAMAGE = 15;
+
+// ============================================================================
+// COUNTER-UNIT RECRUITMENT SCORING
+// ============================================================================
+
+/** Recruitment scoring bonuses/penalties for new counter units. */
+export const COUNTER_UNIT_SCORING = {
+  // Base scores
+  BASE_SCORE_REAPER: 60,
+  BASE_SCORE_LANCER: 55,
+  BASE_SCORE_BULLWARK: 55,
+  BASE_SCORE_KINDLER: 50,
+  BASE_SCORE_RIFTWORM: 55,
+  BASE_SCORE_GRIMBEAK: 50,
+  BASE_SCORE_RIFT_LORD: 70,
+  // REAPER
+  REAPER_BONUS_CLUSTER_TARGET: 30,
+  REAPER_BONUS_SLOW_MELEE_HEAVY: 20,
+  REAPER_PENALTY_FAST_PLAYER: -15,
+  // LANCER
+  LANCER_BONUS_BACKLINE_FORMATION: 25,
+  LANCER_BONUS_MAGE_PRESENT: 30,
+  LANCER_PENALTY_OVERREPRESENTED: -20,
+  // BULLWARK
+  BULLWARK_BONUS_GUARDS_PRESENT: 25,
+  BULLWARK_BONUS_MELEE_PROTECTION_NEEDED: 15,
+  BULLWARK_PENALTY_PLAYER_RANGED: -20,
+  // KINDLER
+  KINDLER_BONUS_STATIC_FORMATION: 25,
+  KINDLER_BONUS_RANGED_GAP: 15,
+  KINDLER_PENALTY_MOBILE_PLAYER: -20,
+  // RIFTWORM
+  RIFTWORM_BONUS_DENSE_FORMATION: 30,
+  RIFTWORM_BONUS_BACKLINE_TARGETS: 25,
+  RIFTWORM_BONUS_FRONTLINE_BYPASS: 20,
+  RIFTWORM_PENALTY_SPREAD_PLAYER: -15,
+  // GRIMBEAK
+  GRIMBEAK_BONUS_SUMMONED_PRESENT: 25,
+  GRIMBEAK_BONUS_BRANDMARK_ACTIVE: 20,
+  GRIMBEAK_BONUS_CLUSTER_TARGET: 20,
+  // RIFT_LORD
+  RIFT_LORD_BACKLINE_THRESHOLD: 50,
+  RIFT_LORD_BONUS_HIGH_BACKLINE_VALUE: 35,
+  RIFT_LORD_BONUS_PLAYER_DOMINATING: 25,
+  RIFT_LORD_PENALTY_NO_PORTAL_USERS: -30,
+} as const;
 
 // ============================================================================
 // CONVENIENCE EXPORTS

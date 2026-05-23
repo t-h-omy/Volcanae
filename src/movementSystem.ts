@@ -214,7 +214,10 @@ export function checkGraveTrapTrigger(
   if (!building || building.type !== BuildingType.GRAVE_TRAP) return;
 
   const stunTurns = building.trapStunTurns ?? 1;
-  unit.pinnedUntilTurn = state.turn + stunTurns - 1;
+  // ALERT-tagged units are immune to stun.
+  if (!unit.tags.includes(UnitTag.ALERT)) {
+    unit.pinnedUntilTurn = state.turn + stunTurns - 1;
+  }
 
   delete state.buildings[tile.buildingId];
   tile.buildingId = null;
