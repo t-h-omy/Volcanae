@@ -3,7 +3,7 @@
  * Each event describes a discrete observable action that happens outside the player turn.
  */
 
-import type { Faction, Position, BuildingType, Unit } from './types';
+import type { Faction, Position, BuildingType, Unit, Building } from './types';
 
 export type GameEvent =
   | {
@@ -57,6 +57,8 @@ export type GameEvent =
       buildingHpLost: number;
       defenderHpLost: number;
       defenderXpGained?: number | null;
+      /** If the attack also applied CORRUPTED status to the defender's tile, the position is stored here for instant visual update. */
+      tileCorruptedPosition?: Position;
     }
   | {
       type: 'UNIT_ATTACK_BUILDING';
@@ -170,6 +172,34 @@ export type GameEvent =
     }
   | {
       /**
+       * Emitted when a CORRUPT_TERRAIN action places a new enemy corruption
+       * building (EMBERNEST or MAGMASPYR) on a tile. Allows the animation engine
+       * to add the building to the live state instantly so it appears during the
+       * animation rather than only after setGameState at turn end.
+       */
+      type: 'TILE_CORRUPTED';
+      /** Tile where the building was placed */
+      position: Position;
+      /** Snapshot of the newly created building */
+      building: Building;
+    }
+  | {
+      /**
+       * Emitted when a SPLASH attacker deals AoE damage to a unit surrounding
+       * the primary defender.
+       */
+      type: 'SPLASH_DAMAGE';
+      /** ID of the unit that took splash damage */
+      unitId: string;
+      /** Position where the floater should appear */
+      position: Position;
+      /** Amount of splash damage dealt */
+      amount: number;
+      /** Whether the target is an enemy unit */
+      isEnemy: boolean;
+    }
+  | {
+      /**
        * Emitted when a CLEAVE attacker deals AoE damage to a unit in the
        * intersection of tiles adjacent to both attacker and defender.
        */
@@ -180,6 +210,10 @@ export type GameEvent =
       position: Position;
       /** Amount of cleave damage dealt */
       amount: number;
+      /** Whether the target is an enemy unit */
+      isEnemy: boolean;
+      /** Position of the attacking unit — used to place the slash arc VFX */
+      attackerPosition: Position;
     }
   | {
       /**
@@ -189,10 +223,18 @@ export type GameEvent =
       type: 'PIERCE_DAMAGE';
       /** ID of the unit that took pierce damage (null for buildings) */
       unitId: string | null;
+      /** ID of the building that took pierce damage (null for units) */
+      buildingId: string | null;
       /** Position where the floater should appear */
       position: Position;
       /** Amount of pierce damage dealt */
       amount: number;
+      /** Whether the target is an enemy */
+      isEnemy: boolean;
+      /** Position of the attacking unit */
+      attackerPosition: Position;
+      /** Position of the primary defender — the projectile VFX starts here */
+      primaryDefenderPosition: Position;
     }
   | {
       /**

@@ -82,6 +82,10 @@ function eventPosition(event: GameEvent): Position {
       return event.position;
     case 'PIERCE_DAMAGE':
       return event.position;
+    case 'SPLASH_DAMAGE':
+      return event.position;
+    case 'TILE_CORRUPTED':
+      return event.position;
     case 'STUN_APPLIED':
       return event.position;
     case 'TUNNEL_DIG_IN':
@@ -162,6 +166,10 @@ function isEventVisible(event: GameEvent): boolean {
     case 'CLEAVE_DAMAGE':
       return isTileRevealed(event.position);
     case 'PIERCE_DAMAGE':
+      return isTileRevealed(event.position);
+    case 'SPLASH_DAMAGE':
+      return isTileRevealed(event.position);
+    case 'TILE_CORRUPTED':
       return isTileRevealed(event.position);
     case 'STUN_APPLIED':
       return isTileRevealed(event.position);
@@ -892,6 +900,128 @@ export function useAnimationEngine(): void {
             await wait(ANIMATION.POST_ACTION_IDLE_MS);
           }
 
+          continue;
+        }
+
+        // ── Special handling for CLEAVE_DAMAGE ──
+        if (event.type === 'CLEAVE_DAMAGE') {
+          if (visible) {
+            const { addCleaveVfx, removeCleaveVfx, setUnitAnimation } = useCombatAnimationStore.getState();
+            const vfxId = crypto.randomUUID();
+            addCleaveVfx({
+              id: vfxId,
+              cx: event.attackerPosition.x,
+              cy: event.attackerPosition.y,
+              durationMs: ANIMATION.CLEAVE_VFX_DURATION_MS,
+            });
+            setTimeout(() => removeCleaveVfx(vfxId), ANIMATION.CLEAVE_VFX_DURATION_MS);
+            // Apply HP delta immediately
+            useGameStore.getState().applyEvent(event);
+            // Show HIT shake on target
+            setUnitAnimation(event.unitId, { type: 'HIT' });
+            await wait(ANIMATION.HIT_SHAKE_DURATION_MS);
+            setUnitAnimation(event.unitId, null);
+          } else {
+            useGameStore.getState().applyEvent(event);
+          }
+          // Consume any following UNIT_DEATH for this target
+          {
+            const { eventQueue } = useAnimationStore.getState();
+            if (eventQueue.length > 0) {
+              const next = eventQueue[0];
+              if (next.type === 'UNIT_DEATH' && next.unitId === event.unitId) {
+                useAnimationStore.getState().shiftEvent();
+                if (visible) {
+                  useCombatAnimationStore.getState().setUnitAnimation(next.unitId, { type: 'DYING' });
+                  await wait(ANIMATION.DIE_FLASH_DURATION_MS + ANIMATION.DIE_FADE_DURATION_MS);
+                  useCombatAnimationStore.getState().setUnitAnimation(next.unitId, null);
+                }
+                useGameStore.getState().applyEvent(next);
+              }
+            }
+          }
+          if (visible) await wait(ANIMATION.POST_ACTION_IDLE_MS);
+          continue;
+        }
+
+        // ── Special handling for PIERCE_DAMAGE ──
+        if (event.type === 'PIERCE_DAMAGE') {
+          if (visible) {
+            const tileSize = getTileSize();
+            // Fire a projectile from primaryDefenderPosition toward target position
+            const fromPx = {
+              x: event.primaryDefenderPosition.x * tileSize + tileSize / 2,
+              y: event.primaryDefenderPosition.y * tileSize + tileSize / 2,
+            };
+            const toPx = {
+              x: event.position.x * tileSize + tileSize / 2,
+              y: event.position.y * tileSize + tileSize / 2,
+            };
+            const projId = crypto.randomUUID();
+            useCombatAnimationStore.getState().addProjectile({
+              id: projId,
+              fromPx,
+              toPx,
+              emoji: '🗡',
+              rotationDeg: angleBetween(fromPx, toPx),
+              durationMs: ANIMATION.PIERCE_VFX_MS_PER_TILE,
+            });
+            await wait(ANIMATION.PIERCE_VFX_MS_PER_TILE);
+            useCombatAnimationStore.getState().removeProjectile(projId);
+            useGameStore.getState().applyEvent(event);
+            if (event.unitId) {
+              useCombatAnimationStore.getState().setUnitAnimation(event.unitId, { type: 'HIT' });
+              await wait(ANIMATION.HIT_SHAKE_DURATION_MS);
+              useCombatAnimationStore.getState().setUnitAnimation(event.unitId, null);
+            }
+          } else {
+            useGameStore.getState().applyEvent(event);
+          }
+          // Consume any following UNIT_DEATH for this target unit
+          if (event.unitId) {
+            const { eventQueue } = useAnimationStore.getState();
+            if (eventQueue.length > 0) {
+              const next = eventQueue[0];
+              if (next.type === 'UNIT_DEATH' && next.unitId === event.unitId) {
+                useAnimationStore.getState().shiftEvent();
+                if (visible) {
+                  useCombatAnimationStore.getState().setUnitAnimation(next.unitId, { type: 'DYING' });
+                  await wait(ANIMATION.DIE_FLASH_DURATION_MS + ANIMATION.DIE_FADE_DURATION_MS);
+                  useCombatAnimationStore.getState().setUnitAnimation(next.unitId, null);
+                }
+                useGameStore.getState().applyEvent(next);
+              }
+            }
+          }
+          if (visible) await wait(ANIMATION.POST_ACTION_IDLE_MS);
+          continue;
+        }
+
+        // ── Special handling for SPLASH_DAMAGE ──
+        if (event.type === 'SPLASH_DAMAGE') {
+          useGameStore.getState().applyEvent(event);
+          if (visible) {
+            useCombatAnimationStore.getState().setUnitAnimation(event.unitId, { type: 'HIT' });
+            await wait(ANIMATION.HIT_SHAKE_DURATION_MS);
+            useCombatAnimationStore.getState().setUnitAnimation(event.unitId, null);
+          }
+          // Consume any following UNIT_DEATH for this target
+          {
+            const { eventQueue } = useAnimationStore.getState();
+            if (eventQueue.length > 0) {
+              const next = eventQueue[0];
+              if (next.type === 'UNIT_DEATH' && next.unitId === event.unitId) {
+                useAnimationStore.getState().shiftEvent();
+                if (visible) {
+                  useCombatAnimationStore.getState().setUnitAnimation(next.unitId, { type: 'DYING' });
+                  await wait(ANIMATION.DIE_FLASH_DURATION_MS + ANIMATION.DIE_FADE_DURATION_MS);
+                  useCombatAnimationStore.getState().setUnitAnimation(next.unitId, null);
+                }
+                useGameStore.getState().applyEvent(next);
+              }
+            }
+          }
+          if (visible) await wait(ANIMATION.POST_ACTION_IDLE_MS);
           continue;
         }
 

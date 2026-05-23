@@ -444,9 +444,12 @@ export const useGameStore = create<GameStore>()(
         // Populated inside the produce callback and used to push CAVE_MONSTER_KILLED events.
         const splashKilledCaveMonsterIds: string[] = [];
 
+        // Collect secondary events (SPLASH/CLEAVE/PIERCE damage and kills) emitted by resolveAttack
+        const secondaryEvents: GameEvent[] = [];
+
         // Compute the resolved state (post-attack) on the snapshot
         const resolvedState = produce(snapshot, (draft) => {
-          resolveAttack(draft, attackerId, targetId, true);
+          resolveAttack(draft, attackerId, targetId, true, secondaryEvents);
           // If the primary target is a cave monster that was killed, remove its encounter entry
           if (
             snapshot.units[targetId]?.type === UnitType.CAVE_MONSTER &&
@@ -516,6 +519,8 @@ export const useGameStore = create<GameStore>()(
         if (!attackerAfter) {
           events.push({ type: 'UNIT_DEATH', unitId: attackerId, position: attackerPosition, faction: attackerFaction });
         }
+        // Push secondary damage/death events (SPLASH/CLEAVE/PIERCE)
+        events.push(...secondaryEvents);
         // Push CAVE_MONSTER_KILLED events for any cave monsters killed by SPLASH AoE
         for (const monsterId of splashKilledCaveMonsterIds) {
           events.push({ type: 'CAVE_MONSTER_KILLED', monsterId });
@@ -1422,10 +1427,17 @@ export const useGameStore = create<GameStore>()(
           // Brandmark tick: every BRANDMARKED player unit loses HP at end of turn.
           // Collect dying unit IDs first so we don't mutate the collection mid-loop.
           const brandmarkDying: string[] = [];
+          const brandmarkFloater = useFloaterStore.getState().addFloater;
           for (const unit of Object.values(draft.units)) {
             if (unit.faction !== Faction.PLAYER) continue;
             if (!unit.tags.includes(UnitTag.BRANDMARKED)) continue;
             unit.stats.currentHp -= MAGE.BRANDMARK_HP_LOSS_PER_TURN;
+            brandmarkFloater({
+              value: MAGE.BRANDMARK_HP_LOSS_PER_TURN,
+              x: unit.position.x,
+              y: unit.position.y,
+              isEnemy: false,
+            });
             if (unit.stats.currentHp <= 0) {
               brandmarkDying.push(unit.id);
             }
@@ -1867,6 +1879,13 @@ export const useGameStore = create<GameStore>()(
                 floaterType: 'xp',
               });
             }
+            // Instantly reflect CORRUPTED tile status so the overlay appears
+            // during the animation rather than at turn-end setGameState.
+            if (event.tileCorruptedPosition) {
+              const { x, y } = event.tileCorruptedPosition;
+              const corruptedTile = state.grid[y]?.[x];
+              if (corruptedTile) corruptedTile.status = TileStatus.CORRUPTED;
+            }
             break;
           }
 
@@ -2184,6 +2203,64 @@ export const useGameStore = create<GameStore>()(
               y: event.position.y,
               isEnemy: true,
               floaterType: 'xp',
+            });
+            break;
+          }
+
+          case 'TILE_CORRUPTED': {
+            // Replay the building placement so the building sprite appears during animation
+            // rather than waiting for setGameState at turn end.
+            state.buildings[event.building.id] = { ...event.building };
+            const corruptTile = state.grid[event.position.y]?.[event.position.x];
+            if (corruptTile) corruptTile.buildingId = event.building.id;
+            break;
+          }
+
+          case 'SPLASH_DAMAGE': {
+            const splashTarget = state.units[event.unitId];
+            if (splashTarget) {
+              splashTarget.stats.currentHp = Math.max(0, splashTarget.stats.currentHp - event.amount);
+            }
+            useFloaterStore.getState().addFloater({
+              value: event.amount,
+              x: event.position.x,
+              y: event.position.y,
+              isEnemy: event.isEnemy,
+            });
+            break;
+          }
+
+          case 'CLEAVE_DAMAGE': {
+            const cleaveTarget = state.units[event.unitId];
+            if (cleaveTarget) {
+              cleaveTarget.stats.currentHp = Math.max(0, cleaveTarget.stats.currentHp - event.amount);
+            }
+            useFloaterStore.getState().addFloater({
+              value: event.amount,
+              x: event.position.x,
+              y: event.position.y,
+              isEnemy: event.isEnemy,
+            });
+            break;
+          }
+
+          case 'PIERCE_DAMAGE': {
+            if (event.unitId) {
+              const pierceTarget = state.units[event.unitId];
+              if (pierceTarget) {
+                pierceTarget.stats.currentHp = Math.max(0, pierceTarget.stats.currentHp - event.amount);
+              }
+            } else if (event.buildingId) {
+              const pierceBuilding = state.buildings[event.buildingId];
+              if (pierceBuilding) {
+                pierceBuilding.hp = Math.max(0, pierceBuilding.hp - event.amount);
+              }
+            }
+            useFloaterStore.getState().addFloater({
+              value: event.amount,
+              x: event.position.x,
+              y: event.position.y,
+              isEnemy: event.isEnemy,
             });
             break;
           }

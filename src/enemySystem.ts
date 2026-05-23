@@ -2042,7 +2042,8 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
           const attackerId = currentUnit.id;
           const defenderId = action.targetUnitId;
 
-          resolveAttack(state, attackerId, defenderId, suppressFloaters);
+          const secondaryEvents: GameEvent[] = [];
+          resolveAttack(state, attackerId, defenderId, suppressFloaters, secondaryEvents);
 
           if (events) {
             const attackerAfter = state.units[attackerId];
@@ -2073,6 +2074,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
             if (!attackerAfter) {
               events.push({ type: 'UNIT_DEATH', unitId: attackerId, position: attackerPos, faction: currentUnit.faction });
             }
+            events.push(...secondaryEvents);
           }
         } else if (!currentUnit.hasMovedThisTurn) {
           moveEnemyUnitToward(state, currentUnit.id, targetUnit.position, events);
@@ -2091,7 +2093,8 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
         const attackerId = currentUnit.id;
         const defenderId = action.targetUnitId;
 
-        resolveAttack(state, attackerId, defenderId, suppressFloaters);
+        const secondaryEvents: GameEvent[] = [];
+        resolveAttack(state, attackerId, defenderId, suppressFloaters, secondaryEvents);
 
         if (events) {
           const attackerAfter = state.units[attackerId];
@@ -2116,6 +2119,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
           if (!attackerAfter) {
             events.push({ type: 'UNIT_DEATH', unitId: attackerId, position: attackerPos, faction: currentUnit.faction });
           }
+          events.push(...secondaryEvents);
         }
       }
       break;
@@ -2297,7 +2301,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
         const isOnTile = currentUnit.position.x === action.targetPosition.x && currentUnit.position.y === action.targetPosition.y;
         if (isOnTile) {
           // Unit is on the terrain tile — corrupt it
-          corruptTerrain(state, currentUnit.id, action.targetPosition);
+          corruptTerrain(state, currentUnit.id, action.targetPosition, events ?? undefined);
           currentUnit.hasConstructedThisTurn = true;
         } else if (!currentUnit.hasMovedThisTurn) {
           // Move 1 step toward the terrain tile

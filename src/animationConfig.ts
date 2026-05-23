@@ -79,4 +79,8 @@ export const ANIMATION = {
   LEASH_BURST_VFX_DURATION_MS: 900,
   /** Duration of the fall/sink animation played after the skull phase of a slide-kill (ms) */
   SLIDE_KILL_FALL_DURATION_MS: 400,
+  /** Duration of the expanding cleave slash ring VFX (ms) */
+  CLEAVE_VFX_DURATION_MS: 350,
+  /** Time for the pierce projectile to travel one tile width (ms) */
+  PIERCE_VFX_MS_PER_TILE: 160,
 } as const;
