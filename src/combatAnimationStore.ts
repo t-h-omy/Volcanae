@@ -82,6 +82,34 @@ export interface CleaveVfx {
   durationMs: number;
 }
 
+export type TileVfxVariant =
+  | 'BURROW_DUST';
+//   Future phases extend this union. Do not add other variants now.
+
+export interface TileVfx {
+  id: string;
+  /** Grid column of the affected tile */
+  x: number;
+  /** Grid row of the affected tile */
+  y: number;
+  variant: TileVfxVariant;
+  durationMs: number;
+}
+
+export type LineVfxVariant =
+  | 'NOOP_PLACEHOLDER';
+//   Future phases replace this with FIRE_SPIT, SPELL_CAST, PIERCE_LINE.
+//   Keep the placeholder so the union is non-empty and the layer compiles.
+//   Do not invent additional variants in this phase.
+
+export interface LineVfx {
+  id: string;
+  fromPx: { x: number; y: number };
+  toPx: { x: number; y: number };
+  variant: LineVfxVariant;
+  durationMs: number;
+}
+
 interface CombatAnimationState {
   unitAnimations: Map<string, UnitAnimationState>;
   buildingAnimations: Map<string, BuildingAnimationState>;
@@ -94,6 +122,10 @@ interface CombatAnimationState {
   leashBurstPairs: LeashBurstPair[];
   /** Active cleave slash VFX */
   cleaveVfxList: CleaveVfx[];
+  /** Active generic tile-anchored VFX */
+  tileVfx: TileVfx[];
+  /** Active generic line VFX */
+  lineVfx: LineVfx[];
 }
 
 interface CombatAnimationActions {
@@ -110,6 +142,10 @@ interface CombatAnimationActions {
   removeLeashBurstPair: (demonId: string) => void;
   addCleaveVfx: (vfx: CleaveVfx) => void;
   removeCleaveVfx: (id: string) => void;
+  addTileVfx: (vfx: TileVfx) => void;
+  removeTileVfx: (id: string) => void;
+  addLineVfx: (vfx: LineVfx) => void;
+  removeLineVfx: (id: string) => void;
 }
 
 type CombatAnimationStore = CombatAnimationState & CombatAnimationActions;
@@ -126,6 +162,8 @@ export const useCombatAnimationStore = create<CombatAnimationStore>((set) => ({
   slideKillGhosts: new Map(),
   leashBurstPairs: [],
   cleaveVfxList: [],
+  tileVfx: [],
+  lineVfx: [],
 
   setUnitAnimation: (unitId, anim) => {
     set((state) => {
@@ -223,5 +261,21 @@ export const useCombatAnimationStore = create<CombatAnimationStore>((set) => ({
     set((state) => ({
       cleaveVfxList: state.cleaveVfxList.filter((v) => v.id !== id),
     }));
+  },
+
+  addTileVfx: (vfx) => {
+    set((state) => ({ tileVfx: [...state.tileVfx, vfx] }));
+  },
+
+  removeTileVfx: (id) => {
+    set((state) => ({ tileVfx: state.tileVfx.filter((v) => v.id !== id) }));
+  },
+
+  addLineVfx: (vfx) => {
+    set((state) => ({ lineVfx: [...state.lineVfx, vfx] }));
+  },
+
+  removeLineVfx: (id) => {
+    set((state) => ({ lineVfx: state.lineVfx.filter((v) => v.id !== id) }));
   },
 }));

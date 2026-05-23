@@ -2263,6 +2263,50 @@ export const useGameStore = create<GameStore>()(
             });
             break;
           }
+
+          case 'TUNNEL_DIG_IN': {
+            const unit = state.units[event.unitId];
+            if (unit) {
+              unit.tunnelState = 'DIGGING_IN';
+              unit.tunnelStartPosition = { x: event.position.x, y: event.position.y };
+              const tile = state.grid[event.position.y]?.[event.position.x];
+              if (tile && tile.unitId === event.unitId) {
+                tile.unitId = null;
+              }
+            }
+            break;
+          }
+
+          case 'TUNNEL_EMERGE_WARNING': {
+            const unit = state.units[event.unitId];
+            if (unit) {
+              // Visual hint: the engine reads this state to show the earthquake overlay
+              // on the planned emergence tile. tunnelState transitions to EMERGING
+              // inside the enemy-turn snapshot computation, mirrored here for live state.
+              unit.tunnelState = 'EMERGING';
+              unit.tunnelPlannedEmergence = { x: event.position.x, y: event.position.y };
+            }
+            break;
+          }
+
+          case 'TUNNEL_EMERGE': {
+            const unit = state.units[event.unitId];
+            if (unit) {
+              unit.position = { x: event.position.x, y: event.position.y };
+              unit.tunnelState = 'IDLE';
+              unit.tunnelStartPosition = null;
+              unit.tunnelPlannedEmergence = null;
+              unit.tunnelTurnsUnderground = 0;
+              const tile = state.grid[event.position.y]?.[event.position.x];
+              if (tile) {
+                tile.unitId = event.unitId;
+              }
+            }
+            // Note: tile corruption status flip is intentionally NOT mirrored here.
+            // It happens at queue-end via setGameState(resolvedState). The dust hides
+            // the sprite swap; the corruption colour change can settle a beat later.
+            break;
+          }
         }
       });
     },

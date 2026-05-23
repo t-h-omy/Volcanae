@@ -276,6 +276,14 @@ export type GameEvent =
       unitId: string;
       /** Tile where the unit emerged. */
       position: Position;
+      /**
+       * Tiles within Chebyshev distance 1 of `position` that took AoE damage
+       * during emergence (both survivors and the tiles of any units that died).
+       * Used purely for visual feedback — the existing UNIT_DEATH events still
+       * drive death animations. Optional for backward-compatibility with any
+       * persisted/legacy event streams.
+       */
+      affectedPositions?: Position[];
     }
   | {
       /**

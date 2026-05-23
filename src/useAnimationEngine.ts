@@ -903,6 +903,73 @@ export function useAnimationEngine(): void {
           continue;
         }
 
+        // ── Special handling for TUNNEL_DIG_IN: dust hides the sprite swap ──
+        if (event.type === 'TUNNEL_DIG_IN') {
+          if (visible) {
+            useCombatAnimationStore.getState().addTileVfx({
+              id: crypto.randomUUID(),
+              x: event.position.x,
+              y: event.position.y,
+              variant: 'BURROW_DUST',
+              durationMs: ANIMATION.BURROW_DUST_MS,
+            });
+            await wait(ANIMATION.BURROW_DIG_IN_COVER_DELAY_MS);
+            // applyEvent now flips tunnelState to DIGGING_IN — sprite swaps under dust.
+            useGameStore.getState().applyEvent(event);
+            // Let the dust finish before yielding back to the queue.
+            await wait(ANIMATION.BURROW_DUST_MS - ANIMATION.BURROW_DIG_IN_COVER_DELAY_MS);
+          } else {
+            useGameStore.getState().applyEvent(event);
+          }
+          continue;
+        }
+
+        // ── Special handling for TUNNEL_EMERGE: dust hides the swap, then cleave rings on AoE ──
+        if (event.type === 'TUNNEL_EMERGE') {
+          if (visible) {
+            const store = useCombatAnimationStore.getState();
+            store.addTileVfx({
+              id: crypto.randomUUID(),
+              x: event.position.x,
+              y: event.position.y,
+              variant: 'BURROW_DUST',
+              durationMs: ANIMATION.BURROW_DUST_MS,
+            });
+            await wait(ANIMATION.BURROW_EMERGE_COVER_DELAY_MS);
+
+            // applyEvent now places the unit on the emergence tile under the dust.
+            useGameStore.getState().applyEvent(event);
+
+            // Then fire the existing cleave-slash ring on each tile that took AoE damage.
+            // This reuses CLEAVE_VFX_DURATION_MS and the .cleave-vfx-ring CSS — no new VFX type.
+            if (event.affectedPositions && event.affectedPositions.length > 0) {
+              await wait(ANIMATION.BURROW_EMERGE_AOE_DELAY_MS);
+              const { addCleaveVfx, removeCleaveVfx } = useCombatAnimationStore.getState();
+              for (const pos of event.affectedPositions) {
+                const vfxId = crypto.randomUUID();
+                addCleaveVfx({
+                  id: vfxId,
+                  cx: pos.x,
+                  cy: pos.y,
+                  durationMs: ANIMATION.CLEAVE_VFX_DURATION_MS,
+                });
+                setTimeout(() => removeCleaveVfx(vfxId), ANIMATION.CLEAVE_VFX_DURATION_MS);
+              }
+            }
+
+            // Wait out the remaining dust window so the queue does not start the
+            // next event before the dust has visually settled.
+            const remaining =
+              ANIMATION.BURROW_DUST_MS -
+              ANIMATION.BURROW_EMERGE_COVER_DELAY_MS -
+              ANIMATION.BURROW_EMERGE_AOE_DELAY_MS;
+            if (remaining > 0) await wait(remaining);
+          } else {
+            useGameStore.getState().applyEvent(event);
+          }
+          continue;
+        }
+
         // ── Special handling for CLEAVE_DAMAGE ──
         if (event.type === 'CLEAVE_DAMAGE') {
           if (visible) {

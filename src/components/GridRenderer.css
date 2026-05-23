@@ -1173,3 +1173,58 @@
   50%  { opacity: 0.85; }
   100% { transform: translate(-50%, -50%) scale(var(--cleave-final-scale, 21)); opacity: 0; }
 }
+
+/* ── Generic tile VFX layer ───────────────────────────────────────────── */
+
+.tile-vfx-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 14; /* above cleave ring (13); sits above all other VFX layers */
+}
+
+.tile-vfx {
+  position: absolute;
+  pointer-events: none;
+}
+
+/* ── Generic line VFX layer (mirrors .leash-line-layer pattern) ───────── */
+
+.line-vfx-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 15;
+}
+
+.line-vfx {
+  pointer-events: none;
+}
+
+/* ── BURROW_DUST — chunky ash-brown blobs that cover sprite swap ──────── */
+
+.tile-vfx--burrow-dust {
+  /* Four layered radial gradients give chunky, opaque blobs instead of
+     a single soft cloud. Each gradient is a distinct "puff". */
+  background:
+    radial-gradient(circle at 30% 35%, rgba(92, 63, 42, 0.92)  0%, rgba(92, 63, 42, 0) 24%),
+    radial-gradient(circle at 70% 30%, rgba(46, 31, 24, 0.88)  0%, rgba(46, 31, 24, 0) 26%),
+    radial-gradient(circle at 35% 70%, rgba(140, 83, 45, 0.75) 0%, rgba(140, 83, 45, 0) 22%),
+    radial-gradient(circle at 70% 70%, rgba(92, 63, 42, 0.92)  0%, rgba(92, 63, 42, 0) 28%),
+    radial-gradient(circle at 50% 50%, rgba(46, 31, 24, 0.85)  0%, rgba(46, 31, 24, 0) 38%);
+  border-radius: 50%;
+  transform: scale(0.4);
+  opacity: 0;
+  animation: burrowDust var(--tile-vfx-duration, 500ms) ease-out forwards;
+}
+
+@keyframes burrowDust {
+  /* Opacity is near peak from 20% to 55% so the sprite swap (triggered at
+     ~120ms wait into a 500ms total) is fully hidden. */
+  0%   { opacity: 0;    transform: scale(0.40); }
+  20%  { opacity: 1;    transform: scale(1.10); }
+  55%  { opacity: 0.95; transform: scale(1.25); }
+  100% { opacity: 0;    transform: scale(1.40); }
+}

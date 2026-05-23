@@ -83,4 +83,12 @@ export const ANIMATION = {
   CLEAVE_VFX_DURATION_MS: 350,
   /** Time for the pierce projectile to travel one tile width (ms) */
   PIERCE_VFX_MS_PER_TILE: 160,
+  /** Duration of the BURROW_DUST tile VFX shown for tunnel dig-in / emerge (ms) */
+  BURROW_DUST_MS: 500,
+  /** Delay before applying TUNNEL_DIG_IN state so dust covers the sprite swap (ms) */
+  BURROW_DIG_IN_COVER_DELAY_MS: 120,
+  /** Delay before applying TUNNEL_EMERGE state so dust covers the sprite swap (ms) */
+  BURROW_EMERGE_COVER_DELAY_MS: 120,
+  /** Delay after TUNNEL_EMERGE state is applied before firing the cleave rings on damaged adjacent tiles (ms) */
+  BURROW_EMERGE_AOE_DELAY_MS: 120,
 } as const;
