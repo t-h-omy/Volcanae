@@ -269,7 +269,7 @@ export function processTunnelTurn(
       unit.position = { x: emergePos.x, y: emergePos.y };
 
       // Apply emergence AoE damage to adjacent player units (Chebyshev 1)
-      _applyEmergenceDamage(state, unitId, emergePos, events ?? []);
+      const affectedPositions = _applyEmergenceDamage(state, unitId, emergePos, events ?? []);
 
       // Corrupt the emergence tile
       applyTileStatus(state, emergePos, TileStatus.CORRUPTED, events);
@@ -285,6 +285,7 @@ export function processTunnelTurn(
         type: 'TUNNEL_EMERGE',
         unitId,
         position: { x: emergePos.x, y: emergePos.y },
+        affectedPositions,
       });
 
       return true;
@@ -301,19 +302,24 @@ export function processTunnelTurn(
 
 /**
  * Apply flat AoE damage to all player units within Chebyshev distance 1 of
- * the emergence position.
+ * the emergence position. Returns the positions of all units that took damage.
  */
 function _applyEmergenceDamage(
   state: Draft<GameState>,
   _burrowerUnitId: string,
   emergePos: Position,
   events: GameEvent[],
-): void {
+): Position[] {
+  const affected: Position[] = [];
   for (const target of Object.values(state.units)) {
     if (target.faction !== Faction.PLAYER) continue;
     const dx = Math.abs(target.position.x - emergePos.x);
     const dy = Math.abs(target.position.y - emergePos.y);
     if (Math.max(dx, dy) > 1) continue;
+
+    // Snapshot position before any mutation so the VFX placement is correct
+    // even if the unit dies below.
+    affected.push({ x: target.position.x, y: target.position.y });
 
     target.stats.currentHp -= TUNNEL_EMERGE_DAMAGE;
     state.gameStats.damageReceived += TUNNEL_EMERGE_DAMAGE;
@@ -332,6 +338,7 @@ function _applyEmergenceDamage(
       });
     }
   }
+  return affected;
 }
 
 /**

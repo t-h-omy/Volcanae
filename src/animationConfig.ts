@@ -83,4 +83,39 @@ export const ANIMATION = {
   CLEAVE_VFX_DURATION_MS: 350,
   /** Time for the pierce projectile to travel one tile width (ms) */
   PIERCE_VFX_MS_PER_TILE: 160,
+  /** Duration of the BURROW_DUST tile VFX shown for tunnel dig-in / emerge (ms) */
+  BURROW_DUST_MS: 500,
+  /** Delay before applying TUNNEL_DIG_IN state so dust covers the sprite swap (ms) */
+  BURROW_DIG_IN_COVER_DELAY_MS: 120,
+  /** Delay before applying TUNNEL_EMERGE state so dust covers the sprite swap (ms) */
+  BURROW_EMERGE_COVER_DELAY_MS: 120,
+  /** Delay after TUNNEL_EMERGE state is applied before firing the cleave rings on damaged adjacent tiles (ms) */
+  BURROW_EMERGE_AOE_DELAY_MS: 120,
+  /** Duration of the fire-spit line VFX min/max. Distance-scaled like a projectile. */
+  FIRE_SPIT_MIN_MS: 300,
+  FIRE_SPIT_MAX_MS: 450,
+  /** Duration of the lava shield burst shown when a stun is blocked (ms) */
+  STUN_BLOCKED_SHIELD_MS: 600,
+  /** Duration of the cracked-shield VFX shown when PUNCTURE bypasses defense (ms) */
+  DEFENSE_IGNORED_MS: 500,
+  /** Duration of the mage spell-cast line from caster to target tile (ms) */
+  SPELL_CAST_MS: 650,
+  /** Duration of the mage spell impact ring on the target tile (ms) */
+  SPELL_IMPACT_MS: 650,
+  /** Duration of the stun-applied burst (ms) — reuses SPELL_IMPACT plumbing */
+  STUN_APPLIED_BURST_MS: 500,
+  /** Duration of the burning-terrain damage flame cue (ms) */
+  BURNING_DAMAGE_VFX_MS: 400,
+  /** Duration of the corruption-applied dark-purple pulse (ms) */
+  CORRUPTION_APPLIED_VFX_MS: 500,
+  /** Duration of the portal entrance/exit pop (ms) */
+  PORTAL_VFX_MS: 500,
+  /** Duration of the unit-spawn pop (ms) */
+  SPAWN_VFX_MS: 450,
+  /** Duration of the building-capture wash (ms) */
+  CAPTURE_VFX_MS: 500,
+  /** Duration of the invalid-action red edge pulse (ms) — kept very short */
+  INVALID_ACTION_VFX_MS: 250,
+  /** Duration of the pierce connection line (ms) */
+  PIERCE_LINE_MS: 320,
 } as const;

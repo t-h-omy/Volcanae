@@ -15,7 +15,7 @@ import { useFloaterStore } from './floaterStore';
 import { ANIMATION } from './animationConfig';
 import { MAP, MAGE } from './gameConfig';
 import { RENDER } from './renderConfig';
-import { BuildingType, UnitTag, UnitType } from './types';
+import { BuildingType, Faction, UnitTag, UnitType } from './types';
 import type { GameEvent } from './gameEvents';
 import type { Position } from './types';
 
@@ -99,6 +99,12 @@ function eventPosition(event: GameEvent): Position {
     case 'PORTAL_USED':
       return event.fromPos;
     case 'PORTAL_CLOSED':
+      return event.position;
+    case 'STUN_BLOCKED':
+      return event.position;
+    case 'DEFENSE_BONUS_IGNORED':
+      return event.defenderPosition;
+    case 'CORRUPTION_APPLIED':
       return event.position;
   }
 }
@@ -185,6 +191,12 @@ function isEventVisible(event: GameEvent): boolean {
       return isTileRevealed(event.fromPos) || isTileRevealed(event.toPos);
     case 'PORTAL_CLOSED':
       return isTileRevealed(event.position);
+    case 'STUN_BLOCKED':
+      return isTileRevealed(event.position);
+    case 'DEFENSE_BONUS_IGNORED':
+      return isTileRevealed(event.defenderPosition);
+    case 'CORRUPTION_APPLIED':
+      return isTileRevealed(event.position);
   }
 }
 
@@ -254,6 +266,16 @@ function projectileChar(unitType: string): string {
   return '•';
 }
 
+/**
+ * True when this attacker should visually shoot a fire-spit line instead of
+ * a generic emoji projectile. Driven by tags, not by UnitType, so any future
+ * unit with BURN + RANGED automatically participates.
+ */
+function usesFireSpitVfx(attacker: { tags: UnitTag[] } | undefined): boolean {
+  if (!attacker) return false;
+  return attacker.tags.includes(UnitTag.BURN) && attacker.tags.includes(UnitTag.RANGED);
+}
+
 // ============================================================================
 // COMBAT ANIMATION CHOREOGRAPHY
 // ============================================================================
@@ -301,16 +323,33 @@ async function playAttackAnimation(
       const recoilDy = (fromPx.y - toPx.y) * 0.15;
 
       store.setUnitAnimation(event.attackerId, { type: 'RECOIL', dx: recoilDx, dy: recoilDy });
-      store.addProjectile({
-        id: crypto.randomUUID(),
-        fromPx,
-        toPx,
-        emoji: projectileChar(attacker?.type ?? ''),
-        rotationDeg: angleBetween(fromPx, toPx),
-        durationMs: projectileDuration,
-      });
 
-      await wait(projectileDuration);
+      const fireSpitDuration = clamp(
+        distance * ANIMATION.RANGED_PROJECTILE_MS_PER_TILE,
+        ANIMATION.FIRE_SPIT_MIN_MS,
+        ANIMATION.FIRE_SPIT_MAX_MS,
+      );
+
+      if (usesFireSpitVfx(attacker)) {
+        store.addLineVfx({
+          id: crypto.randomUUID(),
+          fromPx,
+          toPx,
+          variant: 'FIRE_SPIT',
+          durationMs: fireSpitDuration,
+        });
+        await wait(fireSpitDuration);
+      } else {
+        store.addProjectile({
+          id: crypto.randomUUID(),
+          fromPx,
+          toPx,
+          emoji: projectileChar(attacker?.type ?? ''),
+          rotationDeg: angleBetween(fromPx, toPx),
+          durationMs: projectileDuration,
+        });
+        await wait(projectileDuration);
+      }
       useCombatAnimationStore.getState().setUnitAnimation(event.attackerId, null);
     } else {
       // ── Melee: lunge toward defender ──
@@ -536,16 +575,33 @@ async function playUnitAttackBuildingAnimation(
       const recoilDy = (fromPx.y - toPx.y) * 0.15;
 
       store.setUnitAnimation(event.attackerId, { type: 'RECOIL', dx: recoilDx, dy: recoilDy });
-      store.addProjectile({
-        id: crypto.randomUUID(),
-        fromPx,
-        toPx,
-        emoji: projectileChar(attacker?.type ?? ''),
-        rotationDeg: angleBetween(fromPx, toPx),
-        durationMs: projectileDuration,
-      });
 
-      await wait(projectileDuration);
+      const fireSpitDuration = clamp(
+        distance * ANIMATION.RANGED_PROJECTILE_MS_PER_TILE,
+        ANIMATION.FIRE_SPIT_MIN_MS,
+        ANIMATION.FIRE_SPIT_MAX_MS,
+      );
+
+      if (usesFireSpitVfx(attacker)) {
+        store.addLineVfx({
+          id: crypto.randomUUID(),
+          fromPx,
+          toPx,
+          variant: 'FIRE_SPIT',
+          durationMs: fireSpitDuration,
+        });
+        await wait(fireSpitDuration);
+      } else {
+        store.addProjectile({
+          id: crypto.randomUUID(),
+          fromPx,
+          toPx,
+          emoji: projectileChar(attacker?.type ?? ''),
+          rotationDeg: angleBetween(fromPx, toPx),
+          durationMs: projectileDuration,
+        });
+        await wait(projectileDuration);
+      }
       useCombatAnimationStore.getState().setUnitAnimation(event.attackerId, null);
     } else {
       // Melee: lunge toward building
@@ -903,6 +959,73 @@ export function useAnimationEngine(): void {
           continue;
         }
 
+        // ── Special handling for TUNNEL_DIG_IN: dust hides the sprite swap ──
+        if (event.type === 'TUNNEL_DIG_IN') {
+          if (visible) {
+            useCombatAnimationStore.getState().addTileVfx({
+              id: crypto.randomUUID(),
+              x: event.position.x,
+              y: event.position.y,
+              variant: 'BURROW_DUST',
+              durationMs: ANIMATION.BURROW_DUST_MS,
+            });
+            await wait(ANIMATION.BURROW_DIG_IN_COVER_DELAY_MS);
+            // applyEvent now flips tunnelState to DIGGING_IN — sprite swaps under dust.
+            useGameStore.getState().applyEvent(event);
+            // Let the dust finish before yielding back to the queue.
+            await wait(ANIMATION.BURROW_DUST_MS - ANIMATION.BURROW_DIG_IN_COVER_DELAY_MS);
+          } else {
+            useGameStore.getState().applyEvent(event);
+          }
+          continue;
+        }
+
+        // ── Special handling for TUNNEL_EMERGE: dust hides the swap, then cleave rings on AoE ──
+        if (event.type === 'TUNNEL_EMERGE') {
+          if (visible) {
+            const store = useCombatAnimationStore.getState();
+            store.addTileVfx({
+              id: crypto.randomUUID(),
+              x: event.position.x,
+              y: event.position.y,
+              variant: 'BURROW_DUST',
+              durationMs: ANIMATION.BURROW_DUST_MS,
+            });
+            await wait(ANIMATION.BURROW_EMERGE_COVER_DELAY_MS);
+
+            // applyEvent now places the unit on the emergence tile under the dust.
+            useGameStore.getState().applyEvent(event);
+
+            // Then fire the existing cleave-slash ring on each tile that took AoE damage.
+            // This reuses CLEAVE_VFX_DURATION_MS and the .cleave-vfx-ring CSS — no new VFX type.
+            if (event.affectedPositions && event.affectedPositions.length > 0) {
+              await wait(ANIMATION.BURROW_EMERGE_AOE_DELAY_MS);
+              const { addCleaveVfx, removeCleaveVfx } = useCombatAnimationStore.getState();
+              for (const pos of event.affectedPositions) {
+                const vfxId = crypto.randomUUID();
+                addCleaveVfx({
+                  id: vfxId,
+                  cx: pos.x,
+                  cy: pos.y,
+                  durationMs: ANIMATION.CLEAVE_VFX_DURATION_MS,
+                });
+                setTimeout(() => removeCleaveVfx(vfxId), ANIMATION.CLEAVE_VFX_DURATION_MS);
+              }
+            }
+
+            // Wait out the remaining dust window so the queue does not start the
+            // next event before the dust has visually settled.
+            const remaining =
+              ANIMATION.BURROW_DUST_MS -
+              ANIMATION.BURROW_EMERGE_COVER_DELAY_MS -
+              ANIMATION.BURROW_EMERGE_AOE_DELAY_MS;
+            if (remaining > 0) await wait(remaining);
+          } else {
+            useGameStore.getState().applyEvent(event);
+          }
+          continue;
+        }
+
         // ── Special handling for CLEAVE_DAMAGE ──
         if (event.type === 'CLEAVE_DAMAGE') {
           if (visible) {
@@ -958,6 +1081,13 @@ export function useAnimationEngine(): void {
               y: event.position.y * tileSize + tileSize / 2,
             };
             const projId = crypto.randomUUID();
+            useCombatAnimationStore.getState().addLineVfx({
+              id: crypto.randomUUID(),
+              fromPx,
+              toPx,
+              variant: 'PIERCE_LINE',
+              durationMs: ANIMATION.PIERCE_LINE_MS,
+            });
             useCombatAnimationStore.getState().addProjectile({
               id: projId,
               fromPx,
@@ -1022,6 +1152,157 @@ export function useAnimationEngine(): void {
             }
           }
           if (visible) await wait(ANIMATION.POST_ACTION_IDLE_MS);
+          continue;
+        }
+
+        // ── Special handling for STUN_BLOCKED ──
+        if (event.type === 'STUN_BLOCKED') {
+          if (visible) {
+            useCombatAnimationStore.getState().addTileVfx({
+              id: crypto.randomUUID(),
+              x: event.position.x,
+              y: event.position.y,
+              variant: 'STUN_BLOCKED_SHIELD',
+              durationMs: ANIMATION.STUN_BLOCKED_SHIELD_MS,
+            });
+            await wait(ANIMATION.STUN_BLOCKED_SHIELD_MS);
+          }
+          // STUN_BLOCKED has no game-state effect. applyEvent is a silent no-op for it.
+          useGameStore.getState().applyEvent(event);
+          continue;
+        }
+
+        // ── Special handling for DEFENSE_BONUS_IGNORED ──
+        if (event.type === 'DEFENSE_BONUS_IGNORED') {
+          if (visible) {
+            useCombatAnimationStore.getState().addTileVfx({
+              id: crypto.randomUUID(),
+              x: event.defenderPosition.x,
+              y: event.defenderPosition.y,
+              variant: 'DEFENSE_IGNORED',
+              durationMs: ANIMATION.DEFENSE_IGNORED_MS,
+            });
+            // Do NOT await the full duration here. The VFX plays out via the layer's
+            // onAnimationEnd cleanup. The attack's HIT_SHAKE already provides timing.
+          }
+          // No game-state effect.
+          useGameStore.getState().applyEvent(event);
+          continue;
+        }
+
+        // ── Special handling for STUN_APPLIED ──
+        if (event.type === 'STUN_APPLIED') {
+          if (visible) {
+            useCombatAnimationStore.getState().addTileVfx({
+              id: crypto.randomUUID(),
+              x: event.position.x,
+              y: event.position.y,
+              variant: 'SPELL_IMPACT_STUN',
+              durationMs: ANIMATION.STUN_APPLIED_BURST_MS,
+            });
+          }
+          // Do not block on the VFX duration — the persistent stun indicator
+          // (driven by unit.pinnedUntilTurn) takes over as the long-term cue.
+          useGameStore.getState().applyEvent(event);
+          continue;
+        }
+
+        // ── Special handling for TILE_DAMAGE ──
+        if (event.type === 'TILE_DAMAGE') {
+          if (visible) {
+            useCombatAnimationStore.getState().addTileVfx({
+              id: crypto.randomUUID(),
+              x: event.position.x,
+              y: event.position.y,
+              variant: 'BURNING_DAMAGE',
+              durationMs: ANIMATION.BURNING_DAMAGE_VFX_MS,
+            });
+          }
+          // applyEvent emits the damage floater. The VFX is short enough that the
+          // floater rises through it visibly.
+          useGameStore.getState().applyEvent(event);
+          continue;
+        }
+
+        // ── Special handling for CORRUPTION_APPLIED ──
+        if (event.type === 'CORRUPTION_APPLIED') {
+          if (visible) {
+            useCombatAnimationStore.getState().addTileVfx({
+              id: crypto.randomUUID(),
+              x: event.position.x,
+              y: event.position.y,
+              variant: 'CORRUPTION_APPLIED',
+              durationMs: ANIMATION.CORRUPTION_APPLIED_VFX_MS,
+            });
+          }
+          // No state effect; applyEvent will silently no-op.
+          useGameStore.getState().applyEvent(event);
+          continue;
+        }
+
+        // ── Special handling for PORTAL_USED ──
+        if (event.type === 'PORTAL_USED') {
+          if (visible) {
+            const store = useCombatAnimationStore.getState();
+            store.addTileVfx({
+              id: crypto.randomUUID(),
+              x: event.fromPos.x,
+              y: event.fromPos.y,
+              variant: 'SPELL_IMPACT_PORTAL_ENTER',
+              durationMs: ANIMATION.PORTAL_VFX_MS,
+            });
+            store.addTileVfx({
+              id: crypto.randomUUID(),
+              x: event.toPos.x,
+              y: event.toPos.y,
+              variant: 'SPELL_IMPACT_PORTAL_EXIT',
+              durationMs: ANIMATION.PORTAL_VFX_MS,
+            });
+          }
+          // No state effect to apply per-event; resolved state at queue end has
+          // the final position.
+          useGameStore.getState().applyEvent(event);
+          continue;
+        }
+
+        // ── Special handling for ENEMY_SPAWN ──
+        if (event.type === 'ENEMY_SPAWN') {
+          if (visible) {
+            useCombatAnimationStore.getState().addTileVfx({
+              id: crypto.randomUUID(),
+              x: event.position.x,
+              y: event.position.y,
+              variant: 'SPELL_IMPACT_SPAWN_ENEMY',
+              durationMs: ANIMATION.SPAWN_VFX_MS,
+            });
+          }
+          // applyEvent places the unit on the tile so the sprite appears under
+          // the spawn pop.
+          useGameStore.getState().applyEvent(event);
+          // Preserve the existing longer post-action idle inline (every other
+          // special-handling block uses `continue`, which skips the generic
+          // post-action wait; reproduce SPAWN_PAUSE_MS here instead).
+          if (visible) {
+            await wait(ANIMATION.SPAWN_PAUSE_MS);
+          }
+          continue;
+        }
+
+        // ── Special handling for BUILDING_CAPTURE ──
+        if (event.type === 'BUILDING_CAPTURE') {
+          if (visible) {
+            useCombatAnimationStore.getState().addTileVfx({
+              id: crypto.randomUUID(),
+              x: event.position.x,
+              y: event.position.y,
+              variant: event.newFaction === Faction.PLAYER
+                ? 'SPELL_IMPACT_CAPTURE_PLAYER'
+                : 'SPELL_IMPACT_CAPTURE_ENEMY',
+              durationMs: ANIMATION.CAPTURE_VFX_MS,
+            });
+          }
+          // applyEvent flips the building faction so the sprite recolours under the wash.
+          useGameStore.getState().applyEvent(event);
           continue;
         }
 

@@ -276,6 +276,14 @@ export type GameEvent =
       unitId: string;
       /** Tile where the unit emerged. */
       position: Position;
+      /**
+       * Tiles within Chebyshev distance 1 of `position` that took AoE damage
+       * during emergence (both survivors and the tiles of any units that died).
+       * Used purely for visual feedback — the existing UNIT_DEATH events still
+       * drive death animations. Optional for backward-compatibility with any
+       * persisted/legacy event streams.
+       */
+      affectedPositions?: Position[];
     }
   | {
       /**
@@ -308,5 +316,40 @@ export type GameEvent =
       type: 'PORTAL_CLOSED';
       portalId: string;
       /** Portal entrance tile (for renderer clean-up). */
+      position: Position;
+    }
+  | {
+      /**
+       * Emitted when an attacker would have applied a stun (PUNCTURE on a
+       * high-DEF defender, or PIN_DOWN proc) but the stun was prevented by
+       * the defender's ALERT immunity. Purely a feedback event — does not
+       * change game state.
+       */
+      type: 'STUN_BLOCKED';
+      unitId: string;
+      position: Position;
+      source: 'PUNCTURE' | 'PIN_DOWN';
+      reason: 'ALERT';
+    }
+  | {
+      /**
+       * Emitted when an attacker's PUNCTURE tag bypassed a defender's defense
+       * bonus AND a defense bonus was actually present to bypass. Not emitted
+       * when the defender had no bonus to ignore.
+       * Purely a feedback event — does not change game state.
+       */
+      type: 'DEFENSE_BONUS_IGNORED';
+      attackerId: string;
+      defenderId: string;
+      defenderPosition: Position;
+    }
+  | {
+      /**
+       * Emitted when a tile's status flips to CORRUPTED via applyTileStatus
+       * (e.g. Riftworm emergence, lava unit corruption ability). Purely a
+       * feedback event; the tile's status has already been set by the call
+       * that triggered it.
+       */
+      type: 'CORRUPTION_APPLIED';
       position: Position;
     };

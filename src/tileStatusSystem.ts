@@ -103,6 +103,14 @@ export function applyTileStatus(
 
   // Step 3: Set the new status.
   tile.status = newStatus;
+
+  if (newStatus === TileStatus.CORRUPTED) {
+    events?.push({
+      type: 'CORRUPTION_APPLIED',
+      position: { x: position.x, y: position.y },
+    });
+  }
+
   return true;
 }
 

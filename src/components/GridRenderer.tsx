@@ -8,7 +8,7 @@ import { useGameStore } from '../gameStore';
 import { useFloaterStore } from '../floaterStore';
 import { useAnimationStore } from '../animationStore';
 import { useCombatAnimationStore } from '../combatAnimationStore';
-import type { Projectile, SlideKillGhost, CleaveVfx } from '../combatAnimationStore';
+import type { Projectile, SlideKillGhost, CleaveVfx, TileVfx, LineVfx } from '../combatAnimationStore';
 import { useShockwaveStore } from '../shockwaveStore';
 import { canCapture } from '../captureSystem';
 import { getConstructionOptionsForTile } from '../constructionSystem';
@@ -669,6 +669,16 @@ export default function GridRenderer() {
   }, [portals]);
 
   // ── Tile click ──
+  const triggerInvalidActionVfx = useCallback((x: number, y: number) => {
+    useCombatAnimationStore.getState().addTileVfx({
+      id: crypto.randomUUID(),
+      x,
+      y,
+      variant: 'INVALID_ACTION',
+      durationMs: ANIMATION.INVALID_ACTION_VFX_MS,
+    });
+  }, []);
+
   const handleTileClick = useCallback(
     (x: number, y: number) => {
       if (dragState.current.isDragging) return;
@@ -684,6 +694,7 @@ export default function GridRenderer() {
       }
       if (pendingHealerId) {
         // Clicked outside healable tiles — cancel heal mode
+        triggerInvalidActionVfx(x, y);
         cancelHealMode();
         return;
       }
@@ -724,6 +735,7 @@ export default function GridRenderer() {
             return;
           }
         }
+        triggerInvalidActionVfx(x, y);
         cancelSpellCast();
         return;
       }
@@ -831,7 +843,7 @@ export default function GridRenderer() {
         clearSelection();
       }
     },
-    [grid, selectedUnitId, selectedBuildingId, selectedUnit, selectedBuilding, attackableSet, healableSet, spellTargetSet, reachableSet, units, buildings, selectUnit, selectBuilding, selectTile, clearSelection, moveUnit, attackUnit, attackBuilding, buildingAttackUnit, buildingAttackBuilding, healUnit, pendingHealerId, cancelHealMode, pendingSpellCast, castSpell, cancelSpellCast, isAnimating],
+    [grid, selectedUnitId, selectedBuildingId, selectedUnit, selectedBuilding, attackableSet, healableSet, spellTargetSet, reachableSet, units, buildings, selectUnit, selectBuilding, selectTile, clearSelection, moveUnit, attackUnit, attackBuilding, buildingAttackUnit, buildingAttackBuilding, healUnit, pendingHealerId, cancelHealMode, pendingSpellCast, castSpell, cancelSpellCast, isAnimating, triggerInvalidActionVfx],
   );
 
   // Right-click / tap-hold → deselect (only when not used for drag-panning)
@@ -947,6 +959,8 @@ export default function GridRenderer() {
         <SlideKillGhostLayer tileSize={tileSize} />
         <ShockwaveLayer />
         <CleaveVfxLayer tileSize={tileSize} />
+        <TileVfxLayer tileSize={tileSize} />
+        <LineVfxLayer tileSize={tileSize} />
       </div>
       <div className="zoom-controls">
         <button onClick={() => handleZoomButton(-RENDER.ZOOM_STEP)}>−</button>
@@ -2141,5 +2155,63 @@ function CleaveVfxLayer({ tileSize }: { tileSize: number }) {
         />
       ))}
     </div>
+  );
+}
+
+// ============================================================================
+// TILE VFX LAYER — generic semantic tile-anchored VFX (one variant per CSS class)
+// ============================================================================
+
+function TileVfxLayer({ tileSize }: { tileSize: number }) {
+  const tileVfx = useCombatAnimationStore((s) => s.tileVfx);
+  const removeTileVfx = useCombatAnimationStore((s) => s.removeTileVfx);
+  return (
+    <div className="tile-vfx-layer">
+      {tileVfx.map((vfx: TileVfx) => (
+        <div
+          key={vfx.id}
+          className={`tile-vfx tile-vfx--${vfx.variant.toLowerCase().replace(/_/g, '-')}`}
+          style={{
+            left: vfx.x * tileSize,
+            top: vfx.y * tileSize,
+            width: tileSize,
+            height: tileSize,
+            '--tile-vfx-duration': `${vfx.durationMs}ms`,
+          } as React.CSSProperties}
+          onAnimationEnd={() => removeTileVfx(vfx.id)}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ============================================================================
+// LINE VFX LAYER — generic semantic SVG line VFX (one variant per CSS class)
+// ============================================================================
+
+function LineVfxLayer({ tileSize }: { tileSize: number }) {
+  const lineVfx = useCombatAnimationStore((s) => s.lineVfx);
+  const removeLineVfx = useCombatAnimationStore((s) => s.removeLineVfx);
+  // Coordinate space: unscaled local pixels, same as ProjectileLayer and
+  // LeashLineLayer. The layer lives inside the CSS-scaled grid-container,
+  // so positions are not multiplied by zoom.
+  return (
+    <svg
+      className="line-vfx-layer"
+      style={{ width: MAP.GRID_WIDTH * tileSize, height: MAP.GRID_HEIGHT * tileSize }}
+    >
+      {lineVfx.map((vfx: LineVfx) => (
+        <line
+          key={vfx.id}
+          className={`line-vfx line-vfx--${vfx.variant.toLowerCase().replace(/_/g, '-')}`}
+          x1={vfx.fromPx.x}
+          y1={vfx.fromPx.y}
+          x2={vfx.toPx.x}
+          y2={vfx.toPx.y}
+          style={{ '--line-vfx-duration': `${vfx.durationMs}ms` } as React.CSSProperties}
+          onAnimationEnd={() => removeLineVfx(vfx.id)}
+        />
+      ))}
+    </svg>
   );
 }
