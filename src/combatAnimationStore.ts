@@ -126,7 +126,7 @@ interface CombatAnimationState {
   buildingAnimations: Map<string, BuildingAnimationState>;
   projectiles: Projectile[];
   /** Active per-tile flash bursts, keyed by "x,y" */
-  tileFlashes: Map<string, { durationMs: number }>;
+  tileFlashes: Map<string, { durationMs: number; variant?: string }>;
   /** Ghost units rendered during slide-into-lethal-tile death animations */
   slideKillGhosts: Map<string, SlideKillGhost>;
   /** Leash pairs that are visually "bursting" — shown always, ignoring selection */
@@ -144,7 +144,7 @@ interface CombatAnimationActions {
   setBuildingAnimation: (buildingId: string, anim: BuildingAnimationState | null) => void;
   addProjectile: (p: Projectile) => void;
   removeProjectile: (id: string) => void;
-  addTileFlash: (x: number, y: number, durationMs: number) => void;
+  addTileFlash: (x: number, y: number, durationMs: number, variant?: string) => void;
   removeTileFlash: (key: string) => void;
   addSlideKillGhost: (ghost: SlideKillGhost) => void;
   setSlideKillGhostPhase: (id: string, phase: SlideKillGhost['phase']) => void;
@@ -210,10 +210,10 @@ export const useCombatAnimationStore = create<CombatAnimationStore>((set) => ({
     }));
   },
 
-  addTileFlash: (x, y, durationMs) => {
+  addTileFlash: (x, y, durationMs, variant) => {
     set((state) => {
       const next = new Map(state.tileFlashes);
-      next.set(`${x},${y}`, { durationMs });
+      next.set(`${x},${y}`, { durationMs, ...(variant ? { variant } : {}) });
       return { tileFlashes: next };
     });
   },

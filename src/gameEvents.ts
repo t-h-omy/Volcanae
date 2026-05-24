@@ -86,11 +86,13 @@ export type GameEvent =
       damagedUnitIds: string[];
       damagePerUnit: number;
     }
-  | {
+    | {
       type: 'LAVA_ADVANCE';
       newLavaRow: number;
       destroyedUnitIds: string[];
       destroyedBuildingIds: string[];
+      /** Position of the Crystal Chamber destroyed by this lava advance, if any */
+      destroyedChamberPosition?: Position;
     }
   | {
       type: 'BUILDING_ATTACK_BUILDING';

@@ -147,13 +147,10 @@ function isEventVisible(event: GameEvent): boolean {
       return isTileRevealed(event.position);
     case 'EXPLOSION':
       return isTileRevealed(event.position);
-    case 'LAVA_ADVANCE': {
-      // Visible if any tile on the new lava row is revealed
-      const grid = useGameStore.getState().grid;
-      const row = event.newLavaRow;
-      if (row < 0 || row >= grid.length) return false;
-      return grid[row].some((tile) => tile.isRevealed);
-    }
+    case 'LAVA_ADVANCE':
+      // Always focus on lava advances — the camera should track the lava front
+      // regardless of whether any tiles on the new row have been revealed yet.
+      return true;
     case 'RESONANCE_TRIGGERED':
       return isTileRevealed(event.destroyedChamberPosition);
     case 'SANCTUM_COLLAPSE':
@@ -705,6 +702,45 @@ export function useAnimationEngine(): void {
               }
             }
           }
+          continue;
+        }
+
+        // ── Special handling for LAVA_ADVANCE (camera focus + optional crystal VFX) ──
+        if (event.type === 'LAVA_ADVANCE') {
+          // Focus on the destroyed Crystal Chamber when present; otherwise centre on the new lava row.
+          const focusPos = event.destroyedChamberPosition
+            ?? { x: Math.floor(MAP.GRID_WIDTH / 2), y: event.newLavaRow };
+          useAnimationStore.getState().setCameraTarget(focusPos);
+          await wait(ANIMATION.CAMERA_MOVE_DURATION_MS + ANIMATION.PRE_ACTION_IDLE_MS);
+
+          if (event.destroyedChamberPosition) {
+            const pos = event.destroyedChamberPosition;
+            const key = `${pos.x},${pos.y}`;
+            const tileSize = getTileSize();
+
+            // Crystal-blue tile flash burst on the destroyed chamber
+            useCombatAnimationStore.getState().addTileFlash(
+              pos.x, pos.y, ANIMATION.ZONE_CLEARED_SANCTUM_SHATTER_MS, 'crystal',
+            );
+            setTimeout(
+              () => useCombatAnimationStore.getState().removeTileFlash(key),
+              ANIMATION.ZONE_CLEARED_SANCTUM_SHATTER_MS,
+            );
+
+            // Crystal-blue expanding shockwave ring from the chamber centre
+            useShockwaveStore.getState().addShockwave({
+              id: crypto.randomUUID(),
+              cx: pos.x * tileSize + tileSize / 2,
+              cy: pos.y * tileSize + tileSize / 2,
+              durationMs: ANIMATION.ZONE_CLEARED_SHOCKWAVE_MS,
+              variant: 'crystal',
+            });
+
+            await wait(ANIMATION.ZONE_CLEARED_SANCTUM_SHATTER_MS);
+          }
+
+          useGameStore.getState().applyEvent(event);
+          await wait(ANIMATION.LAVA_ADVANCE_PAUSE_MS);
           continue;
         }
 
