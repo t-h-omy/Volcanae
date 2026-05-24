@@ -96,14 +96,24 @@ function getRandomPositionInZone(
   skipFirstRows = 0,
   skipLastRows = 0,
   grid?: Tile[][],
+  skipLeftCols = 0,
+  skipRightCols = 0,
 ): Position {
   const [zoneStart, zoneEnd] = getZoneRowRange(zone);
   const startRow = zoneStart + skipFirstRows;
   const endRow = zoneEnd - skipLastRows;
+  const startCol = skipLeftCols;
+  const endCol = MAP.GRID_WIDTH - 1 - skipRightCols;
 
   if (startRow > endRow) {
     throw new Error(
       `Invalid row skip configuration for zone ${zone}: skipFirstRows (${skipFirstRows}) + skipLastRows (${skipLastRows}) exceeds zone height`,
+    );
+  }
+
+  if (startCol > endCol) {
+    throw new Error(
+      `Invalid column skip configuration for zone ${zone}: skipLeftCols (${skipLeftCols}) + skipRightCols (${skipRightCols}) exceeds grid width`,
     );
   }
 
@@ -117,7 +127,7 @@ function getRandomPositionInZone(
   const maxAttempts = 100;
 
   while (attempts < maxAttempts) {
-    const x = Math.floor(Math.random() * MAP.GRID_WIDTH);
+    const x = startCol + Math.floor(Math.random() * (endCol - startCol + 1));
     const y = startRow + Math.floor(Math.random() * (endRow - startRow + 1));
     const position = { x, y };
 
@@ -129,7 +139,7 @@ function getRandomPositionInZone(
 
   // Fallback: find first available position
   for (let y = startRow; y <= endRow; y++) {
-    for (let x = 0; x < MAP.GRID_WIDTH; x++) {
+    for (let x = startCol; x <= endCol; x++) {
       const position = { x, y };
       if (!isPositionOccupied(position, occupiedPositions) && isPassable(x, y)) {
         return position;
@@ -1396,6 +1406,9 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
       occupiedPositions,
       BUILDINGS.STRONGHOLD_SPAWN_SKIP_FIRST_ROWS,
       BUILDINGS.STRONGHOLD_SPAWN_SKIP_LAST_ROWS,
+      undefined,
+      BUILDINGS.STRONGHOLD_SPAWN_BORDER_MARGIN,
+      BUILDINGS.STRONGHOLD_SPAWN_BORDER_MARGIN,
     );
     markPositionOccupied(pos, occupiedPositions);
     strongholdPositions.push(pos);
