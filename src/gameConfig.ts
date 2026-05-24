@@ -1119,6 +1119,8 @@ export interface BuildingDefinition {
   destroyBehavior: DestroyBehavior;
   /** Iron/wood construction cost ({iron:0,wood:0} for buildings not constructed by the player) */
   constructionCost: { iron: number; wood: number };
+  /** Maximum HP of the building (0 for buildings that cannot be damaged) */
+  maxHp?: number;
   /** Combat stats — only present for buildings that can attack */
   combatStats?: {
     maxHp: number;
@@ -1149,6 +1151,9 @@ export interface BuildingDefinition {
  * block below — use placeholder text here that contains NO hardcoded balancing
  * numbers (mark with `// overwritten below`).
  */
+/** Maximum HP for Gravestone buildings — defined here so BUILDING_DEFINITIONS can reference it before ABILITIES is declared. */
+const GRAVESTONE_MAX_HP = 25;
+
 export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
   STRONGHOLD: {
     discoverRadius: 2,
@@ -1259,6 +1264,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     discoverRadius: 1,
     destroyBehavior: DestroyBehavior.NONE,
     constructionCost: { iron: 0, wood: 0 },
+    maxHp: GRAVESTONE_MAX_HP,
     description: 'The grave of a fallen warrior.', // overwritten below (after ABILITIES)
   },
   GRAVE_TRAP: {
@@ -1402,7 +1408,7 @@ export const ABILITIES = {
   /** Crystal cost to revive a unit from a Gravestone */
   REVIVE_CRYSTAL_COST: 1,
   /** Starting and maximum HP of a newly spawned Gravestone building */
-  GRAVESTONE_MAX_HP: 25,
+  GRAVESTONE_MAX_HP: GRAVESTONE_MAX_HP,
   /** Damage dealt by a PREVENTIVE_STRIKE shot as a percentage of normal attack damage */
   PREVENTIVE_STRIKE_DAMAGE_PERCENT: 25,
   // ── Mage system ability constants ────────────────────────────────────────────
@@ -2052,7 +2058,7 @@ export const EMBER_PORTAL_HP = 1;
  */
 export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: string }> = {
   [UnitTag.RANGED]:            { label: 'Ranged',            desc: 'Attacks from a distance and does not move onto a defeated enemy\'s tile.' },
-  [UnitTag.PREP]:              { label: 'Prep',              desc: 'Cannot attack in the same turn it moves. Attack first, then move — or wait a turn after moving.' },
+  [UnitTag.PREP]:              { label: 'Prep',              desc: 'Cannot attack after moving. Must attack before moving, or forgo movement entirely.' },
   [UnitTag.BUILDANDCAPTURE]:   { label: 'Build & Capture',   desc: 'Can construct buildings on open terrain and capture enemy strongholds.' },
   [UnitTag.SACRIFICIAL]:       { label: 'Sacrificial',       desc: 'Prioritizes walking toward the lava to be consumed.' },
   [UnitTag.EXPLOSIVE]:         { label: 'Explosive',         desc: 'Deals heavy area damage to all adjacent enemies when it dies.' },

@@ -106,12 +106,10 @@ function eventPosition(event: GameEvent): Position {
       return event.defenderPosition;
     case 'CORRUPTION_APPLIED':
       return event.position;
+    case 'CAVE_MONSTER_RETREAT':
+      return event.position;
   }
 }
-
-/**
- * Checks whether a grid position is on a discovered (revealed) tile.
- */
 function isTileRevealed(pos: Position): boolean {
   const grid = useGameStore.getState().grid;
   if (grid.length === 0 || pos.y < 0 || pos.y >= grid.length) return false;
@@ -196,6 +194,8 @@ function isEventVisible(event: GameEvent): boolean {
     case 'DEFENSE_BONUS_IGNORED':
       return isTileRevealed(event.defenderPosition);
     case 'CORRUPTION_APPLIED':
+      return isTileRevealed(event.position);
+    case 'CAVE_MONSTER_RETREAT':
       return isTileRevealed(event.position);
   }
 }
@@ -1333,6 +1333,26 @@ export function useAnimationEngine(): void {
             durationMs: ANIMATION.EXPLOSION_SHOCKWAVE_MS,
             finalScale: explosionFinalScale,
           });
+        }
+
+        // ── Special handling for CAVE_MONSTER_RETREAT: burrow-dust, then disappear ──
+        if (event.type === 'CAVE_MONSTER_RETREAT') {
+          if (visible) {
+            useCombatAnimationStore.getState().addTileVfx({
+              id: crypto.randomUUID(),
+              x: event.position.x,
+              y: event.position.y,
+              variant: 'BURROW_DUST',
+              durationMs: ANIMATION.BURROW_DUST_MS,
+            });
+            await wait(ANIMATION.BURROW_DIG_IN_COVER_DELAY_MS);
+            useGameStore.getState().applyEvent(event);
+            await wait(ANIMATION.BURROW_DUST_MS - ANIMATION.BURROW_DIG_IN_COVER_DELAY_MS);
+            await wait(ANIMATION.POST_ACTION_IDLE_MS);
+          } else {
+            useGameStore.getState().applyEvent(event);
+          }
+          continue;
         }
 
         // ── Special handling for standalone UNIT_DEATH (e.g. from lava) ──
