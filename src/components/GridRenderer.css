@@ -894,6 +894,17 @@
   100% { transform: translate(-50%, -50%) scale(var(--sw-final-scale, 6.5)); opacity: 0; }
 }
 
+/* Crystal shockwave — light-blue variant (Crystal Chamber destroyed by lava) */
+.shockwave-ring--crystal {
+  box-shadow:
+    0 0 0 3px rgba(160, 230, 255, 0.95),
+    0 0 12px 4px rgba(80, 180, 255, 0.65);
+}
+
+.shockwave-ring--crystal::after {
+  box-shadow: 0 0 0 2px rgba(80, 180, 255, 0.55);
+}
+
 /* ── Per-tile cleared flash burst (zone cleared) ── */
 
 .tile-clear-flash-overlay {
@@ -908,6 +919,16 @@
     transparent               80%
   );
   animation: tileClearFlash var(--tile-clear-flash-duration, 500ms) ease-out forwards;
+}
+
+/* Crystal Chamber destroyed by lava — light-blue variant */
+.tile-clear-flash-overlay--crystal {
+  background: radial-gradient(
+    ellipse at center,
+    rgba(180, 240, 255, 0.98) 0%,
+    rgba(80,  180, 255, 0.75) 45%,
+    transparent               80%
+  );
 }
 
 @keyframes tileClearFlash {

@@ -1846,6 +1846,21 @@ export const useGameStore = create<GameStore>()(
             break;
           }
 
+          case 'CAVE_MONSTER_RETREAT': {
+            // Remove the retreating cave monster from the live state.
+            // Unlike UNIT_DEATH, no gravestone is created — the monster burrows
+            // back into its mountain and simply disappears.
+            const retreatingUnit = state.units[event.unitId];
+            if (retreatingUnit) {
+              const tile = state.grid[retreatingUnit.position.y][retreatingUnit.position.x];
+              if (tile.unitId === event.unitId) {
+                tile.unitId = null;
+              }
+              delete state.units[event.unitId];
+            }
+            break;
+          }
+
           case 'BUILDING_ATTACK': {
             // Apply damage to building and defender
             const building = state.buildings[event.buildingId];

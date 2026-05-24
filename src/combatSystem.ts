@@ -78,8 +78,8 @@ export function createGravestoneAt(
     type: BuildingType.GRAVESTONE,
     faction: Faction.PLAYER,
     position: { x: position.x, y: position.y },
-    hp: ABILITIES.GRAVESTONE_MAX_HP,
-    maxHp: ABILITIES.GRAVESTONE_MAX_HP,
+    hp: BUILDING_DEFINITIONS.GRAVESTONE.maxHp!,
+    maxHp: BUILDING_DEFINITIONS.GRAVESTONE.maxHp!,
     specialistSlot: null,
     isDisabledForTurns: 0,
     wasAttackedLastEnemyTurn: false,
@@ -541,8 +541,8 @@ export function resolveAttack(
     combatResult.attackerHpLost = 0;
   }
 
-  // COVER: attacker never suffers counter-damage
-  if (attacker.tags.includes(UnitTag.COVER)) {
+  // COVER: attacker never suffers counter-damage from ranged defenders
+  if (attacker.tags.includes(UnitTag.COVER) && defender.tags.includes(UnitTag.RANGED)) {
     combatResult.attackerHpLost = 0;
   }
 

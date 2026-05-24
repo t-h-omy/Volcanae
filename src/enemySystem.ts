@@ -2667,10 +2667,9 @@ function runCaveMonsterAi(state: Draft<GameState>, events?: GameEvent[]): void {
       tile.hasCaveMonster = false;
       if (events) {
         events.push({
-          type: 'UNIT_DEATH',
+          type: 'CAVE_MONSTER_RETREAT',
           unitId: unit.id,
           position: { x: unit.position.x, y: unit.position.y },
-          faction: unit.faction,
         });
       }
       delete state.units[unit.id];

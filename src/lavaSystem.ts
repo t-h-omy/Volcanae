@@ -279,6 +279,7 @@ export function advanceLavaWithEvents(state: GameState): { newState: GameState; 
       newLavaRow,
       destroyedUnitIds,
       destroyedBuildingIds,
+      ...(destroyedChamberPosition ? { destroyedChamberPosition } : {}),
     },
   ];
 

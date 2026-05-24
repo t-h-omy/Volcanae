@@ -1282,7 +1282,7 @@ function TileCellInner({
       {/* zone cleared per-tile flash overlay */}
       {tileFlashEntry && (
         <div
-          className="tile-clear-flash-overlay"
+          className={`tile-clear-flash-overlay${tileFlashEntry.variant ? ` tile-clear-flash-overlay--${tileFlashEntry.variant}` : ''}`}
           style={{ '--tile-clear-flash-duration': `${tileFlashEntry.durationMs}ms` } as React.CSSProperties}
         />
       )}
@@ -1860,7 +1860,7 @@ function ShockwaveLayer() {
       {shockwaves.map((sw) => (
         <div
           key={sw.id}
-          className="shockwave-ring"
+          className={`shockwave-ring${sw.variant ? ` shockwave-ring--${sw.variant}` : ''}`}
           style={{
             left: sw.cx,
             top: sw.cy,

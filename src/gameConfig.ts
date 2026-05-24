@@ -1119,6 +1119,8 @@ export interface BuildingDefinition {
   destroyBehavior: DestroyBehavior;
   /** Iron/wood construction cost ({iron:0,wood:0} for buildings not constructed by the player) */
   constructionCost: { iron: number; wood: number };
+  /** Maximum HP of the building (0 for buildings that cannot be damaged) */
+  maxHp?: number;
   /** Combat stats — only present for buildings that can attack */
   combatStats?: {
     maxHp: number;
@@ -1143,179 +1145,15 @@ export interface BuildingDefinition {
  * BUILDINGS.WATCHTOWER_STATS, BUILDINGS.OUTPOST_STATS, LAVA_LAIR.MAGMA_SPYR_STATS,
  * CONSTRUCTION.*_COST, CRYSTAL_CHAMBER_CONFIG.COST, and CRYSTAL_CHAMBER_CONFIG.DISCOVER_RADIUS.
  *
- * Description authoring: see the DESCRIPTION AUTHORING RULE above the ABILITIES
- * constant. Descriptions that must reference the building's own combatStats or
- * config constants are set in the "Compute descriptions for BUILDING_DEFINITIONS"
- * block below — use placeholder text here that contains NO hardcoded balancing
- * numbers (mark with `// overwritten below`).
+ * All description strings use template-literal references to named constants —
+ * never raw balancing numbers. See the DESCRIPTION AUTHORING RULE in the
+ * ABILITIES block above.
  */
-export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
-  STRONGHOLD: {
-    discoverRadius: 2,
-    destroyBehavior: DestroyBehavior.STRONGHOLD_RUIN,
-    constructionCost: { iron: 0, wood: 0 },
-    unitLimit: 4,
-    description: 'Your capital — if you lose all your strongholds, the game is over.',
-  },
-  MINE: {
-    discoverRadius: 2,
-    destroyBehavior: DestroyBehavior.NONE,
-    constructionCost: { iron: 0, wood: 2 },
-    description: 'Produces iron every turn, the primary resource for training units.', // overwritten below
-  },
-  WOODCUTTER: {
-    discoverRadius: 2,
-    destroyBehavior: DestroyBehavior.NONE,
-    constructionCost: { iron: 0, wood: 0 },
-    description: 'Produces wood every turn, used alongside iron for buildings and recruitment.', // overwritten below
-  },
-  BARRACKS: {
-    discoverRadius: 2,
-    destroyBehavior: DestroyBehavior.RUIN,
-    constructionCost: { iron: 2, wood: 2 },
-    unitLimit: 4,
-    description: 'Military hall that trains Spearman and Swordsman.',
-  },
-  ARCHER_CAMP: {
-    discoverRadius: 2,
-    destroyBehavior: DestroyBehavior.RUIN,
-    constructionCost: { iron: 1, wood: 5 },
-    unitLimit: 4,
-    description: 'Archery range that trains Archers.',
-  },
-  RIDER_CAMP: {
-    discoverRadius: 2,
-    destroyBehavior: DestroyBehavior.RUIN,
-    constructionCost: { iron: 5, wood: 3 },
-    unitLimit: 4,
-    description: 'Stable that trains Riders.',
-  },
-  SIEGE_CAMP: {
-    discoverRadius: 2,
-    destroyBehavior: DestroyBehavior.RUIN,
-    constructionCost: { iron: 3, wood: 6 },
-    unitLimit: 4,
-    description: 'Engineering works that trains Siege engines.',
-  },
-  WATCHTOWER: {
-    discoverRadius: 4,
-    destroyBehavior: DestroyBehavior.RUIN,
-    constructionCost: { iron: 1, wood: 1 },
-    combatStats: { maxHp: 150, attack: 50, defense: 65, attackRange: 3 },
-    description: 'Defensive tower that attacks nearby enemies and expands your vision.', // overwritten below
-  },
-  OUTPOST: {
-    discoverRadius: 3,
-    destroyBehavior: DestroyBehavior.NONE,
-    constructionCost: { iron: 0, wood: 2 },
-    combatStats: { maxHp: 200, attack: 40, defense: 55, attackRange: 2 },
-    description: 'Field fortification built by Spearmen via Fieldwork. Attacks nearby enemies. Starting HP is based on the building unit\'s current HP.', // overwritten below
-  },
-  LAVALAIR: {
-    discoverRadius: 2,
-    destroyBehavior: DestroyBehavior.RUIN,
-    constructionCost: { iron: 0, wood: 0 },
-    description: 'Enemy spawner building. Produces Lava Grunt units.',
-  },
-  INFERNALSANCTUM: {
-    discoverRadius: 2,
-    destroyBehavior: DestroyBehavior.STRONGHOLD_RUIN,
-    constructionCost: { iron: 0, wood: 0 },
-    description: 'Enemy zone stronghold. Capturing it triggers a Sanctum Collapse.',
-  },
-  FARM: {
-    discoverRadius: 2,
-    destroyBehavior: DestroyBehavior.RUIN,
-    constructionCost: { iron: 0, wood: 3 },
-    description: 'Housing for common folk — each pop raised lets you field one more basic unit.',
-  },
-  PATRICIANHOUSE: {
-    discoverRadius: 2,
-    destroyBehavior: DestroyBehavior.RUIN,
-    constructionCost: { iron: 2, wood: 4 },
-    description: 'Noble estate — each noble raised lets you field one more elite unit.',
-  },
-  MAGMASPYR: {
-    discoverRadius: 2,
-    destroyBehavior: DestroyBehavior.RESOURCE,
-    constructionCost: { iron: 0, wood: 0 },
-    combatStats: { maxHp: 120, attack: 30, defense: 50, attackRange: 2, maxAttacksPerTurn: 2 },
-    description: 'Corrupted mountain spire that attacks nearby units multiple times per turn.', // overwritten below
-  },
-  EMBERNEST: {
-    discoverRadius: 2,
-    destroyBehavior: DestroyBehavior.RESOURCE,
-    constructionCost: { iron: 0, wood: 0 },
-    description: 'Corrupted forest nest that periodically spawns Emberlings.', // overwritten below
-  },
-  CRYSTAL_CHAMBER: {
-    discoverRadius: 2,
-    destroyBehavior: DestroyBehavior.RUIN,
-    constructionCost: { iron: 4, wood: 2 },
-    unitLimit: CRYSTAL_CHAMBER_CONFIG.CHAMBER_UNIT_LIMIT,
-    description: 'Arcane resonator. When a Crystal Chamber is consumed by lava, all surviving chambers begin resonating and generate crystals each turn.', // overwritten below
-  },
-  GRAVESTONE: {
-    discoverRadius: 1,
-    destroyBehavior: DestroyBehavior.NONE,
-    constructionCost: { iron: 0, wood: 0 },
-    description: 'The grave of a fallen warrior.', // overwritten below (after ABILITIES)
-  },
-  GRAVE_TRAP: {
-    discoverRadius: 1,
-    destroyBehavior: DestroyBehavior.NONE,
-    constructionCost: { iron: 0, wood: 0 },
-    description: 'A magic trap forged from a gravestone.', // overwritten below (after MAGE)
-  },
-  CRYSTAL_TOWER: {
-    discoverRadius: 3,
-    destroyBehavior: DestroyBehavior.RUIN,
-    constructionCost: { iron: 0, wood: 0 },
-    combatStats: {
-      maxHp: 200,
-      attack: 40,
-      defense: 55,
-      attackRange: 2,
-      maxAttacksPerTurn: 1,
-    },
-    description: 'Arcane combat tower raised by sacrificing a Mage.', // overwritten below (after MAGE)
-  },
-};
-
-// Compute descriptions for BUILDING_DEFINITIONS entries that reference their own stats or config constants.
-// All numeric values here are read from combatStats, RESOURCES, LAVA_LAIR, or CRYSTAL_CHAMBER_CONFIG —
-// never hardcoded literals. See the DESCRIPTION AUTHORING RULE above ABILITIES.
-{
-  const b = BUILDING_DEFINITIONS;
-  b.MINE.description       = `Produces ${RESOURCES.MINE_IRON_PER_TURN} iron per turn, the primary resource for training units.`;
-  b.WOODCUTTER.description = `Produces ${RESOURCES.WOODCUTTER_WOOD_PER_TURN} wood per turn, used alongside iron for buildings and recruitment.`;
-  b.WATCHTOWER.description = `Defensive tower that attacks enemies within ${b.WATCHTOWER.combatStats!.attackRange} tiles and expands your vision.`;
-  b.OUTPOST.description    = `Field fortification built by Spearmen via Fieldwork. Attacks enemies within ${b.OUTPOST.combatStats!.attackRange} tiles. Starting HP is based on the building unit's current HP, capped at ${b.OUTPOST.combatStats!.maxHp}.`;
-  b.MAGMASPYR.description  = `Corrupted mountain spire that attacks nearby units up to ${b.MAGMASPYR.combatStats!.maxAttacksPerTurn} times per turn.`;
-  b.EMBERNEST.description  = `Corrupted forest nest that spawns Emberlings every ${LAVA_LAIR.EMBER_NEST_SPAWN_INTERVAL} turns.`;
-  b.CRYSTAL_CHAMBER.description = `Arcane resonator. When a Crystal Chamber is consumed by lava, all surviving chambers begin resonating and generate ${CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN} crystal${CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN !== 1 ? 's' : ''} per turn. While active, Mages can be recruited once Arcane Awakening is researched.`;
-}
-
-export const TECH = {
-  /** Number of crystals granted at game start (before first lava consumption) */
-  CRYSTALS_ON_GAME_START: 2,
-  /** Number of crystals granted each time a player building is consumed by lava */
-  CRYSTALS_ON_LAVA_CONSUMPTION: 0,
-  /** Number of crystals granted each time the player captures a new zone stronghold */
-  CRYSTALS_ON_ZONE_STRONGHOLD: 0,
-} as const;
-
-/**
- * Compute the actual crystal cost to research a tech node at the current ember level.
- * Actual cost = baseCost + ember.
- */
-export function computeResearchCost(baseCost: number, ember: number): number {
-  return baseCost + ember;
-}
+/** Maximum HP for Gravestone buildings — defined here so BUILDING_DEFINITIONS can reference it; ABILITIES references it via GRAVESTONE_MAX_HP. */
+const GRAVESTONE_MAX_HP = 25;
 
 // ============================================================================
 // ABILITIES — Balance-tunable constants for tag/flag-based abilities
-// (Placed before TECH_TREE so node descriptions can reference these values.)
 //
 // ── DESCRIPTION AUTHORING RULE (applies to ALL description fields) ──────────
 // Every numeric balancing value that appears in any description string
@@ -1402,7 +1240,7 @@ export const ABILITIES = {
   /** Crystal cost to revive a unit from a Gravestone */
   REVIVE_CRYSTAL_COST: 1,
   /** Starting and maximum HP of a newly spawned Gravestone building */
-  GRAVESTONE_MAX_HP: 25,
+  GRAVESTONE_MAX_HP: GRAVESTONE_MAX_HP,
   /** Damage dealt by a PREVENTIVE_STRIKE shot as a percentage of normal attack damage */
   PREVENTIVE_STRIKE_DAMAGE_PERCENT: 25,
   // ── Mage system ability constants ────────────────────────────────────────────
@@ -1410,14 +1248,161 @@ export const ABILITIES = {
   GRAVE_TRAP_STUN_TURNS: 2,
 } as const;
 
-// Override GRAVESTONE description now that ABILITIES is available (crystal cost is configurable).
-{
-  BUILDING_DEFINITIONS.GRAVESTONE.description =
-    `The grave of a fallen warrior. Revive the unit by paying ${ABILITIES.REVIVE_CRYSTAL_COST} crystal.`;
-  BUILDING_DEFINITIONS.GRAVE_TRAP.description =
-    `A magic trap forged from a gravestone. The next unit to step onto it is stunned for ${MAGE.GRAVE_TRAP_STUN_TURNS} turns and the trap is consumed.`;
-  BUILDING_DEFINITIONS.CRYSTAL_TOWER.description =
-    `Arcane combat tower. Attacks enemies within ${BUILDING_DEFINITIONS.CRYSTAL_TOWER.combatStats!.attackRange} tiles. Each enemy unit it kills generates ${MAGE.CRYSTAL_TOWER_KILL_CRYSTAL_REWARD} crystal. Gains +${MAGE.CRYSTAL_TOWER_CHAMBER_ATTACK_BONUS} attack per connected Crystal Chamber within range.`;
+export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
+  STRONGHOLD: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.STRONGHOLD_RUIN,
+    constructionCost: { iron: 0, wood: 0 },
+    unitLimit: 4,
+    description: 'Your capital — if you lose all your strongholds, the game is over.',
+  },
+  MINE: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.NONE,
+    constructionCost: { iron: 0, wood: 2 },
+    description: `Produces ${RESOURCES.MINE_IRON_PER_TURN} iron per turn, the primary resource for training units.`,
+  },
+  WOODCUTTER: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.NONE,
+    constructionCost: { iron: 0, wood: 0 },
+    description: `Produces ${RESOURCES.WOODCUTTER_WOOD_PER_TURN} wood per turn, used alongside iron for buildings and recruitment.`,
+  },
+  BARRACKS: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.RUIN,
+    constructionCost: { iron: 2, wood: 2 },
+    unitLimit: 4,
+    description: 'Military hall that trains Spearman and Swordsman.',
+  },
+  ARCHER_CAMP: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.RUIN,
+    constructionCost: { iron: 1, wood: 5 },
+    unitLimit: 4,
+    description: 'Archery range that trains Archers.',
+  },
+  RIDER_CAMP: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.RUIN,
+    constructionCost: { iron: 5, wood: 3 },
+    unitLimit: 4,
+    description: 'Stable that trains Riders.',
+  },
+  SIEGE_CAMP: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.RUIN,
+    constructionCost: { iron: 3, wood: 6 },
+    unitLimit: 4,
+    description: 'Engineering works that trains Siege engines.',
+  },
+  WATCHTOWER: (() => {
+    const combatStats = { maxHp: 150, attack: 50, defense: 65, attackRange: 3 };
+    return {
+      discoverRadius: 4,
+      destroyBehavior: DestroyBehavior.RUIN,
+      constructionCost: { iron: 1, wood: 1 },
+      combatStats,
+      description: `Defensive tower that attacks enemies within ${combatStats.attackRange} tiles and expands your vision.`,
+    };
+  })(),
+  OUTPOST: (() => {
+    const combatStats = { maxHp: 200, attack: 40, defense: 55, attackRange: 2 };
+    return {
+      discoverRadius: 3,
+      destroyBehavior: DestroyBehavior.NONE,
+      constructionCost: { iron: 0, wood: 2 },
+      combatStats,
+      description: `Field fortification built by Spearmen via Fieldwork. Attacks enemies within ${combatStats.attackRange} tiles. Starting HP is based on the building unit's current HP, capped at ${combatStats.maxHp}.`,
+    };
+  })(),
+  LAVALAIR: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.RUIN,
+    constructionCost: { iron: 0, wood: 0 },
+    description: 'Enemy spawner building. Produces Lava Grunt units.',
+  },
+  INFERNALSANCTUM: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.STRONGHOLD_RUIN,
+    constructionCost: { iron: 0, wood: 0 },
+    description: 'Enemy zone stronghold. Capturing it triggers a Sanctum Collapse.',
+  },
+  FARM: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.RUIN,
+    constructionCost: { iron: 0, wood: 3 },
+    description: 'Housing for common folk — each pop raised lets you field one more basic unit.',
+  },
+  PATRICIANHOUSE: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.RUIN,
+    constructionCost: { iron: 2, wood: 4 },
+    description: 'Noble estate — each noble raised lets you field one more elite unit.',
+  },
+  MAGMASPYR: (() => {
+    const combatStats = { maxHp: 120, attack: 30, defense: 50, attackRange: 2, maxAttacksPerTurn: 2 };
+    return {
+      discoverRadius: 2,
+      destroyBehavior: DestroyBehavior.RESOURCE,
+      constructionCost: { iron: 0, wood: 0 },
+      combatStats,
+      description: `Corrupted mountain spire that attacks nearby units up to ${combatStats.maxAttacksPerTurn} times per turn.`,
+    };
+  })(),
+  EMBERNEST: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.RESOURCE,
+    constructionCost: { iron: 0, wood: 0 },
+    description: `Corrupted forest nest that spawns Emberlings every ${LAVA_LAIR.EMBER_NEST_SPAWN_INTERVAL} turns.`,
+  },
+  CRYSTAL_CHAMBER: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.RUIN,
+    constructionCost: { iron: 4, wood: 2 },
+    unitLimit: CRYSTAL_CHAMBER_CONFIG.CHAMBER_UNIT_LIMIT,
+    description: `Arcane resonator. When a Crystal Chamber is consumed by lava, all surviving chambers begin resonating and generate ${CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN} crystal${CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN !== 1 ? 's' : ''} per turn. While active, Mages can be recruited once Arcane Awakening is researched.`,
+  },
+  GRAVESTONE: {
+    discoverRadius: 1,
+    destroyBehavior: DestroyBehavior.NONE,
+    constructionCost: { iron: 0, wood: 0 },
+    maxHp: GRAVESTONE_MAX_HP,
+    description: `The grave of a fallen warrior. Revive the unit by paying ${ABILITIES.REVIVE_CRYSTAL_COST} crystal.`,
+  },
+  GRAVE_TRAP: {
+    discoverRadius: 1,
+    destroyBehavior: DestroyBehavior.NONE,
+    constructionCost: { iron: 0, wood: 0 },
+    description: `A magic trap forged from a gravestone. The next unit to step onto it is stunned for ${MAGE.GRAVE_TRAP_STUN_TURNS} turns and the trap is consumed.`,
+  },
+  CRYSTAL_TOWER: (() => {
+    const combatStats = { maxHp: 200, attack: 40, defense: 55, attackRange: 2, maxAttacksPerTurn: 1 };
+    return {
+      discoverRadius: 3,
+      destroyBehavior: DestroyBehavior.RUIN,
+      constructionCost: { iron: 0, wood: 0 },
+      combatStats,
+      description: `Arcane combat tower. Attacks enemies within ${combatStats.attackRange} tiles. Each enemy unit it kills generates ${MAGE.CRYSTAL_TOWER_KILL_CRYSTAL_REWARD} crystal. Gains +${MAGE.CRYSTAL_TOWER_CHAMBER_ATTACK_BONUS} attack per connected Crystal Chamber within range.`,
+    };
+  })(),
+};
+
+export const TECH = {
+  /** Number of crystals granted at game start (before first lava consumption) */
+  CRYSTALS_ON_GAME_START: 2,
+  /** Number of crystals granted each time a player building is consumed by lava */
+  CRYSTALS_ON_LAVA_CONSUMPTION: 0,
+  /** Number of crystals granted each time the player captures a new zone stronghold */
+  CRYSTALS_ON_ZONE_STRONGHOLD: 0,
+} as const;
+
+/**
+ * Compute the actual crystal cost to research a tech node at the current ember level.
+ * Actual cost = baseCost + ember.
+ */
+export function computeResearchCost(baseCost: number, ember: number): number {
+  return baseCost + ember;
 }
 
 // ============================================================================
@@ -2052,8 +2037,8 @@ export const EMBER_PORTAL_HP = 1;
  */
 export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: string }> = {
   [UnitTag.RANGED]:            { label: 'Ranged',            desc: 'Attacks from a distance and does not move onto a defeated enemy\'s tile.' },
-  [UnitTag.PREP]:              { label: 'Prep',              desc: 'Cannot attack in the same turn it moves. Attack first, then move — or wait a turn after moving.' },
-  [UnitTag.BUILDANDCAPTURE]:   { label: 'Build & Capture',   desc: 'Can construct buildings on open terrain and capture enemy strongholds.' },
+  [UnitTag.PREP]:              { label: 'Prep',              desc: 'Cannot attack after moving. Must attack before moving, or forgo movement entirely.' },
+  [UnitTag.BUILDANDCAPTURE]:   { label: 'Build & Capture',   desc: 'Can construct buildings on empty tiles and capture enemy buildings. Strongholds and watchtowers transfer to your faction; other enemy buildings are demolished.' },
   [UnitTag.SACRIFICIAL]:       { label: 'Sacrificial',       desc: 'Prioritizes walking toward the lava to be consumed.' },
   [UnitTag.EXPLOSIVE]:         { label: 'Explosive',         desc: 'Deals heavy area damage to all adjacent enemies when it dies.' },
   [UnitTag.FIELDWORK]:         { label: 'Fieldwork',         desc: `Can sacrifice itself on its current tile to instantly erect an Outpost (HP scales with the unit's current HP × ${ABILITIES.FIELDWORK_HP_MULTIPLIER}). Cannot be used on ruins or resource terrain.` },

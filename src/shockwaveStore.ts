@@ -18,6 +18,11 @@ export interface Shockwave {
    * tile-size-relative radius instead of the default zone-clear scale.
    */
   finalScale?: number;
+  /**
+   * Visual variant of the shockwave ring.
+   * When set to 'crystal', the ring renders in light-blue crystal colours.
+   */
+  variant?: string;
 }
 
 interface ShockwaveState {

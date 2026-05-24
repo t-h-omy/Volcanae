@@ -86,11 +86,13 @@ export type GameEvent =
       damagedUnitIds: string[];
       damagePerUnit: number;
     }
-  | {
+    | {
       type: 'LAVA_ADVANCE';
       newLavaRow: number;
       destroyedUnitIds: string[];
       destroyedBuildingIds: string[];
+      /** Position of the Crystal Chamber destroyed by this lava advance, if any */
+      destroyedChamberPosition?: Position;
     }
   | {
       type: 'BUILDING_ATTACK_BUILDING';
@@ -351,5 +353,15 @@ export type GameEvent =
        * that triggered it.
        */
       type: 'CORRUPTION_APPLIED';
+      position: Position;
+    }
+  | {
+      /**
+       * Emitted when a cave monster returns to its home mountain tile and
+       * burrows back in. The unit is removed from the game — it does not die
+       * in combat, so no death animation should play.
+       */
+      type: 'CAVE_MONSTER_RETREAT';
+      unitId: string;
       position: Position;
     };
