@@ -587,7 +587,6 @@ function TopBar({
   const resources = useGameStore((s) => s.resources);
   const ember = useGameStore((s) => s.ember);
   const turnsUntilLavaAdvance = useGameStore((s) => s.turnsUntilLavaAdvance);
-  const isAnimating = useAnimationStore((s) => s.isAnimating);
 
   // Population usage and capacity (both live) — select primitives to avoid infinite re-render
   const farmersUsed = useGameStore((s) => computePopulationUsage(s).farmersUsed);
@@ -634,8 +633,7 @@ function TopBar({
 
   return (
     <div className="hud-top-bar">
-      <span className="hud-stat">🔄 Turn {turn}</span>
-      {isAnimating && <span className="hud-stat hud-enemy-turn-label">⚔️ Enemy Turn...</span>}
+      <span className="hud-stat hud-turn-counter">🔄 Turn {turn}</span>
       <button className="hud-stat hud-stat--clickable" onClick={() => setResourcePopup('iron')}>⛓️ {resources.iron}<NetIncomeBadge gross={ironPerTurn} upkeep={ironUpkeep} /></button>
       <button className="hud-stat hud-stat--clickable" onClick={() => setResourcePopup('wood')}>🪵 {resources.wood}<NetIncomeBadge gross={woodPerTurn} upkeep={woodUpkeep} /></button>
       <span className="hud-stat">🌾 {farmersUsed}/{farmerCapacity}</span>
@@ -705,12 +703,13 @@ const HIDDEN_UNIT_TAGS = new Set<string>([]);
 
 /** Reusable popup shell — backdrop + centered card, dismisses on outside tap */
 function Popup({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
-  return (
+  return createPortal(
     <div className="info-popup-backdrop" onClick={onClose} role="dialog" aria-modal="true">
       <div className="info-popup-card" onClick={(e) => e.stopPropagation()}>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -2203,7 +2202,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   // lets gravestones spawn but does NOT unlock the revive action.
   const graveRevivable =
     isGravestone &&
-    building.gravesUnitType !== null &&
+    building.gravesUnitType != null &&
     getTagsFromActiveSpecialists(gameState, building.gravesUnitType).includes(UnitTag.REVIVABLE);
   const canRevive = graveRevivable && !graveOccupied && arcaneCrystals >= ABILITIES.REVIVE_CRYSTAL_COST;
   const handleRevive = useCallback(() => {
@@ -2527,6 +2526,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
             costLabel={costLabel}
             actionLabel="Recruit"
             onAction={() => {
+              // TODO: player spawn VFX once recruitment emits an event
               recruitUnit(building.id, confirmRecruitUnit);
               setConfirmRecruitUnit(null);
             }}
@@ -2665,11 +2665,14 @@ function BottomBar() {
         <SelectedTilePanel tile={selectedTile} />
       )}
 
-      {/* End Turn button */}
+      {/* End Turn / Enemy Turn feedback */}
       {isPlayerTurn && !isAnimating && (
         <button className="hud-end-turn-btn" onClick={endPlayerTurn}>
           End Turn ⏭️
         </button>
+      )}
+      {(!isPlayerTurn || isAnimating) && (
+        <span className="hud-end-turn-btn hud-end-turn-btn--enemy-turn">⚔️ Enemy Turn…</span>
       )}
     </div>
   );
@@ -2777,7 +2780,7 @@ function GameIntroPopup({ onDismiss }: { onDismiss: () => void }) {
           Push forward — raze every Infernal Sanctum. If your last Stronghold falls, the war is lost.
         </p>
         <button className="hud-intro-cta" onClick={onDismiss}>
-          To the Walls!
+          March North!
         </button>
       </div>
     </div>
@@ -3429,6 +3432,14 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
           unitType={infoUnitType}
           onClose={() => setInfoUnitType(null)}
           isReadOnly
+          costLabel={(() => {
+            const baseCost = UNIT_DEFINITIONS[infoUnitType]?.cost;
+            if (!baseCost) return undefined;
+            const costMod = getCostMods(useGameStore.getState(), infoUnitType);
+            const iron = baseCost.iron + costMod.iron;
+            const wood = baseCost.wood + costMod.wood;
+            return `⛓️${iron} 🪵${wood}`;
+          })()}
         />
       )}
       {infoBuildingType && (

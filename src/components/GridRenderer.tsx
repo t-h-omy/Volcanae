@@ -8,7 +8,7 @@ import { useGameStore } from '../gameStore';
 import { useFloaterStore } from '../floaterStore';
 import { useAnimationStore } from '../animationStore';
 import { useCombatAnimationStore } from '../combatAnimationStore';
-import type { Projectile, SlideKillGhost } from '../combatAnimationStore';
+import type { Projectile, SlideKillGhost, CleaveVfx, TileVfx, LineVfx } from '../combatAnimationStore';
 import { useShockwaveStore } from '../shockwaveStore';
 import { canCapture } from '../captureSystem';
 import { getConstructionOptionsForTile } from '../constructionSystem';
@@ -21,7 +21,7 @@ import { RENDER } from '../renderConfig';
 import { INPUT } from '../inputConfig';
 import { computeLevelFromXp } from '../levelSystem';
 import { useZoomStore } from '../zoomStore';
-import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE, TILE_STATUS_SPRITE, RESOURCE_SPRITE, ENEMY_BUILDING_SPRITE, PLAYER_BUILDING_SPRITE, TERRAIN_RESOURCE_SPRITE, CRYSTAL_CHAMBER_ACTIVE_SPRITE, ENEMY_UNIT_SPRITE, PLAYER_UNIT_SPRITE } from '../assetRegistry';
+import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE, TILE_STATUS_SPRITE, RESOURCE_SPRITE, ENEMY_BUILDING_SPRITE, PLAYER_BUILDING_SPRITE, TERRAIN_RESOURCE_SPRITE, CRYSTAL_CHAMBER_ACTIVE_SPRITE, ENEMY_UNIT_SPRITE, PLAYER_UNIT_SPRITE, TUNNEL_HOLE_SPRITE, TUNNEL_EARTHQUAKE_SPRITE, PORTAL_ENTRANCE_SPRITE, PORTAL_EXIT_SPRITE } from '../assetRegistry';
 import MissingSprite from './MissingSprite';
 import {
   Faction,
@@ -146,6 +146,7 @@ export default function GridRenderer() {
   const cancelSpellCast = useGameStore((s) => s.cancelSpellCast);
   const castSpell = useGameStore((s) => s.castSpell);
   const strongholdTotalCap = useGameStore((s) => getStrongholdEffectiveCap(s).totalCap);
+  const portals = useGameStore((s) => s.portals);
   // Precompute recruitment usage (current/limit) for each player-owned recruitment building type.
   // Uses stable s.units / s.buildings selectors + useMemo so the result object is only
   // recreated when actual unit or building state changes — avoids an infinite re-render loop
@@ -627,7 +628,57 @@ export default function GridRenderer() {
     return set;
   }, [selectedUnit, reachableSet, grid, buildings]);
 
+  // ── Tunnel visualization sets ──
+  const tunnelHoleSet = useMemo<Set<string>>(() => {
+    const set = new Set<string>();
+    for (const unit of Object.values(units)) {
+      if (!unit.tunnelStartPosition) continue;
+      if (unit.tunnelState === 'DIGGING_IN' || unit.tunnelState === 'UNDERGROUND') {
+        set.add(`${unit.tunnelStartPosition.x},${unit.tunnelStartPosition.y}`);
+      }
+    }
+    return set;
+  }, [units]);
+
+  const earthquakeSet = useMemo<Set<string>>(() => {
+    const set = new Set<string>();
+    for (const unit of Object.values(units)) {
+      if (!unit.tunnelPlannedEmergence) continue;
+      if (unit.tunnelState === 'EMERGING') {
+        set.add(`${unit.tunnelPlannedEmergence.x},${unit.tunnelPlannedEmergence.y}`);
+      }
+    }
+    return set;
+  }, [units]);
+
+  // ── Portal visualization sets ──
+  const portalEntranceSet = useMemo<Set<string>>(() => {
+    const set = new Set<string>();
+    for (const portal of Object.values(portals)) {
+      set.add(`${portal.entrancePos.x},${portal.entrancePos.y}`);
+    }
+    return set;
+  }, [portals]);
+
+  const portalExitSet = useMemo<Set<string>>(() => {
+    const set = new Set<string>();
+    for (const portal of Object.values(portals)) {
+      set.add(`${portal.exitPos.x},${portal.exitPos.y}`);
+    }
+    return set;
+  }, [portals]);
+
   // ── Tile click ──
+  const triggerInvalidActionVfx = useCallback((x: number, y: number) => {
+    useCombatAnimationStore.getState().addTileVfx({
+      id: crypto.randomUUID(),
+      x,
+      y,
+      variant: 'INVALID_ACTION',
+      durationMs: ANIMATION.INVALID_ACTION_VFX_MS,
+    });
+  }, []);
+
   const handleTileClick = useCallback(
     (x: number, y: number) => {
       if (dragState.current.isDragging) return;
@@ -643,6 +694,7 @@ export default function GridRenderer() {
       }
       if (pendingHealerId) {
         // Clicked outside healable tiles — cancel heal mode
+        triggerInvalidActionVfx(x, y);
         cancelHealMode();
         return;
       }
@@ -683,6 +735,7 @@ export default function GridRenderer() {
             return;
           }
         }
+        triggerInvalidActionVfx(x, y);
         cancelSpellCast();
         return;
       }
@@ -790,7 +843,7 @@ export default function GridRenderer() {
         clearSelection();
       }
     },
-    [grid, selectedUnitId, selectedBuildingId, selectedUnit, selectedBuilding, attackableSet, healableSet, spellTargetSet, reachableSet, units, buildings, selectUnit, selectBuilding, selectTile, clearSelection, moveUnit, attackUnit, attackBuilding, buildingAttackUnit, buildingAttackBuilding, healUnit, pendingHealerId, cancelHealMode, pendingSpellCast, castSpell, cancelSpellCast, isAnimating],
+    [grid, selectedUnitId, selectedBuildingId, selectedUnit, selectedBuilding, attackableSet, healableSet, spellTargetSet, reachableSet, units, buildings, selectUnit, selectBuilding, selectTile, clearSelection, moveUnit, attackUnit, attackBuilding, buildingAttackUnit, buildingAttackBuilding, healUnit, pendingHealerId, cancelHealMode, pendingSpellCast, castSpell, cancelSpellCast, isAnimating, triggerInvalidActionVfx],
   );
 
   // Right-click / tap-hold → deselect (only when not used for drag-panning)
@@ -862,6 +915,10 @@ export default function GridRenderer() {
             const isLeashed = leashSet.has(key);
             const isLeashWarn = leashWarnSet.has(key);
             const isSlidePreview = slidePreviewSet.has(key);
+            const isTunnelHole = tunnelHoleSet.has(key);
+            const isEarthquakeIndicator = earthquakeSet.has(key);
+            const isPortalEntrance = portalEntranceSet.has(key);
+            const isPortalExit = portalExitSet.has(key);
             const isSelected =
               (tile.unitId != null && tile.unitId === selectedUnitId) ||
               (tile.buildingId != null && tile.buildingId === selectedBuildingId);
@@ -884,6 +941,10 @@ export default function GridRenderer() {
                 strongholdTotalCap={strongholdTotalCap}
                 recruitmentUsage={recruitmentUsage}
                 onClick={() => handleTileClick(x, y)}
+                isTunnelHole={isTunnelHole}
+                isEarthquakeIndicator={isEarthquakeIndicator}
+                isPortalEntrance={isPortalEntrance}
+                isPortalExit={isPortalExit}
               />
             );
           }),
@@ -897,6 +958,9 @@ export default function GridRenderer() {
         <ProjectileLayer />
         <SlideKillGhostLayer tileSize={tileSize} />
         <ShockwaveLayer />
+        <CleaveVfxLayer tileSize={tileSize} />
+        <TileVfxLayer tileSize={tileSize} />
+        <LineVfxLayer tileSize={tileSize} />
       </div>
       <div className="zoom-controls">
         <button onClick={() => handleZoomButton(-RENDER.ZOOM_STEP)}>−</button>
@@ -929,6 +993,14 @@ interface TileCellProps {
   /** Pre-computed recruitment usage per building type (current units / cap). */
   recruitmentUsage: Partial<Record<BuildingType, { current: number; limit: number }>>;
   onClick: () => void;
+  /** True when a TUNNEL unit is DIGGING_IN or UNDERGROUND here — show hole sprite. */
+  isTunnelHole: boolean;
+  /** True when a TUNNEL unit is EMERGING here — show earthquake indicator. */
+  isEarthquakeIndicator: boolean;
+  /** True when an active portal entrance is on this tile. */
+  isPortalEntrance: boolean;
+  /** True when an active portal exit is on this tile. */
+  isPortalExit: boolean;
 }
 
 function TileCellInner({
@@ -947,6 +1019,10 @@ function TileCellInner({
   strongholdTotalCap,
   recruitmentUsage,
   onClick,
+  isTunnelHole,
+  isEarthquakeIndicator,
+  isPortalEntrance,
+  isPortalExit,
 }: TileCellProps) {
   const buildingIconSize = tileSize;
 
@@ -991,7 +1067,8 @@ function TileCellInner({
   else if (isAttackable) highlightOverlay = RENDER.COLORS.ATTACKABLE_OVERLAY;
   else if (isReachable) highlightOverlay = RENDER.COLORS.REACHABLE_OVERLAY;
 
-  const showUnit = unit && tile.isRevealed;
+  const showUnit = unit && tile.isRevealed &&
+    unit.tunnelState !== 'UNDERGROUND' && unit.tunnelState !== 'EMERGING';
   const showBuilding = building && tile.isRevealed;
 
   // Terrain resource overlay (forest / mountain shown on top of grass when no building)
@@ -1171,13 +1248,41 @@ function TileCellInner({
       {/* burning tile overlay — only shown as a CSS fallback when no dedicated status sprite exists */}
       {tile.status === TileStatus.BURNING && tile.isRevealed && !tileStatusSpritePath && <div className="tile-overlay tile--burning" />}
 
+      {/* tunnel hole overlay — shown while a TUNNEL unit is DIGGING_IN or UNDERGROUND */}
+      {isTunnelHole && tile.isRevealed && (
+        TUNNEL_HOLE_SPRITE
+          ? <img src={TUNNEL_HOLE_SPRITE} alt="" className="tile-overlay" style={{ width: tileSize, height: tileSize, objectFit: 'cover' }} />
+          : <div className="tile-overlay tile--tunnel-hole" />
+      )}
+
+      {/* earthquake indicator — shown while a TUNNEL unit is about to emerge */}
+      {isEarthquakeIndicator && tile.isRevealed && (
+        TUNNEL_EARTHQUAKE_SPRITE
+          ? <img src={TUNNEL_EARTHQUAKE_SPRITE} alt="" className="tile-overlay" style={{ width: tileSize, height: tileSize, objectFit: 'cover' }} />
+          : <div className="tile-overlay tile--tunnel-earthquake" />
+      )}
+
+      {/* portal entrance overlay — shown while an active portal entrance is on this tile */}
+      {isPortalEntrance && tile.isRevealed && (
+        PORTAL_ENTRANCE_SPRITE
+          ? <img src={PORTAL_ENTRANCE_SPRITE} alt="" className="tile-overlay" style={{ width: tileSize, height: tileSize, objectFit: 'cover' }} />
+          : <div className="tile-overlay tile--portal-entrance" />
+      )}
+
+      {/* portal exit overlay — shown while an active portal exit is on this tile */}
+      {isPortalExit && tile.isRevealed && (
+        PORTAL_EXIT_SPRITE
+          ? <img src={PORTAL_EXIT_SPRITE} alt="" className="tile-overlay" style={{ width: tileSize, height: tileSize, objectFit: 'cover' }} />
+          : <div className="tile-overlay tile--portal-exit" />
+      )}
+
       {/* crystal chamber activation VFX overlay */}
       {isCrystalActivating && <div className="tile-crystal-activate-overlay" />}
 
       {/* zone cleared per-tile flash overlay */}
       {tileFlashEntry && (
         <div
-          className="tile-clear-flash-overlay"
+          className={`tile-clear-flash-overlay${tileFlashEntry.variant ? ` tile-clear-flash-overlay--${tileFlashEntry.variant}` : ''}`}
           style={{ '--tile-clear-flash-duration': `${tileFlashEntry.durationMs}ms` } as React.CSSProperties}
         />
       )}
@@ -1755,7 +1860,7 @@ function ShockwaveLayer() {
       {shockwaves.map((sw) => (
         <div
           key={sw.id}
-          className="shockwave-ring"
+          className={`shockwave-ring${sw.variant ? ` shockwave-ring--${sw.variant}` : ''}`}
           style={{
             left: sw.cx,
             top: sw.cy,
@@ -2022,6 +2127,91 @@ function CrystalTowerConnectionLayer({ tileSize }: { tileSize: number }) {
           <feGaussianBlur stdDeviation="4" />
         </filter>
       </defs>
+    </svg>
+  );
+}
+
+// ============================================================================
+// CLEAVE VFX LAYER
+// ============================================================================
+
+function CleaveVfxLayer({ tileSize }: { tileSize: number }) {
+  const cleaveVfxList = useCombatAnimationStore((s) => s.cleaveVfxList);
+  // The ring element has 0×0 size with a box-shadow spread of 3px.
+  // To visually expand to 1.25 tile widths the scale must equal (1.25 * tileSize) / 3.
+  const finalScale = Math.round((1.25 * tileSize) / 3);
+  return (
+    <div className="cleave-vfx-layer">
+      {cleaveVfxList.map((vfx: CleaveVfx) => (
+        <div
+          key={vfx.id}
+          className="cleave-vfx-ring"
+          style={{
+            left: vfx.cx * tileSize + tileSize / 2,
+            top: vfx.cy * tileSize + tileSize / 2,
+            '--cleave-final-scale': finalScale,
+            '--cleave-duration': `${vfx.durationMs}ms`,
+          } as React.CSSProperties}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ============================================================================
+// TILE VFX LAYER — generic semantic tile-anchored VFX (one variant per CSS class)
+// ============================================================================
+
+function TileVfxLayer({ tileSize }: { tileSize: number }) {
+  const tileVfx = useCombatAnimationStore((s) => s.tileVfx);
+  const removeTileVfx = useCombatAnimationStore((s) => s.removeTileVfx);
+  return (
+    <div className="tile-vfx-layer">
+      {tileVfx.map((vfx: TileVfx) => (
+        <div
+          key={vfx.id}
+          className={`tile-vfx tile-vfx--${vfx.variant.toLowerCase().replace(/_/g, '-')}`}
+          style={{
+            left: vfx.x * tileSize,
+            top: vfx.y * tileSize,
+            width: tileSize,
+            height: tileSize,
+            '--tile-vfx-duration': `${vfx.durationMs}ms`,
+          } as React.CSSProperties}
+          onAnimationEnd={() => removeTileVfx(vfx.id)}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ============================================================================
+// LINE VFX LAYER — generic semantic SVG line VFX (one variant per CSS class)
+// ============================================================================
+
+function LineVfxLayer({ tileSize }: { tileSize: number }) {
+  const lineVfx = useCombatAnimationStore((s) => s.lineVfx);
+  const removeLineVfx = useCombatAnimationStore((s) => s.removeLineVfx);
+  // Coordinate space: unscaled local pixels, same as ProjectileLayer and
+  // LeashLineLayer. The layer lives inside the CSS-scaled grid-container,
+  // so positions are not multiplied by zoom.
+  return (
+    <svg
+      className="line-vfx-layer"
+      style={{ width: MAP.GRID_WIDTH * tileSize, height: MAP.GRID_HEIGHT * tileSize }}
+    >
+      {lineVfx.map((vfx: LineVfx) => (
+        <line
+          key={vfx.id}
+          className={`line-vfx line-vfx--${vfx.variant.toLowerCase().replace(/_/g, '-')}`}
+          x1={vfx.fromPx.x}
+          y1={vfx.fromPx.y}
+          x2={vfx.toPx.x}
+          y2={vfx.toPx.y}
+          style={{ '--line-vfx-duration': `${vfx.durationMs}ms` } as React.CSSProperties}
+          onAnimationEnd={() => removeLineVfx(vfx.id)}
+        />
+      ))}
     </svg>
   );
 }

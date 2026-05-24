@@ -48,11 +48,18 @@ export const UNIT_SPRITE: Partial<Record<UnitType, string>> = withBase({
   EMBER_DEMON: '/sprites/units/Ember_Demon_Player_100px.png',
   SKELETON:    '/sprites/units/Skeleton_100px.png',
   // Enemy units
-  LAVA_GRUNT:  '/sprites/units/Grunt_100px.png',
-  LAVA_ARCHER: '/sprites/units/Spitter_100px.png',
-  LAVA_RIDER:  '/sprites/units/Blazard_100px.png',
-  LAVA_SIEGE:  '/sprites/units/Hurler_100px.png',
-  EMBERLING:   '/sprites/units/Emberling_100px.png',
+  LAVA_GRUNT:   '/sprites/units/Grunt_100px.png',
+  LAVA_ARCHER:  '/sprites/units/Spitter_100px.png',
+  LAVA_RIDER:   '/sprites/units/Blazard_100px.png',
+  LAVA_SIEGE:   '/sprites/units/Hurler_100px.png',
+  REAPER:    '/sprites/units/Reaper_100px.png',
+  LANCER:    '/sprites/units/Lancer_100px.png',
+  BULLWARK:  '/sprites/units/Bullwark_100px.png',
+  KINDLER:   '/sprites/units/Kindler_100px.png',
+  GRIMBEAK:  '/sprites/units/Grimbeak_100px.png',
+  RIFTWORM:  '/sprites/units/Riftworm_100px.png',
+  RIFT_LORD: '/sprites/units/RiftLord_100px.png',
+  EMBERLING:    '/sprites/units/Emberling_100px.png',
   CAVE_MONSTER: '/sprites/units/Cave_Monster_100px.png',
 });
 
@@ -192,3 +199,30 @@ export const TILE_STATUS_SPRITE: Partial<Record<TileType, Partial<Record<TileSta
  * TODO: Replace empty string with a real ice overlay PNG once art is available.
  */
 export const ICE_OVERLAY_SPRITE = withBase({ ice: '' }).ice ?? '';
+
+/**
+ * Sprite path for the tunnel hole overlay.
+ * Rendered on `tunnelStartPosition` while a TUNNEL unit is DIGGING_IN or UNDERGROUND.
+ */
+export const TUNNEL_HOLE_SPRITE = withBase({ hole: '/sprites/buildings/riftworm_tunnel_100px.png' }).hole ?? '';
+
+/**
+ * Sprite path for the earthquake / emergence warning indicator.
+ * Rendered on `tunnelPlannedEmergence` while a TUNNEL unit is in EMERGING state.
+ * Empty string = pink MissingSprite placeholder until real art is ready.
+ */
+export const TUNNEL_EARTHQUAKE_SPRITE = withBase({ earthquake: '' }).earthquake ?? '';
+
+/**
+ * Sprite path for a portal entrance tile overlay.
+ * Rendered on the entrance tile while a portal is active.
+ * Empty string = pink MissingSprite placeholder until real art is ready.
+ */
+export const PORTAL_ENTRANCE_SPRITE = withBase({ portal_entrance: '' }).portal_entrance ?? '';
+
+/**
+ * Sprite path for a portal exit tile overlay.
+ * Rendered on the exit tile while a portal is active.
+ * Empty string = pink MissingSprite placeholder until real art is ready.
+ */
+export const PORTAL_EXIT_SPRITE = withBase({ portal_exit: '' }).portal_exit ?? '';

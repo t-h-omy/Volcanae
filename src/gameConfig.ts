@@ -282,9 +282,9 @@ export const ENEMY = {
   /** Bonus enemy spawn per 3 threat levels */
   ENEMY_THREAT_SPAWN_BONUS: 0,
   /** Base probability (0.0–1.0) of spawning a unit per recruitment building per turn when no player unit is in discover radius and threat is 0 */
-  BASE_SPAWN_PROBABILITY: 0.1,
+  BASE_SPAWN_PROBABILITY: 0.08,
   /** Maximum additional probability granted at max threat (0.0–1.0) */
-  MAX_THREAT_BONUS: 0.3,
+  MAX_THREAT_BONUS: 0.25,
   /** Threat level at which the full MAX_THREAT_BONUS is reached */
   MAX_THREAT: 25,
   /** Number of player turns between automatic threat level increases */
@@ -483,6 +483,14 @@ export const AI_RECRUITMENT = {
   BASE_SCORE_RIDER: 0,
   BASE_SCORE_SIEGE: 0,
   BASE_SCORE_EMBERLING: 0,
+  // Counter units — base scores for recruitment priority
+  BASE_SCORE_REAPER: 60,
+  BASE_SCORE_LANCER: 55,
+  BASE_SCORE_BULLWARK: 55,
+  BASE_SCORE_KINDLER: 50,
+  BASE_SCORE_GRIMBEAK: 50,
+  BASE_SCORE_RIFTWORM: 55,
+  BASE_SCORE_RIFT_LORD: 70,
 
   // ── Classification thresholds ───────────────────────────────────────────
   /** Unit offensiveScore >= this → counted as offensive */
@@ -908,6 +916,111 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     description: 'Enemy long-range bombard.', // overwritten below
   },
 
+  REAPER: {
+    maxHp: 100, attack: 50, defense: 35,
+    movementActions: 1, moveRange: 1, attackRange: 1,
+    discoverRadius: 1, triggerRange: 3,
+    tags: [UnitTag.CLEAVE, UnitTag.RAGE, UnitTag.CORRUPT, UnitTag.LAVA],
+    cost: { iron: 0, wood: 0 },
+    populationCost: { farmers: 0, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    enemyUnlockEmber: 3,
+    description: 'Brutal cluster-breaker. Cleaves into adjacent enemies and grows stronger when surrounded.',
+  },
+
+  LANCER: {
+    maxHp: 80, attack: 60, defense: 30,
+    movementActions: 1, moveRange: 2, attackRange: 1,
+    discoverRadius: 1, triggerRange: 3,
+    tags: [UnitTag.PIERCE, UnitTag.ALERT, UnitTag.LAVA],
+    cost: { iron: 0, wood: 0 },
+    populationCost: { farmers: 0, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    enemyUnlockEmber: 4,
+    description: 'Fast lancer that pierces through front lines, dealing full damage to units behind the target. Immune to stun.',
+  },
+
+  BULLWARK: {
+    maxHp: 110, attack: 55, defense: 40,
+    movementActions: 1, moveRange: 1, attackRange: 1,
+    discoverRadius: 1, triggerRange: 3,
+    tags: [UnitTag.PUNCTURE, UnitTag.BLOCK, UnitTag.LAVA],
+    cost: { iron: 0, wood: 0 },
+    populationCost: { farmers: 0, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    enemyUnlockEmber: 4,
+    description: 'Heavily armored brute that ignores defensive bonuses and stuns heavily armored targets. Resistant to melee damage.',
+  },
+
+  KINDLER: {
+    maxHp: 70, attack: 40, defense: 20,
+    movementActions: 1, moveRange: 1, attackRange: 2,
+    discoverRadius: 1, triggerRange: 4,
+    tags: [UnitTag.BURN, UnitTag.RANGED, UnitTag.PREP, UnitTag.LAVA],
+    cost: { iron: 0, wood: 0 },
+    populationCost: { farmers: 0, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    enemyUnlockEmber: 5,
+    description: 'Ranged firestarter that scorches the target\'s tile, forcing player units to abandon static positions.',
+  },
+
+  GRIMBEAK: {
+    maxHp: 130, attack: 50, defense: 45,
+    movementActions: 1, moveRange: 1, attackRange: 1,
+    discoverRadius: 1, triggerRange: 3,
+    tags: [UnitTag.RAGE, UnitTag.IRONBLOOD, UnitTag.CORRUPT, UnitTag.LAVA],
+    cost: { iron: 0, wood: 0 },
+    populationCost: { farmers: 0, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    enemyUnlockEmber: 6,
+    description: 'Resilient lava beast that resists damage from summoned units and grows enraged in dense clusters.',
+  },
+
+  RIFTWORM: {
+    maxHp: 75, attack: 60, defense: 25,
+    movementActions: 1, moveRange: 1, attackRange: 1,
+    discoverRadius: 1, triggerRange: 3,
+    tags: [UnitTag.TUNNEL, UnitTag.RAGE, UnitTag.CORRUPT, UnitTag.LAVA],
+    cost: { iron: 0, wood: 0 },
+    populationCost: { farmers: 0, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    enemyUnlockEmber: 5,
+    description: 'Bypasses the frontline by digging underground. Emerges south of the player line, damaging adjacent enemies and corrupting the tile.',
+  },
+
+  RIFT_LORD: {
+    maxHp: 60, attack: 0, defense: 20,
+    movementActions: 1, moveRange: 1, attackRange: 0,
+    discoverRadius: 2, triggerRange: 5,
+    tags: [UnitTag.EMBER_PORTAL, UnitTag.PASSIVE, UnitTag.PREP, UnitTag.LAVA],
+    cost: { iron: 0, wood: 0 },
+    populationCost: { farmers: 0, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    enemyUnlockEmber: 7,
+    description: 'Glass-cannon caster that opens portals behind the player line, allowing enemy units to teleport into the backline.',
+  },
+
   EMBERLING: {
     maxHp: 45, attack: 0, defense: 15,
     movementActions: 1, moveRange: 2, attackRange: 1,
@@ -1008,6 +1121,8 @@ export interface BuildingDefinition {
   destroyBehavior: DestroyBehavior;
   /** Iron/wood construction cost ({iron:0,wood:0} for buildings not constructed by the player) */
   constructionCost: { iron: number; wood: number };
+  /** Maximum HP of the building (0 for buildings that cannot be damaged) */
+  maxHp?: number;
   /** Combat stats — only present for buildings that can attack */
   combatStats?: {
     maxHp: number;
@@ -1032,179 +1147,15 @@ export interface BuildingDefinition {
  * BUILDINGS.WATCHTOWER_STATS, BUILDINGS.OUTPOST_STATS, LAVA_LAIR.MAGMA_SPYR_STATS,
  * CONSTRUCTION.*_COST, CRYSTAL_CHAMBER_CONFIG.COST, and CRYSTAL_CHAMBER_CONFIG.DISCOVER_RADIUS.
  *
- * Description authoring: see the DESCRIPTION AUTHORING RULE above the ABILITIES
- * constant. Descriptions that must reference the building's own combatStats or
- * config constants are set in the "Compute descriptions for BUILDING_DEFINITIONS"
- * block below — use placeholder text here that contains NO hardcoded balancing
- * numbers (mark with `// overwritten below`).
+ * All description strings use template-literal references to named constants —
+ * never raw balancing numbers. See the DESCRIPTION AUTHORING RULE in the
+ * ABILITIES block above.
  */
-export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
-  STRONGHOLD: {
-    discoverRadius: 2,
-    destroyBehavior: DestroyBehavior.STRONGHOLD_RUIN,
-    constructionCost: { iron: 0, wood: 0 },
-    unitLimit: 4,
-    description: 'Your capital — if you lose all your strongholds, the game is over.',
-  },
-  MINE: {
-    discoverRadius: 2,
-    destroyBehavior: DestroyBehavior.NONE,
-    constructionCost: { iron: 0, wood: 2 },
-    description: 'Produces iron every turn, the primary resource for training units.', // overwritten below
-  },
-  WOODCUTTER: {
-    discoverRadius: 2,
-    destroyBehavior: DestroyBehavior.NONE,
-    constructionCost: { iron: 0, wood: 0 },
-    description: 'Produces wood every turn, used alongside iron for buildings and recruitment.', // overwritten below
-  },
-  BARRACKS: {
-    discoverRadius: 2,
-    destroyBehavior: DestroyBehavior.RUIN,
-    constructionCost: { iron: 2, wood: 2 },
-    unitLimit: 4,
-    description: 'Military hall that trains Spearman and Swordsman.',
-  },
-  ARCHER_CAMP: {
-    discoverRadius: 2,
-    destroyBehavior: DestroyBehavior.RUIN,
-    constructionCost: { iron: 1, wood: 5 },
-    unitLimit: 4,
-    description: 'Archery range that trains Archers.',
-  },
-  RIDER_CAMP: {
-    discoverRadius: 2,
-    destroyBehavior: DestroyBehavior.RUIN,
-    constructionCost: { iron: 5, wood: 3 },
-    unitLimit: 4,
-    description: 'Stable that trains Riders.',
-  },
-  SIEGE_CAMP: {
-    discoverRadius: 2,
-    destroyBehavior: DestroyBehavior.RUIN,
-    constructionCost: { iron: 3, wood: 6 },
-    unitLimit: 4,
-    description: 'Engineering works that trains Siege engines.',
-  },
-  WATCHTOWER: {
-    discoverRadius: 4,
-    destroyBehavior: DestroyBehavior.RUIN,
-    constructionCost: { iron: 1, wood: 1 },
-    combatStats: { maxHp: 150, attack: 50, defense: 65, attackRange: 3 },
-    description: 'Defensive tower that attacks nearby enemies and expands your vision.', // overwritten below
-  },
-  OUTPOST: {
-    discoverRadius: 3,
-    destroyBehavior: DestroyBehavior.NONE,
-    constructionCost: { iron: 0, wood: 2 },
-    combatStats: { maxHp: 200, attack: 40, defense: 55, attackRange: 2 },
-    description: 'Field fortification built by Spearmen via Fieldwork. Attacks nearby enemies. Starting HP is based on the building unit\'s current HP.', // overwritten below
-  },
-  LAVALAIR: {
-    discoverRadius: 2,
-    destroyBehavior: DestroyBehavior.RUIN,
-    constructionCost: { iron: 0, wood: 0 },
-    description: 'Enemy spawner building. Produces Lava Grunt units.',
-  },
-  INFERNALSANCTUM: {
-    discoverRadius: 2,
-    destroyBehavior: DestroyBehavior.STRONGHOLD_RUIN,
-    constructionCost: { iron: 0, wood: 0 },
-    description: 'Enemy zone stronghold. Capturing it triggers a Sanctum Collapse.',
-  },
-  FARM: {
-    discoverRadius: 2,
-    destroyBehavior: DestroyBehavior.RUIN,
-    constructionCost: { iron: 0, wood: 3 },
-    description: 'Housing for common folk — each pop raised lets you field one more basic unit.',
-  },
-  PATRICIANHOUSE: {
-    discoverRadius: 2,
-    destroyBehavior: DestroyBehavior.RUIN,
-    constructionCost: { iron: 2, wood: 4 },
-    description: 'Noble estate — each noble raised lets you field one more elite unit.',
-  },
-  MAGMASPYR: {
-    discoverRadius: 2,
-    destroyBehavior: DestroyBehavior.RESOURCE,
-    constructionCost: { iron: 0, wood: 0 },
-    combatStats: { maxHp: 120, attack: 30, defense: 50, attackRange: 2, maxAttacksPerTurn: 2 },
-    description: 'Corrupted mountain spire that attacks nearby units multiple times per turn.', // overwritten below
-  },
-  EMBERNEST: {
-    discoverRadius: 2,
-    destroyBehavior: DestroyBehavior.RESOURCE,
-    constructionCost: { iron: 0, wood: 0 },
-    description: 'Corrupted forest nest that periodically spawns Emberlings.', // overwritten below
-  },
-  CRYSTAL_CHAMBER: {
-    discoverRadius: 2,
-    destroyBehavior: DestroyBehavior.RUIN,
-    constructionCost: { iron: 4, wood: 2 },
-    unitLimit: CRYSTAL_CHAMBER_CONFIG.CHAMBER_UNIT_LIMIT,
-    description: 'Arcane resonator. When a Crystal Chamber is consumed by lava, all surviving chambers begin resonating and generate crystals each turn.', // overwritten below
-  },
-  GRAVESTONE: {
-    discoverRadius: 1,
-    destroyBehavior: DestroyBehavior.NONE,
-    constructionCost: { iron: 0, wood: 0 },
-    description: 'The grave of a fallen warrior.', // overwritten below (after ABILITIES)
-  },
-  GRAVE_TRAP: {
-    discoverRadius: 1,
-    destroyBehavior: DestroyBehavior.NONE,
-    constructionCost: { iron: 0, wood: 0 },
-    description: 'A magic trap forged from a gravestone.', // overwritten below (after MAGE)
-  },
-  CRYSTAL_TOWER: {
-    discoverRadius: 3,
-    destroyBehavior: DestroyBehavior.RUIN,
-    constructionCost: { iron: 0, wood: 0 },
-    combatStats: {
-      maxHp: 200,
-      attack: 40,
-      defense: 55,
-      attackRange: 2,
-      maxAttacksPerTurn: 1,
-    },
-    description: 'Arcane combat tower raised by sacrificing a Mage.', // overwritten below (after MAGE)
-  },
-};
-
-// Compute descriptions for BUILDING_DEFINITIONS entries that reference their own stats or config constants.
-// All numeric values here are read from combatStats, RESOURCES, LAVA_LAIR, or CRYSTAL_CHAMBER_CONFIG —
-// never hardcoded literals. See the DESCRIPTION AUTHORING RULE above ABILITIES.
-{
-  const b = BUILDING_DEFINITIONS;
-  b.MINE.description       = `Produces ${RESOURCES.MINE_IRON_PER_TURN} iron per turn, the primary resource for training units.`;
-  b.WOODCUTTER.description = `Produces ${RESOURCES.WOODCUTTER_WOOD_PER_TURN} wood per turn, used alongside iron for buildings and recruitment.`;
-  b.WATCHTOWER.description = `Defensive tower that attacks enemies within ${b.WATCHTOWER.combatStats!.attackRange} tiles and expands your vision.`;
-  b.OUTPOST.description    = `Field fortification built by Spearmen via Fieldwork. Attacks enemies within ${b.OUTPOST.combatStats!.attackRange} tiles. Starting HP is based on the building unit's current HP, capped at ${b.OUTPOST.combatStats!.maxHp}.`;
-  b.MAGMASPYR.description  = `Corrupted mountain spire that attacks nearby units up to ${b.MAGMASPYR.combatStats!.maxAttacksPerTurn} times per turn.`;
-  b.EMBERNEST.description  = `Corrupted forest nest that spawns Emberlings every ${LAVA_LAIR.EMBER_NEST_SPAWN_INTERVAL} turns.`;
-  b.CRYSTAL_CHAMBER.description = `Arcane resonator. When a Crystal Chamber is consumed by lava, all surviving chambers begin resonating and generate ${CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN} crystal${CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN !== 1 ? 's' : ''} per turn. While active, Mages can be recruited once Arcane Awakening is researched.`;
-}
-
-export const TECH = {
-  /** Number of crystals granted at game start (before first lava consumption) */
-  CRYSTALS_ON_GAME_START: 2,
-  /** Number of crystals granted each time a player building is consumed by lava */
-  CRYSTALS_ON_LAVA_CONSUMPTION: 0,
-  /** Number of crystals granted each time the player captures a new zone stronghold */
-  CRYSTALS_ON_ZONE_STRONGHOLD: 0,
-} as const;
-
-/**
- * Compute the actual crystal cost to research a tech node at the current ember level.
- * Actual cost = baseCost + ember.
- */
-export function computeResearchCost(baseCost: number, ember: number): number {
-  return baseCost + ember;
-}
+/** Maximum HP for Gravestone buildings — defined here so BUILDING_DEFINITIONS can reference it; ABILITIES references it via GRAVESTONE_MAX_HP. */
+const GRAVESTONE_MAX_HP = 25;
 
 // ============================================================================
 // ABILITIES — Balance-tunable constants for tag/flag-based abilities
-// (Placed before TECH_TREE so node descriptions can reference these values.)
 //
 // ── DESCRIPTION AUTHORING RULE (applies to ALL description fields) ──────────
 // Every numeric balancing value that appears in any description string
@@ -1291,7 +1242,7 @@ export const ABILITIES = {
   /** Crystal cost to revive a unit from a Gravestone */
   REVIVE_CRYSTAL_COST: 1,
   /** Starting and maximum HP of a newly spawned Gravestone building */
-  GRAVESTONE_MAX_HP: 25,
+  GRAVESTONE_MAX_HP: GRAVESTONE_MAX_HP,
   /** Damage dealt by a PREVENTIVE_STRIKE shot as a percentage of normal attack damage */
   PREVENTIVE_STRIKE_DAMAGE_PERCENT: 25,
   // ── Mage system ability constants ────────────────────────────────────────────
@@ -1299,14 +1250,161 @@ export const ABILITIES = {
   GRAVE_TRAP_STUN_TURNS: 2,
 } as const;
 
-// Override GRAVESTONE description now that ABILITIES is available (crystal cost is configurable).
-{
-  BUILDING_DEFINITIONS.GRAVESTONE.description =
-    `The grave of a fallen warrior. Revive the unit by paying ${ABILITIES.REVIVE_CRYSTAL_COST} crystal.`;
-  BUILDING_DEFINITIONS.GRAVE_TRAP.description =
-    `A magic trap forged from a gravestone. The next unit to step onto it is stunned for ${MAGE.GRAVE_TRAP_STUN_TURNS} turns and the trap is consumed.`;
-  BUILDING_DEFINITIONS.CRYSTAL_TOWER.description =
-    `Arcane combat tower. Attacks enemies within ${BUILDING_DEFINITIONS.CRYSTAL_TOWER.combatStats!.attackRange} tiles. Each enemy unit it kills generates ${MAGE.CRYSTAL_TOWER_KILL_CRYSTAL_REWARD} crystal. Gains +${MAGE.CRYSTAL_TOWER_CHAMBER_ATTACK_BONUS} attack per connected Crystal Chamber within range.`;
+export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
+  STRONGHOLD: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.STRONGHOLD_RUIN,
+    constructionCost: { iron: 0, wood: 0 },
+    unitLimit: 4,
+    description: 'Your capital — if you lose all your strongholds, the game is over.',
+  },
+  MINE: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.NONE,
+    constructionCost: { iron: 0, wood: 2 },
+    description: `Produces ${RESOURCES.MINE_IRON_PER_TURN} iron per turn, the primary resource for training units.`,
+  },
+  WOODCUTTER: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.NONE,
+    constructionCost: { iron: 0, wood: 0 },
+    description: `Produces ${RESOURCES.WOODCUTTER_WOOD_PER_TURN} wood per turn, used alongside iron for buildings and recruitment.`,
+  },
+  BARRACKS: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.RUIN,
+    constructionCost: { iron: 2, wood: 2 },
+    unitLimit: 4,
+    description: 'Military hall that trains Spearman and Swordsman.',
+  },
+  ARCHER_CAMP: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.RUIN,
+    constructionCost: { iron: 1, wood: 5 },
+    unitLimit: 4,
+    description: 'Archery range that trains Archers.',
+  },
+  RIDER_CAMP: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.RUIN,
+    constructionCost: { iron: 5, wood: 3 },
+    unitLimit: 4,
+    description: 'Stable that trains Riders.',
+  },
+  SIEGE_CAMP: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.RUIN,
+    constructionCost: { iron: 3, wood: 6 },
+    unitLimit: 4,
+    description: 'Engineering works that trains Siege engines.',
+  },
+  WATCHTOWER: (() => {
+    const combatStats = { maxHp: 150, attack: 50, defense: 65, attackRange: 3 };
+    return {
+      discoverRadius: 4,
+      destroyBehavior: DestroyBehavior.RUIN,
+      constructionCost: { iron: 1, wood: 1 },
+      combatStats,
+      description: `Defensive tower that attacks enemies within ${combatStats.attackRange} tiles and expands your vision.`,
+    };
+  })(),
+  OUTPOST: (() => {
+    const combatStats = { maxHp: 200, attack: 40, defense: 55, attackRange: 2 };
+    return {
+      discoverRadius: 3,
+      destroyBehavior: DestroyBehavior.NONE,
+      constructionCost: { iron: 0, wood: 2 },
+      combatStats,
+      description: `Field fortification built by Spearmen via Fieldwork. Attacks enemies within ${combatStats.attackRange} tiles. Starting HP is based on the building unit's current HP, capped at ${combatStats.maxHp}.`,
+    };
+  })(),
+  LAVALAIR: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.RUIN,
+    constructionCost: { iron: 0, wood: 0 },
+    description: 'Enemy spawner building. Produces Lava Grunt units.',
+  },
+  INFERNALSANCTUM: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.STRONGHOLD_RUIN,
+    constructionCost: { iron: 0, wood: 0 },
+    description: 'Enemy zone stronghold. Capturing it triggers a Sanctum Collapse.',
+  },
+  FARM: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.RUIN,
+    constructionCost: { iron: 0, wood: 3 },
+    description: 'Housing for common folk — each pop raised lets you field one more basic unit.',
+  },
+  PATRICIANHOUSE: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.RUIN,
+    constructionCost: { iron: 2, wood: 4 },
+    description: 'Noble estate — each noble raised lets you field one more elite unit.',
+  },
+  MAGMASPYR: (() => {
+    const combatStats = { maxHp: 120, attack: 30, defense: 50, attackRange: 2, maxAttacksPerTurn: 2 };
+    return {
+      discoverRadius: 2,
+      destroyBehavior: DestroyBehavior.RESOURCE,
+      constructionCost: { iron: 0, wood: 0 },
+      combatStats,
+      description: `Corrupted mountain spire that attacks nearby units up to ${combatStats.maxAttacksPerTurn} times per turn.`,
+    };
+  })(),
+  EMBERNEST: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.RESOURCE,
+    constructionCost: { iron: 0, wood: 0 },
+    description: `Corrupted forest nest that spawns Emberlings every ${LAVA_LAIR.EMBER_NEST_SPAWN_INTERVAL} turns.`,
+  },
+  CRYSTAL_CHAMBER: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.RUIN,
+    constructionCost: { iron: 4, wood: 2 },
+    unitLimit: CRYSTAL_CHAMBER_CONFIG.CHAMBER_UNIT_LIMIT,
+    description: `Arcane resonator. When a Crystal Chamber is consumed by lava, all surviving chambers begin resonating and generate ${CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN} crystal${CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN !== 1 ? 's' : ''} per turn. While active, Mages can be recruited once Arcane Awakening is researched.`,
+  },
+  GRAVESTONE: {
+    discoverRadius: 1,
+    destroyBehavior: DestroyBehavior.NONE,
+    constructionCost: { iron: 0, wood: 0 },
+    maxHp: GRAVESTONE_MAX_HP,
+    description: `The grave of a fallen warrior. Revive the unit by paying ${ABILITIES.REVIVE_CRYSTAL_COST} crystal.`,
+  },
+  GRAVE_TRAP: {
+    discoverRadius: 1,
+    destroyBehavior: DestroyBehavior.NONE,
+    constructionCost: { iron: 0, wood: 0 },
+    description: `A magic trap forged from a gravestone. The next unit to step onto it is stunned for ${MAGE.GRAVE_TRAP_STUN_TURNS} turns and the trap is consumed.`,
+  },
+  CRYSTAL_TOWER: (() => {
+    const combatStats = { maxHp: 200, attack: 40, defense: 55, attackRange: 2, maxAttacksPerTurn: 1 };
+    return {
+      discoverRadius: 3,
+      destroyBehavior: DestroyBehavior.RUIN,
+      constructionCost: { iron: 0, wood: 0 },
+      combatStats,
+      description: `Arcane combat tower. Attacks enemies within ${combatStats.attackRange} tiles. Each enemy unit it kills generates ${MAGE.CRYSTAL_TOWER_KILL_CRYSTAL_REWARD} crystal. Gains +${MAGE.CRYSTAL_TOWER_CHAMBER_ATTACK_BONUS} attack per connected Crystal Chamber within range.`,
+    };
+  })(),
+};
+
+export const TECH = {
+  /** Number of crystals granted at game start (before first lava consumption) */
+  CRYSTALS_ON_GAME_START: 2,
+  /** Number of crystals granted each time a player building is consumed by lava */
+  CRYSTALS_ON_LAVA_CONSUMPTION: 0,
+  /** Number of crystals granted each time the player captures a new zone stronghold */
+  CRYSTALS_ON_ZONE_STRONGHOLD: 0,
+} as const;
+
+/**
+ * Compute the actual crystal cost to research a tech node at the current ember level.
+ * Actual cost = baseCost + ember.
+ */
+export function computeResearchCost(baseCost: number, ember: number): number {
+  return baseCost + ember;
 }
 
 // ============================================================================
@@ -1875,6 +1973,59 @@ export const TAG_STAT_EFFECTS: Partial<Record<UnitTag, StatModifier[]>> = {
   [UnitTag.BRANDMARKED]: [{ stat: 'attack', mode: 'add', value: MAGE.BRANDMARK_ATTACK_BONUS }],
 };
 
+
+// ============================================================================
+// COUNTER-TAG MECHANICS
+// ============================================================================
+
+/** Multiplier applied to primary attack damage when computing CLEAVE AoE damage. */
+export const CLEAVE_DAMAGE_MULTIPLIER = 0.4;
+
+/** Multiplier applied to defender damage when the attacker has PIERCE. */
+export const PIERCE_PRIMARY_DAMAGE_MULTIPLIER = 0.5;
+
+/** ATK bonus per adjacent enemy, granted to units with RAGE. */
+export const RAGE_ATK_PER_ADJACENT = 6;
+/** Maximum number of adjacent enemies that contribute to RAGE bonus. */
+export const RAGE_MAX_ADJACENT_COUNT = 3;
+
+/** Damage multiplier when a SUMMONED unit attacks a unit with IRONBLOOD. */
+export const IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER = 0.6;
+
+/** Damage multiplier when a melee unit (attackRange === 1) attacks a unit with BLOCK. */
+export const BLOCK_MELEE_DAMAGE_MULTIPLIER = 0.5;
+
+/** Base DEF threshold above which PUNCTURE-stun is triggered. */
+export const PUNCTURE_STUN_BASE_DEF_THRESHOLD = 65;
+/** Duration in turns of the stun applied by PUNCTURE. */
+export const PUNCTURE_STUN_DURATION = 1;
+
+/** TUNNEL: minimum number of tiles the unit must move south while underground. */
+export const TUNNEL_RANGE_MIN = 3;
+/** TUNNEL: maximum number of tiles the unit can move south while underground. */
+export const TUNNEL_RANGE_MAX = 4;
+/** TUNNEL: damage applied to enemy units adjacent to the emergence tile. */
+export const TUNNEL_EMERGE_DAMAGE = 20;
+/** TUNNEL: cooldown turns after emergence before the unit can dig again. */
+export const TUNNEL_COOLDOWN_TURNS = 2;
+/** TUNNEL: maximum number of turns the unit can stay underground while waiting for a free emergence tile. */
+export const TUNNEL_MAX_RETRY_TURNS = 1;
+/** TUNNEL: HP multiplier applied when a unit is forced to emerge with no valid free tile (last-resort fallback). */
+export const TUNNEL_FORCED_EMERGE_HP_MULTIPLIER = 0.7;
+
+/** EMBER_PORTAL: maximum distance from the caster to an exit tile. */
+export const EMBER_PORTAL_EXIT_RANGE = 6;
+/** EMBER_PORTAL: minimum tiles south of the southernmost player unit the exit must be placed. */
+export const EMBER_PORTAL_MIN_DISTANCE_SOUTH_OF_FRONTLINE = 2;
+/** EMBER_PORTAL: turns after creation before the portal can be used. */
+export const EMBER_PORTAL_USE_COOLDOWN_TURNS = 1;
+/** EMBER_PORTAL: total lifetime of a portal in turns; expires automatically. */
+export const EMBER_PORTAL_LIFETIME_TURNS = 3;
+/** EMBER_PORTAL: maximum simultaneous portals per caster. */
+export const EMBER_PORTAL_MAX_PER_CASTER = 2;
+/** EMBER_PORTAL: HP of the portal exit tile when treated as a destructible entity. */
+export const EMBER_PORTAL_HP = 1;
+
 // ============================================================================
 // TAG INFO — label and description for each unit tag
 // ============================================================================
@@ -1888,8 +2039,8 @@ export const TAG_STAT_EFFECTS: Partial<Record<UnitTag, StatModifier[]>> = {
  */
 export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: string }> = {
   [UnitTag.RANGED]:            { label: 'Ranged',            desc: 'Attacks from a distance and does not move onto a defeated enemy\'s tile.' },
-  [UnitTag.PREP]:              { label: 'Prep',              desc: 'Cannot attack in the same turn it moves. Attack first, then move — or wait a turn after moving.' },
-  [UnitTag.BUILDANDCAPTURE]:   { label: 'Build & Capture',   desc: 'Can construct buildings on open terrain and capture enemy strongholds.' },
+  [UnitTag.PREP]:              { label: 'Prep',              desc: 'Cannot attack after moving. Must attack before moving, or forgo movement entirely.' },
+  [UnitTag.BUILDANDCAPTURE]:   { label: 'Build & Capture',   desc: 'Can construct buildings on empty tiles and capture enemy buildings. Strongholds and watchtowers transfer to your faction; other enemy buildings are demolished.' },
   [UnitTag.SACRIFICIAL]:       { label: 'Sacrificial',       desc: 'Prioritizes walking toward the lava to be consumed.' },
   [UnitTag.EXPLOSIVE]:         { label: 'Explosive',         desc: 'Deals heavy area damage to all adjacent enemies when it dies.' },
   [UnitTag.FIELDWORK]:         { label: 'Fieldwork',         desc: `Can sacrifice itself on its current tile to instantly erect an Outpost (HP scales with the unit's current HP × ${ABILITIES.FIELDWORK_HP_MULTIPLIER}). Cannot be used on ruins or resource terrain.` },
@@ -1923,6 +2074,17 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   [UnitTag.LEAVES_GRAVESTONE]:  { label: 'Leaves Gravestone',  desc: 'Leaves a Gravestone on death.' },
   // ── Tile-status tags ────────────────────────────────────────────────────────
   [UnitTag.LAVA]:               { label: 'Lava',               desc: 'Lava-faction unit. Immune to BURNING tile damage. Retained even when faction changes.' },
+  // ── Counter tags ────────────────────────────────────────────────────────────
+  [UnitTag.CLEAVE]:       { label: 'Cleave',      desc: `On hit, deals ${CLEAVE_DAMAGE_MULTIPLIER * 100}% damage to all enemy units adjacent to both attacker and defender. Ignores Phalanx defense.` },
+  [UnitTag.PIERCE]:       { label: 'Pierce',      desc: `Deals ${PIERCE_PRIMARY_DAMAGE_MULTIPLIER * 100}% damage to the target and full damage to the unit or building directly behind the target.` },
+  [UnitTag.RAGE]:         { label: 'Rage',        desc: `Gains +${RAGE_ATK_PER_ADJACENT} attack per enemy adjacent to this unit, up to ${RAGE_MAX_ADJACENT_COUNT} enemies (max +${RAGE_ATK_PER_ADJACENT * RAGE_MAX_ADJACENT_COUNT}).` },
+  [UnitTag.ALERT]:        { label: 'Alert',       desc: 'Immune to stun effects.' },
+  [UnitTag.IRONBLOOD]:    { label: 'Ironblood',   desc: `Takes only ${IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER * 100}% damage from attacks by summoned units.` },
+  [UnitTag.BLOCK]:        { label: 'Block',       desc: `Takes only ${BLOCK_MELEE_DAMAGE_MULTIPLIER * 100}% damage from melee attackers.` },
+  [UnitTag.PUNCTURE]:     { label: 'Puncture',    desc: `Ignores defensive bonuses on the target. Stuns targets with base DEF above ${PUNCTURE_STUN_BASE_DEF_THRESHOLD} for ${PUNCTURE_STUN_DURATION} turn(s).` },
+  [UnitTag.BURN]:         { label: 'Burn',        desc: 'Attacks set the target\'s tile to Burning, dealing damage to non-lava units standing there at end of turn.' },
+  [UnitTag.TUNNEL]:       { label: 'Tunnel',      desc: `Digs underground and re-emerges ${TUNNEL_RANGE_MIN}–${TUNNEL_RANGE_MAX} tiles south. Deals ${TUNNEL_EMERGE_DAMAGE} damage to enemies adjacent to the emergence tile. Sets the emergence tile to Corrupted.` },
+  [UnitTag.EMBER_PORTAL]: { label: 'Ember Portal', desc: 'Creates a portal pair behind the player frontline. Allied lava-faction units stepping on the entrance teleport to the exit. Exit tile is corrupted on creation.' },
 };
 
 // ============================================================================
@@ -1996,6 +2158,52 @@ export const TILE_STATUS_WHITELIST: Record<TileType, TileStatus[]> = {
 
 /** Damage dealt to each non-LAVA unit standing on a BURNING tile at end of turn. */
 export const BURNING_TILE_DAMAGE = 15;
+
+// ============================================================================
+// COUNTER-UNIT RECRUITMENT SCORING
+// ============================================================================
+
+/** Recruitment scoring bonuses/penalties for new counter units. */
+export const COUNTER_UNIT_SCORING = {
+  // Base scores
+  BASE_SCORE_REAPER: 60,
+  BASE_SCORE_LANCER: 55,
+  BASE_SCORE_BULLWARK: 55,
+  BASE_SCORE_KINDLER: 50,
+  BASE_SCORE_RIFTWORM: 55,
+  BASE_SCORE_GRIMBEAK: 50,
+  BASE_SCORE_RIFT_LORD: 70,
+  // REAPER
+  REAPER_BONUS_CLUSTER_TARGET: 30,
+  REAPER_BONUS_SLOW_MELEE_HEAVY: 20,
+  REAPER_PENALTY_FAST_PLAYER: -15,
+  // LANCER
+  LANCER_BONUS_BACKLINE_FORMATION: 25,
+  LANCER_BONUS_MAGE_PRESENT: 30,
+  LANCER_PENALTY_OVERREPRESENTED: -20,
+  // BULLWARK
+  BULLWARK_BONUS_GUARDS_PRESENT: 25,
+  BULLWARK_BONUS_MELEE_PROTECTION_NEEDED: 15,
+  BULLWARK_PENALTY_PLAYER_RANGED: -20,
+  // KINDLER
+  KINDLER_BONUS_STATIC_FORMATION: 25,
+  KINDLER_BONUS_RANGED_GAP: 15,
+  KINDLER_PENALTY_MOBILE_PLAYER: -20,
+  // RIFTWORM
+  RIFTWORM_BONUS_DENSE_FORMATION: 30,
+  RIFTWORM_BONUS_BACKLINE_TARGETS: 25,
+  RIFTWORM_BONUS_FRONTLINE_BYPASS: 20,
+  RIFTWORM_PENALTY_SPREAD_PLAYER: -15,
+  // GRIMBEAK
+  GRIMBEAK_BONUS_SUMMONED_PRESENT: 25,
+  GRIMBEAK_BONUS_BRANDMARK_ACTIVE: 20,
+  GRIMBEAK_BONUS_CLUSTER_TARGET: 20,
+  // RIFT_LORD
+  RIFT_LORD_BACKLINE_THRESHOLD: 50,
+  RIFT_LORD_BONUS_HIGH_BACKLINE_VALUE: 35,
+  RIFT_LORD_BONUS_PLAYER_DOMINATING: 25,
+  RIFT_LORD_PENALTY_NO_PORTAL_USERS: -30,
+} as const;
 
 // ============================================================================
 // CONVENIENCE EXPORTS

@@ -444,9 +444,12 @@ export const useGameStore = create<GameStore>()(
         // Populated inside the produce callback and used to push CAVE_MONSTER_KILLED events.
         const splashKilledCaveMonsterIds: string[] = [];
 
+        // Collect secondary events (SPLASH/CLEAVE/PIERCE damage and kills) emitted by resolveAttack
+        const secondaryEvents: GameEvent[] = [];
+
         // Compute the resolved state (post-attack) on the snapshot
         const resolvedState = produce(snapshot, (draft) => {
-          resolveAttack(draft, attackerId, targetId, true);
+          resolveAttack(draft, attackerId, targetId, true, secondaryEvents);
           // If the primary target is a cave monster that was killed, remove its encounter entry
           if (
             snapshot.units[targetId]?.type === UnitType.CAVE_MONSTER &&
@@ -516,6 +519,8 @@ export const useGameStore = create<GameStore>()(
         if (!attackerAfter) {
           events.push({ type: 'UNIT_DEATH', unitId: attackerId, position: attackerPosition, faction: attackerFaction });
         }
+        // Push secondary damage/death events (SPLASH/CLEAVE/PIERCE)
+        events.push(...secondaryEvents);
         // Push CAVE_MONSTER_KILLED events for any cave monsters killed by SPLASH AoE
         for (const monsterId of splashKilledCaveMonsterIds) {
           events.push({ type: 'CAVE_MONSTER_KILLED', monsterId });
@@ -1202,14 +1207,16 @@ export const useGameStore = create<GameStore>()(
 
     castSpell: (targetPosition: Position) => {
       let castSpellId: import('./types').SpellId | null = null;
+      let magePosition: Position | null = null;
       set((state) => {
         if (!state.pendingSpellCast) return;
         const { mageId, spellId } = state.pendingSpellCast;
         const ok = castSpellLogic(state, mageId, spellId, targetPosition);
         if (!ok) return;
         castSpellId = spellId;
-        const mage = state.units[mageId];
-        if (mage) {
+        const mageAfter = state.units[mageId];
+        if (mageAfter) {
+          magePosition = { x: mageAfter.position.x, y: mageAfter.position.y };
           // Casting is symmetric with attacking: set hasCastThisTurn only.
           // - canUnitMove and canUnitAttack are updated to treat
           //   hasCastThisTurn the same way they already treat
@@ -1221,7 +1228,7 @@ export const useGameStore = create<GameStore>()(
           //   stripped via a future tech.
           // Do NOT set hasMovedThisTurn or hasAttackedThisTurn here — that
           // would over-constrain the rules and break the symmetry.
-          mage.hasCastThisTurn = true;
+          mageAfter.hasCastThisTurn = true;
         }
         state.pendingSpellCast = null;
         state.pendingTransposeFirstUnitId = null;
@@ -1250,6 +1257,39 @@ export const useGameStore = create<GameStore>()(
             cy: targetPosition.y * tileSize + tileSize / 2,
             durationMs: ANIMATION.EXPLOSION_SHOCKWAVE_MS,
             finalScale: explosionFinalScale,
+          });
+        }
+        // SPELL_CAST line from mage to target tile + SPELL_IMPACT ring on target.
+        // Mirrors the EXPLODE shockwave pattern above: tile-size lookup, then dispatch.
+        // magePosition is captured from inside the immer callback — cast to silence
+        // TypeScript's closure-assignment narrowing.
+        const capturedMagePosition = magePosition as Position | null;
+        if (capturedMagePosition !== null) {
+          const tileSize = typeof window !== 'undefined' && window.innerWidth <= RENDER.MOBILE_BREAKPOINT
+            ? RENDER.TILE_SIZE_MOBILE
+            : RENDER.TILE_SIZE_DESKTOP;
+          const fromPx = {
+            x: capturedMagePosition.x * tileSize + tileSize / 2,
+            y: capturedMagePosition.y * tileSize + tileSize / 2,
+          };
+          const toPx = {
+            x: targetPosition.x * tileSize + tileSize / 2,
+            y: targetPosition.y * tileSize + tileSize / 2,
+          };
+          const store = useCombatAnimationStore.getState();
+          store.addLineVfx({
+            id: crypto.randomUUID(),
+            fromPx,
+            toPx,
+            variant: 'SPELL_CAST',
+            durationMs: ANIMATION.SPELL_CAST_MS,
+          });
+          store.addTileVfx({
+            id: crypto.randomUUID(),
+            x: targetPosition.x,
+            y: targetPosition.y,
+            variant: 'SPELL_IMPACT',
+            durationMs: ANIMATION.SPELL_IMPACT_MS,
           });
         }
       }
@@ -1426,6 +1466,12 @@ export const useGameStore = create<GameStore>()(
             if (unit.faction !== Faction.PLAYER) continue;
             if (!unit.tags.includes(UnitTag.BRANDMARKED)) continue;
             unit.stats.currentHp -= MAGE.BRANDMARK_HP_LOSS_PER_TURN;
+            useFloaterStore.getState().addFloater({
+              value: MAGE.BRANDMARK_HP_LOSS_PER_TURN,
+              x: unit.position.x,
+              y: unit.position.y,
+              isEnemy: false,
+            });
             if (unit.stats.currentHp <= 0) {
               brandmarkDying.push(unit.id);
             }
@@ -1800,6 +1846,21 @@ export const useGameStore = create<GameStore>()(
             break;
           }
 
+          case 'CAVE_MONSTER_RETREAT': {
+            // Remove the retreating cave monster from the live state.
+            // Unlike UNIT_DEATH, no gravestone is created — the monster burrows
+            // back into its mountain and simply disappears.
+            const retreatingUnit = state.units[event.unitId];
+            if (retreatingUnit) {
+              const tile = state.grid[retreatingUnit.position.y][retreatingUnit.position.x];
+              if (tile.unitId === event.unitId) {
+                tile.unitId = null;
+              }
+              delete state.units[event.unitId];
+            }
+            break;
+          }
+
           case 'BUILDING_ATTACK': {
             // Apply damage to building and defender
             const building = state.buildings[event.buildingId];
@@ -1866,6 +1927,13 @@ export const useGameStore = create<GameStore>()(
                 isEnemy: defender?.faction === Faction.ENEMY,
                 floaterType: 'xp',
               });
+            }
+            // Instantly reflect CORRUPTED tile status so the overlay appears
+            // during the animation rather than at turn-end setGameState.
+            if (event.tileCorruptedPosition) {
+              const { x, y } = event.tileCorruptedPosition;
+              const corruptedTile = state.grid[y]?.[x];
+              if (corruptedTile) corruptedTile.status = TileStatus.CORRUPTED;
             }
             break;
           }
@@ -2185,6 +2253,108 @@ export const useGameStore = create<GameStore>()(
               isEnemy: true,
               floaterType: 'xp',
             });
+            break;
+          }
+
+          case 'TILE_CORRUPTED': {
+            // Replay the building placement so the building sprite appears during animation
+            // rather than waiting for setGameState at turn end.
+            state.buildings[event.building.id] = { ...event.building };
+            const corruptTile = state.grid[event.position.y]?.[event.position.x];
+            if (corruptTile) corruptTile.buildingId = event.building.id;
+            break;
+          }
+
+          case 'SPLASH_DAMAGE': {
+            const splashTarget = state.units[event.unitId];
+            if (splashTarget) {
+              splashTarget.stats.currentHp = Math.max(0, splashTarget.stats.currentHp - event.amount);
+            }
+            useFloaterStore.getState().addFloater({
+              value: event.amount,
+              x: event.position.x,
+              y: event.position.y,
+              isEnemy: event.isEnemy,
+            });
+            break;
+          }
+
+          case 'CLEAVE_DAMAGE': {
+            const cleaveTarget = state.units[event.unitId];
+            if (cleaveTarget) {
+              cleaveTarget.stats.currentHp = Math.max(0, cleaveTarget.stats.currentHp - event.amount);
+            }
+            useFloaterStore.getState().addFloater({
+              value: event.amount,
+              x: event.position.x,
+              y: event.position.y,
+              isEnemy: event.isEnemy,
+            });
+            break;
+          }
+
+          case 'PIERCE_DAMAGE': {
+            if (event.unitId) {
+              const pierceTarget = state.units[event.unitId];
+              if (pierceTarget) {
+                pierceTarget.stats.currentHp = Math.max(0, pierceTarget.stats.currentHp - event.amount);
+              }
+            } else if (event.buildingId) {
+              const pierceBuilding = state.buildings[event.buildingId];
+              if (pierceBuilding) {
+                pierceBuilding.hp = Math.max(0, pierceBuilding.hp - event.amount);
+              }
+            }
+            useFloaterStore.getState().addFloater({
+              value: event.amount,
+              x: event.position.x,
+              y: event.position.y,
+              isEnemy: event.isEnemy,
+            });
+            break;
+          }
+
+          case 'TUNNEL_DIG_IN': {
+            const unit = state.units[event.unitId];
+            if (unit) {
+              unit.tunnelState = 'DIGGING_IN';
+              unit.tunnelStartPosition = { x: event.position.x, y: event.position.y };
+              const tile = state.grid[event.position.y]?.[event.position.x];
+              if (tile && tile.unitId === event.unitId) {
+                tile.unitId = null;
+              }
+            }
+            break;
+          }
+
+          case 'TUNNEL_EMERGE_WARNING': {
+            const unit = state.units[event.unitId];
+            if (unit) {
+              // Visual hint: the engine reads this state to show the earthquake overlay
+              // on the planned emergence tile. tunnelState transitions to EMERGING
+              // inside the enemy-turn snapshot computation, mirrored here for live state.
+              unit.tunnelState = 'EMERGING';
+              unit.tunnelPlannedEmergence = { x: event.position.x, y: event.position.y };
+            }
+            break;
+          }
+
+          case 'TUNNEL_EMERGE': {
+            const unit = state.units[event.unitId];
+            if (unit) {
+              unit.position = { x: event.position.x, y: event.position.y };
+              unit.tunnelState = 'IDLE';
+              unit.tunnelStartPosition = null;
+              unit.tunnelPlannedEmergence = null;
+              unit.tunnelTurnsUnderground = 0;
+              const tile = state.grid[event.position.y]?.[event.position.x];
+              if (tile) {
+                tile.unitId = event.unitId;
+              }
+            }
+            // Note: tile corruption status flip is intentionally NOT mirrored here.
+            // It happens at queue-end via setGameState(resolvedState). The dust hides
+            // the sprite swap; the corruption colour change can settle a beat later.
             break;
           }
         }

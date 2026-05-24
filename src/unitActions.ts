@@ -53,6 +53,10 @@ export { canUnitCast } from './spellSystem';
  * reading individual flags directly.
  */
 export function hasUnitActed(unit: Unit): boolean {
+  // A pending bloodlust charge means the unit can still attack — it has not
+  // fully spent its turn, even though hasCapturedThisTurn (and similar flags)
+  // are set to block non-attack actions.
+  if (unit.bloodlustAttackAvailable) return false;
   return (
     unit.hasAttackedThisTurn ||
     unit.hasCapturedThisTurn ||

@@ -7,7 +7,7 @@ import type { GameState, Unit, Building, Position } from './types';
 import type { Draft } from 'immer';
 import { produce } from 'immer';
 import { Faction, UnitType, UnitTag, BuildingType, TileType } from './types';
-import { UNIT_DEFINITIONS, ENEMY, MAP, TERRAIN, AI_SCORING, AI_RECRUITMENT, XP, DIFFICULTY_MULTIPLIER, SANCTUM_COLLAPSE, ABILITIES } from './gameConfig';
+import { UNIT_DEFINITIONS, ENEMY, MAP, TERRAIN, AI_SCORING, AI_RECRUITMENT, XP, DIFFICULTY_MULTIPLIER, SANCTUM_COLLAPSE, ABILITIES, COUNTER_UNIT_SCORING, PUNCTURE_STUN_BASE_DEF_THRESHOLD } from './gameConfig';
 import { resolveAttack, calculateCombat, resolveBuildingAttack, buildingToCombatant, calculateCombatFromStats, unitToCombatant, resolveAttackOnBuilding } from './combatSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { initiateCapture, canCapture } from './captureSystem';
@@ -18,6 +18,8 @@ import type { GameEvent } from './gameEvents';
 import { hasUnitActed } from './unitActions';
 import { sweepLeashes } from './spellSystem';
 import { checkGraveTrapTrigger } from './movementSystem';
+import { tryBeginTunnel, processTunnelTurn } from './tunnelSystem';
+import { cleanupPortals, tryPlanPortalCast, castPortal, getUsablePortalAtEntrance } from './portalSystem';
 
 // ============================================================================
 // ID GENERATION
@@ -98,7 +100,21 @@ interface ArmyProfile {
   fastRatio: number;
   siegeRatio: number;
   rangedRatio: number;
+
+  /** Raw count of Mage units. */
+  mageCount: number;
+  /** Raw count of Guard units. */
+  guardCount: number;
+  /** Count of units with base DEF > PUNCTURE_STUN_BASE_DEF_THRESHOLD. */
+  highDefCount: number;
+  /** Count of SUMMONED units (Ember Demons, Skeletons). */
+  summonedCount: number;
+  /** True if any unit has the BRANDMARKED tag. */
+  brandmarkActive: boolean;
+  /** Ratio of units with moveRange === 1 (static formation indicator). */
+  staticRatio: number;
 }
+type ZoneId = number;
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -418,6 +434,8 @@ function buildArmyProfile(units: Unit[]): ArmyProfile {
       siegeCount: 0, rangedCount: 0,
       slowMeleeRatio: 0, meleeRatio: 0, fastRatio: 0,
       siegeRatio: 0, rangedRatio: 0,
+      mageCount: 0, guardCount: 0, highDefCount: 0,
+      summonedCount: 0, brandmarkActive: false, staticRatio: 0,
     };
   }
 
@@ -425,6 +443,10 @@ function buildArmyProfile(units: Unit[]): ArmyProfile {
   let offensiveSum = 0, defensiveSum = 0;
   let slowMeleeCount = 0, meleeCount = 0, fastCount = 0;
   let siegeCount = 0, rangedCount = 0;
+  let mageCount = 0, guardCount = 0, highDefCount = 0;
+  let summonedCount = 0;
+  let brandmarkActive = false;
+  let staticCount = 0;
 
   for (const unit of units) {
     const { off, def } = calcUnitScores(unit.type);
@@ -445,6 +467,13 @@ function buildArmyProfile(units: Unit[]): ArmyProfile {
     if (isFast) fastCount++;
     if (isRanged) rangedCount++;
     if (isSiege) siegeCount++;
+
+    if (unit.type === UnitType.MAGE) mageCount++;
+    if (unit.type === UnitType.GUARD) guardCount++;
+    if (u.defense > PUNCTURE_STUN_BASE_DEF_THRESHOLD) highDefCount++;
+    if (unit.tags.includes(UnitTag.SUMMONED)) summonedCount++;
+    if (unit.tags.includes(UnitTag.BRANDMARKED)) brandmarkActive = true;
+    if (u.moveRange === 1) staticCount++;
   }
 
   return {
@@ -463,6 +492,12 @@ function buildArmyProfile(units: Unit[]): ArmyProfile {
     fastRatio: fastCount / total,
     siegeRatio: siegeCount / total,
     rangedRatio: rangedCount / total,
+    mageCount,
+    guardCount,
+    highDefCount,
+    summonedCount,
+    brandmarkActive,
+    staticRatio: staticCount / total,
   };
 }
 
@@ -596,6 +631,56 @@ function getZoneForRow(row: number): number {
 }
 
 /**
+ * Approximate frontline stagnation check using current frontline units.
+ * Without explicit historical row snapshots in GameState, this checks whether
+ * any unit currently on the southernmost enemy row has moved recently.
+ */
+function isEnemyFrontlineStagnant(state: GameState): boolean {
+  const STAGNATION_WINDOW_TURNS = 3;
+  const enemyUnits = Object.values(state.units).filter(u => u.faction === Faction.ENEMY);
+  if (enemyUnits.length === 0) return false;
+
+  const southernmostEnemyRow = enemyUnits.reduce((max, u) => Math.max(max, u.position.y), -1);
+  const stagnantSinceTurn = state.turn - STAGNATION_WINDOW_TURNS;
+
+  const frontlineMovedRecently = enemyUnits.some(
+    u => u.position.y === southernmostEnemyRow && u.lastMovedTurn >= stagnantSinceTurn
+  );
+
+  return !frontlineMovedRecently;
+}
+
+/** Estimate of player backline value: weighted sum of mages, archers, crystal chambers. */
+function computePlayerBacklineValue(state: GameState): number {
+  const playerUnits = Object.values(state.units).filter(u => u.faction === Faction.PLAYER);
+  const mageCount = playerUnits.filter(u => u.type === UnitType.MAGE).length;
+  const archerCount = playerUnits.filter(u => u.type === UnitType.ARCHER).length;
+  const crystalChamberCount = Object.values(state.buildings).filter(
+    b => b.faction === Faction.PLAYER && b.type === BuildingType.CRYSTAL_CHAMBER
+  ).length;
+
+  return mageCount * 30 + archerCount * 10 + crystalChamberCount * 20;
+}
+
+/** Number of zones (sanctum regions) where the player has captured the sanctum. */
+function countPlayerControlledZones(state: GameState): number {
+  const controlledZones = new Set<number>();
+  for (const building of Object.values(state.buildings)) {
+    if (building.faction !== Faction.PLAYER) continue;
+    if (building.type !== BuildingType.INFERNALSANCTUM) continue;
+    controlledZones.add(getZoneForRow(building.position.y));
+  }
+  return controlledZones.size;
+}
+
+/** Count of enemy units of a specific type in a given zone. */
+function countEnemyUnitTypeInZone(state: GameState, zoneId: ZoneId, type: UnitType): number {
+  return Object.values(state.units).filter(
+    u => u.faction === Faction.ENEMY && u.type === type && getZoneForRow(u.position.y) === zoneId
+  ).length;
+}
+
+/**
  * Scores all eligible unit types for a single LAVA_LAIR or INFERNAL_SANCTUM
  * building and returns them sorted by score descending.
  *
@@ -631,6 +716,7 @@ function scoreRecruitmentForBuilding(
   building: Building,
 ): { type: UnitType; score: number }[] {
   const R = AI_RECRUITMENT;
+  const C = COUNTER_UNIT_SCORING;
 
   // Ember-gated eligible unit types; Emberlings only spawn from Ember Nests
   const eligibleTypes: UnitType[] = (Object.entries(UNIT_DEFINITIONS) as [UnitType, { enemyUnlockEmber?: number }][])
@@ -659,6 +745,13 @@ function scoreRecruitmentForBuilding(
       [UnitType.LAVA_ARCHER]: R.BASE_SCORE_ARCHER,
       [UnitType.LAVA_RIDER]: R.BASE_SCORE_RIDER,
       [UnitType.LAVA_SIEGE]: R.BASE_SCORE_SIEGE,
+      [UnitType.REAPER]: C.BASE_SCORE_REAPER,
+      [UnitType.LANCER]: C.BASE_SCORE_LANCER,
+      [UnitType.BULLWARK]: C.BASE_SCORE_BULLWARK,
+      [UnitType.KINDLER]: C.BASE_SCORE_KINDLER,
+      [UnitType.GRIMBEAK]: C.BASE_SCORE_GRIMBEAK,
+      [UnitType.RIFTWORM]: C.BASE_SCORE_RIFTWORM,
+      [UnitType.RIFT_LORD]: C.BASE_SCORE_RIFT_LORD,
     };
     let score = baseScores[unitType] ?? 0;
 
@@ -743,6 +836,106 @@ function scoreRecruitmentForBuilding(
       // Penalty when siege is over-represented in zone
       if (zoneProfile.totalCount > 0 && zoneProfile.siegeRatio >= R.SIEGE_OVERREPRESENTED_THRESHOLD) {
         score -= R.SIEGE_PENALTY_OVERREPRESENTED;
+      }
+    }
+
+    // ── REAPER scoring ──────────────────────────────────────────
+    if (unitType === UnitType.REAPER) {
+      if (playerProfile.meleeRatio >= 0.5 && playerProfile.totalCount >= 6) {
+        score += C.REAPER_BONUS_CLUSTER_TARGET;
+      }
+      if (playerProfile.slowMeleeRatio >= 0.4) {
+        score += C.REAPER_BONUS_SLOW_MELEE_HEAVY;
+      }
+      if (playerProfile.fastRatio >= 0.3) {
+        score += C.REAPER_PENALTY_FAST_PLAYER;
+      }
+    }
+
+    // ── LANCER scoring ──────────────────────────────────────────
+    if (unitType === UnitType.LANCER) {
+      if (playerProfile.rangedCount >= 2 && playerProfile.meleeCount >= 2) {
+        score += C.LANCER_BONUS_BACKLINE_FORMATION;
+      }
+      if (playerProfile.mageCount > 0) {
+        score += C.LANCER_BONUS_MAGE_PRESENT * playerProfile.mageCount;
+      }
+      if (countEnemyUnitTypeInZone(state, buildingZone, UnitType.LANCER) >= 2) {
+        score += C.LANCER_PENALTY_OVERREPRESENTED;
+      }
+    }
+
+    // ── BULLWARK scoring ─────────────────────────────────────────
+    if (unitType === UnitType.BULLWARK) {
+      if (playerProfile.guardCount >= 2) {
+        score += C.BULLWARK_BONUS_GUARDS_PRESENT * playerProfile.guardCount;
+      }
+      if (zoneProfile.meleeCount >= 3) {
+        score += C.BULLWARK_BONUS_MELEE_PROTECTION_NEEDED;
+      }
+      if (playerProfile.rangedRatio >= 0.4) {
+        score += C.BULLWARK_PENALTY_PLAYER_RANGED;
+      }
+    }
+
+    // ── KINDLER scoring ───────────────────────────────────────
+    if (unitType === UnitType.KINDLER) {
+      if (playerProfile.slowMeleeRatio >= 0.4 && playerProfile.rangedRatio >= 0.3) {
+        score += C.KINDLER_BONUS_STATIC_FORMATION;
+      }
+      if (zoneProfile.rangedCount < 2) {
+        score += C.KINDLER_BONUS_RANGED_GAP;
+      }
+      if (playerProfile.fastRatio >= 0.4) {
+        score += C.KINDLER_PENALTY_MOBILE_PLAYER;
+      }
+    }
+
+    // ── RIFTWORM scoring ────────────────────────────────────────
+    if (unitType === UnitType.RIFTWORM) {
+      if (playerProfile.totalCount >= 6 && playerProfile.meleeRatio >= 0.4) {
+        score += C.RIFTWORM_BONUS_DENSE_FORMATION;
+      }
+      if (playerProfile.mageCount > 0 || playerProfile.rangedCount >= 3) {
+        score += C.RIFTWORM_BONUS_BACKLINE_TARGETS;
+      }
+      if (isEnemyFrontlineStagnant(state)) {
+        score += C.RIFTWORM_BONUS_FRONTLINE_BYPASS;
+      }
+      if (playerProfile.fastRatio >= 0.3) {
+        score += C.RIFTWORM_PENALTY_SPREAD_PLAYER;
+      }
+    }
+
+    // ── GRIMBEAK scoring ───────────────────────────────────────────
+    if (unitType === UnitType.GRIMBEAK) {
+      if (playerProfile.summonedCount > 0) {
+        score += C.GRIMBEAK_BONUS_SUMMONED_PRESENT * playerProfile.summonedCount;
+      }
+      if (playerProfile.brandmarkActive) {
+        score += C.GRIMBEAK_BONUS_BRANDMARK_ACTIVE;
+      }
+      if (playerProfile.meleeRatio >= 0.5 && playerProfile.totalCount >= 6) {
+        score += C.GRIMBEAK_BONUS_CLUSTER_TARGET;
+      }
+    }
+
+    // ── RIFT_LORD scoring ───────────────────────────────────────
+    if (unitType === UnitType.RIFT_LORD) {
+      // Hard limit: max 1 hexcaster per zone
+      if (countEnemyUnitTypeInZone(state, buildingZone, UnitType.RIFT_LORD) >= 1) {
+        score = -Infinity;
+      } else {
+        const backlineValue = computePlayerBacklineValue(state);
+        if (backlineValue >= C.RIFT_LORD_BACKLINE_THRESHOLD) {
+          score += C.RIFT_LORD_BONUS_HIGH_BACKLINE_VALUE;
+        }
+        if (countPlayerControlledZones(state) >= 2) {
+          score += C.RIFT_LORD_BONUS_PLAYER_DOMINATING;
+        }
+        if (zoneProfile.totalCount < 2) {
+          score += C.RIFT_LORD_PENALTY_NO_PORTAL_USERS;
+        }
       }
     }
 
@@ -982,6 +1175,44 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
 
   // GRAVE_TRAP: check if the enemy unit landed on a player trap
   checkGraveTrapTrigger(state, unitId);
+
+  // PORTAL: check if the unit stepped onto a portal entrance
+  if (state.units[unitId]) {
+    const movedUnit = state.units[unitId];
+    // Only non-caster, non-SACRIFICIAL enemy units may use portals
+    if (!movedUnit.tags.includes(UnitTag.SACRIFICIAL)) {
+      const portal = getUsablePortalAtEntrance(state, movedUnit.position);
+      if (portal && portal.casterId !== movedUnit.id) {
+        const exitTile = state.grid[portal.exitPos.y]?.[portal.exitPos.x];
+        // Validate exit tile: must exist, be free, not be lava, not be canyon,
+        // and have no building (a building may have been placed there since portal creation)
+        const exitPassable =
+          exitTile &&
+          !exitTile.unitId &&
+          !exitTile.isLava &&
+          exitTile.terrainType !== TileType.CANYON &&
+          exitTile.buildingId === null;
+        if (exitPassable) {
+          const entranceTile = state.grid[movedUnit.position.y][movedUnit.position.x];
+          const teleportFrom = { x: movedUnit.position.x, y: movedUnit.position.y };
+          entranceTile.unitId = null;
+          movedUnit.position = { x: portal.exitPos.x, y: portal.exitPos.y };
+          exitTile.unitId = movedUnit.id;
+          // Reset lastMovementDirection so FROZEN-slide doesn't fire on the exit tile
+          movedUnit.lastMovementDirection = null;
+          if (events) {
+            events.push({
+              type: 'PORTAL_USED',
+              unitId: movedUnit.id,
+              fromPos: teleportFrom,
+              toPos: { x: portal.exitPos.x, y: portal.exitPos.y },
+            });
+          }
+        }
+        // If exit is invalid or blocked the unit remains at entrance (already moved there)
+      }
+    }
+  }
 }
 
 // ============================================================================
@@ -1811,7 +2042,8 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
           const attackerId = currentUnit.id;
           const defenderId = action.targetUnitId;
 
-          resolveAttack(state, attackerId, defenderId, suppressFloaters);
+          const secondaryEvents: GameEvent[] = [];
+          resolveAttack(state, attackerId, defenderId, suppressFloaters, secondaryEvents);
 
           if (events) {
             const attackerAfter = state.units[attackerId];
@@ -1842,6 +2074,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
             if (!attackerAfter) {
               events.push({ type: 'UNIT_DEATH', unitId: attackerId, position: attackerPos, faction: currentUnit.faction });
             }
+            events.push(...secondaryEvents);
           }
         } else if (!currentUnit.hasMovedThisTurn) {
           moveEnemyUnitToward(state, currentUnit.id, targetUnit.position, events);
@@ -1860,7 +2093,8 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
         const attackerId = currentUnit.id;
         const defenderId = action.targetUnitId;
 
-        resolveAttack(state, attackerId, defenderId, suppressFloaters);
+        const secondaryEvents: GameEvent[] = [];
+        resolveAttack(state, attackerId, defenderId, suppressFloaters, secondaryEvents);
 
         if (events) {
           const attackerAfter = state.units[attackerId];
@@ -1885,6 +2119,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
           if (!attackerAfter) {
             events.push({ type: 'UNIT_DEATH', unitId: attackerId, position: attackerPos, faction: currentUnit.faction });
           }
+          events.push(...secondaryEvents);
         }
       }
       break;
@@ -2066,7 +2301,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
         const isOnTile = currentUnit.position.x === action.targetPosition.x && currentUnit.position.y === action.targetPosition.y;
         if (isOnTile) {
           // Unit is on the terrain tile — corrupt it
-          corruptTerrain(state, currentUnit.id, action.targetPosition);
+          corruptTerrain(state, currentUnit.id, action.targetPosition, events ?? undefined);
           currentUnit.hasConstructedThisTurn = true;
         } else if (!currentUnit.hasMovedThisTurn) {
           // Move 1 step toward the terrain tile
@@ -2432,10 +2667,9 @@ function runCaveMonsterAi(state: Draft<GameState>, events?: GameEvent[]): void {
       tile.hasCaveMonster = false;
       if (events) {
         events.push({
-          type: 'UNIT_DEATH',
+          type: 'CAVE_MONSTER_RETREAT',
           unitId: unit.id,
           position: { x: unit.position.x, y: unit.position.y },
-          faction: unit.faction,
         });
       }
       delete state.units[unit.id];
@@ -2484,6 +2718,9 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
     // 2. Process Ember Nest spawns (at start of enemy turn)
     processEmberNestSpawns(draft, events);
 
+    // 2a. Clean up expired/orphaned portals at the start of each enemy turn
+    cleanupPortals(draft, events);
+
     // 2b. Cave monster AI (dedicated, separate from standard enemy AI)
     runCaveMonsterAi(draft, events);
 
@@ -2509,6 +2746,26 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
         if (currentUnit.pinnedUntilTurn >= draft.turn) {
           currentUnit.hasMovedThisTurn = true;   // block movement
           currentUnit.hasAttackedThisTurn = true; // block attack
+        }
+        // Tunnel mechanic — pre-empts normal AI for TUNNEL-tagged units
+        if (currentUnit.tags.includes(UnitTag.TUNNEL)) {
+          if (currentUnit.tunnelState && currentUnit.tunnelState !== 'IDLE') {
+            const consumed = processTunnelTurn(draft, currentUnit.id, events);
+            if (consumed) break; // Skip normal AI turn
+          } else {
+            const began = tryBeginTunnel(draft, currentUnit.id, events);
+            if (began) break; // Skip normal AI turn (tunnel just started)
+          }
+        }
+        // Portal mechanic — hexcasters never attack; they cast a portal each turn
+        if (currentUnit.tags.includes(UnitTag.EMBER_PORTAL)) {
+          const cast = tryPlanPortalCast(draft, currentUnit.id);
+          if (cast) {
+            castPortal(draft, currentUnit.id, cast.entrancePos, cast.exitPos, events);
+            // Hexcaster's action is fully consumed by casting — skip normal AI
+            break;
+          }
+          // If no cast possible, fall through to standard movement (toward player)
         }
         decideAndExecute(currentUnit, draft, targetingIntents, recentlyLostBuildingIds, events);
       }

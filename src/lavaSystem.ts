@@ -143,18 +143,24 @@ export function advanceLava(state: Draft<GameState>): void {
     if (tile.unitId !== null) {
       const unitId = tile.unitId;
       const unit = state.units[unitId];
-      // Any enemy unit destroyed by lava advance increases threat level
-      if (unit && unit.faction === Faction.ENEMY) {
-        state.ember += 1;
-        state.emberLevelSources.other += 1;
+      // Units in UNDERGROUND or EMERGING tunnel states are below the surface —
+      // they are immune to lava advance on their tile grid position.
+      if (unit && (unit.tunnelState === 'UNDERGROUND' || unit.tunnelState === 'EMERGING')) {
+        tile.unitId = null; // The hole/tile is consumed but the unit survives
+      } else {
+        // Any enemy unit destroyed by lava advance increases threat level
+        if (unit && unit.faction === Faction.ENEMY) {
+          state.ember += 1;
+          state.emberLevelSources.other += 1;
+        }
+        if (unit && unit.faction === Faction.PLAYER) {
+          state.gameStats.unitsLost += 1;
+        }
+        // Remove unit from state
+        delete state.units[unitId];
+        // Clear unit from tile
+        tile.unitId = null;
       }
-      if (unit && unit.faction === Faction.PLAYER) {
-        state.gameStats.unitsLost += 1;
-      }
-      // Remove unit from state
-      delete state.units[unitId];
-      // Clear unit from tile
-      tile.unitId = null;
     }
 
     // Destroy any building on this tile
@@ -184,6 +190,18 @@ export function advanceLava(state: Draft<GameState>): void {
 
   // Update lava preview for next rows
   updateLavaPreview(state);
+
+  // Clear stale tunnel references for underground units whose dig-in position
+  // has just been consumed by lava. These units exist in state.units with no
+  // tile reference (tile.unitId was cleared when they dug in), so the tile loop
+  // above does not reach them. Clear tunnelStartPosition so that the hole-sprite
+  // overlay is not rendered on a lava tile.
+  for (const unit of Object.values(state.units)) {
+    if (unit.tunnelState !== 'UNDERGROUND' && unit.tunnelState !== 'EMERGING') continue;
+    if (unit.tunnelStartPosition && unit.tunnelStartPosition.y === newLavaRow) {
+      unit.tunnelStartPosition = null;
+    }
+  }
 }
 
 // ============================================================================
@@ -261,6 +279,7 @@ export function advanceLavaWithEvents(state: GameState): { newState: GameState; 
       newLavaRow,
       destroyedUnitIds,
       destroyedBuildingIds,
+      ...(destroyedChamberPosition ? { destroyedChamberPosition } : {}),
     },
   ];
 

@@ -35,6 +35,13 @@ export const UnitType = {
   LAVA_ARCHER: 'LAVA_ARCHER',
   LAVA_RIDER: 'LAVA_RIDER',
   LAVA_SIEGE: 'LAVA_SIEGE',
+  REAPER: 'REAPER',
+  LANCER: 'LANCER',
+  BULLWARK: 'BULLWARK',
+  KINDLER: 'KINDLER',
+  GRIMBEAK: 'GRIMBEAK',
+  RIFTWORM: 'RIFTWORM',
+  RIFT_LORD: 'RIFT_LORD',
   EMBERLING: 'EMBERLING',
   CAVE_MONSTER: 'CAVE_MONSTER',
 } as const;
@@ -247,6 +254,27 @@ export const UnitTag = {
   NO_GRAVESTONE: 'NO_GRAVESTONE',
   /** Unit leaves a Gravestone on death (granted by Necromancer tech tree). */
   LEAVES_GRAVESTONE: 'LEAVES_GRAVESTONE',
+  // ── Counter tags (enemy units that break dominant player strategies) ──────
+  /** On hit, deals AoE damage to enemy units adjacent to both attacker and defender. Ignores Phalanx defense. */
+  CLEAVE: 'CLEAVE',
+  /** On hit, deals 50% damage to the target and full damage to the unit/building directly behind the target. */
+  PIERCE: 'PIERCE',
+  /** Gains attack bonus per enemy adjacent to this unit, capped. */
+  RAGE: 'RAGE',
+  /** Immune to stun effects (e.g. PIN_DOWN). */
+  ALERT: 'ALERT',
+  /** Takes reduced damage from attacks by SUMMONED units. */
+  IRONBLOOD: 'IRONBLOOD',
+  /** Takes reduced damage from melee (attackRange === 1) attackers. */
+  BLOCK: 'BLOCK',
+  /** On hit, ignores defensive bonuses on the target and stuns targets with base DEF above a threshold. */
+  PUNCTURE: 'PUNCTURE',
+  /** On hit, sets the target's tile to BURNING status. */
+  BURN: 'BURN',
+  /** Can dig underground to bypass the frontline and emerge behind it, dealing AoE damage on emergence and corrupting the emergence tile. */
+  TUNNEL: 'TUNNEL',
+  /** Caster ability: creates portals behind the player frontline; allied lava-faction units stepping on the entrance teleport to the exit. */
+  EMBER_PORTAL: 'EMBER_PORTAL',
 } as const;
 export type UnitTag = (typeof UnitTag)[keyof typeof UnitTag];
 
@@ -362,6 +390,20 @@ export interface Unit {
    * Used to apply the exhausted visual filter to freshly recruited units.
    */
   recruitedOnTurn?: number;
+
+  /** Current tunnel state for units with TUNNEL tag. */
+  tunnelState?: 'IDLE' | 'DIGGING_IN' | 'UNDERGROUND' | 'EMERGING' | null;
+  /** Tile where the unit dug in (used for visualization of the hole). */
+  tunnelStartPosition?: Position | null;
+  /** Tile where the unit will emerge. */
+  tunnelPlannedEmergence?: Position | null;
+  /** Turns the unit has spent underground (counts toward TUNNEL_MAX_RETRY_TURNS). */
+  tunnelTurnsUnderground?: number;
+  /** Turn number until which this unit cannot dig in again. */
+  tunnelCooldownUntil?: number;
+
+  /** Turn number until which this unit (a RIFT_LORD) cannot cast a new portal. */
+  portalCastCooldownUntil?: number;
 }
 
 /** Defines a single stat boost applied when a unit reaches a new level */
@@ -537,6 +579,28 @@ export interface CaveEncounter {
   mountainTileId: string;
 }
 
+/**
+ * An active portal created by a RIFT_LORD.
+ * The entrance tile is placed adjacent to the caster; the exit is deep in
+ * the player backline. Enemy units (except the caster and SACRIFICIAL units)
+ * that step onto the entrance are teleported to the exit.
+ */
+export interface Portal {
+  id: string;
+  /** ID of the hexcaster that created this portal */
+  casterId: string;
+  /** Tile position where allied units enter the portal */
+  entrancePos: Position;
+  /** Tile position where allied units exit the portal */
+  exitPos: Position;
+  /** Turn on which the portal was created */
+  createdTurn: number;
+  /** Turn on which the portal expires and is automatically removed */
+  expiresTurn: number;
+  /** Earliest turn on which the portal is usable (createdTurn + EMBER_PORTAL_USE_COOLDOWN_TURNS) */
+  usableFromTurn: number;
+}
+
 /** Complete game state */
 export interface GameState {
   turn: number;
@@ -635,4 +699,10 @@ export interface GameState {
    * after the TRANSFORM_TO_DEMON animation completes.
    */
   pendingBrandmarkTransforms: Array<{ unitId: string; position: Position }>;
+  /**
+   * All active portals created by RIFT_LORD units.
+   * Keyed by portal ID. Portals are cleaned up at the start of each enemy turn
+   * by cleanupPortals() in portalSystem.ts.
+   */
+  portals: Record<string, Portal>;
 }

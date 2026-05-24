@@ -70,16 +70,73 @@ export interface LeashBurstPair {
   demonPos: { x: number; y: number };
 }
 
+/**
+ * A cleave slash VFX rendered as an expanding ring centred on the attacker.
+ */
+export interface CleaveVfx {
+  id: string;
+  /** Grid column of the attacker */
+  cx: number;
+  /** Grid row of the attacker */
+  cy: number;
+  durationMs: number;
+}
+
+export type TileVfxVariant =
+  | 'BURROW_DUST'
+  | 'STUN_BLOCKED_SHIELD'
+  | 'DEFENSE_IGNORED'
+  | 'SPELL_IMPACT'
+  | 'SPELL_IMPACT_STUN'
+  | 'SPELL_IMPACT_PORTAL_ENTER'
+  | 'SPELL_IMPACT_PORTAL_EXIT'
+  | 'SPELL_IMPACT_SPAWN_PLAYER'
+  | 'SPELL_IMPACT_SPAWN_ENEMY'
+  | 'SPELL_IMPACT_CAPTURE_PLAYER'
+  | 'SPELL_IMPACT_CAPTURE_ENEMY'
+  | 'BURNING_DAMAGE'
+  | 'CORRUPTION_APPLIED'
+  | 'INVALID_ACTION';
+
+export interface TileVfx {
+  id: string;
+  /** Grid column of the affected tile */
+  x: number;
+  /** Grid row of the affected tile */
+  y: number;
+  variant: TileVfxVariant;
+  durationMs: number;
+}
+
+export type LineVfxVariant =
+  | 'FIRE_SPIT'
+  | 'SPELL_CAST'
+  | 'PIERCE_LINE';
+
+export interface LineVfx {
+  id: string;
+  fromPx: { x: number; y: number };
+  toPx: { x: number; y: number };
+  variant: LineVfxVariant;
+  durationMs: number;
+}
+
 interface CombatAnimationState {
   unitAnimations: Map<string, UnitAnimationState>;
   buildingAnimations: Map<string, BuildingAnimationState>;
   projectiles: Projectile[];
   /** Active per-tile flash bursts, keyed by "x,y" */
-  tileFlashes: Map<string, { durationMs: number }>;
+  tileFlashes: Map<string, { durationMs: number; variant?: string }>;
   /** Ghost units rendered during slide-into-lethal-tile death animations */
   slideKillGhosts: Map<string, SlideKillGhost>;
   /** Leash pairs that are visually "bursting" — shown always, ignoring selection */
   leashBurstPairs: LeashBurstPair[];
+  /** Active cleave slash VFX */
+  cleaveVfxList: CleaveVfx[];
+  /** Active generic tile-anchored VFX */
+  tileVfx: TileVfx[];
+  /** Active generic line VFX */
+  lineVfx: LineVfx[];
 }
 
 interface CombatAnimationActions {
@@ -87,13 +144,19 @@ interface CombatAnimationActions {
   setBuildingAnimation: (buildingId: string, anim: BuildingAnimationState | null) => void;
   addProjectile: (p: Projectile) => void;
   removeProjectile: (id: string) => void;
-  addTileFlash: (x: number, y: number, durationMs: number) => void;
+  addTileFlash: (x: number, y: number, durationMs: number, variant?: string) => void;
   removeTileFlash: (key: string) => void;
   addSlideKillGhost: (ghost: SlideKillGhost) => void;
   setSlideKillGhostPhase: (id: string, phase: SlideKillGhost['phase']) => void;
   removeSlideKillGhost: (id: string) => void;
   addLeashBurstPair: (pair: LeashBurstPair) => void;
   removeLeashBurstPair: (demonId: string) => void;
+  addCleaveVfx: (vfx: CleaveVfx) => void;
+  removeCleaveVfx: (id: string) => void;
+  addTileVfx: (vfx: TileVfx) => void;
+  removeTileVfx: (id: string) => void;
+  addLineVfx: (vfx: LineVfx) => void;
+  removeLineVfx: (id: string) => void;
 }
 
 type CombatAnimationStore = CombatAnimationState & CombatAnimationActions;
@@ -109,6 +172,9 @@ export const useCombatAnimationStore = create<CombatAnimationStore>((set) => ({
   tileFlashes: new Map(),
   slideKillGhosts: new Map(),
   leashBurstPairs: [],
+  cleaveVfxList: [],
+  tileVfx: [],
+  lineVfx: [],
 
   setUnitAnimation: (unitId, anim) => {
     set((state) => {
@@ -144,10 +210,10 @@ export const useCombatAnimationStore = create<CombatAnimationStore>((set) => ({
     }));
   },
 
-  addTileFlash: (x, y, durationMs) => {
+  addTileFlash: (x, y, durationMs, variant) => {
     set((state) => {
       const next = new Map(state.tileFlashes);
-      next.set(`${x},${y}`, { durationMs });
+      next.set(`${x},${y}`, { durationMs, ...(variant ? { variant } : {}) });
       return { tileFlashes: next };
     });
   },
@@ -196,5 +262,31 @@ export const useCombatAnimationStore = create<CombatAnimationStore>((set) => ({
     set((state) => ({
       leashBurstPairs: state.leashBurstPairs.filter((p) => p.demonId !== demonId),
     }));
+  },
+
+  addCleaveVfx: (vfx) => {
+    set((state) => ({ cleaveVfxList: [...state.cleaveVfxList, vfx] }));
+  },
+
+  removeCleaveVfx: (id) => {
+    set((state) => ({
+      cleaveVfxList: state.cleaveVfxList.filter((v) => v.id !== id),
+    }));
+  },
+
+  addTileVfx: (vfx) => {
+    set((state) => ({ tileVfx: [...state.tileVfx, vfx] }));
+  },
+
+  removeTileVfx: (id) => {
+    set((state) => ({ tileVfx: state.tileVfx.filter((v) => v.id !== id) }));
+  },
+
+  addLineVfx: (vfx) => {
+    set((state) => ({ lineVfx: [...state.lineVfx, vfx] }));
+  },
+
+  removeLineVfx: (id) => {
+    set((state) => ({ lineVfx: state.lineVfx.filter((v) => v.id !== id) }));
   },
 }));
