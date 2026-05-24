@@ -1151,7 +1151,7 @@ export interface BuildingDefinition {
  * block below — use placeholder text here that contains NO hardcoded balancing
  * numbers (mark with `// overwritten below`).
  */
-/** Maximum HP for Gravestone buildings — defined here so BUILDING_DEFINITIONS can reference it before ABILITIES is declared. */
+/** Maximum HP for Gravestone buildings — defined here so BUILDING_DEFINITIONS can reference it; ABILITIES is declared later in this file. */
 const GRAVESTONE_MAX_HP = 25;
 
 export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
