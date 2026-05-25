@@ -202,6 +202,9 @@ export function advanceLava(state: Draft<GameState>, outEvents?: GameEvent[]): v
     if (unit.tunnelStartPosition && unit.tunnelStartPosition.y === newLavaRow) {
       unit.tunnelStartPosition = null;
     }
+    if (unit.tunnelPlannedEmergence && unit.tunnelPlannedEmergence.y === newLavaRow) {
+      unit.tunnelPlannedEmergence = null;
+    }
   }
 
   // Remove any portal pair whose entrance or exit tile is now lava.

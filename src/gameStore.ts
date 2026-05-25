@@ -1450,6 +1450,7 @@ export const useGameStore = create<GameStore>()(
         }
 
         // Phase 6: New turn bookkeeping on computedState
+        const leashDefectEvents: GameEvent[] = [];
         computedState = produce(computedState, (draft) => {
           // Collect resources
           collectResources(draft);
@@ -1509,7 +1510,7 @@ export const useGameStore = create<GameStore>()(
             }
 
             if (defects) {
-              // Capture positions and IDs for burst VFX before mutating state.
+              // Capture positions and IDs before mutating state.
               const demonId = unit.id;
               const demonPos = { x: unit.position.x, y: unit.position.y };
               const mageId = unit.controllerMageId ?? '';
@@ -1521,24 +1522,15 @@ export const useGameStore = create<GameStore>()(
                 t !== UnitTag.LEASHED && t !== UnitTag.SUMMONED
               );
 
-              // Strong visual feedback: camera moves to demon, leash burst VFX fires,
-              // DEFECT_TO_ENEMY animation plays, floater appears.
-              const combatStore = useCombatAnimationStore.getState();
-              useAnimationStore.getState().setCameraTarget(demonPos);
-              combatStore.addLeashBurstPair({ mageId, demonId, magePos, demonPos });
-              combatStore.setUnitAnimation(demonId, { type: 'DEFECT_TO_ENEMY', durationMs: ANIMATION.DEFECT_VFX_DURATION_MS });
-              useFloaterStore.getState().addFloater({
-                value: 0,
-                label: '⚠️ Defected!',
-                x: demonPos.x,
-                y: demonPos.y,
-                isEnemy: true,
-                floaterType: 'revive',
+              // Enqueue a LEASH_DEFECT event so the animation engine handles
+              // the burst VFX in the correct order within the enemy-turn queue.
+              leashDefectEvents.push({
+                type: 'LEASH_DEFECT',
+                demonId,
+                mageId,
+                demonPos,
+                magePos,
               });
-              setTimeout(() => {
-                useCombatAnimationStore.getState().setUnitAnimation(demonId, null);
-                useCombatAnimationStore.getState().removeLeashBurstPair(demonId);
-              }, ANIMATION.LEASH_BURST_VFX_DURATION_MS);
             }
           }
 
@@ -1607,6 +1599,11 @@ export const useGameStore = create<GameStore>()(
         });
 
         // Phase 7: Stage events for animation (enqueued after this set commits)
+        // Leash defect events play at the START of the queue so the demon visually
+        // defects before the enemy-turn action events that follow them.
+        if (leashDefectEvents.length > 0) {
+          allEvents.unshift(...leashDefectEvents);
+        }
         if (allEvents.length > 0) {
           pendingEvents = allEvents;
           pendingResolvedState = computedState;

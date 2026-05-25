@@ -5,7 +5,7 @@
  */
 
 import type { Draft } from 'immer';
-import type { GameState, TechId, TechEffect, UnitStats, StatModifier } from './types';
+import type { GameState, TechId, TechEffect, UnitStats, StatModifier, Unit, UnitTag } from './types';
 import { Faction, TechFlag, BuildingType } from './types';
 import { TECH_TREE, ABILITIES, TAG_STAT_EFFECTS, computeResearchCost, POPULATION, MAGE, SPELL_DEFINITIONS } from './gameConfig';
 
@@ -105,15 +105,7 @@ function applyTechEffect(state: Draft<GameState>, effect: TechEffect): void {
         if (unit.faction === Faction.PLAYER && unit.type === effect.unitType) {
           if (!unit.tags.includes(effect.tag)) {
             unit.tags.push(effect.tag);
-            // Apply any stat mods intrinsic to this tag
-            const oldMax = unit.stats.maxHp;
-            for (const mod of TAG_STAT_EFFECTS[effect.tag] ?? []) {
-              applyStatMod(unit.stats, mod.stat, mod.mode, mod.value);
-            }
-            // Keep currentHp in sync when maxHp is boosted
-            if (unit.stats.maxHp > oldMax) {
-              unit.stats.currentHp = Math.min(unit.stats.currentHp + (unit.stats.maxHp - oldMax), unit.stats.maxHp);
-            }
+            applyTagStatEffects(unit, effect.tag);
           }
         }
       }
@@ -123,7 +115,10 @@ function applyTechEffect(state: Draft<GameState>, effect: TechEffect): void {
       for (const unit of Object.values(state.units)) {
         if (unit.faction === Faction.PLAYER && unit.type === effect.unitType) {
           const idx = unit.tags.indexOf(effect.tag);
-          if (idx !== -1) unit.tags.splice(idx, 1);
+          if (idx !== -1) {
+            unit.tags.splice(idx, 1);
+            revokeTagStatEffects(unit, effect.tag);
+          }
         }
       }
       break;
@@ -177,11 +172,52 @@ function applyStatMod(
   }
 }
 
+/**
+ * Applies all TAG_STAT_EFFECTS modifiers for the given tag to a unit's stats.
+ * Keeps currentHp in sync when maxHp is boosted (adds the delta, capped at new maxHp).
+ * Idempotent with respect to the tag itself — callers must ensure the tag is only
+ * applied once.
+ */
+export function applyTagStatEffects(unit: Draft<Unit>, tag: UnitTag): void {
+  const mods = TAG_STAT_EFFECTS[tag];
+  if (!mods || mods.length === 0) return;
+  const oldMax = unit.stats.maxHp;
+  for (const mod of mods) {
+    applyStatMod(unit.stats, mod.stat, mod.mode, mod.value);
+  }
+  if (unit.stats.maxHp > oldMax) {
+    unit.stats.currentHp = Math.min(unit.stats.currentHp + (unit.stats.maxHp - oldMax), unit.stats.maxHp);
+  }
+}
+
+/**
+ * Reverts all TAG_STAT_EFFECTS modifiers for the given tag from a unit's stats.
+ * Clamps currentHp to the new (lower) maxHp if maxHp was reduced.
+ */
+export function revokeTagStatEffects(unit: Draft<Unit>, tag: UnitTag): void {
+  const mods = TAG_STAT_EFFECTS[tag];
+  if (!mods || mods.length === 0) return;
+  for (const mod of mods) {
+    if (mod.mode === 'add') {
+      applyStatMod(unit.stats, mod.stat, mod.mode, -mod.value);
+    } else {
+      // Invert a percent multiplier: divide by (1 + value/100)
+      (unit.stats[mod.stat] as number) = Math.round(
+        (unit.stats[mod.stat] as number) / (1 + mod.value / 100),
+      );
+    }
+  }
+  // Clamp currentHp to new maxHp (never increase it on revoke)
+  if (unit.stats.currentHp > unit.stats.maxHp) {
+    unit.stats.currentHp = unit.stats.maxHp;
+  }
+}
+
 // ============================================================================
 // POINT-OF-USE HELPERS
 // ============================================================================
 
-import type { UnitType, UnitTag, ResourceType } from './types';
+import type { UnitType, ResourceType } from './types';
 
 /**
  * Returns all GRANT_UNIT_TAG effects for the given unit type from unlocked techs.

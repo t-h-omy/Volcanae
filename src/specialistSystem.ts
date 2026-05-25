@@ -15,6 +15,7 @@ import type { GameState, Specialist } from './types';
 import type { Draft } from 'immer';
 import { Faction, BuildingType, UnitTag, UnitType } from './types';
 import { ABILITIES, SPECIALIST_DEFINITIONS } from './gameConfig';
+import { applyTagStatEffects, revokeTagStatEffects } from './techSystem';
 
 // ============================================================================
 // INITIAL SPECIALISTS
@@ -138,6 +139,7 @@ function applyUnitTagToAllUnits(
   for (const unit of Object.values(state.units)) {
     if (unit.faction === Faction.PLAYER && unit.type === unitType && !unit.tags.includes(tag)) {
       unit.tags.push(tag);
+      applyTagStatEffects(unit, tag);
     }
   }
 }
@@ -171,7 +173,10 @@ function revokeUnitTagFromAllUnits(
   for (const unit of Object.values(state.units)) {
     if (unit.faction === Faction.PLAYER && unit.type === unitType) {
       const idx = unit.tags.indexOf(tag);
-      if (idx !== -1) unit.tags.splice(idx, 1);
+      if (idx !== -1) {
+        unit.tags.splice(idx, 1);
+        revokeTagStatEffects(unit, tag);
+      }
     }
   }
 }
