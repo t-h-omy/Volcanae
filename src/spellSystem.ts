@@ -22,6 +22,7 @@ import { useFloaterStore } from './floaterStore';
 import { useCombatAnimationStore } from './combatAnimationStore';
 import { isStatusAllowedOnTerrain, applyTileStatus } from './tileStatusSystem';
 import { shouldLeaveGravestone, createGravestoneAt } from './combatSystem';
+import { applyTagStatEffects } from './techSystem';
 
 /** Returns the effective spell range for a mage (its attack range). */
 export function getMageSpellRange(
@@ -383,8 +384,9 @@ function handleBrandmarkHeal(
 
   target.stats.maxHp *= MAGE.BRANDMARK_HP_MULTIPLIER;
   target.stats.currentHp = target.stats.maxHp;
-  target.stats.attack += MAGE.BRANDMARK_ATTACK_BONUS;
   target.tags.push(UnitTag.BRANDMARKED);
+  // Apply TAG_STAT_EFFECTS for BRANDMARKED (e.g. +ATK bonus) via the single source of truth
+  applyTagStatEffects(target, UnitTag.BRANDMARKED);
 
   useFloaterStore.getState().addFloater({
     value: 0,
@@ -784,7 +786,9 @@ export function checkAndDefectLeash(
     const inRange = isTileWithinEdgeCircleRange(
       mage.position.x, mage.position.y,
       unit.position.x, unit.position.y,
-      getMageSpellRange(mage),
+      // Use the dedicated leash-range constant, not the Mage's spell range —
+      // the leash radius is a separate balance parameter from spell targeting range.
+      MAGE.EMBER_DEMON_LEASH_RANGE,
     );
     if (!inRange) defects = true;
   }

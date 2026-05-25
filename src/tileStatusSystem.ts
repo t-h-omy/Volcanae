@@ -123,6 +123,9 @@ export function applyTileStatus(
  * tile. Used by tag-suppression checks (Part 5). Enemy units are unaffected
  * by corruption in the current iteration.
  */
+// DEVELOPER NOTE: when adding a new tag whose effect is suppressed on a CORRUPTED tile, also
+// update the TileStatus.CORRUPTED tooltip in types.ts / gameConfig.ts to list the new tag.
+// The tooltip is the single source of player-facing documentation for this mechanic.
 export function isUnitOnCorruptedTile(
   state: GameState | Draft<GameState>,
   unitId: string,

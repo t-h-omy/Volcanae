@@ -20,7 +20,6 @@ import {
   collectResources,
   recruitUnit as recruitUnitLogic,
   growHousePopulations,
-  computePopulationCapacity,
 } from './resourceSystem';
 import {
   constructBuilding as constructBuildingLogic,
@@ -55,6 +54,7 @@ import { getTagsFromActiveSpecialists } from './specialistSystem';
 import { castSpell as castSpellLogic } from './spellSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { useShockwaveStore } from './shockwaveStore';
+import { processPendingPortalTeleports } from './portalSystem';
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
@@ -194,6 +194,14 @@ function syncCameraToPlayerStronghold(state: GameState): void {
 }
 
 // ============================================================================
+// UTILITIES
+// ============================================================================
+
+function assertNever(x: never): never {
+  throw new Error(`Unhandled event type: ${(x as { type: string }).type}`);
+}
+
+// ============================================================================
 // STORE IMPLEMENTATION
 // ============================================================================
 
@@ -312,6 +320,8 @@ export const useGameStore = create<GameStore>()(
         const factionBefore = unitBefore?.faction;
 
         moveUnitLogic(state, unitId, targetPosition);
+        // Player movement may have freed a portal exit tile; resolve waiting teleports.
+        processPendingPortalTeleports(state);
         // Update tile discovery after player action
         updateDiscovery(state);
 
@@ -559,8 +569,11 @@ export const useGameStore = create<GameStore>()(
 
         const snapshot: GameState = current(state);
 
+        // Collect secondary events (SPLASH/CLEAVE/PIERCE damage and kills) emitted by resolveAttackOnBuilding
+        const secondaryEvents: GameEvent[] = [];
+
         const resolvedState = produce(snapshot, (draft) => {
-          resolveAttackOnBuilding(draft, attackerId, buildingId, true);
+          resolveAttackOnBuilding(draft, attackerId, buildingId, true, secondaryEvents);
           updateDiscovery(draft);
           checkGameConditions(draft);
         });
@@ -593,6 +606,8 @@ export const useGameStore = create<GameStore>()(
         if (!attackerAfter) {
           events.push({ type: 'UNIT_DEATH', unitId: attackerId, position: attackerPosition, faction: attackerFaction });
         }
+        // Push secondary damage/death events (SPLASH/CLEAVE/PIERCE)
+        events.push(...secondaryEvents);
 
         pendingEvents = events;
         pendingResolvedState = resolvedState;
@@ -780,10 +795,6 @@ export const useGameStore = create<GameStore>()(
     constructBuilding: (unitId: string, tilePos: Position, buildingType: BuildingType) => {
       set((state) => {
         constructBuildingLogic(state, unitId, tilePos, buildingType);
-        // Recompute population capacity after building construction
-        const capacity = computePopulationCapacity(state);
-        state.resources.farmers = capacity.farmerCapacity;
-        state.resources.nobles = capacity.nobleCapacity;
         updateDiscovery(state);
         checkGameConditions(state);
       });
@@ -792,10 +803,6 @@ export const useGameStore = create<GameStore>()(
     convertBuilding: (unitId: string, newBuildingType: BuildingType) => {
       set((state) => {
         convertBuildingLogic(state, unitId, newBuildingType);
-        // Recompute population capacity after conversion (building types may differ)
-        const capacity = computePopulationCapacity(state);
-        state.resources.farmers = capacity.farmerCapacity;
-        state.resources.nobles = capacity.nobleCapacity;
         updateDiscovery(state);
         checkGameConditions(state);
       });
@@ -1443,6 +1450,7 @@ export const useGameStore = create<GameStore>()(
         }
 
         // Phase 6: New turn bookkeeping on computedState
+        const leashDefectEvents: GameEvent[] = [];
         computedState = produce(computedState, (draft) => {
           // Collect resources
           collectResources(draft);
@@ -1502,7 +1510,7 @@ export const useGameStore = create<GameStore>()(
             }
 
             if (defects) {
-              // Capture positions and IDs for burst VFX before mutating state.
+              // Capture positions and IDs before mutating state.
               const demonId = unit.id;
               const demonPos = { x: unit.position.x, y: unit.position.y };
               const mageId = unit.controllerMageId ?? '';
@@ -1514,24 +1522,15 @@ export const useGameStore = create<GameStore>()(
                 t !== UnitTag.LEASHED && t !== UnitTag.SUMMONED
               );
 
-              // Strong visual feedback: camera moves to demon, leash burst VFX fires,
-              // DEFECT_TO_ENEMY animation plays, floater appears.
-              const combatStore = useCombatAnimationStore.getState();
-              useAnimationStore.getState().setCameraTarget(demonPos);
-              combatStore.addLeashBurstPair({ mageId, demonId, magePos, demonPos });
-              combatStore.setUnitAnimation(demonId, { type: 'DEFECT_TO_ENEMY', durationMs: ANIMATION.DEFECT_VFX_DURATION_MS });
-              useFloaterStore.getState().addFloater({
-                value: 0,
-                label: '⚠️ Defected!',
-                x: demonPos.x,
-                y: demonPos.y,
-                isEnemy: true,
-                floaterType: 'revive',
+              // Enqueue a LEASH_DEFECT event so the animation engine handles
+              // the burst VFX in the correct order within the enemy-turn queue.
+              leashDefectEvents.push({
+                type: 'LEASH_DEFECT',
+                demonId,
+                mageId,
+                demonPos,
+                magePos,
               });
-              setTimeout(() => {
-                useCombatAnimationStore.getState().setUnitAnimation(demonId, null);
-                useCombatAnimationStore.getState().removeLeashBurstPair(demonId);
-              }, ANIMATION.LEASH_BURST_VFX_DURATION_MS);
             }
           }
 
@@ -1600,6 +1599,11 @@ export const useGameStore = create<GameStore>()(
         });
 
         // Phase 7: Stage events for animation (enqueued after this set commits)
+        // Leash defect events play at the START of the queue so the demon visually
+        // defects before the enemy-turn action events that follow them.
+        if (leashDefectEvents.length > 0) {
+          allEvents.unshift(...leashDefectEvents);
+        }
         if (allEvents.length > 0) {
           pendingEvents = allEvents;
           pendingResolvedState = computedState;
@@ -2357,6 +2361,41 @@ export const useGameStore = create<GameStore>()(
             // the sprite swap; the corruption colour change can settle a beat later.
             break;
           }
+
+          case 'LEASH_DEFECT':
+            // sweepLeashes already applied the faction flip in the immer snapshot.
+            // The live display state reflects this at queue-end via setGameState.
+            // No incremental mutation needed here.
+            break;
+
+          case 'STUN_APPLIED':
+            // Presentation-only: defender.pinnedUntilTurn is set by the combat resolver.
+            break;
+
+          case 'PORTAL_CREATED':
+            // Presentation-only: state mutation happens in the action producer (portalSystem.ts).
+            break;
+
+          case 'PORTAL_USED':
+            // Presentation-only: state mutation happens in the action producer (portalSystem.ts).
+            break;
+
+          case 'PORTAL_CLOSED':
+            // Presentation-only: state mutation happens in the action producer (portalSystem.ts).
+            break;
+
+          case 'RESONANCE_TRIGGERED':
+            // Presentation-only: mutation applied via resolvedState.
+            break;
+
+          case 'STUN_BLOCKED':
+          case 'DEFENSE_BONUS_IGNORED':
+          case 'CORRUPTION_APPLIED':
+            // Presentation-only: no state mutation required.
+            break;
+
+          default:
+            assertNever(event);
         }
       });
     },
@@ -2515,9 +2554,6 @@ export const useGameStore = create<GameStore>()(
               };
               state.buildings[building.id] = building;
               tile.buildingId = building.id;
-              // Recompute farmers resource
-              const capacity = computePopulationCapacity(state);
-              state.resources.farmers = capacity.farmerCapacity;
               updateDiscovery(state);
               return;
             }
@@ -2584,11 +2620,6 @@ export const useGameStore = create<GameStore>()(
     unlockTech: (techId: TechId) => {
       set((state) => {
         unlockTechLogic(state, techId);
-        // Refresh population capacity cache: some techs (e.g. WALLED_SETTLEMENT) shift
-        // the stronghold farmer/noble split, changing live capacity immediately.
-        const capacity = computePopulationCapacity(state);
-        state.resources.farmers = capacity.farmerCapacity;
-        state.resources.nobles = capacity.nobleCapacity;
       });
     },
 

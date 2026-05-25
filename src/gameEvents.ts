@@ -313,12 +313,15 @@ export type GameEvent =
     }
   | {
       /**
-       * Emitted when a portal is removed (expired or caster died).
+       * Emitted when a portal is removed (expired, caster died, or consumed by lava).
+       * Carries both endpoint positions so the close animation plays at both tiles.
        */
       type: 'PORTAL_CLOSED';
       portalId: string;
       /** Portal entrance tile (for renderer clean-up). */
-      position: Position;
+      entrancePos: Position;
+      /** Portal exit tile (for renderer clean-up). */
+      exitPos: Position;
     }
   | {
       /**
@@ -364,4 +367,22 @@ export type GameEvent =
       type: 'CAVE_MONSTER_RETREAT';
       unitId: string;
       position: Position;
+    }
+  | {
+      /**
+       * Emitted during the enemy turn when a leashed Ember Demon defects because
+       * its controlling Mage was killed or moved out of range. The faction flip
+       * has already been applied in the immer draft by sweepLeashes; this event
+       * drives the leash-burst VFX, DEFECT_TO_ENEMY animation, and floater in
+       * the animation queue.
+       */
+      type: 'LEASH_DEFECT';
+      /** ID of the demon that defected */
+      demonId: string;
+      /** ID of the Mage that lost control (empty string if mage was already dead) */
+      mageId: string;
+      /** Position of the demon at the time of defection */
+      demonPos: Position;
+      /** Position of the controlling Mage at the time of defection (equals demonPos if mage was dead) */
+      magePos: Position;
     };

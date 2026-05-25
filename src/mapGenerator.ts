@@ -1363,7 +1363,6 @@ function createGrid(): Tile[][] {
     for (let x = 0; x < MAP.GRID_WIDTH; x++) {
       row.push({
         position: { x, y },
-        type: TileType.PLAINS,
         isRevealed: false,
         buildingId: null,
         unitId: null,
@@ -1549,30 +1548,6 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
     resources: {
       iron: RESOURCES.START_IRON,
       wood: RESOURCES.START_WOOD,
-      farmers: (() => {
-        let f = 0;
-        for (const b of Object.values(buildings)) {
-          if (b.faction !== Faction.PLAYER) continue;
-          if (b.type === BuildingType.FARM) {
-            f += b.populationCount;
-          } else if (b.type === BuildingType.STRONGHOLD) {
-            f += b.populationCount;
-          }
-        }
-        return f;
-      })(),
-      nobles: (() => {
-        let n = 0;
-        for (const b of Object.values(buildings)) {
-          if (b.faction !== Faction.PLAYER) continue;
-          if (b.type === BuildingType.PATRICIANHOUSE) {
-            n += b.populationCount;
-          } else if (b.type === BuildingType.STRONGHOLD) {
-            n += b.strongholdNobles;
-          }
-        }
-        return n;
-      })(),
     },
     lavaFrontRow: MAP.GRID_HEIGHT,
     turnsUntilLavaAdvance: getLavaAdvanceInterval(difficulty),

@@ -99,6 +99,7 @@ export function getNorthermostPlayerY(
  * To add a tag that restricts movement, add it here and only here.
  */
 export function canUnitMove(unit: Unit): boolean {
+  if (unit.pinnedUntilTurn > 0) return false;
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasConstructedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
@@ -149,6 +150,7 @@ export function getMovableTiles(
  * To add a tag that restricts attack, add it here and only here.
  */
 export function canUnitAttack(unit: Unit): boolean {
+  if (unit.pinnedUntilTurn > 0) return false;
   // A pending bloodlust second-attack bypasses the "spent" flags that were
   // intentionally set by the bloodlust logic to block all non-attack actions
   // after the kill. hasAttackedThisTurn was already reset to false.
@@ -232,6 +234,7 @@ export function getAttackTargets(
  * To add a tag that restricts capture, add it here and only here.
  */
 export function canUnitCapture(unit: Unit): boolean {
+  if (unit.pinnedUntilTurn > 0) return false;
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasMovedThisTurn) return false;
   if (unit.hasAttackedThisTurn) return false;

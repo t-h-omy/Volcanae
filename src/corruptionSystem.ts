@@ -10,7 +10,7 @@ import type { Draft } from 'immer';
 import { Faction, TileType, UnitTag, UnitType, BuildingType, TileStatus } from './types';
 import { LAVA_LAIR, UNIT_DEFINITIONS, BUILDING_DEFINITIONS, MAP } from './gameConfig';
 import { generateId } from './mapGenerator';
-import { isTileWithinEdgeCircleRange } from './rangeUtils';
+import { isTileWithinEdgeCircleRange, edgeCircleDistance } from './rangeUtils';
 import { resolveBuildingAttack, buildingToCombatant } from './combatSystem';
 import { applyTileStatus } from './tileStatusSystem';
 import type { GameEvent } from './gameEvents';
@@ -258,8 +258,7 @@ export function processMagmaSpyrAttacks(
         attackRange,
       )) continue;
 
-      const distance = Math.abs(unit.position.x - building.position.x) +
-        Math.abs(unit.position.y - building.position.y);
+      const distance = edgeCircleDistance(building.position.x, building.position.y, unit.position.x, unit.position.y);
       // Priority: closest first, then lowest HP
       targets.push({ unit, score: 0, distance });
     }

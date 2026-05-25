@@ -7,9 +7,9 @@ import type { GameState, Unit, Building, Position } from './types';
 import type { Draft } from 'immer';
 import { produce } from 'immer';
 import { Faction, UnitType, UnitTag, BuildingType, TileType } from './types';
-import { UNIT_DEFINITIONS, ENEMY, MAP, TERRAIN, AI_SCORING, AI_RECRUITMENT, XP, DIFFICULTY_MULTIPLIER, SANCTUM_COLLAPSE, ABILITIES, COUNTER_UNIT_SCORING, PUNCTURE_STUN_BASE_DEF_THRESHOLD } from './gameConfig';
+import { UNIT_DEFINITIONS, ENEMY, MAP, TERRAIN, AI_SCORING, AI_RECRUITMENT, XP, DIFFICULTY_MULTIPLIER, SANCTUM_COLLAPSE, ABILITIES, COUNTER_UNIT_SCORING, PUNCTURE_STUN_BASE_DEF_THRESHOLD, EMBER_PORTAL_BASE_USE_SCORE, EMBER_PORTAL_DISTANCE_PENALTY, EMBER_PORTAL_MAX_USERS_PER_TURN } from './gameConfig';
 import { resolveAttack, calculateCombat, resolveBuildingAttack, buildingToCombatant, calculateCombatFromStats, unitToCombatant, resolveAttackOnBuilding } from './combatSystem';
-import { isTileWithinEdgeCircleRange } from './rangeUtils';
+import { isTileWithinEdgeCircleRange, edgeCircleDistance } from './rangeUtils';
 import { initiateCapture, canCapture } from './captureSystem';
 import { corruptTerrain, processMagmaSpyrAttacks, processEmberNestSpawns } from './corruptionSystem';
 import { enemyConstructBuilding } from './constructionSystem';
@@ -19,7 +19,7 @@ import { hasUnitActed } from './unitActions';
 import { sweepLeashes } from './spellSystem';
 import { checkGraveTrapTrigger } from './movementSystem';
 import { tryBeginTunnel, processTunnelTurn } from './tunnelSystem';
-import { cleanupPortals, tryPlanPortalCast, castPortal, getUsablePortalAtEntrance } from './portalSystem';
+import { cleanupPortals, cleanupExpiredPortalsEndOfTurn, tryPlanPortalCast, castPortal, getUsablePortalAtEntrance, tryTeleportThroughPortal, processPendingPortalTeleports } from './portalSystem';
 
 // ============================================================================
 // ID GENERATION
@@ -69,6 +69,7 @@ type EnemyActionType =
   | 'BUILD_INFERNAL_SANCTUM'
   | 'MOVE_TO_SAFE_RANGED_POSITION'
   | 'EXPLODE'
+  | 'MOVE_TO_PORTAL'
   | 'HOLD_POSITION';
 
 interface ScoredAction {
@@ -77,6 +78,8 @@ interface ScoredAction {
   targetUnitId?: string;
   targetBuildingId?: string;
   targetPosition?: Position;
+  /** Portal ID tagged on MOVE_TO_PORTAL actions for intent tracking. */
+  portalIntentId?: string;
 }
 
 export type { ScoredAction };
@@ -120,7 +123,12 @@ type ZoneId = number;
 // HELPER FUNCTIONS
 // ============================================================================
 
-function manhattanDistance(a: Position, b: Position): number {
+/**
+ * @deprecated Use `edgeCircleDistance` from `rangeUtils.ts` instead.
+ * Manhattan distance under-estimates reachability of diagonal targets by ~41%
+ * compared to the 8-directional movement system.
+ */
+export function manhattanDistance(a: Position, b: Position): number {
   return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 }
 
@@ -374,7 +382,7 @@ function alliedUnitsNear(pos: Position, radius: number, excludeId: string, state
   for (const unit of Object.values(state.units)) {
     if (unit.faction !== Faction.ENEMY) continue;
     if (unit.id === excludeId) continue;
-    if (manhattanDistance(unit.position, pos) <= radius) {
+    if (edgeCircleDistance(unit.position.x, unit.position.y, pos.x, pos.y) <= radius) {
       count++;
     }
   }
@@ -560,8 +568,7 @@ function createEnemyUnit(
 }
 
 function spawnEnemyUnits(state: Draft<GameState>, events?: GameEvent[]): void {
-  if (SANCTUM_COLLAPSE.ZONE_LOCKOUT_TURNS > 0 &&
-      SANCTUM_COLLAPSE.SPAWN_FREEZE_TURNS > 0 &&
+  if (SANCTUM_COLLAPSE.SPAWN_FREEZE_TURNS > 0 &&
       state.spawnFreezeUntilTurn > 0 &&
       state.turn < state.spawnFreezeUntilTurn) {
     return; // spawn frozen by Sanctum Collapse
@@ -623,6 +630,10 @@ function spawnEnemyUnits(state: Draft<GameState>, events?: GameEvent[]): void {
 /**
  * Gets the zone number (1-5) for a given row position.
  * Zone 1 is at high Y (near lava), zone 5 is at low Y (far from lava).
+ *
+ * Zone numbering: Zone 1 = player side (south, high Y, lava-adjacent).
+ * Zone 5 = enemy side (north, low Y). Higher zone number = closer to enemy stronghold.
+ * Enemies advance by *decreasing* zone number; player advances by *increasing* zone number.
  */
 function getZoneForRow(row: number): number {
   if (row >= MAP.GRID_HEIGHT - MAP.LAVA_BUFFER_ROWS) return 0;
@@ -973,7 +984,7 @@ function scoreConstructionActions(
       if (!isTileWithinEdgeCircleRange(unit.position.x, unit.position.y, tx, ty, moveRange)) continue;
 
       const tile = state.grid[ty][tx];
-      const distance = manhattanDistance(unit.position, { x: tx, y: ty });
+      const distance = edgeCircleDistance(unit.position.x, unit.position.y, tx, ty);
 
       // ── BUILD_LAVA_LAIR on ruin tiles ──
       if (tile.isRuin) {
@@ -982,7 +993,7 @@ function scoreConstructionActions(
 
         // Bonus if no other LAVA_LAIR buildings exist within 4 tiles (encourages spread)
         const nearbyLavaLair = Object.values(state.buildings).some(
-          b => b.type === BuildingType.LAVALAIR && manhattanDistance(b.position, { x: tx, y: ty }) <= 4,
+          b => b.type === BuildingType.LAVALAIR && edgeCircleDistance(b.position.x, b.position.y, tx, ty) <= 4,
         );
         if (!nearbyLavaLair) {
           score += 15;
@@ -1176,43 +1187,21 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
   // GRAVE_TRAP: check if the enemy unit landed on a player trap
   checkGraveTrapTrigger(state, unitId);
 
-  // PORTAL: check if the unit stepped onto a portal entrance
+  // PORTAL: check if the unit stepped onto a portal entrance.
   if (state.units[unitId]) {
     const movedUnit = state.units[unitId];
-    // Only non-caster, non-SACRIFICIAL enemy units may use portals
-    if (!movedUnit.tags.includes(UnitTag.SACRIFICIAL)) {
-      const portal = getUsablePortalAtEntrance(state, movedUnit.position);
-      if (portal && portal.casterId !== movedUnit.id) {
-        const exitTile = state.grid[portal.exitPos.y]?.[portal.exitPos.x];
-        // Validate exit tile: must exist, be free, not be lava, not be canyon,
-        // and have no building (a building may have been placed there since portal creation)
-        const exitPassable =
-          exitTile &&
-          !exitTile.unitId &&
-          !exitTile.isLava &&
-          exitTile.terrainType !== TileType.CANYON &&
-          exitTile.buildingId === null;
-        if (exitPassable) {
-          const entranceTile = state.grid[movedUnit.position.y][movedUnit.position.x];
-          const teleportFrom = { x: movedUnit.position.x, y: movedUnit.position.y };
-          entranceTile.unitId = null;
-          movedUnit.position = { x: portal.exitPos.x, y: portal.exitPos.y };
-          exitTile.unitId = movedUnit.id;
-          // Reset lastMovementDirection so FROZEN-slide doesn't fire on the exit tile
-          movedUnit.lastMovementDirection = null;
-          if (events) {
-            events.push({
-              type: 'PORTAL_USED',
-              unitId: movedUnit.id,
-              fromPos: teleportFrom,
-              toPos: { x: portal.exitPos.x, y: portal.exitPos.y },
-            });
-          }
-        }
-        // If exit is invalid or blocked the unit remains at entrance (already moved there)
-      }
+    const portal = getUsablePortalAtEntrance(state, movedUnit.position);
+    if (portal && portal.casterId !== movedUnit.id) {
+      // Sacrificial units are NOW allowed to use portals (Decision rework).
+      tryTeleportThroughPortal(state, movedUnit.id, portal.id, events);
+      // If exit was blocked, the unit is now waiting (pendingTeleportUnitId set).
+      // The waiter will teleport automatically when the exit clears.
     }
   }
+
+  // After this unit's movement, give other waiting units a chance to teleport
+  // (this unit may have vacated a tile that was someone else's portal exit).
+  processPendingPortalTeleports(state, events);
 }
 
 // ============================================================================
@@ -1244,7 +1233,7 @@ function moveEnemyUnitToward(
       const nextZone = getZoneForRow(nextPos.y);
       const currentZone = getZoneForRow(state.units[unitId].position.y);
       if (
-        nextZone < currentZone && // moving toward player (decreasing zone number toward zone 1)
+        nextZone < currentZone && // moving toward player (decreasing zone number toward zone 1; southward = increasing Y)
         state.zoneLockoutUntilTurn[nextZone] !== undefined &&
         state.turn < (state.zoneLockoutUntilTurn[nextZone] ?? 0)
       ) {
@@ -1345,6 +1334,9 @@ export function resolveExplosion(
     position: unitPos,
     faction: Faction.ENEMY,
   });
+
+  // Explosion may have freed portal exit tiles; resolve any waiting teleports.
+  processPendingPortalTeleports(state, events);
 }
 
 // ============================================================================
@@ -1359,6 +1351,7 @@ function scoreActionsForUnit(
   state: Draft<GameState>,
   targetingIntents: Map<string, number>,
   recentlyLostBuildingIds: Set<string>,
+  portalUsageIntents: Map<string, number>,
 ): ScoredAction[] {
   const candidates: ScoredAction[] = [];
   const triggerRange = unit.stats.triggerRange;
@@ -1399,9 +1392,9 @@ function scoreActionsForUnit(
   {
     const captors = playerUnitsInTriggerRange.filter(u => u.hasCapturedThisTurn);
     if (canAttackThisTurn && captors.length > 0) {
-      captors.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
+      captors.sort((a, b) => edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y) - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
       const target = captors[0];
-      const distance = manhattanDistance(unit.position, target.position);
+      const distance = edgeCircleDistance(unit.position.x, unit.position.y, target.position.x, target.position.y);
       const score = AI_SCORING.BASE_INTERCEPT_CAPTOR
         - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
         + projectCombatScore(unit, target)
@@ -1443,9 +1436,9 @@ function scoreActionsForUnit(
     });
 
     if (contestable.length > 0) {
-      contestable.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
+      contestable.sort((a, b) => edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y) - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
       const building = contestable[0];
-      const distance = manhattanDistance(unit.position, building.position);
+      const distance = edgeCircleDistance(unit.position.x, unit.position.y, building.position.x, building.position.y);
       const score = AI_SCORING.BASE_CONTEST_BUILDING
         * buildingValueMultiplier(building.type)
         - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
@@ -1460,9 +1453,9 @@ function scoreActionsForUnit(
   if (!unit.hasMovedThisTurn) {
     const retakeable = allBuildings.filter(b => recentlyLostBuildingIds.has(b.id));
     if (retakeable.length > 0) {
-      retakeable.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
+      retakeable.sort((a, b) => edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y) - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
       const building = retakeable[0];
-      const distance = manhattanDistance(unit.position, building.position);
+      const distance = edgeCircleDistance(unit.position.x, unit.position.y, building.position.x, building.position.y);
       const score = AI_SCORING.BASE_RETAKE_BUILDING
         * buildingValueMultiplier(building.type)
         - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
@@ -1484,7 +1477,7 @@ function scoreActionsForUnit(
       }
     }
     if (bestTarget) {
-      const distance = manhattanDistance(unit.position, bestTarget.position);
+      const distance = edgeCircleDistance(unit.position.x, unit.position.y, bestTarget.position.x, bestTarget.position.y);
       const score = AI_SCORING.BASE_ATTACK_UNIT
         - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
         + projectCombatScore(unit, bestTarget)
@@ -1495,14 +1488,14 @@ function scoreActionsForUnit(
 
   // ── RANGED_ATTACK_UNIT ──
   if (canAttackThisTurn && unit.tags.includes(UnitTag.RANGED)) {
-    const rangedTargets = playerUnitsInAttackRange.filter(u => manhattanDistance(unit.position, u.position) > 1);
+    const rangedTargets = playerUnitsInAttackRange.filter(u => edgeCircleDistance(unit.position.x, unit.position.y, u.position.x, u.position.y) > 1);
     if (rangedTargets.length > 0) {
       // PREP units that haven't moved yet: score each target individually and prefer uncounterable ones
       if (unit.tags.includes(UnitTag.PREP) && !unit.hasMovedThisTurn) {
         let bestTarget: Unit | null = null;
         let bestScore = -Infinity;
         for (const target of rangedTargets) {
-          const distance = manhattanDistance(unit.position, target.position);
+          const distance = edgeCircleDistance(unit.position.x, unit.position.y, target.position.x, target.position.y);
           const uncounterable = target.stats.attackRange < distance;
           const score = AI_SCORING.BASE_RANGED_ATTACK_UNIT
             - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
@@ -1519,9 +1512,9 @@ function scoreActionsForUnit(
           candidates.push({ type: 'RANGED_ATTACK_UNIT', score: Math.max(0, bestScore), targetUnitId: bestTarget.id, targetPosition: bestTarget.position });
         }
       } else {
-        rangedTargets.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
+        rangedTargets.sort((a, b) => edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y) - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
         const target = rangedTargets[0];
-        const distance = manhattanDistance(unit.position, target.position);
+        const distance = edgeCircleDistance(unit.position.x, unit.position.y, target.position.x, target.position.y);
         const score = AI_SCORING.BASE_RANGED_ATTACK_UNIT
           - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
           + projectCombatScore(unit, target)
@@ -1536,7 +1529,7 @@ function scoreActionsForUnit(
   // Only for ranged units that haven't moved yet and don't already have a safe ranged attack available
   if (unit.tags.includes(UnitTag.RANGED) && !unit.hasMovedThisTurn) {
     const safeRangedTargetsFromCurrent = canAttackThisTurn
-      ? playerUnitsInAttackRange.filter(u => manhattanDistance(unit.position, u.position) > 1)
+      ? playerUnitsInAttackRange.filter(u => edgeCircleDistance(unit.position.x, unit.position.y, u.position.x, u.position.y) > 1)
       : [];
     if (safeRangedTargetsFromCurrent.length === 0) {
       // BFS to find all reachable tiles within moveRange
@@ -1596,7 +1589,7 @@ function scoreActionsForUnit(
         // Track the safe tile that is furthest from all player units (for pure retreat)
         let minDist = Infinity;
         for (const pu of allPlayerUnits) {
-          const d = manhattanDistance(dest, pu.position);
+          const d = edgeCircleDistance(dest.x, dest.y, pu.position.x, pu.position.y);
           if (d < minDist) minDist = d;
         }
         if (minDist > bestSafeMinDist) {
@@ -1604,9 +1597,9 @@ function scoreActionsForUnit(
           bestSafeTile = dest;
         }
 
-        // Find player units at manhattanDistance > 1 AND <= attackRange from destination
+        // Find player units at edgeCircleDistance > 1 AND <= attackRange from destination
         for (const pu of allPlayerUnits) {
-          const dist = manhattanDistance(dest, pu.position);
+          const dist = edgeCircleDistance(dest.x, dest.y, pu.position.x, pu.position.y);
           if (dist <= 1 || dist > attackRange) continue;
           const cs = projectCombatScore(unit, pu);
           const { defenderHpLost } = calculateCombat(unit, pu);
@@ -1674,7 +1667,7 @@ function scoreActionsForUnit(
         }
       }
       if (bestBuilding) {
-        const distance = manhattanDistance(unit.position, bestBuilding.position);
+        const distance = edgeCircleDistance(unit.position.x, unit.position.y, bestBuilding.position.x, bestBuilding.position.y);
         const score = AI_SCORING.BASE_ATTACK_BUILDING
           - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
           + projectBuildingCombatScore(unit, bestBuilding)
@@ -1691,13 +1684,13 @@ function scoreActionsForUnit(
       if (!b.combatStats) return false;
       if (!isTileWithinEdgeCircleRange(unit.position.x, unit.position.y, b.position.x, b.position.y, attackRange)) return false;
       // Must be at a safe distance (not adjacent) to benefit from the safe-attack bonus
-      return manhattanDistance(unit.position, b.position) > 1;
+      return edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y) > 1;
     });
 
     if (rangedBuildingTargets.length > 0) {
-      rangedBuildingTargets.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
+      rangedBuildingTargets.sort((a, b) => edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y) - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
       const target = rangedBuildingTargets[0];
-      const distance = manhattanDistance(unit.position, target.position);
+      const distance = edgeCircleDistance(unit.position.x, unit.position.y, target.position.x, target.position.y);
       const score = AI_SCORING.BASE_RANGED_ATTACK_BUILDING
         - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
         + projectBuildingCombatScore(unit, target)
@@ -1714,15 +1707,15 @@ function scoreActionsForUnit(
       if (isRecruitmentBuilding(b)) return false;
       for (const u of Object.values(state.units)) {
         if (u.faction !== Faction.PLAYER) continue;
-        if (manhattanDistance(u.position, b.position) <= 3) return true;
+        if (edgeCircleDistance(u.position.x, u.position.y, b.position.x, b.position.y) <= 3) return true;
       }
       return false;
     });
 
     if (defendable.length > 0) {
-      defendable.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
+      defendable.sort((a, b) => edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y) - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
       const building = defendable[0];
-      const distance = manhattanDistance(unit.position, building.position);
+      const distance = edgeCircleDistance(unit.position.x, unit.position.y, building.position.x, building.position.y);
       const isUndefended = alliedUnitsNear(building.position, 3, unit.id, state) === 0;
       const score = AI_SCORING.BASE_DEFEND_ENEMY_BUILDING
         * buildingValueMultiplier(building.type)
@@ -1740,15 +1733,15 @@ function scoreActionsForUnit(
       if (!isRecruitmentBuilding(b)) return false;
       for (const u of Object.values(state.units)) {
         if (u.faction !== Faction.PLAYER) continue;
-        if (manhattanDistance(u.position, b.position) <= 5) return true;
+        if (edgeCircleDistance(u.position.x, u.position.y, b.position.x, b.position.y) <= 5) return true;
       }
       return false;
     });
 
     if (spawners.length > 0) {
-      spawners.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
+      spawners.sort((a, b) => edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y) - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
       const building = spawners[0];
-      const distance = manhattanDistance(unit.position, building.position);
+      const distance = edgeCircleDistance(unit.position.x, unit.position.y, building.position.x, building.position.y);
       const isUndefended = alliedUnitsNear(building.position, 3, unit.id, state) === 0;
       const score = AI_SCORING.BASE_PROTECT_SPAWNER
         * AI_SCORING.BUILDING_VALUE_SPAWNER
@@ -1763,9 +1756,9 @@ function scoreActionsForUnit(
   if (!unit.hasMovedThisTurn) {
     const playerStrongholds = allBuildings.filter(b => b.type === BuildingType.STRONGHOLD && b.faction === Faction.PLAYER);
     if (playerStrongholds.length > 0) {
-      playerStrongholds.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
+      playerStrongholds.sort((a, b) => edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y) - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
       const building = playerStrongholds[0];
-      const distance = manhattanDistance(unit.position, building.position);
+      const distance = edgeCircleDistance(unit.position.x, unit.position.y, building.position.x, building.position.y);
       // If a player unit is standing on the stronghold and the enemy is already within its attack
       // range, suppress this action so attack actions take priority instead.
       // Melee units have attackRange === 1 (adjacent only); ranged units have attackRange > 1.
@@ -1787,9 +1780,9 @@ function scoreActionsForUnit(
   if (!unit.hasMovedThisTurn) {
     const playerBuildings = buildingsInTriggerRange.filter(b => b.faction === Faction.PLAYER && b.type !== BuildingType.STRONGHOLD);
     if (playerBuildings.length > 0) {
-      playerBuildings.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
+      playerBuildings.sort((a, b) => edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y) - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
       const building = playerBuildings[0];
-      const distance = manhattanDistance(unit.position, building.position);
+      const distance = edgeCircleDistance(unit.position.x, unit.position.y, building.position.x, building.position.y);
       const score = AI_SCORING.BASE_MOVE_TO_PLAYER_BUILDING
         * buildingValueMultiplier(building.type)
         - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
@@ -1802,9 +1795,9 @@ function scoreActionsForUnit(
   if (!unit.hasMovedThisTurn) {
     const neutralBuildings = buildingsInTriggerRange.filter(b => b.faction === null);
     if (neutralBuildings.length > 0) {
-      neutralBuildings.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
+      neutralBuildings.sort((a, b) => edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y) - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
       const building = neutralBuildings[0];
-      const distance = manhattanDistance(unit.position, building.position);
+      const distance = edgeCircleDistance(unit.position.x, unit.position.y, building.position.x, building.position.y);
       const score = AI_SCORING.BASE_MOVE_TO_NEUTRAL_BUILDING
         * buildingValueMultiplier(building.type)
         - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
@@ -1817,9 +1810,9 @@ function scoreActionsForUnit(
   if (!unit.hasMovedThisTurn) {
     const outOfAttackRange = playerUnitsInTriggerRange.filter(u => !playerUnitsInAttackRange.includes(u));
     if (outOfAttackRange.length > 0) {
-      outOfAttackRange.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
+      outOfAttackRange.sort((a, b) => edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y) - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
       const target = outOfAttackRange[0];
-      const distance = manhattanDistance(unit.position, target.position);
+      const distance = edgeCircleDistance(unit.position.x, unit.position.y, target.position.x, target.position.y);
       const { defenderHpLost } = calculateCombat(unit, target);
       const nextTurnKillBonus = defenderHpLost >= target.stats.currentHp ? AI_SCORING.KILL_BONUS * 0.5 : 0;
       const score = AI_SCORING.BASE_MOVE_TO_UNIT
@@ -1854,7 +1847,7 @@ function scoreActionsForUnit(
       let bestScore = -Infinity;
 
       for (const building of outOfRangeNeutrals) {
-        const distance = manhattanDistance(unit.position, building.position);
+        const distance = edgeCircleDistance(unit.position.x, unit.position.y, building.position.x, building.position.y);
         const alliesInColumn = Object.values(state.units).filter(
           u => u.faction === Faction.ENEMY && u.id !== unit.id && u.position.x === building.position.x,
         ).length;
@@ -1889,7 +1882,7 @@ function scoreActionsForUnit(
       const dx = Math.abs(target.position.x - unit.position.x);
       const dy = Math.abs(target.position.y - unit.position.y);
       if (dx >= 2 || dy >= 2) {
-        const distance = manhattanDistance(unit.position, target.position);
+        const distance = edgeCircleDistance(unit.position.x, unit.position.y, target.position.x, target.position.y);
         const score = AI_SCORING.BASE_FLANK_UNIT
           - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE;
         candidates.push({ type: 'FLANK_UNIT', score: Math.max(0, score), targetUnitId: target.id, targetPosition: target.position });
@@ -1912,7 +1905,7 @@ function scoreActionsForUnit(
       // When blocked, target the nearest player unit to push through the blocker
       const playerUnits = Object.values(state.units).filter(u => u.faction === Faction.PLAYER);
       if (playerUnits.length > 0) {
-        playerUnits.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
+        playerUnits.sort((a, b) => edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y) - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
         candidates.push({ type: 'ADVANCE_TOWARD_LAVA', score, targetPosition: playerUnits[0].position });
       } else {
         // No player units to push through — BFS will navigate around obstacles
@@ -1973,6 +1966,38 @@ function scoreActionsForUnit(
 
   // ── HOLD_POSITION ──
   candidates.push({ type: 'HOLD_POSITION', score: AI_SCORING.BASE_HOLD_POSITION });
+
+  // ── MOVE_TO_PORTAL ──
+  // Add a strong incentive to step onto a portal entrance when the exit advances
+  // this unit southward (toward the player) and the per-turn limit is not yet hit.
+  if (!unit.hasMovedThisTurn) {
+    for (const portal of Object.values(state.portals)) {
+      // Caster never uses own portal.
+      if (portal.casterId === unit.id) continue;
+      // Skip if portal is no longer usable.
+      if (state.turn < portal.createdTurn || state.turn > portal.lastUsableTurn) continue;
+      // Skip if the portal exit is not south of the entrance (no advance value).
+      if (portal.exitPos.y <= portal.entrancePos.y) continue;
+      // Skip if usage limit for this turn is already hit.
+      const usersThisTurn = portalUsageIntents.get(portal.id) ?? 0;
+      if (usersThisTurn >= EMBER_PORTAL_MAX_USERS_PER_TURN) continue;
+
+      // Check reachability using BFS path existence.
+      const path = findBfsPath(unit.position, portal.entrancePos, state);
+      if (path.length === 0 && (unit.position.x !== portal.entrancePos.x || unit.position.y !== portal.entrancePos.y)) continue;
+
+      const distance = edgeCircleDistance(unit.position.x, unit.position.y, portal.entrancePos.x, portal.entrancePos.y);
+      const score = EMBER_PORTAL_BASE_USE_SCORE - (distance * EMBER_PORTAL_DISTANCE_PENALTY);
+      if (score <= 0) continue;
+
+      candidates.push({
+        type: 'MOVE_TO_PORTAL',
+        score,
+        targetPosition: portal.entrancePos,
+        portalIntentId: portal.id,
+      });
+    }
+  }
 
   // ── Recruitment-building step penalty ──
   // Subtract a penalty from any movement candidate whose first step toward the
@@ -2143,7 +2168,8 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
             const attackerId = currentUnit.id;
             const buildingId = action.targetBuildingId;
 
-            resolveAttackOnBuilding(state, attackerId, buildingId, suppressFloaters);
+            const secondaryEvents: GameEvent[] = [];
+            resolveAttackOnBuilding(state, attackerId, buildingId, suppressFloaters, secondaryEvents);
 
             if (events) {
               const attackerAfter = state.units[attackerId];
@@ -2168,6 +2194,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
               if (!attackerAfter) {
                 events.push({ type: 'UNIT_DEATH', unitId: attackerId, position: attackerPos, faction: currentUnit.faction });
               }
+              events.push(...secondaryEvents);
             }
           } else if (!currentUnit.hasMovedThisTurn) {
             moveEnemyUnitToward(state, currentUnit.id, building.position, events);
@@ -2318,6 +2345,13 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
 
     case 'HOLD_POSITION':
       break;
+
+    case 'MOVE_TO_PORTAL': {
+      if (action.targetPosition && !currentUnit.hasMovedThisTurn) {
+        moveEnemyUnitToward(state, currentUnit.id, action.targetPosition, events);
+      }
+      break;
+    }
   }
 }
 
@@ -2330,11 +2364,12 @@ function decideAndExecute(
   state: Draft<GameState>,
   targetingIntents: Map<string, number>,
   recentlyLostBuildingIds: Set<string>,
+  portalUsageIntents: Map<string, number>,
   events?: GameEvent[],
 ): void {
   // All units go through the unified scoring — tag-based behaviors
   // (EXPLOSIVE, SACRIFICIAL, etc.) are handled within scoreActionsForUnit
-  const candidates = scoreActionsForUnit(unit, state, targetingIntents, recentlyLostBuildingIds);
+  const candidates = scoreActionsForUnit(unit, state, targetingIntents, recentlyLostBuildingIds, portalUsageIntents);
 
   candidates.sort((a, b) => b.score - a.score);
 
@@ -2345,6 +2380,11 @@ function decideAndExecute(
   const intentKey = chosen.targetUnitId ?? chosen.targetBuildingId ?? null;
   if (intentKey) {
     targetingIntents.set(intentKey, (targetingIntents.get(intentKey) ?? 0) + 1);
+  }
+
+  // Register portal usage intent for per-turn usage tracking
+  if (chosen.type === 'MOVE_TO_PORTAL' && chosen.portalIntentId) {
+    portalUsageIntents.set(chosen.portalIntentId, (portalUsageIntents.get(chosen.portalIntentId) ?? 0) + 1);
   }
 
   executeAction(unit, chosen, state, events);
@@ -2729,6 +2769,7 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
 
     // 3. Process each enemy unit (excluding CAVE_MONSTER — handled above)
     const targetingIntents = new Map<string, number>();
+    const portalUsageIntents = new Map<string, number>();
     const enemyUnits = Object.values(draft.units).filter(
       u => u.faction === Faction.ENEMY && u.type !== UnitType.CAVE_MONSTER,
     );
@@ -2767,10 +2808,33 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
           }
           // If no cast possible, fall through to standard movement (toward player)
         }
-        decideAndExecute(currentUnit, draft, targetingIntents, recentlyLostBuildingIds, events);
+        decideAndExecute(currentUnit, draft, targetingIntents, recentlyLostBuildingIds, portalUsageIntents, events);
       }
       // Sweep leashes after each enemy unit's turn to handle mage displacement
-      sweepLeashes(draft);
+      // Pre-capture mage/demon positions before sweepLeashes mutates faction.
+      const leashSnapshot = new Map<string, { mageId: string; demonPos: { x: number; y: number }; magePos: { x: number; y: number } }>();
+      for (const u of Object.values(draft.units)) {
+        if (!u.tags.includes(UnitTag.LEASHED) || u.faction !== Faction.PLAYER) continue;
+        const mage = u.controllerMageId ? draft.units[u.controllerMageId] : null;
+        leashSnapshot.set(u.id, {
+          mageId: u.controllerMageId ?? '',
+          demonPos: { x: u.position.x, y: u.position.y },
+          magePos: mage ? { x: mage.position.x, y: mage.position.y } : { x: u.position.x, y: u.position.y },
+        });
+      }
+      const defectedIds = sweepLeashes(draft);
+      for (const demonId of defectedIds) {
+        const snap = leashSnapshot.get(demonId);
+        if (snap) {
+          events.push({
+            type: 'LEASH_DEFECT',
+            demonId,
+            mageId: snap.mageId,
+            demonPos: snap.demonPos,
+            magePos: snap.magePos,
+          });
+        }
+      }
     }
 
     // 3b. Magma Spyr attacks (after unit movement)
@@ -2798,6 +2862,11 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
         building.hasAttackedThisTurn = false;
       }
     }
+
+    // 5. Remove portal pairs whose lastUsableTurn equals the current turn.
+    //    This runs AFTER all enemy unit actions, ensuring portals are usable
+    //    for the full L turns and then removed at end of their last usable turn.
+    cleanupExpiredPortalsEndOfTurn(draft, events);
   });
   return { finalState, events };
 }
@@ -2834,11 +2903,13 @@ export function computeUnitAiScores(state: GameState, unitId: string): ScoredAct
   );
 
   const targetingIntents = new Map<string, number>();
+  const portalUsageIntents = new Map<string, number>();
   const scores = scoreActionsForUnit(
     unit,
     state as Draft<GameState>,
     targetingIntents,
     recentlyLostBuildingIds,
+    portalUsageIntents,
   );
   return scores.sort((a, b) => b.score - a.score);
 }
