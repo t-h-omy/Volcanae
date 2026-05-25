@@ -58,7 +58,6 @@ function isValidExitTile(state: Draft<GameState>, x: number, y: number): boolean
   if (tile.buildingId !== null) return false;
   if (tile.isStrongholdRuin || tile.isRuin) return false;
   if (tile.unitId !== null) return false;
-  if (tile.resourceType !== null) return false;
   // No other portal entrance or exit at this tile.
   for (const portal of Object.values(state.portals)) {
     if (portal.entrancePos.x === x && portal.entrancePos.y === y) return false;
@@ -84,8 +83,7 @@ function isValidEntranceTile(state: Draft<GameState>, x: number, y: number): boo
   if (tile.terrainType !== TileType.PLAINS) return false;
   if (tile.buildingId !== null) return false;
   if (tile.isStrongholdRuin || tile.isRuin) return false;
-  if (tile.resourceType !== null) return false;
-  // Player unit blocks placement; enemy unit is OK (will be teleported on cast).
+  // Player unit blocks placement
   if (tile.unitId !== null) {
     const occupant = state.units[tile.unitId];
     if (occupant && occupant.faction === Faction.PLAYER) return false;
@@ -105,7 +103,7 @@ function isValidEntranceTile(state: Draft<GameState>, x: number, y: number): boo
  * Returns MAP.GRID_HEIGHT (sentinel: "no frontline") if no player units exist.
  */
 function getPlayerFrontlineRow(state: Draft<GameState>): number {
-  let frontline = MAP.GRID_HEIGHT;
+  let frontline: number = MAP.GRID_HEIGHT;
   for (const unit of Object.values(state.units)) {
     if (unit.faction === Faction.PLAYER && unit.position.y < frontline) {
       frontline = unit.position.y;

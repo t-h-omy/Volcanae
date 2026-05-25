@@ -2388,6 +2388,12 @@ export const useGameStore = create<GameStore>()(
             // Presentation-only: mutation applied via resolvedState.
             break;
 
+          case 'STUN_BLOCKED':
+          case 'DEFENSE_BONUS_IGNORED':
+          case 'CORRUPTION_APPLIED':
+            // Presentation-only: no state mutation required.
+            break;
+
           default:
             assertNever(event);
         }
