@@ -165,6 +165,11 @@ export type TechFlag = (typeof TechFlag)[keyof typeof TechFlag];
 
 /** Statuses that can be applied to a tile. Mutually exclusive — a new status overwrites the previous one. */
 export const TileStatus = {
+  /**
+   * Player units standing on a Corrupted tile lose tag bonuses: LANCE_CHARGE, RAGE, PUNCTURE,
+   * PIN_DOWN, ASSASSIN, BLOODLUST, SPLASH, PIERCE, and PHALANX (both attack and defense bonuses).
+   * Enemy units are unaffected by Corrupted tiles.
+   */
   CORRUPTED: 'CORRUPTED',
   FROZEN: 'FROZEN',
   BURNING: 'BURNING',
@@ -273,7 +278,7 @@ export const UnitTag = {
   BURN: 'BURN',
   /** Can dig underground to bypass the frontline and emerge behind it, dealing AoE damage on emergence and corrupting the emergence tile. */
   TUNNEL: 'TUNNEL',
-  /** Caster ability: creates portals behind the player frontline; allied lava-faction units stepping on the entrance teleport to the exit. */
+  /** Caster ability: creates portals behind the player frontline; enemy units stepping on the entrance teleport to the exit. */
   EMBER_PORTAL: 'EMBER_PORTAL',
 } as const;
 export type UnitTag = (typeof UnitTag)[keyof typeof UnitTag];
@@ -512,7 +517,6 @@ export interface Building {
 /** A tile on the game grid */
 export interface Tile {
   position: Position;
-  type: TileType;
   isRevealed: boolean;
   buildingId: string | null;
   unitId: string | null;
@@ -531,8 +535,6 @@ export interface Tile {
 export interface Resources {
   iron: number;
   wood: number;
-  farmers: number;
-  nobles: number;
 }
 
 /** Population cost a unit occupies while alive */

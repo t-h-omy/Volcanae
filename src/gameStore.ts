@@ -20,7 +20,6 @@ import {
   collectResources,
   recruitUnit as recruitUnitLogic,
   growHousePopulations,
-  computePopulationCapacity,
 } from './resourceSystem';
 import {
   constructBuilding as constructBuildingLogic,
@@ -785,10 +784,6 @@ export const useGameStore = create<GameStore>()(
     constructBuilding: (unitId: string, tilePos: Position, buildingType: BuildingType) => {
       set((state) => {
         constructBuildingLogic(state, unitId, tilePos, buildingType);
-        // Recompute population capacity after building construction
-        const capacity = computePopulationCapacity(state);
-        state.resources.farmers = capacity.farmerCapacity;
-        state.resources.nobles = capacity.nobleCapacity;
         updateDiscovery(state);
         checkGameConditions(state);
       });
@@ -797,10 +792,6 @@ export const useGameStore = create<GameStore>()(
     convertBuilding: (unitId: string, newBuildingType: BuildingType) => {
       set((state) => {
         convertBuildingLogic(state, unitId, newBuildingType);
-        // Recompute population capacity after conversion (building types may differ)
-        const capacity = computePopulationCapacity(state);
-        state.resources.farmers = capacity.farmerCapacity;
-        state.resources.nobles = capacity.nobleCapacity;
         updateDiscovery(state);
         checkGameConditions(state);
       });
@@ -2526,9 +2517,6 @@ export const useGameStore = create<GameStore>()(
               };
               state.buildings[building.id] = building;
               tile.buildingId = building.id;
-              // Recompute farmers resource
-              const capacity = computePopulationCapacity(state);
-              state.resources.farmers = capacity.farmerCapacity;
               updateDiscovery(state);
               return;
             }
@@ -2595,11 +2583,6 @@ export const useGameStore = create<GameStore>()(
     unlockTech: (techId: TechId) => {
       set((state) => {
         unlockTechLogic(state, techId);
-        // Refresh population capacity cache: some techs (e.g. WALLED_SETTLEMENT) shift
-        // the stronghold farmer/noble split, changing live capacity immediately.
-        const capacity = computePopulationCapacity(state);
-        state.resources.farmers = capacity.farmerCapacity;
-        state.resources.nobles = capacity.nobleCapacity;
       });
     },
 

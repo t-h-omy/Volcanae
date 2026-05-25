@@ -18,7 +18,7 @@ import { TECH_TREE, POPULATION, SPECIALIST_DEFINITIONS } from './gameConfig';
 const SAVE_KEY = 'volcanae-save';
 
 /** Increment this whenever the serialized shape changes incompatibly. */
-const SAVE_VERSION = 11;
+const SAVE_VERSION = 12;
 
 // ============================================================================
 // PUBLIC API
@@ -351,6 +351,23 @@ export function loadGameState(): GameState | null {
           gs.techFlags = techFlags.filter(
             (f) => f !== 'GRAVESTONE_BASIC' && f !== 'GRAVESTONE_WARRIORS' && f !== 'GRAVESTONE_ENGINES',
           );
+        }
+      }
+    }
+
+    // Migration v11 → v12: remove unused farmers/nobles from resources and
+    // unused type field from tiles. Strip them from old saves so the saved
+    // state matches the current interface shape.
+    if (parsed.version < 12) {
+      const res = s.resources as unknown as Record<string, unknown>;
+      delete res.farmers;
+      delete res.nobles;
+      if (s.grid && Array.isArray(s.grid)) {
+        for (const row of s.grid as Array<unknown>) {
+          if (!Array.isArray(row)) continue;
+          for (const tile of row as Array<unknown>) {
+            delete (tile as Record<string, unknown>).type;
+          }
         }
       }
     }

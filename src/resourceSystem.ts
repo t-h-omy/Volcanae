@@ -494,7 +494,6 @@ export function canAffordPopulation(
  * For each housing building below its populationCap:
  * - Increments populationGrowthCounter
  * - When counter reaches HOUSE_GROWTH_INTERVAL, increments populationCount and resets counter
- * After all buildings are updated, recomputes state.resources.farmers and state.resources.nobles.
  *
  * Call at the start of the player turn (alongside collectResources).
  */
@@ -535,11 +534,6 @@ export function growHousePopulations(state: Draft<GameState>): void {
       }
     }
   }
-
-  // Recompute resource capacity after growth
-  const capacity = computePopulationCapacity(state);
-  state.resources.farmers = capacity.farmerCapacity;
-  state.resources.nobles = capacity.nobleCapacity;
 }
 
 // ============================================================================
