@@ -41,6 +41,7 @@ function isTileValidForTunnel(state: Draft<GameState>, x: number, y: number): bo
   if (tile.isLava) return false;
   // Must not be impassable terrain
   if (tile.terrainType === TileType.CANYON) return false;
+  if (tile.terrainType === TileType.WATER) return false;
   // Must not have a building or ruin
   if (tile.buildingId !== null) return false;
   if (tile.isStrongholdRuin) return false;
