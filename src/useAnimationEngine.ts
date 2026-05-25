@@ -888,10 +888,11 @@ export function useAnimationEngine(): void {
 
           // Consume following CLEAVE_DAMAGE events and play them simultaneously with the attack
           {
-            const { eventQueue } = useAnimationStore.getState();
             const cleaveEvents: Extract<GameEvent, { type: 'CLEAVE_DAMAGE' }>[] = [];
             // Peek ahead and gather all consecutive CLEAVE_DAMAGE events
-            while (eventQueue.length > 0 && eventQueue[0].type === 'CLEAVE_DAMAGE') {
+            while (true) {
+              const { eventQueue: eq } = useAnimationStore.getState();
+              if (eq.length === 0 || eq[0].type !== 'CLEAVE_DAMAGE') break;
               const cleaveEvent = useAnimationStore.getState().shiftEvent() as Extract<GameEvent, { type: 'CLEAVE_DAMAGE' }>;
               cleaveEvents.push(cleaveEvent);
             }
