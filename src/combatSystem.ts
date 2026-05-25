@@ -4,7 +4,7 @@
  * Supports both unit-vs-unit and building-vs-unit combat.
  */
 
-import type { Unit, Building, GameState, Tile } from './types';
+import type { Unit, Building, GameState, Tile, Position } from './types';
 import type { Draft } from 'immer';
 import { BuildingType, Faction, UnitTag, UnitType, TechFlag, TileType, TileStatus, DestroyBehavior } from './types';
 import { useFloaterStore } from './floaterStore';
@@ -816,7 +816,7 @@ export function resolveAttack(
       defender.stats.defense > PUNCTURE_STUN_BASE_DEF_THRESHOLD
     ) {
       if (!defender.tags.includes(UnitTag.ALERT)) {
-        defender.pinnedUntilTurn = state.turn + PUNCTURE_STUN_DURATION;
+        defender.pinnedUntilTurn = state.turn + PUNCTURE_STUN_DURATION - 1;
       } else {
         outEvents?.push({
           type: 'STUN_BLOCKED',
@@ -1273,6 +1273,27 @@ export function resolveBuildingAttack(
 }
 
 /**
+ * Removes a destroyed building from state and applies its destroyBehavior
+ * (sets ruin / stronghold-ruin flags on the tile).
+ */
+function applyBuildingDestroyEffect(
+  state: Draft<GameState>,
+  buildingId: string,
+  position: Position,
+  destroyBehavior: DestroyBehavior,
+): void {
+  delete state.buildings[buildingId];
+  const tile = state.grid[position.y][position.x];
+  tile.buildingId = null;
+  if (destroyBehavior === DestroyBehavior.STRONGHOLD_RUIN) {
+    tile.isStrongholdRuin = true;
+  } else if (destroyBehavior === DestroyBehavior.RUIN) {
+    tile.isRuin = true;
+  }
+  // DestroyBehavior.NONE / DestroyBehavior.RESOURCE: no ruin — terrain is restored naturally
+}
+
+/**
  * Resolves an attack by a unit against a building (e.g. attacking a watchtower).
  * If the building's HP reaches 0, it becomes neutral instead of being destroyed.
  * The building may counter-attack if it has combat stats and the unit is in range.
@@ -1426,17 +1447,7 @@ export function resolveAttackOnBuilding(
       }
     } else if (attackerFaction === Faction.PLAYER && previousBuildingFaction === Faction.ENEMY) {
       // Enemy building destroyed by player unit: remove from state; apply destroy behavior
-      const { x, y } = building.position;
-      const destroyBehavior = building.destroyBehavior;
-      delete state.buildings[buildingId];
-      const tile = state.grid[y][x];
-      tile.buildingId = null;
-      if (destroyBehavior === DestroyBehavior.STRONGHOLD_RUIN) {
-        tile.isStrongholdRuin = true;
-      } else if (destroyBehavior === DestroyBehavior.RUIN) {
-        tile.isRuin = true;
-      }
-      // DestroyBehavior.NONE / DestroyBehavior.RESOURCE: no ruin — terrain is restored naturally
+      applyBuildingDestroyEffect(state, buildingId, building.position, building.destroyBehavior);
       // Grant XP to player attacker for destroying enemy building
       if (!attackerDead) {
         grantXp(state, attackerId, XP.DESTROY_BUILDING, suppressFloaters);
@@ -1446,17 +1457,7 @@ export function resolveAttackOnBuilding(
       // Player building (e.g. outpost) destroyed by enemy unit: remove from state; apply destroy behavior.
       // Player buildings with combatStats (outposts) may be attacked and must be properly removed so that
       // the melee advance below does not place the enemy unit onto an occupied building tile.
-      const { x, y } = building.position;
-      const destroyBehavior = building.destroyBehavior;
-      delete state.buildings[buildingId];
-      const tile = state.grid[y][x];
-      tile.buildingId = null;
-      if (destroyBehavior === DestroyBehavior.STRONGHOLD_RUIN) {
-        tile.isStrongholdRuin = true;
-      } else if (destroyBehavior === DestroyBehavior.RUIN) {
-        tile.isRuin = true;
-      }
-      // DestroyBehavior.NONE / DestroyBehavior.RESOURCE: no ruin — terrain is restored naturally
+      applyBuildingDestroyEffect(state, buildingId, building.position, building.destroyBehavior);
     }
   } else {
     building.hp = newBuildingHp;
@@ -1568,14 +1569,24 @@ export function resolveBuildingAttackOnBuilding(
 
   // Update attacking building
   if (attackingDead) {
-    // Attacking building goes neutral when HP reaches 0
-    attackingBuilding.hp = attackingBuilding.maxHp;
-    attackingBuilding.faction = null;
-    attackingBuilding.hasAttackedThisTurn = false;
-    attackingBuilding.specialistSlot = null;
-    attackingBuilding.turnCapturedByPlayer = null;
-    attackingBuilding.wasEnemyOwnedBeforeCapture = false;
-    if (attackingFaction === Faction.PLAYER) state.gameStats.buildingsDestroyedByEnemy += 1;
+    if (attackingBuilding.type === BuildingType.WATCHTOWER) {
+      // Watchtower goes neutral at 0 HP (so it can be recaptured)
+      attackingBuilding.hp = attackingBuilding.maxHp;
+      attackingBuilding.faction = null;
+      attackingBuilding.hasAttackedThisTurn = false;
+      attackingBuilding.specialistSlot = null;
+      attackingBuilding.turnCapturedByPlayer = null;
+      attackingBuilding.wasEnemyOwnedBeforeCapture = false;
+      if (attackingFaction === Faction.PLAYER) state.gameStats.buildingsDestroyedByEnemy += 1;
+    } else if (attackingFaction === Faction.PLAYER && targetFaction === Faction.ENEMY) {
+      // Player building killed by enemy building counter: remove from state; apply destroy behavior
+      applyBuildingDestroyEffect(state, attackingBuildingId, attackingBuilding.position, attackingBuilding.destroyBehavior);
+      state.gameStats.buildingsDestroyedByEnemy += 1;
+    } else if (attackingFaction === Faction.ENEMY && targetFaction === Faction.PLAYER) {
+      // Enemy building killed by player building counter: remove from state; apply destroy behavior
+      applyBuildingDestroyEffect(state, attackingBuildingId, attackingBuilding.position, attackingBuilding.destroyBehavior);
+      state.gameStats.enemyBuildingsDestroyed += 1;
+    }
   } else {
     attackingBuilding.hp = newAttackingHp;
     attackingBuilding.hasAttackedThisTurn = true;
@@ -1583,15 +1594,26 @@ export function resolveBuildingAttackOnBuilding(
 
   // Update target building
   if (targetDead) {
-    // Target building goes neutral at 0 HP (so it can be captured)
-    targetBuilding.hp = targetBuilding.maxHp;
-    targetBuilding.faction = null;
-    targetBuilding.hasAttackedThisTurn = false;
-    targetBuilding.specialistSlot = null;
-    targetBuilding.turnCapturedByPlayer = null;
-    targetBuilding.wasEnemyOwnedBeforeCapture = false;
-    if (!attackingDead && attackingFaction === Faction.PLAYER && targetFaction === Faction.ENEMY) {
+    const previousTargetFaction = targetFaction;
+    if (targetBuilding.type === BuildingType.WATCHTOWER) {
+      // Watchtower goes neutral at 0 HP (so it can be recaptured)
+      targetBuilding.hp = targetBuilding.maxHp;
+      targetBuilding.faction = null;
+      targetBuilding.hasAttackedThisTurn = false;
+      targetBuilding.specialistSlot = null;
+      targetBuilding.turnCapturedByPlayer = null;
+      targetBuilding.wasEnemyOwnedBeforeCapture = false;
+      if (attackingFaction === Faction.PLAYER && previousTargetFaction === Faction.ENEMY) {
+        state.gameStats.enemyBuildingsDestroyed += 1;
+      }
+    } else if (attackingFaction === Faction.PLAYER && previousTargetFaction === Faction.ENEMY) {
+      // Enemy building destroyed by player building: remove from state; apply destroy behavior
+      applyBuildingDestroyEffect(state, targetBuildingId, targetBuilding.position, targetBuilding.destroyBehavior);
       state.gameStats.enemyBuildingsDestroyed += 1;
+    } else if (attackingFaction === Faction.ENEMY && previousTargetFaction === Faction.PLAYER) {
+      // Player building destroyed by enemy building: remove from state; apply destroy behavior
+      applyBuildingDestroyEffect(state, targetBuildingId, targetBuilding.position, targetBuilding.destroyBehavior);
+      state.gameStats.buildingsDestroyedByEnemy += 1;
     }
   } else {
     targetBuilding.hp = newTargetHp;

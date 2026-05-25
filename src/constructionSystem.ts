@@ -504,6 +504,16 @@ export function constructBuilding(
   // Create the new building
   const newBuilding = createBuildingObject(buildingType, tilePos, Faction.PLAYER);
 
+  // Apply FORTIFIED_GARRISON bonus to Watchtower if the specialist is active
+  if (
+    newBuilding.type === BuildingType.WATCHTOWER &&
+    state.fortifiedGarrisonActive &&
+    newBuilding.combatStats
+  ) {
+    newBuilding.combatStats.attack += ABILITIES.FORTIFIED_GARRISON_ATTACK_BONUS;
+    newBuilding.combatStats.attackRange += ABILITIES.FORTIFIED_GARRISON_RANGE_BONUS;
+  }
+
   // Add building to state
   state.buildings[newBuilding.id] = newBuilding;
 
