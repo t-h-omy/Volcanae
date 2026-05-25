@@ -9,7 +9,7 @@ import { produce } from 'immer';
 import { Faction, UnitType, UnitTag, BuildingType, TileType } from './types';
 import { UNIT_DEFINITIONS, ENEMY, MAP, TERRAIN, AI_SCORING, AI_RECRUITMENT, XP, DIFFICULTY_MULTIPLIER, SANCTUM_COLLAPSE, ABILITIES, COUNTER_UNIT_SCORING, PUNCTURE_STUN_BASE_DEF_THRESHOLD } from './gameConfig';
 import { resolveAttack, calculateCombat, resolveBuildingAttack, buildingToCombatant, calculateCombatFromStats, unitToCombatant, resolveAttackOnBuilding } from './combatSystem';
-import { isTileWithinEdgeCircleRange } from './rangeUtils';
+import { isTileWithinEdgeCircleRange, edgeCircleDistance } from './rangeUtils';
 import { initiateCapture, canCapture } from './captureSystem';
 import { corruptTerrain, processMagmaSpyrAttacks, processEmberNestSpawns } from './corruptionSystem';
 import { enemyConstructBuilding } from './constructionSystem';
@@ -120,7 +120,12 @@ type ZoneId = number;
 // HELPER FUNCTIONS
 // ============================================================================
 
-function manhattanDistance(a: Position, b: Position): number {
+/**
+ * @deprecated Use `edgeCircleDistance` from `rangeUtils.ts` instead.
+ * Manhattan distance under-estimates reachability of diagonal targets by ~41%
+ * compared to the 8-directional movement system.
+ */
+export function manhattanDistance(a: Position, b: Position): number {
   return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 }
 
@@ -374,7 +379,7 @@ function alliedUnitsNear(pos: Position, radius: number, excludeId: string, state
   for (const unit of Object.values(state.units)) {
     if (unit.faction !== Faction.ENEMY) continue;
     if (unit.id === excludeId) continue;
-    if (manhattanDistance(unit.position, pos) <= radius) {
+    if (edgeCircleDistance(unit.position.x, unit.position.y, pos.x, pos.y) <= radius) {
       count++;
     }
   }
@@ -973,7 +978,7 @@ function scoreConstructionActions(
       if (!isTileWithinEdgeCircleRange(unit.position.x, unit.position.y, tx, ty, moveRange)) continue;
 
       const tile = state.grid[ty][tx];
-      const distance = manhattanDistance(unit.position, { x: tx, y: ty });
+      const distance = edgeCircleDistance(unit.position.x, unit.position.y, tx, ty);
 
       // ── BUILD_LAVA_LAIR on ruin tiles ──
       if (tile.isRuin) {
@@ -982,7 +987,7 @@ function scoreConstructionActions(
 
         // Bonus if no other LAVA_LAIR buildings exist within 4 tiles (encourages spread)
         const nearbyLavaLair = Object.values(state.buildings).some(
-          b => b.type === BuildingType.LAVALAIR && manhattanDistance(b.position, { x: tx, y: ty }) <= 4,
+          b => b.type === BuildingType.LAVALAIR && edgeCircleDistance(b.position.x, b.position.y, tx, ty) <= 4,
         );
         if (!nearbyLavaLair) {
           score += 15;
@@ -1399,9 +1404,9 @@ function scoreActionsForUnit(
   {
     const captors = playerUnitsInTriggerRange.filter(u => u.hasCapturedThisTurn);
     if (canAttackThisTurn && captors.length > 0) {
-      captors.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
+      captors.sort((a, b) => edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y) - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
       const target = captors[0];
-      const distance = manhattanDistance(unit.position, target.position);
+      const distance = edgeCircleDistance(unit.position.x, unit.position.y, target.position.x, target.position.y);
       const score = AI_SCORING.BASE_INTERCEPT_CAPTOR
         - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
         + projectCombatScore(unit, target)
@@ -1443,9 +1448,9 @@ function scoreActionsForUnit(
     });
 
     if (contestable.length > 0) {
-      contestable.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
+      contestable.sort((a, b) => edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y) - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
       const building = contestable[0];
-      const distance = manhattanDistance(unit.position, building.position);
+      const distance = edgeCircleDistance(unit.position.x, unit.position.y, building.position.x, building.position.y);
       const score = AI_SCORING.BASE_CONTEST_BUILDING
         * buildingValueMultiplier(building.type)
         - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
@@ -1460,9 +1465,9 @@ function scoreActionsForUnit(
   if (!unit.hasMovedThisTurn) {
     const retakeable = allBuildings.filter(b => recentlyLostBuildingIds.has(b.id));
     if (retakeable.length > 0) {
-      retakeable.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
+      retakeable.sort((a, b) => edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y) - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
       const building = retakeable[0];
-      const distance = manhattanDistance(unit.position, building.position);
+      const distance = edgeCircleDistance(unit.position.x, unit.position.y, building.position.x, building.position.y);
       const score = AI_SCORING.BASE_RETAKE_BUILDING
         * buildingValueMultiplier(building.type)
         - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
@@ -1484,7 +1489,7 @@ function scoreActionsForUnit(
       }
     }
     if (bestTarget) {
-      const distance = manhattanDistance(unit.position, bestTarget.position);
+      const distance = edgeCircleDistance(unit.position.x, unit.position.y, bestTarget.position.x, bestTarget.position.y);
       const score = AI_SCORING.BASE_ATTACK_UNIT
         - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
         + projectCombatScore(unit, bestTarget)
@@ -1495,14 +1500,14 @@ function scoreActionsForUnit(
 
   // ── RANGED_ATTACK_UNIT ──
   if (canAttackThisTurn && unit.tags.includes(UnitTag.RANGED)) {
-    const rangedTargets = playerUnitsInAttackRange.filter(u => manhattanDistance(unit.position, u.position) > 1);
+    const rangedTargets = playerUnitsInAttackRange.filter(u => edgeCircleDistance(unit.position.x, unit.position.y, u.position.x, u.position.y) > 1);
     if (rangedTargets.length > 0) {
       // PREP units that haven't moved yet: score each target individually and prefer uncounterable ones
       if (unit.tags.includes(UnitTag.PREP) && !unit.hasMovedThisTurn) {
         let bestTarget: Unit | null = null;
         let bestScore = -Infinity;
         for (const target of rangedTargets) {
-          const distance = manhattanDistance(unit.position, target.position);
+          const distance = edgeCircleDistance(unit.position.x, unit.position.y, target.position.x, target.position.y);
           const uncounterable = target.stats.attackRange < distance;
           const score = AI_SCORING.BASE_RANGED_ATTACK_UNIT
             - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
@@ -1519,9 +1524,9 @@ function scoreActionsForUnit(
           candidates.push({ type: 'RANGED_ATTACK_UNIT', score: Math.max(0, bestScore), targetUnitId: bestTarget.id, targetPosition: bestTarget.position });
         }
       } else {
-        rangedTargets.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
+        rangedTargets.sort((a, b) => edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y) - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
         const target = rangedTargets[0];
-        const distance = manhattanDistance(unit.position, target.position);
+        const distance = edgeCircleDistance(unit.position.x, unit.position.y, target.position.x, target.position.y);
         const score = AI_SCORING.BASE_RANGED_ATTACK_UNIT
           - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
           + projectCombatScore(unit, target)
@@ -1536,7 +1541,7 @@ function scoreActionsForUnit(
   // Only for ranged units that haven't moved yet and don't already have a safe ranged attack available
   if (unit.tags.includes(UnitTag.RANGED) && !unit.hasMovedThisTurn) {
     const safeRangedTargetsFromCurrent = canAttackThisTurn
-      ? playerUnitsInAttackRange.filter(u => manhattanDistance(unit.position, u.position) > 1)
+      ? playerUnitsInAttackRange.filter(u => edgeCircleDistance(unit.position.x, unit.position.y, u.position.x, u.position.y) > 1)
       : [];
     if (safeRangedTargetsFromCurrent.length === 0) {
       // BFS to find all reachable tiles within moveRange
@@ -1596,7 +1601,7 @@ function scoreActionsForUnit(
         // Track the safe tile that is furthest from all player units (for pure retreat)
         let minDist = Infinity;
         for (const pu of allPlayerUnits) {
-          const d = manhattanDistance(dest, pu.position);
+          const d = edgeCircleDistance(dest.x, dest.y, pu.position.x, pu.position.y);
           if (d < minDist) minDist = d;
         }
         if (minDist > bestSafeMinDist) {
@@ -1604,9 +1609,9 @@ function scoreActionsForUnit(
           bestSafeTile = dest;
         }
 
-        // Find player units at manhattanDistance > 1 AND <= attackRange from destination
+        // Find player units at edgeCircleDistance > 1 AND <= attackRange from destination
         for (const pu of allPlayerUnits) {
-          const dist = manhattanDistance(dest, pu.position);
+          const dist = edgeCircleDistance(dest.x, dest.y, pu.position.x, pu.position.y);
           if (dist <= 1 || dist > attackRange) continue;
           const cs = projectCombatScore(unit, pu);
           const { defenderHpLost } = calculateCombat(unit, pu);
@@ -1674,7 +1679,7 @@ function scoreActionsForUnit(
         }
       }
       if (bestBuilding) {
-        const distance = manhattanDistance(unit.position, bestBuilding.position);
+        const distance = edgeCircleDistance(unit.position.x, unit.position.y, bestBuilding.position.x, bestBuilding.position.y);
         const score = AI_SCORING.BASE_ATTACK_BUILDING
           - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
           + projectBuildingCombatScore(unit, bestBuilding)
@@ -1691,13 +1696,13 @@ function scoreActionsForUnit(
       if (!b.combatStats) return false;
       if (!isTileWithinEdgeCircleRange(unit.position.x, unit.position.y, b.position.x, b.position.y, attackRange)) return false;
       // Must be at a safe distance (not adjacent) to benefit from the safe-attack bonus
-      return manhattanDistance(unit.position, b.position) > 1;
+      return edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y) > 1;
     });
 
     if (rangedBuildingTargets.length > 0) {
-      rangedBuildingTargets.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
+      rangedBuildingTargets.sort((a, b) => edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y) - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
       const target = rangedBuildingTargets[0];
-      const distance = manhattanDistance(unit.position, target.position);
+      const distance = edgeCircleDistance(unit.position.x, unit.position.y, target.position.x, target.position.y);
       const score = AI_SCORING.BASE_RANGED_ATTACK_BUILDING
         - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
         + projectBuildingCombatScore(unit, target)
@@ -1714,15 +1719,15 @@ function scoreActionsForUnit(
       if (isRecruitmentBuilding(b)) return false;
       for (const u of Object.values(state.units)) {
         if (u.faction !== Faction.PLAYER) continue;
-        if (manhattanDistance(u.position, b.position) <= 3) return true;
+        if (edgeCircleDistance(u.position.x, u.position.y, b.position.x, b.position.y) <= 3) return true;
       }
       return false;
     });
 
     if (defendable.length > 0) {
-      defendable.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
+      defendable.sort((a, b) => edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y) - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
       const building = defendable[0];
-      const distance = manhattanDistance(unit.position, building.position);
+      const distance = edgeCircleDistance(unit.position.x, unit.position.y, building.position.x, building.position.y);
       const isUndefended = alliedUnitsNear(building.position, 3, unit.id, state) === 0;
       const score = AI_SCORING.BASE_DEFEND_ENEMY_BUILDING
         * buildingValueMultiplier(building.type)
@@ -1740,15 +1745,15 @@ function scoreActionsForUnit(
       if (!isRecruitmentBuilding(b)) return false;
       for (const u of Object.values(state.units)) {
         if (u.faction !== Faction.PLAYER) continue;
-        if (manhattanDistance(u.position, b.position) <= 5) return true;
+        if (edgeCircleDistance(u.position.x, u.position.y, b.position.x, b.position.y) <= 5) return true;
       }
       return false;
     });
 
     if (spawners.length > 0) {
-      spawners.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
+      spawners.sort((a, b) => edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y) - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
       const building = spawners[0];
-      const distance = manhattanDistance(unit.position, building.position);
+      const distance = edgeCircleDistance(unit.position.x, unit.position.y, building.position.x, building.position.y);
       const isUndefended = alliedUnitsNear(building.position, 3, unit.id, state) === 0;
       const score = AI_SCORING.BASE_PROTECT_SPAWNER
         * AI_SCORING.BUILDING_VALUE_SPAWNER
@@ -1763,9 +1768,9 @@ function scoreActionsForUnit(
   if (!unit.hasMovedThisTurn) {
     const playerStrongholds = allBuildings.filter(b => b.type === BuildingType.STRONGHOLD && b.faction === Faction.PLAYER);
     if (playerStrongholds.length > 0) {
-      playerStrongholds.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
+      playerStrongholds.sort((a, b) => edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y) - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
       const building = playerStrongholds[0];
-      const distance = manhattanDistance(unit.position, building.position);
+      const distance = edgeCircleDistance(unit.position.x, unit.position.y, building.position.x, building.position.y);
       // If a player unit is standing on the stronghold and the enemy is already within its attack
       // range, suppress this action so attack actions take priority instead.
       // Melee units have attackRange === 1 (adjacent only); ranged units have attackRange > 1.
@@ -1787,9 +1792,9 @@ function scoreActionsForUnit(
   if (!unit.hasMovedThisTurn) {
     const playerBuildings = buildingsInTriggerRange.filter(b => b.faction === Faction.PLAYER && b.type !== BuildingType.STRONGHOLD);
     if (playerBuildings.length > 0) {
-      playerBuildings.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
+      playerBuildings.sort((a, b) => edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y) - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
       const building = playerBuildings[0];
-      const distance = manhattanDistance(unit.position, building.position);
+      const distance = edgeCircleDistance(unit.position.x, unit.position.y, building.position.x, building.position.y);
       const score = AI_SCORING.BASE_MOVE_TO_PLAYER_BUILDING
         * buildingValueMultiplier(building.type)
         - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
@@ -1802,9 +1807,9 @@ function scoreActionsForUnit(
   if (!unit.hasMovedThisTurn) {
     const neutralBuildings = buildingsInTriggerRange.filter(b => b.faction === null);
     if (neutralBuildings.length > 0) {
-      neutralBuildings.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
+      neutralBuildings.sort((a, b) => edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y) - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
       const building = neutralBuildings[0];
-      const distance = manhattanDistance(unit.position, building.position);
+      const distance = edgeCircleDistance(unit.position.x, unit.position.y, building.position.x, building.position.y);
       const score = AI_SCORING.BASE_MOVE_TO_NEUTRAL_BUILDING
         * buildingValueMultiplier(building.type)
         - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
@@ -1817,9 +1822,9 @@ function scoreActionsForUnit(
   if (!unit.hasMovedThisTurn) {
     const outOfAttackRange = playerUnitsInTriggerRange.filter(u => !playerUnitsInAttackRange.includes(u));
     if (outOfAttackRange.length > 0) {
-      outOfAttackRange.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
+      outOfAttackRange.sort((a, b) => edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y) - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
       const target = outOfAttackRange[0];
-      const distance = manhattanDistance(unit.position, target.position);
+      const distance = edgeCircleDistance(unit.position.x, unit.position.y, target.position.x, target.position.y);
       const { defenderHpLost } = calculateCombat(unit, target);
       const nextTurnKillBonus = defenderHpLost >= target.stats.currentHp ? AI_SCORING.KILL_BONUS * 0.5 : 0;
       const score = AI_SCORING.BASE_MOVE_TO_UNIT
@@ -1854,7 +1859,7 @@ function scoreActionsForUnit(
       let bestScore = -Infinity;
 
       for (const building of outOfRangeNeutrals) {
-        const distance = manhattanDistance(unit.position, building.position);
+        const distance = edgeCircleDistance(unit.position.x, unit.position.y, building.position.x, building.position.y);
         const alliesInColumn = Object.values(state.units).filter(
           u => u.faction === Faction.ENEMY && u.id !== unit.id && u.position.x === building.position.x,
         ).length;
@@ -1889,7 +1894,7 @@ function scoreActionsForUnit(
       const dx = Math.abs(target.position.x - unit.position.x);
       const dy = Math.abs(target.position.y - unit.position.y);
       if (dx >= 2 || dy >= 2) {
-        const distance = manhattanDistance(unit.position, target.position);
+        const distance = edgeCircleDistance(unit.position.x, unit.position.y, target.position.x, target.position.y);
         const score = AI_SCORING.BASE_FLANK_UNIT
           - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE;
         candidates.push({ type: 'FLANK_UNIT', score: Math.max(0, score), targetUnitId: target.id, targetPosition: target.position });
@@ -1912,7 +1917,7 @@ function scoreActionsForUnit(
       // When blocked, target the nearest player unit to push through the blocker
       const playerUnits = Object.values(state.units).filter(u => u.faction === Faction.PLAYER);
       if (playerUnits.length > 0) {
-        playerUnits.sort((a, b) => manhattanDistance(unit.position, a.position) - manhattanDistance(unit.position, b.position));
+        playerUnits.sort((a, b) => edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y) - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
         candidates.push({ type: 'ADVANCE_TOWARD_LAVA', score, targetPosition: playerUnits[0].position });
       } else {
         // No player units to push through — BFS will navigate around obstacles

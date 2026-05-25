@@ -123,6 +123,34 @@ export function isTileWithinEdgeCircleRange(
 }
 
 /**
+ * Returns the edge-circle distance between two tiles.
+ *
+ * Semantics: the smallest integer R such that
+ * `isTileWithinEdgeCircleRange(sourceX, sourceY, targetX, targetY, R)` is true.
+ *
+ * Empirical verification against `isTileWithinEdgeCircleRange`:
+ *   (0,0)→(1,0): R=1 ✓   (0,0)→(1,1): R=1 ✓
+ *   (0,0)→(2,1): R=2 ✓   (0,0)→(2,2): R=2 ✓
+ *
+ * For integer tile coordinates the edge-circle metric is equivalent to the
+ * Chebyshev distance (max of |dx|, |dy|), so we implement it as such.
+ *
+ * @param sourceX - X coordinate of the source tile
+ * @param sourceY - Y coordinate of the source tile
+ * @param targetX - X coordinate of the target tile
+ * @param targetY - Y coordinate of the target tile
+ * @returns Smallest integer radius at which target is within edge-circle range
+ */
+export function edgeCircleDistance(
+  sourceX: number,
+  sourceY: number,
+  targetX: number,
+  targetY: number,
+): number {
+  return Math.max(Math.abs(targetX - sourceX), Math.abs(targetY - sourceY));
+}
+
+/**
  * Returns all tile coordinates within the edge-circle range of a source tile,
  * clamped to the map bounds.
  *

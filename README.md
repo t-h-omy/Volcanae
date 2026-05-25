@@ -58,6 +58,9 @@ A summoned Ember Demon is **leashed** to its controller Mage — if the Mage mov
 
 ## Changelog
 
+### v0.63.2 — AI movement metric (DECISION-L)
+AI now uses edge-circle distance for target scoring (was Manhattan). Enemies score diagonal moves equally with axial moves; this matches the player's movement system.
+
 ### v0.63.1 (2026-05-12) — Bundle 3 cleanup
 Fixed a build-time scope error where `unlockedUnits` was read in the `GridRenderer` component but consumed inside the memoised `TileCellInner` sub-component; the selector is now declared in the correct scope.
 
