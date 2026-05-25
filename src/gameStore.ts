@@ -559,8 +559,11 @@ export const useGameStore = create<GameStore>()(
 
         const snapshot: GameState = current(state);
 
+        // Collect secondary events (SPLASH/CLEAVE/PIERCE damage and kills) emitted by resolveAttackOnBuilding
+        const secondaryEvents: GameEvent[] = [];
+
         const resolvedState = produce(snapshot, (draft) => {
-          resolveAttackOnBuilding(draft, attackerId, buildingId, true);
+          resolveAttackOnBuilding(draft, attackerId, buildingId, true, secondaryEvents);
           updateDiscovery(draft);
           checkGameConditions(draft);
         });
@@ -593,6 +596,8 @@ export const useGameStore = create<GameStore>()(
         if (!attackerAfter) {
           events.push({ type: 'UNIT_DEATH', unitId: attackerId, position: attackerPosition, faction: attackerFaction });
         }
+        // Push secondary damage/death events (SPLASH/CLEAVE/PIERCE)
+        events.push(...secondaryEvents);
 
         pendingEvents = events;
         pendingResolvedState = resolvedState;

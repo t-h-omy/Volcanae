@@ -193,15 +193,15 @@ export const UnitTag = {
   PREP: 'PREP',
   /** Unit can construct buildings AND initiate captures */
   BUILDANDCAPTURE: 'BUILDANDCAPTURE',
-  /** Enemy unit can corrupt FOREST and MOUNTAIN terrain tiles */
+  /** Enemy unit can corrupt FOREST and MOUNTAIN terrain tiles — places an Embernest on forest and a Magmaspyr on mountain */
   CORRUPT: 'CORRUPT',
   /** Unit prioritizes moving toward lava to be destroyed */
   SACRIFICIAL: 'SACRIFICIAL',
-  /** Unit explodes when adjacent to enemy-faction units, dealing area damage */
+  /** Unit explodes when adjacent to enemies with no way forward (preemptive self-detonation), dealing area damage */
   EXPLOSIVE: 'EXPLOSIVE',
   /** Guard-like unit can sacrifice itself to construct a Watchtower */
   FIELDWORK: 'FIELDWORK',
-  /** Scout deals bonus damage when attacking full-HP enemies */
+  /** Scout deals bonus damage when attacking full-HP enemies and takes no counter-damage on the attack */
   ASSASSIN: 'ASSASSIN',
   /** Scout can heal adjacent friendly units */
   PATCHUP: 'PATCHUP',

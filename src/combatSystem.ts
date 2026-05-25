@@ -541,8 +541,8 @@ export function resolveAttack(
     combatResult.attackerHpLost = 0;
   }
 
-  // COVER: attacker never suffers counter-damage from ranged defenders
-  if (attacker.tags.includes(UnitTag.COVER) && defender.tags.includes(UnitTag.RANGED)) {
+  // COVER: attacker never suffers counter-damage from ranged defenders (attackRange > 1)
+  if (attacker.tags.includes(UnitTag.COVER) && defender.stats.attackRange > 1) {
     combatResult.attackerHpLost = 0;
   }
 
@@ -1303,6 +1303,7 @@ export function resolveAttackOnBuilding(
   attackerId: string,
   buildingId: string,
   suppressFloaters?: boolean,
+  outEvents?: GameEvent[],
 ): void {
   const attacker = state.units[attackerId];
   const building = state.buildings[buildingId];
@@ -1313,6 +1314,8 @@ export function resolveAttackOnBuilding(
   const attackerFaction = attacker.faction;
   const buildingFaction = building.faction;
 
+  // Capture attacker and building positions before any mutations
+  const attackerPosition = { x: attacker.position.x, y: attacker.position.y };
   // Capture building position before any mutations (needed for melee advance)
   const buildingPosition = { x: building.position.x, y: building.position.y };
 
@@ -1330,6 +1333,28 @@ export function resolveAttackOnBuilding(
     attackerCombatant.tags = attackerCombatant.tags.filter(t => t !== UnitTag.ASSASSIN);
   }
 
+  // Track whether this is a BLOODLUST second attack (used later to suppress granting another charge).
+  const isBloodlustAttack = !!attacker.bloodlustAttackAvailable;
+
+  // LANCE_CHARGE: attacker gains attack bonus when it has not yet moved this turn.
+  // Suppressed on CORRUPTED tile.
+  if (attacker.tags.includes(UnitTag.LANCE_CHARGE) && !attacker.hasMovedThisTurn && !attackerOnCorrupted) {
+    attackerCombatant.attack += ABILITIES.LANCE_CHARGE_ATTACK_BONUS;
+  }
+
+  // RAGE: attacker gains +ATK per adjacent enemy unit, capped at RAGE_MAX_ADJACENT_COUNT.
+  // Suppressed on CORRUPTED tile.
+  if (attacker.tags.includes(UnitTag.RAGE) && !attackerOnCorrupted) {
+    let adjacentEnemyCount = 0;
+    for (const otherId of Object.keys(state.units)) {
+      const other = state.units[otherId];
+      if (!other || other.faction === attacker.faction) continue;
+      if (!isTileWithinEdgeCircleRange(attacker.position.x, attacker.position.y, other.position.x, other.position.y, 1)) continue;
+      adjacentEnemyCount++;
+    }
+    attackerCombatant.attack += Math.min(adjacentEnemyCount, RAGE_MAX_ADJACENT_COUNT) * RAGE_ATK_PER_ADJACENT;
+  }
+
   // Calculate combat - if building has combat stats use them for defense, otherwise use 0
   const defenderStats: Combatant = buildingCombatant ?? {
     currentHp: building.hp,
@@ -1344,6 +1369,13 @@ export function resolveAttackOnBuilding(
     tags: building.tags,
   };
 
+  // PUNCTURE: bypass building defense — treat building.combatStats.defense as 0 for damage
+  // computation only. Suppressed on CORRUPTED tile.
+  // NOTE: buildings do not have pinnedUntilTurn, so the stun side-effect is intentionally omitted.
+  if (attacker.tags.includes(UnitTag.PUNCTURE) && !attackerOnCorrupted) {
+    defenderStats.defense = 0;
+  }
+
   const combatResult = calculateCombatFromStats(attackerCombatant, defenderStats);
 
   // ASSASSIN: no retaliation damage when ability is activated (building at full HP).
@@ -1352,15 +1384,29 @@ export function resolveAttackOnBuilding(
     combatResult.attackerHpLost = 0;
   }
 
+  // Capture full primary damage before any PIERCE reduction (used by PIERCE secondary target).
+  const fullPrimaryDamage = combatResult.defenderHpLost;
+
+  // PIERCE: reduce primary building damage by PIERCE_PRIMARY_DAMAGE_MULTIPLIER;
+  // the full (pre-multiplier) damage is stored in fullPrimaryDamage for the secondary target.
+  // Suppressed on CORRUPTED tile.
+  if (attacker.tags.includes(UnitTag.PIERCE) && !attackerOnCorrupted) {
+    combatResult.defenderHpLost = Math.floor(combatResult.defenderHpLost * PIERCE_PRIMARY_DAMAGE_MULTIPLIER);
+  }
+
   const newBuildingHp = building.hp - combatResult.defenderHpLost;
   const buildingDead = newBuildingHp <= 0;
 
-  // Building can counter if it has combat stats, survives, and attacker is in its range
-  const canCounter = buildingCombatant && !buildingDead && isTileWithinEdgeCircleRange(
+  // Building can counter if it has combat stats, survives, and attacker is in its range.
+  // COVER: suppress the building counter when the attacker has COVER and the building
+  // counter-attacks at range (attackRange > 1); all combat buildings have attackRange >= 2.
+  const canCounterBase = !!(buildingCombatant && !buildingDead && isTileWithinEdgeCircleRange(
     building.position.x, building.position.y,
     attacker.position.x, attacker.position.y,
     buildingCombatant.attackRange,
-  );
+  ));
+  const canCounter = canCounterBase &&
+    !(attacker.tags.includes(UnitTag.COVER) && buildingCombatant!.attackRange > 1);
   const newAttackerHp = canCounter
     ? attacker.stats.currentHp - combatResult.attackerHpLost
     : attacker.stats.currentHp;
@@ -1459,6 +1505,26 @@ export function resolveAttackOnBuilding(
       // the melee advance below does not place the enemy unit onto an occupied building tile.
       applyBuildingDestroyEffect(state, buildingId, building.position, building.destroyBehavior);
     }
+
+    // BLOODLUST: when a (non-bloodlust) player attack kills an enemy building, grant a second
+    // attack at half power. Only one bloodlust charge per turn. Suppressed on CORRUPTED tile.
+    if (
+      !attackerDead &&
+      !isBloodlustAttack &&
+      attacker.tags.includes(UnitTag.BLOODLUST) &&
+      !attackerOnCorrupted &&
+      buildingFaction === Faction.ENEMY &&
+      attackerFaction === Faction.PLAYER
+    ) {
+      const attackerUnit = state.units[attackerId];
+      if (attackerUnit) {
+        attackerUnit.hasAttackedThisTurn = false;
+        attackerUnit.bloodlustAttackAvailable = true;
+        attackerUnit.hasCapturedThisTurn = true;
+        attackerUnit.hasConstructedThisTurn = true;
+        attackerUnit.hasDestroyedThisTurn = true;
+      }
+    }
   } else {
     building.hp = newBuildingHp;
   }
@@ -1482,6 +1548,189 @@ export function resolveAttackOnBuilding(
       toTile.unitId = attackerId;
       attackerUnit.position.x = buildingPosition.x;
       attackerUnit.position.y = buildingPosition.y;
+    }
+  }
+
+  // SPLASH: player siege unit deals splash damage to all enemy units surrounding the building.
+  // Suppressed on CORRUPTED tile.
+  if (
+    !attackerDead &&
+    !attackerOnCorrupted &&
+    attackerFaction === Faction.PLAYER &&
+    attacker.tags.includes(UnitTag.SPLASH) &&
+    combatResult.defenderHpLost > 0
+  ) {
+    const splashDamage = Math.max(1, Math.round(combatResult.defenderHpLost * ABILITIES.SPLASH_DAMAGE_RATIO));
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (dx === 0 && dy === 0) continue; // skip the primary target tile (building)
+        const nx = buildingPosition.x + dx;
+        const ny = buildingPosition.y + dy;
+        if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;
+        const splashTile = state.grid[ny]?.[nx];
+        if (!splashTile?.unitId) continue;
+        const splashTarget = state.units[splashTile.unitId];
+        if (!splashTarget || splashTarget.faction !== Faction.ENEMY) continue;
+        const splashTargetId = splashTile.unitId;
+        const newSplashHp = splashTarget.stats.currentHp - splashDamage;
+        if (!suppressFloaters) {
+          const { addFloater } = useFloaterStore.getState();
+          addFloater({ value: splashDamage, x: nx, y: ny, isEnemy: true });
+        }
+        outEvents?.push({
+          type: 'SPLASH_DAMAGE',
+          unitId: splashTargetId,
+          position: { x: nx, y: ny },
+          amount: splashDamage,
+          isEnemy: true,
+        });
+        if (newSplashHp <= 0) {
+          splashTile.unitId = null;
+          delete state.units[splashTargetId];
+          grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
+          state.gameStats.unitsKilled += 1;
+          outEvents?.push({
+            type: 'UNIT_DEATH',
+            unitId: splashTargetId,
+            position: { x: nx, y: ny },
+            faction: splashTarget.faction,
+          });
+        } else {
+          splashTarget.stats.currentHp = newSplashHp;
+        }
+      }
+    }
+  }
+
+  // CLEAVE: deal AoE damage to all enemy units on tiles adjacent to BOTH attacker AND building.
+  // Ignores PHALANX bonus (uses raw defense). Suppressed on CORRUPTED tile.
+  if (
+    !attackerDead &&
+    !attackerOnCorrupted &&
+    attacker.tags.includes(UnitTag.CLEAVE) &&
+    combatResult.defenderHpLost > 0
+  ) {
+    const cleaveDamage = Math.floor(combatResult.defenderHpLost * CLEAVE_DAMAGE_MULTIPLIER);
+    if (cleaveDamage > 0) {
+      for (let cy = 0; cy < state.grid.length; cy++) {
+        for (let cx = 0; cx < state.grid[cy].length; cx++) {
+          if (cx === attackerPosition.x && cy === attackerPosition.y) continue;
+          if (cx === buildingPosition.x && cy === buildingPosition.y) continue;
+          if (!isTileWithinEdgeCircleRange(attackerPosition.x, attackerPosition.y, cx, cy, 1)) continue;
+          if (!isTileWithinEdgeCircleRange(buildingPosition.x, buildingPosition.y, cx, cy, 1)) continue;
+          const cleaveTile = state.grid[cy]?.[cx];
+          if (!cleaveTile?.unitId) continue;
+          const cleaveTargetId = cleaveTile.unitId;
+          const cleaveTarget = state.units[cleaveTargetId];
+          if (!cleaveTarget || cleaveTarget.faction === attacker.faction) continue;
+          const finalCleaveDamage = Math.max(1, cleaveDamage - cleaveTarget.stats.defense);
+          const newCleaveHp = cleaveTarget.stats.currentHp - finalCleaveDamage;
+          if (!suppressFloaters) {
+            const { addFloater } = useFloaterStore.getState();
+            addFloater({ value: finalCleaveDamage, x: cx, y: cy, isEnemy: cleaveTarget.faction === Faction.ENEMY });
+          }
+          outEvents?.push({
+            type: 'CLEAVE_DAMAGE',
+            unitId: cleaveTargetId,
+            position: { x: cx, y: cy },
+            amount: finalCleaveDamage,
+            isEnemy: cleaveTarget.faction === Faction.ENEMY,
+            attackerPosition: { ...attackerPosition },
+          });
+          if (newCleaveHp <= 0) {
+            cleaveTile.unitId = null;
+            delete state.units[cleaveTargetId];
+            if (cleaveTarget.faction === Faction.PLAYER) state.gameStats.unitsLost += 1;
+            else if (attacker.faction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
+            grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
+            outEvents?.push({
+              type: 'UNIT_DEATH',
+              unitId: cleaveTargetId,
+              position: { x: cx, y: cy },
+              faction: cleaveTarget.faction,
+            });
+          } else {
+            cleaveTarget.stats.currentHp = newCleaveHp;
+          }
+        }
+      }
+    }
+  }
+
+  // PIERCE secondary: deal the full (pre-multiplier) primary damage to the unit or building
+  // on the tile directly behind the building (relative to the attacker).
+  // Suppressed on CORRUPTED tile.
+  if (
+    !attackerDead &&
+    !attackerOnCorrupted &&
+    attacker.tags.includes(UnitTag.PIERCE)
+  ) {
+    const dx = buildingPosition.x - attackerPosition.x;
+    const dy = buildingPosition.y - attackerPosition.y;
+    const behindPos = { x: buildingPosition.x + dx, y: buildingPosition.y + dy };
+    if (
+      behindPos.y >= 0 && behindPos.y < state.grid.length &&
+      behindPos.x >= 0 && behindPos.x < state.grid[behindPos.y].length
+    ) {
+      const behindTile = state.grid[behindPos.y][behindPos.x];
+      if (behindTile.unitId) {
+        const rearUnit = state.units[behindTile.unitId];
+        if (rearUnit) {
+          const rearUnitId = behindTile.unitId;
+          const finalPierceDamage = Math.max(1, fullPrimaryDamage - rearUnit.stats.defense);
+          const newRearHp = rearUnit.stats.currentHp - finalPierceDamage;
+          if (!suppressFloaters) {
+            const { addFloater } = useFloaterStore.getState();
+            addFloater({ value: finalPierceDamage, x: behindPos.x, y: behindPos.y, isEnemy: rearUnit.faction === Faction.ENEMY });
+          }
+          outEvents?.push({
+            type: 'PIERCE_DAMAGE',
+            unitId: rearUnitId,
+            buildingId: null,
+            position: { ...behindPos },
+            amount: finalPierceDamage,
+            isEnemy: rearUnit.faction === Faction.ENEMY,
+            attackerPosition: { ...attackerPosition },
+            primaryDefenderPosition: { ...buildingPosition },
+          });
+          if (newRearHp <= 0) {
+            behindTile.unitId = null;
+            delete state.units[rearUnitId];
+            if (rearUnit.faction === Faction.PLAYER) state.gameStats.unitsLost += 1;
+            else if (attacker.faction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
+            grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
+            outEvents?.push({
+              type: 'UNIT_DEATH',
+              unitId: rearUnitId,
+              position: { ...behindPos },
+              faction: rearUnit.faction,
+            });
+          } else {
+            rearUnit.stats.currentHp = newRearHp;
+          }
+        }
+      } else if (behindTile.buildingId) {
+        const rearBuilding = state.buildings[behindTile.buildingId];
+        if (rearBuilding) {
+          const buildingDefense = rearBuilding.combatStats?.defense ?? 0;
+          const finalPierceBuildingDamage = Math.max(1, fullPrimaryDamage - buildingDefense);
+          if (!suppressFloaters) {
+            const { addFloater } = useFloaterStore.getState();
+            addFloater({ value: finalPierceBuildingDamage, x: behindPos.x, y: behindPos.y, isEnemy: rearBuilding.faction === Faction.ENEMY });
+          }
+          outEvents?.push({
+            type: 'PIERCE_DAMAGE',
+            unitId: null,
+            buildingId: rearBuilding.id,
+            position: { ...behindPos },
+            amount: finalPierceBuildingDamage,
+            isEnemy: rearBuilding.faction === Faction.ENEMY,
+            attackerPosition: { ...attackerPosition },
+            primaryDefenderPosition: { ...buildingPosition },
+          });
+          rearBuilding.hp = Math.max(0, rearBuilding.hp - finalPierceBuildingDamage);
+        }
+      }
     }
   }
 }

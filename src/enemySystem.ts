@@ -2143,7 +2143,8 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
             const attackerId = currentUnit.id;
             const buildingId = action.targetBuildingId;
 
-            resolveAttackOnBuilding(state, attackerId, buildingId, suppressFloaters);
+            const secondaryEvents: GameEvent[] = [];
+            resolveAttackOnBuilding(state, attackerId, buildingId, suppressFloaters, secondaryEvents);
 
             if (events) {
               const attackerAfter = state.units[attackerId];
@@ -2168,6 +2169,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
               if (!attackerAfter) {
                 events.push({ type: 'UNIT_DEATH', unitId: attackerId, position: attackerPos, faction: currentUnit.faction });
               }
+              events.push(...secondaryEvents);
             }
           } else if (!currentUnit.hasMovedThisTurn) {
             moveEnemyUnitToward(state, currentUnit.id, building.position, events);
