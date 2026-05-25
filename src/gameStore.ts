@@ -2357,6 +2357,12 @@ export const useGameStore = create<GameStore>()(
             // the sprite swap; the corruption colour change can settle a beat later.
             break;
           }
+
+          case 'LEASH_DEFECT':
+            // sweepLeashes already applied the faction flip in the immer snapshot.
+            // The live display state reflects this at queue-end via setGameState.
+            // No incremental mutation needed here.
+            break;
         }
       });
     },

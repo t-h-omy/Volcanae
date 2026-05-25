@@ -2770,7 +2770,30 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
         decideAndExecute(currentUnit, draft, targetingIntents, recentlyLostBuildingIds, events);
       }
       // Sweep leashes after each enemy unit's turn to handle mage displacement
-      sweepLeashes(draft);
+      // Pre-capture mage/demon positions before sweepLeashes mutates faction.
+      const leashSnapshot = new Map<string, { mageId: string; demonPos: { x: number; y: number }; magePos: { x: number; y: number } }>();
+      for (const u of Object.values(draft.units)) {
+        if (!u.tags.includes(UnitTag.LEASHED) || u.faction !== Faction.PLAYER) continue;
+        const mage = u.controllerMageId ? draft.units[u.controllerMageId] : null;
+        leashSnapshot.set(u.id, {
+          mageId: u.controllerMageId ?? '',
+          demonPos: { x: u.position.x, y: u.position.y },
+          magePos: mage ? { x: mage.position.x, y: mage.position.y } : { x: u.position.x, y: u.position.y },
+        });
+      }
+      const defectedIds = sweepLeashes(draft);
+      for (const demonId of defectedIds) {
+        const snap = leashSnapshot.get(demonId);
+        if (snap) {
+          events.push({
+            type: 'LEASH_DEFECT',
+            demonId,
+            mageId: snap.mageId,
+            demonPos: snap.demonPos,
+            magePos: snap.magePos,
+          });
+        }
+      }
     }
 
     // 3b. Magma Spyr attacks (after unit movement)

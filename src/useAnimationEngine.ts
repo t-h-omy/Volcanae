@@ -108,6 +108,8 @@ function eventPosition(event: GameEvent): Position {
       return event.position;
     case 'CAVE_MONSTER_RETREAT':
       return event.position;
+    case 'LEASH_DEFECT':
+      return event.demonPos;
   }
 }
 function isTileRevealed(pos: Position): boolean {
@@ -194,6 +196,8 @@ function isEventVisible(event: GameEvent): boolean {
       return isTileRevealed(event.position);
     case 'CAVE_MONSTER_RETREAT':
       return isTileRevealed(event.position);
+    case 'LEASH_DEFECT':
+      return isTileRevealed(event.demonPos) || isTileRevealed(event.magePos);
   }
 }
 
@@ -1369,6 +1373,45 @@ export function useAnimationEngine(): void {
             durationMs: ANIMATION.EXPLOSION_SHOCKWAVE_MS,
             finalScale: explosionFinalScale,
           });
+        }
+
+        // ── Special handling for LEASH_DEFECT (demon defects during enemy turn) ──
+        if (event.type === 'LEASH_DEFECT') {
+          // applyEvent is a no-op: sweepLeashes already mutated faction in the
+          // immer draft. This event is purely for animation sequencing.
+          useGameStore.getState().applyEvent(event);
+          if (visible) {
+            const combatStore = useCombatAnimationStore.getState();
+            useAnimationStore.getState().setCameraTarget(event.demonPos);
+            await wait(ANIMATION.CAMERA_MOVE_DURATION_MS + ANIMATION.PRE_ACTION_IDLE_MS);
+
+            combatStore.addLeashBurstPair({
+              mageId: event.mageId,
+              demonId: event.demonId,
+              magePos: event.magePos,
+              demonPos: event.demonPos,
+            });
+            combatStore.setUnitAnimation(event.demonId, {
+              type: 'DEFECT_TO_ENEMY',
+              durationMs: ANIMATION.DEFECT_VFX_DURATION_MS,
+            });
+            useFloaterStore.getState().addFloater({
+              value: 0,
+              label: '⚠️ Defected!',
+              x: event.demonPos.x,
+              y: event.demonPos.y,
+              isEnemy: true,
+              floaterType: 'revive',
+            });
+
+            await wait(ANIMATION.LEASH_BURST_VFX_DURATION_MS);
+
+            combatStore.setUnitAnimation(event.demonId, null);
+            combatStore.removeLeashBurstPair(event.demonId);
+
+            await wait(ANIMATION.POST_ACTION_IDLE_MS);
+          }
+          continue;
         }
 
         // ── Special handling for CAVE_MONSTER_RETREAT: burrow-dust, then disappear ──
