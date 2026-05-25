@@ -10,7 +10,7 @@ import { useGameStore } from '../gameStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
 import { useSoundOptionsStore } from '../soundOptionsStore';
-import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, computeResearchCost, SPELL_DEFINITIONS, TERRAIN_TAG_INFO } from '../gameConfig';
+import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, computeResearchCost, SPELL_DEFINITIONS, TERRAIN_TAG_INFO, RAGE_ATK_PER_ADJACENT, RAGE_MAX_ADJACENT_COUNT } from '../gameConfig';
 import { UI } from '../uiConfig';
 import type { UnitPopulationCost, TechId } from '../types';
 import {
@@ -54,6 +54,7 @@ import {
 } from '../types';
 import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast } from '../unitActions';
 import { getPhalanxAttackBonus, getPhalanxDefenseBonus } from '../combatSystem';
+import { isTileWithinEdgeCircleRange } from '../rangeUtils';
 import { getTagsFromActiveSpecialists } from '../specialistSystem';
 import { useZoneClearedStore } from '../zoneClearedStore';
 import { useCaveScreamsStore } from '../caveScreamsStore';
@@ -583,7 +584,6 @@ function TopBar({
   arcaneCrystals: number;
   showTechBadge: boolean;
 }) {
-  const turn = useGameStore((s) => s.turn);
   const resources = useGameStore((s) => s.resources);
   const ember = useGameStore((s) => s.ember);
   const turnsUntilLavaAdvance = useGameStore((s) => s.turnsUntilLavaAdvance);
@@ -633,7 +633,6 @@ function TopBar({
 
   return (
     <div className="hud-top-bar">
-      <span className="hud-stat hud-turn-counter">🔄 Turn {turn}</span>
       <button className="hud-stat hud-stat--clickable" onClick={() => setResourcePopup('iron')}>⛓️ {resources.iron}<NetIncomeBadge gross={ironPerTurn} upkeep={ironUpkeep} /></button>
       <button className="hud-stat hud-stat--clickable" onClick={() => setResourcePopup('wood')}>🪵 {resources.wood}<NetIncomeBadge gross={woodPerTurn} upkeep={woodUpkeep} /></button>
       <span className="hud-stat">🌾 {farmersUsed}/{farmerCapacity}</span>
@@ -1610,6 +1609,19 @@ function SelectedUnitPanel({
     if (phalanxDefense !== 0) addContextual('defense', phalanxDefense);
     if (statBonuses.def !== 0) addContextual('defense', statBonuses.def);
     if (statBonuses.mov !== 0) addContextual('moveRange', statBonuses.mov);
+
+    // RAGE: dynamic +ATK per adjacent enemy (works for both factions)
+    if (unit.tags.includes(UnitTag.RAGE)) {
+      let adjacentEnemyCount = 0;
+      for (const otherId of Object.keys(gameState.units)) {
+        const other = gameState.units[otherId];
+        if (!other || other.faction === unit.faction) continue;
+        if (!isTileWithinEdgeCircleRange(unit.position.x, unit.position.y, other.position.x, other.position.y, 1)) continue;
+        adjacentEnemyCount++;
+      }
+      const rageBonus = Math.min(adjacentEnemyCount, RAGE_MAX_ADJACENT_COUNT) * RAGE_ATK_PER_ADJACENT;
+      if (rageBonus > 0) addContextual('attack', rageBonus);
+    }
 
     const hasAny: Record<string, boolean> = {};
     const net: Record<string, number> = {};

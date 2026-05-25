@@ -22,14 +22,7 @@
   flex-wrap: wrap;
 }
 
-/* Turn counter — pinned to horizontal center of the screen */
-.hud-turn-counter {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  font-weight: 700;
-  pointer-events: none;
-}
+/* Turn counter — removed from top bar */
 
 .hud-stat {
   white-space: nowrap;
@@ -657,6 +650,7 @@
   color: #fff;
   letter-spacing: 3px;
   text-transform: uppercase;
+  text-align: center;
   animation-name: turnAnnounce;
   animation-timing-function: ease-in-out;
   animation-fill-mode: both;

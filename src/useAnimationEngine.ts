@@ -717,6 +717,10 @@ export function useAnimationEngine(): void {
           useAnimationStore.getState().setCameraTarget(focusPos);
           await wait(ANIMATION.CAMERA_MOVE_DURATION_MS + ANIMATION.PRE_ACTION_IDLE_MS);
 
+          // Apply lava state change first so lava visually advances before crystal VFX
+          useGameStore.getState().applyEvent(event);
+          await wait(ANIMATION.LAVA_ADVANCE_PAUSE_MS);
+
           if (event.destroyedChamberPosition) {
             const pos = event.destroyedChamberPosition;
             const key = `${pos.x},${pos.y}`;
@@ -743,8 +747,6 @@ export function useAnimationEngine(): void {
             await wait(ANIMATION.ZONE_CLEARED_SANCTUM_SHATTER_MS);
           }
 
-          useGameStore.getState().applyEvent(event);
-          await wait(ANIMATION.LAVA_ADVANCE_PAUSE_MS);
           continue;
         }
 
@@ -883,6 +885,66 @@ export function useAnimationEngine(): void {
         // ── Special handling for ENEMY_ATTACK or PLAYER_ATTACK with combat animations ──
         if (event.type === 'ENEMY_ATTACK' || event.type === 'PLAYER_ATTACK') {
           const dyingIds = await playAttackAnimation(event, visible);
+
+          // Consume following CLEAVE_DAMAGE events and play them simultaneously with the attack
+          {
+            const { eventQueue } = useAnimationStore.getState();
+            const cleaveEvents: Extract<GameEvent, { type: 'CLEAVE_DAMAGE' }>[] = [];
+            // Peek ahead and gather all consecutive CLEAVE_DAMAGE events
+            while (eventQueue.length > 0 && eventQueue[0].type === 'CLEAVE_DAMAGE') {
+              const cleaveEvent = useAnimationStore.getState().shiftEvent() as Extract<GameEvent, { type: 'CLEAVE_DAMAGE' }>;
+              cleaveEvents.push(cleaveEvent);
+            }
+            if (cleaveEvents.length > 0 && visible) {
+              const { addCleaveVfx, removeCleaveVfx, setUnitAnimation } = useCombatAnimationStore.getState();
+              // Trigger VFX ring (only once since they all share the same attacker position)
+              const vfxId = crypto.randomUUID();
+              addCleaveVfx({
+                id: vfxId,
+                cx: cleaveEvents[0].attackerPosition.x,
+                cy: cleaveEvents[0].attackerPosition.y,
+                durationMs: ANIMATION.CLEAVE_VFX_DURATION_MS,
+              });
+              setTimeout(() => removeCleaveVfx(vfxId), ANIMATION.CLEAVE_VFX_DURATION_MS);
+              // Apply damage and show HIT shake on all cleave targets simultaneously
+              for (const ce of cleaveEvents) {
+                useGameStore.getState().applyEvent(ce);
+                setUnitAnimation(ce.unitId, { type: 'HIT' });
+              }
+              await wait(ANIMATION.HIT_SHAKE_DURATION_MS);
+              for (const ce of cleaveEvents) {
+                useCombatAnimationStore.getState().setUnitAnimation(ce.unitId, null);
+              }
+              // Consume any following UNIT_DEATH events for cleave-killed targets
+              for (const ce of cleaveEvents) {
+                const { eventQueue: eq } = useAnimationStore.getState();
+                if (eq.length > 0 && eq[0].type === 'UNIT_DEATH' && eq[0].unitId === ce.unitId) {
+                  const deathEvt = eq[0] as Extract<GameEvent, { type: 'UNIT_DEATH' }>;
+                  useAnimationStore.getState().shiftEvent();
+                  useCombatAnimationStore.getState().setUnitAnimation(deathEvt.unitId, { type: 'DYING' });
+                  await wait(ANIMATION.DIE_FLASH_DURATION_MS + ANIMATION.DIE_FADE_DURATION_MS);
+                  useCombatAnimationStore.getState().setUnitAnimation(deathEvt.unitId, null);
+                  useGameStore.getState().applyEvent(deathEvt);
+                  dyingIds.add(deathEvt.unitId);
+                }
+              }
+            } else if (cleaveEvents.length > 0) {
+              // Not visible — just apply damage silently
+              for (const ce of cleaveEvents) {
+                useGameStore.getState().applyEvent(ce);
+              }
+              // Consume following UNIT_DEATH events for cleave kills
+              for (const ce of cleaveEvents) {
+                const { eventQueue: eq } = useAnimationStore.getState();
+                if (eq.length > 0 && eq[0].type === 'UNIT_DEATH' && eq[0].unitId === ce.unitId) {
+                  const deathEvt = eq[0] as Extract<GameEvent, { type: 'UNIT_DEATH' }>;
+                  useAnimationStore.getState().shiftEvent();
+                  useGameStore.getState().applyEvent(deathEvt);
+                  dyingIds.add(deathEvt.unitId);
+                }
+              }
+            }
+          }
 
           // Consume following UNIT_DEATH events that were already animated
           while (true) {
@@ -1250,6 +1312,9 @@ export function useAnimationEngine(): void {
         // ── Special handling for TILE_DAMAGE ──
         if (event.type === 'TILE_DAMAGE') {
           if (visible) {
+            // Pan camera to player units taking tile damage so it's always visible
+            useAnimationStore.getState().setCameraTarget(event.position);
+            await wait(ANIMATION.CAMERA_MOVE_DURATION_MS);
             useCombatAnimationStore.getState().addTileVfx({
               id: crypto.randomUUID(),
               x: event.position.x,
