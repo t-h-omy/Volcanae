@@ -200,7 +200,7 @@ export const UnitTag = {
   BUILDANDCAPTURE: 'BUILDANDCAPTURE',
   /** Enemy unit can corrupt FOREST and MOUNTAIN terrain tiles — places an Embernest on forest and a Magmaspyr on mountain */
   CORRUPT: 'CORRUPT',
-  /** Unit prioritizes moving toward lava to be destroyed */
+  /** Unit prioritizes moving toward lava to be destroyed (southward = increasing Y, toward the lava buffer at high Y) */
   SACRIFICIAL: 'SACRIFICIAL',
   /** Unit explodes when adjacent to enemies with no way forward (preemptive self-detonation), dealing area damage */
   EXPLOSIVE: 'EXPLOSIVE',
@@ -276,9 +276,9 @@ export const UnitTag = {
   PUNCTURE: 'PUNCTURE',
   /** On hit, sets the target's tile to BURNING status. */
   BURN: 'BURN',
-  /** Can dig underground to bypass the frontline and emerge behind it, dealing AoE damage on emergence and corrupting the emergence tile. */
+  /** Can dig underground to bypass the frontline and emerge behind it (south of the frontline = higher Y), dealing AoE damage on emergence and corrupting the emergence tile. */
   TUNNEL: 'TUNNEL',
-  /** Caster ability: creates portals behind the player frontline; enemy units stepping on the entrance teleport to the exit. */
+  /** Caster ability: creates portals behind the player frontline (south of the northernmost player unit = higher Y); enemy units stepping on the entrance teleport to the exit. */
   EMBER_PORTAL: 'EMBER_PORTAL',
 } as const;
 export type UnitTag = (typeof UnitTag)[keyof typeof UnitTag];
@@ -582,7 +582,8 @@ export interface CaveEncounter {
 /**
  * An active portal pair created by a RIFT_LORD.
  * The entrance tile is placed adjacent to the caster; the exit is placed
- * behind the player's frontline. Enemy units stepping on the entrance are
+ * behind the player's frontline (south of the northernmost player unit = higher Y).
+ * Enemy units stepping on the entrance are
  * teleported to the exit (if free) or wait there until the exit clears.
  */
 export interface Portal {

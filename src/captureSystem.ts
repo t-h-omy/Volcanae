@@ -20,6 +20,10 @@ import { grantArcaneCrystals } from './techSystem';
  * Gets the zone number (1-5) for a given position.
  * Zone 1: high Y rows (closest to lava, south)
  * Zone 5: low Y rows (northernmost)
+ *
+ * Zone numbering: Zone 1 = player side (south, high Y, lava-adjacent).
+ * Zone 5 = enemy side (north, low Y). Higher zone number = closer to enemy stronghold.
+ * Enemies advance by *decreasing* zone number; player advances by *increasing* zone number.
  */
 function getZoneForPosition(position: Position): number {
   const row = position.y;

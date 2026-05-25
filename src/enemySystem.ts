@@ -630,6 +630,10 @@ function spawnEnemyUnits(state: Draft<GameState>, events?: GameEvent[]): void {
 /**
  * Gets the zone number (1-5) for a given row position.
  * Zone 1 is at high Y (near lava), zone 5 is at low Y (far from lava).
+ *
+ * Zone numbering: Zone 1 = player side (south, high Y, lava-adjacent).
+ * Zone 5 = enemy side (north, low Y). Higher zone number = closer to enemy stronghold.
+ * Enemies advance by *decreasing* zone number; player advances by *increasing* zone number.
  */
 function getZoneForRow(row: number): number {
   if (row >= MAP.GRID_HEIGHT - MAP.LAVA_BUFFER_ROWS) return 0;
@@ -1229,7 +1233,7 @@ function moveEnemyUnitToward(
       const nextZone = getZoneForRow(nextPos.y);
       const currentZone = getZoneForRow(state.units[unitId].position.y);
       if (
-        nextZone < currentZone && // moving toward player (decreasing zone number toward zone 1)
+        nextZone < currentZone && // moving toward player (decreasing zone number toward zone 1; southward = increasing Y)
         state.zoneLockoutUntilTurn[nextZone] !== undefined &&
         state.turn < (state.zoneLockoutUntilTurn[nextZone] ?? 0)
       ) {

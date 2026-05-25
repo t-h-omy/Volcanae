@@ -2,6 +2,8 @@
 
 A top down push forward strategy game built with React + TypeScript + Vite.
 
+Grid orientation: see `src/GRID_ORIENTATION.md`.
+
 ## Features
 
 - ⚡ Vite for lightning-fast development
@@ -57,6 +59,9 @@ Spells are unlocked individually through the tech tree. The eight available spel
 A summoned Ember Demon is **leashed** to its controller Mage — if the Mage moves more than `MAGE.EMBER_DEMON_LEASH_RANGE` tiles away (see `src/gameConfig.ts` for all balance numbers), the demon defects to the enemy at the end of the player turn. The UI highlights both tiles with a purple glow and switches to a red warning glow when the leash is about to break.
 
 ## Changelog
+
+### v0.63.3 — Orientation pass
+Codebase comments and docs now consistently reflect the player-south / enemy-north / lava-advances-northward orientation. See `src/GRID_ORIENTATION.md` for the canonical reference.
 
 ### v0.63.2 — AI movement metric (DECISION-L)
 AI now uses edge-circle distance for target scoring (was Manhattan). Enemies score diagonal moves equally with axial moves; this matches the player's movement system.
