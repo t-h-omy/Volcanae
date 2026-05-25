@@ -17,9 +17,9 @@ export const MAP = {
   /** Width of the game grid in cells */
   GRID_WIDTH: 9,
   /** Total height of the grid (35 playable + 6 lava buffer rows at the south/high-Y end) */
-  GRID_HEIGHT: 41,
+  GRID_HEIGHT: 76,
   /** Number of zones on the map */
-  ZONE_COUNT: 5,
+  ZONE_COUNT: 10,
   /** Number of rows per zone */
   ZONE_HEIGHT: 7,
   /** Number of lava buffer rows at the south (high-Y) end of the map */
@@ -650,7 +650,7 @@ export const TERRAIN = {
    * Per-zone HP/ATK/DEF multiplier for the cave monster (index 0 = zone 1, index 4 = zone 5).
    * Higher zones are deeper into enemy territory and have stronger monsters.
    */
-  CAVE_MONSTER_ZONE_SCALE: [1.0, 1.2, 1.4, 1.6, 1.8] as const,
+  CAVE_MONSTER_ZONE_SCALE: [1.0, 1.2, 1.4, 1.6, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8] as const,
   /**
    * Chebyshev-distance radius within which the cave monster will patrol.
    * If the monster wanders outside this radius (no aggro), it returns to its home tile.
