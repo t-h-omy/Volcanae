@@ -194,6 +194,14 @@ function syncCameraToPlayerStronghold(state: GameState): void {
 }
 
 // ============================================================================
+// UTILITIES
+// ============================================================================
+
+function assertNever(x: never): never {
+  throw new Error(`Unhandled event type: ${(x as { type: string }).type}`);
+}
+
+// ============================================================================
 // STORE IMPLEMENTATION
 // ============================================================================
 
@@ -2362,6 +2370,29 @@ export const useGameStore = create<GameStore>()(
             // The live display state reflects this at queue-end via setGameState.
             // No incremental mutation needed here.
             break;
+
+          case 'STUN_APPLIED':
+            // Presentation-only: defender.pinnedUntilTurn is set by the combat resolver.
+            break;
+
+          case 'PORTAL_CREATED':
+            // Presentation-only: state mutation happens in the action producer (portalSystem.ts).
+            break;
+
+          case 'PORTAL_USED':
+            // Presentation-only: state mutation happens in the action producer (portalSystem.ts).
+            break;
+
+          case 'PORTAL_CLOSED':
+            // Presentation-only: state mutation happens in the action producer (portalSystem.ts).
+            break;
+
+          case 'RESONANCE_TRIGGERED':
+            // Presentation-only: mutation applied via resolvedState.
+            break;
+
+          default:
+            assertNever(event);
         }
       });
     },
