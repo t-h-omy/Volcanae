@@ -99,7 +99,7 @@ function eventPosition(event: GameEvent): Position {
     case 'PORTAL_USED':
       return event.fromPos;
     case 'PORTAL_CLOSED':
-      return event.position;
+      return event.entrancePos;
     case 'STUN_BLOCKED':
       return event.position;
     case 'DEFENSE_BONUS_IGNORED':
@@ -187,7 +187,7 @@ function isEventVisible(event: GameEvent): boolean {
     case 'PORTAL_USED':
       return isTileRevealed(event.fromPos) || isTileRevealed(event.toPos);
     case 'PORTAL_CLOSED':
-      return isTileRevealed(event.position);
+      return isTileRevealed(event.entrancePos) || isTileRevealed(event.exitPos);
     case 'STUN_BLOCKED':
       return isTileRevealed(event.position);
     case 'DEFENSE_BONUS_IGNORED':

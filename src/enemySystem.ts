@@ -7,7 +7,7 @@ import type { GameState, Unit, Building, Position } from './types';
 import type { Draft } from 'immer';
 import { produce } from 'immer';
 import { Faction, UnitType, UnitTag, BuildingType, TileType } from './types';
-import { UNIT_DEFINITIONS, ENEMY, MAP, TERRAIN, AI_SCORING, AI_RECRUITMENT, XP, DIFFICULTY_MULTIPLIER, SANCTUM_COLLAPSE, ABILITIES, COUNTER_UNIT_SCORING, PUNCTURE_STUN_BASE_DEF_THRESHOLD } from './gameConfig';
+import { UNIT_DEFINITIONS, ENEMY, MAP, TERRAIN, AI_SCORING, AI_RECRUITMENT, XP, DIFFICULTY_MULTIPLIER, SANCTUM_COLLAPSE, ABILITIES, COUNTER_UNIT_SCORING, PUNCTURE_STUN_BASE_DEF_THRESHOLD, EMBER_PORTAL_BASE_USE_SCORE, EMBER_PORTAL_DISTANCE_PENALTY, EMBER_PORTAL_MAX_USERS_PER_TURN } from './gameConfig';
 import { resolveAttack, calculateCombat, resolveBuildingAttack, buildingToCombatant, calculateCombatFromStats, unitToCombatant, resolveAttackOnBuilding } from './combatSystem';
 import { isTileWithinEdgeCircleRange, edgeCircleDistance } from './rangeUtils';
 import { initiateCapture, canCapture } from './captureSystem';
@@ -19,7 +19,7 @@ import { hasUnitActed } from './unitActions';
 import { sweepLeashes } from './spellSystem';
 import { checkGraveTrapTrigger } from './movementSystem';
 import { tryBeginTunnel, processTunnelTurn } from './tunnelSystem';
-import { cleanupPortals, tryPlanPortalCast, castPortal, getUsablePortalAtEntrance } from './portalSystem';
+import { cleanupPortals, cleanupExpiredPortalsEndOfTurn, tryPlanPortalCast, castPortal, getUsablePortalAtEntrance, tryTeleportThroughPortal, processPendingPortalTeleports } from './portalSystem';
 
 // ============================================================================
 // ID GENERATION
@@ -69,6 +69,7 @@ type EnemyActionType =
   | 'BUILD_INFERNAL_SANCTUM'
   | 'MOVE_TO_SAFE_RANGED_POSITION'
   | 'EXPLODE'
+  | 'MOVE_TO_PORTAL'
   | 'HOLD_POSITION';
 
 interface ScoredAction {
@@ -77,6 +78,8 @@ interface ScoredAction {
   targetUnitId?: string;
   targetBuildingId?: string;
   targetPosition?: Position;
+  /** Portal ID tagged on MOVE_TO_PORTAL actions for intent tracking. */
+  portalIntentId?: string;
 }
 
 export type { ScoredAction };
@@ -1181,43 +1184,21 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
   // GRAVE_TRAP: check if the enemy unit landed on a player trap
   checkGraveTrapTrigger(state, unitId);
 
-  // PORTAL: check if the unit stepped onto a portal entrance
+  // PORTAL: check if the unit stepped onto a portal entrance.
   if (state.units[unitId]) {
     const movedUnit = state.units[unitId];
-    // Only non-caster, non-SACRIFICIAL enemy units may use portals
-    if (!movedUnit.tags.includes(UnitTag.SACRIFICIAL)) {
-      const portal = getUsablePortalAtEntrance(state, movedUnit.position);
-      if (portal && portal.casterId !== movedUnit.id) {
-        const exitTile = state.grid[portal.exitPos.y]?.[portal.exitPos.x];
-        // Validate exit tile: must exist, be free, not be lava, not be canyon,
-        // and have no building (a building may have been placed there since portal creation)
-        const exitPassable =
-          exitTile &&
-          !exitTile.unitId &&
-          !exitTile.isLava &&
-          exitTile.terrainType !== TileType.CANYON &&
-          exitTile.buildingId === null;
-        if (exitPassable) {
-          const entranceTile = state.grid[movedUnit.position.y][movedUnit.position.x];
-          const teleportFrom = { x: movedUnit.position.x, y: movedUnit.position.y };
-          entranceTile.unitId = null;
-          movedUnit.position = { x: portal.exitPos.x, y: portal.exitPos.y };
-          exitTile.unitId = movedUnit.id;
-          // Reset lastMovementDirection so FROZEN-slide doesn't fire on the exit tile
-          movedUnit.lastMovementDirection = null;
-          if (events) {
-            events.push({
-              type: 'PORTAL_USED',
-              unitId: movedUnit.id,
-              fromPos: teleportFrom,
-              toPos: { x: portal.exitPos.x, y: portal.exitPos.y },
-            });
-          }
-        }
-        // If exit is invalid or blocked the unit remains at entrance (already moved there)
-      }
+    const portal = getUsablePortalAtEntrance(state, movedUnit.position);
+    if (portal && portal.casterId !== movedUnit.id) {
+      // Sacrificial units are NOW allowed to use portals (Decision rework).
+      tryTeleportThroughPortal(state, movedUnit.id, portal.id, events);
+      // If exit was blocked, the unit is now waiting (pendingTeleportUnitId set).
+      // The waiter will teleport automatically when the exit clears.
     }
   }
+
+  // After this unit's movement, give other waiting units a chance to teleport
+  // (this unit may have vacated a tile that was someone else's portal exit).
+  processPendingPortalTeleports(state, events);
 }
 
 // ============================================================================
@@ -1350,6 +1331,9 @@ export function resolveExplosion(
     position: unitPos,
     faction: Faction.ENEMY,
   });
+
+  // Explosion may have freed portal exit tiles; resolve any waiting teleports.
+  processPendingPortalTeleports(state, events);
 }
 
 // ============================================================================
@@ -1364,6 +1348,7 @@ function scoreActionsForUnit(
   state: Draft<GameState>,
   targetingIntents: Map<string, number>,
   recentlyLostBuildingIds: Set<string>,
+  portalUsageIntents: Map<string, number>,
 ): ScoredAction[] {
   const candidates: ScoredAction[] = [];
   const triggerRange = unit.stats.triggerRange;
@@ -1979,6 +1964,38 @@ function scoreActionsForUnit(
   // ── HOLD_POSITION ──
   candidates.push({ type: 'HOLD_POSITION', score: AI_SCORING.BASE_HOLD_POSITION });
 
+  // ── MOVE_TO_PORTAL ──
+  // Add a strong incentive to step onto a portal entrance when the exit advances
+  // this unit southward (toward the player) and the per-turn limit is not yet hit.
+  if (!unit.hasMovedThisTurn) {
+    for (const portal of Object.values(state.portals)) {
+      // Caster never uses own portal.
+      if (portal.casterId === unit.id) continue;
+      // Skip if portal is no longer usable.
+      if (state.turn < portal.createdTurn || state.turn > portal.lastUsableTurn) continue;
+      // Skip if the portal exit is not south of the entrance (no advance value).
+      if (portal.exitPos.y <= portal.entrancePos.y) continue;
+      // Skip if usage limit for this turn is already hit.
+      const usersThisTurn = portalUsageIntents.get(portal.id) ?? 0;
+      if (usersThisTurn >= EMBER_PORTAL_MAX_USERS_PER_TURN) continue;
+
+      // Check reachability using BFS path existence.
+      const path = findBfsPath(unit.position, portal.entrancePos, state);
+      if (path.length === 0 && (unit.position.x !== portal.entrancePos.x || unit.position.y !== portal.entrancePos.y)) continue;
+
+      const distance = edgeCircleDistance(unit.position.x, unit.position.y, portal.entrancePos.x, portal.entrancePos.y);
+      const score = EMBER_PORTAL_BASE_USE_SCORE - (distance * EMBER_PORTAL_DISTANCE_PENALTY);
+      if (score <= 0) continue;
+
+      candidates.push({
+        type: 'MOVE_TO_PORTAL',
+        score,
+        targetPosition: portal.entrancePos,
+        portalIntentId: portal.id,
+      });
+    }
+  }
+
   // ── Recruitment-building step penalty ──
   // Subtract a penalty from any movement candidate whose first step toward the
   // target would land on a friendly enemy recruitment building. This keeps
@@ -2325,6 +2342,13 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
 
     case 'HOLD_POSITION':
       break;
+
+    case 'MOVE_TO_PORTAL': {
+      if (action.targetPosition && !currentUnit.hasMovedThisTurn) {
+        moveEnemyUnitToward(state, currentUnit.id, action.targetPosition, events);
+      }
+      break;
+    }
   }
 }
 
@@ -2337,11 +2361,12 @@ function decideAndExecute(
   state: Draft<GameState>,
   targetingIntents: Map<string, number>,
   recentlyLostBuildingIds: Set<string>,
+  portalUsageIntents: Map<string, number>,
   events?: GameEvent[],
 ): void {
   // All units go through the unified scoring — tag-based behaviors
   // (EXPLOSIVE, SACRIFICIAL, etc.) are handled within scoreActionsForUnit
-  const candidates = scoreActionsForUnit(unit, state, targetingIntents, recentlyLostBuildingIds);
+  const candidates = scoreActionsForUnit(unit, state, targetingIntents, recentlyLostBuildingIds, portalUsageIntents);
 
   candidates.sort((a, b) => b.score - a.score);
 
@@ -2352,6 +2377,11 @@ function decideAndExecute(
   const intentKey = chosen.targetUnitId ?? chosen.targetBuildingId ?? null;
   if (intentKey) {
     targetingIntents.set(intentKey, (targetingIntents.get(intentKey) ?? 0) + 1);
+  }
+
+  // Register portal usage intent for per-turn usage tracking
+  if (chosen.type === 'MOVE_TO_PORTAL' && chosen.portalIntentId) {
+    portalUsageIntents.set(chosen.portalIntentId, (portalUsageIntents.get(chosen.portalIntentId) ?? 0) + 1);
   }
 
   executeAction(unit, chosen, state, events);
@@ -2736,6 +2766,7 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
 
     // 3. Process each enemy unit (excluding CAVE_MONSTER — handled above)
     const targetingIntents = new Map<string, number>();
+    const portalUsageIntents = new Map<string, number>();
     const enemyUnits = Object.values(draft.units).filter(
       u => u.faction === Faction.ENEMY && u.type !== UnitType.CAVE_MONSTER,
     );
@@ -2774,7 +2805,7 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
           }
           // If no cast possible, fall through to standard movement (toward player)
         }
-        decideAndExecute(currentUnit, draft, targetingIntents, recentlyLostBuildingIds, events);
+        decideAndExecute(currentUnit, draft, targetingIntents, recentlyLostBuildingIds, portalUsageIntents, events);
       }
       // Sweep leashes after each enemy unit's turn to handle mage displacement
       // Pre-capture mage/demon positions before sweepLeashes mutates faction.
@@ -2828,6 +2859,11 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
         building.hasAttackedThisTurn = false;
       }
     }
+
+    // 5. Remove portal pairs whose lastUsableTurn equals the current turn.
+    //    This runs AFTER all enemy unit actions, ensuring portals are usable
+    //    for the full L turns and then removed at end of their last usable turn.
+    cleanupExpiredPortalsEndOfTurn(draft, events);
   });
   return { finalState, events };
 }
@@ -2864,11 +2900,13 @@ export function computeUnitAiScores(state: GameState, unitId: string): ScoredAct
   );
 
   const targetingIntents = new Map<string, number>();
+  const portalUsageIntents = new Map<string, number>();
   const scores = scoreActionsForUnit(
     unit,
     state as Draft<GameState>,
     targetingIntents,
     recentlyLostBuildingIds,
+    portalUsageIntents,
   );
   return scores.sort((a, b) => b.score - a.score);
 }

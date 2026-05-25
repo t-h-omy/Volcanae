@@ -407,9 +407,7 @@ export interface Unit {
   /** Turn number until which this unit cannot dig in again. */
   tunnelCooldownUntil?: number;
 
-  /** Turn number until which this unit (a RIFT_LORD) cannot cast a new portal. */
-  portalCastCooldownUntil?: number;
-}
+ }
 
 /** Defines a single stat boost applied when a unit reaches a new level */
 export interface UnitLevelStatBoost {
@@ -582,25 +580,33 @@ export interface CaveEncounter {
 }
 
 /**
- * An active portal created by a RIFT_LORD.
- * The entrance tile is placed adjacent to the caster; the exit is deep in
- * the player backline. Enemy units (except the caster and SACRIFICIAL units)
- * that step onto the entrance are teleported to the exit.
+ * An active portal pair created by a RIFT_LORD.
+ * The entrance tile is placed adjacent to the caster; the exit is placed
+ * behind the player's frontline. Enemy units stepping on the entrance are
+ * teleported to the exit (if free) or wait there until the exit clears.
  */
 export interface Portal {
   id: string;
-  /** ID of the hexcaster that created this portal */
+  /** ID of the hexcaster that created this portal pair */
   casterId: string;
   /** Tile position where allied units enter the portal */
   entrancePos: Position;
   /** Tile position where allied units exit the portal */
   exitPos: Position;
-  /** Turn on which the portal was created */
+  /** Turn on which the portal pair was created (usable from this turn onward) */
   createdTurn: number;
-  /** Turn on which the portal expires and is automatically removed */
-  expiresTurn: number;
-  /** Earliest turn on which the portal is usable (createdTurn + EMBER_PORTAL_USE_COOLDOWN_TURNS) */
-  usableFromTurn: number;
+  /**
+   * The last enemy turn on which this pair is usable. Removed at the END of this turn.
+   * Equals createdTurn + EMBER_PORTAL_LIFETIME_TURNS - 1.
+   * Example: cast on turn 5 with LIFETIME = 2 → usable on turns 5 and 6, removed at end of turn 6.
+   */
+  lastUsableTurn: number;
+  /**
+   * ID of an enemy unit currently waiting on the entrance because the exit is occupied.
+   * Null if no unit is waiting. Set by entrance-step or by post-cast displacement.
+   * Cleared when the waiting unit teleports.
+   */
+  pendingTeleportUnitId: string | null;
 }
 
 /** Complete game state */

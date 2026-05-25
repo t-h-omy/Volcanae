@@ -183,6 +183,21 @@ export function getReachableTiles(
         }
       }
 
+      // Player units cannot enter portal entrance or exit tiles.
+      if (unit.faction === Faction.PLAYER) {
+        let blockedByPortal = false;
+        for (const portal of Object.values(state.portals)) {
+          if (
+            (portal.entrancePos.x === nx && portal.entrancePos.y === ny) ||
+            (portal.exitPos.x === nx && portal.exitPos.y === ny)
+          ) {
+            blockedByPortal = true;
+            break;
+          }
+        }
+        if (blockedByPortal) continue;
+      }
+
       bfsReachable.push({ x: nx, y: ny });
       queue.push({ x: nx, y: ny, steps: steps + 1 });
     }

@@ -313,12 +313,15 @@ export type GameEvent =
     }
   | {
       /**
-       * Emitted when a portal is removed (expired or caster died).
+       * Emitted when a portal is removed (expired, caster died, or consumed by lava).
+       * Carries both endpoint positions so the close animation plays at both tiles.
        */
       type: 'PORTAL_CLOSED';
       portalId: string;
       /** Portal entrance tile (for renderer clean-up). */
-      position: Position;
+      entrancePos: Position;
+      /** Portal exit tile (for renderer clean-up). */
+      exitPos: Position;
     }
   | {
       /**

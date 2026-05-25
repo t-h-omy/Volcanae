@@ -18,7 +18,7 @@ import { TECH_TREE, POPULATION, SPECIALIST_DEFINITIONS } from './gameConfig';
 const SAVE_KEY = 'volcanae-save';
 
 /** Increment this whenever the serialized shape changes incompatibly. */
-const SAVE_VERSION = 12;
+const SAVE_VERSION = 13;
 
 // ============================================================================
 // PUBLIC API
@@ -367,6 +367,40 @@ export function loadGameState(): GameState | null {
           if (!Array.isArray(row)) continue;
           for (const tile of row as Array<unknown>) {
             delete (tile as Record<string, unknown>).type;
+          }
+        }
+      }
+    }
+
+    // Migration v12 → v13: EMBER_PORTAL Portal interface rework.
+    // Old fields: expiresTurn (exclusive), usableFromTurn → new: lastUsableTurn (inclusive).
+    // Added: pendingTeleportUnitId. Removed: portalCastCooldownUntil from Unit.
+    if (parsed.version < 13) {
+      if (s.portals && typeof s.portals === 'object') {
+        for (const portal of Object.values(s.portals) as Array<unknown>) {
+          const p = portal as Record<string, unknown>;
+          if (p && typeof p.id === 'string') {
+            // Convert expiresTurn (exclusive) to lastUsableTurn (inclusive).
+            // Old: usable while turn < expiresTurn → lastUsableTurn = expiresTurn - 1.
+            if (typeof p.expiresTurn === 'number') {
+              p.lastUsableTurn = p.expiresTurn - 1;
+            }
+            // Initialize pendingTeleportUnitId if absent.
+            if (!('pendingTeleportUnitId' in p)) {
+              p.pendingTeleportUnitId = null;
+            }
+            // Remove old fields.
+            delete p.expiresTurn;
+            delete p.usableFromTurn;
+          }
+        }
+      }
+      if (s.units && typeof s.units === 'object') {
+        for (const unit of Object.values(s.units) as Array<unknown>) {
+          const u = unit as Record<string, unknown>;
+          if (u && typeof u.id === 'string') {
+            // Remove old per-unit cast cooldown field.
+            delete u.portalCastCooldownUntil;
           }
         }
       }

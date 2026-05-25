@@ -2013,18 +2013,20 @@ export const TUNNEL_MAX_RETRY_TURNS = 1;
 /** TUNNEL: HP multiplier applied when a unit is forced to emerge with no valid free tile (last-resort fallback). */
 export const TUNNEL_FORCED_EMERGE_HP_MULTIPLIER = 0.7;
 
-/** EMBER_PORTAL: maximum distance from the caster to an exit tile. */
-export const EMBER_PORTAL_EXIT_RANGE = 6;
-/** EMBER_PORTAL: minimum tiles south of the southernmost player unit the exit must be placed. */
-export const EMBER_PORTAL_MIN_DISTANCE_SOUTH_OF_FRONTLINE = 2;
-/** EMBER_PORTAL: turns after creation before the portal can be used. */
-export const EMBER_PORTAL_USE_COOLDOWN_TURNS = 1;
-/** EMBER_PORTAL: total lifetime of a portal in turns; expires automatically. */
-export const EMBER_PORTAL_LIFETIME_TURNS = 3;
-/** EMBER_PORTAL: maximum simultaneous portals per caster. */
-export const EMBER_PORTAL_MAX_PER_CASTER = 2;
-/** EMBER_PORTAL: HP of the portal exit tile when treated as a destructible entity. */
-export const EMBER_PORTAL_HP = 1;
+/** EMBER_PORTAL: number of enemy turns the pair is usable, including the cast turn.
+ * Cast on turn T → usable on T, T+1, ..., T+L-1. Removed at the END of enemy turn T+L-1.
+ */
+export const EMBER_PORTAL_LIFETIME_TURNS = 2;
+/** EMBER_PORTAL: minimum rows the exit tile must be south of the northernmost player unit. */
+export const EMBER_PORTAL_MIN_DISTANCE_BEHIND_FRONTLINE = 1;
+/** EMBER_PORTAL: maximum edge-circle distance between the entry and exit portals of a pair. */
+export const EMBER_PORTAL_PAIR_MAX_DISTANCE = 4;
+/** EMBER_PORTAL: maximum enemy units that may score moving onto the same portal entrance per turn. */
+export const EMBER_PORTAL_MAX_USERS_PER_TURN = 2;
+/** EMBER_PORTAL: AI base score for moving onto a portal entrance whose exit is closer to the player. */
+export const EMBER_PORTAL_BASE_USE_SCORE = 60;
+/** EMBER_PORTAL: AI per-tile penalty for distance to the portal entrance. */
+export const EMBER_PORTAL_DISTANCE_PENALTY = 4;
 
 // ============================================================================
 // TAG INFO — label and description for each unit tag
@@ -2084,7 +2086,7 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   [UnitTag.PUNCTURE]:     { label: 'Puncture',    desc: `Ignores defensive bonuses on the target. Stuns targets with base DEF above ${PUNCTURE_STUN_BASE_DEF_THRESHOLD} for ${PUNCTURE_STUN_DURATION} turn(s).` },
   [UnitTag.BURN]:         { label: 'Burn',        desc: 'Attacks set the target\'s tile to Burning, dealing damage to non-lava units standing there at end of turn.' },
   [UnitTag.TUNNEL]:       { label: 'Tunnel',      desc: `Digs underground and re-emerges ${TUNNEL_RANGE_MIN}–${TUNNEL_RANGE_MAX} tiles south in the same column. Deals ${TUNNEL_EMERGE_DAMAGE} damage to enemies adjacent to the emergence tile. Sets the emergence tile to Corrupted.` },
-  [UnitTag.EMBER_PORTAL]: { label: 'Ember Portal', desc: 'Creates a portal pair behind the player frontline. Enemy units stepping on the entrance teleport to the exit. Exit tile is corrupted on creation.' },
+  [UnitTag.EMBER_PORTAL]: { label: 'Ember Portal', desc: 'Casts a pair of portals: an entrance next to the Rift Lord and an exit behind the player\'s frontline. Any enemy unit stepping on the entrance teleports to the exit, if the exit is free. If the exit is blocked, the unit waits on the entrance and teleports the moment the exit clears. The Rift Lord cannot cast another pair until the current pair is removed. Portal tiles are corrupted and block player movement.' },
 };
 
 // ============================================================================

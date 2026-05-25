@@ -24,6 +24,7 @@ import { Faction, BuildingType } from './types';
 import { MAP, TECH, CRYSTAL_CHAMBER_CONFIG, getLavaAdvanceInterval } from './gameConfig';
 import type { GameEvent } from './gameEvents';
 import { grantArcaneCrystals } from './techSystem';
+import { removePortalsOnLava } from './portalSystem';
 
 // ============================================================================
 // LAVA STATE QUERIES
@@ -91,7 +92,7 @@ function updateLavaPreview(state: Draft<GameState>): void {
  *
  * @param state - Immer draft of the game state (will be mutated)
  */
-export function advanceLava(state: Draft<GameState>): void {
+export function advanceLava(state: Draft<GameState>, outEvents?: GameEvent[]): void {
   // Advance lava front row (northward = decreasing Y)
   const newLavaRow = state.lavaFrontRow - 1;
 
@@ -202,6 +203,9 @@ export function advanceLava(state: Draft<GameState>): void {
       unit.tunnelStartPosition = null;
     }
   }
+
+  // Remove any portal pair whose entrance or exit tile is now lava.
+  removePortalsOnLava(state, outEvents);
 }
 
 // ============================================================================
@@ -269,8 +273,9 @@ export function advanceLavaWithEvents(state: GameState): { newState: GameState; 
     }
   }
 
+  let portalEvents: GameEvent[] = [];
   let newState = produce(state, (draft) => {
-    advanceLava(draft);
+    advanceLava(draft, portalEvents);
   });
 
   const events: GameEvent[] = [
@@ -281,6 +286,7 @@ export function advanceLavaWithEvents(state: GameState): { newState: GameState; 
       destroyedBuildingIds,
       ...(destroyedChamberPosition ? { destroyedChamberPosition } : {}),
     },
+    ...portalEvents,
   ];
 
   // If a Crystal Chamber was destroyed, emit RESONANCE_TRIGGERED so the camera

@@ -54,6 +54,7 @@ import { getTagsFromActiveSpecialists } from './specialistSystem';
 import { castSpell as castSpellLogic } from './spellSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { useShockwaveStore } from './shockwaveStore';
+import { processPendingPortalTeleports } from './portalSystem';
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
@@ -311,6 +312,8 @@ export const useGameStore = create<GameStore>()(
         const factionBefore = unitBefore?.faction;
 
         moveUnitLogic(state, unitId, targetPosition);
+        // Player movement may have freed a portal exit tile; resolve waiting teleports.
+        processPendingPortalTeleports(state);
         // Update tile discovery after player action
         updateDiscovery(state);
 
