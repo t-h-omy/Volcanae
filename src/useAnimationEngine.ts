@@ -1377,8 +1377,9 @@ export function useAnimationEngine(): void {
 
         // ── Special handling for LEASH_DEFECT (demon defects during enemy turn) ──
         if (event.type === 'LEASH_DEFECT') {
-          // applyEvent is a no-op: sweepLeashes already mutated faction in the
-          // immer draft. This event is purely for animation sequencing.
+          // sweepLeashes already mutated faction in the immer draft. applyEvent is
+          // called here for consistency (it is a no-mutation no-op for LEASH_DEFECT)
+          // so the live display state stays coherent with the resolved state.
           useGameStore.getState().applyEvent(event);
           if (visible) {
             const combatStore = useCombatAnimationStore.getState();

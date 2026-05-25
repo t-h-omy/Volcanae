@@ -1579,11 +1579,11 @@ export function resolveBuildingAttackOnBuilding(
       attackingBuilding.wasEnemyOwnedBeforeCapture = false;
       if (attackingFaction === Faction.PLAYER) state.gameStats.buildingsDestroyedByEnemy += 1;
     } else if (attackingFaction === Faction.PLAYER && targetFaction === Faction.ENEMY) {
-      // Player building killed by enemy building counter: remove from state; apply destroy behavior
+      // Player building destroyed by enemy building counter: remove from state; apply destroy behavior
       applyBuildingDestroyEffect(state, attackingBuildingId, attackingBuilding.position, attackingBuilding.destroyBehavior);
       state.gameStats.buildingsDestroyedByEnemy += 1;
     } else if (attackingFaction === Faction.ENEMY && targetFaction === Faction.PLAYER) {
-      // Enemy building killed by player building counter: remove from state; apply destroy behavior
+      // Enemy building destroyed by player building counter: remove from state; apply destroy behavior
       applyBuildingDestroyEffect(state, attackingBuildingId, attackingBuilding.position, attackingBuilding.destroyBehavior);
       state.gameStats.enemyBuildingsDestroyed += 1;
     }
