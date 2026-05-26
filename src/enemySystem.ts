@@ -6,7 +6,7 @@
 import type { GameState, Unit, Building, Position } from './types';
 import type { Draft } from 'immer';
 import { produce } from 'immer';
-import { Faction, UnitType, UnitTag, BuildingType, TileType } from './types';
+import { Faction, UnitType, UnitTag, BuildingType, TileType, TileStatus } from './types';
 import { UNIT_DEFINITIONS, ENEMY, MAP, TERRAIN, AI_SCORING, AI_RECRUITMENT, XP, DIFFICULTY_MULTIPLIER, SANCTUM_COLLAPSE, ABILITIES, COUNTER_UNIT_SCORING, PUNCTURE_STUN_BASE_DEF_THRESHOLD, EMBER_PORTAL_BASE_USE_SCORE, EMBER_PORTAL_DISTANCE_PENALTY, EMBER_PORTAL_MAX_USERS_PER_TURN } from './gameConfig';
 import { resolveAttack, calculateCombat, resolveBuildingAttack, buildingToCombatant, calculateCombatFromStats, unitToCombatant, resolveAttackOnBuilding } from './combatSystem';
 import { isTileWithinEdgeCircleRange, edgeCircleDistance } from './rangeUtils';
@@ -17,7 +17,7 @@ import { processEnemyLevelUps, grantXp } from './levelSystem';
 import type { GameEvent } from './gameEvents';
 import { hasUnitActed } from './unitActions';
 import { sweepLeashes } from './spellSystem';
-import { checkGraveTrapTrigger } from './movementSystem';
+import { checkGraveTrapTrigger, resolveSlide } from './movementSystem';
 import { tryBeginTunnel, processTunnelTurn } from './tunnelSystem';
 import { cleanupPortals, cleanupExpiredPortalsEndOfTurn, tryPlanPortalCast, castPortal, getUsablePortalAtEntrance, tryTeleportThroughPortal, processPendingPortalTeleports } from './portalSystem';
 
@@ -1186,6 +1186,17 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
 
   // GRAVE_TRAP: check if the enemy unit landed on a player trap
   checkGraveTrapTrigger(state, unitId);
+
+  // FROZEN tile: trigger the slippery slide mechanic (same as player units).
+  if (state.units[unitId] && newTile.status === TileStatus.FROZEN) {
+    const dx = targetPosition.x - from.x;
+    const dy = targetPosition.y - from.y;
+    // Normalise to unit direction (enemy can move multiple tiles per step)
+    const norm = Math.max(Math.abs(dx), Math.abs(dy));
+    if (norm > 0) {
+      resolveSlide(state, unitId, Math.sign(dx), Math.sign(dy));
+    }
+  }
 
   // PORTAL: check if the unit stepped onto a portal entrance.
   if (state.units[unitId]) {
