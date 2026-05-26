@@ -267,7 +267,7 @@ export function checkGraveTrapTrigger(
  * Note: MOUNTAIN terrain is intentionally NOT a slide-stopper — units can walk
  * onto mountain tiles in normal movement, so slides must be consistent.
  */
-function resolveSlide(
+export function resolveSlide(
   state: Draft<GameState>,
   unitId: string,
   dx: number,

@@ -1548,6 +1548,12 @@ export function resolveAttackOnBuilding(
       toTile.unitId = attackerId;
       attackerUnit.position.x = buildingPosition.x;
       attackerUnit.position.y = buildingPosition.y;
+      // Mark the attacker as having moved this turn so the cave-popup eligibility
+      // check in selectUnit / the HUD useEffect treats this as "just arrived" and
+      // does not open the popup on the same turn as the melee advance.
+      if (attackerFaction === Faction.PLAYER) {
+        attackerUnit.lastMovedTurn = state.turn;
+      }
     }
   }
 

@@ -6,7 +6,7 @@
 import type { GameState, Unit, Building, Position } from './types';
 import type { Draft } from 'immer';
 import { produce } from 'immer';
-import { Faction, UnitType, UnitTag, BuildingType, TileType } from './types';
+import { Faction, UnitType, UnitTag, BuildingType, TileType, TileStatus } from './types';
 import { UNIT_DEFINITIONS, ENEMY, MAP, TERRAIN, AI_SCORING, AI_RECRUITMENT, XP, DIFFICULTY_MULTIPLIER, SANCTUM_COLLAPSE, ABILITIES, COUNTER_UNIT_SCORING, PUNCTURE_STUN_BASE_DEF_THRESHOLD, EMBER_PORTAL_BASE_USE_SCORE, EMBER_PORTAL_DISTANCE_PENALTY, EMBER_PORTAL_MAX_USERS_PER_TURN } from './gameConfig';
 import { resolveAttack, calculateCombat, resolveBuildingAttack, buildingToCombatant, calculateCombatFromStats, unitToCombatant, resolveAttackOnBuilding } from './combatSystem';
 import { isTileWithinEdgeCircleRange, edgeCircleDistance } from './rangeUtils';
@@ -17,7 +17,7 @@ import { processEnemyLevelUps, grantXp } from './levelSystem';
 import type { GameEvent } from './gameEvents';
 import { hasUnitActed } from './unitActions';
 import { sweepLeashes } from './spellSystem';
-import { checkGraveTrapTrigger } from './movementSystem';
+import { checkGraveTrapTrigger, resolveSlide } from './movementSystem';
 import { tryBeginTunnel, processTunnelTurn } from './tunnelSystem';
 import { cleanupPortals, cleanupExpiredPortalsEndOfTurn, tryPlanPortalCast, castPortal, getUsablePortalAtEntrance, tryTeleportThroughPortal, processPendingPortalTeleports } from './portalSystem';
 
@@ -1202,6 +1202,14 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
   // After this unit's movement, give other waiting units a chance to teleport
   // (this unit may have vacated a tile that was someone else's portal exit).
   processPendingPortalTeleports(state, events);
+
+  // FROZEN tile: trigger the slippery slide mechanic.
+  // Re-fetch the unit — it must still be alive (not killed by a GRAVE_TRAP or other effect).
+  if (newTile.status === TileStatus.FROZEN && state.units[unitId]) {
+    const moveDx = targetPosition.x - from.x;
+    const moveDy = targetPosition.y - from.y;
+    resolveSlide(state, unitId, moveDx, moveDy);
+  }
 }
 
 // ============================================================================
@@ -1243,6 +1251,9 @@ function moveEnemyUnitToward(
     const tile = state.grid[nextPos.y][nextPos.x];
     if (tile.unitId !== null) break; // blocked by a unit occupying the tile
     moveEnemyUnit(state, unitId, nextPos, events);
+    // If the unit slid on a FROZEN tile, it's no longer at nextPos — stop multi-step movement.
+    const afterMove = state.units[unitId];
+    if (afterMove && (afterMove.position.x !== nextPos.x || afterMove.position.y !== nextPos.y)) break;
   }
 }
 

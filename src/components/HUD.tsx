@@ -1314,6 +1314,19 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
     if (contextualDef !== 0) addC('defense', contextualDef);
     if (contextualMov.total !== 0) addC('moveRange', contextualMov.total);
 
+    // RAGE: dynamic +ATK per adjacent enemy (works for both factions)
+    if (unit.tags.includes(UnitTag.RAGE)) {
+      let adjacentEnemyCount = 0;
+      for (const otherId of Object.keys(gameState.units)) {
+        const other = gameState.units[otherId];
+        if (!other || other.faction === unit.faction) continue;
+        if (!isTileWithinEdgeCircleRange(unit.position.x, unit.position.y, other.position.x, other.position.y, 1)) continue;
+        adjacentEnemyCount++;
+      }
+      const rageBonus = Math.min(adjacentEnemyCount, RAGE_MAX_ADJACENT_COUNT) * RAGE_ATK_PER_ADJACENT;
+      if (rageBonus > 0) addC('attack', rageBonus);
+    }
+
     const hasAnyMap: Record<string, boolean> = {};
     const netMap: Record<string, number> = {};
     for (const k of new Set([...Object.keys(appliedMap), ...Object.keys(contextualMap)])) {
@@ -1336,6 +1349,18 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
 
   if (phalanxAttack > 0) mods.push({ stat: 'ATK', value: phalanxAttack, kind: 'active', source: 'Phalanx Formation (adjacent guard)' });
   if (phalanxDefense > 0) mods.push({ stat: 'DEF', value: phalanxDefense, kind: 'active', source: 'Phalanx Formation (adjacent guard)' });
+  // RAGE: dynamic +ATK per adjacent enemy (works for both factions)
+  if (unit.tags.includes(UnitTag.RAGE)) {
+    let adjacentEnemyCount = 0;
+    for (const otherId of Object.keys(gameState.units)) {
+      const other = gameState.units[otherId];
+      if (!other || other.faction === unit.faction) continue;
+      if (!isTileWithinEdgeCircleRange(unit.position.x, unit.position.y, other.position.x, other.position.y, 1)) continue;
+      adjacentEnemyCount++;
+    }
+    const rageBonus = Math.min(adjacentEnemyCount, RAGE_MAX_ADJACENT_COUNT) * RAGE_ATK_PER_ADJACENT;
+    if (rageBonus > 0) mods.push({ stat: 'ATK', value: rageBonus, kind: 'active', source: `Rage (+${RAGE_ATK_PER_ADJACENT} ATK per adjacent enemy, ${adjacentEnemyCount} nearby)` });
+  }
   if (unit.faction === Faction.PLAYER) {
     if (contextualDef > 0) mods.push({ stat: 'DEF', value: contextualDef, kind: 'active', source: 'Hold Ground (standing on own building)' });
     if (unit.tags.includes(UnitTag.SKIRMISHER)) mods.push({ stat: 'MOV', value: ABILITIES.SKIRMISHER_MOVE_BONUS, kind: 'active', source: 'Skirmisher (tag ability)' });
