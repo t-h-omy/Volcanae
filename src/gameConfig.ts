@@ -773,7 +773,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   SWORDSMAN: {
-    maxHp: 100, attack: 55, defense: 50,
+    maxHp: 120, attack: 60, defense: 50,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
     tags: [UnitTag.BUILDANDCAPTURE],
@@ -801,7 +801,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   RIDER: {
-    maxHp: 80, attack: 65, defense: 35,
+    maxHp: 100, attack: 70, defense: 35,
     movementActions: 1, moveRange: 2, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
     tags: [UnitTag.BUILDANDCAPTURE],
@@ -815,7 +815,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   SIEGE: {
-    maxHp: 70, attack: 80, defense: 0,
+    maxHp: 75, attack: 85, defense: 0,
     movementActions: 1, moveRange: 1, attackRange: 3,
     discoverRadius: 1, triggerRange: 0,
     tags: [UnitTag.RANGED, UnitTag.PREP],
@@ -902,7 +902,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   LAVA_SIEGE: {
-    maxHp: 100, attack: 85, defense: 0,
+    maxHp: 75, attack: 85, defense: 0,
     movementActions: 1, moveRange: 1, attackRange: 3,
     discoverRadius: 1, triggerRange: 4,
     tags: [UnitTag.RANGED, UnitTag.PREP, UnitTag.LAVA],
@@ -973,7 +973,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
     enemyUnlockEmber: 5,
-    description: 'Ranged firestarter that scorches the target\'s tile, forcing player units to abandon static positions.',
+    description: 'Ranged firestarter that scorches the target\'s tile.',
   },
 
   GRIMBEAK: {
@@ -1052,7 +1052,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   MAGE: {
-    maxHp: 70, attack: 0, defense: 30,
+    maxHp: 80, attack: 0, defense: 0,
     movementActions: 1, moveRange: 1, attackRange: 2,
     discoverRadius: 1, triggerRange: 0,
     tags: [UnitTag.PASSIVE, UnitTag.PREP],
@@ -1080,7 +1080,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   SKELETON: {
-    maxHp: 70, attack: 40, defense: 35,
+    maxHp: 80, attack: 40, defense: 35,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
     tags: [],
@@ -1214,11 +1214,11 @@ export const ABILITIES = {
   PIN_DOWN_STUN_CHANCE: 0.3,
   // ── Tech-tree production bonus abilities ────────────────────────────────────
   /** % chance for a Mine to yield one extra iron per turn (DEEP_VEINS tech) */
-  DEEP_VEINS_BONUS_CHANCE: 40,
+  DEEP_VEINS_BONUS_CHANCE: 50,
   /** Extra iron amount produced per bonus proc (DEEP_VEINS tech) */
   DEEP_VEINS_BONUS_AMOUNT: 1,
   /** % chance for a Woodcutter to yield one extra wood per turn (CLEAN_CUTS tech) */
-  CLEAN_CUTS_BONUS_CHANCE: 40,
+  CLEAN_CUTS_BONUS_CHANCE: 50,
   /** Extra wood amount produced per bonus proc (CLEAN_CUTS tech) */
   CLEAN_CUTS_BONUS_AMOUNT: 1,
   // ── Tech-tree stronghold/citadel abilities ───────────────────────────────────
@@ -1435,14 +1435,14 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
       `All your Watchtowers, Outposts, and Crystal Towers gain +${ABILITIES.FORTIFIED_GARRISON_ATTACK_BONUS} attack and +${ABILITIES.FORTIFIED_GARRISON_RANGE_BONUS} attack range.`,
     effects: [{ type: 'FORTIFIED_GARRISON', params: {} }],
     upkeepIron: 0,
-    upkeepWood: 1,
+    upkeepWood: 0,
   },
   spec_02: {
     name: 'Bloodrider',
     description:
       'When one of your Riders kills an enemy, it may attack once more this turn at half attack and without retaliation.',
     effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.RIDER, tag: UnitTag.BLOODLUST } }],
-    upkeepIron: 2,
+    upkeepIron: 0,
     upkeepWood: 0,
   },
   spec_03: {
@@ -1451,15 +1451,15 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
       `Your Siege units deal ${Math.round(ABILITIES.SPLASH_DAMAGE_RATIO * 100)}% of their damage to all enemy units surrounding their target.`,
     effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.SIEGE, tag: UnitTag.SPLASH } }],
     upkeepIron: 0,
-    upkeepWood: 2,
+    upkeepWood: 0,
   },
   spec_04: {
     name: 'Drill Sergeant',
     description:
       'Your Spearman units can move and attack immediately after being recruited.',
     effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.SPEARMAN, tag: UnitTag.READY } }],
-    upkeepIron: 1,
-    upkeepWood: 1,
+    upkeepIron: 0,
+    upkeepWood: 0,
   },
   spec_05: {
     name: 'Deathmender',
@@ -1648,7 +1648,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SCOUT, tag: UnitTag.ASSASSIN },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.SCOUT, resource: 'iron', amount: 2 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.SCOUT, resource: 'iron', amount: 1 },
     ],
   },
   {
@@ -1686,8 +1686,8 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'STRONGHOLD_CAP_MOD', capType: 'noble', amount: ABILITIES.CITADEL_NOBLE_BONUS },
       { type: 'UNIT_STAT_MOD', unitType: UnitType.SCOUT, stat: 'maxHp', mode: 'add', value: ABILITIES.CITADEL_HP_BOOST },
       { type: 'UNIT_STAT_MOD', unitType: UnitType.GUARD, stat: 'maxHp', mode: 'add', value: ABILITIES.CITADEL_HP_BOOST },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.SCOUT, resource: 'wood', amount: 2 },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.GUARD, resource: 'wood', amount: 2 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.SCOUT, resource: 'wood', amount: 1 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.GUARD, resource: 'wood', amount: 1 },
     ],
   },
   {
@@ -1772,7 +1772,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.ARCHER, tag: UnitTag.COVER },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.ARCHER, resource: 'wood', amount: 2 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.ARCHER, resource: 'wood', amount: 1 },
     ],
   },
   {
@@ -1794,7 +1794,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.ARCHER, tag: UnitTag.PIN_DOWN },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.ARCHER, resource: 'iron', amount: 2 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.ARCHER, resource: 'iron', amount: 1 },
     ],
   },
   {
@@ -1818,7 +1818,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 7,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SIEGE, tag: UnitTag.PREVENTIVE_STRIKE },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.RIDER, resource: 'wood', amount: 2 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.RIDER, resource: 'wood', amount: 1 },
     ],
   },
 
@@ -1841,7 +1841,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     id: 'EMBERBIND',
     name: 'Emberbind',
     description: `Unlocks the Emberbind spell.`,
-    requires: ['ARCANE_AWAKENING'],
+    requires: ['BRANDMARK_HEAL'],
     cost: 4,
     effects: [
       { type: 'UNLOCK_SPELL', spellId: SpellId.EMBERBIND },
@@ -1851,7 +1851,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     id: 'BRANDMARK_HEAL',
     name: 'Brandmark Heal',
     description: `Unlocks the Brandmark Heal spell.`,
-    requires: ['EMBERBIND'],
+    requires: ['ARCANE_AWAKENING'],
     cost: 4,
     effects: [
       { type: 'UNLOCK_SPELL', spellId: SpellId.BRANDMARK_HEAL },
@@ -1861,7 +1861,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     id: 'CRYSTAL_TOWER',
     name: 'Crystal Tower',
     description: `Unlocks the Crystal Tower spell.`,
-    requires: ['BRANDMARK_HEAL'],
+    requires: ['EMBERBIND'],
     cost: 7,
     effects: [
       { type: 'UNLOCK_SPELL', spellId: SpellId.CRYSTAL_TOWER },
@@ -2001,7 +2001,7 @@ export const PUNCTURE_STUN_BASE_DEF_THRESHOLD = 65;
 export const PUNCTURE_STUN_DURATION = 1;
 
 /** TUNNEL: minimum number of tiles the unit must move south while underground. */
-export const TUNNEL_RANGE_MIN = 3;
+export const TUNNEL_RANGE_MIN = 2;
 /** TUNNEL: maximum number of tiles the unit can move south while underground. */
 export const TUNNEL_RANGE_MAX = 4;
 /** TUNNEL: damage applied to enemy units adjacent to the emergence tile. */
