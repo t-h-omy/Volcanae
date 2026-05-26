@@ -1293,6 +1293,7 @@ export function resolveExplosion(
   }
 
   // Apply flat damage to each target
+  const deathEvents: GameEvent[] = [];
   for (const targetId of targets) {
     const target = state.units[targetId];
     if (!target) continue;
@@ -1312,8 +1313,9 @@ export function resolveExplosion(
       }
       delete state.units[targetId];
       state.gameStats.unitsLost += 1;
-      // Emit death event
-      events.push({
+      // Collect death event — will be pushed AFTER the EXPLOSION event so
+      // the explosion VFX plays before dying animations.
+      deathEvents.push({
         type: 'UNIT_DEATH',
         unitId: targetId,
         position: deathPos,
@@ -1322,7 +1324,7 @@ export function resolveExplosion(
     }
   }
 
-  // Emit explosion event
+  // Emit explosion event FIRST so VFX plays before any dying animations.
   events.push({
     type: 'EXPLOSION',
     unitId,
@@ -1330,6 +1332,11 @@ export function resolveExplosion(
     damagedUnitIds,
     damagePerUnit: explosionDamage,
   });
+
+  // Now push UNIT_DEATH events for killed targets.
+  for (const e of deathEvents) {
+    events.push(e);
+  }
 
   // Remove the exploding unit
   const unitTile = state.grid[unit.position.y][unit.position.x];

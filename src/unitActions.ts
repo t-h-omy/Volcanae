@@ -182,6 +182,9 @@ export function getAttackTargets(
   // Enemy units
   for (const other of Object.values(units)) {
     if (other.faction === Faction.ENEMY) {
+      // TUNNEL units that are underground are removed from the grid (tile.unitId = null)
+      // and cannot be attacked. Skip them to avoid highlighting the empty hole tile.
+      if (other.tunnelState === 'DIGGING_IN' || other.tunnelState === 'UNDERGROUND') continue;
       if (!grid[other.position.y]?.[other.position.x]?.isRevealed) continue;
       const inRange = isTileWithinEdgeCircleRange(
         unit.position.x, unit.position.y,
