@@ -1047,6 +1047,10 @@ export const useGameStore = create<GameStore>()(
         }
         const removedTags = getRemovedTags(state, unitType);
         const spawnTags = baseTags.filter((t) => !removedTags.includes(t));
+        // Revived units must not leave a second gravestone on death.
+        if (!spawnTags.includes(UnitTag.NO_GRAVESTONE)) {
+          spawnTags.push(UnitTag.NO_GRAVESTONE);
+        }
 
         // Revived units must not leave another gravestone on death — prevents infinite loops.
         if (!spawnTags.includes(UnitTag.NO_GRAVESTONE)) {
@@ -2000,6 +2004,9 @@ export const useGameStore = create<GameStore>()(
               toTile.unitId = event.attackerId;
               attacker.position.x = event.advancedToPosition.x;
               attacker.position.y = event.advancedToPosition.y;
+              // Mark as moved this turn so cave-popup eligibility treats this as
+              // "just arrived" and does not trigger the popup immediately.
+              attacker.lastMovedTurn = state.turn;
             }
 
             // Trigger floaters

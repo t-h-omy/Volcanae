@@ -1258,8 +1258,7 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
 
   const contextualDef = useMemo(() => {
     let def = 0;
-    if (unit.faction !== Faction.PLAYER) return def;
-    if (gameState.techFlags.includes(TechFlag.HOLD_GROUND)) {
+    if (unit.faction === Faction.PLAYER && gameState.techFlags.includes(TechFlag.HOLD_GROUND)) {
       const tile = gameState.grid[unit.position.y]?.[unit.position.x];
       if (tile?.buildingId) {
         const building = gameState.buildings[tile.buildingId];
@@ -1272,8 +1271,7 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
   const contextualMov = useMemo(() => {
     let techBonus = 0;
     let tagBonus = 0;
-    if (unit.faction !== Faction.PLAYER) return { total: 0, techBonus: 0, tagBonus: 0 };
-    if (gameState.techFlags.includes(TechFlag.TO_THE_FRONT)) {
+    if (unit.faction === Faction.PLAYER && gameState.techFlags.includes(TechFlag.TO_THE_FRONT)) {
       const minPlayerY = getNorthermostPlayerY(gameState);
       if (minPlayerY !== undefined && unit.position.y - minPlayerY > ABILITIES.TO_THE_FRONT_MIN_DISTANCE) {
         techBonus += ABILITIES.TO_THE_FRONT_MOVE_BONUS;
@@ -1354,12 +1352,10 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
   if (phalanxDefense > 0) mods.push({ stat: 'DEF', value: phalanxDefense, kind: 'active', source: 'Phalanx Formation (adjacent guard)' });
   // RAGE: dynamic +ATK per adjacent enemy (works for both factions)
   if (rageBonus > 0) mods.push({ stat: 'ATK', value: rageBonus, kind: 'active', source: `Rage (+${RAGE_ATK_PER_ADJACENT} ATK per adjacent enemy, ${rageAdjacentCount} nearby)` });
-  if (unit.faction === Faction.PLAYER) {
-    if (contextualDef > 0) mods.push({ stat: 'DEF', value: contextualDef, kind: 'active', source: 'Hold Ground (standing on own building)' });
-    if (unit.tags.includes(UnitTag.SKIRMISHER)) mods.push({ stat: 'MOV', value: ABILITIES.SKIRMISHER_MOVE_BONUS, kind: 'active', source: 'Skirmisher (tag ability)' });
-    if (unit.tags.includes(UnitTag.OUTRIDER)) mods.push({ stat: 'MOV', value: ABILITIES.OUTRIDER_MOVE_BONUS, kind: 'active', source: 'Outrider (tag ability)' });
-    if (contextualMov.techBonus > 0) mods.push({ stat: 'MOV', value: contextualMov.techBonus, kind: 'active', source: 'To the Front (far behind frontline)' });
-  }
+  if (contextualDef > 0) mods.push({ stat: 'DEF', value: contextualDef, kind: 'active', source: 'Hold Ground (standing on own building)' });
+  if (unit.tags.includes(UnitTag.SKIRMISHER)) mods.push({ stat: 'MOV', value: ABILITIES.SKIRMISHER_MOVE_BONUS, kind: 'active', source: 'Skirmisher (tag ability)' });
+  if (unit.tags.includes(UnitTag.OUTRIDER)) mods.push({ stat: 'MOV', value: ABILITIES.OUTRIDER_MOVE_BONUS, kind: 'active', source: 'Outrider (tag ability)' });
+  if (contextualMov.techBonus > 0) mods.push({ stat: 'MOV', value: contextualMov.techBonus, kind: 'active', source: 'To the Front (far behind frontline)' });
   for (const tag of unit.tags) {
     for (const mod of TAG_STAT_EFFECTS[tag] ?? []) {
       if (mod.mode === 'add') mods.push({ stat: statKeyToLabel(mod.stat), value: mod.value, kind: 'applied', source: `${TAG_INFO[tag]?.label ?? tag} (tag)` });

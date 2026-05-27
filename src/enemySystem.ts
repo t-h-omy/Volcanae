@@ -1187,6 +1187,17 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
   // GRAVE_TRAP: check if the enemy unit landed on a player trap
   checkGraveTrapTrigger(state, unitId);
 
+  // FROZEN tile: trigger the slippery slide mechanic (same as player units).
+  if (state.units[unitId] && newTile.status === TileStatus.FROZEN) {
+    const dx = targetPosition.x - from.x;
+    const dy = targetPosition.y - from.y;
+    // Normalise to unit direction (enemy can move multiple tiles per step)
+    const norm = Math.max(Math.abs(dx), Math.abs(dy));
+    if (norm > 0) {
+      resolveSlide(state, unitId, Math.sign(dx), Math.sign(dy));
+    }
+  }
+
   // PORTAL: check if the unit stepped onto a portal entrance.
   if (state.units[unitId]) {
     const movedUnit = state.units[unitId];
