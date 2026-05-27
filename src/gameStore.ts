@@ -42,7 +42,7 @@ import { triggerSpellSfx } from './soundOptionsStore';
 import { Faction, GamePhase, BuildingType, TileType, TileStatus, Difficulty, DestroyBehavior, UnitType, UnitTag, TechFlag } from './types';
 import type { GameState, Position, TechId, SpellId } from './types';
 import type { GameEvent } from './gameEvents';
-import { MAP, TERRAIN, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval, UNIT_DEFINITIONS, MAGE } from './gameConfig';
+import { MAP, TERRAIN, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval, UNIT_DEFINITIONS, MAGE, TUNNEL_EMERGE_DAMAGE } from './gameConfig';
 import { RENDER } from './renderConfig';
 import { ANIMATION } from './animationConfig';
 import { saveGameState, loadGameState, clearSavedGame, hasSavedGame } from './saveSystem';
@@ -2152,15 +2152,10 @@ export const useGameStore = create<GameStore>()(
                 // If unit dies, it will be handled by the subsequent UNIT_DEATH event
               }
             }
-            // Remove the exploding unit
-            const explodingUnit = state.units[event.unitId];
-            if (explodingUnit) {
-              const tile = state.grid[explodingUnit.position.y][explodingUnit.position.x];
-              if (tile.unitId === event.unitId) {
-                tile.unitId = null;
-              }
-              delete state.units[event.unitId];
-            }
+            // Note: the exploding unit is NOT removed here. resolveExplosion emits a
+            // UNIT_DEATH event for the emberling AFTER the EXPLOSION event so the
+            // explosion VFX plays before the dying animation. That UNIT_DEATH handler
+            // will remove the unit from the live state.
 
             // Trigger floaters for explosion damage
             const { addFloater } = useFloaterStore.getState();
@@ -2368,6 +2363,26 @@ export const useGameStore = create<GameStore>()(
                 tile.unitId = event.unitId;
               }
             }
+            // Apply emergence AoE damage to adjacent player units that are still alive
+            // in the live display state (killed units were already removed by their own
+            // UNIT_DEATH events which precede this TUNNEL_EMERGE event in the queue).
+            if (event.affectedPositions && event.affectedPositions.length > 0) {
+              const { addFloater } = useFloaterStore.getState();
+              for (const pos of event.affectedPositions) {
+                const aoeTargetTile = state.grid[pos.y]?.[pos.x];
+                if (!aoeTargetTile?.unitId) continue;
+                const aoeTarget = state.units[aoeTargetTile.unitId];
+                if (aoeTarget && aoeTarget.faction === Faction.PLAYER) {
+                  aoeTarget.stats.currentHp = Math.max(0, aoeTarget.stats.currentHp - TUNNEL_EMERGE_DAMAGE);
+                  addFloater({
+                    value: TUNNEL_EMERGE_DAMAGE,
+                    x: pos.x,
+                    y: pos.y,
+                    isEnemy: false,
+                  });
+                }
+              }
+            }
             // Note: tile corruption status flip is intentionally NOT mirrored here.
             // It happens at queue-end via setGameState(resolvedState). The dust hides
             // the sprite swap; the corruption colour change can settle a beat later.
@@ -2388,9 +2403,25 @@ export const useGameStore = create<GameStore>()(
             // Presentation-only: state mutation happens in the action producer (portalSystem.ts).
             break;
 
-          case 'PORTAL_USED':
-            // Presentation-only: state mutation happens in the action producer (portalSystem.ts).
+          case 'PORTAL_USED': {
+            // Move the teleported unit from entrance to exit in the live display state,
+            // mirroring what portalSystem.tryTeleportThroughPortal already applied in
+            // the immer draft. Without this the unit sprite stays on the entrance tile
+            // until setGameState(resolvedState) fires at queue end.
+            const teleportUnit = state.units[event.unitId];
+            if (teleportUnit) {
+              const fromTile = state.grid[event.fromPos.y]?.[event.fromPos.x];
+              if (fromTile && fromTile.unitId === event.unitId) {
+                fromTile.unitId = null;
+              }
+              const toTile = state.grid[event.toPos.y]?.[event.toPos.x];
+              if (toTile) {
+                toTile.unitId = event.unitId;
+              }
+              teleportUnit.position = { x: event.toPos.x, y: event.toPos.y };
+            }
             break;
+          }
 
           case 'PORTAL_CLOSED':
             // Presentation-only: state mutation happens in the action producer (portalSystem.ts).

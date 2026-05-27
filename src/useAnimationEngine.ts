@@ -1439,6 +1439,15 @@ export function useAnimationEngine(): void {
             durationMs: ANIMATION.EXPLOSION_SHOCKWAVE_MS,
             finalScale: explosionFinalScale,
           });
+
+          // Wait for the explosion VFX to complete before applying state and
+          // continuing. This ensures the UNIT_DEATH events that follow (for
+          // killed player units and the emberling itself) play their dying
+          // animations AFTER the explosion visuals, not before.
+          await wait(ANIMATION.EXPLOSION_TILE_FLASH_MS);
+          useGameStore.getState().applyEvent(event);
+          await wait(ANIMATION.POST_ACTION_IDLE_MS);
+          continue;
         }
 
         // ── Special handling for LEASH_DEFECT (demon defects during enemy turn) ──
