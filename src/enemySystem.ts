@@ -1213,6 +1213,14 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
   // After this unit's movement, give other waiting units a chance to teleport
   // (this unit may have vacated a tile that was someone else's portal exit).
   processPendingPortalTeleports(state, events);
+
+  // FROZEN tile: trigger the slippery slide mechanic.
+  // Re-fetch the unit — it must still be alive (not killed by a GRAVE_TRAP or other effect).
+  if (newTile.status === TileStatus.FROZEN && state.units[unitId]) {
+    const moveDx = targetPosition.x - from.x;
+    const moveDy = targetPosition.y - from.y;
+    resolveSlide(state, unitId, moveDx, moveDy);
+  }
 }
 
 // ============================================================================
@@ -1254,6 +1262,9 @@ function moveEnemyUnitToward(
     const tile = state.grid[nextPos.y][nextPos.x];
     if (tile.unitId !== null) break; // blocked by a unit occupying the tile
     moveEnemyUnit(state, unitId, nextPos, events);
+    // If the unit slid on a FROZEN tile, it's no longer at nextPos — stop multi-step movement.
+    const afterMove = state.units[unitId];
+    if (afterMove && (afterMove.position.x !== nextPos.x || afterMove.position.y !== nextPos.y)) break;
   }
 }
 

@@ -1052,6 +1052,11 @@ export const useGameStore = create<GameStore>()(
           spawnTags.push(UnitTag.NO_GRAVESTONE);
         }
 
+        // Revived units must not leave another gravestone on death — prevents infinite loops.
+        if (!spawnTags.includes(UnitTag.NO_GRAVESTONE)) {
+          spawnTags.push(UnitTag.NO_GRAVESTONE);
+        }
+
         const unitId = generateId('unit');
         state.units[unitId] = {
           id: unitId,
