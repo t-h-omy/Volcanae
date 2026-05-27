@@ -256,9 +256,8 @@ export function checkGraveTrapTrigger(
     const adjUnit = state.units[adjTile.unitId];
     if (!adjUnit || adjUnit.faction === Faction.PLAYER) continue;
     // ALERT-tagged units are immune to stun.
-    if (!adjUnit.tags.includes(UnitTag.ALERT)) {
-      adjUnit.pinnedUntilTurn = state.turn + stunTurns - 1;
-    }
+    if (adjUnit.tags.includes(UnitTag.ALERT)) continue;
+    adjUnit.pinnedUntilTurn = state.turn + stunTurns - 1;
     floaterStore.addFloater({
       value: 0,
       label: '💫 Stunned',
