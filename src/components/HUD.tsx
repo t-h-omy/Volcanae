@@ -753,13 +753,28 @@ function ResourceInfoPopup({
   current: number;
   onClose: () => void;
 }) {
-  // Crystal popup uses a dedicated layout
-  const crystalIncome = useGameStore((s) => computeCrystalIncomePerTurn(s));
-  // Iron/wood breakdown (only computed when needed)
-  const entries = useGameStore((s) => computeResourceIncomeBreakdown(s));
+  // Use stable Immer references as memo dependencies so that the selectors
+  // passed to useSyncExternalStore (Zustand v5) always return the same
+  // reference between consecutive snapshot calls, preventing the
+  // "getSnapshot should be cached" invariant violation that caused a crash.
+  const buildings = useGameStore((s) => s.buildings);
+  const techNodes = useGameStore((s) => s.techNodes);
+  const specialists = useGameStore((s) => s.specialists);
+  const globalSpecialistStorage = useGameStore((s) => s.globalSpecialistStorage);
+
+  // Crystal income — recomputes only when buildings change
+  const { crystalsPerTurn, resonatingChambers } = useMemo(
+    () => computeCrystalIncomePerTurn(useGameStore.getState()),
+    [buildings],
+  );
+
+  // Iron/wood breakdown — recomputes when any relevant state changes
+  const entries = useMemo(
+    () => computeResourceIncomeBreakdown(useGameStore.getState()),
+    [buildings, techNodes, specialists, globalSpecialistStorage],
+  );
 
   if (resourceType === 'crystal') {
-    const { crystalsPerTurn, resonatingChambers } = crystalIncome;
     return (
       <Popup onClose={onClose}>
         <div className="info-popup-header">
