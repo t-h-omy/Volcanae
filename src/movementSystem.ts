@@ -215,7 +215,8 @@ export function getReachableTiles(
 
 /**
  * Checks whether the tile a unit just entered contains a GRAVE_TRAP building.
- * If it does, stuns the unit and destroys the trap.
+ * If it does, stuns the triggering unit and all enemy units in the 8-tile AOE
+ * around the trap, then destroys the trap.
  */
 export function checkGraveTrapTrigger(
   state: Draft<GameState>,
@@ -228,23 +229,47 @@ export function checkGraveTrapTrigger(
   const building = state.buildings[tile.buildingId];
   if (!building || building.type !== BuildingType.GRAVE_TRAP) return;
 
+  const trapPos = { x: unit.position.x, y: unit.position.y };
   const stunTurns = building.trapStunTurns ?? 1;
-  // ALERT-tagged units are immune to stun.
+  const floaterStore = useFloaterStore.getState();
+
+  // Stun the triggering unit (ALERT-tagged units are immune).
   if (!unit.tags.includes(UnitTag.ALERT)) {
     unit.pinnedUntilTurn = state.turn + stunTurns - 1;
+  }
+  floaterStore.addFloater({
+    value: 0,
+    label: '💫 Stunned',
+    x: trapPos.x,
+    y: trapPos.y,
+    isEnemy: unit.faction !== Faction.PLAYER,
+    floaterType: 'revive',
+  });
+
+  // AOE: stun all enemy (non-player) units in the 8 adjacent tiles.
+  for (const [dx, dy] of MOVE_DIRECTIONS) {
+    const nx = trapPos.x + dx;
+    const ny = trapPos.y + dy;
+    if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;
+    const adjTile = state.grid[ny]?.[nx];
+    if (!adjTile?.unitId) continue;
+    const adjUnit = state.units[adjTile.unitId];
+    if (!adjUnit || adjUnit.faction === Faction.PLAYER) continue;
+    // ALERT-tagged units are immune to stun.
+    if (adjUnit.tags.includes(UnitTag.ALERT)) continue;
+    adjUnit.pinnedUntilTurn = state.turn + stunTurns - 1;
+    floaterStore.addFloater({
+      value: 0,
+      label: '💫 Stunned',
+      x: nx,
+      y: ny,
+      isEnemy: true,
+      floaterType: 'revive',
+    });
   }
 
   delete state.buildings[tile.buildingId];
   tile.buildingId = null;
-
-  useFloaterStore.getState().addFloater({
-    value: 0,
-    label: '💫 Stunned',
-    x: unit.position.x,
-    y: unit.position.y,
-    isEnemy: unit.faction !== Faction.PLAYER,
-    floaterType: 'revive',
-  });
 }
 
 /**

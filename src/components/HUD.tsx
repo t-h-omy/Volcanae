@@ -1955,7 +1955,7 @@ function ConstructionPanel({
   const constructBuilding = useGameStore((s) => s.constructBuilding);
   const grid = useGameStore((s) => s.grid);
   const [confirmBuilding, setConfirmBuilding] = useState<typeof options[number] | null>(null);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
 
   const options = useMemo(
     () => getConstructionOptionsForTile(useGameStore.getState(), tilePos),
@@ -1966,16 +1966,15 @@ function ConstructionPanel({
 
   return (
     <div className="hud-info-panel hud-construction-panel">
-      <div className="hud-panel-header">
+      <div className="hud-panel-header hud-panel-header--clickable" onClick={() => setCollapsed((c) => !c)}>
         <span className="hud-panel-emoji">🔨</span>
         <span className="hud-panel-name">Construct Building</span>
-        <button
+        <span
           className="hud-construct-toggle"
-          onClick={() => setCollapsed((c) => !c)}
           title={collapsed ? 'Expand' : 'Collapse'}
         >
           {collapsed ? '▲' : '▼'}
-        </button>
+        </span>
       </div>
       {!collapsed && (
         <div className="hud-construct-options">
@@ -2031,7 +2030,7 @@ function ConversionPanel({
   const buildings = useGameStore((s) => s.buildings);
   const convertBuilding = useGameStore((s) => s.convertBuilding);
   const [confirmBuilding, setConfirmBuilding] = useState<ReturnType<typeof getConversionTargetsForTile>[number] | null>(null);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
 
   const currentBuilding = useMemo(() => {
     const tile = useGameStore.getState().grid[unit.position.y]?.[unit.position.x];
@@ -2054,16 +2053,15 @@ function ConversionPanel({
 
   return (
     <div className="hud-info-panel hud-construction-panel">
-      <div className="hud-panel-header">
+      <div className="hud-panel-header hud-panel-header--clickable" onClick={() => setCollapsed((c) => !c)}>
         <span className="hud-panel-emoji">🔄</span>
         <span className="hud-panel-name">Convert {currentBuildingName}</span>
-        <button
+        <span
           className="hud-construct-toggle"
-          onClick={() => setCollapsed((c) => !c)}
           title={collapsed ? 'Expand' : 'Collapse'}
         >
           {collapsed ? '▲' : '▼'}
-        </button>
+        </span>
       </div>
       {!collapsed && (
         <div className="hud-construct-options">
