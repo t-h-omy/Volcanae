@@ -206,7 +206,7 @@ export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
     id: SpellId.EMBERBIND,
     name: 'Emberbind',
     emoji: '🔥',
-    description: `Target an Ember Nest within range. The nest is destroyed (forest restored) and a friendly Ember Demon appears, leashed within ${MAGE.EMBER_DEMON_LEASH_RANGE} tiles of its Mage.`,
+    description: `Target an Ember Nest within range. The nest is destroyed (forest restored) and a friendly Ember Demon appears, leashed within the Mage's attack range.`,
     targetHint: 'Select an Ember Nest within range.',
   },
   [SpellId.BRANDMARK_HEAL]: {
@@ -2071,7 +2071,7 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   // ── Mage system tags ────────────────────────────────────────────────────────
   [UnitTag.SUMMONED]:           { label: 'Summoned',           desc: 'Conjured by magic. Does not consume population, cannot be healed, and does not leave a gravestone on death.' },
   [UnitTag.BRANDMARKED]:        { label: 'Brandmarked',        desc: `+${MAGE.BRANDMARK_ATTACK_BONUS} ATK. Loses ${MAGE.BRANDMARK_HP_LOSS_PER_TURN} HP at the end of every player turn. On death, leaves behind a hostile Ember Demon.`, icon: '🩸' },
-  [UnitTag.LEASHED]:            { label: 'Leashed',            desc: `Summoned creature bound to a Mage. If the Mage moves out of ${MAGE.EMBER_DEMON_LEASH_RANGE} tiles or dies, the leashed unit defects to the enemy.` },
+  [UnitTag.LEASHED]:            { label: 'Leashed',            desc: `Summoned creature bound to a Mage. If the Mage moves beyond its attack range or dies, the leashed unit defects to the enemy.` },
   [UnitTag.NO_GRAVESTONE]:      { label: 'No Gravestone',      desc: 'Leaves no body. Cannot become a Gravestone on death.' },
   [UnitTag.LEAVES_GRAVESTONE]:  { label: 'Leaves Gravestone',  desc: 'Leaves a Gravestone on death.' },
   // ── Tile-status tags ────────────────────────────────────────────────────────
