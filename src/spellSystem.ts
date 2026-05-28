@@ -786,9 +786,8 @@ export function checkAndDefectLeash(
     const inRange = isTileWithinEdgeCircleRange(
       mage.position.x, mage.position.y,
       unit.position.x, unit.position.y,
-      // Use the dedicated leash-range constant, not the Mage's spell range —
-      // the leash radius is a separate balance parameter from spell targeting range.
-      MAGE.EMBER_DEMON_LEASH_RANGE,
+      // The demon remains leashed while within the Mage's current attack range.
+      mage.stats.attackRange,
     );
     if (!inRange) defects = true;
   }

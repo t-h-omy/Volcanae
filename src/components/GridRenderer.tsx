@@ -687,6 +687,12 @@ export default function GridRenderer() {
       const tile = grid[y][x];
       const key = posKey(x, y);
 
+      // Fogged tiles: clear selection and bail — the player cannot see what is there
+      if (!tile.isRevealed) {
+        clearSelection();
+        return;
+      }
+
       // Priority 0 — Heal mode: if waiting for heal target selection
       if (pendingHealerId && healableSet.has(key) && tile.unitId) {
         healUnit(pendingHealerId, tile.unitId);
