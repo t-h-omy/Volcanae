@@ -948,7 +948,8 @@ export function useAnimationEngine(): void {
           }
 
           // Consume following UNIT_DEATH events that were already animated
-          // (primary defender kill + attacker counter-kill, both played inside playAttackAnimation)
+          // (primary defender kill + attacker counter-kill, both animated by playAttackAnimation
+          // above and tracked in dyingIds; we just need to drain them from the queue)
           while (true) {
             const { eventQueue } = useAnimationStore.getState();
             if (eventQueue.length === 0) break;
