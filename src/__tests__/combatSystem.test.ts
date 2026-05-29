@@ -20,7 +20,7 @@
 import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
 import { resolveAttack } from '../combatSystem';
-import { UnitType, Faction, UnitTag, TileType, DestroyBehavior } from '../types';
+import { UnitType, Faction, UnitTag, TileType } from '../types';
 import type { GameState, Unit, Tile, Building, GameStats } from '../types';
 import type { GameEvent } from '../gameEvents';
 import { UNIT_DEFINITIONS } from '../gameConfig';

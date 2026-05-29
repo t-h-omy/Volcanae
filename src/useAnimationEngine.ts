@@ -1133,6 +1133,13 @@ export function useAnimationEngine(): void {
           }
 
           if (visible) {
+            await wait(ANIMATION.POST_ACTION_IDLE_MS);
+          }
+
+          continue;
+        }
+
+        // ── Special handling for BUILDING_ATTACK_BUILDING (building fires projectile at another building) ──
         if (event.type === 'BUILDING_ATTACK_BUILDING') {
           if (visible) {
             const tileSize = getTileSize();
