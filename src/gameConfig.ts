@@ -170,8 +170,11 @@ export const MAGE = {
   CRYSTAL_TOWER_KILL_CRYSTAL_REWARD: 1,
 
   // ── Crystal Tower ↔ Crystal Chamber synergy ─────────────────────────
-  /** Attack bonus added to a Crystal Tower per player-owned Crystal Chamber within its attack range */
+  /** Attack bonus added to a Crystal Tower per player-owned Crystal Chamber within connection range */
   CRYSTAL_TOWER_CHAMBER_ATTACK_BONUS: 10,
+  /** Max tile distance (edge-to-edge circle) at which a Crystal Chamber counts as connected to a tower.
+   *  Defaults to 2 (equal to the tower's attackRange) so existing behaviour is unchanged. */
+  CRYSTAL_TOWER_CHAMBER_CONNECT_RANGE: 2,
 
   // ── GRAVE_HARVEST tech parameters ────────────────────────────────────
   /** Per-turn percent chance for each player-owned GRAVESTONE to grant 1 crystal */
@@ -1385,7 +1388,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
       destroyBehavior: DestroyBehavior.RUIN,
       constructionCost: { iron: 0, wood: 0 },
       combatStats,
-      description: `Arcane combat tower. Attacks enemies within ${combatStats.attackRange} tiles. Each enemy unit it kills generates ${MAGE.CRYSTAL_TOWER_KILL_CRYSTAL_REWARD} crystal. Gains +${MAGE.CRYSTAL_TOWER_CHAMBER_ATTACK_BONUS} attack per connected Crystal Chamber within range.`,
+      description: `Arcane combat tower. Attacks enemies within ${combatStats.attackRange} tiles. Each enemy unit it kills generates ${MAGE.CRYSTAL_TOWER_KILL_CRYSTAL_REWARD} crystal. Gains +${MAGE.CRYSTAL_TOWER_CHAMBER_ATTACK_BONUS} attack per connected Crystal Chamber within ${MAGE.CRYSTAL_TOWER_CHAMBER_CONNECT_RANGE} tiles.`,
     };
   })(),
 };

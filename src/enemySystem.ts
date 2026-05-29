@@ -2651,6 +2651,13 @@ function runCaveMonsterAi(state: Draft<GameState>, events?: GameEvent[]): void {
     // Skip if the unit already acted this turn (spawn turn: all flags are true)
     if (hasUnitActed(unit)) continue;
 
+    // PIN_DOWN / PUNCTURE stun: mirror the standard enemy loop behaviour
+    if (unit.pinnedUntilTurn >= state.turn) {
+      unit.hasMovedThisTurn = true;   // block movement
+      unit.hasAttackedThisTurn = true; // block attack
+      continue;
+    }
+
     const homePos = parseMountainTileId(encounter.mountainTileId);
     if (!homePos) continue;
 

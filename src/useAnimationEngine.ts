@@ -948,6 +948,8 @@ export function useAnimationEngine(): void {
           }
 
           // Consume following UNIT_DEATH events that were already animated
+          // (primary defender kill + attacker counter-kill, both animated by playAttackAnimation
+          // above and tracked in dyingIds; we just need to drain them from the queue)
           while (true) {
             const { eventQueue } = useAnimationStore.getState();
             if (eventQueue.length === 0) break;
@@ -960,19 +962,177 @@ export function useAnimationEngine(): void {
             }
           }
 
-          if (visible) {
-            await wait(ANIMATION.POST_ACTION_IDLE_MS);
-
-            if (event.advancedToPosition) {
-              useAnimationStore.getState().setCameraTarget(event.advancedToPosition);
-              await wait(ANIMATION.CAMERA_MOVE_DURATION_MS + ANIMATION.POST_ACTION_IDLE_MS);
+          // ── Inline SPLASH_DAMAGE consumption (Change 1) ──────────────────────────────────────
+          // SPLASH events live in the queue immediately after the primary UNIT_DEATH (which the
+          // loop above just consumed). Consuming them here — rather than falling through to the
+          // standalone SPLASH handler — means the splash floaters / HIT shakes animate in the
+          // SAME beat as the primary hit, with no extra camera pan or PRE_ACTION_IDLE pause.
+          //
+          // Queue order after the UNIT_DEATH loop:
+          //   Case A (primary survived): [SPLASH_DAMAGE…]
+          //   Case B (primary died):     primary UNIT_DEATH already consumed → [SPLASH_DAMAGE…]
+          {
+            const splashEvents: Extract<GameEvent, { type: 'SPLASH_DAMAGE' }>[] = [];
+            while (true) {
+              const { eventQueue: eq } = useAnimationStore.getState();
+              if (eq.length === 0 || eq[0].type !== 'SPLASH_DAMAGE') break;
+              splashEvents.push(
+                useAnimationStore.getState().shiftEvent() as Extract<
+                  GameEvent,
+                  { type: 'SPLASH_DAMAGE' }
+                >,
+              );
+            }
+            if (splashEvents.length > 0 && visible) {
+              const { setUnitAnimation } = useCombatAnimationStore.getState();
+              // Apply all splash hits + start HIT shakes simultaneously
+              for (const se of splashEvents) {
+                useGameStore.getState().applyEvent(se);
+                setUnitAnimation(se.unitId, { type: 'HIT' });
+              }
+              await wait(ANIMATION.HIT_SHAKE_DURATION_MS);
+              for (const se of splashEvents) {
+                useCombatAnimationStore.getState().setUnitAnimation(se.unitId, null);
+              }
+              // Consume any following UNIT_DEATH for each splash-killed target
+              for (const se of splashEvents) {
+                const { eventQueue: eq } = useAnimationStore.getState();
+                if (
+                  eq.length > 0 &&
+                  eq[0].type === 'UNIT_DEATH' &&
+                  eq[0].unitId === se.unitId
+                ) {
+                  const deathEvt = eq[0] as Extract<GameEvent, { type: 'UNIT_DEATH' }>;
+                  useAnimationStore.getState().shiftEvent();
+                  useCombatAnimationStore
+                    .getState()
+                    .setUnitAnimation(deathEvt.unitId, { type: 'DYING' });
+                  await wait(ANIMATION.DIE_FLASH_DURATION_MS + ANIMATION.DIE_FADE_DURATION_MS);
+                  useCombatAnimationStore.getState().setUnitAnimation(deathEvt.unitId, null);
+                  useGameStore.getState().applyEvent(deathEvt);
+                  dyingIds.add(deathEvt.unitId);
+                }
+              }
+            } else if (splashEvents.length > 0) {
+              // Not visible — apply silently and consume splash-kill UNIT_DEATH events
+              for (const se of splashEvents) {
+                useGameStore.getState().applyEvent(se);
+              }
+              for (const se of splashEvents) {
+                const { eventQueue: eq } = useAnimationStore.getState();
+                if (
+                  eq.length > 0 &&
+                  eq[0].type === 'UNIT_DEATH' &&
+                  eq[0].unitId === se.unitId
+                ) {
+                  const deathEvt = eq[0] as Extract<GameEvent, { type: 'UNIT_DEATH' }>;
+                  useAnimationStore.getState().shiftEvent();
+                  useGameStore.getState().applyEvent(deathEvt);
+                  dyingIds.add(deathEvt.unitId);
+                }
+              }
             }
           }
 
-          continue;
-        }
+          // Re-run the already-animated UNIT_DEATH cleanup to absorb any kills produced by splash
+          while (true) {
+            const { eventQueue } = useAnimationStore.getState();
+            if (eventQueue.length === 0) break;
+            const next = eventQueue[0];
+            if (next.type === 'UNIT_DEATH' && dyingIds.has(next.unitId)) {
+              useAnimationStore.getState().shiftEvent();
+              useGameStore.getState().applyEvent(next);
+            } else {
+              break;
+            }
+          }
 
-        // ── Special handling for BUILDING_ATTACK_BUILDING (building fires projectile at another building) ──
+          // ── Inline PIERCE_DAMAGE consumption (Change 2) ──────────────────────────────────────
+          // At most one PIERCE event per attack (the tile directly behind the primary defender).
+          // Consuming it inline avoids an extra camera pan and PRE_ACTION_IDLE pause.
+          // The pierce line VFX + projectile start simultaneously with the HIT shake so the
+          // combined wait ≈ max(PIERCE_VFX_MS_PER_TILE, HIT_SHAKE_DURATION_MS).
+          {
+            const { eventQueue: eqPierce } = useAnimationStore.getState();
+            if (eqPierce.length > 0 && eqPierce[0].type === 'PIERCE_DAMAGE') {
+              const pierceEvent = useAnimationStore.getState().shiftEvent() as Extract<
+                GameEvent,
+                { type: 'PIERCE_DAMAGE' }
+              >;
+              if (visible) {
+                const tileSize = getTileSize();
+                const fromPx = {
+                  x: pierceEvent.primaryDefenderPosition.x * tileSize + tileSize / 2,
+                  y: pierceEvent.primaryDefenderPosition.y * tileSize + tileSize / 2,
+                };
+                const toPx = {
+                  x: pierceEvent.position.x * tileSize + tileSize / 2,
+                  y: pierceEvent.position.y * tileSize + tileSize / 2,
+                };
+                const projId = crypto.randomUUID();
+                // Start line VFX + projectile non-blocking — run concurrently with HIT shake
+                useCombatAnimationStore.getState().addLineVfx({
+                  id: crypto.randomUUID(),
+                  fromPx,
+                  toPx,
+                  variant: 'PIERCE_LINE',
+                  durationMs: ANIMATION.PIERCE_LINE_MS,
+                });
+                useCombatAnimationStore.getState().addProjectile({
+                  id: projId,
+                  fromPx,
+                  toPx,
+                  emoji: '🗡',
+                  rotationDeg: angleBetween(fromPx, toPx),
+                  durationMs: ANIMATION.PIERCE_VFX_MS_PER_TILE,
+                });
+                // Auto-remove projectile after its travel time (non-blocking)
+                setTimeout(
+                  () => useCombatAnimationStore.getState().removeProjectile(projId),
+                  ANIMATION.PIERCE_VFX_MS_PER_TILE,
+                );
+                // Apply damage + HIT shake concurrently with the projectile travel
+                useGameStore.getState().applyEvent(pierceEvent);
+                if (pierceEvent.unitId) {
+                  useCombatAnimationStore
+                    .getState()
+                    .setUnitAnimation(pierceEvent.unitId, { type: 'HIT' });
+                }
+                // Single combined wait = max(projectile travel, HIT shake)
+                await wait(
+                  Math.max(ANIMATION.PIERCE_VFX_MS_PER_TILE, ANIMATION.HIT_SHAKE_DURATION_MS),
+                );
+                if (pierceEvent.unitId) {
+                  useCombatAnimationStore.getState().setUnitAnimation(pierceEvent.unitId, null);
+                }
+              } else {
+                useGameStore.getState().applyEvent(pierceEvent);
+              }
+              // Consume any following UNIT_DEATH for the pierce target (units only; buildings don't die)
+              if (pierceEvent.unitId) {
+                const { eventQueue: eq2 } = useAnimationStore.getState();
+                if (
+                  eq2.length > 0 &&
+                  eq2[0].type === 'UNIT_DEATH' &&
+                  eq2[0].unitId === pierceEvent.unitId
+                ) {
+                  const deathEvt = eq2[0] as Extract<GameEvent, { type: 'UNIT_DEATH' }>;
+                  useAnimationStore.getState().shiftEvent();
+                  if (visible) {
+                    useCombatAnimationStore
+                      .getState()
+                      .setUnitAnimation(deathEvt.unitId, { type: 'DYING' });
+                    await wait(ANIMATION.DIE_FLASH_DURATION_MS + ANIMATION.DIE_FADE_DURATION_MS);
+                    useCombatAnimationStore.getState().setUnitAnimation(deathEvt.unitId, null);
+                  }
+                  useGameStore.getState().applyEvent(deathEvt);
+                  dyingIds.add(deathEvt.unitId);
+                }
+              }
+            }
+          }
+
+          if (visible) {
         if (event.type === 'BUILDING_ATTACK_BUILDING') {
           if (visible) {
             const tileSize = getTileSize();
@@ -1099,21 +1259,21 @@ export function useAnimationEngine(): void {
             // applyEvent now places the unit on the emergence tile under the dust.
             useGameStore.getState().applyEvent(event);
 
-            // Then fire the existing cleave-slash ring on each tile that took AoE damage.
-            // This reuses CLEAVE_VFX_DURATION_MS and the .cleave-vfx-ring CSS — no new VFX type.
+            // Then fire a SINGLE cleave-slash ring centered on the emergence tile (event.position),
+            // the attacking unit's tile. Previous code added one ring per affected tile, which
+            // caused multiple overlapping rings. A single ring at radius CLEAVE_VFX_RADIUS_TILES
+            // visually spans all 8 neighbour tiles — exactly right for a 3×3 AoE emergence.
             if (event.affectedPositions && event.affectedPositions.length > 0) {
               await wait(ANIMATION.BURROW_EMERGE_AOE_DELAY_MS);
               const { addCleaveVfx, removeCleaveVfx } = useCombatAnimationStore.getState();
-              for (const pos of event.affectedPositions) {
-                const vfxId = crypto.randomUUID();
-                addCleaveVfx({
-                  id: vfxId,
-                  cx: pos.x,
-                  cy: pos.y,
-                  durationMs: ANIMATION.CLEAVE_VFX_DURATION_MS,
-                });
-                setTimeout(() => removeCleaveVfx(vfxId), ANIMATION.CLEAVE_VFX_DURATION_MS);
-              }
+              const vfxId = crypto.randomUUID();
+              addCleaveVfx({
+                id: vfxId,
+                cx: event.position.x,
+                cy: event.position.y,
+                durationMs: ANIMATION.CLEAVE_VFX_DURATION_MS,
+              });
+              setTimeout(() => removeCleaveVfx(vfxId), ANIMATION.CLEAVE_VFX_DURATION_MS);
             }
 
             // Wait out the remaining dust window so the queue does not start the

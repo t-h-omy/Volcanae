@@ -991,7 +991,11 @@ export function resolveAttack(
         const rearUnit = state.units[behindTile.unitId];
         if (rearUnit) {
           const rearUnitId = behindTile.unitId;
-          const finalPierceDamage = Math.max(1, fullPrimaryDamage - rearUnit.stats.defense);
+          // The rear unit takes the full pre-PIERCE-multiplier primary damage — no second
+          // defense subtraction. The front defender's defense was already baked into
+          // fullPrimaryDamage by calculateCombatFromStats; subtracting the rear unit's
+          // defense a second time would cause the bug reported in Change 5.
+          const finalPierceDamage = Math.max(1, fullPrimaryDamage);
           const newRearHp = rearUnit.stats.currentHp - finalPierceDamage;
           if (!suppressFloaters) {
             const { addFloater } = useFloaterStore.getState();
@@ -1026,11 +1030,12 @@ export function resolveAttack(
       } else if (behindTile.buildingId) {
         const rearBuilding = state.buildings[behindTile.buildingId];
         if (rearBuilding) {
-          // Apply same defense-subtraction pattern as unit hits; use combatStats.defense if present.
-          // Minimum 1 ensures the tag always registers a hit. HP is reduced to 0 (not deleted
-          // inline) — building removal triggers normally on the next attack that targets it.
-          const buildingDefense = rearBuilding.combatStats?.defense ?? 0;
-          const finalPierceBuildingDamage = Math.max(1, fullPrimaryDamage - buildingDefense);
+          // The rear building takes the full pre-PIERCE-multiplier primary damage — no
+          // defense subtraction. Matching the unit-behind fix (Change 5): fullPrimaryDamage
+          // already accounts for the front defender's defense via calculateCombatFromStats.
+          // Minimum 1 ensures the tag always registers a hit. HP is reduced to 0 (not
+          // deleted inline) — building removal triggers normally on the next attack.
+          const finalPierceBuildingDamage = Math.max(1, fullPrimaryDamage);
           if (!suppressFloaters) {
             const { addFloater } = useFloaterStore.getState();
             addFloater({ value: finalPierceBuildingDamage, x: behindPos.x, y: behindPos.y, isEnemy: rearBuilding.faction === Faction.ENEMY });
@@ -1065,6 +1070,32 @@ export function resolveAttack(
 // ============================================================================
 
 /**
+ * Returns the total attack bonus a Crystal Tower gains from nearby Crystal Chambers.
+ * Each player-owned Crystal Chamber within MAGE.CRYSTAL_TOWER_CHAMBER_CONNECT_RANGE of the
+ * tower contributes MAGE.CRYSTAL_TOWER_CHAMBER_ATTACK_BONUS to the tower's attack.
+ * Returns 0 for any non-player / non-CRYSTAL_TOWER building.
+ */
+export function getCrystalTowerChamberBonus(
+  state: Pick<GameState, 'buildings'>,
+  building: Pick<Building, 'type' | 'faction' | 'position'>,
+): number {
+  if (building.type !== BuildingType.CRYSTAL_TOWER || building.faction !== Faction.PLAYER) return 0;
+  let count = 0;
+  for (const b of Object.values(state.buildings)) {
+    if (b.type === BuildingType.CRYSTAL_CHAMBER && b.faction === Faction.PLAYER) {
+      if (isTileWithinEdgeCircleRange(
+        building.position.x, building.position.y,
+        b.position.x, b.position.y,
+        MAGE.CRYSTAL_TOWER_CHAMBER_CONNECT_RANGE,
+      )) {
+        count += 1;
+      }
+    }
+  }
+  return count * MAGE.CRYSTAL_TOWER_CHAMBER_ATTACK_BONUS;
+}
+
+/**
  * Resolves an attack by a building (e.g. watchtower) against a unit.
  * Buildings always attack at range so there is no melee advance.
  * The defending unit may counter-attack if within its own range.
@@ -1094,20 +1125,9 @@ export function resolveBuildingAttack(
 
   // CRYSTAL_TOWER synergy: each player-owned Crystal Chamber within attack range
   // grants a flat attack bonus to the tower.
-  if (building.type === BuildingType.CRYSTAL_TOWER && buildingFaction === Faction.PLAYER && building.combatStats) {
-    const attackRange = building.combatStats.attackRange;
-    for (const b of Object.values(state.buildings)) {
-      if (b.type === BuildingType.CRYSTAL_CHAMBER && b.faction === Faction.PLAYER) {
-        if (isTileWithinEdgeCircleRange(
-          building.position.x, building.position.y,
-          b.position.x, b.position.y,
-          attackRange,
-        )) {
-          buildingCombatant.attack += MAGE.CRYSTAL_TOWER_CHAMBER_ATTACK_BONUS;
-        }
-      }
-    }
-  }
+  // CRYSTAL_TOWER synergy: each player-owned Crystal Chamber within
+  // MAGE.CRYSTAL_TOWER_CHAMBER_CONNECT_RANGE grants a flat attack bonus to the tower.
+  buildingCombatant.attack += getCrystalTowerChamberBonus(state, building);
 
   // HOLD_GROUND: if the flag is active and the defender is a player unit
   // standing on a player-owned building, add a flat defense bonus.
@@ -1683,7 +1703,10 @@ export function resolveAttackOnBuilding(
         const rearUnit = state.units[behindTile.unitId];
         if (rearUnit) {
           const rearUnitId = behindTile.unitId;
-          const finalPierceDamage = Math.max(1, fullPrimaryDamage - rearUnit.stats.defense);
+          // Same fix as the unit-vs-unit PIERCE case (Change 5): no second defense
+          // subtraction. fullPrimaryDamage already has the front building's defense
+          // factored in via calculateCombatFromStats.
+          const finalPierceDamage = Math.max(1, fullPrimaryDamage);
           const newRearHp = rearUnit.stats.currentHp - finalPierceDamage;
           if (!suppressFloaters) {
             const { addFloater } = useFloaterStore.getState();
@@ -1718,8 +1741,8 @@ export function resolveAttackOnBuilding(
       } else if (behindTile.buildingId) {
         const rearBuilding = state.buildings[behindTile.buildingId];
         if (rearBuilding) {
-          const buildingDefense = rearBuilding.combatStats?.defense ?? 0;
-          const finalPierceBuildingDamage = Math.max(1, fullPrimaryDamage - buildingDefense);
+          // Same fix: no building defense subtraction for the rear target.
+          const finalPierceBuildingDamage = Math.max(1, fullPrimaryDamage);
           if (!suppressFloaters) {
             const { addFloater } = useFloaterStore.getState();
             addFloater({ value: finalPierceBuildingDamage, x: behindPos.x, y: behindPos.y, isEnemy: rearBuilding.faction === Faction.ENEMY });
@@ -1776,6 +1799,9 @@ export function resolveBuildingAttackOnBuilding(
         faction: targetBuilding.faction ?? Faction.ENEMY,
         tags: targetBuilding.tags,
       };
+
+  // CRYSTAL_TOWER synergy: apply chamber bonus to the attacking tower when it attacks a building.
+  attackingCombatant.attack += getCrystalTowerChamberBonus(state, attackingBuilding);
 
   const combatResult = calculateCombatFromStats(attackingCombatant, targetCombatant);
 

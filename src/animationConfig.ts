@@ -81,6 +81,12 @@ export const ANIMATION = {
   SLIDE_KILL_FALL_DURATION_MS: 400,
   /** Duration of the expanding cleave slash ring VFX (ms) */
   CLEAVE_VFX_DURATION_MS: 350,
+  /**
+   * Radius of the cleave ring VFX in tile-widths, measured from the attacker centre.
+   * Used by CleaveVfxLayer in GridRenderer.tsx to scale the ring element.
+   * Increase to make the ring reach further; 1.25 covers the immediate 8 neighbours.
+   */
+  CLEAVE_VFX_RADIUS_TILES: 1.25,
   /** Time for the pierce projectile to travel one tile width (ms) */
   PIERCE_VFX_MS_PER_TILE: 160,
   /** Duration of the BURROW_DUST tile VFX shown for tunnel dig-in / emerge (ms) */

@@ -183,14 +183,20 @@ const createInitialState = (): GameState => generateInitialGameState();
 // HELPERS
 // ============================================================================
 
-/** Sync the camera to the player's starting STRONGHOLD in the given state. */
+/** Sync the camera to the north-most player STRONGHOLD in the given state.
+ *  "North-most" = minimum position.y (row 0 = top of screen); ties broken by minimum position.x.
+ *  If no player stronghold exists the camera is left unchanged. */
 function syncCameraToPlayerStronghold(state: GameState): void {
-  const stronghold = Object.values(state.buildings).find(
+  const strongholds = Object.values(state.buildings).filter(
     (b) => b.type === BuildingType.STRONGHOLD && b.faction === Faction.PLAYER
   );
-  if (stronghold) {
-    useAnimationStore.getState().setCameraTarget(stronghold.position);
-  }
+  if (strongholds.length === 0) return;
+  const northMost = strongholds.reduce((best, b) => {
+    if (b.position.y < best.position.y) return b;
+    if (b.position.y === best.position.y && b.position.x < best.position.x) return b;
+    return best;
+  });
+  useAnimationStore.getState().setCameraTarget(northMost.position);
 }
 
 // ============================================================================
