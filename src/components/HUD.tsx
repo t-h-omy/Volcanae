@@ -10,7 +10,7 @@ import { useGameStore } from '../gameStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
 import { useSoundOptionsStore } from '../soundOptionsStore';
-import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, computeResearchCost, SPELL_DEFINITIONS, TERRAIN_TAG_INFO, RAGE_ATK_PER_ADJACENT, RAGE_MAX_ADJACENT_COUNT } from '../gameConfig';
+import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, computeResearchCost, SPELL_DEFINITIONS, TERRAIN_TAG_INFO, RAGE_ATK_PER_ADJACENT, RAGE_MAX_ADJACENT_COUNT, MAGE } from '../gameConfig';
 import { UI } from '../uiConfig';
 import type { UnitPopulationCost, TechId } from '../types';
 import {
@@ -53,7 +53,7 @@ import {
   type GameStats,
 } from '../types';
 import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast } from '../unitActions';
-import { getPhalanxAttackBonus, getPhalanxDefenseBonus } from '../combatSystem';
+import { getPhalanxAttackBonus, getPhalanxDefenseBonus, getCrystalTowerChamberBonus } from '../combatSystem';
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
 import { getTagsFromActiveSpecialists } from '../specialistSystem';
 import { useZoneClearedStore } from '../zoneClearedStore';
@@ -1174,6 +1174,7 @@ type StatModEntry = {
  */
 function BuildingStatDetailModal({ building, onClose }: { building: Building; onClose: () => void }) {
   const fortifiedGarrisonActive = useGameStore((s) => s.fortifiedGarrisonActive);
+  const gameState = useGameStore((s) => s);
 
   if (!building.combatStats) return null;
 
@@ -1195,6 +1196,17 @@ function BuildingStatDetailModal({ building, onClose }: { building: Building; on
       stat: 'RNG',
       value: ABILITIES.FORTIFIED_GARRISON_RANGE_BONUS,
       source: 'Fortified Garrison (specialist)',
+    });
+  }
+
+  // Crystal Tower: show chamber link bonus if any chambers are connected
+  const chamberBonus = getCrystalTowerChamberBonus(gameState, building);
+  if (chamberBonus > 0) {
+    const connectedCount = chamberBonus / MAGE.CRYSTAL_TOWER_CHAMBER_ATTACK_BONUS;
+    mods.push({
+      stat: 'ATK',
+      value: chamberBonus,
+      source: `Crystal Chamber link (×${connectedCount} connected)`,
     });
   }
 
@@ -2224,6 +2236,9 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
      building.type === BuildingType.CRYSTAL_TOWER);
   const garrisonAtkMod = isGarrisonBuilding && fortifiedGarrisonActive ? ABILITIES.FORTIFIED_GARRISON_ATTACK_BONUS : 0;
   const garrisonRngMod = isGarrisonBuilding && fortifiedGarrisonActive ? ABILITIES.FORTIFIED_GARRISON_RANGE_BONUS : 0;
+  // Crystal Tower ↔ Crystal Chamber synergy: derived live from current chamber adjacency
+  const chamberAtkMod = getCrystalTowerChamberBonus(gameState, building);
+  const totalAtkMod = garrisonAtkMod + chamberAtkMod;
 
   const showBuildingStatMod = (mod: number) => {
     if (mod > 0) return <span className="hud-stat-mod hud-stat-bonus">+{mod}</span>;
@@ -2331,7 +2346,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
             <span className="hud-stat-label">ATK</span>
             <span className="hud-stat-value">
               {building.combatStats.attack - garrisonAtkMod}
-              {showBuildingStatMod(garrisonAtkMod)}
+              {showBuildingStatMod(totalAtkMod)}
             </span>
             <span className="hud-stat-label">DEF</span>
             <span className="hud-stat-value">{building.combatStats.defense}</span>

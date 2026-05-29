@@ -1070,6 +1070,32 @@ export function resolveAttack(
 // ============================================================================
 
 /**
+ * Returns the total attack bonus a Crystal Tower gains from nearby Crystal Chambers.
+ * Each player-owned Crystal Chamber within MAGE.CRYSTAL_TOWER_CHAMBER_CONNECT_RANGE of the
+ * tower contributes MAGE.CRYSTAL_TOWER_CHAMBER_ATTACK_BONUS to the tower's attack.
+ * Returns 0 for any non-player / non-CRYSTAL_TOWER building.
+ */
+export function getCrystalTowerChamberBonus(
+  state: Pick<GameState, 'buildings'>,
+  building: Pick<Building, 'type' | 'faction' | 'position'>,
+): number {
+  if (building.type !== BuildingType.CRYSTAL_TOWER || building.faction !== Faction.PLAYER) return 0;
+  let count = 0;
+  for (const b of Object.values(state.buildings)) {
+    if (b.type === BuildingType.CRYSTAL_CHAMBER && b.faction === Faction.PLAYER) {
+      if (isTileWithinEdgeCircleRange(
+        building.position.x, building.position.y,
+        b.position.x, b.position.y,
+        MAGE.CRYSTAL_TOWER_CHAMBER_CONNECT_RANGE,
+      )) {
+        count += 1;
+      }
+    }
+  }
+  return count * MAGE.CRYSTAL_TOWER_CHAMBER_ATTACK_BONUS;
+}
+
+/**
  * Resolves an attack by a building (e.g. watchtower) against a unit.
  * Buildings always attack at range so there is no melee advance.
  * The defending unit may counter-attack if within its own range.
@@ -1099,20 +1125,9 @@ export function resolveBuildingAttack(
 
   // CRYSTAL_TOWER synergy: each player-owned Crystal Chamber within attack range
   // grants a flat attack bonus to the tower.
-  if (building.type === BuildingType.CRYSTAL_TOWER && buildingFaction === Faction.PLAYER && building.combatStats) {
-    const attackRange = building.combatStats.attackRange;
-    for (const b of Object.values(state.buildings)) {
-      if (b.type === BuildingType.CRYSTAL_CHAMBER && b.faction === Faction.PLAYER) {
-        if (isTileWithinEdgeCircleRange(
-          building.position.x, building.position.y,
-          b.position.x, b.position.y,
-          attackRange,
-        )) {
-          buildingCombatant.attack += MAGE.CRYSTAL_TOWER_CHAMBER_ATTACK_BONUS;
-        }
-      }
-    }
-  }
+  // CRYSTAL_TOWER synergy: each player-owned Crystal Chamber within
+  // MAGE.CRYSTAL_TOWER_CHAMBER_CONNECT_RANGE grants a flat attack bonus to the tower.
+  buildingCombatant.attack += getCrystalTowerChamberBonus(state, building);
 
   // HOLD_GROUND: if the flag is active and the defender is a player unit
   // standing on a player-owned building, add a flat defense bonus.
@@ -1784,6 +1799,9 @@ export function resolveBuildingAttackOnBuilding(
         faction: targetBuilding.faction ?? Faction.ENEMY,
         tags: targetBuilding.tags,
       };
+
+  // CRYSTAL_TOWER synergy: apply chamber bonus to the attacking tower when it attacks a building.
+  attackingCombatant.attack += getCrystalTowerChamberBonus(state, attackingBuilding);
 
   const combatResult = calculateCombatFromStats(attackingCombatant, targetCombatant);
 
