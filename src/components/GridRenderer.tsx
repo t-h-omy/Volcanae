@@ -2144,8 +2144,9 @@ function CrystalTowerConnectionLayer({ tileSize }: { tileSize: number }) {
 function CleaveVfxLayer({ tileSize }: { tileSize: number }) {
   const cleaveVfxList = useCombatAnimationStore((s) => s.cleaveVfxList);
   // The ring element has 0×0 size with a box-shadow spread of 3px.
-  // To visually expand to 1.25 tile widths the scale must equal (1.25 * tileSize) / 3.
-  const finalScale = Math.round((1.25 * tileSize) / 3);
+  // To visually expand to CLEAVE_VFX_RADIUS_TILES tile widths the scale must equal
+  // (CLEAVE_VFX_RADIUS_TILES * tileSize) / 3. The constant is in animationConfig.ts.
+  const finalScale = Math.round((ANIMATION.CLEAVE_VFX_RADIUS_TILES * tileSize) / 3);
   return (
     <div className="cleave-vfx-layer">
       {cleaveVfxList.map((vfx: CleaveVfx) => (
