@@ -1982,7 +1982,7 @@ export const TAG_STAT_EFFECTS: Partial<Record<UnitTag, StatModifier[]>> = {
 // ============================================================================
 
 /** Multiplier applied to primary attack damage when computing CLEAVE AoE damage. */
-export const CLEAVE_DAMAGE_MULTIPLIER = 0.4;
+export const CLEAVE_DAMAGE_MULTIPLIER = 0.5;
 
 /** Multiplier applied to defender damage when the attacker has PIERCE. */
 export const PIERCE_PRIMARY_DAMAGE_MULTIPLIER = 0.5;
@@ -1990,16 +1990,16 @@ export const PIERCE_PRIMARY_DAMAGE_MULTIPLIER = 0.5;
 /** ATK bonus per adjacent enemy, granted to units with RAGE. */
 export const RAGE_ATK_PER_ADJACENT = 6;
 /** Maximum number of adjacent enemies that contribute to RAGE bonus. */
-export const RAGE_MAX_ADJACENT_COUNT = 3;
+export const RAGE_MAX_ADJACENT_COUNT = 8;
 
 /** Damage multiplier when a SUMMONED unit attacks a unit with IRONBLOOD. */
-export const IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER = 0.6;
+export const IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER = 0.2;
 
 /** Damage multiplier when a melee unit (attackRange === 1) attacks a unit with BLOCK. */
 export const BLOCK_MELEE_DAMAGE_MULTIPLIER = 0.5;
 
 /** Base DEF threshold above which PUNCTURE-stun is triggered. */
-export const PUNCTURE_STUN_BASE_DEF_THRESHOLD = 65;
+export const PUNCTURE_STUN_BASE_DEF_THRESHOLD = 60;
 /** Duration in turns of the stun applied by PUNCTURE. */
 export const PUNCTURE_STUN_DURATION = 1;
 
@@ -2008,7 +2008,7 @@ export const TUNNEL_RANGE_MIN = 2;
 /** TUNNEL: maximum number of tiles the unit can move south while underground. */
 export const TUNNEL_RANGE_MAX = 4;
 /** TUNNEL: damage applied to enemy units adjacent to the emergence tile. */
-export const TUNNEL_EMERGE_DAMAGE = 20;
+export const TUNNEL_EMERGE_DAMAGE = 40;
 /** TUNNEL: cooldown turns after emergence before the unit can dig again. */
 export const TUNNEL_COOLDOWN_TURNS = 2;
 /** TUNNEL: maximum number of turns the unit can stay underground while waiting for a free emergence tile. */
@@ -2119,7 +2119,7 @@ export const SANCTUM_COLLAPSE = {
    * producing units for this many player turns.
    * Set to 0 to disable the spawn freeze effect while keeping other effects active.
    */
-  SPAWN_FREEZE_TURNS: 3,
+  SPAWN_FREEZE_TURNS: 2,
 
   /**
    * Amount added to turnsUntilLavaAdvance when a Sanctum Collapse is triggered.
@@ -2127,7 +2127,7 @@ export const SANCTUM_COLLAPSE = {
    * the player extra time without fully freezing the lava clock.
    * Set to 0 to disable this bonus while keeping other Sanctum Collapse effects active.
    */
-  LAVA_ADVANCE_BONUS_TURNS: 3,
+  LAVA_ADVANCE_BONUS_TURNS: 0,
 } as const;
 
 // ============================================================================
