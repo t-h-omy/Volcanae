@@ -237,7 +237,7 @@ export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
     id: SpellId.GRAVE_TRAP,
     name: 'Grave Trap',
     emoji: '☠️',
-    description: `Convert a Gravestone within range into a magical trap. The next unit to step onto it (any faction) is stunned for ${MAGE.GRAVE_TRAP_STUN_TURNS} turns.`,
+    description: `Convert a Gravestone within range into a magical trap. The next enemy unit to step onto it is stunned for ${MAGE.GRAVE_TRAP_STUN_TURNS} turns, and all enemies within 1 tile are stunned as well.`,
     targetHint: 'Select a player Gravestone within range.',
   },
   [SpellId.EXPLODE]: {
@@ -1006,7 +1006,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
     enemyUnlockEmber: 5,
-    description: 'Bypasses the frontline by digging underground. Emerges south of the player line, damaging adjacent enemies and corrupting the tile.',
+    description: 'Tunneling enemy unit.', // overwritten below
   },
 
   RIFT_LORD: {
@@ -1379,7 +1379,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     discoverRadius: 1,
     destroyBehavior: DestroyBehavior.NONE,
     constructionCost: { iron: 0, wood: 0 },
-    description: `A magic trap forged from a gravestone. The next unit to step onto it is stunned for ${MAGE.GRAVE_TRAP_STUN_TURNS} turns and the trap is consumed.`,
+    description: `A magic trap forged from a gravestone. The next enemy to step onto it is stunned for ${MAGE.GRAVE_TRAP_STUN_TURNS} turns, along with all adjacent enemies. The trap is consumed on trigger.`,
   },
   CRYSTAL_TOWER: (() => {
     const combatStats = { maxHp: 200, attack: 40, defense: 55, attackRange: 2, maxAttacksPerTurn: 1 };
@@ -2092,8 +2092,8 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   [UnitTag.EMBER_PORTAL]: { label: 'Ember Portal', desc: 'Casts a pair of portals: an entrance next to the Rift Lord and an exit behind the player\'s frontline. Any enemy unit stepping on the entrance teleports to the exit, if the exit is free. If the exit is blocked, the unit waits on the entrance and teleports the moment the exit clears. The Rift Lord cannot cast another pair until the current pair is removed. Portal tiles are corrupted and block player movement.' },
 };
 
-// ============================================================================
-// SANCTUM COLLAPSE CONFIGURATION
+// Compute descriptions for UNIT_DEFINITIONS entries that reference TUNNEL constants.
+UNIT_DEFINITIONS.RIFTWORM.description = `Digs underground and re-emerges ${TUNNEL_RANGE_MIN}–${TUNNEL_RANGE_MAX} tiles south in the same column. On emergence, deals ${TUNNEL_EMERGE_DAMAGE} damage to all adjacent player units and corrupts the tile.`;
 // ============================================================================
 
 export const SANCTUM_COLLAPSE = {
