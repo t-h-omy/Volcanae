@@ -2093,10 +2093,7 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
 };
 
 // Compute descriptions for UNIT_DEFINITIONS entries that reference TUNNEL constants.
-{
-  const u = UNIT_DEFINITIONS;
-  u.RIFTWORM.description = `Digs underground and re-emerges ${TUNNEL_RANGE_MIN}–${TUNNEL_RANGE_MAX} tiles south in the same column. On emergence, deals ${TUNNEL_EMERGE_DAMAGE} damage to all adjacent player units and corrupts the tile.`;
-}
+UNIT_DEFINITIONS.RIFTWORM.description = `Digs underground and re-emerges ${TUNNEL_RANGE_MIN}–${TUNNEL_RANGE_MAX} tiles south in the same column. On emergence, deals ${TUNNEL_EMERGE_DAMAGE} damage to all adjacent player units and corrupts the tile.`;
 // ============================================================================
 
 export const SANCTUM_COLLAPSE = {
