@@ -229,6 +229,9 @@ export function checkGraveTrapTrigger(
   const building = state.buildings[tile.buildingId];
   if (!building || building.type !== BuildingType.GRAVE_TRAP) return;
 
+  // Only enemy (non-player) units trigger the trap.
+  if (unit.faction === Faction.PLAYER) return;
+
   const trapPos = { x: unit.position.x, y: unit.position.y };
   const stunTurns = building.trapStunTurns ?? 1;
   const floaterStore = useFloaterStore.getState();
@@ -242,7 +245,7 @@ export function checkGraveTrapTrigger(
     label: '💫 Stunned',
     x: trapPos.x,
     y: trapPos.y,
-    isEnemy: unit.faction !== Faction.PLAYER,
+    isEnemy: true,
     floaterType: 'revive',
   });
 
