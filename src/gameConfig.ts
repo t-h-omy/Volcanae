@@ -1283,21 +1283,21 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
   ARCHER_CAMP: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.RUIN,
-    constructionCost: { iron: 1, wood: 5 },
+    constructionCost: { iron: 1, wood: 6 },
     unitLimit: 3,
     description: 'Archery range that trains Archers.',
   },
   RIDER_CAMP: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.RUIN,
-    constructionCost: { iron: 5, wood: 3 },
+    constructionCost: { iron: 3, wood: 8 },
     unitLimit: 3,
     description: 'Stable that trains Riders.',
   },
   SIEGE_CAMP: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.RUIN,
-    constructionCost: { iron: 3, wood: 6 },
+    constructionCost: { iron: 3, wood: 8 },
     unitLimit: 2,
     description: 'Engineering works that trains Siege engines.',
   },
@@ -1306,7 +1306,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     return {
       discoverRadius: 4,
       destroyBehavior: DestroyBehavior.RUIN,
-      constructionCost: { iron: 1, wood: 1 },
+      constructionCost: { iron: 0, wood: 4 },
       combatStats,
       description: `Defensive tower that attacks enemies within ${combatStats.attackRange} tiles and expands your vision.`,
     };
@@ -1342,7 +1342,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
   PATRICIANHOUSE: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.RUIN,
-    constructionCost: { iron: 2, wood: 4 },
+    constructionCost: { iron: 1, wood: 6 },
     description: 'Noble estate — each noble raised lets you field one more elite unit.',
   },
   MAGMASPYR: (() => {
@@ -1386,7 +1386,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     return {
       discoverRadius: 3,
       destroyBehavior: DestroyBehavior.RUIN,
-      constructionCost: { iron: 0, wood: 0 },
+      constructionCost: { iron: 1, wood: 2 },
       combatStats,
       description: `Arcane combat tower. Attacks enemies within ${combatStats.attackRange} tiles. Each enemy unit it kills generates ${MAGE.CRYSTAL_TOWER_KILL_CRYSTAL_REWARD} crystal. Gains +${MAGE.CRYSTAL_TOWER_CHAMBER_ATTACK_BONUS} attack per connected Crystal Chamber within ${MAGE.CRYSTAL_TOWER_CHAMBER_CONNECT_RANGE} tiles.`,
     };
