@@ -658,9 +658,16 @@ export function resolveAttack(
     attacker.stats.currentHp = newAttackerHp;
     attacker.hasAttackedThisTurn = true;
 
-    // BLOODLUST: clear the pending second-attack flag after it is used
+    // BLOODLUST: clear the pending second-attack flag after it is used.
+    // Also clear the artificial non-attack locks set when the charge was
+    // granted — hasAttackedThisTurn = true (set just above) already prevents
+    // capture/construct/heal, so they are no longer needed. Clearing them
+    // restores the HIT_AND_RUN post-attack move for units that have both tags.
     if (isBloodlustAttack) {
       attacker.bloodlustAttackAvailable = false;
+      attacker.hasCapturedThisTurn = false;
+      attacker.hasConstructedThisTurn = false;
+      attacker.hasDestroyedThisTurn = false;
     }
   }
 
@@ -1012,10 +1019,17 @@ export function resolveAttack(
             primaryDefenderPosition: { ...defenderPosition },
           });
           if (newRearHp <= 0) {
-            behindTile.unitId = null;
-            delete state.units[rearUnitId];
-            if (rearUnit.faction === Faction.PLAYER) state.gameStats.unitsLost += 1;
-            else if (attacker.faction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
+            if (rearUnit.tags.includes(UnitTag.BRANDMARKED)) {
+              // BRANDMARKED: complete the transform so an Ember Demon spawns in the
+              // resolved state. completeBrandmarkTransformInPlace handles tile clear,
+              // unit removal, and unitsLost increment.
+              completeBrandmarkTransformInPlace(state, rearUnitId, behindPos);
+            } else {
+              behindTile.unitId = null;
+              delete state.units[rearUnitId];
+              if (rearUnit.faction === Faction.PLAYER) state.gameStats.unitsLost += 1;
+              else if (attacker.faction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
+            }
             grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
             outEvents?.push({
               type: 'UNIT_DEATH',
@@ -1492,6 +1506,14 @@ export function resolveAttackOnBuilding(
   } else {
     attacker.stats.currentHp = newAttackerHp;
     attacker.hasAttackedThisTurn = true;
+    // BLOODLUST: clear the pending second-attack flag after it is used.
+    // Also clear the artificial non-attack locks (same reason as resolveAttack).
+    if (isBloodlustAttack) {
+      attacker.bloodlustAttackAvailable = false;
+      attacker.hasCapturedThisTurn = false;
+      attacker.hasConstructedThisTurn = false;
+      attacker.hasDestroyedThisTurn = false;
+    }
   }
 
   // Update building
@@ -1723,10 +1745,17 @@ export function resolveAttackOnBuilding(
             primaryDefenderPosition: { ...buildingPosition },
           });
           if (newRearHp <= 0) {
-            behindTile.unitId = null;
-            delete state.units[rearUnitId];
-            if (rearUnit.faction === Faction.PLAYER) state.gameStats.unitsLost += 1;
-            else if (attacker.faction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
+            if (rearUnit.tags.includes(UnitTag.BRANDMARKED)) {
+              // BRANDMARKED: complete the transform so an Ember Demon spawns in the
+              // resolved state. completeBrandmarkTransformInPlace handles tile clear,
+              // unit removal, and unitsLost increment.
+              completeBrandmarkTransformInPlace(state, rearUnitId, behindPos);
+            } else {
+              behindTile.unitId = null;
+              delete state.units[rearUnitId];
+              if (rearUnit.faction === Faction.PLAYER) state.gameStats.unitsLost += 1;
+              else if (attacker.faction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
+            }
             grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
             outEvents?.push({
               type: 'UNIT_DEATH',

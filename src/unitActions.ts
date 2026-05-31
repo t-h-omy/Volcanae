@@ -182,9 +182,10 @@ export function getAttackTargets(
   // Enemy units
   for (const other of Object.values(units)) {
     if (other.faction === Faction.ENEMY) {
-      // TUNNEL units that are underground are removed from the grid (tile.unitId = null)
-      // and cannot be attacked. Skip them to avoid highlighting the empty hole tile.
-      if (other.tunnelState === 'DIGGING_IN' || other.tunnelState === 'UNDERGROUND') continue;
+      // TUNNEL units that are underground or emerging are removed from the grid
+      // (tile.unitId = null) and cannot be attacked. Skip them to avoid highlighting
+      // the empty hole tile or the not-yet-placed emergence tile.
+      if (other.tunnelState === 'DIGGING_IN' || other.tunnelState === 'UNDERGROUND' || other.tunnelState === 'EMERGING') continue;
       if (!grid[other.position.y]?.[other.position.x]?.isRevealed) continue;
       const inRange = isTileWithinEdgeCircleRange(
         unit.position.x, unit.position.y,
