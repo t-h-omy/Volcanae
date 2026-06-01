@@ -591,9 +591,9 @@ export const TERRAIN = {
    */
   MOUNTAINS_PER_ZONE_OVERRIDES: {} as Record<number, { min: number; max: number }>,
   /** Minimum number of ruin tiles placed per zone (used if no zone-specific override is set) */
-  RUINS_PER_ZONE_MIN: 8,
+  RUINS_PER_ZONE_MIN: 7,
   /** Maximum number of ruin tiles placed per zone (used if no zone-specific override is set) */
-  RUINS_PER_ZONE_MAX: 9,
+  RUINS_PER_ZONE_MAX: 8,
   /**
    * Optional per-zone ruin min/max overrides.
    * Keys are zone numbers (1–5). Missing keys fall back to RUINS_PER_ZONE_MIN/MAX.
@@ -1283,14 +1283,14 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
   ARCHER_CAMP: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.RUIN,
-    constructionCost: { iron: 1, wood: 6 },
+    constructionCost: { iron: 1, wood: 7 },
     unitLimit: 3,
     description: 'Archery range that trains Archers.',
   },
   RIDER_CAMP: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.RUIN,
-    constructionCost: { iron: 3, wood: 8 },
+    constructionCost: { iron: 2, wood: 9 },
     unitLimit: 3,
     description: 'Stable that trains Riders.',
   },
@@ -1336,13 +1336,13 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
   FARM: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.RUIN,
-    constructionCost: { iron: 0, wood: 3 },
+    constructionCost: { iron: 0, wood: 4 },
     description: 'Housing for common folk — each pop raised lets you field one more basic unit.',
   },
   PATRICIANHOUSE: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.RUIN,
-    constructionCost: { iron: 1, wood: 6 },
+    constructionCost: { iron: 1, wood: 8 },
     description: 'Noble estate — each noble raised lets you field one more elite unit.',
   },
   MAGMASPYR: (() => {
