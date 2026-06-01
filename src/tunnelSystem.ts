@@ -269,11 +269,16 @@ export function processTunnelTurn(
       emTile.unitId = unitId;
       unit.position = { x: emergePos.x, y: emergePos.y };
 
-      // Apply emergence AoE damage to adjacent player units (Chebyshev 1)
-      const affectedPositions = _applyEmergenceDamage(state, unitId, emergePos, events ?? []);
+      // Apply emergence AoE damage to adjacent player units (Chebyshev 1).
+      // Collect death and corruption events into temporary arrays so we can
+      // push TUNNEL_EMERGE first — the riftworm must appear before casualties
+      // animate to avoid deaths playing before the riftworm arrives.
+      const deathEvents: GameEvent[] = [];
+      const affectedPositions = _applyEmergenceDamage(state, unitId, emergePos, deathEvents);
 
-      // Corrupt the emergence tile
-      applyTileStatus(state, emergePos, TileStatus.CORRUPTED, events);
+      // Corrupt the emergence tile (collect event separately)
+      const corruptionEvents: GameEvent[] = [];
+      applyTileStatus(state, emergePos, TileStatus.CORRUPTED, corruptionEvents);
 
       // Reset tunnel state
       unit.tunnelState = 'IDLE';
@@ -282,12 +287,16 @@ export function processTunnelTurn(
       unit.tunnelTurnsUnderground = 0;
       unit.tunnelCooldownUntil = state.turn + TUNNEL_COOLDOWN_TURNS;
 
+      // Emit TUNNEL_EMERGE first so the animation engine shows the riftworm
+      // before processing corruption and unit deaths.
       events?.push({
         type: 'TUNNEL_EMERGE',
         unitId,
         position: { x: emergePos.x, y: emergePos.y },
         affectedPositions,
       });
+      for (const e of corruptionEvents) events?.push(e);
+      for (const e of deathEvents) events?.push(e);
 
       return true;
     }
