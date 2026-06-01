@@ -1981,7 +1981,9 @@ function scoreActionsForUnit(
         }
       }
       if (hasAdjacentPlayer) {
-        const blockedBonus = (isSacrificial && isBlockedFromLava) ? AI_SCORING.BONUS_BLOCKED_SACRIFICIAL_EXPLODE : 0;
+        // Only award the big "blocked sacrificial" bonus once the unit has already moved this
+        // turn — ensuring it tries to advance first and only explodes when truly stuck.
+        const blockedBonus = (isSacrificial && isBlockedFromLava && unit.hasMovedThisTurn) ? AI_SCORING.BONUS_BLOCKED_SACRIFICIAL_EXPLODE : 0;
         candidates.push({ type: 'EXPLODE', score: AI_SCORING.BASE_EXPLODE + blockedBonus });
       }
     }
