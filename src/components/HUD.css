@@ -629,17 +629,16 @@
 /* ── Turn Announcement Popup ── */
 
 @keyframes turnAnnounce {
-  0%   { opacity: 0; transform: translateY(-8px) scale(0.95); }
-  15%  { opacity: 1; transform: translateY(0)    scale(1);    }
-  75%  { opacity: 1; transform: translateY(0)    scale(1);    }
-  100% { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  0%   { opacity: 0; transform: translateX(-50%) translateY(-8px) scale(0.95); }
+  15%  { opacity: 1; transform: translateX(-50%) translateY(0)    scale(1);    }
+  75%  { opacity: 1; transform: translateX(-50%) translateY(0)    scale(1);    }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-4px) scale(0.98); }
 }
 
 .hud-turn-popup {
   position: fixed;
   top: 20%;
   left: 50%;
-  transform: translateX(-50%);
   z-index: 250;
   pointer-events: none;
   background: rgba(0, 0, 0, 0.6);

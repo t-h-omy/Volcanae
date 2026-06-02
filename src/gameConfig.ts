@@ -1053,7 +1053,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
    maxHp: 120, attack: 55, defense: 40,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 3, triggerRange: 3,
-    tags: [],
+    tags: [UnitTag.ALERT],
     cost: { iron: 0, wood: 0 },
     populationCost: { farmers: 0, nobles: 0 },
     levelUp: [
@@ -2062,7 +2062,7 @@ export const EMBER_PORTAL_DISTANCE_PENALTY = 4;
 export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: string }> = {
   [UnitTag.RANGED]:            { label: 'Ranged',            desc: 'Attacks from a distance and does not move onto a defeated enemy\'s tile.' },
   [UnitTag.PREP]:              { label: 'Prep',              desc: 'Cannot attack after moving. Must attack before moving, or forgo movement entirely.' },
-  [UnitTag.BUILDANDCAPTURE]:   { label: 'Build & Capture',   desc: 'Can construct buildings on empty tiles and capture enemy buildings. Strongholds and watchtowers transfer to your faction; other enemy buildings are demolished.' },
+  [UnitTag.BUILDANDCAPTURE]:   { label: 'Build & Capture',   desc: 'Can construct buildings on ruins and resource terrain (forest/mountain), and capture enemy buildings. Strongholds and watchtowers transfer to your faction; other enemy buildings are demolished.' },
   [UnitTag.SACRIFICIAL]:       { label: 'Sacrificial',       desc: 'Prioritizes walking toward the lava to be consumed.' },
   [UnitTag.EXPLOSIVE]:         { label: 'Explosive',         desc: 'Deals heavy area damage to all adjacent enemies when adjacent to enemies with no way forward (preemptive self-detonation).' },
   [UnitTag.FIELDWORK]:         { label: 'Fieldwork',         desc: `Can sacrifice itself on its current tile to instantly erect an Outpost (HP scales with the unit's current HP × ${ABILITIES.FIELDWORK_HP_MULTIPLIER}). Cannot be used on ruins or resource terrain.` },

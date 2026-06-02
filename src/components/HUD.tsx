@@ -701,10 +701,23 @@ const HIDDEN_UNIT_TAGS = new Set<string>([]);
 // SHARED INFO POPUP COMPONENTS
 // ============================================================================
 
+/** Guard period (ms) after popup mount before backdrop click can close it.
+ *  Prevents the synthetic touch event from the opening tap immediately closing the portal. */
+const POPUP_CLICK_GUARD_MS = 200;
+
 /** Reusable popup shell — backdrop + centered card, dismisses on outside tap */
 function Popup({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
+  // Capture mount time so we can ignore phantom clicks fired by the opening tap.
+  // Popup is always unmounted/remounted when its parent conditionally renders it,
+  // so useRef(Date.now()) reliably records the actual mount timestamp.
+  const openTimeRef = useRef(Date.now());
   return createPortal(
-    <div className="info-popup-backdrop" onClick={onClose} role="dialog" aria-modal="true">
+    <div
+      className="info-popup-backdrop"
+      onClick={() => { if (Date.now() - openTimeRef.current >= POPUP_CLICK_GUARD_MS) onClose(); }}
+      role="dialog"
+      aria-modal="true"
+    >
       <div className="info-popup-card" onClick={(e) => e.stopPropagation()}>
         {children}
       </div>
