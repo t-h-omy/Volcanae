@@ -383,13 +383,13 @@ export function computeResourceIncomeBreakdown(
     buildingUpkeepWood[building.type] = (buildingUpkeepWood[building.type] ?? 0) + wood;
     buildingUpkeepCount[building.type] = (buildingUpkeepCount[building.type] ?? 0) + 1;
   }
-  for (const rawType of Object.keys(buildingUpkeepCount) as BuildingType[]) {
-    const count = buildingUpkeepCount[rawType] ?? 0;
-    const iron = buildingUpkeepIron[rawType] ?? 0;
-    const wood = buildingUpkeepWood[rawType] ?? 0;
-    const label = rawType
+  for (const buildingType of Object.keys(buildingUpkeepCount) as BuildingType[]) {
+    const count = buildingUpkeepCount[buildingType] ?? 0;
+    const iron = buildingUpkeepIron[buildingType] ?? 0;
+    const wood = buildingUpkeepWood[buildingType] ?? 0;
+    const label = buildingType
       .split('_')
-      .map((w) => w.charAt(0) + w.slice(1).toLowerCase())
+      .map((word) => word.charAt(0) + word.slice(1).toLowerCase())
       .join(' ');
     entries.push({
       label: `${label} ×${count} (upkeep)`,
