@@ -191,6 +191,19 @@ export function collectResources(state: Draft<GameState>): void {
     }
   }
 
+  // Deduct recruitment building upkeep
+  for (const building of Object.values(state.buildings)) {
+    if (building.faction !== Faction.PLAYER) continue;
+    if (building.isDisabledForTurns > 0) continue;
+    const def = BUILDING_DEFINITIONS[building.type];
+    const iron = def.upkeepIron ?? 0;
+    const wood = def.upkeepWood ?? 0;
+    if (iron === 0 && wood === 0) continue;
+    // Deduct without pushing resources below zero
+    state.resources.iron = Math.max(0, state.resources.iron - iron);
+    state.resources.wood = Math.max(0, state.resources.wood - wood);
+  }
+
   // Tick Crystal Chamber resonance: grant arcane crystals and decrement counter
   for (const building of Object.values(state.buildings)) {
     if (
@@ -355,6 +368,36 @@ export function computeResourceIncomeBreakdown(
     }
   }
 
+  // Recruitment building upkeep (negative modifiers), grouped by building type
+  const buildingUpkeepIron: Partial<Record<BuildingType, number>> = {};
+  const buildingUpkeepWood: Partial<Record<BuildingType, number>> = {};
+  const buildingUpkeepCount: Partial<Record<BuildingType, number>> = {};
+  for (const building of Object.values(state.buildings)) {
+    if (building.faction !== Faction.PLAYER) continue;
+    if (building.isDisabledForTurns > 0) continue;
+    const def = BUILDING_DEFINITIONS[building.type];
+    const iron = def.upkeepIron ?? 0;
+    const wood = def.upkeepWood ?? 0;
+    if (iron === 0 && wood === 0) continue;
+    buildingUpkeepIron[building.type] = (buildingUpkeepIron[building.type] ?? 0) + iron;
+    buildingUpkeepWood[building.type] = (buildingUpkeepWood[building.type] ?? 0) + wood;
+    buildingUpkeepCount[building.type] = (buildingUpkeepCount[building.type] ?? 0) + 1;
+  }
+  for (const buildingType of Object.keys(buildingUpkeepCount) as BuildingType[]) {
+    const count = buildingUpkeepCount[buildingType] ?? 0;
+    const iron = buildingUpkeepIron[buildingType] ?? 0;
+    const wood = buildingUpkeepWood[buildingType] ?? 0;
+    const label = buildingType
+      .split('_')
+      .map((word) => word.charAt(0) + word.slice(1).toLowerCase())
+      .join(' ');
+    entries.push({
+      label: `${label} ×${count} (upkeep)`,
+      iron: -iron,
+      wood: -wood,
+    });
+  }
+
   return entries;
 }
 
@@ -375,6 +418,29 @@ export function computeSpecialistUpkeep(
     if (!spec || spec.dormant) continue;
     ironUpkeep += spec.upkeepIron ?? 0;
     woodUpkeep += spec.upkeepWood ?? 0;
+  }
+  return { ironUpkeep, woodUpkeep };
+}
+
+/**
+ * Computes the total recruitment building upkeep that will be deducted from
+ * player resources each turn for all active (non-disabled) player-owned
+ * recruitment buildings.
+ *
+ * Use this alongside computeResourceIncome and computeSpecialistUpkeep to
+ * show the player their NET income so UI numbers always match gameplay.
+ */
+export function computeBuildingUpkeep(
+  state: GameState | Draft<GameState>,
+): { ironUpkeep: number; woodUpkeep: number } {
+  let ironUpkeep = 0;
+  let woodUpkeep = 0;
+  for (const building of Object.values(state.buildings)) {
+    if (building.faction !== Faction.PLAYER) continue;
+    if (building.isDisabledForTurns > 0) continue;
+    const def = BUILDING_DEFINITIONS[building.type];
+    ironUpkeep += def.upkeepIron ?? 0;
+    woodUpkeep += def.upkeepWood ?? 0;
   }
   return { ironUpkeep, woodUpkeep };
 }
