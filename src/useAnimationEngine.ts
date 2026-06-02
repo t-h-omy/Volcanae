@@ -127,8 +127,12 @@ function isEventVisible(event: GameEvent): boolean {
   switch (event.type) {
     case 'ENEMY_SPAWN':
       return isTileRevealed(event.position);
-    case 'ENEMY_MOVE':
-      return isTileRevealed(event.from) || isTileRevealed(event.to);
+    case 'ENEMY_MOVE': {
+      if (isTileRevealed(event.from) || isTileRevealed(event.to)) return true;
+      // Cave monsters should always be tracked by the camera even when on unrevealed tiles
+      const movedUnit = useGameStore.getState().units[event.unitId];
+      return movedUnit?.type === UnitType.CAVE_MONSTER;
+    }
     case 'ENEMY_ATTACK':
       // Cave monster attacks are always visible so the camera always pans to them
       if (useGameStore.getState().units[event.attackerId]?.type === UnitType.CAVE_MONSTER) {
@@ -886,66 +890,6 @@ export function useAnimationEngine(): void {
         if (event.type === 'ENEMY_ATTACK' || event.type === 'PLAYER_ATTACK') {
           const dyingIds = await playAttackAnimation(event, visible);
 
-          // Consume following CLEAVE_DAMAGE events and play them simultaneously with the attack
-          {
-            const cleaveEvents: Extract<GameEvent, { type: 'CLEAVE_DAMAGE' }>[] = [];
-            // Peek ahead and gather all consecutive CLEAVE_DAMAGE events
-            while (true) {
-              const { eventQueue: eq } = useAnimationStore.getState();
-              if (eq.length === 0 || eq[0].type !== 'CLEAVE_DAMAGE') break;
-              const cleaveEvent = useAnimationStore.getState().shiftEvent() as Extract<GameEvent, { type: 'CLEAVE_DAMAGE' }>;
-              cleaveEvents.push(cleaveEvent);
-            }
-            if (cleaveEvents.length > 0 && visible) {
-              const { addCleaveVfx, removeCleaveVfx, setUnitAnimation } = useCombatAnimationStore.getState();
-              // Trigger VFX ring (only once since they all share the same attacker position)
-              const vfxId = crypto.randomUUID();
-              addCleaveVfx({
-                id: vfxId,
-                cx: cleaveEvents[0].attackerPosition.x,
-                cy: cleaveEvents[0].attackerPosition.y,
-                durationMs: ANIMATION.CLEAVE_VFX_DURATION_MS,
-              });
-              setTimeout(() => removeCleaveVfx(vfxId), ANIMATION.CLEAVE_VFX_DURATION_MS);
-              // Apply damage and show HIT shake on all cleave targets simultaneously
-              for (const ce of cleaveEvents) {
-                useGameStore.getState().applyEvent(ce);
-                setUnitAnimation(ce.unitId, { type: 'HIT' });
-              }
-              await wait(ANIMATION.HIT_SHAKE_DURATION_MS);
-              for (const ce of cleaveEvents) {
-                useCombatAnimationStore.getState().setUnitAnimation(ce.unitId, null);
-              }
-              // Consume any following UNIT_DEATH events for cleave-killed targets
-              for (const ce of cleaveEvents) {
-                const { eventQueue: eq } = useAnimationStore.getState();
-                if (eq.length > 0 && eq[0].type === 'UNIT_DEATH' && eq[0].unitId === ce.unitId) {
-                  const deathEvt = eq[0] as Extract<GameEvent, { type: 'UNIT_DEATH' }>;
-                  useAnimationStore.getState().shiftEvent();
-                  useCombatAnimationStore.getState().setUnitAnimation(deathEvt.unitId, { type: 'DYING' });
-                  await wait(ANIMATION.DIE_FLASH_DURATION_MS + ANIMATION.DIE_FADE_DURATION_MS);
-                  useCombatAnimationStore.getState().setUnitAnimation(deathEvt.unitId, null);
-                  useGameStore.getState().applyEvent(deathEvt);
-                  dyingIds.add(deathEvt.unitId);
-                }
-              }
-            } else if (cleaveEvents.length > 0) {
-              // Not visible — just apply damage silently
-              for (const ce of cleaveEvents) {
-                useGameStore.getState().applyEvent(ce);
-              }
-              // Consume following UNIT_DEATH events for cleave kills
-              for (const ce of cleaveEvents) {
-                const { eventQueue: eq } = useAnimationStore.getState();
-                if (eq.length > 0 && eq[0].type === 'UNIT_DEATH' && eq[0].unitId === ce.unitId) {
-                  const deathEvt = eq[0] as Extract<GameEvent, { type: 'UNIT_DEATH' }>;
-                  useAnimationStore.getState().shiftEvent();
-                  useGameStore.getState().applyEvent(deathEvt);
-                  dyingIds.add(deathEvt.unitId);
-                }
-              }
-            }
-          }
 
           // Consume following UNIT_DEATH events that were already animated
           // (primary defender kill + attacker counter-kill, both animated by playAttackAnimation
@@ -1132,6 +1076,70 @@ export function useAnimationEngine(): void {
             }
           }
 
+          // ── Inline CLEAVE_DAMAGE consumption ─────────────────────────────────────────────────
+          // CLEAVE events are interleaved with UNIT_DEATH events:
+          //   [CD(v1), UD(v1)?, CD(v2), UD(v2)?]
+          // We collect ALL of them here, then fire a SINGLE VFX ring on the attacker.
+          {
+            const cleaveEvents: Extract<GameEvent, { type: 'CLEAVE_DAMAGE' }>[] = [];
+            const cleaveDeathMap = new Map<string, Extract<GameEvent, { type: 'UNIT_DEATH' }>>();
+            const cleaveVictimIds = new Set<string>();
+            while (true) {
+              const { eventQueue: eq } = useAnimationStore.getState();
+              if (eq.length === 0) break;
+              if (eq[0].type === 'CLEAVE_DAMAGE') {
+                const ce = useAnimationStore.getState().shiftEvent() as Extract<GameEvent, { type: 'CLEAVE_DAMAGE' }>;
+                cleaveEvents.push(ce);
+                cleaveVictimIds.add(ce.unitId);
+              } else if (eq[0].type === 'UNIT_DEATH' && cleaveVictimIds.has(eq[0].unitId)) {
+                const de = useAnimationStore.getState().shiftEvent() as Extract<GameEvent, { type: 'UNIT_DEATH' }>;
+                cleaveDeathMap.set(de.unitId, de);
+              } else {
+                break;
+              }
+            }
+            if (cleaveEvents.length > 0) {
+              if (visible) {
+                const { addCleaveVfx, removeCleaveVfx, setUnitAnimation } = useCombatAnimationStore.getState();
+                const vfxId = crypto.randomUUID();
+                addCleaveVfx({
+                  id: vfxId,
+                  cx: cleaveEvents[0].attackerPosition.x,
+                  cy: cleaveEvents[0].attackerPosition.y,
+                  durationMs: ANIMATION.CLEAVE_VFX_DURATION_MS,
+                });
+                setTimeout(() => removeCleaveVfx(vfxId), ANIMATION.CLEAVE_VFX_DURATION_MS);
+                for (const ce of cleaveEvents) {
+                  useGameStore.getState().applyEvent(ce);
+                  setUnitAnimation(ce.unitId, { type: 'HIT' });
+                }
+                await wait(ANIMATION.HIT_SHAKE_DURATION_MS);
+                for (const ce of cleaveEvents) {
+                  useCombatAnimationStore.getState().setUnitAnimation(ce.unitId, null);
+                }
+                for (const ce of cleaveEvents) {
+                  const deathEvt = cleaveDeathMap.get(ce.unitId);
+                  if (deathEvt) {
+                    useCombatAnimationStore.getState().setUnitAnimation(deathEvt.unitId, { type: 'DYING' });
+                    await wait(ANIMATION.DIE_FLASH_DURATION_MS + ANIMATION.DIE_FADE_DURATION_MS);
+                    useCombatAnimationStore.getState().setUnitAnimation(deathEvt.unitId, null);
+                    useGameStore.getState().applyEvent(deathEvt);
+                    dyingIds.add(deathEvt.unitId);
+                  }
+                }
+              } else {
+                for (const ce of cleaveEvents) {
+                  useGameStore.getState().applyEvent(ce);
+                  const deathEvt = cleaveDeathMap.get(ce.unitId);
+                  if (deathEvt) {
+                    useGameStore.getState().applyEvent(deathEvt);
+                    dyingIds.add(deathEvt.unitId);
+                  }
+                }
+              }
+            }
+          }
+
           if (visible) {
             await wait(ANIMATION.POST_ACTION_IDLE_MS);
           }
@@ -1293,47 +1301,6 @@ export function useAnimationEngine(): void {
           } else {
             useGameStore.getState().applyEvent(event);
           }
-          continue;
-        }
-
-        // ── Special handling for CLEAVE_DAMAGE ──
-        if (event.type === 'CLEAVE_DAMAGE') {
-          if (visible) {
-            const { addCleaveVfx, removeCleaveVfx, setUnitAnimation } = useCombatAnimationStore.getState();
-            const vfxId = crypto.randomUUID();
-            addCleaveVfx({
-              id: vfxId,
-              cx: event.attackerPosition.x,
-              cy: event.attackerPosition.y,
-              durationMs: ANIMATION.CLEAVE_VFX_DURATION_MS,
-            });
-            setTimeout(() => removeCleaveVfx(vfxId), ANIMATION.CLEAVE_VFX_DURATION_MS);
-            // Apply HP delta immediately
-            useGameStore.getState().applyEvent(event);
-            // Show HIT shake on target
-            setUnitAnimation(event.unitId, { type: 'HIT' });
-            await wait(ANIMATION.HIT_SHAKE_DURATION_MS);
-            setUnitAnimation(event.unitId, null);
-          } else {
-            useGameStore.getState().applyEvent(event);
-          }
-          // Consume any following UNIT_DEATH for this target
-          {
-            const { eventQueue } = useAnimationStore.getState();
-            if (eventQueue.length > 0) {
-              const next = eventQueue[0];
-              if (next.type === 'UNIT_DEATH' && next.unitId === event.unitId) {
-                useAnimationStore.getState().shiftEvent();
-                if (visible) {
-                  useCombatAnimationStore.getState().setUnitAnimation(next.unitId, { type: 'DYING' });
-                  await wait(ANIMATION.DIE_FLASH_DURATION_MS + ANIMATION.DIE_FADE_DURATION_MS);
-                  useCombatAnimationStore.getState().setUnitAnimation(next.unitId, null);
-                }
-                useGameStore.getState().applyEvent(next);
-              }
-            }
-          }
-          if (visible) await wait(ANIMATION.POST_ACTION_IDLE_MS);
           continue;
         }
 
