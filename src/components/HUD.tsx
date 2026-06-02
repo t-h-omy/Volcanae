@@ -20,6 +20,7 @@ import {
   canAffordPopulation,
   computeResourceIncome,
   computeSpecialistUpkeep,
+  computeBuildingUpkeep,
   computeRecruitmentBuildingUsage,
   computeResourceIncomeBreakdown,
   computeCrystalIncomePerTurn,
@@ -597,8 +598,8 @@ function TopBar({
   // Resource income per turn (gross) and specialist upkeep; net shown in HUD
   const ironPerTurn = useGameStore((s) => computeResourceIncome(s).ironPerTurn);
   const woodPerTurn = useGameStore((s) => computeResourceIncome(s).woodPerTurn);
-  const ironUpkeep = useGameStore((s) => computeSpecialistUpkeep(s).ironUpkeep);
-  const woodUpkeep = useGameStore((s) => computeSpecialistUpkeep(s).woodUpkeep);
+  const ironUpkeep = useGameStore((s) => computeSpecialistUpkeep(s).ironUpkeep + computeBuildingUpkeep(s).ironUpkeep);
+  const woodUpkeep = useGameStore((s) => computeSpecialistUpkeep(s).woodUpkeep + computeBuildingUpkeep(s).woodUpkeep);
 
   // Specialist slots
   const specialists = useGameStore((s) => s.specialists);
