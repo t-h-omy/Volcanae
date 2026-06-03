@@ -1408,8 +1408,6 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     destroyBehavior: DestroyBehavior.RUIN,
     constructionCost: { iron: 8, wood: 4 },
     unitLimit: CRYSTAL_CHAMBER_CONFIG.CHAMBER_UNIT_LIMIT,
-    upkeepIron: 1,
-    upkeepWood: 1,
     description: `Arcane resonator. When a Crystal Chamber is consumed by lava, all surviving chambers begin resonating and generate ${CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN} crystal${CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN !== 1 ? 's' : ''} per turn. While active, Mages can be recruited once Arcane Awakening is researched.`,
   },
   GRAVESTONE: {
@@ -1867,7 +1865,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 7,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SIEGE, tag: UnitTag.PREVENTIVE_STRIKE },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.RIDER, resource: 'wood', amount: 2 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.SIEGE, resource: 'wood', amount: 2 },
     ],
   },
 
