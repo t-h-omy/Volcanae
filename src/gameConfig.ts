@@ -1069,10 +1069,10 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   EMBER_DEMON: {
-    maxHp: 120, attack: 70, defense: 40,
+    maxHp: 160, attack: 70, defense: 40,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 3,
-    tags: [UnitTag.LAVA],
+    tags: [UnitTag.LAVA, UnitTag.READY],
     cost: { iron: 0, wood: 0 },
     populationCost: { farmers: 0, nobles: 0 },
     levelUp: [
