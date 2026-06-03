@@ -262,13 +262,13 @@ export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
 
 export const RESOURCES = {
   /** Iron produced per turn by a mine */
-  MINE_IRON_PER_TURN: 1,
+  MINE_IRON_PER_TURN: 2,
   /** Wood produced per turn by a woodcutter */
-  WOODCUTTER_WOOD_PER_TURN: 1,
+  WOODCUTTER_WOOD_PER_TURN: 2,
   /** Iron available at the start of a new game */
-  START_IRON: 3,
+  START_IRON: 6,
   /** Wood available at the start of a new game */
-  START_WOOD: 3,
+  START_WOOD: 6,
 } as const;
 
 // ============================================================================
@@ -766,7 +766,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
     tags: [UnitTag.BUILDANDCAPTURE],
-    cost: { iron: 2, wood: 3 },
+    cost: { iron: 4, wood: 6 },
     populationCost: { farmers: 1, nobles: 0 },
     levelUp: [
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
@@ -780,7 +780,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
     tags: [UnitTag.BUILDANDCAPTURE],
-    cost: { iron: 7, wood: 4 },
+    cost: { iron: 14, wood: 8 },
     populationCost: { farmers: 1, nobles: 0 },
     levelUp: [
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
@@ -794,7 +794,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     movementActions: 1, moveRange: 1, attackRange: 2,
     discoverRadius: 1, triggerRange: 0,
     tags: [UnitTag.RANGED, UnitTag.BUILDANDCAPTURE],
-    cost: { iron: 2, wood: 5 },
+    cost: { iron: 4, wood: 10 },
     populationCost: { farmers: 1, nobles: 0 },
     levelUp: [
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
@@ -808,7 +808,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     movementActions: 1, moveRange: 2, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
     tags: [UnitTag.BUILDANDCAPTURE],
-    cost: { iron: 6, wood: 3 },
+    cost: { iron: 12, wood: 6 },
     populationCost: { farmers: 0, nobles: 1 },
     levelUp: [
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
@@ -822,7 +822,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     movementActions: 1, moveRange: 1, attackRange: 3,
     discoverRadius: 1, triggerRange: 0,
     tags: [UnitTag.RANGED, UnitTag.PREP],
-    cost: { iron: 5, wood: 7 },
+    cost: { iron: 10, wood: 14 },
     populationCost: { farmers: 1, nobles: 1 },
     levelUp: [
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
@@ -836,7 +836,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     movementActions: 1, moveRange: 2, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
     tags: [],
-    cost: { iron: 0, wood: 2 },
+    cost: { iron: 0, wood: 4 },
     populationCost: { farmers: 1, nobles: 0 },
     levelUp: [
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_SCOUT }] },
@@ -850,7 +850,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
     tags: [UnitTag.PREP],
-    cost: { iron: 2, wood: 0 },
+    cost: { iron: 4, wood: 0 },
     populationCost: { farmers: 0, nobles: 1 },
     levelUp: [
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
@@ -1059,7 +1059,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     movementActions: 1, moveRange: 1, attackRange: 2,
     discoverRadius: 1, triggerRange: 0,
     tags: [UnitTag.PASSIVE, UnitTag.PREP],
-    cost: { iron: 2, wood: 6 },
+    cost: { iron: 4, wood: 12 },
     populationCost: { farmers: 0, nobles: 1 },
     levelUp: [
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_SCOUT }] },
@@ -1223,18 +1223,18 @@ export const ABILITIES = {
   /** % chance for a Mine to yield one extra iron per turn (DEEP_VEINS tech) */
   DEEP_VEINS_BONUS_CHANCE: 50,
   /** Extra iron amount produced per bonus proc (DEEP_VEINS tech) */
-  DEEP_VEINS_BONUS_AMOUNT: 1,
+  DEEP_VEINS_BONUS_AMOUNT: 2,
   /** % chance for a Woodcutter to yield one extra wood per turn (CLEAN_CUTS tech) */
   CLEAN_CUTS_BONUS_CHANCE: 50,
   /** Extra wood amount produced per bonus proc (CLEAN_CUTS tech) */
-  CLEAN_CUTS_BONUS_AMOUNT: 1,
+  CLEAN_CUTS_BONUS_AMOUNT: 2,
   // ── Tech-tree stronghold/citadel abilities ───────────────────────────────────
   /** Farmer-slot capacity added to each Stronghold by the WALLED_SETTLEMENT tech */
   WALLED_SETTLEMENT_FARMER_BONUS: 2,
   /** Iron produced by each Stronghold per turn after WALLED_SETTLEMENT */
-  WALLED_SETTLEMENT_IRON_AMOUNT: 1,
+  WALLED_SETTLEMENT_IRON_AMOUNT: 2,
   /** Wood produced by each Stronghold per turn after WALLED_SETTLEMENT */
-  WALLED_SETTLEMENT_WOOD_AMOUNT: 2,
+  WALLED_SETTLEMENT_WOOD_AMOUNT: 4,
   /** Noble-slot capacity added to each Stronghold by the CITADEL tech */
   CITADEL_NOBLE_BONUS: 2,
   /** Max-HP bonus applied to Scouts and Guards by the CITADEL tech */
@@ -1263,62 +1263,76 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     destroyBehavior: DestroyBehavior.STRONGHOLD_RUIN,
     constructionCost: { iron: 0, wood: 0 },
     unitLimit: 4,
+    upkeepIron: 1,
+    upkeepWood: 1,
     description: 'Your capital — if you lose all your strongholds, the game is over.',
   },
   MINE: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.NONE,
-    constructionCost: { iron: 0, wood: 2 },
+    constructionCost: { iron: 0, wood: 4 },
+    upkeepIron: 1,
+    upkeepWood: 1,
     description: `Produces ${RESOURCES.MINE_IRON_PER_TURN} iron per turn, the primary resource for training units.`,
   },
   WOODCUTTER: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.NONE,
     constructionCost: { iron: 0, wood: 0 },
+    upkeepIron: 1,
+    upkeepWood: 1,
     description: `Produces ${RESOURCES.WOODCUTTER_WOOD_PER_TURN} wood per turn, used alongside iron for buildings and recruitment.`,
   },
   BARRACKS: (() => {
     const upkeepWood = 1;
+    const upkeepIron = 1;
     return {
       discoverRadius: 2,
       destroyBehavior: DestroyBehavior.RUIN,
-      constructionCost: { iron: 2, wood: 2 },
+      constructionCost: { iron: 4, wood: 4 },
       unitLimit: 3,
       upkeepWood,
-      description: `Military hall that trains Spearman and Swordsman. Upkeep: ${upkeepWood} wood per turn.`,
+      upkeepIron,
+      description: `Military hall that trains Spearman and Swordsman. Upkeep: ${upkeepIron} iron + ${upkeepWood} wood per turn.`,
     };
   })(),
   ARCHER_CAMP: (() => {
     const upkeepWood = 1;
+    const upkeepIron = 1;
     return {
       discoverRadius: 2,
       destroyBehavior: DestroyBehavior.RUIN,
-      constructionCost: { iron: 1, wood: 7 },
+      constructionCost: { iron: 2, wood: 14 },
       unitLimit: 3,
       upkeepWood,
-      description: `Archery range that trains Archers. Upkeep: ${upkeepWood} wood per turn.`,
+      upkeepIron,
+      description: `Archery range that trains Archers. Upkeep: ${upkeepIron} iron + ${upkeepWood} wood per turn.`,
     };
   })(),
   RIDER_CAMP: (() => {
     const upkeepIron = 1;
+    const upkeepWood = 1;
     return {
       discoverRadius: 2,
       destroyBehavior: DestroyBehavior.RUIN,
-      constructionCost: { iron: 2, wood: 9 },
+      constructionCost: { iron: 4, wood: 18 },
       unitLimit: 3,
       upkeepIron,
-      description: `Stable that trains Riders. Upkeep: ${upkeepIron} iron per turn.`,
+      upkeepWood,
+      description: `Stable that trains Riders. Upkeep: ${upkeepIron} iron + ${upkeepWood} wood per turn.`,
     };
   })(),
   SIEGE_CAMP: (() => {
     const upkeepIron = 1;
+    const upkeepWood = 1;
     return {
       discoverRadius: 2,
       destroyBehavior: DestroyBehavior.RUIN,
-      constructionCost: { iron: 3, wood: 8 },
+      constructionCost: { iron: 6, wood: 16 },
       unitLimit: 2,
       upkeepIron,
-      description: `Engineering works that trains Siege engines. Upkeep: ${upkeepIron} iron per turn.`,
+      upkeepWood,
+      description: `Engineering works that trains Siege engines. Upkeep: ${upkeepIron} iron + ${upkeepWood} wood per turn.`,
     };
   })(),
   WATCHTOWER: (() => {
@@ -1326,7 +1340,9 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     return {
       discoverRadius: 4,
       destroyBehavior: DestroyBehavior.RUIN,
-      constructionCost: { iron: 0, wood: 4 },
+      constructionCost: { iron: 0, wood: 8 },
+      upkeepIron: 1,
+      upkeepWood: 1,
       combatStats,
       description: `Defensive tower that attacks enemies within ${combatStats.attackRange} tiles and expands your vision.`,
     };
@@ -1336,7 +1352,9 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     return {
       discoverRadius: 3,
       destroyBehavior: DestroyBehavior.NONE,
-      constructionCost: { iron: 0, wood: 2 },
+      constructionCost: { iron: 0, wood: 4 },
+      upkeepIron: 1,
+      upkeepWood: 1,
       combatStats,
       description: `Field fortification built by Spearmen via Fieldwork. Attacks enemies within ${combatStats.attackRange} tiles. Starting HP is based on the building unit's current HP, capped at ${combatStats.maxHp}.`,
     };
@@ -1356,13 +1374,17 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
   FARM: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.RUIN,
-    constructionCost: { iron: 0, wood: 4 },
+    constructionCost: { iron: 0, wood: 8 },
+    upkeepIron: 1,
+    upkeepWood: 1,
     description: 'Housing for common folk — each pop raised lets you field one more basic unit.',
   },
   PATRICIANHOUSE: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.RUIN,
-    constructionCost: { iron: 1, wood: 8 },
+    constructionCost: { iron: 2, wood: 16 },
+    upkeepIron: 1,
+    upkeepWood: 1,
     description: 'Noble estate — each noble raised lets you field one more elite unit.',
   },
   MAGMASPYR: (() => {
@@ -1384,8 +1406,10 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
   CRYSTAL_CHAMBER: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.RUIN,
-    constructionCost: { iron: 4, wood: 2 },
+    constructionCost: { iron: 8, wood: 4 },
     unitLimit: CRYSTAL_CHAMBER_CONFIG.CHAMBER_UNIT_LIMIT,
+    upkeepIron: 1,
+    upkeepWood: 1,
     description: `Arcane resonator. When a Crystal Chamber is consumed by lava, all surviving chambers begin resonating and generate ${CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN} crystal${CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN !== 1 ? 's' : ''} per turn. While active, Mages can be recruited once Arcane Awakening is researched.`,
   },
   GRAVESTONE: {
@@ -1406,7 +1430,9 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     return {
       discoverRadius: 3,
       destroyBehavior: DestroyBehavior.RUIN,
-      constructionCost: { iron: 1, wood: 2 },
+      constructionCost: { iron: 2, wood: 4 },
+      upkeepIron: 1,
+      upkeepWood: 1,
       combatStats,
       description: `Arcane combat tower. Attacks enemies within ${combatStats.attackRange} tiles. Each enemy unit it kills generates ${MAGE.CRYSTAL_TOWER_KILL_CRYSTAL_REWARD} crystal. Gains +${MAGE.CRYSTAL_TOWER_CHAMBER_ATTACK_BONUS} attack per connected Crystal Chamber within ${MAGE.CRYSTAL_TOWER_CHAMBER_CONNECT_RANGE} tiles.`,
     };
@@ -1625,8 +1651,8 @@ export const TECH_TREE: TechNodeDefinition[] = [
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SPEARMAN, tag: UnitTag.FIELDWORK },
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SWORDSMAN, tag: UnitTag.FIELDWORK },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.SPEARMAN, resource: 'wood', amount: 1 },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.SWORDSMAN, resource: 'wood', amount: 1 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.SPEARMAN, resource: 'wood', amount: 2 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.SWORDSMAN, resource: 'wood', amount: 2 },
     ],
   },
   {
@@ -1647,7 +1673,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 7,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.GUARD, tag: UnitTag.PHALANX },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.GUARD, resource: 'iron', amount: 2 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.GUARD, resource: 'iron', amount: 4 },
     ],
   },
 
@@ -1660,7 +1686,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 2,
     effects: [
       { type: 'UNIT_STAT_MOD', unitType: UnitType.SCOUT, stat: 'discoverRadius', mode: 'add', value: ABILITIES.SCOUT_DISCOVER_BONUS },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.SCOUT, resource: 'wood', amount: 2 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.SCOUT, resource: 'wood', amount: 4 },
     ],
   },
   {
@@ -1671,7 +1697,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SCOUT, tag: UnitTag.ASSASSIN },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.SCOUT, resource: 'iron', amount: 1 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.SCOUT, resource: 'iron', amount: 2 },
     ],
   },
   {
@@ -1682,7 +1708,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SCOUT, tag: UnitTag.PATCHUP },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.SCOUT, resource: 'wood', amount: 2 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.SCOUT, resource: 'wood', amount: 4 },
     ],
   },
 
@@ -1709,8 +1735,8 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'STRONGHOLD_CAP_MOD', capType: 'noble', amount: ABILITIES.CITADEL_NOBLE_BONUS },
       { type: 'UNIT_STAT_MOD', unitType: UnitType.SCOUT, stat: 'maxHp', mode: 'add', value: ABILITIES.CITADEL_HP_BOOST },
       { type: 'UNIT_STAT_MOD', unitType: UnitType.GUARD, stat: 'maxHp', mode: 'add', value: ABILITIES.CITADEL_HP_BOOST },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.SCOUT, resource: 'wood', amount: 1 },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.GUARD, resource: 'wood', amount: 1 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.SCOUT, resource: 'wood', amount: 2 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.GUARD, resource: 'wood', amount: 2 },
     ],
   },
   {
@@ -1723,9 +1749,9 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.RIDER,  tag: UnitTag.ELITE },
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.GUARD,  tag: UnitTag.ELITE },
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SIEGE,  tag: UnitTag.ELITE },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.RIDER, resource: 'iron', amount: 1 },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.GUARD, resource: 'iron', amount: 1 },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.SIEGE, resource: 'iron', amount: 1 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.RIDER, resource: 'iron', amount: 2 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.GUARD, resource: 'iron', amount: 2 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.SIEGE, resource: 'iron', amount: 2 },
     ],
   },
   {
@@ -1749,7 +1775,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.RIDER, tag: UnitTag.LANCE_CHARGE },
       { type: 'REMOVE_UNIT_TAG', unitType: UnitType.RIDER, tag: UnitTag.BUILDANDCAPTURE },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.RIDER, resource: 'iron', amount: 1 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.RIDER, resource: 'iron', amount: 2 },
     ],
   },
   {
@@ -1760,7 +1786,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.RIDER, tag: UnitTag.KNIGHT },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.RIDER, resource: 'iron', amount: 1 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.RIDER, resource: 'iron', amount: 2 },
     ],
   },
   {
@@ -1771,7 +1797,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG',  unitType: UnitType.RIDER, tag: UnitTag.HIT_AND_RUN },
-      { type: 'UNIT_COST_MOD',   unitType: UnitType.RIDER, resource: 'wood', amount: 1 },
+      { type: 'UNIT_COST_MOD',   unitType: UnitType.RIDER, resource: 'wood', amount: 2 },
     ],
   },
   {
@@ -1782,7 +1808,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 7,
     effects: [
       { type: 'GRANT_UNIT_TAG',  unitType: UnitType.RIDER, tag: UnitTag.OUTRIDER },
-      { type: 'UNIT_COST_MOD',   unitType: UnitType.RIDER, resource: 'wood', amount: 1 },
+      { type: 'UNIT_COST_MOD',   unitType: UnitType.RIDER, resource: 'wood', amount: 2 },
     ],
   },
 
@@ -1795,7 +1821,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.ARCHER, tag: UnitTag.COVER },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.ARCHER, resource: 'wood', amount: 1 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.ARCHER, resource: 'wood', amount: 2 },
     ],
   },
   {
@@ -1806,7 +1832,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 7,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.ARCHER, tag: UnitTag.SKIRMISHER },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.ARCHER, resource: 'wood', amount: 1 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.ARCHER, resource: 'wood', amount: 2 },
     ],
   },
   {
@@ -1817,7 +1843,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.ARCHER, tag: UnitTag.PIN_DOWN },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.ARCHER, resource: 'iron', amount: 1 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.ARCHER, resource: 'iron', amount: 2 },
     ],
   },
   {
@@ -1828,7 +1854,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 7,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.ARCHER, tag: UnitTag.DISTRACTION },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.ARCHER, resource: 'iron', amount: 1 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.ARCHER, resource: 'iron', amount: 2 },
     ],
   },
 
@@ -1841,7 +1867,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 7,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SIEGE, tag: UnitTag.PREVENTIVE_STRIKE },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.RIDER, resource: 'wood', amount: 1 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.RIDER, resource: 'wood', amount: 2 },
     ],
   },
 
