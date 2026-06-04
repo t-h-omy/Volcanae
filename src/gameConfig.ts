@@ -1298,8 +1298,8 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
       destroyBehavior: DestroyBehavior.RUIN,
       constructionCost: { iron: 2, wood: 14 },
       unitLimit: 3,
-      upkeepWood: 2,
-      upkeepIron: 2,
+      upkeepWood: 3,
+      upkeepIron: 3,
       description: `Archery range that trains Archers. Upkeep: ${upkeepIron} iron + ${upkeepWood} wood per turn.`,
     };
   })(),
@@ -1311,8 +1311,8 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
       destroyBehavior: DestroyBehavior.RUIN,
       constructionCost: { iron: 4, wood: 18 },
       unitLimit: 3,
-      upkeepIron: 2,
-      upkeepWood: 2,
+      upkeepIron: 3,
+      upkeepWood: 3,
       description: `Stable that trains Riders. Upkeep: ${upkeepIron} iron + ${upkeepWood} wood per turn.`,
     };
   })(),
@@ -1324,8 +1324,8 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
       destroyBehavior: DestroyBehavior.RUIN,
       constructionCost: { iron: 6, wood: 16 },
       unitLimit: 2,
-      upkeepIron: 2,
-      upkeepWood: 2,
+      upkeepIron: 3,
+      upkeepWood: 3,
       description: `Engineering works that trains Siege engines. Upkeep: ${upkeepIron} iron + ${upkeepWood} wood per turn.`,
     };
   })(),
