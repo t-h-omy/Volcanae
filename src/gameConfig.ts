@@ -920,7 +920,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   REAPER: {
-    maxHp: 100, attack: 50, defense: 35,
+    maxHp: 120, attack: 60, defense: 50,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 3,
     tags: [UnitTag.CLEAVE, UnitTag.RAGE, UnitTag.CORRUPT, UnitTag.LAVA],
@@ -935,7 +935,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   LANCER: {
-    maxHp: 80, attack: 60, defense: 30,
+    maxHp: 120, attack: 75, defense: 30,
     movementActions: 1, moveRange: 2, attackRange: 1,
     discoverRadius: 1, triggerRange: 3,
     tags: [UnitTag.PIERCE, UnitTag.ALERT, UnitTag.LAVA],
@@ -950,7 +950,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   BULLWARK: {
-    maxHp: 110, attack: 55, defense: 40,
+    maxHp: 130, attack: 55, defense: 45,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 3,
     tags: [UnitTag.PUNCTURE, UnitTag.BLOCK, UnitTag.LAVA],
@@ -965,7 +965,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   KINDLER: {
-    maxHp: 70, attack: 40, defense: 20,
+    maxHp: 150, attack: 30, defense: 20,
     movementActions: 1, moveRange: 1, attackRange: 2,
     discoverRadius: 1, triggerRange: 4,
     tags: [UnitTag.BURN, UnitTag.RANGED, UnitTag.PREP, UnitTag.LAVA],
@@ -980,7 +980,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   GRIMBEAK: {
-    maxHp: 130, attack: 50, defense: 45,
+    maxHp: 150, attack: 50, defense: 45,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 3,
     tags: [UnitTag.RAGE, UnitTag.IRONBLOOD, UnitTag.CORRUPT, UnitTag.LAVA],
@@ -995,7 +995,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   RIFTWORM: {
-    maxHp: 75, attack: 60, defense: 25,
+    maxHp: 75, attack: 60, defense: 30,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 3,
     tags: [UnitTag.TUNNEL, UnitTag.RAGE, UnitTag.CORRUPT, UnitTag.LAVA],
@@ -1010,7 +1010,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   RIFT_LORD: {
-    maxHp: 60, attack: 0, defense: 20,
+    maxHp: 100, attack: 0, defense: 20,
     movementActions: 1, moveRange: 1, attackRange: 0,
     discoverRadius: 2, triggerRange: 5,
     tags: [UnitTag.EMBER_PORTAL, UnitTag.PASSIVE, UnitTag.PREP, UnitTag.LAVA],
@@ -1069,7 +1069,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   EMBER_DEMON: {
-    maxHp: 160, attack: 70, defense: 40,
+    maxHp: 160, attack: 70, defense: 45,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 3,
     tags: [UnitTag.LAVA, UnitTag.READY],
