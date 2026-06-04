@@ -2172,9 +2172,9 @@ export const SANCTUM_COLLAPSE = {
  * For example, a PLAINS tile with a Mountain object on it has terrainType PLAINS
  * and may receive any status that PLAINS allows.
  *
- * FOREST and MOUNTAIN entries are present to satisfy the exhaustive Record type
- * (every TileType key must appear). Tiles whose terrainType has been changed to
- * FOREST or MOUNTAIN (e.g. by corruption) genuinely cannot receive any status.
+ * FOREST and MOUNTAIN entries allow CORRUPTED (Magma Spyr) and FROZEN (Frostcraft —
+ * resource buildings such as WOODCUTTER on FOREST and MINE on MOUNTAIN must be
+ * targetable by Frostcraft).
  */
 export const TILE_STATUS_WHITELIST: Record<TileType, TileStatus[]> = {
   /** All three statuses apply to PLAINS terrain. */
@@ -2183,14 +2183,35 @@ export const TILE_STATUS_WHITELIST: Record<TileType, TileStatus[]> = {
   [TileType.WATER]: [TileStatus.CORRUPTED, TileStatus.FROZEN],
   [TileType.CANYON]: [],
   [TileType.EMPTY]: [],
-  /** Entry required for type exhaustiveness; CORRUPTED is allowed on FOREST (Magma Spyr can hit units there). */
-  [TileType.FOREST]: [TileStatus.CORRUPTED],
-  /** Entry required for type exhaustiveness; CORRUPTED is allowed on MOUNTAIN (Magma Spyr can hit units there). */
-  [TileType.MOUNTAIN]: [TileStatus.CORRUPTED],
+  /** CORRUPTED allowed (Magma Spyr). FROZEN allowed (WOODCUTTER resource building on FOREST must be targetable by Frostcraft). */
+  [TileType.FOREST]: [TileStatus.CORRUPTED, TileStatus.FROZEN],
+  /** CORRUPTED allowed (Magma Spyr). FROZEN allowed (MINE resource building on MOUNTAIN must be targetable by Frostcraft). */
+  [TileType.MOUNTAIN]: [TileStatus.CORRUPTED, TileStatus.FROZEN],
 };
 
 /** Damage dealt to each non-LAVA unit standing on a BURNING tile at end of turn. */
 export const BURNING_TILE_DAMAGE = 15;
+
+/**
+ * Tags that are suppressed (i.e. have no effect) when a player unit stands on
+ * a CORRUPTED tile. Used by the combat system to skip those abilities and by the
+ * HUD to visually mark them as inactive.
+ */
+export const CORRUPTED_SUPPRESSED_TAGS = new Set<UnitTag>([
+  UnitTag.LANCE_CHARGE,
+  UnitTag.ASSASSIN,
+  UnitTag.RAGE,
+  UnitTag.PUNCTURE,
+  UnitTag.PIERCE,
+  UnitTag.BLOODLUST,
+  UnitTag.DISTRACTION,
+  UnitTag.PIN_DOWN,
+  UnitTag.CLEAVE,
+  UnitTag.SPLASH,
+  UnitTag.BURN,
+  UnitTag.PHALANX,
+  UnitTag.PATCHUP,
+]);
 
 // ============================================================================
 // COUNTER-UNIT RECRUITMENT SCORING

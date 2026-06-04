@@ -1519,7 +1519,7 @@ export const useGameStore = create<GameStore>()(
               const inRange = isTileWithinEdgeCircleRange(
                 mage.position.x, mage.position.y,
                 unit.position.x, unit.position.y,
-                MAGE.EMBER_DEMON_LEASH_RANGE,
+                mage.stats.attackRange,
               );
               if (!inRange) defects = true;
             }
