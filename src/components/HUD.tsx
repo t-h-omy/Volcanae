@@ -10,7 +10,7 @@ import { useGameStore } from '../gameStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
 import { useSoundOptionsStore } from '../soundOptionsStore';
-import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, computeResearchCost, SPELL_DEFINITIONS, TERRAIN_TAG_INFO, RAGE_ATK_PER_ADJACENT, RAGE_MAX_ADJACENT_COUNT, MAGE } from '../gameConfig';
+import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, computeResearchCost, SPELL_DEFINITIONS, TERRAIN_TAG_INFO, RAGE_ATK_PER_ADJACENT, RAGE_MAX_ADJACENT_COUNT, MAGE, CORRUPTED_SUPPRESSED_TAGS } from '../gameConfig';
 import { UI } from '../uiConfig';
 import type { UnitPopulationCost, TechId } from '../types';
 import {
@@ -869,9 +869,12 @@ function ResourceInfoPopup({
 }
 
 /** Shared base for tappable tag pills — renders a labelled button with an "i" badge */
-function TagPillBase({ label, onClick }: { label: string; onClick: () => void }) {
+function TagPillBase({ label, onClick, inactive }: { label: string; onClick: () => void; inactive?: boolean }) {
   return (
-    <button className="info-popup-tag-pill" onClick={onClick}>
+    <button
+      className={`info-popup-tag-pill${inactive ? ' info-popup-tag-pill--inactive' : ''}`}
+      onClick={onClick}
+    >
       {label}
       <span className="info-popup-tag-pill-i">i</span>
     </button>
@@ -879,9 +882,9 @@ function TagPillBase({ label, onClick }: { label: string; onClick: () => void })
 }
 
 /** Tappable tag pill used in panels and popups */
-function InfoTagPill({ tag, onClick }: { tag: UnitTag; onClick: () => void }) {
+function InfoTagPill({ tag, onClick, inactive }: { tag: UnitTag; onClick: () => void; inactive?: boolean }) {
   const info = TAG_INFO[tag];
-  return <TagPillBase label={info?.label ?? tag} onClick={onClick} />;
+  return <TagPillBase label={info?.label ?? tag} onClick={onClick} inactive={inactive} />;
 }
 
 /** Tag info popup for terrain tags (tile status) */
@@ -1524,6 +1527,10 @@ function SelectedUnitPanel({
 
   const showAiScores = useDevOptionsStore((s) => s.showAiScores);
   const gameState = useGameStore((s) => s);
+  const isOnCorruptedTile = isPlayer && (() => {
+    const tile = gameState.grid[unit.position.y]?.[unit.position.x];
+    return tile?.status === TileStatus.CORRUPTED;
+  })();
   const fieldworkBlocked = canFieldwork && (() => {
     const tile = gameState.grid[unit.position.y]?.[unit.position.x];
     if (!tile) return true;
@@ -1809,7 +1816,12 @@ function SelectedUnitPanel({
       {visibleTags.length > 0 && (
         <div className="hud-tag-pills">
           {visibleTags.map((tag) => (
-            <InfoTagPill key={tag} tag={tag} onClick={() => setTagPopup(tag)} />
+            <InfoTagPill
+              key={tag}
+              tag={tag}
+              onClick={() => setTagPopup(tag)}
+              inactive={isOnCorruptedTile && CORRUPTED_SUPPRESSED_TAGS.has(tag)}
+            />
           ))}
         </div>
       )}

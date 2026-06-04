@@ -37,7 +37,6 @@ import {
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
 import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, canUnitConstruct, canUnitCapture, hasUnitActed, getHealTargets } from '../unitActions';
 import { getValidSpellTargets } from '../spellSystem';
-import { MAGE } from '../gameConfig';
 import './GridRenderer.css';
 
 // ============================================================================
@@ -407,6 +406,13 @@ export default function GridRenderer() {
     const dy = e.clientY - ds.startY;
     if (!ds.isDragging && Math.abs(dx) + Math.abs(dy) > 4) {
       ds.isDragging = true;
+      // Cancel the long-press-deselect timer the moment dragging/scrolling begins
+      // so that a touch scroll lasting > 500 ms does not clear the selection and
+      // hide the spell-cancel UI.
+      if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current);
+        longPressTimer.current = null;
+      }
     }
     if (ds.isDragging) {
       setOffset({ x: ds.scrollLeft + dx, y: ds.scrollTop + dy });
@@ -582,7 +588,7 @@ export default function GridRenderer() {
       const inRange = isTileWithinEdgeCircleRange(
         mage.position.x, mage.position.y,
         demon.position.x, demon.position.y,
-        MAGE.EMBER_DEMON_LEASH_RANGE,
+        mage.stats.attackRange,
       );
       if (!inRange) {
         set.add(posKey(demon.position.x, demon.position.y));
@@ -1981,7 +1987,7 @@ function LeashLineLayer({ tileSize }: { tileSize: number }) {
       const inRange = isTileWithinEdgeCircleRange(
         mage.position.x, mage.position.y,
         demon.position.x, demon.position.y,
-        MAGE.EMBER_DEMON_LEASH_RANGE,
+        mage.stats.attackRange,
       );
       result.push({ magePos: mage.position, demonPos: demon.position, warn: !inRange });
     }

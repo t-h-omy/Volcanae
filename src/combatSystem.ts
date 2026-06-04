@@ -1418,6 +1418,13 @@ export function resolveAttackOnBuilding(
     combatResult.attackerHpLost = 0;
   }
 
+  // BLOODLUST: no retaliation damage on the second (bonus) attack. This mirrors the
+  // unit-vs-unit resolveAttack behaviour and prevents the attacker from receiving tower
+  // retaliation on a bloodlust follow-up hit.
+  if (isBloodlustAttack) {
+    combatResult.attackerHpLost = 0;
+  }
+
   // Capture full primary damage before any PIERCE reduction (used by PIERCE secondary target).
   const fullPrimaryDamage = combatResult.defenderHpLost;
 
