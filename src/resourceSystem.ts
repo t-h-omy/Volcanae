@@ -552,7 +552,8 @@ export function computeHomelessUnitIds(state: GameState | Draft<GameState>): Set
     const cap = resourceType === 'farmers' ? farmerCapacity : nobleCapacity;
     const unitsCostingThis = playerUnits
       .filter((u) => {
-        const cost = (UNIT_DEFINITIONS[u.type as UnitType]?.populationCost as UnitPopulationCost | undefined);
+        const def = UNIT_DEFINITIONS[u.type as UnitType];
+        const cost = def?.populationCost as UnitPopulationCost | undefined;
         return cost && cost[resourceType] > 0;
       })
       .sort((a, b) => {
@@ -563,7 +564,8 @@ export function computeHomelessUnitIds(state: GameState | Draft<GameState>): Set
 
     let used = 0;
     for (const u of unitsCostingThis) {
-      const cost = (UNIT_DEFINITIONS[u.type as UnitType]!.populationCost as UnitPopulationCost)[resourceType];
+      const def = UNIT_DEFINITIONS[u.type as UnitType];
+      const cost = (def?.populationCost as UnitPopulationCost | undefined)?.[resourceType] ?? 0;
       used += cost;
       if (used > cap) {
         homelessIds.add(u.id);

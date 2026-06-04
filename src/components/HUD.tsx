@@ -1508,7 +1508,7 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
 // ============================================================================
 
 /** Returns true if the unit currently has any active debuff worth flagging. */
-function unitHasDebuff(unit: Unit, currentTurn: number, isOnCorruptedTile: boolean): boolean {
+function unitHasDebuff(unit: Unit, isOnCorruptedTile: boolean): boolean {
   // 1. Stat debuffs from tags
   for (const tag of unit.tags) {
     const effects = TAG_STAT_EFFECTS[tag];
@@ -1524,7 +1524,7 @@ function unitHasDebuff(unit: Unit, currentTurn: number, isOnCorruptedTile: boole
     }
   }
   // 2. Stun (behavioral debuff)
-  if (unit.pinnedUntilTurn >= currentTurn) return true;
+  if (unit.pinnedUntilTurn > 0) return true;
   // 3. Corruption (inactive tags)
   if (isOnCorruptedTile) return true;
   return false;
@@ -1555,8 +1555,7 @@ function SelectedUnitPanel({
     const tile = gameState.grid[unit.position.y]?.[unit.position.x];
     return tile?.status === TileStatus.CORRUPTED;
   })();
-  const currentTurn = useGameStore((s) => s.turn);
-  const hasDebuff = isPlayer && unitHasDebuff(unit, currentTurn, isOnCorruptedTile);
+  const hasDebuff = isPlayer && unitHasDebuff(unit, isOnCorruptedTile);
   const fieldworkBlocked = canFieldwork && (() => {
     const tile = gameState.grid[unit.position.y]?.[unit.position.x];
     if (!tile) return true;
