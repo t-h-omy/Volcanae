@@ -57,6 +57,7 @@ import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHe
 import { getPhalanxAttackBonus, getPhalanxDefenseBonus, getCrystalTowerChamberBonus } from '../combatSystem';
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
 import { getTagsFromActiveSpecialists } from '../specialistSystem';
+import { RENDER } from '../renderConfig';
 import { useZoneClearedStore } from '../zoneClearedStore';
 import { useCaveScreamsStore } from '../caveScreamsStore';
 import { useSpecialistHireStore } from '../specialistHireStore';
@@ -1506,6 +1507,29 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
 // SELECTED UNIT PANEL
 // ============================================================================
 
+/** Returns true if the unit currently has any active debuff worth flagging. */
+function unitHasDebuff(unit: Unit, isOnCorruptedTile: boolean): boolean {
+  // 1. Stat debuffs from tags
+  for (const tag of unit.tags) {
+    const effects = TAG_STAT_EFFECTS[tag];
+    if (effects) {
+      for (const effect of effects) {
+        if (
+          (effect.mode === 'add' && effect.value < 0) ||
+          (effect.mode === 'percent' && effect.value < 0)
+        ) {
+          return true;
+        }
+      }
+    }
+  }
+  // 2. Stun (behavioral debuff)
+  if (unit.pinnedUntilTurn > 0) return true;
+  // 3. Corruption (inactive tags)
+  if (isOnCorruptedTile) return true;
+  return false;
+}
+
 function SelectedUnitPanel({
   unit,
   captureTarget,
@@ -1531,6 +1555,7 @@ function SelectedUnitPanel({
     const tile = gameState.grid[unit.position.y]?.[unit.position.x];
     return tile?.status === TileStatus.CORRUPTED;
   })();
+  const hasDebuff = isPlayer && unitHasDebuff(unit, isOnCorruptedTile);
   const fieldworkBlocked = canFieldwork && (() => {
     const tile = gameState.grid[unit.position.y]?.[unit.position.x];
     if (!tile) return true;
@@ -1754,7 +1779,10 @@ function SelectedUnitPanel({
         {!isPlayer && <span className="hud-faction-label hud-faction-enemy">🔴 Enemy</span>}
       </button>
       <div className="hud-hp-row">
-        <div className="hud-hp-bar">
+        <div
+          className="hud-hp-bar"
+          style={hasDebuff ? { outline: `2px solid ${RENDER.COLORS.DEBUFF_BORDER}` } : undefined}
+        >
           <div className="hud-hp-fill" style={{ width: `${hpPct}%` }} />
         </div>
         <span className="hud-hp-text">

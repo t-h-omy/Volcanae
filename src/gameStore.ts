@@ -5,7 +5,7 @@
 
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import { current, produce } from 'immer';
+import { current, produce, type Draft } from 'immer';
 import { generateInitialGameState, generateId } from './mapGenerator';
 import { resolveAttack, resolveBuildingAttack, resolveAttackOnBuilding, resolveBuildingAttackOnBuilding, handleBrandmarkedUnitDeath, shouldLeaveGravestone, createGravestoneAt, findEmberDemonSpawnPos, spawnEnemyEmberDemon } from './combatSystem';
 import { moveUnit as moveUnitLogic } from './movementSystem';
@@ -20,6 +20,8 @@ import {
   collectResources,
   recruitUnit as recruitUnitLogic,
   growHousePopulations,
+  computeHomelessUnitIds,
+  computeUntrainedUnitIds,
 } from './resourceSystem';
 import {
   constructBuilding as constructBuildingLogic,
@@ -47,7 +49,7 @@ import { RENDER } from './renderConfig';
 import { ANIMATION } from './animationConfig';
 import { saveGameState, loadGameState, clearSavedGame, hasSavedGame } from './saveSystem';
 import { computeLevelFromXp, applyLevelUps } from './levelSystem';
-import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLogic, getGrantedTags, getRemovedTags, getStatMods } from './techSystem';
+import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLogic, getGrantedTags, getRemovedTags, getStatMods, applyTagStatEffects, revokeTagStatEffects } from './techSystem';
 import { canUnitHeal, getHealTargets, canUnitFieldwork } from './unitActions';
 import { createFieldworkOutpost } from './constructionSystem';
 import { getTagsFromActiveSpecialists } from './specialistSystem';
@@ -205,6 +207,46 @@ function syncCameraToPlayerStronghold(state: GameState): void {
 
 function assertNever(x: never): never {
   throw new Error(`Unhandled event type: ${(x as { type: string }).type}`);
+}
+
+/**
+ * Re-computes the HOMELESS and UNTRAINED tags for all player units and
+ * applies/revokes them (with stat effects) as needed.
+ * Call after any event that may change population or recruitment capacity:
+ *   - a player building goes neutral (BUILDING_ATTACK)
+ *   - a player building is captured/destroyed by an enemy (BUILDING_CAPTURE)
+ *   - a player unit dies (UNIT_DEATH)
+ */
+function syncOvercapacityTags(state: Draft<GameState>): void {
+  const targetHomelessIds = computeHomelessUnitIds(state);
+  const targetUntrainedIds = computeUntrainedUnitIds(state);
+  for (const unit of Object.values(state.units)) {
+    if (unit.faction !== Faction.PLAYER) continue;
+
+    const shouldBeHomeless = targetHomelessIds.has(unit.id);
+    const isHomeless = unit.tags.includes(UnitTag.HOMELESS);
+    if (shouldBeHomeless !== isHomeless) {
+      if (shouldBeHomeless) {
+        unit.tags.push(UnitTag.HOMELESS);
+        applyTagStatEffects(unit, UnitTag.HOMELESS);
+      } else {
+        unit.tags = unit.tags.filter((t) => t !== UnitTag.HOMELESS);
+        revokeTagStatEffects(unit, UnitTag.HOMELESS);
+      }
+    }
+
+    const shouldBeUntrained = targetUntrainedIds.has(unit.id);
+    const isUntrained = unit.tags.includes(UnitTag.UNTRAINED);
+    if (shouldBeUntrained !== isUntrained) {
+      if (shouldBeUntrained) {
+        unit.tags.push(UnitTag.UNTRAINED);
+        applyTagStatEffects(unit, UnitTag.UNTRAINED);
+      } else {
+        unit.tags = unit.tags.filter((t) => t !== UnitTag.UNTRAINED);
+        revokeTagStatEffects(unit, UnitTag.UNTRAINED);
+      }
+    }
+  }
 }
 
 // ============================================================================
@@ -1482,6 +1524,80 @@ export const useGameStore = create<GameStore>()(
           // Recalculate tile discovery
           updateDiscovery(draft);
 
+          // ── Homeless sync ────────────────────────────────────────────────────
+          // Re-evaluate which units should have HOMELESS and apply HP ticks.
+          {
+            const targetHomelessIds = computeHomelessUnitIds(draft);
+            const homelessDying: string[] = [];
+
+            for (const unit of Object.values(draft.units)) {
+              if (unit.faction !== Faction.PLAYER) continue;
+              const shouldBeHomeless = targetHomelessIds.has(unit.id);
+              const isHomeless = unit.tags.includes(UnitTag.HOMELESS);
+
+              if (shouldBeHomeless && !isHomeless) {
+                unit.tags.push(UnitTag.HOMELESS);
+                applyTagStatEffects(unit, UnitTag.HOMELESS);
+              } else if (!shouldBeHomeless && isHomeless) {
+                unit.tags = unit.tags.filter((t) => t !== UnitTag.HOMELESS);
+                revokeTagStatEffects(unit, UnitTag.HOMELESS);
+              }
+
+              if (shouldBeHomeless) {
+                unit.stats.currentHp -= POPULATION.HOMELESS_HP_LOSS_PER_TURN;
+                useFloaterStore.getState().addFloater({
+                  value: POPULATION.HOMELESS_HP_LOSS_PER_TURN,
+                  x: unit.position.x,
+                  y: unit.position.y,
+                  isEnemy: false,
+                });
+                if (unit.stats.currentHp <= 0) {
+                  homelessDying.push(unit.id);
+                }
+              }
+            }
+
+            for (const unitId of homelessDying) {
+              const unit = draft.units[unitId];
+              if (!unit) continue;
+              if (unit.tags.includes(UnitTag.BRANDMARKED)) {
+                // BRANDMARKED units transform into Ember Demons on death
+                handleBrandmarkedUnitDeath(draft, unit);
+              } else {
+                // Non-brandmarked units are simply removed
+                const tile = draft.grid[unit.position.y]?.[unit.position.x];
+                if (tile?.unitId === unitId) tile.unitId = null;
+                const deathPos = { x: unit.position.x, y: unit.position.y };
+                const unitType = unit.type;
+                const unitTags = [...unit.tags];
+                delete draft.units[unitId];
+                if (shouldLeaveGravestone({ faction: Faction.PLAYER, tags: unitTags }, { defaultOn: false })) {
+                  createGravestoneAt(draft, deathPos, unitType);
+                }
+              }
+            }
+          }
+
+          // ── Untrained sync ───────────────────────────────────────────────────
+          // Capacity pools per building TYPE (not per building instance).
+          {
+            const targetUntrainedIds = computeUntrainedUnitIds(draft);
+            for (const unit of Object.values(draft.units)) {
+              if (unit.faction !== Faction.PLAYER) continue;
+              const shouldBeUntrained = targetUntrainedIds.has(unit.id);
+              const isUntrained = unit.tags.includes(UnitTag.UNTRAINED);
+              if (shouldBeUntrained !== isUntrained) {
+                if (shouldBeUntrained) {
+                  unit.tags.push(UnitTag.UNTRAINED);
+                  applyTagStatEffects(unit, UnitTag.UNTRAINED);
+                } else {
+                  unit.tags = unit.tags.filter((t) => t !== UnitTag.UNTRAINED);
+                  revokeTagStatEffects(unit, UnitTag.UNTRAINED);
+                }
+              }
+            }
+          }
+
           // Brandmark tick: every BRANDMARKED player unit loses HP at end of turn.
           // Collect dying unit IDs first so we don't mutate the collection mid-loop.
           const brandmarkDying: string[] = [];
@@ -1851,6 +1967,10 @@ export const useGameStore = create<GameStore>()(
               )) {
                 createGravestoneAt(state, deathPos, unitType);
               }
+              // Re-sync overcapacity tags when a player unit dies (pool sizes change).
+              if (unitFaction === Faction.PLAYER) {
+                syncOvercapacityTags(state);
+              }
             }
             break;
           }
@@ -1884,6 +2004,8 @@ export const useGameStore = create<GameStore>()(
             // Apply damage to building and defender
             const building = state.buildings[event.buildingId];
             const defender = state.units[event.defenderId];
+            // Capture building faction before HP changes to detect player→neutral transitions.
+            const buildingFactionBefore = building?.faction ?? null;
 
             if (defender && event.defenderHpLost > 0) {
               defender.stats.currentHp -= event.defenderHpLost;
@@ -1953,6 +2075,11 @@ export const useGameStore = create<GameStore>()(
               const { x, y } = event.tileCorruptedPosition;
               const corruptedTile = state.grid[y]?.[x];
               if (corruptedTile) corruptedTile.status = TileStatus.CORRUPTED;
+            }
+            // Re-sync overcapacity tags if a player building went neutral
+            // (population/recruitment capacity may have dropped).
+            if (buildingFactionBefore === Faction.PLAYER && building && building.faction === null) {
+              syncOvercapacityTags(state);
             }
             break;
           }
@@ -2134,6 +2261,10 @@ export const useGameStore = create<GameStore>()(
                 captureTile.isRuin = true;
               }
               // DestroyBehavior.NONE / RESOURCE: no ruin — terrain is restored naturally
+              // Re-sync overcapacity tags — an enemy just captured/destroyed a player building.
+              if (event.newFaction === Faction.ENEMY) {
+                syncOvercapacityTags(state);
+              }
             }
             // XP floater for the capturing unit.
             if (event.xpGained) {

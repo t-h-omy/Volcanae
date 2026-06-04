@@ -535,6 +535,84 @@ export function computePopulationUsage(
 }
 
 /**
+ * Returns the IDs of player units that should currently carry the HOMELESS tag.
+ * Units are sorted by recruitedOnTurn descending (most recent first), then by id for
+ * determinism. The "excess" units (the last ones recruited that pushed over the cap)
+ * get the tag.
+ */
+export function computeHomelessUnitIds(state: GameState | Draft<GameState>): Set<string> {
+  const { farmerCapacity, nobleCapacity } = computePopulationCapacity(state);
+  const playerUnits = Object.values(state.units).filter(
+    (u) => u.faction === Faction.PLAYER,
+  );
+
+  const homelessIds = new Set<string>();
+
+  for (const resourceType of ['farmers', 'nobles'] as const) {
+    const cap = resourceType === 'farmers' ? farmerCapacity : nobleCapacity;
+    const unitsCostingThis = playerUnits
+      .filter((u) => {
+        const def = UNIT_DEFINITIONS[u.type as UnitType];
+        const cost = def?.populationCost as UnitPopulationCost | undefined;
+        return cost && cost[resourceType] > 0;
+      })
+      .sort((a, b) => {
+        const ta = a.recruitedOnTurn ?? 0;
+        const tb = b.recruitedOnTurn ?? 0;
+        return tb !== ta ? tb - ta : b.id.localeCompare(a.id);
+      });
+
+    let used = 0;
+    for (const u of unitsCostingThis) {
+      const def = UNIT_DEFINITIONS[u.type as UnitType];
+      const cost = (def?.populationCost as UnitPopulationCost | undefined)?.[resourceType] ?? 0;
+      used += cost;
+      if (used > cap) {
+        homelessIds.add(u.id);
+      }
+    }
+  }
+
+  return homelessIds;
+}
+
+/**
+ * Returns the set of player unit IDs that should carry the UNTRAINED tag.
+ * A unit is untrained when the TOTAL number of player units recruited from its
+ * building type exceeds the COMBINED capacity of all player buildings of that
+ * type (capacity pools across all buildings of the same type).
+ */
+export function computeUntrainedUnitIds(
+  state: Pick<GameState, 'units' | 'buildings'>,
+): Set<string> {
+  const untrainedIds = new Set<string>();
+
+  const RECRUITING_BUILDING_TYPES: BuildingType[] = [
+    BuildingType.BARRACKS,
+    BuildingType.ARCHER_CAMP,
+    BuildingType.RIDER_CAMP,
+    BuildingType.SIEGE_CAMP,
+    BuildingType.STRONGHOLD,
+    BuildingType.CRYSTAL_CHAMBER,
+  ];
+
+  for (const buildingType of RECRUITING_BUILDING_TYPES) {
+    const { current, limit } = computeRecruitmentBuildingUsage(state, buildingType);
+    if (!isFinite(limit) || current <= limit) continue;
+
+    const recruitableTypes = new Set(getRecruitableUnitTypes(buildingType));
+    for (const unit of Object.values(state.units)) {
+      if (unit.faction !== Faction.PLAYER) continue;
+      if (!recruitableTypes.has(unit.type as UnitType)) continue;
+      if (unit.tags.includes(UnitTag.SUMMONED)) continue;
+      untrainedIds.add(unit.id);
+    }
+  }
+
+  return untrainedIds;
+}
+
+/**
  * Checks if the player has enough population capacity to recruit a unit of the given type.
  * Farmer capacity and noble capacity are checked independently:
  * - If the unit costs farmers, ensures farmer usage + cost <= farmer capacity.

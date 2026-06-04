@@ -280,6 +280,11 @@ export const UnitTag = {
   TUNNEL: 'TUNNEL',
   /** Caster ability: creates portals behind the player frontline (south of the northernmost player unit = higher Y); enemy units stepping on the entrance teleport to the exit. */
   EMBER_PORTAL: 'EMBER_PORTAL',
+  // ── Overcapacity penalty tags (player units only) ────────────────────────
+  /** Unit is homeless: population used exceeds available capacity. -10 DEF; loses HP each turn. */
+  HOMELESS: 'HOMELESS',
+  /** Unit's training facility type is over capacity — the unit cannot receive regular training. -10 ATK. */
+  UNTRAINED: 'UNTRAINED',
 } as const;
 export type UnitTag = (typeof UnitTag)[keyof typeof UnitTag];
 

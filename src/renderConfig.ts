@@ -44,6 +44,8 @@ export const RENDER = {
     REVIVE_FLOATER: '#c77dff',
     /** Drop-shadow colour used in the level-up pulse animation */
     LEVEL_UP_GLOW: 'gold',
+    /** HP bar outline colour when the selected player unit has an active debuff */
+    DEBUFF_BORDER: '#B04CFF',
   },
   /** Camera smooth animation duration in ms */
   CAMERA_ANIMATION_MS: 400,

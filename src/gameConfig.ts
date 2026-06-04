@@ -706,6 +706,15 @@ export const POPULATION = {
   HOUSE_INITIAL_POPULATION: 1,
   /** Number of turns between each population increase (same for all housing types) */
   HOUSE_GROWTH_INTERVAL: 3,
+  /** DEF penalty applied while a unit has the HOMELESS tag */
+  HOMELESS_DEF_PENALTY: 10,
+  /** HP lost per player turn end while a unit has the HOMELESS tag */
+  HOMELESS_HP_LOSS_PER_TURN: 10,
+} as const;
+
+export const TRAINING = {
+  /** ATK penalty applied while a unit has the UNTRAINED tag */
+  UNTRAINED_ATK_PENALTY: 10,
 } as const;
 
 // ============================================================================
@@ -2002,6 +2011,8 @@ export const TAG_STAT_EFFECTS: Partial<Record<UnitTag, StatModifier[]>> = {
   [UnitTag.HIT_AND_RUN]: [{ stat: 'defense', mode: 'add', value: ABILITIES.HIT_AND_RUN_DEFENSE_MOD }],
   [UnitTag.DISTRACTION]: [{ stat: 'attack', mode: 'add', value: ABILITIES.DISTRACTION_ATTACK_MOD }],
   [UnitTag.BRANDMARKED]: [{ stat: 'attack', mode: 'add', value: MAGE.BRANDMARK_ATTACK_BONUS }],
+  [UnitTag.HOMELESS]:   [{ stat: 'defense', mode: 'add', value: -POPULATION.HOMELESS_DEF_PENALTY }],
+  [UnitTag.UNTRAINED]:  [{ stat: 'attack',  mode: 'add', value: -TRAINING.UNTRAINED_ATK_PENALTY }],
 };
 
 
@@ -2118,6 +2129,9 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   [UnitTag.BURN]:         { label: 'Burn',        desc: 'Attacks set the target\'s tile to Burning, dealing damage to non-lava units standing there at end of turn.' },
   [UnitTag.TUNNEL]:       { label: 'Tunnel',      desc: `Digs underground and re-emerges ${TUNNEL_RANGE_MIN}–${TUNNEL_RANGE_MAX} tiles south in the same column. Deals ${TUNNEL_EMERGE_DAMAGE} damage to enemies adjacent to the emergence tile. Sets the emergence tile to Corrupted.` },
   [UnitTag.EMBER_PORTAL]: { label: 'Ember Portal', desc: 'Casts a pair of portals: an entrance next to the Rift Lord and an exit behind the player\'s frontline. Any enemy unit stepping on the entrance teleports to the exit, if the exit is free. If the exit is blocked, the unit waits on the entrance and teleports the moment the exit clears. The Rift Lord cannot cast another pair until the current pair is removed. Portal tiles are corrupted and block player movement.' },
+  // ── Overcapacity penalty tags ────────────────────────────────────────────────
+  [UnitTag.HOMELESS]:  { label: 'Homeless',  desc: `Unit has no shelter — population cap is exceeded. -${POPULATION.HOMELESS_DEF_PENALTY} DEF. Loses ${POPULATION.HOMELESS_HP_LOSS_PER_TURN} HP at the end of every player turn.`, icon: '🏚️' },
+  [UnitTag.UNTRAINED]: { label: 'Untrained', desc: `Training facilities of this type are over capacity. -${TRAINING.UNTRAINED_ATK_PENALTY} ATK.`, icon: '📉' },
 };
 
 // Compute descriptions for UNIT_DEFINITIONS entries that reference TUNNEL constants.
@@ -2305,6 +2319,7 @@ export const GAME_CONFIG = {
   RESOURCES,
   TERRAIN,
   POPULATION,
+  TRAINING,
   ENEMY,
   AI_SCORING,
   AI_RECRUITMENT,
