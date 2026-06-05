@@ -526,7 +526,7 @@ export interface Building {
   recruitmentQueue: UnitType | null;
   /** What happens to the tile when this building is destroyed */
   destroyBehavior: DestroyBehavior;
-  /** Turns of resonance remaining on this chamber (0 = not resonating). Only relevant for CRYSTAL_CHAMBER. */
+  /** Turns of resonance remaining (0 = not resonating). Used by CRYSTAL_CHAMBER and CRYSTAL_CAVE. */
   resonanceTurnsRemaining: number;
   /** Remaining cooldown turns before this building can spawn again. */
   spawnCooldownRemaining: number;

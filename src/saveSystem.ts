@@ -128,6 +128,27 @@ export function loadGameState(): GameState | null {
       }
     }
 
+    // Migration: CRYSTAL_CAVE tech now includes an UNLOCK_UNIT: CRYSTAL_DRAKE effect.
+    // Saves that had the tech researched before this effect was added (or that have a
+    // Crystal Cave building conjured via the spell) won't have CRYSTAL_DRAKE in
+    // unlockedUnits, causing the HUD to hide the recruitment panel entirely.
+    // Backfill it if the tech is unlocked or if a Crystal Cave building exists.
+    {
+      const tn = s.techNodes as Record<string, { id: string; unlocked: boolean }> | undefined;
+      const uu = s.unlockedUnits as string[] | undefined;
+      if (Array.isArray(uu) && !uu.includes(UnitType.CRYSTAL_DRAKE)) {
+        const techUnlocked = tn?.['CRYSTAL_CAVE']?.unlocked === true;
+        const hasCaveBuilding =
+          s.buildings && typeof s.buildings === 'object' &&
+          Object.values(s.buildings).some(
+            (b) => (b as Record<string, unknown>)?.type === BuildingType.CRYSTAL_CAVE,
+          );
+        if (techUnlocked || hasCaveBuilding) {
+          uu.push(UnitType.CRYSTAL_DRAKE);
+        }
+      }
+    }
+
     // Migration: strongholds now track farmers (populationCount) and nobles
     // (strongholdNobles) separately. Older saves used a single populationCount
     // for both. Split it using the base caps so nobles are preserved correctly.
