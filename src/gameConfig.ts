@@ -1128,22 +1128,23 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   CRYSTAL_DRAKE: {
-    maxHp: 60, attack: 35, defense: 25,
+    maxHp: 180, attack: 75, defense: 65,
     movementActions: 1,
-    moveRange: 2, attackRange: 1,
-    discoverRadius: 2,
+    moveRange: 2, 
+    attackRange: 1,
+    discoverRadius: 1,
     triggerRange: 0,
     // SUMMONED → consumes no pop, cannot be healed, leaves no gravestone.
     // HIT_AND_RUN → can re-position after striking (mirrors Knight Rider).
     // FLYING → traverses canyon/water and shrugs off knockback over them.
     tags: [UnitTag.SUMMONED, UnitTag.HIT_AND_RUN, UnitTag.FLYING],
-    cost: { iron: 0, wood: 0, crystals: 1 },
+    cost: { iron: 0, wood: 0, crystals: 3 },
     populationCost: { farmers: 0, nobles: 0 },
     levelUp: [
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
     ],
-    description: 'Crystal Drake — flying summon bound to its Crystal Cave.', // overwritten below
+    description: 'Flying summon bound to its Crystal Cave.', // overwritten below
   },
 };
 
@@ -1162,7 +1163,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   u.MAGE.description        = `Arcane caster that casts spells instead of attacking, with ${u.MAGE.attackRange}-tile range. Recruited from active Crystal Chambers.`;
   u.EMBER_DEMON.description = `Powerful demonic unit.`;
   u.SKELETON.description    = `Undead warrior raised from a gravestone.`;
-  u.CRYSTAL_DRAKE.description = `Drake summoned at a Crystal Cave. Lava scorches it despite its flight. Its life is bound to its Crystal Cave — if the cave is lost, the drake dies.`;
+  u.CRYSTAL_DRAKE.description = `A flying Drake summoned at a Crystal Cave. If its Crystal Cave is lost, the drake dies.`;
 }
 
 // ============================================================================
