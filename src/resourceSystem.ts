@@ -243,31 +243,19 @@ export function collectResources(state: Draft<GameState>): void {
     state.resources.wood = Math.max(0, state.resources.wood - wood);
   }
 
-  // Tick Crystal Chamber resonance: grant arcane crystals and decrement counter
+  // Tick resonance for Crystal Chambers (grant crystals) and Crystal Caves (no crystals).
   for (const building of Object.values(state.buildings)) {
     if (
       building.faction !== Faction.PLAYER ||
-      building.type !== BuildingType.CRYSTAL_CHAMBER ||
-      building.isDisabledForTurns > 0 ||
+      (building.type !== BuildingType.CRYSTAL_CHAMBER && building.type !== BuildingType.CRYSTAL_CAVE) ||
       building.resonanceTurnsRemaining <= 0
     ) {
       continue;
     }
 
-    grantArcaneCrystals(state, CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN);
-    building.resonanceTurnsRemaining -= 1;
-  }
-
-  // Tick Crystal Cave resonance: decrement counter (caves do not grant crystals)
-  for (const building of Object.values(state.buildings)) {
-    if (
-      building.faction !== Faction.PLAYER ||
-      building.type !== BuildingType.CRYSTAL_CAVE ||
-      building.resonanceTurnsRemaining <= 0
-    ) {
-      continue;
+    if (building.type === BuildingType.CRYSTAL_CHAMBER && building.isDisabledForTurns <= 0) {
+      grantArcaneCrystals(state, CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN);
     }
-
     building.resonanceTurnsRemaining -= 1;
   }
 }
