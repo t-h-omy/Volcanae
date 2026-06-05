@@ -10,7 +10,7 @@ import { useGameStore } from '../gameStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
 import { useSoundOptionsStore } from '../soundOptionsStore';
-import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, computeResearchCost, SPELL_DEFINITIONS, TERRAIN_TAG_INFO, RAGE_ATK_PER_ADJACENT, RAGE_MAX_ADJACENT_COUNT, MAGE, CORRUPTED_SUPPRESSED_TAGS } from '../gameConfig';
+import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, computeResearchCost, SPELL_DEFINITIONS, TERRAIN_TAG_INFO, RAGE_ATK_PER_ADJACENT, RAGE_MAX_ADJACENT_COUNT, MAGE, CORRUPTED_SUPPRESSED_TAGS } from '../gameConfig';
 import { UI } from '../uiConfig';
 import type { UnitPopulationCost, TechId } from '../types';
 import {
@@ -1519,8 +1519,9 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
 
 /** Returns true if the unit currently has any active debuff worth flagging. */
 function unitHasDebuff(unit: Unit, isOnCorruptedTile: boolean): boolean {
-  // 1. Stat debuffs from tags
+  // 1. Stat debuffs from tags (exclude upgrade tradeoffs — e.g. DISTRACTION / HIT_AND_RUN)
   for (const tag of unit.tags) {
+    if (UPGRADE_TRADEOFF_TAGS.has(tag)) continue;
     const effects = TAG_STAT_EFFECTS[tag];
     if (effects) {
       for (const effect of effects) {
