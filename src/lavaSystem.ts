@@ -25,6 +25,7 @@ import { MAP, TECH, CRYSTAL_CHAMBER_CONFIG, getLavaAdvanceInterval } from './gam
 import type { GameEvent } from './gameEvents';
 import { grantArcaneCrystals } from './techSystem';
 import { removePortalsOnLava } from './portalSystem';
+import { cleanupRoostedUnits } from './buildingRemoval';
 
 // ============================================================================
 // LAVA STATE QUERIES
@@ -177,6 +178,7 @@ export function advanceLava(state: Draft<GameState>, outEvents?: GameEvent[]): v
         }
 
         // Remove building from state
+        cleanupRoostedUnits(state, buildingId);
         delete state.buildings[buildingId];
         // Note: resonance for surviving crystal chambers is NOT applied here.
         // It is applied to the resolvedState in advanceLavaWithEvents so that
@@ -293,23 +295,38 @@ export function advanceLavaWithEvents(state: GameState): { newState: GameState; 
   ];
 
   // If a Crystal Chamber was destroyed, emit RESONANCE_TRIGGERED so the camera
-  // pans to each surviving chamber that just got activated.
+  // pans to each surviving chamber that just got activated. Crystal Caves
+  // share the same resonance window — they are listed via the parallel
+  // `survivingCaveIds` field so the animation engine can pan + activate them.
   if (destroyedChamberPosition) {
     const survivingChamberIds: string[] = [];
+    const survivingCaveIds: string[] = [];
     for (const b of Object.values(newState.buildings)) {
-      if (b.faction === Faction.PLAYER && b.type === BuildingType.CRYSTAL_CHAMBER) {
+      if (b.faction !== Faction.PLAYER) continue;
+      if (b.type === BuildingType.CRYSTAL_CHAMBER) {
         survivingChamberIds.push(b.id);
+      } else if (b.type === BuildingType.CRYSTAL_CAVE) {
+        survivingCaveIds.push(b.id);
       }
     }
-    if (survivingChamberIds.length > 0) {
-      // Apply resonance to the resolvedState for surviving chambers.
+    if (survivingChamberIds.length > 0 || survivingCaveIds.length > 0) {
+      // Apply resonance to the resolvedState for surviving chambers AND caves.
       // advanceLava intentionally does NOT set resonanceTurnsRemaining so that the
-      // live state only switches to the active sprite when the per-chamber VFX fires
-      // in the animation engine (via activateCrystalChamber).  The resolvedState
-      // (applied at the very end of the animation sequence) must still reflect the
-      // activated chambers so the final state is correct.
+      // live state only switches to the active sprite when the per-building VFX fires
+      // in the animation engine (via activateCrystalChamber / activateCrystalCave).
+      // The resolvedState (applied at the very end of the animation sequence) must
+      // still reflect the activated buildings so the final state is correct.
       newState = produce(newState, (draft) => {
         for (const bId of survivingChamberIds) {
+          const b = draft.buildings[bId];
+          if (b) {
+            b.resonanceTurnsRemaining = Math.max(
+              b.resonanceTurnsRemaining,
+              CRYSTAL_CHAMBER_CONFIG.RESONANCE_DURATION,
+            );
+          }
+        }
+        for (const bId of survivingCaveIds) {
           const b = draft.buildings[bId];
           if (b) {
             b.resonanceTurnsRemaining = Math.max(
@@ -323,6 +340,7 @@ export function advanceLavaWithEvents(state: GameState): { newState: GameState; 
         type: 'RESONANCE_TRIGGERED',
         destroyedChamberPosition,
         survivingChamberIds,
+        survivingCaveIds,
         resonanceDuration: CRYSTAL_CHAMBER_CONFIG.RESONANCE_DURATION,
       });
     }

@@ -11,6 +11,7 @@ import { MAP, XP, TECH, SANCTUM_COLLAPSE, ABILITIES } from './gameConfig';
 import { increaseEmberOnStrongholdCapture } from './enemySystem';
 import { grantXp } from './levelSystem';
 import { grantArcaneCrystals } from './techSystem';
+import { cleanupRoostedUnits } from './buildingRemoval';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -251,6 +252,7 @@ export function initiateCapture(
   const destroyBehavior = building.destroyBehavior;
 
   // Remove the building from state
+  cleanupRoostedUnits(state, buildingId);
   delete state.buildings[buildingId];
 
   // Clear grid tile
@@ -358,6 +360,7 @@ export function triggerSanctumCollapse(
       }
       // DestroyBehavior.NONE / DestroyBehavior.RESOURCE: no ruin — terrain is restored naturally
 
+      cleanupRoostedUnits(state, building.id);
       delete state.buildings[building.id];
     }
   }
@@ -485,6 +488,7 @@ export function resolveCaptures(state: Draft<GameState>): void {
     const destroyBehavior = building.destroyBehavior;
 
     // Remove the building from state
+    cleanupRoostedUnits(state, buildingId);
     delete state.buildings[buildingId];
 
     // Clear grid tile

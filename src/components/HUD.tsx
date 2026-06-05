@@ -103,6 +103,7 @@ const UNIT_NAME: Record<string, string> = {
   [UnitType.MAGE]: 'Mage',
   [UnitType.EMBER_DEMON]: 'Ember Demon',
   [UnitType.SKELETON]: 'Skeleton',
+  [UnitType.CRYSTAL_DRAKE]: 'Crystal Drake',
 };
 
 const BUILDING_EMOJI: Record<string, string> = {
@@ -123,6 +124,7 @@ const BUILDING_EMOJI: Record<string, string> = {
   [BuildingType.EMBERNEST]: '🌲',
   [BuildingType.CRYSTAL_CHAMBER]: '💎',
   [BuildingType.CRYSTAL_TOWER]: '🔮',
+  [BuildingType.CRYSTAL_CAVE]: '🕳️',
   [BuildingType.GRAVESTONE]: '🪦',
   [BuildingType.GRAVE_TRAP]: '☠️',
 };
@@ -145,6 +147,7 @@ const BUILDING_NAME: Record<string, string> = {
   [BuildingType.EMBERNEST]: 'Ember Nest',
   [BuildingType.CRYSTAL_CHAMBER]: 'Crystal Chamber',
   [BuildingType.CRYSTAL_TOWER]: 'Crystal Tower',
+  [BuildingType.CRYSTAL_CAVE]: 'Crystal Cave',
   [BuildingType.GRAVESTONE]: 'Gravestone',
   [BuildingType.GRAVE_TRAP]: 'Grave Trap',
 };
@@ -177,6 +180,7 @@ const BUILDING_RECRUITS: Partial<Record<string, UnitType[]>> = {
   [BuildingType.SIEGE_CAMP]: [UnitType.SIEGE],
   [BuildingType.STRONGHOLD]: [UnitType.SCOUT, UnitType.GUARD],
   [BuildingType.CRYSTAL_CHAMBER]: [UnitType.MAGE],
+  [BuildingType.CRYSTAL_CAVE]: [UnitType.CRYSTAL_DRAKE],
 };
 
 // ============================================================================
@@ -2342,9 +2346,11 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
     [recruitableTypes.length, building.position, grid]
   );
 
-  // Crystal Chamber mage recruitment: chamber must be resonating
+  // Crystal Chamber mage recruitment: chamber must be resonating.
+  // Crystal Cave drake recruitment: cave must likewise be resonating.
   const chamberNotResonating =
-    building.type === BuildingType.CRYSTAL_CHAMBER && building.resonanceTurnsRemaining <= 0;
+    (building.type === BuildingType.CRYSTAL_CHAMBER || building.type === BuildingType.CRYSTAL_CAVE) &&
+    building.resonanceTurnsRemaining <= 0;
 
   // Production info for resource buildings
   const isMine = building.type === BuildingType.MINE && isPlayerOwned;
@@ -2458,8 +2464,8 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
         </div>
       )}
 
-      {/* Crystal Chamber resonance status */}
-      {building.type === BuildingType.CRYSTAL_CHAMBER && building.resonanceTurnsRemaining > 0 && (
+      {/* Crystal Chamber / Crystal Cave resonance status */}
+      {(building.type === BuildingType.CRYSTAL_CHAMBER || building.type === BuildingType.CRYSTAL_CAVE) && building.resonanceTurnsRemaining > 0 && (
         <div className="hud-production-row">
           ✨ Resonating — {building.resonanceTurnsRemaining} turn{building.resonanceTurnsRemaining !== 1 ? 's' : ''} remaining
         </div>
@@ -2562,20 +2568,31 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
         <div className="hud-recruit-row">
           <span className="hud-label">Recruit:</span>
           {chamberNotResonating ? (
-            <span className="hud-dim">Chamber must be resonating to recruit</span>
+            <span className="hud-dim">
+              {building.type === BuildingType.CRYSTAL_CAVE
+                ? 'Cave must be resonating to recruit'
+                : 'Chamber must be resonating to recruit'}
+            </span>
           ) : !hasSpawnSpace ? (
             <span className="hud-dim">No space</span>
           ) : (
             <div className="hud-recruit-options">
               {recruitableTypes.map((unitType) => {
+                // Crystal Drake is paid in arcane crystals, not iron/wood.
+                const isCrystalCost = unitType === UnitType.CRYSTAL_DRAKE;
                 const baseCost = UNIT_DEFINITIONS[unitType]?.cost;
                 const costMod = getCostMods(gameState, unitType);
-                const cost = baseCost
-                  ? { iron: baseCost.iron + costMod.iron, wood: baseCost.wood + costMod.wood }
-                  : baseCost;
-                const canAffordUnit = cost
-                  ? resources.iron >= cost.iron && resources.wood >= cost.wood
-                  : false;
+                const cost = isCrystalCost
+                  ? undefined
+                  : baseCost
+                    ? { iron: baseCost.iron + costMod.iron, wood: baseCost.wood + costMod.wood }
+                    : baseCost;
+                const crystalCost = isCrystalCost ? MAGE.CRYSTAL_CAVE_DRAKE_CRYSTAL_COST : 0;
+                const canAffordUnit = isCrystalCost
+                  ? arcaneCrystals >= crystalCost
+                  : cost
+                    ? resources.iron >= cost.iron && resources.wood >= cost.wood
+                    : false;
                 const popCost = UNIT_DEFINITIONS[unitType]?.populationCost as UnitPopulationCost | undefined;
                 const hasPopulation = canAffordPopulation(useGameStore.getState(), unitType);
                 const canRecruitThisUnit = !isDisabled && hasSpawnSpace && canAffordUnit && hasPopulation && !atUnitLimit && !alreadyRecruitedThisTurn;
@@ -2605,6 +2622,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
                           {UNIT_NAME[unitType] ?? unitType}
                           <span className="info-badge info-badge--small">i</span>
                         </div>
+                        {isCrystalCost && <div className="info-row-cost">💎{crystalCost}</div>}
                         {cost && <div className="info-row-cost">⛓️{cost.iron} 🪵{cost.wood}</div>}
                       </div>
                     </button>
@@ -2627,12 +2645,17 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
         </div>
       )}
       {confirmRecruitUnit && (() => {
+        const isCrystalCost = confirmRecruitUnit === UnitType.CRYSTAL_DRAKE;
         const baseCost = UNIT_DEFINITIONS[confirmRecruitUnit]?.cost;
         const costMod = getCostMods(gameState, confirmRecruitUnit);
-        const cost = baseCost
-          ? { iron: baseCost.iron + costMod.iron, wood: baseCost.wood + costMod.wood }
-          : baseCost;
-        const costLabel = cost ? `⛓️${cost.iron} 🪵${cost.wood}` : undefined;
+        const cost = isCrystalCost
+          ? undefined
+          : baseCost
+            ? { iron: baseCost.iron + costMod.iron, wood: baseCost.wood + costMod.wood }
+            : baseCost;
+        const costLabel = isCrystalCost
+          ? `💎${MAGE.CRYSTAL_CAVE_DRAKE_CRYSTAL_COST}`
+          : cost ? `⛓️${cost.iron} 🪵${cost.wood}` : undefined;
         return (
           <UnitInfoPopup
             unitType={confirmRecruitUnit}

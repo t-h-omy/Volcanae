@@ -709,6 +709,24 @@ export function useAnimationEngine(): void {
                 await wait(ANIMATION.POST_ACTION_IDLE_MS);
               }
             }
+            // Crystal Caves share the same resonance window and animation —
+            // pan to each, activate, and play the same VFX so the player
+            // sees them "wake up" alongside the chambers.
+            for (const caveId of event.survivingCaveIds ?? []) {
+              const cave = useGameStore.getState().buildings[caveId];
+              if (cave) {
+                useAnimationStore.getState().setCameraTarget(cave.position);
+                await wait(ANIMATION.CAMERA_MOVE_DURATION_MS + ANIMATION.PRE_ACTION_IDLE_MS);
+
+                useGameStore.getState().activateCrystalCave(caveId);
+
+                useCombatAnimationStore.getState().setBuildingAnimation(caveId, 'CRYSTAL_ACTIVATE');
+                await wait(ANIMATION.CRYSTAL_ACTIVATE_VFX_DURATION_MS);
+                useCombatAnimationStore.getState().setBuildingAnimation(caveId, null);
+
+                await wait(ANIMATION.POST_ACTION_IDLE_MS);
+              }
+            }
           }
           continue;
         }

@@ -20,6 +20,7 @@ import { sweepLeashes } from './spellSystem';
 import { checkGraveTrapTrigger, resolveSlide } from './movementSystem';
 import { tryBeginTunnel, processTunnelTurn } from './tunnelSystem';
 import { cleanupPortals, cleanupExpiredPortalsEndOfTurn, tryPlanPortalCast, castPortal, getUsablePortalAtEntrance, tryTeleportThroughPortal, processPendingPortalTeleports } from './portalSystem';
+import { cleanupRoostedUnits } from './buildingRemoval';
 
 // ============================================================================
 // ID GENERATION
@@ -2739,6 +2740,7 @@ function runCaveMonsterAi(state: Draft<GameState>, events?: GameEvent[]): void {
         const building = state.buildings[tile.buildingId];
         if (building && building.type === BuildingType.MINE) {
           tile.buildingId = null;
+          cleanupRoostedUnits(state, building.id);
           delete state.buildings[building.id];
         }
       }

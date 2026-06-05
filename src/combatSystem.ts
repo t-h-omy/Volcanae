@@ -14,6 +14,7 @@ import { UNIT_DEFINITIONS, XP, ABILITIES, MAP, BUILDING_DEFINITIONS, MAGE, CLEAV
 import { grantXp } from './levelSystem';
 import { generateId } from './mapGenerator';
 import { isUnitOnCorruptedTile, applyTileStatus } from './tileStatusSystem';
+import { cleanupRoostedUnits } from './buildingRemoval';
 
 // Counter for generating unique gravestone building IDs within this module
 let combatSystemIdCounter = 0;
@@ -764,6 +765,7 @@ export function resolveAttack(
             // Other enemy buildings (but NOT spawners or corrupted terrain) are destroyed
             const destroyBehavior = bld.destroyBehavior;
             const bldId = tileOfDead.buildingId!;
+            cleanupRoostedUnits(state, bldId);
             delete state.buildings[bldId];
             tileOfDead.buildingId = null;
             if (destroyBehavior === DestroyBehavior.STRONGHOLD_RUIN) {
@@ -1228,6 +1230,7 @@ export function resolveBuildingAttack(
       // Enemy buildings are fully destroyed; apply destroy behavior.
       const { x, y } = building.position;
       const destroyBehavior = building.destroyBehavior;
+      cleanupRoostedUnits(state, buildingId);
       delete state.buildings[buildingId];
       const tile = state.grid[y][x];
       tile.buildingId = null;
@@ -1316,6 +1319,7 @@ function applyBuildingDestroyEffect(
   position: Position,
   destroyBehavior: DestroyBehavior,
 ): void {
+  cleanupRoostedUnits(state, buildingId);
   delete state.buildings[buildingId];
   const tile = state.grid[position.y][position.x];
   tile.buildingId = null;

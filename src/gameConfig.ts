@@ -137,6 +137,28 @@ export const CRYSTAL_CHAMBER_CONFIG = {
 } as const;
 
 // ============================================================================
+// CRYSTAL CAVE / CRYSTAL DRAKE CONFIGURATION (Conjurer path)
+// ============================================================================
+
+export const CRYSTAL_CAVE_CONFIG = {
+  /** Maximum HP of a Crystal Cave building */
+  MAX_HP: 80,
+  /**
+   * Per-building unit limit (max live Crystal Drakes per Crystal Cave).
+   * The cave hosts at most one drake at a time. Combined with the
+   * `roostBuildingId` cleanup hook, losing the cave kills the drake.
+   */
+  CAVE_UNIT_LIMIT: 1,
+  /** Drake stats — kept here so every visible number references a constant. */
+  DRAKE_MAX_HP: 60,
+  DRAKE_ATTACK: 35,
+  DRAKE_DEFENSE: 25,
+  DRAKE_MOVE_RANGE: 2,
+  DRAKE_ATTACK_RANGE: 1,
+  DRAKE_DISCOVER_RADIUS: 2,
+} as const;
+
+// ============================================================================
 // MAGE SYSTEM CONFIGURATION
 // ============================================================================
 
@@ -175,6 +197,16 @@ export const MAGE = {
   /** Max tile distance (edge-to-edge circle) at which a Crystal Chamber counts as connected to a tower.
    *  Defaults to 2 (equal to the tower's attackRange) so existing behaviour is unchanged. */
   CRYSTAL_TOWER_CHAMBER_CONNECT_RANGE: 2,
+
+  // ── Crystal Cave / Crystal Drake (Conjurer path) ─────────────────────
+  /**
+   * Recruitment cost (in arcane crystals) paid to summon a Crystal Drake from
+   * a resonating Crystal Cave. Recruiting does NOT consume a resonance tick —
+   * `resonanceTurnsRemaining` decays only on its own end-of-turn schedule.
+   * The cave's `unitLimit = 1` + the crystal cost + the drake's life-bound
+   * coupling to its cave are the real constraints.
+   */
+  CRYSTAL_CAVE_DRAKE_CRYSTAL_COST: 1,
 
   // ── GRAVE_HARVEST tech parameters ────────────────────────────────────
   /** Per-turn percent chance for each player-owned GRAVESTONE to grant 1 crystal */
@@ -253,6 +285,13 @@ export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
     emoji: '💎',
     description: `Sacrifice the Mage to erect a permanent Crystal Tower on its tile. Each enemy unit the tower kills generates ${MAGE.CRYSTAL_TOWER_KILL_CRYSTAL_REWARD} crystal.`,
     targetHint: "The Mage will be consumed where it stands. Confirm by selecting the Mage's tile.",
+  },
+  [SpellId.CRYSTAL_CAVE]: {
+    id: SpellId.CRYSTAL_CAVE,
+    name: 'Crystal Cave',
+    emoji: '🕳️',
+    description: `Conjure a Crystal Cave on a free mountain tile within range. While any of your Crystal Chambers resonate, the cave may recruit a single Crystal Drake for ${MAGE.CRYSTAL_CAVE_DRAKE_CRYSTAL_COST} crystal — recruiting does not shorten the resonance window. If the cave is lost (lava, capture, conversion, destruction) the drake dies with it.`,
+    targetHint: 'Select a free mountain tile within range.',
   },
 };
 
@@ -1104,6 +1143,28 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     ],
     description: 'Undead warrior raised from a gravestone.', // overwritten below
   },
+
+  CRYSTAL_DRAKE: {
+    maxHp: CRYSTAL_CAVE_CONFIG.DRAKE_MAX_HP,
+    attack: CRYSTAL_CAVE_CONFIG.DRAKE_ATTACK,
+    defense: CRYSTAL_CAVE_CONFIG.DRAKE_DEFENSE,
+    movementActions: 1,
+    moveRange: CRYSTAL_CAVE_CONFIG.DRAKE_MOVE_RANGE,
+    attackRange: CRYSTAL_CAVE_CONFIG.DRAKE_ATTACK_RANGE,
+    discoverRadius: CRYSTAL_CAVE_CONFIG.DRAKE_DISCOVER_RADIUS,
+    triggerRange: 0,
+    // SUMMONED → consumes no pop, cannot be healed, leaves no gravestone.
+    // HIT_AND_RUN → can re-position after striking (mirrors Knight Rider).
+    // FLYING → traverses canyon/water and shrugs off knockback over them.
+    tags: [UnitTag.SUMMONED, UnitTag.HIT_AND_RUN, UnitTag.FLYING],
+    cost: { iron: 0, wood: 0 },
+    populationCost: { farmers: 0, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+    ],
+    description: 'Crystal Drake — flying summon bound to its Crystal Cave.', // overwritten below
+  },
 };
 
 // Compute descriptions for UNIT_DEFINITIONS entries that reference their own stats.
@@ -1121,6 +1182,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   u.MAGE.description        = `Arcane caster that casts spells instead of attacking, with ${u.MAGE.attackRange}-tile range. Recruited from active Crystal Chambers.`;
   u.EMBER_DEMON.description = `Powerful demonic unit.`;
   u.SKELETON.description    = `Undead warrior raised from a gravestone.`;
+  u.CRYSTAL_DRAKE.description = `Flying drake summoned at a Crystal Cave. Moves ${u.CRYSTAL_DRAKE.moveRange} tiles per turn and may re-position after striking. Flies over canyons and water (lava still scorches it). Its life is bound to its Crystal Cave — if the cave is lost, the drake dies.`;
 }
 
 // ============================================================================
@@ -1412,6 +1474,19 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
       description: `Arcane combat tower. Attacks enemies within ${combatStats.attackRange} tiles. Each enemy unit it kills generates ${MAGE.CRYSTAL_TOWER_KILL_CRYSTAL_REWARD} crystal. Gains +${MAGE.CRYSTAL_TOWER_CHAMBER_ATTACK_BONUS} attack per connected Crystal Chamber within ${MAGE.CRYSTAL_TOWER_CHAMBER_CONNECT_RANGE} tiles.`,
     };
   })(),
+  CRYSTAL_CAVE: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.RUIN,
+    // Spell-summoned only; not constructable by units, so iron/wood are zero.
+    constructionCost: { iron: 0, wood: 0 },
+    maxHp: CRYSTAL_CAVE_CONFIG.MAX_HP,
+    unitLimit: CRYSTAL_CAVE_CONFIG.CAVE_UNIT_LIMIT,
+    // While any Crystal Chamber resonates, the cave's resonance flag is set
+    // via the shared lava-resonance trigger. Recruiting a drake costs crystals
+    // (see ABILITIES.CRYSTAL_CAVE_DRAKE_CRYSTAL_COST equivalent stored in
+    // MAGE.CRYSTAL_CAVE_DRAKE_CRYSTAL_COST) and never consumes a resonance tick.
+    description: `Conjured mountain hollow that hosts a single Crystal Drake. While resonating, it can summon a Crystal Drake for ${MAGE.CRYSTAL_CAVE_DRAKE_CRYSTAL_COST} crystal. If the cave falls (lava, capture, conversion, destruction) any bound drake dies with it.`,
+  },
 };
 
 export const TECH = {
@@ -1891,6 +1966,22 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'UNLOCK_SPELL', spellId: SpellId.CRYSTAL_TOWER },
     ],
   },
+  // ── Conjurer path branch: Crystal Cave ───────────────────────────────────
+  // Hangs directly off ARCANE_AWAKENING (parallel to BRANDMARK_HEAL and
+  // RAISE_SKELETON, not gated behind EMBERBIND/CRYSTAL_TOWER). Unlocks
+  // the Crystal Cave spell which conjures the cave building on a mountain
+  // tile in range; the cave can then recruit a single life-bound Crystal
+  // Drake during a resonance window.
+  {
+    id: 'CRYSTAL_CAVE',
+    name: 'Crystal Cave',
+    description: `Unlocks the Crystal Cave spell.`,
+    requires: ['ARCANE_AWAKENING'],
+    cost: 4,
+    effects: [
+      { type: 'UNLOCK_SPELL', spellId: SpellId.CRYSTAL_CAVE },
+    ],
+  },
 
   // ── Necromancer path ─────────────────────────────────────────────────────
   {
@@ -2116,6 +2207,8 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   // ── Overcapacity penalty tags ────────────────────────────────────────────────
   [UnitTag.HOMELESS]:  { label: 'Homeless',  desc: `Unit has no shelter — population cap is exceeded. -${POPULATION.HOMELESS_DEF_PENALTY} DEF. Loses ${POPULATION.HOMELESS_HP_LOSS_PER_TURN} HP at the end of every player turn.`, icon: '🏚️' },
   [UnitTag.UNTRAINED]: { label: 'Untrained', desc: `Training facilities of this type are over capacity. -${TRAINING.UNTRAINED_ATK_PENALTY} ATK.`, icon: '📉' },
+  // ── Movement tags ───────────────────────────────────────────────────────────
+  [UnitTag.FLYING]:    { label: 'Flying',    desc: 'Traverses canyons and unfrozen water tiles. Survives knockback over canyons and water (lava still kills). Does not ice-slide across frozen tiles.', icon: '🕊️' },
 };
 
 // Compute descriptions for UNIT_DEFINITIONS entries that reference TUNNEL constants.

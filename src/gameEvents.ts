@@ -107,6 +107,13 @@ export type GameEvent =
       type: 'RESONANCE_TRIGGERED';
       destroyedChamberPosition: Position;
       survivingChamberIds: string[];
+      /**
+       * IDs of player-owned Crystal Caves that also begin resonating from
+       * this lava-consumed chamber. The animation engine pans the camera
+       * to each cave and refreshes its `resonanceTurnsRemaining` via
+       * `activateCrystalCave` for VFX consistency.
+       */
+      survivingCaveIds?: string[];
       resonanceDuration: number;
     }
   | {

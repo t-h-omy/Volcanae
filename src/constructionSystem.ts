@@ -18,6 +18,7 @@ import type {
 import { BUILDING_DEFINITIONS, POPULATION, XP, CRYSTAL_CHAMBER_CONFIG, ABILITIES } from './gameConfig';
 import { generateId } from './mapGenerator';
 import { grantXp } from './levelSystem';
+import { cleanupRoostedUnits } from './buildingRemoval';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -271,6 +272,7 @@ export function convertBuilding(
   }
 
   // 1. Destroy old building
+  cleanupRoostedUnits(state, oldBuildingId);
   delete state.buildings[oldBuildingId];
   tile.buildingId = null;
 
