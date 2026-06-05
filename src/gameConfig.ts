@@ -76,7 +76,7 @@ export interface UnitDefinition {
   tags: UnitTag[];
 
   // ── Costs ────────────────────────────────────────────────────────────────
-  /** Iron/wood recruitment cost ({iron:0,wood:0} for enemy-only units). Crystal Drake also sets crystals:1. */
+  /** Iron/wood recruitment cost ({iron:0,wood:0} for enemy-only units). Crystal Drake also sets crystals. */
   cost: { iron: number; wood: number; crystals?: number };
   /** Population slot consumption */
   populationCost: { farmers: number; nobles: number };
