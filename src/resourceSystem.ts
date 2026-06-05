@@ -6,7 +6,7 @@
 import type { GameState, Building, Position, Tile, UnitPopulationCost } from './types';
 import type { Draft } from 'immer';
 import { Faction, BuildingType, UnitType, UnitTag, ResourceType } from './types';
-import { RESOURCES, UNIT_DEFINITIONS, POPULATION, CRYSTAL_CHAMBER_CONFIG, BUILDING_DEFINITIONS, TECH_TREE, MAGE } from './gameConfig';
+import { RESOURCES, UNIT_DEFINITIONS, POPULATION, CRYSTAL_CHAMBER_CONFIG, BUILDING_DEFINITIONS, TECH_TREE } from './gameConfig';
 import type { UnitCost } from './gameConfig';
 import { getGrantedTags, getStatMods, getBuildingProductionMods, grantArcaneCrystals, getStrongholdEffectiveCap, getRemovedTags, getCostMods } from './techSystem';
 import { getTagsFromActiveSpecialists } from './specialistSystem';
@@ -797,7 +797,8 @@ export function recruitUnit(
   const isCrystalDrake = unitType === UnitType.CRYSTAL_DRAKE;
   let cost = { iron: 0, wood: 0 };
   if (isCrystalDrake) {
-    if (state.arcaneCrystals < MAGE.CRYSTAL_CAVE_DRAKE_CRYSTAL_COST) {
+    const crystalCost = UNIT_DEFINITIONS[UnitType.CRYSTAL_DRAKE].cost.crystals ?? 0;
+    if (state.arcaneCrystals < crystalCost) {
       return;
     }
   } else {
@@ -841,7 +842,7 @@ export function recruitUnit(
 
   // Deduct resources
   if (isCrystalDrake) {
-    state.arcaneCrystals -= MAGE.CRYSTAL_CAVE_DRAKE_CRYSTAL_COST;
+    state.arcaneCrystals -= UNIT_DEFINITIONS[UnitType.CRYSTAL_DRAKE].cost.crystals ?? 0;
   } else {
     state.resources.iron -= cost.iron;
     state.resources.wood -= cost.wood;

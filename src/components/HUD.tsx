@@ -2588,7 +2588,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
                   : baseCost
                     ? { iron: baseCost.iron + costMod.iron, wood: baseCost.wood + costMod.wood }
                     : baseCost;
-                const crystalCost = isCrystalCost ? MAGE.CRYSTAL_CAVE_DRAKE_CRYSTAL_COST : 0;
+                const crystalCost = isCrystalCost ? (baseCost?.crystals ?? 0) : 0;
                 const canAffordUnit = isCrystalCost
                   ? arcaneCrystals >= crystalCost
                   : cost
@@ -2655,7 +2655,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
             ? { iron: baseCost.iron + costMod.iron, wood: baseCost.wood + costMod.wood }
             : baseCost;
         const costLabel = isCrystalCost
-          ? `💎${MAGE.CRYSTAL_CAVE_DRAKE_CRYSTAL_COST}`
+          ? `💎${baseCost?.crystals ?? 0}`
           : cost ? `⛓️${cost.iron} 🪵${cost.wood}` : undefined;
         return (
           <UnitInfoPopup

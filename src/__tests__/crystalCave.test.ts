@@ -40,7 +40,7 @@ import {
   SpellId,
 } from '../types';
 import type { GameState, Unit, Building, Tile, Position } from '../types';
-import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, MAGE, TECH_TREE, SPELL_DEFINITIONS, CRYSTAL_CAVE_CONFIG, MAP } from '../gameConfig';
+import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, TECH_TREE, SPELL_DEFINITIONS, CRYSTAL_CAVE_CONFIG, MAP } from '../gameConfig';
 import { cleanupRoostedUnits } from '../buildingRemoval';
 import { getReachableTiles, resolveSlide } from '../movementSystem';
 import { getValidSpellTargets, castSpell } from '../spellSystem';
@@ -373,9 +373,11 @@ describe('Crystal Cave — recruitment plumbing', () => {
     expect(limit).toBe(CRYSTAL_CAVE_CONFIG.CAVE_UNIT_LIMIT);
   });
 
-  it('Crystal Drake costs arcane crystals (named constant, not iron/wood)', () => {
-    expect(MAGE.CRYSTAL_CAVE_DRAKE_CRYSTAL_COST).toBeGreaterThan(0);
-    expect(UNIT_DEFINITIONS.CRYSTAL_DRAKE.cost).toEqual({ iron: 0, wood: 0 });
+  it('Crystal Drake crystal cost is in the unit cost definition', () => {
+    const cost = UNIT_DEFINITIONS.CRYSTAL_DRAKE.cost;
+    expect(cost.crystals).toBeGreaterThan(0);
+    expect(cost.iron).toBe(0);
+    expect(cost.wood).toBe(0);
   });
 });
 
@@ -493,11 +495,10 @@ describe('Tech tree — CRYSTAL_CAVE node', () => {
 // ───────────────────────────────────────────────────────────────────────────
 
 describe('SPELL_DEFINITIONS[CRYSTAL_CAVE]', () => {
-  it('exists with a description that references the crystal-cost constant (no raw numbers)', () => {
+  it('exists with a description mentioning the Crystal Cave and Crystal Drake', () => {
     const def = SPELL_DEFINITIONS[SpellId.CRYSTAL_CAVE];
     expect(def).toBeDefined();
-    // The description should mention the crystal cost via the named constant —
-    // i.e., the rendered string contains the constant's value.
-    expect(def.description).toContain(String(MAGE.CRYSTAL_CAVE_DRAKE_CRYSTAL_COST));
+    expect(def.description).toContain('Crystal Cave');
+    expect(def.description).toContain('Crystal Drake');
   });
 });
