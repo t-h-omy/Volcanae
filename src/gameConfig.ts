@@ -1286,58 +1286,42 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     constructionCost: { iron: 0, wood: 0 },
     description: `Produces ${RESOURCES.WOODCUTTER_WOOD_PER_TURN} wood per turn, used alongside iron for buildings and recruitment.`,
   },
-  BARRACKS: (() => {
-    const upkeepWood = 1;
-    const upkeepIron = 1;
-    return {
-      discoverRadius: 2,
-      destroyBehavior: DestroyBehavior.RUIN,
-      constructionCost: { iron: 4, wood: 4 },
-      unitLimit: 3,
-      upkeepWood: 1,
-      upkeepIron: 1,
-      description: `Military hall that trains Spearman and Swordsman. Upkeep: ${upkeepIron} iron + ${upkeepWood} wood per turn.`,
-    };
-  })(),
-  ARCHER_CAMP: (() => {
-    const upkeepWood = 1;
-    const upkeepIron = 1;
-    return {
-      discoverRadius: 2,
-      destroyBehavior: DestroyBehavior.RUIN,
-      constructionCost: { iron: 2, wood: 14 },
-      unitLimit: 3,
-      upkeepWood: 3,
-      upkeepIron: 3,
-      description: `Archery range that trains Archers. Upkeep: ${upkeepIron} iron + ${upkeepWood} wood per turn.`,
-    };
-  })(),
-  RIDER_CAMP: (() => {
-    const upkeepIron = 1;
-    const upkeepWood = 1;
-    return {
-      discoverRadius: 2,
-      destroyBehavior: DestroyBehavior.RUIN,
-      constructionCost: { iron: 4, wood: 18 },
-      unitLimit: 3,
-      upkeepIron: 3,
-      upkeepWood: 3,
-      description: `Stable that trains Riders. Upkeep: ${upkeepIron} iron + ${upkeepWood} wood per turn.`,
-    };
-  })(),
-  SIEGE_CAMP: (() => {
-    const upkeepIron = 1;
-    const upkeepWood = 1;
-    return {
-      discoverRadius: 2,
-      destroyBehavior: DestroyBehavior.RUIN,
-      constructionCost: { iron: 6, wood: 16 },
-      unitLimit: 2,
-      upkeepIron: 3,
-      upkeepWood: 3,
-      description: `Engineering works that trains Siege engines. Upkeep: ${upkeepIron} iron + ${upkeepWood} wood per turn.`,
-    };
-  })(),
+  BARRACKS: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.RUIN,
+    constructionCost: { iron: 4, wood: 4 },
+    unitLimit: 3,
+    upkeepWood: 1,
+    upkeepIron: 1,
+    description: 'Military hall that trains Spearman and Swordsman.',
+  },
+  ARCHER_CAMP: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.RUIN,
+    constructionCost: { iron: 2, wood: 14 },
+    unitLimit: 3,
+    upkeepWood: 3,
+    upkeepIron: 3,
+    description: 'Archery range that trains Archers.',
+  },
+  RIDER_CAMP: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.RUIN,
+    constructionCost: { iron: 4, wood: 18 },
+    unitLimit: 3,
+    upkeepIron: 3,
+    upkeepWood: 3,
+    description: 'Stable that trains Riders.',
+  },
+  SIEGE_CAMP: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.RUIN,
+    constructionCost: { iron: 6, wood: 16 },
+    unitLimit: 2,
+    upkeepIron: 3,
+    upkeepWood: 3,
+    description: 'Engineering works that trains Siege engines.',
+  },
   WATCHTOWER: (() => {
     const combatStats = { maxHp: 150, attack: 50, defense: 65, attackRange: 3 };
     return {

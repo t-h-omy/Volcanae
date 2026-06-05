@@ -1066,9 +1066,13 @@ function BuildingInfoPopup({
   onClose: () => void;
   isReadOnly?: boolean;
 }) {
-  const desc = BUILDING_DEFINITIONS[buildingType]?.description;
+  const def = BUILDING_DEFINITIONS[buildingType];
+  const desc = def?.description;
   const emoji = BUILDING_EMOJI[buildingType] ?? '?';
   const name = BUILDING_NAME[buildingType] ?? buildingType;
+  const upkeepIron = def?.upkeepIron ?? 0;
+  const upkeepWood = def?.upkeepWood ?? 0;
+  const hasUpkeep = upkeepIron > 0 || upkeepWood > 0;
 
   return (
     <Popup onClose={onClose}>
@@ -1076,7 +1080,8 @@ function BuildingInfoPopup({
         <span className="info-popup-header-emoji">{emoji}</span>
         <div>
           <div className="info-popup-header-name">{name}</div>
-          {cost && <div className="info-popup-header-cost">⛓️{cost.iron} 🪵{cost.wood}</div>}
+          {cost && <div className="info-popup-header-cost">Build: ⛓️{cost.iron} 🪵{cost.wood}</div>}
+          {hasUpkeep && <div className="info-popup-header-cost">Upkeep: ⛓️{upkeepIron} 🪵{upkeepWood}/turn</div>}
         </div>
       </div>
 

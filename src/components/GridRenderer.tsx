@@ -12,7 +12,7 @@ import type { Projectile, SlideKillGhost, CleaveVfx, TileVfx, LineVfx } from '..
 import { useShockwaveStore } from '../shockwaveStore';
 import { canCapture } from '../captureSystem';
 import { getConstructionOptionsForTile } from '../constructionSystem';
-import { MAP, UNIT_DEFINITIONS, BUILDING_DEFINITIONS, TAG_INFO } from '../gameConfig';
+import { MAP, UNIT_DEFINITIONS, BUILDING_DEFINITIONS, TAG_INFO, TAG_STAT_EFFECTS } from '../gameConfig';
 import { getStrongholdEffectiveCap } from '../techSystem';
 import { computeRecruitmentBuildingUsage, canBuildingEverRecruit } from '../resourceSystem';
 import { ANIMATION } from '../animationConfig';
@@ -1404,6 +1404,21 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
 
   const currentTurn = useGameStore((s) => s.turn);
   const isStunned = unit.pinnedUntilTurn >= currentTurn;
+  const isOnCorruptedTile = useGameStore(
+    (s) => s.grid[unit.position.y]?.[unit.position.x]?.status === TileStatus.CORRUPTED
+  );
+
+  // Show debuff border (and hp bar) for player units with an active debuff.
+  const hasDebuff =
+    unit.faction === Faction.PLAYER &&
+    (isOnCorruptedTile ||
+      isStunned ||
+      unit.tags.some((tag) => {
+        const effects = TAG_STAT_EFFECTS[tag];
+        return effects?.some(
+          (e) => (e.mode === 'add' && e.value < 0) || (e.mode === 'percent' && e.value < 0)
+        );
+      }));
 
   // A unit recruited this turn also gets the toned-down filter — it can't act this turn.
   const isRecruitedThisTurn = (unit.recruitedOnTurn ?? 0) === currentTurn && currentTurn > 0;
@@ -1467,7 +1482,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
         } as React.CSSProperties
       }
     >
-      {unit.stats.currentHp < unit.stats.maxHp && (
+      {(unit.stats.currentHp < unit.stats.maxHp || hasDebuff) && (
         <>
           <div
             className="hp-bar-wrapper"
@@ -1475,12 +1490,15 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
               {
                 '--color-hp-red': RENDER.COLORS.HP_RED,
                 '--color-hp-green': RENDER.COLORS.HP_GREEN,
+                ...(hasDebuff ? { outline: `2px solid ${RENDER.COLORS.DEBUFF_BORDER}` } : {}),
               } as React.CSSProperties
             }
           >
             <div className="hp-bar-fill" style={{ width: `${hpPct}%` }} />
           </div>
-          <span className="unit-hp-text">{unit.stats.currentHp}</span>
+          {unit.stats.currentHp < unit.stats.maxHp && (
+            <span className="unit-hp-text">{unit.stats.currentHp}</span>
+          )}
         </>
       )}
       {UNIT_DEFINITIONS[unit.type]?.levelUp?.length > 0 && (
