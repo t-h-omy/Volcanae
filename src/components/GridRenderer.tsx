@@ -21,7 +21,7 @@ import { RENDER } from '../renderConfig';
 import { INPUT } from '../inputConfig';
 import { computeLevelFromXp } from '../levelSystem';
 import { useZoomStore } from '../zoomStore';
-import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE, TILE_STATUS_SPRITE, RESOURCE_SPRITE, ENEMY_BUILDING_SPRITE, PLAYER_BUILDING_SPRITE, TERRAIN_RESOURCE_SPRITE, CRYSTAL_CHAMBER_ACTIVE_SPRITE, ENEMY_UNIT_SPRITE, PLAYER_UNIT_SPRITE, TUNNEL_HOLE_SPRITE, TUNNEL_EARTHQUAKE_SPRITE, PORTAL_ENTRANCE_SPRITE, PORTAL_EXIT_SPRITE } from '../assetRegistry';
+import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE, TILE_STATUS_SPRITE, RESOURCE_SPRITE, ENEMY_BUILDING_SPRITE, PLAYER_BUILDING_SPRITE, TERRAIN_RESOURCE_SPRITE, CRYSTAL_CHAMBER_ACTIVE_SPRITE, CRYSTAL_CAVE_ACTIVE_SPRITE, ENEMY_UNIT_SPRITE, PLAYER_UNIT_SPRITE, TUNNEL_HOLE_SPRITE, TUNNEL_EARTHQUAKE_SPRITE, PORTAL_ENTRANCE_SPRITE, PORTAL_EXIT_SPRITE } from '../assetRegistry';
 import MissingSprite from './MissingSprite';
 import {
   Faction,
@@ -1126,7 +1126,9 @@ function TileCellInner({
     recruitmentUsage[building.type as BuildingType] !== undefined &&
     canBuildingEverRecruit({ unlockedUnits }, building);
 
-  const isResonating = building?.type === BuildingType.CRYSTAL_CHAMBER && building.resonanceTurnsRemaining > 0;
+  const isResonating =
+    (building?.type === BuildingType.CRYSTAL_CHAMBER || building?.type === BuildingType.CRYSTAL_CAVE) &&
+    (building?.resonanceTurnsRemaining ?? 0) > 0;
   const isCrystalActivating = useCombatAnimationStore(
     (s) => building !== undefined && s.buildingAnimations.get(building.id) === 'CRYSTAL_ACTIVATE',
   );
@@ -1140,6 +1142,7 @@ function TileCellInner({
   // - Player buildings use PLAYER_BUILDING_SPRITE when a faction-specific override exists.
   // - Neutral resource nodes (MINE, WOODCUTTER) use RESOURCE_SPRITE.
   // - Active (resonating) Crystal Chambers use CRYSTAL_CHAMBER_ACTIVE_SPRITE.
+  // - Active (resonating) Crystal Caves use CRYSTAL_CAVE_ACTIVE_SPRITE.
   // - All other buildings use BUILDING_SPRITE directly.
   const buildingSpritePath = building
     ? building.faction === Faction.ENEMY && ENEMY_BUILDING_SPRITE[building.type]
@@ -1148,9 +1151,11 @@ function TileCellInner({
         ? PLAYER_BUILDING_SPRITE[building.type]
         : building.faction === null && RESOURCE_SPRITE[building.type]
           ? RESOURCE_SPRITE[building.type]
-          : isResonating
-            ? CRYSTAL_CHAMBER_ACTIVE_SPRITE
-            : BUILDING_SPRITE[building.type]
+          : isResonating && building.type === BuildingType.CRYSTAL_CAVE
+            ? CRYSTAL_CAVE_ACTIVE_SPRITE
+            : isResonating
+              ? CRYSTAL_CHAMBER_ACTIVE_SPRITE
+              : BUILDING_SPRITE[building.type]
     : undefined;
   const [buildingSpriteError, setBuildingSpriteError] = useState(false);
   const buildingExhaustedFilter = building && building.combatStats && building.hasAttackedThisTurn

@@ -24,8 +24,8 @@
  *       * Non-mountain / built / occupied / ruin tiles are rejected.
  *       * Cave construction silently removes a CAVE_MONSTER on the target.
  *   - PART 5 (Tech node):
- *       * CRYSTAL_CAVE tech node requires ARCANE_AWAKENING and unlocks the
- *         Crystal Cave spell.
+ *       * CRYSTAL_CAVE tech node requires ARCANE_AWAKENING, unlocks the
+ *         Crystal Cave spell, and unlocks the Crystal Drake unit.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -470,6 +470,15 @@ describe('Tech tree — CRYSTAL_CAVE node', () => {
       (e) => e.type === 'UNLOCK_SPELL' && e.spellId === SpellId.CRYSTAL_CAVE,
     );
     expect(unlocks).toBe(true);
+  });
+
+  it('also unlocks the CRYSTAL_DRAKE unit', () => {
+    const node = TECH_TREE.find((n) => n.id === 'CRYSTAL_CAVE');
+    expect(node).toBeDefined();
+    const unlocksUnit = node!.effects.some(
+      (e) => e.type === 'UNLOCK_UNIT' && e.unitType === UnitType.CRYSTAL_DRAKE,
+    );
+    expect(unlocksUnit).toBe(true);
   });
 
   it('does not collide with the existing CRYSTAL_TOWER tech node', () => {
