@@ -104,8 +104,7 @@ export const BUILDING_SPRITE: Partial<Record<BuildingType, string>> = withBase({
   // TODO: replace GRAVE_TRAP and CRYSTAL_TOWER with real art when available
   GRAVE_TRAP:      '/sprites/buildings/grave_trap_100px.png',
   CRYSTAL_TOWER:   '/sprites/buildings/crystal_tower_100px.png',
-  // CRYSTAL_CAVE has no art yet — empty path shows the placeholder.
-  CRYSTAL_CAVE:    '',
+  CRYSTAL_CAVE:    '/sprites/buildings/crystal_cave_100px.png',
 });
 
 /**
@@ -120,9 +119,10 @@ export const CRYSTAL_CHAMBER_ACTIVE_SPRITE = withBase({
 
 /**
  * Sprite path for the active (resonating) Crystal Cave.
- * Reuses the Crystal Chamber active sprite until dedicated cave art is available.
  */
-export const CRYSTAL_CAVE_ACTIVE_SPRITE = CRYSTAL_CHAMBER_ACTIVE_SPRITE;
+export const CRYSTAL_CAVE_ACTIVE_SPRITE = withBase({
+  active: '/sprites/buildings/crystal_cave_active_100px.png',
+}).active ?? '';
 
 /**
  * Player-faction overrides for building sprites.
