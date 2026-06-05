@@ -257,6 +257,19 @@ export function collectResources(state: Draft<GameState>): void {
     grantArcaneCrystals(state, CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN);
     building.resonanceTurnsRemaining -= 1;
   }
+
+  // Tick Crystal Cave resonance: decrement counter (caves do not grant crystals)
+  for (const building of Object.values(state.buildings)) {
+    if (
+      building.faction !== Faction.PLAYER ||
+      building.type !== BuildingType.CRYSTAL_CAVE ||
+      building.resonanceTurnsRemaining <= 0
+    ) {
+      continue;
+    }
+
+    building.resonanceTurnsRemaining -= 1;
+  }
 }
 
 // ============================================================================
