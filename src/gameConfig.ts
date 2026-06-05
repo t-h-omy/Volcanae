@@ -1291,8 +1291,8 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     destroyBehavior: DestroyBehavior.RUIN,
     constructionCost: { iron: 4, wood: 4 },
     unitLimit: 3,
-    upkeepWood: 1,
     upkeepIron: 1,
+    upkeepWood: 1,
     description: 'Military hall that trains Spearman and Swordsman.',
   },
   ARCHER_CAMP: {
