@@ -1975,11 +1975,12 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'CRYSTAL_CAVE',
     name: 'Crystal Cave',
-    description: `Unlocks the Crystal Cave spell.`,
+    description: `Unlocks the Crystal Cave spell and the Crystal Drake unit.`,
     requires: ['ARCANE_AWAKENING'],
     cost: 4,
     effects: [
       { type: 'UNLOCK_SPELL', spellId: SpellId.CRYSTAL_CAVE },
+      { type: 'UNLOCK_UNIT',  unitType: UnitType.CRYSTAL_DRAKE },
     ],
   },
 

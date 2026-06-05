@@ -84,6 +84,7 @@ const UNIT_EMOJI: Record<string, string> = {
   [UnitType.MAGE]: '🧙',
   [UnitType.EMBER_DEMON]: '😈',
   [UnitType.SKELETON]: '💀',
+  [UnitType.CRYSTAL_DRAKE]: '🐲',
 };
 
 const UNIT_NAME: Record<string, string> = {
