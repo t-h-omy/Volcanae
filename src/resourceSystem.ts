@@ -6,7 +6,7 @@
 import type { GameState, Building, Position, Tile, UnitPopulationCost } from './types';
 import type { Draft } from 'immer';
 import { Faction, BuildingType, UnitType, UnitTag, ResourceType } from './types';
-import { RESOURCES, UNIT_DEFINITIONS, POPULATION, CRYSTAL_CHAMBER_CONFIG, BUILDING_DEFINITIONS, TECH_TREE } from './gameConfig';
+import { RESOURCES, UNIT_DEFINITIONS, POPULATION, CRYSTAL_CHAMBER_CONFIG, BUILDING_DEFINITIONS, TECH_TREE, MAGE } from './gameConfig';
 import type { UnitCost } from './gameConfig';
 import { getGrantedTags, getStatMods, getBuildingProductionMods, grantArcaneCrystals, getStrongholdEffectiveCap, getRemovedTags, getCostMods } from './techSystem';
 import { getTagsFromActiveSpecialists } from './specialistSystem';
@@ -62,7 +62,8 @@ export function isRecruitmentBuildingType(type: BuildingType): boolean {
     type === BuildingType.RIDER_CAMP ||
     type === BuildingType.SIEGE_CAMP ||
     type === BuildingType.STRONGHOLD ||
-    type === BuildingType.CRYSTAL_CHAMBER
+    type === BuildingType.CRYSTAL_CHAMBER ||
+    type === BuildingType.CRYSTAL_CAVE
   );
 }
 
@@ -71,6 +72,9 @@ export function isRecruitmentBuildingType(type: BuildingType): boolean {
  * any building whose TYPE can recruit, ignoring conditional state like
  * resonance. For CRYSTAL_CHAMBER this still requires that MAGE has been
  * unlocked by tech, so the badge doesn't appear before research.
+ *
+ * CRYSTAL_CAVE has no separate unlock — the cave only exists if the spell
+ * is unlocked and was cast — so any existing cave can recruit.
  */
 export function canBuildingEverRecruit(
   state: { unlockedUnits: UnitType[] },
@@ -85,12 +89,17 @@ export function canBuildingEverRecruit(
 
 /**
  * Checks if a building is a recruitment building.
+ *
+ * CRYSTAL_CHAMBER and CRYSTAL_CAVE are both gated on `resonanceTurnsRemaining > 0` —
+ * they may only recruit while resonance is active. (Recruiting does NOT consume a
+ * resonance tick — the window decays only on its own end-of-turn schedule.)
  */
 function isRecruitmentBuilding(building: Building): boolean {
-  return (
-    isRecruitmentBuildingType(building.type) &&
-    (building.type !== BuildingType.CRYSTAL_CHAMBER || building.resonanceTurnsRemaining > 0)
-  );
+  if (!isRecruitmentBuildingType(building.type)) return false;
+  if (building.type === BuildingType.CRYSTAL_CHAMBER || building.type === BuildingType.CRYSTAL_CAVE) {
+    return building.resonanceTurnsRemaining > 0;
+  }
+  return true;
 }
 
 /**
@@ -110,6 +119,8 @@ export function getRecruitableUnitTypes(buildingType: BuildingType): UnitType[] 
       return [UnitType.SCOUT, UnitType.GUARD];
     case BuildingType.CRYSTAL_CHAMBER:
       return [UnitType.MAGE];
+    case BuildingType.CRYSTAL_CAVE:
+      return [UnitType.CRYSTAL_DRAKE];
     default:
       return [];
   }
@@ -129,6 +140,34 @@ export function computeRecruitmentBuildingUsage(
   const unitLimit = BUILDING_DEFINITIONS[buildingType]?.unitLimit;
   if (unitLimit === undefined) {
     return { current: 0, limit: Infinity };
+  }
+
+  // CRYSTAL_CAVE special case: count by life-bound roostBuildingId rather
+  // than by global unit type. Each cave hosts at most one Crystal Drake,
+  // so the cap is enforced PER-cave via the roost link. Summoned units
+  // ordinarily do not count toward building unit limits (since they don't
+  // cost population), but the drake's leash to its specific cave is what
+  // we are gating here, so we count them explicitly.
+  if (buildingType === BuildingType.CRYSTAL_CAVE) {
+    let buildingCount = 0;
+    const caveIds = new Set<string>();
+    for (const building of Object.values(state.buildings)) {
+      if (building.faction === Faction.PLAYER && building.type === BuildingType.CRYSTAL_CAVE) {
+        buildingCount += 1;
+        caveIds.add(building.id);
+      }
+    }
+    let current = 0;
+    for (const unit of Object.values(state.units)) {
+      if (
+        unit.faction === Faction.PLAYER &&
+        unit.roostBuildingId &&
+        caveIds.has(unit.roostBuildingId)
+      ) {
+        current += 1;
+      }
+    }
+    return { current, limit: buildingCount * unitLimit };
   }
 
   const recruitableTypes = new Set(getRecruitableUnitTypes(buildingType));
@@ -750,20 +789,32 @@ export function recruitUnit(
     return;
   }
 
-  // Get unit cost and apply any UNIT_COST_MOD from unlocked techs
-  const baseCost = UNIT_DEFINITIONS[unitType]?.cost;
-  if (!baseCost) {
-    return;
-  }
-  const costMod = getCostMods(state, unitType);
-  const cost = {
-    iron: baseCost.iron + costMod.iron,
-    wood: baseCost.wood + costMod.wood,
-  };
+  // ── Cost validation ────────────────────────────────────────────────────────
+  // Crystal Drake (Crystal Cave) is special: it costs arcane crystals rather
+  // than iron/wood, and recruiting it does NOT consume a resonance tick (the
+  // resonance window decays on its own end-of-turn schedule). All other units
+  // use the standard iron/wood cost path.
+  const isCrystalDrake = unitType === UnitType.CRYSTAL_DRAKE;
+  let cost = { iron: 0, wood: 0 };
+  if (isCrystalDrake) {
+    if (state.arcaneCrystals < MAGE.CRYSTAL_CAVE_DRAKE_CRYSTAL_COST) {
+      return;
+    }
+  } else {
+    const baseCost = UNIT_DEFINITIONS[unitType]?.cost;
+    if (!baseCost) {
+      return;
+    }
+    const costMod = getCostMods(state, unitType);
+    cost = {
+      iron: baseCost.iron + costMod.iron,
+      wood: baseCost.wood + costMod.wood,
+    };
 
-  // Validate player can afford the unit
-  if (!canAfford(state, cost)) {
-    return;
+    // Validate player can afford the unit
+    if (!canAfford(state, cost)) {
+      return;
+    }
   }
 
   // Validate player has enough population capacity
@@ -789,8 +840,12 @@ export function recruitUnit(
   }
 
   // Deduct resources
-  state.resources.iron -= cost.iron;
-  state.resources.wood -= cost.wood;
+  if (isCrystalDrake) {
+    state.arcaneCrystals -= MAGE.CRYSTAL_CAVE_DRAKE_CRYSTAL_COST;
+  } else {
+    state.resources.iron -= cost.iron;
+    state.resources.wood -= cost.wood;
+  }
 
   // Spawn the unit immediately, but flag it as having used all actions this turn
   const unitId = generateUnitId();
@@ -840,6 +895,10 @@ export function recruitUnit(
     pinnedUntilTurn: 0,
     distractionDefPenalty: 0,
     recruitedOnTurn: state.turn,
+    // Crystal Drake is life-bound to the Crystal Cave that summoned it.
+    // The shared `cleanupRoostedUnits` hook removes the drake whenever the
+    // cave is removed from state.buildings (lava/capture/conversion/etc.).
+    roostBuildingId: isCrystalDrake ? buildingId : undefined,
   };
   const unit = state.units[unitId];
   for (const mod of getStatMods(state, unitType)) {

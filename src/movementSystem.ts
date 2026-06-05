@@ -9,6 +9,7 @@ import { BuildingType, Faction, TechFlag, TileType, TileStatus, UnitTag } from '
 import { MAP, ABILITIES } from './gameConfig';
 import { getTilesWithinEdgeCircleRange } from './rangeUtils';
 import { useFloaterStore } from './floaterStore';
+import { cleanupRoostedUnits } from './buildingRemoval';
 
 // ============================================================================
 // MOVEMENT CALCULATIONS
@@ -154,10 +155,16 @@ export function getReachableTiles(
 
       const tile = state.grid[ny][nx];
 
+      // FLYING units bypass the canyon/water terrain gates entirely — they
+      // soar over those tiles. LAVA is NOT bypassed (handled below): even
+      // a flying unit takes the heat and burns.
+      const isFlying = unit.tags.includes(UnitTag.FLYING);
+
       // CANYON/WATER: impassable — cannot enter or traverse
       // Exception: frozen (status === FROZEN) water tiles are passable for player units.
-      if (tile.terrainType === TileType.CANYON) continue;
-      if (tile.terrainType === TileType.WATER) {
+      // Exception: FLYING units bypass canyon + (frozen or unfrozen) water.
+      if (tile.terrainType === TileType.CANYON && !isFlying) continue;
+      if (tile.terrainType === TileType.WATER && !isFlying) {
         if (tile.status !== TileStatus.FROZEN) continue;
         if (unit.faction === Faction.ENEMY) continue;
       }
@@ -271,6 +278,7 @@ export function checkGraveTrapTrigger(
     });
   }
 
+  cleanupRoostedUnits(state, tile.buildingId);
   delete state.buildings[tile.buildingId];
   tile.buildingId = null;
 }
@@ -329,7 +337,10 @@ export function resolveSlide(
 
   // ── Death cases ────────────────────────────────────────────────────────────
 
-  // LAVA tile → unit destroyed; enemy unit sacrifices to lava (ember +1)
+  const isFlying = unit.tags.includes(UnitTag.FLYING);
+
+  // LAVA tile → unit destroyed; enemy unit sacrifices to lava (ember +1).
+  // FLYING units also die in lava — flying does not protect from the heat.
   if (slideTile.isLava) {
     const currentTile = state.grid[unit.position.y][unit.position.x];
     if (currentTile.unitId === unitId) currentTile.unitId = null;
@@ -342,8 +353,8 @@ export function resolveSlide(
     return;
   }
 
-  // CANYON terrain → unit destroyed
-  if (slideTile.terrainType === TileType.CANYON) {
+  // CANYON terrain → unit destroyed. FLYING units survive — they glide over.
+  if (slideTile.terrainType === TileType.CANYON && !isFlying) {
     const currentTile = state.grid[unit.position.y][unit.position.x];
     if (currentTile.unitId === unitId) currentTile.unitId = null;
     if (unit.faction === Faction.PLAYER) {
@@ -353,8 +364,12 @@ export function resolveSlide(
     return;
   }
 
-  // WATER (not FROZEN) → unit drowns
-  if (slideTile.terrainType === TileType.WATER && slideTile.status !== TileStatus.FROZEN) {
+  // WATER (not FROZEN) → unit drowns. FLYING units survive — they stay aloft.
+  if (
+    slideTile.terrainType === TileType.WATER &&
+    slideTile.status !== TileStatus.FROZEN &&
+    !isFlying
+  ) {
     const currentTile = state.grid[unit.position.y][unit.position.x];
     if (currentTile.unitId === unitId) currentTile.unitId = null;
     if (unit.faction === Faction.PLAYER) {
@@ -451,7 +466,12 @@ export function moveUnit(
 
   // FROZEN tile: trigger the slippery slide mechanic.
   // Re-fetch the unit — it must still be alive (not killed by a GRAVE_TRAP or other effect).
+  // FLYING units treat FROZEN tiles as solid ground (they are not standing on
+  // the ice), so they do NOT ice-slide.
   if (newTile.status === TileStatus.FROZEN && state.units[unitId]) {
-    resolveSlide(state, unitId, moveDx, moveDy);
+    const slidUnit = state.units[unitId];
+    if (!slidUnit.tags.includes(UnitTag.FLYING)) {
+      resolveSlide(state, unitId, moveDx, moveDy);
+    }
   }
 }

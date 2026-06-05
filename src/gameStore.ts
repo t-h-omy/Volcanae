@@ -57,6 +57,7 @@ import { castSpell as castSpellLogic } from './spellSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { useShockwaveStore } from './shockwaveStore';
 import { processPendingPortalTeleports } from './portalSystem';
+import { cleanupRoostedUnits } from './buildingRemoval';
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
@@ -119,6 +120,8 @@ interface GameActions {
   applyMeleeAdvance: (attackerId: string, toPosition: Position) => void;
   /** Activate a single Crystal Chamber by setting its resonanceTurnsRemaining (used by animation engine) */
   activateCrystalChamber: (chamberId: string) => void;
+  /** Activate a single Crystal Cave by setting its resonanceTurnsRemaining (used by animation engine) */
+  activateCrystalCave: (caveId: string) => void;
   /** Replace the entire game state (used by animation engine to apply resolved state) */
   setGameState: (newState: GameState) => void;
   /** Manually save the current game state to localStorage */
@@ -1153,6 +1156,7 @@ export const useGameStore = create<GameStore>()(
         // Place the unit on the tile and remove the gravestone
         tile.unitId = unitId;
         tile.buildingId = null;
+        cleanupRoostedUnits(state, buildingId);
         delete state.buildings[buildingId];
 
         // Deduct the crystal cost
@@ -2016,6 +2020,7 @@ export const useGameStore = create<GameStore>()(
                 if (building.type === BuildingType.OUTPOST) {
                   // Outposts are removed completely when destroyed
                   const { x, y } = building.position;
+                  cleanupRoostedUnits(state, event.buildingId);
                   delete state.buildings[event.buildingId];
                   state.grid[y][x].buildingId = null;
                 } else if (building.type === BuildingType.WATCHTOWER || building.faction === Faction.PLAYER) {
@@ -2028,6 +2033,7 @@ export const useGameStore = create<GameStore>()(
                   // Enemy buildings (e.g. MAGMASPYR) are destroyed and leave a ruin
                   const { x, y } = building.position;
                   const buildingType = building.type;
+                  cleanupRoostedUnits(state, event.buildingId);
                   delete state.buildings[event.buildingId];
                   const tile = state.grid[y][x];
                   tile.buildingId = null;
@@ -2098,6 +2104,7 @@ export const useGameStore = create<GameStore>()(
                 if (building.type === BuildingType.OUTPOST) {
                   // Outposts are removed completely when destroyed
                   const { x, y } = building.position;
+                  cleanupRoostedUnits(state, event.buildingId);
                   delete state.buildings[event.buildingId];
                   state.grid[y][x].buildingId = null;
                 } else if (building.type === BuildingType.WATCHTOWER) {
@@ -2112,6 +2119,7 @@ export const useGameStore = create<GameStore>()(
                   // Enemy building destroyed by player: remove from state and leave a ruin
                   const { x, y } = building.position;
                   const buildingType = building.type;
+                  cleanupRoostedUnits(state, event.buildingId);
                   delete state.buildings[event.buildingId];
                   const tile = state.grid[y][x];
                   tile.buildingId = null;
@@ -2185,6 +2193,7 @@ export const useGameStore = create<GameStore>()(
                 if (attackingBuilding.type === BuildingType.OUTPOST) {
                   // Outposts are removed completely when destroyed
                   const { x, y } = attackingBuilding.position;
+                  cleanupRoostedUnits(state, event.attackingBuildingId);
                   delete state.buildings[event.attackingBuildingId];
                   state.grid[y][x].buildingId = null;
                 } else {
@@ -2206,6 +2215,7 @@ export const useGameStore = create<GameStore>()(
                 if (targetBuilding.type === BuildingType.OUTPOST) {
                   // Outposts are removed completely when destroyed
                   const { x, y } = targetBuilding.position;
+                  cleanupRoostedUnits(state, event.targetBuildingId);
                   delete state.buildings[event.targetBuildingId];
                   state.grid[y][x].buildingId = null;
                 } else {
@@ -2252,6 +2262,7 @@ export const useGameStore = create<GameStore>()(
               // rather than waiting for setGameState at the end of the enemy turn.
               const { x, y } = building.position;
               const destroyBehavior = building.destroyBehavior;
+              cleanupRoostedUnits(state, event.buildingId);
               delete state.buildings[event.buildingId];
               const captureTile = state.grid[y][x];
               captureTile.buildingId = null;
@@ -2338,6 +2349,7 @@ export const useGameStore = create<GameStore>()(
                 } else if (destroyBehavior === DestroyBehavior.RUIN) {
                   tile.isRuin = true;
                 }
+                cleanupRoostedUnits(state, buildingId);
                 delete state.buildings[buildingId];
                 state.gameStats.enemyBuildingsDestroyed += 1;
               }
@@ -2607,6 +2619,18 @@ export const useGameStore = create<GameStore>()(
         if (chamber && chamber.type === BuildingType.CRYSTAL_CHAMBER) {
           chamber.resonanceTurnsRemaining = Math.max(
             chamber.resonanceTurnsRemaining,
+            CRYSTAL_CHAMBER_CONFIG.RESONANCE_DURATION,
+          );
+        }
+      });
+    },
+
+    activateCrystalCave: (caveId: string) => {
+      set((state) => {
+        const cave = state.buildings[caveId];
+        if (cave && cave.type === BuildingType.CRYSTAL_CAVE) {
+          cave.resonanceTurnsRemaining = Math.max(
+            cave.resonanceTurnsRemaining,
             CRYSTAL_CHAMBER_CONFIG.RESONANCE_DURATION,
           );
         }

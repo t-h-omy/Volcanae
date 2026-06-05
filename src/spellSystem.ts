@@ -23,6 +23,7 @@ import { useCombatAnimationStore } from './combatAnimationStore';
 import { isStatusAllowedOnTerrain, applyTileStatus } from './tileStatusSystem';
 import { shouldLeaveGravestone, createGravestoneAt } from './combatSystem';
 import { applyTagStatEffects } from './techSystem';
+import { cleanupRoostedUnits } from './buildingRemoval';
 
 /** Returns the effective spell range for a mage (its attack range). */
 export function getMageSpellRange(
@@ -161,6 +162,26 @@ export function getValidSpellTargets(
       if (tile.isRuin || tile.isStrongholdRuin) return [];
       if (tile.terrainType === TileType.FOREST || tile.terrainType === TileType.MOUNTAIN) return [];
       return [{ ...mage.position }];
+    }
+
+    case 'CRYSTAL_CAVE': {
+      // Crystal Cave is the INVERSE of Crystal Tower's terrain rule and is
+      // cast AT RANGE rather than on the mage's own tile: every mountain tile
+      // in spell range that is currently free (no building, no unit, not a
+      // ruin) is a valid target.
+      const targets: Position[] = [];
+      for (let y = 0; y < state.grid.length; y++) {
+        for (let x = 0; x < state.grid[y].length; x++) {
+          const tile = state.grid[y][x];
+          if (tile.terrainType !== TileType.MOUNTAIN) continue;
+          if (tile.buildingId !== null) continue;
+          if (tile.unitId !== null) continue;
+          if (tile.isRuin || tile.isStrongholdRuin) continue;
+          if (!isTileInSpellRange(mage, { x, y }, range)) continue;
+          targets.push({ x, y });
+        }
+      }
+      return targets;
     }
 
     case 'RAISE_SKELETON': {
@@ -314,6 +335,7 @@ function handleEmberbind(
   if (!spawnPos) return false;
 
   // Destroy the EMBERNEST and restore forest
+  cleanupRoostedUnits(state, buildingId);
   delete state.buildings[buildingId];
   tile.buildingId = null;
   tile.terrainType = TileType.FOREST;
@@ -482,6 +504,99 @@ function handleCrystalTower(
   return true;
 }
 
+/**
+ * Conjures a Crystal Cave on a free mountain tile within spell range.
+ *
+ * Targeting is validated in `getValidSpellTargets` (mountain, no building/unit,
+ * not a ruin, in range). If the mountain tile carried a hidden CAVE_MONSTER
+ * (`tile.hasCaveMonster`) or an awakened monster unit, both are removed
+ * SILENTLY — no event, no floater, no kill credit, no reward — mirroring the
+ * silent removal pattern used by `lavaSystem.advanceLava` when lava consumes
+ * a cave monster's tile.
+ */
+function handleCrystalCave(
+  state: Draft<GameState>,
+  _mage: Unit,
+  targetPosition: Position,
+): boolean {
+  const { x, y } = targetPosition;
+  const tile = state.grid[y]?.[x];
+  if (!tile) return false;
+  // Defensive re-checks (target enumeration should have already validated):
+  if (tile.terrainType !== TileType.MOUNTAIN) return false;
+  if (tile.buildingId !== null) return false;
+  if (tile.unitId !== null) return false;
+  if (tile.isRuin || tile.isStrongholdRuin) return false;
+
+  // ── Silent cave-monster removal ────────────────────────────────────────────
+  // The cave eats the mountain wholesale; whatever lived inside the rock simply
+  // ceases to exist. No event, no VFX, no reward, no stat increment.
+  if (tile.hasCaveMonster) {
+    tile.hasCaveMonster = false;
+  }
+  const tileId = `${x},${y}`;
+  const encounterIdx = state.activeCaveEncounters.findIndex(
+    (e) => e.mountainTileId === tileId,
+  );
+  if (encounterIdx !== -1) {
+    const encounter = state.activeCaveEncounters[encounterIdx];
+    delete state.units[encounter.monsterId];
+    if (tile.unitId === encounter.monsterId) {
+      tile.unitId = null;
+    }
+    state.activeCaveEncounters.splice(encounterIdx, 1);
+  }
+
+  // ── Construct the Crystal Cave building ────────────────────────────────────
+  const caveMaxHp = BUILDING_DEFINITIONS.CRYSTAL_CAVE.maxHp ?? 0;
+  const caveId = generateId('building');
+  const newBuilding = {
+    id: caveId,
+    type: BuildingType.CRYSTAL_CAVE,
+    faction: Faction.PLAYER,
+    position: { x, y },
+    hp: caveMaxHp,
+    maxHp: caveMaxHp,
+    specialistSlot: null,
+    isDisabledForTurns: 0,
+    wasAttackedLastEnemyTurn: false,
+    captureProgress: 0,
+    isBeingCapturedBy: null,
+    lavaBoostEnabled: false,
+    discoverRadius: BUILDING_DEFINITIONS.CRYSTAL_CAVE.discoverRadius,
+    turnCapturedByPlayer: null,
+    wasEnemyOwnedBeforeCapture: false,
+    combatStats: null,
+    hasAttackedThisTurn: false,
+    tags: [] as UnitTag[],
+    consumesUnitOnCapture: false,
+    populationCount: 0,
+    populationCap: 0,
+    populationGrowthCounter: 0,
+    strongholdNobles: 0,
+    emberSpawnCounter: 0,
+    recruitmentQueue: null,
+    destroyBehavior: BUILDING_DEFINITIONS.CRYSTAL_CAVE.destroyBehavior,
+    resonanceTurnsRemaining: 0,
+    spawnCooldownRemaining: 0,
+    lastRecruitmentTurn: 0,
+  };
+  state.buildings[caveId] = newBuilding;
+  tile.buildingId = caveId;
+  state.gameStats.buildingsConstructed += 1;
+
+  useFloaterStore.getState().addFloater({
+    value: 0,
+    label: '🕳️ Crystal Cave',
+    x,
+    y,
+    isEnemy: false,
+    floaterType: 'revive',
+  });
+
+  return true;
+}
+
 /** Destroys a gravestone and raises a Skeleton (Raise Skeleton). */
 function handleRaiseSkeleton(
   state: Draft<GameState>,
@@ -496,6 +611,7 @@ function handleRaiseSkeleton(
   if (tile.unitId !== null) return false;
 
   // Consume gravestone
+  cleanupRoostedUnits(state, graveId);
   delete state.buildings[graveId];
   tile.buildingId = null;
 
@@ -593,6 +709,7 @@ function handleGraveTrap(
   };
 
   // Remove old gravestone
+  cleanupRoostedUnits(state, graveId);
   delete state.buildings[graveId];
   state.buildings[trapId] = trap;
   tile.buildingId = trapId;
@@ -746,6 +863,8 @@ export function castSpell(
       success = handleBrandmarkHeal(state, mage, targetPosition); break;
     case 'CRYSTAL_TOWER':
       success = handleCrystalTower(state, mage); break;
+    case 'CRYSTAL_CAVE':
+      success = handleCrystalCave(state, mage, targetPosition); break;
     case 'RAISE_SKELETON':
       success = handleRaiseSkeleton(state, targetPosition); break;
     case 'GRAVE_TRAP':

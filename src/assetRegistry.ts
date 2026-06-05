@@ -61,6 +61,9 @@ export const UNIT_SPRITE: Partial<Record<UnitType, string>> = withBase({
   RIFT_LORD: '/sprites/units/RiftLord_100px.png',
   EMBERLING:    '/sprites/units/Emberling_100px.png',
   CAVE_MONSTER: '/sprites/units/Cave_Monster_100px.png',
+  // CRYSTAL_DRAKE has no art yet — empty path shows the pink MissingSprite
+  // placeholder until a real asset is added.
+  CRYSTAL_DRAKE: '',
 });
 
 /**
@@ -101,6 +104,9 @@ export const BUILDING_SPRITE: Partial<Record<BuildingType, string>> = withBase({
   // TODO: replace GRAVE_TRAP and CRYSTAL_TOWER with real art when available
   GRAVE_TRAP:      '/sprites/buildings/grave_trap_100px.png',
   CRYSTAL_TOWER:   '/sprites/buildings/crystal_tower_100px.png',
+  // CRYSTAL_CAVE has no art yet — empty path shows the placeholder. The
+  // resonance-active variant will reuse the same sprite for now.
+  CRYSTAL_CAVE:    '',
 });
 
 /**

@@ -44,6 +44,8 @@ export const UnitType = {
   RIFT_LORD: 'RIFT_LORD',
   EMBERLING: 'EMBERLING',
   CAVE_MONSTER: 'CAVE_MONSTER',
+  /** Conjurer-summoned flying drake bound to the life of its Crystal Cave */
+  CRYSTAL_DRAKE: 'CRYSTAL_DRAKE',
 } as const;
 export type UnitType = (typeof UnitType)[keyof typeof UnitType];
 
@@ -71,6 +73,14 @@ export const BuildingType = {
   GRAVE_TRAP: 'GRAVE_TRAP',
   /** Combat building created by sacrificing a Mage via the Crystal Tower spell */
   CRYSTAL_TOWER: 'CRYSTAL_TOWER',
+  /**
+   * Conjurer building placed by the Crystal Cave spell on a mountain tile.
+   * Hosts at most one Crystal Drake (limited by `unitLimit`). The drake's
+   * existence is bound to this building — losing the cave (lava, capture,
+   * destruction, conversion) immediately removes the bound drake via the
+   * shared cleanup hook in buildingRemoval.ts.
+   */
+  CRYSTAL_CAVE: 'CRYSTAL_CAVE',
 } as const;
 export type BuildingType = (typeof BuildingType)[keyof typeof BuildingType];
 
@@ -136,6 +146,8 @@ export const SpellId = {
   GRAVE_TRAP:     'GRAVE_TRAP',
   EXPLODE:        'EXPLODE',
   CRYSTAL_TOWER:  'CRYSTAL_TOWER',
+  /** Crystal Cave — Conjurer spell that places a Crystal Cave on a mountain in range */
+  CRYSTAL_CAVE:   'CRYSTAL_CAVE',
 } as const;
 export type SpellId = (typeof SpellId)[keyof typeof SpellId];
 
@@ -285,6 +297,15 @@ export const UnitTag = {
   HOMELESS: 'HOMELESS',
   /** Unit's training facility type is over capacity — the unit cannot receive regular training. -10 ATK. */
   UNTRAINED: 'UNTRAINED',
+  // ── Movement tags ────────────────────────────────────────────────────────
+  /**
+   * Unit can fly: traverses CANYON and unfrozen WATER tiles ignoring the normal
+   * terrain gates, and survives knockback over CANYON / WATER (it simply lands
+   * on the destination tile). LAVA still kills FLYING units ("too hot"), and
+   * FLYING units do not ice-slide across FROZEN tiles — they treat FROZEN as
+   * solid ground because they are not standing on it.
+   */
+  FLYING: 'FLYING',
 } as const;
 export type UnitTag = (typeof UnitTag)[keyof typeof UnitTag];
 
@@ -411,6 +432,15 @@ export interface Unit {
   tunnelTurnsUnderground?: number;
   /** Turn number until which this unit cannot dig in again. */
   tunnelCooldownUntil?: number;
+
+  /**
+   * Set on a Crystal Drake (or any unit summoned/recruited from a building that
+   * binds its life to that building). The drake is removed via the shared
+   * `cleanupRoostedUnits` helper whenever the building with this id is removed
+   * from `state.buildings` — by lava, capture, conversion, combat, or any
+   * spell. Null/undefined means the unit's life is not bound to a building.
+   */
+  roostBuildingId?: string | null;
 
  }
 
