@@ -916,7 +916,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
-    enemyUnlockEmber: 1,
+    enemyUnlockEmber: 2,
     description: 'Enemy ranged unit that attacks from range.', // overwritten below
   },
 
@@ -931,7 +931,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
-    enemyUnlockEmber: 3,
+    enemyUnlockEmber: 4,
     description: 'Enemy fast cavalry.', // overwritten below
   },
 
@@ -946,7 +946,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
-    enemyUnlockEmber: 5,
+    enemyUnlockEmber: 7,
     description: 'Enemy long-range bombard.', // overwritten below
   },
 
@@ -961,7 +961,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
-    enemyUnlockEmber: 3,
+    enemyUnlockEmber: 6,
     description: 'Brutal cluster-breaker. Cleaves into adjacent enemies and grows stronger when surrounded.',
   },
 
@@ -991,7 +991,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
-    enemyUnlockEmber: 4,
+    enemyUnlockEmber: 5,
     description: 'Heavily armored brute that ignores defensive bonuses and stuns heavily armored targets. Resistant to melee damage.',
   },
 
