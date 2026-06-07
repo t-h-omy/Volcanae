@@ -1854,9 +1854,9 @@ function scoreActionsForUnit(
       // GRIMBEAK: sort summoned targets to the front so they are preferred when in range.
       const sorted = unit.type === UnitType.GRIMBEAK
         ? [...outOfAttackRange].sort((a, b) => {
-            const aSum = a.tags.includes(UnitTag.SUMMONED) ? 1 : 0;
-            const bSum = b.tags.includes(UnitTag.SUMMONED) ? 1 : 0;
-            if (bSum !== aSum) return bSum - aSum;
+            const aSummoned = a.tags.includes(UnitTag.SUMMONED) ? 1 : 0;
+            const bSummoned = b.tags.includes(UnitTag.SUMMONED) ? 1 : 0;
+            if (bSummoned !== aSummoned) return bSummoned - aSummoned;
             return edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y)
               - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y);
           })

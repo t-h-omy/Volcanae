@@ -999,7 +999,7 @@ export function resolveAttack(
     const behindPos = { x: defenderPosition.x + dx, y: defenderPosition.y + dy };
     const behindInBounds =
       behindPos.y >= 0 && behindPos.y < state.grid.length &&
-      behindPos.x >= 0 && behindPos.x < state.grid[behindPos.y].length;
+      behindPos.x >= 0 && behindPos.x < (state.grid[0]?.length ?? 0);
     if (behindInBounds) {
       const behindTile = state.grid[behindPos.y][behindPos.x];
       if (behindTile.unitId) {
@@ -1760,7 +1760,7 @@ export function resolveAttackOnBuilding(
     const behindPos = { x: buildingPosition.x + dx, y: buildingPosition.y + dy };
     const behindInBounds =
       behindPos.y >= 0 && behindPos.y < state.grid.length &&
-      behindPos.x >= 0 && behindPos.x < state.grid[behindPos.y].length;
+      behindPos.x >= 0 && behindPos.x < (state.grid[0]?.length ?? 0);
     if (behindInBounds) {
       const behindTile = state.grid[behindPos.y][behindPos.x];
       if (behindTile.unitId) {
