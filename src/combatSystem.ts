@@ -10,7 +10,7 @@ import { BuildingType, Faction, UnitTag, UnitType, TechFlag, TileType, TileStatu
 import { useFloaterStore } from './floaterStore';
 import type { GameEvent } from './gameEvents';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
-import { UNIT_DEFINITIONS, XP, ABILITIES, MAP, BUILDING_DEFINITIONS, MAGE, CLEAVE_DAMAGE_MULTIPLIER, PIERCE_PRIMARY_DAMAGE_MULTIPLIER, RAGE_ATK_PER_ADJACENT, RAGE_MAX_ADJACENT_COUNT, BLOCK_MELEE_DAMAGE_MULTIPLIER, IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER, GRIMBEAK_SUMMONED_DAMAGE_MULTIPLIER, PUNCTURE_STUN_BASE_DEF_THRESHOLD, PUNCTURE_STUN_DURATION } from './gameConfig';
+import { UNIT_DEFINITIONS, XP, ABILITIES, MAP, BUILDING_DEFINITIONS, MAGE, CLEAVE_DAMAGE_MULTIPLIER, PIERCE_PRIMARY_DAMAGE_MULTIPLIER, PIERCE_SECONDARY_DAMAGE_MULTIPLIER, RAGE_ATK_PER_ADJACENT, RAGE_MAX_ADJACENT_COUNT, BLOCK_MELEE_DAMAGE_MULTIPLIER, IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER, GRIMBEAK_SUMMONED_DAMAGE_MULTIPLIER, PUNCTURE_STUN_BASE_DEF_THRESHOLD, PUNCTURE_STUN_DURATION } from './gameConfig';
 import { grantXp } from './levelSystem';
 import { generateId } from './mapGenerator';
 import { isUnitOnCorruptedTile, applyTileStatus } from './tileStatusSystem';
@@ -1006,11 +1006,12 @@ export function resolveAttack(
         const rearUnit = state.units[behindTile.unitId];
         if (rearUnit) {
           const rearUnitId = behindTile.unitId;
-          // The rear unit takes the full pre-PIERCE-multiplier primary damage — no second
-          // defense subtraction. The front defender's defense was already baked into
-          // fullPrimaryDamage by calculateCombatFromStats; subtracting the rear unit's
-          // defense a second time would cause the bug reported in Change 5.
-          const finalPierceDamage = Math.max(1, fullPrimaryDamage);
+          // The rear unit takes PIERCE_SECONDARY_DAMAGE_MULTIPLIER × the standard attack
+          // damage (fullPrimaryDamage, pre-PIERCE-reduction) — no second defense subtraction.
+          // The front defender's defense was already baked into fullPrimaryDamage by
+          // calculateCombatFromStats; subtracting the rear unit's defense a second time
+          // would cause the bug reported in Change 5.
+          const finalPierceDamage = Math.max(1, Math.round(fullPrimaryDamage * PIERCE_SECONDARY_DAMAGE_MULTIPLIER));
           const newRearHp = rearUnit.stats.currentHp - finalPierceDamage;
           if (!suppressFloaters) {
             const { addFloater } = useFloaterStore.getState();
@@ -1052,12 +1053,13 @@ export function resolveAttack(
       } else if (behindTile.buildingId) {
         const rearBuilding = state.buildings[behindTile.buildingId];
         if (rearBuilding) {
-          // The rear building takes the full pre-PIERCE-multiplier primary damage — no
-          // defense subtraction. Matching the unit-behind fix (Change 5): fullPrimaryDamage
-          // already accounts for the front defender's defense via calculateCombatFromStats.
+          // The rear building takes PIERCE_SECONDARY_DAMAGE_MULTIPLIER × the standard attack
+          // damage (fullPrimaryDamage, pre-PIERCE-reduction) — no defense subtraction.
+          // Matching the unit-behind fix (Change 5): fullPrimaryDamage already accounts for
+          // the front defender's defense via calculateCombatFromStats.
           // Minimum 1 ensures the tag always registers a hit. HP is reduced to 0 (not
           // deleted inline) — building removal triggers normally on the next attack.
-          const finalPierceBuildingDamage = Math.max(1, fullPrimaryDamage);
+          const finalPierceBuildingDamage = Math.max(1, Math.round(fullPrimaryDamage * PIERCE_SECONDARY_DAMAGE_MULTIPLIER));
           if (!suppressFloaters) {
             const { addFloater } = useFloaterStore.getState();
             addFloater({ value: finalPierceBuildingDamage, x: behindPos.x, y: behindPos.y, isEnemy: rearBuilding.faction === Faction.ENEMY });
@@ -1767,10 +1769,11 @@ export function resolveAttackOnBuilding(
         const rearUnit = state.units[behindTile.unitId];
         if (rearUnit) {
           const rearUnitId = behindTile.unitId;
+          // PIERCE_SECONDARY_DAMAGE_MULTIPLIER × standard attack damage (pre-reduction).
           // Same fix as the unit-vs-unit PIERCE case (Change 5): no second defense
           // subtraction. fullPrimaryDamage already has the front building's defense
           // factored in via calculateCombatFromStats.
-          const finalPierceDamage = Math.max(1, fullPrimaryDamage);
+          const finalPierceDamage = Math.max(1, Math.round(fullPrimaryDamage * PIERCE_SECONDARY_DAMAGE_MULTIPLIER));
           const newRearHp = rearUnit.stats.currentHp - finalPierceDamage;
           if (!suppressFloaters) {
             const { addFloater } = useFloaterStore.getState();
@@ -1812,8 +1815,9 @@ export function resolveAttackOnBuilding(
       } else if (behindTile.buildingId) {
         const rearBuilding = state.buildings[behindTile.buildingId];
         if (rearBuilding) {
+          // PIERCE_SECONDARY_DAMAGE_MULTIPLIER × standard attack damage (pre-reduction).
           // Same fix: no building defense subtraction for the rear target.
-          const finalPierceBuildingDamage = Math.max(1, fullPrimaryDamage);
+          const finalPierceBuildingDamage = Math.max(1, Math.round(fullPrimaryDamage * PIERCE_SECONDARY_DAMAGE_MULTIPLIER));
           if (!suppressFloaters) {
             const { addFloater } = useFloaterStore.getState();
             addFloater({ value: finalPierceBuildingDamage, x: behindPos.x, y: behindPos.y, isEnemy: rearBuilding.faction === Faction.ENEMY });

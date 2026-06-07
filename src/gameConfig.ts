@@ -2100,6 +2100,8 @@ export const CLEAVE_DAMAGE_MULTIPLIER = 0.5;
 
 /** Multiplier applied to defender damage when the attacker has PIERCE. */
 export const PIERCE_PRIMARY_DAMAGE_MULTIPLIER = 0.5;
+/** Multiplier applied to standard attack damage dealt to the unit behind the primary defender by PIERCE. Default 100%. */
+export const PIERCE_SECONDARY_DAMAGE_MULTIPLIER = 1.0;
 
 /** ATK bonus per adjacent enemy, granted to units with RAGE. */
 export const RAGE_ATK_PER_ADJACENT = 6;
@@ -2198,7 +2200,7 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   [UnitTag.LAVA]:               { label: 'Lava',               desc: 'Lava-faction unit. Immune to BURNING tile damage. Retained even when faction changes.' },
   // ── Counter tags ────────────────────────────────────────────────────────────
   [UnitTag.CLEAVE]:       { label: 'Cleave',      desc: `On hit, deals ${CLEAVE_DAMAGE_MULTIPLIER * 100}% damage to all enemy units adjacent to both attacker and defender. Ignores Phalanx defense.` },
-  [UnitTag.PIERCE]:       { label: 'Pierce',      desc: `Deals ${PIERCE_PRIMARY_DAMAGE_MULTIPLIER * 100}% damage to the target and full damage to the unit or building directly behind the target.` },
+  [UnitTag.PIERCE]:       { label: 'Pierce',      desc: `Deals ${PIERCE_PRIMARY_DAMAGE_MULTIPLIER * 100}% damage to the target; the unit or building directly behind the target takes ${PIERCE_SECONDARY_DAMAGE_MULTIPLIER * 100}% of the standard attack damage.` },
   [UnitTag.RAGE]:         { label: 'Rage',        desc: `Gains +${RAGE_ATK_PER_ADJACENT} attack per enemy adjacent to this unit, up to ${RAGE_MAX_ADJACENT_COUNT} enemies (max +${RAGE_ATK_PER_ADJACENT * RAGE_MAX_ADJACENT_COUNT}).` },
   [UnitTag.ALERT]:        { label: 'Alert',       desc: 'Immune to stun effects.' },
   [UnitTag.IRONBLOOD]:    { label: 'Ironblood',   desc: `Takes only ${IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER * 100}% damage from attacks by summoned units.` },
