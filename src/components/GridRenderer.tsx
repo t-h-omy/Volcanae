@@ -12,7 +12,7 @@ import type { Projectile, SlideKillGhost, CleaveVfx, TileVfx, LineVfx } from '..
 import { useShockwaveStore } from '../shockwaveStore';
 import { canCapture } from '../captureSystem';
 import { getConstructionOptionsForTile } from '../constructionSystem';
-import { MAP, UNIT_DEFINITIONS, BUILDING_DEFINITIONS, TAG_INFO, TAG_STAT_EFFECTS } from '../gameConfig';
+import { MAP, UNIT_DEFINITIONS, BUILDING_DEFINITIONS, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS } from '../gameConfig';
 import { getStrongholdEffectiveCap } from '../techSystem';
 import { computeRecruitmentBuildingUsage, canBuildingEverRecruit } from '../resourceSystem';
 import { ANIMATION } from '../animationConfig';
@@ -1419,6 +1419,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
     (isOnCorruptedTile ||
       isStunned ||
       unit.tags.some((tag) => {
+        if (UPGRADE_TRADEOFF_TAGS.has(tag)) return false;
         const effects = TAG_STAT_EFFECTS[tag];
         return effects?.some(
           (e) => (e.mode === 'add' && e.value < 0) || (e.mode === 'percent' && e.value < 0)

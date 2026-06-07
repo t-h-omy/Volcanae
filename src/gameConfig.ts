@@ -2054,6 +2054,17 @@ export const TECH_TREE: TechNodeDefinition[] = [
 // ============================================================================
 
 /**
+ * Tags whose negative stat modifiers are intentional upgrade tradeoffs rather
+ * than genuine debuffs.  Units carrying these tags must NOT show the debuff
+ * visualisation (purple border / HP bar) even though TAG_STAT_EFFECTS contains
+ * a negative value for them.
+ */
+export const UPGRADE_TRADEOFF_TAGS: ReadonlySet<UnitTag> = new Set([
+  UnitTag.HIT_AND_RUN,  // −DEF is the trade-off for double-move; it's a cavalry upgrade
+  UnitTag.DISTRACTION,  // −ATK is the trade-off for the DEF-reduction effect; it's an archer upgrade
+]);
+
+/**
  * Stat changes that are intrinsic to a tag.
  * When a GRANT_UNIT_TAG effect is applied (either retroactively at tech unlock
  * or at unit spawn time), these mods are also applied to the unit's stats.
