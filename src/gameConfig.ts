@@ -496,6 +496,13 @@ export const AI_SCORING = {
    * or INFERNAL_SANCTUM). Keeps spawner tiles free for recruitment.
    */
   PENALTY_STEP_ONTO_RECRUITMENT_BUILDING: 70,
+
+  /**
+   * Bonus added to ATTACK_UNIT / MOVE_TO_UNIT scores when a GRIMBEAK is targeting
+   * a SUMMONED unit (Ember Demon, Skeleton, etc.). Ensures GRIMBEAK prefers
+   * summoned targets over equally-rated non-summoned targets.
+   */
+  GRIMBEAK_SUMMONED_TARGET_BONUS: 30,
 } as const;
 
 export const AI_RECRUITMENT = {
@@ -1022,7 +1029,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
     enemyUnlockEmber: 6,
-    description: 'Resilient lava beast that resists damage from summoned units and grows enraged in dense clusters.',
+    description: 'Resilient lava beast that resists damage from summoned units, deals double damage to them, and grows enraged in dense clusters.',
   },
 
   RIFTWORM: {
@@ -1944,6 +1951,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 7,
     effects: [
       { type: 'UNLOCK_SPELL', spellId: SpellId.CRYSTAL_TOWER },
+      { type: 'UNLOCK_BUILDING', buildingType: BuildingType.CRYSTAL_TOWER },
     ],
   },
   // ── Conjurer path branch: Crystal Cave ───────────────────────────────────
@@ -2092,6 +2100,8 @@ export const CLEAVE_DAMAGE_MULTIPLIER = 0.5;
 
 /** Multiplier applied to defender damage when the attacker has PIERCE. */
 export const PIERCE_PRIMARY_DAMAGE_MULTIPLIER = 0.5;
+/** Multiplier applied to standard attack damage dealt to the unit behind the primary defender by PIERCE. Default 100%. */
+export const PIERCE_SECONDARY_DAMAGE_MULTIPLIER = 1.0;
 
 /** ATK bonus per adjacent enemy, granted to units with RAGE. */
 export const RAGE_ATK_PER_ADJACENT = 6;
@@ -2100,6 +2110,9 @@ export const RAGE_MAX_ADJACENT_COUNT = 8;
 
 /** Damage multiplier when a SUMMONED unit attacks a unit with IRONBLOOD. */
 export const IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER = 0.2;
+
+/** Damage multiplier applied to GRIMBEAK attacks against SUMMONED units (100% extra = 2× default). */
+export const GRIMBEAK_SUMMONED_DAMAGE_MULTIPLIER = 2.0;
 
 /** Damage multiplier when a melee unit (attackRange === 1) attacks a unit with BLOCK. */
 export const BLOCK_MELEE_DAMAGE_MULTIPLIER = 0.5;
@@ -2187,7 +2200,7 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   [UnitTag.LAVA]:               { label: 'Lava',               desc: 'Lava-faction unit. Immune to BURNING tile damage. Retained even when faction changes.' },
   // ── Counter tags ────────────────────────────────────────────────────────────
   [UnitTag.CLEAVE]:       { label: 'Cleave',      desc: `On hit, deals ${CLEAVE_DAMAGE_MULTIPLIER * 100}% damage to all enemy units adjacent to both attacker and defender. Ignores Phalanx defense.` },
-  [UnitTag.PIERCE]:       { label: 'Pierce',      desc: `Deals ${PIERCE_PRIMARY_DAMAGE_MULTIPLIER * 100}% damage to the target and full damage to the unit or building directly behind the target.` },
+  [UnitTag.PIERCE]:       { label: 'Pierce',      desc: `Deals ${PIERCE_PRIMARY_DAMAGE_MULTIPLIER * 100}% damage to the target; the unit or building directly behind the target takes ${PIERCE_SECONDARY_DAMAGE_MULTIPLIER * 100}% of the standard attack damage.` },
   [UnitTag.RAGE]:         { label: 'Rage',        desc: `Gains +${RAGE_ATK_PER_ADJACENT} attack per enemy adjacent to this unit, up to ${RAGE_MAX_ADJACENT_COUNT} enemies (max +${RAGE_ATK_PER_ADJACENT * RAGE_MAX_ADJACENT_COUNT}).` },
   [UnitTag.ALERT]:        { label: 'Alert',       desc: 'Immune to stun effects.' },
   [UnitTag.IRONBLOOD]:    { label: 'Ironblood',   desc: `Takes only ${IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER * 100}% damage from attacks by summoned units.` },

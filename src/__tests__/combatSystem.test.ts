@@ -326,23 +326,23 @@ describe('Change 4 – SPLASH damage', () => {
 
 describe('Change 5 – PIERCE rear-unit damage', () => {
   /**
-   * Compute the expected fullPrimaryDamage for LANCER (att=60, hp=80) vs
+   * Compute the expected fullPrimaryDamage for LANCER (att=75, hp=120) vs
    * LAVA_GRUNT (def=50, hp=100) at full HP:
-   *   eff_att = 60, eff_def = 50, total = 110
-   *   damage  = round(60 × 60/110) = round(32.727) = 33
-   * fullPrimaryDamage = 33.
+   *   eff_att = 75, eff_def = 50, total = 125
+   *   damage  = round(75 × 75/125) = round(45) = 45
+   * fullPrimaryDamage = 45.
    *
    * LANCER is melee (attackRange=1) so the LAVA_GRUNT can counter; counter
-   * damage = round(50 × 50/110) = round(22.727) = 23.
-   * LANCER hp 80 − 23 = 57 → LANCER survives, so PIERCE fires.
+   * damage = round(50 × 50/80) = round(31.25) = 31.
+   * LANCER hp 120 − 31 = 89 → LANCER survives, so PIERCE fires.
    */
-  const EXPECTED_FULL_PRIMARY_DAMAGE = 33;
+  const EXPECTED_FULL_PRIMARY_DAMAGE = 45;
 
   /**
-   * 5.1 Rear unit with high defense takes fullPrimaryDamage, NOT 1.
+   * 5.1 Rear unit with high defense takes fullPrimaryDamage × PIERCE_SECONDARY_DAMAGE_MULTIPLIER, NOT 1.
    *
-   * Before the fix: Math.max(1, 33 − 50) = 1.
-   * After the fix:  Math.max(1, 33)       = 33.
+   * Before the fix: Math.max(1, 45 − 50) = 1.
+   * After the fix:  Math.max(1, 45)       = 45.
    */
   it('deals fullPrimaryDamage to a high-defense rear unit (no second defense subtraction)', () => {
     const lancer = makePlayerUnit(UnitType.LANCER, 3, 5);
@@ -358,7 +358,7 @@ describe('Change 5 – PIERCE rear-unit damage', () => {
       resolveAttack(draft, lancer.id, frontDef.id, true, outEvents);
     });
 
-    // Rear unit must still exist (100 − 33 = 67)
+    // Rear unit must still exist (100 − 45 = 55)
     expect(nextState.units[rearUnit.id]).toBeDefined();
     const hpLost = rearInitialHp - nextState.units[rearUnit.id]!.stats.currentHp;
 
@@ -429,11 +429,11 @@ describe('Change 5 – PIERCE rear-unit damage', () => {
    * The fix must not change the front defender's damage.
    *
    * LANCER vs LAVA_GRUNT (def=50, hp=100):
-   *   fullPrimaryDamage = 33
-   *   front damage      = floor(33 × 0.5) = 16
+   *   fullPrimaryDamage = 45
+   *   front damage      = floor(45 × 0.5) = 22
    */
   it('front unit still takes pierce-multiplier-reduced damage', () => {
-    const FRONT_DAMAGE = 16; // floor(33 × 0.5)
+    const FRONT_DAMAGE = 22; // floor(45 × 0.5)
 
     const lancer = makePlayerUnit(UnitType.LANCER, 3, 5);
     const frontDef = makeEnemyUnit(UnitType.LAVA_GRUNT, 4, 5);

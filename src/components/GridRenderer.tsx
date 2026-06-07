@@ -12,7 +12,7 @@ import type { Projectile, SlideKillGhost, CleaveVfx, TileVfx, LineVfx } from '..
 import { useShockwaveStore } from '../shockwaveStore';
 import { canCapture } from '../captureSystem';
 import { getConstructionOptionsForTile } from '../constructionSystem';
-import { MAP, UNIT_DEFINITIONS, BUILDING_DEFINITIONS, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS } from '../gameConfig';
+import { MAP, UNIT_DEFINITIONS, BUILDING_DEFINITIONS, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, CORRUPTED_SUPPRESSED_TAGS } from '../gameConfig';
 import { getStrongholdEffectiveCap } from '../techSystem';
 import { computeRecruitmentBuildingUsage, canBuildingEverRecruit } from '../resourceSystem';
 import { ANIMATION } from '../animationConfig';
@@ -1402,8 +1402,13 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
 
   // A player unit that has moved but has no valid attack targets left to hit
   // should also appear exhausted — there's nothing more it can do this turn.
+  // For a bloodlust unit awaiting its second attack (bloodlustAttackAvailable), bypass the
+  // hasMovedThisTurn guard: the unit may not have moved yet but still has no target to finish
+  // the bloodlust sequence, so it should appear toned down.
   const noAttackTargets = useGameStore((s) => {
-    if (unit.faction !== Faction.PLAYER || !unit.hasMovedThisTurn || hasUnitActed(unit)) return false;
+    if (unit.faction !== Faction.PLAYER) return false;
+    if (hasUnitActed(unit)) return false;
+    if (!unit.hasMovedThisTurn && !unit.bloodlustAttackAvailable) return false;
     return getAttackTargets(unit, s.units, s.buildings, s.grid).size === 0;
   });
 
@@ -1414,9 +1419,12 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
   );
 
   // Show debuff border (and hp bar) for player units with an active debuff.
+  // Corrupted tile only counts as a debuff if the unit actually has tags that corruption suppresses.
+  const corruptionAffectsUnit =
+    isOnCorruptedTile && unit.tags.some((tag) => CORRUPTED_SUPPRESSED_TAGS.has(tag));
   const hasDebuff =
     unit.faction === Faction.PLAYER &&
-    (isOnCorruptedTile ||
+    (corruptionAffectsUnit ||
       isStunned ||
       unit.tags.some((tag) => {
         if (UPGRADE_TRADEOFF_TAGS.has(tag)) return false;

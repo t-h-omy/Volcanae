@@ -2467,12 +2467,15 @@ export const useGameStore = create<GameStore>()(
                 pierceBuilding.hp = Math.max(0, pierceBuilding.hp - event.amount);
               }
             }
-            useFloaterStore.getState().addFloater({
-              value: event.amount,
-              x: event.position.x,
-              y: event.position.y,
-              isEnemy: event.isEnemy,
-            });
+            // Skip floater for VFX-only events (amount === 0, no unit/building target).
+            if (event.amount > 0) {
+              useFloaterStore.getState().addFloater({
+                value: event.amount,
+                x: event.position.x,
+                y: event.position.y,
+                isEnemy: event.isEnemy,
+              });
+            }
             break;
           }
 

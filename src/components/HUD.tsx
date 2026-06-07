@@ -1536,8 +1536,8 @@ function unitHasDebuff(unit: Unit, isOnCorruptedTile: boolean): boolean {
   }
   // 2. Stun (behavioral debuff)
   if (unit.pinnedUntilTurn > 0) return true;
-  // 3. Corruption (inactive tags)
-  if (isOnCorruptedTile) return true;
+  // 3. Corruption suppresses active tags — only a debuff if the unit actually has affected tags
+  if (isOnCorruptedTile && unit.tags.some((tag) => CORRUPTED_SUPPRESSED_TAGS.has(tag))) return true;
   return false;
 }
 
@@ -2332,11 +2332,17 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   const allRecruitableTypes = BUILDING_RECRUITS[building.type] ?? [];
   const recruitableTypes = allRecruitableTypes.filter((ut) => unlockedUnits.includes(ut));
 
-  // Unit limit info for recruitment buildings
+  // Unit limit info for recruitment buildings.
+  // For CRYSTAL_CAVE: check per-cave limit so that having 2 caves doesn't allow
+  // recruiting 2 drakes into the same cave.
   const isRecruitmentBuilding =
     isPlayerOwned && BUILDING_DEFINITIONS[building.type]?.unitLimit !== undefined;
   const { current: recruitedUnits, limit: unitLimit } = isRecruitmentBuilding
-    ? computeRecruitmentBuildingUsage(gameState, building.type)
+    ? computeRecruitmentBuildingUsage(
+        gameState,
+        building.type,
+        building.type === BuildingType.CRYSTAL_CAVE ? building.id : undefined,
+      )
     : { current: 0, limit: Infinity };
   const atUnitLimit = isFinite(unitLimit) && recruitedUnits >= unitLimit;
   // Per-building recruitment limit: only 1 unit per turn per building
