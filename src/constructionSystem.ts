@@ -206,22 +206,25 @@ export function getConversionTargetsForTile(
 ): ConstructionOption[] {
   if (RESOURCE_TERRAIN_CONVERTIBLE_TYPES.includes(currentBuildingType)) {
     // Return terrain-appropriate options as if the tile were empty.
-    // Temporarily clear the buildingId so getConstructionOptionsForTile sees
-    // an empty tile; we read from a snapshot and never mutate state here.
-    const tile = (state as GameState).grid[position.y]?.[position.x];
+    // We read terrain properties directly instead of creating a fake state copy.
+    const tile = state.grid[position.y]?.[position.x];
     if (!tile) return [];
-    // Simulate an empty tile by passing a copy with no buildingId
-    const fakeState = {
-      ...state,
-      grid: state.grid.map((row, y) =>
-        row.map((t, x) =>
-          x === position.x && y === position.y ? { ...t, buildingId: null } : t,
-        ),
-      ),
-    } as GameState;
-    return getConstructionOptionsForTile(fakeState, position).filter(
-      (opt) => opt.buildingType !== currentBuildingType,
-    );
+    // Mirror the terrain checks from getConstructionOptionsForTile, but without
+    // the buildingId guard (we know the building is being removed).
+    const options: ConstructionOption[] = [];
+    if (tile.isStrongholdRuin) {
+      return [makeOption(BuildingType.STRONGHOLD)];
+    }
+    if (tile.terrainType === TileType.FOREST) {
+      options.push(makeOption(BuildingType.WOODCUTTER));
+    }
+    if (tile.terrainType === TileType.MOUNTAIN && !tile.isRuin) {
+      options.push(makeOption(BuildingType.MINE));
+    }
+    if (tile.isRuin) {
+      options.push(...getRuinBuildingOptions(state));
+    }
+    return options.filter((opt) => opt.buildingType !== currentBuildingType);
   }
 
   return getRuinBuildingOptions(state).filter(
@@ -260,7 +263,10 @@ export function canUnitConvertBuilding(
 
   // Only buildings that are themselves Ruin-buildable or on resource terrain can be converted.
   // This implicitly excludes Watchtower, Stronghold, Mine, Woodcutter, etc.
-  if (!RUIN_BUILDABLE_TYPES.includes(building.type) && !RESOURCE_TERRAIN_CONVERTIBLE_TYPES.includes(building.type)) return false;
+  const isConvertible =
+    RUIN_BUILDABLE_TYPES.includes(building.type) ||
+    RESOURCE_TERRAIN_CONVERTIBLE_TYPES.includes(building.type);
+  if (!isConvertible) return false;
 
   // At least one alternative conversion target must exist.
   const alternatives = getConversionTargetsForTile(state, unit.position, building.type);
