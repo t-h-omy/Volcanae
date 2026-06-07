@@ -427,12 +427,28 @@ describe('Crystal Cave spell — targeting', () => {
   });
 });
 
-describe('Crystal Cave spell — silent cave-monster removal on construction', () => {
-  it('clears hasCaveMonster and removes the encounter monster without emitting feedback', () => {
+describe('Crystal Cave spell — cave-monster handling on construction', () => {
+  it('clears hasCaveMonster for a dormant cave (no active encounter) when a crystal cave is built', () => {
     const mage = makeUnit(UnitType.MAGE, { x: 4, y: 4 });
-    // The target mountain tile (5,4) is unoccupied (target validation requires it),
-    // but `hasCaveMonster` is set on it and an active encounter is linked to the
-    // tile via mountainTileId. The encounter's monster unit lives off-tile.
+    const state = makeState({ units: [mage] });
+    state.grid[4][5].terrainType = TileType.MOUNTAIN;
+    state.grid[4][5].hasCaveMonster = true;
+    // No active encounter — the monster is dormant
+
+    const next = produce(state, (draft) => {
+      castSpell(draft, mage.id, SpellId.CRYSTAL_CAVE, { x: 5, y: 4 });
+    });
+
+    // Dormant cave is sealed: hasCaveMonster cleared; cave is built
+    expect(next.grid[4][5].hasCaveMonster).toBe(false);
+    const placed = Object.values(next.buildings).find((b) => b.type === BuildingType.CRYSTAL_CAVE);
+    expect(placed).toBeDefined();
+    expect(placed!.position).toEqual({ x: 5, y: 4 });
+  });
+
+  it('preserves an active cave-monster encounter when a crystal cave is built on its mountain', () => {
+    const mage = makeUnit(UnitType.MAGE, { x: 4, y: 4 });
+    // The monster is out on the map (active encounter), not on the target tile
     const monster = makeUnit(UnitType.CAVE_MONSTER, { x: 7, y: 7 }, Faction.ENEMY);
     const state = makeState({
       units: [mage, monster],
@@ -446,13 +462,14 @@ describe('Crystal Cave spell — silent cave-monster removal on construction', (
       castSpell(draft, mage.id, SpellId.CRYSTAL_CAVE, { x: 5, y: 4 });
     });
 
-    // Monster is gone; cave is up; flags cleared.
-    expect(next.units[monster.id]).toBeUndefined();
-    expect(next.grid[4][5].hasCaveMonster).toBe(false);
-    expect(next.activeCaveEncounters.length).toBe(0);
-    // No kill credit, no stats bump.
+    // Monster stays alive — it will return home and destroy the cave
+    expect(next.units[monster.id]).toBeDefined();
+    // Active encounter is preserved so the monster can still find its way home
+    expect(next.activeCaveEncounters.length).toBe(1);
+    expect(next.activeCaveEncounters[0].monsterId).toBe(monster.id);
+    // No kill credit
     expect(next.gameStats.unitsKilled).toBe(startKills);
-    // A building of type CRYSTAL_CAVE now sits on the target tile.
+    // Crystal cave is still built on the mountain
     const placed = Object.values(next.buildings).find((b) => b.type === BuildingType.CRYSTAL_CAVE);
     expect(placed).toBeDefined();
     expect(placed!.position).toEqual({ x: 5, y: 4 });

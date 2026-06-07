@@ -1029,7 +1029,9 @@ function scoreConstructionActions(
 /**
  * Triggers PREVENTIVE_STRIKE overwatch for all player SIEGE units with the
  * PREVENTIVE_STRIKE tag. Called after an enemy unit moves to its new position.
- * Each player siege unit may fire at most once per turn (consumes hasAttackedThisTurn).
+ * Fires for every enemy that enters range (no per-turn limit per siege unit).
+ * Does NOT consume the siege unit's attack action — preventive strike is an
+ * automatic reaction shot separate from the player's normal attack action.
  * Only fires when the enemy enters range (was outside range before the move).
  * No counter-attack is applied — this is a one-directional reaction shot.
  */
@@ -1051,7 +1053,6 @@ function triggerPreventiveStrike(
   for (const unit of Object.values(state.units)) {
     if (unit.faction !== Faction.PLAYER) continue;
     if (!unit.tags.includes(UnitTag.PREVENTIVE_STRIKE)) continue;
-    if (unit.hasAttackedThisTurn) continue;
     if (!state.units[enemyUnitId]) break; // enemy was destroyed by a previous overwatch shot
 
     // Only fire if the enemy moved from outside this siege unit's range INTO range
@@ -1105,10 +1106,11 @@ function triggerPreventiveStrike(
       enemyUnit.stats.currentHp = newDefenderHp;
     }
 
-    // Mark siege unit as having fired this turn (one shot per turn).
-    // Note: Preventive Strike is one-directional — the siege unit deals damage but
-    // receives no counter-attack, so attacker HP never decreases during this shot.
-    unit.hasAttackedThisTurn = true;
+    // Note: Preventive Strike does NOT consume the siege unit's attack action.
+    // It is an automatic reaction that fires whenever an enemy enters range,
+    // regardless of how many times this happens per turn and regardless of
+    // whether the siege unit has already attacked normally this turn.
+    // The siege unit deals damage but receives no counter-attack.
 
     if (events) {
       const attackerAfter = state.units[attackerId];
@@ -2735,10 +2737,15 @@ function runCaveMonsterAi(state: Draft<GameState>, events?: GameEvent[]): void {
       // Despawn: monster has returned to its mountain with no nearby threat.
       const tile = state.grid[unit.position.y][unit.position.x];
       if (tile.unitId === unit.id) tile.unitId = null;
-      // Defensively destroy any Mine that may have been placed on the mountain tile
+      // Defensively destroy any Mine or Crystal Cave that may have been placed
+      // on the mountain tile while the monster was away.  Crystal Cave also
+      // kills any bound Crystal Drake via cleanupRoostedUnits.
       if (tile.buildingId !== null) {
         const building = state.buildings[tile.buildingId];
-        if (building && building.type === BuildingType.MINE) {
+        if (
+          building &&
+          (building.type === BuildingType.MINE || building.type === BuildingType.CRYSTAL_CAVE)
+        ) {
           tile.buildingId = null;
           cleanupRoostedUnits(state, building.id);
           delete state.buildings[building.id];
