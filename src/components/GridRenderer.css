@@ -1159,6 +1159,20 @@
   to { stroke-dashoffset: -26; }
 }
 
+/* ── Charcoal Kiln ↔ Mine connection line (player-blue) ── */
+
+.charcoal-kiln-connection-layer {
+  z-index: 9;
+}
+
+.kiln-mine-line-dash {
+  animation: kiln-mine-dash-flow 1.5s linear infinite;
+}
+
+@keyframes kiln-mine-dash-flow {
+  to { stroke-dashoffset: -26; }
+}
+
 /* ── Cleave VFX: rotating swirl ring around attacker showing AoE damage ── */
 
 .cleave-vfx-layer {

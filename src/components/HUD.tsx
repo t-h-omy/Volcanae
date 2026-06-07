@@ -24,6 +24,7 @@ import {
   computeRecruitmentBuildingUsage,
   computeResourceIncomeBreakdown,
   computeCrystalIncomePerTurn,
+  isMineBuffedByKiln,
 } from '../resourceSystem';
 import {
   getConstructionOptionsForTile,
@@ -111,6 +112,7 @@ const BUILDING_EMOJI: Record<string, string> = {
   [BuildingType.STRONGHOLD]: '🏰',
   [BuildingType.MINE]: '🏔️',
   [BuildingType.WOODCUTTER]: '🛖',
+  [BuildingType.CHARCOAL_KILN]: '🔥',
   [BuildingType.BARRACKS]: '🏚️',
   [BuildingType.ARCHER_CAMP]: '🏕️',
   [BuildingType.RIDER_CAMP]: '🏘️',
@@ -134,6 +136,7 @@ const BUILDING_NAME: Record<string, string> = {
   [BuildingType.STRONGHOLD]: 'Stronghold',
   [BuildingType.MINE]: 'Mine',
   [BuildingType.WOODCUTTER]: 'Woodcutter',
+  [BuildingType.CHARCOAL_KILN]: 'Charcoal Kiln',
   [BuildingType.BARRACKS]: 'Barracks',
   [BuildingType.ARCHER_CAMP]: 'Archer Camp',
   [BuildingType.RIDER_CAMP]: 'Rider Camp',
@@ -2363,6 +2366,9 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   // Production info for resource buildings
   const isMine = building.type === BuildingType.MINE && isPlayerOwned;
   const isWoodcutter = building.type === BuildingType.WOODCUTTER && isPlayerOwned;
+  const isCharcoalKiln = building.type === BuildingType.CHARCOAL_KILN && isPlayerOwned;
+  // Whether this mine is currently receiving the non-stacking kiln iron bonus.
+  const mineHasKilnBuff = isMine && !isDisabled && isMineBuffedByKiln(gameState, building);
 
   // Population info for FARM, PATRICIANHOUSE, and STRONGHOLD
   const isHousingBuilding =
@@ -2502,9 +2508,22 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
           {isDisabled && <span className="hud-dim"> (paused)</span>}
         </div>
       )}
+      {/* Charcoal Kiln buff indicator on a selected mine */}
+      {mineHasKilnBuff && (
+        <div className="hud-production-row hud-buff-note">
+          🔥 +{RESOURCES.CHARCOAL_KILN_IRON_BONUS} iron per turn (Charcoal Kiln)
+        </div>
+      )}
       {isWoodcutter && (
         <div className="hud-production-row">
           🪵 +{RESOURCES.WOODCUTTER_WOOD_PER_TURN} wood per turn
+          {isDisabled && <span className="hud-dim"> (paused)</span>}
+        </div>
+      )}
+      {/* Charcoal Kiln panel: radius and current coverage */}
+      {isCharcoalKiln && (
+        <div className="hud-production-row">
+          🔥 Buffs mines within {RESOURCES.CHARCOAL_KILN_RADIUS} tiles (+{RESOURCES.CHARCOAL_KILN_IRON_BONUS} iron/turn, does not stack)
           {isDisabled && <span className="hud-dim"> (paused)</span>}
         </div>
       )}

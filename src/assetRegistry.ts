@@ -105,6 +105,9 @@ export const BUILDING_SPRITE: Partial<Record<BuildingType, string>> = withBase({
   GRAVE_TRAP:      '/sprites/buildings/grave_trap_100px.png',
   CRYSTAL_TOWER:   '/sprites/buildings/crystal_tower_100px.png',
   CRYSTAL_CAVE:    '/sprites/buildings/crystal_cave_100px.png',
+  // TODO: replace CHARCOAL_KILN with real art when available; empty string
+  //       shows the pink MissingSprite placeholder in the meantime.
+  CHARCOAL_KILN:   '',
 });
 
 /**
