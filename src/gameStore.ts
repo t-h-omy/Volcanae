@@ -846,6 +846,7 @@ export const useGameStore = create<GameStore>()(
     constructBuilding: (unitId: string, tilePos: Position, buildingType: BuildingType) => {
       set((state) => {
         constructBuildingLogic(state, unitId, tilePos, buildingType);
+        syncOvercapacityTags(state);
         updateDiscovery(state);
         checkGameConditions(state);
       });
@@ -854,6 +855,7 @@ export const useGameStore = create<GameStore>()(
     convertBuilding: (unitId: string, newBuildingType: BuildingType) => {
       set((state) => {
         convertBuildingLogic(state, unitId, newBuildingType);
+        syncOvercapacityTags(state);
         updateDiscovery(state);
         checkGameConditions(state);
       });

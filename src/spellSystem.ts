@@ -211,6 +211,7 @@ export function getValidSpellTargets(
       for (let y = 0; y < state.grid.length; y++) {
         for (let x = 0; x < state.grid[y].length; x++) {
           const tile = state.grid[y][x];
+          if (!tile.isRevealed) continue;
           if (!isStatusAllowedOnTerrain(tile.terrainType, TileStatus.FROZEN)) continue;
           if (tile.status === TileStatus.FROZEN) continue;
           if (tile.isLava) continue;
@@ -528,24 +529,25 @@ function handleCrystalCave(
   if (tile.unitId !== null) return false;
   if (tile.isRuin || tile.isStrongholdRuin) return false;
 
-  // ── Silent cave-monster removal ────────────────────────────────────────────
-  // The cave eats the mountain wholesale; whatever lived inside the rock simply
-  // ceases to exist. No event, no VFX, no reward, no stat increment.
-  if (tile.hasCaveMonster) {
-    tile.hasCaveMonster = false;
-  }
+  // ── Cave-monster handling ──────────────────────────────────────────────────
+  // If there is an active encounter (the monster has been awakened and is
+  // roaming the map), preserve it — the monster should be able to return to its
+  // home mountain and destroy the Crystal Cave, matching the same behaviour as
+  // when a Mine is built on the mountain.  Only the dormant flag is cleared
+  // (no active encounter = no roaming monster; the mountain "seals up").
   const tileId = `${x},${y}`;
   const encounterIdx = state.activeCaveEncounters.findIndex(
     (e) => e.mountainTileId === tileId,
   );
-  if (encounterIdx !== -1) {
-    const encounter = state.activeCaveEncounters[encounterIdx];
-    delete state.units[encounter.monsterId];
-    if (tile.unitId === encounter.monsterId) {
-      tile.unitId = null;
+  if (encounterIdx === -1) {
+    // Dormant cave monster — the crystal cave seals the mountain hollow.
+    if (tile.hasCaveMonster) {
+      tile.hasCaveMonster = false;
     }
-    state.activeCaveEncounters.splice(encounterIdx, 1);
   }
+  // If an active encounter exists, the monster is already out on the map and
+  // will return home on its own.  hasCaveMonster and the encounter entry are
+  // left untouched so the returning monster can destroy the cave.
 
   // ── Construct the Crystal Cave building ────────────────────────────────────
   const caveMaxHp = BUILDING_DEFINITIONS.CRYSTAL_CAVE.maxHp ?? 0;

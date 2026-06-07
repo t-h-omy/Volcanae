@@ -2132,7 +2132,7 @@ function ConversionPanel({
   const options = useMemo(
     () => {
       if (!currentBuilding) return [];
-      return getConversionTargetsForTile(useGameStore.getState(), currentBuilding.type);
+      return getConversionTargetsForTile(useGameStore.getState(), unit.position, currentBuilding.type);
     },
     [currentBuilding],
   );

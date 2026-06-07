@@ -49,6 +49,7 @@ import {
   getRecruitableUnitTypes,
   computeRecruitmentBuildingUsage,
 } from '../resourceSystem';
+import { runEnemyTurn } from '../enemySystem';
 import { produce } from 'immer';
 
 // ── Tiny helpers ────────────────────────────────────────────────────────────
@@ -427,12 +428,28 @@ describe('Crystal Cave spell — targeting', () => {
   });
 });
 
-describe('Crystal Cave spell — silent cave-monster removal on construction', () => {
-  it('clears hasCaveMonster and removes the encounter monster without emitting feedback', () => {
+describe('Crystal Cave spell — cave-monster handling on construction', () => {
+  it('clears hasCaveMonster for a dormant cave (no active encounter) when a crystal cave is built', () => {
     const mage = makeUnit(UnitType.MAGE, { x: 4, y: 4 });
-    // The target mountain tile (5,4) is unoccupied (target validation requires it),
-    // but `hasCaveMonster` is set on it and an active encounter is linked to the
-    // tile via mountainTileId. The encounter's monster unit lives off-tile.
+    const state = makeState({ units: [mage] });
+    state.grid[4][5].terrainType = TileType.MOUNTAIN;
+    state.grid[4][5].hasCaveMonster = true;
+    // No active encounter — the monster is dormant
+
+    const next = produce(state, (draft) => {
+      castSpell(draft, mage.id, SpellId.CRYSTAL_CAVE, { x: 5, y: 4 });
+    });
+
+    // Dormant cave is sealed: hasCaveMonster cleared; cave is built
+    expect(next.grid[4][5].hasCaveMonster).toBe(false);
+    const placed = Object.values(next.buildings).find((b) => b.type === BuildingType.CRYSTAL_CAVE);
+    expect(placed).toBeDefined();
+    expect(placed!.position).toEqual({ x: 5, y: 4 });
+  });
+
+  it('preserves an active cave-monster encounter when a crystal cave is built on its mountain', () => {
+    const mage = makeUnit(UnitType.MAGE, { x: 4, y: 4 });
+    // The monster is out on the map (active encounter), not on the target tile
     const monster = makeUnit(UnitType.CAVE_MONSTER, { x: 7, y: 7 }, Faction.ENEMY);
     const state = makeState({
       units: [mage, monster],
@@ -446,13 +463,14 @@ describe('Crystal Cave spell — silent cave-monster removal on construction', (
       castSpell(draft, mage.id, SpellId.CRYSTAL_CAVE, { x: 5, y: 4 });
     });
 
-    // Monster is gone; cave is up; flags cleared.
-    expect(next.units[monster.id]).toBeUndefined();
-    expect(next.grid[4][5].hasCaveMonster).toBe(false);
-    expect(next.activeCaveEncounters.length).toBe(0);
-    // No kill credit, no stats bump.
+    // Monster stays alive — it will return home and destroy the cave
+    expect(next.units[monster.id]).toBeDefined();
+    // Active encounter is preserved so the monster can still find its way home
+    expect(next.activeCaveEncounters.length).toBe(1);
+    expect(next.activeCaveEncounters[0].monsterId).toBe(monster.id);
+    // No kill credit
     expect(next.gameStats.unitsKilled).toBe(startKills);
-    // A building of type CRYSTAL_CAVE now sits on the target tile.
+    // Crystal cave is still built on the mountain
     const placed = Object.values(next.buildings).find((b) => b.type === BuildingType.CRYSTAL_CAVE);
     expect(placed).toBeDefined();
     expect(placed!.position).toEqual({ x: 5, y: 4 });
@@ -501,4 +519,143 @@ describe('SPELL_DEFINITIONS[CRYSTAL_CAVE]', () => {
     expect(def.description).toContain('Crystal Cave');
     expect(def.description).toContain('Crystal Drake');
   });
+});
+
+// ───────────────────────────────────────────────────────────────────────────
+// PART 6 — Cave monster return: correct behavior with Crystal Cave present
+// ───────────────────────────────────────────────────────────────────────────
+
+/** Minimal GameState suitable for runEnemyTurn (all required fields present). */
+function makeEnemyTurnState(opts: {
+  units?: Unit[];
+  buildings?: Building[];
+  activeCaveEncounters?: { mountainTileId: string; monsterId: string }[];
+}): GameState {
+  const unitsMap: Record<string, Unit> = {};
+  for (const u of opts.units ?? []) unitsMap[u.id] = u;
+  const buildingsMap: Record<string, Building> = {};
+  for (const b of opts.buildings ?? []) buildingsMap[b.id] = b;
+  const grid = makeGrid(MAP.GRID_WIDTH, MAP.GRID_HEIGHT);
+  for (const u of Object.values(unitsMap)) {
+    const t = grid[u.position.y]?.[u.position.x];
+    if (t) { t.unitId = u.id; t.isRevealed = true; }
+  }
+  for (const b of Object.values(buildingsMap)) {
+    const t = grid[b.position.y]?.[b.position.x];
+    if (t) t.buildingId = b.id;
+  }
+  return {
+    units: unitsMap,
+    buildings: buildingsMap,
+    grid,
+    portals: {},
+    activeCaveEncounters: opts.activeCaveEncounters ?? [],
+    ember: 0,
+    emberLevelSources: { turns: 0, emberlingSacrifices: 0, other: 0 },
+    turn: 1,
+    phase: 'PLAYER_TURN',
+    gameStats: {
+      unitsKilled: 0,
+      unitsLost: 0,
+      damageDealt: 0,
+      damageReceived: 0,
+      unitsRecruited: 0,
+      buildingsConstructed: 0,
+      buildingsConverted: 0,
+      techsUnlocked: 0,
+      enemyBuildingsDestroyed: 0,
+      enemyBuildingsCaptured: 0,
+      buildingsDestroyedByEnemy: 0,
+      buildingsCapturedByEnemy: 0,
+      buildingsDestroyedByLava: 0,
+    },
+    resources: { iron: 0, wood: 0 },
+    arcaneCrystals: 0,
+    techFlags: [],
+    techNodes: {} as GameState['techNodes'],
+    unlockedBuildings: [],
+    unlockedUnits: [],
+    unlockedSpells: [],
+    specialists: {},
+    globalSpecialistStorage: [],
+    lavaFrontRow: 999,
+    turnsUntilLavaAdvance: 5,
+    selectedUnitId: null,
+    selectedBuildingId: null,
+    selectedTilePos: null,
+    pendingHealerId: null,
+    zonesUnlocked: [0],
+    enemyUnitsSpawnedLastTurn: 0,
+    difficulty: 'NORMAL' as GameState['difficulty'],
+    zoneLockoutUntilTurn: {},
+    spawnFreezeUntilTurn: 0,
+    gameOverCause: null,
+  } as unknown as GameState;
+}
+
+describe('Cave monster return — Crystal Cave interaction', () => {
+  it(
+    'A) monster despawns via Priority 3 under the same trigger conditions regardless of whether a Crystal Cave occupies the mountain',
+    () => {
+      // Place monster already on its home tile with a Crystal Cave there.
+      // No player units in aggro radius → Priority 1 & 2 skip, Priority 3 fires.
+      const homePos = { x: 5, y: 4 };
+      const monster = makeUnit(UnitType.CAVE_MONSTER, homePos, Faction.ENEMY);
+      monster.hasMovedThisTurn = false;
+      monster.hasAttackedThisTurn = false;
+      const cave = makeCave(homePos);
+      const state = makeEnemyTurnState({
+        units: [monster],
+        buildings: [cave],
+        activeCaveEncounters: [{ mountainTileId: '5,4', monsterId: monster.id }],
+      });
+      state.grid[homePos.y][homePos.x].terrainType = TileType.MOUNTAIN;
+
+      const { finalState } = runEnemyTurn(state);
+
+      // Monster has despawned — same as if no cave were present
+      expect(finalState.units[monster.id]).toBeUndefined();
+      expect(finalState.activeCaveEncounters.length).toBe(0);
+      // Cave was destroyed by the return
+      expect(finalState.buildings[cave.id]).toBeUndefined();
+      expect(finalState.grid[homePos.y][homePos.x].buildingId).toBeNull();
+    },
+  );
+
+  it(
+    'B) crystal cave is destroyed by the returning monster; the bound drake dies through the building destruction chain, not directly',
+    () => {
+      // Drake is placed far from the monster (outside patrol radius of 3) so
+      // the monster doesn't aggro on it and falls through to Priority 3.
+      const homePos = { x: 5, y: 4 };
+      const drakePos = { x: 5, y: 15 }; // >3 tiles away in Chebyshev distance
+      const monster = makeUnit(UnitType.CAVE_MONSTER, homePos, Faction.ENEMY);
+      monster.hasMovedThisTurn = false;
+      monster.hasAttackedThisTurn = false;
+      const cave = makeCave(homePos);
+      const drake = makeUnit(UnitType.CRYSTAL_DRAKE, drakePos);
+      drake.roostBuildingId = cave.id;
+
+      const state = makeEnemyTurnState({
+        units: [monster, drake],
+        buildings: [cave],
+        activeCaveEncounters: [{ mountainTileId: '5,4', monsterId: monster.id }],
+      });
+      state.grid[homePos.y][homePos.x].terrainType = TileType.MOUNTAIN;
+      const startLost = state.gameStats.unitsLost;
+
+      const { finalState } = runEnemyTurn(state);
+
+      // Crystal Cave must be destroyed
+      expect(finalState.buildings[cave.id]).toBeUndefined();
+      // Drake must be gone — removed by cleanupRoostedUnits as part of cave destruction
+      expect(finalState.units[drake.id]).toBeUndefined();
+      // Player unit loss is counted (drake is a player faction unit)
+      expect(finalState.gameStats.unitsLost).toBe(startLost + 1);
+      // Monster also despawned after destroying the cave
+      expect(finalState.units[monster.id]).toBeUndefined();
+      // Encounter cleaned up
+      expect(finalState.activeCaveEncounters.length).toBe(0);
+    },
+  );
 });

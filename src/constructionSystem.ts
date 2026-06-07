@@ -127,6 +127,16 @@ export const RUIN_BUILDABLE_TYPES: BuildingType[] = [
 ];
 
 /**
+ * Building types that sit on resource terrain (Forest/Mountain) and can be
+ * converted by a BUILDANDCAPTURE unit. Converting such a building does NOT go
+ * through the Ruin flow — the terrain itself determines the available targets
+ * (e.g. CRYSTAL_CAVE on a mountain → can be converted to MINE).
+ */
+export const RESOURCE_TERRAIN_CONVERTIBLE_TYPES: BuildingType[] = [
+  BuildingType.CRYSTAL_CAVE,
+];
+
+/**
  * Returns the list of building types that can be constructed on a Ruin tile,
  * filtered by tech-unlock status.
  */
@@ -183,13 +193,40 @@ export function getConstructionOptionsForTile(
 
 /**
  * Returns the construction options for a building conversion at the given tile,
- * excluding the building currently on the tile. Mirrors getConstructionOptionsForTile
- * but with the current-building exclusion.
+ * excluding the building currently on the tile.
+ *
+ * - For resource-terrain buildings (e.g. CRYSTAL_CAVE on a mountain) the
+ *   available targets are derived from the tile's terrain, not the ruin list.
+ * - For all other convertible buildings the ruin-buildable list is used.
  */
 export function getConversionTargetsForTile(
   state: GameState | Draft<GameState>,
+  position: Position,
   currentBuildingType: BuildingType,
 ): ConstructionOption[] {
+  if (RESOURCE_TERRAIN_CONVERTIBLE_TYPES.includes(currentBuildingType)) {
+    // Return terrain-appropriate options as if the tile were empty.
+    // We read terrain properties directly instead of creating a fake state copy.
+    const tile = state.grid[position.y]?.[position.x];
+    if (!tile) return [];
+    // Mirror the terrain checks from getConstructionOptionsForTile, but without
+    // the buildingId guard (we know the building is being removed).
+    const options: ConstructionOption[] = [];
+    if (tile.isStrongholdRuin) {
+      return [makeOption(BuildingType.STRONGHOLD)];
+    }
+    if (tile.terrainType === TileType.FOREST) {
+      options.push(makeOption(BuildingType.WOODCUTTER));
+    }
+    if (tile.terrainType === TileType.MOUNTAIN && !tile.isRuin) {
+      options.push(makeOption(BuildingType.MINE));
+    }
+    if (tile.isRuin) {
+      options.push(...getRuinBuildingOptions(state));
+    }
+    return options.filter((opt) => opt.buildingType !== currentBuildingType);
+  }
+
   return getRuinBuildingOptions(state).filter(
     (opt) => opt.buildingType !== currentBuildingType,
   );
@@ -224,12 +261,15 @@ export function canUnitConvertBuilding(
   const building = state.buildings[tile.buildingId];
   if (!building || building.faction !== Faction.PLAYER) return false;
 
-  // Only buildings that are themselves Ruin-buildable can be converted.
+  // Only buildings that are themselves Ruin-buildable or on resource terrain can be converted.
   // This implicitly excludes Watchtower, Stronghold, Mine, Woodcutter, etc.
-  if (!RUIN_BUILDABLE_TYPES.includes(building.type)) return false;
+  const isConvertible =
+    RUIN_BUILDABLE_TYPES.includes(building.type) ||
+    RESOURCE_TERRAIN_CONVERTIBLE_TYPES.includes(building.type);
+  if (!isConvertible) return false;
 
   // At least one alternative conversion target must exist.
-  const alternatives = getConversionTargetsForTile(state, building.type);
+  const alternatives = getConversionTargetsForTile(state, unit.position, building.type);
   return alternatives.length > 0;
 }
 
@@ -260,7 +300,7 @@ export function convertBuilding(
   }
 
   // Verify the target is in the valid conversion-options list
-  const conversionTargets = getConversionTargetsForTile(state, oldBuilding.type);
+  const conversionTargets = getConversionTargetsForTile(state, position, oldBuilding.type);
   if (!conversionTargets.some((opt) => opt.buildingType === newBuildingType)) {
     throw new Error(`Invalid conversion target: ${newBuildingType}`);
   }
@@ -271,13 +311,19 @@ export function convertBuilding(
     throw new Error(`Insufficient resources for conversion`);
   }
 
+  const isResourceTerrainBuilding = RESOURCE_TERRAIN_CONVERTIBLE_TYPES.includes(oldBuilding.type);
+
   // 1. Destroy old building
   cleanupRoostedUnits(state, oldBuildingId);
   delete state.buildings[oldBuildingId];
   tile.buildingId = null;
 
-  // 2. Re-mark tile as Ruin so constructBuilding's Ruin-branch works
-  tile.isRuin = true;
+  // 2. For ruin-buildable buildings: re-mark tile as Ruin so constructBuilding's
+  //    Ruin-branch works. For resource-terrain buildings (e.g. CRYSTAL_CAVE on a
+  //    mountain): leave the tile as-is so the terrain check picks up MINE etc.
+  if (!isResourceTerrainBuilding) {
+    tile.isRuin = true;
+  }
 
   // 3. Construct new building via the existing flow
   //    (handles cost deduction, isRuin clearing, tile updates, XP grant, stats update)
