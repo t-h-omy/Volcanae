@@ -141,7 +141,7 @@ export function loadGameState(): GameState | null {
         const hasCaveBuilding =
           s.buildings && typeof s.buildings === 'object' &&
           Object.values(s.buildings).some(
-            (b) => (b as Record<string, unknown>)?.type === BuildingType.CRYSTAL_CAVE,
+            (b) => b?.type === BuildingType.CRYSTAL_CAVE,
           );
         if (techUnlocked || hasCaveBuilding) {
           uu.push(UnitType.CRYSTAL_DRAKE);
