@@ -20,7 +20,7 @@ import { sweepLeashes } from './spellSystem';
 import { checkGraveTrapTrigger, resolveSlide } from './movementSystem';
 import { tryBeginTunnel, processTunnelTurn } from './tunnelSystem';
 import { cleanupPortals, cleanupExpiredPortalsEndOfTurn, tryPlanPortalCast, castPortal, getUsablePortalAtEntrance, tryTeleportThroughPortal, processPendingPortalTeleports } from './portalSystem';
-import { cleanupRoostedUnits } from './buildingRemoval';
+import { cleanupRoostedUnits, getRoostedUnits } from './buildingRemoval';
 
 // ============================================================================
 // ID GENERATION
@@ -268,6 +268,11 @@ function projectCombatScore(attacker: Unit, defender: Unit): number {
   );
 
   bonus -= calcDeathRiskPenalty(attacker, attackerHpLost, defenderCanCounter);
+
+  // GRIMBEAK prefers SUMMONED targets.
+  if (attacker.type === UnitType.GRIMBEAK && defender.tags.includes(UnitTag.SUMMONED)) {
+    bonus += AI_SCORING.GRIMBEAK_SUMMONED_TARGET_BONUS;
+  }
 
   return bonus;
 }
@@ -1846,14 +1851,31 @@ function scoreActionsForUnit(
   if (!unit.hasMovedThisTurn) {
     const outOfAttackRange = playerUnitsInTriggerRange.filter(u => !playerUnitsInAttackRange.includes(u));
     if (outOfAttackRange.length > 0) {
-      outOfAttackRange.sort((a, b) => edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y) - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
-      const target = outOfAttackRange[0];
+      // GRIMBEAK: sort summoned targets to the front so they are preferred when in range.
+      const sorted = unit.type === UnitType.GRIMBEAK
+        ? [...outOfAttackRange].sort((a, b) => {
+            const aSum = a.tags.includes(UnitTag.SUMMONED) ? 1 : 0;
+            const bSum = b.tags.includes(UnitTag.SUMMONED) ? 1 : 0;
+            if (bSum !== aSum) return bSum - aSum;
+            return edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y)
+              - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y);
+          })
+        : [...outOfAttackRange].sort((a, b) =>
+            edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y)
+            - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y)
+          );
+      const target = sorted[0];
       const distance = edgeCircleDistance(unit.position.x, unit.position.y, target.position.x, target.position.y);
       const { defenderHpLost } = calculateCombat(unit, target);
       const nextTurnKillBonus = defenderHpLost >= target.stats.currentHp ? AI_SCORING.KILL_BONUS * 0.5 : 0;
+      const grimbeakSummonedBonus =
+        unit.type === UnitType.GRIMBEAK && target.tags.includes(UnitTag.SUMMONED)
+          ? AI_SCORING.GRIMBEAK_SUMMONED_TARGET_BONUS
+          : 0;
       const score = AI_SCORING.BASE_MOVE_TO_UNIT
         - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
         + nextTurnKillBonus
+        + grimbeakSummonedBonus
         - saturationPenalty(target.id, targetingIntents);
       candidates.push({ type: 'MOVE_TO_UNIT', score: Math.max(0, score), targetUnitId: target.id, targetPosition: target.position });
     }
@@ -2249,6 +2271,10 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
           // Save building info before capture (initiateCapture now destroys the building)
           const capturedPosition = building ? { x: building.position.x, y: building.position.y } : null;
           const capturedType = building?.type;
+          // Collect any life-bound units (e.g. Crystal Drake) BEFORE the capture so we
+          // can emit their UNIT_DEATH events *after* BUILDING_CAPTURE in the queue —
+          // that way the auto-camera pans to their death position at the right moment.
+          const roosted = events && building ? getRoostedUnits(state, building.id) : [];
           initiateCapture(state, currentUnit.id, action.targetBuildingId, suppressFloaters);
           if (events && capturedPosition && capturedType) {
             events.push({
@@ -2259,6 +2285,15 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
               buildingType: capturedType,
               xpGained: XP.CAPTURE_BUILDING,
             });
+            // Emit drake deaths after the cave's own event so narrative order is correct.
+            for (const death of roosted) {
+              events.push({
+                type: 'UNIT_DEATH',
+                unitId: death.unitId,
+                position: death.position,
+                faction: death.faction,
+              });
+            }
           }
         }
       }

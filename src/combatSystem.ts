@@ -10,7 +10,7 @@ import { BuildingType, Faction, UnitTag, UnitType, TechFlag, TileType, TileStatu
 import { useFloaterStore } from './floaterStore';
 import type { GameEvent } from './gameEvents';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
-import { UNIT_DEFINITIONS, XP, ABILITIES, MAP, BUILDING_DEFINITIONS, MAGE, CLEAVE_DAMAGE_MULTIPLIER, PIERCE_PRIMARY_DAMAGE_MULTIPLIER, RAGE_ATK_PER_ADJACENT, RAGE_MAX_ADJACENT_COUNT, BLOCK_MELEE_DAMAGE_MULTIPLIER, IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER, PUNCTURE_STUN_BASE_DEF_THRESHOLD, PUNCTURE_STUN_DURATION } from './gameConfig';
+import { UNIT_DEFINITIONS, XP, ABILITIES, MAP, BUILDING_DEFINITIONS, MAGE, CLEAVE_DAMAGE_MULTIPLIER, PIERCE_PRIMARY_DAMAGE_MULTIPLIER, RAGE_ATK_PER_ADJACENT, RAGE_MAX_ADJACENT_COUNT, BLOCK_MELEE_DAMAGE_MULTIPLIER, IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER, GRIMBEAK_SUMMONED_DAMAGE_MULTIPLIER, PUNCTURE_STUN_BASE_DEF_THRESHOLD, PUNCTURE_STUN_DURATION } from './gameConfig';
 import { grantXp } from './levelSystem';
 import { generateId } from './mapGenerator';
 import { isUnitOnCorruptedTile, applyTileStatus } from './tileStatusSystem';
@@ -572,6 +572,11 @@ export function resolveAttack(
     combatResult.defenderHpLost = Math.floor(combatResult.defenderHpLost * IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER);
   }
 
+  // GRIMBEAK: deals bonus damage to SUMMONED defenders.
+  if (attacker.type === UnitType.GRIMBEAK && defender.tags.includes(UnitTag.SUMMONED)) {
+    combatResult.defenderHpLost = Math.floor(combatResult.defenderHpLost * GRIMBEAK_SUMMONED_DAMAGE_MULTIPLIER);
+  }
+
   // Apply damage to defender
   const newDefenderHp = defender.stats.currentHp - combatResult.defenderHpLost;
   const defenderDead = newDefenderHp <= 0;
@@ -983,6 +988,7 @@ export function resolveAttack(
   // WARNING: this includes intentional friendly-fire. A PIERCE attacker can harm its own
   // allies if they stand directly behind the primary defender.
   // Suppressed on CORRUPTED tile.
+  // VFX-only PIERCE_DAMAGE (amount 0) is emitted even when no target is behind.
   if (
     !attackerDead &&
     !attackerOnCorrupted &&
@@ -991,10 +997,10 @@ export function resolveAttack(
     const dx = defenderPosition.x - attackerPosition.x;
     const dy = defenderPosition.y - attackerPosition.y;
     const behindPos = { x: defenderPosition.x + dx, y: defenderPosition.y + dy };
-    if (
+    const behindInBounds =
       behindPos.y >= 0 && behindPos.y < state.grid.length &&
-      behindPos.x >= 0 && behindPos.x < state.grid[behindPos.y].length
-    ) {
+      behindPos.x >= 0 && behindPos.x < state.grid[behindPos.y].length;
+    if (behindInBounds) {
       const behindTile = state.grid[behindPos.y][behindPos.x];
       if (behindTile.unitId) {
         const rearUnit = state.units[behindTile.unitId];
@@ -1068,7 +1074,31 @@ export function resolveAttack(
           });
           rearBuilding.hp = Math.max(0, rearBuilding.hp - finalPierceBuildingDamage);
         }
+      } else {
+        // Empty tile behind the defender: emit VFX-only event (no damage).
+        outEvents?.push({
+          type: 'PIERCE_DAMAGE',
+          unitId: null,
+          buildingId: null,
+          position: { ...behindPos },
+          amount: 0,
+          isEnemy: false,
+          attackerPosition: { ...attackerPosition },
+          primaryDefenderPosition: { ...defenderPosition },
+        });
       }
+    } else {
+      // Behind tile is out of bounds: still emit VFX using the extrapolated position.
+      outEvents?.push({
+        type: 'PIERCE_DAMAGE',
+        unitId: null,
+        buildingId: null,
+        position: { ...behindPos },
+        amount: 0,
+        isEnemy: false,
+        attackerPosition: { ...attackerPosition },
+        primaryDefenderPosition: { ...defenderPosition },
+      });
     }
   }
 
@@ -1719,6 +1749,7 @@ export function resolveAttackOnBuilding(
   // PIERCE secondary: deal the full (pre-multiplier) primary damage to the unit or building
   // on the tile directly behind the building (relative to the attacker).
   // Suppressed on CORRUPTED tile.
+  // VFX-only PIERCE_DAMAGE (amount 0) is emitted even when no target is behind.
   if (
     !attackerDead &&
     !attackerOnCorrupted &&
@@ -1727,10 +1758,10 @@ export function resolveAttackOnBuilding(
     const dx = buildingPosition.x - attackerPosition.x;
     const dy = buildingPosition.y - attackerPosition.y;
     const behindPos = { x: buildingPosition.x + dx, y: buildingPosition.y + dy };
-    if (
+    const behindInBounds =
       behindPos.y >= 0 && behindPos.y < state.grid.length &&
-      behindPos.x >= 0 && behindPos.x < state.grid[behindPos.y].length
-    ) {
+      behindPos.x >= 0 && behindPos.x < state.grid[behindPos.y].length;
+    if (behindInBounds) {
       const behindTile = state.grid[behindPos.y][behindPos.x];
       if (behindTile.unitId) {
         const rearUnit = state.units[behindTile.unitId];
@@ -1799,7 +1830,31 @@ export function resolveAttackOnBuilding(
           });
           rearBuilding.hp = Math.max(0, rearBuilding.hp - finalPierceBuildingDamage);
         }
+      } else {
+        // Empty tile behind the building: emit VFX-only event (no damage).
+        outEvents?.push({
+          type: 'PIERCE_DAMAGE',
+          unitId: null,
+          buildingId: null,
+          position: { ...behindPos },
+          amount: 0,
+          isEnemy: false,
+          attackerPosition: { ...attackerPosition },
+          primaryDefenderPosition: { ...buildingPosition },
+        });
       }
+    } else {
+      // Behind tile is out of bounds: still emit VFX using the extrapolated position.
+      outEvents?.push({
+        type: 'PIERCE_DAMAGE',
+        unitId: null,
+        buildingId: null,
+        position: { ...behindPos },
+        amount: 0,
+        isEnemy: false,
+        attackerPosition: { ...attackerPosition },
+        primaryDefenderPosition: { ...buildingPosition },
+      });
     }
   }
 }

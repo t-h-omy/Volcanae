@@ -127,28 +127,38 @@ export function getRecruitableUnitTypes(buildingType: BuildingType): UnitType[] 
 }
 
 /**
- * Computes the current unit count and global cap for a recruitment building type.
+ * Computes the current unit count and cap for a recruitment building type.
  *
  * - `current`: number of player-owned units whose type can be recruited from this building.
  * - `limit`: (number of player-owned buildings of this type) × unitLimit from BUILDING_DEFINITIONS.
  *   Returns Infinity when the building type has no unitLimit defined (uncapped).
+ *
+ * For CRYSTAL_CAVE: when `specificBuildingId` is provided, returns per-cave usage
+ * (0 or 1 current, limit 1). Without it, returns the global summary across all caves.
  */
 export function computeRecruitmentBuildingUsage(
   state: Pick<GameState, 'units' | 'buildings'>,
   buildingType: BuildingType,
+  specificBuildingId?: string,
 ): { current: number; limit: number } {
   const unitLimit = BUILDING_DEFINITIONS[buildingType]?.unitLimit;
   if (unitLimit === undefined) {
     return { current: 0, limit: Infinity };
   }
 
-  // CRYSTAL_CAVE special case: count by life-bound roostBuildingId rather
-  // than by global unit type. Each cave hosts at most one Crystal Drake,
-  // so the cap is enforced PER-cave via the roost link. Summoned units
-  // ordinarily do not count toward building unit limits (since they don't
-  // cost population), but the drake's leash to its specific cave is what
-  // we are gating here, so we count them explicitly.
+  // CRYSTAL_CAVE: each cave has its own cap of 1 drake (enforced per-cave via roostBuildingId).
+  // When specificBuildingId is provided, return per-cave usage so the caller can gate
+  // recruitment on whether THIS cave already has a roosted drake.
   if (buildingType === BuildingType.CRYSTAL_CAVE) {
+    if (specificBuildingId) {
+      const current = Object.values(state.units).some(
+        (u) => u.faction === Faction.PLAYER && u.roostBuildingId === specificBuildingId,
+      )
+        ? 1
+        : 0;
+      return { current, limit: unitLimit };
+    }
+    // Global summary (used for informational display when no specific cave is selected).
     let buildingCount = 0;
     const caveIds = new Set<string>();
     for (const building of Object.values(state.buildings)) {
@@ -824,8 +834,13 @@ export function recruitUnit(
     return;
   }
 
-  // Validate recruitment building unit limit
-  const { current, limit } = computeRecruitmentBuildingUsage(state, building.type);
+  // Validate recruitment building unit limit.
+  // For CRYSTAL_CAVE: enforce per-cave (each cave may only host one drake).
+  const { current, limit } = computeRecruitmentBuildingUsage(
+    state,
+    building.type,
+    building.type === BuildingType.CRYSTAL_CAVE ? buildingId : undefined,
+  );
   if (current >= limit) {
     return;
   }

@@ -1012,8 +1012,8 @@ export function useAnimationEngine(): void {
           // ── Inline PIERCE_DAMAGE consumption (Change 2) ──────────────────────────────────────
           // At most one PIERCE event per attack (the tile directly behind the primary defender).
           // Consuming it inline avoids an extra camera pan and PRE_ACTION_IDLE pause.
-          // The pierce line VFX + projectile start simultaneously with the HIT shake so the
-          // combined wait ≈ max(PIERCE_VFX_MS_PER_TILE, HIT_SHAKE_DURATION_MS).
+          // The pierce lance VFX starts simultaneously with the HIT shake so the
+          // combined wait ≈ max(PIERCE_LINE_MS, HIT_SHAKE_DURATION_MS).
           {
             const { eventQueue: eqPierce } = useAnimationStore.getState();
             if (eqPierce.length > 0 && eqPierce[0].type === 'PIERCE_DAMAGE') {
@@ -1023,16 +1023,16 @@ export function useAnimationEngine(): void {
               >;
               if (visible) {
                 const tileSize = getTileSize();
+                // Lance stretches from the attacker all the way to the tile behind the defender.
                 const fromPx = {
-                  x: pierceEvent.primaryDefenderPosition.x * tileSize + tileSize / 2,
-                  y: pierceEvent.primaryDefenderPosition.y * tileSize + tileSize / 2,
+                  x: pierceEvent.attackerPosition.x * tileSize + tileSize / 2,
+                  y: pierceEvent.attackerPosition.y * tileSize + tileSize / 2,
                 };
                 const toPx = {
                   x: pierceEvent.position.x * tileSize + tileSize / 2,
                   y: pierceEvent.position.y * tileSize + tileSize / 2,
                 };
-                const projId = crypto.randomUUID();
-                // Start line VFX + projectile non-blocking — run concurrently with HIT shake
+                // Fire lance line VFX (no projectile) concurrently with HIT shake
                 useCombatAnimationStore.getState().addLineVfx({
                   id: crypto.randomUUID(),
                   fromPx,
@@ -1040,29 +1040,16 @@ export function useAnimationEngine(): void {
                   variant: 'PIERCE_LINE',
                   durationMs: ANIMATION.PIERCE_LINE_MS,
                 });
-                useCombatAnimationStore.getState().addProjectile({
-                  id: projId,
-                  fromPx,
-                  toPx,
-                  emoji: '🗡',
-                  rotationDeg: angleBetween(fromPx, toPx),
-                  durationMs: ANIMATION.PIERCE_VFX_MS_PER_TILE,
-                });
-                // Auto-remove projectile after its travel time (non-blocking)
-                setTimeout(
-                  () => useCombatAnimationStore.getState().removeProjectile(projId),
-                  ANIMATION.PIERCE_VFX_MS_PER_TILE,
-                );
-                // Apply damage + HIT shake concurrently with the projectile travel
+                // Apply damage + HIT shake concurrently with the lance VFX
                 useGameStore.getState().applyEvent(pierceEvent);
                 if (pierceEvent.unitId) {
                   useCombatAnimationStore
                     .getState()
                     .setUnitAnimation(pierceEvent.unitId, { type: 'HIT' });
                 }
-                // Single combined wait = max(projectile travel, HIT shake)
+                // Single combined wait = max(lance VFX, HIT shake)
                 await wait(
-                  Math.max(ANIMATION.PIERCE_VFX_MS_PER_TILE, ANIMATION.HIT_SHAKE_DURATION_MS),
+                  Math.max(ANIMATION.PIERCE_LINE_MS, ANIMATION.HIT_SHAKE_DURATION_MS),
                 );
                 if (pierceEvent.unitId) {
                   useCombatAnimationStore.getState().setUnitAnimation(pierceEvent.unitId, null);
@@ -1326,16 +1313,15 @@ export function useAnimationEngine(): void {
         if (event.type === 'PIERCE_DAMAGE') {
           if (visible) {
             const tileSize = getTileSize();
-            // Fire a projectile from primaryDefenderPosition toward target position
+            // Lance stretches from the attacker all the way to the tile behind the defender.
             const fromPx = {
-              x: event.primaryDefenderPosition.x * tileSize + tileSize / 2,
-              y: event.primaryDefenderPosition.y * tileSize + tileSize / 2,
+              x: event.attackerPosition.x * tileSize + tileSize / 2,
+              y: event.attackerPosition.y * tileSize + tileSize / 2,
             };
             const toPx = {
               x: event.position.x * tileSize + tileSize / 2,
               y: event.position.y * tileSize + tileSize / 2,
             };
-            const projId = crypto.randomUUID();
             useCombatAnimationStore.getState().addLineVfx({
               id: crypto.randomUUID(),
               fromPx,
@@ -1343,16 +1329,7 @@ export function useAnimationEngine(): void {
               variant: 'PIERCE_LINE',
               durationMs: ANIMATION.PIERCE_LINE_MS,
             });
-            useCombatAnimationStore.getState().addProjectile({
-              id: projId,
-              fromPx,
-              toPx,
-              emoji: '🗡',
-              rotationDeg: angleBetween(fromPx, toPx),
-              durationMs: ANIMATION.PIERCE_VFX_MS_PER_TILE,
-            });
-            await wait(ANIMATION.PIERCE_VFX_MS_PER_TILE);
-            useCombatAnimationStore.getState().removeProjectile(projId);
+            await wait(ANIMATION.PIERCE_LINE_MS);
             useGameStore.getState().applyEvent(event);
             if (event.unitId) {
               useCombatAnimationStore.getState().setUnitAnimation(event.unitId, { type: 'HIT' });

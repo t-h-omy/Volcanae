@@ -25,6 +25,31 @@
 import type { GameState } from './types';
 import { Faction } from './types';
 
+/** Minimal info needed to emit a UNIT_DEATH event for a removed roosted unit. */
+export interface RoostedUnitDeath {
+  unitId: string;
+  position: { x: number; y: number };
+  faction: typeof Faction[keyof typeof Faction];
+}
+
+/**
+ * Returns info about every unit whose `roostBuildingId` matches the supplied
+ * building id, WITHOUT mutating state. Use this before calling
+ * `cleanupRoostedUnits` when you need to emit UNIT_DEATH events for the
+ * removed units.
+ */
+export function getRoostedUnits(
+  state: GameState,
+  buildingId: string,
+): RoostedUnitDeath[] {
+  const result: RoostedUnitDeath[] = [];
+  for (const unit of Object.values(state.units)) {
+    if (unit.roostBuildingId !== buildingId) continue;
+    result.push({ unitId: unit.id, position: { x: unit.position.x, y: unit.position.y }, faction: unit.faction });
+  }
+  return result;
+}
+
 /**
  * Remove every unit whose `roostBuildingId` matches the supplied building id.
  *
@@ -34,7 +59,9 @@ import { Faction } from './types';
  *   (mirroring existing unit-removal bookkeeping; SUMMONED units count as
  *   lost when their host is destroyed because they did exist on the field).
  *
- * Safe to call when no roosted units exist (no-op in that case).
+ * Returns an array of `RoostedUnitDeath` records for callers that need them.
+ *
+ * Safe to call when no roosted units exist (returns [] in that case).
  *
  * Works on both plain `GameState` (direct mutation contexts) and Immer
  * `Draft<GameState>` (the operations are simple object/property assignments
@@ -43,7 +70,8 @@ import { Faction } from './types';
 export function cleanupRoostedUnits(
   state: GameState,
   buildingId: string,
-): void {
+): RoostedUnitDeath[] {
+  const deaths: RoostedUnitDeath[] = [];
   for (const unit of Object.values(state.units)) {
     if (unit.roostBuildingId !== buildingId) continue;
 
@@ -57,6 +85,8 @@ export function cleanupRoostedUnits(
       state.gameStats.unitsLost += 1;
     }
 
+    deaths.push({ unitId: unit.id, position: { x: unit.position.x, y: unit.position.y }, faction: unit.faction });
     delete state.units[unit.id];
   }
+  return deaths;
 }

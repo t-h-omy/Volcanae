@@ -25,7 +25,7 @@ import { MAP, TECH, CRYSTAL_CHAMBER_CONFIG, getLavaAdvanceInterval } from './gam
 import type { GameEvent } from './gameEvents';
 import { grantArcaneCrystals } from './techSystem';
 import { removePortalsOnLava } from './portalSystem';
-import { cleanupRoostedUnits } from './buildingRemoval';
+import { cleanupRoostedUnits, getRoostedUnits } from './buildingRemoval';
 
 // ============================================================================
 // LAVA STATE QUERIES
@@ -177,6 +177,9 @@ export function advanceLava(state: Draft<GameState>, outEvents?: GameEvent[]): v
           state.gameStats.buildingsDestroyedByLava += 1;
         }
 
+        // Collect life-bound units BEFORE removal so we can emit UNIT_DEATH events.
+        const roosted = outEvents ? getRoostedUnits(state, buildingId) : [];
+
         // Remove building from state
         cleanupRoostedUnits(state, buildingId);
         delete state.buildings[buildingId];
@@ -184,6 +187,18 @@ export function advanceLava(state: Draft<GameState>, outEvents?: GameEvent[]): v
         // It is applied to the resolvedState in advanceLavaWithEvents so that
         // the live state only transitions to the active sprite when the
         // per-chamber RESONANCE_TRIGGERED animation VFX fires.
+
+        // Emit UNIT_DEATH for any life-bound drakes so the auto-cam tracks them.
+        if (outEvents && roosted.length > 0) {
+          for (const death of roosted) {
+            outEvents.push({
+              type: 'UNIT_DEATH',
+              unitId: death.unitId,
+              position: death.position,
+              faction: death.faction,
+            });
+          }
+        }
       }
 
       // Clear building from tile
