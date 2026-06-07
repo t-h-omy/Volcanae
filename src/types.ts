@@ -389,6 +389,12 @@ export interface Unit {
   hasCapturedThisTurn: boolean;
   /** True after a HIT_AND_RUN unit has used its post-attack move this turn. */
   hasUsedPostAttackMoveThisTurn: boolean;
+  /**
+   * True after this siege unit has fired a PREVENTIVE_STRIKE reaction shot during the
+   * current enemy turn.  Reset at the start of each enemy turn so that each siege unit
+   * may fire at most once per enemy turn regardless of how many enemies enter its range.
+   */
+  preventiveStrikeFiredThisTurn?: boolean;
   /** True when a BLOODLUST rider has killed an enemy this turn and can attack once more at half power. */
   bloodlustAttackAvailable: boolean;
   xp: number;

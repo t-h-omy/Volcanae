@@ -1029,7 +1029,8 @@ function scoreConstructionActions(
 /**
  * Triggers PREVENTIVE_STRIKE overwatch for all player SIEGE units with the
  * PREVENTIVE_STRIKE tag. Called after an enemy unit moves to its new position.
- * Fires for every enemy that enters range (no per-turn limit per siege unit).
+ * Each siege unit fires at most once per enemy turn (tracked via
+ * `preventiveStrikeFiredThisTurn`, reset at the start of every enemy turn).
  * Does NOT consume the siege unit's attack action — preventive strike is an
  * automatic reaction shot separate from the player's normal attack action.
  * Only fires when the enemy enters range (was outside range before the move).
@@ -1054,6 +1055,9 @@ function triggerPreventiveStrike(
     if (unit.faction !== Faction.PLAYER) continue;
     if (!unit.tags.includes(UnitTag.PREVENTIVE_STRIKE)) continue;
     if (!state.units[enemyUnitId]) break; // enemy was destroyed by a previous overwatch shot
+
+    // Each siege unit fires at most once per enemy turn.
+    if (unit.preventiveStrikeFiredThisTurn) continue;
 
     // Only fire if the enemy moved from outside this siege unit's range INTO range
     const wasInRange = isTileWithinEdgeCircleRange(
@@ -1107,10 +1111,10 @@ function triggerPreventiveStrike(
     }
 
     // Note: Preventive Strike does NOT consume the siege unit's attack action.
-    // It is an automatic reaction that fires whenever an enemy enters range,
-    // regardless of how many times this happens per turn and regardless of
-    // whether the siege unit has already attacked normally this turn.
+    // It fires at most once per enemy turn per siege unit (tracked via
+    // preventiveStrikeFiredThisTurn, reset at the start of each enemy turn).
     // The siege unit deals damage but receives no counter-attack.
+    unit.preventiveStrikeFiredThisTurn = true;
 
     if (events) {
       const attackerAfter = state.units[attackerId];
@@ -2730,6 +2734,9 @@ function runCaveMonsterAi(state: Draft<GameState>, events?: GameEvent[]): void {
     }
 
     // ── Priority 3: Return to home mountain; despawn on arrival ──────────
+    // This priority fires under the same conditions as when no Crystal Cave
+    // existed — no nearby player units (Priority 1 & 2 didn't trigger).
+    // The return trigger is NOT affected by what is on the mountain tile.
     const onHomeTile =
       unit.position.x === homePos.x && unit.position.y === homePos.y;
 
@@ -2737,9 +2744,11 @@ function runCaveMonsterAi(state: Draft<GameState>, events?: GameEvent[]): void {
       // Despawn: monster has returned to its mountain with no nearby threat.
       const tile = state.grid[unit.position.y][unit.position.x];
       if (tile.unitId === unit.id) tile.unitId = null;
-      // Defensively destroy any Mine or Crystal Cave that may have been placed
-      // on the mountain tile while the monster was away.  Crystal Cave also
-      // kills any bound Crystal Drake via cleanupRoostedUnits.
+      // If a Mine or Crystal Cave was built on the mountain while the monster
+      // was away, the monster destroys it upon return.  For a Crystal Cave the
+      // destruction follows the standard building-removal chain: the cave is
+      // removed first, then cleanupRoostedUnits removes the bound Crystal
+      // Drake — the monster never targets the drake directly.
       if (tile.buildingId !== null) {
         const building = state.buildings[tile.buildingId];
         if (
@@ -2789,6 +2798,14 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
 
     // Reset the per-turn spawn counter at the start of each enemy turn
     draft.enemyUnitsSpawnedLastTurn = 0;
+
+    // Reset PREVENTIVE_STRIKE per-turn tracking for all player siege units so
+    // each siege unit may fire at most once during this enemy turn.
+    for (const unit of Object.values(draft.units)) {
+      if (unit.faction === Faction.PLAYER && unit.preventiveStrikeFiredThisTurn) {
+        unit.preventiveStrikeFiredThisTurn = false;
+      }
+    }
 
     // 1. Build recentlyLostBuildingIds
     const recentlyLostBuildingIds = new Set<string>(
