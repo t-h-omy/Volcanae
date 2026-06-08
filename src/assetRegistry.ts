@@ -61,9 +61,7 @@ export const UNIT_SPRITE: Partial<Record<UnitType, string>> = withBase({
   RIFT_LORD: '/sprites/units/RiftLord_100px.png',
   EMBERLING:    '/sprites/units/Emberling_100px.png',
   CAVE_MONSTER: '/sprites/units/Cave_Monster_100px.png',
-  // CRYSTAL_DRAKE has no art yet — empty path shows the pink MissingSprite
-  // placeholder until a real asset is added.
-  CRYSTAL_DRAKE: '',
+  CRYSTAL_DRAKE: '/sprites/units/Crystal_Dragon_100px.png',
 });
 
 /**
@@ -105,9 +103,7 @@ export const BUILDING_SPRITE: Partial<Record<BuildingType, string>> = withBase({
   GRAVE_TRAP:      '/sprites/buildings/grave_trap_100px.png',
   CRYSTAL_TOWER:   '/sprites/buildings/crystal_tower_100px.png',
   CRYSTAL_CAVE:    '/sprites/buildings/crystal_cave_100px.png',
-  // TODO: replace CHARCOAL_KILN with real art when available; empty string
-  //       shows the pink MissingSprite placeholder in the meantime.
-  CHARCOAL_KILN:   '',
+  CHARCOAL_KILN:   '/sprites/buildings/charcoal_kiln_100px.png',
 });
 
 /**
