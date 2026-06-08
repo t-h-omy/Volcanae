@@ -1159,6 +1159,7 @@ function TileCellInner({
               : BUILDING_SPRITE[building.type]
     : undefined;
   const [buildingSpriteError, setBuildingSpriteError] = useState(false);
+  useEffect(() => { setBuildingSpriteError(false); }, [buildingSpritePath]);
   const buildingExhaustedFilter = building && building.combatStats && building.hasAttackedThisTurn
     ? RENDER.UNIT_EXHAUSTED_FILTER
     : undefined;
