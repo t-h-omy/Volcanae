@@ -305,10 +305,6 @@ export const RESOURCES = {
    * from a given Charcoal Kiln (measured via isTileWithinEdgeCircleRange).
    */
   CHARCOAL_KILN_RADIUS: 2,
-  /**
-   * Wood cost to construct a Charcoal Kiln on a forest tile.
-   */
-  CHARCOAL_KILN_WOOD_COST: 8,
 } as const;
 
 // ============================================================================
@@ -1497,7 +1493,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     // both are economy-only forest buildings with no combat stats.
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.NONE,
-    constructionCost: { iron: 0, wood: RESOURCES.CHARCOAL_KILN_WOOD_COST },
+    constructionCost: { iron: 0, wood: 8 },
     // No combatStats → tile remains walkable (same as MINE / WOODCUTTER).
     // Description must state the effect AND that the bonus is non-stacking.
     description: `Grants +${RESOURCES.CHARCOAL_KILN_IRON_BONUS} iron per turn to each mine within ${RESOURCES.CHARCOAL_KILN_RADIUS} tiles. Does not stack.`,
