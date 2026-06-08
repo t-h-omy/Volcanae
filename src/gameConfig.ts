@@ -291,6 +291,20 @@ export const RESOURCES = {
   START_IRON: 6,
   /** Wood available at the start of a new game */
   START_WOOD: 6,
+
+  // ── Charcoal Kiln ─────────────────────────────────────────────────────────
+  /**
+   * Flat iron bonus added to each eligible player MINE's iron per turn when
+   * that mine is within CHARCOAL_KILN_RADIUS tiles of at least one active,
+   * non-disabled player Charcoal Kiln. The bonus does NOT stack — a mine
+   * receives at most one increment regardless of how many kilns cover it.
+   */
+  CHARCOAL_KILN_IRON_BONUS: 1,
+  /**
+   * Edge-circle radius used to determine which player MINE buildings benefit
+   * from a given Charcoal Kiln (measured via isTileWithinEdgeCircleRange).
+   */
+  CHARCOAL_KILN_RADIUS: 2,
 } as const;
 
 // ============================================================================
@@ -1474,6 +1488,16 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     // a resonance tick — the window decays on its own end-of-turn schedule.
     description: `Conjured mountain hollow that hosts a single Crystal Drake. While resonating, it can summon a Crystal Drake. If the cave falls (lava, capture, conversion, destruction) any bound drake dies with it.`,
   },
+  CHARCOAL_KILN: {
+    // Shares the same sight radius and destroy behaviour as the Woodcutter —
+    // both are economy-only forest buildings with no combat stats.
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.NONE,
+    constructionCost: { iron: 0, wood: 8 },
+    // No combatStats → tile remains walkable (same as MINE / WOODCUTTER).
+    // Description must state the effect AND that the bonus is non-stacking.
+    description: `Grants +${RESOURCES.CHARCOAL_KILN_IRON_BONUS} iron per turn to each mine within ${RESOURCES.CHARCOAL_KILN_RADIUS} tiles. Does not stack.`,
+  },
 };
 
 export const TECH = {
@@ -1611,6 +1635,18 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 4,
     effects: [
       { type: 'BUILDING_PRODUCTION_MOD', buildingType: BuildingType.MINE, resource: ResourceType.IRON, chancePercent: ABILITIES.DEEP_VEINS_BONUS_CHANCE, amount: ABILITIES.DEEP_VEINS_BONUS_AMOUNT },
+    ],
+  },
+  {
+    // Placed beside DEEP_VEINS — both require A_NOBLE_STEAD and both buff mines
+    // with iron production, making them natural thematic siblings on the tree.
+    id: 'CHARCOAL_KILN',
+    name: 'Charcoal Kiln',
+    description: `Unlocks the Charcoal Kiln, which grants +${RESOURCES.CHARCOAL_KILN_IRON_BONUS} iron per turn to nearby mines (does not stack).`,
+    requires: ['A_NOBLE_STEAD'],
+    cost: 4,
+    effects: [
+      { type: 'UNLOCK_BUILDING', buildingType: BuildingType.CHARCOAL_KILN },
     ],
   },
 

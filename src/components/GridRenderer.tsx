@@ -12,7 +12,7 @@ import type { Projectile, SlideKillGhost, CleaveVfx, TileVfx, LineVfx } from '..
 import { useShockwaveStore } from '../shockwaveStore';
 import { canCapture } from '../captureSystem';
 import { getConstructionOptionsForTile } from '../constructionSystem';
-import { MAP, UNIT_DEFINITIONS, BUILDING_DEFINITIONS, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, CORRUPTED_SUPPRESSED_TAGS } from '../gameConfig';
+import { MAP, UNIT_DEFINITIONS, BUILDING_DEFINITIONS, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, CORRUPTED_SUPPRESSED_TAGS, RESOURCES } from '../gameConfig';
 import { getStrongholdEffectiveCap } from '../techSystem';
 import { computeRecruitmentBuildingUsage, canBuildingEverRecruit } from '../resourceSystem';
 import { ANIMATION } from '../animationConfig';
@@ -967,6 +967,7 @@ export default function GridRenderer() {
         <DamageFloaterLayer tileSize={tileSize} />
         <LeashLineLayer tileSize={tileSize} />
         <CrystalTowerConnectionLayer tileSize={tileSize} />
+        <CharcoalKilnConnectionLayer tileSize={tileSize} />
         <ProjectileLayer />
         <SlideKillGhostLayer tileSize={tileSize} />
         <ShockwaveLayer />
@@ -2168,6 +2169,133 @@ function CrystalTowerConnectionLayer({ tileSize }: { tileSize: number }) {
       })}
       <defs>
         <filter id="tower-chamber-blur" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="4" />
+        </filter>
+      </defs>
+    </svg>
+  );
+}
+
+// ============================================================================
+// CHARCOAL KILN ↔ MINE CONNECTION LAYER
+// ============================================================================
+
+/**
+ * Renders player-blue connection lines between the selected building and every
+ * building it connects to via the Charcoal Kiln bonus:
+ *  - Kiln selected  → lines to every in-range player MINE
+ *  - Mine selected  → lines to every in-range player Charcoal Kiln
+ *
+ * Mirrors the CrystalTowerConnectionLayer pattern; uses a distinct color
+ * (#1a9fff — player-blue) to distinguish it from the teal tower lines.
+ */
+function CharcoalKilnConnectionLayer({ tileSize }: { tileSize: number }) {
+  const selectedBuildingId = useGameStore((s) => s.selectedBuildingId);
+  const buildings = useGameStore((s) => s.buildings);
+  const selectedBuilding = selectedBuildingId ? buildings[selectedBuildingId] : undefined;
+
+  interface KilnMinePair {
+    kilnPos: { x: number; y: number };
+    minePos: { x: number; y: number };
+  }
+
+  const pairs = useMemo<KilnMinePair[]>(() => {
+    if (!selectedBuilding || selectedBuilding.faction !== Faction.PLAYER) return [];
+    const result: KilnMinePair[] = [];
+
+    if (selectedBuilding.type === BuildingType.CHARCOAL_KILN) {
+      // Kiln selected — draw lines to every in-range player MINE.
+      for (const b of Object.values(buildings)) {
+        if (
+          b.type === BuildingType.MINE &&
+          b.faction === Faction.PLAYER &&
+          isTileWithinEdgeCircleRange(
+            selectedBuilding.position.x, selectedBuilding.position.y,
+            b.position.x, b.position.y,
+            RESOURCES.CHARCOAL_KILN_RADIUS,
+          )
+        ) {
+          result.push({ kilnPos: selectedBuilding.position, minePos: b.position });
+        }
+      }
+    } else if (selectedBuilding.type === BuildingType.MINE) {
+      // Mine selected — draw lines to every in-range player Charcoal Kiln.
+      for (const b of Object.values(buildings)) {
+        if (
+          b.type === BuildingType.CHARCOAL_KILN &&
+          b.faction === Faction.PLAYER &&
+          isTileWithinEdgeCircleRange(
+            b.position.x, b.position.y,
+            selectedBuilding.position.x, selectedBuilding.position.y,
+            RESOURCES.CHARCOAL_KILN_RADIUS,
+          )
+        ) {
+          result.push({ kilnPos: b.position, minePos: selectedBuilding.position });
+        }
+      }
+    }
+
+    return result;
+  }, [selectedBuilding, buildings]);
+
+  if (pairs.length === 0) return null;
+
+  const half = tileSize / 2;
+  // Player-blue connection colour — distinct from the teal crystal-tower lines.
+  const color = '#1a9fff';
+
+  return (
+    <svg
+      className="leash-line-layer charcoal-kiln-connection-layer"
+      style={{ width: MAP.GRID_WIDTH * tileSize, height: MAP.GRID_HEIGHT * tileSize }}
+    >
+      {pairs.map((pair, i) => {
+        const kx = pair.kilnPos.x * tileSize + half;
+        const ky = pair.kilnPos.y * tileSize + half;
+        const mx = pair.minePos.x * tileSize + half;
+        const my = pair.minePos.y * tileSize + half;
+
+        const lx = mx - kx;
+        const ly = my - ky;
+        const len = Math.sqrt(lx * lx + ly * ly) || 1;
+        const px = (-ly / len) * tileSize * 0.6;
+        const py = (lx / len) * tileSize * 0.6;
+
+        const cp1x = kx + lx / 3 + px;
+        const cp1y = ky + ly / 3 + py;
+        const cp2x = kx + (lx * 2) / 3 - px;
+        const cp2y = ky + (ly * 2) / 3 - py;
+
+        const d = `M ${kx},${ky} C ${cp1x},${cp1y} ${cp2x},${cp2y} ${mx},${my}`;
+
+        return (
+          <g key={i}>
+            {/* glow backdrop */}
+            <path
+              d={d}
+              stroke={color}
+              strokeWidth={8}
+              fill="none"
+              strokeLinecap="round"
+              opacity={0.25}
+              filter="url(#kiln-mine-blur)"
+            />
+            {/* main line with dash animation */}
+            <path
+              d={d}
+              stroke={color}
+              strokeWidth={2.5}
+              fill="none"
+              strokeLinecap="round"
+              strokeDasharray="8 5"
+              className="kiln-mine-line-dash"
+              opacity={0.9}
+            />
+          </g>
+        );
+      })}
+      <defs>
+        <filter id="kiln-mine-blur" x="-50%" y="-50%" width="200%" height="200%">
           <feGaussianBlur stdDeviation="4" />
         </filter>
       </defs>

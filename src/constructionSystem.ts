@@ -27,6 +27,7 @@ import { cleanupRoostedUnits } from './buildingRemoval';
 /** Building types the player can construct */
 export type ConstructableBuilding =
   | typeof BuildingType.WOODCUTTER
+  | typeof BuildingType.CHARCOAL_KILN
   | typeof BuildingType.MINE
   | typeof BuildingType.BARRACKS
   | typeof BuildingType.ARCHER_CAMP
@@ -56,42 +57,46 @@ export interface ConstructionOption {
 
 /** Maps player-constructable BuildingType to its construction cost */
 const BUILDING_COST: Record<ConstructableBuilding, { iron: number; wood: number }> = {
-  [BuildingType.WOODCUTTER]: BUILDING_DEFINITIONS.WOODCUTTER.constructionCost,
-  [BuildingType.MINE]: BUILDING_DEFINITIONS.MINE.constructionCost,
-  [BuildingType.BARRACKS]: BUILDING_DEFINITIONS.BARRACKS.constructionCost,
-  [BuildingType.ARCHER_CAMP]: BUILDING_DEFINITIONS.ARCHER_CAMP.constructionCost,
-  [BuildingType.RIDER_CAMP]: BUILDING_DEFINITIONS.RIDER_CAMP.constructionCost,
-  [BuildingType.SIEGE_CAMP]: BUILDING_DEFINITIONS.SIEGE_CAMP.constructionCost,
-  [BuildingType.FARM]: BUILDING_DEFINITIONS.FARM.constructionCost,
+  [BuildingType.WOODCUTTER]:     BUILDING_DEFINITIONS.WOODCUTTER.constructionCost,
+  [BuildingType.CHARCOAL_KILN]:  BUILDING_DEFINITIONS.CHARCOAL_KILN.constructionCost,
+  [BuildingType.MINE]:           BUILDING_DEFINITIONS.MINE.constructionCost,
+  [BuildingType.BARRACKS]:       BUILDING_DEFINITIONS.BARRACKS.constructionCost,
+  [BuildingType.ARCHER_CAMP]:    BUILDING_DEFINITIONS.ARCHER_CAMP.constructionCost,
+  [BuildingType.RIDER_CAMP]:     BUILDING_DEFINITIONS.RIDER_CAMP.constructionCost,
+  [BuildingType.SIEGE_CAMP]:     BUILDING_DEFINITIONS.SIEGE_CAMP.constructionCost,
+  [BuildingType.FARM]:           BUILDING_DEFINITIONS.FARM.constructionCost,
   [BuildingType.PATRICIANHOUSE]: BUILDING_DEFINITIONS.PATRICIANHOUSE.constructionCost,
-  [BuildingType.STRONGHOLD]: BUILDING_DEFINITIONS.STRONGHOLD.constructionCost,
-  [BuildingType.CRYSTAL_CHAMBER]: BUILDING_DEFINITIONS.CRYSTAL_CHAMBER.constructionCost,
+  [BuildingType.STRONGHOLD]:     BUILDING_DEFINITIONS.STRONGHOLD.constructionCost,
+  [BuildingType.CRYSTAL_CHAMBER]:BUILDING_DEFINITIONS.CRYSTAL_CHAMBER.constructionCost,
 };
 
 const BUILDING_LABEL: Record<ConstructableBuilding, string> = {
-  [BuildingType.WOODCUTTER]: 'Woodcutter',
-  [BuildingType.MINE]: 'Mine',
-  [BuildingType.BARRACKS]: 'Barracks',
-  [BuildingType.ARCHER_CAMP]: 'Archer Camp',
-  [BuildingType.RIDER_CAMP]: 'Rider Camp',
-  [BuildingType.SIEGE_CAMP]: 'Siege Camp',
-  [BuildingType.FARM]: 'Farm',
+  [BuildingType.WOODCUTTER]:     'Woodcutter',
+  [BuildingType.CHARCOAL_KILN]:  'Charcoal Kiln',
+  [BuildingType.MINE]:           'Mine',
+  [BuildingType.BARRACKS]:       'Barracks',
+  [BuildingType.ARCHER_CAMP]:    'Archer Camp',
+  [BuildingType.RIDER_CAMP]:     'Rider Camp',
+  [BuildingType.SIEGE_CAMP]:     'Siege Camp',
+  [BuildingType.FARM]:           'Farm',
   [BuildingType.PATRICIANHOUSE]: 'Patrician House',
-  [BuildingType.STRONGHOLD]: 'Stronghold',
-  [BuildingType.CRYSTAL_CHAMBER]: 'Crystal Chamber',
+  [BuildingType.STRONGHOLD]:     'Stronghold',
+  [BuildingType.CRYSTAL_CHAMBER]:'Crystal Chamber',
 };
 
 const BUILDING_EMOJI_MAP: Record<ConstructableBuilding, string> = {
-  [BuildingType.WOODCUTTER]: '🛖',
-  [BuildingType.MINE]: '🏔️',
-  [BuildingType.BARRACKS]: '🏚️',
-  [BuildingType.ARCHER_CAMP]: '🏕️',
-  [BuildingType.RIDER_CAMP]: '🏘️',
-  [BuildingType.SIEGE_CAMP]: '🏛️',
-  [BuildingType.FARM]: '🌾',
+  [BuildingType.WOODCUTTER]:     '🛖',
+  // 🔥 evokes the charcoal-burning process inside the kiln
+  [BuildingType.CHARCOAL_KILN]:  '🔥',
+  [BuildingType.MINE]:           '🏔️',
+  [BuildingType.BARRACKS]:       '🏚️',
+  [BuildingType.ARCHER_CAMP]:    '🏕️',
+  [BuildingType.RIDER_CAMP]:     '🏘️',
+  [BuildingType.SIEGE_CAMP]:     '🏛️',
+  [BuildingType.FARM]:           '🌾',
   [BuildingType.PATRICIANHOUSE]: '🏠',
-  [BuildingType.STRONGHOLD]: '🏰',
-  [BuildingType.CRYSTAL_CHAMBER]: '💎',
+  [BuildingType.STRONGHOLD]:     '🏰',
+  [BuildingType.CRYSTAL_CHAMBER]:'💎',
 };
 
 // ============================================================================
@@ -131,9 +136,16 @@ export const RUIN_BUILDABLE_TYPES: BuildingType[] = [
  * converted by a BUILDANDCAPTURE unit. Converting such a building does NOT go
  * through the Ruin flow — the terrain itself determines the available targets
  * (e.g. CRYSTAL_CAVE on a mountain → can be converted to MINE).
+ *
+ * WOODCUTTER and CHARCOAL_KILN are both listed here so that a unit can
+ * convert between the two alternatives on the same forest tile (e.g. replace
+ * an existing Woodcutter with a Charcoal Kiln once the tech is unlocked, or
+ * swap back in the other direction).
  */
 export const RESOURCE_TERRAIN_CONVERTIBLE_TYPES: BuildingType[] = [
   BuildingType.CRYSTAL_CAVE,
+  BuildingType.WOODCUTTER,
+  BuildingType.CHARCOAL_KILN,
 ];
 
 /**
@@ -169,9 +181,14 @@ export function getConstructionOptionsForTile(
     return [makeOption(BuildingType.STRONGHOLD)];
   }
 
-  // Forest terrain (no existing building) → WOODCUTTER
+  // Forest terrain (no existing building) → always offer WOODCUTTER; also offer
+  // CHARCOAL_KILN when the player has researched the CHARCOAL_KILN tech node.
+  // These are mutually exclusive alternatives — only one can occupy a tile.
   if (tile.terrainType === TileType.FOREST && tile.buildingId === null) {
     options.push(makeOption(BuildingType.WOODCUTTER));
+    if (state.unlockedBuildings.includes(BuildingType.CHARCOAL_KILN)) {
+      options.push(makeOption(BuildingType.CHARCOAL_KILN));
+    }
   }
 
   // Mountain terrain (no existing building, not a ruin) → MINE
@@ -216,7 +233,12 @@ export function getConversionTargetsForTile(
       return [makeOption(BuildingType.STRONGHOLD)];
     }
     if (tile.terrainType === TileType.FOREST) {
+      // Woodcutter is always available as a forest building.
       options.push(makeOption(BuildingType.WOODCUTTER));
+      // Charcoal Kiln is the tech-gated alternative — offer it only when unlocked.
+      if (state.unlockedBuildings.includes(BuildingType.CHARCOAL_KILN)) {
+        options.push(makeOption(BuildingType.CHARCOAL_KILN));
+      }
     }
     if (tile.terrainType === TileType.MOUNTAIN && !tile.isRuin) {
       options.push(makeOption(BuildingType.MINE));
