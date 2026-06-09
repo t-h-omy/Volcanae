@@ -170,7 +170,7 @@ export const MAGE = {
 
   // ── Spell parameters ─────────────────────────────────────────────────
   /** HP lost by a BRANDMARKED unit at the end of every player turn */
-  BRANDMARK_HP_LOSS_PER_TURN: 5,
+  BRANDMARK_HP_LOSS_PER_TURN: 10,
   /** Flat ATK bonus while the BRANDMARKED tag is on a unit */
   BRANDMARK_ATTACK_BONUS: 20,
   /** Max HP multiplier applied when a unit is branded (e.g. 2 = double max HP) */
