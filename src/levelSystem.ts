@@ -55,6 +55,11 @@ export function applyLevelUps(
   const startLevel = unit.level;
   let totalHeal = 0;
 
+  // Fix (1): preserve pending bloodlust charge across level-up so the second attack
+  // is not silently dropped when the player clicks Level Up immediately after a kill.
+  const hadBloodlustCharge = !!unit.bloodlustAttackAvailable;
+  const hadAttackedThisTurn = !!unit.hasAttackedThisTurn;
+
   for (let newLevel = unit.level + 1; newLevel <= targetLevel; newLevel++) {
     const levelDef = levelDefs[newLevel - 2]; // index 0 = level 2
     if (!levelDef) continue;
@@ -76,6 +81,13 @@ export function applyLevelUps(
     // Restore HP to new maxHp after applying boosts for this level
     unit.stats.currentHp = unit.stats.maxHp;
     unit.level = newLevel;
+  }
+
+  // Restore bloodlust charge if it was active before the level-up so the
+  // second attack survives clicking Level Up after a bloodlust kill.
+  if (hadBloodlustCharge) {
+    unit.bloodlustAttackAvailable = true;
+    unit.hasAttackedThisTurn = hadAttackedThisTurn;
   }
 
   // Fire visual effects if unit actually levelled up and effects are not suppressed.

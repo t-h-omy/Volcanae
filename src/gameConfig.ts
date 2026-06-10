@@ -2158,6 +2158,9 @@ export const PUNCTURE_STUN_BASE_DEF_THRESHOLD = 60;
 /** Duration in turns of the stun applied by PUNCTURE. */
 export const PUNCTURE_STUN_DURATION = 1;
 
+/** Damage multiplier applied to FLYING units when attacked by a non-flying RANGED unit. */
+export const FLYING_RANGED_DAMAGE_TAKEN_MULTIPLIER = 1.25; // +25%, balancable
+
 /** TUNNEL: minimum number of tiles the unit must move south while underground. */
 export const TUNNEL_RANGE_MIN = 2;
 /** TUNNEL: maximum number of tiles the unit can move south while underground. */
@@ -2236,7 +2239,7 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   [UnitTag.LAVA]:               { label: 'Lava',               desc: 'Lava-faction unit. Immune to BURNING tile damage. Retained even when faction changes.' },
   // ── Counter tags ────────────────────────────────────────────────────────────
   [UnitTag.CLEAVE]:       { label: 'Cleave',      desc: `On hit, deals ${CLEAVE_DAMAGE_MULTIPLIER * 100}% damage to all enemy units adjacent to both attacker and defender. Ignores Phalanx defense.` },
-  [UnitTag.PIERCE]:       { label: 'Pierce',      desc: `Deals ${PIERCE_PRIMARY_DAMAGE_MULTIPLIER * 100}% damage to the target; the unit or building directly behind the target takes ${PIERCE_SECONDARY_DAMAGE_MULTIPLIER * 100}% of the standard attack damage.` },
+  [UnitTag.PIERCE]:       { label: 'Pierce',      desc: `Deals ${PIERCE_PRIMARY_DAMAGE_MULTIPLIER * 100}% damage to the target; the enemy unit or building directly behind the target takes ${PIERCE_SECONDARY_DAMAGE_MULTIPLIER * 100}% of the standard attack damage.` },
   [UnitTag.RAGE]:         { label: 'Rage',        desc: `Gains +${RAGE_ATK_PER_ADJACENT} attack per enemy adjacent to this unit, up to ${RAGE_MAX_ADJACENT_COUNT} enemies (max +${RAGE_ATK_PER_ADJACENT * RAGE_MAX_ADJACENT_COUNT}).` },
   [UnitTag.ALERT]:        { label: 'Alert',       desc: 'Immune to stun effects.' },
   [UnitTag.IRONBLOOD]:    { label: 'Ironblood',   desc: `Takes only ${IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER * 100}% damage from attacks by summoned units.` },
@@ -2249,7 +2252,7 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   [UnitTag.HOMELESS]:  { label: 'Homeless',  desc: `Unit has no shelter — population cap is exceeded. -${POPULATION.HOMELESS_DEF_PENALTY} DEF. Loses ${POPULATION.HOMELESS_HP_LOSS_PER_TURN} HP at the end of every player turn.`, icon: '🏚️' },
   [UnitTag.UNTRAINED]: { label: 'Untrained', desc: `Training facilities of this type are over capacity. -${TRAINING.UNTRAINED_ATK_PENALTY} ATK.`, icon: '📉' },
   // ── Movement tags ───────────────────────────────────────────────────────────
-  [UnitTag.FLYING]:    { label: 'Flying',    desc: 'Traverses canyons and unfrozen water tiles. Survives knockback over canyons and water (lava still kills). Does not ice-slide across frozen tiles.', icon: '🕊️' },
+  [UnitTag.FLYING]:    { label: 'Flying',    desc: `Traverses canyons and unfrozen water tiles. Survives knockback over canyons and water (lava still kills). Does not ice-slide across frozen tiles. Takes +${Math.round((FLYING_RANGED_DAMAGE_TAKEN_MULTIPLIER - 1) * 100)}% damage from non-flying ranged attackers.`, icon: '🕊️' },
 };
 
 // Compute descriptions for UNIT_DEFINITIONS entries that reference TUNNEL constants.
