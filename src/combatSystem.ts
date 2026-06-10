@@ -764,14 +764,14 @@ export function resolveAttack(
       !attacker.tags.includes(UnitTag.RANGED) &&
       state.grid[defenderPosition.y][defenderPosition.x].terrainType !== TileType.CANYON &&
       state.grid[defenderPosition.y][defenderPosition.x].terrainType !== TileType.WATER;
-    const bloodlustSupressed = willMeleeAdvance
+    const bloodlustSuppressed = willMeleeAdvance
       ? state.grid[defenderPosition.y][defenderPosition.x].status === TileStatus.CORRUPTED
       : attackerOnCorrupted;
     if (
       !attackerDead &&
       !isBloodlustAttack &&
       attacker.tags.includes(UnitTag.BLOODLUST) &&
-      !bloodlustSupressed &&
+      !bloodlustSuppressed &&
       defenderFaction === Faction.ENEMY &&
       attackerFaction === Faction.PLAYER
     ) {

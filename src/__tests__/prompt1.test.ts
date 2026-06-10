@@ -323,7 +323,7 @@ describe('1A (1) – BLOODLUST charge survives level-up', () => {
 
     const levelled = nextState.units[rider.id]!;
     expect(levelled.bloodlustAttackAvailable).toBe(false);
-    // hasAttackedThisTurn is not restored (it was false before = no pending charge)
+    // hasAttackedThisTurn is not restored (it was true before = no pending charge)
   });
 });
 
