@@ -241,6 +241,21 @@ export function isMineBuffedByKiln(
  *
  * @param state - Immer draft of the game state (will be mutated)
  */
+
+/**
+ * Returns the set of building types currently owned by the player (active, non-disabled).
+ * Used to gate flat income mods that require at least one specific building.
+ */
+function getActivePlayerBuildingTypes(
+  state: GameState | Draft<GameState>,
+): Set<BuildingType> {
+  return new Set(
+    Object.values(state.buildings)
+      .filter((b) => b.faction === Faction.PLAYER && b.isDisabledForTurns === 0)
+      .map((b) => b.type),
+  );
+}
+
 export function collectResources(state: Draft<GameState>): void {
   for (const building of Object.values(state.buildings)) {
     // Only player-owned buildings produce resources
@@ -278,11 +293,7 @@ export function collectResources(state: Draft<GameState>): void {
   }
 
   // Apply flat income mods once (independent of building count — requires ≥1 of the gate building)
-  const playerBuildingTypes = new Set(
-    Object.values(state.buildings)
-      .filter((b) => b.faction === Faction.PLAYER && b.isDisabledForTurns === 0)
-      .map((b) => b.type),
-  );
+  const playerBuildingTypes = getActivePlayerBuildingTypes(state);
   for (const mod of getFlatIncomeMods(state)) {
     if (playerBuildingTypes.has(mod.requiresBuilding)) {
       if (mod.resource === ResourceType.IRON) {
@@ -365,11 +376,7 @@ export function computeResourceIncome(
   }
 
   // Flat income mods apply once when the player owns ≥1 of the required building
-  const playerBuildingTypesForFlat = new Set(
-    Object.values(state.buildings)
-      .filter((b) => b.faction === Faction.PLAYER && b.isDisabledForTurns === 0)
-      .map((b) => b.type),
-  );
+  const playerBuildingTypesForFlat = getActivePlayerBuildingTypes(state);
   for (const mod of getFlatIncomeMods(state)) {
     if (playerBuildingTypesForFlat.has(mod.requiresBuilding)) {
       if (mod.resource === ResourceType.IRON) {
@@ -490,11 +497,7 @@ export function computeResourceIncomeBreakdown(
   }
 
   // Flat income mods — build a map of tech name → iron/wood for breakdown display
-  const playerBuildingTypesForBreakdown = new Set(
-    Object.values(state.buildings)
-      .filter((b) => b.faction === Faction.PLAYER && b.isDisabledForTurns === 0)
-      .map((b) => b.type),
-  );
+  const playerBuildingTypesForBreakdown = getActivePlayerBuildingTypes(state);
   const flatTechName = new Map<string, string>();
   for (const t of TECH_TREE) {
     if (!state.techNodes[t.id]?.unlocked) continue;
