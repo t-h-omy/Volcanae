@@ -21,6 +21,7 @@ import { checkGraveTrapTrigger, resolveSlide } from './movementSystem';
 import { tryBeginTunnel, processTunnelTurn } from './tunnelSystem';
 import { cleanupPortals, cleanupExpiredPortalsEndOfTurn, tryPlanPortalCast, castPortal, getUsablePortalAtEntrance, tryTeleportThroughPortal, processPendingPortalTeleports } from './portalSystem';
 import { cleanupRoostedUnits, getRoostedUnits } from './buildingRemoval';
+import { isUnitOnCorruptedTile } from './tileStatusSystem';
 
 // ============================================================================
 // ID GENERATION
@@ -1061,6 +1062,9 @@ function triggerPreventiveStrike(
     if (!unit.tags.includes(UnitTag.PREVENTIVE_STRIKE)) continue;
     if (!state.units[enemyUnitId]) break; // enemy was destroyed by a previous overwatch shot
 
+    // PREVENTIVE_STRIKE is suppressed when the siege unit stands on a CORRUPTED tile.
+    if (isUnitOnCorruptedTile(state, unit.id)) continue;
+
     // Each siege unit fires at most once per enemy turn.
     if (unit.preventiveStrikeFiredThisTurn) continue;
 
@@ -1316,6 +1320,7 @@ export function resolveExplosion(
   }
 
   // Apply flat damage to each target
+  if (targets.length === 0) return; // no adjacent player units — abort silently
   const deathEvents: GameEvent[] = [];
   for (const targetId of targets) {
     const target = state.units[targetId];
