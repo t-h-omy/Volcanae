@@ -12,13 +12,14 @@
  * Total                              → 10 nobles, 1 farmer
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { computePopulationUsage } from '../resourceSystem';
 import { UnitType, Faction, UnitTag } from '../types';
 import type { GameState, Unit } from '../types';
 import { UNIT_DEFINITIONS } from '../gameConfig';
 
 let _idCounter = 0;
+beforeEach(() => { _idCounter = 0; });
 function nextId(): string {
   return `unit_${++_idCounter}`;
 }
@@ -61,7 +62,8 @@ function makePlayerUnit(type: UnitType): Unit {
 function makeState(units: Unit[]): GameState {
   const unitsMap: Record<string, Unit> = {};
   for (const u of units) unitsMap[u.id] = u;
-  return { units: unitsMap } as unknown as GameState;
+  const partial = { units: unitsMap } satisfies Pick<GameState, 'units'>;
+  return partial as GameState;
 }
 
 describe('computePopulationUsage — live counting', () => {
