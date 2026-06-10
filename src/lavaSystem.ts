@@ -93,7 +93,7 @@ function updateLavaPreview(state: Draft<GameState>): void {
  *
  * @param state - Immer draft of the game state (will be mutated)
  */
-export function advanceLava(state: Draft<GameState>, outEvents?: GameEvent[]): void {
+export function advanceLava(state: Draft<GameState>, outEvents?: GameEvent[], skipRoostedCleanup?: boolean): void {
   // Advance lava front row (northward = decreasing Y)
   const newLavaRow = state.lavaFrontRow - 1;
 
@@ -180,8 +180,13 @@ export function advanceLava(state: Draft<GameState>, outEvents?: GameEvent[]): v
         // Collect life-bound units BEFORE removal so we can emit UNIT_DEATH events.
         const roosted = outEvents ? getRoostedUnits(state, buildingId) : [];
 
-        // Remove building from state
-        cleanupRoostedUnits(state, buildingId);
+        // Remove building from state. When skipRoostedCleanup is true (display-state
+        // applyEvent path), leave roosted units alive so the queued UNIT_DEATH events
+        // can animate their deaths and let the auto-cam pan to them.  In all other
+        // paths (resolved-state computation, debug) we clean up immediately.
+        if (!skipRoostedCleanup) {
+          cleanupRoostedUnits(state, buildingId);
+        }
         delete state.buildings[buildingId];
         // Note: resonance for surviving crystal chambers is NOT applied here.
         // It is applied to the resolvedState in advanceLavaWithEvents so that

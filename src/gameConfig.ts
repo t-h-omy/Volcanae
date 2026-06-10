@@ -1043,7 +1043,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
     enemyUnlockEmber: 6,
-    description: 'Resilient lava beast that resists damage from summoned units, deals double damage to them, and grows enraged in dense clusters.',
+    description: 'Resilient lava beast that resists damage from summoned units, deals extra damage to them, and prioritises attacking summoned units. Grows enraged in dense clusters.', // description interpolated below once GRIMBEAK_SUMMONED_DAMAGE_MULTIPLIER is defined
   },
 
   RIFTWORM: {
@@ -1789,13 +1789,13 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'WALLED_SETTLEMENT',
     name: 'Walled Settlement',
-    description: `Strongholds gain +${ABILITIES.WALLED_SETTLEMENT_FARMER_BONUS} farmer capacity and produce +${ABILITIES.WALLED_SETTLEMENT_IRON_AMOUNT} iron and +${ABILITIES.WALLED_SETTLEMENT_WOOD_AMOUNT} wood per turn`,
+    description: `Strongholds gain +${ABILITIES.WALLED_SETTLEMENT_FARMER_BONUS} farmer capacity. Produces +${ABILITIES.WALLED_SETTLEMENT_IRON_AMOUNT} iron and +${ABILITIES.WALLED_SETTLEMENT_WOOD_AMOUNT} wood per turn (flat, once — requires at least one Stronghold)`,
     requires: ['CONSCRIPTION'],
     cost: 2,
     effects: [
       { type: 'STRONGHOLD_CAP_MOD', capType: 'farmer', amount: ABILITIES.WALLED_SETTLEMENT_FARMER_BONUS },
-      { type: 'BUILDING_PRODUCTION_MOD', buildingType: BuildingType.STRONGHOLD, resource: ResourceType.WOOD, chancePercent: 100, amount: ABILITIES.WALLED_SETTLEMENT_WOOD_AMOUNT },
-      { type: 'BUILDING_PRODUCTION_MOD', buildingType: BuildingType.STRONGHOLD, resource: ResourceType.IRON, chancePercent: 100, amount: ABILITIES.WALLED_SETTLEMENT_IRON_AMOUNT },
+      { type: 'FLAT_INCOME_MOD', resource: ResourceType.WOOD, amount: ABILITIES.WALLED_SETTLEMENT_WOOD_AMOUNT, requiresBuilding: BuildingType.STRONGHOLD },
+      { type: 'FLAT_INCOME_MOD', resource: ResourceType.IRON, amount: ABILITIES.WALLED_SETTLEMENT_IRON_AMOUNT, requiresBuilding: BuildingType.STRONGHOLD },
     ],
   },
   {
@@ -2158,6 +2158,9 @@ export const PUNCTURE_STUN_BASE_DEF_THRESHOLD = 60;
 /** Duration in turns of the stun applied by PUNCTURE. */
 export const PUNCTURE_STUN_DURATION = 1;
 
+/** Damage multiplier applied to FLYING units when attacked by a non-flying RANGED unit. */
+export const FLYING_RANGED_DAMAGE_TAKEN_MULTIPLIER = 1.25; // +25%, balancable
+
 /** TUNNEL: minimum number of tiles the unit must move south while underground. */
 export const TUNNEL_RANGE_MIN = 2;
 /** TUNNEL: maximum number of tiles the unit can move south while underground. */
@@ -2202,7 +2205,7 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   [UnitTag.PREP]:              { label: 'Prep',              desc: 'Cannot attack after moving. Must attack before moving, or forgo movement entirely.' },
   [UnitTag.BUILDANDCAPTURE]:   { label: 'Build & Capture',   desc: 'Can construct buildings on ruins and resource terrain (forest/mountain), and capture enemy buildings. Strongholds and watchtowers transfer to your faction; other enemy buildings are demolished.' },
   [UnitTag.SACRIFICIAL]:       { label: 'Sacrificial',       desc: 'Prioritizes walking toward the lava to be consumed.' },
-  [UnitTag.EXPLOSIVE]:         { label: 'Explosive',         desc: 'Deals heavy area damage to all adjacent enemies when adjacent to enemies with no way forward (preemptive self-detonation).' },
+  [UnitTag.EXPLOSIVE]:         { label: 'Explosive',         desc: 'Deals heavy area damage to all adjacent enemies when adjacent to at least one enemy (preemptive self-detonation).' },
   [UnitTag.FIELDWORK]:         { label: 'Fieldwork',         desc: `Can sacrifice itself on its current tile to instantly erect an Outpost (HP scales with the unit's current HP × ${ABILITIES.FIELDWORK_HP_MULTIPLIER}). Cannot be used on ruins or resource terrain.` },
   [UnitTag.ASSASSIN]:          { label: 'Assassin',          desc: `Deals ${ABILITIES.ASSASSIN_DAMAGE_MULTIPLIER}× damage and receives no retaliation when striking an enemy that is still at full health.` },
   [UnitTag.PATCHUP]:           { label: 'Patch Up',          desc: `Can spend its action to restore ${ABILITIES.PATCHUP_HEAL_AMOUNT} HP on one adjacent friendly unit.` },
@@ -2219,7 +2222,7 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   [UnitTag.SKIRMISHER]:        { label: 'Skirmisher',        desc: `+${ABILITIES.SKIRMISHER_MOVE_BONUS} movement range.` },
   [UnitTag.PIN_DOWN]:          { label: 'Pin Down',          desc: `Each hit has a ${Math.round(ABILITIES.PIN_DOWN_STUN_CHANCE * 100)}% chance to stun the target — it cannot move or attack on its next action.` },
   [UnitTag.DISTRACTION]:       { label: 'Distraction',       desc: `Each hit permanently reduces the target's DEF by ${ABILITIES.DISTRACTION_DEF_REDUCTION}. Archer ATK is reduced by ${Math.abs(ABILITIES.DISTRACTION_ATTACK_MOD)}.` },
-  [UnitTag.PREVENTIVE_STRIKE]: { label: 'Preventive Strike', desc: `Once per enemy turn, when an enemy moves from outside into this siege unit's attack range, it automatically fires, dealing ${ABILITIES.PREVENTIVE_STRIKE_DAMAGE_PERCENT}% of its normal attack damage.` },
+  [UnitTag.PREVENTIVE_STRIKE]: { label: 'Preventive Strike', desc: `Once per enemy turn, when an enemy moves from outside into this siege unit's attack range, it automatically fires, dealing ${ABILITIES.PREVENTIVE_STRIKE_DAMAGE_PERCENT}% of its normal attack damage. Suppressed while the siege unit stands on a Corrupted tile.` },
   [UnitTag.ELITE]:             { label: 'Elite',             desc: `+${ABILITIES.ELITE_MAX_HP_BONUS} max HP. Elite unit forged in the noble tradition.` },
   [UnitTag.FORTIFIED_GARRISON]: { label: 'Fortified Garrison', desc: `Attack building gains +${ABILITIES.FORTIFIED_GARRISON_ATTACK_BONUS} ATK and +${ABILITIES.FORTIFIED_GARRISON_RANGE_BONUS} attack range.` },
   [UnitTag.BLOODLUST]:          { label: 'Bloodlust',          desc: 'When this Rider kills an enemy, it may attack once more this turn at half attack without retaliation.' },
@@ -2236,7 +2239,7 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   [UnitTag.LAVA]:               { label: 'Lava',               desc: 'Lava-faction unit. Immune to BURNING tile damage. Retained even when faction changes.' },
   // ── Counter tags ────────────────────────────────────────────────────────────
   [UnitTag.CLEAVE]:       { label: 'Cleave',      desc: `On hit, deals ${CLEAVE_DAMAGE_MULTIPLIER * 100}% damage to all enemy units adjacent to both attacker and defender. Ignores Phalanx defense.` },
-  [UnitTag.PIERCE]:       { label: 'Pierce',      desc: `Deals ${PIERCE_PRIMARY_DAMAGE_MULTIPLIER * 100}% damage to the target; the unit or building directly behind the target takes ${PIERCE_SECONDARY_DAMAGE_MULTIPLIER * 100}% of the standard attack damage.` },
+  [UnitTag.PIERCE]:       { label: 'Pierce',      desc: `Deals ${PIERCE_PRIMARY_DAMAGE_MULTIPLIER * 100}% damage to the target; the enemy unit or building directly behind the target takes ${PIERCE_SECONDARY_DAMAGE_MULTIPLIER * 100}% of the standard attack damage.` },
   [UnitTag.RAGE]:         { label: 'Rage',        desc: `Gains +${RAGE_ATK_PER_ADJACENT} attack per enemy adjacent to this unit, up to ${RAGE_MAX_ADJACENT_COUNT} enemies (max +${RAGE_ATK_PER_ADJACENT * RAGE_MAX_ADJACENT_COUNT}).` },
   [UnitTag.ALERT]:        { label: 'Alert',       desc: 'Immune to stun effects.' },
   [UnitTag.IRONBLOOD]:    { label: 'Ironblood',   desc: `Takes only ${IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER * 100}% damage from attacks by summoned units.` },
@@ -2249,11 +2252,13 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   [UnitTag.HOMELESS]:  { label: 'Homeless',  desc: `Unit has no shelter — population cap is exceeded. -${POPULATION.HOMELESS_DEF_PENALTY} DEF. Loses ${POPULATION.HOMELESS_HP_LOSS_PER_TURN} HP at the end of every player turn.`, icon: '🏚️' },
   [UnitTag.UNTRAINED]: { label: 'Untrained', desc: `Training facilities of this type are over capacity. -${TRAINING.UNTRAINED_ATK_PENALTY} ATK.`, icon: '📉' },
   // ── Movement tags ───────────────────────────────────────────────────────────
-  [UnitTag.FLYING]:    { label: 'Flying',    desc: 'Traverses canyons and unfrozen water tiles. Survives knockback over canyons and water (lava still kills). Does not ice-slide across frozen tiles.', icon: '🕊️' },
+  [UnitTag.FLYING]:    { label: 'Flying',    desc: `Traverses canyons and unfrozen water tiles. Survives knockback over canyons and water (lava still kills). Does not ice-slide across frozen tiles. Takes +${Math.round((FLYING_RANGED_DAMAGE_TAKEN_MULTIPLIER - 1) * 100)}% damage from non-flying ranged attackers.`, icon: '🕊️' },
 };
 
 // Compute descriptions for UNIT_DEFINITIONS entries that reference TUNNEL constants.
 UNIT_DEFINITIONS.RIFTWORM.description = `Digs underground and re-emerges ${TUNNEL_RANGE_MIN}–${TUNNEL_RANGE_MAX} tiles south in the same column. On emergence, deals ${TUNNEL_EMERGE_DAMAGE} damage to all adjacent player units and corrupts the tile.`;
+// Compute Grimbeak description referencing the summoned-damage multiplier.
+UNIT_DEFINITIONS.GRIMBEAK.description = `Resilient lava beast that resists damage from summoned units, deals ${GRIMBEAK_SUMMONED_DAMAGE_MULTIPLIER}× damage to them, and prioritises attacking summoned units. Grows enraged in dense clusters.`;
 // ============================================================================
 
 export const SANCTUM_COLLAPSE = {
@@ -2343,6 +2348,7 @@ export const CORRUPTED_SUPPRESSED_TAGS = new Set<UnitTag>([
   UnitTag.BURN,
   UnitTag.PHALANX,
   UnitTag.PATCHUP,
+  UnitTag.PREVENTIVE_STRIKE,
 ]);
 
 // ============================================================================
@@ -2406,6 +2412,7 @@ export const TERRAIN_TAG_INFO: Record<TerrainTag, { label: string; desc: string 
       'Player units on this tile are isolated from ally tag interactions. ' +
       'No Phalanx bonuses, no Patchup healing, no Pin Down / Distraction / Splash effects on attack, ' +
       'and no tag-based attack bonuses (Knight, Lance Charge, Assassin, Bloodlust). ' +
+      'Preventive Strike overwatch is also suppressed. ' +
       'Base stats, movement, ranged capability, and persistent effects (Brandmarked) remain unchanged.',
   },
   [TerrainTag.FROZEN]: {

@@ -168,6 +168,7 @@ export const TechEffectType = {
   UNIT_STAT_MOD:            'UNIT_STAT_MOD',
   UNIT_COST_MOD:            'UNIT_COST_MOD',
   BUILDING_PRODUCTION_MOD:  'BUILDING_PRODUCTION_MOD',
+  FLAT_INCOME_MOD:          'FLAT_INCOME_MOD',
   FLAG:                     'FLAG',
   STRONGHOLD_CAP_MOD:       'STRONGHOLD_CAP_MOD',
   SPECIALIST_SLOT_MOD:      'SPECIALIST_SLOT_MOD',
@@ -337,6 +338,7 @@ export type TechEffect =
   | { type: 'UNIT_STAT_MOD';           unitType: UnitType; stat: keyof UnitStats; mode: 'add' | 'percent'; value: number }
   | { type: 'UNIT_COST_MOD';           unitType: UnitType; resource: 'iron' | 'wood'; amount: number }
   | { type: 'BUILDING_PRODUCTION_MOD'; buildingType: BuildingType; resource: ResourceType; chancePercent: number; amount: number }
+  | { type: 'FLAT_INCOME_MOD';        resource: ResourceType; amount: number; requiresBuilding: BuildingType }
   | { type: 'FLAG';                    flag: TechFlag }
   | { type: 'STRONGHOLD_CAP_MOD';      capType: 'farmer' | 'noble'; amount: number }
   | { type: 'SPECIALIST_SLOT_MOD';     value: number }

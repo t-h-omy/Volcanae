@@ -8,7 +8,7 @@ import type { Draft } from 'immer';
 import { Faction, BuildingType, UnitType, UnitTag, ResourceType } from './types';
 import { RESOURCES, UNIT_DEFINITIONS, POPULATION, CRYSTAL_CHAMBER_CONFIG, BUILDING_DEFINITIONS, TECH_TREE } from './gameConfig';
 import type { UnitCost } from './gameConfig';
-import { getGrantedTags, getStatMods, getBuildingProductionMods, grantArcaneCrystals, getStrongholdEffectiveCap, getRemovedTags, getCostMods } from './techSystem';
+import { getGrantedTags, getStatMods, getBuildingProductionMods, getFlatIncomeMods, grantArcaneCrystals, getStrongholdEffectiveCap, getRemovedTags, getCostMods } from './techSystem';
 import { getTagsFromActiveSpecialists } from './specialistSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 
@@ -241,6 +241,21 @@ export function isMineBuffedByKiln(
  *
  * @param state - Immer draft of the game state (will be mutated)
  */
+
+/**
+ * Returns the set of building types currently owned by the player (active, non-disabled).
+ * Used to gate flat income mods that require at least one specific building.
+ */
+function getActivePlayerBuildingTypes(
+  state: GameState | Draft<GameState>,
+): Set<BuildingType> {
+  return new Set(
+    Object.values(state.buildings)
+      .filter((b) => b.faction === Faction.PLAYER && b.isDisabledForTurns === 0)
+      .map((b) => b.type),
+  );
+}
+
 export function collectResources(state: Draft<GameState>): void {
   for (const building of Object.values(state.buildings)) {
     // Only player-owned buildings produce resources
@@ -273,6 +288,18 @@ export function collectResources(state: Draft<GameState>): void {
         } else if (mod.resource === ResourceType.WOOD) {
           state.resources.wood += mod.amount;
         }
+      }
+    }
+  }
+
+  // Apply flat income mods once (independent of building count — requires ≥1 of the gate building)
+  const playerBuildingTypes = getActivePlayerBuildingTypes(state);
+  for (const mod of getFlatIncomeMods(state)) {
+    if (playerBuildingTypes.has(mod.requiresBuilding)) {
+      if (mod.resource === ResourceType.IRON) {
+        state.resources.iron += mod.amount;
+      } else if (mod.resource === ResourceType.WOOD) {
+        state.resources.wood += mod.amount;
       }
     }
   }
@@ -344,6 +371,18 @@ export function computeResourceIncome(
         ironPerTurn += expected;
       } else if (mod.resource === ResourceType.WOOD) {
         woodPerTurn += expected;
+      }
+    }
+  }
+
+  // Flat income mods apply once when the player owns ≥1 of the required building
+  const playerBuildingTypesForFlat = getActivePlayerBuildingTypes(state);
+  for (const mod of getFlatIncomeMods(state)) {
+    if (playerBuildingTypesForFlat.has(mod.requiresBuilding)) {
+      if (mod.resource === ResourceType.IRON) {
+        ironPerTurn += mod.amount;
+      } else if (mod.resource === ResourceType.WOOD) {
+        woodPerTurn += mod.amount;
       }
     }
   }
@@ -455,6 +494,33 @@ export function computeResourceIncomeBreakdown(
     const iron = techIron[name] ?? 0;
     const wood = techWood[name] ?? 0;
     entries.push({ label: name, iron, wood });
+  }
+
+  // Flat income mods — build a map of tech name → iron/wood for breakdown display
+  const playerBuildingTypesForBreakdown = getActivePlayerBuildingTypes(state);
+  const flatTechName = new Map<string, string>();
+  for (const t of TECH_TREE) {
+    if (!state.techNodes[t.id]?.unlocked) continue;
+    for (const e of t.effects) {
+      if (e.type === 'FLAT_INCOME_MOD') {
+        flatTechName.set(`${e.resource}|${e.amount}|${e.requiresBuilding}`, t.name);
+      }
+    }
+  }
+  const flatIron: Record<string, number> = {};
+  const flatWood: Record<string, number> = {};
+  for (const mod of getFlatIncomeMods(state)) {
+    if (!playerBuildingTypesForBreakdown.has(mod.requiresBuilding)) continue;
+    const name = flatTechName.get(`${mod.resource}|${mod.amount}|${mod.requiresBuilding}`) ?? 'Tech bonus';
+    if (mod.resource === ResourceType.IRON) {
+      flatIron[name] = (flatIron[name] ?? 0) + mod.amount;
+    } else if (mod.resource === ResourceType.WOOD) {
+      flatWood[name] = (flatWood[name] ?? 0) + mod.amount;
+    }
+  }
+  const flatNames = new Set([...Object.keys(flatIron), ...Object.keys(flatWood)]);
+  for (const name of flatNames) {
+    entries.push({ label: name, iron: flatIron[name] ?? 0, wood: flatWood[name] ?? 0 });
   }
 
   // Specialist upkeep (negative modifiers)

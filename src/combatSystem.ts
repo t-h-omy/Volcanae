@@ -10,7 +10,7 @@ import { BuildingType, Faction, UnitTag, UnitType, TechFlag, TileType, TileStatu
 import { useFloaterStore } from './floaterStore';
 import type { GameEvent } from './gameEvents';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
-import { UNIT_DEFINITIONS, XP, ABILITIES, MAP, BUILDING_DEFINITIONS, MAGE, CLEAVE_DAMAGE_MULTIPLIER, PIERCE_PRIMARY_DAMAGE_MULTIPLIER, PIERCE_SECONDARY_DAMAGE_MULTIPLIER, RAGE_ATK_PER_ADJACENT, RAGE_MAX_ADJACENT_COUNT, BLOCK_MELEE_DAMAGE_MULTIPLIER, IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER, GRIMBEAK_SUMMONED_DAMAGE_MULTIPLIER, PUNCTURE_STUN_BASE_DEF_THRESHOLD, PUNCTURE_STUN_DURATION } from './gameConfig';
+import { UNIT_DEFINITIONS, XP, ABILITIES, MAP, BUILDING_DEFINITIONS, MAGE, CLEAVE_DAMAGE_MULTIPLIER, PIERCE_PRIMARY_DAMAGE_MULTIPLIER, PIERCE_SECONDARY_DAMAGE_MULTIPLIER, RAGE_ATK_PER_ADJACENT, RAGE_MAX_ADJACENT_COUNT, BLOCK_MELEE_DAMAGE_MULTIPLIER, IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER, GRIMBEAK_SUMMONED_DAMAGE_MULTIPLIER, PUNCTURE_STUN_BASE_DEF_THRESHOLD, PUNCTURE_STUN_DURATION, FLYING_RANGED_DAMAGE_TAKEN_MULTIPLIER } from './gameConfig';
 import { grantXp } from './levelSystem';
 import { generateId } from './mapGenerator';
 import { isUnitOnCorruptedTile, applyTileStatus } from './tileStatusSystem';
@@ -426,6 +426,42 @@ export function calculateCombatFromStats(attacker: Combatant, defender: Combatan
 // ============================================================================
 
 /**
+ * Returns true if a BLOODLUST unit at (fromX, fromY) can reach any valid
+ * attack target (hostile unit or hostile combat-capable building) within
+ * `range` tiles. Used to detect a dangling bloodlust charge when no targets
+ * are reachable so the charge can be cleared immediately.
+ *
+ * Underground tunnel units (DIGGING_IN / UNDERGROUND / EMERGING) are skipped
+ * because they cannot be targeted directly.
+ */
+function anyBloodlustTargetExists(
+  state: Pick<GameState, 'units' | 'buildings' | 'grid'>,
+  fromX: number,
+  fromY: number,
+  range: number,
+  attackerFaction: Faction,
+): boolean {
+  for (const unit of Object.values(state.units)) {
+    if (!unit) continue;
+    if (unit.faction === attackerFaction) continue;
+    const ts = unit.tunnelState;
+    if (ts === 'DIGGING_IN' || ts === 'UNDERGROUND' || ts === 'EMERGING') continue;
+    if (isTileWithinEdgeCircleRange(fromX, fromY, unit.position.x, unit.position.y, range)) {
+      return true;
+    }
+  }
+  for (const building of Object.values(state.buildings)) {
+    if (!building) continue;
+    if (building.faction === attackerFaction) continue;
+    if (!building.combatStats && building.hp === undefined) continue;
+    if (isTileWithinEdgeCircleRange(fromX, fromY, building.position.x, building.position.y, range)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Resolves an attack between two units by mutating the draft state.
  * - Applies damage to defender
  * - If defender survives AND the attacker is within the defender's attack range,
@@ -577,6 +613,16 @@ export function resolveAttack(
     combatResult.defenderHpLost = Math.floor(combatResult.defenderHpLost * GRIMBEAK_SUMMONED_DAMAGE_MULTIPLIER);
   }
 
+  // FLYING: flying defenders take extra damage from non-flying RANGED attackers.
+  // NOT suppressed on corrupted tiles — defensive property of the flyer.
+  if (
+    defender.tags.includes(UnitTag.FLYING) &&
+    attacker.tags.includes(UnitTag.RANGED) &&
+    !attacker.tags.includes(UnitTag.FLYING)
+  ) {
+    combatResult.defenderHpLost = Math.round(combatResult.defenderHpLost * FLYING_RANGED_DAMAGE_TAKEN_MULTIPLIER);
+  }
+
   // Apply damage to defender
   const newDefenderHp = defender.stats.currentHp - combatResult.defenderHpLost;
   const defenderDead = newDefenderHp <= 0;
@@ -712,11 +758,20 @@ export function resolveAttack(
     // BLOODLUST: when a (non-bloodlust) attack kills an enemy, grant a second
     // attack at half power. Only one bloodlust charge per turn.
     // Suppressed on CORRUPTED tile.
+    // Fix (21): when the kill triggers a melee advance onto the defender tile, use the
+    // DESTINATION tile status — not the attacker's current (pre-advance) tile.
+    const willMeleeAdvance =
+      !attacker.tags.includes(UnitTag.RANGED) &&
+      state.grid[defenderPosition.y][defenderPosition.x].terrainType !== TileType.CANYON &&
+      state.grid[defenderPosition.y][defenderPosition.x].terrainType !== TileType.WATER;
+    const bloodlustSuppressed = willMeleeAdvance
+      ? state.grid[defenderPosition.y][defenderPosition.x].status === TileStatus.CORRUPTED
+      : attackerOnCorrupted;
     if (
       !attackerDead &&
       !isBloodlustAttack &&
       attacker.tags.includes(UnitTag.BLOODLUST) &&
-      !attackerOnCorrupted &&
+      !bloodlustSuppressed &&
       defenderFaction === Faction.ENEMY &&
       attackerFaction === Faction.PLAYER
     ) {
@@ -729,6 +784,21 @@ export function resolveAttack(
         attackerUnit.hasCapturedThisTurn = true;
         attackerUnit.hasConstructedThisTurn = true;
         attackerUnit.hasDestroyedThisTurn = true;
+        // Fix (19): if no valid target is reachable after the charge (accounting for
+        // HIT_AND_RUN post-attack move), clear the dangling charge immediately.
+        const postAdvanceX = willMeleeAdvance ? defenderPosition.x : attackerPosition.x;
+        const postAdvanceY = willMeleeAdvance ? defenderPosition.y : attackerPosition.y;
+        const hitAndRunBonus = attackerUnit.tags.includes(UnitTag.HIT_AND_RUN)
+          ? ABILITIES.HIT_AND_RUN_POST_ATTACK_MOVE_RANGE
+          : 0;
+        const effectiveRange = attackerUnit.stats.attackRange + hitAndRunBonus;
+        if (!anyBloodlustTargetExists(state, postAdvanceX, postAdvanceY, effectiveRange, attackerFaction)) {
+          attackerUnit.bloodlustAttackAvailable = false;
+          attackerUnit.hasAttackedThisTurn = true;
+          attackerUnit.hasCapturedThisTurn = false;
+          attackerUnit.hasConstructedThisTurn = false;
+          attackerUnit.hasDestroyedThisTurn = false;
+        }
       }
     }
 
@@ -893,7 +963,7 @@ export function resolveAttack(
         if (!splashTarget || splashTarget.faction !== Faction.ENEMY) continue;
         const splashTargetId = splashTile.unitId;
         const newSplashHp = splashTarget.stats.currentHp - splashDamage;
-        if (!suppressFloaters) {
+        if (!suppressFloaters && splashTile.isRevealed) {
           const { addFloater } = useFloaterStore.getState();
           addFloater({ value: splashDamage, x: nx, y: ny, isEnemy: true });
         }
@@ -1011,43 +1081,60 @@ export function resolveAttack(
           // The front defender's defense was already baked into fullPrimaryDamage by
           // calculateCombatFromStats; subtracting the rear unit's defense a second time
           // would cause the bug reported in Change 5.
-          const finalPierceDamage = Math.max(1, Math.round(fullPrimaryDamage * PIERCE_SECONDARY_DAMAGE_MULTIPLIER));
-          const newRearHp = rearUnit.stats.currentHp - finalPierceDamage;
-          if (!suppressFloaters) {
-            const { addFloater } = useFloaterStore.getState();
-            addFloater({ value: finalPierceDamage, x: behindPos.x, y: behindPos.y, isEnemy: rearUnit.faction === Faction.ENEMY });
-          }
-          outEvents?.push({
-            type: 'PIERCE_DAMAGE',
-            unitId: rearUnitId,
-            buildingId: null,
-            position: { ...behindPos },
-            amount: finalPierceDamage,
-            isEnemy: rearUnit.faction === Faction.ENEMY,
-            attackerPosition: { ...attackerPosition },
-            primaryDefenderPosition: { ...defenderPosition },
-          });
-          if (newRearHp <= 0) {
-            if (rearUnit.tags.includes(UnitTag.BRANDMARKED)) {
-              // BRANDMARKED: complete the transform so an Ember Demon spawns in the
-              // resolved state. completeBrandmarkTransformInPlace handles tile clear,
-              // unit removal, and unitsLost increment.
-              completeBrandmarkTransformInPlace(state, rearUnitId, behindPos);
-            } else {
-              behindTile.unitId = null;
-              delete state.units[rearUnitId];
-              if (rearUnit.faction === Faction.PLAYER) state.gameStats.unitsLost += 1;
-              else if (attacker.faction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
+          // Fix (12): friendly rear units take no damage; VFX-only event is still emitted
+          // so the lance renders through them.
+          const isHostileRear = rearUnit.faction !== attackerFaction;
+          if (isHostileRear) {
+            const finalPierceDamage = Math.max(1, Math.round(fullPrimaryDamage * PIERCE_SECONDARY_DAMAGE_MULTIPLIER));
+            const newRearHp = rearUnit.stats.currentHp - finalPierceDamage;
+            if (!suppressFloaters) {
+              const { addFloater } = useFloaterStore.getState();
+              addFloater({ value: finalPierceDamage, x: behindPos.x, y: behindPos.y, isEnemy: rearUnit.faction === Faction.ENEMY });
             }
-            grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
             outEvents?.push({
-              type: 'UNIT_DEATH',
+              type: 'PIERCE_DAMAGE',
               unitId: rearUnitId,
+              buildingId: null,
               position: { ...behindPos },
-              faction: rearUnit.faction,
+              amount: finalPierceDamage,
+              isEnemy: rearUnit.faction === Faction.ENEMY,
+              attackerPosition: { ...attackerPosition },
+              primaryDefenderPosition: { ...defenderPosition },
             });
+            if (newRearHp <= 0) {
+              if (rearUnit.tags.includes(UnitTag.BRANDMARKED)) {
+                // BRANDMARKED: complete the transform so an Ember Demon spawns in the
+                // resolved state. completeBrandmarkTransformInPlace handles tile clear,
+                // unit removal, and unitsLost increment.
+                completeBrandmarkTransformInPlace(state, rearUnitId, behindPos);
+              } else {
+                behindTile.unitId = null;
+                delete state.units[rearUnitId];
+                if (rearUnit.faction === Faction.PLAYER) state.gameStats.unitsLost += 1;
+                else if (attacker.faction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
+              }
+              grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
+              outEvents?.push({
+                type: 'UNIT_DEATH',
+                unitId: rearUnitId,
+                position: { ...behindPos },
+                faction: rearUnit.faction,
+              });
+            } else {
+              rearUnit.stats.currentHp = newRearHp;
+            }
           } else {
-            rearUnit.stats.currentHp = newRearHp;
+            // Friendly rear unit: no damage, but emit VFX-only so the lance renders through.
+            outEvents?.push({
+              type: 'PIERCE_DAMAGE',
+              unitId: rearUnitId,
+              buildingId: null,
+              position: { ...behindPos },
+              amount: 0,
+              isEnemy: false,
+              attackerPosition: { ...attackerPosition },
+              primaryDefenderPosition: { ...defenderPosition },
+            });
           }
         }
       } else if (behindTile.buildingId) {
@@ -1059,22 +1146,38 @@ export function resolveAttack(
           // the front defender's defense via calculateCombatFromStats.
           // Minimum 1 ensures the tag always registers a hit. HP is reduced to 0 (not
           // deleted inline) — building removal triggers normally on the next attack.
-          const finalPierceBuildingDamage = Math.max(1, Math.round(fullPrimaryDamage * PIERCE_SECONDARY_DAMAGE_MULTIPLIER));
-          if (!suppressFloaters) {
-            const { addFloater } = useFloaterStore.getState();
-            addFloater({ value: finalPierceBuildingDamage, x: behindPos.x, y: behindPos.y, isEnemy: rearBuilding.faction === Faction.ENEMY });
+          // Fix (12): friendly rear buildings take no damage; VFX-only event is still emitted.
+          const isHostileRearBuilding = rearBuilding.faction !== attackerFaction;
+          if (isHostileRearBuilding) {
+            const finalPierceBuildingDamage = Math.max(1, Math.round(fullPrimaryDamage * PIERCE_SECONDARY_DAMAGE_MULTIPLIER));
+            if (!suppressFloaters) {
+              const { addFloater } = useFloaterStore.getState();
+              addFloater({ value: finalPierceBuildingDamage, x: behindPos.x, y: behindPos.y, isEnemy: rearBuilding.faction === Faction.ENEMY });
+            }
+            outEvents?.push({
+              type: 'PIERCE_DAMAGE',
+              unitId: null,
+              buildingId: rearBuilding.id,
+              position: { ...behindPos },
+              amount: finalPierceBuildingDamage,
+              isEnemy: rearBuilding.faction === Faction.ENEMY,
+              attackerPosition: { ...attackerPosition },
+              primaryDefenderPosition: { ...defenderPosition },
+            });
+            rearBuilding.hp = Math.max(0, rearBuilding.hp - finalPierceBuildingDamage);
+          } else {
+            // Friendly rear building: no damage, but emit VFX-only so the lance renders through.
+            outEvents?.push({
+              type: 'PIERCE_DAMAGE',
+              unitId: null,
+              buildingId: rearBuilding.id,
+              position: { ...behindPos },
+              amount: 0,
+              isEnemy: false,
+              attackerPosition: { ...attackerPosition },
+              primaryDefenderPosition: { ...defenderPosition },
+            });
           }
-          outEvents?.push({
-            type: 'PIERCE_DAMAGE',
-            unitId: null,
-            buildingId: rearBuilding.id,
-            position: { ...behindPos },
-            amount: finalPierceBuildingDamage,
-            isEnemy: rearBuilding.faction === Faction.ENEMY,
-            attackerPosition: { ...attackerPosition },
-            primaryDefenderPosition: { ...defenderPosition },
-          });
-          rearBuilding.hp = Math.max(0, rearBuilding.hp - finalPierceBuildingDamage);
         }
       } else {
         // Empty tile behind the defender: emit VFX-only event (no damage).
@@ -1592,12 +1695,21 @@ export function resolveAttackOnBuilding(
     }
 
     // BLOODLUST: when a (non-bloodlust) player attack kills an enemy building, grant a second
-    // attack at half power. Only one bloodlust charge per turn. Suppressed on CORRUPTED tile.
+    // attack at half power. Only one bloodlust charge per turn.
+    // Fix (21): when the kill triggers a melee advance onto the building tile, use the
+    // DESTINATION tile status — not the attacker's current (pre-advance) tile.
+    const willMeleeAdvanceOnBuilding =
+      !attacker.tags.includes(UnitTag.RANGED) &&
+      state.grid[buildingPosition.y][buildingPosition.x].terrainType !== TileType.CANYON &&
+      state.grid[buildingPosition.y][buildingPosition.x].terrainType !== TileType.WATER;
+    const bloodlustSuppressedOnBuilding = willMeleeAdvanceOnBuilding
+      ? state.grid[buildingPosition.y][buildingPosition.x].status === TileStatus.CORRUPTED
+      : attackerOnCorrupted;
     if (
       !attackerDead &&
       !isBloodlustAttack &&
       attacker.tags.includes(UnitTag.BLOODLUST) &&
-      !attackerOnCorrupted &&
+      !bloodlustSuppressedOnBuilding &&
       buildingFaction === Faction.ENEMY &&
       attackerFaction === Faction.PLAYER
     ) {
@@ -1608,6 +1720,20 @@ export function resolveAttackOnBuilding(
         attackerUnit.hasCapturedThisTurn = true;
         attackerUnit.hasConstructedThisTurn = true;
         attackerUnit.hasDestroyedThisTurn = true;
+        // Fix (19): clear dangling charge when no valid target is reachable.
+        const postAdvanceX = willMeleeAdvanceOnBuilding ? buildingPosition.x : attackerPosition.x;
+        const postAdvanceY = willMeleeAdvanceOnBuilding ? buildingPosition.y : attackerPosition.y;
+        const hitAndRunBonus = attackerUnit.tags.includes(UnitTag.HIT_AND_RUN)
+          ? ABILITIES.HIT_AND_RUN_POST_ATTACK_MOVE_RANGE
+          : 0;
+        const effectiveRange = attackerUnit.stats.attackRange + hitAndRunBonus;
+        if (!anyBloodlustTargetExists(state, postAdvanceX, postAdvanceY, effectiveRange, attackerFaction)) {
+          attackerUnit.bloodlustAttackAvailable = false;
+          attackerUnit.hasAttackedThisTurn = true;
+          attackerUnit.hasCapturedThisTurn = false;
+          attackerUnit.hasConstructedThisTurn = false;
+          attackerUnit.hasDestroyedThisTurn = false;
+        }
       }
     }
   } else {
@@ -1664,7 +1790,7 @@ export function resolveAttackOnBuilding(
         if (!splashTarget || splashTarget.faction !== Faction.ENEMY) continue;
         const splashTargetId = splashTile.unitId;
         const newSplashHp = splashTarget.stats.currentHp - splashDamage;
-        if (!suppressFloaters) {
+        if (!suppressFloaters && splashTile.isRevealed) {
           const { addFloater } = useFloaterStore.getState();
           addFloater({ value: splashDamage, x: nx, y: ny, isEnemy: true });
         }
@@ -1773,43 +1899,59 @@ export function resolveAttackOnBuilding(
           // Same fix as the unit-vs-unit PIERCE case (Change 5): no second defense
           // subtraction. fullPrimaryDamage already has the front building's defense
           // factored in via calculateCombatFromStats.
-          const finalPierceDamage = Math.max(1, Math.round(fullPrimaryDamage * PIERCE_SECONDARY_DAMAGE_MULTIPLIER));
-          const newRearHp = rearUnit.stats.currentHp - finalPierceDamage;
-          if (!suppressFloaters) {
-            const { addFloater } = useFloaterStore.getState();
-            addFloater({ value: finalPierceDamage, x: behindPos.x, y: behindPos.y, isEnemy: rearUnit.faction === Faction.ENEMY });
-          }
-          outEvents?.push({
-            type: 'PIERCE_DAMAGE',
-            unitId: rearUnitId,
-            buildingId: null,
-            position: { ...behindPos },
-            amount: finalPierceDamage,
-            isEnemy: rearUnit.faction === Faction.ENEMY,
-            attackerPosition: { ...attackerPosition },
-            primaryDefenderPosition: { ...buildingPosition },
-          });
-          if (newRearHp <= 0) {
-            if (rearUnit.tags.includes(UnitTag.BRANDMARKED)) {
-              // BRANDMARKED: complete the transform so an Ember Demon spawns in the
-              // resolved state. completeBrandmarkTransformInPlace handles tile clear,
-              // unit removal, and unitsLost increment.
-              completeBrandmarkTransformInPlace(state, rearUnitId, behindPos);
-            } else {
-              behindTile.unitId = null;
-              delete state.units[rearUnitId];
-              if (rearUnit.faction === Faction.PLAYER) state.gameStats.unitsLost += 1;
-              else if (attacker.faction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
+          // Fix (12): friendly rear units take no damage; VFX-only event is still emitted.
+          const isHostileRear = rearUnit.faction !== attackerFaction;
+          if (isHostileRear) {
+            const finalPierceDamage = Math.max(1, Math.round(fullPrimaryDamage * PIERCE_SECONDARY_DAMAGE_MULTIPLIER));
+            const newRearHp = rearUnit.stats.currentHp - finalPierceDamage;
+            if (!suppressFloaters) {
+              const { addFloater } = useFloaterStore.getState();
+              addFloater({ value: finalPierceDamage, x: behindPos.x, y: behindPos.y, isEnemy: rearUnit.faction === Faction.ENEMY });
             }
-            grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
             outEvents?.push({
-              type: 'UNIT_DEATH',
+              type: 'PIERCE_DAMAGE',
               unitId: rearUnitId,
+              buildingId: null,
               position: { ...behindPos },
-              faction: rearUnit.faction,
+              amount: finalPierceDamage,
+              isEnemy: rearUnit.faction === Faction.ENEMY,
+              attackerPosition: { ...attackerPosition },
+              primaryDefenderPosition: { ...buildingPosition },
             });
+            if (newRearHp <= 0) {
+              if (rearUnit.tags.includes(UnitTag.BRANDMARKED)) {
+                // BRANDMARKED: complete the transform so an Ember Demon spawns in the
+                // resolved state. completeBrandmarkTransformInPlace handles tile clear,
+                // unit removal, and unitsLost increment.
+                completeBrandmarkTransformInPlace(state, rearUnitId, behindPos);
+              } else {
+                behindTile.unitId = null;
+                delete state.units[rearUnitId];
+                if (rearUnit.faction === Faction.PLAYER) state.gameStats.unitsLost += 1;
+                else if (attacker.faction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
+              }
+              grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
+              outEvents?.push({
+                type: 'UNIT_DEATH',
+                unitId: rearUnitId,
+                position: { ...behindPos },
+                faction: rearUnit.faction,
+              });
+            } else {
+              rearUnit.stats.currentHp = newRearHp;
+            }
           } else {
-            rearUnit.stats.currentHp = newRearHp;
+            // Friendly rear unit: no damage, but emit VFX-only so the lance renders through.
+            outEvents?.push({
+              type: 'PIERCE_DAMAGE',
+              unitId: rearUnitId,
+              buildingId: null,
+              position: { ...behindPos },
+              amount: 0,
+              isEnemy: false,
+              attackerPosition: { ...attackerPosition },
+              primaryDefenderPosition: { ...buildingPosition },
+            });
           }
         }
       } else if (behindTile.buildingId) {
@@ -1817,22 +1959,38 @@ export function resolveAttackOnBuilding(
         if (rearBuilding) {
           // PIERCE_SECONDARY_DAMAGE_MULTIPLIER × standard attack damage (pre-reduction).
           // Same fix: no building defense subtraction for the rear target.
-          const finalPierceBuildingDamage = Math.max(1, Math.round(fullPrimaryDamage * PIERCE_SECONDARY_DAMAGE_MULTIPLIER));
-          if (!suppressFloaters) {
-            const { addFloater } = useFloaterStore.getState();
-            addFloater({ value: finalPierceBuildingDamage, x: behindPos.x, y: behindPos.y, isEnemy: rearBuilding.faction === Faction.ENEMY });
+          // Fix (12): friendly rear buildings take no damage; VFX-only event is still emitted.
+          const isHostileRearBuilding = rearBuilding.faction !== attackerFaction;
+          if (isHostileRearBuilding) {
+            const finalPierceBuildingDamage = Math.max(1, Math.round(fullPrimaryDamage * PIERCE_SECONDARY_DAMAGE_MULTIPLIER));
+            if (!suppressFloaters) {
+              const { addFloater } = useFloaterStore.getState();
+              addFloater({ value: finalPierceBuildingDamage, x: behindPos.x, y: behindPos.y, isEnemy: rearBuilding.faction === Faction.ENEMY });
+            }
+            outEvents?.push({
+              type: 'PIERCE_DAMAGE',
+              unitId: null,
+              buildingId: rearBuilding.id,
+              position: { ...behindPos },
+              amount: finalPierceBuildingDamage,
+              isEnemy: rearBuilding.faction === Faction.ENEMY,
+              attackerPosition: { ...attackerPosition },
+              primaryDefenderPosition: { ...buildingPosition },
+            });
+            rearBuilding.hp = Math.max(0, rearBuilding.hp - finalPierceBuildingDamage);
+          } else {
+            // Friendly rear building: no damage, but emit VFX-only so the lance renders through.
+            outEvents?.push({
+              type: 'PIERCE_DAMAGE',
+              unitId: null,
+              buildingId: rearBuilding.id,
+              position: { ...behindPos },
+              amount: 0,
+              isEnemy: false,
+              attackerPosition: { ...attackerPosition },
+              primaryDefenderPosition: { ...buildingPosition },
+            });
           }
-          outEvents?.push({
-            type: 'PIERCE_DAMAGE',
-            unitId: null,
-            buildingId: rearBuilding.id,
-            position: { ...behindPos },
-            amount: finalPierceBuildingDamage,
-            isEnemy: rearBuilding.faction === Faction.ENEMY,
-            attackerPosition: { ...attackerPosition },
-            primaryDefenderPosition: { ...buildingPosition },
-          });
-          rearBuilding.hp = Math.max(0, rearBuilding.hp - finalPierceBuildingDamage);
         }
       } else {
         // Empty tile behind the building: emit VFX-only event (no damage).
