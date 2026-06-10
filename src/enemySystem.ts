@@ -1319,8 +1319,9 @@ export function resolveExplosion(
     }
   }
 
-  // Apply flat damage to each target
-  if (targets.length === 0) return; // no adjacent player units — abort silently
+  // Apply flat damage to each target; abort silently if no adjacent player units
+  // exist — the unit should not self-destruct for nothing.
+  if (targets.length === 0) return;
   const deathEvents: GameEvent[] = [];
   for (const targetId of targets) {
     const target = state.units[targetId];

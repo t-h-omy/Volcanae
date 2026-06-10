@@ -1043,7 +1043,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
     enemyUnlockEmber: 6,
-    description: 'Resilient lava beast that resists damage from summoned units, deals extra damage to them, and prioritises attacking summoned units. Grows enraged in dense clusters.', // overwritten below
+    description: 'Resilient lava beast that resists damage from summoned units, deals extra damage to them, and prioritises attacking summoned units. Grows enraged in dense clusters.', // description interpolated below once GRIMBEAK_SUMMONED_DAMAGE_MULTIPLIER is defined
   },
 
   RIFTWORM: {
@@ -2205,7 +2205,7 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   [UnitTag.PREP]:              { label: 'Prep',              desc: 'Cannot attack after moving. Must attack before moving, or forgo movement entirely.' },
   [UnitTag.BUILDANDCAPTURE]:   { label: 'Build & Capture',   desc: 'Can construct buildings on ruins and resource terrain (forest/mountain), and capture enemy buildings. Strongholds and watchtowers transfer to your faction; other enemy buildings are demolished.' },
   [UnitTag.SACRIFICIAL]:       { label: 'Sacrificial',       desc: 'Prioritizes walking toward the lava to be consumed.' },
-  [UnitTag.EXPLOSIVE]:         { label: 'Explosive',         desc: 'Deals heavy area damage to all adjacent enemies when it has at least one adjacent enemy (preemptive self-detonation).' },
+  [UnitTag.EXPLOSIVE]:         { label: 'Explosive',         desc: 'Deals heavy area damage to all adjacent enemies when adjacent to at least one enemy (preemptive self-detonation).' },
   [UnitTag.FIELDWORK]:         { label: 'Fieldwork',         desc: `Can sacrifice itself on its current tile to instantly erect an Outpost (HP scales with the unit's current HP × ${ABILITIES.FIELDWORK_HP_MULTIPLIER}). Cannot be used on ruins or resource terrain.` },
   [UnitTag.ASSASSIN]:          { label: 'Assassin',          desc: `Deals ${ABILITIES.ASSASSIN_DAMAGE_MULTIPLIER}× damage and receives no retaliation when striking an enemy that is still at full health.` },
   [UnitTag.PATCHUP]:           { label: 'Patch Up',          desc: `Can spend its action to restore ${ABILITIES.PATCHUP_HEAL_AMOUNT} HP on one adjacent friendly unit.` },
