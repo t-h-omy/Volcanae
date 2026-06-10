@@ -2032,18 +2032,22 @@ export const useGameStore = create<GameStore>()(
                   building.hasAttackedThisTurn = false;
                   building.specialistSlot = null;
                 } else {
-                  // Enemy buildings (e.g. MAGMASPYR) are destroyed and leave a ruin
+                  // Enemy buildings are destroyed — tile effect depends on destroyBehavior
                   const { x, y } = building.position;
-                  const buildingType = building.type;
+                  const destroyBehavior = building.destroyBehavior;
                   cleanupRoostedUnits(state, event.buildingId);
                   delete state.buildings[event.buildingId];
                   const tile = state.grid[y][x];
                   tile.buildingId = null;
-                  if (buildingType === BuildingType.STRONGHOLD || buildingType === BuildingType.INFERNALSANCTUM) {
+                  if (destroyBehavior === DestroyBehavior.STRONGHOLD_RUIN) {
                     tile.isStrongholdRuin = true;
-                  } else {
+                  } else if (destroyBehavior === DestroyBehavior.RUIN) {
                     tile.isRuin = true;
+                  } else if (destroyBehavior === DestroyBehavior.RESOURCE) {
+                    // Terrain is restored naturally; clear CORRUPTED status so the mountain renders immediately
+                    if (tile.status === TileStatus.CORRUPTED) tile.status = null;
                   }
+                  // DestroyBehavior.NONE: no ruin — terrain is restored naturally
                 }
               }
             }
@@ -2118,18 +2122,22 @@ export const useGameStore = create<GameStore>()(
                   building.turnCapturedByPlayer = null;
                   building.wasEnemyOwnedBeforeCapture = false;
                 } else if (attacker?.faction === Faction.PLAYER && building.faction === Faction.ENEMY) {
-                  // Enemy building destroyed by player: remove from state and leave a ruin
+                  // Enemy building destroyed by player — tile effect depends on destroyBehavior
                   const { x, y } = building.position;
-                  const buildingType = building.type;
+                  const destroyBehavior = building.destroyBehavior;
                   cleanupRoostedUnits(state, event.buildingId);
                   delete state.buildings[event.buildingId];
                   const tile = state.grid[y][x];
                   tile.buildingId = null;
-                  if (buildingType === BuildingType.STRONGHOLD || buildingType === BuildingType.INFERNALSANCTUM) {
+                  if (destroyBehavior === DestroyBehavior.STRONGHOLD_RUIN) {
                     tile.isStrongholdRuin = true;
-                  } else {
+                  } else if (destroyBehavior === DestroyBehavior.RUIN) {
                     tile.isRuin = true;
+                  } else if (destroyBehavior === DestroyBehavior.RESOURCE) {
+                    // Terrain is restored naturally; clear CORRUPTED status so the mountain renders immediately
+                    if (tile.status === TileStatus.CORRUPTED) tile.status = null;
                   }
+                  // DestroyBehavior.NONE: no ruin — terrain is restored naturally
                 }
               } else {
                 building.hp = newHp;
