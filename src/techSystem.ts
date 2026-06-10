@@ -141,6 +141,9 @@ function applyTechEffect(state: Draft<GameState>, effect: TechEffect): void {
     case 'BUILDING_PRODUCTION_MOD':
       // Applied at point-of-use in collectResources() — no immediate state mutation
       break;
+    case 'FLAT_INCOME_MOD':
+      // Applied at point-of-use in collectResources() — no immediate state mutation
+      break;
     case 'STRONGHOLD_CAP_MOD':
       // Cap is computed dynamically by getStrongholdEffectiveCap() at point-of-use.
       // No mutation needed here; building.populationCap is not authoritative for Strongholds.
@@ -329,6 +332,26 @@ export function getBuildingProductionMods(
 }
 
 /**
+ * Returns all FLAT_INCOME_MOD effects from unlocked techs.
+ * These apply a flat per-turn resource bonus regardless of how many buildings
+ * of `requiresBuilding` the player owns — provided they own at least one.
+ */
+export function getFlatIncomeMods(
+  state: GameState | Draft<GameState>,
+): { resource: ResourceType; amount: number; requiresBuilding: BuildingType }[] {
+  const mods: { resource: ResourceType; amount: number; requiresBuilding: BuildingType }[] = [];
+  for (const def of TECH_TREE) {
+    if (!state.techNodes[def.id]?.unlocked) continue;
+    for (const effect of def.effects) {
+      if (effect.type === 'FLAT_INCOME_MOD') {
+        mods.push({ resource: effect.resource, amount: effect.amount, requiresBuilding: effect.requiresBuilding });
+      }
+    }
+  }
+  return mods;
+}
+
+/**
  * Returns the total stronghold farmer and noble cap modifiers from all unlocked techs.
  * Used at population capacity computation time and when creating/capturing strongholds.
  */
@@ -398,6 +421,8 @@ export function renderEffect(effect: TechEffect): string {
       return `${effect.unitType} cost ${effect.resource} ${effect.amount >= 0 ? '+' : ''}${effect.amount}`;
     case 'BUILDING_PRODUCTION_MOD':
       return `${effect.buildingType} ${effect.chancePercent}% chance +${effect.amount} ${effect.resource}/turn`;
+    case 'FLAT_INCOME_MOD':
+      return `+${effect.amount} ${effect.resource}/turn (flat, requires ${effect.requiresBuilding})`;
     case 'FLAG':
       return flagDescriptions[effect.flag] ?? effect.flag;
     case 'STRONGHOLD_CAP_MOD':
