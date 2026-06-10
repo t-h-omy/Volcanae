@@ -2272,7 +2272,15 @@ export const useGameStore = create<GameStore>()(
               // rather than waiting for setGameState at the end of the enemy turn.
               const { x, y } = building.position;
               const destroyBehavior = building.destroyBehavior;
-              cleanupRoostedUnits(state, event.buildingId);
+              // Do NOT call cleanupRoostedUnits here. The enemy-turn event emitter
+              // (enemySystem.ts CAPTURE_BUILDING branch) already enqueues a
+              // UNIT_DEATH event for every roosted unit (e.g. Crystal Drake) that
+              // follows this BUILDING_CAPTURE event in the animation queue. Deleting
+              // the unit from state here would make unitStillExists === false in the
+              // standalone UNIT_DEATH handler, silently skipping its dying animation
+              // and preventing the auto-cam from panning to it.  The unit is removed
+              // either by the subsequent applyEvent(UNIT_DEATH) call or, as a safety
+              // net, when setGameState(resolvedState) is applied at the end.
               delete state.buildings[event.buildingId];
               const captureTile = state.grid[y][x];
               captureTile.buildingId = null;
@@ -2332,7 +2340,11 @@ export const useGameStore = create<GameStore>()(
           }
 
           case 'LAVA_ADVANCE': {
-            advanceLava(state);
+            // Pass skipRoostedCleanup=true so that life-bound units (e.g. Crystal
+            // Drake) are NOT removed here. Their queued UNIT_DEATH events will
+            // animate the death and let the auto-cam pan to them; applyEvent for
+            // those events (or the final setGameState call) will do the cleanup.
+            advanceLava(state, undefined, true);
             break;
           }
 
