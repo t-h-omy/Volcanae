@@ -149,6 +149,8 @@ export const CRYSTAL_CAVE_CONFIG = {
    * `roostBuildingId` cleanup hook, losing the cave kills the drake.
    */
   CAVE_UNIT_LIMIT: 1,
+  /** Arcane crystal cost to cast the Crystal Cave spell */
+  CAVE_SPELL_CRYSTAL_COST: 1,
 } as const;
 
 // ============================================================================
