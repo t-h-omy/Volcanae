@@ -60,6 +60,9 @@ A summoned Ember Demon is **leashed** to its controller Mage — if the Mage mov
 
 ## Changelog
 
+### v0.87.3 — Info popup cost lines
+Charcoal Kiln and Crystal Cave info popups now show their cost. `BuildingInfoPopup` falls back to `BUILDING_DEFINITIONS[…].constructionCost` when no explicit iron/wood cost is supplied, so the Charcoal Kiln (⛓️0 🪵8) build cost appears in all contexts. A new `crystalCost` prop adds a "Cast: 💎n" line for spell-placed buildings; Crystal Cave is wired to `CRYSTAL_CAVE_CONFIG.CAVE_SPELL_CRYSTAL_COST`.
+
 ### v0.63.3 — Orientation pass
 Codebase comments and docs now consistently reflect the player-south / enemy-north / lava-advances-northward orientation. See `src/GRID_ORIENTATION.md` for the canonical reference.
 

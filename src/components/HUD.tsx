@@ -10,7 +10,7 @@ import { useGameStore } from '../gameStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
 import { useSoundOptionsStore } from '../soundOptionsStore';
-import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, computeResearchCost, SPELL_DEFINITIONS, TERRAIN_TAG_INFO, RAGE_ATK_PER_ADJACENT, RAGE_MAX_ADJACENT_COUNT, MAGE, CORRUPTED_SUPPRESSED_TAGS } from '../gameConfig';
+import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, computeResearchCost, SPELL_DEFINITIONS, TERRAIN_TAG_INFO, RAGE_ATK_PER_ADJACENT, RAGE_MAX_ADJACENT_COUNT, MAGE, CORRUPTED_SUPPRESSED_TAGS, CRYSTAL_CAVE_CONFIG } from '../gameConfig';
 import { UI } from '../uiConfig';
 import type { UnitPopulationCost, TechId } from '../types';
 import {
@@ -1062,6 +1062,7 @@ function UnitInfoPopup({
 function BuildingInfoPopup({
   buildingType,
   cost,
+  crystalCost,
   onAction,
   actionLabel,
   onClose,
@@ -1069,6 +1070,7 @@ function BuildingInfoPopup({
 }: {
   buildingType: BuildingType;
   cost?: { iron: number; wood: number };
+  crystalCost?: number;
   onAction?: () => void;
   actionLabel?: string;
   onClose: () => void;
@@ -1081,6 +1083,11 @@ function BuildingInfoPopup({
   const upkeepIron = def?.upkeepIron ?? 0;
   const upkeepWood = def?.upkeepWood ?? 0;
   const hasUpkeep = upkeepIron > 0 || upkeepWood > 0;
+  const derivedCost = cost ?? (
+    (def?.constructionCost?.iron || def?.constructionCost?.wood)
+      ? def.constructionCost
+      : undefined
+  );
 
   return (
     <Popup onClose={onClose}>
@@ -1088,7 +1095,8 @@ function BuildingInfoPopup({
         <span className="info-popup-header-emoji">{emoji}</span>
         <div>
           <div className="info-popup-header-name">{name}</div>
-          {cost && <div className="info-popup-header-cost">Build: ⛓️{cost.iron} 🪵{cost.wood}</div>}
+          {derivedCost && <div className="info-popup-header-cost">Build: ⛓️{derivedCost.iron} 🪵{derivedCost.wood}</div>}
+          {crystalCost != null && <div className="info-popup-header-cost">Cast: 💎{crystalCost}</div>}
           {hasUpkeep && <div className="info-popup-header-cost">Upkeep: ⛓️{upkeepIron} 🪵{upkeepWood}/turn</div>}
         </div>
       </div>
@@ -2701,6 +2709,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
       {buildingInfoOpen && (
         <BuildingInfoPopup
           buildingType={building.type}
+          crystalCost={building.type === BuildingType.CRYSTAL_CAVE ? CRYSTAL_CAVE_CONFIG.CAVE_SPELL_CRYSTAL_COST : undefined}
           isReadOnly
           onClose={() => setBuildingInfoOpen(false)}
         />
@@ -3608,6 +3617,7 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
       {infoBuildingType && (
         <BuildingInfoPopup
           buildingType={infoBuildingType}
+          crystalCost={infoBuildingType === BuildingType.CRYSTAL_CAVE ? CRYSTAL_CAVE_CONFIG.CAVE_SPELL_CRYSTAL_COST : undefined}
           onClose={() => setInfoBuildingType(null)}
           isReadOnly
         />
