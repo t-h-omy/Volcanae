@@ -1096,7 +1096,7 @@ function BuildingInfoPopup({
         <div>
           <div className="info-popup-header-name">{name}</div>
           {derivedCost && <div className="info-popup-header-cost">Build: ⛓️{derivedCost.iron} 🪵{derivedCost.wood}</div>}
-          {crystalCost != null && <div className="info-popup-header-cost">Cast: 💎{crystalCost}</div>}
+          {crystalCost !== undefined && <div className="info-popup-header-cost">Cast: 💎{crystalCost}</div>}
           {hasUpkeep && <div className="info-popup-header-cost">Upkeep: ⛓️{upkeepIron} 🪵{upkeepWood}/turn</div>}
         </div>
       </div>
