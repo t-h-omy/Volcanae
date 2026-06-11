@@ -1568,8 +1568,11 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
   spec_04: {
     name: 'Drill Sergeant',
     description:
-      'Your Spearman units can move and attack immediately after being recruited.',
-    effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.SPEARMAN, tag: UnitTag.READY } }],
+      'Your Spearman and Swordsman units can move and attack immediately after being recruited.',
+    effects: [
+      { type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.SPEARMAN, tag: UnitTag.READY } },
+      { type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.SWORDSMAN, tag: UnitTag.READY } },
+    ],
     upkeepIron: 0,
     upkeepWood: 0,
   },
@@ -1984,7 +1987,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'CRYSTAL_TOWER',
     name: 'Crystal Tower',
-    description: `Unlocks the Crystal Tower spell.`,
+    description: 'Unlocks the Crystal Tower spell and Crystal Tower building.',
     requires: ['EMBERBIND'],
     cost: 7,
     effects: [
