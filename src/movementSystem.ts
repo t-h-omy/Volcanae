@@ -364,10 +364,13 @@ export function resolveSlide(
     return;
   }
 
-  // WATER (not FROZEN) → unit drowns. FLYING units survive — they stay aloft.
+  // WATER → unit drowns. FLYING units survive — they stay aloft.
+  // Enemy units drown on FROZEN water too — they cannot traverse water at all.
+  // Player units may stand on frozen water (Frostcraft), so the frozen exception
+  // applies only to the PLAYER faction.
   if (
     slideTile.terrainType === TileType.WATER &&
-    slideTile.status !== TileStatus.FROZEN &&
+    (slideTile.status !== TileStatus.FROZEN || unit.faction === Faction.ENEMY) &&
     !isFlying
   ) {
     const currentTile = state.grid[unit.position.y][unit.position.x];
