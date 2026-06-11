@@ -159,6 +159,8 @@ export const CRYSTAL_CAVE_CONFIG = {
 
 export const MAGE = {
   // ── Mage unit ────────────────────────────────────────────────────────
+  /** Default number of spells a Mage can cast each turn */
+  SPELLS_PER_TURN: 1,
   /** Default spell range (edge-circle range) before SPELL_REACH is researched */
   SPELL_RANGE_BASE: 2,
   /** Range bonus granted by the SPELL_REACH tech */
@@ -1183,7 +1185,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   u.LAVA_RIDER.description  = `Enemy fast cavalry that covers ${u.LAVA_RIDER.moveRange} tiles per move.`;
   u.LAVA_SIEGE.description  = `Enemy long-range bombard with ${u.LAVA_SIEGE.attackRange}-tile reach.`;
   u.EMBERLING.description   = `Fragile fire spirit that walks toward lava. Explodes on death, dealing ${u.EMBERLING.explosionDamage} damage to all units within 1 tile.`;
-  u.MAGE.description        = `Arcane caster that casts spells instead of attacking, with ${u.MAGE.attackRange}-tile range. Recruited from active Crystal Chambers.`;
+  u.MAGE.description        = `Arcane caster that casts spells instead of attacking, with ${u.MAGE.attackRange}-tile range and ${MAGE.SPELLS_PER_TURN} spell cast${MAGE.SPELLS_PER_TURN !== 1 ? 's' : ''} per turn. Recruited from active Crystal Chambers.`;
   u.EMBER_DEMON.description = `Powerful demonic unit.`;
   u.SKELETON.description    = `Undead warrior raised from a gravestone.`;
   u.CRYSTAL_DRAKE.description = `A flying Drake summoned at a Crystal Cave. If its Crystal Cave is lost, the drake dies.`;
@@ -1540,6 +1542,8 @@ export interface SpecialistDefinition {
  * raw balancing numbers allowed in description strings (see DESCRIPTION
  * AUTHORING RULE above the ABILITIES constant).
  */
+const ARCHMAGE_CAST_BUDGET_BONUS = 1;
+
 export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
   spec_01: {
     name: 'Garrison Commander',
@@ -1584,6 +1588,14 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
       { type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.SPEARMAN,  tag: UnitTag.REVIVABLE } },
       { type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.SWORDSMAN, tag: UnitTag.REVIVABLE } },
     ],
+    upkeepIron: 0,
+    upkeepWood: 0,
+  },
+  spec_06: {
+    name: 'Archmage',
+    description:
+      `Your Mages can cast ${MAGE.SPELLS_PER_TURN + ARCHMAGE_CAST_BUDGET_BONUS} spells per turn instead of ${MAGE.SPELLS_PER_TURN}.`,
+    effects: [{ type: 'MAGE_CAST_BUDGET_MOD', params: { amount: ARCHMAGE_CAST_BUDGET_BONUS } }],
     upkeepIron: 0,
     upkeepWood: 0,
   },

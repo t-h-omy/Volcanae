@@ -429,8 +429,8 @@ export interface Unit {
    * `null` or `undefined` means no controller. Cleared on defection.
    */
   controllerMageId?: string | null;
-  /** Set on Mage units; true after the unit has cast a spell this turn. Reset each player turn. */
-  hasCastThisTurn?: boolean;
+  /** Set on Mage units; number of spells cast this turn. Reset each turn. */
+  spellsCastThisTurn?: number;
   /**
    * The turn number on which this unit was recruited/spawned.
    * 0 means it was not recruited this turn (or predates the field).

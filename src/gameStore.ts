@@ -1287,18 +1287,18 @@ export const useGameStore = create<GameStore>()(
         const mageAfter = state.units[mageId];
         if (mageAfter) {
           magePosition = { x: mageAfter.position.x, y: mageAfter.position.y };
-          // Casting is symmetric with attacking: set hasCastThisTurn only.
+          // Casting is symmetric with attacking: only advance the Mage's cast count.
           // - canUnitMove and canUnitAttack are updated to treat
-          //   hasCastThisTurn the same way they already treat
+          //   the exhausted cast budget the same way they already treat
           //   hasAttackedThisTurn — so a mage cannot move OR attack after
-          //   casting.
+          //   spending all casts.
           // - The reverse direction (move-then-cast) is blocked by the PREP
           //   tag inside canUnitCast. A non-PREP mage would be free to move
           //   and then cast, which is the correct behavior if PREP is ever
           //   stripped via a future tech.
           // Do NOT set hasMovedThisTurn or hasAttackedThisTurn here — that
           // would over-constrain the rules and break the symmetry.
-          mageAfter.hasCastThisTurn = true;
+          mageAfter.spellsCastThisTurn = (mageAfter.spellsCastThisTurn ?? 0) + 1;
         }
         state.pendingSpellCast = null;
         state.pendingTransposeFirstUnitId = null;
@@ -1676,7 +1676,7 @@ export const useGameStore = create<GameStore>()(
             if (unit.faction === Faction.PLAYER) {
               unit.hasMovedThisTurn = false;
               unit.hasAttackedThisTurn = false;
-              unit.hasCastThisTurn = false;
+              unit.spellsCastThisTurn = 0;
               unit.hasCapturedThisTurn = false;
               unit.hasConstructedThisTurn = false;
               unit.hasDestroyedThisTurn = false;

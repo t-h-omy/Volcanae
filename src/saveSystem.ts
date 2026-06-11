@@ -228,9 +228,10 @@ export function loadGameState(): GameState | null {
       for (const unit of Object.values(s.units) as Array<unknown>) {
         const u = unit as Record<string, unknown>;
         if (u && typeof u.id === 'string') {
-          if (typeof u.hasCastThisTurn !== 'boolean') {
-            u.hasCastThisTurn = false;
+          if (typeof u.spellsCastThisTurn !== 'number') {
+            u.spellsCastThisTurn = u.hasCastThisTurn === true ? 1 : 0;
           }
+          delete u.hasCastThisTurn;
           if (!('controllerMageId' in u)) {
             u.controllerMageId = null;
           }
@@ -450,4 +451,3 @@ export function hasSavedGame(): boolean {
     return false;
   }
 }
-

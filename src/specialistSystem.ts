@@ -22,7 +22,7 @@ import { applyTagStatEffects, revokeTagStatEffects } from './techSystem';
 // ============================================================================
 
 /**
- * Creates the 5 specialists for the game.
+ * Creates the specialists for the game.
  * These are not yet in globalSpecialistStorage — the player must find them via cave monsters.
  */
 export function createInitialSpecialists(): Record<string, Specialist> {
@@ -201,6 +201,8 @@ export function applyEffectsForSpecialist(
       setFortifiedGarrisonState(state, true);
     } else if (effect.type === 'GRANT_UNIT_TAG_ALL') {
       applyUnitTagToAllUnits(state, effect.params.unitType as UnitType, effect.params.tag as UnitTag);
+    } else if (effect.type === 'MAGE_CAST_BUDGET_MOD') {
+      // No eager mutation: the budget is read from active specialists on demand.
     }
   }
 }
@@ -220,6 +222,8 @@ export function revokeEffectsForSpecialist(
       }
     } else if (effect.type === 'GRANT_UNIT_TAG_ALL') {
       revokeUnitTagFromAllUnits(state, effect.params.unitType as UnitType, effect.params.tag as UnitTag);
+    } else if (effect.type === 'MAGE_CAST_BUDGET_MOD') {
+      // No eager mutation to revert: the budget is derived from active specialists.
     }
   }
 }
@@ -299,6 +303,8 @@ export function applySpecialistEffects(state: Draft<GameState>): void {
             effect.params.tag as UnitTag,
           );
         }
+      } else if (effect.type === 'MAGE_CAST_BUDGET_MOD') {
+        // No eager mutation: spell budget is computed from currently active specialists.
       }
     }
   }
