@@ -54,7 +54,7 @@ import {
   type Tile,
   type GameStats,
 } from '../types';
-import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast } from '../unitActions';
+import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast, getMageCastBudget } from '../unitActions';
 import { getPhalanxAttackBonus, getPhalanxDefenseBonus, getCrystalTowerChamberBonus } from '../combatSystem';
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
 import { getTagsFromActiveSpecialists } from '../specialistSystem';
@@ -1562,9 +1562,10 @@ function SelectedUnitPanel({
   onCapture?: () => void;
 }) {
   const isPlayer = unit.faction === Faction.PLAYER;
+  const gameState = useGameStore((s) => s);
   const hpPct = (unit.stats.currentHp / unit.stats.maxHp) * 100;
-  const canMove = canUnitMove(unit);
-  const canAttack = canUnitAttack(unit);
+  const canMove = canUnitMove(unit, gameState);
+  const canAttack = canUnitAttack(unit, gameState);
   const canCapture = canUnitCapture(unit);
   const canHeal = isPlayer && canUnitHeal(unit);
   const canFieldwork = isPlayer && canUnitFieldwork(unit);
@@ -1572,7 +1573,6 @@ function SelectedUnitPanel({
   const visibleTags = unit.tags.filter((t) => !HIDDEN_UNIT_TAGS.has(t));
 
   const showAiScores = useDevOptionsStore((s) => s.showAiScores);
-  const gameState = useGameStore((s) => s);
   const isOnCorruptedTile = isPlayer && (() => {
     const tile = gameState.grid[unit.position.y]?.[unit.position.x];
     return tile?.status === TileStatus.CORRUPTED;
@@ -1606,7 +1606,9 @@ function SelectedUnitPanel({
   const pendingSpellCast = useGameStore((s) => s.pendingSpellCast);
   const pendingTransposeFirstUnitId = useGameStore((s) => s.pendingTransposeFirstUnitId);
   const arcaneCrystals = useGameStore((s) => s.arcaneCrystals);
-  const canCast = isMage && isPlayer && canUnitCast(unit) && arcaneCrystals >= 1;
+  const mageCastBudget = isMage ? getMageCastBudget(gameState) : 0;
+  const mageCastsUsed = unit.spellsCastThisTurn ?? 0;
+  const canCast = isMage && isPlayer && canUnitCast(unit, gameState) && arcaneCrystals >= 1;
   const isInSpellCastMode = pendingSpellCast?.mageId === unit.id;
   const [confirmCrystalTower, setConfirmCrystalTower] = useState(false);
   const [spellsCollapsed, setSpellsCollapsed] = useState(false);
@@ -1914,6 +1916,9 @@ function SelectedUnitPanel({
               <div className="hud-panel-header">
                 <span className="hud-panel-emoji">✨</span>
                 <span className="hud-panel-name">Spells</span>
+                {mageCastBudget > 1 && (
+                  <span className="hud-panel-cost">Casts: {Math.max(mageCastBudget - mageCastsUsed, 0)}/{mageCastBudget}</span>
+                )}
                 <button
                   className="hud-construct-toggle"
                   onClick={() => setSpellsCollapsed((c) => !c)}

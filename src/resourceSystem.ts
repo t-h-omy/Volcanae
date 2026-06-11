@@ -1024,6 +1024,7 @@ export function recruitUnit(
     hasCapturedThisTurn: !isReady,
     hasConstructedThisTurn: !isReady,
     hasDestroyedThisTurn: !isReady,
+    spellsCastThisTurn: 0,
     hasUsedPostAttackMoveThisTurn: false,
     bloodlustAttackAvailable: false,
     xp: 0,

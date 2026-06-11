@@ -1404,7 +1404,7 @@ function scoreActionsForUnit(
   const triggerRange = unit.stats.triggerRange;
   const attackRange = unit.stats.attackRange;
   // PREP tag prevents attacking after moving; PASSIVE tag prevents attacking entirely
-  const canAttackThisTurn = !hasUnitActed(unit) && !(unit.hasMovedThisTurn && unit.tags.includes(UnitTag.PREP)) && !unit.tags.includes(UnitTag.PASSIVE);
+  const canAttackThisTurn = !hasUnitActed(unit, state) && !(unit.hasMovedThisTurn && unit.tags.includes(UnitTag.PREP)) && !unit.tags.includes(UnitTag.PASSIVE);
 
   // Gather player units in trigger range
   const playerUnitsInTriggerRange: Unit[] = [];
@@ -1452,7 +1452,7 @@ function scoreActionsForUnit(
   }
 
   // ── CAPTURE_BUILDING ──
-  if (!hasUnitActed(unit) && !unit.hasMovedThisTurn && unit.tags.includes(UnitTag.BUILDANDCAPTURE)) {
+  if (!hasUnitActed(unit, state) && !unit.hasMovedThisTurn && unit.tags.includes(UnitTag.BUILDANDCAPTURE)) {
     const tile = state.grid[unit.position.y][unit.position.x];
     if (tile.buildingId) {
       const building = state.buildings[tile.buildingId];
@@ -2001,7 +2001,7 @@ function scoreActionsForUnit(
   }
 
   // ── EXPLODE (EXPLOSIVE + SACRIFICIAL blocked, or pure EXPLOSIVE — reusable for any explosive unit) ──
-  if (!hasUnitActed(unit) && unit.tags.includes(UnitTag.EXPLOSIVE)) {
+  if (!hasUnitActed(unit, state) && unit.tags.includes(UnitTag.EXPLOSIVE)) {
     const isSacrificial = unit.tags.includes(UnitTag.SACRIFICIAL);
     // Only score EXPLODE for SACRIFICIAL units when they are blocked from lava
     if (!isSacrificial || isBlockedFromLava) {
@@ -2026,7 +2026,7 @@ function scoreActionsForUnit(
 
   // ── CONSTRUCTION & CORRUPTION ──
   // scoreConstructionActions handles BUILD_LAVA_LAIR, BUILD_INFERNAL_SANCTUM, and CORRUPT_TERRAIN
-  if (!hasUnitActed(unit) && !unit.hasMovedThisTurn) {
+  if (!hasUnitActed(unit, state) && !unit.hasMovedThisTurn) {
     scoreConstructionActions(unit, state, candidates);
   }
 
@@ -2699,7 +2699,7 @@ function runCaveMonsterAi(state: Draft<GameState>, events?: GameEvent[]): void {
     }
 
     // Skip if the unit already acted this turn (spawn turn: all flags are true)
-    if (hasUnitActed(unit)) continue;
+    if (hasUnitActed(unit, state)) continue;
 
     // PIN_DOWN / PUNCTURE stun: mirror the standard enemy loop behaviour
     if (unit.pinnedUntilTurn >= state.turn) {
@@ -2887,7 +2887,7 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
       for (let i = 0; i < maxActions; i++) {
         const currentUnit = draft.units[unit.id];
         if (!currentUnit) break;
-        if (hasUnitActed(currentUnit)) break;
+        if (hasUnitActed(currentUnit, draft)) break;
         // PIN_DOWN stun: skip movement and attack for stunned units
         if (currentUnit.pinnedUntilTurn >= draft.turn) {
           currentUnit.hasMovedThisTurn = true;   // block movement
@@ -2954,6 +2954,7 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
       if (unit.faction === Faction.ENEMY) {
         unit.hasMovedThisTurn = false;
         unit.hasAttackedThisTurn = false;
+        unit.spellsCastThisTurn = 0;
         unit.hasCapturedThisTurn = false;
         unit.hasConstructedThisTurn = false;
         unit.hasDestroyedThisTurn = false;

@@ -35,7 +35,7 @@ import {
   type Building,
 } from '../types';
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
-import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, canUnitConstruct, canUnitCapture, hasUnitActed, getHealTargets } from '../unitActions';
+import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, canUnitConstruct, canUnitCapture, hasUnitActed, getHealTargets, canUnitCast } from '../unitActions';
 import { getValidSpellTargets } from '../spellSystem';
 import './GridRenderer.css';
 
@@ -511,7 +511,7 @@ export default function GridRenderer() {
   const attackableSet = useMemo<Set<string>>(() => {
     // Unit attack range (enemy units and enemy buildings)
     if (selectedUnit && selectedUnit.faction === Faction.PLAYER) {
-      return getAttackTargets(selectedUnit, units, buildings, grid);
+      return getAttackTargets(selectedUnit, units, buildings, grid, useGameStore.getState());
     }
     // Building attack range (e.g. player watchtower)
     if (selectedBuilding && selectedBuilding.combatStats && selectedBuilding.faction === Faction.PLAYER) {
@@ -775,7 +775,7 @@ export default function GridRenderer() {
           // Unit attack
           if (
             selectedUnit &&
-            canUnitAttack(selectedUnit) &&
+            canUnitAttack(selectedUnit, useGameStore.getState()) &&
             attackableSet.has(key)
           ) {
             attackUnit(selectedUnit.id, tile.unitId);
@@ -804,7 +804,7 @@ export default function GridRenderer() {
       // Priority 4 — Tile in movement range, unit can still move
       if (
         selectedUnit &&
-        canUnitMove(selectedUnit) &&
+        canUnitMove(selectedUnit, useGameStore.getState()) &&
         reachableSet.has(key)
       ) {
         moveUnit(selectedUnit.id, { x, y });
@@ -819,7 +819,7 @@ export default function GridRenderer() {
           if (
             selectedUnit &&
             selectedUnit.faction === Faction.PLAYER &&
-            canUnitAttack(selectedUnit)
+            canUnitAttack(selectedUnit, useGameStore.getState())
           ) {
             attackBuilding(selectedUnit.id, tile.buildingId);
             return;
@@ -1409,9 +1409,10 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
   // the bloodlust sequence, so it should appear toned down.
   const noAttackTargets = useGameStore((s) => {
     if (unit.faction !== Faction.PLAYER) return false;
-    if (hasUnitActed(unit)) return false;
+    if (hasUnitActed(unit, s)) return false;
+    if (unit.type === UnitType.MAGE && canUnitCast(unit, s) && s.arcaneCrystals >= 1) return false;
     if (!unit.hasMovedThisTurn && !unit.bloodlustAttackAvailable) return false;
-    return getAttackTargets(unit, s.units, s.buildings, s.grid).size === 0;
+    return getAttackTargets(unit, s.units, s.buildings, s.grid, s).size === 0;
   });
 
   const currentTurn = useGameStore((s) => s.turn);
@@ -1438,7 +1439,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
 
   // A unit recruited this turn also gets the toned-down filter — it can't act this turn.
   const isRecruitedThisTurn = (unit.recruitedOnTurn ?? 0) === currentTurn && currentTurn > 0;
-  const isExhausted = isRecruitedThisTurn || hasUnitActed(unit) || noAttackTargets;
+  const isExhausted = isRecruitedThisTurn || hasUnitActed(unit, useGameStore.getState()) || noAttackTargets;
 
   const anim = useCombatAnimationStore((s) => s.unitAnimations.get(unit.id));
 

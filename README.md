@@ -41,7 +41,7 @@ The app is configured as a Progressive Web App with:
 
 ## Magic System
 
-The game includes a Mage unit unlocked through the tech tree. Once the **Mage** tech is researched, Mages can be recruited from an active **Crystal Chamber** building. Each Mage can cast one spell per turn (before or after moving, but not after attacking).
+The game includes a Mage unit unlocked through the tech tree. Once the **Mage** tech is researched, Mages can be recruited from an active **Crystal Chamber** building. Each Mage can cast one spell per turn (before or after moving, but not after attacking), and the **Archmage** specialist raises that per-turn budget to two casts.
 
 Spells are unlocked individually through the tech tree. The eight available spells are:
 
@@ -59,6 +59,9 @@ Spells are unlocked individually through the tech tree. The eight available spel
 A summoned Ember Demon is **leashed** to its controller Mage — if the Mage moves more than `MAGE.EMBER_DEMON_LEASH_RANGE` tiles away (see `src/gameConfig.ts` for all balance numbers), the demon defects to the enemy at the end of the player turn. The UI highlights both tiles with a purple glow and switches to a red warning glow when the leash is about to break.
 
 ## Changelog
+
+### v0.88.0 — Archmage specialist
+New Archmage specialist allows Mages to cast 2 spells per turn.
 
 ### v0.87.4 — Crystal Tower + Drill Sergeant text
 Crystal Tower tech now clearly calls out both the spell and its building unlock, and tech effect chips render friendly building names instead of raw enum values. Drill Sergeant now also grants READY to newly recruited Swordsmen.

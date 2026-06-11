@@ -3,7 +3,7 @@
  *
  * This file exposes two layers per action type:
  *   1. Capability check — Can this unit perform this action at all this turn?
- *      Based on turn-state flags and unit tags only. Does not require game state.
+ *      Based on turn-state flags, unit tags, and optional state-derived budgets.
  *   2. Target check — Is there a valid target for this action right now?
  *      Requires full game state. Returns the target(s) or an empty result.
  *
@@ -20,11 +20,11 @@
  * 5. Update all OTHER canUnit* functions to block on the new flag if appropriate.
  * 6. Set the flag only in the action's own system file.
  * 7. Reset it in end-of-turn resets in gameStore.ts and enemySystem.ts.
- * 8. Initialize to false in mapGenerator.ts and all unit creation sites.
+ * 8. Initialize the new field on all unit creation sites.
  *
  * Current action flags: hasMovedThisTurn, hasAttackedThisTurn,
  *   hasCapturedThisTurn, hasConstructedThisTurn, hasDestroyedThisTurn,
- *   hasCastThisTurn.
+ *   spellsCastThisTurn.
  *
  * ── CROSS-BLOCKING RULES ────────────────────────────────────────────────────
  * Move does not block attack (move → attack is the normal sequence).
@@ -34,15 +34,16 @@
 
 import type { GameState } from './types';
 import type { Draft } from 'immer';
-import { Faction, UnitTag, BuildingType } from './types';
+import { Faction, UnitTag, BuildingType, UnitType } from './types';
 import type { Unit, Building, Tile } from './types';
 import { getReachableTiles } from './movementSystem';
 import { getConstructionOptionsForTile } from './constructionSystem';
 import type { ConstructionOption } from './constructionSystem';
 import { canCapture } from './captureSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
-import { MAP } from './gameConfig';
-export { canUnitCast } from './spellSystem';
+import { MAP, MAGE } from './gameConfig';
+import { getMageCastBudget } from './spellSystem';
+export { canUnitCast, getMageCastBudget } from './spellSystem';
 
 // ── HELPER ───────────────────────────────────────────────────────────────────
 
@@ -52,7 +53,19 @@ export { canUnitCast } from './spellSystem';
  * For the enemy system's "is this unit done?" check, prefer this over
  * reading individual flags directly.
  */
-export function hasUnitActed(unit: Unit): boolean {
+function hasSpentMageCastBudget(
+  unit: Unit,
+  state?: GameState | Draft<GameState>,
+): boolean {
+  if (unit.type !== UnitType.MAGE) return false;
+  const budget = state ? getMageCastBudget(state) : MAGE.SPELLS_PER_TURN;
+  return (unit.spellsCastThisTurn ?? 0) >= budget;
+}
+
+export function hasUnitActed(
+  unit: Unit,
+  state?: GameState | Draft<GameState>,
+): boolean {
   // A pending bloodlust charge means the unit can still attack — it has not
   // fully spent its turn, even though hasCapturedThisTurn (and similar flags)
   // are set to block non-attack actions.
@@ -62,7 +75,7 @@ export function hasUnitActed(unit: Unit): boolean {
     unit.hasCapturedThisTurn ||
     unit.hasConstructedThisTurn ||
     unit.hasDestroyedThisTurn ||
-    !!unit.hasCastThisTurn
+    hasSpentMageCastBudget(unit, state)
   );
 }
 
@@ -98,14 +111,17 @@ export function getNorthermostPlayerY(
  * Tag rules: none currently.
  * To add a tag that restricts movement, add it here and only here.
  */
-export function canUnitMove(unit: Unit): boolean {
+export function canUnitMove(
+  unit: Unit,
+  state?: GameState | Draft<GameState>,
+): boolean {
   if (unit.pinnedUntilTurn > 0) return false;
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasConstructedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
   // HIT_AND_RUN: can move before attacking (if not yet moved) OR after attacking (post-attack move, once per turn)
   if (unit.tags.includes(UnitTag.HIT_AND_RUN)) {
-    if (unit.hasCastThisTurn) return false;
+    if (hasSpentMageCastBudget(unit, state)) return false;
     if (unit.hasUsedPostAttackMoveThisTurn) return false;
     if (unit.hasAttackedThisTurn) return true; // post-attack move available
     if (unit.hasMovedThisTurn) return false;   // pre-attack move already used
@@ -113,7 +129,7 @@ export function canUnitMove(unit: Unit): boolean {
   }
   if (unit.hasMovedThisTurn) return false;
   if (unit.hasAttackedThisTurn) return false;
-  if (unit.hasCastThisTurn) return false;
+  if (hasSpentMageCastBudget(unit, state)) return false;
   return true;
 }
 
@@ -125,7 +141,7 @@ export function getMovableTiles(
   unit: Unit,
   state: GameState | Draft<GameState>,
 ): Set<string> {
-  if (!canUnitMove(unit)) return new Set();
+  if (!canUnitMove(unit, state)) return new Set();
   const positions = getReachableTiles(state, unit.id);
   const keys = new Set<string>();
   for (const pos of positions) {
@@ -149,14 +165,17 @@ export function getMovableTiles(
  *
  * To add a tag that restricts attack, add it here and only here.
  */
-export function canUnitAttack(unit: Unit): boolean {
+export function canUnitAttack(
+  unit: Unit,
+  state?: GameState | Draft<GameState>,
+): boolean {
   if (unit.pinnedUntilTurn > 0) return false;
   // A pending bloodlust second-attack bypasses the "spent" flags that were
   // intentionally set by the bloodlust logic to block all non-attack actions
   // after the kill. hasAttackedThisTurn was already reset to false.
   if (unit.bloodlustAttackAvailable) return true;
   if (unit.hasAttackedThisTurn) return false;
-  if (unit.hasCastThisTurn) return false;
+  if (hasSpentMageCastBudget(unit, state)) return false;
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasConstructedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
@@ -175,9 +194,10 @@ export function getAttackTargets(
   units: Record<string, Unit>,
   buildings: Record<string, Building>,
   grid: Tile[][],
+  state?: GameState | Draft<GameState>,
 ): Set<string> {
   const keys = new Set<string>();
-  if (!canUnitAttack(unit)) return keys;
+  if (!canUnitAttack(unit, state)) return keys;
 
   // Enemy units
   for (const other of Object.values(units)) {

@@ -40,12 +40,32 @@ export function isSpellUnlocked(
   return state.unlockedSpells.includes(spellId);
 }
 
+/** Returns the effective per-turn spell budget for Mages. */
+export function getMageCastBudget(
+  state: GameState | Draft<GameState>,
+): number {
+  let budget = MAGE.SPELLS_PER_TURN;
+  const activeSpecialists = Array.isArray(state.globalSpecialistStorage)
+    ? state.globalSpecialistStorage
+    : [];
+  for (const specId of activeSpecialists) {
+    const specialist = state.specialists?.[specId];
+    if (!specialist || specialist.dormant) continue;
+    for (const effect of specialist.effects) {
+      if (effect.type === 'MAGE_CAST_BUDGET_MOD') {
+        budget += Number(effect.params.amount ?? 0);
+      }
+    }
+  }
+  return budget;
+}
+
 /**
  * True iff the unit is a Mage that can currently cast.
  * Mirrors canUnitAttack exactly, with one additional tag rule (PREP).
  *
  * Blocking rules:
- *   - hasCastThisTurn / hasAttackedThisTurn / hasCapturedThisTurn /
+ *   - spent spell budget / hasAttackedThisTurn / hasCapturedThisTurn /
  *     hasConstructedThisTurn / hasDestroyedThisTurn: unit is spent on
  *     non-move actions
  *   - hasMovedThisTurn AND PREP tag: cannot cast after moving
@@ -56,12 +76,15 @@ export function isSpellUnlocked(
  *
  * Note that canUnitCast does NOT, on its own, prevent moving after casting.
  * That symmetry is enforced inside canUnitMove and canUnitAttack, which
- * each treat hasCastThisTurn as a turn-ending flag the same way they
+ * each treat an exhausted spell budget as a turn-ending flag the same way they
  * already treat hasAttackedThisTurn.
  */
-export function canUnitCast(unit: Unit): boolean {
+export function canUnitCast(
+  unit: Unit,
+  state: GameState | Draft<GameState>,
+): boolean {
   if (unit.type !== UnitType.MAGE) return false;
-  if (unit.hasCastThisTurn) return false;
+  if ((unit.spellsCastThisTurn ?? 0) >= getMageCastBudget(state)) return false;
   if (unit.hasAttackedThisTurn) return false;
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasConstructedThisTurn) return false;
@@ -836,7 +859,7 @@ export function castSpell(
   if (!mage) return false;
   if (mage.faction !== Faction.PLAYER) return false;
   if (mage.type !== UnitType.MAGE) return false;
-  if (!canUnitCast(mage)) return false;
+  if (!canUnitCast(mage, state)) return false;
   if (!isSpellUnlocked(state, spellId)) return false;
 
   // All spells cost 1 arcane crystal
