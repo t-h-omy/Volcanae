@@ -60,6 +60,9 @@ A summoned Ember Demon is **leashed** to its controller Mage — if the Mage mov
 
 ## Changelog
 
+### v0.87.4 — Crystal Tower + Drill Sergeant text
+Crystal Tower tech now clearly calls out both the spell and its building unlock, and tech effect chips render friendly building names instead of raw enum values. Drill Sergeant now also grants READY to newly recruited Swordsmen.
+
 ### v0.87.3 — Info popup cost lines
 Charcoal Kiln and Crystal Cave info popups now show their cost. `BuildingInfoPopup` falls back to `BUILDING_DEFINITIONS[…].constructionCost` when no explicit iron/wood cost is supplied, so the Charcoal Kiln (⛓️0 🪵8) build cost appears in all contexts. A new `crystalCost` prop adds a "Cast: 💎n" line for spell-placed buildings; Crystal Cave is wired to `CRYSTAL_CAVE_CONFIG.CAVE_SPELL_CRYSTAL_COST`.
 

@@ -402,13 +402,45 @@ const flagDescriptions: Record<TechFlag, string> = {
   [TechFlag.GRAVE_HARVEST]: `Each player-owned Gravestone has a ${MAGE.GRAVE_HARVEST_CRYSTAL_CHANCE}% chance per turn to grant 1 crystal`,
 };
 
+const buildingDisplayNames: Record<BuildingType, string> = {
+  [BuildingType.STRONGHOLD]: 'Stronghold',
+  [BuildingType.MINE]: 'Mine',
+  [BuildingType.WOODCUTTER]: 'Woodcutter',
+  [BuildingType.CHARCOAL_KILN]: 'Charcoal Kiln',
+  [BuildingType.BARRACKS]: 'Barracks',
+  [BuildingType.ARCHER_CAMP]: 'Archer Camp',
+  [BuildingType.RIDER_CAMP]: 'Rider Camp',
+  [BuildingType.SIEGE_CAMP]: 'Siege Camp',
+  [BuildingType.WATCHTOWER]: 'Watchtower',
+  [BuildingType.OUTPOST]: 'Outpost',
+  [BuildingType.LAVALAIR]: 'Lava Lair',
+  [BuildingType.INFERNALSANCTUM]: 'Infernal Sanctum',
+  [BuildingType.FARM]: 'Farm',
+  [BuildingType.PATRICIANHOUSE]: 'Patrician House',
+  [BuildingType.MAGMASPYR]: 'Magma Spyr',
+  [BuildingType.EMBERNEST]: 'Ember Nest',
+  [BuildingType.CRYSTAL_CHAMBER]: 'Crystal Chamber',
+  [BuildingType.CRYSTAL_TOWER]: 'Crystal Tower',
+  [BuildingType.CRYSTAL_CAVE]: 'Crystal Cave',
+  [BuildingType.GRAVESTONE]: 'Gravestone',
+  [BuildingType.GRAVE_TRAP]: 'Grave Trap',
+};
+
+function renderUnlockedBuilding(buildingType: BuildingType): string {
+  const name = buildingDisplayNames[buildingType] ?? buildingType;
+  if (buildingType === BuildingType.CRYSTAL_TOWER) {
+    return `Unlocks ${name} erection via spell`;
+  }
+  return `Unlocks ${name} construction`;
+}
+
 /**
  * Translate a TechEffect into a human-readable string for display.
  */
 export function renderEffect(effect: TechEffect): string {
   switch (effect.type) {
     case 'UNLOCK_BUILDING':
-      return `Unlocks ${effect.buildingType} construction`;
+      return renderUnlockedBuilding(effect.buildingType);
     case 'UNLOCK_UNIT':
       return `Unlocks ${effect.unitType} recruitment`;
     case 'GRANT_UNIT_TAG':
