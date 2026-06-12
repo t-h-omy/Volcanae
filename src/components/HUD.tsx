@@ -1577,6 +1577,8 @@ function SelectedUnitPanel({
     const tile = gameState.grid[unit.position.y]?.[unit.position.x];
     return tile?.status === TileStatus.CORRUPTED;
   })();
+  const isHealSuppressedByCorruption =
+    canHeal && isOnCorruptedTile && CORRUPTED_SUPPRESSED_TAGS.has(UnitTag.PATCHUP);
   const hasDebuff = isPlayer && unitHasDebuff(unit, isOnCorruptedTile);
   const fieldworkBlocked = canFieldwork && (() => {
     const tile = gameState.grid[unit.position.y]?.[unit.position.x];
@@ -1634,7 +1636,7 @@ function SelectedUnitPanel({
   const handleHealClick = () => {
     if (isInHealMode) {
       cancelHealMode();
-    } else if (healTargets.length > 0) {
+    } else if (isHealSuppressedByCorruption || healTargets.length > 0) {
       startHealMode(unit.id);
     }
   };
@@ -1904,9 +1906,10 @@ function SelectedUnitPanel({
           )}
           {canHeal && (
             <button
-              className={`hud-spell-btn${isInHealMode ? ' hud-heal-active' : ''}`}
-              disabled={healTargets.length === 0}
+              className={`hud-spell-btn${isInHealMode ? ' hud-heal-active' : ''}${isHealSuppressedByCorruption ? ' hud-spell-btn--inactive' : ''}`}
+              disabled={!isHealSuppressedByCorruption && healTargets.length === 0}
               onClick={handleHealClick}
+              title={isHealSuppressedByCorruption ? 'inactive because of corruption.' : undefined}
             >
               <span className="hud-spell-btn-label">{isInHealMode ? '💊 Choose target…' : '💊 Heal'}</span>
             </button>

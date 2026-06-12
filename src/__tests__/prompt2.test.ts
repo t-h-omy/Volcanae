@@ -16,6 +16,7 @@ import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
 import { resolveExplosion, runEnemyTurn } from '../enemySystem';
 import { isUnitOnCorruptedTile } from '../tileStatusSystem';
+import { canUnitHeal } from '../unitActions';
 import { CORRUPTED_SUPPRESSED_TAGS, UNIT_DEFINITIONS, MAP } from '../gameConfig';
 import {
   Faction, UnitType, UnitTag, TileType, TileStatus, DestroyBehavior, BuildingType,
@@ -552,5 +553,25 @@ describe('2D – Corruption debuff logic (CORRUPTED_SUPPRESSED_TAGS)', () => {
     expect(isUnitOnCorruptedTile(state, siege.id)).toBe(true);
     const hasAffectedTag = siege.tags.some((t) => CORRUPTED_SUPPRESSED_TAGS.has(t));
     expect(hasAffectedTag).toBe(true);
+  });
+
+  it('PATCHUP unit on CORRUPTED tile still passes canUnitHeal but is in suppressed-tag set', () => {
+    const healer = makeUnit(UnitType.SCOUT, Faction.PLAYER, 4, 4, {
+      tags: [UnitTag.PATCHUP],
+      hasMovedThisTurn: false,
+      hasAttackedThisTurn: false,
+      hasCapturedThisTurn: false,
+      hasConstructedThisTurn: false,
+      hasDestroyedThisTurn: false,
+    });
+
+    const state = makeSmallState(
+      [healer],
+      [{ x: 4, y: 4, overrides: { status: TileStatus.CORRUPTED } }],
+    );
+
+    expect(canUnitHeal(healer)).toBe(true);
+    expect(isUnitOnCorruptedTile(state, healer.id)).toBe(true);
+    expect(healer.tags.some((t) => CORRUPTED_SUPPRESSED_TAGS.has(t))).toBe(true);
   });
 });

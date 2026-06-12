@@ -1251,6 +1251,23 @@ export const useGameStore = create<GameStore>()(
 
     startHealMode: (healerId: string) => {
       set((state) => {
+        const healer = state.units[healerId];
+        if (!healer || !canUnitHeal(healer)) {
+          state.pendingHealerId = null;
+          return;
+        }
+        if (isUnitOnCorruptedTile(state, healerId)) {
+          useFloaterStore.getState().addFloater({
+            value: 0,
+            label: 'inactive because of corruption.',
+            x: healer.position.x,
+            y: healer.position.y,
+            isEnemy: false,
+            floaterType: 'damage',
+          });
+          state.pendingHealerId = null;
+          return;
+        }
         state.pendingHealerId = healerId;
       });
     },
