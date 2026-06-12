@@ -1282,6 +1282,12 @@ function moveEnemyUnitToward(
     const afterMove = state.units[unitId];
     if (afterMove && (afterMove.position.x !== nextPos.x || afterMove.position.y !== nextPos.y)) break;
   }
+  // Mark the movement action as consumed even if no steps were taken (e.g. path
+  // was empty or every candidate tile was occupied). This prevents a second
+  // scoring iteration from re-awarding ADVANCE_TOWARD_LAVA and lets blocked
+  // EXPLOSIVE/SACRIFICIAL units (emberlings) correctly score EXPLODE instead.
+  const unitAfterLoop = state.units[unitId];
+  if (unitAfterLoop) unitAfterLoop.hasMovedThisTurn = true;
 }
 
 // ============================================================================
