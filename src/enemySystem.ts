@@ -1203,17 +1203,6 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
   // GRAVE_TRAP: check if the enemy unit landed on a player trap
   checkGraveTrapTrigger(state, unitId);
 
-  // FROZEN tile: trigger the slippery slide mechanic (same as player units).
-  if (state.units[unitId] && newTile.status === TileStatus.FROZEN) {
-    const dx = targetPosition.x - from.x;
-    const dy = targetPosition.y - from.y;
-    // Normalise to unit direction (enemy can move multiple tiles per step)
-    const norm = Math.max(Math.abs(dx), Math.abs(dy));
-    if (norm > 0) {
-      resolveSlide(state, unitId, Math.sign(dx), Math.sign(dy));
-    }
-  }
-
   // PORTAL: check if the unit stepped onto a portal entrance.
   if (state.units[unitId]) {
     const movedUnit = state.units[unitId];
@@ -1230,12 +1219,22 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
   // (this unit may have vacated a tile that was someone else's portal exit).
   processPendingPortalTeleports(state, events);
 
-  // FROZEN tile: trigger the slippery slide mechanic.
+  // FROZEN tile: trigger the slippery slide mechanic (same as player units).
   // Re-fetch the unit — it must still be alive (not killed by a GRAVE_TRAP or other effect).
-  if (newTile.status === TileStatus.FROZEN && state.units[unitId]) {
+  // Skip slide if the unit has teleported away from the frozen tile (its position no longer
+  // matches targetPosition — portal exit clears lastMovementDirection for the same reason).
+  const unitAfterEffects = state.units[unitId];
+  if (
+    newTile.status === TileStatus.FROZEN &&
+    unitAfterEffects &&
+    unitAfterEffects.position.x === targetPosition.x &&
+    unitAfterEffects.position.y === targetPosition.y
+  ) {
     const moveDx = targetPosition.x - from.x;
     const moveDy = targetPosition.y - from.y;
-    resolveSlide(state, unitId, moveDx, moveDy);
+    // Normalise to a unit-step: enemy can move multiple tiles per step via moveEnemyUnitToward,
+    // but the slide should always cover exactly one tile in the movement direction.
+    resolveSlide(state, unitId, Math.sign(moveDx), Math.sign(moveDy));
   }
 }
 
