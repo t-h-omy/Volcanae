@@ -371,6 +371,7 @@ export function getHealTargets(
       if (!other) continue;
       if (other.faction !== unit.faction) continue;
       if (other.tags.includes(UnitTag.SUMMONED)) continue;
+      if (other.tags.includes(UnitTag.BRANDMARKED)) continue;
       if (other.stats.currentHp >= other.stats.maxHp) continue;
       targets.push(other.id);
     }
