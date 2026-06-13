@@ -33,7 +33,7 @@ function makeMagmaspyr(id: string, x: number, y: number): Building {
     discoverRadius: 2,
     turnCapturedByPlayer: null,
     wasEnemyOwnedBeforeCapture: false,
-    combatStats: { maxHp: 120, attack: 30, defense: 50, attackRange: 2, maxAttacksPerTurn: 2 },
+    combatStats: { attack: 30, defense: 50, attackRange: 2, maxAttacksPerTurn: 2 },
     hasAttackedThisTurn: false,
     tags: [],
     consumesUnitOnCapture: false,
