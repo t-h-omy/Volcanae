@@ -339,7 +339,6 @@ describe('1B (12) – PIERCE friendly fire', () => {
    */
   it('deals no damage to a friendly rear unit but still emits a PIERCE_DAMAGE event (amount 0)', () => {
     // Use enemy LANCER as attacker: PIERCE tag, melee
-    const lancer = makeEnemyUnit(UnitType.LANCER, 3, 5);
     // Front target is also enemy (LANCER attacks its own front unit? No — attacker is enemy,
     // defender must be hostile. Let's make a player front unit instead.)
     // Actually: attacker=ENEMY, so hostile targets are PLAYER units.
