@@ -10,6 +10,8 @@
 export const MUSIC_TRACKS: readonly string[] = [
   'Game Track 1 - The Rising Front.mp3',
   'Game Track 2 - The Road Reveals.mp3',
+  'Game Track 3 - Parchment Accord.mp3',
+  'Game Track 4 - Defiant Frontier.mp3',
 ] as const;
 
 /**
