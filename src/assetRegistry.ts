@@ -193,9 +193,11 @@ export const TILE_STATUS_SPRITE: Partial<Record<TileType, Partial<Record<TileSta
     [TS.CORRUPTED]: '/sprites/tiles/terrain_grass_corrupted_100px.png',
   }),
   [TT.FOREST]: withBase({
+    [TS.FROZEN]:    '/sprites/tiles/terrain_grass_frozen_100px.png',
     [TS.CORRUPTED]: '/sprites/tiles/terrain_grass_corrupted_100px.png',
   }),
   [TT.MOUNTAIN]: withBase({
+    [TS.FROZEN]:    '/sprites/tiles/terrain_grass_frozen_100px.png',
     [TS.CORRUPTED]: '/sprites/tiles/terrain_grass_corrupted_100px.png',
   }),
   [TT.WATER]: withBase({
