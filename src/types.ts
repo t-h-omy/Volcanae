@@ -272,7 +272,7 @@ export const UnitTag = {
   LAVA: 'LAVA',
   /** Unit was summoned, not recruited; modifies several systems */
   SUMMONED: 'SUMMONED',
-  /** Unit carries the Brandmark Heal mark; loses HP each turn; on death becomes a hostile Ember Demon */
+  /** Unit carries the Brandmark Heal mark; loses HP each turn; cannot be healed by Patch Up; on death becomes a hostile Ember Demon */
   BRANDMARKED: 'BRANDMARKED',
   /** Summoned unit that defects to the enemy faction if its controller mage is out of leash range or dead */
   LEASHED: 'LEASHED',

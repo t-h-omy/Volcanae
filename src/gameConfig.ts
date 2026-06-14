@@ -235,7 +235,7 @@ export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
     id: SpellId.BRANDMARK_HEAL,
     name: 'Brandmark Heal',
     emoji: '🩸',
-    description: `Fully heal one player unit, multiply its max HP by ${MAGE.BRANDMARK_HP_MULTIPLIER}×, grant +${MAGE.BRANDMARK_ATTACK_BONUS} ATK, and mark it with the brand. The marked unit loses ${MAGE.BRANDMARK_HP_LOSS_PER_TURN} HP at the end of each turn. On death, a hostile Ember Demon rises in its place.`,
+    description: `Fully heal one player unit, multiply its max HP by ${MAGE.BRANDMARK_HP_MULTIPLIER}×, grant +${MAGE.BRANDMARK_ATTACK_BONUS} ATK, and mark it with the brand. The marked unit loses ${MAGE.BRANDMARK_HP_LOSS_PER_TURN} HP at the end of each turn and cannot be healed by Patch Up. On death, a hostile Ember Demon rises in its place.`,
     targetHint: 'Select one of your own units within range (not another Mage).',
   },
   [SpellId.RAISE_SKELETON]: {
@@ -2248,7 +2248,7 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   [UnitTag.REVIVABLE]:          { label: 'Revivable',          desc: `Leaves a Gravestone on death. Pay ${ABILITIES.REVIVE_CRYSTAL_COST} crystal to revive.` },
   // ── Mage system tags ────────────────────────────────────────────────────────
   [UnitTag.SUMMONED]:           { label: 'Summoned',           desc: 'Conjured by magic. Does not consume population, cannot be healed, and does not leave a gravestone on death.' },
-  [UnitTag.BRANDMARKED]:        { label: 'Brandmarked',        desc: `+${MAGE.BRANDMARK_ATTACK_BONUS} ATK. Loses ${MAGE.BRANDMARK_HP_LOSS_PER_TURN} HP at the end of every player turn. On death, leaves behind a hostile Ember Demon.`, icon: '🩸' },
+  [UnitTag.BRANDMARKED]:        { label: 'Brandmarked',        desc: `+${MAGE.BRANDMARK_ATTACK_BONUS} ATK. Loses ${MAGE.BRANDMARK_HP_LOSS_PER_TURN} HP at the end of every player turn. Cannot be healed by Patch Up. On death, leaves behind a hostile Ember Demon.`, icon: '🩸' },
   [UnitTag.LEASHED]:            { label: 'Leashed',            desc: `Summoned creature bound to a Mage. If the Mage moves beyond its attack range or dies, the leashed unit defects to the enemy.` },
   [UnitTag.NO_GRAVESTONE]:      { label: 'No Gravestone',      desc: 'Leaves no body. Cannot become a Gravestone on death.' },
   [UnitTag.LEAVES_GRAVESTONE]:  { label: 'Leaves Gravestone',  desc: 'Leaves a Gravestone on death.' },
