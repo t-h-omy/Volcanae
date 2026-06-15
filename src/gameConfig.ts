@@ -1258,7 +1258,7 @@ const GRAVESTONE_MAX_HP = 25;
 
 export const ABILITIES = {
   /** Damage multiplier applied when ASSASSIN tag attacks a full-HP target */
-  ASSASSIN_DAMAGE_MULTIPLIER: 3,
+  ASSASSIN_DAMAGE_MULTIPLIER: 4,
   /** Flat defense bonus applied when HOLD_GROUND flag is active and unit stands on own building */
   HOLD_GROUND_DEFENSE_BONUS: 20,
   /** Extra move range granted by TO_THE_FRONT flag */
@@ -1281,13 +1281,13 @@ export const ABILITIES = {
   /** Static ATK penalty applied to archers carrying the DISTRACTION tag */
   DISTRACTION_ATTACK_MOD: -15,
   /** Max HP bonus granted to a unit carrying the ELITE tag */
-  ELITE_MAX_HP_BONUS: 20,
+  ELITE_MAX_HP_BONUS: 30,
   /** DEF change (negative = penalty) applied to a unit carrying the HIT_AND_RUN tag */
-  HIT_AND_RUN_DEFENSE_MOD: -15,
+  HIT_AND_RUN_DEFENSE_MOD: -10,
   /** Maximum movement range allowed for a HIT_AND_RUN post-attack move */
   HIT_AND_RUN_POST_ATTACK_MOVE_RANGE: 1,
   /** Max HP bonus granted to a unit carrying the KNIGHT tag */
-  KNIGHT_MAX_HP_BONUS: 20,
+  KNIGHT_MAX_HP_BONUS: 30,
   /** Move range bonus granted to SKIRMISHER-tagged archers (Skirmisher tech) */
   SKIRMISHER_MOVE_BONUS: 1,
   /** Move range bonus granted to OUTRIDER-tagged riders (Outriders tech) */
@@ -1309,9 +1309,9 @@ export const ABILITIES = {
   /** Farmer-slot capacity added to each Stronghold by the WALLED_SETTLEMENT tech */
   WALLED_SETTLEMENT_FARMER_BONUS: 2,
   /** Iron produced by each Stronghold per turn after WALLED_SETTLEMENT */
-  WALLED_SETTLEMENT_IRON_AMOUNT: 2,
+  WALLED_SETTLEMENT_IRON_AMOUNT: 3,
   /** Wood produced by each Stronghold per turn after WALLED_SETTLEMENT */
-  WALLED_SETTLEMENT_WOOD_AMOUNT: 4,
+  WALLED_SETTLEMENT_WOOD_AMOUNT: 5,
   /** Noble-slot capacity added to each Stronghold by the CITADEL tech */
   CITADEL_NOBLE_BONUS: 2,
   /** Max-HP bonus applied to Scouts and Guards by the CITADEL tech */
@@ -1391,7 +1391,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     description: 'Engineering works that trains Siege engines.',
   },
   WATCHTOWER: (() => {
-    const combatStats = { maxHp: 150, attack: 50, defense: 65, attackRange: 3 };
+    const combatStats = { maxHp: 150, attack: 55, defense: 55, attackRange: 3 };
     return {
       discoverRadius: 4,
       destroyBehavior: DestroyBehavior.RUIN,
@@ -1401,7 +1401,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     };
   })(),
   OUTPOST: (() => {
-    const combatStats = { maxHp: 200, attack: 40, defense: 55, attackRange: 2 };
+    const combatStats = { maxHp: 200, attack: 55, defense: 50, attackRange: 2 };
     return {
       discoverRadius: 3,
       destroyBehavior: DestroyBehavior.NONE,
@@ -1645,16 +1645,6 @@ export const TECH_TREE: TechNodeDefinition[] = [
     ],
   },
   {
-    id: 'DEEP_VEINS',
-    name: 'Deep Veins',
-    description: `Mines have a ${ABILITIES.DEEP_VEINS_BONUS_CHANCE}% chance to produce ${ABILITIES.DEEP_VEINS_BONUS_AMOUNT} extra iron per turn`,
-    requires: ['A_NOBLE_STEAD'],
-    cost: 4,
-    effects: [
-      { type: 'BUILDING_PRODUCTION_MOD', buildingType: BuildingType.MINE, resource: ResourceType.IRON, chancePercent: ABILITIES.DEEP_VEINS_BONUS_CHANCE, amount: ABILITIES.DEEP_VEINS_BONUS_AMOUNT },
-    ],
-  },
-  {
     // Placed beside DEEP_VEINS — both require A_NOBLE_STEAD and both buff mines
     // with iron production, making them natural thematic siblings on the tree.
     id: 'CHARCOAL_KILN',
@@ -1763,7 +1753,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 7,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.GUARD, tag: UnitTag.PHALANX },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.GUARD, resource: 'iron', amount: 4 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.GUARD, resource: 'iron', amount: 3 },
     ],
   },
 
@@ -1776,7 +1766,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 2,
     effects: [
       { type: 'UNIT_STAT_MOD', unitType: UnitType.SCOUT, stat: 'discoverRadius', mode: 'add', value: ABILITIES.SCOUT_DISCOVER_BONUS },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.SCOUT, resource: 'wood', amount: 4 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.SCOUT, resource: 'wood', amount: 2 },
     ],
   },
   {
@@ -1798,7 +1788,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SCOUT, tag: UnitTag.PATCHUP },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.SCOUT, resource: 'wood', amount: 4 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.SCOUT, resource: 'wood', amount: 3 },
     ],
   },
 
@@ -1825,8 +1815,8 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'STRONGHOLD_CAP_MOD', capType: 'noble', amount: ABILITIES.CITADEL_NOBLE_BONUS },
       { type: 'UNIT_STAT_MOD', unitType: UnitType.SCOUT, stat: 'maxHp', mode: 'add', value: ABILITIES.CITADEL_HP_BOOST },
       { type: 'UNIT_STAT_MOD', unitType: UnitType.GUARD, stat: 'maxHp', mode: 'add', value: ABILITIES.CITADEL_HP_BOOST },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.SCOUT, resource: 'wood', amount: 2 },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.GUARD, resource: 'wood', amount: 2 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.SCOUT, resource: 'wood', amount: 1 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.GUARD, resource: 'wood', amount: 1 },
     ],
   },
   {
@@ -1839,9 +1829,9 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.RIDER,  tag: UnitTag.ELITE },
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.GUARD,  tag: UnitTag.ELITE },
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SIEGE,  tag: UnitTag.ELITE },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.RIDER, resource: 'iron', amount: 2 },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.GUARD, resource: 'iron', amount: 2 },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.SIEGE, resource: 'iron', amount: 2 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.RIDER, resource: 'iron', amount: 1 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.GUARD, resource: 'iron', amount: 1 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.SIEGE, resource: 'iron', amount: 1 },
     ],
   },
   {
@@ -1911,7 +1901,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.ARCHER, tag: UnitTag.COVER },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.ARCHER, resource: 'wood', amount: 2 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.ARCHER, resource: 'wood', amount: 1 },
     ],
   },
   {
