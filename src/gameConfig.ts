@@ -2249,7 +2249,6 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   // ── Mage system tags ────────────────────────────────────────────────────────
   [UnitTag.SUMMONED]:           { label: 'Summoned',           desc: 'Conjured by magic. Does not consume population, cannot be healed, and does not leave a gravestone on death.' },
   [UnitTag.BRANDMARKED]:        { label: 'Brandmarked',        desc: `+${MAGE.BRANDMARK_ATTACK_BONUS} ATK. Loses ${MAGE.BRANDMARK_HP_LOSS_PER_TURN} HP at the end of every player turn. Cannot be healed by Patch Up. On death, leaves behind a hostile Ember Demon.`, icon: '🩸' },
-  [UnitTag.ITER]:               { label: 'ITER',               desc: 'Marked by the ITER spell.', icon: '🔱' },
   [UnitTag.LEASHED]:            { label: 'Leashed',            desc: `Summoned creature bound to a Mage. If the Mage moves beyond its attack range or dies, the leashed unit defects to the enemy.` },
   [UnitTag.NO_GRAVESTONE]:      { label: 'No Gravestone',      desc: 'Leaves no body. Cannot become a Gravestone on death.' },
   [UnitTag.LEAVES_GRAVESTONE]:  { label: 'Leaves Gravestone',  desc: 'Leaves a Gravestone on death.' },

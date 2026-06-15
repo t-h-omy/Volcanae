@@ -575,19 +575,19 @@ describe('2D – Corruption debuff logic (CORRUPTED_SUPPRESSED_TAGS)', () => {
     expect(healer.tags.some((t) => CORRUPTED_SUPPRESSED_TAGS.has(t))).toBe(true);
   });
 
-  it('PATCHUP can heal ITER-tagged units but not Brandmarked units', () => {
+  it('PATCHUP can heal normal units but not Brandmarked units', () => {
     const healer = makeUnit(UnitType.SCOUT, Faction.PLAYER, 4, 4, {
       tags: [UnitTag.PATCHUP],
     });
-    const iterTarget = makeUnit(UnitType.SPEARMAN, Faction.PLAYER, 5, 4, { tags: [UnitTag.ITER] });
-    iterTarget.stats.currentHp = 40;
+    const normalTarget = makeUnit(UnitType.SPEARMAN, Faction.PLAYER, 5, 4);
+    normalTarget.stats.currentHp = 40;
     const brandmarkedTarget = makeUnit(UnitType.SPEARMAN, Faction.PLAYER, 4, 5, { tags: [UnitTag.BRANDMARKED] });
     brandmarkedTarget.stats.currentHp = 40;
 
-    const state = makeSmallState([healer, iterTarget, brandmarkedTarget]);
+    const state = makeSmallState([healer, normalTarget, brandmarkedTarget]);
     const targets = getHealTargets(state, healer.id);
 
-    expect(targets).toContain(iterTarget.id);
+    expect(targets).toContain(normalTarget.id);
     expect(targets).not.toContain(brandmarkedTarget.id);
   });
 });

@@ -274,8 +274,6 @@ export const UnitTag = {
   SUMMONED: 'SUMMONED',
   /** Unit carries the Brandmark Heal mark; loses HP each turn; cannot be healed by Patch Up; on death becomes a hostile Ember Demon */
   BRANDMARKED: 'BRANDMARKED',
-  /** Unit bears the ITER mark from a spell */
-  ITER: 'ITER',
   /** Summoned unit that defects to the enemy faction if its controller mage is out of leash range or dead */
   LEASHED: 'LEASHED',
   /** Leaves no body on death. Cannot become a Gravestone. */
