@@ -18,6 +18,9 @@ import type { GameEvent } from './gameEvents';
 import { hasUnitActed } from './unitActions';
 import { sweepLeashes } from './spellSystem';
 import { checkGraveTrapTrigger, resolveSlide } from './movementSystem';
+import { useCombatAnimationStore } from './combatAnimationStore';
+import { ANIMATION } from './animationConfig';
+import { RENDER } from './renderConfig';
 import { tryBeginTunnel, processTunnelTurn } from './tunnelSystem';
 import { cleanupPortals, cleanupExpiredPortalsEndOfTurn, tryPlanPortalCast, castPortal, getUsablePortalAtEntrance, tryTeleportThroughPortal, processPendingPortalTeleports } from './portalSystem';
 import { cleanupRoostedUnits, getRoostedUnits } from './buildingRemoval';
@@ -1232,9 +1235,73 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
   ) {
     const moveDx = targetPosition.x - from.x;
     const moveDy = targetPosition.y - from.y;
+    const slideDirX = Math.sign(moveDx);
+    const slideDirY = Math.sign(moveDy);
+    const tileSize =
+      typeof window !== 'undefined' && window.innerWidth <= RENDER.MOBILE_BREAKPOINT
+        ? RENDER.TILE_SIZE_MOBILE
+        : RENDER.TILE_SIZE_DESKTOP;
+    const unitBeforeSlide = state.units[unitId];
+    const unitTypeBeforeSlide = unitBeforeSlide?.type;
+    const factionBeforeSlide = unitBeforeSlide?.faction;
     // Normalise to a unit-step: enemy can move multiple tiles per step via moveEnemyUnitToward,
     // but the slide should always cover exactly one tile in the movement direction.
-    resolveSlide(state, unitId, Math.sign(moveDx), Math.sign(moveDy));
+    resolveSlide(state, unitId, slideDirX, slideDirY);
+
+    const unitAfterSlide = state.units[unitId];
+    if (
+      unitAfterSlide &&
+      (unitAfterSlide.position.x !== targetPosition.x || unitAfterSlide.position.y !== targetPosition.y)
+    ) {
+      const slideDx = (targetPosition.x - unitAfterSlide.position.x) * tileSize;
+      const slideDy = (targetPosition.y - unitAfterSlide.position.y) * tileSize;
+      const { setUnitAnimation } = useCombatAnimationStore.getState();
+      setUnitAnimation(unitId, { type: 'SLIDE', dx: slideDx, dy: slideDy });
+      const totalMs = ANIMATION.SLIDE_PAUSE_MS + ANIMATION.SLIDE_DURATION_MS + 60;
+      setTimeout(() => {
+        useCombatAnimationStore.getState().setUnitAnimation(unitId, null);
+      }, totalMs);
+    }
+
+    if (!unitAfterSlide && unitTypeBeforeSlide !== undefined && factionBeforeSlide !== undefined) {
+      const deathTileX = targetPosition.x + slideDirX;
+      const deathTileY = targetPosition.y + slideDirY;
+      if (events) {
+        events.push({
+          type: 'UNIT_DEATH',
+          unitId,
+          position: { x: deathTileX, y: deathTileY },
+          faction: factionBeforeSlide,
+        });
+      }
+      const ghostId = `slide-kill-${unitId}-${Date.now()}`;
+      const ghost = {
+        id: ghostId,
+        unitType: unitTypeBeforeSlide,
+        faction: factionBeforeSlide,
+        deathTileX,
+        deathTileY,
+        slideDx: -slideDirX * tileSize,
+        slideDy: -slideDirY * tileSize,
+        phase: 'slide' as const,
+      };
+      const store = useCombatAnimationStore.getState();
+      store.addSlideKillGhost(ghost);
+
+      const slideTotalMs = ANIMATION.SLIDE_PAUSE_MS + ANIMATION.SLIDE_DURATION_MS;
+      setTimeout(() => {
+        useCombatAnimationStore.getState().setSlideKillGhostPhase(ghostId, 'dying');
+
+        const dyingTotalMs = ANIMATION.DIE_FLASH_DURATION_MS + ANIMATION.DIE_FADE_DURATION_MS;
+        setTimeout(() => {
+          useCombatAnimationStore.getState().setSlideKillGhostPhase(ghostId, 'falling');
+
+          setTimeout(() => {
+            useCombatAnimationStore.getState().removeSlideKillGhost(ghostId);
+          }, ANIMATION.SLIDE_KILL_FALL_DURATION_MS);
+        }, dyingTotalMs);
+      }, slideTotalMs);
+    }
   }
 }
 

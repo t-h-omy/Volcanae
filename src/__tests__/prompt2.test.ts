@@ -12,12 +12,14 @@
  * out-of-bounds.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { produce } from 'immer';
 import { resolveExplosion, runEnemyTurn } from '../enemySystem';
 import { isUnitOnCorruptedTile } from '../tileStatusSystem';
 import { canUnitHeal, getHealTargets } from '../unitActions';
 import { CORRUPTED_SUPPRESSED_TAGS, UNIT_DEFINITIONS, MAP } from '../gameConfig';
+import { useCombatAnimationStore } from '../combatAnimationStore';
+import { RENDER } from '../renderConfig';
 import {
   Faction, UnitType, UnitTag, TileType, TileStatus, DestroyBehavior, BuildingType,
 } from '../types';
@@ -589,5 +591,59 @@ describe('2D – Corruption debuff logic (CORRUPTED_SUPPRESSED_TAGS)', () => {
 
     expect(targets).toContain(normalTarget.id);
     expect(targets).not.toContain(brandmarkedTarget.id);
+  });
+});
+
+describe('PB – enemy frozen slide kill animation/event', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    useCombatAnimationStore.setState({
+      unitAnimations: new Map(),
+      slideKillGhosts: new Map(),
+    });
+  });
+
+  afterEach(() => {
+    vi.clearAllTimers();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+    useCombatAnimationStore.setState({
+      unitAnimations: new Map(),
+      slideKillGhosts: new Map(),
+    });
+  });
+
+  it('enemy sliding from FROZEN into WATER emits UNIT_DEATH at water tile and adds slide-kill ghost', () => {
+    const enemy = makeUnit(UnitType.LAVA_GRUNT, Faction.ENEMY, 2, 37);
+    const player = makeUnit(UnitType.SWORDSMAN, Faction.PLAYER, 8, 37);
+
+    const state = makeStateForEnemyTurn(
+      [enemy, player],
+      [],
+      [
+        { x: 2, y: 38, overrides: { status: TileStatus.FROZEN } },
+        { x: 2, y: 39, overrides: { terrainType: TileType.WATER, status: null } },
+      ],
+    );
+
+    const addSlideKillGhostSpy = vi.spyOn(useCombatAnimationStore.getState(), 'addSlideKillGhost');
+    const { events } = runEnemyTurn(state);
+
+    const deathEvent = events.find(
+      (e) => e.type === 'UNIT_DEATH' && e.unitId === enemy.id,
+    );
+    expect(deathEvent).toEqual({
+      type: 'UNIT_DEATH',
+      unitId: enemy.id,
+      position: { x: 2, y: 39 },
+      faction: Faction.ENEMY,
+    });
+
+    expect(addSlideKillGhostSpy).toHaveBeenCalledTimes(1);
+    const ghost = addSlideKillGhostSpy.mock.calls[0][0];
+    expect(ghost.deathTileX).toBe(2);
+    expect(ghost.deathTileY).toBe(39);
+    expect(ghost.slideDx).toBeCloseTo(0, 5);
+    expect(ghost.slideDy).toBe(-RENDER.TILE_SIZE_DESKTOP);
   });
 });
