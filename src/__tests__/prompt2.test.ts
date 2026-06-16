@@ -604,7 +604,7 @@ describe('PB – enemy frozen slide kill animation/event', () => {
   });
 
   afterEach(() => {
-    vi.runOnlyPendingTimers();
+    vi.clearAllTimers();
     vi.useRealTimers();
     vi.restoreAllMocks();
     useCombatAnimationStore.setState({
