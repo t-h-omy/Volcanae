@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { produce } from 'immer';
 import { createInitialSpecialists } from '../specialistSystem';
-import { canUnitCast } from '../unitActions';
+import { canUnitCast, canUnitMove } from '../unitActions';
 import { castSpell } from '../spellSystem';
 import { loadGameState, saveGameState } from '../saveSystem';
 import { Faction, GamePhase, SpellId, TileType, UnitType } from '../types';
@@ -162,6 +162,15 @@ describe('mage cast budget', () => {
 
     expect(mage.spellsCastThisTurn).toBe(2);
     expect(canUnitCast(mage, afterSecondCast)).toBe(false);
+  });
+
+  it('with Archmage active: casting once blocks movement but not the second cast', () => {
+    const afterFirstCast = recordSuccessfulCast(makeState(['spec_06']), { x: 2, y: 1 });
+    const mage = afterFirstCast.units.mage_1;
+
+    expect(mage.spellsCastThisTurn).toBe(1);
+    expect(canUnitMove(mage, afterFirstCast)).toBe(false);
+    expect(canUnitCast(mage, afterFirstCast)).toBe(true);
   });
 
   it('preserves spellsCastThisTurn across save round-trips', () => {
