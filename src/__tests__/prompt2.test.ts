@@ -643,7 +643,7 @@ describe('PB – enemy frozen slide kill animation/event', () => {
     const ghost = addSlideKillGhostSpy.mock.calls[0][0];
     expect(ghost.deathTileX).toBe(2);
     expect(ghost.deathTileY).toBe(39);
-    expect(Math.abs(ghost.slideDx)).toBe(0);
+    expect(ghost.slideDx).toBeCloseTo(0, 5);
     expect(ghost.slideDy).toBe(-RENDER.TILE_SIZE_DESKTOP);
   });
 });

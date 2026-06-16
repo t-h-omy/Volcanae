@@ -1237,6 +1237,10 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
     const moveDy = targetPosition.y - from.y;
     const slideDirX = Math.sign(moveDx);
     const slideDirY = Math.sign(moveDy);
+    const tileSize =
+      typeof window !== 'undefined' && window.innerWidth <= RENDER.MOBILE_BREAKPOINT
+        ? RENDER.TILE_SIZE_MOBILE
+        : RENDER.TILE_SIZE_DESKTOP;
     const unitBeforeSlide = state.units[unitId];
     const unitTypeBeforeSlide = unitBeforeSlide?.type;
     const factionBeforeSlide = unitBeforeSlide?.faction;
@@ -1249,10 +1253,6 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
       unitAfterSlide &&
       (unitAfterSlide.position.x !== targetPosition.x || unitAfterSlide.position.y !== targetPosition.y)
     ) {
-      const tileSize =
-        typeof window !== 'undefined' && window.innerWidth <= RENDER.MOBILE_BREAKPOINT
-          ? RENDER.TILE_SIZE_MOBILE
-          : RENDER.TILE_SIZE_DESKTOP;
       const slideDx = (targetPosition.x - unitAfterSlide.position.x) * tileSize;
       const slideDy = (targetPosition.y - unitAfterSlide.position.y) * tileSize;
       const { setUnitAnimation } = useCombatAnimationStore.getState();
@@ -1274,11 +1274,6 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
           faction: factionBeforeSlide,
         });
       }
-
-      const tileSize =
-        typeof window !== 'undefined' && window.innerWidth <= RENDER.MOBILE_BREAKPOINT
-          ? RENDER.TILE_SIZE_MOBILE
-          : RENDER.TILE_SIZE_DESKTOP;
       const ghostId = `slide-kill-${unitId}-${Date.now()}`;
       const ghost = {
         id: ghostId,
