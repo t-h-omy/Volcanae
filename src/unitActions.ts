@@ -113,7 +113,7 @@ export function getNorthermostPlayerY(
  */
 export function canUnitMove(
   unit: Unit,
-  state?: GameState | Draft<GameState>,
+  _state?: GameState | Draft<GameState>,
 ): boolean {
   if (unit.pinnedUntilTurn > 0) return false;
   if (unit.hasCapturedThisTurn) return false;
