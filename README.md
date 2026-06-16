@@ -49,7 +49,7 @@ Spells are unlocked individually through the tech tree. The eight available spel
 |-------|--------|
 | 🔄 Transpose | Swap the Mage with a friendly unit |
 | 🔥 Emberbind | Destroy a nearby Ember Nest, summoning a leashed Ember Demon |
-| 🩸 Brandmark | Fully heal a friendly unit; the healed unit gains the BRANDMARKED tag and loses HP each turn, spawning a hostile Ember Demon on death |
+| 🩸 Brandmark | Fully heal a friendly unit; the healed unit gains the BRANDMARKED tag, cannot be healed by Patch Up, and loses HP each turn, spawning a hostile Ember Demon on death |
 | 💀 Raise Skeleton | Animate a Gravestone as a Skeleton unit |
 | ❄️ Frostcraft | Freeze a water tile, making it passable |
 | ☠️ Grave Trap | Place a trap that stuns the next unit to enter |

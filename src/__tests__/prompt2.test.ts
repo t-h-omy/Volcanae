@@ -16,7 +16,7 @@ import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
 import { resolveExplosion, runEnemyTurn } from '../enemySystem';
 import { isUnitOnCorruptedTile } from '../tileStatusSystem';
-import { canUnitHeal } from '../unitActions';
+import { canUnitHeal, getHealTargets } from '../unitActions';
 import { CORRUPTED_SUPPRESSED_TAGS, UNIT_DEFINITIONS, MAP } from '../gameConfig';
 import {
   Faction, UnitType, UnitTag, TileType, TileStatus, DestroyBehavior, BuildingType,
@@ -573,5 +573,21 @@ describe('2D – Corruption debuff logic (CORRUPTED_SUPPRESSED_TAGS)', () => {
     expect(canUnitHeal(healer)).toBe(true);
     expect(isUnitOnCorruptedTile(state, healer.id)).toBe(true);
     expect(healer.tags.some((t) => CORRUPTED_SUPPRESSED_TAGS.has(t))).toBe(true);
+  });
+
+  it('PATCHUP can heal normal units but not Brandmarked units', () => {
+    const healer = makeUnit(UnitType.SCOUT, Faction.PLAYER, 4, 4, {
+      tags: [UnitTag.PATCHUP],
+    });
+    const normalTarget = makeUnit(UnitType.SPEARMAN, Faction.PLAYER, 5, 4);
+    normalTarget.stats.currentHp = 40;
+    const brandmarkedTarget = makeUnit(UnitType.SPEARMAN, Faction.PLAYER, 4, 5, { tags: [UnitTag.BRANDMARKED] });
+    brandmarkedTarget.stats.currentHp = 40;
+
+    const state = makeSmallState([healer, normalTarget, brandmarkedTarget]);
+    const targets = getHealTargets(state, healer.id);
+
+    expect(targets).toContain(normalTarget.id);
+    expect(targets).not.toContain(brandmarkedTarget.id);
   });
 });

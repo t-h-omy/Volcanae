@@ -1861,7 +1861,10 @@ export const useGameStore = create<GameStore>()(
               });
             }
             // XP floaters — shown here (after the kill animation) rather than during computation.
+            // Also update unit.xp immediately so the xp text on the sprite reflects the gain
+            // right away instead of waiting for setGameState(resolvedState) at turn end.
             if (event.attackerXpGained) {
+              if (attacker) attacker.xp += event.attackerXpGained;
               addFloater({
                 value: event.attackerXpGained,
                 label: `⭐ +${event.attackerXpGained}`,
@@ -1872,6 +1875,7 @@ export const useGameStore = create<GameStore>()(
               });
             }
             if (event.defenderXpGained) {
+              if (defender) defender.xp += event.defenderXpGained;
               addFloater({
                 value: event.defenderXpGained,
                 label: `⭐ +${event.defenderXpGained}`,
@@ -1933,7 +1937,10 @@ export const useGameStore = create<GameStore>()(
               });
             }
             // XP floaters — shown here rather than during computation.
+            // Also update unit.xp immediately so the xp text on the sprite reflects the gain
+            // right away instead of waiting for setGameState(resolvedState) at turn end.
             if (event.attackerXpGained) {
+              if (attacker) attacker.xp += event.attackerXpGained;
               addFloater({
                 value: event.attackerXpGained,
                 label: `⭐ +${event.attackerXpGained}`,
@@ -1944,6 +1951,7 @@ export const useGameStore = create<GameStore>()(
               });
             }
             if (event.defenderXpGained) {
+              if (defender) defender.xp += event.defenderXpGained;
               addFloater({
                 value: event.defenderXpGained,
                 label: `⭐ +${event.defenderXpGained}`,
