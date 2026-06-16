@@ -614,16 +614,15 @@ describe('PB – enemy frozen slide kill animation/event', () => {
   });
 
   it('enemy sliding from FROZEN into WATER emits UNIT_DEATH at water tile and adds slide-kill ghost', () => {
-    const enemy = makeUnit(UnitType.LAVA_GRUNT, Faction.ENEMY, 2, 12);
-    enemy.stats.moveRange = 1;
-    const player = makeUnit(UnitType.SWORDSMAN, Faction.PLAYER, 6, 12);
+    const enemy = makeUnit(UnitType.LAVA_GRUNT, Faction.ENEMY, 2, 37);
+    const player = makeUnit(UnitType.SWORDSMAN, Faction.PLAYER, 8, 37);
 
     const state = makeStateForEnemyTurn(
       [enemy, player],
       [],
       [
-        { x: 3, y: 12, overrides: { status: TileStatus.FROZEN } },
-        { x: 4, y: 12, overrides: { terrainType: TileType.WATER, status: null } },
+        { x: 2, y: 38, overrides: { status: TileStatus.FROZEN } },
+        { x: 2, y: 39, overrides: { terrainType: TileType.WATER, status: null } },
       ],
     );
 
@@ -636,15 +635,15 @@ describe('PB – enemy frozen slide kill animation/event', () => {
     expect(deathEvent).toEqual({
       type: 'UNIT_DEATH',
       unitId: enemy.id,
-      position: { x: 4, y: 12 },
+      position: { x: 2, y: 39 },
       faction: Faction.ENEMY,
     });
 
     expect(addSlideKillGhostSpy).toHaveBeenCalledTimes(1);
     const ghost = addSlideKillGhostSpy.mock.calls[0][0];
-    expect(ghost.deathTileX).toBe(4);
-    expect(ghost.deathTileY).toBe(12);
-    expect(ghost.slideDx).toBe(-RENDER.TILE_SIZE_DESKTOP);
-    expect(ghost.slideDy).toBe(0);
+    expect(ghost.deathTileX).toBe(2);
+    expect(ghost.deathTileY).toBe(39);
+    expect(Math.abs(ghost.slideDx)).toBe(0);
+    expect(ghost.slideDy).toBe(-RENDER.TILE_SIZE_DESKTOP);
   });
 });
