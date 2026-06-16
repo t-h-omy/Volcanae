@@ -121,7 +121,7 @@ export function canUnitMove(
   if (unit.hasDestroyedThisTurn) return false;
   // HIT_AND_RUN: can move before attacking (if not yet moved) OR after attacking (post-attack move, once per turn)
   if (unit.tags.includes(UnitTag.HIT_AND_RUN)) {
-    if (hasSpentMageCastBudget(unit, state)) return false;
+    if ((unit.spellsCastThisTurn ?? 0) >= 1) return false;
     if (unit.hasUsedPostAttackMoveThisTurn) return false;
     if (unit.hasAttackedThisTurn) return true; // post-attack move available
     if (unit.hasMovedThisTurn) return false;   // pre-attack move already used
@@ -129,7 +129,7 @@ export function canUnitMove(
   }
   if (unit.hasMovedThisTurn) return false;
   if (unit.hasAttackedThisTurn) return false;
-  if (hasSpentMageCastBudget(unit, state)) return false;
+  if ((unit.spellsCastThisTurn ?? 0) >= 1) return false;
   return true;
 }
 

@@ -60,6 +60,9 @@ A summoned Ember Demon is **leashed** to its controller Mage — if the Mage mov
 
 ## Changelog
 
+### v0.88.1 — Mage movement fix
+Mage: casting once blocks movement even with multi-cast specialist
+
 ### v0.88.0 — Archmage specialist
 New Archmage specialist allows Mages to cast 2 spells per turn.
 
