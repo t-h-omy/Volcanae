@@ -2219,6 +2219,8 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
             // Attacker earns XP for killing the defender; defender earns XP for a counter-kill.
             const attackerXpGained = !defenderAfter && attackerAfter ? XP.KILL_UNIT : null;
             const defenderXpGained = !attackerAfter ? XP.KILL_UNIT : null;
+            const defenderSpawnBrandmarkReplacement = targetUnit.tags.includes(UnitTag.BRANDMARKED);
+            const attackerSpawnBrandmarkReplacement = currentUnit.tags.includes(UnitTag.BRANDMARKED);
             events.push({
               type: 'ENEMY_ATTACK',
               attackerId,
@@ -2232,10 +2234,22 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
               defenderXpGained,
             });
             if (!defenderAfter) {
-              events.push({ type: 'UNIT_DEATH', unitId: defenderId, position: defenderPos, faction: targetUnit.faction });
+              events.push({
+                type: 'UNIT_DEATH',
+                unitId: defenderId,
+                position: defenderPos,
+                faction: targetUnit.faction,
+                spawnBrandmarkReplacement: defenderSpawnBrandmarkReplacement,
+              });
             }
             if (!attackerAfter) {
-              events.push({ type: 'UNIT_DEATH', unitId: attackerId, position: attackerPos, faction: currentUnit.faction });
+              events.push({
+                type: 'UNIT_DEATH',
+                unitId: attackerId,
+                position: attackerPos,
+                faction: currentUnit.faction,
+                spawnBrandmarkReplacement: attackerSpawnBrandmarkReplacement,
+              });
             }
             events.push(...secondaryEvents);
           }
@@ -2264,6 +2278,8 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
           const defenderAfter = state.units[defenderId];
           const attackerXpGained = !defenderAfter && attackerAfter ? XP.KILL_UNIT : null;
           const defenderXpGained = !attackerAfter ? XP.KILL_UNIT : null;
+          const defenderSpawnBrandmarkReplacement = targetUnit.tags.includes(UnitTag.BRANDMARKED);
+          const attackerSpawnBrandmarkReplacement = currentUnit.tags.includes(UnitTag.BRANDMARKED);
           events.push({
             type: 'ENEMY_ATTACK',
             attackerId,
@@ -2277,10 +2293,22 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
             defenderXpGained,
           });
           if (!defenderAfter) {
-            events.push({ type: 'UNIT_DEATH', unitId: defenderId, position: defenderPos, faction: targetUnit.faction });
+            events.push({
+              type: 'UNIT_DEATH',
+              unitId: defenderId,
+              position: defenderPos,
+              faction: targetUnit.faction,
+              spawnBrandmarkReplacement: defenderSpawnBrandmarkReplacement,
+            });
           }
           if (!attackerAfter) {
-            events.push({ type: 'UNIT_DEATH', unitId: attackerId, position: attackerPos, faction: currentUnit.faction });
+            events.push({
+              type: 'UNIT_DEATH',
+              unitId: attackerId,
+              position: attackerPos,
+              faction: currentUnit.faction,
+              spawnBrandmarkReplacement: attackerSpawnBrandmarkReplacement,
+            });
           }
           events.push(...secondaryEvents);
         }

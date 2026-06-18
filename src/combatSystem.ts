@@ -146,10 +146,13 @@ export function handleBrandmarkedUnitDeath(
  */
 export function findEmberDemonSpawnPos(
   state: Draft<GameState>,
-  origin: { x: number; y: number },
+  origin: Position,
+  blockedPositions: Position[] = [],
 ): { x: number; y: number } | null {
+  const isBlocked = (pos: Position): boolean =>
+    blockedPositions.some((blocked) => blocked.x === pos.x && blocked.y === pos.y);
   const originTile = state.grid[origin.y]?.[origin.x];
-  if (originTile && !originTile.unitId && !originTile.isLava) {
+  if (originTile && !originTile.unitId && !originTile.isLava && !isBlocked(origin)) {
     return { ...origin };
   }
   const adjacents = [
@@ -161,7 +164,7 @@ export function findEmberDemonSpawnPos(
   for (const adj of adjacents) {
     if (adj.x < 0 || adj.y < 0 || adj.x >= (state.grid[0]?.length ?? 0) || adj.y >= state.grid.length) continue;
     const t = state.grid[adj.y]?.[adj.x];
-    if (t && !t.unitId && !t.isLava) return adj;
+    if (t && !t.unitId && !t.isLava && !isBlocked(adj)) return adj;
   }
   return null;
 }
@@ -222,14 +225,15 @@ export function spawnEnemyEmberDemon(
 export function completeBrandmarkTransformInPlace(
   state: Draft<GameState>,
   unitId: string,
-  position: { x: number; y: number },
+  position: Position,
+  blockedPositions: Position[] = [],
 ): void {
   const tile = state.grid[position.y]?.[position.x];
   if (tile && tile.unitId === unitId) tile.unitId = null;
   delete state.units[unitId];
   state.gameStats.unitsLost += 1;
 
-  const spawnPos = findEmberDemonSpawnPos(state, position);
+  const spawnPos = findEmberDemonSpawnPos(state, position, blockedPositions);
   if (spawnPos) spawnEnemyEmberDemon(state, spawnPos);
 }
 
@@ -638,6 +642,12 @@ export function resolveAttack(
     ? attacker.stats.currentHp - combatResult.attackerHpLost
     : attacker.stats.currentHp;
   const attackerDead = newAttackerHp <= 0;
+  const attackerWillAdvanceToDefenderTile =
+    defenderDead &&
+    !attackerDead &&
+    !attacker.tags.includes(UnitTag.RANGED) &&
+    state.grid[defender.position.y][defender.position.x].terrainType !== TileType.CANYON &&
+    state.grid[defender.position.y][defender.position.x].terrainType !== TileType.WATER;
 
   // Update game stats
   if (attackerFaction === Faction.PLAYER) {
@@ -731,7 +741,12 @@ export function resolveAttack(
 
     if (defenderTags.includes(UnitTag.BRANDMARKED)) {
       // BRANDMARKED: immediately complete the transform so the resolved state is clean.
-      completeBrandmarkTransformInPlace(state, defenderId, { x: defender.position.x, y: defender.position.y });
+      completeBrandmarkTransformInPlace(
+        state,
+        defenderId,
+        { x: defender.position.x, y: defender.position.y },
+        attackerWillAdvanceToDefenderTile ? [{ ...defenderPosition }] : [],
+      );
     } else {
       // Remove defender from grid
       const defenderTile = state.grid[defender.position.y][defender.position.x];
@@ -760,11 +775,7 @@ export function resolveAttack(
     // Suppressed on CORRUPTED tile.
     // Fix (21): when the kill triggers a melee advance onto the defender tile, use the
     // DESTINATION tile status — not the attacker's current (pre-advance) tile.
-    const willMeleeAdvance =
-      !attacker.tags.includes(UnitTag.RANGED) &&
-      state.grid[defenderPosition.y][defenderPosition.x].terrainType !== TileType.CANYON &&
-      state.grid[defenderPosition.y][defenderPosition.x].terrainType !== TileType.WATER;
-    const bloodlustSuppressed = willMeleeAdvance
+    const bloodlustSuppressed = attackerWillAdvanceToDefenderTile
       ? state.grid[defenderPosition.y][defenderPosition.x].status === TileStatus.CORRUPTED
       : attackerOnCorrupted;
     if (
@@ -786,8 +797,8 @@ export function resolveAttack(
         attackerUnit.hasDestroyedThisTurn = true;
         // Fix (19): if no valid target is reachable after the charge (accounting for
         // HIT_AND_RUN post-attack move), clear the dangling charge immediately.
-        const postAdvanceX = willMeleeAdvance ? defenderPosition.x : attackerPosition.x;
-        const postAdvanceY = willMeleeAdvance ? defenderPosition.y : attackerPosition.y;
+        const postAdvanceX = attackerWillAdvanceToDefenderTile ? defenderPosition.x : attackerPosition.x;
+        const postAdvanceY = attackerWillAdvanceToDefenderTile ? defenderPosition.y : attackerPosition.y;
         const hitAndRunBonus = attackerUnit.tags.includes(UnitTag.HIT_AND_RUN)
           ? ABILITIES.HIT_AND_RUN_POST_ATTACK_MOVE_RANGE
           : 0;
@@ -915,15 +926,9 @@ export function resolveAttack(
 
   // Melee attacker advances onto the tile the defeated defender occupied
   // (unless the tile is impassable — canyon / water)
-  if (defenderDead && !attackerDead) {
+  if (attackerWillAdvanceToDefenderTile) {
     const attackerUnit = state.units[attackerId];
-    const targetTerrain = state.grid[defenderPosition.y][defenderPosition.x].terrainType;
-    if (
-      attackerUnit &&
-      !attackerUnit.tags.includes(UnitTag.RANGED) &&
-      targetTerrain !== TileType.CANYON &&
-      targetTerrain !== TileType.WATER
-    ) {
+    if (attackerUnit) {
       const fromTile = state.grid[attackerUnit.position.y][attackerUnit.position.x];
       if (fromTile.unitId === attackerId) {
         fromTile.unitId = null;
@@ -1119,6 +1124,7 @@ export function resolveAttack(
                 unitId: rearUnitId,
                 position: { ...behindPos },
                 faction: rearUnit.faction,
+                spawnBrandmarkReplacement: rearUnit.tags.includes(UnitTag.BRANDMARKED),
               });
             } else {
               rearUnit.stats.currentHp = newRearHp;
@@ -1936,6 +1942,7 @@ export function resolveAttackOnBuilding(
                 unitId: rearUnitId,
                 position: { ...behindPos },
                 faction: rearUnit.faction,
+                spawnBrandmarkReplacement: rearUnit.tags.includes(UnitTag.BRANDMARKED),
               });
             } else {
               rearUnit.stats.currentHp = newRearHp;
