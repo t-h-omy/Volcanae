@@ -15,7 +15,7 @@ import {
 } from './captureSystem';
 import { updateDiscovery } from './discoverySystem';
 import { advanceLava, advanceLavaWithEvents, shouldLavaAdvance } from './lavaSystem';
-import { processTileStatusEndOfTurn, isUnitOnCorruptedTile, applyTileStatus, clearTileStatus } from './tileStatusSystem';
+import { processTileStatusEndOfTurn, applyTileStatus, clearTileStatus } from './tileStatusSystem';
 import {
   collectResources,
   recruitUnit as recruitUnitLogic,
