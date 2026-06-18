@@ -2605,7 +2605,7 @@
   margin-left: 2px;
 }
 
-.hud-spell-btn:hover:not(:disabled) {
+.hud-spell-btn:hover:not(:disabled):not(.hud-spell-btn--inactive) {
   background: rgba(80, 120, 255, 0.7);
 }
 

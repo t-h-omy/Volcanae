@@ -16,9 +16,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { produce } from 'immer';
 import { resolveExplosion, runEnemyTurn } from '../enemySystem';
 import { isUnitOnCorruptedTile } from '../tileStatusSystem';
-import { canUnitHeal, getHealTargets } from '../unitActions';
+import { canUnitHeal, getHealTargets, isHealSuppressedByCorruption } from '../unitActions';
 import { CORRUPTED_SUPPRESSED_TAGS, UNIT_DEFINITIONS, MAP } from '../gameConfig';
 import { useCombatAnimationStore } from '../combatAnimationStore';
+import { useFloaterStore } from '../floaterStore';
+import { useGameStore } from '../gameStore';
 import { RENDER } from '../renderConfig';
 import {
   Faction, UnitType, UnitTag, TileType, TileStatus, DestroyBehavior, BuildingType,
@@ -575,6 +577,7 @@ describe('2D – Corruption debuff logic (CORRUPTED_SUPPRESSED_TAGS)', () => {
     expect(canUnitHeal(healer)).toBe(true);
     expect(isUnitOnCorruptedTile(state, healer.id)).toBe(true);
     expect(healer.tags.some((t) => CORRUPTED_SUPPRESSED_TAGS.has(t))).toBe(true);
+    expect(isHealSuppressedByCorruption(state, healer.id)).toBe(true);
   });
 
   it('PATCHUP can heal normal units but not Brandmarked units', () => {
@@ -591,6 +594,52 @@ describe('2D – Corruption debuff logic (CORRUPTED_SUPPRESSED_TAGS)', () => {
 
     expect(targets).toContain(normalTarget.id);
     expect(targets).not.toContain(brandmarkedTarget.id);
+  });
+
+  it('startHealMode on CORRUPTED tile keeps heal inactive and shows floater text', () => {
+    const healer = makeUnit(UnitType.SCOUT, Faction.PLAYER, 4, 4, {
+      tags: [UnitTag.PATCHUP],
+      hasMovedThisTurn: false,
+      hasAttackedThisTurn: false,
+      hasCapturedThisTurn: false,
+      hasConstructedThisTurn: false,
+      hasDestroyedThisTurn: false,
+    });
+    const ally = makeUnit(UnitType.SPEARMAN, Faction.PLAYER, 5, 4);
+    ally.stats.currentHp = 40;
+
+    useFloaterStore.setState({ floaters: [] });
+    useGameStore.setState({
+      units: {
+        [healer.id]: healer,
+        [ally.id]: ally,
+      },
+      buildings: {},
+      grid: makeFullGrid(
+        [
+          { id: healer.id, x: 4, y: 4 },
+          { id: ally.id, x: 5, y: 4 },
+        ],
+        [],
+        [{ x: 4, y: 4, overrides: { status: TileStatus.CORRUPTED } }],
+      ),
+      pendingHealerId: null,
+    });
+
+    useGameStore.getState().startHealMode(healer.id);
+
+    expect(useGameStore.getState().pendingHealerId).toBeNull();
+    expect(useFloaterStore.getState().floaters).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: 'inactive because of corruption.',
+          x: 4,
+          y: 4,
+          isEnemy: false,
+          floaterType: 'damage',
+        }),
+      ]),
+    );
   });
 });
 

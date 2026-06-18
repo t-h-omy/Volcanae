@@ -43,6 +43,7 @@ import { canCapture } from './captureSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { MAP, MAGE } from './gameConfig';
 import { getMageCastBudget } from './spellSystem';
+import { isUnitOnCorruptedTile } from './tileStatusSystem';
 export { canUnitCast, getMageCastBudget } from './spellSystem';
 
 // ── HELPER ───────────────────────────────────────────────────────────────────
@@ -345,6 +346,15 @@ export function canUnitHeal(unit: Unit): boolean {
   if (unit.hasConstructedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
   return true;
+}
+
+export function isHealSuppressedByCorruption(
+  state: GameState | Draft<GameState>,
+  unitId: string,
+): boolean {
+  const unit = state.units[unitId];
+  if (!unit || !canUnitHeal(unit)) return false;
+  return isUnitOnCorruptedTile(state, unitId) && unit.tags.includes(UnitTag.PATCHUP);
 }
 
 /**

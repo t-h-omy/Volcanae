@@ -54,7 +54,7 @@ import {
   type Tile,
   type GameStats,
 } from '../types';
-import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast, getMageCastBudget } from '../unitActions';
+import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast, getMageCastBudget, isHealSuppressedByCorruption } from '../unitActions';
 import { getPhalanxAttackBonus, getPhalanxDefenseBonus, getCrystalTowerChamberBonus } from '../combatSystem';
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
 import { getTagsFromActiveSpecialists } from '../specialistSystem';
@@ -1577,8 +1577,7 @@ function SelectedUnitPanel({
     const tile = gameState.grid[unit.position.y]?.[unit.position.x];
     return tile?.status === TileStatus.CORRUPTED;
   })();
-  const isHealSuppressedByCorruption =
-    canHeal && isOnCorruptedTile && CORRUPTED_SUPPRESSED_TAGS.has(UnitTag.PATCHUP);
+  const healSuppressedByCorruption = isHealSuppressedByCorruption(gameState, unit.id);
   const hasDebuff = isPlayer && unitHasDebuff(unit, isOnCorruptedTile);
   const fieldworkBlocked = canFieldwork && (() => {
     const tile = gameState.grid[unit.position.y]?.[unit.position.x];
@@ -1636,7 +1635,7 @@ function SelectedUnitPanel({
   const handleHealClick = () => {
     if (isInHealMode) {
       cancelHealMode();
-    } else if (isHealSuppressedByCorruption || healTargets.length > 0) {
+    } else if (healSuppressedByCorruption || healTargets.length > 0) {
       startHealMode(unit.id);
     }
   };
@@ -1906,10 +1905,11 @@ function SelectedUnitPanel({
           )}
           {canHeal && (
             <button
-              className={`hud-spell-btn${isInHealMode ? ' hud-heal-active' : ''}${isHealSuppressedByCorruption ? ' hud-spell-btn--inactive' : ''}`}
-              disabled={!isHealSuppressedByCorruption && healTargets.length === 0}
+              className={`hud-spell-btn${isInHealMode ? ' hud-heal-active' : ''}${healSuppressedByCorruption ? ' hud-spell-btn--inactive' : ''}`}
+              disabled={!healSuppressedByCorruption && healTargets.length === 0}
+              aria-disabled={healSuppressedByCorruption}
               onClick={handleHealClick}
-              title={isHealSuppressedByCorruption ? 'inactive because of corruption.' : undefined}
+              title={healSuppressedByCorruption ? 'inactive because of corruption.' : undefined}
             >
               <span className="hud-spell-btn-label">{isInHealMode ? '💊 Choose target…' : '💊 Heal'}</span>
             </button>
