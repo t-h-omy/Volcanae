@@ -84,8 +84,8 @@ export const BuildingType = {
   /**
    * Economy building constructed on a FOREST tile as an alternative to the
    * Woodcutter. Grants a flat iron bonus per turn to every player-owned MINE
-   * within CHARCOAL_KILN_RADIUS tiles. The bonus is non-stacking: a mine
-   * within range of multiple kilns still receives only one bonus increment.
+   * within CHARCOAL_KILN_RADIUS tiles. The bonus is additive: a mine receives
+   * one bonus increment per active in-range kiln.
    * Unlocked by the CHARCOAL_KILN tech node (requires A_NOBLE_STEAD).
    */
   CHARCOAL_KILN: 'CHARCOAL_KILN',

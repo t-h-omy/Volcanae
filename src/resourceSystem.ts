@@ -207,17 +207,17 @@ export function computeRecruitmentBuildingUsage(
 // ============================================================================
 
 /**
- * Returns true if the given player MINE is within range of at least one
- * active, non-disabled player Charcoal Kiln.
+ * Returns the number of active, non-disabled player Charcoal Kilns that are
+ * within range of the given player-owned MINE.
  *
- * This is the single source of truth for the non-stacking kiln bonus check —
- * it returns a boolean so consumers never need to count kilns.  Only player
+ * Each in-range kiln contributes one additive bonus increment. Only player
  * kilns buff player mines; kilns with isDisabledForTurns > 0 grant no bonus.
  */
-export function isMineBuffedByKiln(
+export function getMineKilnBonusCount(
   state: GameState | Draft<GameState>,
   mine: Building,
-): boolean {
+): number {
+  let count = 0;
   for (const b of Object.values(state.buildings)) {
     if (
       b.faction === Faction.PLAYER &&
@@ -229,10 +229,18 @@ export function isMineBuffedByKiln(
         RESOURCES.CHARCOAL_KILN_RADIUS,
       )
     ) {
-      return true;
+      count += 1;
     }
   }
-  return false;
+  return count;
+}
+
+/** Backward-compatible boolean helper used by UI affordances. */
+export function isMineBuffedByKiln(
+  state: GameState | Draft<GameState>,
+  mine: Building,
+): boolean {
+  return getMineKilnBonusCount(state, mine) > 0;
 }
 
 /**
@@ -271,10 +279,11 @@ export function collectResources(state: Draft<GameState>): void {
     // Collect resources based on building type
     if (building.type === BuildingType.MINE) {
       state.resources.iron += RESOURCES.MINE_IRON_PER_TURN;
-      // Non-stacking Charcoal Kiln bonus: +CHARCOAL_KILN_IRON_BONUS if at least
-      // one active player kiln covers this mine (boolean — never counted).
-      if (isMineBuffedByKiln(state, building)) {
-        state.resources.iron += RESOURCES.CHARCOAL_KILN_IRON_BONUS;
+      // Additive Charcoal Kiln bonus: each active in-range kiln adds one
+      // +CHARCOAL_KILN_IRON_BONUS increment to this mine.
+      const kilnBonusCount = getMineKilnBonusCount(state, building);
+      if (kilnBonusCount > 0) {
+        state.resources.iron += RESOURCES.CHARCOAL_KILN_IRON_BONUS * kilnBonusCount;
       }
     } else if (building.type === BuildingType.WOODCUTTER) {
       state.resources.wood += RESOURCES.WOODCUTTER_WOOD_PER_TURN;
@@ -357,9 +366,10 @@ export function computeResourceIncome(
 
     if (building.type === BuildingType.MINE) {
       ironPerTurn += RESOURCES.MINE_IRON_PER_TURN;
-      // Non-stacking Charcoal Kiln bonus (deterministic — always +integer).
-      if (isMineBuffedByKiln(state, building)) {
-        ironPerTurn += RESOURCES.CHARCOAL_KILN_IRON_BONUS;
+      // Additive Charcoal Kiln bonus (deterministic — always +integer).
+      const kilnBonusCount = getMineKilnBonusCount(state, building);
+      if (kilnBonusCount > 0) {
+        ironPerTurn += RESOURCES.CHARCOAL_KILN_IRON_BONUS * kilnBonusCount;
       }
     } else if (building.type === BuildingType.WOODCUTTER) {
       woodPerTurn += RESOURCES.WOODCUTTER_WOOD_PER_TURN;
@@ -435,8 +445,8 @@ export function computeResourceIncomeBreakdown(
   // Per-building-type counters and per-tech bonus accumulators
   let mineCount = 0;
   let woodcutterCount = 0;
-  // Count how many player mines are buffed by a Charcoal Kiln this turn.
-  let kilnBuffedMineCount = 0;
+  // Count total additive kiln bonus increments across all player mines.
+  let kilnBonusIncrementCount = 0;
   const techIron: Record<string, number> = {};
   const techWood: Record<string, number> = {};
 
@@ -446,9 +456,7 @@ export function computeResourceIncomeBreakdown(
 
     if (building.type === BuildingType.MINE) {
       mineCount++;
-      if (isMineBuffedByKiln(state, building)) {
-        kilnBuffedMineCount++;
-      }
+      kilnBonusIncrementCount += getMineKilnBonusCount(state, building);
     } else if (building.type === BuildingType.WOODCUTTER) {
       woodcutterCount++;
     }
@@ -472,11 +480,11 @@ export function computeResourceIncomeBreakdown(
       wood: 0,
     });
   }
-  // Charcoal Kiln bonus — one line for all buffed mines combined.
-  if (kilnBuffedMineCount > 0) {
+  // Charcoal Kiln bonus — one line for all additive increments combined.
+  if (kilnBonusIncrementCount > 0) {
     entries.push({
-      label: `Charcoal Kiln ×${kilnBuffedMineCount}`,
-      iron: kilnBuffedMineCount * RESOURCES.CHARCOAL_KILN_IRON_BONUS,
+      label: `Charcoal Kiln bonus ×${kilnBonusIncrementCount}`,
+      iron: kilnBonusIncrementCount * RESOURCES.CHARCOAL_KILN_IRON_BONUS,
       wood: 0,
     });
   }
