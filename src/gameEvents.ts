@@ -47,6 +47,8 @@ export type GameEvent =
       unitId: string;
       position: Position;
       faction: Faction;
+      /** Exact tile where the live display state should immediately spawn the Brandmark replacement demon. */
+      brandmarkSpawnPosition?: Position | null;
     }
   | {
       type: 'BUILDING_ATTACK';
