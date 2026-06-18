@@ -5,10 +5,10 @@
 
 import type { GameState, Unit, Building, Position } from './types';
 import type { Draft } from 'immer';
-import { produce } from 'immer';
+import { current, produce } from 'immer';
 import { Faction, UnitType, UnitTag, BuildingType, TileType, TileStatus } from './types';
 import { UNIT_DEFINITIONS, ENEMY, MAP, TERRAIN, AI_SCORING, AI_RECRUITMENT, XP, DIFFICULTY_MULTIPLIER, SANCTUM_COLLAPSE, ABILITIES, COUNTER_UNIT_SCORING, PUNCTURE_STUN_BASE_DEF_THRESHOLD, EMBER_PORTAL_BASE_USE_SCORE, EMBER_PORTAL_DISTANCE_PENALTY, EMBER_PORTAL_MAX_USERS_PER_TURN } from './gameConfig';
-import { resolveAttack, calculateCombat, resolveBuildingAttack, buildingToCombatant, calculateCombatFromStats, unitToCombatant, resolveAttackOnBuilding } from './combatSystem';
+import { resolveAttack, calculateCombat, resolveBuildingAttack, buildingToCombatant, calculateCombatFromStats, unitToCombatant, resolveAttackOnBuilding, detectBrandmarkSpawnPos } from './combatSystem';
 import { isTileWithinEdgeCircleRange, edgeCircleDistance } from './rangeUtils';
 import { initiateCapture, canCapture } from './captureSystem';
 import { corruptTerrain, processMagmaSpyrAttacks, processEmberNestSpawns } from './corruptionSystem';
@@ -2204,6 +2204,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
           const defenderHpBefore = targetUnit.stats.currentHp;
           const attackerId = currentUnit.id;
           const defenderId = action.targetUnitId;
+          const stateBeforeAction = current(state);
 
           const secondaryEvents: GameEvent[] = [];
           resolveAttack(state, attackerId, defenderId, suppressFloaters, secondaryEvents);
@@ -2221,6 +2222,12 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
             const defenderXpGained = !attackerAfter ? XP.KILL_UNIT : null;
             const defenderSpawnBrandmarkReplacement = targetUnit.tags.includes(UnitTag.BRANDMARKED);
             const attackerSpawnBrandmarkReplacement = currentUnit.tags.includes(UnitTag.BRANDMARKED);
+            const defenderBrandmarkSpawnPosition = defenderSpawnBrandmarkReplacement
+              ? detectBrandmarkSpawnPos(state, stateBeforeAction, defenderPos)
+              : null;
+            const attackerBrandmarkSpawnPosition = attackerSpawnBrandmarkReplacement
+              ? detectBrandmarkSpawnPos(state, stateBeforeAction, attackerPos)
+              : null;
             events.push({
               type: 'ENEMY_ATTACK',
               attackerId,
@@ -2239,7 +2246,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
                 unitId: defenderId,
                 position: defenderPos,
                 faction: targetUnit.faction,
-                spawnBrandmarkReplacement: defenderSpawnBrandmarkReplacement,
+                brandmarkSpawnPosition: defenderBrandmarkSpawnPosition,
               });
             }
             if (!attackerAfter) {
@@ -2248,7 +2255,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
                 unitId: attackerId,
                 position: attackerPos,
                 faction: currentUnit.faction,
-                spawnBrandmarkReplacement: attackerSpawnBrandmarkReplacement,
+                brandmarkSpawnPosition: attackerBrandmarkSpawnPosition,
               });
             }
             events.push(...secondaryEvents);
@@ -2269,6 +2276,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
         const defenderHpBefore = targetUnit.stats.currentHp;
         const attackerId = currentUnit.id;
         const defenderId = action.targetUnitId;
+        const stateBeforeAction = current(state);
 
         const secondaryEvents: GameEvent[] = [];
         resolveAttack(state, attackerId, defenderId, suppressFloaters, secondaryEvents);
@@ -2280,6 +2288,12 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
           const defenderXpGained = !attackerAfter ? XP.KILL_UNIT : null;
           const defenderSpawnBrandmarkReplacement = targetUnit.tags.includes(UnitTag.BRANDMARKED);
           const attackerSpawnBrandmarkReplacement = currentUnit.tags.includes(UnitTag.BRANDMARKED);
+          const defenderBrandmarkSpawnPosition = defenderSpawnBrandmarkReplacement
+            ? detectBrandmarkSpawnPos(state, stateBeforeAction, defenderPos)
+            : null;
+          const attackerBrandmarkSpawnPosition = attackerSpawnBrandmarkReplacement
+            ? detectBrandmarkSpawnPos(state, stateBeforeAction, attackerPos)
+            : null;
           events.push({
             type: 'ENEMY_ATTACK',
             attackerId,
@@ -2298,7 +2312,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
               unitId: defenderId,
               position: defenderPos,
               faction: targetUnit.faction,
-              spawnBrandmarkReplacement: defenderSpawnBrandmarkReplacement,
+              brandmarkSpawnPosition: defenderBrandmarkSpawnPosition,
             });
           }
           if (!attackerAfter) {
@@ -2307,7 +2321,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
               unitId: attackerId,
               position: attackerPos,
               faction: currentUnit.faction,
-              spawnBrandmarkReplacement: attackerSpawnBrandmarkReplacement,
+              brandmarkSpawnPosition: attackerBrandmarkSpawnPosition,
             });
           }
           events.push(...secondaryEvents);

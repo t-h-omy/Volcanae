@@ -47,8 +47,8 @@ export type GameEvent =
       unitId: string;
       position: Position;
       faction: Faction;
-      /** True when the live display state should immediately replace a dead BRANDMARKED unit with an Ember Demon. */
-      spawnBrandmarkReplacement?: boolean;
+      /** Exact tile where the live display state should immediately spawn the Brandmark replacement demon. */
+      brandmarkSpawnPosition?: Position | null;
     }
   | {
       type: 'BUILDING_ATTACK';

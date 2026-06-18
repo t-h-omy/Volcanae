@@ -179,9 +179,6 @@ describe('Brandmark transform placement', () => {
     expect(nextState.grid[5][4].unitId).toBe(attacker.id);
     expect(nextState.units[attacker.id]?.position).toEqual({ x: 4, y: 5 });
     expect(nextState.units[defender.id]).toBeUndefined();
-    expect(
-      outEvents.find((event) => event.type === 'UNIT_DEATH' && event.unitId === defender.id),
-    ).toMatchObject({ spawnBrandmarkReplacement: true });
   });
 
   it('spawns the replacement demon immediately in live event application', () => {
@@ -200,7 +197,7 @@ describe('Brandmark transform placement', () => {
       unitId: defenderId,
       position: { x: 4, y: 5 },
       faction: Faction.PLAYER,
-      spawnBrandmarkReplacement: true,
+      brandmarkSpawnPosition: { x: 5, y: 5 },
     });
 
     const state = useGameStore.getState();

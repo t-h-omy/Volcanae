@@ -169,6 +169,37 @@ export function findEmberDemonSpawnPos(
   return null;
 }
 
+export function detectBrandmarkSpawnPos(
+  state: GameState,
+  previousState: GameState,
+  origin: Position,
+): Position | null {
+  const candidates: Position[] = [
+    { ...origin },
+    { x: origin.x - 1, y: origin.y },
+    { x: origin.x + 1, y: origin.y },
+    { x: origin.x, y: origin.y - 1 },
+    { x: origin.x, y: origin.y + 1 },
+  ];
+  for (const candidate of candidates) {
+    if (
+      candidate.x < 0 ||
+      candidate.y < 0 ||
+      candidate.x >= (state.grid[0]?.length ?? 0) ||
+      candidate.y >= state.grid.length
+    ) {
+      continue;
+    }
+    const unitId = state.grid[candidate.y]?.[candidate.x]?.unitId;
+    if (!unitId) continue;
+    const unit = state.units[unitId];
+    if (!unit || unit.type !== UnitType.EMBER_DEMON || unit.faction !== Faction.ENEMY) continue;
+    const previousUnitId = previousState.grid[candidate.y]?.[candidate.x]?.unitId ?? null;
+    if (previousUnitId !== unitId) return candidate;
+  }
+  return null;
+}
+
 /**
  * Spawns a hostile (enemy-faction) Ember Demon at `spawnPos`.
  * The demon starts with all actions spent (exhausted for this turn).
@@ -1124,7 +1155,6 @@ export function resolveAttack(
                 unitId: rearUnitId,
                 position: { ...behindPos },
                 faction: rearUnit.faction,
-                spawnBrandmarkReplacement: rearUnit.tags.includes(UnitTag.BRANDMARKED),
               });
             } else {
               rearUnit.stats.currentHp = newRearHp;
@@ -1942,7 +1972,6 @@ export function resolveAttackOnBuilding(
                 unitId: rearUnitId,
                 position: { ...behindPos },
                 faction: rearUnit.faction,
-                spawnBrandmarkReplacement: rearUnit.tags.includes(UnitTag.BRANDMARKED),
               });
             } else {
               rearUnit.stats.currentHp = newRearHp;

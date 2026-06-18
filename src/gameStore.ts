@@ -7,7 +7,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { current, produce, type Draft } from 'immer';
 import { generateInitialGameState, generateId } from './mapGenerator';
-import { resolveAttack, resolveBuildingAttack, resolveAttackOnBuilding, resolveBuildingAttackOnBuilding, handleBrandmarkedUnitDeath, shouldLeaveGravestone, createGravestoneAt, findEmberDemonSpawnPos, spawnEnemyEmberDemon } from './combatSystem';
+import { resolveAttack, resolveBuildingAttack, resolveAttackOnBuilding, resolveBuildingAttackOnBuilding, handleBrandmarkedUnitDeath, shouldLeaveGravestone, createGravestoneAt, findEmberDemonSpawnPos, spawnEnemyEmberDemon, detectBrandmarkSpawnPos } from './combatSystem';
 import { moveUnit as moveUnitLogic } from './movementSystem';
 import {
   initiateCapture as initiateCaptureLogic,
@@ -551,6 +551,12 @@ export const useGameStore = create<GameStore>()(
         const defenderXpGained = !attackerAfter ? XP.KILL_UNIT : null;
         const defenderSpawnBrandmarkReplacement = !!snapshot.units[targetId]?.tags.includes(UnitTag.BRANDMARKED);
         const attackerSpawnBrandmarkReplacement = !!snapshot.units[attackerId]?.tags.includes(UnitTag.BRANDMARKED);
+        const defenderBrandmarkSpawnPosition = defenderSpawnBrandmarkReplacement
+          ? detectBrandmarkSpawnPos(resolvedState, snapshot, defenderPosition)
+          : null;
+        const attackerBrandmarkSpawnPosition = attackerSpawnBrandmarkReplacement
+          ? detectBrandmarkSpawnPos(resolvedState, snapshot, attackerPosition)
+          : null;
 
         const attackEvent: GameEvent = {
           type: 'PLAYER_ATTACK',
@@ -578,7 +584,7 @@ export const useGameStore = create<GameStore>()(
             unitId: targetId,
             position: defenderPosition,
             faction: defenderFaction,
-            spawnBrandmarkReplacement: defenderSpawnBrandmarkReplacement,
+            brandmarkSpawnPosition: defenderBrandmarkSpawnPosition,
           });
           // If the killed unit was a cave monster, push the specialist-draw event
           if (snapshot.units[targetId]?.type === UnitType.CAVE_MONSTER) {
@@ -591,7 +597,7 @@ export const useGameStore = create<GameStore>()(
             unitId: attackerId,
             position: attackerPosition,
             faction: attackerFaction,
-            spawnBrandmarkReplacement: attackerSpawnBrandmarkReplacement,
+            brandmarkSpawnPosition: attackerBrandmarkSpawnPosition,
           });
         }
         // Push secondary damage/death events (SPLASH/CLEAVE/PIERCE)
@@ -720,6 +726,9 @@ export const useGameStore = create<GameStore>()(
           ? XP.DESTROY_BUILDING
           : null;
         const defenderSpawnBrandmarkReplacement = !!snapshot.units[targetId]?.tags.includes(UnitTag.BRANDMARKED);
+        const defenderBrandmarkSpawnPosition = defenderSpawnBrandmarkReplacement
+          ? detectBrandmarkSpawnPos(resolvedState, snapshot, defenderPosition)
+          : null;
 
         const buildingAttackEvent: GameEvent = {
           type: 'BUILDING_ATTACK',
@@ -745,7 +754,7 @@ export const useGameStore = create<GameStore>()(
             unitId: targetId,
             position: defenderPosition,
             faction: defenderFaction,
-            spawnBrandmarkReplacement: defenderSpawnBrandmarkReplacement,
+            brandmarkSpawnPosition: defenderBrandmarkSpawnPosition,
           });
         }
 
@@ -1990,7 +1999,7 @@ export const useGameStore = create<GameStore>()(
             if (unit) {
               const isBrandmarked = unit.tags.includes(UnitTag.BRANDMARKED);
               const shouldSpawnBrandmarkReplacement =
-                !!event.spawnBrandmarkReplacement && isBrandmarked;
+                !!event.brandmarkSpawnPosition && isBrandmarked;
               // Show "Risen" floater for BRANDMARKED units — the deferred animation
               // was removed from handleBrandmarkedUnitDeath, so we show it here at
               // the correct point in the animation timeline.
@@ -2017,8 +2026,7 @@ export const useGameStore = create<GameStore>()(
               const deathPos = { x: unit.position.x, y: unit.position.y };
               delete state.units[event.unitId];
               if (shouldSpawnBrandmarkReplacement) {
-                const spawnPos = findEmberDemonSpawnPos(state, deathPos);
-                if (spawnPos) spawnEnemyEmberDemon(state, spawnPos);
+                spawnEnemyEmberDemon(state, event.brandmarkSpawnPosition!);
               }
               if (!unitTags.includes(UnitTag.BRANDMARKED) && shouldLeaveGravestone(
                 { faction: unitFaction, tags: unitTags },
