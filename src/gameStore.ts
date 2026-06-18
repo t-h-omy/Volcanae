@@ -1325,11 +1325,31 @@ export const useGameStore = create<GameStore>()(
     castSpell: (targetPosition: Position) => {
       let castSpellId: import('./types').SpellId | null = null;
       let magePosition: Position | null = null;
+      let killedCaveMonsterIds: string[] = [];
       set((state) => {
         if (!state.pendingSpellCast) return;
         const { mageId, spellId } = state.pendingSpellCast;
+
+        // Snapshot enemy cave monster IDs before the spell to detect kills.
+        const caveMonstersBefore = new Set(
+          Object.values(state.units)
+            .filter((u) => u.type === UnitType.CAVE_MONSTER && u.faction === Faction.ENEMY)
+            .map((u) => u.id),
+        );
+
         const ok = castSpellLogic(state, mageId, spellId, targetPosition);
         if (!ok) return;
+
+        // Detect cave monsters killed by the spell and clean up their encounters.
+        for (const id of caveMonstersBefore) {
+          if (!state.units[id]) {
+            killedCaveMonsterIds.push(id);
+            state.activeCaveEncounters = state.activeCaveEncounters.filter(
+              (e) => e.monsterId !== id,
+            );
+          }
+        }
+
         castSpellId = spellId;
         const mageAfter = state.units[mageId];
         if (mageAfter) {
@@ -1352,6 +1372,18 @@ export const useGameStore = create<GameStore>()(
         updateDiscovery(state);
         checkGameConditions(state);
       });
+      // Enqueue CAVE_MONSTER_KILLED events for any cave monsters killed by the spell.
+      // This triggers the specialist-draw modal via the animation engine, mirroring
+      // the same flow used when a cave monster is killed by a normal attack.
+      if (killedCaveMonsterIds.length > 0) {
+        const resolvedState = useGameStore.getState();
+        const caveKillEvents: GameEvent[] = killedCaveMonsterIds.map((monsterId) => ({
+          type: 'CAVE_MONSTER_KILLED' as const,
+          monsterId,
+        }));
+        useAnimationStore.getState().enqueue(caveKillEvents, resolvedState);
+      }
+
       // Fire SFX triggers outside the immer mutation (side-effect).
       // triggerSpellSfx is a no-op until real audio assets are wired.
       if (castSpellId !== null) {
