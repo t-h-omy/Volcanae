@@ -50,7 +50,7 @@ import { ANIMATION } from './animationConfig';
 import { saveGameState, loadGameState, clearSavedGame, hasSavedGame } from './saveSystem';
 import { computeLevelFromXp, applyLevelUps } from './levelSystem';
 import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLogic, getGrantedTags, getRemovedTags, getStatMods, applyTagStatEffects, revokeTagStatEffects } from './techSystem';
-import { canUnitHeal, getHealTargets, canUnitFieldwork } from './unitActions';
+import { canUnitHeal, getHealTargets, canUnitFieldwork, isHealSuppressedByCorruption } from './unitActions';
 import { createFieldworkOutpost } from './constructionSystem';
 import { getTagsFromActiveSpecialists } from './specialistSystem';
 import { castSpell as castSpellLogic } from './spellSystem';
@@ -1264,8 +1264,7 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         const healer = state.units[healerId];
         if (!healer || !canUnitHeal(healer)) return;
-        // CORRUPTED tile: PATCHUP heal is suppressed.
-        if (isUnitOnCorruptedTile(state, healerId)) return;
+        if (isHealSuppressedByCorruption(state, healerId)) return;
         const targets = getHealTargets(state, healerId);
         if (!targets.includes(targetId)) return;
         const target = state.units[targetId];
@@ -1286,7 +1285,7 @@ export const useGameStore = create<GameStore>()(
           state.pendingHealerId = null;
           return;
         }
-        if (isUnitOnCorruptedTile(state, healerId)) {
+        if (isHealSuppressedByCorruption(state, healerId)) {
           useFloaterStore.getState().addFloater({
             value: 0,
             label: 'inactive because of corruption.',
