@@ -300,8 +300,8 @@ export const RESOURCES = {
   /**
    * Flat iron bonus added to each eligible player MINE's iron per turn when
    * that mine is within CHARCOAL_KILN_RADIUS tiles of at least one active,
-   * non-disabled player Charcoal Kiln. The bonus does NOT stack — a mine
-   * receives at most one increment regardless of how many kilns cover it.
+   * non-disabled player Charcoal Kiln. The bonus stacks additively — a mine
+   * receives one increment per active in-range kiln.
    */
   CHARCOAL_KILN_IRON_BONUS: 1,
   /**
@@ -1499,8 +1499,8 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     destroyBehavior: DestroyBehavior.NONE,
     constructionCost: { iron: 0, wood: 8 },
     // No combatStats → tile remains walkable (same as MINE / WOODCUTTER).
-    // Description must state the effect AND that the bonus is non-stacking.
-    description: `Grants +${RESOURCES.CHARCOAL_KILN_IRON_BONUS} iron per turn to each mine within ${RESOURCES.CHARCOAL_KILN_RADIUS} tiles. Does not stack.`,
+    // Description must state the additive per-kiln effect.
+    description: `Grants +${RESOURCES.CHARCOAL_KILN_IRON_BONUS} iron per turn per in-range kiln to each mine within ${RESOURCES.CHARCOAL_KILN_RADIUS} tiles.`,
   },
 };
 
@@ -1649,7 +1649,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     // with iron production, making them natural thematic siblings on the tree.
     id: 'CHARCOAL_KILN',
     name: 'Charcoal Kiln',
-    description: `Unlocks the Charcoal Kiln, which grants +${RESOURCES.CHARCOAL_KILN_IRON_BONUS} iron per turn to nearby mines (does not stack).`,
+    description: `Unlocks the Charcoal Kiln, which grants +${RESOURCES.CHARCOAL_KILN_IRON_BONUS} iron per turn per in-range kiln to nearby mines.`,
     requires: ['A_NOBLE_STEAD'],
     cost: 4,
     effects: [

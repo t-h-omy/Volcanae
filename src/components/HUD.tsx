@@ -24,7 +24,7 @@ import {
   computeRecruitmentBuildingUsage,
   computeResourceIncomeBreakdown,
   computeCrystalIncomePerTurn,
-  isMineBuffedByKiln,
+  getMineKilnBonusCount,
 } from '../resourceSystem';
 import {
   getConstructionOptionsForTile,
@@ -2383,8 +2383,9 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   const isMine = building.type === BuildingType.MINE && isPlayerOwned;
   const isWoodcutter = building.type === BuildingType.WOODCUTTER && isPlayerOwned;
   const isCharcoalKiln = building.type === BuildingType.CHARCOAL_KILN && isPlayerOwned;
-  // Whether this mine is currently receiving the non-stacking kiln iron bonus.
-  const mineHasKilnBuff = isMine && !isDisabled && isMineBuffedByKiln(gameState, building);
+  // Additive kiln bonus increments currently applied to this mine.
+  const mineKilnBonusCount = isMine && !isDisabled ? getMineKilnBonusCount(gameState, building) : 0;
+  const mineHasKilnBuff = mineKilnBonusCount > 0;
 
   // Population info for FARM, PATRICIANHOUSE, and STRONGHOLD
   const isHousingBuilding =
@@ -2527,7 +2528,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
       {/* Charcoal Kiln buff indicator on a selected mine */}
       {mineHasKilnBuff && (
         <div className="hud-production-row hud-buff-note">
-          🔥 +{RESOURCES.CHARCOAL_KILN_IRON_BONUS} iron per turn (Charcoal Kiln)
+          🔥 +{RESOURCES.CHARCOAL_KILN_IRON_BONUS * mineKilnBonusCount} iron per turn (Charcoal Kiln ×{mineKilnBonusCount})
         </div>
       )}
       {isWoodcutter && (
@@ -2539,7 +2540,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
       {/* Charcoal Kiln panel: radius and current coverage */}
       {isCharcoalKiln && (
         <div className="hud-production-row">
-          🔥 Buffs mines within {RESOURCES.CHARCOAL_KILN_RADIUS} tiles (+{RESOURCES.CHARCOAL_KILN_IRON_BONUS} iron/turn, does not stack)
+          🔥 Buffs mines within {RESOURCES.CHARCOAL_KILN_RADIUS} tiles (+{RESOURCES.CHARCOAL_KILN_IRON_BONUS} iron/turn per kiln)
           {isDisabled && <span className="hud-dim"> (paused)</span>}
         </div>
       )}
