@@ -315,6 +315,9 @@ export const UnitTag = {
    * solid ground because they are not standing on it.
    */
   FLYING: 'FLYING',
+  // ── Tile-presence status tags (derived, not persisted) ───────────────────
+  /** Unit is standing on a corrupted tile and its tag abilities are being suppressed. */
+  CORRUPTED: 'CORRUPTED',
 } as const;
 export type UnitTag = (typeof UnitTag)[keyof typeof UnitTag];
 

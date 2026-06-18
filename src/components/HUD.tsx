@@ -736,12 +736,15 @@ function Popup({ onClose, children }: { onClose: () => void; children: React.Rea
 }
 
 /** Tag info popup — shows label + description with an OK button */
-function TagPopup({ tag, onClose }: { tag: UnitTag; onClose: () => void }) {
+function TagPopup({ tag, disabledByCorruption, onClose }: { tag: UnitTag; disabledByCorruption?: boolean; onClose: () => void }) {
   const info = TAG_INFO[tag];
   if (!info) return null;
   return (
     <Popup onClose={onClose}>
       <div className="info-popup-header-name" style={{ marginBottom: 10 }}>{info.label}</div>
+      {disabledByCorruption && (
+        <p className="info-popup-corruption-notice">Disabled by corruption</p>
+      )}
       <p className="info-popup-desc" style={{ marginBottom: 16 }}>{info.desc}</p>
       <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>OK</button>
     </Popup>
@@ -878,11 +881,12 @@ function ResourceInfoPopup({
 }
 
 /** Shared base for tappable tag pills — renders a labelled button with an "i" badge */
-function TagPillBase({ label, onClick, inactive }: { label: string; onClick: () => void; inactive?: boolean }) {
+function TagPillBase({ label, onClick, inactive, highlight, onHighlightEnd }: { label: string; onClick: () => void; inactive?: boolean; highlight?: boolean; onHighlightEnd?: () => void }) {
   return (
     <button
-      className={`info-popup-tag-pill${inactive ? ' info-popup-tag-pill--inactive' : ''}`}
+      className={`info-popup-tag-pill${inactive ? ' info-popup-tag-pill--inactive' : ''}${highlight ? ' info-popup-tag-pill--highlight' : ''}`}
       onClick={onClick}
+      onAnimationEnd={highlight ? onHighlightEnd : undefined}
     >
       {label}
       <span className="info-popup-tag-pill-i">i</span>
@@ -891,9 +895,9 @@ function TagPillBase({ label, onClick, inactive }: { label: string; onClick: () 
 }
 
 /** Tappable tag pill used in panels and popups */
-function InfoTagPill({ tag, onClick, inactive }: { tag: UnitTag; onClick: () => void; inactive?: boolean }) {
+function InfoTagPill({ tag, onClick, inactive, highlight, onHighlightEnd }: { tag: UnitTag; onClick: () => void; inactive?: boolean; highlight?: boolean; onHighlightEnd?: () => void }) {
   const info = TAG_INFO[tag];
-  return <TagPillBase label={info?.label ?? tag} onClick={onClick} inactive={inactive} />;
+  return <TagPillBase label={info?.label ?? tag} onClick={onClick} inactive={inactive} highlight={highlight} onHighlightEnd={onHighlightEnd} />;
 }
 
 /** Tag info popup for terrain tags (tile status) */
@@ -1577,6 +1581,8 @@ function SelectedUnitPanel({
     const tile = gameState.grid[unit.position.y]?.[unit.position.x];
     return tile?.status === TileStatus.CORRUPTED;
   })();
+  const showCorruptedTag = isOnCorruptedTile && unit.tags.some((t) => CORRUPTED_SUPPRESSED_TAGS.has(t));
+  const displayedTags: UnitTag[] = showCorruptedTag ? [UnitTag.CORRUPTED, ...visibleTags] : visibleTags;
   const healSuppressedByCorruption = isHealSuppressedByCorruption(gameState, unit.id);
   const hasDebuff = isPlayer && unitHasDebuff(unit, isOnCorruptedTile);
   const fieldworkBlocked = canFieldwork && (() => {
@@ -1591,6 +1597,7 @@ function SelectedUnitPanel({
   const [aiScores, setAiScores] = useState<ScoredAction[]>([]);
   const [unitInfoOpen, setUnitInfoOpen] = useState(false);
   const [tagPopup, setTagPopup] = useState<UnitTag | null>(null);
+  const [highlightCorrupted, setHighlightCorrupted] = useState(false);
   const levelUpUnit = useGameStore((s) => s.levelUpUnit);
   const startHealMode = useGameStore((s) => s.startHealMode);
   const cancelHealMode = useGameStore((s) => s.cancelHealMode);
@@ -1635,7 +1642,9 @@ function SelectedUnitPanel({
   const handleHealClick = () => {
     if (isInHealMode) {
       cancelHealMode();
-    } else if (healSuppressedByCorruption || healTargets.length > 0) {
+    } else if (healSuppressedByCorruption) {
+      setHighlightCorrupted(true);
+    } else if (healTargets.length > 0) {
       startHealMode(unit.id);
     }
   };
@@ -1866,14 +1875,16 @@ function SelectedUnitPanel({
         </div>
         <span className="hud-unit-stats-hint" aria-hidden="true">📊</span>
       </button>
-      {visibleTags.length > 0 && (
+      {displayedTags.length > 0 && (
         <div className="hud-tag-pills">
-          {visibleTags.map((tag) => (
+          {displayedTags.map((tag) => (
             <InfoTagPill
               key={tag}
               tag={tag}
               onClick={() => setTagPopup(tag)}
               inactive={isOnCorruptedTile && CORRUPTED_SUPPRESSED_TAGS.has(tag)}
+              highlight={tag === UnitTag.CORRUPTED && highlightCorrupted}
+              onHighlightEnd={tag === UnitTag.CORRUPTED ? () => setHighlightCorrupted(false) : undefined}
             />
           ))}
         </div>
@@ -2042,7 +2053,16 @@ function SelectedUnitPanel({
       {unitInfoOpen && (
         <UnitCombinedInfoPopup unit={unit} onClose={() => setUnitInfoOpen(false)} />
       )}
-      {tagPopup && <TagPopup tag={tagPopup} onClose={() => setTagPopup(null)} />}
+      {tagPopup && (
+        <TagPopup
+          tag={tagPopup}
+          disabledByCorruption={isOnCorruptedTile && CORRUPTED_SUPPRESSED_TAGS.has(tagPopup)}
+          onClose={() => {
+            if (isOnCorruptedTile && CORRUPTED_SUPPRESSED_TAGS.has(tagPopup)) setHighlightCorrupted(true);
+            setTagPopup(null);
+          }}
+        />
+      )}
     </div>
   );
 }
