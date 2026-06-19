@@ -1584,6 +1584,7 @@ export const useGameStore = create<GameStore>()(
 
         // Phase 6: New turn bookkeeping on computedState
         const leashDefectEvents: GameEvent[] = [];
+        const tagDamageEvents: GameEvent[] = [];
         computedState = produce(computedState, (draft) => {
           // Collect resources
           collectResources(draft);
@@ -1620,13 +1621,17 @@ export const useGameStore = create<GameStore>()(
               }
 
               if (shouldBeHomeless) {
-                unit.stats.currentHp -= POPULATION.HOMELESS_HP_LOSS_PER_TURN;
-                useFloaterStore.getState().addFloater({
-                  value: POPULATION.HOMELESS_HP_LOSS_PER_TURN,
-                  x: unit.position.x,
-                  y: unit.position.y,
-                  isEnemy: false,
-                });
+                const damage = Math.min(POPULATION.HOMELESS_HP_LOSS_PER_TURN, unit.stats.currentHp);
+                unit.stats.currentHp -= damage;
+                if (damage > 0) {
+                  tagDamageEvents.push({
+                    type: 'TILE_DAMAGE',
+                    unitId: unit.id,
+                    position: { x: unit.position.x, y: unit.position.y },
+                    amount: damage,
+                    damageSource: 'TAG',
+                  });
+                }
                 if (unit.stats.currentHp <= 0) {
                   homelessDying.push(unit.id);
                 }
@@ -1680,13 +1685,17 @@ export const useGameStore = create<GameStore>()(
           for (const unit of Object.values(draft.units)) {
             if (unit.faction !== Faction.PLAYER) continue;
             if (!unit.tags.includes(UnitTag.BRANDMARKED)) continue;
-            unit.stats.currentHp -= MAGE.BRANDMARK_HP_LOSS_PER_TURN;
-            useFloaterStore.getState().addFloater({
-              value: MAGE.BRANDMARK_HP_LOSS_PER_TURN,
-              x: unit.position.x,
-              y: unit.position.y,
-              isEnemy: false,
-            });
+            const damage = Math.min(MAGE.BRANDMARK_HP_LOSS_PER_TURN, unit.stats.currentHp);
+            unit.stats.currentHp -= damage;
+            if (damage > 0) {
+              tagDamageEvents.push({
+                type: 'TILE_DAMAGE',
+                unitId: unit.id,
+                position: { x: unit.position.x, y: unit.position.y },
+                amount: damage,
+                damageSource: 'TAG',
+              });
+            }
             if (unit.stats.currentHp <= 0) {
               brandmarkDying.push(unit.id);
             }
@@ -1810,6 +1819,9 @@ export const useGameStore = create<GameStore>()(
         // defects before the enemy-turn action events that follow them.
         if (leashDefectEvents.length > 0) {
           allEvents.unshift(...leashDefectEvents);
+        }
+        if (tagDamageEvents.length > 0) {
+          allEvents.push(...tagDamageEvents);
         }
         if (allEvents.length > 0) {
           pendingEvents = allEvents;

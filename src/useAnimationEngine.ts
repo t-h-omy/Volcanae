@@ -169,6 +169,9 @@ function isEventVisible(event: GameEvent): boolean {
     case 'EMBER_LEVEL_UP':
       return isTileRevealed(event.position);
     case 'TILE_DAMAGE':
+      if (useGameStore.getState().units[event.unitId]?.faction === Faction.PLAYER) {
+        return true;
+      }
       return isTileRevealed(event.position);
     case 'CLEAVE_DAMAGE':
       return isTileRevealed(event.position);
@@ -1442,16 +1445,15 @@ export function useAnimationEngine(): void {
         // ── Special handling for TILE_DAMAGE ──
         if (event.type === 'TILE_DAMAGE') {
           if (visible) {
-            // Pan camera to player units taking tile damage so it's always visible
-            useAnimationStore.getState().setCameraTarget(event.position);
-            await wait(ANIMATION.CAMERA_MOVE_DURATION_MS);
-            useCombatAnimationStore.getState().addTileVfx({
-              id: crypto.randomUUID(),
-              x: event.position.x,
-              y: event.position.y,
-              variant: 'BURNING_DAMAGE',
-              durationMs: ANIMATION.BURNING_DAMAGE_VFX_MS,
-            });
+            if (event.damageSource !== 'TAG') {
+              useCombatAnimationStore.getState().addTileVfx({
+                id: crypto.randomUUID(),
+                x: event.position.x,
+                y: event.position.y,
+                variant: 'BURNING_DAMAGE',
+                durationMs: ANIMATION.BURNING_DAMAGE_VFX_MS,
+              });
+            }
           }
           // applyEvent emits the damage floater. The VFX is short enough that the
           // floater rises through it visibly.
