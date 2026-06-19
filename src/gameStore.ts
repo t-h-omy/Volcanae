@@ -1286,14 +1286,6 @@ export const useGameStore = create<GameStore>()(
           return;
         }
         if (isHealSuppressedByCorruption(state, healerId)) {
-          useFloaterStore.getState().addFloater({
-            value: 0,
-            label: 'inactive because of corruption.',
-            x: healer.position.x,
-            y: healer.position.y,
-            isEnemy: false,
-            floaterType: 'damage',
-          });
           state.pendingHealerId = null;
           return;
         }
