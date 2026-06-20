@@ -4,6 +4,9 @@ import { AI_RECRUITMENT, COUNTER_UNIT_SCORING, ENEMY_WAVE_THEME, MAP, PUNCTURE_S
 
 type RandomSource = () => number;
 
+const RANDOM_MAX_EXCLUSIVE = 0.999999999;
+const EPSILON = 0.000001;
+
 let randomSource: RandomSource = Math.random;
 let waveThemeUnitIdCounter = 0;
 
@@ -15,7 +18,7 @@ function rand01(): number {
   const value = randomSource();
   if (!Number.isFinite(value)) return Math.random();
   if (value <= 0) return 0;
-  if (value >= 1) return 0.999999999;
+  if (value >= 1) return RANDOM_MAX_EXCLUSIVE;
   return value;
 }
 
@@ -282,7 +285,7 @@ export function assignPercents(types: UnitType[], state: GameState): WaveThemeEn
   const baseTotal = floor * types.length;
   const remaining = Math.max(0, 100 - baseTotal);
 
-  const weights = types.map(() => rand01() + 0.000001);
+  const weights = types.map(() => rand01() + EPSILON);
   const weightSum = weights.reduce((sum, value) => sum + value, 0);
   const values = types.map((_, idx) => floor + (remaining * weights[idx]) / weightSum);
 
@@ -294,7 +297,7 @@ export function assignPercents(types: UnitType[], state: GameState): WaveThemeEn
     }
   }
 
-  for (let pass = 0; pass < 6 && deficit > 0.000001; pass++) {
+  for (let pass = 0; pass < 6 && deficit > EPSILON; pass++) {
     const uncapped = values
       .map((value, idx) => ({ idx, room: Math.max(0, caps[idx] - value) }))
       .filter(({ room }) => room > 0);
@@ -355,7 +358,7 @@ export function generateRandomTheme(state: GameState): ActiveWaveTheme {
   const minTypes = Math.min(ENEMY_WAVE_THEME.MIN_UNIT_TYPES, pool.length);
   const maxTypes = Math.min(ENEMY_WAVE_THEME.MAX_UNIT_TYPES, pool.length);
   const selectedCount = randInt(minTypes, maxTypes);
-  const rerollLimit = Math.max(ENEMY_WAVE_THEME.ANTI_REPEAT_MAX_REROLLS, 8);
+  const rerollLimit = ENEMY_WAVE_THEME.ANTI_REPEAT_MAX_REROLLS;
 
   for (let attempt = 0; attempt < rerollLimit; attempt++) {
     const picked = pickDistinctRandom(pool, selectedCount);
@@ -621,7 +624,7 @@ export function pickUnitFromTheme(state: GameState, building: { type: BuildingTy
 function createFreshEnemyUnit(type: UnitType, x: number, y: number): Unit {
   const def = UNIT_DEFINITIONS[type];
   waveThemeUnitIdCounter += 1;
-  const id = `wave_theme_enemy_${Date.now()}_${waveThemeUnitIdCounter}`;
+  const id = `wave_theme_enemy_${waveThemeUnitIdCounter}`;
   return {
     id,
     type,
