@@ -244,7 +244,7 @@ function generateBuildingsForZone(
     if (zone === 1 && isStronghold) {
       return Faction.PLAYER;
     }
-    if (zone >= 4) {
+    if (zone >= MAP.FIRST_ENEMY_ZONE) {
       return Faction.ENEMY;
     }
     return null;

@@ -24,6 +24,8 @@ export const MAP = {
   ZONE_HEIGHT: 7,
   /** Number of lava buffer rows at the south (high-Y) end of the map */
   LAVA_BUFFER_ROWS: 6,
+  /** First zone index (1-based) that spawns enemy buildings */
+  FIRST_ENEMY_ZONE: 4,
 } as const;
 
 // ============================================================================
@@ -86,6 +88,14 @@ export interface UnitDefinition {
 
   // ── Enemy unlock threshold (omit for player units) ───────────────────────
   enemyUnlockEmber?: number;
+
+  // ── Wave-theme eligibility (enemy wave composition system) ────────────────
+  /** Whether this unit may appear in a themed enemy wave (default: true) */
+  themeEligible?: boolean;
+  /** Maximum percentage of wave slots this unit type may fill (default: 100) */
+  maxThemePercent?: number;
+  /** Maximum number of this unit type alive in the same zone simultaneously (default: Infinity) */
+  maxAlivePerZone?: number;
 
   // ── UI ───────────────────────────────────────────────────────────────────
   description: string;
@@ -332,6 +342,29 @@ export const ENEMY = {
   MAX_THREAT: 25,
   /** Number of player turns between automatic threat level increases */
   THREAT_LEVEL_INCREASE_INTERVAL: 10,
+} as const;
+
+// ============================================================================
+// ENEMY WAVE THEME CONFIGURATION
+// ============================================================================
+
+export const ENEMY_WAVE_THEME = {
+  /** Minimum number of distinct unit types in a themed wave */
+  MIN_UNIT_TYPES: 1,
+  /** Maximum number of distinct unit types in a themed wave */
+  MAX_UNIT_TYPES: 3,
+  /** Minimum percentage of wave slots a unit type must fill to qualify as the theme */
+  MIN_UNIT_PERCENT: 15,
+  /** Probability (0–1) that the wave reads the player army to counter-pick */
+  READ_PLAYER_CHANCE: 0.2,
+  /** Minimum number of counter-pick waves per game */
+  READ_PLAYER_MIN_PER_GAME: 1,
+  /** Maximum number of counter-pick waves per game */
+  READ_PLAYER_MAX_PER_GAME: 2,
+  /** Number of counter units spawned in a counter-pick wave */
+  READ_PLAYER_COUNTER_PICK: 3,
+  /** Maximum number of re-rolls when trying to avoid a repeated wave composition */
+  ANTI_REPEAT_MAX_REROLLS: 8,
 } as const;
 
 // ============================================================================
@@ -1077,6 +1110,8 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
     enemyUnlockEmber: 7,
+    maxThemePercent: 15,
+    maxAlivePerZone: 1,
     description: 'Glass-cannon caster that opens portals behind the player line, allowing enemy units to teleport into the backline.',
   },
 
@@ -1093,6 +1128,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_EMBERLING }] },
     ],
     enemyUnlockEmber: 1,
+    themeEligible: false,
     description: 'Fragile fire spirit that walks toward lava. Explodes when it cannot move closer to lava.', // overwritten below
   },
 
@@ -1107,6 +1143,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
+    themeEligible: false,
     description: 'A monstrous creature that emerged from deep within a mountain cave.',
   },
 
