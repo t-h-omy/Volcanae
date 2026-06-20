@@ -4,7 +4,7 @@ import { AI_RECRUITMENT, COUNTER_UNIT_SCORING, ENEMY_WAVE_THEME, MAP, PUNCTURE_S
 
 type RandomSource = () => number;
 
-const RANDOM_MAX_EXCLUSIVE = 0.999999999;
+const RANDOM_CLAMP_UPPER_BOUND = 0.999999999;
 const EPSILON = 0.000001;
 
 let randomSource: RandomSource = Math.random;
@@ -18,7 +18,7 @@ function rand01(): number {
   const value = randomSource();
   if (!Number.isFinite(value)) return Math.random();
   if (value <= 0) return 0;
-  if (value >= 1) return RANDOM_MAX_EXCLUSIVE;
+  if (value >= 1) return RANDOM_CLAMP_UPPER_BOUND;
   return value;
 }
 
