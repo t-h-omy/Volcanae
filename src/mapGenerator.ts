@@ -1595,6 +1595,9 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
     pendingTransposeFirstUnitId: null,
     pendingBrandmarkTransforms: [],
     portals: {},
+    activeWaveTheme: { entries: [], isReadPlayer: false },
+    readPlayerThemeCount: 0,
+    lastThemeSignature: null,
   };
 
   // Auto-apply CONSCRIPTION effects (unlocked at game start, not a pick)

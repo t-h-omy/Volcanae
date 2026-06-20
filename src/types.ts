@@ -664,6 +664,16 @@ export interface Portal {
   pendingTeleportUnitId: string | null;
 }
 
+export interface WaveThemeEntry {
+  type: UnitType;
+  percent: number;
+}
+
+export interface ActiveWaveTheme {
+  entries: WaveThemeEntry[];
+  isReadPlayer: boolean;
+}
+
 /** Complete game state */
 export interface GameState {
   turn: number;
@@ -768,4 +778,7 @@ export interface GameState {
    * by cleanupPortals() in portalSystem.ts.
    */
   portals: Record<string, Portal>;
+  activeWaveTheme: ActiveWaveTheme;
+  readPlayerThemeCount: number;
+  lastThemeSignature: string | null;
 }
