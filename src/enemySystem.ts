@@ -25,6 +25,7 @@ import { tryBeginTunnel, processTunnelTurn } from './tunnelSystem';
 import { cleanupPortals, cleanupExpiredPortalsEndOfTurn, tryPlanPortalCast, castPortal, getUsablePortalAtEntrance, tryTeleportThroughPortal, processPendingPortalTeleports } from './portalSystem';
 import { cleanupRoostedUnits, getRoostedUnits } from './buildingRemoval';
 import { isUnitOnCorruptedTile } from './tileStatusSystem';
+import { isCounterThemeUnitType, scoreCountersForPlayer } from './waveThemeSystem';
 
 // ============================================================================
 // ID GENERATION
@@ -757,6 +758,9 @@ function scoreRecruitmentForBuilding(
   const zoneProfile = buildArmyProfile(
     enemyUnits.filter(u => getZoneForRow(u.position.y) === buildingZone)
   );
+  const counterScoresByType = new Map<UnitType, number>(
+    scoreCountersForPlayer(state, { zoneId: buildingZone }).map((entry) => [entry.type, entry.score]),
+  );
 
   const results: { type: UnitType; score: number }[] = [];
 
@@ -775,6 +779,11 @@ function scoreRecruitmentForBuilding(
       [UnitType.RIFT_LORD]: C.BASE_SCORE_RIFT_LORD,
     };
     let score = baseScores[unitType] ?? 0;
+    if (isCounterThemeUnitType(unitType)) {
+      score = counterScoresByType.get(unitType) ?? score;
+      results.push({ type: unitType, score });
+      continue;
+    }
 
     // ── LAVA_GRUNT scoring ──────────────────────────────────────────
     if (unitType === UnitType.LAVA_GRUNT) {
