@@ -25,7 +25,7 @@ import { tryBeginTunnel, processTunnelTurn } from './tunnelSystem';
 import { cleanupPortals, cleanupExpiredPortalsEndOfTurn, tryPlanPortalCast, castPortal, getUsablePortalAtEntrance, tryTeleportThroughPortal, processPendingPortalTeleports } from './portalSystem';
 import { cleanupRoostedUnits, getRoostedUnits } from './buildingRemoval';
 import { isUnitOnCorruptedTile } from './tileStatusSystem';
-import { isCounterThemeUnitType, scoreCountersForPlayer } from './waveThemeSystem';
+import { isCounterThemeUnitType, pickUnitFromTheme, scoreCountersForPlayer } from './waveThemeSystem';
 
 // ============================================================================
 // ID GENERATION
@@ -595,9 +595,7 @@ function spawnEnemyUnits(state: Draft<GameState>, events?: GameEvent[]): void {
       continue;
     }
 
-    // Score recruitment fresh each time so already-spawned units affect composition
-    const scored = scoreRecruitmentForBuilding(state, building);
-    const unitType: UnitType = scored[0]?.type ?? BUILDING_SPAWN_UNIT_TYPE[building.type] ?? UnitType.LAVA_GRUNT;
+    const unitType: UnitType = pickUnitFromTheme(state, building);
 
     const spawnProbability = getSpawnProbability(state, building);
     if (Math.random() >= spawnProbability) continue;
