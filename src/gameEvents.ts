@@ -170,7 +170,7 @@ export type GameEvent =
     }
   | {
       /**
-       * Emitted when a unit takes damage from a tile status (e.g. BURNING).
+       * Emitted when a unit takes non-combat damage (e.g. BURNING tile, tag ticks).
        * Causes a damage floater to appear at the unit's position.
        */
       type: 'TILE_DAMAGE';
@@ -180,6 +180,8 @@ export type GameEvent =
       position: Position;
       /** Amount of damage dealt */
       amount: number;
+      /** High-level source of the damage event. */
+      damageSource?: 'BURNING' | 'TAG';
     }
   | {
       /**

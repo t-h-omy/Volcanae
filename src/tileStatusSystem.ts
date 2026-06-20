@@ -176,6 +176,7 @@ export function processTileStatusEndOfTurn(
           unitId: unit.id,
           position: { x: unit.position.x, y: unit.position.y },
           amount: damage,
+          damageSource: 'BURNING',
         });
       }
 
