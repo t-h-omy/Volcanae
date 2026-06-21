@@ -279,8 +279,7 @@ export function eligiblePool(state: GameState): UnitType[] {
     .map(([type]) => type);
 }
 
-export function assignPercents(types: UnitType[], state: GameState): WaveThemeEntry[] {
-  void state;
+export function assignPercents(types: UnitType[], _state: GameState): WaveThemeEntry[] {
   return assignPercentsForTotal(types, 100);
 }
 
@@ -358,9 +357,8 @@ function assignPercentsForTotal(types: UnitType[], totalPercent: number): WaveTh
 }
 
 function getFillerPercentRange(themeTypeCount: number): { min: number; max: number } {
-  if (themeTypeCount <= 1) return ENEMY_WAVE_THEME.FILLER_PERCENT_RANGE_BY_THEME_SIZE[1];
-  if (themeTypeCount >= 3) return ENEMY_WAVE_THEME.FILLER_PERCENT_RANGE_BY_THEME_SIZE[3];
-  return ENEMY_WAVE_THEME.FILLER_PERCENT_RANGE_BY_THEME_SIZE[2];
+  const clampedCount = Math.max(1, Math.min(3, themeTypeCount)) as 1 | 2 | 3;
+  return ENEMY_WAVE_THEME.FILLER_PERCENT_RANGE_BY_THEME_SIZE[clampedCount];
 }
 
 function buildRandomThemeEntries(
@@ -378,9 +376,11 @@ function buildRandomThemeEntries(
     return assignPercents(baseTypes, state);
   }
 
-  const shuffledFillers = pickDistinctRandom(fillerCandidates, fillerCandidates.length);
   const floor = ENEMY_WAVE_THEME.MIN_UNIT_PERCENT;
-  for (const fillerType of shuffledFillers) {
+  const fillerPool = [...fillerCandidates];
+  while (fillerPool.length > 0) {
+    const fillerIdx = randInt(0, fillerPool.length - 1);
+    const [fillerType] = fillerPool.splice(fillerIdx, 1);
     const maxFillerFromCoreFloor = 100 - (baseTypes.length * floor);
     const minFiller = Math.max(floor, fillerRange.min);
     const maxFiller = Math.min(fillerRange.max, getMaxThemePercent(fillerType), maxFillerFromCoreFloor);
