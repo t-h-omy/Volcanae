@@ -26,6 +26,7 @@ import {
   isTileWithinEdgeCircleRange,
   getTilesWithinEdgeCircleRange,
 } from './rangeUtils';
+import { rollNextWaveTheme } from './waveThemeSystem';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -1612,6 +1613,8 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
       }
     }
   }
+
+  rollNextWaveTheme(gameState, { suppressReadPlayer: true });
 
   return gameState;
 }

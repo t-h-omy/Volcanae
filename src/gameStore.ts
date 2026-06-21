@@ -58,6 +58,7 @@ import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { useShockwaveStore } from './shockwaveStore';
 import { processPendingPortalTeleports } from './portalSystem';
 import { cleanupRoostedUnits } from './buildingRemoval';
+import { rollNextWaveTheme, applyThemeToFoggedUnits } from './waveThemeSystem';
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
@@ -843,6 +844,8 @@ export const useGameStore = create<GameStore>()(
 
           const resolvedState = produce(snapshot, (draft) => {
             initiateCaptureLogic(draft, unitId, buildingId, undefined, collapseEvents);
+            rollNextWaveTheme(draft);
+            applyThemeToFoggedUnits(draft, draft.activeWaveTheme);
             updateDiscovery(draft);
             checkGameConditions(draft);
           });
