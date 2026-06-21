@@ -331,10 +331,7 @@ function DevStatsOverlay({ onClose }: { onClose: () => void }) {
           {stats.map(({ label, value, wrapValue }) => (
             <div key={label} className="hud-dev-stat-row">
               <span className="hud-dev-stat-label">{label}</span>
-              <span
-                className="hud-dev-stat-value"
-                style={wrapValue ? { flexShrink: 1, whiteSpace: 'normal' } : undefined}
-              >
+              <span className={`hud-dev-stat-value${wrapValue ? ' hud-dev-stat-value--wrap' : ''}`}>
                 {value}
               </span>
             </div>

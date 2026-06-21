@@ -953,6 +953,11 @@
   text-align: right;
 }
 
+.hud-dev-stat-value--wrap {
+  flex-shrink: 1;
+  white-space: normal;
+}
+
 /* ── Options Overlay ── */
 
 .hud-options-overlay {
