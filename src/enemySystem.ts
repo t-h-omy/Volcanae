@@ -38,15 +38,6 @@ function generateEnemyId(): string {
 }
 
 // ============================================================================
-// BUILDING → UNIT TYPE MAPPING
-// ============================================================================
-
-const BUILDING_SPAWN_UNIT_TYPE: Partial<Record<BuildingType, UnitType>> = {
-  [BuildingType.LAVALAIR]: UnitType.LAVA_GRUNT,
-  [BuildingType.INFERNALSANCTUM]: UnitType.LAVA_RIDER,
-};
-
-// ============================================================================
 // AI TYPES (local to this module)
 // ============================================================================
 
