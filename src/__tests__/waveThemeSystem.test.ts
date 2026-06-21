@@ -155,6 +155,31 @@ describe('waveThemeSystem', () => {
     }
   });
 
+  it('adds filler to single-type random themes using the 1-type filler range', () => {
+    setWaveThemeRandomSource(sequenceRng([0, 0.12, 0.74, 0.41, 0.27]));
+    const state = makeState(10);
+    const theme = generateRandomTheme(state);
+    const range = ENEMY_WAVE_THEME.FILLER_PERCENT_RANGE_BY_THEME_SIZE[1];
+
+    expect(theme.entries.length).toBe(2);
+    const filler = theme.entries.find((entry) => entry.percent <= range.max);
+    expect(filler).toBeDefined();
+    expect(filler!.percent).toBeGreaterThanOrEqual(range.min);
+    expect(filler!.percent).toBeLessThanOrEqual(range.max);
+  });
+
+  it('keeps 2-type and 3-type random themes unchanged (no filler by default)', () => {
+    const state = makeState(10);
+
+    setWaveThemeRandomSource(sequenceRng([0.5, 0.12, 0.74, 0.41, 0.27]));
+    const twoTypeTheme = generateRandomTheme(state);
+    expect(twoTypeTheme.entries.length).toBe(2);
+
+    setWaveThemeRandomSource(sequenceRng([0.95, 0.12, 0.74, 0.41, 0.27]));
+    const threeTypeTheme = generateRandomTheme(state);
+    expect(threeTypeTheme.entries.length).toBe(3);
+  });
+
   it('never selects units above ember unlock threshold', () => {
     setWaveThemeRandomSource(lcg(12345));
     const state = makeState(0);

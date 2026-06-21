@@ -223,10 +223,14 @@ function pickDistinctRandom<T>(items: readonly T[], count: number): T[] {
 }
 
 function hasFeasiblePercentAllocation(types: readonly UnitType[]): boolean {
+  return hasFeasiblePercentAllocationForTotal(types, 100);
+}
+
+function hasFeasiblePercentAllocationForTotal(types: readonly UnitType[], totalPercent: number): boolean {
   const floor = ENEMY_WAVE_THEME.MIN_UNIT_PERCENT;
-  if (types.length * floor > 100) return false;
+  if (types.length * floor > totalPercent) return false;
   const capSum = types.reduce((sum, type) => sum + getMaxThemePercent(type), 0);
-  return capSum >= 100;
+  return capSum >= totalPercent;
 }
 
 function pickWeightedType(entries: readonly WaveThemeEntry[]): UnitType | null {
@@ -277,13 +281,17 @@ export function eligiblePool(state: GameState): UnitType[] {
 
 export function assignPercents(types: UnitType[], state: GameState): WaveThemeEntry[] {
   void state;
+  return assignPercentsForTotal(types, 100);
+}
+
+function assignPercentsForTotal(types: UnitType[], totalPercent: number): WaveThemeEntry[] {
   if (types.length === 0) return [];
 
   const floor = ENEMY_WAVE_THEME.MIN_UNIT_PERCENT;
   const caps = types.map((type) => getMaxThemePercent(type));
 
   const baseTotal = floor * types.length;
-  const remaining = Math.max(0, 100 - baseTotal);
+  const remaining = Math.max(0, totalPercent - baseTotal);
 
   const weights = types.map(() => rand01() + EPSILON);
   const weightSum = weights.reduce((sum, value) => sum + value, 0);
@@ -319,7 +327,7 @@ export function assignPercents(types: UnitType[], state: GameState): WaveThemeEn
 
   const ints = values.map((value) => Math.round(value));
   let sumInts = ints.reduce((sum, value) => sum + value, 0);
-  let diff = 100 - sumInts;
+  let diff = totalPercent - sumInts;
 
   while (diff !== 0) {
     if (diff > 0) {
@@ -342,11 +350,57 @@ export function assignPercents(types: UnitType[], state: GameState): WaveThemeEn
   }
 
   sumInts = ints.reduce((sum, value) => sum + value, 0);
-  if (sumInts !== 100) {
-    ints[0] += 100 - sumInts;
+  if (sumInts !== totalPercent) {
+    ints[0] += totalPercent - sumInts;
   }
 
   return types.map((type, idx) => ({ type, percent: ints[idx] }));
+}
+
+function getFillerPercentRange(themeTypeCount: number): { min: number; max: number } {
+  if (themeTypeCount <= 1) return ENEMY_WAVE_THEME.FILLER_PERCENT_RANGE_BY_THEME_SIZE[1];
+  if (themeTypeCount >= 3) return ENEMY_WAVE_THEME.FILLER_PERCENT_RANGE_BY_THEME_SIZE[3];
+  return ENEMY_WAVE_THEME.FILLER_PERCENT_RANGE_BY_THEME_SIZE[2];
+}
+
+function buildRandomThemeEntries(
+  baseTypes: UnitType[],
+  pool: UnitType[],
+  state: GameState,
+): WaveThemeEntry[] | null {
+  const fillerRange = getFillerPercentRange(baseTypes.length);
+  const fillerCandidates = pool.filter((type) => !baseTypes.includes(type));
+  const canUseFiller = fillerRange.max > 0 && fillerCandidates.length > 0;
+
+  if (!canUseFiller) {
+    if (fillerRange.min > 0) return null;
+    if (!hasFeasiblePercentAllocation(baseTypes)) return null;
+    return assignPercents(baseTypes, state);
+  }
+
+  const shuffledFillers = pickDistinctRandom(fillerCandidates, fillerCandidates.length);
+  const floor = ENEMY_WAVE_THEME.MIN_UNIT_PERCENT;
+  for (const fillerType of shuffledFillers) {
+    const maxFillerFromCoreFloor = 100 - (baseTypes.length * floor);
+    const minFiller = Math.max(floor, fillerRange.min);
+    const maxFiller = Math.min(fillerRange.max, getMaxThemePercent(fillerType), maxFillerFromCoreFloor);
+    if (maxFiller < minFiller) continue;
+
+    const feasibleFillerPercents: number[] = [];
+    for (let fillerPercent = minFiller; fillerPercent <= maxFiller; fillerPercent++) {
+      const coreTotal = 100 - fillerPercent;
+      if (hasFeasiblePercentAllocationForTotal(baseTypes, coreTotal)) {
+        feasibleFillerPercents.push(fillerPercent);
+      }
+    }
+    if (feasibleFillerPercents.length === 0) continue;
+
+    const chosenFillerPercent = feasibleFillerPercents[randInt(0, feasibleFillerPercents.length - 1)];
+    const coreEntries = assignPercentsForTotal(baseTypes, 100 - chosenFillerPercent);
+    return [...coreEntries, { type: fillerType, percent: chosenFillerPercent }];
+  }
+
+  return null;
 }
 
 export function generateRandomTheme(state: GameState): ActiveWaveTheme {
@@ -362,14 +416,21 @@ export function generateRandomTheme(state: GameState): ActiveWaveTheme {
 
   for (let attempt = 0; attempt < rerollLimit; attempt++) {
     const picked = pickDistinctRandom(pool, selectedCount);
-    if (!hasFeasiblePercentAllocation(picked)) continue;
-    return { entries: assignPercents(picked, state), isReadPlayer: false };
+    const entries = buildRandomThemeEntries(picked, pool, state);
+    if (entries === null) continue;
+    return { entries, isReadPlayer: false };
   }
 
-  const fallback = [...pool]
-    .sort((a, b) => getMaxThemePercent(b) - getMaxThemePercent(a))
-    .slice(0, selectedCount);
-  return { entries: assignPercents(fallback, state), isReadPlayer: false };
+  const sorted = [...pool].sort((a, b) => getMaxThemePercent(b) - getMaxThemePercent(a));
+  for (let count = selectedCount; count <= Math.min(pool.length, ENEMY_WAVE_THEME.MAX_UNIT_TYPES); count++) {
+    const fallback = sorted.slice(0, count);
+    const entries = buildRandomThemeEntries(fallback, pool, state);
+    if (entries !== null) {
+      return { entries, isReadPlayer: false };
+    }
+  }
+
+  return { entries: assignPercents([UnitType.LAVA_GRUNT], state), isReadPlayer: false };
 }
 
 export function scoreCountersForPlayer(

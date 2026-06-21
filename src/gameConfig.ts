@@ -355,6 +355,12 @@ export const ENEMY_WAVE_THEME = {
   MAX_UNIT_TYPES: 3,
   /** Minimum percentage of wave slots a unit type must fill to qualify as the theme */
   MIN_UNIT_PERCENT: 15,
+  /** Filler-unit percent ranges by core theme size (1, 2, 3) */
+  FILLER_PERCENT_RANGE_BY_THEME_SIZE: {
+    1: { min: 15, max: 35 },
+    2: { min: 0, max: 0 },
+    3: { min: 0, max: 0 },
+  },
   /** Probability (0–1) that the wave reads the player army to counter-pick */
   READ_PLAYER_CHANCE: 0.2,
   /** Minimum number of counter-pick waves per game */
