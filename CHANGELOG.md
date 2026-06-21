@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### P6 — Tests + version (`waveThemeSystem.test.ts`, `package.json`)
+
+- Replaced obsolete argmax-style wave assertions with deterministic (seeded RNG) wave-theme
+  tests in `src/__tests__/waveThemeSystem.test.ts`.
+- Added coverage for:
+  - Theme type-count bounds, per-type percent bounds, and exact 100% sum.
+  - Exclusion of `EMBERLING` / `CAVE_MONSTER` from generated themes and laundering outcomes.
+  - Ember unlock gating (`enemyUnlockEmber > ember` cannot be selected).
+  - `RIFT_LORD` constraints (`maxThemePercent` share and `maxAlivePerZone` spawn cap behavior).
+  - Consecutive-signature anti-repeat behavior (allowing repeats only in forced read-player cases),
+    plus read-player total count staying within configured min/max over a simulated game.
+  - Laundering scope: only fogged (`!isRevealed`) enemy units are converted.
+- Bumped package version from `0.88.9` to `0.89.0`.
+
 ### P4 — Recruitment (`enemySystem.ts`)
 
 - `spawnEnemyUnits` now selects the unit type to spawn via `pickUnitFromTheme(state, building)`
