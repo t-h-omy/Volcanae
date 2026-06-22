@@ -25,6 +25,7 @@ import { tryBeginTunnel, processTunnelTurn } from './tunnelSystem';
 import { cleanupPortals, cleanupExpiredPortalsEndOfTurn, tryPlanPortalCast, castPortal, getUsablePortalAtEntrance, tryTeleportThroughPortal, processPendingPortalTeleports } from './portalSystem';
 import { cleanupRoostedUnits, getRoostedUnits } from './buildingRemoval';
 import { isUnitOnCorruptedTile } from './tileStatusSystem';
+import { isCounterThemeUnitType, pickUnitFromTheme, scoreCountersForPlayer } from './waveThemeSystem';
 
 // ============================================================================
 // ID GENERATION
@@ -35,15 +36,6 @@ let enemyIdCounter = 0;
 function generateEnemyId(): string {
   return `enemy_unit_${Date.now()}_${++enemyIdCounter}`;
 }
-
-// ============================================================================
-// BUILDING → UNIT TYPE MAPPING
-// ============================================================================
-
-const BUILDING_SPAWN_UNIT_TYPE: Partial<Record<BuildingType, UnitType>> = {
-  [BuildingType.LAVALAIR]: UnitType.LAVA_GRUNT,
-  [BuildingType.INFERNALSANCTUM]: UnitType.LAVA_RIDER,
-};
 
 // ============================================================================
 // AI TYPES (local to this module)
@@ -594,9 +586,7 @@ function spawnEnemyUnits(state: Draft<GameState>, events?: GameEvent[]): void {
       continue;
     }
 
-    // Score recruitment fresh each time so already-spawned units affect composition
-    const scored = scoreRecruitmentForBuilding(state, building);
-    const unitType: UnitType = scored[0]?.type ?? BUILDING_SPAWN_UNIT_TYPE[building.type] ?? UnitType.LAVA_GRUNT;
+    const unitType: UnitType = pickUnitFromTheme(state, building);
 
     const spawnProbability = getSpawnProbability(state, building);
     if (Math.random() >= spawnProbability) continue;
@@ -757,6 +747,9 @@ function scoreRecruitmentForBuilding(
   const zoneProfile = buildArmyProfile(
     enemyUnits.filter(u => getZoneForRow(u.position.y) === buildingZone)
   );
+  const counterScoresByType = new Map<UnitType, number>(
+    scoreCountersForPlayer(state, { zoneId: buildingZone }).map((entry) => [entry.type, entry.score]),
+  );
 
   const results: { type: UnitType; score: number }[] = [];
 
@@ -775,6 +768,11 @@ function scoreRecruitmentForBuilding(
       [UnitType.RIFT_LORD]: C.BASE_SCORE_RIFT_LORD,
     };
     let score = baseScores[unitType] ?? 0;
+    if (isCounterThemeUnitType(unitType)) {
+      score = counterScoresByType.get(unitType) ?? score;
+      results.push({ type: unitType, score });
+      continue;
+    }
 
     // ── LAVA_GRUNT scoring ──────────────────────────────────────────
     if (unitType === UnitType.LAVA_GRUNT) {

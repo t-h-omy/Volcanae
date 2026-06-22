@@ -26,6 +26,7 @@ import {
   isTileWithinEdgeCircleRange,
   getTilesWithinEdgeCircleRange,
 } from './rangeUtils';
+import { rollNextWaveTheme } from './waveThemeSystem';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -244,7 +245,7 @@ function generateBuildingsForZone(
     if (zone === 1 && isStronghold) {
       return Faction.PLAYER;
     }
-    if (zone >= 4) {
+    if (zone >= MAP.FIRST_ENEMY_ZONE) {
       return Faction.ENEMY;
     }
     return null;
@@ -1595,6 +1596,9 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
     pendingTransposeFirstUnitId: null,
     pendingBrandmarkTransforms: [],
     portals: {},
+    activeWaveTheme: { entries: [], isReadPlayer: false },
+    readPlayerThemeCount: 0,
+    lastThemeSignature: null,
   };
 
   // Auto-apply CONSCRIPTION effects (unlocked at game start, not a pick)
@@ -1609,6 +1613,8 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
       }
     }
   }
+
+  rollNextWaveTheme(gameState, { suppressReadPlayer: true });
 
   return gameState;
 }

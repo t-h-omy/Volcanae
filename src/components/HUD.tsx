@@ -291,6 +291,7 @@ const ENEMY_RECRUITMENT_TYPES = new Set<BuildingType>([
 function DevStatsOverlay({ onClose }: { onClose: () => void }) {
   const buildings = useGameStore((s) => s.buildings);
   const enemyUnitsSpawnedLastTurn = useGameStore((s) => s.enemyUnitsSpawnedLastTurn);
+  const activeWaveTheme = useGameStore((s) => s.activeWaveTheme);
 
   const enemyRecruitingBuildingCount = useMemo(
     () => Object.values(buildings).filter(
@@ -298,6 +299,12 @@ function DevStatsOverlay({ onClose }: { onClose: () => void }) {
     ).length,
     [buildings],
   );
+  const currentThemeLabel = activeWaveTheme.isReadPlayer ? 'Current theme (read player)' : 'Current theme';
+  const currentThemeValue = activeWaveTheme.entries.length > 0
+    ? activeWaveTheme.entries
+      .map((entry) => `${UNIT_NAME[entry.type] ?? entry.type} ${entry.percent}%`)
+      .join(', ')
+    : 'None';
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -307,9 +314,10 @@ function DevStatsOverlay({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const stats: Array<{ label: string; value: number | string }> = [
+  const stats: Array<{ label: string; value: number | string; wrapValue?: boolean }> = [
     { label: 'Enemy recruiting buildings', value: enemyRecruitingBuildingCount },
     { label: 'Enemy units spawned last turn', value: enemyUnitsSpawnedLastTurn },
+    { label: currentThemeLabel, value: currentThemeValue, wrapValue: true },
   ];
 
   return (
@@ -320,10 +328,12 @@ function DevStatsOverlay({ onClose }: { onClose: () => void }) {
           <button className="hud-modal-close" onClick={onClose}>✕</button>
         </div>
         <div className="hud-dev-overlay-body">
-          {stats.map(({ label, value }) => (
+          {stats.map(({ label, value, wrapValue }) => (
             <div key={label} className="hud-dev-stat-row">
               <span className="hud-dev-stat-label">{label}</span>
-              <span className="hud-dev-stat-value">{value}</span>
+              <span className={`hud-dev-stat-value${wrapValue ? ' hud-dev-stat-value--wrap' : ''}`}>
+                {value}
+              </span>
             </div>
           ))}
         </div>
