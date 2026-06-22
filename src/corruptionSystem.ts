@@ -383,7 +383,7 @@ export function processEmberNestSpawns(
         attackRange: unitConfig.attackRange,
       },
       tags: [...UNIT_DEFINITIONS[UnitType.EMBERLING].tags],
-      hasMovedThisTurn: false,
+      hasMovedThisTurn: true,
       hasAttackedThisTurn: false,
       hasConstructedThisTurn: false,
       hasDestroyedThisTurn: false,
