@@ -2226,6 +2226,10 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
             const attackerBrandmarkSpawnPosition = attackerSpawnBrandmarkReplacement
               ? detectBrandmarkSpawnPos(state, stateBeforeAction, attackerPos)
               : null;
+            const tileBurningPosition = (
+              stateBeforeAction.grid[defenderPos.y]?.[defenderPos.x]?.status !== TileStatus.BURNING &&
+              state.grid[defenderPos.y]?.[defenderPos.x]?.status === TileStatus.BURNING
+            ) ? { ...defenderPos } : undefined;
             events.push({
               type: 'ENEMY_ATTACK',
               attackerId,
@@ -2237,6 +2241,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
               advancedToPosition,
               attackerXpGained,
               defenderXpGained,
+              tileBurningPosition,
             });
             if (!defenderAfter) {
               events.push({
@@ -2292,6 +2297,10 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
           const attackerBrandmarkSpawnPosition = attackerSpawnBrandmarkReplacement
             ? detectBrandmarkSpawnPos(state, stateBeforeAction, attackerPos)
             : null;
+          const tileBurningPosition = (
+            stateBeforeAction.grid[defenderPos.y]?.[defenderPos.x]?.status !== TileStatus.BURNING &&
+            state.grid[defenderPos.y]?.[defenderPos.x]?.status === TileStatus.BURNING
+          ) ? { ...defenderPos } : undefined;
           events.push({
             type: 'ENEMY_ATTACK',
             attackerId,
@@ -2303,6 +2312,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
             advancedToPosition: null,
             attackerXpGained,
             defenderXpGained,
+            tileBurningPosition,
           });
           if (!defenderAfter) {
             events.push({
@@ -2728,6 +2738,7 @@ function resolveCaveMonsterAttack(
 
   const attackerPos = { x: attacker.position.x, y: attacker.position.y };
   const defenderPos = { x: defender.position.x, y: defender.position.y };
+  const defenderTileStatusBefore = state.grid[defenderPos.y]?.[defenderPos.x]?.status;
   const attackerHpBefore = attacker.stats.currentHp;
   const defenderHpBefore = defender.stats.currentHp;
   const defenderFaction = defender.faction;
@@ -2750,6 +2761,10 @@ function resolveCaveMonsterAttack(
       attackerAfter &&
       (attackerAfter.position.x !== attackerPos.x || attackerAfter.position.y !== attackerPos.y)
     ) ? { x: attackerAfter.position.x, y: attackerAfter.position.y } : null;
+    const tileBurningPosition = (
+      defenderTileStatusBefore !== TileStatus.BURNING &&
+      state.grid[defenderPos.y]?.[defenderPos.x]?.status === TileStatus.BURNING
+    ) ? { ...defenderPos } : undefined;
     events.push({
       type: 'ENEMY_ATTACK',
       attackerId,
@@ -2765,6 +2780,7 @@ function resolveCaveMonsterAttack(
       advancedToPosition,
       attackerXpGained: !defenderAfter && attackerAfter ? XP.KILL_UNIT : null,
       defenderXpGained: !attackerAfter ? XP.KILL_UNIT : null,
+      tileBurningPosition,
     });
     if (!defenderAfter) {
       events.push({

@@ -29,6 +29,8 @@ export type GameEvent =
       advancedToPosition: Position | null;
       attackerXpGained?: number | null;
       defenderXpGained?: number | null;
+      /** If the attack applied BURNING status to the defender tile, update it immediately in display state. */
+      tileBurningPosition?: Position;
     }
   | {
       type: 'PLAYER_ATTACK';
@@ -41,6 +43,8 @@ export type GameEvent =
       advancedToPosition: Position | null;
       attackerXpGained?: number | null;
       defenderXpGained?: number | null;
+      /** If the attack applied BURNING status to the defender tile, update it immediately in display state. */
+      tileBurningPosition?: Position;
     }
   | {
       type: 'UNIT_DEATH';
