@@ -1411,8 +1411,8 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     destroyBehavior: DestroyBehavior.RUIN,
     constructionCost: { iron: 2, wood: 14 },
     unitLimit: 3,
-    upkeepWood: 3,
-    upkeepIron: 3,
+    upkeepWood: 2,
+    upkeepIron: 2,
     description: 'Archery range that trains Archers.',
   },
   RIDER_CAMP: {
@@ -1420,8 +1420,8 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     destroyBehavior: DestroyBehavior.RUIN,
     constructionCost: { iron: 4, wood: 18 },
     unitLimit: 3,
-    upkeepIron: 3,
-    upkeepWood: 3,
+    upkeepIron: 2,
+    upkeepWood: 2,
     description: 'Stable that trains Riders.',
   },
   SIEGE_CAMP: {
