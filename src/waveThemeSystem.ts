@@ -275,7 +275,7 @@ function pickThemeTypeWithZoneCap(
 export function eligiblePool(state: GameState): UnitType[] {
   return (Object.entries(UNIT_DEFINITIONS) as [UnitType, typeof UNIT_DEFINITIONS[UnitType]][])
     .filter(([, def]) => def.themeEligible !== false)
-    .filter(([, def]) => def.enemyUnlockEmber !== undefined && def.enemyUnlockEmber <= state.ember)
+    .filter(([, def]) => def.enemyUnlockEmber !== undefined && def.enemyUnlockEmber <= state.ember + ENEMY_WAVE_THEME.UNLOCK_LOOKAHEAD)
     .map(([type]) => type);
 }
 
@@ -403,6 +403,40 @@ function buildRandomThemeEntries(
   return null;
 }
 
+export function unlockedEntries(theme: ActiveWaveTheme, state: GameState): WaveThemeEntry[] {
+  return theme.entries.filter(
+    (entry) => (UNIT_DEFINITIONS[entry.type].enemyUnlockEmber ?? 0) <= state.ember,
+  );
+}
+
+function guaranteeUnlockedEntry(entries: WaveThemeEntry[], state: GameState): WaveThemeEntry[] {
+  const hasUnlocked = entries.some(
+    (entry) => (UNIT_DEFINITIONS[entry.type].enemyUnlockEmber ?? 0) <= state.ember,
+  );
+  if (hasUnlocked) return entries;
+
+  const currentPool = (Object.entries(UNIT_DEFINITIONS) as [UnitType, typeof UNIT_DEFINITIONS[UnitType]][])
+    .filter(([, def]) => def.themeEligible !== false && def.enemyUnlockEmber !== undefined && def.enemyUnlockEmber <= state.ember)
+    .map(([type]) => type);
+  if (currentPool.length === 0) return entries;
+
+  const entryTypes = new Set(entries.map((e) => e.type));
+  const candidate = currentPool.find((t) => !entryTypes.has(t)) ?? currentPool[0];
+
+  const result = [...entries];
+  let highestIdx = 0;
+  let highestUnlock = -1;
+  for (let i = 0; i < result.length; i++) {
+    const unlock = UNIT_DEFINITIONS[result[i].type].enemyUnlockEmber ?? 0;
+    if (unlock > highestUnlock) {
+      highestUnlock = unlock;
+      highestIdx = i;
+    }
+  }
+  result[highestIdx] = { ...result[highestIdx], type: candidate };
+  return result;
+}
+
 export function generateRandomTheme(state: GameState): ActiveWaveTheme {
   const pool = eligiblePool(state);
   if (pool.length === 0) {
@@ -418,7 +452,7 @@ export function generateRandomTheme(state: GameState): ActiveWaveTheme {
     const picked = pickDistinctRandom(pool, selectedCount);
     const entries = buildRandomThemeEntries(picked, pool, state);
     if (entries === null) continue;
-    return { entries, isReadPlayer: false };
+    return { entries: guaranteeUnlockedEntry(entries, state), isReadPlayer: false };
   }
 
   const sorted = [...pool].sort((a, b) => getMaxThemePercent(b) - getMaxThemePercent(a));
@@ -426,7 +460,7 @@ export function generateRandomTheme(state: GameState): ActiveWaveTheme {
     const fallback = sorted.slice(0, count);
     const entries = buildRandomThemeEntries(fallback, pool, state);
     if (entries !== null) {
-      return { entries, isReadPlayer: false };
+      return { entries: guaranteeUnlockedEntry(entries, state), isReadPlayer: false };
     }
   }
 
@@ -451,7 +485,7 @@ export function scoreCountersForPlayer(
 
   const eligibleTypes = counterTypes.filter((type) => {
     const unlock = getEnemyUnlockEmber(type);
-    return unlock !== null && unlock <= state.ember;
+    return unlock !== null && unlock <= state.ember + ENEMY_WAVE_THEME.UNLOCK_LOOKAHEAD;
   });
 
   const allUnits = Object.values(state.units);
@@ -602,7 +636,7 @@ export function generateReadPlayerTheme(state: GameState): ActiveWaveTheme {
     selected.push(UnitType.LAVA_GRUNT);
   }
 
-  return { entries: assignPercents(selected, state), isReadPlayer: true };
+  return { entries: guaranteeUnlockedEntry(assignPercents(selected, state), state), isReadPlayer: true };
 }
 
 export function signature(theme: ActiveWaveTheme): string {
@@ -676,7 +710,7 @@ const BUILDING_SPAWN_UNIT_TYPE: Partial<Record<BuildingType, UnitType>> = {
 
 export function pickUnitFromTheme(state: GameState, building: { type: BuildingType; position: { x: number; y: number } }): UnitType {
   const zoneId = getZoneForRow(building.position.y);
-  const entries = state.activeWaveTheme?.entries ?? [];
+  const entries = unlockedEntries(state.activeWaveTheme ?? { entries: [], isReadPlayer: false }, state);
   const picked = pickThemeTypeWithZoneCap(state, entries, zoneId);
   if (picked) return picked;
   return BUILDING_SPAWN_UNIT_TYPE[building.type] ?? UnitType.LAVA_GRUNT;
@@ -727,7 +761,7 @@ export function applyThemeToFoggedUnits(state: GameState, theme: ActiveWaveTheme
     if (def.themeEligible === false) continue;
 
     const zoneId = getZoneForRow(unit.position.y);
-    const replacementType = pickThemeTypeWithZoneCap(state, theme.entries, zoneId);
+    const replacementType = pickThemeTypeWithZoneCap(state, unlockedEntries(theme, state), zoneId);
     if (!replacementType) continue;
 
     const replacement = createFreshEnemyUnit(replacementType, unit.position.x, unit.position.y);

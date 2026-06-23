@@ -10,6 +10,7 @@ import {
   rollNextWaveTheme,
   setWaveThemeRandomSource,
   signature,
+  unlockedEntries,
 } from '../waveThemeSystem';
 
 function sequenceRng(values: number[]): () => number {
@@ -188,15 +189,15 @@ describe('waveThemeSystem', () => {
     expect(threeTypeTheme.entries.length).toBe(3);
   });
 
-  it('never selects units above ember unlock threshold', () => {
+  it('never selects units above ember unlock threshold + lookahead', () => {
     setWaveThemeRandomSource(lcg(12345));
-    const state = makeState(0);
+    const state = makeState(3);
     for (let i = 0; i < 20; i++) {
       const theme = generateRandomTheme(state);
       for (const entry of theme.entries) {
         const unlock = UNIT_DEFINITIONS[entry.type].enemyUnlockEmber;
         expect(unlock).toBeDefined();
-        expect(unlock!).toBeLessThanOrEqual(state.ember);
+        expect(unlock!).toBeLessThanOrEqual(state.ember + ENEMY_WAVE_THEME.UNLOCK_LOOKAHEAD);
       }
     }
   });
@@ -277,5 +278,79 @@ describe('waveThemeSystem', () => {
       expect(unitType).not.toBe(UnitType.EMBERLING);
       expect(unitType).not.toBe(UnitType.CAVE_MONSTER);
     }
+  });
+
+  it('theme entries never exceed ember + UNLOCK_LOOKAHEAD, and at least one entry is currently unlocked', () => {
+    setWaveThemeRandomSource(lcg(999));
+    // Use ember=5 so there are both unlocked (<=5) and lookahead (=6) types available
+    const state = makeState(5);
+    let sawLookaheadEntry = false;
+    for (let i = 0; i < 40; i++) {
+      const theme = generateRandomTheme(state);
+      // Every entry must be within the lookahead window
+      for (const entry of theme.entries) {
+        const unlock = UNIT_DEFINITIONS[entry.type].enemyUnlockEmber!;
+        expect(unlock).toBeLessThanOrEqual(state.ember + ENEMY_WAVE_THEME.UNLOCK_LOOKAHEAD);
+      }
+      // At least one entry must be currently unlocked
+      expect(
+        theme.entries.some((e) => (UNIT_DEFINITIONS[e.type].enemyUnlockEmber ?? 0) <= state.ember),
+      ).toBe(true);
+      // Track whether any lookahead (locked) entry appeared
+      if (theme.entries.some((e) => (UNIT_DEFINITIONS[e.type].enemyUnlockEmber ?? 0) > state.ember)) {
+        sawLookaheadEntry = true;
+      }
+    }
+    // With enough iterations at ember=5, a lookahead entry (unlock=6) should appear in at least one theme
+    expect(sawLookaheadEntry).toBe(true);
+  });
+
+  it('locked entries are never picked by spawn or laundering, but become pickable when ember rises', () => {
+    const lockedType = UnitType.REAPER; // enemyUnlockEmber: 6
+    const unlockedType = UnitType.LAVA_GRUNT; // enemyUnlockEmber: 0
+    const state = makeState(5); // lockedType is locked at ember=5
+
+    // Theme with one locked and one unlocked entry
+    state.activeWaveTheme = {
+      entries: [
+        { type: unlockedType, percent: 50 },
+        { type: lockedType, percent: 50 },
+      ],
+      isReadPlayer: false,
+    };
+
+    // At ember=5, unlockedEntries should only return the unlocked type
+    const atEmber5 = unlockedEntries(state.activeWaveTheme, state);
+    expect(atEmber5.map((e) => e.type)).not.toContain(lockedType);
+    expect(atEmber5.map((e) => e.type)).toContain(unlockedType);
+
+    // Spawn must never return the locked type at ember=5
+    setWaveThemeRandomSource(lcg(77));
+    for (let i = 0; i < 30; i++) {
+      const pick = pickUnitFromTheme(state, { type: BuildingType.LAVALAIR, position: { x: 4, y: 5 } });
+      expect(pick).not.toBe(lockedType);
+    }
+
+    // Laundering at ember=5 must not produce the locked type
+    const foggedUnit = makeEnemyUnit('fog1', UnitType.LAVA_ARCHER, 2, 5);
+    state.units[foggedUnit.id] = foggedUnit;
+    state.grid[5][2].isRevealed = false;
+    state.grid[5][2].unitId = foggedUnit.id;
+
+    setWaveThemeRandomSource(lcg(88));
+    applyThemeToFoggedUnits(state, state.activeWaveTheme);
+    const launderedId = state.grid[5][2].unitId;
+    expect(launderedId).toBeTruthy();
+    expect(state.units[launderedId!].type).not.toBe(lockedType);
+
+    // Raise ember to meet lockedType's requirement — it must now appear in unlockedEntries
+    state.ember = 6;
+    const atEmber6 = unlockedEntries(state.activeWaveTheme, state);
+    expect(atEmber6.map((e) => e.type)).toContain(lockedType);
+
+    // Spawn CAN now return the locked type (weighted pick over both entries)
+    setWaveThemeRandomSource(sequenceRng([0.99])); // high roll → picks second (lockedType) entry
+    const pickAfterUnlock = pickUnitFromTheme(state, { type: BuildingType.LAVALAIR, position: { x: 4, y: 5 } });
+    expect(pickAfterUnlock).toBe(lockedType);
   });
 });

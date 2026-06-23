@@ -371,6 +371,8 @@ export const ENEMY_WAVE_THEME = {
   READ_PLAYER_COUNTER_PICK: 3,
   /** Maximum number of re-rolls when trying to avoid a repeated wave composition */
   ANTI_REPEAT_MAX_REROLLS: 8,
+  /** How many ember tiers above current ember may be included in a wave theme (lookahead) */
+  UNLOCK_LOOKAHEAD: 1,
 } as const;
 
 // ============================================================================
