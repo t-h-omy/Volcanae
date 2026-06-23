@@ -2379,7 +2379,7 @@ export const TILE_STATUS_WHITELIST: Record<TileType, TileStatus[]> = {
 };
 
 /** Damage dealt to each non-LAVA unit standing on a BURNING tile at end of turn. */
-export const BURNING_TILE_DAMAGE = 15;
+export const BURNING_TILE_DAMAGE = 10;
 
 /**
  * Tags that are suppressed (i.e. have no effect) when a player unit stands on
