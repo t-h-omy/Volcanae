@@ -1196,16 +1196,16 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   CRYSTAL_DRAKE: {
-    maxHp: 180, attack: 75, defense: 65,
+    maxHp: 200, attack: 75, defense: 65,
     movementActions: 1,
     moveRange: 2, 
-    attackRange: 1,
-    discoverRadius: 1,
+    attackRange: 2,
+    discoverRadius: 2,
     triggerRange: 0,
     // SUMMONED → consumes no pop, cannot be healed, leaves no gravestone.
     // HIT_AND_RUN → can re-position after striking (mirrors Knight Rider).
     // FLYING → traverses canyon/water and shrugs off knockback over them.
-    tags: [UnitTag.SUMMONED, UnitTag.HIT_AND_RUN, UnitTag.FLYING],
+    tags: [UnitTag.SUMMONED, UnitTag.HIT_AND_RUN, UnitTag.FLYING, UnitTag.READY],
     cost: { iron: 0, wood: 0, crystals: 3 },
     populationCost: { farmers: 0, nobles: 0 },
     levelUp: [
