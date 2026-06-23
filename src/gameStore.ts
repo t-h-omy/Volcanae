@@ -558,6 +558,10 @@ export const useGameStore = create<GameStore>()(
         const attackerBrandmarkSpawnPosition = attackerSpawnBrandmarkReplacement
           ? detectBrandmarkSpawnPos(resolvedState, snapshot, attackerPosition)
           : null;
+        const tileBurningPosition = (
+          snapshot.grid[defenderPosition.y]?.[defenderPosition.x]?.status !== TileStatus.BURNING &&
+          resolvedState.grid[defenderPosition.y]?.[defenderPosition.x]?.status === TileStatus.BURNING
+        ) ? { ...defenderPosition } : undefined;
 
         const attackEvent: GameEvent = {
           type: 'PLAYER_ATTACK',
@@ -574,6 +578,7 @@ export const useGameStore = create<GameStore>()(
           advancedToPosition,
           attackerXpGained,
           defenderXpGained,
+          tileBurningPosition,
         };
 
         const events: GameEvent[] = [attackEvent];
@@ -1909,6 +1914,10 @@ export const useGameStore = create<GameStore>()(
               attacker.position.x = event.advancedToPosition.x;
               attacker.position.y = event.advancedToPosition.y;
             }
+            if (event.tileBurningPosition) {
+              const tile = state.grid[event.tileBurningPosition.y]?.[event.tileBurningPosition.x];
+              if (tile) tile.status = TileStatus.BURNING;
+            }
 
             // Trigger floaters for visual feedback
             const { addFloater } = useFloaterStore.getState();
@@ -1984,6 +1993,10 @@ export const useGameStore = create<GameStore>()(
               toTile.unitId = event.attackerId;
               attacker.position.x = event.advancedToPosition.x;
               attacker.position.y = event.advancedToPosition.y;
+            }
+            if (event.tileBurningPosition) {
+              const tile = state.grid[event.tileBurningPosition.y]?.[event.tileBurningPosition.x];
+              if (tile) tile.status = TileStatus.BURNING;
             }
 
             // Trigger floaters for visual feedback (isEnemy derived from faction)
