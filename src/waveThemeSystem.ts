@@ -37,6 +37,48 @@ function getEnemyUnlockEmber(type: UnitType): number | null {
   return unlock === undefined ? null : unlock;
 }
 
+function unlockLookaheadCeiling(state: GameState): number {
+  return state.ember + ENEMY_WAVE_THEME.UNLOCK_LOOKAHEAD;
+}
+
+function isTypeUnlocked(type: UnitType, state: GameState): boolean {
+  const unlock = getEnemyUnlockEmber(type);
+  return unlock !== null && unlock <= state.ember;
+}
+
+function replaceHighestUnlockTypeWithUnlocked(types: UnitType[], state: GameState): UnitType[] {
+  if (types.length === 0 || types.some((type) => isTypeUnlocked(type, state))) return types;
+
+  const unlockedPool = (Object.entries(UNIT_DEFINITIONS) as [UnitType, typeof UNIT_DEFINITIONS[UnitType]][])
+    .filter(([, def]) => def.themeEligible !== false)
+    .filter(([, def]) => def.enemyUnlockEmber !== undefined && def.enemyUnlockEmber <= state.ember)
+    .map(([type]) => type);
+  if (unlockedPool.length === 0) return types;
+
+  let replacementIdx = 0;
+  let highestUnlock = getEnemyUnlockEmber(types[0]) ?? -Infinity;
+  for (let i = 1; i < types.length; i++) {
+    const unlock = getEnemyUnlockEmber(types[i]) ?? -Infinity;
+    if (unlock > highestUnlock) {
+      highestUnlock = unlock;
+      replacementIdx = i;
+    }
+  }
+
+  const replacementCandidates = unlockedPool.filter((type) => !types.includes(type));
+  const replacementType = replacementCandidates.length > 0
+    ? replacementCandidates[randInt(0, replacementCandidates.length - 1)]
+    : unlockedPool[randInt(0, unlockedPool.length - 1)];
+  const next = [...types];
+  next[replacementIdx] = replacementType;
+  return next;
+}
+
+function ensureUnlockedEntry(entries: WaveThemeEntry[], state: GameState): WaveThemeEntry[] {
+  const adjustedTypes = replaceHighestUnlockTypeWithUnlocked(entries.map((entry) => entry.type), state);
+  return entries.map((entry, idx) => ({ ...entry, type: adjustedTypes[idx] }));
+}
+
 function isCounterUnitType(type: UnitType): boolean {
   return (
     type === UnitType.REAPER ||
@@ -275,7 +317,7 @@ function pickThemeTypeWithZoneCap(
 export function eligiblePool(state: GameState): UnitType[] {
   return (Object.entries(UNIT_DEFINITIONS) as [UnitType, typeof UNIT_DEFINITIONS[UnitType]][])
     .filter(([, def]) => def.themeEligible !== false)
-    .filter(([, def]) => def.enemyUnlockEmber !== undefined && def.enemyUnlockEmber <= state.ember)
+    .filter(([, def]) => def.enemyUnlockEmber !== undefined && def.enemyUnlockEmber <= unlockLookaheadCeiling(state))
     .map(([type]) => type);
 }
 
@@ -418,7 +460,7 @@ export function generateRandomTheme(state: GameState): ActiveWaveTheme {
     const picked = pickDistinctRandom(pool, selectedCount);
     const entries = buildRandomThemeEntries(picked, pool, state);
     if (entries === null) continue;
-    return { entries, isReadPlayer: false };
+    return { entries: ensureUnlockedEntry(entries, state), isReadPlayer: false };
   }
 
   const sorted = [...pool].sort((a, b) => getMaxThemePercent(b) - getMaxThemePercent(a));
@@ -426,11 +468,14 @@ export function generateRandomTheme(state: GameState): ActiveWaveTheme {
     const fallback = sorted.slice(0, count);
     const entries = buildRandomThemeEntries(fallback, pool, state);
     if (entries !== null) {
-      return { entries, isReadPlayer: false };
+      return { entries: ensureUnlockedEntry(entries, state), isReadPlayer: false };
     }
   }
 
-  return { entries: assignPercents([UnitType.LAVA_GRUNT], state), isReadPlayer: false };
+  return {
+    entries: ensureUnlockedEntry(assignPercents([UnitType.LAVA_GRUNT], state), state),
+    isReadPlayer: false,
+  };
 }
 
 export function scoreCountersForPlayer(
@@ -451,7 +496,7 @@ export function scoreCountersForPlayer(
 
   const eligibleTypes = counterTypes.filter((type) => {
     const unlock = getEnemyUnlockEmber(type);
-    return unlock !== null && unlock <= state.ember;
+    return unlock !== null && unlock <= unlockLookaheadCeiling(state);
   });
 
   const allUnits = Object.values(state.units);
@@ -602,7 +647,8 @@ export function generateReadPlayerTheme(state: GameState): ActiveWaveTheme {
     selected.push(UnitType.LAVA_GRUNT);
   }
 
-  return { entries: assignPercents(selected, state), isReadPlayer: true };
+  const ensuredSelected = replaceHighestUnlockTypeWithUnlocked(selected, state);
+  return { entries: assignPercents(ensuredSelected, state), isReadPlayer: true };
 }
 
 export function signature(theme: ActiveWaveTheme): string {
@@ -676,7 +722,7 @@ const BUILDING_SPAWN_UNIT_TYPE: Partial<Record<BuildingType, UnitType>> = {
 
 export function pickUnitFromTheme(state: GameState, building: { type: BuildingType; position: { x: number; y: number } }): UnitType {
   const zoneId = getZoneForRow(building.position.y);
-  const entries = state.activeWaveTheme?.entries ?? [];
+  const entries = unlockedEntries(state.activeWaveTheme, state);
   const picked = pickThemeTypeWithZoneCap(state, entries, zoneId);
   if (picked) return picked;
   return BUILDING_SPAWN_UNIT_TYPE[building.type] ?? UnitType.LAVA_GRUNT;
@@ -719,6 +765,7 @@ function createFreshEnemyUnit(type: UnitType, x: number, y: number): Unit {
 }
 
 export function applyThemeToFoggedUnits(state: GameState, theme: ActiveWaveTheme): void {
+  const entries = unlockedEntries(theme, state);
   for (const unit of Object.values(state.units)) {
     if (unit.faction !== Faction.ENEMY) continue;
     const tile = state.grid[unit.position.y]?.[unit.position.x];
@@ -727,7 +774,7 @@ export function applyThemeToFoggedUnits(state: GameState, theme: ActiveWaveTheme
     if (def.themeEligible === false) continue;
 
     const zoneId = getZoneForRow(unit.position.y);
-    const replacementType = pickThemeTypeWithZoneCap(state, theme.entries, zoneId);
+    const replacementType = pickThemeTypeWithZoneCap(state, entries, zoneId);
     if (!replacementType) continue;
 
     const replacement = createFreshEnemyUnit(replacementType, unit.position.x, unit.position.y);
@@ -735,6 +782,11 @@ export function applyThemeToFoggedUnits(state: GameState, theme: ActiveWaveTheme
     state.units[replacement.id] = replacement;
     tile.unitId = replacement.id;
   }
+}
+
+function unlockedEntries(theme: Pick<ActiveWaveTheme, 'entries'> | null | undefined, state: GameState): WaveThemeEntry[] {
+  const entries = theme?.entries ?? [];
+  return entries.filter((entry) => isTypeUnlocked(entry.type, state));
 }
 
 export function isCounterThemeUnitType(type: UnitType): boolean {
