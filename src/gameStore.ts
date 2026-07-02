@@ -1340,7 +1340,7 @@ export const useGameStore = create<GameStore>()(
     castSpell: (targetPosition: Position) => {
       let castSpellId: import('./types').SpellId | null = null;
       let magePosition: Position | null = null;
-      let killedCaveMonsterIds: string[] = [];
+      const killedCaveMonsterIds: string[] = [];
       set((state) => {
         if (!state.pendingSpellCast) return;
         const { mageId, spellId } = state.pendingSpellCast;

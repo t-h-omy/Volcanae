@@ -595,6 +595,18 @@ function GameMenu() {
 // TOP BAR
 // ============================================================================
 
+/** Renders a net-income badge (green for positive, red for negative, hidden for zero). */
+function NetIncomeBadge({ gross, upkeep }: { gross: number; upkeep: number }) {
+  const net = gross - upkeep;
+  if (net === 0) return null;
+  const formatted = Number.isInteger(net) ? String(net) : net.toFixed(1);
+  return (
+    <span className={net > 0 ? 'hud-income' : 'hud-income-negative'}>
+      ({net > 0 ? '+' : ''}{formatted})
+    </span>
+  );
+}
+
 function TopBar({
   onOpenTechTree,
   showTechButton,
@@ -640,18 +652,6 @@ function TopBar({
 
   // Crystal income per turn
   const crystalsPerTurn = useGameStore((s) => computeCrystalIncomePerTurn(s).crystalsPerTurn);
-
-  /** Renders a net-income badge (green for positive, red for negative, hidden for zero). */
-  const NetIncomeBadge = ({ gross, upkeep }: { gross: number; upkeep: number }) => {
-    const net = gross - upkeep;
-    if (net === 0) return null;
-    const formatted = Number.isInteger(net) ? String(net) : net.toFixed(1);
-    return (
-      <span className={net > 0 ? 'hud-income' : 'hud-income-negative'}>
-        ({net > 0 ? '+' : ''}{formatted})
-      </span>
-    );
-  };
 
   return (
     <div className="hud-top-bar">
@@ -731,7 +731,8 @@ function Popup({ onClose, children }: { onClose: () => void; children: React.Rea
   // Capture mount time so we can ignore phantom clicks fired by the opening tap.
   // Popup is always unmounted/remounted when its parent conditionally renders it,
   // so useRef(Date.now()) reliably records the actual mount timestamp.
-  const openTimeRef = useRef(Date.now());
+  const openTimeRef = useRef<number>(0);
+  useEffect(() => { openTimeRef.current = Date.now(); }, []);
   return createPortal(
     <div
       className="info-popup-backdrop"

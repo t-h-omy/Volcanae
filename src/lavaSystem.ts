@@ -298,7 +298,7 @@ export function advanceLavaWithEvents(state: GameState): { newState: GameState; 
     }
   }
 
-  let portalEvents: GameEvent[] = [];
+  const portalEvents: GameEvent[] = [];
   let newState = produce(state, (draft) => {
     advanceLava(draft, portalEvents);
   });
