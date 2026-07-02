@@ -5,6 +5,7 @@ import type { Building, GameState, Tile, Unit } from '../types';
 import {
   applyThemeToFoggedUnits,
   assignPercents,
+  generateReadPlayerTheme,
   generateRandomTheme,
   pickUnitFromTheme,
   rollNextWaveTheme,
@@ -132,6 +133,26 @@ function makeState(ember: number): GameState {
   } as unknown as GameState;
 }
 
+function findLookaheadScenario(): { ember: number; unlocked: UnitType; locked: UnitType } {
+  const lookahead = ENEMY_WAVE_THEME.UNLOCK_LOOKAHEAD;
+  const allTypes = Object.entries(UNIT_DEFINITIONS) as [UnitType, typeof UNIT_DEFINITIONS[UnitType]][];
+  const unlockLevels = [...new Set(allTypes
+    .map(([, def]) => def.enemyUnlockEmber)
+    .filter((unlock): unlock is number => unlock !== undefined))]
+    .sort((a, b) => a - b);
+
+  for (const ember of unlockLevels) {
+    const locked = allTypes.find(
+      ([, def]) => def.themeEligible !== false && def.enemyUnlockEmber === ember + lookahead,
+    )?.[0];
+    const unlocked = allTypes.find(
+      ([, def]) => def.themeEligible !== false && def.enemyUnlockEmber !== undefined && def.enemyUnlockEmber <= ember,
+    )?.[0];
+    if (locked && unlocked) return { ember, locked, unlocked };
+  }
+  throw new Error('Expected unlock tiers with at least one lookahead-locked unit type for test setup');
+}
+
 describe('waveThemeSystem', () => {
   afterEach(() => {
     setWaveThemeRandomSource();
@@ -188,17 +209,35 @@ describe('waveThemeSystem', () => {
     expect(threeTypeTheme.entries.length).toBe(3);
   });
 
-  it('never selects units above ember unlock threshold', () => {
+  it('supports lookahead picks, never exceeds lookahead, and keeps at least one unlocked type', () => {
     setWaveThemeRandomSource(lcg(12345));
-    const state = makeState(0);
-    for (let i = 0; i < 20; i++) {
+    const scenario = findLookaheadScenario();
+    const state = makeState(scenario.ember);
+    const lookahead = ENEMY_WAVE_THEME.UNLOCK_LOOKAHEAD;
+    let foundLookaheadPick = false;
+    for (let i = 0; i < 250; i++) {
       const theme = generateRandomTheme(state);
+      let hasUnlocked = false;
       for (const entry of theme.entries) {
         const unlock = UNIT_DEFINITIONS[entry.type].enemyUnlockEmber;
         expect(unlock).toBeDefined();
-        expect(unlock!).toBeLessThanOrEqual(state.ember);
+        expect(unlock!).toBeLessThanOrEqual(state.ember + lookahead);
+        if (unlock === state.ember + lookahead) foundLookaheadPick = true;
+        if (unlock! <= state.ember) hasUnlocked = true;
       }
+      expect(hasUnlocked).toBe(true);
     }
+    expect(foundLookaheadPick).toBe(true);
+  });
+
+  it('read-player themes always keep at least one currently unlocked type', () => {
+    setWaveThemeRandomSource(lcg(7));
+    const state = makeState(findLookaheadScenario().ember);
+    const theme = generateReadPlayerTheme(state);
+    expect(theme.entries.some((entry) => {
+      const unlock = UNIT_DEFINITIONS[entry.type].enemyUnlockEmber;
+      return unlock !== undefined && unlock <= state.ember;
+    })).toBe(true);
   });
 
   it('respects RIFT_LORD maxThemePercent and maxAlivePerZone cap', () => {
@@ -277,5 +316,48 @@ describe('waveThemeSystem', () => {
       expect(unitType).not.toBe(UnitType.EMBERLING);
       expect(unitType).not.toBe(UnitType.CAVE_MONSTER);
     }
+  });
+
+  it('keeps locked lookahead entries out of spawn/laundering until ember reaches unlock', () => {
+    const scenario = findLookaheadScenario();
+    const state = makeState(scenario.ember);
+    const { unlocked, locked } = scenario;
+    const lockEmber = UNIT_DEFINITIONS[locked].enemyUnlockEmber!;
+
+    state.activeWaveTheme = {
+      entries: [
+        { type: locked, percent: 99 },
+        { type: unlocked, percent: 1 },
+      ],
+      isReadPlayer: false,
+    };
+
+    setWaveThemeRandomSource(sequenceRng([0]));
+    const beforeSpawnPick = pickUnitFromTheme(state, { type: BuildingType.LAVALAIR, position: { x: 4, y: 5 } });
+    expect(beforeSpawnPick).toBe(unlocked);
+
+    const beforeUnit = makeEnemyUnit('before_launder', unlocked, 1, 5);
+    state.units[beforeUnit.id] = beforeUnit;
+    state.grid[5][1].isRevealed = false;
+    state.grid[5][1].unitId = beforeUnit.id;
+    setWaveThemeRandomSource(sequenceRng([0]));
+    applyThemeToFoggedUnits(state, state.activeWaveTheme);
+    const beforeUnitId = state.grid[5][1].unitId!;
+    expect(state.units[beforeUnitId].type).toBe(unlocked);
+
+    state.ember = lockEmber;
+
+    setWaveThemeRandomSource(sequenceRng([0]));
+    const afterSpawnPick = pickUnitFromTheme(state, { type: BuildingType.LAVALAIR, position: { x: 4, y: 5 } });
+    expect(afterSpawnPick).toBe(locked);
+
+    const afterUnit = makeEnemyUnit('after_launder', unlocked, 3, 5);
+    state.units[afterUnit.id] = afterUnit;
+    state.grid[5][3].isRevealed = false;
+    state.grid[5][3].unitId = afterUnit.id;
+    setWaveThemeRandomSource(sequenceRng([0]));
+    applyThemeToFoggedUnits(state, state.activeWaveTheme);
+    const afterUnitId = state.grid[5][3].unitId!;
+    expect(state.units[afterUnitId].type).toBe(locked);
   });
 });

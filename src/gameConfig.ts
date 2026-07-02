@@ -349,6 +349,8 @@ export const ENEMY = {
 // ============================================================================
 
 export const ENEMY_WAVE_THEME = {
+  /** Number of ember tiers above current ember allowed in theme composition */
+  UNLOCK_LOOKAHEAD: 1,
   /** Minimum number of distinct unit types in a themed wave */
   MIN_UNIT_TYPES: 1,
   /** Maximum number of distinct unit types in a themed wave */

@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### P7 — Ember unlock lookahead (`gameConfig.ts`, `waveThemeSystem.ts`, `waveThemeSystem.test.ts`)
+
+- Added `ENEMY_WAVE_THEME.UNLOCK_LOOKAHEAD` (default `1`) to permit theme composition to include
+  enemy types up to one ember tier above current ember.
+- Widened theme eligibility and read-player counter eligibility to include lookahead-eligible unit
+  types while preserving dynamic ember gating at spawn/launder time.
+- Ensured random/read-player theme generation always includes at least one currently unlocked
+  (spawnable) unit type by replacing the highest-unlock pick when needed.
+- Added shared unlocked-entry filtering for spawn selection and fogged-unit laundering so locked
+  lookahead entries are never chosen until ember reaches their unlock requirement.
+- Extended wave-theme tests to cover lookahead bounds, guaranteed unlocked entries at roll time,
+  and locked-entry behavior before/after ember increases.
+
 ### P6 — Tests + version (`waveThemeSystem.test.ts`, `package.json`)
 
 - Replaced obsolete argmax-style wave assertions with deterministic (seeded RNG) wave-theme
