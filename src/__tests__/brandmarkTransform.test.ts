@@ -95,6 +95,7 @@ function makeUnit(
     hasConstructedThisTurn: false,
     hasDestroyedThisTurn: false,
     hasCapturedThisTurn: false,
+      hasTradedThisTurn: false,
     hasUsedPostAttackMoveThisTurn: false,
     bloodlustAttackAvailable: false,
     xp: 0,

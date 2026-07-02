@@ -89,6 +89,13 @@ export const BuildingType = {
    * Unlocked by the CHARCOAL_KILN tech node (requires A_NOBLE_STEAD).
    */
   CHARCOAL_KILN: 'CHARCOAL_KILN',
+  /**
+   * Neutral market placed at map-gen on a free PLAINS tile in the middle zones.
+   * A non-SUMMONED player unit standing on it may Trade once per turn (gated
+   * like capture: must not have moved this turn). Offers one-shot resource swaps
+   * and specialist acquisitions. Destroyed only by lava.
+   */
+  MARKET: 'MARKET',
 } as const;
 export type BuildingType = (typeof BuildingType)[keyof typeof BuildingType];
 
@@ -127,6 +134,9 @@ export const ResourceType = {
   WOOD: 'WOOD',
 } as const;
 export type ResourceType = (typeof ResourceType)[keyof typeof ResourceType];
+
+/** Currency token usable in market offers (crystal is not a ResourceType). */
+export type MarketCurrency = ResourceType | 'CRYSTAL';
 
 /** Determines what happens to the tile when a building is destroyed */
 export const DestroyBehavior = {
@@ -400,6 +410,8 @@ export interface Unit {
   hasConstructedThisTurn: boolean;
   hasDestroyedThisTurn: boolean;
   hasCapturedThisTurn: boolean;
+  /** True after this unit has completed a trade (resource buy or specialist acquisition) this turn. */
+  hasTradedThisTurn: boolean;
   /** True after a HIT_AND_RUN unit has used its post-attack move this turn. */
   hasUsedPostAttackMoveThisTurn: boolean;
   /**
@@ -506,6 +518,14 @@ export interface BuildingCombatStats {
   maxAttacksPerTurn?: number;
 }
 
+// ── Market offer types ────────────────────────────────────────────────────────
+
+/** A currency amount used in a market offer. */
+export interface MarketAmount { currency: MarketCurrency; amount: number; }
+
+/** A one-shot resource offer: give X of A → gain Y of B. */
+export interface MarketResourceOffer { give: MarketAmount; gain: MarketAmount; }
+
 /** A building on the map */
 export interface Building {
   id: string;
@@ -564,6 +584,12 @@ export interface Building {
    * Defaults to ABILITIES.GRAVE_TRAP_STUN_TURNS at creation time.
    */
   trapStunTurns?: number;
+  /** Market resource offer slots — null entries are empty (used/not yet refilled). Only set on MARKET buildings. */
+  marketResourceSlots?: (MarketResourceOffer | null)[];
+  /** Market specialist offer slots — null entries are empty or unavailable. Only set on MARKET buildings. */
+  marketSpecialistSlots?: (string | null)[];
+  /** Player turns remaining until the next empty-slot auto-refill. Only set on MARKET buildings. */
+  marketRefillCountdown?: number;
 }
 
 /** A tile on the game grid */

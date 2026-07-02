@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+### Market building (v0.90.0, save v14)
+
+- Added neutral **Market** building generated at map-gen on free PLAINS tiles in the middle zones
+  (first `EXCLUDED_ZONES_HEAD` and last `EXCLUDED_ZONES_TAIL` zones excluded; eligible middle
+  zones default to {4,5,6,7} for a 10-zone map). Count per game configurable via
+  `MARKET.MIN_PER_GAME` / `MAX_PER_GAME` (default 1/1); max 1 per eligible zone.
+- **Trade action**: player units (all except `SUMMONED`) standing on a Market may Trade once per
+  turn, gated like Capture — unit must not have moved this turn. Opening or closing the panel
+  without buying never exhausts the unit; only a completed purchase sets `hasTradedThisTurn`.
+- **Resource slots** (default 3): each is a one-shot give→gain resource swap (iron/wood/crystal).
+  Distinct offers drawn from `MARKET.RESOURCE_OFFER_POOL` when the pool allows. Empty slots
+  auto-refill every `AUTO_REFILL_INTERVAL` player turns (free, empties only).
+- **Specialist slot** (default 1): one-shot offer drawn from the global pool excluding owned
+  specialists; `null` when pool exhausted. Purchase uses a dedicated hire/swap flow — hire when
+  storage has room, else an in-panel swap sub-view (no "send away"). Cost: flat
+  `SPECIALIST_PRICE_CRYSTAL` crystals (default 3), charged only on completion.
+- **Restock**: player-paid action (`RESTOCK_COST`, default 1 crystal) that rerolls all slots
+  (including full ones), repeatable, does not count as a trade.
+- **Lava-only destruction**: Market is removed permanently when overrun by lava; standard
+  building-removal path handles it (no ruin, no rebuild). Enemy AI never targets the Market.
+- **Seeded RNG**: offer rolling uses injectable `setMarketRandomSource` (mirrors `waveThemeSystem`).
+- Save migration **v13 → v14**: adds `hasTradedThisTurn: false` to all existing units.
+
 ### P7 — Ember unlock lookahead (`gameConfig.ts`, `waveThemeSystem.ts`, `waveThemeSystem.test.ts`)
 
 - Added `ENEMY_WAVE_THEME.UNLOCK_LOOKAHEAD` (default `1`) to permit theme composition to include

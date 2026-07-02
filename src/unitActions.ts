@@ -74,6 +74,7 @@ export function hasUnitActed(
   return (
     unit.hasAttackedThisTurn ||
     unit.hasCapturedThisTurn ||
+    unit.hasTradedThisTurn ||
     unit.hasConstructedThisTurn ||
     unit.hasDestroyedThisTurn ||
     hasSpentMageCastBudget(unit, state)
@@ -284,6 +285,44 @@ export function getCaptureTarget(
   const building = state.buildings[tile.buildingId];
   if (!building) return null;
   if (!canCapture(state, unit.id, building.id)) return null;
+  return building;
+}
+
+// ── TRADE ─────────────────────────────────────────────────────────────────────
+
+/**
+ * Returns true if the unit may open the Market Trade panel this turn.
+ *
+ * Blocking rules (mirror capture):
+ *   - ENEMY faction: only player units may trade
+ *   - SUMMONED tag: summoned units may not trade
+ *   - hasMovedThisTurn: must not have moved this turn
+ *   - hasTradedThisTurn: already completed a trade this turn
+ *
+ * Does NOT check whether the unit is standing on a Market tile.
+ * Use getTradeMarket for that.
+ */
+export function canUnitTrade(unit: Unit): boolean {
+  if (unit.faction !== Faction.PLAYER) return false;
+  if (unit.tags.includes(UnitTag.SUMMONED)) return false;
+  if (unit.hasMovedThisTurn) return false;
+  if (unit.hasTradedThisTurn) return false;
+  return true;
+}
+
+/**
+ * Returns the Market building on the unit's tile, or null if none is present.
+ * Does NOT check canUnitTrade — callers may call this independently.
+ */
+export function getTradeMarket(
+  unit: Unit,
+  state: GameState | Draft<GameState>,
+): Building | null {
+  const tile = state.grid[unit.position.y]?.[unit.position.x];
+  if (!tile?.buildingId) return null;
+  const building = state.buildings[tile.buildingId];
+  if (!building) return null;
+  if (building.type !== BuildingType.MARKET) return null;
   return building;
 }
 

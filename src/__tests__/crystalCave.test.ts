@@ -106,6 +106,7 @@ function makeUnit(type: UnitType, pos: Position, faction: Faction = Faction.PLAY
     hasConstructedThisTurn: false,
     hasDestroyedThisTurn: false,
     hasCapturedThisTurn: false,
+      hasTradedThisTurn: false,
     hasUsedPostAttackMoveThisTurn: false,
     bloodlustAttackAvailable: false,
     xp: 0,

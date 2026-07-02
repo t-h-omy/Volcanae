@@ -47,6 +47,7 @@ function makeMage(): Unit {
     hasConstructedThisTurn: false,
     hasDestroyedThisTurn: false,
     hasCapturedThisTurn: false,
+      hasTradedThisTurn: false,
     spellsCastThisTurn: 0,
     hasUsedPostAttackMoveThisTurn: false,
     bloodlustAttackAvailable: false,

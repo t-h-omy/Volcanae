@@ -557,6 +557,7 @@ function createEnemyUnit(
     hasMovedThisTurn: true,
     hasAttackedThisTurn: true,
     hasCapturedThisTurn: true,
+    hasTradedThisTurn: false,
     hasConstructedThisTurn: true,
     hasDestroyedThisTurn: true,
     hasUsedPostAttackMoveThisTurn: false,
@@ -1910,7 +1911,7 @@ function scoreActionsForUnit(
 
   // ── MOVE_TO_NEUTRAL_BUILDING ──
   if (!unit.hasMovedThisTurn) {
-    const neutralBuildings = buildingsInTriggerRange.filter(b => b.faction === null);
+    const neutralBuildings = buildingsInTriggerRange.filter(b => b.faction === null && b.type !== BuildingType.MARKET);
     if (neutralBuildings.length > 0) {
       neutralBuildings.sort((a, b) => edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y) - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
       const building = neutralBuildings[0];
@@ -1960,7 +1961,7 @@ function scoreActionsForUnit(
   // ── PUSH_TO_ZONE_EDGE ──
   if (!unit.hasMovedThisTurn) {
     const hasPlayerTargets = playerUnitsInTriggerRange.length > 0;
-    const hasCapturable = buildingsInTriggerRange.some(b => b.faction === null || b.faction === Faction.PLAYER);
+    const hasCapturable = buildingsInTriggerRange.some(b => (b.faction === null || b.faction === Faction.PLAYER) && b.type !== BuildingType.MARKET);
     if (!hasPlayerTargets && !hasCapturable) {
       candidates.push({ type: 'PUSH_TO_ZONE_EDGE', score: AI_SCORING.BASE_PUSH_TO_ZONE_EDGE });
     }
@@ -1973,6 +1974,7 @@ function scoreActionsForUnit(
     const triggerRangeIds = new Set(buildingsInTriggerRange.map(b => b.id));
     const outOfRangeNeutrals = Object.values(state.buildings).filter(b => {
       if (b.faction !== null) return false;
+      if (b.type === BuildingType.MARKET) return false;
       return !triggerRangeIds.has(b.id);
     });
 
