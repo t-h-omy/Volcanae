@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/Volcanae/previews/copilot-add-market-building-feature/sw.js', { scope: '/Volcanae/previews/copilot-add-market-building-feature/' })})}
