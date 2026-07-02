@@ -13,6 +13,8 @@ import {
   signature,
 } from '../waveThemeSystem';
 
+const LOOKAHEAD_TEST_ITERATIONS = 250;
+
 function sequenceRng(values: number[]): () => number {
   let idx = 0;
   return () => {
@@ -215,7 +217,7 @@ describe('waveThemeSystem', () => {
     const state = makeState(scenario.ember);
     const lookahead = ENEMY_WAVE_THEME.UNLOCK_LOOKAHEAD;
     let foundLookaheadPick = false;
-    for (let i = 0; i < 250; i++) {
+    for (let i = 0; i < LOOKAHEAD_TEST_ITERATIONS; i++) {
       const theme = generateRandomTheme(state);
       let hasUnlocked = false;
       for (const entry of theme.entries) {

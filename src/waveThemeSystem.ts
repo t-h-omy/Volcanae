@@ -76,7 +76,7 @@ function replaceHighestUnlockTypeWithUnlocked(types: UnitType[], state: GameStat
 
 function ensureUnlockedEntry(entries: WaveThemeEntry[], state: GameState): WaveThemeEntry[] {
   const adjustedTypes = replaceHighestUnlockTypeWithUnlocked(entries.map((entry) => entry.type), state);
-  return entries.map((entry, idx) => ({ ...entry, type: adjustedTypes[idx] ?? entry.type }));
+  return entries.map((entry, idx) => ({ ...entry, type: adjustedTypes[idx] }));
 }
 
 function isCounterUnitType(type: UnitType): boolean {
