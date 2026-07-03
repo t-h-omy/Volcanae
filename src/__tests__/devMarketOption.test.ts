@@ -78,8 +78,8 @@ describe('debugAddMarketNearNorthStronghold', () => {
 
   it('places a market by the north-most stronghold-like building', () => {
     const grid = makeGrid();
-    const southStronghold = makeBuilding('south-stronghold', BuildingType.STRONGHOLD, Faction.PLAYER, 10, 30);
-    const northSanctum = makeBuilding('north-sanctum', BuildingType.INFERNALSANCTUM, Faction.ENEMY, 20, 10);
+    const southStronghold = makeBuilding('south-stronghold', BuildingType.STRONGHOLD, Faction.PLAYER, 2, 30);
+    const northSanctum = makeBuilding('north-sanctum', BuildingType.INFERNALSANCTUM, Faction.ENEMY, 4, 10);
 
     grid[southStronghold.position.y][southStronghold.position.x] = makeTile(
       southStronghold.position.x,
@@ -118,13 +118,13 @@ describe('debugAddMarketNearNorthStronghold', () => {
 
     const markets = Object.values(useGameStore.getState().buildings).filter((b) => b.type === BuildingType.MARKET);
     expect(markets).toHaveLength(1);
-    expect(markets[0].position).toEqual({ x: 22, y: 10 });
-    expect(useGameStore.getState().grid[10][22].buildingId).toBe(markets[0].id);
+    expect(markets[0].position).toEqual({ x: 6, y: 10 });
+    expect(useGameStore.getState().grid[10][6].buildingId).toBe(markets[0].id);
   });
 
   it('does nothing when no valid nearby market tile exists', () => {
     const grid = makeGrid();
-    const northSanctum = makeBuilding('north-sanctum', BuildingType.INFERNALSANCTUM, Faction.ENEMY, 20, 10);
+    const northSanctum = makeBuilding('north-sanctum', BuildingType.INFERNALSANCTUM, Faction.ENEMY, 4, 10);
 
     grid[northSanctum.position.y][northSanctum.position.x] = makeTile(
       northSanctum.position.x,
