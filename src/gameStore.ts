@@ -155,6 +155,8 @@ interface GameActions {
   debugAddCrystals: () => void;
   /** Debug: place a market near the north-most stronghold/sanctum */
   debugAddMarketNearNorthStronghold: () => void;
+  /** Debug: place a market on the currently selected tile (must be a valid placement tile) */
+  debugPlaceMarketAtSelectedTile: () => void;
   /** Debug: apply a tile status to the currently selected tile */
   debugApplyTileStatus: (status: string) => void;
   /** Debug: clear tile status from the currently selected tile */
@@ -3014,6 +3016,16 @@ export const useGameStore = create<GameStore>()(
         const market = createMarket(state, marketPos);
         state.buildings[market.id] = market;
         state.grid[marketPos.y][marketPos.x].buildingId = market.id;
+      });
+    },
+
+    debugPlaceMarketAtSelectedTile: () => {
+      set((state) => {
+        if (!state.selectedTilePos) return;
+        if (!isValidMarketPlacementTile(state, state.selectedTilePos)) return;
+        const market = createMarket(state, state.selectedTilePos);
+        state.buildings[market.id] = market;
+        state.grid[state.selectedTilePos.y][state.selectedTilePos.x].buildingId = market.id;
       });
     },
 

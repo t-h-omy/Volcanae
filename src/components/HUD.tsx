@@ -217,6 +217,7 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
   const debugAddRuin = useGameStore((s) => s.debugAddRuin);
   const debugAddCrystals = useGameStore((s) => s.debugAddCrystals);
   const debugAddMarketNearNorthStronghold = useGameStore((s) => s.debugAddMarketNearNorthStronghold);
+  const debugPlaceMarketAtSelectedTile = useGameStore((s) => s.debugPlaceMarketAtSelectedTile);
   const debugApplyTileStatus = useGameStore((s) => s.debugApplyTileStatus);
   const debugClearTileStatus = useGameStore((s) => s.debugClearTileStatus);
   const selectedTilePos = useGameStore((s) => s.selectedTilePos);
@@ -273,6 +274,7 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
             <div style={{ fontSize: '0.8em', opacity: 0.7, marginBottom: 4 }}>
               {selectedTilePos ? `Selected: (${selectedTilePos.x}, ${selectedTilePos.y})` : 'No tile selected'}
             </div>
+            <button className="hud-dev-action-btn" disabled={!selectedTilePos} onClick={debugPlaceMarketAtSelectedTile}>🛒 Place Market (selected tile)</button>
             <button className="hud-dev-action-btn" disabled={!selectedTilePos} onClick={() => debugApplyTileStatus(TileStatus.CORRUPTED)}>☠️ Apply CORRUPTED</button>
             <button className="hud-dev-action-btn" disabled={!selectedTilePos} onClick={() => debugApplyTileStatus(TileStatus.FROZEN)}>❄️ Apply FROZEN</button>
             <button className="hud-dev-action-btn" disabled={!selectedTilePos} onClick={() => debugApplyTileStatus(TileStatus.BURNING)}>🔥 Apply BURNING</button>
