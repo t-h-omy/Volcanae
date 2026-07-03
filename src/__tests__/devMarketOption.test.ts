@@ -5,7 +5,7 @@ import { BuildingType, DestroyBehavior, Faction, TileType } from '../types';
 import type { Building, Tile } from '../types';
 import { MAP } from '../gameConfig';
 
-function makeTile(x: number, y: number, terrainType: TileType = TileType.WATER): Tile {
+function makeTile(x: number, y: number, terrainType: TileType): Tile {
   return {
     position: { x, y },
     isRevealed: true,
@@ -23,7 +23,7 @@ function makeTile(x: number, y: number, terrainType: TileType = TileType.WATER):
 
 function makeGrid(): Tile[][] {
   return Array.from({ length: MAP.GRID_HEIGHT }, (_, y) =>
-    Array.from({ length: MAP.GRID_WIDTH }, (_, x) => makeTile(x, y)),
+    Array.from({ length: MAP.GRID_WIDTH }, (_, x) => makeTile(x, y, TileType.WATER)),
   );
 }
 

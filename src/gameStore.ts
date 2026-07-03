@@ -233,7 +233,6 @@ function findClosestMarketPlacementTile(state: GameState, origin: Position): Pos
       const candidate = { x, y };
       if (!isValidMarketPlacementTile(state, candidate)) continue;
       const distance = Math.max(Math.abs(candidate.x - origin.x), Math.abs(candidate.y - origin.y));
-      if (distance === 0) continue;
       if (distance < bestDistance) {
         best = candidate;
         bestDistance = distance;
