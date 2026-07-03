@@ -216,6 +216,7 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
   const debugAddFarmers = useGameStore((s) => s.debugAddFarmers);
   const debugAddRuin = useGameStore((s) => s.debugAddRuin);
   const debugAddCrystals = useGameStore((s) => s.debugAddCrystals);
+  const debugAddMarketNearNorthStronghold = useGameStore((s) => s.debugAddMarketNearNorthStronghold);
   const debugApplyTileStatus = useGameStore((s) => s.debugApplyTileStatus);
   const debugClearTileStatus = useGameStore((s) => s.debugClearTileStatus);
   const selectedTilePos = useGameStore((s) => s.selectedTilePos);
@@ -267,6 +268,7 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
             <button className="hud-dev-action-btn" onClick={debugAddFarmers}>🌾 Add Farm (zone 1)</button>
             <button className="hud-dev-action-btn" onClick={debugAddRuin}>🗿 Add Ruin (near unit)</button>
             <button className="hud-dev-action-btn" onClick={debugAddCrystals}>💎 +5 Crystals</button>
+            <button className="hud-dev-action-btn" onClick={debugAddMarketNearNorthStronghold}>🛒 Add Market (north-most stronghold)</button>
             <div className="hud-dev-overlay-section-title">Tile Status (selected tile)</div>
             <div style={{ fontSize: '0.8em', opacity: 0.7, marginBottom: 4 }}>
               {selectedTilePos ? `Selected: (${selectedTilePos.x}, ${selectedTilePos.y})` : 'No tile selected'}

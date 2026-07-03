@@ -42,7 +42,7 @@ import { useCombatAnimationStore } from './combatAnimationStore';
 import { useCaveScreamsStore } from './caveScreamsStore';
 import { triggerSpellSfx } from './soundOptionsStore';
 import { Faction, GamePhase, BuildingType, TileType, TileStatus, Difficulty, DestroyBehavior, UnitType, UnitTag, TechFlag } from './types';
-import type { GameState, Position, TechId, SpellId } from './types';
+import type { Building, GameState, Position, TechId, SpellId } from './types';
 import type { GameEvent } from './gameEvents';
 import { MAP, TERRAIN, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval, UNIT_DEFINITIONS, MAGE, TUNNEL_EMERGE_DAMAGE } from './gameConfig';
 import { RENDER } from './renderConfig';
@@ -61,7 +61,7 @@ import { cleanupRoostedUnits } from './buildingRemoval';
 import { rollNextWaveTheme, applyThemeToFoggedUnits } from './waveThemeSystem';
 import { useMarketPanelStore } from './marketPanelStore';
 import { canUnitTrade } from './unitActions';
-import { restockAllSlots, tickMarketRefills } from './marketSystem';
+import { createMarket, restockAllSlots, tickMarketRefills } from './marketSystem';
 import { MARKET } from './gameConfig';
 
 // ============================================================================
@@ -153,6 +153,8 @@ interface GameActions {
   debugAddRuin: () => void;
   /** Debug: add 5 arcane crystals */
   debugAddCrystals: () => void;
+  /** Debug: place a market near the north-most stronghold/sanctum */
+  debugAddMarketNearNorthStronghold: () => void;
   /** Debug: apply a tile status to the currently selected tile */
   debugApplyTileStatus: (status: string) => void;
   /** Debug: clear tile status from the currently selected tile */
@@ -198,6 +200,55 @@ type GameStore = GameState & GameActions;
 // ============================================================================
 
 const createInitialState = (): GameState => generateInitialGameState();
+
+function isStrongholdLike(type: BuildingType): boolean {
+  return type === BuildingType.STRONGHOLD || type === BuildingType.INFERNALSANCTUM;
+}
+
+function findNorthMostStronghold(state: GameState): Building | null {
+  const strongholds = Object.values(state.buildings).filter((b) => isStrongholdLike(b.type));
+  if (strongholds.length === 0) return null;
+  return strongholds.reduce((best, building) => {
+    if (building.position.y < best.position.y) return building;
+    if (building.position.y === best.position.y && building.position.x < best.position.x) return building;
+    return best;
+  });
+}
+
+function isValidMarketPlacementTile(state: GameState, position: Position): boolean {
+  const tile = state.grid[position.y]?.[position.x];
+  if (!tile) return false;
+  if (tile.terrainType !== TileType.PLAINS) return false;
+  if (tile.buildingId !== null || tile.unitId !== null) return false;
+  if (tile.isLava || tile.isRuin || tile.isStrongholdRuin) return false;
+  return true;
+}
+
+function findClosestMarketPlacementTile(state: GameState, origin: Position): Position | null {
+  let best: Position | null = null;
+  let bestDistance = Number.POSITIVE_INFINITY;
+
+  for (let y = 0; y < MAP.GRID_HEIGHT; y++) {
+    for (let x = 0; x < MAP.GRID_WIDTH; x++) {
+      const candidate = { x, y };
+      if (!isValidMarketPlacementTile(state, candidate)) continue;
+      const distance = Math.max(Math.abs(candidate.x - origin.x), Math.abs(candidate.y - origin.y));
+      if (distance === 0) continue;
+      if (distance < bestDistance) {
+        best = candidate;
+        bestDistance = distance;
+        continue;
+      }
+      if (distance === bestDistance && best) {
+        if (candidate.y < best.y || (candidate.y === best.y && candidate.x < best.x)) {
+          best = candidate;
+        }
+      }
+    }
+  }
+
+  return best;
+}
 
 // ============================================================================
 // HELPERS
@@ -2950,6 +3001,20 @@ export const useGameStore = create<GameStore>()(
     debugAddCrystals: () => {
       set((state) => {
         state.arcaneCrystals += 5;
+      });
+    },
+
+    debugAddMarketNearNorthStronghold: () => {
+      set((state) => {
+        const stronghold = findNorthMostStronghold(state);
+        if (!stronghold) return;
+
+        const marketPos = findClosestMarketPlacementTile(state, stronghold.position);
+        if (!marketPos) return;
+
+        const market = createMarket(state, marketPos);
+        state.buildings[market.id] = market;
+        state.grid[marketPos.y][marketPos.x].buildingId = market.id;
       });
     },
 
