@@ -54,7 +54,7 @@ import {
   type Tile,
   type GameStats,
 } from '../types';
-import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast, getMageCastBudget, isHealSuppressedByCorruption, canUnitTrade, getTradeMarket } from '../unitActions';
+import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast, getMageCastBudget, isHealSuppressedByCorruption, canUnitTrade, getTradeMarket, getCaptureTarget } from '../unitActions';
 import { getPhalanxAttackBonus, getPhalanxDefenseBonus, getCrystalTowerChamberBonus } from '../combatSystem';
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
 import { getTagsFromActiveSpecialists } from '../specialistSystem';
@@ -2818,12 +2818,7 @@ function BottomBar() {
   // Only relevant for player units
   const captureTarget: Building | undefined =
     selectedUnit && selectedUnit.faction === Faction.PLAYER
-      ? Object.values(buildings).find(
-          (b) =>
-            b.position.x === selectedUnit.position.x &&
-            b.position.y === selectedUnit.position.y &&
-            b.faction !== selectedUnit.faction
-        )
+      ? getCaptureTarget(selectedUnit, useGameStore.getState()) ?? undefined
       : undefined;
 
   const captureTargetId = captureTarget?.id;

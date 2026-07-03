@@ -25,7 +25,9 @@ import {
   setMarketRandomSource,
   tickMarketRefills,
 } from '../marketSystem';
-import { canUnitTrade, getTradeMarket } from '../unitActions';
+import { canUnitTrade, getTradeMarket, getCaptureTarget } from '../unitActions';
+import { canCapture, initiateCapture } from '../captureSystem';
+import { getReachableTiles } from '../movementSystem';
 
 // ============================================================================
 // Helpers
@@ -252,6 +254,49 @@ describe('createMarket — slot generation', () => {
     const state = makeState({ globalSpecialistStorage: allIds });
     const result = rollSpecialistId(state, []);
     expect(result).toBeNull();
+  });
+});
+
+describe('markets — capture and movement rules', () => {
+  it('cannot be captured by player or enemy units', () => {
+    const player = makeUnit({
+      position: { x: 4, y: 4 },
+      tags: [UnitTag.BUILDANDCAPTURE],
+    });
+    const enemy = makeUnit({
+      faction: Faction.ENEMY,
+      position: { x: 5, y: 5 },
+      tags: [UnitTag.BUILDANDCAPTURE],
+    });
+    const playerMarket = makeMarketBuilding({ x: 4, y: 4 });
+    const enemyMarket = makeMarketBuilding({ x: 5, y: 5 });
+    const state = makeState({ units: [player, enemy], buildings: [playerMarket, enemyMarket] });
+
+    expect(canCapture(state, player.id, playerMarket.id)).toBe(false);
+    expect(canCapture(state, enemy.id, enemyMarket.id)).toBe(false);
+    expect(getCaptureTarget(player, state)).toBeNull();
+
+    initiateCapture(state, player.id, playerMarket.id);
+    initiateCapture(state, enemy.id, enemyMarket.id);
+
+    expect(state.buildings[playerMarket.id]).toBeDefined();
+    expect(state.buildings[enemyMarket.id]).toBeDefined();
+    expect(state.grid[4][4].buildingId).toBe(playerMarket.id);
+    expect(state.grid[5][5].buildingId).toBe(enemyMarket.id);
+  });
+
+  it('remains passable for player and enemy movement', () => {
+    const player = makeUnit({ position: { x: 4, y: 4 } });
+    const enemy = makeUnit({ faction: Faction.ENEMY, position: { x: 6, y: 6 } });
+    const playerMarket = makeMarketBuilding({ x: 5, y: 4 });
+    const enemyMarket = makeMarketBuilding({ x: 5, y: 6 });
+    const state = makeState({ units: [player, enemy], buildings: [playerMarket, enemyMarket] });
+
+    const playerReachable = getReachableTiles(state, player.id);
+    const enemyReachable = getReachableTiles(state, enemy.id);
+
+    expect(playerReachable).toEqual(expect.arrayContaining([{ x: 5, y: 4 }]));
+    expect(enemyReachable).toEqual(expect.arrayContaining([{ x: 5, y: 6 }]));
   });
 });
 

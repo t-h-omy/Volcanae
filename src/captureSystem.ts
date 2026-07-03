@@ -96,6 +96,7 @@ function updateZonesUnlocked(state: Draft<GameState>): void {
  * - Unit exists and has not captured this turn
  * - Unit has not moved this turn (cannot capture in the same turn as moving onto the building)
  * - Building exists and is not owned by the unit's faction
+ * - Building is capturable (e.g. Markets are not)
  * - Unit is on the same tile as the building
  * - Unit has the BUILDANDCAPTURE tag
  *
@@ -122,6 +123,11 @@ export function canCapture(
 
   // Building doesn't exist
   if (!building) {
+    return false;
+  }
+
+  // Some neutral utility buildings are never capturable.
+  if (building.type === BuildingType.MARKET) {
     return false;
   }
 
