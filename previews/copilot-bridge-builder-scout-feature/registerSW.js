@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/Volcanae/previews/copilot-bridge-builder-scout-feature/sw.js', { scope: '/Volcanae/previews/copilot-bridge-builder-scout-feature/' })})}
