@@ -529,7 +529,7 @@ export function getBridgeBuildTargets(
     if (getBridgeAt(state, cx, cy)) continue;
     // No bridge on any of C's 8 neighbours
     let hasAdjacentBridge = false;
-    for (let ndx = -1; ndx <= 1 && !hasAdjacentBridge; ndx++) {
+    for (let ndx = -1; ndx <= 1; ndx++) {
       for (let ndy = -1; ndy <= 1 && !hasAdjacentBridge; ndy++) {
         if (ndx === 0 && ndy === 0) continue;
         const nx2 = cx + ndx;
@@ -537,6 +537,7 @@ export function getBridgeBuildTargets(
         if (nx2 < 0 || nx2 >= MAP.GRID_WIDTH || ny2 < 0 || ny2 >= MAP.GRID_HEIGHT) continue;
         if (getBridgeAt(state, nx2, ny2)) hasAdjacentBridge = true;
       }
+      if (hasAdjacentBridge) break;
     }
     if (hasAdjacentBridge) continue;
     // Far tile (C + D) must be in-bounds land
