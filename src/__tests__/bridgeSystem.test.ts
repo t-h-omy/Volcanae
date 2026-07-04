@@ -21,7 +21,7 @@ import {
   UnitType,
 } from '../types';
 import type { Building, GameState, Tile, Unit } from '../types';
-import { MAP, UNIT_DEFINITIONS, BUILDING_DEFINITIONS } from '../gameConfig';
+import { MAP, UNIT_DEFINITIONS, BUILDING_DEFINITIONS, TAG_INFO } from '../gameConfig';
 import { getBridgeAt, isBridgeTraversalAllowed, canTraverseEdge } from '../bridgeSystem';
 import { canUnitBuildBridge, getBridgeBuildTargets } from '../unitActions';
 import { getReachableTiles, resolveSlide } from '../movementSystem';
@@ -174,6 +174,12 @@ function makeState(opts: {
     gameStats: { unitsLost: 0, buildingsDestroyed: 0, unitsKilled: 0, buildingsCaptured: 0, buildingsConverted: 0 },
   } as unknown as GameState;
 }
+
+describe('Bridgebuilder tag metadata', () => {
+  it('does not expose an icon for unit badge rendering', () => {
+    expect(TAG_INFO[UnitTag.BRIDGE_BUILDER]?.icon).toBeUndefined();
+  });
+});
 
 // ============================================================================
 // isBridgeTraversalAllowed
