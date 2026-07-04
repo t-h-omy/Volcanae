@@ -1622,6 +1622,14 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     constructionCost: { iron: 0, wood: 0 },
     description: `A neutral market. A unit standing here may Trade once per turn for ${MARKET.RESOURCE_SLOTS_MAX} resource swaps and ${MARKET.SPECIALIST_SLOTS_MAX} specialist offer(s). Destroyed only by lava.`,
   },
+  BRIDGE: {
+    discoverRadius: 0,
+    destroyBehavior: DestroyBehavior.NONE,
+    constructionCost: { iron: 0, wood: 8 }, // balanceable wood/iron
+    description:
+      `A timber bridge spanning a single canyon tile between two land tiles. ` +
+      `Cross along its axis or diagonally; lava destroys it.`,
+  },
 };
 
 export const TECH = {
@@ -1909,6 +1917,19 @@ export const TECH_TREE: TechNodeDefinition[] = [
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SCOUT, tag: UnitTag.PATCHUP },
       { type: 'UNIT_COST_MOD',  unitType: UnitType.SCOUT, resource: 'wood', amount: 3 },
+    ],
+  },
+  {
+    id: 'BRIDGEBUILDER',
+    name: 'Bridgebuilder',
+    description:
+      `Scouts can build a Bridge (${BUILDING_DEFINITIONS.BRIDGE.constructionCost.wood} wood) ` +
+      `across a 1-tile canyon gap between two land tiles`,
+    requires: ['BIG_EYES'],
+    cost: 3,
+    effects: [
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.SCOUT, tag: UnitTag.BRIDGE_BUILDER },
+      { type: 'UNLOCK_BUILDING', buildingType: BuildingType.BRIDGE },
     ],
   },
 
@@ -2382,6 +2403,7 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   [UnitTag.FLYING]:    { label: 'Flying',    desc: `Traverses canyons and unfrozen water tiles. Survives knockback over canyons and water (lava still kills). Does not ice-slide across frozen tiles. Takes +${Math.round((FLYING_RANGED_DAMAGE_TAKEN_MULTIPLIER - 1) * 100)}% damage from non-flying ranged attackers.`, icon: '🕊️' },
   // ── Tile-presence status tags ────────────────────────────────────────────
   [UnitTag.CORRUPTED]: { label: 'Corrupted', desc: 'Standing on a corrupted tile. Some tag abilities are suppressed until this unit moves off the corrupted tile.', icon: '☠️' },
+  [UnitTag.BRIDGE_BUILDER]: { label: 'Bridgebuilder', desc: `Can spend its action to build a Bridge (${BUILDING_DEFINITIONS.BRIDGE.constructionCost.wood} wood) across a 1-tile canyon gap between two land tiles. Bridge is crossable along its axis and diagonally.`, icon: '🌉' },
 };
 
 // Compute descriptions for UNIT_DEFINITIONS entries that reference TUNNEL constants.

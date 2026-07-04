@@ -96,6 +96,13 @@ export const BuildingType = {
    * and specialist acquisitions. Destroyed only by lava.
    */
   MARKET: 'MARKET',
+  /**
+   * Timber bridge built by a BRIDGE_BUILDER scout across a single canyon tile.
+   * Placed on a CANYON tile; makes it crossable along the bridge's axis and
+   * diagonally. Direction-locked: perpendicular orthogonal entry/exit is blocked
+   * for voluntary movement. Faction-neutral, no combat stats. Destroyed by lava.
+   */
+  BRIDGE: 'BRIDGE',
 } as const;
 export type BuildingType = (typeof BuildingType)[keyof typeof BuildingType];
 
@@ -328,6 +335,8 @@ export const UnitTag = {
   // ── Tile-presence status tags (derived, not persisted) ───────────────────
   /** Unit is standing on a corrupted tile and its tag abilities are being suppressed. */
   CORRUPTED: 'CORRUPTED',
+  /** Scout that has researched the Bridgebuilder tech; can build a Bridge across a 1-tile canyon gap */
+  BRIDGE_BUILDER: 'BRIDGE_BUILDER',
 } as const;
 export type UnitTag = (typeof UnitTag)[keyof typeof UnitTag];
 
@@ -590,6 +599,11 @@ export interface Building {
   marketSpecialistSlots?: (string | null)[];
   /** Player turns remaining until the next empty-slot auto-refill. Only set on MARKET buildings. */
   marketRefillCountdown?: number;
+  /**
+   * Orientation of a BRIDGE building. 'EW' = east–west span (sprite default, 0° rotation);
+   * 'NS' = north–south span (90° rotation). Only set on BRIDGE buildings.
+   */
+  bridgeOrientation?: 'EW' | 'NS';
 }
 
 /** A tile on the game grid */
@@ -798,6 +812,8 @@ export interface GameState {
    * after the TRANSFORM_TO_DEMON animation completes.
    */
   pendingBrandmarkTransforms: Array<{ unitId: string; position: Position }>;
+  /** When non-null, the player is choosing a bridge build target on the map */
+  pendingBridgeBuilderId: string | null;
   /**
    * All active portals created by RIFT_LORD units.
    * Keyed by portal ID. Portals are cleaned up at the start of each enemy turn

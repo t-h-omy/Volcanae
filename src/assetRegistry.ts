@@ -104,6 +104,8 @@ export const BUILDING_SPRITE: Partial<Record<BuildingType, string>> = withBase({
   CRYSTAL_TOWER:   '/sprites/buildings/crystal_tower_100px.png',
   CRYSTAL_CAVE:    '/sprites/buildings/crystal_cave_100px.png',
   CHARCOAL_KILN:   '/sprites/buildings/charcoal_kiln_100px.png',
+  // TODO: replace BRIDGE with real art when available
+  BRIDGE:          '/sprites/buildings/bridge_100px.png',
 });
 
 /**

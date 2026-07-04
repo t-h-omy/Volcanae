@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### Bridgebuilder scout tech + Bridge building (v0.91.0)
+
+- Added **Bridgebuilder** tech node (scout branch, requires `BIG_EYES`, 3 crystals): grants
+  `UnitTag.BRIDGE_BUILDER` to all scouts and unlocks `BuildingType.BRIDGE`.
+- Scout with `BRIDGE_BUILDER` can instantly build a **Bridge** (8 wood) on a single canyon tile
+  that lies directly between two land tiles (scout→canyon→land colinear, orthogonal only).
+  Reuses `hasConstructedThisTurn`; one bridge per scout per turn.
+- **Direction-locked passability**: bridges have an orientation (`EW` or `NS`). Voluntary
+  movement across an EW bridge is allowed E↔W and via all four diagonals; entry/exit N↔S is
+  blocked. NS bridge mirrors this (N↔S allowed, E↔W blocked).
+- **Forced movement** (slide/knockback/melee-advance) catches the unit on the bridge regardless
+  of direction — the directional rule does not apply to forced moves.
+- Everyone (player and enemy) may cross a bridge under the same directional rules.
+- **No adjacent bridges**: a canyon tile and all 8 of its neighbours must be bridge-free for a
+  new bridge to be placed there.
+- Bridge is a neutral building (`faction: null`, `combatStats: null`, `destroyBehavior: NONE`);
+  tile terrain stays `CANYON`. The bridge makes the tile standable/crossable.
+- **Lava** destroys the bridge when the lava front reaches its row (generic building removal,
+  no special case).
+- No save-version bump — bridges are buildings (already serialized); the new optional
+  `bridgeOrientation` field rides along silently on old saves.
+
 ### Market building (v0.90.0, save v14)
 
 - Added neutral **Market** building generated at map-gen on free PLAINS tiles in the middle zones

@@ -34,7 +34,7 @@
 
 import type { GameState } from './types';
 import type { Draft } from 'immer';
-import { Faction, UnitTag, BuildingType, UnitType } from './types';
+import { Faction, UnitTag, BuildingType, UnitType, TileType } from './types';
 import type { Unit, Building, Tile } from './types';
 import { getReachableTiles } from './movementSystem';
 import { getConstructionOptionsForTile } from './constructionSystem';
@@ -44,6 +44,7 @@ import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { MAP, MAGE } from './gameConfig';
 import { getMageCastBudget } from './spellSystem';
 import { isUnitOnCorruptedTile } from './tileStatusSystem';
+import { getBridgeAt } from './bridgeSystem';
 export { canUnitCast, getMageCastBudget } from './spellSystem';
 
 // ── HELPER ───────────────────────────────────────────────────────────────────
@@ -451,4 +452,100 @@ export function canUnitFieldwork(unit: Unit): boolean {
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
   return true;
+}
+
+// ── BRIDGE BUILD ─────────────────────────────────────────────────────────────
+
+/** A valid target for the Build Bridge action. */
+export interface BridgeBuildTarget {
+  pos: { x: number; y: number };
+  orientation: 'EW' | 'NS';
+}
+
+/**
+ * Returns true if the unit is allowed to build a bridge this turn.
+ * Does NOT check whether any valid bridge targets exist.
+ *
+ * Blocking rules (mirrors canUnitConstruct, but keyed on BRIDGE_BUILDER):
+ *   - PLAYER faction required
+ *   - BRIDGE_BUILDER tag required
+ *   - BRIDGE must be unlocked
+ *   - hasMovedThisTurn, hasAttackedThisTurn, hasConstructedThisTurn,
+ *     hasCapturedThisTurn, hasDestroyedThisTurn — all block the action
+ */
+export function canUnitBuildBridge(
+  unit: Unit,
+  state: GameState | Draft<GameState>,
+): boolean {
+  if (unit.faction !== Faction.PLAYER) return false;
+  if (!unit.tags.includes(UnitTag.BRIDGE_BUILDER)) return false;
+  if (!state.unlockedBuildings.includes(BuildingType.BRIDGE)) return false;
+  if (unit.hasMovedThisTurn) return false;
+  if (unit.hasAttackedThisTurn) return false;
+  if (unit.hasConstructedThisTurn) return false;
+  if (unit.hasCapturedThisTurn) return false;
+  if (unit.hasDestroyedThisTurn) return false;
+  return true;
+}
+
+/**
+ * Returns all valid bridge-build targets for the given unit.
+ *
+ * For each orthogonal direction D from the unit's position:
+ *   - C = unit.pos + D (the canyon tile to bridge)
+ *   - Valid iff:
+ *     1. C is in bounds
+ *     2. C.terrainType === CANYON
+ *     3. C is not lava
+ *     4. No bridge already on C
+ *     5. No bridge on any of C's 8 neighbours (no adjacent bridges)
+ *     6. The far tile (C + D) is in bounds and is land (not CANYON, not WATER)
+ * - orientation: (D is horizontal) → 'EW', else 'NS'
+ */
+export function getBridgeBuildTargets(
+  unit: Unit,
+  state: GameState | Draft<GameState>,
+): BridgeBuildTarget[] {
+  const { x, y } = unit.position;
+  const targets: BridgeBuildTarget[] = [];
+  // Orthogonal directions only
+  const orthogonals: [number, number, 'EW' | 'NS'][] = [
+    [1, 0, 'EW'],
+    [-1, 0, 'EW'],
+    [0, 1, 'NS'],
+    [0, -1, 'NS'],
+  ];
+  for (const [dx, dy, orientation] of orthogonals) {
+    const cx = x + dx;
+    const cy = y + dy;
+    // C must be in bounds
+    if (cx < 0 || cx >= MAP.GRID_WIDTH || cy < 0 || cy >= MAP.GRID_HEIGHT) continue;
+    const cTile = state.grid[cy][cx];
+    // C must be a CANYON tile
+    if (cTile.terrainType !== TileType.CANYON) continue;
+    // C must not be lava
+    if (cTile.isLava) continue;
+    // No bridge already on C
+    if (getBridgeAt(state, cx, cy)) continue;
+    // No bridge on any of C's 8 neighbours
+    let hasAdjacentBridge = false;
+    for (let ndx = -1; ndx <= 1 && !hasAdjacentBridge; ndx++) {
+      for (let ndy = -1; ndy <= 1 && !hasAdjacentBridge; ndy++) {
+        if (ndx === 0 && ndy === 0) continue;
+        const nx2 = cx + ndx;
+        const ny2 = cy + ndy;
+        if (nx2 < 0 || nx2 >= MAP.GRID_WIDTH || ny2 < 0 || ny2 >= MAP.GRID_HEIGHT) continue;
+        if (getBridgeAt(state, nx2, ny2)) hasAdjacentBridge = true;
+      }
+    }
+    if (hasAdjacentBridge) continue;
+    // Far tile (C + D) must be in-bounds land
+    const fx = cx + dx;
+    const fy = cy + dy;
+    if (fx < 0 || fx >= MAP.GRID_WIDTH || fy < 0 || fy >= MAP.GRID_HEIGHT) continue;
+    const farTile = state.grid[fy][fx];
+    if (farTile.terrainType === TileType.CANYON || farTile.terrainType === TileType.WATER) continue;
+    targets.push({ pos: { x: cx, y: cy }, orientation });
+  }
+  return targets;
 }

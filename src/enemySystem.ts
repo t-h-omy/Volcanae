@@ -13,6 +13,7 @@ import { isTileWithinEdgeCircleRange, edgeCircleDistance } from './rangeUtils';
 import { initiateCapture, canCapture } from './captureSystem';
 import { corruptTerrain, processMagmaSpyrAttacks, processEmberNestSpawns } from './corruptionSystem';
 import { enemyConstructBuilding } from './constructionSystem';
+import { getBridgeAt, canTraverseEdge } from './bridgeSystem';
 import { processEnemyLevelUps, grantXp } from './levelSystem';
 import type { GameEvent } from './gameEvents';
 import { hasUnitActed } from './unitActions';
@@ -232,8 +233,8 @@ function isUnitBlockedFromLava(unit: Unit, state: Draft<GameState>): boolean {
       visited.add(key);
       const tile = state.grid[ny][nx];
       if (tile.terrainType === TileType.CANYON || tile.terrainType === TileType.WATER) {
-        // Impassable terrain — cannot be traversed in any direction
-        continue;
+        // Impassable terrain unless a bridge provides a crossable path
+        if (!getBridgeAt(state, nx, ny) || !canTraverseEdge(state, x, y, nx, ny, false)) continue;
       }
       if (tile.unitId !== null || isBlockedBuildingForEnemyMovement(state, tile.buildingId)) continue;
       // Lava tiles ahead are valid sacrifice destinations — unit is not blocked
@@ -353,8 +354,10 @@ function findBfsPath(
       visited.add(nkey);
       const tile = state.grid[ny][nx];
       const isTarget = nx === target.x && ny === target.y;
-      // CANYON / WATER tiles are impassable — never enter, not even as the target
-      if (tile.terrainType === TileType.CANYON || tile.terrainType === TileType.WATER) continue;
+      // CANYON / WATER tiles: impassable unless a bridge provides a directional crossing
+      if (tile.terrainType === TileType.CANYON || tile.terrainType === TileType.WATER) {
+        if (!getBridgeAt(state, nx, ny) || !canTraverseEdge(state, current.x, current.y, nx, ny, false)) continue;
+      }
       if (tile.isLava && !isTarget) continue;
       if (isBlockedBuildingForEnemyMovement(state, tile.buildingId)) continue;
       if (tile.unitId !== null && !isTarget) continue;
@@ -1670,7 +1673,10 @@ function scoreActionsForUnit(
           if (bfsVisited.has(nkey)) continue;
           bfsVisited.add(nkey);
           const tile = state.grid[ny][nx];
-          if (tile.terrainType === TileType.CANYON || tile.terrainType === TileType.WATER) continue;
+          if (tile.terrainType === TileType.CANYON || tile.terrainType === TileType.WATER) {
+            // Allow if a bridge exists and the direction is valid
+            if (!getBridgeAt(state, nx, ny) || !canTraverseEdge(state, x, y, nx, ny, false)) continue;
+          }
           if (tile.isLava) continue;
           if (isBlockedBuildingForEnemyMovement(state, tile.buildingId)) continue;
           if (tile.unitId !== null) continue; // must be unoccupied to land on

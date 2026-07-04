@@ -425,6 +425,7 @@ const buildingDisplayNames: Record<BuildingType, string> = {
   [BuildingType.GRAVESTONE]: 'Gravestone',
   [BuildingType.GRAVE_TRAP]: 'Grave Trap',
   [BuildingType.MARKET]: 'Market',
+  [BuildingType.BRIDGE]: 'Bridge',
 };
 
 function renderUnlockedBuilding(buildingType: BuildingType): string {

@@ -54,7 +54,7 @@ import {
   type Tile,
   type GameStats,
 } from '../types';
-import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast, getMageCastBudget, isHealSuppressedByCorruption, canUnitTrade, getTradeMarket, getCaptureTarget } from '../unitActions';
+import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast, getMageCastBudget, isHealSuppressedByCorruption, canUnitTrade, getTradeMarket, getCaptureTarget, canUnitBuildBridge, getBridgeBuildTargets } from '../unitActions';
 import { getPhalanxAttackBonus, getPhalanxDefenseBonus, getCrystalTowerChamberBonus } from '../combatSystem';
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
 import { getTagsFromActiveSpecialists } from '../specialistSystem';
@@ -131,6 +131,7 @@ const BUILDING_EMOJI: Record<string, string> = {
   [BuildingType.CRYSTAL_CAVE]: '🕳️',
   [BuildingType.GRAVESTONE]: '🪦',
   [BuildingType.GRAVE_TRAP]: '☠️',
+  [BuildingType.BRIDGE]: '🌉',
 };
 
 const BUILDING_NAME: Record<string, string> = {
@@ -156,6 +157,7 @@ const BUILDING_NAME: Record<string, string> = {
   [BuildingType.GRAVESTONE]: 'Gravestone',
   [BuildingType.GRAVE_TRAP]: 'Grave Trap',
   [BuildingType.MARKET]: 'Market',
+  [BuildingType.BRIDGE]: 'Bridge',
 };
 
 const TAG_EMOJI: Partial<Record<UnitTag, string>> = {
@@ -1590,6 +1592,7 @@ function SelectedUnitPanel({
   const canCapture = canUnitCapture(unit);
   const canHeal = isPlayer && canUnitHeal(unit);
   const canFieldwork = isPlayer && canUnitFieldwork(unit);
+  const canBuildBridge = isPlayer && canUnitBuildBridge(unit, gameState);
 
   const visibleTags = unit.tags.filter((t) => !HIDDEN_UNIT_TAGS.has(t));
 
@@ -1623,6 +1626,18 @@ function SelectedUnitPanel({
   const [confirmFieldwork, setConfirmFieldwork] = useState(false);
   const castSpell = useGameStore((s) => s.castSpell);
   const openMarket = useGameStore((s) => s.openMarket);
+
+  // Bridge build mode
+  const buildBridge = useGameStore((s) => s.buildBridge);
+  const startBridgeBuildMode = useGameStore((s) => s.startBridgeBuildMode);
+  const cancelBridgeBuildMode = useGameStore((s) => s.cancelBridgeBuildMode);
+  const pendingBridgeBuilderId = useGameStore((s) => s.pendingBridgeBuilderId);
+  const isInBridgeBuildMode = pendingBridgeBuilderId === unit.id;
+  const bridgeTargets = useMemo(
+    () => (canBuildBridge ? getBridgeBuildTargets(unit, gameState) : []),
+    [canBuildBridge, gameState, unit],
+  );
+  const [confirmBridgeTarget, setConfirmBridgeTarget] = useState<{ x: number; y: number; orientation: 'EW' | 'NS' } | null>(null);
 
   // Trade (Market)
   const canTrade = isPlayer && canUnitTrade(unit);
@@ -2069,6 +2084,41 @@ function SelectedUnitPanel({
                     ❌ Cancel
                   </button>
                 </div>
+              )}
+            </>
+          )}
+          {canBuildBridge && (
+            <>
+              <button
+                className={`hud-spell-btn${isInBridgeBuildMode ? ' hud-heal-active' : ''}`}
+                disabled={bridgeTargets.length === 0}
+                onClick={() => {
+                  if (isInBridgeBuildMode) {
+                    cancelBridgeBuildMode();
+                  } else {
+                    startBridgeBuildMode(unit.id);
+                  }
+                }}
+              >
+                <span className="hud-spell-btn-label">
+                  {isInBridgeBuildMode ? '🌉 Choose canyon…' : '🌉 Build Bridge'}
+                </span>
+                <span className="hud-spell-btn-cost">🪵{BUILDING_DEFINITIONS.BRIDGE.constructionCost.wood}</span>
+              </button>
+              {confirmBridgeTarget && (
+                <BuildingInfoPopup
+                  buildingType={BuildingType.BRIDGE}
+                  cost={BUILDING_DEFINITIONS.BRIDGE.constructionCost}
+                  actionLabel="Build Bridge"
+                  onAction={() => {
+                    buildBridge(unit.id, confirmBridgeTarget);
+                    setConfirmBridgeTarget(null);
+                    cancelBridgeBuildMode();
+                  }}
+                  onClose={() => {
+                    setConfirmBridgeTarget(null);
+                  }}
+                />
               )}
             </>
           )}

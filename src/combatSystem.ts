@@ -15,6 +15,7 @@ import { grantXp } from './levelSystem';
 import { generateId } from './mapGenerator';
 import { isUnitOnCorruptedTile, applyTileStatus } from './tileStatusSystem';
 import { cleanupRoostedUnits } from './buildingRemoval';
+import { getBridgeAt } from './bridgeSystem';
 
 // Counter for generating unique gravestone building IDs within this module
 let combatSystemIdCounter = 0;
@@ -678,7 +679,8 @@ export function resolveAttack(
     defenderDead &&
     !attackerDead &&
     !attacker.tags.includes(UnitTag.RANGED) &&
-    state.grid[defender.position.y][defender.position.x].terrainType !== TileType.CANYON &&
+    (state.grid[defender.position.y][defender.position.x].terrainType !== TileType.CANYON ||
+      !!getBridgeAt(state, defender.position.x, defender.position.y)) &&
     state.grid[defender.position.y][defender.position.x].terrainType !== TileType.WATER;
 
   // Update game stats
@@ -1737,7 +1739,8 @@ export function resolveAttackOnBuilding(
     // DESTINATION tile status — not the attacker's current (pre-advance) tile.
     const willMeleeAdvanceOnBuilding =
       !attacker.tags.includes(UnitTag.RANGED) &&
-      state.grid[buildingPosition.y][buildingPosition.x].terrainType !== TileType.CANYON &&
+      (state.grid[buildingPosition.y][buildingPosition.x].terrainType !== TileType.CANYON ||
+        !!getBridgeAt(state, buildingPosition.x, buildingPosition.y)) &&
       state.grid[buildingPosition.y][buildingPosition.x].terrainType !== TileType.WATER;
     const bloodlustSuppressedOnBuilding = willMeleeAdvanceOnBuilding
       ? state.grid[buildingPosition.y][buildingPosition.x].status === TileStatus.CORRUPTED
@@ -1785,7 +1788,7 @@ export function resolveAttackOnBuilding(
     if (
       attackerUnit &&
       !attackerUnit.tags.includes(UnitTag.RANGED) &&
-      targetTerrain !== TileType.CANYON &&
+      (targetTerrain !== TileType.CANYON || !!getBridgeAt(state, buildingPosition.x, buildingPosition.y)) &&
       targetTerrain !== TileType.WATER
     ) {
       const fromTile = state.grid[attackerUnit.position.y][attackerUnit.position.x];
