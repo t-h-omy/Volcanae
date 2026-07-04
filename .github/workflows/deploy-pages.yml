@@ -11,7 +11,7 @@ permissions:
 
 concurrency:
   group: gh-pages-deploy
-  cancel-in-progress: true
+  cancel-in-progress: false   # queue deploys, never cancel a running one
 
 jobs:
   deploy:
@@ -132,16 +132,41 @@ jobs:
           EOF
           fi
 
+          touch gh-pages-repo/.nojekyll
           cd gh-pages-repo
           git add -A
 
           if git diff --staged --quiet; then
             echo "No changes to commit"
-          else
-            git commit -m "Deploy ${{ github.ref_name }} to ${{ steps.deploy-config.outputs.destination_dir }}"
-            git push origin gh-pages
-            echo "✅ Deployed successfully!"
+            exit 0
           fi
+
+          git commit -m "Deploy ${{ github.ref_name }} to ${{ steps.deploy-config.outputs.destination_dir }}"
+
+          DEST_REL="${{ steps.deploy-config.outputs.destination_dir }}"
+          for attempt in 1 2 3 4 5; do
+            if git push origin gh-pages; then
+              echo "✅ Deployed successfully (attempt $attempt)"
+              exit 0
+            fi
+            echo "Push rejected (remote moved), resyncing (attempt $attempt)..."
+            git fetch origin gh-pages
+            git reset --hard origin/gh-pages
+            if [ "$DEST_REL" = "." ]; then
+              find . -maxdepth 1 -type f ! -name .nojekyll -delete
+              find . -maxdepth 1 -type d ! -name . ! -name .git ! -name previews -exec rm -rf {} +
+            else
+              rm -rf "$DEST_REL"/*
+              mkdir -p "$DEST_REL"
+            fi
+            cp -r ../dist/* "$DEST_REL/"
+            touch .nojekyll
+            git add -A
+            git commit -m "Deploy ${{ github.ref_name }} to $DEST_REL (retry $attempt)" || true
+            sleep $((RANDOM % 5 + 3))
+          done
+          echo "❌ Push failed after 5 attempts"
+          exit 1
 
       - name: Post Preview URL to PR
         if: github.ref != 'refs/heads/main'

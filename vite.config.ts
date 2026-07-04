@@ -18,6 +18,7 @@ const getBasePath = () => {
 }
 
 const basePath = getBasePath()
+const isPreview = basePath.includes('/previews/')
 
 export default defineConfig({
   base: basePath,
@@ -29,6 +30,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      selfDestroying: isPreview,
       strategies: 'generateSW',
       includeAssets: ['favicon.svg', 'assets/icon_*.png'],
       manifest: {
@@ -89,7 +91,10 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}']
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        cleanupOutdatedCaches: true,
+        clientsClaim: true,
+        skipWaiting: true,
       }
     })
   ],
