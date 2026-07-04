@@ -212,6 +212,9 @@ export function loadGameState(): GameState | null {
     if (!Array.isArray(gs.pendingBrandmarkTransforms)) {
       gs.pendingBrandmarkTransforms = [];
     }
+    if (!('pendingBridgeBuilderId' in gs)) {
+      gs.pendingBridgeBuilderId = null;
+    }
 
     // Migration: remove the legacy MAGE tag from all saved units (tag was removed in Bundle 2).
     if (s.units && typeof s.units === 'object') {

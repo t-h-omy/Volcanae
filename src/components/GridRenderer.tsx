@@ -35,7 +35,7 @@ import {
   type Building,
 } from '../types';
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
-import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, canUnitConstruct, canUnitCapture, hasUnitActed, getHealTargets, canUnitCast } from '../unitActions';
+import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, canUnitConstruct, canUnitCapture, hasUnitActed, getHealTargets, canUnitCast, getBridgeBuildTargets } from '../unitActions';
 import { getValidSpellTargets } from '../spellSystem';
 import './GridRenderer.css';
 
@@ -144,6 +144,9 @@ export default function GridRenderer() {
   const pendingTransposeFirstUnitId = useGameStore((s) => s.pendingTransposeFirstUnitId);
   const cancelSpellCast = useGameStore((s) => s.cancelSpellCast);
   const castSpell = useGameStore((s) => s.castSpell);
+  const pendingBridgeBuilderId = useGameStore((s) => s.pendingBridgeBuilderId);
+  const cancelBridgeBuildMode = useGameStore((s) => s.cancelBridgeBuildMode);
+  const buildBridge = useGameStore((s) => s.buildBridge);
   const strongholdTotalCap = useGameStore((s) => getStrongholdEffectiveCap(s).totalCap);
   const portals = useGameStore((s) => s.portals);
   // Precompute recruitment usage (current/limit) for each player-owned recruitment building type.
@@ -532,6 +535,20 @@ export default function GridRenderer() {
     return set;
   }, [pendingHealerId, units]);
 
+  // Bridge-build target highlighting: when a bridge builder is in bridge-build mode
+  const bridgeBuildTargetSet = useMemo<Set<string>>(() => {
+    if (!pendingBridgeBuilderId) return new Set();
+    const state = useGameStore.getState();
+    const builderUnit = state.units[pendingBridgeBuilderId];
+    if (!builderUnit) return new Set();
+    const targets = getBridgeBuildTargets(builderUnit, state);
+    const set = new Set<string>();
+    for (const t of targets) {
+      set.add(posKey(t.pos.x, t.pos.y));
+    }
+    return set;
+  }, [pendingBridgeBuilderId, units]);
+
   // Spell target highlighting: when a spell cast is pending, show valid target tiles
   const spellTargetSet = useMemo<Set<string>>(() => {
     if (!pendingSpellCast) return new Set();
@@ -711,6 +728,18 @@ export default function GridRenderer() {
         return;
       }
 
+      // Priority 0.4 — Bridge build mode: clicking a valid canyon target builds a bridge
+      if (pendingBridgeBuilderId && bridgeBuildTargetSet.has(key)) {
+        buildBridge(pendingBridgeBuilderId, { x, y });
+        cancelBridgeBuildMode();
+        return;
+      }
+      if (pendingBridgeBuilderId) {
+        triggerInvalidActionVfx(x, y);
+        cancelBridgeBuildMode();
+        return;
+      }
+
       // Priority 0.5 — Spell cast mode: clicking a valid target casts the spell; anything else cancels
       if (pendingSpellCast && spellTargetSet.has(key)) {
         castSpell({ x, y });
@@ -855,7 +884,7 @@ export default function GridRenderer() {
         clearSelection();
       }
     },
-    [grid, selectedUnitId, selectedBuildingId, selectedUnit, selectedBuilding, attackableSet, healableSet, spellTargetSet, reachableSet, units, buildings, selectUnit, selectBuilding, selectTile, clearSelection, moveUnit, attackUnit, attackBuilding, buildingAttackUnit, buildingAttackBuilding, healUnit, pendingHealerId, cancelHealMode, pendingSpellCast, castSpell, cancelSpellCast, isAnimating, triggerInvalidActionVfx],
+    [grid, selectedUnitId, selectedBuildingId, selectedUnit, selectedBuilding, attackableSet, healableSet, spellTargetSet, reachableSet, bridgeBuildTargetSet, units, buildings, selectUnit, selectBuilding, selectTile, clearSelection, moveUnit, attackUnit, attackBuilding, buildingAttackUnit, buildingAttackBuilding, healUnit, pendingHealerId, cancelHealMode, pendingSpellCast, castSpell, cancelSpellCast, pendingBridgeBuilderId, buildBridge, cancelBridgeBuildMode, isAnimating, triggerInvalidActionVfx],
   );
 
   // Right-click / tap-hold → deselect (only when not used for drag-panning)
@@ -924,6 +953,7 @@ export default function GridRenderer() {
             const isAttackable = attackableSet.has(key);
             const isHealable = healableSet.has(key);
             const isSpellTarget = spellTargetSet.has(key);
+            const isBridgeBuildTarget = bridgeBuildTargetSet.has(key);
             const isLeashed = leashSet.has(key);
             const isLeashWarn = leashWarnSet.has(key);
             const isSlidePreview = slidePreviewSet.has(key);
@@ -946,6 +976,7 @@ export default function GridRenderer() {
                 isAttackable={isAttackable}
                 isHealable={isHealable}
                 isSpellTarget={isSpellTarget}
+                isBridgeBuildTarget={isBridgeBuildTarget}
                 isLeashed={isLeashed}
                 isLeashWarn={isLeashWarn}
                 isSlidePreview={isSlidePreview}
@@ -996,6 +1027,8 @@ interface TileCellProps {
   isAttackable: boolean;
   isHealable: boolean;
   isSpellTarget: boolean;
+  /** True when this canyon tile is a valid bridge-build target for the pending builder. */
+  isBridgeBuildTarget: boolean;
   isLeashed: boolean;
   isLeashWarn: boolean;
   /** Whether this tile is the predicted slide destination from an adjacent FROZEN tile. */
@@ -1025,6 +1058,7 @@ function TileCellInner({
   isAttackable,
   isHealable,
   isSpellTarget,
+  isBridgeBuildTarget,
   isLeashed,
   isLeashWarn,
   isSlidePreview,
@@ -1077,6 +1111,7 @@ function TileCellInner({
   // Highlight overlays
   let highlightOverlay: string | null = null;
   if (isHealable) highlightOverlay = RENDER.COLORS.HEALABLE_OVERLAY;
+  else if (isBridgeBuildTarget) highlightOverlay = RENDER.COLORS.REACHABLE_OVERLAY;
   else if (isAttackable) highlightOverlay = RENDER.COLORS.ATTACKABLE_OVERLAY;
   else if (isReachable) highlightOverlay = RENDER.COLORS.REACHABLE_OVERLAY;
 
@@ -1323,7 +1358,12 @@ function TileCellInner({
               height={buildingIconSize}
               alt=""
               onError={() => setBuildingSpriteError(true)}
-              style={{ filter: buildingExhaustedFilter }}
+              style={{
+                filter: buildingExhaustedFilter,
+                ...(building.type === BuildingType.BRIDGE && building.bridgeOrientation === 'NS'
+                  ? { transform: 'rotate(90deg)' }
+                  : undefined),
+              }}
             />
           ) : (
             <div className="tile-building" style={{ filter: buildingExhaustedFilter }}>

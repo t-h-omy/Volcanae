@@ -63,6 +63,7 @@ import { useMarketPanelStore } from './marketPanelStore';
 import { canUnitTrade } from './unitActions';
 import { createMarket, restockAllSlots, tickMarketRefills } from './marketSystem';
 import { MARKET } from './gameConfig';
+import { canUnitBuildBridge, getBridgeBuildTargets } from './unitActions';
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
@@ -105,6 +106,12 @@ interface GameActions {
   startHealMode: (healerId: string) => void;
   /** Cancel heal-target-selection mode */
   cancelHealMode: () => void;
+  /** Build a bridge on the given canyon tile using a BRIDGE_BUILDER scout */
+  buildBridge: (unitId: string, canyonPos: { x: number; y: number }) => void;
+  /** Enter bridge-build-target-selection mode */
+  startBridgeBuildMode: (unitId: string) => void;
+  /** Cancel bridge-build-target-selection mode */
+  cancelBridgeBuildMode: () => void;
   /** Enter spell-cast target-selection mode */
   startSpellCast: (mageId: string, spellId: SpellId) => void;
   /** Cancel spell-cast target-selection mode */
@@ -369,6 +376,7 @@ export const useGameStore = create<GameStore>()(
         state.selectedBuildingId = null;
         state.selectedTilePos = null;
         state.pendingHealerId = null;
+        state.pendingBridgeBuilderId = null;
       });
       // After selection, check if this player unit is standing on an unresolved
       // cave mountain tile — if so, open the screams popup (unless they arrived
@@ -397,6 +405,7 @@ export const useGameStore = create<GameStore>()(
         state.selectedUnitId = null;
         state.selectedTilePos = null;
         state.pendingHealerId = null;
+        state.pendingBridgeBuilderId = null;
       });
     },
 
@@ -406,6 +415,7 @@ export const useGameStore = create<GameStore>()(
         state.selectedBuildingId = null;
         state.selectedTilePos = null;
         state.pendingHealerId = null;
+        state.pendingBridgeBuilderId = null;
       });
     },
 
@@ -415,6 +425,7 @@ export const useGameStore = create<GameStore>()(
         state.selectedUnitId = null;
         state.selectedBuildingId = null;
         state.pendingHealerId = null;
+        state.pendingBridgeBuilderId = null;
       });
     },
 
@@ -1375,9 +1386,90 @@ export const useGameStore = create<GameStore>()(
       });
     },
 
+    buildBridge: (unitId: string, canyonPos: { x: number; y: number }) => {
+      set((state) => {
+        const unit = state.units[unitId];
+        if (!unit) return;
+        if (!canUnitBuildBridge(unit, state)) return;
+        const targets = getBridgeBuildTargets(unit, state);
+        const matched = targets.find((t) => t.pos.x === canyonPos.x && t.pos.y === canyonPos.y);
+        if (!matched) return;
+        const cost = BUILDING_DEFINITIONS.BRIDGE.constructionCost;
+        if (state.resources.wood < cost.wood || state.resources.iron < cost.iron) return;
+        state.resources.wood -= cost.wood;
+        state.resources.iron -= cost.iron;
+
+        const bridgeId = `bridge-${canyonPos.x}-${canyonPos.y}-${state.turn}`;
+        const bridge = {
+          id: bridgeId,
+          type: BuildingType.BRIDGE,
+          faction: null,
+          position: { x: canyonPos.x, y: canyonPos.y },
+          hp: 1,
+          maxHp: 1,
+          specialistSlot: null,
+          isDisabledForTurns: 0,
+          wasAttackedLastEnemyTurn: false,
+          captureProgress: 0,
+          isBeingCapturedBy: null,
+          lavaBoostEnabled: false,
+          discoverRadius: 0,
+          turnCapturedByPlayer: null,
+          wasEnemyOwnedBeforeCapture: false,
+          combatStats: null,
+          hasAttackedThisTurn: false,
+          tags: [],
+          consumesUnitOnCapture: false,
+          populationCount: 0,
+          populationCap: 0,
+          populationGrowthCounter: 0,
+          strongholdNobles: 0,
+          emberSpawnCounter: 0,
+          recruitmentQueue: null,
+          destroyBehavior: BUILDING_DEFINITIONS.BRIDGE.destroyBehavior,
+          resonanceTurnsRemaining: 0,
+          spawnCooldownRemaining: 0,
+          lastRecruitmentTurn: 0,
+          bridgeOrientation: matched.orientation,
+        };
+        state.buildings[bridgeId] = bridge;
+        state.grid[canyonPos.y][canyonPos.x].buildingId = bridgeId;
+        unit.hasConstructedThisTurn = true;
+        state.pendingBridgeBuilderId = null;
+
+        useFloaterStore.getState().addFloater({
+          value: 0,
+          label: '🌉 Bridge built',
+          x: canyonPos.x,
+          y: canyonPos.y,
+          isEnemy: false,
+          floaterType: 'revive',
+        });
+      });
+    },
+
+    startBridgeBuildMode: (unitId: string) => {
+      set((state) => {
+        const unit = state.units[unitId];
+        if (!unit || !canUnitBuildBridge(unit, state)) {
+          state.pendingBridgeBuilderId = null;
+          return;
+        }
+        state.pendingHealerId = null;
+        state.pendingBridgeBuilderId = unitId;
+      });
+    },
+
+    cancelBridgeBuildMode: () => {
+      set((state) => {
+        state.pendingBridgeBuilderId = null;
+      });
+    },
+
     startSpellCast: (mageId: string, spellId: SpellId) => {
       set((state) => {
         state.pendingHealerId = null; // mutually exclusive with heal mode
+        state.pendingBridgeBuilderId = null;
         state.pendingSpellCast = { mageId, spellId };
       });
     },
@@ -1594,6 +1686,7 @@ export const useGameStore = create<GameStore>()(
         state.pendingHealerId = null;
         state.pendingSpellCast = null;
         state.pendingTransposeFirstUnitId = null;
+        state.pendingBridgeBuilderId = null;
 
         // Phase 1: Resolve all pending captures (instant, no animation)
         resolveCaptures(state);

@@ -10,6 +10,7 @@ import { MAP, ABILITIES } from './gameConfig';
 import { getTilesWithinEdgeCircleRange } from './rangeUtils';
 import { useFloaterStore } from './floaterStore';
 import { cleanupRoostedUnits } from './buildingRemoval';
+import { getBridgeAt, canTraverseEdge } from './bridgeSystem';
 
 // ============================================================================
 // MOVEMENT CALCULATIONS
@@ -160,10 +161,20 @@ export function getReachableTiles(
       // a flying unit takes the heat and burns.
       const isFlying = unit.tags.includes(UnitTag.FLYING);
 
-      // CANYON/WATER: impassable — cannot enter or traverse
-      // Exception: frozen (status === FROZEN) water tiles are passable for player units.
-      // Exception: FLYING units bypass canyon + (frozen or unfrozen) water.
-      if (tile.terrainType === TileType.CANYON && !isFlying) continue;
+      // CANYON: blocked for non-flying unless there is a bridge on that tile
+      // AND the movement direction is allowed by the bridge's orientation.
+      // Also gate the exit from a bridged canyon tile (canTraverseEdge handles both).
+      if (tile.terrainType === TileType.CANYON && !isFlying) {
+        const bridge = getBridgeAt(state, nx, ny);
+        if (!bridge) continue;
+        // Bridge exists — check directional edge rules for entry (and exit from
+        // current tile if it is also a bridge, though bridges can't be adjacent).
+        if (!canTraverseEdge(state, x, y, nx, ny, false)) continue;
+      } else if (tile.terrainType !== TileType.CANYON) {
+        // For non-canyon tiles, still enforce the exit direction rule if the
+        // current tile (x, y) has a bridge (unit is leaving a bridge).
+        if (!isFlying && !canTraverseEdge(state, x, y, nx, ny, false)) continue;
+      }
       if (tile.terrainType === TileType.WATER && !isFlying) {
         if (tile.status !== TileStatus.FROZEN) continue;
         if (unit.faction === Faction.ENEMY) continue;
@@ -355,13 +366,18 @@ export function resolveSlide(
 
   // CANYON terrain → unit destroyed. FLYING units survive — they glide over.
   if (slideTile.terrainType === TileType.CANYON && !isFlying) {
-    const currentTile = state.grid[unit.position.y][unit.position.x];
-    if (currentTile.unitId === unitId) currentTile.unitId = null;
-    if (unit.faction === Faction.PLAYER) {
-      state.gameStats.unitsLost += 1;
+    // A bridge on this tile catches the unit — it lands safely instead of dying.
+    if (getBridgeAt(state, slideX, slideY)) {
+      // Fall through to the normal slide move below.
+    } else {
+      const currentTile = state.grid[unit.position.y][unit.position.x];
+      if (currentTile.unitId === unitId) currentTile.unitId = null;
+      if (unit.faction === Faction.PLAYER) {
+        state.gameStats.unitsLost += 1;
+      }
+      delete state.units[unitId];
+      return;
     }
-    delete state.units[unitId];
-    return;
   }
 
   // WATER → unit drowns. FLYING units survive — they stay aloft.
