@@ -42,7 +42,7 @@ import { useCombatAnimationStore } from './combatAnimationStore';
 import { useCaveScreamsStore } from './caveScreamsStore';
 import { triggerSpellSfx } from './soundOptionsStore';
 import { Faction, GamePhase, BuildingType, TileType, TileStatus, Difficulty, DestroyBehavior, UnitType, UnitTag, TechFlag } from './types';
-import type { GameState, Position, TechId, SpellId } from './types';
+import type { Building, GameState, Position, TechId, SpellId } from './types';
 import type { GameEvent } from './gameEvents';
 import { MAP, TERRAIN, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval, UNIT_DEFINITIONS, MAGE, TUNNEL_EMERGE_DAMAGE } from './gameConfig';
 import { RENDER } from './renderConfig';
@@ -59,6 +59,10 @@ import { useShockwaveStore } from './shockwaveStore';
 import { processPendingPortalTeleports } from './portalSystem';
 import { cleanupRoostedUnits } from './buildingRemoval';
 import { rollNextWaveTheme, applyThemeToFoggedUnits } from './waveThemeSystem';
+import { useMarketPanelStore } from './marketPanelStore';
+import { canUnitTrade } from './unitActions';
+import { createMarket, restockAllSlots, tickMarketRefills } from './marketSystem';
+import { MARKET } from './gameConfig';
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
@@ -149,6 +153,10 @@ interface GameActions {
   debugAddRuin: () => void;
   /** Debug: add 5 arcane crystals */
   debugAddCrystals: () => void;
+  /** Debug: place a market near the north-most stronghold/sanctum */
+  debugAddMarketNearNorthStronghold: () => void;
+  /** Debug: place a market on the currently selected tile (must be a valid placement tile) */
+  debugPlaceMarketAtSelectedTile: () => void;
   /** Debug: apply a tile status to the currently selected tile */
   debugApplyTileStatus: (status: string) => void;
   /** Debug: clear tile status from the currently selected tile */
@@ -171,6 +179,16 @@ interface GameActions {
   dismissSpecialist: (specialistId: string) => void;
   /** Finalize pending Brandmark transforms: remove queued units and spawn hostile Ember Demons */
   finalizeBrandmarkTransforms: () => void;
+  /** Open the market trade panel for a unit standing on a Market building */
+  openMarket: (unitId: string, marketId: string) => void;
+  /** Close the market trade panel */
+  closeMarket: () => void;
+  /** Execute a resource-swap offer purchase */
+  buyMarketOffer: (marketId: string, slotIndex: number) => void;
+  /** Execute a specialist offer purchase (hire or swap) */
+  buyMarketSpecialist: (marketId: string, slotIndex: number, outgoingSpecialistId?: string) => void;
+  /** Pay RESTOCK_COST to reroll all market slots */
+  restockMarket: (marketId: string) => void;
 }
 
 // ============================================================================
@@ -184,6 +202,54 @@ type GameStore = GameState & GameActions;
 // ============================================================================
 
 const createInitialState = (): GameState => generateInitialGameState();
+
+function isStrongholdLike(type: BuildingType): boolean {
+  return type === BuildingType.STRONGHOLD || type === BuildingType.INFERNALSANCTUM;
+}
+
+function findNorthMostStronghold(state: GameState): Building | null {
+  const strongholds = Object.values(state.buildings).filter((b) => isStrongholdLike(b.type));
+  if (strongholds.length === 0) return null;
+  return strongholds.reduce((best, building) => {
+    if (building.position.y < best.position.y) return building;
+    if (building.position.y === best.position.y && building.position.x < best.position.x) return building;
+    return best;
+  });
+}
+
+function isValidMarketPlacementTile(state: GameState, position: Position): boolean {
+  const tile = state.grid[position.y]?.[position.x];
+  if (!tile) return false;
+  if (tile.terrainType !== TileType.PLAINS) return false;
+  if (tile.buildingId !== null || tile.unitId !== null) return false;
+  if (tile.isLava || tile.isRuin || tile.isStrongholdRuin) return false;
+  return true;
+}
+
+function findClosestMarketPlacementTile(state: GameState, origin: Position): Position | null {
+  let best: Position | null = null;
+  let bestDistance = Number.POSITIVE_INFINITY;
+
+  for (let y = 0; y < MAP.GRID_HEIGHT; y++) {
+    for (let x = 0; x < MAP.GRID_WIDTH; x++) {
+      const candidate = { x, y };
+      if (!isValidMarketPlacementTile(state, candidate)) continue;
+      const distance = Math.max(Math.abs(candidate.x - origin.x), Math.abs(candidate.y - origin.y));
+      if (distance < bestDistance) {
+        best = candidate;
+        bestDistance = distance;
+        continue;
+      }
+      if (distance === bestDistance && best) {
+        if (candidate.y < best.y || (candidate.y === best.y && candidate.x < best.x)) {
+          best = candidate;
+        }
+      }
+    }
+  }
+
+  return best;
+}
 
 // ============================================================================
 // HELPERS
@@ -1059,6 +1125,7 @@ export const useGameStore = create<GameStore>()(
           hasConstructedThisTurn: true,
           hasDestroyedThisTurn: true,
           hasCapturedThisTurn: true,
+          hasTradedThisTurn: false,
           hasUsedPostAttackMoveThisTurn: false,
           bloodlustAttackAvailable: false,
           xp: 0,
@@ -1169,6 +1236,7 @@ export const useGameStore = create<GameStore>()(
           hasMovedThisTurn: true,
           hasAttackedThisTurn: true,
           hasCapturedThisTurn: true,
+          hasTradedThisTurn: false,
           hasConstructedThisTurn: true,
           hasDestroyedThisTurn: true,
           hasUsedPostAttackMoveThisTurn: false,
@@ -1324,7 +1392,7 @@ export const useGameStore = create<GameStore>()(
     castSpell: (targetPosition: Position) => {
       let castSpellId: import('./types').SpellId | null = null;
       let magePosition: Position | null = null;
-      let killedCaveMonsterIds: string[] = [];
+      const killedCaveMonsterIds: string[] = [];
       set((state) => {
         if (!state.pendingSpellCast) return;
         const { mageId, spellId } = state.pendingSpellCast;
@@ -1765,6 +1833,7 @@ export const useGameStore = create<GameStore>()(
               unit.hasAttackedThisTurn = false;
               unit.spellsCastThisTurn = 0;
               unit.hasCapturedThisTurn = false;
+              unit.hasTradedThisTurn = false;
               unit.hasConstructedThisTurn = false;
               unit.hasDestroyedThisTurn = false;
               unit.hasUsedPostAttackMoveThisTurn = false;
@@ -1799,6 +1868,9 @@ export const useGameStore = create<GameStore>()(
               building.hasAttackedThisTurn = false;
             }
           }
+
+          // Tick market auto-refill countdowns
+          tickMarketRefills(draft);
           // Check ember level
           if (draft.turn > 0 && draft.turn % ENEMY.THREAT_LEVEL_INCREASE_INTERVAL === 0) {
             draft.ember += 1;
@@ -2933,6 +3005,30 @@ export const useGameStore = create<GameStore>()(
       });
     },
 
+    debugAddMarketNearNorthStronghold: () => {
+      set((state) => {
+        const stronghold = findNorthMostStronghold(state);
+        if (!stronghold) return;
+
+        const marketPos = findClosestMarketPlacementTile(state, stronghold.position);
+        if (!marketPos) return;
+
+        const market = createMarket(state, marketPos);
+        state.buildings[market.id] = market;
+        state.grid[marketPos.y][marketPos.x].buildingId = market.id;
+      });
+    },
+
+    debugPlaceMarketAtSelectedTile: () => {
+      set((state) => {
+        if (!state.selectedTilePos) return;
+        if (!isValidMarketPlacementTile(state, state.selectedTilePos)) return;
+        const market = createMarket(state, state.selectedTilePos);
+        state.buildings[market.id] = market;
+        state.grid[state.selectedTilePos.y][state.selectedTilePos.x].buildingId = market.id;
+      });
+    },
+
     debugApplyTileStatus: (status: string) => {
       set((state) => {
         if (!state.selectedTilePos) return;
@@ -2966,6 +3062,170 @@ export const useGameStore = create<GameStore>()(
 
     getAvailableTechs: (): TechId[] => {
       return getAvailableTechsLogic(useGameStore.getState());
+    },
+
+    // ── MARKET ACTIONS ──────────────────────────────────────────────────────
+
+    openMarket: (unitId: string, marketId: string) => {
+      const state = useGameStore.getState();
+      const unit = state.units[unitId];
+      if (!unit) return;
+      if (!canUnitTrade(unit)) return;
+      const market = state.buildings[marketId];
+      if (!market || market.type !== BuildingType.MARKET) return;
+      // Verify unit is on the market tile
+      if (unit.position.x !== market.position.x || unit.position.y !== market.position.y) return;
+      useMarketPanelStore.getState().openPanel(marketId, unitId);
+    },
+
+    closeMarket: () => {
+      useMarketPanelStore.getState().closePanel();
+    },
+
+    buyMarketOffer: (marketId: string, slotIndex: number) => {
+      set((state) => {
+        const { unitId } = useMarketPanelStore.getState();
+        if (!unitId) return;
+        const unit = state.units[unitId];
+        if (!unit) return;
+        if (unit.hasTradedThisTurn) return;
+
+        const market = state.buildings[marketId];
+        if (!market || market.type !== BuildingType.MARKET) return;
+        if (!market.marketResourceSlots) return;
+        const offer = market.marketResourceSlots[slotIndex];
+        if (!offer) return; // empty slot
+
+        // Affordability check
+        const { give, gain } = offer;
+        if (give.currency === 'IRON' && state.resources.iron < give.amount) return;
+        if (give.currency === 'WOOD' && state.resources.wood < give.amount) return;
+        if (give.currency === 'CRYSTAL' && state.arcaneCrystals < give.amount) return;
+
+        // Deduct give
+        if (give.currency === 'IRON') state.resources.iron -= give.amount;
+        else if (give.currency === 'WOOD') state.resources.wood -= give.amount;
+        else if (give.currency === 'CRYSTAL') state.arcaneCrystals -= give.amount;
+
+        // Grant gain
+        if (gain.currency === 'IRON') state.resources.iron += gain.amount;
+        else if (gain.currency === 'WOOD') state.resources.wood += gain.amount;
+        else if (gain.currency === 'CRYSTAL') state.arcaneCrystals += gain.amount;
+
+        // Empty the slot
+        (market.marketResourceSlots as (typeof offer | null)[])[slotIndex] = null;
+
+        // Mark unit as traded
+        unit.hasTradedThisTurn = true;
+
+        // Visual feedback
+        useFloaterStore.getState().addFloater({
+          value: gain.amount,
+          label: `🪙 +${gain.amount} ${gain.currency.toLowerCase()}`,
+          x: unit.position.x,
+          y: unit.position.y,
+          isEnemy: false,
+        });
+      });
+    },
+
+    buyMarketSpecialist: (marketId: string, slotIndex: number, outgoingSpecialistId?: string) => {
+      set((state) => {
+        const { unitId } = useMarketPanelStore.getState();
+        if (!unitId) return;
+        const unit = state.units[unitId];
+        if (!unit) return;
+        if (unit.hasTradedThisTurn) return;
+
+        const market = state.buildings[marketId];
+        if (!market || market.type !== BuildingType.MARKET) return;
+        if (!market.marketSpecialistSlots) return;
+        const specialistId = market.marketSpecialistSlots[slotIndex];
+        if (!specialistId) return; // empty slot
+
+        // Check crystal affordability
+        if (state.arcaneCrystals < MARKET.SPECIALIST_PRICE_CRYSTAL) return;
+
+        const hasRoom = state.globalSpecialistStorage.length < state.specialistSlotCap;
+
+        if (hasRoom) {
+          // Hire: add to storage, sync effects, empty slot
+          state.arcaneCrystals -= MARKET.SPECIALIST_PRICE_CRYSTAL;
+          const specObj = state.specialists[specialistId];
+          if (specObj && !state.globalSpecialistStorage.includes(specialistId)) {
+            state.globalSpecialistStorage.push(specialistId);
+          }
+          if (specObj) applyEffectsForSpecialist(state, specObj);
+          (market.marketSpecialistSlots as (string | null)[])[slotIndex] = null;
+          unit.hasTradedThisTurn = true;
+
+          useFloaterStore.getState().addFloater({
+            value: 0,
+            label: `💎 Hired`,
+            x: unit.position.x,
+            y: unit.position.y,
+            isEnemy: false,
+            floaterType: 'revive',
+          });
+        } else if (outgoingSpecialistId) {
+          // Swap: remove outgoing, add incoming
+          if (!state.globalSpecialistStorage.includes(outgoingSpecialistId)) return;
+          state.arcaneCrystals -= MARKET.SPECIALIST_PRICE_CRYSTAL;
+
+          // Revoke outgoing effects and un-assign
+          const outgoingSpec = state.specialists[outgoingSpecialistId];
+          if (outgoingSpec) {
+            revokeEffectsForSpecialist(state, outgoingSpec);
+            outgoingSpec.assignedBuildingId = null;
+          }
+          const outIdx = state.globalSpecialistStorage.indexOf(outgoingSpecialistId);
+          const incomingSpec = state.specialists[specialistId];
+          if (outIdx !== -1) {
+            if (incomingSpec && !state.globalSpecialistStorage.includes(specialistId)) {
+              state.globalSpecialistStorage.splice(outIdx, 1, specialistId);
+            } else {
+              state.globalSpecialistStorage.splice(outIdx, 1);
+            }
+          }
+          if (incomingSpec) applyEffectsForSpecialist(state, incomingSpec);
+          (market.marketSpecialistSlots as (string | null)[])[slotIndex] = null;
+          unit.hasTradedThisTurn = true;
+
+          useMarketPanelStore.getState().cancelSpecialistSwap();
+
+          useFloaterStore.getState().addFloater({
+            value: 0,
+            label: `💎 Swapped`,
+            x: unit.position.x,
+            y: unit.position.y,
+            isEnemy: false,
+            floaterType: 'revive',
+          });
+        } else {
+          // Storage full, no outgoing provided — open the swap sub-view
+          useMarketPanelStore.getState().beginSpecialistSwap(slotIndex);
+        }
+      });
+    },
+
+    restockMarket: (marketId: string) => {
+      set((state) => {
+        const market = state.buildings[marketId];
+        if (!market || market.type !== BuildingType.MARKET) return;
+
+        // Check affordability
+        if (state.resources.wood < MARKET.RESTOCK_COST.wood) return;
+        if (state.resources.iron < MARKET.RESTOCK_COST.iron) return;
+        if (state.arcaneCrystals < MARKET.RESTOCK_COST.crystal) return;
+
+        // Deduct cost
+        state.resources.wood -= MARKET.RESTOCK_COST.wood;
+        state.resources.iron -= MARKET.RESTOCK_COST.iron;
+        state.arcaneCrystals -= MARKET.RESTOCK_COST.crystal;
+
+        // Re-roll all slots (does NOT set hasTradedThisTurn per F-5)
+        restockAllSlots(state, market);
+      });
     },
   }))
 );

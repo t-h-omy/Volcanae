@@ -86,7 +86,8 @@ function makePlayerUnit(
     },
     tags: [...def.tags, ...extraTags],
     hasMovedThisTurn: false, hasAttackedThisTurn: false, hasConstructedThisTurn: false,
-    hasDestroyedThisTurn: false, hasCapturedThisTurn: false, hasUsedPostAttackMoveThisTurn: false,
+    hasDestroyedThisTurn: false, hasCapturedThisTurn: false,
+      hasTradedThisTurn: false, hasUsedPostAttackMoveThisTurn: false,
     bloodlustAttackAvailable: false, xp: 0, level: 1, pinnedUntilTurn: 0,
     distractionDefPenalty: 0, lastMovedTurn: 0,
   };
@@ -115,7 +116,8 @@ function makeEnemyUnit(
     },
     tags: [...def.tags, ...extraTags],
     hasMovedThisTurn: false, hasAttackedThisTurn: false, hasConstructedThisTurn: false,
-    hasDestroyedThisTurn: false, hasCapturedThisTurn: false, hasUsedPostAttackMoveThisTurn: false,
+    hasDestroyedThisTurn: false, hasCapturedThisTurn: false,
+      hasTradedThisTurn: false, hasUsedPostAttackMoveThisTurn: false,
     bloodlustAttackAvailable: false, xp: 0, level: 1, pinnedUntilTurn: 0,
     distractionDefPenalty: 0, lastMovedTurn: 0,
   };

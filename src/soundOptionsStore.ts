@@ -73,7 +73,6 @@ export const useSoundOptionsStore = create<SoundOptionsState>()((set) => ({
  *   audio.volume = volume;
  *   audio.play().catch(() => undefined);
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function triggerSpellSfx(_key: 'spell_cast' | 'summon' | 'freeze'): void {
   // no-op until audio assets are available
 }

@@ -1030,6 +1030,7 @@ export function recruitUnit(
     hasMovedThisTurn: !isReady,
     hasAttackedThisTurn: !isReady,
     hasCapturedThisTurn: !isReady,
+    hasTradedThisTurn: false,
     hasConstructedThisTurn: !isReady,
     hasDestroyedThisTurn: !isReady,
     spellsCastThisTurn: 0,

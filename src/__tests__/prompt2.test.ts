@@ -171,6 +171,7 @@ function makeUnit(
     hasConstructedThisTurn: false,
     hasDestroyedThisTurn: false,
     hasCapturedThisTurn: false,
+      hasTradedThisTurn: false,
     hasUsedPostAttackMoveThisTurn: false,
     bloodlustAttackAvailable: false,
     xp: 0,
@@ -565,6 +566,7 @@ describe('2D – Corruption debuff logic (CORRUPTED_SUPPRESSED_TAGS)', () => {
       hasMovedThisTurn: false,
       hasAttackedThisTurn: false,
       hasCapturedThisTurn: false,
+      hasTradedThisTurn: false,
       hasConstructedThisTurn: false,
       hasDestroyedThisTurn: false,
     });
@@ -602,6 +604,7 @@ describe('2D – Corruption debuff logic (CORRUPTED_SUPPRESSED_TAGS)', () => {
       hasMovedThisTurn: false,
       hasAttackedThisTurn: false,
       hasCapturedThisTurn: false,
+      hasTradedThisTurn: false,
       hasConstructedThisTurn: false,
       hasDestroyedThisTurn: false,
     });

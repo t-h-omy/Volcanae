@@ -230,6 +230,7 @@ export function spawnEnemyEmberDemon(
     hasMovedThisTurn: true,
     hasAttackedThisTurn: true,
     hasCapturedThisTurn: true,
+    hasTradedThisTurn: false,
     hasConstructedThisTurn: true,
     hasDestroyedThisTurn: true,
     hasUsedPostAttackMoveThisTurn: false,

@@ -10,7 +10,7 @@ import { useGameStore } from '../gameStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
 import { useSoundOptionsStore } from '../soundOptionsStore';
-import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, computeResearchCost, SPELL_DEFINITIONS, TERRAIN_TAG_INFO, RAGE_ATK_PER_ADJACENT, RAGE_MAX_ADJACENT_COUNT, MAGE, CORRUPTED_SUPPRESSED_TAGS, CRYSTAL_CAVE_CONFIG } from '../gameConfig';
+import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, computeResearchCost, SPELL_DEFINITIONS, TERRAIN_TAG_INFO, RAGE_ATK_PER_ADJACENT, RAGE_MAX_ADJACENT_COUNT, MAGE, CORRUPTED_SUPPRESSED_TAGS, CRYSTAL_CAVE_CONFIG, MARKET, SPECIALIST_DEFINITIONS } from '../gameConfig';
 import { UI } from '../uiConfig';
 import type { UnitPopulationCost, TechId } from '../types';
 import {
@@ -54,7 +54,7 @@ import {
   type Tile,
   type GameStats,
 } from '../types';
-import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast, getMageCastBudget, isHealSuppressedByCorruption } from '../unitActions';
+import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast, getMageCastBudget, isHealSuppressedByCorruption, canUnitTrade, getTradeMarket, getCaptureTarget } from '../unitActions';
 import { getPhalanxAttackBonus, getPhalanxDefenseBonus, getCrystalTowerChamberBonus } from '../combatSystem';
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
 import { getTagsFromActiveSpecialists } from '../specialistSystem';
@@ -62,6 +62,7 @@ import { RENDER } from '../renderConfig';
 import { useZoneClearedStore } from '../zoneClearedStore';
 import { useCaveScreamsStore } from '../caveScreamsStore';
 import { useSpecialistHireStore } from '../specialistHireStore';
+import { useMarketPanelStore } from '../marketPanelStore';
 import './HUD.css';
 
 // ============================================================================
@@ -154,6 +155,7 @@ const BUILDING_NAME: Record<string, string> = {
   [BuildingType.CRYSTAL_CAVE]: 'Crystal Cave',
   [BuildingType.GRAVESTONE]: 'Gravestone',
   [BuildingType.GRAVE_TRAP]: 'Grave Trap',
+  [BuildingType.MARKET]: 'Market',
 };
 
 const TAG_EMOJI: Partial<Record<UnitTag, string>> = {
@@ -214,6 +216,8 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
   const debugAddFarmers = useGameStore((s) => s.debugAddFarmers);
   const debugAddRuin = useGameStore((s) => s.debugAddRuin);
   const debugAddCrystals = useGameStore((s) => s.debugAddCrystals);
+  const debugAddMarketNearNorthStronghold = useGameStore((s) => s.debugAddMarketNearNorthStronghold);
+  const debugPlaceMarketAtSelectedTile = useGameStore((s) => s.debugPlaceMarketAtSelectedTile);
   const debugApplyTileStatus = useGameStore((s) => s.debugApplyTileStatus);
   const debugClearTileStatus = useGameStore((s) => s.debugClearTileStatus);
   const selectedTilePos = useGameStore((s) => s.selectedTilePos);
@@ -265,10 +269,12 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
             <button className="hud-dev-action-btn" onClick={debugAddFarmers}>🌾 Add Farm (zone 1)</button>
             <button className="hud-dev-action-btn" onClick={debugAddRuin}>🗿 Add Ruin (near unit)</button>
             <button className="hud-dev-action-btn" onClick={debugAddCrystals}>💎 +5 Crystals</button>
+            <button className="hud-dev-action-btn" onClick={debugAddMarketNearNorthStronghold}>🛒 Add Market (north-most stronghold)</button>
             <div className="hud-dev-overlay-section-title">Tile Status (selected tile)</div>
             <div style={{ fontSize: '0.8em', opacity: 0.7, marginBottom: 4 }}>
               {selectedTilePos ? `Selected: (${selectedTilePos.x}, ${selectedTilePos.y})` : 'No tile selected'}
             </div>
+            <button className="hud-dev-action-btn" disabled={!selectedTilePos} onClick={debugPlaceMarketAtSelectedTile}>🛒 Place Market (selected tile)</button>
             <button className="hud-dev-action-btn" disabled={!selectedTilePos} onClick={() => debugApplyTileStatus(TileStatus.CORRUPTED)}>☠️ Apply CORRUPTED</button>
             <button className="hud-dev-action-btn" disabled={!selectedTilePos} onClick={() => debugApplyTileStatus(TileStatus.FROZEN)}>❄️ Apply FROZEN</button>
             <button className="hud-dev-action-btn" disabled={!selectedTilePos} onClick={() => debugApplyTileStatus(TileStatus.BURNING)}>🔥 Apply BURNING</button>
@@ -593,6 +599,18 @@ function GameMenu() {
 // TOP BAR
 // ============================================================================
 
+/** Renders a net-income badge (green for positive, red for negative, hidden for zero). */
+function NetIncomeBadge({ gross, upkeep }: { gross: number; upkeep: number }) {
+  const net = gross - upkeep;
+  if (net === 0) return null;
+  const formatted = Number.isInteger(net) ? String(net) : net.toFixed(1);
+  return (
+    <span className={net > 0 ? 'hud-income' : 'hud-income-negative'}>
+      ({net > 0 ? '+' : ''}{formatted})
+    </span>
+  );
+}
+
 function TopBar({
   onOpenTechTree,
   showTechButton,
@@ -638,18 +656,6 @@ function TopBar({
 
   // Crystal income per turn
   const crystalsPerTurn = useGameStore((s) => computeCrystalIncomePerTurn(s).crystalsPerTurn);
-
-  /** Renders a net-income badge (green for positive, red for negative, hidden for zero). */
-  const NetIncomeBadge = ({ gross, upkeep }: { gross: number; upkeep: number }) => {
-    const net = gross - upkeep;
-    if (net === 0) return null;
-    const formatted = Number.isInteger(net) ? String(net) : net.toFixed(1);
-    return (
-      <span className={net > 0 ? 'hud-income' : 'hud-income-negative'}>
-        ({net > 0 ? '+' : ''}{formatted})
-      </span>
-    );
-  };
 
   return (
     <div className="hud-top-bar">
@@ -729,7 +735,8 @@ function Popup({ onClose, children }: { onClose: () => void; children: React.Rea
   // Capture mount time so we can ignore phantom clicks fired by the opening tap.
   // Popup is always unmounted/remounted when its parent conditionally renders it,
   // so useRef(Date.now()) reliably records the actual mount timestamp.
-  const openTimeRef = useRef(Date.now());
+  const openTimeRef = useRef<number>(0);
+  useEffect(() => { openTimeRef.current = Date.now(); }, []);
   return createPortal(
     <div
       className="info-popup-backdrop"
@@ -1615,6 +1622,11 @@ function SelectedUnitPanel({
   const fieldworkUnit = useGameStore((s) => s.fieldworkUnit);
   const [confirmFieldwork, setConfirmFieldwork] = useState(false);
   const castSpell = useGameStore((s) => s.castSpell);
+  const openMarket = useGameStore((s) => s.openMarket);
+
+  // Trade (Market)
+  const canTrade = isPlayer && canUnitTrade(unit);
+  const tradeMarket = isPlayer ? getTradeMarket(unit, gameState) : null;
 
   // Spell casting (Mage only)
   const isMage = unit.type === UnitType.MAGE;
@@ -1905,6 +1917,9 @@ function SelectedUnitPanel({
             <span className={`hud-action-tag ${canMove ? '' : 'hud-action-used'}`}>Move</span>
             <span className={`hud-action-tag ${canAttack ? '' : 'hud-action-used'}`}>Attack</span>
             <span className={`hud-action-tag ${canCapture ? '' : 'hud-action-used'}`}>Capture</span>
+            {tradeMarket && (
+              <span className={`hud-action-tag ${canTrade ? '' : 'hud-action-used'}`}>Trade</span>
+            )}
           </div>
           {captureTarget && (
             <>
@@ -1923,6 +1938,19 @@ function SelectedUnitPanel({
                   : `🏳️ Capture ${BUILDING_NAME[captureTarget.type] ?? captureTarget.type}`}
               </button>
             </>
+          )}
+          {tradeMarket && (
+            <button
+              className="hud-capture-btn"
+              disabled={!canTrade}
+              onClick={() => openMarket(unit.id, tradeMarket.id)}
+            >
+              {unit.hasMovedThisTurn
+                ? '🪙 Trade — move here first'
+                : unit.hasTradedThisTurn
+                  ? '🪙 Trade — already traded'
+                  : '🪙 Trade'}
+            </button>
           )}
           {canHeal && (
             <button
@@ -2794,12 +2822,7 @@ function BottomBar() {
   // Only relevant for player units
   const captureTarget: Building | undefined =
     selectedUnit && selectedUnit.faction === Faction.PLAYER
-      ? Object.values(buildings).find(
-          (b) =>
-            b.position.x === selectedUnit.position.x &&
-            b.position.y === selectedUnit.position.y &&
-            b.faction !== selectedUnit.faction
-        )
+      ? getCaptureTarget(selectedUnit, useGameStore.getState()) ?? undefined
       : undefined;
 
   const captureTargetId = captureTarget?.id;
@@ -3125,6 +3148,182 @@ function SpecialistInfoPopup({ specialist, onClose, onDismiss }: { specialist: S
         </div>
       )}
     </Popup>
+  );
+}
+
+function MarketPanel() {
+  const open = useMarketPanelStore((s) => s.open);
+  const marketId = useMarketPanelStore((s) => s.marketId);
+  const unitId = useMarketPanelStore((s) => s.unitId);
+  const pendingSpecialistSlot = useMarketPanelStore((s) => s.pendingSpecialistSlot);
+  const beginSpecialistSwap = useMarketPanelStore((s) => s.beginSpecialistSwap);
+  const cancelSpecialistSwap = useMarketPanelStore((s) => s.cancelSpecialistSwap);
+
+  const closeMarket = useGameStore((s) => s.closeMarket);
+  const buyMarketOffer = useGameStore((s) => s.buyMarketOffer);
+  const buyMarketSpecialist = useGameStore((s) => s.buyMarketSpecialist);
+  const restockMarket = useGameStore((s) => s.restockMarket);
+
+  const resources = useGameStore((s) => s.resources);
+  const arcaneCrystals = useGameStore((s) => s.arcaneCrystals);
+  const globalSpecialistStorage = useGameStore((s) => s.globalSpecialistStorage);
+  const specialistSlotCap = useGameStore((s) => s.specialistSlotCap);
+  const specialists = useGameStore((s) => s.specialists);
+  const buildings = useGameStore((s) => s.buildings);
+  const units = useGameStore((s) => s.units);
+
+  if (!open || !marketId || !unitId) return null;
+  const market = buildings[marketId];
+  const unit = units[unitId];
+  if (!market || !unit) return null;
+
+  const hasTradedThisTurn = unit.hasTradedThisTurn;
+  const resourceSlots = market.marketResourceSlots ?? [];
+  const specialistSlots = market.marketSpecialistSlots ?? [];
+  const hasRoom = globalSpecialistStorage.length < specialistSlotCap;
+
+  const canAffordRestock =
+    resources.wood >= MARKET.RESTOCK_COST.wood &&
+    resources.iron >= MARKET.RESTOCK_COST.iron &&
+    arcaneCrystals >= MARKET.RESTOCK_COST.crystal;
+
+  const currencyLabel = (cur: string, amount: number) => {
+    if (cur === 'WOOD') return `🪵${amount}`;
+    if (cur === 'IRON') return `⛓️${amount}`;
+    return `💎${amount}`;
+  };
+
+  const canAffordOffer = (give: { currency: string; amount: number }) => {
+    if (give.currency === 'WOOD') return resources.wood >= give.amount;
+    if (give.currency === 'IRON') return resources.iron >= give.amount;
+    return arcaneCrystals >= give.amount;
+  };
+
+  // Specialist swap sub-view
+  if (pendingSpecialistSlot !== null) {
+    const incomingSpecId = specialistSlots[pendingSpecialistSlot];
+    const incomingSpec = incomingSpecId ? (specialists[incomingSpecId] ?? SPECIALIST_DEFINITIONS[incomingSpecId] ?? null) : null;
+    return (
+      <div className="market-panel-overlay">
+        <div className="market-panel-card">
+          <div className="market-panel-header">
+            <span className="market-panel-title">🔄 Replace a Specialist</span>
+          </div>
+          {incomingSpec && (
+            <div className="market-panel-specialist-incoming">
+              <span className="market-panel-specialist-name">🧙 {incomingSpec.name}</span>
+              <p className="market-panel-specialist-desc">{incomingSpec.description}</p>
+              <span className="market-panel-specialist-cost">Cost: 💎{MARKET.SPECIALIST_PRICE_CRYSTAL}</span>
+            </div>
+          )}
+          <div className="market-panel-swap-divider">Replace one of your specialists:</div>
+          <div className="market-panel-swap-list">
+            {globalSpecialistStorage.map((specId) => {
+              const spec = specialists[specId] ?? SPECIALIST_DEFINITIONS[specId];
+              if (!spec) return null;
+              return (
+                <div key={specId} className="market-panel-swap-row">
+                  <span className="market-panel-specialist-name">🧙 {spec.name}</span>
+                  <button
+                    className="market-panel-btn market-panel-btn--buy"
+                    disabled={arcaneCrystals < MARKET.SPECIALIST_PRICE_CRYSTAL}
+                    onClick={() => {
+                      buyMarketSpecialist(marketId, pendingSpecialistSlot, specId);
+                    }}
+                  >
+                    Replace (💎{MARKET.SPECIALIST_PRICE_CRYSTAL})
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+          <button className="market-panel-btn market-panel-btn--close" onClick={cancelSpecialistSwap}>
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="market-panel-overlay">
+      <div className="market-panel-card">
+        <div className="market-panel-header">
+          <span className="market-panel-title">🪙 Market</span>
+          <button className="market-panel-close" onClick={closeMarket} aria-label="Close market">✕</button>
+        </div>
+
+        {/* Resource slots */}
+        <div className="market-panel-section-label">Resource Trades</div>
+        {resourceSlots.map((slot, i) =>
+          slot ? (
+            <div key={i} className="market-panel-offer-row">
+              <span className="market-panel-offer-trade">
+                {currencyLabel(slot.give.currency, slot.give.amount)} → {currencyLabel(slot.gain.currency, slot.gain.amount)}
+              </span>
+              <button
+                className="market-panel-btn market-panel-btn--buy"
+                disabled={hasTradedThisTurn || !canAffordOffer(slot.give)}
+                onClick={() => buyMarketOffer(marketId, i)}
+              >
+                Buy
+              </button>
+            </div>
+          ) : (
+            <div key={i} className="market-panel-offer-row market-panel-offer-empty">
+              <span className="market-panel-offer-trade">— empty —</span>
+            </div>
+          )
+        )}
+
+        {/* Specialist slots */}
+        <div className="market-panel-section-label">Specialist Offers</div>
+        {specialistSlots.map((specId, i) => {
+          const specDef = specId ? (specialists[specId] ?? SPECIALIST_DEFINITIONS[specId] ?? null) : null;
+          return specDef ? (
+            <div key={i} className="market-panel-offer-row">
+              <div className="market-panel-specialist-info">
+                <span className="market-panel-specialist-name">🧙 {specDef.name}</span>
+                <p className="market-panel-specialist-desc">{specDef.description}</p>
+              </div>
+              <button
+                className="market-panel-btn market-panel-btn--buy"
+                disabled={hasTradedThisTurn || arcaneCrystals < MARKET.SPECIALIST_PRICE_CRYSTAL}
+                onClick={() => {
+                  if (hasRoom) {
+                    buyMarketSpecialist(marketId, i);
+                  } else {
+                    beginSpecialistSwap(i);
+                  }
+                }}
+              >
+                Buy 💎{MARKET.SPECIALIST_PRICE_CRYSTAL}
+              </button>
+            </div>
+          ) : (
+            <div key={i} className="market-panel-offer-row market-panel-offer-empty">
+              <span className="market-panel-offer-trade">— none available —</span>
+            </div>
+          );
+        })}
+
+        {/* Restock button */}
+        <div className="market-panel-restock-row">
+          <span className="market-panel-restock-cost">
+            Restock all: {MARKET.RESTOCK_COST.wood > 0 && `🪵${MARKET.RESTOCK_COST.wood} `}
+            {MARKET.RESTOCK_COST.iron > 0 && `⛓️${MARKET.RESTOCK_COST.iron} `}
+            {MARKET.RESTOCK_COST.crystal > 0 && `💎${MARKET.RESTOCK_COST.crystal}`}
+          </span>
+          <button
+            className="market-panel-btn market-panel-btn--restock"
+            disabled={hasTradedThisTurn || !canAffordRestock}
+            onClick={() => restockMarket(marketId)}
+          >
+            Restock
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -3734,6 +3933,7 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
       <ZoneClearedPopup />
       <CaveScreamsPopup />
       <CaveMonsterKillModal />
+      <MarketPanel />
       <TopBar
         onOpenTechTree={() => setShowTechTree(true)}
         showTechButton={isPlayerTurn}

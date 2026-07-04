@@ -3,7 +3,7 @@
  * Generates the initial GameState grid with buildings, units, and zones.
  */
 
-import { MAP, UNIT_DEFINITIONS, BUILDING_DEFINITIONS, BUILDINGS, TERRAIN, POPULATION, RESOURCES, TECH_TREE, TECH, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval } from './gameConfig';
+import { MAP, UNIT_DEFINITIONS, BUILDING_DEFINITIONS, BUILDINGS, TERRAIN, POPULATION, RESOURCES, TECH_TREE, TECH, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, MARKET } from './gameConfig';
 import {
   Faction,
   UnitType,
@@ -27,6 +27,7 @@ import {
   getTilesWithinEdgeCircleRange,
 } from './rangeUtils';
 import { rollNextWaveTheme } from './waveThemeSystem';
+import { createMarket, setMarketRandomSource } from './marketSystem';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -311,6 +312,7 @@ function createUnit(
     hasConstructedThisTurn: false,
     hasDestroyedThisTurn: false,
     hasCapturedThisTurn: false,
+    hasTradedThisTurn: false,
     hasUsedPostAttackMoveThisTurn: false,
     bloodlustAttackAvailable: false,
     xp: 0,
@@ -1382,6 +1384,74 @@ function createGrid(): Tile[][] {
 }
 
 // ============================================================================
+// MARKET PLACEMENT
+// ============================================================================
+
+/**
+ * Place Market buildings in eligible middle zones after all other buildings
+ * have been generated (so occupancy is correctly known).
+ *
+ * Eligible zones = all zones EXCEPT the first EXCLUDED_ZONES_HEAD and the last
+ * EXCLUDED_ZONES_TAIL. At ZONE_COUNT=10 and HEAD=3, TAIL=3 → eligible {4,5,6,7}.
+ * Max 1 market per zone. Total count in [MIN_PER_GAME, MAX_PER_GAME].
+ *
+ * Each market lands on a free PLAINS tile (no building, no unit, no impassable
+ * terrain). Tiles occupied by resources, ruins, forests, mountains, water, or
+ * canyons are skipped.
+ */
+function placeMarkets(
+  grid: Tile[][],
+  occupiedPositions: Set<string>,
+  state: null,
+): Building[] {
+  const eligibleZones: number[] = [];
+  for (let z = MARKET.EXCLUDED_ZONES_HEAD + 1; z <= MAP.ZONE_COUNT - MARKET.EXCLUDED_ZONES_TAIL; z++) {
+    eligibleZones.push(z);
+  }
+  if (eligibleZones.length === 0) return [];
+
+  const targetCount = Math.min(
+    Math.floor(Math.random() * (MARKET.MAX_PER_GAME - MARKET.MIN_PER_GAME + 1)) + MARKET.MIN_PER_GAME,
+    eligibleZones.length,
+  );
+
+  // Shuffle eligible zones to avoid always picking the first
+  const shuffled = [...eligibleZones];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+
+  const placed: Building[] = [];
+  for (let i = 0; i < targetCount && i < shuffled.length; i++) {
+    const zone = shuffled[i];
+    const [startRow, endRow] = getZoneRowRange(zone);
+
+    // Collect all free PLAINS tiles in this zone
+    const candidates: Position[] = [];
+    for (let y = startRow; y <= endRow; y++) {
+      for (let x = 0; x < MAP.GRID_WIDTH; x++) {
+        const tile = grid[y]?.[x];
+        if (!tile) continue;
+        if (tile.terrainType !== TileType.PLAINS) continue;
+        if (tile.isRuin || tile.isStrongholdRuin || tile.isLava) continue;
+        if (tile.buildingId !== null) continue;
+        if (isPositionOccupied({ x, y }, occupiedPositions)) continue;
+        candidates.push({ x, y });
+      }
+    }
+    if (candidates.length === 0) continue;
+
+    const chosenPos = candidates[Math.floor(Math.random() * candidates.length)];
+    const market = createMarket(state, chosenPos);
+    markPositionOccupied(chosenPos, occupiedPositions);
+    placed.push(market);
+  }
+
+  return placed;
+}
+
+// ============================================================================
 // MAIN GENERATION FUNCTION
 // ============================================================================
 
@@ -1391,6 +1461,9 @@ function createGrid(): Tile[][] {
 export function generateInitialGameState(difficulty: Difficulty = Difficulty.STANDARD): GameState {
   // Reset ID counter for consistent generation
   resetIdCounter();
+
+  // Seed the market RNG using Math.random (same as the map generator itself).
+  setMarketRandomSource(Math.random);
 
   // Track occupied positions for placement
   const occupiedPositions = new Set<string>();
@@ -1481,6 +1554,10 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
     );
     allBuildings.push(...zoneBuildings);
   }
+
+  // Place markets after all zone buildings are known (occupancy is complete).
+  const marketBuildings = placeMarkets(grid, occupiedPositions, null);
+  allBuildings.push(...marketBuildings);
 
   // Convert buildings array to record
   const buildings: Record<string, Building> = {};

@@ -2,15 +2,15 @@ name: Deploy to gh-pages branch with previews
 
 on:
   push:
-    branches:
-      - '**'
+    branches-ignore:
+      - gh-pages
 
 permissions:
   contents: write
   pull-requests: write
 
 concurrency:
-  group: gh-pages-${{ github.ref }}
+  group: gh-pages-deploy
   cancel-in-progress: true
 
 jobs:
@@ -214,4 +214,3 @@ jobs:
         run: |
           echo "🚀 Deployment URL: ${{ steps.deploy-config.outputs.deployment_url }}"
           echo "📁 Destination: ${{ steps.deploy-config.outputs.destination_dir }}"
-

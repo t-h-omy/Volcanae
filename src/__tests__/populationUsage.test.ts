@@ -48,6 +48,7 @@ function makePlayerUnit(type: UnitType): Unit {
     hasConstructedThisTurn: true,
     hasDestroyedThisTurn: true,
     hasCapturedThisTurn: true,
+      hasTradedThisTurn: false,
     hasUsedPostAttackMoveThisTurn: false,
     bloodlustAttackAvailable: false,
     xp: 0,

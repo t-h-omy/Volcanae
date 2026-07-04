@@ -7,7 +7,7 @@
  */
 
 import { UnitTag, DestroyBehavior, BuildingType, UnitType, ResourceType, TechFlag, Difficulty, SpellId, TileType, TileStatus, TerrainTag } from './types';
-import type { UnitLevelDefinition, TechNodeDefinition, StatModifier } from './types';
+import type { UnitLevelDefinition, TechNodeDefinition, StatModifier, MarketCurrency } from './types';
 
 // ============================================================================
 // MAP CONFIGURATION
@@ -319,6 +319,75 @@ export const RESOURCES = {
    * from a given Charcoal Kiln (measured via isTileWithinEdgeCircleRange).
    */
   CHARCOAL_KILN_RADIUS: 2,
+} as const;
+
+// ============================================================================
+// MARKET CONFIGURATION
+// ============================================================================
+
+/** Resource offer pool entry shape — inferred from MARKET.RESOURCE_OFFER_POOL. */
+export interface MarketOfferPoolEntry {
+  give: { currency: MarketCurrency; amount: number };
+  gain: { currency: MarketCurrency; amount: number };
+}
+
+export const MARKET = {
+  // ── Placement (mapGenerator.ts) ──────────────────────────────────────────
+  MIN_PER_GAME: 1,
+  MAX_PER_GAME: 1,
+  /**
+   * Markets spawn ONLY in the MIDDLE zones. The first HEAD zones and the last
+   * TAIL zones are EXCLUDED. Eligible = all zones except the first HEAD and the
+   * last TAIL. Resolved against MAP.ZONE_COUNT. Max 1 market per zone.
+   *
+   * DEPENDENCY — read before editing: eligible zone count = ZONE_COUNT - HEAD - TAIL.
+   * If HEAD + TAIL >= MAP.ZONE_COUNT there are NO eligible zones and markets can
+   * never spawn. Keep HEAD + TAIL < MAP.ZONE_COUNT.
+   * Current MAP.ZONE_COUNT = 10, so excluded = {1,2,3} ∪ {8,9,10} → eligible
+   * middle zones {4,5,6,7}. Revisit these if ZONE_COUNT changes.
+   */
+  EXCLUDED_ZONES_HEAD: 3,
+  EXCLUDED_ZONES_TAIL: 3,
+
+  // ── Slots (rolled per market at generation; default fixed at 3 / 1) ───────
+  RESOURCE_SLOTS_MIN: 3,
+  RESOURCE_SLOTS_MAX: 3,
+  SPECIALIST_SLOTS_MIN: 1,
+  SPECIALIST_SLOTS_MAX: 1,
+  /** Resource slots draw distinct offers when the pool allows (else duplicates permitted). */
+  DISTINCT_RESOURCE_OFFERS: true,
+
+  // ── Auto-refill: fills EMPTY slots only, free, every N player turns ───────
+  AUTO_REFILL_INTERVAL: 3,
+
+  // ── Restock: player-paid, rerolls ALL slots (incl. full), repeatable ──────
+  RESTOCK_COST: { wood: 0, iron: 0, crystal: 1 } as { wood: number; iron: number; crystal: number },
+
+  // ── Specialist offers ─────────────────────────────────────────────────────
+  /** Flat crystal cost per specialist acquisition (same for every specialist). */
+  SPECIALIST_PRICE_CRYSTAL: 3,
+
+  // ── Building ──────────────────────────────────────────────────────────────
+  /** Market HP (lava-only removal; kept for data-model consistency). */
+  MAX_HP: 1,
+
+  // ── Resource offer pool: give X of A → gain Y of B ────────────────────────
+  RESOURCE_OFFER_POOL: [
+    { give: { currency: 'WOOD'    as MarketCurrency, amount: 6  }, gain: { currency: 'IRON'    as MarketCurrency, amount: 3  } },
+    { give: { currency: 'IRON'    as MarketCurrency, amount: 6  }, gain: { currency: 'WOOD'    as MarketCurrency, amount: 3  } },
+    { give: { currency: 'WOOD'    as MarketCurrency, amount: 10 }, gain: { currency: 'IRON'    as MarketCurrency, amount: 6  } },
+    { give: { currency: 'IRON'    as MarketCurrency, amount: 10 }, gain: { currency: 'WOOD'    as MarketCurrency, amount: 6  } },
+    { give: { currency: 'WOOD'    as MarketCurrency, amount: 20 }, gain: { currency: 'IRON'    as MarketCurrency, amount: 14 } },
+    { give: { currency: 'IRON'    as MarketCurrency, amount: 20 }, gain: { currency: 'WOOD'    as MarketCurrency, amount: 14 } },
+    { give: { currency: 'CRYSTAL' as MarketCurrency, amount: 1  }, gain: { currency: 'WOOD'    as MarketCurrency, amount: 5  } },
+    { give: { currency: 'CRYSTAL' as MarketCurrency, amount: 1  }, gain: { currency: 'IRON'    as MarketCurrency, amount: 5  } },
+    { give: { currency: 'WOOD'    as MarketCurrency, amount: 10 }, gain: { currency: 'CRYSTAL' as MarketCurrency, amount: 1  } },
+    { give: { currency: 'IRON'    as MarketCurrency, amount: 10 }, gain: { currency: 'CRYSTAL' as MarketCurrency, amount: 1  } },
+    { give: { currency: 'CRYSTAL' as MarketCurrency, amount: 2  }, gain: { currency: 'WOOD'    as MarketCurrency, amount: 12 } },
+    { give: { currency: 'CRYSTAL' as MarketCurrency, amount: 2  }, gain: { currency: 'IRON'    as MarketCurrency, amount: 12 } },
+    { give: { currency: 'WOOD'    as MarketCurrency, amount: 20 }, gain: { currency: 'CRYSTAL' as MarketCurrency, amount: 2  } },
+    { give: { currency: 'IRON'    as MarketCurrency, amount: 20 }, gain: { currency: 'CRYSTAL' as MarketCurrency, amount: 2  } },
+  ] as MarketOfferPoolEntry[],
 } as const;
 
 // ============================================================================
@@ -1547,6 +1616,12 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     // Description must state the additive per-kiln effect.
     description: `Grants +${RESOURCES.CHARCOAL_KILN_IRON_BONUS} iron per turn per in-range kiln to each mine within ${RESOURCES.CHARCOAL_KILN_RADIUS} tiles.`,
   },
+  MARKET: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.NONE,
+    constructionCost: { iron: 0, wood: 0 },
+    description: `A neutral market. A unit standing here may Trade once per turn for ${MARKET.RESOURCE_SLOTS_MAX} resource swaps and ${MARKET.SPECIALIST_SLOTS_MAX} specialist offer(s). Destroyed only by lava.`,
+  },
 };
 
 export const TECH = {
@@ -2496,6 +2571,7 @@ export const GAME_CONFIG = {
   SPECIALIST_DEFINITIONS,
   BUILDINGS,
   RESOURCES,
+  MARKET,
   TERRAIN,
   POPULATION,
   TRAINING,

@@ -18,7 +18,7 @@ import { TECH_TREE, POPULATION, SPECIALIST_DEFINITIONS } from './gameConfig';
 const SAVE_KEY = 'volcanae-save';
 
 /** Increment this whenever the serialized shape changes incompatibly. */
-const SAVE_VERSION = 13;
+const SAVE_VERSION = 14;
 
 // ============================================================================
 // PUBLIC API
@@ -423,6 +423,19 @@ export function loadGameState(): GameState | null {
           if (u && typeof u.id === 'string') {
             // Remove old per-unit cast cooldown field.
             delete u.portalCastCooldownUntil;
+          }
+        }
+      }
+    }
+
+    if (parsed.version < 14) {
+      // Add hasTradedThisTurn flag to all units (absent in saves before v14).
+      // Markets did not exist before v14, so no market-field backfill is needed.
+      if (s.units && typeof s.units === 'object') {
+        for (const unit of Object.values(s.units) as Array<unknown>) {
+          const u = unit as Record<string, unknown>;
+          if (u && typeof u.id === 'string' && !('hasTradedThisTurn' in u)) {
+            u.hasTradedThisTurn = false;
           }
         }
       }
