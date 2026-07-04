@@ -152,7 +152,6 @@ export function getReachableTiles(
       if (visited.has(nkey)) continue;
       // Only traverse tiles that are within the geometric movement range.
       if (!inRangeSet.has(nkey)) continue;
-      visited.add(nkey);
 
       const tile = state.grid[ny][nx];
 
@@ -216,6 +215,7 @@ export function getReachableTiles(
         if (blockedByPortal) continue;
       }
 
+      visited.add(nkey);
       bfsReachable.push({ x: nx, y: ny });
       queue.push({ x: nx, y: ny, steps: steps + 1 });
     }

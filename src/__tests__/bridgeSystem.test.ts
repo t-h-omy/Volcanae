@@ -520,17 +520,27 @@ describe('getReachableTiles — EW bridge passability', () => {
     expect(reachable.some((p) => p.x === 4 && p.y === 5)).toBe(true);
   });
 
-  it('scout approaching from N cannot enter an EW bridge', () => {
-    // Scout at (4,4) tries to enter EW bridge at (4,5) — direction dy=1 → blocked
+  it('scout cannot enter EW bridge directly from N but can reach via detour', () => {
+    // Scout at (4,4) tries to enter EW bridge at (4,5) — direct dy=1 is blocked.
+    // With moveRange 2, detour (4,4)->(3,5)->(4,5) is valid.
     const bridge = makeBridge(4, 5, 'EW');
-    const scout = makeUnit({ position: { x: 4, y: 4 }, stats: { ...makeUnit().stats, moveRange: 2 } });
-    const state = makeState({
-      units: [scout],
+    const scoutRange1 = makeUnit({ position: { x: 4, y: 4 }, stats: { ...makeUnit().stats, moveRange: 1 } });
+    const stateRange1 = makeState({
+      units: [scoutRange1],
       buildings: [bridge],
       tileOverrides: { '4,5': { terrainType: TileType.CANYON } },
     });
-    const reachable = getReachableTiles(state, scout.id);
-    expect(reachable.some((p) => p.x === 4 && p.y === 5)).toBe(false);
+    const reachableRange1 = getReachableTiles(stateRange1, scoutRange1.id);
+    expect(reachableRange1.some((p) => p.x === 4 && p.y === 5)).toBe(false);
+
+    const scoutRange2 = makeUnit({ position: { x: 4, y: 4 }, stats: { ...makeUnit().stats, moveRange: 2 } });
+    const stateRange2 = makeState({
+      units: [scoutRange2],
+      buildings: [bridge],
+      tileOverrides: { '4,5': { terrainType: TileType.CANYON } },
+    });
+    const reachableRange2 = getReachableTiles(stateRange2, scoutRange2.id);
+    expect(reachableRange2.some((p) => p.x === 4 && p.y === 5)).toBe(true);
   });
 
   it('plain (unbridged) canyon tile is not in reachable set', () => {
@@ -568,16 +578,58 @@ describe('getReachableTiles — NS bridge passability', () => {
     expect(reachable.some((p) => p.x === 5 && p.y === 5)).toBe(true);
   });
 
-  it('scout approaching from W cannot enter an NS bridge', () => {
+  it('scout cannot enter NS bridge directly from W but can reach via detour', () => {
+    // Scout at (4,4) tries to enter NS bridge at (5,4) — direct dx=1 is blocked.
+    // With moveRange 2, detour (4,4)->(5,3)->(5,4) is valid.
     const bridge = makeBridge(5, 4, 'NS');
-    const scout = makeUnit({ position: { x: 4, y: 4 }, stats: { ...makeUnit().stats, moveRange: 2 } });
-    const state = makeState({
-      units: [scout],
+    const scoutRange1 = makeUnit({ position: { x: 4, y: 4 }, stats: { ...makeUnit().stats, moveRange: 1 } });
+    const stateRange1 = makeState({
+      units: [scoutRange1],
       buildings: [bridge],
       tileOverrides: { '5,4': { terrainType: TileType.CANYON } },
     });
-    const reachable = getReachableTiles(state, scout.id);
-    expect(reachable.some((p) => p.x === 5 && p.y === 4)).toBe(false);
+    const reachableRange1 = getReachableTiles(stateRange1, scoutRange1.id);
+    expect(reachableRange1.some((p) => p.x === 5 && p.y === 4)).toBe(false);
+
+    const scoutRange2 = makeUnit({ position: { x: 4, y: 4 }, stats: { ...makeUnit().stats, moveRange: 2 } });
+    const stateRange2 = makeState({
+      units: [scoutRange2],
+      buildings: [bridge],
+      tileOverrides: { '5,4': { terrainType: TileType.CANYON } },
+    });
+    const reachableRange2 = getReachableTiles(stateRange2, scoutRange2.id);
+    expect(reachableRange2.some((p) => p.x === 5 && p.y === 4)).toBe(true);
+  });
+});
+
+describe('getReachableTiles — enemy parity on bridge detours', () => {
+  it('enemy can reach EW bridge via allowed detour when direct perpendicular entry is blocked', () => {
+    const bridge = makeBridge(4, 5, 'EW');
+    const enemyRange1 = makeUnit({
+      faction: Faction.ENEMY,
+      position: { x: 4, y: 4 },
+      stats: { ...makeUnit().stats, moveRange: 1 },
+    });
+    const stateRange1 = makeState({
+      units: [enemyRange1],
+      buildings: [bridge],
+      tileOverrides: { '4,5': { terrainType: TileType.CANYON } },
+    });
+    const reachableRange1 = getReachableTiles(stateRange1, enemyRange1.id);
+    expect(reachableRange1.some((p) => p.x === 4 && p.y === 5)).toBe(false);
+
+    const enemyRange2 = makeUnit({
+      faction: Faction.ENEMY,
+      position: { x: 4, y: 4 },
+      stats: { ...makeUnit().stats, moveRange: 2 },
+    });
+    const stateRange2 = makeState({
+      units: [enemyRange2],
+      buildings: [bridge],
+      tileOverrides: { '4,5': { terrainType: TileType.CANYON } },
+    });
+    const reachableRange2 = getReachableTiles(stateRange2, enemyRange2.id);
+    expect(reachableRange2.some((p) => p.x === 4 && p.y === 5)).toBe(true);
   });
 });
 

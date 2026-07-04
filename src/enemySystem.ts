@@ -230,7 +230,6 @@ function isUnitBlockedFromLava(unit: Unit, state: Draft<GameState>): boolean {
       if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;
       const key = `${nx},${ny}`;
       if (visited.has(key)) continue;
-      visited.add(key);
       const tile = state.grid[ny][nx];
       if (tile.terrainType === TileType.CANYON || tile.terrainType === TileType.WATER) {
         // Impassable terrain unless a bridge provides a crossable path
@@ -244,6 +243,7 @@ function isUnitBlockedFromLava(unit: Unit, state: Draft<GameState>): boolean {
       }
       // ny > startY means the tile is closer to lava (higher Y = toward lava)
       if (ny > startY) return false;
+      visited.add(key);
       queue.push({ x: nx, y: ny, steps: steps + 1 });
     }
   }
@@ -351,7 +351,6 @@ function findBfsPath(
       if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;
       const nkey = `${nx},${ny}`;
       if (visited.has(nkey)) continue;
-      visited.add(nkey);
       const tile = state.grid[ny][nx];
       const isTarget = nx === target.x && ny === target.y;
       // CANYON / WATER tiles: impassable unless a bridge provides a directional crossing
@@ -362,6 +361,7 @@ function findBfsPath(
       if (isBlockedBuildingForEnemyMovement(state, tile.buildingId)) continue;
       if (tile.unitId !== null && !isTarget) continue;
       const next: Position = { x: nx, y: ny };
+      visited.add(nkey);
       prev.set(nkey, current);
       if (isTarget) {
         // Reconstruct path from target back to from
@@ -1671,7 +1671,6 @@ function scoreActionsForUnit(
           if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;
           const nkey = `${nx},${ny}`;
           if (bfsVisited.has(nkey)) continue;
-          bfsVisited.add(nkey);
           const tile = state.grid[ny][nx];
           if (tile.terrainType === TileType.CANYON || tile.terrainType === TileType.WATER) {
             // Allow if a bridge exists and the direction is valid
@@ -1680,6 +1679,7 @@ function scoreActionsForUnit(
           if (tile.isLava) continue;
           if (isBlockedBuildingForEnemyMovement(state, tile.buildingId)) continue;
           if (tile.unitId !== null) continue; // must be unoccupied to land on
+          bfsVisited.add(nkey);
           reachableTiles.push({ x: nx, y: ny });
           bfsQueue.push({ x: nx, y: ny, steps: steps + 1 });
         }

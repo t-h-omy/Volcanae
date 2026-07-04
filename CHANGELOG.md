@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Bridge pathfinding fix (v0.91.1)
+
+- Fixed bridge pathfinding: units can now move onto a bridge via any valid path
+  (e.g. detouring to an allowed side) instead of being blocked when the tile was first
+  reached from a disallowed direction.
+
 ### Bridgebuilder scout tech + Bridge building (v0.91.0)
 
 - Added **Bridgebuilder** tech node (scout branch, requires `BIG_EYES`, 3 crystals): grants
