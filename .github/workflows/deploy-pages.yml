@@ -2,8 +2,6 @@ name: Deploy to gh-pages branch with previews
 
 on:
   push:
-    branches:
-      - '**'
     branches-ignore:
       - gh-pages
 
