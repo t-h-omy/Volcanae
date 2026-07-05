@@ -10,7 +10,7 @@ import { BuildingType, Faction, UnitTag, UnitType, TechFlag, TileType, TileStatu
 import { useFloaterStore } from './floaterStore';
 import type { GameEvent } from './gameEvents';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
-import { UNIT_DEFINITIONS, XP, ABILITIES, MAP, BUILDING_DEFINITIONS, MAGE, CLEAVE_DAMAGE_MULTIPLIER, PIERCE_PRIMARY_DAMAGE_MULTIPLIER, PIERCE_SECONDARY_DAMAGE_MULTIPLIER, RAGE_ATK_PER_ADJACENT, RAGE_MAX_ADJACENT_COUNT, BLOCK_MELEE_DAMAGE_MULTIPLIER, IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER, GRIMBEAK_SUMMONED_DAMAGE_MULTIPLIER, PUNCTURE_STUN_BASE_DEF_THRESHOLD, PUNCTURE_STUN_DURATION, FLYING_RANGED_DAMAGE_TAKEN_MULTIPLIER } from './gameConfig';
+import { UNIT_DEFINITIONS, XP, ABILITIES, MAP, BUILDING_DEFINITIONS, MAGE, CLEAVE_DAMAGE_MULTIPLIER, PIERCE_PRIMARY_DAMAGE_MULTIPLIER, PIERCE_SECONDARY_DAMAGE_MULTIPLIER, RAGE_ATK_PER_ADJACENT, RAGE_MAX_ADJACENT_COUNT, BLOCK_MELEE_DAMAGE_MULTIPLIER, IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER, GRIMBEAK_SUMMONED_DAMAGE_MULTIPLIER, PUNCTURE_STUN_BASE_DEF_THRESHOLD, PUNCTURE_STUN_DURATION, FLYING_RANGED_DAMAGE_TAKEN_MULTIPLIER, RELOAD_DEF_PENALTY_PCT } from './gameConfig';
 import { grantXp } from './levelSystem';
 import { generateId } from './mapGenerator';
 import { isUnitOnCorruptedTile, applyTileStatus } from './tileStatusSystem';
@@ -338,6 +338,18 @@ export function buildingToCombatant(building: Building): Combatant | null {
 // ============================================================================
 
 /**
+ * Applies the RELOAD DEF penalty to an effective defense value.
+ * Returns the penalised defense if the unit has the RELOAD tag and has already
+ * attacked this turn; otherwise returns the value unchanged.
+ */
+function applyReloadPenalty(unit: Unit, effectiveDefense: number): number {
+  if (unit.tags.includes(UnitTag.RELOAD) && unit.hasAttackedThisTurn) {
+    return Math.floor(effectiveDefense * (1 - RELOAD_DEF_PENALTY_PCT / 100));
+  }
+  return effectiveDefense;
+}
+
+/**
  * Returns the total PHALANX defense bonus for a unit.
  * Counts all adjacent friendly units (Chebyshev distance 1) that carry the PHALANX tag
  * and sums ABILITIES.PHALANX_DEFENSE_BONUS_PER_CARRIER for each.
@@ -606,6 +618,9 @@ export function resolveAttack(
       });
     }
   }
+
+  // RELOAD: a unit that has already fired this turn defends at reduced DEF until its next turn.
+  defenderCombatant.defense = applyReloadPenalty(defender, defenderCombatant.defense);
 
   const combatResult = calculateCombatFromStats(attackerCombatant, defenderCombatant);
 
@@ -1334,6 +1349,9 @@ export function resolveBuildingAttack(
 
   // PHALANX: defender gains defense bonus from adjacent PHALANX allies
   defenderCombatant.defense += getPhalanxDefenseBonus(state, defender);
+
+  // RELOAD: a unit that has already fired this turn defends at reduced DEF until its next turn.
+  defenderCombatant.defense = applyReloadPenalty(defender, defenderCombatant.defense);
 
   const combatResult = calculateCombatFromStats(buildingCombatant, defenderCombatant);
 

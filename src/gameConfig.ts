@@ -969,6 +969,20 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     description: 'Ranged attacker that strikes from range without stepping into melee.', // overwritten below
   },
 
+  CROSSBOWMAN: {
+    maxHp: 100, attack: 70, defense: 35,
+    movementActions: 1, moveRange: 1, attackRange: 2,
+    discoverRadius: 1, triggerRange: 0,
+    tags: [UnitTag.RANGED, UnitTag.RELOAD, UnitTag.PUNCTURE, UnitTag.BUILDANDCAPTURE],
+    cost: { iron: 6, wood: 12 },
+    populationCost: { farmers: 1, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    description: 'Armor-piercing ranged attacker.', // overwritten below
+  },
+
   RIDER: {
     maxHp: 100, attack: 70, defense: 35,
     movementActions: 1, moveRange: 2, attackRange: 1,
@@ -1290,9 +1304,16 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
 // Compute descriptions for UNIT_DEFINITIONS entries that reference their own stats.
 // All numeric values here are read from the unit definition or ABILITIES — never
 // hardcoded literals. See the DESCRIPTION AUTHORING RULE above ABILITIES.
+// NOTE: RELOAD_DEF_PENALTY_PCT is declared here (before the description block that
+// references it) rather than at the bottom of the file with the other tag-mechanic
+// constants, to satisfy TypeScript's block-scoped variable ordering rules.
+export const RELOAD_DEF_PENALTY_PCT = 50;
 {
   const u = UNIT_DEFINITIONS;
   u.ARCHER.description      = `Ranged attacker that strikes from ${u.ARCHER.attackRange} tiles away without stepping into melee range.`;
+  u.CROSSBOWMAN.description =
+    `Armor-piercing ranged attacker with ${u.CROSSBOWMAN.attackRange}-tile reach: ignores the target's defensive bonuses and stuns heavily-armored foes. ` +
+    `After firing, its own DEF drops ${RELOAD_DEF_PENALTY_PCT}% until its next turn.`;
   u.RIDER.description       = `Swift cavalry that covers ${u.RIDER.moveRange} tiles per move to outflank and pressure the enemy.`;
   u.SIEGE.description       = `Long-range bombard with ${u.SIEGE.attackRange}-tile reach; cannot fire in the same turn it moves.`;
   u.LAVA_ARCHER.description = `Enemy ranged unit that attacks from ${u.LAVA_ARCHER.attackRange} tiles away.`;
@@ -1798,6 +1819,16 @@ export const TECH_TREE: TechNodeDefinition[] = [
     ],
   },
   {
+    id: 'CROSSBOWMEN',
+    name: 'Crossbowmen',
+    description: 'Train armor-piercing crossbowmen at your archery ranges',
+    requires: ['FAR_REACH'],
+    cost: 2,
+    effects: [
+      { type: 'UNLOCK_UNIT', unitType: UnitType.CROSSBOWMAN },
+    ],
+  },
+  {
     id: 'SIEGE_WORKS',
     name: 'Siege Works',
     description: 'Build Siege Camps and field devastating siege engines',
@@ -2041,8 +2072,9 @@ export const TECH_TREE: TechNodeDefinition[] = [
     requires: ['FAR_REACH'],
     cost: 4,
     effects: [
-      { type: 'GRANT_UNIT_TAG', unitType: UnitType.ARCHER, tag: UnitTag.COVER },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.ARCHER, resource: 'wood', amount: 1 },
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.ARCHER,      tag: UnitTag.COVER },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.ARCHER,      resource: 'wood', amount: 1 },
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.CROSSBOWMAN, tag: UnitTag.COVER },
     ],
   },
   {
@@ -2393,6 +2425,7 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   [UnitTag.IRONBLOOD]:    { label: 'Ironblood',   desc: `Takes only ${IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER * 100}% damage from attacks by summoned units.` },
   [UnitTag.BLOCK]:        { label: 'Block',       desc: `Takes only ${BLOCK_MELEE_DAMAGE_MULTIPLIER * 100}% damage from melee attackers.` },
   [UnitTag.PUNCTURE]:     { label: 'Puncture',    desc: `Ignores defensive bonuses on the target. Stuns targets with base DEF above ${PUNCTURE_STUN_BASE_DEF_THRESHOLD} for ${PUNCTURE_STUN_DURATION} turn(s).` },
+  [UnitTag.RELOAD]:       { label: 'Reload',      desc: `After this unit attacks, its DEF is reduced by ${RELOAD_DEF_PENALTY_PCT}% until the start of its next turn.` },
   [UnitTag.BURN]:         { label: 'Burn',        desc: 'Attacks set the target\'s tile to Burning, dealing damage to non-lava units standing there at end of turn.' },
   [UnitTag.TUNNEL]:       { label: 'Tunnel',      desc: `Digs underground and re-emerges ${TUNNEL_RANGE_MIN}–${TUNNEL_RANGE_MAX} tiles south in the same column. Deals ${TUNNEL_EMERGE_DAMAGE} damage to enemies adjacent to the emergence tile. Sets the emergence tile to Corrupted.` },
   [UnitTag.EMBER_PORTAL]: { label: 'Ember Portal', desc: 'Casts a pair of portals: an entrance next to the Rift Lord and an exit behind the player\'s frontline. Any enemy unit stepping on the entrance teleports to the exit, if the exit is free. If the exit is blocked, the unit waits on the entrance and teleports the moment the exit clears. The Rift Lord cannot cast another pair until the current pair is removed. Portal tiles are corrupted and block player movement.' },
