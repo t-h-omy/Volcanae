@@ -191,6 +191,14 @@ function IconShield() {
   );
 }
 
+function IconClose() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 // ============================================================================
 // MENU MUSIC HOOK
 // ============================================================================
@@ -301,7 +309,7 @@ function RootPanel({ hasSave, newestSlot }: { hasSave: boolean; newestSlot: Save
   const continueGame = useGameStore((s) => s.continueGame);
 
   const continueSubtitle = newestSlot
-    ? `TURN ${newestSlot.turn} · ${newestSlot.name.toUpperCase().slice(0, 24)}`
+    ? `TURN ${newestSlot.turn} · ${newestSlot.name.toUpperCase()}`
     : 'RESUME GAME';
 
   return (
@@ -624,7 +632,7 @@ function LoadPanel() {
                         title="Cancel delete"
                         onClick={() => setConfirmDeleteId(null)}
                       >
-                        ✕
+                        <IconClose />
                       </button>
                     )}
                   </div>
@@ -725,6 +733,8 @@ function OptionsPanel({ canInstall, promptInstall }: { canInstall: boolean; prom
             />
           </div>
 
+          {/* Sound FX shares the same master volume — separate SFX volume can be wired
+              once soundOptionsStore exposes a dedicated sfxVolume field. */}
           <div>
             <div className="mm-slider-row-label">
               <span>Sound FX</span>
