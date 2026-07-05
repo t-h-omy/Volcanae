@@ -2,6 +2,55 @@
 
 ## Unreleased
 
+### Main Menu + Multi-Slot Save System (v0.93.0)
+
+- **Main Menu**: cold start now lands on a pre-game main menu (black/red theme) instead of
+  auto-resuming a game. Panels: `ROOT` (Continue / New Game / Load Game / Options), `NEW`,
+  `LOAD`, `OPTIONS`. Panels animate on navigate (forward: slide-in from right + fade; back: from
+  left + fade, ~220 ms ease-out). All visual constants live in `MainMenu.css` CSS custom
+  properties.
+- **IndexedDB multi-slot saves**: `saveSystem.ts` rewritten with a lightweight metadata store
+  (`saveMeta`) and a full state store (`saveData`). Listing 100 saves never deserializes 100
+  game states. Up to `SAVE.SLOT_CAP` (100) manual slots. Slot names default to
+  `Campaign N` (lowest unused integer).
+- **New Game**: named slot flow with difficulty selector and a "World generation (coming soon)"
+  stub. Slot cap reached → inline notice + link to Load/Delete panel. `requestPersist()` called
+  after first successful start.
+- **Load Game**: scrollable slot list, `SAVE.SLOTS_PER_PAGE` (10) per page; pagination hidden
+  at ≤10 saves. Each row: name, turn, difficulty, relative timestamp, Load / Delete (confirm
+  step) / Export actions. Incompatible-version slots shown greyed with disabled Load. Import
+  from file (`.volcanae.json`).
+- **Best-effort persistent storage**: Options panel shows storage status from
+  `navigator.storage.persisted()`, "Request durable storage" button when not persisted, A2HS
+  install note when available, usage readout from `navigator.storage.estimate()`.
+- **Export / import**: `exportSlot(id)` → JSON Blob download; `importSlotFromFile(file)` →
+  new slot. Round-trip guaranteed. Exported save filename: `<name>.volcanae.json`.
+- **Legacy migration**: `migrateLegacyIfPresent()` imports any existing `volcanae-save`
+  localStorage save once as "Imported save" on first menu mount; legacy key left intact.
+- **Autosave**: each game owns one IDB slot for its lifetime (`activeSaveId` in `menuStore`).
+  Autosave fires on `PLAYER_TURN`, `GAME_OVER`, and `VICTORY` phase transitions (fire-and-
+  forget, slot name preserved).
+- **In-game return to menu**: `🏠 Main Menu` button in the in-game Options overlay. For active
+  games: autosaves then returns. For terminal (GAME_OVER/VICTORY) games: deletes the slot then
+  returns.
+- **Finished-game deletion**: reaching GAME_OVER or VICTORY still autosaves (so a force-quit
+  shows the end overlay on Continue). The slot is deleted only when the player explicitly leaves
+  via "New Game" or "Main Menu" in the end overlay. Finished games never linger in the Load list.
+- **End overlays reworked**: GameOverOverlay and VictoryOverlay now have `🔄 New Game` (→ NEW
+  panel), `🏠 Main Menu`, and `📤 Export Run` buttons instead of the old single Play-Again.
+- **Menu music**: dedicated `MENU_TRACK` constant added to `musicSystem.ts`
+  (`Menu Theme - Dreams of Tomorrow.mp3`). Plays on loop while the menu is visible; respects
+  volume/mute; stops on game start. Game music (`useMusicPlayer`) only runs inside the `<Game/>`
+  component, not on the menu.
+- **App refactor**: `App.tsx` no longer calls `initGame()` on mount. Subscribes to
+  `useMenuStore(s => s.screen)` to render `<MainMenu/>` or `<Game/>`. Game music, animation
+  engine, and turn popup live inside the new `<Game/>` component.
+- **New config section**: `SAVE` constants added to `gameConfig.ts`
+  (`SLOT_CAP`, `SLOTS_PER_PAGE`, `NAME_MAX_LENGTH`, `DEFAULT_NAME_PREFIX`, `LEGACY_KEY`,
+  `IDB_NAME`, `IDB_VERSION`, `STORE_META`, `STORE_DATA`, `EXPORT_FILE_EXT`).
+- **Graceful degradation**: if IndexedDB is unavailable (e.g. private mode), the menu still
+  renders and shows a non-blocking notice; New Game may still start an unsaved session.
+
 ### Crossbowman fixes (v0.92.1)
 
 - Crossbowman: fixed all-caps name label; Reload DEF penalty now shown in red in the unit

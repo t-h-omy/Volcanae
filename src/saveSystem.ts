@@ -1,57 +1,80 @@
 /**
  * Save system for Volcanae.
- * Persists GameState to localStorage and restores it on startup.
  *
- * Format: { version: number, state: GameState }
- * On version mismatch or parse error the load returns null so the caller
- * falls back to generating a fresh game.
+ * Provides a multi-slot IndexedDB save system with a lightweight metadata store
+ * (for listing saves) and a separate heavy state store (for loading).
+ *
+ * Legacy single-slot localStorage saves are imported once via migrateLegacyIfPresent().
  */
 
 import type { GameState } from './types';
 import { UnitType, UnitTag, BuildingType, TileStatus } from './types';
-import { TECH_TREE, POPULATION, SPECIALIST_DEFINITIONS } from './gameConfig';
+import { TECH_TREE, POPULATION, SPECIALIST_DEFINITIONS, SAVE } from './gameConfig';
+import type { Difficulty } from './types';
 
 // ============================================================================
 // CONSTANTS
 // ============================================================================
 
-const SAVE_KEY = 'volcanae-save';
-
 /** Increment this whenever the serialized shape changes incompatibly. */
-const SAVE_VERSION = 14;
+export const SAVE_VERSION = 14;
 
 // ============================================================================
-// PUBLIC API
+// TYPES
 // ============================================================================
 
-/** Serialize game state to localStorage. */
-export function saveGameState(state: GameState): void {
+export type SaveSlotMeta = {
+  id: string;
+  name: string;
+  version: number;
+  savedAt: number;
+  turn: number;
+  difficulty: Difficulty;
+};
+
+// ============================================================================
+// PRIVATE HELPERS
+// ============================================================================
+
+/** Feature-detect IndexedDB availability. */
+export function idbAvailable(): boolean {
   try {
-    const payload = JSON.stringify({ version: SAVE_VERSION, state });
-    localStorage.setItem(SAVE_KEY, payload);
+    return typeof indexedDB !== 'undefined' && indexedDB !== null;
   } catch {
-    // Storage may be unavailable (private-browsing quota, etc.) — fail silently.
+    return false;
   }
 }
 
+/** Open (or create) the Volcanae IndexedDB database. */
+function openDb(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(SAVE.IDB_NAME, SAVE.IDB_VERSION);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(SAVE.STORE_META)) {
+        db.createObjectStore(SAVE.STORE_META, { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains(SAVE.STORE_DATA)) {
+        db.createObjectStore(SAVE.STORE_DATA, { keyPath: 'id' });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
 /**
- * Deserialize game state from localStorage.
- * Returns `null` when no save exists, the data is corrupt, or the version is
- * incompatible, so the caller can fall back to a fresh game.
+ * Migrate and validate a raw parsed save payload.
+ * Extracted from the former loadGameState body; both IDB load and legacy
+ * import route through this function.
+ * Returns the migrated GameState or null if incompatible/corrupt.
  */
-export function loadGameState(): GameState | null {
+function migrateState(parsed: { version: number; state: GameState }): GameState | null {
   try {
-    const raw = localStorage.getItem(SAVE_KEY);
-    if (!raw) return null;
-
-    const parsed = JSON.parse(raw) as { version: number; state: GameState };
-
     if (parsed.version > SAVE_VERSION || parsed.version < 8) return null;
     if (!parsed.state || typeof parsed.state !== 'object') return null;
 
     const s = parsed.state;
-    // Validate the minimum required top-level fields to guard against
-    // partially-written or structurally incompatible saves.
     if (
       typeof s.turn !== 'number' ||
       typeof s.phase !== 'string' ||
@@ -64,21 +87,14 @@ export function loadGameState(): GameState | null {
     }
 
     // Migration v8 → v9: UnitType INFANTRY renamed to SPEARMAN.
-    // Only unit records need migration here — specialist effects are re-synced
-    // from SPECIALIST_DEFINITIONS below, and tech effects are never persisted.
     if (parsed.version < 9 && s.units && typeof s.units === 'object') {
       for (const unit of Object.values(s.units) as Array<unknown>) {
         const u = unit as Record<string, unknown>;
-        if (u && u.type === 'INFANTRY') {
-          u.type = 'SPEARMAN';
-        }
+        if (u && u.type === 'INFANTRY') u.type = 'SPEARMAN';
       }
     }
 
-    // Migration v10 → v11: 7 enemy UnitType string values were renamed.
-    //   LAVA_REAPER → REAPER, LAVA_LANCER → LANCER, LAVA_BREAKER → BULLWARK,
-    //   LAVA_PYROCLAST → KINDLER, LAVA_BEAST → GRIMBEAK,
-    //   LAVA_BURROWER → RIFTWORM, LAVA_HEXCASTER → RIFT_LORD
+    // Migration v10 → v11: enemy UnitType renames.
     if (parsed.version < 11 && s.units && typeof s.units === 'object') {
       const unitTypeRenames: Record<string, string> = {
         LAVA_REAPER:    'REAPER',
@@ -97,18 +113,14 @@ export function loadGameState(): GameState | null {
       }
     }
 
-    // Migration: PASSIVE tag was added to Emberlings in v0.36.0 without a
-    // SAVE_VERSION bump, so saved Emberling units from before that version
-    // are missing it. Add it retroactively to all loaded Emberling units.
+    // Migration: add PASSIVE tag to Emberlings if missing.
     for (const unit of Object.values(s.units)) {
       if (unit && unit.type === UnitType.EMBERLING && Array.isArray(unit.tags) && !unit.tags.includes(UnitTag.PASSIVE)) {
         unit.tags.push(UnitTag.PASSIVE);
       }
     }
 
-    // Migration: new tech nodes added to TECH_TREE without a SAVE_VERSION bump
-    // will be absent from older saves, causing them to appear permanently locked.
-    // Backfill any missing entries as unlocked=false so availability is computed correctly.
+    // Migration: backfill missing tech nodes.
     if (s.techNodes && typeof s.techNodes === 'object') {
       for (const def of TECH_TREE) {
         if (!(def.id in s.techNodes)) {
@@ -117,9 +129,7 @@ export function loadGameState(): GameState | null {
       }
     }
 
-    // Migration: Frostcraft was previously a standalone tech node; it is now
-    // included in Arcane Awakening. If ARCANE_AWAKENING is already unlocked
-    // but FROSTCRAFT is not yet in unlockedSpells, backfill it.
+    // Migration: Frostcraft backfill.
     {
       const tn = s.techNodes as Record<string, { id: string; unlocked: boolean }> | undefined;
       const us = s.unlockedSpells as string[] | undefined;
@@ -128,11 +138,7 @@ export function loadGameState(): GameState | null {
       }
     }
 
-    // Migration: CRYSTAL_CAVE tech now includes an UNLOCK_UNIT: CRYSTAL_DRAKE effect.
-    // Saves that had the tech researched before this effect was added (or that have a
-    // Crystal Cave building conjured via the spell) won't have CRYSTAL_DRAKE in
-    // unlockedUnits, causing the HUD to hide the recruitment panel entirely.
-    // Backfill it if the tech is unlocked or if a Crystal Cave building exists.
+    // Migration: CRYSTAL_DRAKE backfill.
     {
       const tn = s.techNodes as Record<string, { id: string; unlocked: boolean }> | undefined;
       const uu = s.unlockedUnits as string[] | undefined;
@@ -140,18 +146,12 @@ export function loadGameState(): GameState | null {
         const techUnlocked = tn?.['CRYSTAL_CAVE']?.unlocked === true;
         const hasCaveBuilding =
           s.buildings && typeof s.buildings === 'object' &&
-          Object.values(s.buildings).some(
-            (b) => b?.type === BuildingType.CRYSTAL_CAVE,
-          );
-        if (techUnlocked || hasCaveBuilding) {
-          uu.push(UnitType.CRYSTAL_DRAKE);
-        }
+          Object.values(s.buildings).some((b) => b?.type === BuildingType.CRYSTAL_CAVE);
+        if (techUnlocked || hasCaveBuilding) uu.push(UnitType.CRYSTAL_DRAKE);
       }
     }
 
-    // Migration: strongholds now track farmers (populationCount) and nobles
-    // (strongholdNobles) separately. Older saves used a single populationCount
-    // for both. Split it using the base caps so nobles are preserved correctly.
+    // Migration: stronghold farmers/nobles split.
     if (s.buildings && typeof s.buildings === 'object') {
       for (const building of Object.values(s.buildings) as Array<unknown>) {
         const b = building as Record<string, unknown>;
@@ -163,25 +163,19 @@ export function loadGameState(): GameState | null {
       }
     }
 
-    // Migration: backfill distractionDefPenalty for units from older saves
-    // that predate the field being added to the Unit interface.
+    // Migration: backfill unit fields.
     if (s.units && typeof s.units === 'object') {
       for (const unit of Object.values(s.units) as Array<unknown>) {
         const u = unit as Record<string, unknown>;
-        if (u && typeof u.id === 'string' && typeof u.distractionDefPenalty !== 'number') {
-          u.distractionDefPenalty = 0;
-        }
-        if (u && typeof u.id === 'string' && typeof u.lastMovedTurn !== 'number') {
-          u.lastMovedTurn = 0;
-        }
-        if (u && typeof u.id === 'string' && typeof u.recruitedOnTurn !== 'number') {
-          u.recruitedOnTurn = 0;
+        if (u && typeof u.id === 'string') {
+          if (typeof u.distractionDefPenalty !== 'number') u.distractionDefPenalty = 0;
+          if (typeof u.lastMovedTurn !== 'number') u.lastMovedTurn = 0;
+          if (typeof u.recruitedOnTurn !== 'number') u.recruitedOnTurn = 0;
         }
       }
     }
 
-    // Migration: backfill lastRecruitmentTurn on building records from saves
-    // that predate the per-building recruitment-per-turn limit.
+    // Migration: backfill lastRecruitmentTurn on buildings.
     if (s.buildings && typeof s.buildings === 'object') {
       for (const building of Object.values(s.buildings) as Array<unknown>) {
         const b = building as Record<string, unknown>;
@@ -191,32 +185,17 @@ export function loadGameState(): GameState | null {
       }
     }
 
-    // Migration: backfill specialistSlotCap and activeCaveEncounters for saves
-    // that predate these fields being added to GameState.
+    // Migration: backfill top-level fields.
     const gs = (s as unknown) as Record<string, unknown>;
-    if (typeof gs.specialistSlotCap !== 'number') {
-      gs.specialistSlotCap = 2;
-    }
-    if (!Array.isArray(gs.activeCaveEncounters)) {
-      gs.activeCaveEncounters = [];
-    }
-    if (!Array.isArray(gs.unlockedSpells)) {
-      gs.unlockedSpells = [];
-    }
-    if (!('pendingSpellCast' in gs)) {
-      gs.pendingSpellCast = null;
-    }
-    if (!('pendingTransposeFirstUnitId' in gs)) {
-      gs.pendingTransposeFirstUnitId = null;
-    }
-    if (!Array.isArray(gs.pendingBrandmarkTransforms)) {
-      gs.pendingBrandmarkTransforms = [];
-    }
-    if (!('pendingBridgeBuilderId' in gs)) {
-      gs.pendingBridgeBuilderId = null;
-    }
+    if (typeof gs.specialistSlotCap !== 'number') gs.specialistSlotCap = 2;
+    if (!Array.isArray(gs.activeCaveEncounters)) gs.activeCaveEncounters = [];
+    if (!Array.isArray(gs.unlockedSpells)) gs.unlockedSpells = [];
+    if (!('pendingSpellCast' in gs)) gs.pendingSpellCast = null;
+    if (!('pendingTransposeFirstUnitId' in gs)) gs.pendingTransposeFirstUnitId = null;
+    if (!Array.isArray(gs.pendingBrandmarkTransforms)) gs.pendingBrandmarkTransforms = [];
+    if (!('pendingBridgeBuilderId' in gs)) gs.pendingBridgeBuilderId = null;
 
-    // Migration: remove the legacy MAGE tag from all saved units (tag was removed in Bundle 2).
+    // Migration: remove legacy MAGE tag.
     if (s.units && typeof s.units === 'object') {
       for (const unit of Object.values(s.units) as Array<unknown>) {
         const u = unit as Record<string, unknown>;
@@ -226,7 +205,7 @@ export function loadGameState(): GameState | null {
       }
     }
 
-    // Migration: backfill Mage-system per-unit fields added in MS-01–MS-09.
+    // Migration: Mage-system per-unit fields.
     if (s.units && typeof s.units === 'object') {
       for (const unit of Object.values(s.units) as Array<unknown>) {
         const u = unit as Record<string, unknown>;
@@ -235,30 +214,25 @@ export function loadGameState(): GameState | null {
             u.spellsCastThisTurn = u.hasCastThisTurn === true ? 1 : 0;
           }
           delete u.hasCastThisTurn;
-          if (!('controllerMageId' in u)) {
-            u.controllerMageId = null;
-          }
+          if (!('controllerMageId' in u)) u.controllerMageId = null;
         }
       }
     }
 
-    // Migration: isIce field replaced by tile.status === TileStatus.FROZEN.
-    // Upgrade saved tiles that have isIce=true to status:FROZEN, then remove the field.
+    // Migration: isIce → TileStatus.FROZEN.
     if (s.grid && Array.isArray(s.grid)) {
       for (const row of s.grid as Array<unknown>) {
         if (!Array.isArray(row)) continue;
         for (const tile of row as Array<unknown>) {
           const t = tile as Record<string, unknown>;
           if (!t || typeof t.terrainType !== 'string') continue;
-          if (t.isIce === true) {
-            t.status = TileStatus.FROZEN;
-          }
+          if (t.isIce === true) t.status = TileStatus.FROZEN;
           delete t.isIce;
         }
       }
     }
 
-    // Migration: backfill trapStunTurns on building records from saves that predate GRAVE_TRAP.
+    // Migration: backfill trapStunTurns on buildings.
     if (s.buildings && typeof s.buildings === 'object') {
       for (const building of Object.values(s.buildings) as Array<unknown>) {
         const b = building as Record<string, unknown>;
@@ -268,18 +242,13 @@ export function loadGameState(): GameState | null {
       }
     }
 
-    // Migration: backfill buildingsConverted in gameStats for saves that predate
-    // the building conversion mechanic.
+    // Migration: backfill buildingsConverted in gameStats.
     if (s.gameStats && typeof s.gameStats === 'object') {
       const gstats = s.gameStats as unknown as Record<string, unknown>;
-      if (typeof gstats.buildingsConverted !== 'number') {
-        gstats.buildingsConverted = 0;
-      }
+      if (typeof gstats.buildingsConverted !== 'number') gstats.buildingsConverted = 0;
     }
 
-    // Migration: backfill emberLevelSources for saves that predate source tracking.
-    // Because historical data is unavailable, fall back conservatively: attribute the
-    // full current ember level to "other" so old saves do not show inflated source rows.
+    // Migration: backfill emberLevelSources.
     if (typeof gs.emberLevelSources !== 'object' || gs.emberLevelSources === null) {
       const currentEmber = typeof gs.ember === 'number' ? gs.ember : 0;
       gs.emberLevelSources = { turns: 0, emberlingSacrifices: 0, other: currentEmber };
@@ -290,11 +259,7 @@ export function loadGameState(): GameState | null {
       if (typeof els.other !== 'number') els.other = 0;
     }
 
-    // Migration: backfill upkeepIron, upkeepWood, and dormant on specialist
-    // records from saves that predate these fields being added.
-    // Also re-sync the effects array from SPECIALIST_DEFINITIONS so that
-    // saves created before effects were stored (or with empty effects []) get
-    // the correct effect definitions.
+    // Migration: backfill specialist fields and re-sync effects.
     if (s.specialists && typeof s.specialists === 'object') {
       for (const [specId, spec] of Object.entries(s.specialists) as Array<[string, unknown]>) {
         const sp = spec as Record<string, unknown>;
@@ -302,59 +267,42 @@ export function loadGameState(): GameState | null {
           if (typeof sp.upkeepIron !== 'number') sp.upkeepIron = 0;
           if (typeof sp.upkeepWood !== 'number') sp.upkeepWood = 0;
           if (typeof sp.dormant !== 'boolean') sp.dormant = false;
-          // Always re-sync effects from the authoritative SPECIALIST_DEFINITIONS
-          // so that saves with missing, empty, or stale effects are corrected.
           const def = SPECIALIST_DEFINITIONS[specId];
-          if (def) {
-            sp.effects = def.effects;
-          }
+          if (def) sp.effects = def.effects;
         }
       }
     }
 
-    // Migration: specialists are now global (active as soon as they are in
-    // globalSpecialistStorage). If old saves have specialists with
-    // assignedBuildingId set, migrate them into globalSpecialistStorage and
-    // clear the assignment. Also clear any building.specialistSlot references.
+    // Migration: specialists → globalSpecialistStorage.
     if (s.specialists && typeof s.specialists === 'object') {
       const gss = gs.globalSpecialistStorage as string[];
       const slotCap = typeof gs.specialistSlotCap === 'number' ? gs.specialistSlotCap : 2;
       for (const [specId, spec] of Object.entries(s.specialists) as Array<[string, unknown]>) {
         const sp = spec as Record<string, unknown>;
         if (sp && typeof sp.id === 'string' && sp.assignedBuildingId != null) {
-          // Move to globalSpecialistStorage if room is available and not already there
-          if (!gss.includes(specId) && gss.length < slotCap) {
-            gss.push(specId);
-          }
+          if (!gss.includes(specId) && gss.length < slotCap) gss.push(specId);
           sp.assignedBuildingId = null;
         }
       }
     }
-    // Clear building.specialistSlot so that buildings no longer carry specialists
     if (s.buildings && typeof s.buildings === 'object') {
       for (const building of Object.values(s.buildings) as Array<unknown>) {
         const b = building as Record<string, unknown>;
-        if (b && b.specialistSlot != null) {
-          b.specialistSlot = null;
-        }
+        if (b && b.specialistSlot != null) b.specialistSlot = null;
       }
     }
 
-    // Migration: GRAVESTONE_BASIC/WARRIORS/ENGINES TechFlags were replaced by
-    // the LEAVES_GRAVESTONE unit tag. Backfill the new tag on units that would
-    // have been covered by the old flags, then strip the old flags.
+    // Migration: GRAVESTONE flags → LEAVES_GRAVESTONE tag.
     {
       const techFlags = gs.techFlags as string[] | undefined;
       if (Array.isArray(techFlags)) {
         const basicActive    = techFlags.includes('GRAVESTONE_BASIC');
         const warriorsActive = techFlags.includes('GRAVESTONE_WARRIORS');
         const enginesActive  = techFlags.includes('GRAVESTONE_ENGINES');
-
         if (basicActive || warriorsActive || enginesActive) {
-          const basicTypes    = new Set(['SPEARMAN', 'SCOUT', 'GUARD']);
-          const warriorTypes  = new Set(['RIDER', 'SWORDSMAN', 'ARCHER']);
-          const engineTypes   = new Set(['SIEGE', 'MAGE']);
-
+          const basicTypes   = new Set(['SPEARMAN', 'SCOUT', 'GUARD']);
+          const warriorTypes = new Set(['RIDER', 'SWORDSMAN', 'ARCHER']);
+          const engineTypes  = new Set(['SIEGE', 'MAGE']);
           if (s.units && typeof s.units === 'object') {
             for (const unit of Object.values(s.units) as Array<unknown>) {
               const u = unit as Record<string, unknown>;
@@ -371,8 +319,6 @@ export function loadGameState(): GameState | null {
               }
             }
           }
-
-          // Remove the now-obsolete flags from the saved state
           gs.techFlags = techFlags.filter(
             (f) => f !== 'GRAVESTONE_BASIC' && f !== 'GRAVESTONE_WARRIORS' && f !== 'GRAVESTONE_ENGINES',
           );
@@ -380,9 +326,7 @@ export function loadGameState(): GameState | null {
       }
     }
 
-    // Migration v11 → v12: remove unused farmers/nobles from resources and
-    // unused type field from tiles. Strip them from old saves so the saved
-    // state matches the current interface shape.
+    // Migration v11 → v12: remove unused farmers/nobles from resources and type from tiles.
     if (parsed.version < 12) {
       const res = s.resources as unknown as Record<string, unknown>;
       delete res.farmers;
@@ -390,31 +334,19 @@ export function loadGameState(): GameState | null {
       if (s.grid && Array.isArray(s.grid)) {
         for (const row of s.grid as Array<unknown>) {
           if (!Array.isArray(row)) continue;
-          for (const tile of row as Array<unknown>) {
-            delete (tile as Record<string, unknown>).type;
-          }
+          for (const tile of row as Array<unknown>) delete (tile as Record<string, unknown>).type;
         }
       }
     }
 
-    // Migration v12 → v13: EMBER_PORTAL Portal interface rework.
-    // Old fields: expiresTurn (exclusive), usableFromTurn → new: lastUsableTurn (inclusive).
-    // Added: pendingTeleportUnitId. Removed: portalCastCooldownUntil from Unit.
+    // Migration v12 → v13: EMBER_PORTAL rework.
     if (parsed.version < 13) {
       if (s.portals && typeof s.portals === 'object') {
         for (const portal of Object.values(s.portals) as Array<unknown>) {
           const p = portal as Record<string, unknown>;
           if (p && typeof p.id === 'string') {
-            // Convert expiresTurn (exclusive) to lastUsableTurn (inclusive).
-            // Old: usable while turn < expiresTurn → lastUsableTurn = expiresTurn - 1.
-            if (typeof p.expiresTurn === 'number') {
-              p.lastUsableTurn = p.expiresTurn - 1;
-            }
-            // Initialize pendingTeleportUnitId if absent.
-            if (!('pendingTeleportUnitId' in p)) {
-              p.pendingTeleportUnitId = null;
-            }
-            // Remove old fields.
+            if (typeof p.expiresTurn === 'number') p.lastUsableTurn = p.expiresTurn - 1;
+            if (!('pendingTeleportUnitId' in p)) p.pendingTeleportUnitId = null;
             delete p.expiresTurn;
             delete p.usableFromTurn;
           }
@@ -423,17 +355,13 @@ export function loadGameState(): GameState | null {
       if (s.units && typeof s.units === 'object') {
         for (const unit of Object.values(s.units) as Array<unknown>) {
           const u = unit as Record<string, unknown>;
-          if (u && typeof u.id === 'string') {
-            // Remove old per-unit cast cooldown field.
-            delete u.portalCastCooldownUntil;
-          }
+          if (u && typeof u.id === 'string') delete u.portalCastCooldownUntil;
         }
       }
     }
 
+    // Migration v13 → v14: hasTradedThisTurn.
     if (parsed.version < 14) {
-      // Add hasTradedThisTurn flag to all units (absent in saves before v14).
-      // Markets did not exist before v14, so no market-field backfill is needed.
       if (s.units && typeof s.units === 'object') {
         for (const unit of Object.values(s.units) as Array<unknown>) {
           const u = unit as Record<string, unknown>;
@@ -450,20 +378,239 @@ export function loadGameState(): GameState | null {
   }
 }
 
-/** Remove the saved game from localStorage. */
-export function clearSavedGame(): void {
+// ============================================================================
+// PUBLIC API — FEATURE DETECTION
+// ============================================================================
+
+/** Return true if a saved game is compatible with the current save version. */
+export function isSlotCompatible(meta: SaveSlotMeta): boolean {
+  return meta.version <= SAVE_VERSION && meta.version >= 8;
+}
+
+// ============================================================================
+// PUBLIC API — IDB SLOT OPERATIONS
+// ============================================================================
+
+/** List all save slot metadata, sorted newest-first. */
+export async function listSlots(): Promise<SaveSlotMeta[]> {
+  if (!idbAvailable()) return [];
   try {
-    localStorage.removeItem(SAVE_KEY);
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(SAVE.STORE_META, 'readonly');
+      const store = tx.objectStore(SAVE.STORE_META);
+      const req = store.getAll();
+      req.onsuccess = () => {
+        const all = (req.result as SaveSlotMeta[]) ?? [];
+        all.sort((a, b) => b.savedAt - a.savedAt);
+        resolve(all);
+      };
+      req.onerror = () => reject(req.error);
+    });
   } catch {
-    // Fail silently.
+    return [];
   }
 }
 
-/** Return true when a saved game is present in localStorage. */
-export function hasSavedGame(): boolean {
+/** Return the total number of save slots. */
+export async function slotCount(): Promise<number> {
+  if (!idbAvailable()) return 0;
   try {
-    return localStorage.getItem(SAVE_KEY) !== null;
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(SAVE.STORE_META, 'readonly');
+      const store = tx.objectStore(SAVE.STORE_META);
+      const req = store.count();
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  } catch {
+    return 0;
+  }
+}
+
+/** Retrieve metadata for a single slot without loading its full state. Returns null on miss. */
+export async function getSlotMeta(id: string): Promise<SaveSlotMeta | null> {
+  if (!idbAvailable()) return null;
+  try {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(SAVE.STORE_META, 'readonly');
+      const store = tx.objectStore(SAVE.STORE_META);
+      const req = store.get(id);
+      req.onsuccess = () => resolve((req.result as SaveSlotMeta | undefined) ?? null);
+      req.onerror = () => reject(req.error);
+    });
+  } catch {
+    return null;
+  }
+}
+
+/** Load the full game state from a slot, running migration. Returns null on miss or incompatible version. */
+export async function loadSlot(id: string): Promise<GameState | null> {
+  if (!idbAvailable()) return null;
+  try {
+    const db = await openDb();
+    const raw = await new Promise<{ id: string; version: number; state: GameState } | undefined>((resolve, reject) => {
+      const tx = db.transaction(SAVE.STORE_DATA, 'readonly');
+      const store = tx.objectStore(SAVE.STORE_DATA);
+      const req = store.get(id);
+      req.onsuccess = () => resolve(req.result as { id: string; version: number; state: GameState } | undefined);
+      req.onerror = () => reject(req.error);
+    });
+    if (!raw) return null;
+    return migrateState({ version: raw.version, state: raw.state });
+  } catch {
+    return null;
+  }
+}
+
+/** Save both metadata and full state for a slot in one transaction. */
+export async function saveSlot(args: { id: string; name: string; state: GameState }): Promise<void> {
+  if (!idbAvailable()) return;
+  try {
+    const { id, name, state } = args;
+    const meta: SaveSlotMeta = {
+      id,
+      name,
+      version: SAVE_VERSION,
+      savedAt: Date.now(),
+      turn: state.turn,
+      difficulty: state.difficulty,
+    };
+    const dataRecord = { id, version: SAVE_VERSION, state };
+    const db = await openDb();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction([SAVE.STORE_META, SAVE.STORE_DATA], 'readwrite');
+      tx.objectStore(SAVE.STORE_META).put(meta);
+      tx.objectStore(SAVE.STORE_DATA).put(dataRecord);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch {
+    // fail silently — autosave failures must not crash the game
+  }
+}
+
+/** Delete both metadata and state records for a slot. */
+export async function deleteSlot(id: string): Promise<void> {
+  if (!idbAvailable()) return;
+  try {
+    const db = await openDb();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction([SAVE.STORE_META, SAVE.STORE_DATA], 'readwrite');
+      tx.objectStore(SAVE.STORE_META).delete(id);
+      tx.objectStore(SAVE.STORE_DATA).delete(id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch {
+    // fail silently
+  }
+}
+
+/** Export a slot as a Blob. Caller triggers the download. Returns null on miss. */
+export async function exportSlot(id: string): Promise<Blob | null> {
+  if (!idbAvailable()) return null;
+  try {
+    const db = await openDb();
+    const metaRaw = await new Promise<SaveSlotMeta | undefined>((resolve, reject) => {
+      const tx = db.transaction(SAVE.STORE_META, 'readonly');
+      const req = tx.objectStore(SAVE.STORE_META).get(id);
+      req.onsuccess = () => resolve(req.result as SaveSlotMeta | undefined);
+      req.onerror = () => reject(req.error);
+    });
+    const dataRaw = await new Promise<{ id: string; version: number; state: GameState } | undefined>((resolve, reject) => {
+      const tx = db.transaction(SAVE.STORE_DATA, 'readonly');
+      const req = tx.objectStore(SAVE.STORE_DATA).get(id);
+      req.onsuccess = () => resolve(req.result as { id: string; version: number; state: GameState } | undefined);
+      req.onerror = () => reject(req.error);
+    });
+    if (!metaRaw || !dataRaw) return null;
+    const payload = JSON.stringify({ version: dataRaw.version, name: metaRaw.name, state: dataRaw.state });
+    return new Blob([payload], { type: 'application/json' });
+  } catch {
+    return null;
+  }
+}
+
+/** Parse an exported file, validate + migrate, write as a new slot. Returns the new slot's meta, or null on error. */
+export async function importSlotFromFile(file: File): Promise<SaveSlotMeta | null> {
+  try {
+    const text = await file.text();
+    const parsed = JSON.parse(text) as { version: number; name?: string; state: GameState };
+    const migrated = migrateState({ version: parsed.version, state: parsed.state });
+    if (!migrated) return null;
+    const id = `import-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+    const name = typeof parsed.name === 'string' && parsed.name.trim() ? parsed.name.trim() : 'Imported save';
+    await saveSlot({ id, name, state: migrated });
+    const meta: SaveSlotMeta = {
+      id,
+      name,
+      version: SAVE_VERSION,
+      savedAt: Date.now(),
+      turn: migrated.turn,
+      difficulty: migrated.difficulty,
+    };
+    return meta;
+  } catch {
+    return null;
+  }
+}
+
+// localStorage key used to track whether the legacy save was already imported.
+const LEGACY_IMPORTED_KEY = 'volcanae-legacy-imported';
+
+/**
+ * If a legacy localStorage save exists and has not been imported yet,
+ * parse + migrate it and write it as a slot named "Imported save".
+ * Leaves the legacy key intact (does not delete it).
+ */
+export async function migrateLegacyIfPresent(): Promise<void> {
+  try {
+    const raw = localStorage.getItem(SAVE.LEGACY_KEY);
+    if (!raw) return;
+    if (localStorage.getItem(LEGACY_IMPORTED_KEY)) return;
+    const parsed = JSON.parse(raw) as { version: number; state: GameState };
+    const migrated = migrateState(parsed);
+    if (!migrated) return;
+    const id = `legacy-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
+    await saveSlot({ id, name: 'Imported save', state: migrated });
+    localStorage.setItem(LEGACY_IMPORTED_KEY, '1');
+  } catch {
+    // fail silently
+  }
+}
+
+// ============================================================================
+// PUBLIC API — PERSISTENT STORAGE
+// ============================================================================
+
+/** Request durable (persistent) storage. Returns false if unavailable or denied. */
+export async function requestPersist(): Promise<boolean> {
+  try {
+    return (await navigator.storage?.persist?.()) ?? false;
   } catch {
     return false;
+  }
+}
+
+/** Return true if storage is already persisted. */
+export async function isPersisted(): Promise<boolean> {
+  try {
+    return (await navigator.storage?.persisted?.()) ?? false;
+  } catch {
+    return false;
+  }
+}
+
+/** Return storage usage estimate, or null if the API is unavailable. */
+export async function estimateUsage(): Promise<{ usage: number; quota: number } | null> {
+  try {
+    const estimate = await navigator.storage?.estimate?.();
+    if (!estimate) return null;
+    return { usage: estimate.usage ?? 0, quota: estimate.quota ?? 0 };
+  } catch {
+    return null;
   }
 }

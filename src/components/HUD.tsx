@@ -7,6 +7,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useGameStore } from '../gameStore';
+import { useMenuStore } from '../menuStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
 import { useSoundOptionsStore } from '../soundOptionsStore';
@@ -63,6 +64,8 @@ import { useZoneClearedStore } from '../zoneClearedStore';
 import { useCaveScreamsStore } from '../caveScreamsStore';
 import { useSpecialistHireStore } from '../specialistHireStore';
 import { useMarketPanelStore } from '../marketPanelStore';
+import { saveSlot, deleteSlot, exportSlot, getSlotMeta } from '../saveSystem';
+import { SAVE } from '../gameConfig';
 import './HUD.css';
 
 // ============================================================================
@@ -419,6 +422,7 @@ function OptionsOverlay({ onClose }: { onClose: () => void }) {
   const muted = useSoundOptionsStore((s) => s.muted);
   const setVolume = useSoundOptionsStore((s) => s.setVolume);
   const setMuted = useSoundOptionsStore((s) => s.setMuted);
+  const phase = useGameStore((s) => s.phase);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -427,6 +431,24 @@ function OptionsOverlay({ onClose }: { onClose: () => void }) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
+
+  const handleReturnToMenu = useCallback(async () => {
+    onClose();
+    const activeSaveId = useMenuStore.getState().activeSaveId;
+    if (activeSaveId) {
+      if (phase === GamePhase.GAME_OVER || phase === GamePhase.VICTORY) {
+        await deleteSlot(activeSaveId);
+      } else {
+        // Autosave the current state before leaving.
+        const currentState = useGameStore.getState();
+        const meta = await getSlotMeta(activeSaveId);
+        const slotName = meta?.name ?? String(currentState.turn);
+        await saveSlot({ id: activeSaveId, name: slotName, state: currentState });
+      }
+      useMenuStore.setState({ activeSaveId: null });
+    }
+    useMenuStore.getState().toMenu();
+  }, [onClose, phase]);
 
   return createPortal(
     <div className="hud-dev-overlay-backdrop" onClick={onClose}>
@@ -462,6 +484,14 @@ function OptionsOverlay({ onClose }: { onClose: () => void }) {
               {muted ? '🔇' : '🔊'}
             </button>
           </div>
+          <hr className="hud-options-separator" />
+          <button
+            className="hud-menu-item hud-menu-item--danger"
+            onClick={handleReturnToMenu}
+            title="Save and return to the main menu"
+          >
+            🏠 Main Menu
+          </button>
         </div>
       </div>
     </div>,
@@ -3024,9 +3054,9 @@ function EndGameStats({ stats }: { stats: GameStats }) {
 function GameOverOverlay() {
   const turn = useGameStore((s) => s.turn);
   const gameStats = useGameStore((s) => s.gameStats);
-  const initNewGame = useGameStore((s) => s.initNewGame);
-  const difficulty = useGameStore((s) => s.difficulty);
+  const discardFinishedGame = useGameStore((s) => s.discardFinishedGame);
   const gameOverCause = useGameStore((s) => s.gameOverCause ?? null);
+  const activeSaveId = useMenuStore((s) => s.activeSaveId);
 
   const causeText =
     gameOverCause === 'LAVA'
@@ -3035,6 +3065,30 @@ function GameOverOverlay() {
       ? 'The last Stronghold fell to the Volcael.'
       : null;
 
+  const handleNewGame = useCallback(async () => {
+    await discardFinishedGame();
+    useMenuStore.setState({ panel: 'NEW', screen: 'MENU', navDir: 'forward', activeSaveId: null });
+  }, [discardFinishedGame]);
+
+  const handleMainMenu = useCallback(async () => {
+    await discardFinishedGame();
+    useMenuStore.getState().toMenu();
+  }, [discardFinishedGame]);
+
+  const handleExport = useCallback(async () => {
+    if (!activeSaveId) return;
+    const blob = await exportSlot(activeSaveId);
+    if (!blob) return;
+    const meta = await getSlotMeta(activeSaveId);
+    const safeName = (meta?.name ?? 'save').replace(/[^\w\s\-().]/g, '_').trim() || 'save';
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${safeName}${SAVE.EXPORT_FILE_EXT}`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [activeSaveId]);
+
   return (
     <div className="hud-overlay">
       <div className="hud-overlay-box">
@@ -3042,8 +3096,16 @@ function GameOverOverlay() {
         <p className="hud-overlay-sub">You survived {turn} turns</p>
         {causeText && <p className="hud-overlay-cause">{causeText}</p>}
         <EndGameStats stats={gameStats} />
-        <button className="hud-play-again-btn" onClick={() => initNewGame(difficulty)}>
-          🔄 Play Again
+        {activeSaveId && (
+          <button className="hud-play-again-btn" onClick={handleExport}>
+            📤 Export Run
+          </button>
+        )}
+        <button className="hud-play-again-btn" onClick={handleNewGame}>
+          🔄 New Game
+        </button>
+        <button className="hud-play-again-btn" onClick={handleMainMenu}>
+          🏠 Main Menu
         </button>
       </div>
     </div>
@@ -3053,8 +3115,32 @@ function GameOverOverlay() {
 function VictoryOverlay() {
   const turn = useGameStore((s) => s.turn);
   const gameStats = useGameStore((s) => s.gameStats);
-  const initNewGame = useGameStore((s) => s.initNewGame);
-  const difficulty = useGameStore((s) => s.difficulty);
+  const discardFinishedGame = useGameStore((s) => s.discardFinishedGame);
+  const activeSaveId = useMenuStore((s) => s.activeSaveId);
+
+  const handleNewGame = useCallback(async () => {
+    await discardFinishedGame();
+    useMenuStore.setState({ panel: 'NEW', screen: 'MENU', navDir: 'forward', activeSaveId: null });
+  }, [discardFinishedGame]);
+
+  const handleMainMenu = useCallback(async () => {
+    await discardFinishedGame();
+    useMenuStore.getState().toMenu();
+  }, [discardFinishedGame]);
+
+  const handleExport = useCallback(async () => {
+    if (!activeSaveId) return;
+    const blob = await exportSlot(activeSaveId);
+    if (!blob) return;
+    const meta = await getSlotMeta(activeSaveId);
+    const safeName = (meta?.name ?? 'save').replace(/[^\w\s\-().]/g, '_').trim() || 'save';
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${safeName}${SAVE.EXPORT_FILE_EXT}`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [activeSaveId]);
 
   return (
     <div className="hud-overlay">
@@ -3062,8 +3148,16 @@ function VictoryOverlay() {
         <h1 className="hud-overlay-title hud-victory">🏆 VICTORY</h1>
         <p className="hud-overlay-sub">Completed in {turn} turns</p>
         <EndGameStats stats={gameStats} />
-        <button className="hud-play-again-btn" onClick={() => initNewGame(difficulty)}>
-          🔄 Play Again
+        {activeSaveId && (
+          <button className="hud-play-again-btn" onClick={handleExport}>
+            📤 Export Run
+          </button>
+        )}
+        <button className="hud-play-again-btn" onClick={handleNewGame}>
+          🔄 New Game
+        </button>
+        <button className="hud-play-again-btn" onClick={handleMainMenu}>
+          🏠 Main Menu
         </button>
       </div>
     </div>

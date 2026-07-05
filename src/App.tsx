@@ -1,5 +1,6 @@
 import { useEffect, useCallback, useState, useRef } from 'react'
 import { useGameStore } from './gameStore'
+import { useMenuStore } from './menuStore'
 import { useAnimationEngine } from './useAnimationEngine'
 import { useMusicPlayer } from './useMusicPlayer'
 import { preloadAssets } from './assetLoader'
@@ -7,6 +8,7 @@ import { GamePhase } from './types'
 import { UI } from './uiConfig'
 import GridRenderer from './components/GridRenderer'
 import HUD from './components/HUD'
+import MainMenu from './components/MainMenu'
 import './App.css'
 
 /**
@@ -36,11 +38,10 @@ function useA2HS(): { canInstall: boolean; promptInstall: () => void } {
   return { canInstall, promptInstall };
 }
 
-function App() {
-  const initGame = useGameStore((s) => s.initGame)
-  const phase = useGameStore((s) => s.phase)
-  const turn = useGameStore((s) => s.turn)
-  const { canInstall, promptInstall } = useA2HS();
+/** The in-game view: grid, HUD, music, animation engine, turn popup. */
+function Game({ canInstall, promptInstall }: { canInstall: boolean; promptInstall: () => void }) {
+  const phase = useGameStore((s) => s.phase);
+  const turn = useGameStore((s) => s.turn);
   const [showTurnPopup, setShowTurnPopup] = useState(false);
   const [assetsReady, setAssetsReady] = useState(false);
 
@@ -54,18 +55,11 @@ function App() {
     preloadAssets().then(() => setAssetsReady(true));
   }, []);
 
-  useEffect(() => {
-    initGame()
-  }, [initGame])
-
   const lastAnnouncedTurnRef = useRef(0);
 
   useEffect(() => {
     if (phase === GamePhase.PLAYER_TURN && turn > 1 && turn !== lastAnnouncedTurnRef.current) {
       lastAnnouncedTurnRef.current = turn;
-      // setTimeout(0) defers the setState call out of the effect body,
-      // satisfying the react-hooks/set-state-in-effect lint rule while
-      // still triggering the popup as soon as possible.
       const showTimer = setTimeout(() => setShowTurnPopup(true), 0);
       const hideTimer = setTimeout(
         () => setShowTurnPopup(false),
@@ -96,7 +90,16 @@ function App() {
         <span className="loading-text">Volcanae - Loading...</span>
       )}
     </div>
-  )
+  );
+}
+
+function App() {
+  const screen = useMenuStore((s) => s.screen);
+  const { canInstall, promptInstall } = useA2HS();
+
+  return screen === 'MENU'
+    ? <MainMenu canInstall={canInstall} promptInstall={promptInstall} />
+    : <Game canInstall={canInstall} promptInstall={promptInstall} />;
 }
 
 export default App

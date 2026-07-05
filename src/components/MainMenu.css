@@ -1,0 +1,511 @@
+/* ============================================================================
+ * Main Menu styles for Volcanae
+ * All visual constants live here as CSS custom properties.
+ * Colors, sizes, timings — no literals in the TSX component.
+ * ============================================================================ */
+
+/* ── Custom Properties ─────────────────────────────────────────────────────── */
+:root {
+  --mm-bg: radial-gradient(ellipse at center, #3a0a0a 0%, #0d0000 100%);
+  /* To enable a background image, uncomment the line below and comment out the gradient above: */
+  /* --mm-bg: url('/assets/menu_bg.png'); */
+
+  --mm-accent: #ff4444;
+  --mm-accent-dim: #cc2222;
+  --mm-accent-hover: #ff6666;
+  --mm-text: #f5e6d0;
+  --mm-text-muted: #9a8070;
+  --mm-text-dim: #c5b090;
+  --mm-panel-bg: rgba(10, 0, 0, 0.82);
+  --mm-panel-border: rgba(255, 68, 68, 0.3);
+  --mm-btn-bg: rgba(40, 5, 5, 0.7);
+  --mm-btn-border: rgba(255, 68, 68, 0.4);
+  --mm-btn-hover-bg: rgba(80, 10, 10, 0.9);
+  --mm-btn-hover-border: #ff4444;
+  --mm-btn-active-bg: rgba(120, 20, 20, 0.95);
+  --mm-btn-disabled-bg: rgba(20, 5, 5, 0.5);
+  --mm-btn-disabled-text: #5a4040;
+  --mm-btn-min-height: 52px;
+  --mm-btn-font-size: 1.05rem;
+  --mm-panel-width: min(420px, 92vw);
+  --mm-panel-radius: 10px;
+  --mm-panel-padding: 1.5rem 1.75rem;
+  --mm-gap: 0.75rem;
+  --mm-input-bg: rgba(20, 5, 5, 0.8);
+  --mm-input-border: rgba(255, 68, 68, 0.5);
+  --mm-input-focus-border: #ff4444;
+  --mm-notice-bg: rgba(180, 30, 30, 0.18);
+  --mm-notice-border: rgba(255, 68, 68, 0.4);
+  --mm-row-bg: rgba(30, 5, 5, 0.6);
+  --mm-row-border: rgba(255, 68, 68, 0.2);
+  --mm-row-hover-bg: rgba(60, 10, 10, 0.85);
+  --mm-row-disabled-text: #5a4040;
+  --mm-separator-color: rgba(255, 68, 68, 0.25);
+  --mm-enter-duration: 220ms;
+  --mm-enter-easing: ease-out;
+  --mm-overlay-z: 200;
+}
+
+/* ── Stage ─────────────────────────────────────────────────────────────────── */
+.mm-stage {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--mm-bg);
+  background-size: cover;
+  background-position: center;
+  z-index: var(--mm-overlay-z);
+  padding:
+    env(safe-area-inset-top, 0)
+    env(safe-area-inset-right, 0)
+    env(safe-area-inset-bottom, 0)
+    env(safe-area-inset-left, 0);
+  overflow: hidden;
+}
+
+/* Darkening scrim over the background image */
+.mm-stage::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+
+/* ── Panel wrapper ─────────────────────────────────────────────────────────── */
+.mm-panel-wrapper {
+  position: relative;
+  z-index: 1;
+  width: var(--mm-panel-width);
+}
+
+/* ── Panels ────────────────────────────────────────────────────────────────── */
+.mm-panel {
+  background: var(--mm-panel-bg);
+  border: 1px solid var(--mm-panel-border);
+  border-radius: var(--mm-panel-radius);
+  padding: var(--mm-panel-padding);
+  display: flex;
+  flex-direction: column;
+  gap: var(--mm-gap);
+  /* animation is applied via data-dir attribute */
+}
+
+.mm-panel[data-dir='forward'] {
+  animation: mm-enter-right var(--mm-enter-duration) var(--mm-enter-easing) both;
+}
+
+.mm-panel[data-dir='back'] {
+  animation: mm-enter-left var(--mm-enter-duration) var(--mm-enter-easing) both;
+}
+
+@keyframes mm-enter-right {
+  from { opacity: 0; transform: translateX(32px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes mm-enter-left {
+  from { opacity: 0; transform: translateX(-32px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ── Panel header ──────────────────────────────────────────────────────────── */
+.mm-panel-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--mm-accent);
+  margin: 0 0 0.25rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* ── Buttons ───────────────────────────────────────────────────────────────── */
+.mm-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: var(--mm-btn-min-height);
+  padding: 0.6rem 1rem;
+  background: var(--mm-btn-bg);
+  border: 1px solid var(--mm-btn-border);
+  border-radius: 6px;
+  color: var(--mm-text);
+  font-size: var(--mm-btn-font-size);
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: background 0.12s, border-color 0.12s;
+  touch-action: manipulation;
+}
+
+.mm-btn:hover:not(:disabled) {
+  background: var(--mm-btn-hover-bg);
+  border-color: var(--mm-btn-hover-border);
+}
+
+.mm-btn:active:not(:disabled) {
+  background: var(--mm-btn-active-bg);
+}
+
+.mm-btn:disabled {
+  background: var(--mm-btn-disabled-bg);
+  color: var(--mm-btn-disabled-text);
+  border-color: rgba(255, 68, 68, 0.15);
+  cursor: not-allowed;
+}
+
+.mm-btn--back {
+  background: transparent;
+  border-color: var(--mm-separator-color);
+  color: var(--mm-text-muted);
+  font-size: 0.95rem;
+}
+
+.mm-btn--back:hover:not(:disabled) {
+  background: rgba(255, 68, 68, 0.08);
+  border-color: rgba(255, 68, 68, 0.35);
+  color: var(--mm-text);
+}
+
+.mm-btn--danger {
+  color: var(--mm-accent);
+  border-color: rgba(255, 68, 68, 0.45);
+}
+
+.mm-btn--danger:hover:not(:disabled) {
+  background: rgba(180, 20, 20, 0.5);
+  border-color: var(--mm-accent);
+}
+
+/* ── Separator ─────────────────────────────────────────────────────────────── */
+.mm-separator {
+  border: none;
+  border-top: 1px solid var(--mm-separator-color);
+  margin: 0.25rem 0;
+}
+
+/* ── Notice / alert ────────────────────────────────────────────────────────── */
+.mm-notice {
+  background: var(--mm-notice-bg);
+  border: 1px solid var(--mm-notice-border);
+  border-radius: 6px;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.88rem;
+  color: var(--mm-text-dim);
+  line-height: 1.4;
+}
+
+.mm-notice--error {
+  color: var(--mm-accent-hover);
+  border-color: var(--mm-accent);
+}
+
+/* ── NEW panel ─────────────────────────────────────────────────────────────── */
+.mm-field-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--mm-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.2rem;
+}
+
+.mm-name-input {
+  width: 100%;
+  padding: 0.55rem 0.75rem;
+  background: var(--mm-input-bg);
+  border: 1px solid var(--mm-input-border);
+  border-radius: 6px;
+  color: var(--mm-text);
+  font-size: 1rem;
+  box-sizing: border-box;
+  outline: none;
+}
+
+.mm-name-input:focus {
+  border-color: var(--mm-input-focus-border);
+}
+
+.mm-name-input::placeholder {
+  color: var(--mm-text-muted);
+}
+
+.mm-difficulty-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mm-difficulty-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: var(--mm-btn-min-height);
+  padding: 0.6rem 0.9rem;
+  background: var(--mm-btn-bg);
+  border: 1px solid var(--mm-btn-border);
+  border-radius: 6px;
+  color: var(--mm-text);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: background 0.12s, border-color 0.12s;
+  touch-action: manipulation;
+}
+
+.mm-difficulty-btn:hover {
+  background: var(--mm-btn-hover-bg);
+  border-color: var(--mm-btn-hover-border);
+}
+
+.mm-difficulty-btn--active {
+  border-color: var(--mm-accent);
+  background: rgba(80, 10, 10, 0.85);
+}
+
+.mm-difficulty-btn-label {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.mm-difficulty-btn-desc {
+  font-size: 0.78rem;
+  color: var(--mm-text-muted);
+  margin-top: 0.15rem;
+}
+
+.mm-coming-soon-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.9rem;
+  background: var(--mm-btn-disabled-bg);
+  border: 1px dashed rgba(255, 68, 68, 0.2);
+  border-radius: 6px;
+  color: var(--mm-btn-disabled-text);
+  font-size: 0.92rem;
+  font-style: italic;
+}
+
+/* ── LOAD panel ────────────────────────────────────────────────────────────── */
+.mm-load-empty {
+  text-align: center;
+  color: var(--mm-text-muted);
+  font-style: italic;
+  padding: 1.5rem 0;
+  font-size: 0.9rem;
+}
+
+.mm-slot-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mm-slot-row {
+  background: var(--mm-row-bg);
+  border: 1px solid var(--mm-row-border);
+  border-radius: 6px;
+  padding: 0.6rem 0.8rem;
+  transition: background 0.1s;
+}
+
+.mm-slot-row:hover {
+  background: var(--mm-row-hover-bg);
+}
+
+.mm-slot-row--incompatible {
+  opacity: 0.55;
+  border-color: rgba(255, 68, 68, 0.15);
+}
+
+.mm-slot-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--mm-text);
+  margin-bottom: 0.15rem;
+}
+
+.mm-slot-meta {
+  font-size: 0.78rem;
+  color: var(--mm-text-muted);
+  margin-bottom: 0.35rem;
+}
+
+.mm-slot-badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  background: rgba(180, 30, 30, 0.35);
+  border: 1px solid rgba(255, 68, 68, 0.4);
+  border-radius: 4px;
+  padding: 0.1rem 0.35rem;
+  color: var(--mm-accent-hover);
+  margin-left: 0.4rem;
+}
+
+.mm-slot-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.mm-slot-btn {
+  padding: 0.3rem 0.65rem;
+  background: var(--mm-btn-bg);
+  border: 1px solid var(--mm-btn-border);
+  border-radius: 5px;
+  color: var(--mm-text);
+  font-size: 0.8rem;
+  cursor: pointer;
+  min-height: 34px;
+  touch-action: manipulation;
+  transition: background 0.1s;
+}
+
+.mm-slot-btn:hover:not(:disabled) {
+  background: var(--mm-btn-hover-bg);
+  border-color: var(--mm-btn-hover-border);
+}
+
+.mm-slot-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.mm-slot-btn--danger {
+  color: var(--mm-accent);
+  border-color: rgba(255, 68, 68, 0.45);
+}
+
+.mm-slot-btn--danger:hover:not(:disabled) {
+  background: rgba(180, 20, 20, 0.5);
+}
+
+.mm-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.25rem 0;
+  font-size: 0.85rem;
+  color: var(--mm-text-muted);
+}
+
+.mm-page-btn {
+  padding: 0.25rem 0.65rem;
+  background: var(--mm-btn-bg);
+  border: 1px solid var(--mm-btn-border);
+  border-radius: 5px;
+  color: var(--mm-text);
+  font-size: 0.82rem;
+  cursor: pointer;
+  min-height: 32px;
+  touch-action: manipulation;
+}
+
+.mm-page-btn:hover:not(:disabled) {
+  background: var(--mm-btn-hover-bg);
+}
+
+.mm-page-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.mm-import-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* ── OPTIONS panel ─────────────────────────────────────────────────────────── */
+.mm-options-section-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--mm-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-top: 0.25rem;
+}
+
+.mm-options-volume-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.mm-options-volume-label {
+  font-size: 0.9rem;
+  color: var(--mm-text);
+  white-space: nowrap;
+}
+
+.mm-options-volume-slider {
+  flex: 1;
+  accent-color: var(--mm-accent);
+}
+
+.mm-options-mute-btn {
+  padding: 0.3rem 0.6rem;
+  background: var(--mm-btn-bg);
+  border: 1px solid var(--mm-btn-border);
+  border-radius: 5px;
+  color: var(--mm-text);
+  font-size: 1rem;
+  cursor: pointer;
+  min-height: 36px;
+  min-width: 36px;
+  touch-action: manipulation;
+}
+
+.mm-options-mute-btn--muted {
+  color: var(--mm-text-muted);
+  border-color: rgba(255, 68, 68, 0.2);
+}
+
+.mm-options-storage-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+  color: var(--mm-text-dim);
+}
+
+.mm-options-storage-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.mm-options-persist-btn {
+  padding: 0.3rem 0.65rem;
+  background: var(--mm-btn-bg);
+  border: 1px solid var(--mm-btn-border);
+  border-radius: 5px;
+  color: var(--mm-text);
+  font-size: 0.8rem;
+  cursor: pointer;
+  min-height: 34px;
+  touch-action: manipulation;
+}
+
+.mm-options-persist-btn:hover {
+  background: var(--mm-btn-hover-bg);
+  border-color: var(--mm-btn-hover-border);
+}
+
+.mm-options-a2hs-note {
+  font-size: 0.8rem;
+  color: var(--mm-text-muted);
+  font-style: italic;
+}
+
+.mm-options-usage {
+  font-size: 0.82rem;
+  color: var(--mm-text-muted);
+}

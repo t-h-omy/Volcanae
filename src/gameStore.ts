@@ -47,7 +47,8 @@ import type { GameEvent } from './gameEvents';
 import { MAP, TERRAIN, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval, UNIT_DEFINITIONS, MAGE, TUNNEL_EMERGE_DAMAGE } from './gameConfig';
 import { RENDER } from './renderConfig';
 import { ANIMATION } from './animationConfig';
-import { saveGameState, loadGameState, clearSavedGame, hasSavedGame } from './saveSystem';
+import { saveSlot, loadSlot, listSlots, deleteSlot, getSlotMeta } from './saveSystem';
+import { useMenuStore } from './menuStore';
 import { computeLevelFromXp, applyLevelUps } from './levelSystem';
 import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLogic, getGrantedTags, getRemovedTags, getStatMods, applyTagStatEffects, revokeTagStatEffects } from './techSystem';
 import { canUnitHeal, getHealTargets, canUnitFieldwork, isHealSuppressedByCorruption } from './unitActions';
@@ -70,10 +71,18 @@ import { canUnitBuildBridge, getBridgeBuildTargets } from './unitActions';
 // ============================================================================
 
 interface GameActions {
-  /** Initialize a new game by generating initial state */
+  /** Initialize a new game by generating initial state (legacy no-op; use newGameInSlot) */
   initGame: () => void;
   /** Start a fresh new game with the given difficulty, clearing any existing save */
   initNewGame: (difficulty: Difficulty) => void;
+  /** Create a new named game slot and enter the game */
+  newGameInSlot: (name: string, difficulty: Difficulty) => Promise<void>;
+  /** Continue the newest existing save slot */
+  continueGame: () => Promise<void>;
+  /** Load a specific save slot by id and enter the game */
+  loadIntoGame: (id: string) => Promise<void>;
+  /** Delete the finished game's slot (GAME_OVER or VICTORY only), then clear activeSaveId */
+  discardFinishedGame: () => Promise<void>;
   /** Select a unit by ID */
   selectUnit: (unitId: string) => void;
   /** Select a building by ID */
@@ -136,13 +145,13 @@ interface GameActions {
   activateCrystalCave: (caveId: string) => void;
   /** Replace the entire game state (used by animation engine to apply resolved state) */
   setGameState: (newState: GameState) => void;
-  /** Manually save the current game state to localStorage */
+  /** Manually save the current game state to the active IDB slot */
   saveGame: () => void;
-  /** Load the saved game state from localStorage (no-op if none exists) */
+  /** Load the saved game state (no-op; use loadIntoGame instead) */
   loadGame: () => void;
-  /** Delete the saved game from localStorage */
+  /** No-op (legacy); slots are managed via deleteSlot from saveSystem */
   clearSavedGame: () => void;
-  /** Return true when a save is present in localStorage */
+  /** No-op (legacy); use listSlots/slotCount from saveSystem */
   hasSavedGame: () => boolean;
 
   // ── Debug actions (development only) ──
@@ -340,34 +349,65 @@ export const useGameStore = create<GameStore>()(
     // ========================================================================
 
     initGame: () => {
-      // Attempt to restore a previously autosaved game; fall back to a fresh game.
-      const saved = loadGameState();
-      const stateToLoad = saved ?? generateInitialGameState();
-
-      set((state) => {
-        Object.assign(state, stateToLoad);
-        if (!saved) {
-          // Update tile discovery only for a fresh game (saved games already have it)
-          updateDiscovery(state);
-        }
-        // Re-apply specialist effects so that any assigned, non-dormant specialists
-        // have their effects active on existing units (handles saves where effects
-        // were missing or stale before the migration re-synced them).
-        applySpecialistEffects(state);
-      });
-
-      syncCameraToPlayerStronghold(stateToLoad);
+      // Legacy no-op: cold start now lands on the main menu.
+      // Kept in the interface for backwards compatibility.
     },
 
     initNewGame: (difficulty: Difficulty) => {
-      clearSavedGame();
+      // Legacy path retained for HUD difficulty change; creates an in-memory
+      // game only (no IDB slot). Callers in the main menu should use newGameInSlot.
       const initialState = generateInitialGameState(difficulty);
       set((state) => {
         Object.assign(state, initialState);
         updateDiscovery(state);
       });
-
       syncCameraToPlayerStronghold(initialState);
+    },
+
+    newGameInSlot: async (name: string, difficulty: Difficulty) => {
+      const id = generateId('slot');
+      // Build the full initial state as a pure GameState (no Zustand action
+      // methods) using produce() so it can be safely serialized by IDB's
+      // structured-clone algorithm.  Passing useGameStore.getState() would
+      // include action functions and cause a DataCloneError, silently writing
+      // only the metadata record — making the save appear in the list but fail
+      // to load ("nothing happens on Load").
+      const initialState = produce(generateInitialGameState(difficulty), (draft) => {
+        updateDiscovery(draft);
+        applySpecialistEffects(draft);
+      });
+      set((state) => {
+        Object.assign(state, initialState);
+      });
+      syncCameraToPlayerStronghold(initialState);
+      await saveSlot({ id, name, state: initialState });
+      useMenuStore.getState().enterGame(id);
+    },
+
+    continueGame: async () => {
+      const slots = await listSlots();
+      if (slots.length === 0) return;
+      await useGameStore.getState().loadIntoGame(slots[0].id);
+    },
+
+    loadIntoGame: async (id: string) => {
+      const loaded = await loadSlot(id);
+      if (!loaded) return;
+      set((state) => {
+        Object.assign(state, loaded);
+        applySpecialistEffects(state);
+      });
+      syncCameraToPlayerStronghold(loaded);
+      useMenuStore.getState().enterGame(id);
+    },
+
+    discardFinishedGame: async () => {
+      const { phase } = useGameStore.getState();
+      const activeSaveId = useMenuStore.getState().activeSaveId;
+      if (!activeSaveId) return;
+      if (phase !== GamePhase.GAME_OVER && phase !== GamePhase.VICTORY) return;
+      await deleteSlot(activeSaveId);
+      useMenuStore.setState({ activeSaveId: null });
     },
 
     selectUnit: (unitId: string) => {
@@ -1675,6 +1715,11 @@ export const useGameStore = create<GameStore>()(
       // overwritten by the outer draft committing phase=ENEMY_TURN.
       let pendingEvents: GameEvent[] | null = null;
       let pendingResolvedState: GameState | null = null;
+      // When there are no events to animate the final computedState is applied
+      // directly inside the set() callback.  We capture it here so the autosave
+      // below can pass the pure GameState (not useGameStore.getState() which
+      // includes Zustand action methods and would throw DataCloneError in IDB).
+      let pendingStateForSave: GameState | null = null;
 
       set((state) => {
         // Auto-deselect when the player ends their turn — no unit, building,
@@ -1711,6 +1756,7 @@ export const useGameStore = create<GameStore>()(
             state.phase = GamePhase.ENEMY_TURN;
           } else {
             Object.assign(state, computedState);
+            pendingStateForSave = computedState;
           }
           return;
         }
@@ -1747,6 +1793,7 @@ export const useGameStore = create<GameStore>()(
             state.phase = GamePhase.ENEMY_TURN;
           } else {
             Object.assign(state, computedState);
+            pendingStateForSave = computedState;
           }
           return;
         }
@@ -2003,6 +2050,7 @@ export const useGameStore = create<GameStore>()(
         } else {
           // No events to animate — apply final state directly
           Object.assign(state, computedState);
+          pendingStateForSave = computedState;
         }
       });
 
@@ -2015,13 +2063,25 @@ export const useGameStore = create<GameStore>()(
         // Autosave when the new player turn has started, or when the game ends
         // so that on reload the game-over/victory overlay is shown rather than
         // rewinding to the last living turn.
-        const currentState = useGameStore.getState();
-        if (
-          currentState.phase === GamePhase.PLAYER_TURN ||
-          currentState.phase === GamePhase.GAME_OVER ||
-          currentState.phase === GamePhase.VICTORY
-        ) {
-          saveGameState(currentState);
+        // Use pendingStateForSave (the pure GameState from produce) rather than
+        // useGameStore.getState() which includes Zustand action methods and would
+        // throw a DataCloneError when IDB tries to structured-clone the record.
+        if (pendingStateForSave !== null) {
+          const stateForSave = pendingStateForSave as GameState;
+          if (
+            stateForSave.phase === GamePhase.PLAYER_TURN ||
+            stateForSave.phase === GamePhase.GAME_OVER ||
+            stateForSave.phase === GamePhase.VICTORY
+          ) {
+            const activeSaveId = useMenuStore.getState().activeSaveId;
+            if (activeSaveId) {
+              // Fire-and-forget autosave — failures must not crash the game.
+              getSlotMeta(activeSaveId).then((meta) => {
+                const slotName = meta?.name ?? stateForSave.turn.toString();
+                saveSlot({ id: activeSaveId, name: slotName, state: stateForSave }).catch(() => undefined);
+              }).catch(() => undefined);
+            }
+          }
         }
       }
     },
@@ -2950,29 +3010,45 @@ export const useGameStore = create<GameStore>()(
         newState.phase === GamePhase.GAME_OVER ||
         newState.phase === GamePhase.VICTORY
       ) {
-        saveGameState(newState);
+        const activeSaveId = useMenuStore.getState().activeSaveId;
+        if (activeSaveId) {
+          getSlotMeta(activeSaveId).then((meta) => {
+            const slotName = meta?.name ?? newState.turn.toString();
+            saveSlot({ id: activeSaveId, name: slotName, state: newState }).catch(() => undefined);
+          }).catch(() => undefined);
+        }
       }
     },
 
     saveGame: () => {
-      saveGameState(useGameStore.getState());
+      const fullStore = useGameStore.getState();
+      // Strip Zustand action methods by keeping only non-function properties.
+      // useGameStore.getState() returns GameState + GameActions; IDB's structured-
+      // clone algorithm throws DataCloneError on functions, which would silently
+      // commit only the metadata record and leave the save unloadable.
+      const stateSnapshot = Object.fromEntries(
+        Object.entries(fullStore).filter(([, v]) => typeof v !== 'function'),
+      ) as GameState;
+      const activeSaveId = useMenuStore.getState().activeSaveId;
+      if (activeSaveId) {
+        getSlotMeta(activeSaveId).then((meta) => {
+          const slotName = meta?.name ?? stateSnapshot.turn.toString();
+          saveSlot({ id: activeSaveId, name: slotName, state: stateSnapshot }).catch(() => undefined);
+        }).catch(() => undefined);
+      }
     },
 
     loadGame: () => {
-      const saved = loadGameState();
-      if (!saved) return;
-      set((state) => {
-        Object.assign(state, saved);
-      });
-      syncCameraToPlayerStronghold(saved);
+      // Legacy no-op — use loadIntoGame(id) instead.
     },
 
     clearSavedGame: () => {
-      clearSavedGame();
+      // Legacy no-op — use deleteSlot(id) from saveSystem instead.
     },
 
     hasSavedGame: () => {
-      return hasSavedGame();
+      // Legacy no-op — use slotCount() from saveSystem instead.
+      return false;
     },
 
     // ========================================================================

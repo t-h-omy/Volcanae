@@ -14,6 +14,9 @@ export const MUSIC_TRACKS: readonly string[] = [
   'Game Track 4 - Defiant Frontier.mp3',
 ] as const;
 
+/** Dedicated menu theme. Served from public/music/. Not shuffled into the game playlist. */
+export const MENU_TRACK = 'Menu Theme - Dreams of Tomorrow.mp3';
+
 /**
  * Produce a Fisher-Yates shuffle of the given array.
  * If `avoidFirst` is supplied the resulting shuffle will not start with that
