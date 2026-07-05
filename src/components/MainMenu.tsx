@@ -38,9 +38,9 @@ const DIFFICULTY_LABEL: Record<Difficulty, string> = {
 };
 
 const DIFFICULTY_DESC: Record<Difficulty, string> = {
-  [Difficulty.EASY]: 'Gentler heat. Reduced enemy pressure and generous yields — good for learning the front.',
-  [Difficulty.STANDARD]: 'Balanced heat. Enemy pressure and resource yields as designed — the intended way to play.',
-  [Difficulty.HARD]: 'Relentless. Aggressive enemies and lean resources — every push has to count.',
+  [Difficulty.EASY]: 'Gentler heat. Reduced enemy pressure and slower lava advancement — good for learning the front.',
+  [Difficulty.STANDARD]: 'Balanced heat. Enemy pressure and lava advancement as designed — the intended way to play.',
+  [Difficulty.HARD]: 'Relentless. Aggressive enemies and quicker lava advancement — every push has to count.',
 };
 
 function getBaseAssetUrl(path: string): string {
@@ -183,15 +183,6 @@ function IconTrash() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path d="M5 7h14M9 7V5h6v2m-8 0l1 12h8l1-12" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function IconShield() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <path d="M12 3l7 3v6c0 4.2-2.9 7.3-7 9-4.1-1.7-7-4.8-7-9V6l7-3Z"
-        stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -688,25 +679,27 @@ function LoadPanel() {
 // OPTIONS PANEL
 // ============================================================================
 
-function OptionsPanel({ canInstall, promptInstall }: { canInstall: boolean; promptInstall: () => void }) {
+function OptionsPanel({
+  canInstall,
+  isInstalled,
+  promptInstall,
+}: {
+  canInstall: boolean;
+  isInstalled: boolean;
+  promptInstall: () => void;
+}) {
   const goPanel = useMenuStore((s) => s.goPanel);
   const navDir = useMenuStore((s) => s.navDir);
   const volume = useSoundOptionsStore((s) => s.volume);
+  const muted = useSoundOptionsStore((s) => s.muted);
   const setVolume = useSoundOptionsStore((s) => s.setVolume);
+  const setMuted = useSoundOptionsStore((s) => s.setMuted);
   const [persisted, setPersisted] = useState<boolean | null>(null);
   const [usage, setUsage] = useState<{ usage: number; quota: number } | null>(null);
-  const [requesting, setRequesting] = useState(false);
 
   useEffect(() => {
     isPersisted().then(setPersisted);
     estimateUsage().then(setUsage);
-  }, []);
-
-  const handleRequestPersist = useCallback(async () => {
-    setRequesting(true);
-    const result = await requestPersist();
-    setPersisted(result);
-    setRequesting(false);
   }, []);
 
   const pct = Math.round(volume * 100);
@@ -734,7 +727,10 @@ function OptionsPanel({ canInstall, promptInstall }: { canInstall: boolean; prom
               max={1}
               step={0.01}
               value={volume}
-              onChange={(e) => setVolume(parseFloat(e.target.value))}
+              onChange={(e) => {
+                setVolume(parseFloat(e.target.value));
+                if (muted) setMuted(false);
+              }}
               aria-label="Music volume"
             />
           </div>
@@ -753,7 +749,10 @@ function OptionsPanel({ canInstall, promptInstall }: { canInstall: boolean; prom
               max={1}
               step={0.01}
               value={volume}
-              onChange={(e) => setVolume(parseFloat(e.target.value))}
+              onChange={(e) => {
+                setVolume(parseFloat(e.target.value));
+                if (muted) setMuted(false);
+              }}
               aria-label="Sound FX volume"
             />
           </div>
@@ -780,25 +779,16 @@ function OptionsPanel({ canInstall, promptInstall }: { canInstall: boolean; prom
               </div>
             </div>
 
-            <button
-              className="mm-btn-request-persist"
-              onClick={handleRequestPersist}
-              disabled={!!persisted || requesting}
-            >
-              <span className="mm-storage-icon"><IconShield /></span>
-              {requesting ? 'Requesting…' : 'Request durable storage'}
-            </button>
-
             <div className="mm-a2hs-note">
               Installing the app to your home screen improves save durability.
-              {canInstall && (
-                <>
-                  {' '}
-                  <button className="mm-btn-install" onClick={promptInstall}>
-                    Install App
-                  </button>
-                </>
-              )}
+              <br />
+              <button
+                className="mm-btn-install"
+                onClick={promptInstall}
+                disabled={isInstalled || !canInstall}
+              >
+                Install App
+              </button>
             </div>
           </div>
         </div>
@@ -811,7 +801,15 @@ function OptionsPanel({ canInstall, promptInstall }: { canInstall: boolean; prom
 // MAIN MENU
 // ============================================================================
 
-export default function MainMenu({ canInstall, promptInstall }: { canInstall: boolean; promptInstall: () => void }) {
+export default function MainMenu({
+  canInstall,
+  isInstalled,
+  promptInstall,
+}: {
+  canInstall: boolean;
+  isInstalled: boolean;
+  promptInstall: () => void;
+}) {
   const panel = useMenuStore((s) => s.panel);
   const navDir = useMenuStore((s) => s.navDir);
   const [hasSave, setHasSave] = useState(false);
@@ -870,7 +868,14 @@ export default function MainMenu({ canInstall, promptInstall }: { canInstall: bo
       {/* Sub-panel overlays */}
       {panel === 'NEW' && <NewPanel key={`NEW-${navDir}`} />}
       {panel === 'LOAD' && <LoadPanel key={`LOAD-${navDir}`} />}
-      {panel === 'OPTIONS' && <OptionsPanel key={`OPTIONS-${navDir}`} canInstall={canInstall} promptInstall={promptInstall} />}
+      {panel === 'OPTIONS' && (
+        <OptionsPanel
+          key={`OPTIONS-${navDir}`}
+          canInstall={canInstall}
+          isInstalled={isInstalled}
+          promptInstall={promptInstall}
+        />
+      )}
     </div>
   );
 }

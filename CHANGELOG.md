@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Main menu iterations (v0.93.3)
+
+- Main menu options volume sliders now clear mute state when adjusted, so menu music responds immediately after returning from a muted in-game session.
+- Options no longer expose a manual durable-storage request; the install-app button is always shown in the storage note and is disabled once the PWA is already installed.
+- Difficulty descriptions now describe lava pace instead of resource yields.
+
 ### Main Menu + Multi-Slot Save System (v0.93.0)
 
 - **Main Menu**: cold start now lands on a pre-game main menu (black/red theme) instead of
