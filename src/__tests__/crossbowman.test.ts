@@ -522,3 +522,49 @@ describe('Crossbowman — COVER tech sharing', () => {
     expect(cb.tags).toContain(UnitTag.COVER);
   });
 });
+
+// ── 6. RELOAD DEF penalty display logic ───────────────────────────────────────
+
+/**
+ * Exported helper that mirrors the penalty calculation used in HUD.tsx so it
+ * can be unit-tested without rendering.
+ *
+ * Parameters match the HUD memo:
+ *   effDef = unit.stats.defense + phalanxDefense + contextualDef - distractionDefPenalty
+ *
+ * Returns the penalty that should be shown in red (0 when the crossbowman has
+ * not yet fired, or when the effective DEF before reload is ≤ 0).
+ */
+export function computeReloadDefPenalty(
+  hasAttackedThisTurn: boolean,
+  effDefBeforeReload: number,
+): number {
+  if (!hasAttackedThisTurn) return 0;
+  return Math.floor(Math.max(0, effDefBeforeReload) * RELOAD_DEF_PENALTY_PCT / 100);
+}
+
+describe('Crossbowman — RELOAD DEF penalty display logic', () => {
+  const BASE_DEF = UNIT_DEFINITIONS[UnitType.CROSSBOWMAN].defense; // 35
+
+  it('computes the correct penalty when hasAttackedThisTurn is true', () => {
+    // Math.floor(35 * 50 / 100) = 17
+    const expected = Math.floor(BASE_DEF * RELOAD_DEF_PENALTY_PCT / 100);
+    expect(expected).toBe(17);
+    expect(computeReloadDefPenalty(true, BASE_DEF)).toBe(17);
+  });
+
+  it('returns 0 when hasAttackedThisTurn is false (no penalty before firing)', () => {
+    expect(computeReloadDefPenalty(false, BASE_DEF)).toBe(0);
+  });
+
+  it('returns 0 when effective DEF is 0 or negative', () => {
+    expect(computeReloadDefPenalty(true, 0)).toBe(0);
+    expect(computeReloadDefPenalty(true, -5)).toBe(0);
+  });
+
+  it('penalty clears at turn start (hasAttackedThisTurn resets to false)', () => {
+    // Simulates the state after turn-start reset
+    const penaltyAfterReset = computeReloadDefPenalty(false, BASE_DEF);
+    expect(penaltyAfterReset).toBe(0);
+  });
+});

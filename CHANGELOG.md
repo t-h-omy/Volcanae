@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Crossbowman fixes (v0.92.1)
+
+- Crossbowman: fixed all-caps name label; Reload DEF penalty now shown in red in the unit
+  stat panel like other debuffs.
+
 ### Crossbowman unit (v0.92.0)
 
 - New player ranged unit: **Crossbowman** — armor-piercing precision shooter recruited from the

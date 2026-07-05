@@ -10,7 +10,7 @@ import { useGameStore } from '../gameStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
 import { useSoundOptionsStore } from '../soundOptionsStore';
-import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, computeResearchCost, SPELL_DEFINITIONS, TERRAIN_TAG_INFO, RAGE_ATK_PER_ADJACENT, RAGE_MAX_ADJACENT_COUNT, MAGE, CORRUPTED_SUPPRESSED_TAGS, CRYSTAL_CAVE_CONFIG, MARKET, SPECIALIST_DEFINITIONS } from '../gameConfig';
+import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, computeResearchCost, SPELL_DEFINITIONS, TERRAIN_TAG_INFO, RAGE_ATK_PER_ADJACENT, RAGE_MAX_ADJACENT_COUNT, MAGE, CORRUPTED_SUPPRESSED_TAGS, CRYSTAL_CAVE_CONFIG, MARKET, SPECIALIST_DEFINITIONS, RELOAD_DEF_PENALTY_PCT } from '../gameConfig';
 import { UI } from '../uiConfig';
 import type { UnitPopulationCost, TechId } from '../types';
 import {
@@ -73,6 +73,7 @@ const UNIT_EMOJI: Record<string, string> = {
   [UnitType.SPEARMAN]: '⚔️',
   [UnitType.SWORDSMAN]: '🗡️',
   [UnitType.ARCHER]: '🏹',
+  [UnitType.CROSSBOWMAN]: '🎯',
   [UnitType.RIDER]: '🐴',
   [UnitType.SIEGE]: '💣',
   [UnitType.SCOUT]: '🔭',
@@ -93,6 +94,7 @@ const UNIT_NAME: Record<string, string> = {
   [UnitType.SPEARMAN]: 'Spearman',
   [UnitType.SWORDSMAN]: 'Swordsman',
   [UnitType.ARCHER]: 'Archer',
+  [UnitType.CROSSBOWMAN]: 'Crossbowman',
   [UnitType.RIDER]: 'Rider',
   [UnitType.SIEGE]: 'Siege',
   [UnitType.SCOUT]: 'Scout',
@@ -1409,6 +1411,16 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
       }
     }
     if (unit.distractionDefPenalty > 0) addA('defense', -unit.distractionDefPenalty);
+    // RELOAD: after firing, DEF is reduced by RELOAD_DEF_PENALTY_PCT% until next turn.
+    // Runtime penalty (matches combat's applyReloadPenalty); surfaced so it shows in red.
+    if (unit.tags.includes(UnitTag.RELOAD) && unit.hasAttackedThisTurn) {
+      const effDefBeforeReload =
+        unit.stats.defense + phalanxDefense + contextualDef - unit.distractionDefPenalty;
+      const reloadPenalty = Math.floor(
+        Math.max(0, effDefBeforeReload) * RELOAD_DEF_PENALTY_PCT / 100,
+      );
+      if (reloadPenalty > 0) addC('defense', -reloadPenalty);
+    }
     if (phalanxAttack !== 0) addC('attack', phalanxAttack);
     if (phalanxDefense !== 0) addC('defense', phalanxDefense);
     if (contextualDef !== 0) addC('defense', contextualDef);
@@ -1461,6 +1473,14 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
     }
   }
   if (unit.distractionDefPenalty > 0) mods.push({ stat: 'DEF', value: -unit.distractionDefPenalty, kind: 'applied', source: 'Distraction arrows (permanent, from archer hits)' });
+  if (unit.tags.includes(UnitTag.RELOAD) && unit.hasAttackedThisTurn) {
+    const effDefBeforeReload =
+      unit.stats.defense + phalanxDefense + contextualDef - unit.distractionDefPenalty;
+    const reloadPenalty = Math.floor(
+      Math.max(0, effDefBeforeReload) * RELOAD_DEF_PENALTY_PCT / 100,
+    );
+    if (reloadPenalty > 0) mods.push({ stat: 'DEF', value: -reloadPenalty, kind: 'active', source: `Reload (fired this turn, -${RELOAD_DEF_PENALTY_PCT}% DEF)` });
+  }
 
   mods.sort((a, b) => {
     if (a.kind !== b.kind) return a.kind === 'active' ? -1 : 1;
