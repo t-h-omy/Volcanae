@@ -307,6 +307,7 @@ function useMenuMusic(): void {
 function RootPanel({ hasSave, newestSlot }: { hasSave: boolean; newestSlot: SaveSlotMeta | null }) {
   const goPanel = useMenuStore((s) => s.goPanel);
   const continueGame = useGameStore((s) => s.continueGame);
+  const logoSrc = `${import.meta.env.BASE_URL}assets/game_logo_transparent_1024px.png`;
 
   const continueSubtitle = newestSlot
     ? `TURN ${newestSlot.turn} · ${newestSlot.name.toUpperCase()}`
@@ -317,7 +318,7 @@ function RootPanel({ hasSave, newestSlot }: { hasSave: boolean; newestSlot: Save
       <div className="mm-logo-wrap">
         <img
           className="mm-logo"
-          src="/assets/game_logo_transparent_1024px.png"
+          src={logoSrc}
           alt="Volcanae"
         />
       </div>
@@ -368,7 +369,7 @@ function RootPanel({ hasSave, newestSlot }: { hasSave: boolean; newestSlot: Save
           </span>
         </button>
 
-        <div className="mm-version">v0.x</div>
+        <div className="mm-version">v{__APP_VERSION__}</div>
       </div>
     </>
   );
@@ -844,6 +845,10 @@ export default function MainMenu({ canInstall, promptInstall }: { canInstall: bo
         <div className="mm-mote mm-mote-b" />
         <div className="mm-mote mm-mote-c" />
         <div className="mm-mote mm-mote-d" />
+        <div className="mm-mote mm-mote-e" />
+        <div className="mm-mote mm-mote-f" />
+        <div className="mm-mote mm-mote-g" />
+        <div className="mm-mote mm-mote-h" />
       </div>
 
       {/* ROOT content (always visible behind panels) */}

@@ -191,6 +191,46 @@
   animation: mm-mote 10s linear 3.8s infinite;
 }
 
+.mm-mote-e {
+  right: 14%;
+  bottom: 15%;
+  width: 4px;
+  height: 4px;
+  background: #ffb277;
+  box-shadow: 0 0 10px #ff6c36;
+  animation: mm-mote 7.1s linear 0.5s infinite;
+}
+
+.mm-mote-f {
+  right: 25%;
+  bottom: 23%;
+  width: 3px;
+  height: 3px;
+  background: #ffc79c;
+  box-shadow: 0 0 8px #ff8b52;
+  animation: mm-mote 8.6s linear 1.9s infinite;
+}
+
+.mm-mote-g {
+  right: 37%;
+  bottom: 11%;
+  width: 5px;
+  height: 5px;
+  background: #ff8e4f;
+  box-shadow: 0 0 12px #ff5d2d;
+  animation: mm-mote 8s linear 2.9s infinite;
+}
+
+.mm-mote-h {
+  right: 20%;
+  bottom: 29%;
+  width: 2px;
+  height: 2px;
+  background: #ffe0c3;
+  box-shadow: 0 0 7px #ff9a66;
+  animation: mm-mote 9.6s linear 3.7s infinite;
+}
+
 /* ── ROOT content ──────────────────────────────────────────────────────────── */
 .mm-root-content {
   position: absolute;
@@ -232,11 +272,11 @@
   overflow: hidden;
   display: flex;
   align-items: center;
-  gap: 14px;
-  min-height: 66px;
-  padding: 0 20px;
+  gap: 12px;
+  min-height: 60px;
+  padding: 0 17px;
   border: 1px solid var(--mm-border-accent-strong);
-  border-radius: 18px;
+  border-radius: 16px;
   cursor: pointer;
   text-align: left;
   color: #eaf9ff;
@@ -256,12 +296,12 @@
 
 .mm-icon-tile-primary {
   flex: none;
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 13px;
+  border-radius: 11px;
   background: linear-gradient(150deg, var(--mm-grad-a), var(--mm-grad-b));
   box-shadow: 0 6px 16px rgba(43, 140, 255, 0.55);
   color: #06121f;
@@ -275,7 +315,7 @@
 .mm-continue-title {
   display: block;
   font-family: 'Sora', sans-serif;
-  font-size: 19px;
+  font-size: 17px;
   font-weight: 800;
   line-height: 1;
   white-space: nowrap;
@@ -284,7 +324,7 @@
 .mm-continue-subtitle {
   display: block;
   font-family: 'Space Grotesk', monospace;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   line-height: 1;
   letter-spacing: 0.06em;
@@ -305,11 +345,11 @@
 .mm-btn-secondary {
   display: flex;
   align-items: center;
-  gap: 14px;
-  min-height: 56px;
-  padding: 0 18px;
+  gap: 12px;
+  min-height: 52px;
+  padding: 0 16px;
   border: 1px solid var(--mm-border-neutral);
-  border-radius: 16px;
+  border-radius: 14px;
   cursor: pointer;
   text-align: left;
   color: var(--mm-text-2);
@@ -326,8 +366,8 @@
 
 .mm-icon-tile-secondary {
   flex: none;
-  width: 36px;
-  height: 36px;
+  width: 33px;
+  height: 33px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -340,7 +380,7 @@
 .mm-btn-secondary-label {
   flex: 1;
   font-family: 'Sora', sans-serif;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -1057,4 +1097,3 @@
   cursor: pointer;
   touch-action: manipulation;
 }
-
