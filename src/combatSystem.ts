@@ -338,6 +338,18 @@ export function buildingToCombatant(building: Building): Combatant | null {
 // ============================================================================
 
 /**
+ * Applies the RELOAD DEF penalty to an effective defense value.
+ * Returns the penalised defense if the unit has the RELOAD tag and has already
+ * attacked this turn; otherwise returns the value unchanged.
+ */
+function applyReloadPenalty(unit: Unit, effectiveDefense: number): number {
+  if (unit.tags.includes(UnitTag.RELOAD) && unit.hasAttackedThisTurn) {
+    return Math.floor(effectiveDefense * (1 - RELOAD_DEF_PENALTY_PCT / 100));
+  }
+  return effectiveDefense;
+}
+
+/**
  * Returns the total PHALANX defense bonus for a unit.
  * Counts all adjacent friendly units (Chebyshev distance 1) that carry the PHALANX tag
  * and sums ABILITIES.PHALANX_DEFENSE_BONUS_PER_CARRIER for each.
@@ -608,9 +620,7 @@ export function resolveAttack(
   }
 
   // RELOAD: a unit that has already fired this turn defends at reduced DEF until its next turn.
-  if (defender.tags.includes(UnitTag.RELOAD) && defender.hasAttackedThisTurn) {
-    defenderCombatant.defense = Math.floor(defenderCombatant.defense * (1 - RELOAD_DEF_PENALTY_PCT / 100));
-  }
+  defenderCombatant.defense = applyReloadPenalty(defender, defenderCombatant.defense);
 
   const combatResult = calculateCombatFromStats(attackerCombatant, defenderCombatant);
 
@@ -1341,9 +1351,7 @@ export function resolveBuildingAttack(
   defenderCombatant.defense += getPhalanxDefenseBonus(state, defender);
 
   // RELOAD: a unit that has already fired this turn defends at reduced DEF until its next turn.
-  if (defender.tags.includes(UnitTag.RELOAD) && defender.hasAttackedThisTurn) {
-    defenderCombatant.defense = Math.floor(defenderCombatant.defense * (1 - RELOAD_DEF_PENALTY_PCT / 100));
-  }
+  defenderCombatant.defense = applyReloadPenalty(defender, defenderCombatant.defense);
 
   const combatResult = calculateCombatFromStats(buildingCombatant, defenderCombatant);
 
