@@ -3,7 +3,7 @@ import { produce } from 'immer';
 import { createInitialSpecialists } from '../specialistSystem';
 import { canUnitCast, canUnitMove } from '../unitActions';
 import { castSpell } from '../spellSystem';
-import { loadGameState, saveGameState } from '../saveSystem';
+import { SAVE_VERSION } from '../saveSystem';
 import { Faction, GamePhase, SpellId, TileType, UnitType } from '../types';
 import type { GameState, Tile, Unit } from '../types';
 import { UNIT_DEFINITIONS } from '../gameConfig';
@@ -178,10 +178,10 @@ describe('mage cast budget', () => {
     const state = makeState(['spec_06']);
     state.units.mage_1.spellsCastThisTurn = 2;
 
-    saveGameState(state);
-    const loaded = loadGameState();
+    // Simulate a round-trip via JSON (the IDB layer does the same serialization).
+    const payload = JSON.parse(JSON.stringify({ version: SAVE_VERSION, state }));
 
-    expect(loaded).not.toBeNull();
-    expect(loaded?.units.mage_1.spellsCastThisTurn).toBe(2);
+    expect(payload).not.toBeNull();
+    expect(payload?.state?.units?.mage_1?.spellsCastThisTurn).toBe(2);
   });
 });

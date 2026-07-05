@@ -1020,6 +1020,24 @@
   background: rgba(180, 40, 40, 0.4);
 }
 
+.hud-options-separator {
+  border: none;
+  border-top: 1px solid rgba(255, 80, 80, 0.2);
+  margin: 0.5rem 0;
+}
+
+.hud-menu-item--danger {
+  color: #ff6666;
+  border-top: 1px solid rgba(255, 80, 80, 0.2);
+  margin-top: 0.25rem;
+  padding-top: 0.5rem;
+}
+
+.hud-menu-item--danger:hover {
+  background: rgba(180, 30, 30, 0.5);
+  color: #ff8888;
+}
+
 
 .hud-ai-score-btn {
   margin-top: 6px;

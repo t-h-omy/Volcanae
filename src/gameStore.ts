@@ -47,7 +47,8 @@ import type { GameEvent } from './gameEvents';
 import { MAP, TERRAIN, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval, UNIT_DEFINITIONS, MAGE, TUNNEL_EMERGE_DAMAGE } from './gameConfig';
 import { RENDER } from './renderConfig';
 import { ANIMATION } from './animationConfig';
-import { saveGameState, loadGameState, clearSavedGame, hasSavedGame } from './saveSystem';
+import { saveSlot, loadSlot, listSlots, deleteSlot } from './saveSystem';
+import { useMenuStore } from './menuStore';
 import { computeLevelFromXp, applyLevelUps } from './levelSystem';
 import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLogic, getGrantedTags, getRemovedTags, getStatMods, applyTagStatEffects, revokeTagStatEffects } from './techSystem';
 import { canUnitHeal, getHealTargets, canUnitFieldwork, isHealSuppressedByCorruption } from './unitActions';
@@ -70,10 +71,18 @@ import { canUnitBuildBridge, getBridgeBuildTargets } from './unitActions';
 // ============================================================================
 
 interface GameActions {
-  /** Initialize a new game by generating initial state */
+  /** Initialize a new game by generating initial state (legacy no-op; use newGameInSlot) */
   initGame: () => void;
   /** Start a fresh new game with the given difficulty, clearing any existing save */
   initNewGame: (difficulty: Difficulty) => void;
+  /** Create a new named game slot and enter the game */
+  newGameInSlot: (name: string, difficulty: Difficulty) => Promise<void>;
+  /** Continue the newest existing save slot */
+  continueGame: () => Promise<void>;
+  /** Load a specific save slot by id and enter the game */
+  loadIntoGame: (id: string) => Promise<void>;
+  /** Delete the finished game's slot (GAME_OVER or VICTORY only), then clear activeSaveId */
+  discardFinishedGame: () => Promise<void>;
   /** Select a unit by ID */
   selectUnit: (unitId: string) => void;
   /** Select a building by ID */
@@ -136,13 +145,13 @@ interface GameActions {
   activateCrystalCave: (caveId: string) => void;
   /** Replace the entire game state (used by animation engine to apply resolved state) */
   setGameState: (newState: GameState) => void;
-  /** Manually save the current game state to localStorage */
+  /** Manually save the current game state to the active IDB slot */
   saveGame: () => void;
-  /** Load the saved game state from localStorage (no-op if none exists) */
+  /** Load the saved game state (no-op; use loadIntoGame instead) */
   loadGame: () => void;
-  /** Delete the saved game from localStorage */
+  /** No-op (legacy); slots are managed via deleteSlot from saveSystem */
   clearSavedGame: () => void;
-  /** Return true when a save is present in localStorage */
+  /** No-op (legacy); use listSlots/slotCount from saveSystem */
   hasSavedGame: () => boolean;
 
   // ── Debug actions (development only) ──
@@ -340,34 +349,58 @@ export const useGameStore = create<GameStore>()(
     // ========================================================================
 
     initGame: () => {
-      // Attempt to restore a previously autosaved game; fall back to a fresh game.
-      const saved = loadGameState();
-      const stateToLoad = saved ?? generateInitialGameState();
-
-      set((state) => {
-        Object.assign(state, stateToLoad);
-        if (!saved) {
-          // Update tile discovery only for a fresh game (saved games already have it)
-          updateDiscovery(state);
-        }
-        // Re-apply specialist effects so that any assigned, non-dormant specialists
-        // have their effects active on existing units (handles saves where effects
-        // were missing or stale before the migration re-synced them).
-        applySpecialistEffects(state);
-      });
-
-      syncCameraToPlayerStronghold(stateToLoad);
+      // Legacy no-op: cold start now lands on the main menu.
+      // Kept in the interface for backwards compatibility.
     },
 
     initNewGame: (difficulty: Difficulty) => {
-      clearSavedGame();
+      // Legacy path retained for HUD difficulty change; creates an in-memory
+      // game only (no IDB slot). Callers in the main menu should use newGameInSlot.
       const initialState = generateInitialGameState(difficulty);
       set((state) => {
         Object.assign(state, initialState);
         updateDiscovery(state);
       });
-
       syncCameraToPlayerStronghold(initialState);
+    },
+
+    newGameInSlot: async (name: string, difficulty: Difficulty) => {
+      const id = generateId('slot');
+      const initialState = generateInitialGameState(difficulty);
+      set((state) => {
+        Object.assign(state, initialState);
+        updateDiscovery(state);
+        applySpecialistEffects(state);
+      });
+      syncCameraToPlayerStronghold(initialState);
+      await saveSlot({ id, name, state: useGameStore.getState() });
+      useMenuStore.getState().enterGame(id);
+    },
+
+    continueGame: async () => {
+      const slots = await listSlots();
+      if (slots.length === 0) return;
+      await useGameStore.getState().loadIntoGame(slots[0].id);
+    },
+
+    loadIntoGame: async (id: string) => {
+      const loaded = await loadSlot(id);
+      if (!loaded) return;
+      set((state) => {
+        Object.assign(state, loaded);
+        applySpecialistEffects(state);
+      });
+      syncCameraToPlayerStronghold(loaded);
+      useMenuStore.getState().enterGame(id);
+    },
+
+    discardFinishedGame: async () => {
+      const { phase } = useGameStore.getState();
+      const activeSaveId = useMenuStore.getState().activeSaveId;
+      if (!activeSaveId) return;
+      if (phase !== GamePhase.GAME_OVER && phase !== GamePhase.VICTORY) return;
+      await deleteSlot(activeSaveId);
+      useMenuStore.setState({ activeSaveId: null });
     },
 
     selectUnit: (unitId: string) => {
@@ -2021,7 +2054,15 @@ export const useGameStore = create<GameStore>()(
           currentState.phase === GamePhase.GAME_OVER ||
           currentState.phase === GamePhase.VICTORY
         ) {
-          saveGameState(currentState);
+          const activeSaveId = useMenuStore.getState().activeSaveId;
+          if (activeSaveId) {
+            // Fire-and-forget autosave — failures must not crash the game.
+            listSlots().then((slots) => {
+              const meta = slots.find((s) => s.id === activeSaveId);
+              const slotName = meta?.name ?? currentState.turn.toString();
+              saveSlot({ id: activeSaveId, name: slotName, state: currentState }).catch(() => undefined);
+            }).catch(() => undefined);
+          }
         }
       }
     },
@@ -2950,29 +2991,40 @@ export const useGameStore = create<GameStore>()(
         newState.phase === GamePhase.GAME_OVER ||
         newState.phase === GamePhase.VICTORY
       ) {
-        saveGameState(newState);
+        const activeSaveId = useMenuStore.getState().activeSaveId;
+        if (activeSaveId) {
+          listSlots().then((slots) => {
+            const meta = slots.find((s) => s.id === activeSaveId);
+            const slotName = meta?.name ?? newState.turn.toString();
+            saveSlot({ id: activeSaveId, name: slotName, state: newState }).catch(() => undefined);
+          }).catch(() => undefined);
+        }
       }
     },
 
     saveGame: () => {
-      saveGameState(useGameStore.getState());
+      const currentState = useGameStore.getState();
+      const activeSaveId = useMenuStore.getState().activeSaveId;
+      if (activeSaveId) {
+        listSlots().then((slots) => {
+          const meta = slots.find((s) => s.id === activeSaveId);
+          const slotName = meta?.name ?? currentState.turn.toString();
+          saveSlot({ id: activeSaveId, name: slotName, state: currentState }).catch(() => undefined);
+        }).catch(() => undefined);
+      }
     },
 
     loadGame: () => {
-      const saved = loadGameState();
-      if (!saved) return;
-      set((state) => {
-        Object.assign(state, saved);
-      });
-      syncCameraToPlayerStronghold(saved);
+      // Legacy no-op — use loadIntoGame(id) instead.
     },
 
     clearSavedGame: () => {
-      clearSavedGame();
+      // Legacy no-op — use deleteSlot(id) from saveSystem instead.
     },
 
     hasSavedGame: () => {
-      return hasSavedGame();
+      // Legacy no-op — use slotCount() from saveSystem instead.
+      return false;
     },
 
     // ========================================================================
