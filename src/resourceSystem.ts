@@ -111,7 +111,7 @@ export function getRecruitableUnitTypes(buildingType: BuildingType): UnitType[] 
     case BuildingType.BARRACKS:
       return [UnitType.SPEARMAN, UnitType.SWORDSMAN];
     case BuildingType.ARCHER_CAMP:
-      return [UnitType.ARCHER];
+      return [UnitType.ARCHER, UnitType.CROSSBOWMAN];
     case BuildingType.RIDER_CAMP:
       return [UnitType.RIDER];
     case BuildingType.SIEGE_CAMP:

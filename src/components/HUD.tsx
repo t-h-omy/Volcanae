@@ -183,7 +183,7 @@ const TAG_EMOJI: Partial<Record<UnitTag, string>> = {
 /** Maps recruitment buildings to their recruitable unit types */
 const BUILDING_RECRUITS: Partial<Record<string, UnitType[]>> = {
   [BuildingType.BARRACKS]: [UnitType.SPEARMAN, UnitType.SWORDSMAN],
-  [BuildingType.ARCHER_CAMP]: [UnitType.ARCHER],
+  [BuildingType.ARCHER_CAMP]: [UnitType.ARCHER, UnitType.CROSSBOWMAN],
   [BuildingType.RIDER_CAMP]: [UnitType.RIDER],
   [BuildingType.SIEGE_CAMP]: [UnitType.SIEGE],
   [BuildingType.STRONGHOLD]: [UnitType.SCOUT, UnitType.GUARD],

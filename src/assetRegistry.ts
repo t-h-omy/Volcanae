@@ -40,6 +40,7 @@ export const UNIT_SPRITE: Partial<Record<UnitType, string>> = withBase({
   SPEARMAN:    '/sprites/units/Spearman_100px.png',
   SWORDSMAN:   '/sprites/units/Swordsman_100px.png',
   ARCHER:      '/sprites/units/Archer_100px.png',
+  CROSSBOWMAN: '/sprites/units/Crossbowman_100px.png',
   RIDER:       '/sprites/units/Rider_100px.png',
   SIEGE:       '/sprites/units/Catapult_100px.png',
   SCOUT:       '/sprites/units/Scout_100px.png',

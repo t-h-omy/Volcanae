@@ -30,6 +30,8 @@ export const UnitType = {
   EMBER_DEMON: 'EMBER_DEMON',
   /** Undead unit raised from a gravestone */
   SKELETON: 'SKELETON',
+  /** Armor-piercing ranged attacker recruited from Archer Camp */
+  CROSSBOWMAN: 'CROSSBOWMAN',
   // Enemy units
   LAVA_GRUNT: 'LAVA_GRUNT',
   LAVA_ARCHER: 'LAVA_ARCHER',
@@ -312,6 +314,8 @@ export const UnitTag = {
   BLOCK: 'BLOCK',
   /** On hit, ignores defensive bonuses on the target and stuns targets with base DEF above a threshold. */
   PUNCTURE: 'PUNCTURE',
+  /** After this unit attacks, its effective DEF is reduced until the start of its next turn. */
+  RELOAD: 'RELOAD',
   /** On hit, sets the target's tile to BURNING status. */
   BURN: 'BURN',
   /** Can dig underground to bypass the frontline and emerge behind it (south of the frontline = higher Y), dealing AoE damage on emergence and corrupting the emergence tile. */

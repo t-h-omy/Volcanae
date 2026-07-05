@@ -10,7 +10,7 @@ import { BuildingType, Faction, UnitTag, UnitType, TechFlag, TileType, TileStatu
 import { useFloaterStore } from './floaterStore';
 import type { GameEvent } from './gameEvents';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
-import { UNIT_DEFINITIONS, XP, ABILITIES, MAP, BUILDING_DEFINITIONS, MAGE, CLEAVE_DAMAGE_MULTIPLIER, PIERCE_PRIMARY_DAMAGE_MULTIPLIER, PIERCE_SECONDARY_DAMAGE_MULTIPLIER, RAGE_ATK_PER_ADJACENT, RAGE_MAX_ADJACENT_COUNT, BLOCK_MELEE_DAMAGE_MULTIPLIER, IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER, GRIMBEAK_SUMMONED_DAMAGE_MULTIPLIER, PUNCTURE_STUN_BASE_DEF_THRESHOLD, PUNCTURE_STUN_DURATION, FLYING_RANGED_DAMAGE_TAKEN_MULTIPLIER } from './gameConfig';
+import { UNIT_DEFINITIONS, XP, ABILITIES, MAP, BUILDING_DEFINITIONS, MAGE, CLEAVE_DAMAGE_MULTIPLIER, PIERCE_PRIMARY_DAMAGE_MULTIPLIER, PIERCE_SECONDARY_DAMAGE_MULTIPLIER, RAGE_ATK_PER_ADJACENT, RAGE_MAX_ADJACENT_COUNT, BLOCK_MELEE_DAMAGE_MULTIPLIER, IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER, GRIMBEAK_SUMMONED_DAMAGE_MULTIPLIER, PUNCTURE_STUN_BASE_DEF_THRESHOLD, PUNCTURE_STUN_DURATION, FLYING_RANGED_DAMAGE_TAKEN_MULTIPLIER, RELOAD_DEF_PENALTY_PCT } from './gameConfig';
 import { grantXp } from './levelSystem';
 import { generateId } from './mapGenerator';
 import { isUnitOnCorruptedTile, applyTileStatus } from './tileStatusSystem';
@@ -605,6 +605,11 @@ export function resolveAttack(
         defenderPosition: { x: defender.position.x, y: defender.position.y },
       });
     }
+  }
+
+  // RELOAD: a unit that has already fired this turn defends at reduced DEF until its next turn.
+  if (defender.tags.includes(UnitTag.RELOAD) && defender.hasAttackedThisTurn) {
+    defenderCombatant.defense = Math.floor(defenderCombatant.defense * (1 - RELOAD_DEF_PENALTY_PCT / 100));
   }
 
   const combatResult = calculateCombatFromStats(attackerCombatant, defenderCombatant);
@@ -1334,6 +1339,11 @@ export function resolveBuildingAttack(
 
   // PHALANX: defender gains defense bonus from adjacent PHALANX allies
   defenderCombatant.defense += getPhalanxDefenseBonus(state, defender);
+
+  // RELOAD: a unit that has already fired this turn defends at reduced DEF until its next turn.
+  if (defender.tags.includes(UnitTag.RELOAD) && defender.hasAttackedThisTurn) {
+    defenderCombatant.defense = Math.floor(defenderCombatant.defense * (1 - RELOAD_DEF_PENALTY_PCT / 100));
+  }
 
   const combatResult = calculateCombatFromStats(buildingCombatant, defenderCombatant);
 

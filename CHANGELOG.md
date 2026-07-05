@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Crossbowman unit (v0.92.0)
+
+- New player ranged unit: **Crossbowman** — armor-piercing precision shooter recruited from the
+  Archer Camp.
+- **Stats:** 100 HP, 70 ATK, 35 DEF, 1 move range, 2 attack range. Cost: 6 iron + 12 wood.
+  Population: 1 farmer. Shares the Archer Camp's `unitLimit` with archers.
+- **Tags:** `RANGED`, `RELOAD`, `PUNCTURE`, `BUILDANDCAPTURE`.
+- **PUNCTURE** (existing tag): ignores the target's defensive bonuses; stuns heavily-armored
+  targets (base DEF > 60) for 1 turn.
+- **RELOAD** (new tag): after the crossbowman fires, its effective DEF is reduced by 50% until
+  the start of its next turn. Implemented by reading the existing `hasAttackedThisTurn` flag —
+  no new saved state.
+- **Unlock:** new tech node `CROSSBOWMEN` (requires `FAR_REACH`, cost 2) in the ranged branch.
+- **Cover sharing:** the existing `COVER` tech now also grants the `COVER` tag to crossbowmen
+  (ranged counter-attack immunity).
+- Added `RELOAD_DEF_PENALTY_PCT = 50` tunable constant in `gameConfig.ts`.
+- Sprite placeholder: `Crossbowman_100px.png`.
+
 ### Bridgebuilder scout tech + Bridge building (v0.91.0)
 
 - Added **Bridgebuilder** tech node (scout branch, requires `BIG_EYES`, 3 crystals): grants
