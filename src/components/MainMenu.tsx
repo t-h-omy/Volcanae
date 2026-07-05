@@ -40,7 +40,7 @@ const DIFFICULTY_LABEL: Record<Difficulty, string> = {
 const DIFFICULTY_DESC: Record<Difficulty, string> = {
   [Difficulty.EASY]: 'Gentler heat. Reduced enemy pressure and slower lava advancement — good for learning the front.',
   [Difficulty.STANDARD]: 'Balanced heat. Enemy pressure and lava advancement as designed — the intended way to play.',
-  [Difficulty.HARD]: 'Relentless. Aggressive enemies and quicker lava advancement — every push has to count.',
+  [Difficulty.HARD]: 'Relentless heat. Aggressive enemies and quicker lava advancement — every push has to count.',
 };
 
 function getBaseAssetUrl(path: string): string {
@@ -703,6 +703,10 @@ function OptionsPanel({
   }, []);
 
   const pct = Math.round(volume * 100);
+  const handleVolumeChange = useCallback((value: number) => {
+    setVolume(value);
+    if (muted) setMuted(false);
+  }, [muted, setMuted, setVolume]);
 
   return (
     <div className="mm-panel" data-dir={navDir}>
@@ -727,10 +731,7 @@ function OptionsPanel({
               max={1}
               step={0.01}
               value={volume}
-              onChange={(e) => {
-                setVolume(parseFloat(e.target.value));
-                if (muted) setMuted(false);
-              }}
+              onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
               aria-label="Music volume"
             />
           </div>
@@ -749,10 +750,7 @@ function OptionsPanel({
               max={1}
               step={0.01}
               value={volume}
-              onChange={(e) => {
-                setVolume(parseFloat(e.target.value));
-                if (muted) setMuted(false);
-              }}
+              onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
               aria-label="Sound FX volume"
             />
           </div>
