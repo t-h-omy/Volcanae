@@ -366,14 +366,21 @@ export const useGameStore = create<GameStore>()(
 
     newGameInSlot: async (name: string, difficulty: Difficulty) => {
       const id = generateId('slot');
-      const initialState = generateInitialGameState(difficulty);
+      // Build the full initial state as a pure GameState (no Zustand action
+      // methods) using produce() so it can be safely serialized by IDB's
+      // structured-clone algorithm.  Passing useGameStore.getState() would
+      // include action functions and cause a DataCloneError, silently writing
+      // only the metadata record — making the save appear in the list but fail
+      // to load ("nothing happens on Load").
+      const initialState = produce(generateInitialGameState(difficulty), (draft) => {
+        updateDiscovery(draft);
+        applySpecialistEffects(draft);
+      });
       set((state) => {
         Object.assign(state, initialState);
-        updateDiscovery(state);
-        applySpecialistEffects(state);
       });
       syncCameraToPlayerStronghold(initialState);
-      await saveSlot({ id, name, state: useGameStore.getState() });
+      await saveSlot({ id, name, state: initialState });
       useMenuStore.getState().enterGame(id);
     },
 
@@ -1708,6 +1715,11 @@ export const useGameStore = create<GameStore>()(
       // overwritten by the outer draft committing phase=ENEMY_TURN.
       let pendingEvents: GameEvent[] | null = null;
       let pendingResolvedState: GameState | null = null;
+      // When there are no events to animate the final computedState is applied
+      // directly inside the set() callback.  We capture it here so the autosave
+      // below can pass the pure GameState (not useGameStore.getState() which
+      // includes Zustand action methods and would throw DataCloneError in IDB).
+      let pendingStateForSave: GameState | null = null;
 
       set((state) => {
         // Auto-deselect when the player ends their turn — no unit, building,
@@ -1744,6 +1756,7 @@ export const useGameStore = create<GameStore>()(
             state.phase = GamePhase.ENEMY_TURN;
           } else {
             Object.assign(state, computedState);
+            pendingStateForSave = computedState;
           }
           return;
         }
@@ -1780,6 +1793,7 @@ export const useGameStore = create<GameStore>()(
             state.phase = GamePhase.ENEMY_TURN;
           } else {
             Object.assign(state, computedState);
+            pendingStateForSave = computedState;
           }
           return;
         }
@@ -2036,6 +2050,7 @@ export const useGameStore = create<GameStore>()(
         } else {
           // No events to animate — apply final state directly
           Object.assign(state, computedState);
+          pendingStateForSave = computedState;
         }
       });
 
@@ -2048,19 +2063,24 @@ export const useGameStore = create<GameStore>()(
         // Autosave when the new player turn has started, or when the game ends
         // so that on reload the game-over/victory overlay is shown rather than
         // rewinding to the last living turn.
-        const currentState = useGameStore.getState();
-        if (
-          currentState.phase === GamePhase.PLAYER_TURN ||
-          currentState.phase === GamePhase.GAME_OVER ||
-          currentState.phase === GamePhase.VICTORY
-        ) {
-          const activeSaveId = useMenuStore.getState().activeSaveId;
-          if (activeSaveId) {
-            // Fire-and-forget autosave — failures must not crash the game.
-            getSlotMeta(activeSaveId).then((meta) => {
-              const slotName = meta?.name ?? currentState.turn.toString();
-              saveSlot({ id: activeSaveId, name: slotName, state: currentState }).catch(() => undefined);
-            }).catch(() => undefined);
+        // Use pendingStateForSave (the pure GameState from produce) rather than
+        // useGameStore.getState() which includes Zustand action methods and would
+        // throw a DataCloneError when IDB tries to structured-clone the record.
+        if (pendingStateForSave !== null) {
+          const stateForSave = pendingStateForSave as GameState;
+          if (
+            stateForSave.phase === GamePhase.PLAYER_TURN ||
+            stateForSave.phase === GamePhase.GAME_OVER ||
+            stateForSave.phase === GamePhase.VICTORY
+          ) {
+            const activeSaveId = useMenuStore.getState().activeSaveId;
+            if (activeSaveId) {
+              // Fire-and-forget autosave — failures must not crash the game.
+              getSlotMeta(activeSaveId).then((meta) => {
+                const slotName = meta?.name ?? stateForSave.turn.toString();
+                saveSlot({ id: activeSaveId, name: slotName, state: stateForSave }).catch(() => undefined);
+              }).catch(() => undefined);
+            }
           }
         }
       }
@@ -3001,12 +3021,19 @@ export const useGameStore = create<GameStore>()(
     },
 
     saveGame: () => {
-      const currentState = useGameStore.getState();
+      const fullStore = useGameStore.getState();
+      // Strip Zustand action methods by keeping only non-function properties.
+      // useGameStore.getState() returns GameState + GameActions; IDB's structured-
+      // clone algorithm throws DataCloneError on functions, which would silently
+      // commit only the metadata record and leave the save unloadable.
+      const stateSnapshot = Object.fromEntries(
+        Object.entries(fullStore).filter(([, v]) => typeof v !== 'function'),
+      ) as GameState;
       const activeSaveId = useMenuStore.getState().activeSaveId;
       if (activeSaveId) {
         getSlotMeta(activeSaveId).then((meta) => {
-          const slotName = meta?.name ?? currentState.turn.toString();
-          saveSlot({ id: activeSaveId, name: slotName, state: currentState }).catch(() => undefined);
+          const slotName = meta?.name ?? stateSnapshot.turn.toString();
+          saveSlot({ id: activeSaveId, name: slotName, state: stateSnapshot }).catch(() => undefined);
         }).catch(() => undefined);
       }
     },
