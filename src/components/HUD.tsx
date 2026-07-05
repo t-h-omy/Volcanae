@@ -2811,6 +2811,8 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
                   if (needNobles) parts.push('nobles — build more Patrician Houses');
                   if (parts.length > 0) popWarningMsg = `Not enough ${parts.join(' and ')}`;
                 }
+                // Generic affordability warning when the unit's resource cost cannot be met
+                const resourceWarningMsg: string | null = !canAffordUnit ? 'Not enough resources' : null;
                 return (
                   <div key={unitType} className="hud-recruit-option-wrapper">
                     <button
@@ -2835,6 +2837,9 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
                         {popCost.farmers > 0 && popCost.nobles > 0 && ', '}
                         {popCost.nobles > 0 && `🎖️ ${popCost.nobles} noble${popCost.nobles > 1 ? 's' : ''}`}
                       </span>
+                    )}
+                    {resourceWarningMsg && (
+                      <span className="hud-pop-warning">{resourceWarningMsg}</span>
                     )}
                     {popWarningMsg && (
                       <span className="hud-pop-warning">{popWarningMsg}</span>

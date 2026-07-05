@@ -60,6 +60,9 @@ A summoned Ember Demon is **leashed** to its controller Mage — if the Mage mov
 
 ## Changelog
 
+### v0.93.1 — Recruitment affordability warning
+Recruitment panel now shows 'Not enough resources' when a unit is unaffordable.
+
 ### v0.88.6 — Enemy frozen slide animations
 Enemy units now play the correct slide and death animation when slipping on frozen tiles.
 
