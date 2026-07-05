@@ -429,6 +429,23 @@ export async function slotCount(): Promise<number> {
   }
 }
 
+/** Retrieve metadata for a single slot without loading its full state. Returns null on miss. */
+export async function getSlotMeta(id: string): Promise<SaveSlotMeta | null> {
+  if (!idbAvailable()) return null;
+  try {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(SAVE.STORE_META, 'readonly');
+      const store = tx.objectStore(SAVE.STORE_META);
+      const req = store.get(id);
+      req.onsuccess = () => resolve((req.result as SaveSlotMeta | undefined) ?? null);
+      req.onerror = () => reject(req.error);
+    });
+  } catch {
+    return null;
+  }
+}
+
 /** Load the full game state from a slot, running migration. Returns null on miss or incompatible version. */
 export async function loadSlot(id: string): Promise<GameState | null> {
   if (!idbAvailable()) return null;
@@ -524,7 +541,7 @@ export async function importSlotFromFile(file: File): Promise<SaveSlotMeta | nul
     const parsed = JSON.parse(text) as { version: number; name?: string; state: GameState };
     const migrated = migrateState({ version: parsed.version, state: parsed.state });
     if (!migrated) return null;
-    const id = `import-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const id = `import-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
     const name = typeof parsed.name === 'string' && parsed.name.trim() ? parsed.name.trim() : 'Imported save';
     await saveSlot({ id, name, state: migrated });
     const meta: SaveSlotMeta = {
@@ -557,7 +574,7 @@ export async function migrateLegacyIfPresent(): Promise<void> {
     const parsed = JSON.parse(raw) as { version: number; state: GameState };
     const migrated = migrateState(parsed);
     if (!migrated) return;
-    const id = `legacy-${Date.now()}`;
+    const id = `legacy-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
     await saveSlot({ id, name: 'Imported save', state: migrated });
     localStorage.setItem(LEGACY_IMPORTED_KEY, '1');
   } catch {

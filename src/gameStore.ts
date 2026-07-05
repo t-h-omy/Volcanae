@@ -47,7 +47,7 @@ import type { GameEvent } from './gameEvents';
 import { MAP, TERRAIN, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval, UNIT_DEFINITIONS, MAGE, TUNNEL_EMERGE_DAMAGE } from './gameConfig';
 import { RENDER } from './renderConfig';
 import { ANIMATION } from './animationConfig';
-import { saveSlot, loadSlot, listSlots, deleteSlot } from './saveSystem';
+import { saveSlot, loadSlot, listSlots, deleteSlot, getSlotMeta } from './saveSystem';
 import { useMenuStore } from './menuStore';
 import { computeLevelFromXp, applyLevelUps } from './levelSystem';
 import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLogic, getGrantedTags, getRemovedTags, getStatMods, applyTagStatEffects, revokeTagStatEffects } from './techSystem';
@@ -2057,8 +2057,7 @@ export const useGameStore = create<GameStore>()(
           const activeSaveId = useMenuStore.getState().activeSaveId;
           if (activeSaveId) {
             // Fire-and-forget autosave — failures must not crash the game.
-            listSlots().then((slots) => {
-              const meta = slots.find((s) => s.id === activeSaveId);
+            getSlotMeta(activeSaveId).then((meta) => {
               const slotName = meta?.name ?? currentState.turn.toString();
               saveSlot({ id: activeSaveId, name: slotName, state: currentState }).catch(() => undefined);
             }).catch(() => undefined);
@@ -2993,8 +2992,7 @@ export const useGameStore = create<GameStore>()(
       ) {
         const activeSaveId = useMenuStore.getState().activeSaveId;
         if (activeSaveId) {
-          listSlots().then((slots) => {
-            const meta = slots.find((s) => s.id === activeSaveId);
+          getSlotMeta(activeSaveId).then((meta) => {
             const slotName = meta?.name ?? newState.turn.toString();
             saveSlot({ id: activeSaveId, name: slotName, state: newState }).catch(() => undefined);
           }).catch(() => undefined);
@@ -3006,8 +3004,7 @@ export const useGameStore = create<GameStore>()(
       const currentState = useGameStore.getState();
       const activeSaveId = useMenuStore.getState().activeSaveId;
       if (activeSaveId) {
-        listSlots().then((slots) => {
-          const meta = slots.find((s) => s.id === activeSaveId);
+        getSlotMeta(activeSaveId).then((meta) => {
           const slotName = meta?.name ?? currentState.turn.toString();
           saveSlot({ id: activeSaveId, name: slotName, state: currentState }).catch(() => undefined);
         }).catch(() => undefined);

@@ -135,7 +135,7 @@ function useMenuMusic(): void {
         pendingRef.current = null;
       }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- volume/muted are applied via audio.volume inline; we intentionally re-run only when screen changes to start/stop the track
   }, [screen]);
 }
 
@@ -189,11 +189,12 @@ function NewPanel() {
 
   // Compute default name on mount.
   useEffect(() => {
+    const prefixRe = new RegExp(`^${SAVE.DEFAULT_NAME_PREFIX} (\\d+)$`);
     async function computeDefault() {
       const slots = await listSlots();
       const usedNumbers = new Set<number>();
       for (const s of slots) {
-        const m = s.name.match(new RegExp(`^${SAVE.DEFAULT_NAME_PREFIX} (\\d+)$`));
+        const m = s.name.match(prefixRe);
         if (m) usedNumbers.add(parseInt(m[1], 10));
       }
       let n = 1;

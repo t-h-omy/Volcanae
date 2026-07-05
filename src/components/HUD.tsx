@@ -64,7 +64,7 @@ import { useZoneClearedStore } from '../zoneClearedStore';
 import { useCaveScreamsStore } from '../caveScreamsStore';
 import { useSpecialistHireStore } from '../specialistHireStore';
 import { useMarketPanelStore } from '../marketPanelStore';
-import { saveSlot, listSlots, deleteSlot, exportSlot } from '../saveSystem';
+import { saveSlot, deleteSlot, exportSlot, getSlotMeta } from '../saveSystem';
 import { SAVE } from '../gameConfig';
 import './HUD.css';
 
@@ -441,8 +441,7 @@ function OptionsOverlay({ onClose }: { onClose: () => void }) {
       } else {
         // Autosave the current state before leaving.
         const currentState = useGameStore.getState();
-        const slots = await listSlots();
-        const meta = slots.find((s) => s.id === activeSaveId);
+        const meta = await getSlotMeta(activeSaveId);
         const slotName = meta?.name ?? String(currentState.turn);
         await saveSlot({ id: activeSaveId, name: slotName, state: currentState });
       }
@@ -3080,13 +3079,12 @@ function GameOverOverlay() {
     if (!activeSaveId) return;
     const blob = await exportSlot(activeSaveId);
     if (!blob) return;
-    const slots = await listSlots();
-    const meta = slots.find((s) => s.id === activeSaveId);
-    const name = meta?.name ?? 'save';
+    const meta = await getSlotMeta(activeSaveId);
+    const safeName = (meta?.name ?? 'save').replace(/[^\w\s\-().]/g, '_').trim() || 'save';
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${name}${SAVE.EXPORT_FILE_EXT}`;
+    a.download = `${safeName}${SAVE.EXPORT_FILE_EXT}`;
     a.click();
     URL.revokeObjectURL(url);
   }, [activeSaveId]);
@@ -3134,13 +3132,12 @@ function VictoryOverlay() {
     if (!activeSaveId) return;
     const blob = await exportSlot(activeSaveId);
     if (!blob) return;
-    const slots = await listSlots();
-    const meta = slots.find((s) => s.id === activeSaveId);
-    const name = meta?.name ?? 'save';
+    const meta = await getSlotMeta(activeSaveId);
+    const safeName = (meta?.name ?? 'save').replace(/[^\w\s\-().]/g, '_').trim() || 'save';
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${name}${SAVE.EXPORT_FILE_EXT}`;
+    a.download = `${safeName}${SAVE.EXPORT_FILE_EXT}`;
     a.click();
     URL.revokeObjectURL(url);
   }, [activeSaveId]);
