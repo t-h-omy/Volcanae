@@ -69,17 +69,19 @@ function formatBytes(bytes: number): string {
 // MENU MUSIC HOOK
 // ============================================================================
 
+const MENU_MUSIC_BREAK_MS = 10_000;
+
 function useMenuMusic(): void {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const screen = useMenuStore((s) => s.screen);
   const volume = useSoundOptionsStore((s) => s.volume);
   const muted = useSoundOptionsStore((s) => s.muted);
   const pendingRef = useRef<(() => void) | null>(null);
+  const breakTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Create the audio element once.
   useEffect(() => {
     const audio = new Audio();
-    audio.loop = true;
     audioRef.current = audio;
 
     return () => {
@@ -101,39 +103,64 @@ function useMenuMusic(): void {
     const audio = audioRef.current;
     if (!audio) return;
 
-    if (screen !== 'MENU') {
-      audio.pause();
-      audio.src = '';
+    function clearBreakTimer() {
+      if (breakTimerRef.current !== null) {
+        clearTimeout(breakTimerRef.current);
+        breakTimerRef.current = null;
+      }
+    }
+
+    function clearPending() {
       if (pendingRef.current) {
         window.removeEventListener('pointerdown', pendingRef.current);
         window.removeEventListener('keydown', pendingRef.current);
         pendingRef.current = null;
       }
+    }
+
+    function playTrack(el: HTMLAudioElement) {
+      el.currentTime = 0;
+      el.play().catch(() => {
+        // Autoplay blocked — wait for user interaction.
+        const resume = () => {
+          pendingRef.current = null;
+          window.removeEventListener('pointerdown', resume);
+          window.removeEventListener('keydown', resume);
+          el.play().catch(() => undefined);
+        };
+        pendingRef.current = resume;
+        window.addEventListener('pointerdown', resume);
+        window.addEventListener('keydown', resume);
+      });
+    }
+
+    if (screen !== 'MENU') {
+      audio.pause();
+      audio.src = '';
+      clearBreakTimer();
+      clearPending();
       return;
     }
+
+    // After each play-through, wait 10 s then replay.
+    const handleEnded = () => {
+      clearBreakTimer();
+      breakTimerRef.current = setTimeout(() => {
+        breakTimerRef.current = null;
+        playTrack(audio);
+      }, MENU_MUSIC_BREAK_MS);
+    };
+    audio.addEventListener('ended', handleEnded);
 
     audio.src = `${import.meta.env.BASE_URL}music/${encodeURIComponent(MENU_TRACK)}`;
     audio.volume = muted ? 0 : volume;
     audio.load();
-    audio.play().catch(() => {
-      // Autoplay blocked — wait for user interaction.
-      const resume = () => {
-        pendingRef.current = null;
-        window.removeEventListener('pointerdown', resume);
-        window.removeEventListener('keydown', resume);
-        audio.play().catch(() => undefined);
-      };
-      pendingRef.current = resume;
-      window.addEventListener('pointerdown', resume);
-      window.addEventListener('keydown', resume);
-    });
+    playTrack(audio);
 
     return () => {
-      if (pendingRef.current) {
-        window.removeEventListener('pointerdown', pendingRef.current);
-        window.removeEventListener('keydown', pendingRef.current);
-        pendingRef.current = null;
-      }
+      audio.removeEventListener('ended', handleEnded);
+      clearBreakTimer();
+      clearPending();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps -- volume/muted are applied via audio.volume inline; we intentionally re-run only when screen changes to start/stop the track
   }, [screen]);
