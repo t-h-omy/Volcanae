@@ -43,6 +43,11 @@ const DIFFICULTY_DESC: Record<Difficulty, string> = {
   [Difficulty.HARD]: 'Relentless. Aggressive enemies and lean resources — every push has to count.',
 };
 
+function getBaseAssetUrl(path: string): string {
+  const base = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
+  return `${base}${path.replace(/^\/+/, '')}`;
+}
+
 // ============================================================================
 // HELPERS
 // ============================================================================
@@ -307,7 +312,7 @@ function useMenuMusic(): void {
 function RootPanel({ hasSave, newestSlot }: { hasSave: boolean; newestSlot: SaveSlotMeta | null }) {
   const goPanel = useMenuStore((s) => s.goPanel);
   const continueGame = useGameStore((s) => s.continueGame);
-  const logoSrc = `${import.meta.env.BASE_URL}assets/game_logo_transparent_1024px.png`;
+  const logoSrc = getBaseAssetUrl('assets/game_logo_transparent_1024px.png');
 
   const continueSubtitle = newestSlot
     ? `TURN ${newestSlot.turn} · ${newestSlot.name.toUpperCase()}`
@@ -812,6 +817,7 @@ export default function MainMenu({ canInstall, promptInstall }: { canInstall: bo
   const [hasSave, setHasSave] = useState(false);
   const [newestSlot, setNewestSlot] = useState<SaveSlotMeta | null>(null);
   const noIdb = !idbAvailable();
+  const menuBgSrc = getBaseAssetUrl('assets/menu_bg.png');
 
   // Play menu music.
   useMenuMusic();
@@ -832,7 +838,7 @@ export default function MainMenu({ canInstall, promptInstall }: { canInstall: bo
   return (
     <div className="mm-stage">
       {/* Background art */}
-      <div className="mm-bg" />
+      <div className="mm-bg" style={{ backgroundImage: `url("${menuBgSrc}")` }} />
 
       {/* Legibility scrims */}
       <div className="mm-scrim mm-scrim-1" />

@@ -7,7 +7,7 @@
 /* ── Custom Properties ─────────────────────────────────────────────────────── */
 :root {
   /* Background */
-  --mm-bg: url('/assets/menu_bg.png');
+  --mm-bg: none;
   --mm-base-bg: #070b10;
 
   /* Text colours */
