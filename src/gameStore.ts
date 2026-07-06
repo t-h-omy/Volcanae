@@ -53,7 +53,7 @@ import { computeLevelFromXp, applyLevelUps } from './levelSystem';
 import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLogic, getGrantedTags, getRemovedTags, getStatMods, applyTagStatEffects, revokeTagStatEffects } from './techSystem';
 import { canUnitHeal, getHealTargets, canUnitFieldwork, isHealSuppressedByCorruption } from './unitActions';
 import { createFieldworkOutpost } from './constructionSystem';
-import { getTagsFromActiveSpecialists, isSpecialistEffectActive } from './specialistSystem';
+import { getTagsFromActiveSpecialists, isSpecialistEffectActive, getTagsFromActiveSpecialistsForSourceTag } from './specialistSystem';
 import { castSpell as castSpellLogic } from './spellSystem';
 import { isTileWithinEdgeCircleRange, getTilesWithinEdgeCircleRange } from './rangeUtils';
 import { useShockwaveStore } from './shockwaveStore';
@@ -1385,6 +1385,9 @@ export const useGameStore = create<GameStore>()(
         const def = UNIT_DEFINITIONS[UnitType.GARGOYLE];
         const gargoyleTags = [...(def?.tags ?? [])];
         for (const t of [UnitTag.SUMMONED, UnitTag.READY]) {
+          if (!gargoyleTags.includes(t)) gargoyleTags.push(t);
+        }
+        for (const t of getTagsFromActiveSpecialistsForSourceTag(state, UnitTag.SUMMONED)) {
           if (!gargoyleTags.includes(t)) gargoyleTags.push(t);
         }
 

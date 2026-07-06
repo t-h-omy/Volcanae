@@ -9,7 +9,7 @@ import { Faction, BuildingType, UnitType, UnitTag, ResourceType } from './types'
 import { RESOURCES, ABILITIES, UNIT_DEFINITIONS, POPULATION, CRYSTAL_CHAMBER_CONFIG, BUILDING_DEFINITIONS, TECH_TREE } from './gameConfig';
 import type { UnitCost } from './gameConfig';
 import { getGrantedTags, getStatMods, getBuildingProductionMods, getFlatIncomeMods, grantArcaneCrystals, getStrongholdEffectiveCap, getRemovedTags, getCostMods } from './techSystem';
-import { getTagsFromActiveSpecialists, isSpecialistEffectActive } from './specialistSystem';
+import { getTagsFromActiveSpecialists, isSpecialistEffectActive, getTagsFromActiveSpecialistsForSourceTag } from './specialistSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 
 // ============================================================================
@@ -1017,9 +1017,16 @@ export function recruitUnit(
   for (const tag of getGrantedTags(state, unitType)) {
     if (!baseTags.includes(tag)) baseTags.push(tag);
   }
-  // Add any tags granted by active specialists
+  // Add any tags granted by active specialists (GRANT_UNIT_TAG_ALL by unit type)
   for (const tag of getTagsFromActiveSpecialists(state, unitType)) {
     if (!baseTags.includes(tag)) baseTags.push(tag);
+  }
+  // Add any tags derived via GRANT_TAG_TO_UNITS_WITH_TAG (e.g. Hellbinder grants
+  // RAGE+CLEAVE to units that carry the SUMMONED tag, such as Crystal Drake).
+  for (const sourceTag of [...baseTags]) {
+    for (const t of getTagsFromActiveSpecialistsForSourceTag(state, sourceTag)) {
+      if (!baseTags.includes(t)) baseTags.push(t);
+    }
   }
   // Remove any tags that unlocked techs strip (e.g. OUTRIDERS removes BUILDANDCAPTURE)
   const removedTags = getRemovedTags(state, unitType);

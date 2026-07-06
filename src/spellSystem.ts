@@ -24,6 +24,7 @@ import { isStatusAllowedOnTerrain, applyTileStatus } from './tileStatusSystem';
 import { shouldLeaveGravestone, createGravestoneAt } from './combatSystem';
 import { applyTagStatEffects } from './techSystem';
 import { cleanupRoostedUnits } from './buildingRemoval';
+import { getTagsFromActiveSpecialistsForSourceTag } from './specialistSystem';
 
 /** Returns the effective spell range for a mage (its attack range). */
 export function getMageSpellRange(
@@ -366,6 +367,10 @@ function handleEmberbind(
 
   // Spawn EMBER_DEMON
   const demonId = generateId('unit_demon');
+  const demonTags: UnitTag[] = [UnitTag.SUMMONED, UnitTag.LEASHED, UnitTag.LAVA];
+  for (const t of getTagsFromActiveSpecialistsForSourceTag(state, UnitTag.SUMMONED)) {
+    if (!demonTags.includes(t)) demonTags.push(t);
+  }
   state.units[demonId] = {
     id: demonId,
     type: UnitType.EMBER_DEMON,
@@ -382,7 +387,7 @@ function handleEmberbind(
       triggerRange: UNIT_DEFINITIONS.EMBER_DEMON.triggerRange,
       movementActions: 1,
     },
-    tags: [UnitTag.SUMMONED, UnitTag.LEASHED, UnitTag.LAVA],
+    tags: demonTags,
     controllerMageId: mage.id,
     hasMovedThisTurn: true,
     hasAttackedThisTurn: true,
@@ -643,6 +648,10 @@ function handleRaiseSkeleton(
 
   // Spawn Skeleton
   const skeletonId = generateId('unit_skeleton');
+  const skeletonTags: UnitTag[] = [UnitTag.SUMMONED, UnitTag.READY];
+  for (const t of getTagsFromActiveSpecialistsForSourceTag(state, UnitTag.SUMMONED)) {
+    if (!skeletonTags.includes(t)) skeletonTags.push(t);
+  }
   state.units[skeletonId] = {
     id: skeletonId,
     type: UnitType.SKELETON,
@@ -659,7 +668,7 @@ function handleRaiseSkeleton(
       triggerRange: 0,
       movementActions: 1,
     },
-    tags: [UnitTag.SUMMONED, UnitTag.READY],
+    tags: skeletonTags,
     hasMovedThisTurn: false,
     hasAttackedThisTurn: false,
     hasCapturedThisTurn: false,
