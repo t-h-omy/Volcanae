@@ -557,7 +557,7 @@ function GameMenu() {
       await persistCurrentGameForReload();
     } catch (error) {
       console.error('Failed to save before cache reset reload.', error);
-      window.alert('Reload cancelled because the current game could not be saved first. Please try Save Game before attempting to reload.');
+      window.alert('Reload cancelled because the current game could not be saved first. Please use the Save Game option in the menu before attempting to reload. If that also fails, please report the issue.');
       return;
     }
     if ('caches' in window) {
