@@ -14,7 +14,7 @@ import { canCapture } from '../captureSystem';
 import { getConstructionOptionsForTile } from '../constructionSystem';
 import { MAP, UNIT_DEFINITIONS, BUILDING_DEFINITIONS, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, CORRUPTED_SUPPRESSED_TAGS, RESOURCES } from '../gameConfig';
 import { getStrongholdEffectiveCap } from '../techSystem';
-import { computeRecruitmentBuildingUsage, canBuildingEverRecruit } from '../resourceSystem';
+import { computeRecruitmentBuildingUsage, canBuildingEverRecruit, getEffectiveHousingPopulationCap } from '../resourceSystem';
 import { ANIMATION } from '../animationConfig';
 import { UI } from '../uiConfig';
 import { RENDER } from '../renderConfig';
@@ -1397,7 +1397,7 @@ function TileCellInner({
             : building.populationCount;
           const capDisplay = building.type === BuildingType.STRONGHOLD
             ? strongholdTotalCap
-            : building.populationCap;
+            : getEffectiveHousingPopulationCap(gameState, building);
           return <div className="population-badge">👥{popCount}/{capDisplay}</div>;
         })();
         const unitBadge = showUnitLimit && (() => {

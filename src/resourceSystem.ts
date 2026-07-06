@@ -9,7 +9,7 @@ import { Faction, BuildingType, UnitType, UnitTag, ResourceType } from './types'
 import { RESOURCES, ABILITIES, UNIT_DEFINITIONS, POPULATION, CRYSTAL_CHAMBER_CONFIG, BUILDING_DEFINITIONS, TECH_TREE } from './gameConfig';
 import type { UnitCost } from './gameConfig';
 import { getGrantedTags, getStatMods, getBuildingProductionMods, getFlatIncomeMods, grantArcaneCrystals, getStrongholdEffectiveCap, getRemovedTags, getCostMods } from './techSystem';
-import { getTagsFromActiveSpecialists, isSpecialistEffectActive, getTagsFromActiveSpecialistsForSourceTag } from './specialistSystem';
+import { getTagsFromActiveSpecialists, isSpecialistEffectActive, getTagsFromActiveSpecialistsForSourceTag, getActiveEffectParams } from './specialistSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 
 // ============================================================================
@@ -53,6 +53,26 @@ function findSpawnPosition(
   }
 
   return null;
+}
+
+/**
+ * Returns the effective per-building housing cap for FARM/PATRICIANHOUSE.
+ * Strongholds are excluded (they use getStrongholdEffectiveCap instead).
+ */
+export function getEffectiveHousingPopulationCap(
+  state: GameState | Draft<GameState>,
+  building: Building,
+): number {
+  if (
+    building.type !== BuildingType.FARM &&
+    building.type !== BuildingType.PATRICIANHOUSE
+  ) {
+    return building.populationCap;
+  }
+
+  const params = getActiveEffectParams(state, 'HOUSING_CAP_BONUS');
+  const bonus = Number(params?.amount ?? 0);
+  return building.populationCap + (Number.isFinite(bonus) ? bonus : 0);
 }
 
 /** True if the building TYPE is a recruitment building (ignores state). */
@@ -866,7 +886,7 @@ export function growHousePopulations(state: Draft<GameState>): void {
           building.populationGrowthCounter = 0;
         }
       }
-    } else if (building.populationCount < building.populationCap) {
+    } else if (building.populationCount < getEffectiveHousingPopulationCap(state, building)) {
       building.populationGrowthCounter += 1;
       if (building.populationGrowthCounter >= POPULATION.HOUSE_GROWTH_INTERVAL) {
         building.populationCount += 1;

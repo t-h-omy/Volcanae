@@ -26,6 +26,7 @@ import {
   computeResourceIncomeBreakdown,
   computeCrystalIncomePerTurn,
   getMineKilnBonusCount,
+  getEffectiveHousingPopulationCap,
 } from '../resourceSystem';
 import {
   getConstructionOptionsForTile,
@@ -2649,7 +2650,8 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
       const canGrow = building.populationCount < farmerCap || building.strongholdNobles < nobleCap;
       return canGrow ? POPULATION.HOUSE_GROWTH_INTERVAL - building.populationGrowthCounter : null;
     }
-    return building.populationCount < building.populationCap
+    const effectiveCap = getEffectiveHousingPopulationCap(gameState, building);
+    return building.populationCount < effectiveCap
       ? POPULATION.HOUSE_GROWTH_INTERVAL - building.populationGrowthCounter
       : null;
   })();
@@ -2805,7 +2807,10 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
             </>
           ) : (
             <>
-              👥 {building.populationCount} / {building.populationCap} {housingLabel}
+              {(() => {
+                const effectiveCap = getEffectiveHousingPopulationCap(gameState, building);
+                return <>👥 {building.populationCount} / {effectiveCap} {housingLabel}</>;
+              })()}
             </>
           )}
           {turnsUntilNextPop !== null && (
