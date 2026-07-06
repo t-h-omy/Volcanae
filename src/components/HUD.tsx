@@ -59,7 +59,7 @@ import {
 import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast, getMageCastBudget, isHealSuppressedByCorruption, canUnitTrade, getTradeMarket, getCaptureTarget, canUnitBuildBridge, getBridgeBuildTargets } from '../unitActions';
 import { getPhalanxAttackBonus, getPhalanxDefenseBonus, getCrystalTowerChamberBonus } from '../combatSystem';
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
-import { getTagsFromActiveSpecialists } from '../specialistSystem';
+import { isSpecialistEffectActive } from '../specialistSystem';
 import { RENDER } from '../renderConfig';
 import { useZoneClearedStore } from '../zoneClearedStore';
 import { useCaveScreamsStore } from '../caveScreamsStore';
@@ -92,6 +92,7 @@ const UNIT_EMOJI: Record<string, string> = {
   [UnitType.MAGE]: '🧙',
   [UnitType.EMBER_DEMON]: '😈',
   [UnitType.SKELETON]: '💀',
+  [UnitType.GARGOYLE]: '🗿',
   [UnitType.CRYSTAL_DRAKE]: '🐲',
 };
 
@@ -113,6 +114,7 @@ const UNIT_NAME: Record<string, string> = {
   [UnitType.MAGE]: 'Mage',
   [UnitType.EMBER_DEMON]: 'Ember Demon',
   [UnitType.SKELETON]: 'Skeleton',
+  [UnitType.GARGOYLE]: 'Gargoyle',
   [UnitType.CRYSTAL_DRAKE]: 'Crystal Drake',
 };
 
@@ -2494,7 +2496,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   const unlockedUnits = useGameStore((s) => s.unlockedUnits);
   const showRecruitingScores = useDevOptionsStore((s) => s.showRecruitingScores);
   const arcaneCrystals = useGameStore((s) => s.arcaneCrystals);
-  const reviveUnit = useGameStore((s) => s.reviveUnit);
+  const raiseGargoyle = useGameStore((s) => s.raiseGargoyle);
 
   const [confirmRecruitUnit, setConfirmRecruitUnit] = useState<UnitType | null>(null);
   const [recruitScoreModal, setRecruitScoreModal] = useState(false);
@@ -2538,17 +2540,15 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   const isGraveTrap = building.type === BuildingType.GRAVE_TRAP && isPlayerOwned;
   const tile = grid[building.position.y]?.[building.position.x];
   const graveOccupied = isGravestone && tile?.unitId !== null;
-  // Revive is only available when the Deathmender specialist (or another source) grants
-  // the REVIVABLE tag to the buried unit type. LEAVES_GRAVESTONE from the tech tree
-  // lets gravestones spawn but does NOT unlock the revive action.
-  const graveRevivable =
-    isGravestone &&
-    building.gravesUnitType != null &&
-    getTagsFromActiveSpecialists(gameState, building.gravesUnitType).includes(UnitTag.REVIVABLE);
-  const canRevive = graveRevivable && !graveOccupied && arcaneCrystals >= ABILITIES.REVIVE_CRYSTAL_COST;
-  const handleRevive = useCallback(() => {
-    reviveUnit(building.id);
-  }, [reviveUnit, building.id]);
+  // The Deathmender specialist lets the player raise a flying Gargoyle from ANY player
+  // Gravestone, not just ones it created. Gated by the RAISE_GARGOYLE specialist effect
+  // being active, independent of the buried unit type and of the Mage's Raise Skeleton spell.
+  const canRaiseGargoyleHere = isGravestone && isSpecialistEffectActive(gameState, 'RAISE_GARGOYLE');
+  const canRaiseGargoyle =
+    canRaiseGargoyleHere && !graveOccupied && arcaneCrystals >= ABILITIES.GARGOYLE_CRYSTAL_COST;
+  const handleRaiseGargoyle = useCallback(() => {
+    raiseGargoyle(building.id);
+  }, [raiseGargoyle, building.id]);
 
   // Recruitment info — filter by tech-unlocked units
   const allRecruitableTypes = BUILDING_RECRUITS[building.type] ?? [];
@@ -2785,19 +2785,19 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
         </div>
       )}
 
-      {/* Gravestone revive button — only shown when the Deathmender specialist grants REVIVABLE */}
-      {graveRevivable && (
+      {/* Gravestone Gargoyle button: shown on any player Gravestone when the Deathmender specialist is active */}
+      {canRaiseGargoyleHere && (
         <div className="hud-revive-row">
           {graveOccupied ? (
-            <span className="hud-dim">A unit is standing here — move it to revive.</span>
+            <span className="hud-dim">A unit is standing here — move it to raise a Gargoyle.</span>
           ) : (
             <button
               className="hud-recruit-btn"
-              disabled={!canRevive}
-              onClick={handleRevive}
-              title={!canRevive ? `Need ${ABILITIES.REVIVE_CRYSTAL_COST} crystal (have ${arcaneCrystals})` : undefined}
+              disabled={!canRaiseGargoyle}
+              onClick={handleRaiseGargoyle}
+              title={!canRaiseGargoyle ? `Need ${ABILITIES.GARGOYLE_CRYSTAL_COST} crystal (have ${arcaneCrystals})` : undefined}
             >
-              🔮 Revive (💎{ABILITIES.REVIVE_CRYSTAL_COST})
+              🗿 Raise Gargoyle (💎{ABILITIES.GARGOYLE_CRYSTAL_COST})
             </button>
           )}
         </div>

@@ -30,6 +30,8 @@ export const UnitType = {
   EMBER_DEMON: 'EMBER_DEMON',
   /** Undead unit raised from a gravestone */
   SKELETON: 'SKELETON',
+  /** Flying skeletal gargoyle raised from any Gravestone via the Deathmender specialist */
+  GARGOYLE: 'GARGOYLE',
   /** Armor-piercing ranged attacker recruited from Archer Camp */
   CROSSBOWMAN: 'CROSSBOWMAN',
   // Enemy units

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Deathmender rework + Gargoyle unit (v0.94.0)
+- Deathmender specialist reworked: Spearmen, Scouts, and Guards now leave Gravestones on death, and the player can raise a flying Gargoyle (FLYING melee, 90 HP / medium ATK/DEF) from any player Gravestone for 1 crystal. Replaces the old REVIVABLE/revive behavior, which is now covered by the Mage's Raise Skeleton spell.
+- New GARGOYLE unit (placeholder sprite reuses Skeleton art). Raise Gargoyle (gravestone-panel button) and Raise Skeleton (Mage spell) coexist when both are unlocked.
+
 ### Crossbowman iterations (v0.93.4)
 
 - Crossbowman Reload debuff now applies in both unit stat panels: DEF penalty is reflected in live stat modifiers and shown in red like other debuffs.
