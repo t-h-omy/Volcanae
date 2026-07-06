@@ -354,7 +354,7 @@ export const UnitTag = {
   // ── Specialist-scaffolded tags (SP-00) ──────────────────────────────────────
   /** On hit, pushes the target one tile away from the attacker; FLYING units are immune. */
   KNOCKBACK: 'KNOCKBACK',
-  /** Unit was recruited in a zone within CINDERBORN_ROWS rows of the lava front; receives an ATK bonus. */
+  /** Unit was recruited near the lava front; gains CINDERBORN_ATTACK_BONUS ATK and immunity to BURNING tile damage. */
   CINDERBORN: 'CINDERBORN',
   /** When HP drops to or below BERSERK_HP_THRESHOLD_PCT%, unit gains BERSERK_ATTACK_PCT% bonus ATK. */
   BERSERK: 'BERSERK',

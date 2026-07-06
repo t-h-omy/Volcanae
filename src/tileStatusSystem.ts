@@ -164,8 +164,8 @@ export function processTileStatusEndOfTurn(
 
       const unit = state.units[tile.unitId];
       if (!unit) continue;
-      // LAVA-tagged units are immune to BURNING tile damage.
-      if (unit.tags.includes(UnitTag.LAVA)) continue;
+      // LAVA-tagged and CINDERBORN units are immune to BURNING tile damage.
+      if (unit.tags.includes(UnitTag.LAVA) || unit.tags.includes(UnitTag.CINDERBORN)) continue;
 
       const damage = Math.min(BURNING_TILE_DAMAGE, unit.stats.currentHp);
       unit.stats.currentHp -= damage;

@@ -2673,7 +2673,7 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   [UnitTag.BRIDGE_BUILDER]: { label: 'Bridgebuilder', desc: `Can spend its action to build a Bridge (${BUILDING_DEFINITIONS.BRIDGE.constructionCost.wood} wood) across a 1-tile canyon gap between two land tiles. Bridge is crossable along its axis and diagonally.` },
   // ── SP-00 specialist-scaffolded tags ───────────────────────────────────────
   [UnitTag.KNOCKBACK]:    { label: 'Knockback',    desc: 'On hit, pushes the target one tile away from the attacker. FLYING units are immune to knockback.' },
-  [UnitTag.CINDERBORN]:   { label: 'Cinderborn',   desc: `Recruited within ${ABILITIES.CINDERBORN_ROWS} rows of the lava front. Gains +${ABILITIES.CINDERBORN_ATTACK_BONUS} ATK.` },
+  [UnitTag.CINDERBORN]:   { label: 'Cinderborn',   desc: `Recruited within ${ABILITIES.CINDERBORN_ROWS} rows of the lava front. Gains +${ABILITIES.CINDERBORN_ATTACK_BONUS} ATK and immunity to BURNING tile damage.` },
   [UnitTag.BERSERK]:      { label: 'Berserk',      desc: `When HP drops to ${ABILITIES.BERSERK_HP_THRESHOLD_PCT}% or below, gains +${ABILITIES.BERSERK_ATTACK_PCT}% ATK.` },
   [UnitTag.BATTERY]:      { label: 'Battery',      desc: `Gains +${ABILITIES.SIEGE_BATTERY_ATK_PER_ADJACENT} ATK per adjacent friendly Siege unit, up to ${ABILITIES.SIEGE_BATTERY_CAP} stacks.` },
 };

@@ -1051,6 +1051,16 @@ export function recruitUnit(
   // Remove any tags that unlocked techs strip (e.g. OUTRIDERS removes BUILDANDCAPTURE)
   const removedTags = getRemovedTags(state, unitType);
   const spawnTags = baseTags.filter((t) => !removedTags.includes(t));
+  if (
+    isSpecialistEffectActive(state, 'CINDERBORN_RECRUIT') &&
+    state.lavaFrontRow - building.position.y <= ABILITIES.CINDERBORN_ROWS &&
+    !spawnTags.includes(UnitTag.CINDERBORN)
+  ) {
+    spawnTags.push(UnitTag.CINDERBORN);
+  }
+  const cinderbornAttackBonus = spawnTags.includes(UnitTag.CINDERBORN)
+    ? ABILITIES.CINDERBORN_ATTACK_BONUS
+    : 0;
 
   // READY: unit can act immediately after recruitment
   const isReady = spawnTags.includes(UnitTag.READY);
@@ -1063,7 +1073,7 @@ export function recruitUnit(
     stats: {
       maxHp: UNIT_DEFINITIONS[unitType].maxHp,
       currentHp: UNIT_DEFINITIONS[unitType].maxHp,
-      attack: UNIT_DEFINITIONS[unitType].attack,
+      attack: UNIT_DEFINITIONS[unitType].attack + cinderbornAttackBonus,
       defense: UNIT_DEFINITIONS[unitType].defense,
       moveRange: UNIT_DEFINITIONS[unitType].moveRange,
       discoverRadius: UNIT_DEFINITIONS[unitType].discoverRadius,
