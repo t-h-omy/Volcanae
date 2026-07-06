@@ -32,6 +32,19 @@ export type SaveSlotMeta = {
   difficulty: Difficulty;
 };
 
+/** Compute the next default campaign name using the lowest unused integer suffix. */
+export function getNextDefaultSlotName(slots: Array<Pick<SaveSlotMeta, 'name'>>): string {
+  const prefixRe = new RegExp(`^${SAVE.DEFAULT_NAME_PREFIX} (\\d+)$`);
+  const usedNumbers = new Set<number>();
+  for (const slot of slots) {
+    const match = slot.name.match(prefixRe);
+    if (match) usedNumbers.add(parseInt(match[1], 10));
+  }
+  let next = 1;
+  while (usedNumbers.has(next)) next++;
+  return `${SAVE.DEFAULT_NAME_PREFIX} ${next}`;
+}
+
 // ============================================================================
 // PRIVATE HELPERS
 // ============================================================================

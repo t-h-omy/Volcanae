@@ -54,6 +54,7 @@ import {
   type Position,
   type Tile,
   type GameStats,
+  type GameState,
 } from '../types';
 import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast, getMageCastBudget, isHealSuppressedByCorruption, canUnitTrade, getTradeMarket, getCaptureTarget, canUnitBuildBridge, getBridgeBuildTargets } from '../unitActions';
 import { getPhalanxAttackBonus, getPhalanxDefenseBonus, getCrystalTowerChamberBonus } from '../combatSystem';
@@ -64,8 +65,9 @@ import { useZoneClearedStore } from '../zoneClearedStore';
 import { useCaveScreamsStore } from '../caveScreamsStore';
 import { useSpecialistHireStore } from '../specialistHireStore';
 import { useMarketPanelStore } from '../marketPanelStore';
-import { saveSlot, deleteSlot, exportSlot, getSlotMeta } from '../saveSystem';
+import { saveSlot, deleteSlot, exportSlot, getSlotMeta, listSlots, getNextDefaultSlotName, idbAvailable } from '../saveSystem';
 import { SAVE } from '../gameConfig';
+import { generateId } from '../mapGenerator';
 import './HUD.css';
 
 // ============================================================================
@@ -523,7 +525,31 @@ function GameMenu() {
     clearSavedGameAction();
   }, [clearSavedGameAction]);
 
+  const persistCurrentGameForReload = useCallback(async () => {
+    if (!idbAvailable()) return;
+    const fullStore = useGameStore.getState();
+    const stateSnapshot = Object.fromEntries(
+      Object.entries(fullStore).filter(([, value]) => typeof value !== 'function'),
+    ) as GameState;
+
+    let activeSaveId = useMenuStore.getState().activeSaveId;
+    let slotName = String(stateSnapshot.turn);
+
+    if (activeSaveId) {
+      const meta = await getSlotMeta(activeSaveId);
+      slotName = meta?.name ?? slotName;
+    } else {
+      const slots = await listSlots();
+      activeSaveId = generateId('slot');
+      slotName = getNextDefaultSlotName(slots);
+      useMenuStore.setState({ activeSaveId });
+    }
+
+    await saveSlot({ id: activeSaveId, name: slotName, state: stateSnapshot });
+  }, []);
+
   const handleResetCache = useCallback(async () => {
+    await persistCurrentGameForReload().catch(() => undefined);
     if ('caches' in window) {
       const keys = await caches.keys();
       await Promise.all(keys.map((k) => caches.delete(k)));
@@ -533,7 +559,7 @@ function GameMenu() {
       await Promise.all(registrations.map((r) => r.unregister()));
     }
     window.location.reload();
-  }, []);
+  }, [persistCurrentGameForReload]);
 
   const handleDifficultySelect = useCallback((d: Difficulty) => {
     initNewGame(d);
