@@ -17,6 +17,7 @@ import { isUnitOnCorruptedTile, applyTileStatus } from './tileStatusSystem';
 import { cleanupRoostedUnits } from './buildingRemoval';
 import { getBridgeAt } from './bridgeSystem';
 import { resolveSlide } from './movementSystem';
+import { isSpecialistEffectActive } from './specialistSystem';
 
 // Counter for generating unique gravestone building IDs within this module
 let combatSystemIdCounter = 0;
@@ -1880,6 +1881,20 @@ export function resolveAttackOnBuilding(
   // retaliation on a bloodlust follow-up hit.
   if (isBloodlustAttack) {
     combatResult.attackerHpLost = 0;
+  }
+
+  // ARCHER_VS_STRUCTURE (Wallbreaker, spec_19): a player ARCHER attacking an enemy
+  // building that has combatStats (i.e. an attackable building) receives a damage bonus.
+  // EMBERNEST is naturally excluded because it has no combatStats.
+  if (
+    attacker.type === UnitType.ARCHER &&
+    building.faction === Faction.ENEMY &&
+    building.combatStats !== null &&
+    isSpecialistEffectActive(state, 'ARCHER_VS_STRUCTURE')
+  ) {
+    combatResult.defenderHpLost = Math.round(
+      combatResult.defenderHpLost * (1 + ABILITIES.ARCHER_STRUCTURE_DMG_PCT / 100),
+    );
   }
 
   // Capture full primary damage before any PIERCE reduction (used by PIERCE secondary target).
