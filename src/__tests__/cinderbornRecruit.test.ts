@@ -129,6 +129,7 @@ function makeRecruitState(params: { lavaFrontRow: number; recruitY: number; with
       enemyBuildingsCaptured: 0,
       buildingsDestroyedByEnemy: 0,
       buildingsCapturedByEnemy: 0,
+      buildingsDestroyedByLava: 0,
     },
     enemyUnitsSpawnedLastTurn: 0,
     difficulty: undefined as unknown as GameState['difficulty'],
