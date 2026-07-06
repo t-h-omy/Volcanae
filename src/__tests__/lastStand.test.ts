@@ -206,16 +206,17 @@ describe('SP-20 Last Stand (spec_20) — Archer BERSERK', () => {
 
     expect(state.units[existingArcher.id].tags).toContain(UnitTag.BERSERK);
 
-    const barracks = makeBuilding('barracks', BuildingType.BARRACKS, Faction.PLAYER, 4, 4);
+    const archerCamp = makeBuilding('archer_camp', BuildingType.ARCHER_CAMP, Faction.PLAYER, 4, 4);
     const stronghold = makeBuilding('stronghold', BuildingType.STRONGHOLD, Faction.PLAYER, 0, 0, {
-      populationCount: 1,
-      strongholdNobles: 1,
+      populationCount: 5,
+      strongholdNobles: 5,
     });
-    const recruitState = makeState([], [barracks, stronghold]);
+    const recruitState = makeState([], [archerCamp, stronghold]);
     recruitState.globalSpecialistStorage = ['spec_20'];
     recruitState.unlockedUnits = [UnitType.ARCHER];
+    recruitState.resources = { iron: 999, wood: 999 };
 
-    recruitUnit(recruitState, barracks.id, UnitType.ARCHER);
+    recruitUnit(recruitState, archerCamp.id, UnitType.ARCHER);
 
     const recruited = Object.values(recruitState.units)[0];
     expect(recruited).toBeDefined();
