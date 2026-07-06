@@ -1750,7 +1750,7 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
   spec_05: {
     name: 'Deathmender',
     description:
-      `When one of your Spearman, Scout, or Guard units dies, a Gravestone is left on their tile. Pay ${ABILITIES.GARGOYLE_CRYSTAL_COST} crystal to raise a flying Gargoyle from any Gravestone.`,
+      `When one of your Spearmen, Scouts, or Guards dies, a Gravestone is left on their tile. Pay ${ABILITIES.GARGOYLE_CRYSTAL_COST} crystal to raise a flying Gargoyle from any Gravestone.`,
     effects: [
       { type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.SPEARMAN, tag: UnitTag.LEAVES_GRAVESTONE } },
       { type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.SCOUT,    tag: UnitTag.LEAVES_GRAVESTONE } },
