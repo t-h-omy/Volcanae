@@ -378,6 +378,9 @@ export function collectResources(state: Draft<GameState>): void {
       grantArcaneCrystals(state, CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN);
     }
     building.resonanceTurnsRemaining -= 1;
+    if (building.type === BuildingType.CRYSTAL_CHAMBER && building.resonanceTurnsRemaining <= 0) {
+      building.resonanceCrystalBonus = false;
+    }
   }
 }
 

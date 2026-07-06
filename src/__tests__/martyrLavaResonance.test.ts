@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { CRYSTAL_CHAMBER_CONFIG, MAP, UNIT_DEFINITIONS } from '../gameConfig';
+import { produce } from 'immer';
+import { ABILITIES, CRYSTAL_CHAMBER_CONFIG, MAP, UNIT_DEFINITIONS } from '../gameConfig';
 import { advanceLavaWithEvents } from '../lavaSystem';
+import { collectResources } from '../resourceSystem';
 import { createInitialSpecialists } from '../specialistSystem';
+import { useGameStore } from '../gameStore';
 import {
   BuildingType,
+  Difficulty,
   DestroyBehavior,
   Faction,
+  GamePhase,
   TileType,
   UnitType,
 } from '../types';
@@ -262,6 +267,75 @@ describe('SP-16m The Martyr (spec_16) — RESONANCE_ON_UNIT_LAVA_DEATH', () => {
     expect(resonanceEvents).toHaveLength(2);
     expect(resonanceEvents.map((e) => e.destroyedChamberPosition)).toEqual(
       expect.arrayContaining([{ x: 6, y: 4 }, { x: 2, y: 4 }]),
+    );
+  });
+
+  it('flags only surviving chambers within the configured north-row bonus window', () => {
+    const state = makeState({
+      withMartyr: false,
+      doomedPlayerUnitPositions: [],
+      doomedChamberPosition: { x: 6, y: 4 },
+    });
+    state.globalSpecialistStorage = ['spec_18'];
+
+    const nearChamber = makeBuilding(
+      'near_chamber',
+      BuildingType.CRYSTAL_CHAMBER,
+      Faction.PLAYER,
+      { x: 2, y: 2 },
+    );
+    state.buildings[nearChamber.id] = nearChamber;
+    state.grid[nearChamber.position.y][nearChamber.position.x].buildingId = nearChamber.id;
+
+    const { newState } = advanceLavaWithEvents(state);
+
+    expect(newState.buildings.near_chamber.resonanceCrystalBonus).toBe(true);
+    expect(newState.buildings.surviving_chamber.resonanceCrystalBonus ?? false).toBe(false);
+  });
+
+  it('clears resonanceCrystalBonus when a chamber resonance expires', () => {
+    const state = makeState({
+      withMartyr: false,
+      doomedPlayerUnitPositions: [],
+    });
+    state.buildings.surviving_chamber.resonanceTurnsRemaining = 1;
+    state.buildings.surviving_chamber.resonanceCrystalBonus = true;
+
+    const newState = produce(state, (draft) => {
+      collectResources(draft);
+    });
+
+    expect(newState.buildings.surviving_chamber.resonanceTurnsRemaining).toBe(0);
+    expect(newState.buildings.surviving_chamber.resonanceCrystalBonus).toBe(false);
+  });
+
+  it('grants Echo Warden bonus crystals in the per-turn production pass', () => {
+    const state = makeState({
+      withMartyr: false,
+      doomedPlayerUnitPositions: [],
+    });
+    state.globalSpecialistStorage = ['spec_18'];
+    state.arcaneCrystals = 0;
+    state.buildings.surviving_chamber.resonanceTurnsRemaining = 2;
+    state.buildings.surviving_chamber.resonanceCrystalBonus = true;
+    const stronghold = makeBuilding(
+      'player_stronghold',
+      BuildingType.STRONGHOLD,
+      Faction.PLAYER,
+      { x: 3, y: 11 },
+    );
+    state.buildings[stronghold.id] = stronghold;
+    state.grid[stronghold.position.y][stronghold.position.x].buildingId = stronghold.id;
+    state.phase = GamePhase.PLAYER_TURN;
+    state.difficulty = Difficulty.NORMAL;
+    state.turnsUntilLavaAdvance = 5;
+
+    useGameStore.setState(state);
+    useGameStore.getState().endPlayerTurn();
+    const next = useGameStore.getState();
+
+    expect(next.arcaneCrystals).toBe(
+      CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN + ABILITIES.RESONANCE_BONUS_CRYSTALS,
     );
   });
 });

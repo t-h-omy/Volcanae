@@ -21,11 +21,12 @@ import type { GameState } from './types';
 import type { Draft } from 'immer';
 import { produce } from 'immer';
 import { Faction, BuildingType } from './types';
-import { MAP, TECH, CRYSTAL_CHAMBER_CONFIG, getLavaAdvanceInterval } from './gameConfig';
+import { ABILITIES, MAP, TECH, CRYSTAL_CHAMBER_CONFIG, getLavaAdvanceInterval } from './gameConfig';
 import type { GameEvent } from './gameEvents';
 import { grantArcaneCrystals } from './techSystem';
 import { removePortalsOnLava } from './portalSystem';
 import { cleanupRoostedUnits, getRoostedUnits } from './buildingRemoval';
+import { isSpecialistEffectActive } from './specialistSystem';
 
 // ============================================================================
 // LAVA STATE QUERIES
@@ -354,6 +355,7 @@ export function advanceLavaWithEvents(state: GameState): { newState: GameState; 
       }
     }
     if (survivingChamberIds.length > 0 || survivingCaveIds.length > 0) {
+      const resonanceCrystalBonusActive = isSpecialistEffectActive(state, 'RESONANCE_CRYSTAL_BONUS');
       // Apply resonance to the resolvedState for surviving chambers AND caves.
       // advanceLava intentionally does NOT set resonanceTurnsRemaining so that the
       // live state only switches to the active sprite when the per-building VFX fires
@@ -377,6 +379,18 @@ export function advanceLavaWithEvents(state: GameState): { newState: GameState; 
               b.resonanceTurnsRemaining,
               CRYSTAL_CHAMBER_CONFIG.RESONANCE_DURATION,
             );
+          }
+        }
+        if (resonanceCrystalBonusActive) {
+          for (const triggerPosition of resonanceTriggerPositions) {
+            for (const bId of survivingChamberIds) {
+              const b = draft.buildings[bId];
+              if (!b) continue;
+              const northDelta = triggerPosition.y - b.position.y;
+              if (northDelta >= 0 && northDelta <= ABILITIES.RESONANCE_BONUS_ROWS) {
+                b.resonanceCrystalBonus = true;
+              }
+            }
           }
         }
       });

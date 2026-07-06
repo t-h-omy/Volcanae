@@ -2206,6 +2206,20 @@ export const useGameStore = create<GameStore>()(
             }
           }
 
+          // Echo Warden: resonating Crystal Chambers flagged by lava trigger gain bonus crystals.
+          if (isSpecialistEffectActive(draft, 'RESONANCE_CRYSTAL_BONUS')) {
+            for (const b of Object.values(draft.buildings)) {
+              if (
+                b.faction === Faction.PLAYER &&
+                b.type === BuildingType.CRYSTAL_CHAMBER &&
+                b.resonanceTurnsRemaining > 0 &&
+                b.resonanceCrystalBonus
+              ) {
+                draft.arcaneCrystals += ABILITIES.RESONANCE_BONUS_CRYSTALS;
+              }
+            }
+          }
+
           // Decrement building disable timers, reset attack flags
           for (const building of Object.values(draft.buildings)) {
             if (building.isDisabledForTurns > 0) {
