@@ -6,10 +6,10 @@
 import type { GameState, Building, Position, Tile, UnitPopulationCost } from './types';
 import type { Draft } from 'immer';
 import { Faction, BuildingType, UnitType, UnitTag, ResourceType } from './types';
-import { RESOURCES, UNIT_DEFINITIONS, POPULATION, CRYSTAL_CHAMBER_CONFIG, BUILDING_DEFINITIONS, TECH_TREE } from './gameConfig';
+import { RESOURCES, ABILITIES, UNIT_DEFINITIONS, POPULATION, CRYSTAL_CHAMBER_CONFIG, BUILDING_DEFINITIONS, TECH_TREE } from './gameConfig';
 import type { UnitCost } from './gameConfig';
 import { getGrantedTags, getStatMods, getBuildingProductionMods, getFlatIncomeMods, grantArcaneCrystals, getStrongholdEffectiveCap, getRemovedTags, getCostMods } from './techSystem';
-import { getTagsFromActiveSpecialists } from './specialistSystem';
+import { getTagsFromActiveSpecialists, isSpecialistEffectActive } from './specialistSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 
 // ============================================================================
@@ -212,11 +212,17 @@ export function computeRecruitmentBuildingUsage(
  *
  * Each in-range kiln contributes one additive bonus increment. Only player
  * kilns buff player mines; kilns with isDisabledForTurns > 0 grant no bonus.
+ * When the KILN_BONUS specialist effect is active, the effective radius is
+ * increased by ABILITIES.KILN_RADIUS_BONUS.
  */
 export function getMineKilnBonusCount(
   state: GameState | Draft<GameState>,
   mine: Building,
 ): number {
+  const radiusBonus = isSpecialistEffectActive(state, 'KILN_BONUS')
+    ? ABILITIES.KILN_RADIUS_BONUS
+    : 0;
+  const effectiveRadius = RESOURCES.CHARCOAL_KILN_RADIUS + radiusBonus;
   let count = 0;
   for (const b of Object.values(state.buildings)) {
     if (
@@ -226,13 +232,25 @@ export function getMineKilnBonusCount(
       isTileWithinEdgeCircleRange(
         b.position.x, b.position.y,
         mine.position.x, mine.position.y,
-        RESOURCES.CHARCOAL_KILN_RADIUS,
+        effectiveRadius,
       )
     ) {
       count += 1;
     }
   }
   return count;
+}
+
+/**
+ * Returns the iron bonus awarded per in-range Charcoal Kiln.
+ * When the KILN_BONUS specialist effect is active, ABILITIES.KILN_IRON_BONUS
+ * is added on top of the base CHARCOAL_KILN_IRON_BONUS.
+ */
+function getKilnIronBonusPerKiln(state: GameState | Draft<GameState>): number {
+  const ironBonus = isSpecialistEffectActive(state, 'KILN_BONUS')
+    ? ABILITIES.KILN_IRON_BONUS
+    : 0;
+  return RESOURCES.CHARCOAL_KILN_IRON_BONUS + ironBonus;
 }
 
 /** Backward-compatible boolean helper used by UI affordances. */
@@ -280,10 +298,10 @@ export function collectResources(state: Draft<GameState>): void {
     if (building.type === BuildingType.MINE) {
       state.resources.iron += RESOURCES.MINE_IRON_PER_TURN;
       // Additive Charcoal Kiln bonus: each active in-range kiln adds one
-      // +CHARCOAL_KILN_IRON_BONUS increment to this mine.
+      // increment to this mine (base + any KILN_BONUS specialist modifier).
       const kilnBonusCount = getMineKilnBonusCount(state, building);
       if (kilnBonusCount > 0) {
-        state.resources.iron += RESOURCES.CHARCOAL_KILN_IRON_BONUS * kilnBonusCount;
+        state.resources.iron += getKilnIronBonusPerKiln(state) * kilnBonusCount;
       }
     } else if (building.type === BuildingType.WOODCUTTER) {
       state.resources.wood += RESOURCES.WOODCUTTER_WOOD_PER_TURN;
@@ -369,7 +387,7 @@ export function computeResourceIncome(
       // Additive Charcoal Kiln bonus (deterministic — always +integer).
       const kilnBonusCount = getMineKilnBonusCount(state, building);
       if (kilnBonusCount > 0) {
-        ironPerTurn += RESOURCES.CHARCOAL_KILN_IRON_BONUS * kilnBonusCount;
+        ironPerTurn += getKilnIronBonusPerKiln(state) * kilnBonusCount;
       }
     } else if (building.type === BuildingType.WOODCUTTER) {
       woodPerTurn += RESOURCES.WOODCUTTER_WOOD_PER_TURN;
@@ -484,7 +502,7 @@ export function computeResourceIncomeBreakdown(
   if (kilnBonusIncrementCount > 0) {
     entries.push({
       label: `Charcoal Kiln bonus ×${kilnBonusIncrementCount}`,
-      iron: kilnBonusIncrementCount * RESOURCES.CHARCOAL_KILN_IRON_BONUS,
+      iron: kilnBonusIncrementCount * getKilnIronBonusPerKiln(state),
       wood: 0,
     });
   }
