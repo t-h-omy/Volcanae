@@ -26,6 +26,7 @@ import type { GameEvent } from './gameEvents';
 import { grantArcaneCrystals } from './techSystem';
 import { removePortalsOnLava } from './portalSystem';
 import { cleanupRoostedUnits, getRoostedUnits } from './buildingRemoval';
+import { isSpecialistEffectActive } from './specialistSystem';
 
 // ============================================================================
 // LAVA STATE QUERIES
@@ -278,12 +279,24 @@ export function advanceLavaWithEvents(state: GameState): { newState: GameState; 
   const newLavaRow = state.lavaFrontRow - 1;
   const destroyedUnitIds: string[] = [];
   const destroyedBuildingIds: string[] = [];
+  const destroyedPlayerUnitPositions: { x: number; y: number }[] = [];
 
   // Collect what will be destroyed before applying
   if (newLavaRow >= 0 && newLavaRow < MAP.GRID_HEIGHT) {
     for (let x = 0; x < MAP.GRID_WIDTH; x++) {
       const tile = state.grid[newLavaRow][x];
-      if (tile.unitId) destroyedUnitIds.push(tile.unitId);
+      if (tile.unitId) {
+        destroyedUnitIds.push(tile.unitId);
+        const unit = state.units[tile.unitId];
+        if (
+          unit &&
+          unit.faction === Faction.PLAYER &&
+          unit.tunnelState !== 'UNDERGROUND' &&
+          unit.tunnelState !== 'EMERGING'
+        ) {
+          destroyedPlayerUnitPositions.push({ x, y: newLavaRow });
+        }
+      }
       if (tile.buildingId) destroyedBuildingIds.push(tile.buildingId);
     }
   }
@@ -314,11 +327,21 @@ export function advanceLavaWithEvents(state: GameState): { newState: GameState; 
     ...portalEvents,
   ];
 
-  // If a Crystal Chamber was destroyed, emit RESONANCE_TRIGGERED so the camera
-  // pans to each surviving chamber that just got activated. Crystal Caves
-  // share the same resonance window — they are listed via the parallel
-  // `survivingCaveIds` field so the animation engine can pan + activate them.
+  const resonanceTriggerPositions: { x: number; y: number }[] = [];
   if (destroyedChamberPosition) {
+    resonanceTriggerPositions.push(destroyedChamberPosition);
+  }
+  if (
+    isSpecialistEffectActive(state, 'RESONANCE_ON_UNIT_LAVA_DEATH') &&
+    destroyedPlayerUnitPositions.length > 0
+  ) {
+    resonanceTriggerPositions.push(...destroyedPlayerUnitPositions);
+  }
+
+  // For each trigger source (destroyed chamber and/or eligible player unit
+  // lava deaths under The Martyr), emit RESONANCE_TRIGGERED so the camera pans
+  // to each surviving chamber/cave that gets activated.
+  if (resonanceTriggerPositions.length > 0) {
     const survivingChamberIds: string[] = [];
     const survivingCaveIds: string[] = [];
     for (const b of Object.values(newState.buildings)) {
@@ -356,13 +379,15 @@ export function advanceLavaWithEvents(state: GameState): { newState: GameState; 
           }
         }
       });
-      events.push({
-        type: 'RESONANCE_TRIGGERED',
-        destroyedChamberPosition,
-        survivingChamberIds,
-        survivingCaveIds,
-        resonanceDuration: CRYSTAL_CHAMBER_CONFIG.RESONANCE_DURATION,
-      });
+      for (const triggerPosition of resonanceTriggerPositions) {
+        events.push({
+          type: 'RESONANCE_TRIGGERED',
+          destroyedChamberPosition: triggerPosition,
+          survivingChamberIds,
+          survivingCaveIds,
+          resonanceDuration: CRYSTAL_CHAMBER_CONFIG.RESONANCE_DURATION,
+        });
+      }
     }
   }
 
