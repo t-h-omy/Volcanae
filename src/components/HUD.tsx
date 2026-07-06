@@ -56,7 +56,7 @@ import {
   type GameStats,
   type GameState,
 } from '../types';
-import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast, getMageCastBudget, isHealSuppressedByCorruption, canUnitTrade, getTradeMarket, getCaptureTarget, canUnitBuildBridge, getBridgeBuildTargets, canUnitSetTrap, isTrapTileClear, canUnitExtinguish } from '../unitActions';
+import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast, getMageCastBudget, getUnitAttackRange, isHealSuppressedByCorruption, canUnitTrade, getTradeMarket, getCaptureTarget, canUnitBuildBridge, getBridgeBuildTargets, canUnitSetTrap, isTrapTileClear, canUnitExtinguish } from '../unitActions';
 import { getPhalanxAttackBonus, getPhalanxDefenseBonus, getCrystalTowerChamberBonus } from '../combatSystem';
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
 import { isSpecialistEffectActive } from '../specialistSystem';
@@ -1450,6 +1450,10 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
     return { total: techBonus + tagBonus, techBonus, tagBonus };
   }, [unit, gameState]);
 
+  const contextualRange = useMemo(() => {
+    return getUnitAttackRange(unit, gameState) - unit.stats.attackRange;
+  }, [unit, gameState]);
+
   // ── RAGE bonus (shared between stat display and mods breakdown) ────────────
   const { rageBonus, rageAdjacentCount } = useMemo(() => {
     if (!unit.tags.includes(UnitTag.RAGE)) return { rageBonus: 0, rageAdjacentCount: 0 };
@@ -1499,6 +1503,7 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
     if (phalanxDefense !== 0) addC('defense', phalanxDefense);
     if (contextualDef !== 0) addC('defense', contextualDef);
     if (contextualMov.total !== 0) addC('moveRange', contextualMov.total);
+    if (contextualRange !== 0) addC('attackRange', contextualRange);
 
     // RAGE: dynamic +ATK per adjacent enemy (works for both factions)
     if (rageBonus > 0) addC('attack', rageBonus);
@@ -1510,7 +1515,7 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
       netMap[k] = (appliedMap[k] ?? 0) + (contextualMap[k] ?? 0);
     }
     return { applied: appliedMap, net: netMap, hasAny: hasAnyMap };
-  }, [unit, gameState, phalanxAttack, phalanxDefense, contextualDef, contextualMov, rageBonus]);
+  }, [unit, gameState, phalanxAttack, phalanxDefense, contextualDef, contextualMov, contextualRange, rageBonus]);
 
   const showNetMod = (statKey: string) => {
     if (!hasAny[statKey]) return null;
@@ -1531,6 +1536,7 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
   if (unit.tags.includes(UnitTag.SKIRMISHER)) mods.push({ stat: 'MOV', value: ABILITIES.SKIRMISHER_MOVE_BONUS, kind: 'active', source: 'Skirmisher (tag ability)' });
   if (unit.tags.includes(UnitTag.OUTRIDER)) mods.push({ stat: 'MOV', value: ABILITIES.OUTRIDER_MOVE_BONUS, kind: 'active', source: 'Outrider (tag ability)' });
   if (contextualMov.techBonus > 0) mods.push({ stat: 'MOV', value: contextualMov.techBonus, kind: 'active', source: 'To the Front (far behind frontline)' });
+  if (contextualRange > 0) mods.push({ stat: 'RNG', value: contextualRange, kind: 'active', source: 'Farsight Marshal (specialist)' });
   for (const tag of unit.tags) {
     for (const mod of TAG_STAT_EFFECTS[tag] ?? []) {
       if (mod.mode === 'add') mods.push({ stat: statKeyToLabel(mod.stat), value: mod.value, kind: 'applied', source: `${TAG_INFO[tag]?.label ?? tag} (tag)` });
@@ -1797,7 +1803,7 @@ function SelectedUnitPanel({
 
   // Compute contextual stat bonuses from tech flags and unit tags
   const statBonuses = useMemo(() => {
-    const bonuses: { def: number; mov: number } = { def: 0, mov: 0 };
+    const bonuses: { def: number; mov: number; rng: number } = { def: 0, mov: 0, rng: 0 };
     if (unit.faction !== Faction.PLAYER) return bonuses;
 
     // HOLD_GROUND: defense bonus when standing on own building
@@ -1823,6 +1829,8 @@ function SelectedUnitPanel({
     if (unit.tags.includes(UnitTag.SKIRMISHER) || unit.tags.includes(UnitTag.OUTRIDER)) {
       bonuses.mov += 1;
     }
+
+    bonuses.rng = getUnitAttackRange(unit, gameState) - unit.stats.attackRange;
 
     return bonuses;
   }, [unit, gameState]);
@@ -1870,6 +1878,7 @@ function SelectedUnitPanel({
     if (phalanxDefense !== 0) addContextual('defense', phalanxDefense);
     if (statBonuses.def !== 0) addContextual('defense', statBonuses.def);
     if (statBonuses.mov !== 0) addContextual('moveRange', statBonuses.mov);
+    if (statBonuses.rng !== 0) addContextual('attackRange', statBonuses.rng);
     const reloadPenalty = getReloadDefensePenalty(
       unit,
       unit.stats.defense + phalanxDefense + statBonuses.def - unit.distractionDefPenalty,

@@ -45,7 +45,7 @@ import { MAP, MAGE } from './gameConfig';
 import { getMageCastBudget } from './spellSystem';
 import { isUnitOnCorruptedTile } from './tileStatusSystem';
 import { getBridgeAt } from './bridgeSystem';
-import { isSpecialistEffectActive } from './specialistSystem';
+import { getActiveEffectParams, isSpecialistEffectActive } from './specialistSystem';
 export { canUnitCast, getMageCastBudget } from './spellSystem';
 
 // ── HELPER ───────────────────────────────────────────────────────────────────
@@ -188,6 +188,19 @@ export function canUnitAttack(
   return true;
 }
 
+/** Returns the unit's effective attack range, including derived specialist bonuses. */
+export function getUnitAttackRange(
+  unit: Unit,
+  state?: GameState | Draft<GameState>,
+): number {
+  let attackRange = unit.stats.attackRange;
+  if (state && unit.faction === Faction.PLAYER && unit.type === UnitType.SCOUT) {
+    const params = getActiveEffectParams(state, 'SCOUT_RANGE_BONUS');
+    attackRange += Number(params?.bonus ?? 0);
+  }
+  return attackRange;
+}
+
 /**
  * Returns the set of tile keys ("x,y") containing valid attack targets.
  * Includes revealed enemy units and revealed enemy buildings with combat stats.
@@ -202,6 +215,7 @@ export function getAttackTargets(
 ): Set<string> {
   const keys = new Set<string>();
   if (!canUnitAttack(unit, state)) return keys;
+  const attackRange = getUnitAttackRange(unit, state);
 
   // Enemy units
   for (const other of Object.values(units)) {
@@ -214,7 +228,7 @@ export function getAttackTargets(
       const inRange = isTileWithinEdgeCircleRange(
         unit.position.x, unit.position.y,
         other.position.x, other.position.y,
-        unit.stats.attackRange,
+        attackRange,
       );
       if (inRange) {
         keys.add(`${other.position.x},${other.position.y}`);
@@ -234,7 +248,7 @@ export function getAttackTargets(
       const inRange = isTileWithinEdgeCircleRange(
         unit.position.x, unit.position.y,
         b.position.x, b.position.y,
-        unit.stats.attackRange,
+        attackRange,
       );
       if (inRange) {
         keys.add(key);
