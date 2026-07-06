@@ -26,7 +26,6 @@ import type { GameEvent } from './gameEvents';
 import { grantArcaneCrystals } from './techSystem';
 import { removePortalsOnLava } from './portalSystem';
 import { cleanupRoostedUnits, getRoostedUnits } from './buildingRemoval';
-import { isSpecialistEffectActive } from './specialistSystem';
 
 // ============================================================================
 // LAVA STATE QUERIES
@@ -331,10 +330,12 @@ export function advanceLavaWithEvents(state: GameState): { newState: GameState; 
   if (destroyedChamberPosition) {
     resonanceTriggerPositions.push(destroyedChamberPosition);
   }
-  if (
-    isSpecialistEffectActive(state, 'RESONANCE_ON_UNIT_LAVA_DEATH') &&
-    destroyedPlayerUnitPositions.length > 0
-  ) {
+  const martyrActive = Array.isArray(state.globalSpecialistStorage) &&
+    state.globalSpecialistStorage.some((specId) => {
+      const spec = state.specialists?.[specId];
+      return !!(spec && !spec.dormant && spec.effects.some((e) => e.type === 'RESONANCE_ON_UNIT_LAVA_DEATH'));
+    });
+  if (martyrActive && destroyedPlayerUnitPositions.length > 0) {
     resonanceTriggerPositions.push(...destroyedPlayerUnitPositions);
   }
 
