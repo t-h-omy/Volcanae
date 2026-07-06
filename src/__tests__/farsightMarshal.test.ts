@@ -121,7 +121,7 @@ describe('Farsight Marshal', () => {
       turn: 1,
       resources: { iron: 10, wood: 10 },
       specialists: createInitialSpecialists(),
-      globalSpecialistStorage: ['spec_11'],
+      globalSpecialistStorage: [],
       techNodes: {},
       techFlags: [],
       gameStats: {},
@@ -130,6 +130,7 @@ describe('Farsight Marshal', () => {
     expect(getAttackTargets(scout, baseState.units, baseState.buildings, baseState.grid, baseState)).toEqual(new Set());
 
     const state = produce(baseState, (draft) => {
+      draft.globalSpecialistStorage.push('spec_11');
       applySpecialistEffects(draft);
     });
     const updatedScout = state.units[scout.id];
