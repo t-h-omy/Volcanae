@@ -327,7 +327,7 @@ describe('SP-16m The Martyr (spec_16) — RESONANCE_ON_UNIT_LAVA_DEATH', () => {
     state.buildings[stronghold.id] = stronghold;
     state.grid[stronghold.position.y][stronghold.position.x].buildingId = stronghold.id;
     state.phase = GamePhase.PLAYER_TURN;
-    state.difficulty = Difficulty.NORMAL;
+    state.difficulty = Difficulty.STANDARD;
     state.turnsUntilLavaAdvance = 5;
 
     useGameStore.setState(state);
