@@ -318,8 +318,8 @@ export function checkScoutTrapTrigger(
   if (unit.tags.includes(UnitTag.FLYING)) return;
 
   const trapPos = { x: unit.position.x, y: unit.position.y };
-  const stunTurns = building.trapStunTurns ?? 1;
-  const damage = building.trapDamage ?? 0;
+  const stunTurns = building.trapStunTurns ?? ABILITIES.SCOUT_TRAP_STUN_TURNS;
+  const damage = building.trapDamage ?? ABILITIES.SCOUT_TRAP_DAMAGE;
   const floaterStore = useFloaterStore.getState();
 
   // Deal damage to the triggering unit.
