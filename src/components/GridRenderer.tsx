@@ -1397,7 +1397,7 @@ function TileCellInner({
             : building.populationCount;
           const capDisplay = building.type === BuildingType.STRONGHOLD
             ? strongholdTotalCap
-            : getEffectiveHousingPopulationCap(gameState, building);
+            : getEffectiveHousingPopulationCap(useGameStore.getState(), building);
           return <div className="population-badge">👥{popCount}/{capDisplay}</div>;
         })();
         const unitBadge = showUnitLimit && (() => {
