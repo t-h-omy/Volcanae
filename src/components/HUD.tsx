@@ -533,16 +533,20 @@ function GameMenu() {
     ) as GameState;
 
     let activeSaveId = useMenuStore.getState().activeSaveId;
-    let slotName = `${SAVE.DEFAULT_NAME_PREFIX} Turn ${stateSnapshot.turn}`;
+    let slotName: string | null = null;
 
     if (activeSaveId) {
       const meta = await getSlotMeta(activeSaveId);
-      slotName = meta?.name ?? slotName;
+      slotName = meta?.name ?? null;
     } else {
       const slots = await listSlots();
       activeSaveId = generateId('slot');
       slotName = getNextDefaultSlotName(slots);
       useMenuStore.setState({ activeSaveId });
+    }
+
+    if (!slotName) {
+      slotName = getNextDefaultSlotName(await listSlots());
     }
 
     await saveSlotStrict({ id: activeSaveId, name: slotName, state: stateSnapshot });
@@ -553,7 +557,7 @@ function GameMenu() {
       await persistCurrentGameForReload();
     } catch (error) {
       console.error('Failed to save before cache reset reload.', error);
-      window.alert('Reload cancelled because the current game could not be saved first.');
+      window.alert('Reload cancelled because the current game could not be saved first. Please try Save Game before attempting to reload.');
       return;
     }
     if ('caches' in window) {
