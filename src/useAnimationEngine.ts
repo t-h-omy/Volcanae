@@ -110,6 +110,8 @@ function eventPosition(event: GameEvent): Position {
       return event.position;
     case 'LEASH_DEFECT':
       return event.demonPos;
+    case 'UNIT_KNOCKBACK':
+      return event.toPosition;
   }
 }
 function isTileRevealed(pos: Position): boolean {
@@ -205,6 +207,8 @@ function isEventVisible(event: GameEvent): boolean {
       return isTileRevealed(event.position);
     case 'LEASH_DEFECT':
       return isTileRevealed(event.demonPos) || isTileRevealed(event.magePos);
+    case 'UNIT_KNOCKBACK':
+      return isTileRevealed(event.fromPosition) || isTileRevealed(event.toPosition);
   }
 }
 
@@ -927,6 +931,59 @@ export function useAnimationEngine(): void {
             }
           }
 
+          // ── Inline UNIT_KNOCKBACK consumption ──────────────────────────────────────────────
+          // UNIT_KNOCKBACK is placed in the queue immediately after the primary attack event
+          // (before primary UNIT_DEATH) so the push animation plays before any death sequence.
+          {
+            const { eventQueue: eqKnockback } = useAnimationStore.getState();
+            if (eqKnockback.length > 0 && eqKnockback[0].type === 'UNIT_KNOCKBACK') {
+              const knockbackEvt = useAnimationStore.getState().shiftEvent() as Extract<
+                GameEvent,
+                { type: 'UNIT_KNOCKBACK' }
+              >;
+              if (visible) {
+                const tileSize = getTileSize();
+                // SLIDE animation: unit visually appears at fromPosition offset then
+                // slides into its new grid position (toPosition).
+                const slideDx = (knockbackEvt.fromPosition.x - knockbackEvt.toPosition.x) * tileSize;
+                const slideDy = (knockbackEvt.fromPosition.y - knockbackEvt.toPosition.y) * tileSize;
+                useCombatAnimationStore.getState().setUnitAnimation(knockbackEvt.unitId, {
+                  type: 'SLIDE',
+                  dx: slideDx,
+                  dy: slideDy,
+                });
+                useGameStore.getState().applyEvent(knockbackEvt);
+                await wait(ANIMATION.SLIDE_PAUSE_MS + ANIMATION.SLIDE_DURATION_MS);
+                useCombatAnimationStore.getState().setUnitAnimation(knockbackEvt.unitId, null);
+              } else {
+                useGameStore.getState().applyEvent(knockbackEvt);
+              }
+              // Consume a following UNIT_DEATH if knockback killed the displaced unit.
+              {
+                const { eventQueue: eqAfter } = useAnimationStore.getState();
+                if (
+                  eqAfter.length > 0 &&
+                  eqAfter[0].type === 'UNIT_DEATH' &&
+                  eqAfter[0].unitId === knockbackEvt.unitId
+                ) {
+                  const deathEvt = useAnimationStore.getState().shiftEvent() as Extract<
+                    GameEvent,
+                    { type: 'UNIT_DEATH' }
+                  >;
+                  if (visible) {
+                    useCombatAnimationStore
+                      .getState()
+                      .setUnitAnimation(deathEvt.unitId, { type: 'DYING' });
+                    await wait(ANIMATION.DIE_FLASH_DURATION_MS + ANIMATION.DIE_FADE_DURATION_MS);
+                    useCombatAnimationStore.getState().setUnitAnimation(deathEvt.unitId, null);
+                  }
+                  useGameStore.getState().applyEvent(deathEvt);
+                  dyingIds.add(deathEvt.unitId);
+                }
+              }
+            }
+          }
+
           // ── Inline SPLASH_DAMAGE consumption (Change 1) ──────────────────────────────────────
           // SPLASH events live in the queue immediately after the primary UNIT_DEATH (which the
           // loop above just consumed). Consuming them here — rather than falling through to the
@@ -1384,6 +1441,45 @@ export function useAnimationEngine(): void {
                 }
                 useGameStore.getState().applyEvent(next);
               }
+            }
+          }
+          if (visible) await wait(ANIMATION.POST_ACTION_IDLE_MS);
+          continue;
+        }
+
+        // ── Special handling for UNIT_KNOCKBACK (standalone, outside attack sequence) ──
+        // Normally consumed inline after PLAYER_ATTACK/ENEMY_ATTACK.  This fallback
+        // handles any edge case where it appears as a standalone queue entry.
+        if (event.type === 'UNIT_KNOCKBACK') {
+          if (visible) {
+            const tileSize = getTileSize();
+            const slideDx = (event.fromPosition.x - event.toPosition.x) * tileSize;
+            const slideDy = (event.fromPosition.y - event.toPosition.y) * tileSize;
+            useCombatAnimationStore.getState().setUnitAnimation(event.unitId, {
+              type: 'SLIDE',
+              dx: slideDx,
+              dy: slideDy,
+            });
+            useGameStore.getState().applyEvent(event);
+            await wait(ANIMATION.SLIDE_PAUSE_MS + ANIMATION.SLIDE_DURATION_MS);
+            useCombatAnimationStore.getState().setUnitAnimation(event.unitId, null);
+          } else {
+            useGameStore.getState().applyEvent(event);
+          }
+          // Consume a following UNIT_DEATH for the knocked unit (knockback-kill).
+          {
+            const { eventQueue: eqKb } = useAnimationStore.getState();
+            if (eqKb.length > 0 && eqKb[0].type === 'UNIT_DEATH' && eqKb[0].unitId === event.unitId) {
+              const deathEvt = useAnimationStore.getState().shiftEvent() as Extract<
+                GameEvent,
+                { type: 'UNIT_DEATH' }
+              >;
+              if (visible) {
+                useCombatAnimationStore.getState().setUnitAnimation(deathEvt.unitId, { type: 'DYING' });
+                await wait(ANIMATION.DIE_FLASH_DURATION_MS + ANIMATION.DIE_FADE_DURATION_MS);
+                useCombatAnimationStore.getState().setUnitAnimation(deathEvt.unitId, null);
+              }
+              useGameStore.getState().applyEvent(deathEvt);
             }
           }
           if (visible) await wait(ANIMATION.POST_ACTION_IDLE_MS);

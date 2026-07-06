@@ -2373,11 +2373,21 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
               defenderXpGained,
               tileBurningPosition,
             });
+            // Emit UNIT_KNOCKBACK before the defender's UNIT_DEATH so the animation
+            // engine can animate the push before the death sequence.
+            const knockbackDefEvt = secondaryEvents.find(
+              (e): e is Extract<GameEvent, { type: 'UNIT_KNOCKBACK' }> =>
+                e.type === 'UNIT_KNOCKBACK' && (e as Extract<GameEvent, { type: 'UNIT_KNOCKBACK' }>).unitId === defenderId,
+            );
+            const remainingSecEvts = secondaryEvents.filter(
+              (e) => !(e.type === 'UNIT_KNOCKBACK' && (e as Extract<GameEvent, { type: 'UNIT_KNOCKBACK' }>).unitId === defenderId),
+            );
+            if (knockbackDefEvt) events.push(knockbackDefEvt);
             if (!defenderAfter) {
               events.push({
                 type: 'UNIT_DEATH',
                 unitId: defenderId,
-                position: defenderPos,
+                position: knockbackDefEvt ? knockbackDefEvt.toPosition : defenderPos,
                 faction: targetUnit.faction,
                 brandmarkSpawnPosition: defenderBrandmarkSpawnPosition,
               });
@@ -2391,7 +2401,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
                 brandmarkSpawnPosition: attackerBrandmarkSpawnPosition,
               });
             }
-            events.push(...secondaryEvents);
+            events.push(...remainingSecEvts);
           }
         } else if (!currentUnit.hasMovedThisTurn) {
           moveEnemyUnitToward(state, currentUnit.id, targetUnit.position, events);
@@ -2444,11 +2454,21 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
             defenderXpGained,
             tileBurningPosition,
           });
+          // Emit UNIT_KNOCKBACK before the defender's UNIT_DEATH so the animation
+          // engine can animate the push before the death sequence.
+          const knockbackDefEvt2 = secondaryEvents.find(
+            (e): e is Extract<GameEvent, { type: 'UNIT_KNOCKBACK' }> =>
+              e.type === 'UNIT_KNOCKBACK' && (e as Extract<GameEvent, { type: 'UNIT_KNOCKBACK' }>).unitId === defenderId,
+          );
+          const remainingSecEvts2 = secondaryEvents.filter(
+            (e) => !(e.type === 'UNIT_KNOCKBACK' && (e as Extract<GameEvent, { type: 'UNIT_KNOCKBACK' }>).unitId === defenderId),
+          );
+          if (knockbackDefEvt2) events.push(knockbackDefEvt2);
           if (!defenderAfter) {
             events.push({
               type: 'UNIT_DEATH',
               unitId: defenderId,
-              position: defenderPos,
+              position: knockbackDefEvt2 ? knockbackDefEvt2.toPosition : defenderPos,
               faction: targetUnit.faction,
               brandmarkSpawnPosition: defenderBrandmarkSpawnPosition,
             });
@@ -2462,7 +2482,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
               brandmarkSpawnPosition: attackerBrandmarkSpawnPosition,
             });
           }
-          events.push(...secondaryEvents);
+          events.push(...remainingSecEvts2);
         }
       }
       break;

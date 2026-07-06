@@ -255,6 +255,25 @@ export type GameEvent =
     }
   | {
       /**
+       * Emitted when a KNOCKBACK attacker displaces the defender one tile
+       * along the attacker→defender axis. The unit has already been moved in
+       * the resolved state; this event drives the slide animation and updates
+       * the live display state incrementally.
+       */
+      type: 'UNIT_KNOCKBACK';
+      /** ID of the displaced unit (the defender) */
+      unitId: string;
+      /** Tile the unit was on before knockback */
+      fromPosition: Position;
+      /** Tile the unit landed on (or died on) after knockback */
+      toPosition: Position;
+      /** Whether the displaced unit is an enemy */
+      isEnemy: boolean;
+      /** Faction of the displaced unit */
+      faction: Faction;
+    }
+  | {
+      /**
        * Emitted when a PUNCTURE attacker stuns a high-DEF defender.
        */
       type: 'STUN_APPLIED';

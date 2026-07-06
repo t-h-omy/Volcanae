@@ -707,12 +707,33 @@ export const useGameStore = create<GameStore>()(
 
         const events: GameEvent[] = [attackEvent];
 
+        // If the defender was knocked back, insert the UNIT_KNOCKBACK event BEFORE
+        // the primary UNIT_DEATH so the animation engine can animate the push
+        // before showing the death (when knockback killed the defender).
+        const knockbackDefenderEvent = secondaryEvents.find(
+          (e): e is Extract<GameEvent, { type: 'UNIT_KNOCKBACK' }> =>
+            e.type === 'UNIT_KNOCKBACK' && (e as Extract<GameEvent, { type: 'UNIT_KNOCKBACK' }>).unitId === targetId,
+        );
+        const remainingSecondaryEvents = secondaryEvents.filter(
+          (e) => !(e.type === 'UNIT_KNOCKBACK' && (e as Extract<GameEvent, { type: 'UNIT_KNOCKBACK' }>).unitId === targetId),
+        );
+
+        // Emit knockback move before the death event so the unit visually slides first.
+        if (knockbackDefenderEvent) {
+          events.push(knockbackDefenderEvent);
+        }
+
         // Add UNIT_DEATH events for killed units (consumed after the attack animation)
         if (!defenderAfter) {
+          // Use the knockback destination as the death position when knockback killed the
+          // defender (defender survived primary attack but was displaced into a lethal tile).
+          const defenderDeathPosition = knockbackDefenderEvent
+            ? knockbackDefenderEvent.toPosition
+            : defenderPosition;
           events.push({
             type: 'UNIT_DEATH',
             unitId: targetId,
-            position: defenderPosition,
+            position: defenderDeathPosition,
             faction: defenderFaction,
             brandmarkSpawnPosition: defenderBrandmarkSpawnPosition,
           });
@@ -730,8 +751,8 @@ export const useGameStore = create<GameStore>()(
             brandmarkSpawnPosition: attackerBrandmarkSpawnPosition,
           });
         }
-        // Push secondary damage/death events (SPLASH/CLEAVE/PIERCE)
-        events.push(...secondaryEvents);
+        // Push remaining secondary damage/death events (SPLASH/CLEAVE/PIERCE)
+        events.push(...remainingSecondaryEvents);
         // Push CAVE_MONSTER_KILLED events for any cave monsters killed by SPLASH AoE
         for (const monsterId of splashKilledCaveMonsterIds) {
           events.push({ type: 'CAVE_MONSTER_KILLED', monsterId });
@@ -3132,6 +3153,25 @@ export const useGameStore = create<GameStore>()(
           case 'CORRUPTION_APPLIED':
             // Presentation-only: no state mutation required.
             break;
+
+          case 'UNIT_KNOCKBACK': {
+            // Move the displaced unit in the live display state so the slide animation
+            // renders at the correct grid position.
+            const knockedUnit = state.units[event.unitId];
+            if (knockedUnit) {
+              const fromTile = state.grid[event.fromPosition.y]?.[event.fromPosition.x];
+              if (fromTile && fromTile.unitId === event.unitId) {
+                fromTile.unitId = null;
+              }
+              const toTile = state.grid[event.toPosition.y]?.[event.toPosition.x];
+              if (toTile) {
+                toTile.unitId = event.unitId;
+              }
+              knockedUnit.position.x = event.toPosition.x;
+              knockedUnit.position.y = event.toPosition.y;
+            }
+            break;
+          }
 
           default:
             assertNever(event);
