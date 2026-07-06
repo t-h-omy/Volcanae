@@ -582,6 +582,33 @@ export function canUnitSetTrap(
   return true;
 }
 
+// ── SCOUT EXTINGUISH ──────────────────────────────────────────────────────────
+
+/**
+ * Returns true if the scout unit is allowed to use the Extinguish action this turn.
+ *
+ * Blocking rules:
+ *   - PLAYER faction required
+ *   - SCOUT unit type required
+ *   - SCOUT_EXTINGUISH specialist effect must be active
+ *   - hasMovedThisTurn, hasAttackedThisTurn, hasConstructedThisTurn,
+ *     hasCapturedThisTurn, hasDestroyedThisTurn — all block the action
+ */
+export function canUnitExtinguish(
+  unit: Unit,
+  state: GameState | Draft<GameState>,
+): boolean {
+  if (unit.faction !== Faction.PLAYER) return false;
+  if (unit.type !== UnitType.SCOUT) return false;
+  if (!isSpecialistEffectActive(state, 'SCOUT_EXTINGUISH')) return false;
+  if (unit.hasMovedThisTurn) return false;
+  if (unit.hasAttackedThisTurn) return false;
+  if (unit.hasConstructedThisTurn) return false;
+  if (unit.hasCapturedThisTurn) return false;
+  if (unit.hasDestroyedThisTurn) return false;
+  return true;
+}
+
 /**
  * Returns true if the scout's current tile is eligible for trap placement.
  * Requires no building and no ruin on the tile.

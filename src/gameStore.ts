@@ -55,7 +55,7 @@ import { canUnitHeal, getHealTargets, canUnitFieldwork, isHealSuppressedByCorrup
 import { createFieldworkOutpost } from './constructionSystem';
 import { getTagsFromActiveSpecialists, isSpecialistEffectActive } from './specialistSystem';
 import { castSpell as castSpellLogic } from './spellSystem';
-import { isTileWithinEdgeCircleRange } from './rangeUtils';
+import { isTileWithinEdgeCircleRange, getTilesWithinEdgeCircleRange } from './rangeUtils';
 import { useShockwaveStore } from './shockwaveStore';
 import { processPendingPortalTeleports } from './portalSystem';
 import { cleanupRoostedUnits } from './buildingRemoval';
@@ -65,7 +65,7 @@ import { canUnitTrade } from './unitActions';
 import { createMarket, restockAllSlots, tickMarketRefills } from './marketSystem';
 import { MARKET } from './gameConfig';
 import { canUnitBuildBridge, getBridgeBuildTargets } from './unitActions';
-import { canUnitSetTrap, isTrapTileClear } from './unitActions';
+import { canUnitSetTrap, isTrapTileClear, canUnitExtinguish } from './unitActions';
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
@@ -124,6 +124,8 @@ interface GameActions {
   cancelBridgeBuildMode: () => void;
   /** Place a SCOUT_TRAP on the scout's current tile */
   setTrap: (unitId: string) => void;
+  /** Extinguish BURNING and CORRUPTED tiles within EXTINGUISH_RADIUS of the scout */
+  scoutExtinguish: (unitId: string) => void;
   /** Enter spell-cast target-selection mode */
   startSpellCast: (mageId: string, spellId: SpellId) => void;
   /** Cancel spell-cast target-selection mode */
@@ -1644,6 +1646,43 @@ export const useGameStore = create<GameStore>()(
         useFloaterStore.getState().addFloater({
           value: 0,
           label: '🪤 Trap set',
+          x,
+          y,
+          isEnemy: false,
+          floaterType: 'revive',
+        });
+      });
+    },
+
+    scoutExtinguish: (unitId: string) => {
+      set((state) => {
+        const unit = state.units[unitId];
+        if (!unit) return;
+        if (!canUnitExtinguish(unit, state)) return;
+
+        const { x, y } = unit.position;
+        const mapWidth = state.grid[0]?.length ?? 0;
+        const mapHeight = state.grid.length;
+
+        // Collect the scout's tile plus all tiles within EXTINGUISH_RADIUS.
+        const tilesInRange = getTilesWithinEdgeCircleRange(
+          x, y, ABILITIES.EXTINGUISH_RADIUS, mapWidth, mapHeight,
+        );
+        const allPositions = [{ x, y }, ...tilesInRange];
+
+        for (const pos of allPositions) {
+          const tile = state.grid[pos.y]?.[pos.x];
+          if (!tile) continue;
+          if (tile.status === TileStatus.BURNING || tile.status === TileStatus.CORRUPTED) {
+            clearTileStatus(state, pos);
+          }
+        }
+
+        unit.hasConstructedThisTurn = true;
+
+        useFloaterStore.getState().addFloater({
+          value: 0,
+          label: '🔥 Extinguished',
           x,
           y,
           isEnemy: false,

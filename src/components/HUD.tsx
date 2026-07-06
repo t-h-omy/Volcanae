@@ -56,7 +56,7 @@ import {
   type GameStats,
   type GameState,
 } from '../types';
-import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast, getMageCastBudget, isHealSuppressedByCorruption, canUnitTrade, getTradeMarket, getCaptureTarget, canUnitBuildBridge, getBridgeBuildTargets, canUnitSetTrap, isTrapTileClear } from '../unitActions';
+import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast, getMageCastBudget, isHealSuppressedByCorruption, canUnitTrade, getTradeMarket, getCaptureTarget, canUnitBuildBridge, getBridgeBuildTargets, canUnitSetTrap, isTrapTileClear, canUnitExtinguish } from '../unitActions';
 import { getPhalanxAttackBonus, getPhalanxDefenseBonus, getCrystalTowerChamberBonus } from '../combatSystem';
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
 import { isSpecialistEffectActive } from '../specialistSystem';
@@ -1688,6 +1688,7 @@ function SelectedUnitPanel({
   const canFieldwork = isPlayer && canUnitFieldwork(unit);
   const canBuildBridge = isPlayer && canUnitBuildBridge(unit, gameState);
   const canSetTrap = isPlayer && canUnitSetTrap(unit, gameState);
+  const canExtinguish = isPlayer && canUnitExtinguish(unit, gameState);
 
   const visibleTags = unit.tags.filter((t) => !HIDDEN_UNIT_TAGS.has(t));
 
@@ -1737,6 +1738,9 @@ function SelectedUnitPanel({
 
   // Scout trap
   const setTrap = useGameStore((s) => s.setTrap);
+
+  // Scout extinguish
+  const scoutExtinguish = useGameStore((s) => s.scoutExtinguish);
 
   // Trade (Market)
   const canTrade = isPlayer && canUnitTrade(unit);
@@ -2239,6 +2243,14 @@ function SelectedUnitPanel({
               {ABILITIES.SCOUT_TRAP_IRON_COST > 0 && (
                 <span className="hud-spell-btn-cost">⚙️{ABILITIES.SCOUT_TRAP_IRON_COST}</span>
               )}
+            </button>
+          )}
+          {canExtinguish && (
+            <button
+              className="hud-spell-btn"
+              onClick={() => scoutExtinguish(unit.id)}
+            >
+              <span className="hud-spell-btn-label">🔥 Extinguish</span>
             </button>
           )}
         </>

@@ -1862,7 +1862,7 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
   spec_10: {
     name: 'Cinder Warden',
     description:
-      `Your Scouts can extinguish BURNING tiles within ${ABILITIES.EXTINGUISH_RADIUS} tile(s) as a free action.`,
+      `Your Scouts can extinguish BURNING and CORRUPTED tiles within ${ABILITIES.EXTINGUISH_RADIUS} tile(s), consuming their action.`,
     effects: [{ type: 'SCOUT_EXTINGUISH', params: { radius: ABILITIES.EXTINGUISH_RADIUS } }],
     upkeepIron: 0,
     upkeepWood: 0,
