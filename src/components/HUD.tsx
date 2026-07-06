@@ -1845,6 +1845,7 @@ function SelectedUnitPanel({
   // Compute PHALANX formation bonuses (works for both factions)
   const phalanxAttack = useMemo(() => getPhalanxAttackBonus(gameState, unit), [gameState, unit]);
   const phalanxDefense = useMemo(() => getPhalanxDefenseBonus(gameState, unit), [gameState, unit]);
+  const batteryBonus = useMemo(() => getBatteryAttackBonus(gameState, unit), [gameState, unit]);
   // Unified modifier map: applied = baked into unit.stats; contextual = runtime-only.
   // Used to show white base value + one green/red/neutral net modifier badge per stat.
   const inlineStatMods = useMemo(() => {

@@ -221,9 +221,13 @@ describe('SP-17s Bombardier (spec_17) — BATTERY', () => {
     expect(state.units[existingSiege.id].tags).toContain(UnitTag.BATTERY);
 
     const siegeCamp = makeBuilding('siege_camp', BuildingType.SIEGE_CAMP, Faction.PLAYER, 4, 4);
-    const recruitState = makeState([], [siegeCamp]);
+    const stronghold = makeBuilding('stronghold', BuildingType.STRONGHOLD, Faction.PLAYER, 0, 0, {
+      populationCount: 1,
+      strongholdNobles: 1,
+    });
+    const recruitState = makeState([], [siegeCamp, stronghold]);
     recruitState.globalSpecialistStorage = ['spec_17'];
-    recruitState.grid[4][5].unitId = null;
+    recruitState.unlockedUnits = [UnitType.SIEGE];
 
     recruitUnit(recruitState, siegeCamp.id, UnitType.SIEGE);
 
@@ -276,7 +280,10 @@ describe('SP-17s Bombardier (spec_17) — BATTERY', () => {
     const allyA = makeUnit('ally_a', UnitType.SWORDSMAN, Faction.PLAYER, 1, 4);
     const allyB = makeUnit('ally_b', UnitType.GUARD, Faction.PLAYER, 2, 4);
     const allyC = makeUnit('ally_c', UnitType.SCOUT, Faction.PLAYER, 2, 5);
-    const target = makeBuilding('tower', BuildingType.WATCHTOWER, Faction.ENEMY, 4, 5);
+    const target = makeBuilding('target', BuildingType.BARRACKS, Faction.ENEMY, 4, 5, {
+      hp: 500,
+      maxHp: 500,
+    });
     const state = makeState([attacker, allyA, allyB, allyC], [target]);
 
     const batteryBonus = getBatteryAttackBonus(state, attacker);
