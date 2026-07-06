@@ -358,7 +358,7 @@ export const UnitTag = {
   CINDERBORN: 'CINDERBORN',
   /** When HP drops to or below BERSERK_HP_THRESHOLD_PCT%, unit gains BERSERK_ATTACK_PCT% bonus ATK. */
   BERSERK: 'BERSERK',
-  /** Siege unit gains +SIEGE_BATTERY_ATK_PER_ADJACENT ATK for each adjacent friendly Siege unit, up to SIEGE_BATTERY_CAP. */
+  /** Siege unit gains +SIEGE_BATTERY_ATK_PER_ADJACENT ATK for each adjacent friendly unit, up to SIEGE_BATTERY_CAP. */
   BATTERY: 'BATTERY',
 } as const;
 export type UnitTag = (typeof UnitTag)[keyof typeof UnitTag];

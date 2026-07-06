@@ -413,6 +413,37 @@ export function getPhalanxAttackBonus(state: GameState | Draft<GameState>, unit:
   return count * ABILITIES.PHALANX_ATTACK_BONUS_PER_ALLY;
 }
 
+/**
+ * Returns the total BATTERY attack bonus for a unit that carries the BATTERY tag.
+ * Counts adjacent friendly units in the 8-neighbourhood and applies the per-unit
+ * bonus up to the configured cap. The bonus is derived at attack time only and
+ * is suppressed while the attacker stands on a CORRUPTED tile.
+ */
+export function getBatteryAttackBonus(state: GameState | Draft<GameState>, unit: Unit): number {
+  if (!unit.tags.includes(UnitTag.BATTERY)) return 0;
+  if (isUnitOnCorruptedTile(state, unit.id)) return 0;
+
+  let adjacentFriendlyCount = 0;
+  const { x, y } = unit.position;
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;
+      const tile = state.grid[ny]?.[nx];
+      if (!tile?.unitId) continue;
+      const other = state.units[tile.unitId];
+      if (!other) continue;
+      if (other.faction !== unit.faction) continue;
+      adjacentFriendlyCount++;
+    }
+  }
+
+  return Math.min(adjacentFriendlyCount, ABILITIES.SIEGE_BATTERY_CAP)
+    * ABILITIES.SIEGE_BATTERY_ATK_PER_ADJACENT;
+}
+
 // ============================================================================
 // COMBAT CALCULATIONS
 // ============================================================================
@@ -819,6 +850,8 @@ export function resolveAttack(
     }
     attackerCombatant.attack += Math.min(adjacentEnemyCount, RAGE_MAX_ADJACENT_COUNT) * RAGE_ATK_PER_ADJACENT;
   }
+
+  attackerCombatant.attack += getBatteryAttackBonus(state, attacker);
 
   // PUNCTURE: bypass all defensive bonuses — reset defender's effective defense to
   // the raw base stat, ignoring PHALANX, HOLD_GROUND, and any other bonuses added above.
@@ -1810,6 +1843,8 @@ export function resolveAttackOnBuilding(
     }
     attackerCombatant.attack += Math.min(adjacentEnemyCount, RAGE_MAX_ADJACENT_COUNT) * RAGE_ATK_PER_ADJACENT;
   }
+
+  attackerCombatant.attack += getBatteryAttackBonus(state, attacker);
 
   // Calculate combat - if building has combat stats use them for defense, otherwise use 0
   const defenderStats: Combatant = buildingCombatant ?? {

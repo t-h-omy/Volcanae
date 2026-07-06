@@ -58,7 +58,7 @@ import {
   type GameState,
 } from '../types';
 import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast, getMageCastBudget, getUnitAttackRange, isHealSuppressedByCorruption, canUnitTrade, getTradeMarket, getCaptureTarget, canUnitBuildBridge, getBridgeBuildTargets, canUnitSetTrap, isTrapTileClear, canUnitExtinguish } from '../unitActions';
-import { getPhalanxAttackBonus, getPhalanxDefenseBonus, getCrystalTowerChamberBonus } from '../combatSystem';
+import { getBatteryAttackBonus, getPhalanxAttackBonus, getPhalanxDefenseBonus, getCrystalTowerChamberBonus } from '../combatSystem';
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
 import { isSpecialistEffectActive } from '../specialistSystem';
 import { RENDER } from '../renderConfig';
@@ -1470,6 +1470,8 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
     return { rageBonus: Math.min(count, RAGE_MAX_ADJACENT_COUNT) * RAGE_ATK_PER_ADJACENT, rageAdjacentCount: count };
   }, [unit, gameState]);
 
+  const batteryBonus = useMemo(() => getBatteryAttackBonus(gameState, unit), [gameState, unit]);
+
   // ── Modifier maps for inline stat display ─────────────────────────────────
   // applied = baked into unit.stats; contextual = runtime-only
   const { applied, net, hasAny } = useMemo(() => {
@@ -1510,6 +1512,7 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
 
     // RAGE: dynamic +ATK per adjacent enemy (works for both factions)
     if (rageBonus > 0) addC('attack', rageBonus);
+    if (batteryBonus > 0) addC('attack', batteryBonus);
 
     const hasAnyMap: Record<string, boolean> = {};
     const netMap: Record<string, number> = {};
@@ -1518,7 +1521,7 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
       netMap[k] = (appliedMap[k] ?? 0) + (contextualMap[k] ?? 0);
     }
     return { applied: appliedMap, net: netMap, hasAny: hasAnyMap };
-  }, [unit, gameState, phalanxAttack, phalanxDefense, contextualDef, contextualMov, contextualRange, rageBonus]);
+  }, [unit, gameState, phalanxAttack, phalanxDefense, contextualDef, contextualMov, contextualRange, rageBonus, batteryBonus]);
 
   const showNetMod = (statKey: string) => {
     if (!hasAny[statKey]) return null;
@@ -1535,6 +1538,7 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
   if (phalanxDefense > 0) mods.push({ stat: 'DEF', value: phalanxDefense, kind: 'active', source: 'Phalanx Formation (adjacent guard)' });
   // RAGE: dynamic +ATK per adjacent enemy (works for both factions)
   if (rageBonus > 0) mods.push({ stat: 'ATK', value: rageBonus, kind: 'active', source: `Rage (+${RAGE_ATK_PER_ADJACENT} ATK per adjacent enemy, ${rageAdjacentCount} nearby)` });
+  if (batteryBonus > 0) mods.push({ stat: 'ATK', value: batteryBonus, kind: 'active', source: `Battery (+${ABILITIES.SIEGE_BATTERY_ATK_PER_ADJACENT} ATK per adjacent friendly unit)` });
   if (contextualDef > 0) mods.push({ stat: 'DEF', value: contextualDef, kind: 'active', source: 'Hold Ground (standing on own building)' });
   if (unit.tags.includes(UnitTag.SKIRMISHER)) mods.push({ stat: 'MOV', value: ABILITIES.SKIRMISHER_MOVE_BONUS, kind: 'active', source: 'Skirmisher (tag ability)' });
   if (unit.tags.includes(UnitTag.OUTRIDER)) mods.push({ stat: 'MOV', value: ABILITIES.OUTRIDER_MOVE_BONUS, kind: 'active', source: 'Outrider (tag ability)' });
@@ -1900,6 +1904,7 @@ function SelectedUnitPanel({
       const rageBonus = Math.min(adjacentEnemyCount, RAGE_MAX_ADJACENT_COUNT) * RAGE_ATK_PER_ADJACENT;
       if (rageBonus > 0) addContextual('attack', rageBonus);
     }
+    if (batteryBonus > 0) addContextual('attack', batteryBonus);
 
     const hasAny: Record<string, boolean> = {};
     const net: Record<string, number> = {};
@@ -1909,7 +1914,7 @@ function SelectedUnitPanel({
     }
 
     return { applied, net, hasAny };
-  }, [unit, gameState, phalanxAttack, phalanxDefense, statBonuses]);
+  }, [unit, gameState, phalanxAttack, phalanxDefense, statBonuses, batteryBonus]);
 
   // Renders one green/red/neutral badge for the net modifier of a stat key.
   // Returns null when there are no modifiers at all for that stat.

@@ -1521,9 +1521,9 @@ export const ABILITIES = {
   CINDERBORN_ROWS: 3,
   /** Flat ATK bonus granted to a unit recruited within CINDERBORN_ROWS of the lava front */
   CINDERBORN_ATTACK_BONUS: 10,
-  /** ATK bonus per adjacent friendly Siege unit granted by the BATTERY tag */
+  /** ATK bonus per adjacent friendly unit granted by the BATTERY tag */
   SIEGE_BATTERY_ATK_PER_ADJACENT: 7,
-  /** Maximum number of adjacent Siege units counted for the BATTERY ATK bonus */
+  /** Maximum number of adjacent friendly units counted for the BATTERY ATK bonus */
   SIEGE_BATTERY_CAP: 3,
   /** Number of lava-front rows that qualify a chamber for the Echo Warden crystal bonus */
   RESONANCE_BONUS_ROWS: 3,
@@ -1921,7 +1921,7 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
   spec_17: {
     name: 'Bombardier',
     description:
-      `Your Siege units gain the BATTERY tag: each adjacent friendly Siege unit grants +${ABILITIES.SIEGE_BATTERY_ATK_PER_ADJACENT} ATK, up to ${ABILITIES.SIEGE_BATTERY_CAP} stacks.`,
+      `Your Siege units gain the BATTERY tag: each adjacent friendly unit grants +${ABILITIES.SIEGE_BATTERY_ATK_PER_ADJACENT} ATK, up to ${ABILITIES.SIEGE_BATTERY_CAP} stacks.`,
     effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.SIEGE, tag: UnitTag.BATTERY } }],
     upkeepIron: 0,
     upkeepWood: 0,
@@ -2675,7 +2675,7 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   [UnitTag.KNOCKBACK]:    { label: 'Knockback',    desc: 'On hit, pushes the target one tile away from the attacker. FLYING units are immune to knockback.' },
   [UnitTag.CINDERBORN]:   { label: 'Cinderborn',   desc: `Recruited within ${ABILITIES.CINDERBORN_ROWS} rows of the lava front. Gains +${ABILITIES.CINDERBORN_ATTACK_BONUS} ATK and immunity to BURNING tile damage.` },
   [UnitTag.BERSERK]:      { label: 'Berserk',      desc: `When HP drops to ${ABILITIES.BERSERK_HP_THRESHOLD_PCT}% or below, gains +${ABILITIES.BERSERK_ATTACK_PCT}% ATK.` },
-  [UnitTag.BATTERY]:      { label: 'Battery',      desc: `Gains +${ABILITIES.SIEGE_BATTERY_ATK_PER_ADJACENT} ATK per adjacent friendly Siege unit, up to ${ABILITIES.SIEGE_BATTERY_CAP} stacks.` },
+  [UnitTag.BATTERY]:      { label: 'Battery',      desc: `Gains +${ABILITIES.SIEGE_BATTERY_ATK_PER_ADJACENT} ATK per adjacent friendly unit, up to ${ABILITIES.SIEGE_BATTERY_CAP} stacks.` },
 };
 
 // Compute descriptions for UNIT_DEFINITIONS entries that reference TUNNEL constants.
@@ -2768,6 +2768,7 @@ export const CORRUPTED_SUPPRESSED_TAGS = new Set<UnitTag>([
   UnitTag.PIN_DOWN,
   UnitTag.CLEAVE,
   UnitTag.SPLASH,
+  UnitTag.BATTERY,
   UnitTag.BURN,
   UnitTag.PHALANX,
   UnitTag.PATCHUP,
