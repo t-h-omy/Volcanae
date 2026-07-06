@@ -637,6 +637,13 @@ export interface Building {
    * (Echo Warden specialist, SP-12). Read by the resonance income system.
    */
   resonanceCrystalBonus?: boolean;
+  /**
+   * True after this building has fired a GARRISON_OVERWATCH reaction shot during the
+   * current enemy turn.  Reset at the start of each enemy turn so that each
+   * Watchtower/Outpost/Crystal Tower may fire at most once per enemy turn regardless
+   * of how many enemies enter its attack range.
+   */
+  preventiveStrikeFiredThisTurn?: boolean;
 }
 
 /** A tile on the game grid */

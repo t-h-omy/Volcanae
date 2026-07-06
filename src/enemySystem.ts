@@ -27,6 +27,7 @@ import { cleanupPortals, cleanupExpiredPortalsEndOfTurn, tryPlanPortalCast, cast
 import { cleanupRoostedUnits, getRoostedUnits } from './buildingRemoval';
 import { isUnitOnCorruptedTile } from './tileStatusSystem';
 import { isCounterThemeUnitType, pickUnitFromTheme, scoreCountersForPlayer } from './waveThemeSystem';
+import { isSpecialistEffectActive } from './specialistSystem';
 
 // ============================================================================
 // ID GENERATION
@@ -1152,6 +1153,122 @@ function triggerPreventiveStrike(
   }
 }
 
+/**
+ * Triggers GARRISON_OVERWATCH for all player Watchtower/Outpost/Crystal Tower
+ * buildings. When the GARRISON_OVERWATCH specialist effect is active, each such
+ * building fires one overwatch shot at any enemy unit that moves from outside
+ * into its attackRange, dealing PREVENTIVE_STRIKE_DAMAGE_PERCENT% of the
+ * building's normal attack damage. Applies to flying enemies too.
+ * Cap: once per building per enemy turn (reuses the preventiveStrikeFiredThisTurn
+ * bookkeeping on buildings, reset at the start of each enemy turn).
+ */
+function triggerGarrisonOverwatch(
+  state: Draft<GameState>,
+  enemyUnitId: string,
+  fromPosition: Position,
+  events?: GameEvent[],
+): void {
+  if (!isSpecialistEffectActive(state, 'GARRISON_OVERWATCH')) return;
+
+  const enemyUnit = state.units[enemyUnitId];
+  if (!enemyUnit || enemyUnit.faction !== Faction.ENEMY) return;
+
+  // Do not fire at enemies that are in fog of war — the player cannot see them.
+  const enemyTile = state.grid[enemyUnit.position.y]?.[enemyUnit.position.x];
+  if (!enemyTile?.isRevealed) return;
+
+  for (const building of Object.values(state.buildings)) {
+    if (building.faction !== Faction.PLAYER) continue;
+    if (
+      building.type !== BuildingType.WATCHTOWER &&
+      building.type !== BuildingType.OUTPOST &&
+      building.type !== BuildingType.CRYSTAL_TOWER
+    ) continue;
+    if (!building.combatStats) continue;
+    if (building.isDisabledForTurns > 0) continue;
+    if (!state.units[enemyUnitId]) break; // enemy destroyed by a previous overwatch shot
+
+    // Each building fires at most once per enemy turn.
+    if (building.preventiveStrikeFiredThisTurn) continue;
+
+    const attackRange = building.combatStats.attackRange;
+
+    // Only fire if the enemy moved from outside this building's range INTO range.
+    const wasInRange = isTileWithinEdgeCircleRange(
+      building.position.x, building.position.y,
+      fromPosition.x, fromPosition.y,
+      attackRange,
+    );
+    if (wasInRange) continue; // enemy was already in range — not a range-entry event
+
+    const isInRange = isTileWithinEdgeCircleRange(
+      building.position.x, building.position.y,
+      enemyUnit.position.x, enemyUnit.position.y,
+      attackRange,
+    );
+    if (!isInRange) continue; // enemy is not in range after the move either
+
+    // Calculate overwatch damage: PREVENTIVE_STRIKE_DAMAGE_PERCENT% of the damage the
+    // building would deal in normal combat against this specific enemy unit.
+    const bCombatant = buildingToCombatant(building);
+    if (!bCombatant) continue;
+    const eCombatant = unitToCombatant(enemyUnit);
+    const normalCombat = calculateCombatFromStats(bCombatant, eCombatant);
+    const strikeRaw = normalCombat.defenderHpLost * (ABILITIES.PREVENTIVE_STRIKE_DAMAGE_PERCENT / 100);
+    const strikeDamage = Math.max(1, Math.round(strikeRaw));
+
+    const buildingId = building.id;
+    const defenderId = enemyUnitId;
+    const buildingPos = { x: building.position.x, y: building.position.y };
+    const defenderPos = { x: enemyUnit.position.x, y: enemyUnit.position.y };
+    const defenderHpBefore = enemyUnit.stats.currentHp;
+
+    const newDefenderHp = enemyUnit.stats.currentHp - strikeDamage;
+    const defenderDead = newDefenderHp <= 0;
+
+    state.gameStats.damageDealt += strikeDamage;
+
+    if (defenderDead) {
+      // Remove the enemy unit from the grid.
+      const defTile = state.grid[enemyUnit.position.y][enemyUnit.position.x];
+      if (defTile.unitId === defenderId) {
+        defTile.unitId = null;
+      }
+      delete state.units[defenderId];
+      state.gameStats.unitsKilled += 1;
+    } else {
+      enemyUnit.stats.currentHp = newDefenderHp;
+    }
+
+    // Mark this building as having fired during the current enemy turn.
+    building.preventiveStrikeFiredThisTurn = true;
+
+    if (events) {
+      const defenderAfter = state.units[defenderId];
+      events.push({
+        type: 'BUILDING_ATTACK',
+        buildingId,
+        defenderId,
+        buildingPosition: buildingPos,
+        defenderPosition: defenderPos,
+        buildingHpLost: 0,
+        defenderHpLost: defenderAfter
+          ? defenderHpBefore - defenderAfter.stats.currentHp
+          : defenderHpBefore,
+        defenderXpGained: null,
+      });
+      if (!defenderAfter) {
+        events.push({
+          type: 'UNIT_DEATH',
+          unitId: defenderId,
+          position: defenderPos,
+          faction: Faction.ENEMY,
+        });
+      }
+    }
+  }
+}
+
 function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: Position, events?: GameEvent[]): void {
   const unit = state.units[unitId];
   if (!unit) return;
@@ -1204,6 +1321,10 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
   // PREVENTIVE_STRIKE: player siege units with this tag fire at the newly moved unit
   // Pass fromPosition so the trigger can check for range-entry (not already in range)
   triggerPreventiveStrike(state, unitId, from, events);
+
+  // GARRISON_OVERWATCH: player Watchtower/Outpost/Crystal Tower buildings fire at the
+  // newly moved unit when the Watch Captain specialist effect is active.
+  triggerGarrisonOverwatch(state, unitId, from, events);
 
   // GRAVE_TRAP / SCOUT_TRAP: check if the enemy unit landed on a player trap
   checkGraveTrapTrigger(state, unitId);
@@ -2982,6 +3103,14 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
     for (const unit of Object.values(draft.units)) {
       if (unit.faction === Faction.PLAYER && unit.preventiveStrikeFiredThisTurn) {
         unit.preventiveStrikeFiredThisTurn = false;
+      }
+    }
+
+    // Reset GARRISON_OVERWATCH per-turn tracking for all player combat buildings so
+    // each building may fire at most once during this enemy turn.
+    for (const building of Object.values(draft.buildings)) {
+      if (building.faction === Faction.PLAYER && building.preventiveStrikeFiredThisTurn) {
+        building.preventiveStrikeFiredThisTurn = false;
       }
     }
 
