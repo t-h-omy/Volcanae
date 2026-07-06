@@ -445,6 +445,18 @@ export function getBatteryAttackBonus(state: GameState | Draft<GameState>, unit:
     * ABILITIES.SIEGE_BATTERY_ATK_PER_ADJACENT;
 }
 
+/**
+ * Returns the multiplicative BERSERK attack modifier for a unit.
+ * BERSERK is derived at attack time only and never persisted in unit stats.
+ * Activates only while current HP is strictly below the configured threshold.
+ */
+export function getBerserkAttackMultiplier(unit: Unit): number {
+  if (!unit.tags.includes(UnitTag.BERSERK)) return 1;
+  if (unit.stats.maxHp <= 0) return 1;
+  if ((unit.stats.currentHp / unit.stats.maxHp) >= (ABILITIES.BERSERK_HP_THRESHOLD_PCT / 100)) return 1;
+  return 1 + ABILITIES.BERSERK_ATTACK_PCT / 100;
+}
+
 // ============================================================================
 // COMBAT CALCULATIONS
 // ============================================================================
@@ -853,6 +865,7 @@ export function resolveAttack(
   }
 
   attackerCombatant.attack += getBatteryAttackBonus(state, attacker);
+  attackerCombatant.attack *= getBerserkAttackMultiplier(attacker);
 
   // PUNCTURE: bypass all defensive bonuses — reset defender's effective defense to
   // the raw base stat, ignoring PHALANX, HOLD_GROUND, and any other bonuses added above.
@@ -1846,6 +1859,7 @@ export function resolveAttackOnBuilding(
   }
 
   attackerCombatant.attack += getBatteryAttackBonus(state, attacker);
+  attackerCombatant.attack *= getBerserkAttackMultiplier(attacker);
 
   // Calculate combat - if building has combat stats use them for defense, otherwise use 0
   const defenderStats: Combatant = buildingCombatant ?? {

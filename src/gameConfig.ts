@@ -1531,7 +1531,7 @@ export const ABILITIES = {
   RESONANCE_BONUS_CRYSTALS: 1,
   /** Percentage of normal damage dealt when an ARCHER_VS_STRUCTURE hit targets a building */
   ARCHER_STRUCTURE_DMG_PCT: 50,
-  /** HP percentage at or below which a BERSERK unit activates its attack bonus */
+  /** HP percentage below which a BERSERK unit activates its attack bonus */
   BERSERK_HP_THRESHOLD_PCT: 50,
   /** Percentage attack bonus granted to a BERSERK unit below the HP threshold */
   BERSERK_ATTACK_PCT: 100,
@@ -1945,7 +1945,7 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
   spec_20: {
     name: 'Last Stand',
     description:
-      `Your Archers gain the BERSERK tag: when HP drops to ${ABILITIES.BERSERK_HP_THRESHOLD_PCT}% or below, they gain +${ABILITIES.BERSERK_ATTACK_PCT}% ATK.`,
+      `Your Archers gain the BERSERK tag: when HP drops below ${ABILITIES.BERSERK_HP_THRESHOLD_PCT}%, they gain +${ABILITIES.BERSERK_ATTACK_PCT}% ATK.`,
     effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.ARCHER, tag: UnitTag.BERSERK } }],
     upkeepIron: 0,
     upkeepWood: 0,
@@ -2674,7 +2674,7 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   // ── SP-00 specialist-scaffolded tags ───────────────────────────────────────
   [UnitTag.KNOCKBACK]:    { label: 'Knockback',    desc: 'On hit, pushes the target one tile away from the attacker. FLYING units are immune to knockback.' },
   [UnitTag.CINDERBORN]:   { label: 'Cinderborn',   desc: `Recruited within ${ABILITIES.CINDERBORN_ROWS} rows of the lava front. Gains +${ABILITIES.CINDERBORN_ATTACK_BONUS} ATK and immunity to BURNING tile damage.` },
-  [UnitTag.BERSERK]:      { label: 'Berserk',      desc: `When HP drops to ${ABILITIES.BERSERK_HP_THRESHOLD_PCT}% or below, gains +${ABILITIES.BERSERK_ATTACK_PCT}% ATK.` },
+  [UnitTag.BERSERK]:      { label: 'Berserk',      desc: `When HP drops below ${ABILITIES.BERSERK_HP_THRESHOLD_PCT}%, gains +${ABILITIES.BERSERK_ATTACK_PCT}% ATK.` },
   [UnitTag.BATTERY]:      { label: 'Battery',      desc: `Gains +${ABILITIES.SIEGE_BATTERY_ATK_PER_ADJACENT} ATK per adjacent friendly unit, up to ${ABILITIES.SIEGE_BATTERY_CAP} stacks.` },
 };
 

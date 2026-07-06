@@ -356,7 +356,7 @@ export const UnitTag = {
   KNOCKBACK: 'KNOCKBACK',
   /** Unit was recruited near the lava front; gains CINDERBORN_ATTACK_BONUS ATK and immunity to BURNING tile damage. */
   CINDERBORN: 'CINDERBORN',
-  /** When HP drops to or below BERSERK_HP_THRESHOLD_PCT%, unit gains BERSERK_ATTACK_PCT% bonus ATK. */
+  /** When HP drops below BERSERK_HP_THRESHOLD_PCT%, unit gains BERSERK_ATTACK_PCT% bonus ATK. */
   BERSERK: 'BERSERK',
   /** Siege unit gains +SIEGE_BATTERY_ATK_PER_ADJACENT ATK for each adjacent friendly unit, up to SIEGE_BATTERY_CAP. */
   BATTERY: 'BATTERY',
