@@ -104,7 +104,7 @@ export function getTagsFromActiveSpecialistsForSourceTag(
         effect.type === 'GRANT_TAG_TO_UNITS_WITH_TAG' &&
         effect.params.sourceTag === sourceTag
       ) {
-        const grantTags = String(effect.params.tags).split(',') as UnitTag[];
+        const grantTags = (effect.params.tags as string).split(',') as UnitTag[];
         for (const t of grantTags) {
           if (!tags.includes(t)) tags.push(t);
         }
@@ -306,7 +306,7 @@ export function applyEffectsForSpecialist(
     } else if (effect.type === 'GRANT_UNIT_TAG_ALL') {
       applyUnitTagToAllUnits(state, effect.params.unitType as UnitType, effect.params.tag as UnitTag);
     } else if (effect.type === 'GRANT_TAG_TO_UNITS_WITH_TAG') {
-      const grantTags = String(effect.params.tags).split(',') as UnitTag[];
+      const grantTags = (effect.params.tags as string).split(',') as UnitTag[];
       applyTagToUnitsWithTag(state, effect.params.sourceTag as UnitTag, grantTags);
     } else if (effect.type === 'RUPTURE_UNLOCK') {
       if (!state.unlockedSpells.includes(SpellId.RUPTURE)) {
@@ -337,7 +337,7 @@ export function revokeEffectsForSpecialist(
     } else if (effect.type === 'GRANT_UNIT_TAG_ALL') {
       revokeUnitTagFromAllUnits(state, effect.params.unitType as UnitType, effect.params.tag as UnitTag);
     } else if (effect.type === 'GRANT_TAG_TO_UNITS_WITH_TAG') {
-      const grantTags = String(effect.params.tags).split(',') as UnitTag[];
+      const grantTags = (effect.params.tags as string).split(',') as UnitTag[];
       revokeTagFromUnitsWithTag(state, effect.params.sourceTag as UnitTag, grantTags);
     } else if (effect.type === 'RUPTURE_UNLOCK') {
       if (!isSpecialistEffectActive(state, 'RUPTURE_UNLOCK')) {
@@ -428,7 +428,7 @@ export function applySpecialistEffects(state: Draft<GameState>): void {
           );
         }
       } else if (effect.type === 'GRANT_TAG_TO_UNITS_WITH_TAG') {
-        const grantTags = String(effect.params.tags).split(',') as UnitTag[];
+        const grantTags = (effect.params.tags as string).split(',') as UnitTag[];
         if (!isDormant) {
           applyTagToUnitsWithTag(state, effect.params.sourceTag as UnitTag, grantTags);
         } else {
