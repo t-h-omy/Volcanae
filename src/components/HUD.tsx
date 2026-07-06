@@ -1352,6 +1352,13 @@ function BuildingStatDetailModal({ building, onClose }: { building: Building; on
   );
 }
 
+function getReloadDefensePenalty(unit: Unit, effectiveDefenseBeforeReload: number): number {
+  if (!unit.tags.includes(UnitTag.RELOAD) || !unit.hasAttackedThisTurn) return 0;
+  return Math.floor(
+    Math.max(0, effectiveDefenseBeforeReload) * RELOAD_DEF_PENALTY_PCT / 100,
+  );
+}
+
 // ============================================================================
 // UNIT COMBINED INFO POPUP
 // ============================================================================
@@ -1443,14 +1450,11 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
     if (unit.distractionDefPenalty > 0) addA('defense', -unit.distractionDefPenalty);
     // RELOAD: after firing, DEF is reduced by RELOAD_DEF_PENALTY_PCT% until next turn.
     // Runtime penalty (matches combat's applyReloadPenalty); surfaced so it shows in red.
-    if (unit.tags.includes(UnitTag.RELOAD) && unit.hasAttackedThisTurn) {
-      const effDefBeforeReload =
-        unit.stats.defense + phalanxDefense + contextualDef - unit.distractionDefPenalty;
-      const reloadPenalty = Math.floor(
-        Math.max(0, effDefBeforeReload) * RELOAD_DEF_PENALTY_PCT / 100,
-      );
-      if (reloadPenalty > 0) addC('defense', -reloadPenalty);
-    }
+    const reloadPenalty = getReloadDefensePenalty(
+      unit,
+      unit.stats.defense + phalanxDefense + contextualDef - unit.distractionDefPenalty,
+    );
+    if (reloadPenalty > 0) addC('defense', -reloadPenalty);
     if (phalanxAttack !== 0) addC('attack', phalanxAttack);
     if (phalanxDefense !== 0) addC('defense', phalanxDefense);
     if (contextualDef !== 0) addC('defense', contextualDef);
@@ -1503,14 +1507,11 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
     }
   }
   if (unit.distractionDefPenalty > 0) mods.push({ stat: 'DEF', value: -unit.distractionDefPenalty, kind: 'applied', source: 'Distraction arrows (permanent, from archer hits)' });
-  if (unit.tags.includes(UnitTag.RELOAD) && unit.hasAttackedThisTurn) {
-    const effDefBeforeReload =
-      unit.stats.defense + phalanxDefense + contextualDef - unit.distractionDefPenalty;
-    const reloadPenalty = Math.floor(
-      Math.max(0, effDefBeforeReload) * RELOAD_DEF_PENALTY_PCT / 100,
-    );
-    if (reloadPenalty > 0) mods.push({ stat: 'DEF', value: -reloadPenalty, kind: 'active', source: `Reload (fired this turn, -${RELOAD_DEF_PENALTY_PCT}% DEF)` });
-  }
+  const reloadPenalty = getReloadDefensePenalty(
+    unit,
+    unit.stats.defense + phalanxDefense + contextualDef - unit.distractionDefPenalty,
+  );
+  if (reloadPenalty > 0) mods.push({ stat: 'DEF', value: -reloadPenalty, kind: 'active', source: `Reload (fired this turn, -${RELOAD_DEF_PENALTY_PCT}% DEF)` });
 
   mods.sort((a, b) => {
     if (a.kind !== b.kind) return a.kind === 'active' ? -1 : 1;
@@ -1603,6 +1604,9 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
 
 /** Returns true if the unit currently has any active debuff worth flagging. */
 function unitHasDebuff(unit: Unit, isOnCorruptedTile: boolean): boolean {
+  // Active RELOAD is a temporary DEF debuff after attacking.
+  if (unit.tags.includes(UnitTag.RELOAD) && unit.hasAttackedThisTurn) return true;
+
   // 1. Stat debuffs from tags (exclude upgrade tradeoffs — e.g. DISTRACTION / HIT_AND_RUN)
   for (const tag of unit.tags) {
     if (UPGRADE_TRADEOFF_TAGS.has(tag)) continue;
@@ -1817,6 +1821,11 @@ function SelectedUnitPanel({
     if (phalanxDefense !== 0) addContextual('defense', phalanxDefense);
     if (statBonuses.def !== 0) addContextual('defense', statBonuses.def);
     if (statBonuses.mov !== 0) addContextual('moveRange', statBonuses.mov);
+    const reloadPenalty = getReloadDefensePenalty(
+      unit,
+      unit.stats.defense + phalanxDefense + statBonuses.def - unit.distractionDefPenalty,
+    );
+    if (reloadPenalty > 0) addContextual('defense', -reloadPenalty);
 
     // RAGE: dynamic +ATK per adjacent enemy (works for both factions)
     if (unit.tags.includes(UnitTag.RAGE)) {

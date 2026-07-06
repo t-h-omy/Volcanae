@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Crossbowman iterations (v0.93.4)
+
+- Crossbowman Reload debuff now applies in both unit stat panels: DEF penalty is reflected in live stat modifiers and shown in red like other debuffs.
+
 ### Main menu iterations (v0.93.3)
 
 - Main menu options volume sliders now clear mute state when adjusted, so menu music responds immediately after returning from a muted in-game session.
