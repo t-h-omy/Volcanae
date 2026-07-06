@@ -99,6 +99,23 @@ const BUILDING_EMOJI_MAP: Record<ConstructableBuilding, string> = {
   [BuildingType.CRYSTAL_CHAMBER]:'💎',
 };
 
+/**
+ * Display labels for buildings that are placed by unit actions (not through the
+ * player build menu). Keyed by BuildingType. Used by HUD and action-layer code
+ * to show a human-readable name for these buildings.
+ */
+export const ACTION_PLACED_BUILDING_LABEL: Partial<Record<BuildingType, string>> = {
+  [BuildingType.SCOUT_TRAP]: 'Scout Trap',
+};
+
+/**
+ * Emoji icons for buildings that are placed by unit actions (not through the
+ * player build menu). Keyed by BuildingType.
+ */
+export const ACTION_PLACED_BUILDING_EMOJI: Partial<Record<BuildingType, string>> = {
+  [BuildingType.SCOUT_TRAP]: '🪤',
+};
+
 // ============================================================================
 // HELPER: Build a ConstructionOption
 // ============================================================================

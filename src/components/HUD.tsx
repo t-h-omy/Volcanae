@@ -141,6 +141,7 @@ const BUILDING_EMOJI: Record<string, string> = {
   [BuildingType.GRAVESTONE]: '🪦',
   [BuildingType.GRAVE_TRAP]: '☠️',
   [BuildingType.BRIDGE]: '🌉',
+  [BuildingType.SCOUT_TRAP]: '🪤',
 };
 
 const BUILDING_NAME: Record<string, string> = {
@@ -167,6 +168,7 @@ const BUILDING_NAME: Record<string, string> = {
   [BuildingType.GRAVE_TRAP]: 'Grave Trap',
   [BuildingType.MARKET]: 'Market',
   [BuildingType.BRIDGE]: 'Bridge',
+  [BuildingType.SCOUT_TRAP]: 'Scout Trap',
 };
 
 const TAG_EMOJI: Partial<Record<UnitTag, string>> = {
