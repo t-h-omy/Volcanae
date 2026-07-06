@@ -1280,6 +1280,21 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     description: 'Undead warrior raised from a gravestone.', // overwritten below
   },
 
+  GARGOYLE: {
+    // Medium ATK/DEF flying melee summon. All values are tunables.
+    maxHp: 90, attack: 45, defense: 40,
+    movementActions: 1, moveRange: 2, attackRange: 1,
+    discoverRadius: 1, triggerRange: 0,
+    tags: [UnitTag.FLYING],
+    cost: { iron: 0, wood: 0 },
+    populationCost: { farmers: 0, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+    description: 'Flying skeletal gargoyle raised from a gravestone.', // overwritten below
+  },
+
   CRYSTAL_DRAKE: {
     maxHp: 200, attack: 75, defense: 65,
     movementActions: 1,
@@ -1323,6 +1338,7 @@ export const RELOAD_DEF_PENALTY_PCT = 50;
   u.MAGE.description        = `Arcane caster that casts spells instead of attacking, with ${u.MAGE.attackRange}-tile range and ${MAGE.SPELLS_PER_TURN} spell cast${MAGE.SPELLS_PER_TURN !== 1 ? 's' : ''} per turn. Recruited from active Crystal Chambers.`;
   u.EMBER_DEMON.description = `Powerful demonic unit.`;
   u.SKELETON.description    = `Undead warrior raised from a gravestone.`;
+  u.GARGOYLE.description    = `Flying skeletal gargoyle raised from a Gravestone. Melee attacker that flies ${u.GARGOYLE.moveRange} tiles over canyons and water.`;
   u.CRYSTAL_DRAKE.description = `A flying Drake summoned at a Crystal Cave. If its Crystal Cave is lost, the drake dies.`;
 }
 
@@ -1460,6 +1476,8 @@ export const ABILITIES = {
   SPLASH_DAMAGE_RATIO: 0.25,
   /** Crystal cost to revive a unit from a Gravestone */
   REVIVE_CRYSTAL_COST: 1,
+  /** Crystal cost to raise a Gargoyle from any Gravestone (Deathmender specialist) */
+  GARGOYLE_CRYSTAL_COST: 1,
   /** Starting and maximum HP of a newly spawned Gravestone building */
   GRAVESTONE_MAX_HP: GRAVESTONE_MAX_HP,
   /** Damage dealt by a PREVENTIVE_STRIKE shot as a percentage of normal attack damage */
@@ -1732,10 +1750,12 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
   spec_05: {
     name: 'Deathmender',
     description:
-      `When one of your Spearman or Swordsman units dies, a Gravestone is left on their tile. Pay ${ABILITIES.REVIVE_CRYSTAL_COST} crystal to revive the unit.`,
+      `When one of your Spearman, Scout, or Guard units dies, a Gravestone is left on their tile. Pay ${ABILITIES.GARGOYLE_CRYSTAL_COST} crystal to raise a flying Gargoyle from any Gravestone.`,
     effects: [
-      { type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.SPEARMAN,  tag: UnitTag.REVIVABLE } },
-      { type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.SWORDSMAN, tag: UnitTag.REVIVABLE } },
+      { type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.SPEARMAN, tag: UnitTag.LEAVES_GRAVESTONE } },
+      { type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.SCOUT,    tag: UnitTag.LEAVES_GRAVESTONE } },
+      { type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.GUARD,    tag: UnitTag.LEAVES_GRAVESTONE } },
+      { type: 'RAISE_GARGOYLE', params: {} },
     ],
     upkeepIron: 0,
     upkeepWood: 0,

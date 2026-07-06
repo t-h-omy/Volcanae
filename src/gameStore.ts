@@ -53,7 +53,7 @@ import { computeLevelFromXp, applyLevelUps } from './levelSystem';
 import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLogic, getGrantedTags, getRemovedTags, getStatMods, applyTagStatEffects, revokeTagStatEffects } from './techSystem';
 import { canUnitHeal, getHealTargets, canUnitFieldwork, isHealSuppressedByCorruption } from './unitActions';
 import { createFieldworkOutpost } from './constructionSystem';
-import { getTagsFromActiveSpecialists } from './specialistSystem';
+import { getTagsFromActiveSpecialists, isSpecialistEffectActive } from './specialistSystem';
 import { castSpell as castSpellLogic } from './spellSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { useShockwaveStore } from './shockwaveStore';
@@ -191,6 +191,8 @@ interface GameActions {
   ignoreCave: (tilePos: Position) => void;
   /** Revive a fallen infantry unit from a Gravestone building (costs 1 arcane crystal) */
   reviveUnit: (buildingId: string) => void;
+  /** Raise a flying Gargoyle from any player Gravestone (Deathmender specialist; costs arcane crystals) */
+  raiseGargoyle: (buildingId: string) => void;
   /** Permanently dismiss a recruited specialist, removing them from globalSpecialistStorage */
   dismissSpecialist: (specialistId: string) => void;
   /** Finalize pending Brandmark transforms: remove queued units and spawn hostile Ember Demons */
@@ -1331,6 +1333,84 @@ export const useGameStore = create<GameStore>()(
         addFloater({
           value: 0,
           label: '✨ Revived!',
+          x: building.position.x,
+          y: building.position.y,
+          isEnemy: false,
+          floaterType: 'revive',
+        });
+
+        updateDiscovery(state);
+      });
+    },
+
+    raiseGargoyle: (buildingId: string) => {
+      set((state) => {
+        const building = state.buildings[buildingId];
+        if (!building || building.type !== BuildingType.GRAVESTONE) return;
+        if (building.faction !== Faction.PLAYER) return;
+        // Deathmender specialist (RAISE_GARGOYLE effect) gate. Works on ANY player
+        // Gravestone regardless of which unit type is buried there.
+        if (!isSpecialistEffectActive(state, 'RAISE_GARGOYLE')) return;
+        if (state.arcaneCrystals < ABILITIES.GARGOYLE_CRYSTAL_COST) return;
+        const tile = state.grid[building.position.y][building.position.x];
+        if (tile.unitId !== null) return;
+
+        // Spawn tags: the definition tags (FLYING) plus SUMMONED + READY so it can act at once.
+        const def = UNIT_DEFINITIONS[UnitType.GARGOYLE];
+        const gargoyleTags = [...(def?.tags ?? [])];
+        for (const t of [UnitTag.SUMMONED, UnitTag.READY]) {
+          if (!gargoyleTags.includes(t)) gargoyleTags.push(t);
+        }
+
+        const unitId = generateId('unit_gargoyle');
+        state.units[unitId] = {
+          id: unitId,
+          type: UnitType.GARGOYLE,
+          faction: Faction.PLAYER,
+          position: { x: building.position.x, y: building.position.y },
+          stats: {
+            maxHp: def.maxHp,
+            currentHp: def.maxHp,
+            attack: def.attack,
+            defense: def.defense,
+            moveRange: def.moveRange,
+            attackRange: def.attackRange,
+            discoverRadius: def.discoverRadius,
+            triggerRange: def.triggerRange,
+            movementActions: def.movementActions,
+          },
+          tags: gargoyleTags,
+          hasMovedThisTurn: false,
+          hasAttackedThisTurn: false,
+          hasCapturedThisTurn: false,
+          hasTradedThisTurn: false,
+          hasConstructedThisTurn: false,
+          hasDestroyedThisTurn: false,
+          hasUsedPostAttackMoveThisTurn: false,
+          bloodlustAttackAvailable: false,
+          xp: 0,
+          level: 1,
+          lastMovedTurn: 0,
+          pinnedUntilTurn: 0,
+          distractionDefPenalty: 0,
+        };
+
+        // Consume the gravestone and place the Gargoyle on the tile.
+        tile.unitId = unitId;
+        tile.buildingId = null;
+        cleanupRoostedUnits(state, buildingId);
+        delete state.buildings[buildingId];
+
+        state.arcaneCrystals -= ABILITIES.GARGOYLE_CRYSTAL_COST;
+
+        if (state.selectedBuildingId === buildingId) {
+          state.selectedBuildingId = null;
+        }
+
+        const { addFloater } = useFloaterStore.getState();
+        addFloater({
+          value: 0,
+          label: '🗿 Raised',
           x: building.position.x,
           y: building.position.y,
           isEnemy: false,
