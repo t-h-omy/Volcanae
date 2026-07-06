@@ -54,6 +54,7 @@ import {
   type Position,
   type Tile,
   type GameStats,
+  type GameState,
 } from '../types';
 import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast, getMageCastBudget, isHealSuppressedByCorruption, canUnitTrade, getTradeMarket, getCaptureTarget, canUnitBuildBridge, getBridgeBuildTargets } from '../unitActions';
 import { getPhalanxAttackBonus, getPhalanxDefenseBonus, getCrystalTowerChamberBonus } from '../combatSystem';
@@ -64,8 +65,9 @@ import { useZoneClearedStore } from '../zoneClearedStore';
 import { useCaveScreamsStore } from '../caveScreamsStore';
 import { useSpecialistHireStore } from '../specialistHireStore';
 import { useMarketPanelStore } from '../marketPanelStore';
-import { saveSlot, deleteSlot, exportSlot, getSlotMeta } from '../saveSystem';
+import { saveSlot, saveSlotStrict, deleteSlot, exportSlot, getSlotMeta, listSlots, getNextDefaultSlotName, idbAvailable } from '../saveSystem';
 import { SAVE } from '../gameConfig';
+import { generateId } from '../mapGenerator';
 import './HUD.css';
 
 // ============================================================================
@@ -523,7 +525,41 @@ function GameMenu() {
     clearSavedGameAction();
   }, [clearSavedGameAction]);
 
+  const persistCurrentGameForReload = useCallback(async () => {
+    if (!idbAvailable()) return;
+    const fullStore = useGameStore.getState();
+    const stateSnapshot = Object.fromEntries(
+      Object.entries(fullStore).filter(([, value]) => typeof value !== 'function'),
+    ) as GameState;
+
+    let activeSaveId = useMenuStore.getState().activeSaveId;
+    let slotName: string | null = null;
+
+    if (activeSaveId) {
+      const meta = await getSlotMeta(activeSaveId);
+      slotName = meta?.name ?? null;
+    } else {
+      const slots = await listSlots();
+      activeSaveId = generateId('slot');
+      slotName = getNextDefaultSlotName(slots);
+      useMenuStore.setState({ activeSaveId });
+    }
+
+    if (!slotName) {
+      slotName = getNextDefaultSlotName(await listSlots());
+    }
+
+    await saveSlotStrict({ id: activeSaveId, name: slotName, state: stateSnapshot });
+  }, []);
+
   const handleResetCache = useCallback(async () => {
+    try {
+      await persistCurrentGameForReload();
+    } catch (error) {
+      console.error('Failed to save before cache reset reload.', error);
+      window.alert('Reload cancelled because the current game could not be saved first. Please use the Save Game option in the menu before attempting to reload. If that also fails, please report the issue.');
+      return;
+    }
     if ('caches' in window) {
       const keys = await caches.keys();
       await Promise.all(keys.map((k) => caches.delete(k)));
@@ -533,7 +569,7 @@ function GameMenu() {
       await Promise.all(registrations.map((r) => r.unregister()));
     }
     window.location.reload();
-  }, []);
+  }, [persistCurrentGameForReload]);
 
   const handleDifficultySelect = useCallback((d: Difficulty) => {
     initNewGame(d);
