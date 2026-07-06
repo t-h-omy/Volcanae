@@ -65,7 +65,7 @@ import { useZoneClearedStore } from '../zoneClearedStore';
 import { useCaveScreamsStore } from '../caveScreamsStore';
 import { useSpecialistHireStore } from '../specialistHireStore';
 import { useMarketPanelStore } from '../marketPanelStore';
-import { saveSlot, deleteSlot, exportSlot, getSlotMeta, listSlots, getNextDefaultSlotName, idbAvailable } from '../saveSystem';
+import { saveSlot, saveSlotStrict, deleteSlot, exportSlot, getSlotMeta, listSlots, getNextDefaultSlotName, idbAvailable } from '../saveSystem';
 import { SAVE } from '../gameConfig';
 import { generateId } from '../mapGenerator';
 import './HUD.css';
@@ -533,7 +533,7 @@ function GameMenu() {
     ) as GameState;
 
     let activeSaveId = useMenuStore.getState().activeSaveId;
-    let slotName = String(stateSnapshot.turn);
+    let slotName = `${SAVE.DEFAULT_NAME_PREFIX} Turn ${stateSnapshot.turn}`;
 
     if (activeSaveId) {
       const meta = await getSlotMeta(activeSaveId);
@@ -545,11 +545,17 @@ function GameMenu() {
       useMenuStore.setState({ activeSaveId });
     }
 
-    await saveSlot({ id: activeSaveId, name: slotName, state: stateSnapshot });
+    await saveSlotStrict({ id: activeSaveId, name: slotName, state: stateSnapshot });
   }, []);
 
   const handleResetCache = useCallback(async () => {
-    await persistCurrentGameForReload().catch(() => undefined);
+    try {
+      await persistCurrentGameForReload();
+    } catch (error) {
+      console.error('Failed to save before cache reset reload.', error);
+      window.alert('Reload cancelled because the current game could not be saved first.');
+      return;
+    }
     if ('caches' in window) {
       const keys = await caches.keys();
       await Promise.all(keys.map((k) => caches.delete(k)));

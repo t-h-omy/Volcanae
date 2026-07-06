@@ -479,27 +479,33 @@ export async function loadSlot(id: string): Promise<GameState | null> {
 }
 
 /** Save both metadata and full state for a slot in one transaction. */
+export async function saveSlotStrict(args: { id: string; name: string; state: GameState }): Promise<void> {
+  if (!idbAvailable()) throw new Error('Save storage is unavailable.');
+  const { id, name, state } = args;
+  const meta: SaveSlotMeta = {
+    id,
+    name,
+    version: SAVE_VERSION,
+    savedAt: Date.now(),
+    turn: state.turn,
+    difficulty: state.difficulty,
+  };
+  const dataRecord = { id, version: SAVE_VERSION, state };
+  const db = await openDb();
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction([SAVE.STORE_META, SAVE.STORE_DATA], 'readwrite');
+    tx.objectStore(SAVE.STORE_META).put(meta);
+    tx.objectStore(SAVE.STORE_DATA).put(dataRecord);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+/** Save both metadata and full state for a slot in one transaction. */
 export async function saveSlot(args: { id: string; name: string; state: GameState }): Promise<void> {
   if (!idbAvailable()) return;
   try {
-    const { id, name, state } = args;
-    const meta: SaveSlotMeta = {
-      id,
-      name,
-      version: SAVE_VERSION,
-      savedAt: Date.now(),
-      turn: state.turn,
-      difficulty: state.difficulty,
-    };
-    const dataRecord = { id, version: SAVE_VERSION, state };
-    const db = await openDb();
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction([SAVE.STORE_META, SAVE.STORE_DATA], 'readwrite');
-      tx.objectStore(SAVE.STORE_META).put(meta);
-      tx.objectStore(SAVE.STORE_DATA).put(dataRecord);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
+    await saveSlotStrict(args);
   } catch {
     // fail silently — autosave failures must not crash the game
   }
