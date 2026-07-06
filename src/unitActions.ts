@@ -45,6 +45,7 @@ import { MAP, MAGE } from './gameConfig';
 import { getMageCastBudget } from './spellSystem';
 import { isUnitOnCorruptedTile } from './tileStatusSystem';
 import { getBridgeAt } from './bridgeSystem';
+import { isSpecialistEffectActive } from './specialistSystem';
 export { canUnitCast, getMageCastBudget } from './spellSystem';
 
 // ── HELPER ───────────────────────────────────────────────────────────────────
@@ -549,4 +550,49 @@ export function getBridgeBuildTargets(
     targets.push({ pos: { x: cx, y: cy }, orientation });
   }
   return targets;
+}
+
+// ── SCOUT SET TRAP ────────────────────────────────────────────────────────────
+
+/**
+ * Returns true if the scout unit is allowed to set a trap this turn.
+ *
+ * Blocking rules:
+ *   - PLAYER faction required
+ *   - SCOUT unit type required
+ *   - SCOUT_SET_TRAP specialist effect must be active
+ *   - hasMovedThisTurn, hasAttackedThisTurn, hasConstructedThisTurn,
+ *     hasCapturedThisTurn, hasDestroyedThisTurn — all block the action
+ *
+ * Note: tile eligibility (no building, no ruin) is enforced in the action
+ * handler and HUD, NOT here — consistent with how fieldworkBlocked works.
+ */
+export function canUnitSetTrap(
+  unit: Unit,
+  state: GameState | Draft<GameState>,
+): boolean {
+  if (unit.faction !== Faction.PLAYER) return false;
+  if (unit.type !== UnitType.SCOUT) return false;
+  if (!isSpecialistEffectActive(state, 'SCOUT_SET_TRAP')) return false;
+  if (unit.hasMovedThisTurn) return false;
+  if (unit.hasAttackedThisTurn) return false;
+  if (unit.hasConstructedThisTurn) return false;
+  if (unit.hasCapturedThisTurn) return false;
+  if (unit.hasDestroyedThisTurn) return false;
+  return true;
+}
+
+/**
+ * Returns true if the scout's current tile is eligible for trap placement.
+ * Requires no building and no ruin on the tile.
+ */
+export function isTrapTileClear(
+  unit: Unit,
+  state: GameState | Draft<GameState>,
+): boolean {
+  const tile = state.grid[unit.position.y]?.[unit.position.x];
+  if (!tile) return false;
+  if (tile.buildingId !== null) return false;
+  if (tile.isRuin || tile.isStrongholdRuin) return false;
+  return true;
 }

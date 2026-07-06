@@ -65,6 +65,7 @@ import { canUnitTrade } from './unitActions';
 import { createMarket, restockAllSlots, tickMarketRefills } from './marketSystem';
 import { MARKET } from './gameConfig';
 import { canUnitBuildBridge, getBridgeBuildTargets } from './unitActions';
+import { canUnitSetTrap, isTrapTileClear } from './unitActions';
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
@@ -121,6 +122,8 @@ interface GameActions {
   startBridgeBuildMode: (unitId: string) => void;
   /** Cancel bridge-build-target-selection mode */
   cancelBridgeBuildMode: () => void;
+  /** Place a SCOUT_TRAP on the scout's current tile */
+  setTrap: (unitId: string) => void;
   /** Enter spell-cast target-selection mode */
   startSpellCast: (mageId: string, spellId: SpellId) => void;
   /** Cancel spell-cast target-selection mode */
@@ -1583,6 +1586,69 @@ export const useGameStore = create<GameStore>()(
     cancelBridgeBuildMode: () => {
       set((state) => {
         state.pendingBridgeBuilderId = null;
+      });
+    },
+
+    setTrap: (unitId: string) => {
+      set((state) => {
+        const unit = state.units[unitId];
+        if (!unit) return;
+        if (!canUnitSetTrap(unit, state)) return;
+        if (!isTrapTileClear(unit, state)) return;
+        // Check resource cost
+        if (state.resources.wood < ABILITIES.SCOUT_TRAP_WOOD_COST) return;
+        if (state.resources.iron < ABILITIES.SCOUT_TRAP_IRON_COST) return;
+
+        state.resources.wood -= ABILITIES.SCOUT_TRAP_WOOD_COST;
+        state.resources.iron -= ABILITIES.SCOUT_TRAP_IRON_COST;
+
+        const { x, y } = unit.position;
+        const trapId = `scout-trap-${x}-${y}-${state.turn}`;
+        const buildingDef = BUILDING_DEFINITIONS[BuildingType.SCOUT_TRAP];
+        state.buildings[trapId] = {
+          id: trapId,
+          type: BuildingType.SCOUT_TRAP,
+          faction: Faction.PLAYER,
+          position: { x, y },
+          hp: 1,
+          maxHp: 1,
+          specialistSlot: null,
+          isDisabledForTurns: 0,
+          wasAttackedLastEnemyTurn: false,
+          captureProgress: 0,
+          isBeingCapturedBy: null,
+          lavaBoostEnabled: false,
+          discoverRadius: buildingDef.discoverRadius ?? 0,
+          turnCapturedByPlayer: null,
+          wasEnemyOwnedBeforeCapture: false,
+          combatStats: null,
+          hasAttackedThisTurn: false,
+          tags: [],
+          consumesUnitOnCapture: false,
+          populationCount: 0,
+          populationCap: 0,
+          populationGrowthCounter: 0,
+          strongholdNobles: 0,
+          emberSpawnCounter: 0,
+          recruitmentQueue: null,
+          destroyBehavior: buildingDef.destroyBehavior,
+          resonanceTurnsRemaining: 0,
+          spawnCooldownRemaining: 0,
+          lastRecruitmentTurn: 0,
+          trapStunTurns: ABILITIES.SCOUT_TRAP_STUN_TURNS,
+          trapDamage: ABILITIES.SCOUT_TRAP_DAMAGE,
+        };
+        state.grid[y][x].buildingId = trapId;
+        unit.hasConstructedThisTurn = true;
+
+        useFloaterStore.getState().addFloater({
+          value: 0,
+          label: '🪤 Trap set',
+          x,
+          y,
+          isEnemy: false,
+          floaterType: 'revive',
+        });
       });
     },
 

@@ -18,7 +18,7 @@ import { processEnemyLevelUps, grantXp } from './levelSystem';
 import type { GameEvent } from './gameEvents';
 import { hasUnitActed } from './unitActions';
 import { sweepLeashes } from './spellSystem';
-import { checkGraveTrapTrigger, resolveSlide } from './movementSystem';
+import { checkGraveTrapTrigger, checkScoutTrapTrigger, resolveSlide } from './movementSystem';
 import { useCombatAnimationStore } from './combatAnimationStore';
 import { ANIMATION } from './animationConfig';
 import { RENDER } from './renderConfig';
@@ -1205,8 +1205,9 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
   // Pass fromPosition so the trigger can check for range-entry (not already in range)
   triggerPreventiveStrike(state, unitId, from, events);
 
-  // GRAVE_TRAP: check if the enemy unit landed on a player trap
+  // GRAVE_TRAP / SCOUT_TRAP: check if the enemy unit landed on a player trap
   checkGraveTrapTrigger(state, unitId);
+  checkScoutTrapTrigger(state, unitId);
 
   // PORTAL: check if the unit stepped onto a portal entrance.
   if (state.units[unitId]) {
@@ -1225,7 +1226,7 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
   processPendingPortalTeleports(state, events);
 
   // FROZEN tile: trigger the slippery slide mechanic (same as player units).
-  // Re-fetch the unit — it must still be alive (not killed by a GRAVE_TRAP or other effect).
+  // Re-fetch the unit — it must still be alive (not killed by a trap or other effect).
   // Skip slide if the unit has teleported away from the frozen tile (its position no longer
   // matches targetPosition — portal exit clears lastMovementDirection for the same reason).
   const unitAfterEffects = state.units[unitId];

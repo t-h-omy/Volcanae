@@ -56,7 +56,7 @@ import {
   type GameStats,
   type GameState,
 } from '../types';
-import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast, getMageCastBudget, isHealSuppressedByCorruption, canUnitTrade, getTradeMarket, getCaptureTarget, canUnitBuildBridge, getBridgeBuildTargets } from '../unitActions';
+import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast, getMageCastBudget, isHealSuppressedByCorruption, canUnitTrade, getTradeMarket, getCaptureTarget, canUnitBuildBridge, getBridgeBuildTargets, canUnitSetTrap, isTrapTileClear } from '../unitActions';
 import { getPhalanxAttackBonus, getPhalanxDefenseBonus, getCrystalTowerChamberBonus } from '../combatSystem';
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
 import { isSpecialistEffectActive } from '../specialistSystem';
@@ -1687,6 +1687,7 @@ function SelectedUnitPanel({
   const canHeal = isPlayer && canUnitHeal(unit);
   const canFieldwork = isPlayer && canUnitFieldwork(unit);
   const canBuildBridge = isPlayer && canUnitBuildBridge(unit, gameState);
+  const canSetTrap = isPlayer && canUnitSetTrap(unit, gameState);
 
   const visibleTags = unit.tags.filter((t) => !HIDDEN_UNIT_TAGS.has(t));
 
@@ -1707,6 +1708,7 @@ function SelectedUnitPanel({
     if (tile.terrainType === TileType.FOREST || tile.terrainType === TileType.MOUNTAIN) return true;
     return false;
   })();
+  const trapBlocked = canSetTrap && !isTrapTileClear(unit, gameState);
   const [aiScoreModal, setAiScoreModal] = useState(false);
   const [aiScores, setAiScores] = useState<ScoredAction[]>([]);
   const [unitInfoOpen, setUnitInfoOpen] = useState(false);
@@ -1732,6 +1734,9 @@ function SelectedUnitPanel({
     [canBuildBridge, gameState, unit],
   );
   const [confirmBridgeTarget, setConfirmBridgeTarget] = useState<{ x: number; y: number; orientation: 'EW' | 'NS' } | null>(null);
+
+  // Scout trap
+  const setTrap = useGameStore((s) => s.setTrap);
 
   // Trade (Market)
   const canTrade = isPlayer && canUnitTrade(unit);
@@ -2220,6 +2225,21 @@ function SelectedUnitPanel({
                 />
               )}
             </>
+          )}
+          {canSetTrap && (
+            <button
+              className="hud-spell-btn"
+              disabled={!!trapBlocked}
+              onClick={() => setTrap(unit.id)}
+            >
+              <span className="hud-spell-btn-label">🪤 Set Trap</span>
+              {ABILITIES.SCOUT_TRAP_WOOD_COST > 0 && (
+                <span className="hud-spell-btn-cost">🪵{ABILITIES.SCOUT_TRAP_WOOD_COST}</span>
+              )}
+              {ABILITIES.SCOUT_TRAP_IRON_COST > 0 && (
+                <span className="hud-spell-btn-cost">⚙️{ABILITIES.SCOUT_TRAP_IRON_COST}</span>
+              )}
+            </button>
           )}
         </>
       )}
