@@ -444,7 +444,12 @@ function OptionsOverlay({ onClose }: { onClose: () => void }) {
         await deleteSlot(activeSaveId);
       } else {
         // Autosave the current state before leaving.
-        const currentState = useGameStore.getState();
+        // Strip Zustand action methods — IDB's structured-clone algorithm throws
+        // DataCloneError on functions, silently failing the save.
+        const fullStore = useGameStore.getState();
+        const currentState = Object.fromEntries(
+          Object.entries(fullStore).filter(([, v]) => typeof v !== 'function'),
+        ) as GameState;
         const meta = await getSlotMeta(activeSaveId);
         const slotName = meta?.name ?? String(currentState.turn);
         await saveSlot({ id: activeSaveId, name: slotName, state: currentState });
