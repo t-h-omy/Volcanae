@@ -72,7 +72,23 @@ export function getEffectiveHousingPopulationCap(
 
   const params = getActiveEffectParams(state, 'HOUSING_CAP_BONUS');
   const bonus = Number(params?.amount ?? 0);
-  return building.populationCap + (Number.isFinite(bonus) ? bonus : 0);
+  const flatCap = building.populationCap + (Number.isFinite(bonus) ? bonus : 0);
+  return isSpecialistEffectActive(state, 'POP_DOUBLING_DOCTRINE') ? flatCap * 2 : flatCap;
+}
+
+/**
+ * Returns the effective (tech + doctrine adjusted) population caps for a Stronghold.
+ * Wraps getStrongholdEffectiveCap and applies ×2 when POP_DOUBLING_DOCTRINE is active
+ * (applied after tech-provided flat bonuses: `(base + flat) * 2`).
+ */
+export function getStrongholdEffectiveCapWithDoctrines(
+  state: GameState | Draft<GameState>,
+): { farmerCap: number; nobleCap: number; totalCap: number } {
+  const { farmerCap, nobleCap } = getStrongholdEffectiveCap(state);
+  if (isSpecialistEffectActive(state, 'POP_DOUBLING_DOCTRINE')) {
+    return { farmerCap: farmerCap * 2, nobleCap: nobleCap * 2, totalCap: (farmerCap + nobleCap) * 2 };
+  }
+  return { farmerCap, nobleCap, totalCap: farmerCap + nobleCap };
 }
 
 /** True if the building TYPE is a recruitment building (ignores state). */
@@ -158,14 +174,18 @@ export function getRecruitableUnitTypes(buildingType: BuildingType): UnitType[] 
  * (0 or 1 current, limit 1). Without it, returns the global summary across all caves.
  */
 export function computeRecruitmentBuildingUsage(
-  state: Pick<GameState, 'units' | 'buildings'>,
+  state: Pick<GameState, 'units' | 'buildings'> & Partial<Pick<GameState, 'specialists' | 'globalSpecialistStorage'>>,
   buildingType: BuildingType,
   specificBuildingId?: string,
 ): { current: number; limit: number } {
-  const unitLimit = BUILDING_DEFINITIONS[buildingType]?.unitLimit;
-  if (unitLimit === undefined) {
+  const baseUnitLimit = BUILDING_DEFINITIONS[buildingType]?.unitLimit;
+  if (baseUnitLimit === undefined) {
     return { current: 0, limit: Infinity };
   }
+  const doctrineActive = state.specialists !== undefined && state.globalSpecialistStorage !== undefined
+    ? isSpecialistEffectActive(state as GameState, 'POP_DOUBLING_DOCTRINE')
+    : false;
+  const unitLimit = doctrineActive ? baseUnitLimit * 2 : baseUnitLimit;
 
   // CRYSTAL_CAVE: each cave has its own cap of 1 drake (enforced per-cave via roostBuildingId).
   // When specificBuildingId is provided, return per-cave usage so the caller can gate
@@ -220,6 +240,29 @@ export function computeRecruitmentBuildingUsage(
   }
 
   return { current, limit: buildingCount * unitLimit };
+}
+
+/**
+ * Computes the effective iron+wood recruit cost for a unit type, including tech cost mods
+ * and the ×0.5 ceil halving applied when POP_DOUBLING_DOCTRINE is active.
+ * Returns null when the unit has no iron/wood cost (e.g. Crystal Drake).
+ */
+export function getEffectiveRecruitCost(
+  state: GameState | Draft<GameState>,
+  unitType: UnitType,
+): { iron: number; wood: number } | null {
+  const baseCost = UNIT_DEFINITIONS[unitType]?.cost;
+  if (!baseCost || (baseCost.iron === 0 && baseCost.wood === 0 && baseCost.crystals !== undefined)) {
+    return null;
+  }
+  const costMod = getCostMods(state, unitType);
+  let iron = baseCost.iron + costMod.iron;
+  let wood = baseCost.wood + costMod.wood;
+  if (isSpecialistEffectActive(state, 'POP_DOUBLING_DOCTRINE')) {
+    iron = Math.ceil(iron * 0.5);
+    wood = Math.ceil(wood * 0.5);
+  }
+  return { iron, wood };
 }
 
 // ============================================================================
@@ -874,8 +917,8 @@ export function growHousePopulations(state: Draft<GameState>): void {
 
     if (building.type === BuildingType.STRONGHOLD) {
       // Grow farmers and nobles separately, farmers first.
-      // getStrongholdEffectiveCap is the single source of truth for the cap.
-      const { farmerCap, nobleCap } = getStrongholdEffectiveCap(state);
+      // getStrongholdEffectiveCapWithDoctrines is the single source of truth for the cap.
+      const { farmerCap, nobleCap } = getStrongholdEffectiveCapWithDoctrines(state);
       const canGrowFarmer = building.populationCount < farmerCap;
       const canGrowNoble = building.strongholdNobles < nobleCap;
       if (canGrowFarmer || canGrowNoble) {
@@ -982,15 +1025,11 @@ export function recruitUnit(
       return;
     }
   } else {
-    const baseCost = UNIT_DEFINITIONS[unitType]?.cost;
-    if (!baseCost) {
+    const effectiveCost = getEffectiveRecruitCost(state, unitType);
+    if (!effectiveCost) {
       return;
     }
-    const costMod = getCostMods(state, unitType);
-    cost = {
-      iron: baseCost.iron + costMod.iron,
-      wood: baseCost.wood + costMod.wood,
-    };
+    cost = effectiveCost;
 
     // Validate player can afford the unit
     if (!canAfford(state, cost)) {
@@ -1117,6 +1156,12 @@ export function recruitUnit(
   }
   // Ensure current HP matches the (possibly boosted) max HP for a freshly recruited unit
   unit.stats.currentHp = unit.stats.maxHp;
+
+  // POP_DOUBLING_DOCTRINE: halve (ceil) spawn maxHp — birth-time only
+  if (isSpecialistEffectActive(state, 'POP_DOUBLING_DOCTRINE')) {
+    unit.stats.maxHp = Math.ceil(unit.stats.maxHp * 0.5);
+    unit.stats.currentHp = unit.stats.maxHp;
+  }
 
   // Place unit on the grid
   state.grid[spawnPosition.y][spawnPosition.x].unitId = unitId;

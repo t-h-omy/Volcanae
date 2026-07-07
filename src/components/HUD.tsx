@@ -27,6 +27,8 @@ import {
   computeCrystalIncomePerTurn,
   getMineKilnBonusCount,
   getEffectiveHousingPopulationCap,
+  getStrongholdEffectiveCapWithDoctrines,
+  getEffectiveRecruitCost,
 } from '../resourceSystem';
 import {
   getConstructionOptionsForTile,
@@ -35,7 +37,7 @@ import {
 } from '../constructionSystem';
 import { computeLevelFromXp } from '../levelSystem';
 import { computeUnitAiScores, computeRecruitmentScores, type ScoredAction } from '../enemySystem';
-import { renderEffect, getStrongholdEffectiveCap, getAvailableTechs as getAvailableTechsLogic, getCostMods } from '../techSystem';
+import { renderEffect, getAvailableTechs as getAvailableTechsLogic } from '../techSystem';
 import {
   Faction,
   GamePhase,
@@ -2652,7 +2654,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   const turnsUntilNextPop = (() => {
     if (!isHousingBuilding) return null;
     if (building.type === BuildingType.STRONGHOLD) {
-      const { farmerCap, nobleCap } = getStrongholdEffectiveCap(gameState);
+      const { farmerCap, nobleCap } = getStrongholdEffectiveCapWithDoctrines(gameState);
       const canGrow = building.populationCount < farmerCap || building.strongholdNobles < nobleCap;
       return canGrow ? POPULATION.HOUSE_GROWTH_INTERVAL - building.populationGrowthCounter : null;
     }
@@ -2807,7 +2809,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
           {building.type === BuildingType.STRONGHOLD ? (
             <>
               {(() => {
-                const { farmerCap, nobleCap } = getStrongholdEffectiveCap(gameState);
+                const { farmerCap, nobleCap } = getStrongholdEffectiveCapWithDoctrines(gameState);
                 return <>👥 {building.populationCount}/{farmerCap} farmers, {building.strongholdNobles}/{nobleCap} nobles</>;
               })()}
             </>
@@ -2884,12 +2886,9 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
                 // Crystal Drake is paid in arcane crystals, not iron/wood.
                 const isCrystalCost = unitType === UnitType.CRYSTAL_DRAKE;
                 const baseCost = UNIT_DEFINITIONS[unitType]?.cost;
-                const costMod = getCostMods(gameState, unitType);
                 const cost = isCrystalCost
                   ? undefined
-                  : baseCost
-                    ? { iron: baseCost.iron + costMod.iron, wood: baseCost.wood + costMod.wood }
-                    : baseCost;
+                  : getEffectiveRecruitCost(gameState, unitType);
                 const crystalCost = isCrystalCost ? (baseCost?.crystals ?? 0) : 0;
                 const canAffordUnit = isCrystalCost
                   ? arcaneCrystals >= crystalCost
@@ -2955,12 +2954,9 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
       {confirmRecruitUnit && (() => {
         const isCrystalCost = confirmRecruitUnit === UnitType.CRYSTAL_DRAKE;
         const baseCost = UNIT_DEFINITIONS[confirmRecruitUnit]?.cost;
-        const costMod = getCostMods(gameState, confirmRecruitUnit);
         const cost = isCrystalCost
           ? undefined
-          : baseCost
-            ? { iron: baseCost.iron + costMod.iron, wood: baseCost.wood + costMod.wood }
-            : baseCost;
+          : getEffectiveRecruitCost(gameState, confirmRecruitUnit);
         const costLabel = isCrystalCost
           ? `💎${baseCost?.crystals ?? 0}`
           : cost ? `⛓️${cost.iron} 🪵${cost.wood}` : undefined;
@@ -4115,10 +4111,9 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
           costLabel={(() => {
             const baseCost = UNIT_DEFINITIONS[infoUnitType]?.cost;
             if (!baseCost) return undefined;
-            const costMod = getCostMods(useGameStore.getState(), infoUnitType);
-            const iron = baseCost.iron + costMod.iron;
-            const wood = baseCost.wood + costMod.wood;
-            return `⛓️${iron} 🪵${wood}`;
+            const cost = getEffectiveRecruitCost(useGameStore.getState(), infoUnitType);
+            if (!cost) return baseCost.crystals !== undefined ? `💎${baseCost.crystals}` : undefined;
+            return `⛓️${cost.iron} 🪵${cost.wood}`;
           })()}
         />
       )}
