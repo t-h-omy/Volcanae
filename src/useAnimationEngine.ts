@@ -78,6 +78,8 @@ function eventPosition(event: GameEvent): Position {
       return event.position;
     case 'TILE_DAMAGE':
       return event.position;
+    case 'UNIT_HEAL':
+      return event.position;
     case 'CLEAVE_DAMAGE':
       return event.position;
     case 'PIERCE_DAMAGE':
@@ -175,6 +177,8 @@ function isEventVisible(event: GameEvent): boolean {
         return true;
       }
       return isTileRevealed(event.position);
+    case 'UNIT_HEAL':
+      return true;
     case 'CLEAVE_DAMAGE':
       return isTileRevealed(event.position);
     case 'PIERCE_DAMAGE':
@@ -1553,6 +1557,21 @@ export function useAnimationEngine(): void {
           }
           // applyEvent emits the damage floater. The VFX is short enough that the
           // floater rises through it visibly.
+          useGameStore.getState().applyEvent(event);
+          continue;
+        }
+
+        // ── Special handling for UNIT_HEAL ──
+        if (event.type === 'UNIT_HEAL') {
+          if (visible) {
+            useCombatAnimationStore.getState().addTileVfx({
+              id: crypto.randomUUID(),
+              x: event.position.x,
+              y: event.position.y,
+              variant: 'HEAL',
+              durationMs: ANIMATION.HEAL_VFX_MS,
+            });
+          }
           useGameStore.getState().applyEvent(event);
           continue;
         }

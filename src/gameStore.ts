@@ -302,6 +302,18 @@ function assertNever(x: never): never {
   throw new Error(`Unhandled event type: ${(x as { type: string }).type}`);
 }
 
+function tookNoActionThisTurn(unit: GameState['units'][string]): boolean {
+  return (
+    !unit.hasMovedThisTurn &&
+    !unit.hasAttackedThisTurn &&
+    !unit.hasCapturedThisTurn &&
+    !unit.hasTradedThisTurn &&
+    !unit.hasConstructedThisTurn &&
+    !unit.hasDestroyedThisTurn &&
+    (unit.spellsCastThisTurn ?? 0) === 0
+  );
+}
+
 /**
  * Re-computes the HOMELESS and UNTRAINED tags for all player units and
  * applies/revokes them (with stat effects) as needed.
@@ -1945,9 +1957,33 @@ export const useGameStore = create<GameStore>()(
         // Phase 1: Resolve all pending captures (instant, no animation)
         resolveCaptures(state);
 
+        // Phase 1.5: End-of-player-turn idle heal (spec_24) before enemy actions.
+        const idleHealEvents: GameEvent[] = [];
+
         // Get a plain (non-Proxy) snapshot of the current state so runEnemyTurn
         // can use produce() internally without nesting immer producers.
-        const snapshot: GameState = current(state);
+        let snapshot: GameState = current(state);
+        if (isSpecialistEffectActive(snapshot, 'IDLE_HEAL')) {
+          snapshot = produce(snapshot, (draft) => {
+            for (const unit of Object.values(draft.units)) {
+              if (unit.faction !== Faction.PLAYER) continue;
+              if (!tookNoActionThisTurn(unit)) continue;
+              if (unit.stats.currentHp >= unit.stats.maxHp) continue;
+              const healedAmount = Math.min(
+                ABILITIES.IDLE_HEAL_AMOUNT,
+                unit.stats.maxHp - unit.stats.currentHp,
+              );
+              if (healedAmount <= 0) continue;
+              unit.stats.currentHp += healedAmount;
+              idleHealEvents.push({
+                type: 'UNIT_HEAL',
+                unitId: unit.id,
+                position: { x: unit.position.x, y: unit.position.y },
+                amount: healedAmount,
+              });
+            }
+          });
+        }
 
         // Phase 2: Compute enemy turn on snapshot
         const { finalState: afterEnemy, events: enemyEvents } = runEnemyTurn(snapshot);
@@ -1977,7 +2013,7 @@ export const useGameStore = create<GameStore>()(
         });
 
         // Phase 4: Lava phase
-        const allEvents: GameEvent[] = [...enemyEvents, ...tileStatusEvents];
+        const allEvents: GameEvent[] = [...idleHealEvents, ...enemyEvents, ...tileStatusEvents];
         computedState = produce(computedState, (draft) => {
           draft.turnsUntilLavaAdvance -= 1;
         });
@@ -2978,6 +3014,24 @@ export const useGameStore = create<GameStore>()(
               y: event.position.y,
               isEnemy: false,
               floaterType: 'damage',
+            });
+            break;
+          }
+
+          case 'UNIT_HEAL': {
+            const healedUnit = state.units[event.unitId];
+            if (healedUnit) {
+              healedUnit.stats.currentHp = Math.min(
+                healedUnit.stats.maxHp,
+                healedUnit.stats.currentHp + event.amount,
+              );
+            }
+            useFloaterStore.getState().addFloater({
+              value: event.amount,
+              x: event.position.x,
+              y: event.position.y,
+              isEnemy: false,
+              floaterType: 'heal',
             });
             break;
           }

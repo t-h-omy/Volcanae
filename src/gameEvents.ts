@@ -189,6 +189,19 @@ export type GameEvent =
     }
   | {
       /**
+       * Emitted when a unit is healed outside the normal player-action flow.
+       * Causes a heal floater/VFX and gives the camera a discrete pan target.
+       */
+      type: 'UNIT_HEAL';
+      /** ID of the unit that was healed */
+      unitId: string;
+      /** Position where the heal visuals should appear */
+      position: Position;
+      /** Amount of HP restored */
+      amount: number;
+    }
+  | {
+      /**
        * Emitted when a CORRUPT_TERRAIN action places a new enemy corruption
        * building (EMBERNEST or MAGMASPYR) on a tile. Allows the animation engine
        * to add the building to the live state instantly so it appears during the

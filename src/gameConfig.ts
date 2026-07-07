@@ -1977,7 +1977,7 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
   spec_24: {
     name: 'Field Chirurgeon',
     description:
-      `Player units that neither moved nor attacked this turn are healed for ${ABILITIES.IDLE_HEAL_AMOUNT} HP at the end of the player turn.`,
+      `Player units that took no action this turn are healed for ${ABILITIES.IDLE_HEAL_AMOUNT} HP at the end of the player turn.`,
     effects: [{ type: 'IDLE_HEAL', params: { amount: ABILITIES.IDLE_HEAL_AMOUNT } }],
     upkeepIron: 0,
     upkeepWood: 0,
