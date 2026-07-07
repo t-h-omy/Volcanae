@@ -480,10 +480,30 @@ export async function loadSlot(id: string): Promise<GameState | null> {
   }
 }
 
+/**
+ * Strip function-valued top-level properties from a game state before saving.
+ *
+ * The Zustand game store mixes its action methods into the same object as the
+ * serializable GameState fields.  Autosave paths pass a snapshot taken from the
+ * live store (via immer's `current()` / `produce()`), which therefore carries
+ * those action functions.  IndexedDB's structured-clone algorithm throws a
+ * DataCloneError on functions when writing the heavy `saveData` record, while
+ * the `saveMeta` write (queued first in the same transaction) still commits —
+ * leaving the slot's metadata updated but its full state stuck at the last
+ * successfully-cloned save.  Removing the functions here guarantees every save
+ * path (autosave, manual save, return-to-menu) persists a clean GameState.
+ */
+function toSerializableState(state: GameState): GameState {
+  return Object.fromEntries(
+    Object.entries(state).filter(([, value]) => typeof value !== 'function'),
+  ) as GameState;
+}
+
 /** Save both metadata and full state for a slot in one transaction. */
 export async function saveSlotStrict(args: { id: string; name: string; state: GameState }): Promise<void> {
   if (!idbAvailable()) throw new Error('Save storage is unavailable.');
-  const { id, name, state } = args;
+  const { id, name } = args;
+  const state = toSerializableState(args.state);
   const meta: SaveSlotMeta = {
     id,
     name,
