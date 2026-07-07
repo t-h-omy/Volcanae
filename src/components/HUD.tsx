@@ -228,6 +228,9 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
   const debugAdvanceLava = useGameStore((s) => s.debugAdvanceLava);
   const debugAddResources = useGameStore((s) => s.debugAddResources);
   const debugGiveSpecialist = useGameStore((s) => s.debugGiveSpecialist);
+  const swapSpecialist = useGameStore((s) => s.swapSpecialist);
+  const globalSpecialistStorage = useGameStore((s) => s.globalSpecialistStorage);
+  const specialistSlotCap = useGameStore((s) => s.specialistSlotCap);
   const debugRevealAll = useGameStore((s) => s.debugRevealAll);
   const debugAddFarmers = useGameStore((s) => s.debugAddFarmers);
   const debugAddRuin = useGameStore((s) => s.debugAddRuin);
@@ -237,7 +240,30 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
   const debugApplyTileStatus = useGameStore((s) => s.debugApplyTileStatus);
   const debugClearTileStatus = useGameStore((s) => s.debugClearTileStatus);
   const selectedTilePos = useGameStore((s) => s.selectedTilePos);
+  const showSwap = useSpecialistHireStore((s) => s.showSwap);
   const [devStatsOpen, setDevStatsOpen] = useState(false);
+  const [specPickerOpen, setSpecPickerOpen] = useState(false);
+
+  // Specialists not yet in the player's roster
+  const availableSpecialists = useMemo(
+    () => Object.entries(SPECIALIST_DEFINITIONS).filter(([id]) => !globalSpecialistStorage.includes(id)),
+    [globalSpecialistStorage],
+  );
+
+  const handleGrantSpecialist = useCallback((specId: string) => {
+    setSpecPickerOpen(false);
+    if (globalSpecialistStorage.length < specialistSlotCap) {
+      debugGiveSpecialist(specId);
+    } else {
+      // All slots full — close the dev overlay and trigger the substitute popup
+      onClose();
+      showSwap(specId, (outgoingId) => {
+        if (outgoingId !== null) {
+          swapSpecialist(outgoingId, specId);
+        }
+      });
+    }
+  }, [globalSpecialistStorage, specialistSlotCap, debugGiveSpecialist, swapSpecialist, showSwap, onClose]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -280,7 +306,27 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
             <div className="hud-dev-overlay-section-title">Actions</div>
             <button className="hud-dev-action-btn" onClick={debugAdvanceLava}>🌋 Advance Lava</button>
             <button className="hud-dev-action-btn" onClick={debugAddResources}>💰 +10 Resources</button>
-            <button className="hud-dev-action-btn" onClick={debugGiveSpecialist}>🧙 Give Specialist</button>
+            <button
+              className="hud-dev-action-btn"
+              onClick={() => setSpecPickerOpen((v) => !v)}
+              disabled={availableSpecialists.length === 0}
+            >
+              🧙 Give Specialist{specPickerOpen ? ' ▲' : ' ▼'}
+            </button>
+            {specPickerOpen && (
+              <div className="hud-dev-spec-picker">
+                {availableSpecialists.map(([id, def]) => (
+                  <button
+                    key={id}
+                    className="hud-dev-spec-picker-item"
+                    onClick={() => handleGrantSpecialist(id)}
+                    title={def.description}
+                  >
+                    🧙 {def.name}
+                  </button>
+                ))}
+              </div>
+            )}
             <button className="hud-dev-action-btn" onClick={debugRevealAll}>👁️ Reveal All</button>
             <button className="hud-dev-action-btn" onClick={debugAddFarmers}>🌾 Add Farm (zone 1)</button>
             <button className="hud-dev-action-btn" onClick={debugAddRuin}>🗿 Add Ruin (near unit)</button>

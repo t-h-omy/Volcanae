@@ -903,6 +903,36 @@
   background: rgba(255, 255, 255, 0.15);
 }
 
+.hud-dev-spec-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 2px;
+  padding-left: 12px;
+  border-left: 2px solid rgba(255, 255, 255, 0.15);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.hud-dev-spec-picker-item {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: #ddd;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 0.12s;
+}
+
+.hud-dev-spec-picker-item:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
 .hud-dev-option-row {
   display: flex;
   align-items: center;

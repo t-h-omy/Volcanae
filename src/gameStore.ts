@@ -160,8 +160,8 @@ interface GameActions {
   hasSavedGame: () => boolean;
 
   // ── Debug actions (development only) ──
-  /** Debug: add spec_01 to globalSpecialistStorage */
-  debugGiveSpecialist: () => void;
+  /** Debug: add the given specialist to globalSpecialistStorage and apply their effects */
+  debugGiveSpecialist: (specialistId: string) => void;
   /** Debug: manually trigger lava advance */
   debugAdvanceLava: () => void;
   /** Debug: add 10 iron and 10 wood */
@@ -3351,16 +3351,12 @@ export const useGameStore = create<GameStore>()(
     // DEBUG ACTIONS (development only)
     // ========================================================================
 
-    debugGiveSpecialist: () => {
+    debugGiveSpecialist: (specialistId: string) => {
       set((state) => {
-        const specId = 'spec_01';
-        if (
-          state.specialists[specId] &&
-          !state.globalSpecialistStorage.includes(specId) &&
-          state.specialists[specId].assignedBuildingId === null &&
-          state.globalSpecialistStorage.length < state.specialistSlotCap
-        ) {
-          state.globalSpecialistStorage.push(specId);
+        const specObj = state.specialists[specialistId];
+        if (specObj && !state.globalSpecialistStorage.includes(specialistId)) {
+          state.globalSpecialistStorage.push(specialistId);
+          applyEffectsForSpecialist(state, specObj);
         }
       });
     },
