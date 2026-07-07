@@ -258,6 +258,16 @@ export function getValidSpellTargets(
       return targets;
     }
 
+    case 'RUPTURE': {
+      const targets: Position[] = [];
+      for (const unit of Object.values(state.units)) {
+        if (unit.faction !== Faction.ENEMY) continue;
+        if (!isTileInSpellRange(mage, unit.position, range)) continue;
+        targets.push({ ...unit.position });
+      }
+      return targets;
+    }
+
     default:
       return [];
   }
@@ -859,6 +869,32 @@ function handleExplode(
   return true;
 }
 
+/** Deals a percentage of the target's current HP as damage (Rupture). Cannot kill. */
+function handleRupture(
+  state: Draft<GameState>,
+  targetPosition: Position,
+): boolean {
+  const tile = state.grid[targetPosition.y]?.[targetPosition.x];
+  if (!tile) return false;
+  const targetUnitId = tile.unitId;
+  if (!targetUnitId) return false;
+  const target = state.units[targetUnitId];
+  if (!target) return false;
+  if (target.faction !== Faction.ENEMY) return false;
+
+  const dmg = Math.floor(target.stats.currentHp * MAGE.RUPTURE_PERCENT);
+  target.stats.currentHp = Math.max(1, target.stats.currentHp - dmg);
+
+  useFloaterStore.getState().addFloater({
+    value: dmg,
+    x: targetPosition.x,
+    y: targetPosition.y,
+    isEnemy: true,
+  });
+
+  return true;
+}
+
 /** Validates and applies a spell. Returns true on success. */
 export function castSpell(
   state: Draft<GameState>,
@@ -909,6 +945,8 @@ export function castSpell(
       success = handleFrostcraft(state, targetPosition); break;
     case 'EXPLODE':
       success = handleExplode(state, mage, targetPosition); break;
+    case 'RUPTURE':
+      success = handleRupture(state, targetPosition); break;
     default:
       return false;
   }
