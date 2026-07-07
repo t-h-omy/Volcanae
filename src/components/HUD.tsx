@@ -12,6 +12,7 @@ import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
 import { useSoundOptionsStore } from '../soundOptionsStore';
 import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, computeResearchCost, SPELL_DEFINITIONS, TERRAIN_TAG_INFO, RAGE_ATK_PER_ADJACENT, RAGE_MAX_ADJACENT_COUNT, MAGE, CORRUPTED_SUPPRESSED_TAGS, CRYSTAL_CAVE_CONFIG, MARKET, SPECIALIST_DEFINITIONS, RELOAD_DEF_PENALTY_PCT } from '../gameConfig';
+import type { SpecialistDefinition } from '../gameConfig';
 import { UI } from '../uiConfig';
 import type { UnitPopulationCost, TechId } from '../types';
 import {
@@ -251,7 +252,6 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
   );
 
   const handleGrantSpecialist = useCallback((specId: string) => {
-    setSpecPickerOpen(false);
     if (globalSpecialistStorage.length < specialistSlotCap) {
       debugGiveSpecialist(specId);
     } else {
@@ -308,25 +308,11 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
             <button className="hud-dev-action-btn" onClick={debugAddResources}>💰 +10 Resources</button>
             <button
               className="hud-dev-action-btn"
-              onClick={() => setSpecPickerOpen((v) => !v)}
+              onClick={() => setSpecPickerOpen(true)}
               disabled={availableSpecialists.length === 0}
             >
-              🧙 Give Specialist{specPickerOpen ? ' ▲' : ' ▼'}
+              🧙 Give Specialist
             </button>
-            {specPickerOpen && (
-              <div className="hud-dev-spec-picker">
-                {availableSpecialists.map(([id, def]) => (
-                  <button
-                    key={id}
-                    className="hud-dev-spec-picker-item"
-                    onClick={() => handleGrantSpecialist(id)}
-                    title={def.description}
-                  >
-                    🧙 {def.name}
-                  </button>
-                ))}
-              </div>
-            )}
             <button className="hud-dev-action-btn" onClick={debugRevealAll}>👁️ Reveal All</button>
             <button className="hud-dev-action-btn" onClick={debugAddFarmers}>🌾 Add Farm (zone 1)</button>
             <button className="hud-dev-action-btn" onClick={debugAddRuin}>🗿 Add Ruin (near unit)</button>
@@ -345,6 +331,13 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
         </div>
       </div>
       {devStatsOpen && <DevStatsOverlay onClose={() => setDevStatsOpen(false)} />}
+      {specPickerOpen && (
+        <DevSpecPickerOverlay
+          availableSpecialists={availableSpecialists}
+          onSelect={handleGrantSpecialist}
+          onClose={() => setSpecPickerOpen(false)}
+        />
+      )}
     </>,
     document.body,
   );
@@ -405,6 +398,53 @@ function DevStatsOverlay({ onClose }: { onClose: () => void }) {
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function DevSpecPickerOverlay({
+  availableSpecialists,
+  onSelect,
+  onClose,
+}: {
+  availableSpecialists: Array<[string, SpecialistDefinition]>;
+  onSelect: (id: string) => void;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div className="hud-dev-overlay-backdrop" onClick={onClose}>
+      <div className="hud-modal" style={{ zIndex: 10001 }} onClick={(e) => e.stopPropagation()}>
+        <div className="hud-modal-header">
+          <span>🧙 Choose Specialist</span>
+          <button className="hud-modal-close" onClick={onClose}>✕</button>
+        </div>
+        <ul className="hud-modal-list">
+          {availableSpecialists.map(([id, def]) => (
+            <li key={id} className="hud-modal-item">
+              <div className="hud-modal-item-info">
+                <span className="hud-modal-item-name">🧙 {def.name}</span>
+                {def.description && (
+                  <span className="hud-modal-item-desc">{def.description}</span>
+                )}
+              </div>
+              <button
+                className="hud-modal-assign-btn"
+                onClick={() => { onSelect(id); onClose(); }}
+              >
+                Give
+              </button>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );
