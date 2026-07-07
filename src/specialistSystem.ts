@@ -13,7 +13,7 @@
 
 import type { GameState, Specialist } from './types';
 import type { Draft } from 'immer';
-import { Faction, BuildingType, UnitTag, UnitType } from './types';
+import { Faction, BuildingType, UnitTag, UnitType, SpellId } from './types';
 import { ABILITIES, SPECIALIST_DEFINITIONS } from './gameConfig';
 import { applyTagStatEffects, revokeTagStatEffects } from './techSystem';
 
@@ -79,6 +79,35 @@ export function getTagsFromActiveSpecialists(
       ) {
         const tag = effect.params.tag as UnitTag;
         if (!tags.includes(tag)) tags.push(tag);
+      }
+    }
+  }
+  return tags;
+}
+
+/**
+ * Returns the extra tags that globally-owned, non-dormant specialists grant to a unit
+ * because it carries a specific `sourceTag` (via GRANT_TAG_TO_UNITS_WITH_TAG).
+ * Used in the summon path to ensure newly summoned units with the source tag
+ * immediately receive the derived tags.
+ */
+export function getTagsFromActiveSpecialistsForSourceTag(
+  state: GameState | Draft<GameState>,
+  sourceTag: UnitTag,
+): UnitTag[] {
+  const tags: UnitTag[] = [];
+  for (const specId of state.globalSpecialistStorage) {
+    const spec = state.specialists[specId];
+    if (!spec || spec.dormant) continue;
+    for (const effect of spec.effects) {
+      if (
+        effect.type === 'GRANT_TAG_TO_UNITS_WITH_TAG' &&
+        effect.params.sourceTag === sourceTag
+      ) {
+        const grantTags = (effect.params.tags as string).split(',') as UnitTag[];
+        for (const t of grantTags) {
+          if (!tags.includes(t)) tags.push(t);
+        }
       }
     }
   }
@@ -181,6 +210,81 @@ function revokeUnitTagFromAllUnits(
   }
 }
 
+/**
+ * Applies GRANT_TAG_TO_UNITS_WITH_TAG specialist effect: adds each tag in `grantTags`
+ * to every player unit whose current tags include `sourceTag`.
+ */
+function applyTagToUnitsWithTag(
+  state: Draft<GameState>,
+  sourceTag: UnitTag,
+  grantTags: UnitTag[],
+): void {
+  for (const unit of Object.values(state.units)) {
+    if (unit.faction !== Faction.PLAYER) continue;
+    if (!unit.tags.includes(sourceTag)) continue;
+    for (const tag of grantTags) {
+      if (!unit.tags.includes(tag)) {
+        unit.tags.push(tag);
+        applyTagStatEffects(unit, tag);
+      }
+    }
+  }
+}
+
+/**
+ * Reverts GRANT_TAG_TO_UNITS_WITH_TAG specialist effect: removes each tag in `grantTags`
+ * from every player unit that has `sourceTag`. Only removes a given tag if no other
+ * active (non-dormant) specialist still grants the same tag to the same source-tag group.
+ */
+function revokeTagFromUnitsWithTag(
+  state: Draft<GameState>,
+  sourceTag: UnitTag,
+  grantTags: UnitTag[],
+): void {
+  for (const tag of grantTags) {
+    // Check if another active specialist still grants this tag to the same sourceTag group.
+    const stillGranted = state.globalSpecialistStorage.some((specId) => {
+      const s = state.specialists[specId];
+      if (!s || s.dormant) return false;
+      return s.effects.some((e) => {
+        if (e.type !== 'GRANT_TAG_TO_UNITS_WITH_TAG') return false;
+        if (e.params.sourceTag !== sourceTag) return false;
+        const tags = String(e.params.tags).split(',') as UnitTag[];
+        return tags.includes(tag);
+      });
+    });
+    if (stillGranted) continue;
+
+    for (const unit of Object.values(state.units)) {
+      if (unit.faction !== Faction.PLAYER) continue;
+      if (!unit.tags.includes(sourceTag)) continue;
+      const idx = unit.tags.indexOf(tag);
+      if (idx !== -1) {
+        unit.tags.splice(idx, 1);
+        revokeTagStatEffects(unit, tag);
+      }
+    }
+  }
+}
+
+/**
+ * Returns the params of the first active (in globalSpecialistStorage and non-dormant)
+ * specialist that has an effect of the given type, or null if none is found.
+ * Used by consumption sites that need to read magnitude values from derived effects.
+ */
+export function getActiveEffectParams(
+  state: GameState | Draft<GameState>,
+  effectType: string,
+): Record<string, number | string> | null {
+  for (const specId of state.globalSpecialistStorage) {
+    const spec = state.specialists[specId];
+    if (!spec || spec.dormant) continue;
+    const effect = spec.effects.find((e) => e.type === effectType);
+    if (effect) return effect.params;
+  }
+  return null;
+}
+
 
 // ============================================================================
 // SPECIALIST ACTIONS (hire / apply / revoke for individual specialists)
@@ -201,8 +305,20 @@ export function applyEffectsForSpecialist(
       setFortifiedGarrisonState(state, true);
     } else if (effect.type === 'GRANT_UNIT_TAG_ALL') {
       applyUnitTagToAllUnits(state, effect.params.unitType as UnitType, effect.params.tag as UnitTag);
+    } else if (effect.type === 'GRANT_TAG_TO_UNITS_WITH_TAG') {
+      const grantTags = (effect.params.tags as string).split(',') as UnitTag[];
+      applyTagToUnitsWithTag(state, effect.params.sourceTag as UnitTag, grantTags);
+    } else if (effect.type === 'RUPTURE_UNLOCK') {
+      if (!state.unlockedSpells.includes(SpellId.RUPTURE)) {
+        state.unlockedSpells.push(SpellId.RUPTURE);
+      }
+    } else if (effect.type === 'STRONGHOLD_ZONE_REVEAL') {
+      // Eager one-shot: the actual reveal is triggered in the construction/capture hook (SP-15).
+      // No per-apply mutation needed here.
     } else if (effect.type === 'MAGE_CAST_BUDGET_MOD') {
       // No eager mutation: the budget is read from active specialists on demand.
+    } else if (effect.type === 'POP_DOUBLING_DOCTRINE') {
+    // Derived: all effects read from isSpecialistEffectActive at point-of-use.
     }
   }
 }
@@ -222,8 +338,20 @@ export function revokeEffectsForSpecialist(
       }
     } else if (effect.type === 'GRANT_UNIT_TAG_ALL') {
       revokeUnitTagFromAllUnits(state, effect.params.unitType as UnitType, effect.params.tag as UnitTag);
+    } else if (effect.type === 'GRANT_TAG_TO_UNITS_WITH_TAG') {
+      const grantTags = (effect.params.tags as string).split(',') as UnitTag[];
+      revokeTagFromUnitsWithTag(state, effect.params.sourceTag as UnitTag, grantTags);
+    } else if (effect.type === 'RUPTURE_UNLOCK') {
+      if (!isSpecialistEffectActive(state, 'RUPTURE_UNLOCK')) {
+        const idx = state.unlockedSpells.indexOf(SpellId.RUPTURE);
+        if (idx !== -1) state.unlockedSpells.splice(idx, 1);
+      }
+    } else if (effect.type === 'STRONGHOLD_ZONE_REVEAL') {
+      // Eager one-shot: no mutation to revert.
     } else if (effect.type === 'MAGE_CAST_BUDGET_MOD') {
       // No eager mutation to revert: the budget is derived from active specialists.
+    } else if (effect.type === 'POP_DOUBLING_DOCTRINE') {
+      // Derived: all effects read from isSpecialistEffectActive at point-of-use.
     }
   }
 }
@@ -303,8 +431,30 @@ export function applySpecialistEffects(state: Draft<GameState>): void {
             effect.params.tag as UnitTag,
           );
         }
+      } else if (effect.type === 'GRANT_TAG_TO_UNITS_WITH_TAG') {
+        const grantTags = (effect.params.tags as string).split(',') as UnitTag[];
+        if (!isDormant) {
+          applyTagToUnitsWithTag(state, effect.params.sourceTag as UnitTag, grantTags);
+        } else {
+          revokeTagFromUnitsWithTag(state, effect.params.sourceTag as UnitTag, grantTags);
+        }
+      } else if (effect.type === 'RUPTURE_UNLOCK') {
+        if (!isDormant) {
+          if (!state.unlockedSpells.includes(SpellId.RUPTURE)) {
+            state.unlockedSpells.push(SpellId.RUPTURE);
+          }
+        } else {
+          if (!isSpecialistEffectActive(state, 'RUPTURE_UNLOCK')) {
+            const idx = state.unlockedSpells.indexOf(SpellId.RUPTURE);
+            if (idx !== -1) state.unlockedSpells.splice(idx, 1);
+          }
+        }
+      } else if (effect.type === 'STRONGHOLD_ZONE_REVEAL') {
+        // Eager one-shot: no per-turn mutation needed.
       } else if (effect.type === 'MAGE_CAST_BUDGET_MOD') {
         // No eager mutation: spell budget is computed from currently active specialists.
+      } else if (effect.type === 'POP_DOUBLING_DOCTRINE') {
+        // Derived: all effects read from isSpecialistEffectActive at point-of-use.
       }
     }
   }

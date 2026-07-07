@@ -107,6 +107,12 @@ export const BuildingType = {
    * for voluntary movement. Faction-neutral, no combat stats. Destroyed by lava.
    */
   BRIDGE: 'BRIDGE',
+  /**
+   * Player trap building placed by a Scout (via the Trapsmith specialist).
+   * A non-FLYING enemy entering it takes damage + stun, then it is consumed.
+   * Modeled on GRAVE_TRAP.
+   */
+  SCOUT_TRAP: 'SCOUT_TRAP',
 } as const;
 export type BuildingType = (typeof BuildingType)[keyof typeof BuildingType];
 
@@ -177,6 +183,8 @@ export const SpellId = {
   CRYSTAL_TOWER:  'CRYSTAL_TOWER',
   /** Crystal Cave — Conjurer spell that places a Crystal Cave on a mountain in range */
   CRYSTAL_CAVE:   'CRYSTAL_CAVE',
+  /** Rupture — unlocked by the Sundered specialist; deals a percentage of the target's current HP */
+  RUPTURE:        'RUPTURE',
 } as const;
 export type SpellId = (typeof SpellId)[keyof typeof SpellId];
 
@@ -343,6 +351,15 @@ export const UnitTag = {
   CORRUPTED: 'CORRUPTED',
   /** Scout that has researched the Bridgebuilder tech; can build a Bridge across a 1-tile canyon gap */
   BRIDGE_BUILDER: 'BRIDGE_BUILDER',
+  // ── Specialist-scaffolded tags (SP-00) ──────────────────────────────────────
+  /** On hit, pushes the target one tile away from the attacker; FLYING units are immune. */
+  KNOCKBACK: 'KNOCKBACK',
+  /** Unit was recruited near the lava front; gains CINDERBORN_ATTACK_BONUS ATK and immunity to BURNING tile damage. */
+  CINDERBORN: 'CINDERBORN',
+  /** When HP drops below BERSERK_HP_THRESHOLD_PCT%, unit gains BERSERK_ATTACK_PCT% bonus ATK. */
+  BERSERK: 'BERSERK',
+  /** Siege unit gains +SIEGE_BATTERY_ATK_PER_ADJACENT ATK for each adjacent friendly unit, up to SIEGE_BATTERY_CAP. */
+  BATTERY: 'BATTERY',
 } as const;
 export type UnitTag = (typeof UnitTag)[keyof typeof UnitTag];
 
@@ -610,6 +627,23 @@ export interface Building {
    * 'NS' = north–south span (90° rotation). Only set on BRIDGE buildings.
    */
   bridgeOrientation?: 'EW' | 'NS';
+  /**
+   * Damage dealt to a triggering enemy unit by a SCOUT_TRAP.
+   * Defaults to ABILITIES.SCOUT_TRAP_DAMAGE at creation time.
+   */
+  trapDamage?: number;
+  /**
+   * When true, this Crystal Chamber is granting the resonance crystal bonus
+   * (Echo Warden specialist, SP-12). Read by the resonance income system.
+   */
+  resonanceCrystalBonus?: boolean;
+  /**
+   * True after this building has fired a GARRISON_OVERWATCH reaction shot during the
+   * current enemy turn.  Reset at the start of each enemy turn so that each
+   * Watchtower/Outpost/Crystal Tower may fire at most once per enemy turn regardless
+   * of how many enemies enter its attack range.
+   */
+  preventiveStrikeFiredThisTurn?: boolean;
 }
 
 /** A tile on the game grid */

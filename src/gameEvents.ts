@@ -189,6 +189,19 @@ export type GameEvent =
     }
   | {
       /**
+       * Emitted when a unit is healed outside the normal player-action flow.
+       * Causes a heal floater/VFX and gives the camera a discrete pan target.
+       */
+      type: 'UNIT_HEAL';
+      /** ID of the unit that was healed */
+      unitId: string;
+      /** Position where the heal visuals should appear */
+      position: Position;
+      /** Amount of HP restored */
+      amount: number;
+    }
+  | {
+      /**
        * Emitted when a CORRUPT_TERRAIN action places a new enemy corruption
        * building (EMBERNEST or MAGMASPYR) on a tile. Allows the animation engine
        * to add the building to the live state instantly so it appears during the
@@ -252,6 +265,25 @@ export type GameEvent =
       attackerPosition: Position;
       /** Position of the primary defender — the projectile VFX starts here */
       primaryDefenderPosition: Position;
+    }
+  | {
+      /**
+       * Emitted when a KNOCKBACK attacker displaces the defender one tile
+       * along the attacker→defender axis. The unit has already been moved in
+       * the resolved state; this event drives the slide animation and updates
+       * the live display state incrementally.
+       */
+      type: 'UNIT_KNOCKBACK';
+      /** ID of the displaced unit (the defender) */
+      unitId: string;
+      /** Tile the unit was on before knockback */
+      fromPosition: Position;
+      /** Tile the unit landed on (or died on) after knockback */
+      toPosition: Position;
+      /** Whether the displaced unit is an enemy */
+      isEnemy: boolean;
+      /** Faction of the displaced unit */
+      faction: Faction;
     }
   | {
       /**

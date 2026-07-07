@@ -12,6 +12,7 @@ import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
 import { useSoundOptionsStore } from '../soundOptionsStore';
 import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, computeResearchCost, SPELL_DEFINITIONS, TERRAIN_TAG_INFO, RAGE_ATK_PER_ADJACENT, RAGE_MAX_ADJACENT_COUNT, MAGE, CORRUPTED_SUPPRESSED_TAGS, CRYSTAL_CAVE_CONFIG, MARKET, SPECIALIST_DEFINITIONS, RELOAD_DEF_PENALTY_PCT } from '../gameConfig';
+import type { SpecialistDefinition } from '../gameConfig';
 import { UI } from '../uiConfig';
 import type { UnitPopulationCost, TechId } from '../types';
 import {
@@ -26,6 +27,9 @@ import {
   computeResourceIncomeBreakdown,
   computeCrystalIncomePerTurn,
   getMineKilnBonusCount,
+  getEffectiveHousingPopulationCap,
+  getStrongholdEffectiveCapWithDoctrines,
+  getEffectiveRecruitCost,
 } from '../resourceSystem';
 import {
   getConstructionOptionsForTile,
@@ -34,7 +38,7 @@ import {
 } from '../constructionSystem';
 import { computeLevelFromXp } from '../levelSystem';
 import { computeUnitAiScores, computeRecruitmentScores, type ScoredAction } from '../enemySystem';
-import { renderEffect, getStrongholdEffectiveCap, getAvailableTechs as getAvailableTechsLogic, getCostMods } from '../techSystem';
+import { renderEffect, getAvailableTechs as getAvailableTechsLogic } from '../techSystem';
 import {
   Faction,
   GamePhase,
@@ -56,8 +60,8 @@ import {
   type GameStats,
   type GameState,
 } from '../types';
-import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast, getMageCastBudget, isHealSuppressedByCorruption, canUnitTrade, getTradeMarket, getCaptureTarget, canUnitBuildBridge, getBridgeBuildTargets } from '../unitActions';
-import { getPhalanxAttackBonus, getPhalanxDefenseBonus, getCrystalTowerChamberBonus } from '../combatSystem';
+import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast, getMageCastBudget, getUnitAttackRange, isHealSuppressedByCorruption, canUnitTrade, getTradeMarket, getCaptureTarget, canUnitBuildBridge, getBridgeBuildTargets, canUnitSetTrap, isTrapTileClear, canUnitExtinguish } from '../unitActions';
+import { getBatteryAttackBonus, getPhalanxAttackBonus, getPhalanxDefenseBonus, getCrystalTowerChamberBonus } from '../combatSystem';
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
 import { isSpecialistEffectActive } from '../specialistSystem';
 import { RENDER } from '../renderConfig';
@@ -141,6 +145,7 @@ const BUILDING_EMOJI: Record<string, string> = {
   [BuildingType.GRAVESTONE]: '🪦',
   [BuildingType.GRAVE_TRAP]: '☠️',
   [BuildingType.BRIDGE]: '🌉',
+  [BuildingType.SCOUT_TRAP]: '🪤',
 };
 
 const BUILDING_NAME: Record<string, string> = {
@@ -167,6 +172,7 @@ const BUILDING_NAME: Record<string, string> = {
   [BuildingType.GRAVE_TRAP]: 'Grave Trap',
   [BuildingType.MARKET]: 'Market',
   [BuildingType.BRIDGE]: 'Bridge',
+  [BuildingType.SCOUT_TRAP]: 'Scout Trap',
 };
 
 const TAG_EMOJI: Partial<Record<UnitTag, string>> = {
@@ -223,6 +229,9 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
   const debugAdvanceLava = useGameStore((s) => s.debugAdvanceLava);
   const debugAddResources = useGameStore((s) => s.debugAddResources);
   const debugGiveSpecialist = useGameStore((s) => s.debugGiveSpecialist);
+  const swapSpecialist = useGameStore((s) => s.swapSpecialist);
+  const globalSpecialistStorage = useGameStore((s) => s.globalSpecialistStorage);
+  const specialistSlotCap = useGameStore((s) => s.specialistSlotCap);
   const debugRevealAll = useGameStore((s) => s.debugRevealAll);
   const debugAddFarmers = useGameStore((s) => s.debugAddFarmers);
   const debugAddRuin = useGameStore((s) => s.debugAddRuin);
@@ -232,7 +241,29 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
   const debugApplyTileStatus = useGameStore((s) => s.debugApplyTileStatus);
   const debugClearTileStatus = useGameStore((s) => s.debugClearTileStatus);
   const selectedTilePos = useGameStore((s) => s.selectedTilePos);
+  const showSwap = useSpecialistHireStore((s) => s.showSwap);
   const [devStatsOpen, setDevStatsOpen] = useState(false);
+  const [specPickerOpen, setSpecPickerOpen] = useState(false);
+
+  // Specialists not yet in the player's roster
+  const availableSpecialists = useMemo(
+    () => Object.entries(SPECIALIST_DEFINITIONS).filter(([id]) => !globalSpecialistStorage.includes(id)),
+    [globalSpecialistStorage],
+  );
+
+  const handleGrantSpecialist = useCallback((specId: string) => {
+    if (globalSpecialistStorage.length < specialistSlotCap) {
+      debugGiveSpecialist(specId);
+    } else {
+      // All slots full — close the dev overlay and trigger the substitute popup
+      onClose();
+      showSwap(specId, (outgoingId) => {
+        if (outgoingId !== null) {
+          swapSpecialist(outgoingId, specId);
+        }
+      });
+    }
+  }, [globalSpecialistStorage, specialistSlotCap, debugGiveSpecialist, swapSpecialist, showSwap, onClose]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -275,7 +306,13 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
             <div className="hud-dev-overlay-section-title">Actions</div>
             <button className="hud-dev-action-btn" onClick={debugAdvanceLava}>🌋 Advance Lava</button>
             <button className="hud-dev-action-btn" onClick={debugAddResources}>💰 +10 Resources</button>
-            <button className="hud-dev-action-btn" onClick={debugGiveSpecialist}>🧙 Give Specialist</button>
+            <button
+              className="hud-dev-action-btn"
+              onClick={() => setSpecPickerOpen(true)}
+              disabled={availableSpecialists.length === 0}
+            >
+              🧙 Give Specialist
+            </button>
             <button className="hud-dev-action-btn" onClick={debugRevealAll}>👁️ Reveal All</button>
             <button className="hud-dev-action-btn" onClick={debugAddFarmers}>🌾 Add Farm (zone 1)</button>
             <button className="hud-dev-action-btn" onClick={debugAddRuin}>🗿 Add Ruin (near unit)</button>
@@ -294,6 +331,13 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
         </div>
       </div>
       {devStatsOpen && <DevStatsOverlay onClose={() => setDevStatsOpen(false)} />}
+      {specPickerOpen && (
+        <DevSpecPickerOverlay
+          availableSpecialists={availableSpecialists}
+          onSelect={handleGrantSpecialist}
+          onClose={() => setSpecPickerOpen(false)}
+        />
+      )}
     </>,
     document.body,
   );
@@ -354,6 +398,53 @@ function DevStatsOverlay({ onClose }: { onClose: () => void }) {
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function DevSpecPickerOverlay({
+  availableSpecialists,
+  onSelect,
+  onClose,
+}: {
+  availableSpecialists: Array<[string, SpecialistDefinition]>;
+  onSelect: (id: string) => void;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return (
+    <div className="hud-dev-overlay-backdrop" onClick={onClose}>
+      <div className="hud-modal" style={{ zIndex: 10001 }} onClick={(e) => e.stopPropagation()}>
+        <div className="hud-modal-header">
+          <span>🧙 Choose Specialist</span>
+          <button className="hud-modal-close" onClick={onClose}>✕</button>
+        </div>
+        <ul className="hud-modal-list">
+          {availableSpecialists.map(([id, def]) => (
+            <li key={id} className="hud-modal-item">
+              <div className="hud-modal-item-info">
+                <span className="hud-modal-item-name">🧙 {def.name}</span>
+                {def.description && (
+                  <span className="hud-modal-item-desc">{def.description}</span>
+                )}
+              </div>
+              <button
+                className="hud-modal-assign-btn"
+                onClick={() => { onSelect(id); onClose(); }}
+              >
+                Give
+              </button>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );
@@ -1453,6 +1544,10 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
     return { total: techBonus + tagBonus, techBonus, tagBonus };
   }, [unit, gameState]);
 
+  const contextualRange = useMemo(() => {
+    return getUnitAttackRange(unit, gameState) - unit.stats.attackRange;
+  }, [unit, gameState]);
+
   // ── RAGE bonus (shared between stat display and mods breakdown) ────────────
   const { rageBonus, rageAdjacentCount } = useMemo(() => {
     if (!unit.tags.includes(UnitTag.RAGE)) return { rageBonus: 0, rageAdjacentCount: 0 };
@@ -1465,6 +1560,8 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
     }
     return { rageBonus: Math.min(count, RAGE_MAX_ADJACENT_COUNT) * RAGE_ATK_PER_ADJACENT, rageAdjacentCount: count };
   }, [unit, gameState]);
+
+  const batteryBonus = useMemo(() => getBatteryAttackBonus(gameState, unit), [gameState, unit]);
 
   // ── Modifier maps for inline stat display ─────────────────────────────────
   // applied = baked into unit.stats; contextual = runtime-only
@@ -1502,9 +1599,11 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
     if (phalanxDefense !== 0) addC('defense', phalanxDefense);
     if (contextualDef !== 0) addC('defense', contextualDef);
     if (contextualMov.total !== 0) addC('moveRange', contextualMov.total);
+    if (contextualRange !== 0) addC('attackRange', contextualRange);
 
     // RAGE: dynamic +ATK per adjacent enemy (works for both factions)
     if (rageBonus > 0) addC('attack', rageBonus);
+    if (batteryBonus > 0) addC('attack', batteryBonus);
 
     const hasAnyMap: Record<string, boolean> = {};
     const netMap: Record<string, number> = {};
@@ -1513,7 +1612,7 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
       netMap[k] = (appliedMap[k] ?? 0) + (contextualMap[k] ?? 0);
     }
     return { applied: appliedMap, net: netMap, hasAny: hasAnyMap };
-  }, [unit, gameState, phalanxAttack, phalanxDefense, contextualDef, contextualMov, rageBonus]);
+  }, [unit, gameState, phalanxAttack, phalanxDefense, contextualDef, contextualMov, contextualRange, rageBonus, batteryBonus]);
 
   const showNetMod = (statKey: string) => {
     if (!hasAny[statKey]) return null;
@@ -1530,10 +1629,12 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
   if (phalanxDefense > 0) mods.push({ stat: 'DEF', value: phalanxDefense, kind: 'active', source: 'Phalanx Formation (adjacent guard)' });
   // RAGE: dynamic +ATK per adjacent enemy (works for both factions)
   if (rageBonus > 0) mods.push({ stat: 'ATK', value: rageBonus, kind: 'active', source: `Rage (+${RAGE_ATK_PER_ADJACENT} ATK per adjacent enemy, ${rageAdjacentCount} nearby)` });
+  if (batteryBonus > 0) mods.push({ stat: 'ATK', value: batteryBonus, kind: 'active', source: `Battery (+${ABILITIES.SIEGE_BATTERY_ATK_PER_ADJACENT} ATK per adjacent friendly unit)` });
   if (contextualDef > 0) mods.push({ stat: 'DEF', value: contextualDef, kind: 'active', source: 'Hold Ground (standing on own building)' });
   if (unit.tags.includes(UnitTag.SKIRMISHER)) mods.push({ stat: 'MOV', value: ABILITIES.SKIRMISHER_MOVE_BONUS, kind: 'active', source: 'Skirmisher (tag ability)' });
   if (unit.tags.includes(UnitTag.OUTRIDER)) mods.push({ stat: 'MOV', value: ABILITIES.OUTRIDER_MOVE_BONUS, kind: 'active', source: 'Outrider (tag ability)' });
   if (contextualMov.techBonus > 0) mods.push({ stat: 'MOV', value: contextualMov.techBonus, kind: 'active', source: 'To the Front (far behind frontline)' });
+  if (contextualRange > 0) mods.push({ stat: 'RNG', value: contextualRange, kind: 'active', source: 'Farsight Marshal (specialist)' });
   for (const tag of unit.tags) {
     for (const mod of TAG_STAT_EFFECTS[tag] ?? []) {
       if (mod.mode === 'add') mods.push({ stat: statKeyToLabel(mod.stat), value: mod.value, kind: 'applied', source: `${TAG_INFO[tag]?.label ?? tag} (tag)` });
@@ -1690,6 +1791,8 @@ function SelectedUnitPanel({
   const canHeal = isPlayer && canUnitHeal(unit);
   const canFieldwork = isPlayer && canUnitFieldwork(unit);
   const canBuildBridge = isPlayer && canUnitBuildBridge(unit, gameState);
+  const canSetTrap = isPlayer && canUnitSetTrap(unit, gameState);
+  const canExtinguish = isPlayer && canUnitExtinguish(unit, gameState);
 
   const visibleTags = unit.tags.filter((t) => !HIDDEN_UNIT_TAGS.has(t));
 
@@ -1710,6 +1813,7 @@ function SelectedUnitPanel({
     if (tile.terrainType === TileType.FOREST || tile.terrainType === TileType.MOUNTAIN) return true;
     return false;
   })();
+  const trapBlocked = canSetTrap && !isTrapTileClear(unit, gameState);
   const [aiScoreModal, setAiScoreModal] = useState(false);
   const [aiScores, setAiScores] = useState<ScoredAction[]>([]);
   const [unitInfoOpen, setUnitInfoOpen] = useState(false);
@@ -1735,6 +1839,12 @@ function SelectedUnitPanel({
     [canBuildBridge, gameState, unit],
   );
   const [confirmBridgeTarget, setConfirmBridgeTarget] = useState<{ x: number; y: number; orientation: 'EW' | 'NS' } | null>(null);
+
+  // Scout trap
+  const setTrap = useGameStore((s) => s.setTrap);
+
+  // Scout extinguish
+  const scoutExtinguish = useGameStore((s) => s.scoutExtinguish);
 
   // Trade (Market)
   const canTrade = isPlayer && canUnitTrade(unit);
@@ -1791,7 +1901,7 @@ function SelectedUnitPanel({
 
   // Compute contextual stat bonuses from tech flags and unit tags
   const statBonuses = useMemo(() => {
-    const bonuses: { def: number; mov: number } = { def: 0, mov: 0 };
+    const bonuses: { def: number; mov: number; rng: number } = { def: 0, mov: 0, rng: 0 };
     if (unit.faction !== Faction.PLAYER) return bonuses;
 
     // HOLD_GROUND: defense bonus when standing on own building
@@ -1818,12 +1928,15 @@ function SelectedUnitPanel({
       bonuses.mov += 1;
     }
 
+    bonuses.rng = getUnitAttackRange(unit, gameState) - unit.stats.attackRange;
+
     return bonuses;
   }, [unit, gameState]);
 
   // Compute PHALANX formation bonuses (works for both factions)
   const phalanxAttack = useMemo(() => getPhalanxAttackBonus(gameState, unit), [gameState, unit]);
   const phalanxDefense = useMemo(() => getPhalanxDefenseBonus(gameState, unit), [gameState, unit]);
+  const batteryBonus = useMemo(() => getBatteryAttackBonus(gameState, unit), [gameState, unit]);
   // Unified modifier map: applied = baked into unit.stats; contextual = runtime-only.
   // Used to show white base value + one green/red/neutral net modifier badge per stat.
   const inlineStatMods = useMemo(() => {
@@ -1864,6 +1977,7 @@ function SelectedUnitPanel({
     if (phalanxDefense !== 0) addContextual('defense', phalanxDefense);
     if (statBonuses.def !== 0) addContextual('defense', statBonuses.def);
     if (statBonuses.mov !== 0) addContextual('moveRange', statBonuses.mov);
+    if (statBonuses.rng !== 0) addContextual('attackRange', statBonuses.rng);
     const reloadPenalty = getReloadDefensePenalty(
       unit,
       unit.stats.defense + phalanxDefense + statBonuses.def - unit.distractionDefPenalty,
@@ -1882,6 +1996,7 @@ function SelectedUnitPanel({
       const rageBonus = Math.min(adjacentEnemyCount, RAGE_MAX_ADJACENT_COUNT) * RAGE_ATK_PER_ADJACENT;
       if (rageBonus > 0) addContextual('attack', rageBonus);
     }
+    if (batteryBonus > 0) addContextual('attack', batteryBonus);
 
     const hasAny: Record<string, boolean> = {};
     const net: Record<string, number> = {};
@@ -1891,7 +2006,7 @@ function SelectedUnitPanel({
     }
 
     return { applied, net, hasAny };
-  }, [unit, gameState, phalanxAttack, phalanxDefense, statBonuses]);
+  }, [unit, gameState, phalanxAttack, phalanxDefense, statBonuses, batteryBonus]);
 
   // Renders one green/red/neutral badge for the net modifier of a stat key.
   // Returns null when there are no modifiers at all for that stat.
@@ -2223,6 +2338,29 @@ function SelectedUnitPanel({
                 />
               )}
             </>
+          )}
+          {canSetTrap && (
+            <button
+              className="hud-spell-btn"
+              disabled={!!trapBlocked}
+              onClick={() => setTrap(unit.id)}
+            >
+              <span className="hud-spell-btn-label">🪤 Set Trap</span>
+              {ABILITIES.SCOUT_TRAP_WOOD_COST > 0 && (
+                <span className="hud-spell-btn-cost">🪵{ABILITIES.SCOUT_TRAP_WOOD_COST}</span>
+              )}
+              {ABILITIES.SCOUT_TRAP_IRON_COST > 0 && (
+                <span className="hud-spell-btn-cost">⚙️{ABILITIES.SCOUT_TRAP_IRON_COST}</span>
+              )}
+            </button>
+          )}
+          {canExtinguish && (
+            <button
+              className="hud-spell-btn"
+              onClick={() => scoutExtinguish(unit.id)}
+            >
+              <span className="hud-spell-btn-label">🔥 Extinguish</span>
+            </button>
           )}
         </>
       )}
@@ -2605,11 +2743,12 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   const turnsUntilNextPop = (() => {
     if (!isHousingBuilding) return null;
     if (building.type === BuildingType.STRONGHOLD) {
-      const { farmerCap, nobleCap } = getStrongholdEffectiveCap(gameState);
+      const { farmerCap, nobleCap } = getStrongholdEffectiveCapWithDoctrines(gameState);
       const canGrow = building.populationCount < farmerCap || building.strongholdNobles < nobleCap;
       return canGrow ? POPULATION.HOUSE_GROWTH_INTERVAL - building.populationGrowthCounter : null;
     }
-    return building.populationCount < building.populationCap
+    const effectiveCap = getEffectiveHousingPopulationCap(gameState, building);
+    return building.populationCount < effectiveCap
       ? POPULATION.HOUSE_GROWTH_INTERVAL - building.populationGrowthCounter
       : null;
   })();
@@ -2759,13 +2898,16 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
           {building.type === BuildingType.STRONGHOLD ? (
             <>
               {(() => {
-                const { farmerCap, nobleCap } = getStrongholdEffectiveCap(gameState);
+                const { farmerCap, nobleCap } = getStrongholdEffectiveCapWithDoctrines(gameState);
                 return <>👥 {building.populationCount}/{farmerCap} farmers, {building.strongholdNobles}/{nobleCap} nobles</>;
               })()}
             </>
           ) : (
             <>
-              👥 {building.populationCount} / {building.populationCap} {housingLabel}
+              {(() => {
+                const effectiveCap = getEffectiveHousingPopulationCap(gameState, building);
+                return <>👥 {building.populationCount} / {effectiveCap} {housingLabel}</>;
+              })()}
             </>
           )}
           {turnsUntilNextPop !== null && (
@@ -2833,12 +2975,9 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
                 // Crystal Drake is paid in arcane crystals, not iron/wood.
                 const isCrystalCost = unitType === UnitType.CRYSTAL_DRAKE;
                 const baseCost = UNIT_DEFINITIONS[unitType]?.cost;
-                const costMod = getCostMods(gameState, unitType);
                 const cost = isCrystalCost
                   ? undefined
-                  : baseCost
-                    ? { iron: baseCost.iron + costMod.iron, wood: baseCost.wood + costMod.wood }
-                    : baseCost;
+                  : getEffectiveRecruitCost(gameState, unitType);
                 const crystalCost = isCrystalCost ? (baseCost?.crystals ?? 0) : 0;
                 const canAffordUnit = isCrystalCost
                   ? arcaneCrystals >= crystalCost
@@ -2904,12 +3043,9 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
       {confirmRecruitUnit && (() => {
         const isCrystalCost = confirmRecruitUnit === UnitType.CRYSTAL_DRAKE;
         const baseCost = UNIT_DEFINITIONS[confirmRecruitUnit]?.cost;
-        const costMod = getCostMods(gameState, confirmRecruitUnit);
         const cost = isCrystalCost
           ? undefined
-          : baseCost
-            ? { iron: baseCost.iron + costMod.iron, wood: baseCost.wood + costMod.wood }
-            : baseCost;
+          : getEffectiveRecruitCost(gameState, confirmRecruitUnit);
         const costLabel = isCrystalCost
           ? `💎${baseCost?.crystals ?? 0}`
           : cost ? `⛓️${cost.iron} 🪵${cost.wood}` : undefined;
@@ -4064,10 +4200,9 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
           costLabel={(() => {
             const baseCost = UNIT_DEFINITIONS[infoUnitType]?.cost;
             if (!baseCost) return undefined;
-            const costMod = getCostMods(useGameStore.getState(), infoUnitType);
-            const iron = baseCost.iron + costMod.iron;
-            const wood = baseCost.wood + costMod.wood;
-            return `⛓️${iron} 🪵${wood}`;
+            const cost = getEffectiveRecruitCost(useGameStore.getState(), infoUnitType);
+            if (!cost) return baseCost.crystals !== undefined ? `💎${baseCost.crystals}` : undefined;
+            return `⛓️${cost.iron} 🪵${cost.wood}`;
           })()}
         />
       )}

@@ -14,7 +14,7 @@ import { canCapture } from '../captureSystem';
 import { getConstructionOptionsForTile } from '../constructionSystem';
 import { MAP, UNIT_DEFINITIONS, BUILDING_DEFINITIONS, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, CORRUPTED_SUPPRESSED_TAGS, RESOURCES } from '../gameConfig';
 import { getStrongholdEffectiveCap } from '../techSystem';
-import { computeRecruitmentBuildingUsage, canBuildingEverRecruit } from '../resourceSystem';
+import { computeRecruitmentBuildingUsage, canBuildingEverRecruit, getEffectiveHousingPopulationCap } from '../resourceSystem';
 import { ANIMATION } from '../animationConfig';
 import { UI } from '../uiConfig';
 import { RENDER } from '../renderConfig';
@@ -155,6 +155,8 @@ export default function GridRenderer() {
   // that would occur if the selector returned a new object reference on every call.
   const _recruitUnits = useGameStore((s) => s.units);
   const _recruitBuildings = useGameStore((s) => s.buildings);
+  const _recruitSpecialists = useGameStore((s) => s.specialists);
+  const _recruitSpecialistStorage = useGameStore((s) => s.globalSpecialistStorage);
   const recruitmentUsage = useMemo(() => {
     const result: Partial<Record<BuildingType, { current: number; limit: number }>> = {};
     const recruitingTypes = [
@@ -168,13 +170,13 @@ export default function GridRenderer() {
     for (const bt of recruitingTypes) {
       if (BUILDING_DEFINITIONS[bt]?.unitLimit !== undefined) {
         result[bt] = computeRecruitmentBuildingUsage(
-          { units: _recruitUnits, buildings: _recruitBuildings },
+          { units: _recruitUnits, buildings: _recruitBuildings, specialists: _recruitSpecialists, globalSpecialistStorage: _recruitSpecialistStorage },
           bt,
         );
       }
     }
     return result;
-  }, [_recruitUnits, _recruitBuildings]);
+  }, [_recruitUnits, _recruitBuildings, _recruitSpecialists, _recruitSpecialistStorage]);
 
   // ── Animation store selectors ──
   const isAnimating = useAnimationStore((s) => s.isAnimating);
@@ -1397,7 +1399,7 @@ function TileCellInner({
             : building.populationCount;
           const capDisplay = building.type === BuildingType.STRONGHOLD
             ? strongholdTotalCap
-            : building.populationCap;
+            : getEffectiveHousingPopulationCap(useGameStore.getState(), building);
           return <div className="population-badge">👥{popCount}/{capDisplay}</div>;
         })();
         const unitBadge = showUnitLimit && (() => {

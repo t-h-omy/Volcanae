@@ -53,9 +53,9 @@ import { computeLevelFromXp, applyLevelUps } from './levelSystem';
 import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLogic, getGrantedTags, getRemovedTags, getStatMods, applyTagStatEffects, revokeTagStatEffects } from './techSystem';
 import { canUnitHeal, getHealTargets, canUnitFieldwork, isHealSuppressedByCorruption } from './unitActions';
 import { createFieldworkOutpost } from './constructionSystem';
-import { getTagsFromActiveSpecialists, isSpecialistEffectActive } from './specialistSystem';
+import { getTagsFromActiveSpecialists, isSpecialistEffectActive, getTagsFromActiveSpecialistsForSourceTag } from './specialistSystem';
 import { castSpell as castSpellLogic } from './spellSystem';
-import { isTileWithinEdgeCircleRange } from './rangeUtils';
+import { isTileWithinEdgeCircleRange, getTilesWithinEdgeCircleRange } from './rangeUtils';
 import { useShockwaveStore } from './shockwaveStore';
 import { processPendingPortalTeleports } from './portalSystem';
 import { cleanupRoostedUnits } from './buildingRemoval';
@@ -65,6 +65,7 @@ import { canUnitTrade } from './unitActions';
 import { createMarket, restockAllSlots, tickMarketRefills } from './marketSystem';
 import { MARKET } from './gameConfig';
 import { canUnitBuildBridge, getBridgeBuildTargets } from './unitActions';
+import { canUnitSetTrap, isTrapTileClear, canUnitExtinguish } from './unitActions';
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
@@ -121,6 +122,10 @@ interface GameActions {
   startBridgeBuildMode: (unitId: string) => void;
   /** Cancel bridge-build-target-selection mode */
   cancelBridgeBuildMode: () => void;
+  /** Place a SCOUT_TRAP on the scout's current tile */
+  setTrap: (unitId: string) => void;
+  /** Extinguish BURNING and CORRUPTED tiles within EXTINGUISH_RADIUS of the scout */
+  scoutExtinguish: (unitId: string) => void;
   /** Enter spell-cast target-selection mode */
   startSpellCast: (mageId: string, spellId: SpellId) => void;
   /** Cancel spell-cast target-selection mode */
@@ -155,8 +160,8 @@ interface GameActions {
   hasSavedGame: () => boolean;
 
   // ── Debug actions (development only) ──
-  /** Debug: add spec_01 to globalSpecialistStorage */
-  debugGiveSpecialist: () => void;
+  /** Debug: add the given specialist to globalSpecialistStorage and apply their effects */
+  debugGiveSpecialist: (specialistId: string) => void;
   /** Debug: manually trigger lava advance */
   debugAdvanceLava: () => void;
   /** Debug: add 10 iron and 10 wood */
@@ -295,6 +300,18 @@ function syncCameraToPlayerStronghold(state: GameState): void {
 
 function assertNever(x: never): never {
   throw new Error(`Unhandled event type: ${(x as { type: string }).type}`);
+}
+
+function tookNoActionThisTurn(unit: GameState['units'][string]): boolean {
+  return (
+    !unit.hasMovedThisTurn &&
+    !unit.hasAttackedThisTurn &&
+    !unit.hasCapturedThisTurn &&
+    !unit.hasTradedThisTurn &&
+    !unit.hasConstructedThisTurn &&
+    !unit.hasDestroyedThisTurn &&
+    (unit.spellsCastThisTurn ?? 0) === 0
+  );
 }
 
 /**
@@ -702,12 +719,33 @@ export const useGameStore = create<GameStore>()(
 
         const events: GameEvent[] = [attackEvent];
 
+        // If the defender was knocked back, insert the UNIT_KNOCKBACK event BEFORE
+        // the primary UNIT_DEATH so the animation engine can animate the push
+        // before showing the death (when knockback killed the defender).
+        const knockbackDefenderEvent = secondaryEvents.find(
+          (e): e is Extract<GameEvent, { type: 'UNIT_KNOCKBACK' }> =>
+            e.type === 'UNIT_KNOCKBACK' && (e as Extract<GameEvent, { type: 'UNIT_KNOCKBACK' }>).unitId === targetId,
+        );
+        const remainingSecondaryEvents = secondaryEvents.filter(
+          (e) => !(e.type === 'UNIT_KNOCKBACK' && (e as Extract<GameEvent, { type: 'UNIT_KNOCKBACK' }>).unitId === targetId),
+        );
+
+        // Emit knockback move before the death event so the unit visually slides first.
+        if (knockbackDefenderEvent) {
+          events.push(knockbackDefenderEvent);
+        }
+
         // Add UNIT_DEATH events for killed units (consumed after the attack animation)
         if (!defenderAfter) {
+          // Use the knockback destination as the death position when knockback killed the
+          // defender (defender survived primary attack but was displaced into a lethal tile).
+          const defenderDeathPosition = knockbackDefenderEvent
+            ? knockbackDefenderEvent.toPosition
+            : defenderPosition;
           events.push({
             type: 'UNIT_DEATH',
             unitId: targetId,
-            position: defenderPosition,
+            position: defenderDeathPosition,
             faction: defenderFaction,
             brandmarkSpawnPosition: defenderBrandmarkSpawnPosition,
           });
@@ -725,8 +763,8 @@ export const useGameStore = create<GameStore>()(
             brandmarkSpawnPosition: attackerBrandmarkSpawnPosition,
           });
         }
-        // Push secondary damage/death events (SPLASH/CLEAVE/PIERCE)
-        events.push(...secondaryEvents);
+        // Push remaining secondary damage/death events (SPLASH/CLEAVE/PIERCE)
+        events.push(...remainingSecondaryEvents);
         // Push CAVE_MONSTER_KILLED events for any cave monsters killed by SPLASH AoE
         for (const monsterId of splashKilledCaveMonsterIds) {
           events.push({ type: 'CAVE_MONSTER_KILLED', monsterId });
@@ -1361,6 +1399,9 @@ export const useGameStore = create<GameStore>()(
         for (const t of [UnitTag.SUMMONED, UnitTag.READY]) {
           if (!gargoyleTags.includes(t)) gargoyleTags.push(t);
         }
+        for (const t of getTagsFromActiveSpecialistsForSourceTag(state, UnitTag.SUMMONED)) {
+          if (!gargoyleTags.includes(t)) gargoyleTags.push(t);
+        }
 
         const unitId = generateId('unit_gargoyle');
         state.units[unitId] = {
@@ -1583,6 +1624,106 @@ export const useGameStore = create<GameStore>()(
     cancelBridgeBuildMode: () => {
       set((state) => {
         state.pendingBridgeBuilderId = null;
+      });
+    },
+
+    setTrap: (unitId: string) => {
+      set((state) => {
+        const unit = state.units[unitId];
+        if (!unit) return;
+        if (!canUnitSetTrap(unit, state)) return;
+        if (!isTrapTileClear(unit, state)) return;
+        // Check resource cost
+        if (state.resources.wood < ABILITIES.SCOUT_TRAP_WOOD_COST) return;
+        if (state.resources.iron < ABILITIES.SCOUT_TRAP_IRON_COST) return;
+
+        state.resources.wood -= ABILITIES.SCOUT_TRAP_WOOD_COST;
+        state.resources.iron -= ABILITIES.SCOUT_TRAP_IRON_COST;
+
+        const { x, y } = unit.position;
+        const trapId = `scout-trap-${x}-${y}-${state.turn}`;
+        const buildingDef = BUILDING_DEFINITIONS[BuildingType.SCOUT_TRAP];
+        state.buildings[trapId] = {
+          id: trapId,
+          type: BuildingType.SCOUT_TRAP,
+          faction: Faction.PLAYER,
+          position: { x, y },
+          hp: 1,
+          maxHp: 1,
+          specialistSlot: null,
+          isDisabledForTurns: 0,
+          wasAttackedLastEnemyTurn: false,
+          captureProgress: 0,
+          isBeingCapturedBy: null,
+          lavaBoostEnabled: false,
+          discoverRadius: buildingDef.discoverRadius ?? 0,
+          turnCapturedByPlayer: null,
+          wasEnemyOwnedBeforeCapture: false,
+          combatStats: null,
+          hasAttackedThisTurn: false,
+          tags: [],
+          consumesUnitOnCapture: false,
+          populationCount: 0,
+          populationCap: 0,
+          populationGrowthCounter: 0,
+          strongholdNobles: 0,
+          emberSpawnCounter: 0,
+          recruitmentQueue: null,
+          destroyBehavior: buildingDef.destroyBehavior,
+          resonanceTurnsRemaining: 0,
+          spawnCooldownRemaining: 0,
+          lastRecruitmentTurn: 0,
+          trapStunTurns: ABILITIES.SCOUT_TRAP_STUN_TURNS,
+          trapDamage: ABILITIES.SCOUT_TRAP_DAMAGE,
+        };
+        state.grid[y][x].buildingId = trapId;
+        unit.hasConstructedThisTurn = true;
+
+        useFloaterStore.getState().addFloater({
+          value: 0,
+          label: '🪤 Trap set',
+          x,
+          y,
+          isEnemy: false,
+          floaterType: 'revive',
+        });
+      });
+    },
+
+    scoutExtinguish: (unitId: string) => {
+      set((state) => {
+        const unit = state.units[unitId];
+        if (!unit) return;
+        if (!canUnitExtinguish(unit, state)) return;
+
+        const { x, y } = unit.position;
+        const mapWidth = state.grid[0]?.length ?? 0;
+        const mapHeight = state.grid.length;
+
+        // Collect the scout's tile plus all tiles within EXTINGUISH_RADIUS.
+        const tilesInRange = getTilesWithinEdgeCircleRange(
+          x, y, ABILITIES.EXTINGUISH_RADIUS, mapWidth, mapHeight,
+        );
+        const allPositions = [{ x, y }, ...tilesInRange];
+
+        for (const pos of allPositions) {
+          const tile = state.grid[pos.y]?.[pos.x];
+          if (!tile) continue;
+          if (tile.status === TileStatus.BURNING || tile.status === TileStatus.CORRUPTED) {
+            clearTileStatus(state, pos);
+          }
+        }
+
+        unit.hasConstructedThisTurn = true;
+
+        useFloaterStore.getState().addFloater({
+          value: 0,
+          label: '🔥 Extinguished',
+          x,
+          y,
+          isEnemy: false,
+          floaterType: 'revive',
+        });
       });
     },
 
@@ -1816,9 +1957,33 @@ export const useGameStore = create<GameStore>()(
         // Phase 1: Resolve all pending captures (instant, no animation)
         resolveCaptures(state);
 
+        // Phase 1.5: End-of-player-turn idle heal (spec_24) before enemy actions.
+        const idleHealEvents: GameEvent[] = [];
+
         // Get a plain (non-Proxy) snapshot of the current state so runEnemyTurn
         // can use produce() internally without nesting immer producers.
-        const snapshot: GameState = current(state);
+        let snapshot: GameState = current(state);
+        if (isSpecialistEffectActive(snapshot, 'IDLE_HEAL')) {
+          snapshot = produce(snapshot, (draft) => {
+            for (const unit of Object.values(draft.units)) {
+              if (unit.faction !== Faction.PLAYER) continue;
+              if (!tookNoActionThisTurn(unit)) continue;
+              if (unit.stats.currentHp >= unit.stats.maxHp) continue;
+              const healedAmount = Math.min(
+                ABILITIES.IDLE_HEAL_AMOUNT,
+                unit.stats.maxHp - unit.stats.currentHp,
+              );
+              if (healedAmount <= 0) continue;
+              unit.stats.currentHp += healedAmount;
+              idleHealEvents.push({
+                type: 'UNIT_HEAL',
+                unitId: unit.id,
+                position: { x: unit.position.x, y: unit.position.y },
+                amount: healedAmount,
+              });
+            }
+          });
+        }
 
         // Phase 2: Compute enemy turn on snapshot
         const { finalState: afterEnemy, events: enemyEvents } = runEnemyTurn(snapshot);
@@ -1848,7 +2013,7 @@ export const useGameStore = create<GameStore>()(
         });
 
         // Phase 4: Lava phase
-        const allEvents: GameEvent[] = [...enemyEvents, ...tileStatusEvents];
+        const allEvents: GameEvent[] = [...idleHealEvents, ...enemyEvents, ...tileStatusEvents];
         computedState = produce(computedState, (draft) => {
           draft.turnsUntilLavaAdvance -= 1;
         });
@@ -2073,6 +2238,20 @@ export const useGameStore = create<GameStore>()(
                 if (Math.random() * 100 < MAGE.GRAVE_HARVEST_CRYSTAL_CHANCE) {
                   draft.arcaneCrystals += 1;
                 }
+              }
+            }
+          }
+
+          // Echo Warden: resonating Crystal Chambers flagged by lava trigger gain bonus crystals.
+          if (isSpecialistEffectActive(draft, 'RESONANCE_CRYSTAL_BONUS')) {
+            for (const b of Object.values(draft.buildings)) {
+              if (
+                b.faction === Faction.PLAYER &&
+                b.type === BuildingType.CRYSTAL_CHAMBER &&
+                b.resonanceTurnsRemaining > 0 &&
+                b.resonanceCrystalBonus
+              ) {
+                draft.arcaneCrystals += ABILITIES.RESONANCE_BONUS_CRYSTALS;
               }
             }
           }
@@ -2839,6 +3018,24 @@ export const useGameStore = create<GameStore>()(
             break;
           }
 
+          case 'UNIT_HEAL': {
+            const healedUnit = state.units[event.unitId];
+            if (healedUnit) {
+              healedUnit.stats.currentHp = Math.min(
+                healedUnit.stats.maxHp,
+                healedUnit.stats.currentHp + event.amount,
+              );
+            }
+            useFloaterStore.getState().addFloater({
+              value: event.amount,
+              x: event.position.x,
+              y: event.position.y,
+              isEnemy: false,
+              floaterType: 'heal',
+            });
+            break;
+          }
+
           case 'EMBER_LEVEL_UP': {
             // State was already mutated in enemySystem — this is presentation-only.
             const sacrificeLabel = event.isEmberlingSacrifice
@@ -3028,6 +3225,25 @@ export const useGameStore = create<GameStore>()(
             // Presentation-only: no state mutation required.
             break;
 
+          case 'UNIT_KNOCKBACK': {
+            // Move the displaced unit in the live display state so the slide animation
+            // renders at the correct grid position.
+            const knockedUnit = state.units[event.unitId];
+            if (knockedUnit) {
+              const fromTile = state.grid[event.fromPosition.y]?.[event.fromPosition.x];
+              if (fromTile && fromTile.unitId === event.unitId) {
+                fromTile.unitId = null;
+              }
+              const toTile = state.grid[event.toPosition.y]?.[event.toPosition.x];
+              if (toTile) {
+                toTile.unitId = event.unitId;
+              }
+              knockedUnit.position.x = event.toPosition.x;
+              knockedUnit.position.y = event.toPosition.y;
+            }
+            break;
+          }
+
           default:
             assertNever(event);
         }
@@ -3135,16 +3351,12 @@ export const useGameStore = create<GameStore>()(
     // DEBUG ACTIONS (development only)
     // ========================================================================
 
-    debugGiveSpecialist: () => {
+    debugGiveSpecialist: (specialistId: string) => {
       set((state) => {
-        const specId = 'spec_01';
-        if (
-          state.specialists[specId] &&
-          !state.globalSpecialistStorage.includes(specId) &&
-          state.specialists[specId].assignedBuildingId === null &&
-          state.globalSpecialistStorage.length < state.specialistSlotCap
-        ) {
-          state.globalSpecialistStorage.push(specId);
+        const specObj = state.specialists[specialistId];
+        if (specObj && !state.globalSpecialistStorage.includes(specialistId)) {
+          state.globalSpecialistStorage.push(specialistId);
+          applyEffectsForSpecialist(state, specObj);
         }
       });
     },

@@ -6,10 +6,10 @@
 import type { GameState, Building, Position, Tile, UnitPopulationCost } from './types';
 import type { Draft } from 'immer';
 import { Faction, BuildingType, UnitType, UnitTag, ResourceType } from './types';
-import { RESOURCES, UNIT_DEFINITIONS, POPULATION, CRYSTAL_CHAMBER_CONFIG, BUILDING_DEFINITIONS, TECH_TREE } from './gameConfig';
+import { RESOURCES, ABILITIES, UNIT_DEFINITIONS, POPULATION, CRYSTAL_CHAMBER_CONFIG, BUILDING_DEFINITIONS, TECH_TREE } from './gameConfig';
 import type { UnitCost } from './gameConfig';
 import { getGrantedTags, getStatMods, getBuildingProductionMods, getFlatIncomeMods, grantArcaneCrystals, getStrongholdEffectiveCap, getRemovedTags, getCostMods } from './techSystem';
-import { getTagsFromActiveSpecialists } from './specialistSystem';
+import { getTagsFromActiveSpecialists, isSpecialistEffectActive, getTagsFromActiveSpecialistsForSourceTag, getActiveEffectParams } from './specialistSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 
 // ============================================================================
@@ -53,6 +53,42 @@ function findSpawnPosition(
   }
 
   return null;
+}
+
+/**
+ * Returns the effective per-building housing cap for FARM/PATRICIANHOUSE.
+ * Strongholds are excluded (they use getStrongholdEffectiveCap instead).
+ */
+export function getEffectiveHousingPopulationCap(
+  state: GameState | Draft<GameState>,
+  building: Building,
+): number {
+  if (
+    building.type !== BuildingType.FARM &&
+    building.type !== BuildingType.PATRICIANHOUSE
+  ) {
+    return building.populationCap;
+  }
+
+  const params = getActiveEffectParams(state, 'HOUSING_CAP_BONUS');
+  const bonus = Number(params?.amount ?? 0);
+  const flatCap = building.populationCap + (Number.isFinite(bonus) ? bonus : 0);
+  return isSpecialistEffectActive(state, 'POP_DOUBLING_DOCTRINE') ? flatCap * 2 : flatCap;
+}
+
+/**
+ * Returns the effective (tech + doctrine adjusted) population caps for a Stronghold.
+ * Wraps getStrongholdEffectiveCap and applies ×2 when POP_DOUBLING_DOCTRINE is active
+ * (applied after tech-provided flat bonuses: `(base + flat) * 2`).
+ */
+export function getStrongholdEffectiveCapWithDoctrines(
+  state: GameState | Draft<GameState>,
+): { farmerCap: number; nobleCap: number; totalCap: number } {
+  const { farmerCap, nobleCap } = getStrongholdEffectiveCap(state);
+  if (isSpecialistEffectActive(state, 'POP_DOUBLING_DOCTRINE')) {
+    return { farmerCap: farmerCap * 2, nobleCap: nobleCap * 2, totalCap: (farmerCap + nobleCap) * 2 };
+  }
+  return { farmerCap, nobleCap, totalCap: farmerCap + nobleCap };
 }
 
 /** True if the building TYPE is a recruitment building (ignores state). */
@@ -138,14 +174,18 @@ export function getRecruitableUnitTypes(buildingType: BuildingType): UnitType[] 
  * (0 or 1 current, limit 1). Without it, returns the global summary across all caves.
  */
 export function computeRecruitmentBuildingUsage(
-  state: Pick<GameState, 'units' | 'buildings'>,
+  state: Pick<GameState, 'units' | 'buildings'> & Partial<Pick<GameState, 'specialists' | 'globalSpecialistStorage'>>,
   buildingType: BuildingType,
   specificBuildingId?: string,
 ): { current: number; limit: number } {
-  const unitLimit = BUILDING_DEFINITIONS[buildingType]?.unitLimit;
-  if (unitLimit === undefined) {
+  const baseUnitLimit = BUILDING_DEFINITIONS[buildingType]?.unitLimit;
+  if (baseUnitLimit === undefined) {
     return { current: 0, limit: Infinity };
   }
+  const doctrineActive = state.specialists !== undefined && state.globalSpecialistStorage !== undefined
+    ? isSpecialistEffectActive(state as GameState, 'POP_DOUBLING_DOCTRINE')
+    : false;
+  const unitLimit = doctrineActive ? baseUnitLimit * 2 : baseUnitLimit;
 
   // CRYSTAL_CAVE: each cave has its own cap of 1 drake (enforced per-cave via roostBuildingId).
   // When specificBuildingId is provided, return per-cave usage so the caller can gate
@@ -202,6 +242,29 @@ export function computeRecruitmentBuildingUsage(
   return { current, limit: buildingCount * unitLimit };
 }
 
+/**
+ * Computes the effective iron+wood recruit cost for a unit type, including tech cost mods
+ * and the ×0.5 ceil halving applied when POP_DOUBLING_DOCTRINE is active.
+ * Returns null when the unit has no iron/wood cost (e.g. Crystal Drake).
+ */
+export function getEffectiveRecruitCost(
+  state: GameState | Draft<GameState>,
+  unitType: UnitType,
+): { iron: number; wood: number } | null {
+  const baseCost = UNIT_DEFINITIONS[unitType]?.cost;
+  if (!baseCost || (baseCost.iron === 0 && baseCost.wood === 0 && baseCost.crystals !== undefined)) {
+    return null;
+  }
+  const costMod = getCostMods(state, unitType);
+  let iron = baseCost.iron + costMod.iron;
+  let wood = baseCost.wood + costMod.wood;
+  if (isSpecialistEffectActive(state, 'POP_DOUBLING_DOCTRINE')) {
+    iron = Math.ceil(iron * 0.5);
+    wood = Math.ceil(wood * 0.5);
+  }
+  return { iron, wood };
+}
+
 // ============================================================================
 // CHARCOAL KILN HELPERS
 // ============================================================================
@@ -212,11 +275,17 @@ export function computeRecruitmentBuildingUsage(
  *
  * Each in-range kiln contributes one additive bonus increment. Only player
  * kilns buff player mines; kilns with isDisabledForTurns > 0 grant no bonus.
+ * When the KILN_BONUS specialist effect is active, the effective radius is
+ * increased by ABILITIES.KILN_RADIUS_BONUS.
  */
 export function getMineKilnBonusCount(
   state: GameState | Draft<GameState>,
   mine: Building,
 ): number {
+  const radiusBonus = isSpecialistEffectActive(state, 'KILN_BONUS')
+    ? ABILITIES.KILN_RADIUS_BONUS
+    : 0;
+  const effectiveRadius = RESOURCES.CHARCOAL_KILN_RADIUS + radiusBonus;
   let count = 0;
   for (const b of Object.values(state.buildings)) {
     if (
@@ -226,13 +295,25 @@ export function getMineKilnBonusCount(
       isTileWithinEdgeCircleRange(
         b.position.x, b.position.y,
         mine.position.x, mine.position.y,
-        RESOURCES.CHARCOAL_KILN_RADIUS,
+        effectiveRadius,
       )
     ) {
       count += 1;
     }
   }
   return count;
+}
+
+/**
+ * Returns the iron bonus awarded per in-range Charcoal Kiln.
+ * When the KILN_BONUS specialist effect is active, ABILITIES.KILN_IRON_BONUS
+ * is added on top of the base CHARCOAL_KILN_IRON_BONUS.
+ */
+function getKilnIronBonusPerKiln(state: GameState | Draft<GameState>): number {
+  const ironBonus = isSpecialistEffectActive(state, 'KILN_BONUS')
+    ? ABILITIES.KILN_IRON_BONUS
+    : 0;
+  return RESOURCES.CHARCOAL_KILN_IRON_BONUS + ironBonus;
 }
 
 /** Backward-compatible boolean helper used by UI affordances. */
@@ -280,10 +361,10 @@ export function collectResources(state: Draft<GameState>): void {
     if (building.type === BuildingType.MINE) {
       state.resources.iron += RESOURCES.MINE_IRON_PER_TURN;
       // Additive Charcoal Kiln bonus: each active in-range kiln adds one
-      // +CHARCOAL_KILN_IRON_BONUS increment to this mine.
+      // increment to this mine (base + any KILN_BONUS specialist modifier).
       const kilnBonusCount = getMineKilnBonusCount(state, building);
       if (kilnBonusCount > 0) {
-        state.resources.iron += RESOURCES.CHARCOAL_KILN_IRON_BONUS * kilnBonusCount;
+        state.resources.iron += getKilnIronBonusPerKiln(state) * kilnBonusCount;
       }
     } else if (building.type === BuildingType.WOODCUTTER) {
       state.resources.wood += RESOURCES.WOODCUTTER_WOOD_PER_TURN;
@@ -340,6 +421,9 @@ export function collectResources(state: Draft<GameState>): void {
       grantArcaneCrystals(state, CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN);
     }
     building.resonanceTurnsRemaining -= 1;
+    if (building.type === BuildingType.CRYSTAL_CHAMBER && building.resonanceTurnsRemaining <= 0) {
+      building.resonanceCrystalBonus = false;
+    }
   }
 }
 
@@ -369,7 +453,7 @@ export function computeResourceIncome(
       // Additive Charcoal Kiln bonus (deterministic — always +integer).
       const kilnBonusCount = getMineKilnBonusCount(state, building);
       if (kilnBonusCount > 0) {
-        ironPerTurn += RESOURCES.CHARCOAL_KILN_IRON_BONUS * kilnBonusCount;
+        ironPerTurn += getKilnIronBonusPerKiln(state) * kilnBonusCount;
       }
     } else if (building.type === BuildingType.WOODCUTTER) {
       woodPerTurn += RESOURCES.WOODCUTTER_WOOD_PER_TURN;
@@ -484,7 +568,7 @@ export function computeResourceIncomeBreakdown(
   if (kilnBonusIncrementCount > 0) {
     entries.push({
       label: `Charcoal Kiln bonus ×${kilnBonusIncrementCount}`,
-      iron: kilnBonusIncrementCount * RESOURCES.CHARCOAL_KILN_IRON_BONUS,
+      iron: kilnBonusIncrementCount * getKilnIronBonusPerKiln(state),
       wood: 0,
     });
   }
@@ -833,8 +917,8 @@ export function growHousePopulations(state: Draft<GameState>): void {
 
     if (building.type === BuildingType.STRONGHOLD) {
       // Grow farmers and nobles separately, farmers first.
-      // getStrongholdEffectiveCap is the single source of truth for the cap.
-      const { farmerCap, nobleCap } = getStrongholdEffectiveCap(state);
+      // getStrongholdEffectiveCapWithDoctrines is the single source of truth for the cap.
+      const { farmerCap, nobleCap } = getStrongholdEffectiveCapWithDoctrines(state);
       const canGrowFarmer = building.populationCount < farmerCap;
       const canGrowNoble = building.strongholdNobles < nobleCap;
       if (canGrowFarmer || canGrowNoble) {
@@ -848,7 +932,7 @@ export function growHousePopulations(state: Draft<GameState>): void {
           building.populationGrowthCounter = 0;
         }
       }
-    } else if (building.populationCount < building.populationCap) {
+    } else if (building.populationCount < getEffectiveHousingPopulationCap(state, building)) {
       building.populationGrowthCounter += 1;
       if (building.populationGrowthCounter >= POPULATION.HOUSE_GROWTH_INTERVAL) {
         building.populationCount += 1;
@@ -941,15 +1025,11 @@ export function recruitUnit(
       return;
     }
   } else {
-    const baseCost = UNIT_DEFINITIONS[unitType]?.cost;
-    if (!baseCost) {
+    const effectiveCost = getEffectiveRecruitCost(state, unitType);
+    if (!effectiveCost) {
       return;
     }
-    const costMod = getCostMods(state, unitType);
-    cost = {
-      iron: baseCost.iron + costMod.iron,
-      wood: baseCost.wood + costMod.wood,
-    };
+    cost = effectiveCost;
 
     // Validate player can afford the unit
     if (!canAfford(state, cost)) {
@@ -999,13 +1079,30 @@ export function recruitUnit(
   for (const tag of getGrantedTags(state, unitType)) {
     if (!baseTags.includes(tag)) baseTags.push(tag);
   }
-  // Add any tags granted by active specialists
+  // Add any tags granted by active specialists (GRANT_UNIT_TAG_ALL by unit type)
   for (const tag of getTagsFromActiveSpecialists(state, unitType)) {
     if (!baseTags.includes(tag)) baseTags.push(tag);
+  }
+  // Add any tags derived via GRANT_TAG_TO_UNITS_WITH_TAG (e.g. Hellbinder grants
+  // RAGE+CLEAVE to units that carry the SUMMONED tag, such as Crystal Drake).
+  for (const sourceTag of [...baseTags]) {
+    for (const t of getTagsFromActiveSpecialistsForSourceTag(state, sourceTag)) {
+      if (!baseTags.includes(t)) baseTags.push(t);
+    }
   }
   // Remove any tags that unlocked techs strip (e.g. OUTRIDERS removes BUILDANDCAPTURE)
   const removedTags = getRemovedTags(state, unitType);
   const spawnTags = baseTags.filter((t) => !removedTags.includes(t));
+  if (
+    isSpecialistEffectActive(state, 'CINDERBORN_RECRUIT') &&
+    state.lavaFrontRow - building.position.y <= ABILITIES.CINDERBORN_ROWS &&
+    !spawnTags.includes(UnitTag.CINDERBORN)
+  ) {
+    spawnTags.push(UnitTag.CINDERBORN);
+  }
+  const cinderbornAttackBonus = spawnTags.includes(UnitTag.CINDERBORN)
+    ? ABILITIES.CINDERBORN_ATTACK_BONUS
+    : 0;
 
   // READY: unit can act immediately after recruitment
   const isReady = spawnTags.includes(UnitTag.READY);
@@ -1018,7 +1115,7 @@ export function recruitUnit(
     stats: {
       maxHp: UNIT_DEFINITIONS[unitType].maxHp,
       currentHp: UNIT_DEFINITIONS[unitType].maxHp,
-      attack: UNIT_DEFINITIONS[unitType].attack,
+      attack: UNIT_DEFINITIONS[unitType].attack + cinderbornAttackBonus,
       defense: UNIT_DEFINITIONS[unitType].defense,
       moveRange: UNIT_DEFINITIONS[unitType].moveRange,
       discoverRadius: UNIT_DEFINITIONS[unitType].discoverRadius,
@@ -1059,6 +1156,12 @@ export function recruitUnit(
   }
   // Ensure current HP matches the (possibly boosted) max HP for a freshly recruited unit
   unit.stats.currentHp = unit.stats.maxHp;
+
+  // POP_DOUBLING_DOCTRINE: halve (ceil) spawn maxHp — birth-time only
+  if (isSpecialistEffectActive(state, 'POP_DOUBLING_DOCTRINE')) {
+    unit.stats.maxHp = Math.ceil(unit.stats.maxHp * 0.5);
+    unit.stats.currentHp = unit.stats.maxHp;
+  }
 
   // Place unit on the grid
   state.grid[spawnPosition.y][spawnPosition.x].unitId = unitId;

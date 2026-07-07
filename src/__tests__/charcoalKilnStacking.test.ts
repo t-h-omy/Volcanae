@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { produce } from 'immer';
-import { RESOURCES } from '../gameConfig';
+import { RESOURCES, ABILITIES, SPECIALIST_DEFINITIONS } from '../gameConfig';
 import { collectResources, computeResourceIncome, computeResourceIncomeBreakdown, getMineKilnBonusCount } from '../resourceSystem';
 import { BuildingType, DestroyBehavior, Faction, TileType } from '../types';
-import type { Building, GameState, GameStats, Tile } from '../types';
+import type { Building, GameState, GameStats, Specialist, Tile } from '../types';
 
 let _id = 0;
 function nextId(prefix: string) { return `${prefix}_${++_id}`; }
@@ -124,6 +124,25 @@ function makeState(buildings: Building[]): GameState {
   } as unknown as GameState;
 }
 
+/** Creates a state with the Ashwright (spec_07 / KILN_BONUS) specialist active. */
+function makeStateWithKilnBonus(buildings: Building[]): GameState {
+  const state = makeState(buildings);
+  const specDef = SPECIALIST_DEFINITIONS.spec_07;
+  const specialist: Specialist = {
+    id: 'spec_07',
+    name: specDef.name,
+    description: specDef.description,
+    effects: specDef.effects as Specialist['effects'],
+    assignedBuildingId: null,
+    upkeepIron: specDef.upkeepIron,
+    upkeepWood: specDef.upkeepWood,
+    dormant: false,
+  };
+  state.specialists = { spec_07: specialist };
+  state.globalSpecialistStorage = ['spec_07'];
+  return state;
+}
+
 describe('Charcoal Kiln additive stacking', () => {
   it('counts only active in-range player kilns', () => {
     const mine = makeBuilding(BuildingType.MINE, Faction.PLAYER, 10, 10);
@@ -164,5 +183,61 @@ describe('Charcoal Kiln additive stacking', () => {
     const kilnEntry = breakdown.find((entry) => entry.label === 'Charcoal Kiln bonus ×2');
     expect(kilnEntry).toBeDefined();
     expect(kilnEntry?.iron).toBe(RESOURCES.CHARCOAL_KILN_IRON_BONUS * 2);
+  });
+});
+
+describe('KILN_BONUS specialist (Ashwright)', () => {
+  // CHARCOAL_KILN_RADIUS = 2, KILN_RADIUS_BONUS = 1 → effective radius 3
+  const BASE_RADIUS = RESOURCES.CHARCOAL_KILN_RADIUS;
+  const EXTENDED_RADIUS = BASE_RADIUS + ABILITIES.KILN_RADIUS_BONUS;
+
+  it('without KILN_BONUS, a kiln at the edge of the extended radius is not counted', () => {
+    const mine = makeBuilding(BuildingType.MINE, Faction.PLAYER, 10, 10);
+    // Place kiln exactly EXTENDED_RADIUS tiles away (just outside base radius)
+    const edgeKiln = makeBuilding(BuildingType.CHARCOAL_KILN, Faction.PLAYER, 10 + EXTENDED_RADIUS, 10);
+    const state = makeState([mine, edgeKiln]);
+
+    expect(getMineKilnBonusCount(state, mine)).toBe(0);
+  });
+
+  it('with KILN_BONUS active, a kiln at the extended radius boundary is counted', () => {
+    const mine = makeBuilding(BuildingType.MINE, Faction.PLAYER, 10, 10);
+    // Place kiln exactly EXTENDED_RADIUS tiles away
+    const edgeKiln = makeBuilding(BuildingType.CHARCOAL_KILN, Faction.PLAYER, 10 + EXTENDED_RADIUS, 10);
+    const state = makeStateWithKilnBonus([mine, edgeKiln]);
+
+    expect(getMineKilnBonusCount(state, mine)).toBe(1);
+  });
+
+  it('with KILN_BONUS active, collectResources uses extended radius for iron income', () => {
+    const mine = makeBuilding(BuildingType.MINE, Faction.PLAYER, 10, 10);
+    const edgeKiln = makeBuilding(BuildingType.CHARCOAL_KILN, Faction.PLAYER, 10 + EXTENDED_RADIUS, 10);
+    const state = makeStateWithKilnBonus([mine, edgeKiln]);
+
+    const result = produce(state, (draft) => { collectResources(draft); });
+    const expectedIronPerKiln = RESOURCES.CHARCOAL_KILN_IRON_BONUS + ABILITIES.KILN_IRON_BONUS;
+    expect(result.resources.iron).toBe(RESOURCES.MINE_IRON_PER_TURN + expectedIronPerKiln);
+  });
+
+  it('with KILN_BONUS active, computeResourceIncome reflects extended radius and iron bonus', () => {
+    const mine = makeBuilding(BuildingType.MINE, Faction.PLAYER, 10, 10);
+    const edgeKiln = makeBuilding(BuildingType.CHARCOAL_KILN, Faction.PLAYER, 10 + EXTENDED_RADIUS, 10);
+    const state = makeStateWithKilnBonus([mine, edgeKiln]);
+
+    const income = computeResourceIncome(state);
+    const expectedIronPerKiln = RESOURCES.CHARCOAL_KILN_IRON_BONUS + ABILITIES.KILN_IRON_BONUS;
+    expect(income.ironPerTurn).toBe(RESOURCES.MINE_IRON_PER_TURN + expectedIronPerKiln);
+  });
+
+  it('with KILN_BONUS active, breakdown entry reflects correct iron per kiln', () => {
+    const mine = makeBuilding(BuildingType.MINE, Faction.PLAYER, 10, 10);
+    const edgeKiln = makeBuilding(BuildingType.CHARCOAL_KILN, Faction.PLAYER, 10 + EXTENDED_RADIUS, 10);
+    const state = makeStateWithKilnBonus([mine, edgeKiln]);
+
+    const breakdown = computeResourceIncomeBreakdown(state);
+    const kilnEntry = breakdown.find((entry) => entry.label === 'Charcoal Kiln bonus ×1');
+    expect(kilnEntry).toBeDefined();
+    const expectedIronPerKiln = RESOURCES.CHARCOAL_KILN_IRON_BONUS + ABILITIES.KILN_IRON_BONUS;
+    expect(kilnEntry?.iron).toBe(expectedIronPerKiln);
   });
 });

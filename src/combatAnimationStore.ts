@@ -86,6 +86,7 @@ export type TileVfxVariant =
   | 'BURROW_DUST'
   | 'STUN_BLOCKED_SHIELD'
   | 'DEFENSE_IGNORED'
+  | 'HEAL'
   | 'SPELL_IMPACT'
   | 'SPELL_IMPACT_STUN'
   | 'SPELL_IMPACT_PORTAL_ENTER'

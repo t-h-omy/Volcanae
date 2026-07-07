@@ -15,10 +15,11 @@ import type {
   Building,
   GameState,
 } from './types';
-import { BUILDING_DEFINITIONS, POPULATION, XP, CRYSTAL_CHAMBER_CONFIG, ABILITIES } from './gameConfig';
+import { BUILDING_DEFINITIONS, POPULATION, XP, CRYSTAL_CHAMBER_CONFIG, ABILITIES, MAP } from './gameConfig';
 import { generateId } from './mapGenerator';
 import { grantXp } from './levelSystem';
 import { cleanupRoostedUnits } from './buildingRemoval';
+import { isSpecialistEffectActive } from './specialistSystem';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -97,6 +98,23 @@ const BUILDING_EMOJI_MAP: Record<ConstructableBuilding, string> = {
   [BuildingType.PATRICIANHOUSE]: '🏠',
   [BuildingType.STRONGHOLD]:     '🏰',
   [BuildingType.CRYSTAL_CHAMBER]:'💎',
+};
+
+/**
+ * Display labels for buildings that are placed by unit actions (not through the
+ * player build menu). Keyed by BuildingType. Used by HUD and action-layer code
+ * to show a human-readable name for these buildings.
+ */
+export const ACTION_PLACED_BUILDING_LABEL: Partial<Record<BuildingType, string>> = {
+  [BuildingType.SCOUT_TRAP]: 'Scout Trap',
+};
+
+/**
+ * Emoji icons for buildings that are placed by unit actions (not through the
+ * player build menu). Keyed by BuildingType.
+ */
+export const ACTION_PLACED_BUILDING_EMOJI: Partial<Record<BuildingType, string>> = {
+  [BuildingType.SCOUT_TRAP]: '🪤',
 };
 
 // ============================================================================
@@ -608,6 +626,21 @@ export function constructBuilding(
 
   // Update construction stats
   state.gameStats.buildingsConstructed += 1;
+
+  // SP-21 Pathfinder: reveal the full zone when STRONGHOLD_ZONE_REVEAL is active
+  if (buildingType === BuildingType.STRONGHOLD && isSpecialistEffectActive(state, 'STRONGHOLD_ZONE_REVEAL')) {
+    const zoneIndex = Math.floor((MAP.GRID_HEIGHT - MAP.LAVA_BUFFER_ROWS - 1 - tilePos.y) / MAP.ZONE_HEIGHT);
+    const zone = zoneIndex + 1;
+    const endRow = MAP.GRID_HEIGHT - MAP.LAVA_BUFFER_ROWS - 1 - (zone - 1) * MAP.ZONE_HEIGHT;
+    const startRow = endRow - MAP.ZONE_HEIGHT + 1;
+    for (let y = startRow; y <= endRow; y++) {
+      for (let x = 0; x < MAP.GRID_WIDTH; x++) {
+        if (state.grid[y]?.[x]) {
+          state.grid[y][x].isRevealed = true;
+        }
+      }
+    }
+  }
 }
 
 /**

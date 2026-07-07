@@ -112,6 +112,8 @@ export const ANIMATION = {
   STUN_APPLIED_BURST_MS: 500,
   /** Duration of the burning-terrain damage flame cue (ms) */
   BURNING_DAMAGE_VFX_MS: 400,
+  /** Duration of the idle-heal pulse VFX (ms) */
+  HEAL_VFX_MS: 450,
   /** Duration of the corruption-applied dark-purple pulse (ms) */
   CORRUPTION_APPLIED_VFX_MS: 500,
   /** Duration of the portal entrance/exit pop (ms) */

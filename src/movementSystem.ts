@@ -295,6 +295,75 @@ export function checkGraveTrapTrigger(
 }
 
 /**
+ * Checks whether the tile a unit just entered contains a SCOUT_TRAP building.
+ * If it does, deals damage to the triggering enemy unit (and stuns it unless
+ * it is ALERT-tagged). The trap is then destroyed. FLYING units do not trigger
+ * it. Single-target only (no AOE, unlike GRAVE_TRAP).
+ */
+export function checkScoutTrapTrigger(
+  state: Draft<GameState>,
+  unitId: string,
+): void {
+  const unit = state.units[unitId];
+  if (!unit) return;
+  const tile = state.grid[unit.position.y]?.[unit.position.x];
+  if (!tile || !tile.buildingId) return;
+  const building = state.buildings[tile.buildingId];
+  if (!building || building.type !== BuildingType.SCOUT_TRAP) return;
+
+  // Only enemy (non-player) units trigger the trap.
+  if (unit.faction === Faction.PLAYER) return;
+
+  // FLYING units do not trigger scout traps.
+  if (unit.tags.includes(UnitTag.FLYING)) return;
+
+  const trapPos = { x: unit.position.x, y: unit.position.y };
+  const stunTurns = building.trapStunTurns ?? ABILITIES.SCOUT_TRAP_STUN_TURNS;
+  const damage = building.trapDamage ?? ABILITIES.SCOUT_TRAP_DAMAGE;
+  const floaterStore = useFloaterStore.getState();
+
+  // Deal damage to the triggering unit.
+  unit.stats.currentHp -= damage;
+
+  floaterStore.addFloater({
+    value: -damage,
+    label: undefined,
+    x: trapPos.x,
+    y: trapPos.y,
+    isEnemy: true,
+    floaterType: 'damage',
+  });
+
+  // If the unit is killed by the trap damage, remove it and the building.
+  if (unit.stats.currentHp <= 0) {
+    tile.unitId = null;
+    state.gameStats.unitsKilled += 1;
+    delete state.units[unitId];
+    cleanupRoostedUnits(state, tile.buildingId!);
+    delete state.buildings[tile.buildingId!];
+    tile.buildingId = null;
+    return;
+  }
+
+  // Stun the triggering unit (ALERT-tagged units are immune to stun).
+  if (!unit.tags.includes(UnitTag.ALERT)) {
+    unit.pinnedUntilTurn = state.turn + stunTurns - 1;
+    floaterStore.addFloater({
+      value: 0,
+      label: '💫 Stunned',
+      x: trapPos.x,
+      y: trapPos.y,
+      isEnemy: true,
+      floaterType: 'revive',
+    });
+  }
+
+  cleanupRoostedUnits(state, tile.buildingId);
+  delete state.buildings[tile.buildingId];
+  tile.buildingId = null;
+}
+
+/**
  * Resolves a slide from a FROZEN tile.
  *
  * Called after a unit lands on a FROZEN tile. The slide moves the unit one
@@ -480,11 +549,12 @@ export function moveUnit(
     unit.hasUsedPostAttackMoveThisTurn = true;
   }
 
-  // GRAVE_TRAP: check if the unit landed on a trap
+  // GRAVE_TRAP / SCOUT_TRAP: check if the unit landed on a trap
   checkGraveTrapTrigger(state, unitId);
+  checkScoutTrapTrigger(state, unitId);
 
   // FROZEN tile: trigger the slippery slide mechanic.
-  // Re-fetch the unit — it must still be alive (not killed by a GRAVE_TRAP or other effect).
+  // Re-fetch the unit — it must still be alive (not killed by a trap or other effect).
   // FLYING units treat FROZEN tiles as solid ground (they are not standing on
   // the ice), so they do NOT ice-slide.
   if (newTile.status === TileStatus.FROZEN && state.units[unitId]) {

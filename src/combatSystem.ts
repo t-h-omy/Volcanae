@@ -16,6 +16,8 @@ import { generateId } from './mapGenerator';
 import { isUnitOnCorruptedTile, applyTileStatus } from './tileStatusSystem';
 import { cleanupRoostedUnits } from './buildingRemoval';
 import { getBridgeAt } from './bridgeSystem';
+import { resolveSlide } from './movementSystem';
+import { isSpecialistEffectActive } from './specialistSystem';
 
 // Counter for generating unique gravestone building IDs within this module
 let combatSystemIdCounter = 0;
@@ -412,6 +414,49 @@ export function getPhalanxAttackBonus(state: GameState | Draft<GameState>, unit:
   return count * ABILITIES.PHALANX_ATTACK_BONUS_PER_ALLY;
 }
 
+/**
+ * Returns the total BATTERY attack bonus for a unit that carries the BATTERY tag.
+ * Counts adjacent friendly units in the 8-neighbourhood and applies the per-unit
+ * bonus up to the configured cap. The bonus is derived at attack time only and
+ * is suppressed while the attacker stands on a CORRUPTED tile.
+ */
+export function getBatteryAttackBonus(state: GameState | Draft<GameState>, unit: Unit): number {
+  if (!unit.tags.includes(UnitTag.BATTERY)) return 0;
+  if (isUnitOnCorruptedTile(state, unit.id)) return 0;
+
+  let adjacentFriendlyCount = 0;
+  const { x, y } = unit.position;
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;
+      const tile = state.grid[ny]?.[nx];
+      if (!tile?.unitId) continue;
+      const other = state.units[tile.unitId];
+      if (!other) continue;
+      if (other.faction !== unit.faction) continue;
+      adjacentFriendlyCount++;
+    }
+  }
+
+  return Math.min(adjacentFriendlyCount, ABILITIES.SIEGE_BATTERY_CAP)
+    * ABILITIES.SIEGE_BATTERY_ATK_PER_ADJACENT;
+}
+
+/**
+ * Returns the multiplicative BERSERK attack modifier for a unit.
+ * BERSERK is derived at attack time only and never persisted in unit stats.
+ * Activates only while current HP is strictly below the configured threshold.
+ */
+export function getBerserkAttackMultiplier(unit: Unit): number {
+  if (!unit.tags.includes(UnitTag.BERSERK)) return 1;
+  if (unit.stats.maxHp <= 0) return 1;
+  if ((unit.stats.currentHp / unit.stats.maxHp) >= (ABILITIES.BERSERK_HP_THRESHOLD_PCT / 100)) return 1;
+  return 1 + ABILITIES.BERSERK_ATTACK_PCT / 100;
+}
+
 // ============================================================================
 // COMBAT CALCULATIONS
 // ============================================================================
@@ -511,6 +556,220 @@ function anyBloodlustTargetExists(
 }
 
 /**
+ * Applies KNOCKBACK displacement to the defender after a KNOCKBACK-tagged
+ * attacker's normal attack.  Called from `resolveAttack` when the defender
+ * survives the primary hit.
+ *
+ * Push rules (attacker→defender direction, 1 tile):
+ *  - Off-map / occupied unit / non-walkable building → stay (no move)
+ *  - LAVA                                            → all die (FLYING included)
+ *  - CANYON (non-FLYING, no bridge)                  → dies
+ *  - WATER (non-FLYING, or enemy on any water)       → drowns
+ *  - FROZEN (non-FLYING)                             → lands there, then ice-slides (resolveSlide)
+ *  - Any other passable tile                         → unit moves there
+ *
+ * Kill credit goes to the attacker when displacement kills the defender.
+ */
+function resolveKnockback(
+  state: Draft<GameState>,
+  attackerId: string,
+  defenderId: string,
+  outEvents?: GameEvent[],
+  // Pre-captured attacker state: the attacker may be deleted by a counter-kill
+  // before this function runs, so we accept its last-known position and faction.
+  attackerPositionOverride?: { x: number; y: number },
+  attackerFactionOverride?: Faction,
+): void {
+  const attacker = state.units[attackerId];
+  const defender = state.units[defenderId];
+  if (!defender) return;
+
+  // Use live attacker data when available; fall back to pre-captured values.
+  const attackerPos = attacker?.position ?? attackerPositionOverride;
+  const attackerFaction = attacker?.faction ?? attackerFactionOverride;
+  if (!attackerPos || attackerFaction === undefined) return;
+
+  const rawDx = defender.position.x - attackerPos.x;
+  const rawDy = defender.position.y - attackerPos.y;
+  // Skip diagonal or same-tile (should never occur for adjacent melee attacks)
+  if (rawDx !== 0 && rawDy !== 0) return;
+  if (rawDx === 0 && rawDy === 0) return;
+
+  const dx = Math.sign(rawDx);
+  const dy = Math.sign(rawDy);
+  const fromPosition = { x: defender.position.x, y: defender.position.y };
+  const destX = fromPosition.x + dx;
+  const destY = fromPosition.y + dy;
+
+  // ── Off-map → blocked ──────────────────────────────────────────────────────
+  if (destX < 0 || destX >= MAP.GRID_WIDTH || destY < 0 || destY >= MAP.GRID_HEIGHT) return;
+
+  const destTile = state.grid[destY]?.[destX];
+  if (!destTile) return;
+
+  // ── Occupied by another unit → blocked ────────────────────────────────────
+  if (destTile.unitId !== null) return;
+
+  // ── Non-walkable building → blocked ───────────────────────────────────────
+  // Resource buildings (MINE, WOODCUTTER, etc.) and neutral Watchtowers do NOT block.
+  if (destTile.buildingId !== null) {
+    const bld = state.buildings[destTile.buildingId];
+    if (bld?.combatStats !== null) {
+      const isNeutralWatchtower =
+        bld?.type === BuildingType.WATCHTOWER && bld?.faction === null;
+      if (!isNeutralWatchtower) return;
+    }
+  }
+
+  const isFlying = defender.tags.includes(UnitTag.FLYING);
+  const defenderFaction = defender.faction;
+  const fromTile = state.grid[fromPosition.y][fromPosition.x];
+
+  // ── LAVA → unit dies (FLYING included) ────────────────────────────────────
+  if (destTile.isLava) {
+    if (fromTile.unitId === defenderId) fromTile.unitId = null;
+    if (defenderFaction === Faction.ENEMY) state.ember += 1;
+    else state.gameStats.unitsLost += 1;
+    if (attackerFaction === Faction.PLAYER && defenderFaction === Faction.ENEMY)
+      state.gameStats.unitsKilled += 1;
+    grantXp(state, attackerId, XP.KILL_UNIT, true);
+    delete state.units[defenderId];
+    outEvents?.push({
+      type: 'UNIT_KNOCKBACK',
+      unitId: defenderId,
+      fromPosition,
+      toPosition: { x: destX, y: destY },
+      isEnemy: defenderFaction === Faction.ENEMY,
+      faction: defenderFaction,
+    });
+    outEvents?.push({
+      type: 'UNIT_DEATH',
+      unitId: defenderId,
+      position: { x: destX, y: destY },
+      faction: defenderFaction,
+    });
+    return;
+  }
+
+  // ── CANYON → non-FLYING dies (bridge catches the unit) ────────────────────
+  if (destTile.terrainType === TileType.CANYON && !isFlying) {
+    if (!getBridgeAt(state, destX, destY)) {
+      if (fromTile.unitId === defenderId) fromTile.unitId = null;
+      if (defenderFaction === Faction.PLAYER) state.gameStats.unitsLost += 1;
+      else if (attackerFaction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
+      grantXp(state, attackerId, XP.KILL_UNIT, true);
+      delete state.units[defenderId];
+      outEvents?.push({
+        type: 'UNIT_KNOCKBACK',
+        unitId: defenderId,
+        fromPosition,
+        toPosition: { x: destX, y: destY },
+        isEnemy: defenderFaction === Faction.ENEMY,
+        faction: defenderFaction,
+      });
+      outEvents?.push({
+        type: 'UNIT_DEATH',
+        unitId: defenderId,
+        position: { x: destX, y: destY },
+        faction: defenderFaction,
+      });
+      return;
+    }
+    // Has bridge → fall through to normal knockback below.
+  }
+
+  // ── WATER → non-FLYING drowns (enemies drown on frozen water too) ─────────
+  if (
+    destTile.terrainType === TileType.WATER &&
+    (destTile.status !== TileStatus.FROZEN || defenderFaction === Faction.ENEMY) &&
+    !isFlying
+  ) {
+    if (fromTile.unitId === defenderId) fromTile.unitId = null;
+    if (defenderFaction === Faction.PLAYER) state.gameStats.unitsLost += 1;
+    else if (attackerFaction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
+    grantXp(state, attackerId, XP.KILL_UNIT, true);
+    delete state.units[defenderId];
+    outEvents?.push({
+      type: 'UNIT_KNOCKBACK',
+      unitId: defenderId,
+      fromPosition,
+      toPosition: { x: destX, y: destY },
+      isEnemy: defenderFaction === Faction.ENEMY,
+      faction: defenderFaction,
+    });
+    outEvents?.push({
+      type: 'UNIT_DEATH',
+      unitId: defenderId,
+      position: { x: destX, y: destY },
+      faction: defenderFaction,
+    });
+    return;
+  }
+
+  // ── Normal knockback: move unit one tile ───────────────────────────────────
+  if (fromTile.unitId === defenderId) fromTile.unitId = null;
+  destTile.unitId = defenderId;
+  defender.position.x = destX;
+  defender.position.y = destY;
+
+  // FROZEN destination + non-FLYING → ice-slide (same axis, one more tile).
+  // resolveSlide may move the unit further, keep it on the frozen tile, or kill it.
+  if (destTile.status === TileStatus.FROZEN && !isFlying) {
+    // Pre-compute slide destination so we can emit correct events if the slide kills.
+    const slideDest = { x: destX + dx, y: destY + dy };
+    resolveSlide(state, defenderId, dx, dy);
+
+    const unitAfterSlide = state.units[defenderId];
+    if (!unitAfterSlide) {
+      // The ice-slide killed the unit.
+      // resolveSlide already updated unitsLost / ember; add kill credit here.
+      if (attackerFaction === Faction.PLAYER && defenderFaction === Faction.ENEMY)
+        state.gameStats.unitsKilled += 1;
+      grantXp(state, attackerId, XP.KILL_UNIT, true);
+      const slidedInBounds =
+        slideDest.x >= 0 && slideDest.x < MAP.GRID_WIDTH &&
+        slideDest.y >= 0 && slideDest.y < MAP.GRID_HEIGHT;
+      const deathPos = slidedInBounds ? slideDest : { x: destX, y: destY };
+      outEvents?.push({
+        type: 'UNIT_KNOCKBACK',
+        unitId: defenderId,
+        fromPosition,
+        toPosition: deathPos,
+        isEnemy: defenderFaction === Faction.ENEMY,
+        faction: defenderFaction,
+      });
+      outEvents?.push({
+        type: 'UNIT_DEATH',
+        unitId: defenderId,
+        position: deathPos,
+        faction: defenderFaction,
+      });
+      return;
+    }
+    // Slide moved or kept the unit; emit knockback to its final position.
+    outEvents?.push({
+      type: 'UNIT_KNOCKBACK',
+      unitId: defenderId,
+      fromPosition,
+      toPosition: { x: unitAfterSlide.position.x, y: unitAfterSlide.position.y },
+      isEnemy: defenderFaction === Faction.ENEMY,
+      faction: defenderFaction,
+    });
+    return;
+  }
+
+  // Non-FROZEN destination — emit knockback to the one-tile destination.
+  outEvents?.push({
+    type: 'UNIT_KNOCKBACK',
+    unitId: defenderId,
+    fromPosition,
+    toPosition: { x: destX, y: destY },
+    isEnemy: defenderFaction === Faction.ENEMY,
+    faction: defenderFaction,
+  });
+}
+
+/**
  * Resolves an attack between two units by mutating the draft state.
  * - Applies damage to defender
  * - If defender survives AND the attacker is within the defender's attack range,
@@ -554,6 +813,8 @@ export function resolveAttack(
   // Compute once: whether the attacker is standing on a CORRUPTED tile.
   // Used to suppress specific tag effects below (see §5.1).
   const attackerOnCorrupted = isUnitOnCorruptedTile(state, attackerId);
+  // Capture KNOCKBACK flag before any mutations (attacker may be deleted by counter-kill).
+  const attackerHasKnockback = attacker.tags.includes(UnitTag.KNOCKBACK);
 
   if (state.techFlags.includes(TechFlag.HOLD_GROUND) && defender.faction === Faction.PLAYER) {
     const tile = state.grid[defender.position.y]?.[defender.position.x];
@@ -602,6 +863,9 @@ export function resolveAttack(
     }
     attackerCombatant.attack += Math.min(adjacentEnemyCount, RAGE_MAX_ADJACENT_COUNT) * RAGE_ATK_PER_ADJACENT;
   }
+
+  attackerCombatant.attack += getBatteryAttackBonus(state, attacker);
+  attackerCombatant.attack *= getBerserkAttackMultiplier(attacker);
 
   // PUNCTURE: bypass all defensive bonuses — reset defender's effective defense to
   // the raw base stat, ignoring PHALANX, HOLD_GROUND, and any other bonuses added above.
@@ -971,6 +1235,15 @@ export function resolveAttack(
         });
       }
     }
+  }
+
+  // KNOCKBACK: when attacker has KNOCKBACK tag and defender survived the primary attack,
+  // push defender one tile along the attacker→defender axis.
+  // Suppressed on CORRUPTED tile (consistent with other offensive tags).
+  // Only applies on normal attack (the attacker is always the KNOCKBACK-tagged unit here;
+  // counter-attack retaliation does not have a separate resolveAttack call).
+  if (!defenderDead && !attackerOnCorrupted && attackerHasKnockback) {
+    resolveKnockback(state, attackerId, defenderId, outEvents, attackerPosition, attackerFaction);
   }
 
   // Melee attacker advances onto the tile the defeated defender occupied
@@ -1585,6 +1858,9 @@ export function resolveAttackOnBuilding(
     attackerCombatant.attack += Math.min(adjacentEnemyCount, RAGE_MAX_ADJACENT_COUNT) * RAGE_ATK_PER_ADJACENT;
   }
 
+  attackerCombatant.attack += getBatteryAttackBonus(state, attacker);
+  attackerCombatant.attack *= getBerserkAttackMultiplier(attacker);
+
   // Calculate combat - if building has combat stats use them for defense, otherwise use 0
   const defenderStats: Combatant = buildingCombatant ?? {
     currentHp: building.hp,
@@ -1619,6 +1895,20 @@ export function resolveAttackOnBuilding(
   // retaliation on a bloodlust follow-up hit.
   if (isBloodlustAttack) {
     combatResult.attackerHpLost = 0;
+  }
+
+  // ARCHER_VS_STRUCTURE (Wallbreaker, spec_19): a player ARCHER attacking an enemy
+  // building that has combatStats (i.e. an attackable building) receives a damage bonus.
+  // EMBERNEST is naturally excluded because it has no combatStats.
+  if (
+    attacker.type === UnitType.ARCHER &&
+    building.faction === Faction.ENEMY &&
+    building.combatStats !== null &&
+    isSpecialistEffectActive(state, 'ARCHER_VS_STRUCTURE')
+  ) {
+    combatResult.defenderHpLost = Math.round(
+      combatResult.defenderHpLost * (1 + ABILITIES.ARCHER_STRUCTURE_DMG_PCT / 100),
+    );
   }
 
   // Capture full primary damage before any PIERCE reduction (used by PIERCE secondary target).

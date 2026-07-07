@@ -24,6 +24,7 @@ import { isStatusAllowedOnTerrain, applyTileStatus } from './tileStatusSystem';
 import { shouldLeaveGravestone, createGravestoneAt } from './combatSystem';
 import { applyTagStatEffects } from './techSystem';
 import { cleanupRoostedUnits } from './buildingRemoval';
+import { getTagsFromActiveSpecialistsForSourceTag } from './specialistSystem';
 
 /** Returns the effective spell range for a mage (its attack range). */
 export function getMageSpellRange(
@@ -257,6 +258,16 @@ export function getValidSpellTargets(
       return targets;
     }
 
+    case 'RUPTURE': {
+      const targets: Position[] = [];
+      for (const unit of Object.values(state.units)) {
+        if (unit.faction !== Faction.ENEMY) continue;
+        if (!isTileInSpellRange(mage, unit.position, range)) continue;
+        targets.push({ ...unit.position });
+      }
+      return targets;
+    }
+
     default:
       return [];
   }
@@ -366,6 +377,10 @@ function handleEmberbind(
 
   // Spawn EMBER_DEMON
   const demonId = generateId('unit_demon');
+  const demonTags: UnitTag[] = [UnitTag.SUMMONED, UnitTag.LEASHED, UnitTag.LAVA];
+  for (const t of getTagsFromActiveSpecialistsForSourceTag(state, UnitTag.SUMMONED)) {
+    if (!demonTags.includes(t)) demonTags.push(t);
+  }
   state.units[demonId] = {
     id: demonId,
     type: UnitType.EMBER_DEMON,
@@ -382,7 +397,7 @@ function handleEmberbind(
       triggerRange: UNIT_DEFINITIONS.EMBER_DEMON.triggerRange,
       movementActions: 1,
     },
-    tags: [UnitTag.SUMMONED, UnitTag.LEASHED, UnitTag.LAVA],
+    tags: demonTags,
     controllerMageId: mage.id,
     hasMovedThisTurn: true,
     hasAttackedThisTurn: true,
@@ -643,6 +658,10 @@ function handleRaiseSkeleton(
 
   // Spawn Skeleton
   const skeletonId = generateId('unit_skeleton');
+  const skeletonTags: UnitTag[] = [UnitTag.SUMMONED, UnitTag.READY];
+  for (const t of getTagsFromActiveSpecialistsForSourceTag(state, UnitTag.SUMMONED)) {
+    if (!skeletonTags.includes(t)) skeletonTags.push(t);
+  }
   state.units[skeletonId] = {
     id: skeletonId,
     type: UnitType.SKELETON,
@@ -659,7 +678,7 @@ function handleRaiseSkeleton(
       triggerRange: 0,
       movementActions: 1,
     },
-    tags: [UnitTag.SUMMONED, UnitTag.READY],
+    tags: skeletonTags,
     hasMovedThisTurn: false,
     hasAttackedThisTurn: false,
     hasCapturedThisTurn: false,
@@ -850,6 +869,32 @@ function handleExplode(
   return true;
 }
 
+/** Deals a percentage of the target's current HP as damage (Rupture). Cannot kill. */
+function handleRupture(
+  state: Draft<GameState>,
+  targetPosition: Position,
+): boolean {
+  const tile = state.grid[targetPosition.y]?.[targetPosition.x];
+  if (!tile) return false;
+  const targetUnitId = tile.unitId;
+  if (!targetUnitId) return false;
+  const target = state.units[targetUnitId];
+  if (!target) return false;
+  if (target.faction !== Faction.ENEMY) return false;
+
+  const dmg = Math.floor(target.stats.currentHp * MAGE.RUPTURE_PERCENT);
+  target.stats.currentHp = Math.max(1, target.stats.currentHp - dmg);
+
+  useFloaterStore.getState().addFloater({
+    value: dmg,
+    x: targetPosition.x,
+    y: targetPosition.y,
+    isEnemy: true,
+  });
+
+  return true;
+}
+
 /** Validates and applies a spell. Returns true on success. */
 export function castSpell(
   state: Draft<GameState>,
@@ -900,6 +945,8 @@ export function castSpell(
       success = handleFrostcraft(state, targetPosition); break;
     case 'EXPLODE':
       success = handleExplode(state, mage, targetPosition); break;
+    case 'RUPTURE':
+      success = handleRupture(state, targetPosition); break;
     default:
       return false;
   }

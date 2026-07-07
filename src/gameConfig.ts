@@ -208,6 +208,12 @@ export const MAGE = {
   // ── GRAVE_HARVEST tech parameters ────────────────────────────────────
   /** Per-turn percent chance for each player-owned GRAVESTONE to grant 1 crystal */
   GRAVE_HARVEST_CRYSTAL_CHANCE: 25,
+
+  // ── Rupture spell parameters (SP-16) ─────────────────────────────────
+  /** Fraction of the target's current HP dealt as damage by the Rupture spell */
+  RUPTURE_PERCENT: 0.5,
+  /** Crystal cost to cast the Rupture spell */
+  RUPTURE_CRYSTAL_COST: 1,
 } as const;
 
 // ============================================================================
@@ -289,6 +295,13 @@ export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
     emoji: '🕳️',
     description: `Conjure a Crystal Cave on a free mountain tile within range. While any of your Crystal Chambers resonate, the cave may recruit a single Crystal Drake — recruiting does not shorten the resonance window. If the cave is lost (lava, capture, conversion, destruction) the drake dies with it.`,
     targetHint: 'Select a free mountain tile within range.',
+  },
+  [SpellId.RUPTURE]: {
+    id: SpellId.RUPTURE,
+    name: 'Rupture',
+    emoji: '💢',
+    description: `Deal ${Math.round(MAGE.RUPTURE_PERCENT * 100)}% of the target's current HP as damage (never kills — target retains at least 1 HP). Costs ${MAGE.RUPTURE_CRYSTAL_COST} crystal. Unlocked by the Sundered specialist.`,
+    targetHint: 'Select an enemy unit within range.',
   },
 };
 
@@ -1485,6 +1498,49 @@ export const ABILITIES = {
   // ── Mage system ability constants ────────────────────────────────────────────
   /** Number of turns a unit triggered by a GRAVE_TRAP is stunned */
   GRAVE_TRAP_STUN_TURNS: 2,
+  // ── SP-00 scaffolding: new specialist / building ability constants ──────────
+  /** Extra tile radius added to Charcoal Kilns by the Ashwright specialist */
+  KILN_RADIUS_BONUS: 1,
+  /** Extra iron/turn added to each in-range mine by the Ashwright specialist (on top of base kiln bonus) */
+  KILN_IRON_BONUS: 0,
+  /** Wood cost for a Scout to place a Scout Trap */
+  SCOUT_TRAP_WOOD_COST: 4,
+  /** Iron cost for a Scout to place a Scout Trap */
+  SCOUT_TRAP_IRON_COST: 0,
+  /** HP damage dealt to the triggering enemy by a Scout Trap */
+  SCOUT_TRAP_DAMAGE: 30,
+  /** Turns the triggering enemy is stunned by a Scout Trap (this turn + next) */
+  SCOUT_TRAP_STUN_TURNS: 1,
+  /** Tile radius within which a Scout with SCOUT_EXTINGUISH removes BURNING tile status */
+  EXTINGUISH_RADIUS: 1,
+  /** Attack-range bonus added to Scouts by the Farsight Marshal specialist */
+  SCOUT_ATTACK_RANGE_BONUS: 1,
+  /** Extra population capacity (farmers or nobles) added by the Hearthsteward specialist */
+  HOUSING_CAP_BONUS: 1,
+  /** Number of rows from the lava front that qualify for the Cinderborn ATK bonus */
+  CINDERBORN_ROWS: 3,
+  /** Flat ATK bonus granted to a unit recruited within CINDERBORN_ROWS of the lava front */
+  CINDERBORN_ATTACK_BONUS: 10,
+  /** ATK bonus per adjacent friendly unit granted by the BATTERY tag */
+  SIEGE_BATTERY_ATK_PER_ADJACENT: 7,
+  /** Maximum number of adjacent friendly units counted for the BATTERY ATK bonus */
+  SIEGE_BATTERY_CAP: 3,
+  /** Number of lava-front rows that qualify a chamber for the Echo Warden crystal bonus */
+  RESONANCE_BONUS_ROWS: 3,
+  /** Extra crystals per turn added by each qualifying resonating Crystal Chamber (Echo Warden) */
+  RESONANCE_BONUS_CRYSTALS: 1,
+  /** Percentage of normal damage dealt when an ARCHER_VS_STRUCTURE hit targets a building */
+  ARCHER_STRUCTURE_DMG_PCT: 50,
+  /** HP percentage below which a BERSERK unit activates its attack bonus */
+  BERSERK_HP_THRESHOLD_PCT: 50,
+  /** Percentage attack bonus granted to a BERSERK unit below the HP threshold */
+  BERSERK_ATTACK_PCT: 100,
+  /** HP restored to an idle (non-moved, non-attacked) player unit per turn by the Field Chirurgeon */
+  IDLE_HEAL_AMOUNT: 30,
+  /** Fraction of the target's current HP dealt as damage by the Rupture spell */
+  RUPTURE_PERCENT: MAGE.RUPTURE_PERCENT,
+  /** Crystal cost to cast the Rupture spell */
+  RUPTURE_CRYSTAL_COST: MAGE.RUPTURE_CRYSTAL_COST,
 } as const;
 
 export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
@@ -1669,6 +1725,13 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
       `A timber bridge spanning a single canyon tile between two land tiles. ` +
       `Cross along its axis or diagonally; lava destroys it.`,
   },
+  SCOUT_TRAP: {
+    discoverRadius: 1,
+    destroyBehavior: DestroyBehavior.NONE,
+    // Placed by Scout action, not the build menu; cost is enforced in the action handler.
+    constructionCost: { iron: 0, wood: 0 },
+    description: `A concealed trap laid by a Scout. The next non-FLYING enemy to enter it takes ${ABILITIES.SCOUT_TRAP_DAMAGE} damage and is stunned for ${ABILITIES.SCOUT_TRAP_STUN_TURNS} turn(s), then the trap is consumed.`,
+  },
 };
 
 export const TECH = {
@@ -1765,6 +1828,157 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
     description:
       `Your Mages can cast ${MAGE.SPELLS_PER_TURN + ARCHMAGE_CAST_BUDGET_BONUS} spells per turn instead of ${MAGE.SPELLS_PER_TURN}.`,
     effects: [{ type: 'MAGE_CAST_BUDGET_MOD', params: { amount: ARCHMAGE_CAST_BUDGET_BONUS } }],
+    upkeepIron: 0,
+    upkeepWood: 0,
+  },
+  spec_07: {
+    name: 'Ashwright',
+    description:
+      `Your Charcoal Kilns affect mines within ${RESOURCES.CHARCOAL_KILN_RADIUS + ABILITIES.KILN_RADIUS_BONUS} tiles instead of ${RESOURCES.CHARCOAL_KILN_RADIUS}.` +
+      (ABILITIES.KILN_IRON_BONUS > 0 ? ` Each in-range kiln also grants an additional +${ABILITIES.KILN_IRON_BONUS} iron/turn.` : ''),
+    effects: [{ type: 'KILN_BONUS', params: { radiusBonus: ABILITIES.KILN_RADIUS_BONUS, ironBonus: ABILITIES.KILN_IRON_BONUS } }],
+    upkeepIron: 0,
+    upkeepWood: 0,
+  },
+  spec_08: {
+    name: 'Trapsmith',
+    description:
+      `Your Scouts can place a Scout Trap on their tile (costs ${ABILITIES.SCOUT_TRAP_WOOD_COST} wood). The next non-FLYING enemy to enter it takes ${ABILITIES.SCOUT_TRAP_DAMAGE} damage and is stunned for ${ABILITIES.SCOUT_TRAP_STUN_TURNS} turn(s).`,
+    effects: [{
+      type: 'SCOUT_SET_TRAP',
+      params: { woodCost: ABILITIES.SCOUT_TRAP_WOOD_COST, ironCost: ABILITIES.SCOUT_TRAP_IRON_COST, damage: ABILITIES.SCOUT_TRAP_DAMAGE, stunTurns: ABILITIES.SCOUT_TRAP_STUN_TURNS },
+    }],
+    upkeepIron: 0,
+    upkeepWood: 0,
+  },
+  spec_09: {
+    name: 'Watch Captain',
+    description:
+      `Your garrisoned Watchtowers, Outposts, and Crystal Towers fire a preventive shot at ${ABILITIES.PREVENTIVE_STRIKE_DAMAGE_PERCENT}% damage when an enemy enters their range.`,
+    effects: [{ type: 'GARRISON_OVERWATCH', params: {} }],
+    upkeepIron: 0,
+    upkeepWood: 0,
+  },
+  spec_10: {
+    name: 'Cinder Warden',
+    description:
+      `Your Scouts can extinguish BURNING and CORRUPTED tiles within ${ABILITIES.EXTINGUISH_RADIUS} tile(s), consuming their action.`,
+    effects: [{ type: 'SCOUT_EXTINGUISH', params: { radius: ABILITIES.EXTINGUISH_RADIUS } }],
+    upkeepIron: 0,
+    upkeepWood: 0,
+  },
+  spec_11: {
+    name: 'Farsight Marshal',
+    description:
+      `Your Scouts gain +${ABILITIES.SCOUT_ATTACK_RANGE_BONUS} attack range and the RANGED tag.`,
+    effects: [
+      { type: 'SCOUT_RANGE_BONUS', params: { bonus: ABILITIES.SCOUT_ATTACK_RANGE_BONUS } },
+      { type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.SCOUT, tag: UnitTag.RANGED } },
+    ],
+    upkeepIron: 0,
+    upkeepWood: 0,
+  },
+  spec_12: {
+    name: 'Tramplelord',
+    description:
+      `Your Riders push enemies one tile away on every hit (KNOCKBACK).`,
+    effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.RIDER, tag: UnitTag.KNOCKBACK } }],
+    upkeepIron: 0,
+    upkeepWood: 0,
+  },
+  spec_13: {
+    name: 'Hellbinder',
+    description:
+      `All your SUMMONED units gain the RAGE and CLEAVE tags.`,
+    effects: [{ type: 'GRANT_TAG_TO_UNITS_WITH_TAG', params: { sourceTag: UnitTag.SUMMONED, tags: `${UnitTag.RAGE},${UnitTag.CLEAVE}` } }],
+    upkeepIron: 0,
+    upkeepWood: 0,
+  },
+  spec_14: {
+    name: 'Hearthsteward',
+    description:
+      `Each of your Farms and Patrician Houses can house ${ABILITIES.HOUSING_CAP_BONUS} extra person.`,
+    effects: [{ type: 'HOUSING_CAP_BONUS', params: { amount: ABILITIES.HOUSING_CAP_BONUS } }],
+    upkeepIron: 0,
+    upkeepWood: 0,
+  },
+  spec_15: {
+    name: 'Emberforged',
+    description:
+      `Units recruited within ${ABILITIES.CINDERBORN_ROWS} rows of the lava front gain the CINDERBORN tag (+${ABILITIES.CINDERBORN_ATTACK_BONUS} ATK).`,
+    effects: [{ type: 'CINDERBORN_RECRUIT', params: { rows: ABILITIES.CINDERBORN_ROWS, attackBonus: ABILITIES.CINDERBORN_ATTACK_BONUS } }],
+    upkeepIron: 0,
+    upkeepWood: 0,
+  },
+  spec_16: {
+    name: 'The Martyr',
+    description:
+      `When one of your units is consumed by lava, all surviving Crystal Chambers begin resonating as if a chamber were destroyed.`,
+    effects: [{ type: 'RESONANCE_ON_UNIT_LAVA_DEATH', params: {} }],
+    upkeepIron: 0,
+    upkeepWood: 0,
+  },
+  spec_17: {
+    name: 'Bombardier',
+    description:
+      `Your Siege units gain the BATTERY tag: each adjacent friendly unit grants +${ABILITIES.SIEGE_BATTERY_ATK_PER_ADJACENT} ATK, up to ${ABILITIES.SIEGE_BATTERY_CAP} stacks.`,
+    effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.SIEGE, tag: UnitTag.BATTERY } }],
+    upkeepIron: 0,
+    upkeepWood: 0,
+  },
+  spec_18: {
+    name: 'Echo Warden',
+    description:
+      `While resonating, each Crystal Chamber within ${ABILITIES.RESONANCE_BONUS_ROWS} rows of the lava front generates +${ABILITIES.RESONANCE_BONUS_CRYSTALS} extra crystal per turn.`,
+    effects: [{ type: 'RESONANCE_CRYSTAL_BONUS', params: { bonusRows: ABILITIES.RESONANCE_BONUS_ROWS, bonusCrystals: ABILITIES.RESONANCE_BONUS_CRYSTALS } }],
+    upkeepIron: 0,
+    upkeepWood: 0,
+  },
+  spec_19: {
+    name: 'Wallbreaker',
+    description:
+      `Your Archers deal ${ABILITIES.ARCHER_STRUCTURE_DMG_PCT}% bonus damage when attacking buildings.`,
+    effects: [{ type: 'ARCHER_VS_STRUCTURE', params: { damagePct: ABILITIES.ARCHER_STRUCTURE_DMG_PCT } }],
+    upkeepIron: 0,
+    upkeepWood: 0,
+  },
+  spec_20: {
+    name: 'Last Stand',
+    description:
+      `Your Archers gain the BERSERK tag: when HP drops below ${ABILITIES.BERSERK_HP_THRESHOLD_PCT}%, they gain +${ABILITIES.BERSERK_ATTACK_PCT}% ATK.`,
+    effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.ARCHER, tag: UnitTag.BERSERK } }],
+    upkeepIron: 0,
+    upkeepWood: 0,
+  },
+  spec_21: {
+    name: 'Pathfinder',
+    description:
+      `Capturing an enemy Stronghold immediately reveals the full zone it belongs to.`,
+    effects: [{ type: 'STRONGHOLD_ZONE_REVEAL', params: {} }],
+    upkeepIron: 0,
+    upkeepWood: 0,
+  },
+  spec_22: {
+    name: 'The Sundered',
+    description:
+      `Your Mages unlock the Rupture spell: deals ${Math.round(ABILITIES.RUPTURE_PERCENT * 100)}% of the target's current HP as damage for ${ABILITIES.RUPTURE_CRYSTAL_COST} crystal.`,
+    effects: [{ type: 'RUPTURE_UNLOCK', params: {} }],
+    upkeepIron: 0,
+    upkeepWood: 0,
+  },
+  spec_23: {
+    name: 'The Multitude',
+    description:
+      `The first time each of your housing buildings reaches full population, it immediately gains a second full complement of residents.`,
+    effects: [{ type: 'POP_DOUBLING_DOCTRINE', params: {} }],
+    upkeepIron: 0,
+    upkeepWood: 0,
+  },
+  spec_24: {
+    name: 'Field Chirurgeon',
+    description:
+      `Player units that took no action this turn are healed for ${ABILITIES.IDLE_HEAL_AMOUNT} HP at the end of the player turn.`,
+    effects: [{ type: 'IDLE_HEAL', params: { amount: ABILITIES.IDLE_HEAL_AMOUNT } }],
     upkeepIron: 0,
     upkeepWood: 0,
   },
@@ -2457,6 +2671,11 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   // ── Tile-presence status tags ────────────────────────────────────────────
   [UnitTag.CORRUPTED]: { label: 'Corrupted', desc: 'Standing on a corrupted tile. Some tag abilities are suppressed until this unit moves off the corrupted tile.', icon: '☠️' },
   [UnitTag.BRIDGE_BUILDER]: { label: 'Bridgebuilder', desc: `Can spend its action to build a Bridge (${BUILDING_DEFINITIONS.BRIDGE.constructionCost.wood} wood) across a 1-tile canyon gap between two land tiles. Bridge is crossable along its axis and diagonally.` },
+  // ── SP-00 specialist-scaffolded tags ───────────────────────────────────────
+  [UnitTag.KNOCKBACK]:    { label: 'Knockback',    desc: 'On hit, pushes the target one tile away. Lava kills any pushed unit. Non-flying units die if pushed into a canyon or water tile. Pushing onto a frozen tile causes an ice-slide. Units and occupied buildings block the push (no bonus damage). FLYING units can still be pushed but survive canyons and water.' },
+  [UnitTag.CINDERBORN]:   { label: 'Cinderborn',   desc: `Recruited within ${ABILITIES.CINDERBORN_ROWS} rows of the lava front. Gains +${ABILITIES.CINDERBORN_ATTACK_BONUS} ATK and immunity to BURNING tile damage.` },
+  [UnitTag.BERSERK]:      { label: 'Berserk',      desc: `When HP drops below ${ABILITIES.BERSERK_HP_THRESHOLD_PCT}%, gains +${ABILITIES.BERSERK_ATTACK_PCT}% ATK.` },
+  [UnitTag.BATTERY]:      { label: 'Battery',      desc: `Gains +${ABILITIES.SIEGE_BATTERY_ATK_PER_ADJACENT} ATK per adjacent friendly unit, up to ${ABILITIES.SIEGE_BATTERY_CAP} stacks.` },
 };
 
 // Compute descriptions for UNIT_DEFINITIONS entries that reference TUNNEL constants.
@@ -2549,6 +2768,7 @@ export const CORRUPTED_SUPPRESSED_TAGS = new Set<UnitTag>([
   UnitTag.PIN_DOWN,
   UnitTag.CLEAVE,
   UnitTag.SPLASH,
+  UnitTag.BATTERY,
   UnitTag.BURN,
   UnitTag.PHALANX,
   UnitTag.PATCHUP,
