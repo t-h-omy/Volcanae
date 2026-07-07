@@ -2,6 +2,38 @@
 
 ## Unreleased
 
+### Specialist system complete — 18 new specialists + migration (v0.95.0)
+
+Completed the full specialist roster (spec_07 – spec_24). All 24 specialists are
+eligible in both the cave-monster reward pool and the Market specialist slot.
+Idle-heal only triggers for wholly-inactive units; the auto-cam visits each healed
+unit. Every specialist applies its effect on acquire and reverts it on loss (except
+documented birth-time effects: CINDERBORN, and POP maxHp/cost for existing units).
+No specialist stacks with itself.
+
+**New specialists (SP-07 → SP-24):**
+- **Ashwright** (spec_07): Charcoal Kilns gain radius + iron bonus.
+- **Trapsmith** (spec_08): Scouts can place a Scout Trap. Non-flying enemies that enter take damage + stun, then it is consumed. Flyers pass safely.
+- **Watch Captain** (spec_09): Garrisoned towers fire a preventive shot when an enemy enters range.
+- **Cinder Warden** (spec_10): Scouts can extinguish BURNING / CORRUPTED tiles within radius.
+- **Farsight Marshal** (spec_11): Scouts gain RANGED tag and bonus attack range.
+- **Tramplelord** (spec_12): Riders gain KNOCKBACK — on hit, target is pushed one tile. Lava kills any pushed unit; non-flying units die on canyon/water; frozen tiles trigger an ice-slide; units and occupied buildings block the push.
+- **Hellbinder** (spec_13): Summoned units gain RAGE and CLEAVE tags.
+- **Hearthsteward** (spec_14): Farms and Patrician Houses house extra residents.
+- **Emberforged** (spec_15): Units recruited near the lava front gain CINDERBORN (+ATK, immune to BURNING). Birth-time only.
+- **The Martyr** (spec_16): When one of your units is consumed by lava, surviving Crystal Chambers begin resonating.
+- **Bombardier** (spec_17): Siege units gain BATTERY — each adjacent friendly unit grants stacking ATK bonus.
+- **Echo Warden** (spec_18): While resonating, Crystal Chambers near the lava front produce bonus crystals.
+- **Wallbreaker** (spec_19): Archers deal bonus damage to buildings.
+- **Last Stand** (spec_20): Archers gain BERSERK — ATK surges when HP falls below threshold.
+- **Pathfinder** (spec_21): Capturing an enemy Stronghold immediately reveals its full zone.
+- **The Sundered** (spec_22): Mages unlock **Rupture** — halves target's current HP, never kills, costs 1 crystal.
+- **The Multitude** (spec_23): POP_DOUBLING_DOCTRINE — doubles housing/unit caps after flat bonuses; halves recruit cost and spawn HP (ceil) for new units only.
+- **Field Chirurgeon** (spec_24): Player units that took no action this turn are healed before the enemy turn. Auto-cam visits each healed unit.
+
+**Save migration v14 → v15:** backfills `trapDamage` (undefined) and
+`resonanceCrystalBonus` (false) on all existing building records.
+
 ### Deathmender rework + Gargoyle unit (v0.94.0)
 - Deathmender specialist reworked: Spearmen, Scouts, and Guards now leave Gravestones on death, and the player can raise a flying Gargoyle (FLYING melee, 90 HP / medium ATK/DEF) from any player Gravestone for 1 crystal. Replaces the old REVIVABLE/revive behavior, which is now covered by the Mage's Raise Skeleton spell.
 - New GARGOYLE unit (placeholder sprite reuses Skeleton art). Raise Gargoyle (gravestone-panel button) and Raise Skeleton (Mage spell) coexist when both are unlocked.

@@ -300,7 +300,7 @@ export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
     id: SpellId.RUPTURE,
     name: 'Rupture',
     emoji: '💢',
-    description: `Deal ${Math.round(MAGE.RUPTURE_PERCENT * 100)}% of the target's current HP as damage. Costs ${MAGE.RUPTURE_CRYSTAL_COST} crystal. Unlocked by the Sundered specialist.`,
+    description: `Deal ${Math.round(MAGE.RUPTURE_PERCENT * 100)}% of the target's current HP as damage (never kills — target retains at least 1 HP). Costs ${MAGE.RUPTURE_CRYSTAL_COST} crystal. Unlocked by the Sundered specialist.`,
     targetHint: 'Select an enemy unit within range.',
   },
 };
@@ -2672,7 +2672,7 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   [UnitTag.CORRUPTED]: { label: 'Corrupted', desc: 'Standing on a corrupted tile. Some tag abilities are suppressed until this unit moves off the corrupted tile.', icon: '☠️' },
   [UnitTag.BRIDGE_BUILDER]: { label: 'Bridgebuilder', desc: `Can spend its action to build a Bridge (${BUILDING_DEFINITIONS.BRIDGE.constructionCost.wood} wood) across a 1-tile canyon gap between two land tiles. Bridge is crossable along its axis and diagonally.` },
   // ── SP-00 specialist-scaffolded tags ───────────────────────────────────────
-  [UnitTag.KNOCKBACK]:    { label: 'Knockback',    desc: 'On hit, pushes the target one tile away from the attacker. FLYING units are immune to knockback.' },
+  [UnitTag.KNOCKBACK]:    { label: 'Knockback',    desc: 'On hit, pushes the target one tile away. Lava kills any pushed unit. Non-flying units die if pushed into a canyon or water tile. Pushing onto a frozen tile causes an ice-slide. Units and occupied buildings block the push (no bonus damage). FLYING units can still be pushed but survive canyons and water.' },
   [UnitTag.CINDERBORN]:   { label: 'Cinderborn',   desc: `Recruited within ${ABILITIES.CINDERBORN_ROWS} rows of the lava front. Gains +${ABILITIES.CINDERBORN_ATTACK_BONUS} ATK and immunity to BURNING tile damage.` },
   [UnitTag.BERSERK]:      { label: 'Berserk',      desc: `When HP drops below ${ABILITIES.BERSERK_HP_THRESHOLD_PCT}%, gains +${ABILITIES.BERSERK_ATTACK_PCT}% ATK.` },
   [UnitTag.BATTERY]:      { label: 'Battery',      desc: `Gains +${ABILITIES.SIEGE_BATTERY_ATK_PER_ADJACENT} ATK per adjacent friendly unit, up to ${ABILITIES.SIEGE_BATTERY_CAP} stacks.` },

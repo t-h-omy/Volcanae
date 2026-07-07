@@ -17,7 +17,7 @@ import type { Difficulty } from './types';
 // ============================================================================
 
 /** Increment this whenever the serialized shape changes incompatibly. */
-export const SAVE_VERSION = 14;
+export const SAVE_VERSION = 15;
 
 // ============================================================================
 // TYPES
@@ -245,12 +245,14 @@ function migrateState(parsed: { version: number; state: GameState }): GameState 
       }
     }
 
-    // Migration: backfill trapStunTurns on buildings.
+    // Migration: backfill trapStunTurns, trapDamage, and resonanceCrystalBonus on buildings.
     if (s.buildings && typeof s.buildings === 'object') {
       for (const building of Object.values(s.buildings) as Array<unknown>) {
         const b = building as Record<string, unknown>;
-        if (b && typeof b.id === 'string' && !('trapStunTurns' in b)) {
-          b.trapStunTurns = undefined;
+        if (b && typeof b.id === 'string') {
+          if (!('trapStunTurns' in b))        b.trapStunTurns         = undefined;
+          if (!('trapDamage' in b))            b.trapDamage            = undefined;
+          if (!('resonanceCrystalBonus' in b)) b.resonanceCrystalBonus = false;
         }
       }
     }
