@@ -15,10 +15,11 @@ import type {
   Building,
   GameState,
 } from './types';
-import { BUILDING_DEFINITIONS, POPULATION, XP, CRYSTAL_CHAMBER_CONFIG, ABILITIES } from './gameConfig';
+import { BUILDING_DEFINITIONS, POPULATION, XP, CRYSTAL_CHAMBER_CONFIG, ABILITIES, MAP } from './gameConfig';
 import { generateId } from './mapGenerator';
 import { grantXp } from './levelSystem';
 import { cleanupRoostedUnits } from './buildingRemoval';
+import { isSpecialistEffectActive } from './specialistSystem';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -625,6 +626,21 @@ export function constructBuilding(
 
   // Update construction stats
   state.gameStats.buildingsConstructed += 1;
+
+  // SP-21 Pathfinder: reveal the full zone when STRONGHOLD_ZONE_REVEAL is active
+  if (buildingType === BuildingType.STRONGHOLD && isSpecialistEffectActive(state, 'STRONGHOLD_ZONE_REVEAL')) {
+    const zoneIndex = Math.floor((MAP.GRID_HEIGHT - MAP.LAVA_BUFFER_ROWS - 1 - tilePos.y) / MAP.ZONE_HEIGHT);
+    const zone = zoneIndex + 1;
+    const endRow = MAP.GRID_HEIGHT - MAP.LAVA_BUFFER_ROWS - 1 - (zone - 1) * MAP.ZONE_HEIGHT;
+    const startRow = endRow - MAP.ZONE_HEIGHT + 1;
+    for (let y = startRow; y <= endRow; y++) {
+      for (let x = 0; x < MAP.GRID_WIDTH; x++) {
+        if (state.grid[y]?.[x]) {
+          state.grid[y][x].isRevealed = true;
+        }
+      }
+    }
+  }
 }
 
 /**
