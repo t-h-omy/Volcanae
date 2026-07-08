@@ -877,14 +877,14 @@ export const POPULATION = {
   /** Number of turns between each population increase (same for all housing types) */
   HOUSE_GROWTH_INTERVAL: 3,
   /** DEF penalty applied while a unit has the HOMELESS tag */
-  HOMELESS_DEF_PENALTY: 10,
+  HOMELESS_DEF_PENALTY: 15,
   /** HP lost per player turn end while a unit has the HOMELESS tag */
   HOMELESS_HP_LOSS_PER_TURN: 10,
 } as const;
 
 export const TRAINING = {
   /** ATK penalty applied while a unit has the UNTRAINED tag */
-  UNTRAINED_ATK_PENALTY: 10,
+  UNTRAINED_ATK_PENALTY: 15,
 } as const;
 
 // ============================================================================
@@ -969,11 +969,11 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   ARCHER: {
-    maxHp: 100, attack: 50, defense: 35,
+    maxHp: 90, attack: 50, defense: 35,
     movementActions: 1, moveRange: 1, attackRange: 2,
     discoverRadius: 1, triggerRange: 0,
     tags: [UnitTag.RANGED, UnitTag.BUILDANDCAPTURE],
-    cost: { iron: 4, wood: 10 },
+    cost: { iron: 2, wood: 10 },
     populationCost: { farmers: 1, nobles: 0 },
     levelUp: [
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
@@ -983,11 +983,11 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   CROSSBOWMAN: {
-    maxHp: 100, attack: 70, defense: 35,
+    maxHp: 100, attack: 65, defense: 35,
     movementActions: 1, moveRange: 1, attackRange: 2,
     discoverRadius: 1, triggerRange: 0,
     tags: [UnitTag.RANGED, UnitTag.RELOAD, UnitTag.PUNCTURE, UnitTag.BUILDANDCAPTURE],
-    cost: { iron: 6, wood: 12 },
+    cost: { iron: 4, wood: 12 },
     populationCost: { farmers: 1, nobles: 0 },
     levelUp: [
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
@@ -1309,7 +1309,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   CRYSTAL_DRAKE: {
-    maxHp: 200, attack: 75, defense: 65,
+    maxHp: 200, attack: 65, defense: 55,
     movementActions: 1,
     moveRange: 2, 
     attackRange: 2,
@@ -1508,7 +1508,7 @@ export const ABILITIES = {
   /** Iron cost for a Scout to place a Scout Trap */
   SCOUT_TRAP_IRON_COST: 0,
   /** HP damage dealt to the triggering enemy by a Scout Trap */
-  SCOUT_TRAP_DAMAGE: 30,
+  SCOUT_TRAP_DAMAGE: 60,
   /** Turns the triggering enemy is stunned by a Scout Trap (this turn + next) */
   SCOUT_TRAP_STUN_TURNS: 1,
   /** Tile radius within which a Scout with SCOUT_EXTINGUISH removes BURNING tile status */
@@ -1520,7 +1520,7 @@ export const ABILITIES = {
   /** Number of rows from the lava front that qualify for the Cinderborn ATK bonus */
   CINDERBORN_ROWS: 3,
   /** Flat ATK bonus granted to a unit recruited within CINDERBORN_ROWS of the lava front */
-  CINDERBORN_ATTACK_BONUS: 10,
+  CINDERBORN_ATTACK_BONUS: 15,
   /** ATK bonus per adjacent friendly unit granted by the BATTERY tag */
   SIEGE_BATTERY_ATK_PER_ADJACENT: 7,
   /** Maximum number of adjacent friendly units counted for the BATTERY ATK bonus */
@@ -1534,7 +1534,7 @@ export const ABILITIES = {
   /** HP percentage below which a BERSERK unit activates its attack bonus */
   BERSERK_HP_THRESHOLD_PCT: 50,
   /** Percentage attack bonus granted to a BERSERK unit below the HP threshold */
-  BERSERK_ATTACK_PCT: 100,
+  BERSERK_ATTACK_PCT: 50,
   /** HP restored to an idle (non-moved, non-attacked) player unit per turn by the Field Chirurgeon */
   IDLE_HEAL_AMOUNT: 30,
   /** Fraction of the target's current HP dealt as damage by the Rupture spell */
@@ -1595,8 +1595,8 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     destroyBehavior: DestroyBehavior.RUIN,
     constructionCost: { iron: 6, wood: 16 },
     unitLimit: 2,
-    upkeepIron: 3,
-    upkeepWood: 3,
+    upkeepIron: 2,
+    upkeepWood: 2,
     description: 'Engineering works that trains Siege engines.',
   },
   WATCHTOWER: (() => {
@@ -1870,7 +1870,7 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
   spec_11: {
     name: 'Farsight Marshal',
     description:
-      `Your Scouts gain +${ABILITIES.SCOUT_ATTACK_RANGE_BONUS} attack range and the RANGED tag.`,
+      `Your Scouts gain +${ABILITIES.SCOUT_ATTACK_RANGE_BONUS} attack range and become ranged.`,
     effects: [
       { type: 'SCOUT_RANGE_BONUS', params: { bonus: ABILITIES.SCOUT_ATTACK_RANGE_BONUS } },
       { type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.SCOUT, tag: UnitTag.RANGED } },
