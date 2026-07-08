@@ -67,6 +67,15 @@ export function useMusicPlayer(): void {
   const volume = useSoundOptionsStore((s) => s.volume);
   const muted = useSoundOptionsStore((s) => s.muted);
 
+  // Stop playback when the Game component unmounts (e.g. returning to main menu).
+  useEffect(() => {
+    return () => {
+      audio.pause();
+      audio.src = '';
+      clearPendingResumeHandler();
+    };
+  }, []);
+
   // Sync volume/muted changes to the audio element immediately.
   useEffect(() => {
     audio.volume = muted ? 0 : volume;
