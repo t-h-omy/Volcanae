@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### Fix: Continue / autosave silently discarded in-game progress
+
+- Autosave paths pass a snapshot of the live Zustand store, which mixes the
+  store's action *functions* into the same object as the serializable
+  `GameState`. IndexedDB's structured clone threw a `DataCloneError` on the
+  heavy `saveData` write, while the `saveMeta` write (queued first in the same
+  transaction) still committed. The result: a slot's metadata advanced every
+  turn (so the Continue button showed the latest turn), but the full state
+  record stayed frozen at the last cloneable save (turn 1). Pressing Continue —
+  or Load — then resurfaced that stale turn-1 state, appearing to start a brand
+  new game.
+- Fix: `saveSlotStrict` now strips function-valued properties from the state
+  before writing, so every save path (autosave, manual save, return-to-menu)
+  persists a clean `GameState`. Added `fake-indexeddb`-backed round-trip
+  regression tests in `saveRoundTrip.test.ts`.
+
 ### Specialist system complete — 18 new specialists + migration (v0.95.0)
 
 Completed the full specialist roster (spec_07 – spec_24). All 24 specialists are
