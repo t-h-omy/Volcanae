@@ -400,6 +400,12 @@ export const useGameStore = create<GameStore>()(
         updateDiscovery(draft);
         applySpecialistEffects(draft);
       });
+      // Clear any stale animation state from a previous game before applying
+      // the new game state and transitioning to the Game screen.  Without this,
+      // a processQueue() call that was still running when the user navigated
+      // to the menu (e.g. quit mid-animation) can overwrite the new game's
+      // state when it eventually finishes, causing a black screen.
+      useAnimationStore.getState().clear();
       set((state) => {
         Object.assign(state, initialState);
       });
@@ -418,6 +424,8 @@ export const useGameStore = create<GameStore>()(
     loadIntoGame: async (id: string) => {
       const loaded = await loadSlot(id);
       if (!loaded) return;
+      // Clear stale animation state from any previous game before loading.
+      useAnimationStore.getState().clear();
       set((state) => {
         Object.assign(state, loaded);
         applySpecialistEffects(state);

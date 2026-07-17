@@ -686,6 +686,11 @@ async function playUnitAttackBuildingAnimation(
 export function useAnimationEngine(): void {
   useEffect(() => {
     let processing = false;
+    // Becomes false when the Game component unmounts. Prevents a stale
+    // processQueue() call (still awaiting timers) from overwriting the new
+    // game's state after the user navigates back to the menu and starts a
+    // fresh game.
+    let alive = true;
 
     async function processQueue() {
       // Tracks a specialist hired during this batch so the hire can be
@@ -695,6 +700,7 @@ export function useAnimationEngine(): void {
       let swapResult: { incomingId: string; outgoingId: string } | null = null;
 
       while (true) {
+        if (!alive) break;
         const event = useAnimationStore.getState().shiftEvent();
         if (!event) break;
 
@@ -1777,24 +1783,29 @@ export function useAnimationEngine(): void {
         }
       }
 
-      // Queue exhausted — apply the fully resolved state and hand control back
-      const resolvedState = useAnimationStore.getState().resolvedState;
-      if (resolvedState) {
-        useGameStore.getState().setGameState(resolvedState);
-      }
-      // Finalize any pending Brandmark transforms (deferred demon spawn + unit removal).
-      // Idempotent: no-ops on empty queue. Must run after setGameState so the
-      // resolved pendingBrandmarkTransforms list is in the live store.
-      useGameStore.getState().finalizeBrandmarkTransforms();
-      // If the player hired a specialist during this batch, apply the hire now
-      // (after setGameState so it isn't overwritten by the resolved state).
-      if (hiredSpecialistId) {
-        useGameStore.getState().hireSpecialist(hiredSpecialistId);
-      }
-      // If the player swapped a specialist, apply the swap after setGameState.
-      if (swapResult) {
-        const swap = swapResult as { outgoingId: string; incomingId: string };
-        useGameStore.getState().swapSpecialist(swap.outgoingId, swap.incomingId);
+      // Queue exhausted — apply the fully resolved state and hand control back.
+      // Skip if this engine instance has been torn down (Game unmounted while
+      // animations were still in flight); writing stale resolved state from a
+      // previous game would corrupt the freshly-started game.
+      if (alive) {
+        const resolvedState = useAnimationStore.getState().resolvedState;
+        if (resolvedState) {
+          useGameStore.getState().setGameState(resolvedState);
+        }
+        // Finalize any pending Brandmark transforms (deferred demon spawn + unit removal).
+        // Idempotent: no-ops on empty queue. Must run after setGameState so the
+        // resolved pendingBrandmarkTransforms list is in the live store.
+        useGameStore.getState().finalizeBrandmarkTransforms();
+        // If the player hired a specialist during this batch, apply the hire now
+        // (after setGameState so it isn't overwritten by the resolved state).
+        if (hiredSpecialistId) {
+          useGameStore.getState().hireSpecialist(hiredSpecialistId);
+        }
+        // If the player swapped a specialist, apply the swap after setGameState.
+        if (swapResult) {
+          const swap = swapResult as { outgoingId: string; incomingId: string };
+          useGameStore.getState().swapSpecialist(swap.outgoingId, swap.incomingId);
+        }
       }
       useAnimationStore.getState().setIsAnimating(false);
       processing = false;
@@ -1810,6 +1821,9 @@ export function useAnimationEngine(): void {
       void processQueue();
     });
 
-    return unsubscribe;
+    return () => {
+      alive = false;
+      unsubscribe();
+    };
   }, []);
 }
