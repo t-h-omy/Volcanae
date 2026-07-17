@@ -4,6 +4,12 @@ A top down push forward strategy game built with React + TypeScript + Vite.
 
 Grid orientation: see `src/GRID_ORIENTATION.md`.
 
+## Hint System
+
+Volcanae includes a situational hint system for new players. Hints appear as a dismissable banner overlaying the resource bar on your first encounter with key game mechanics: economy basics, lava advance, combat rules, crystal chambers, and more. Each hint can be expanded to read a detailed explanation.
+
+To toggle hints on or off, use the "Show hints" option in the New Campaign panel before starting a game, or in the in-game Options overlay (gear icon). The Options overlay also provides a "Reset hint counters" button so hints can reappear in new saves even after reaching the global show limit.
+
 ## Features
 
 - ⚡ Vite for lightning-fast development

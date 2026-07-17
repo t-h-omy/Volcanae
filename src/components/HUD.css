@@ -2945,3 +2945,127 @@
   font-size: 12px;
   color: #c0b060;
 }
+
+/* ── Hint Banner ── */
+
+.hud-hint-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 101;
+  background: rgba(0, 0, 0, 0.92);
+  border-bottom: 2px solid #f1c40f;
+  pointer-events: auto;
+  padding: 6px 12px;
+  color: #eee;
+  font-size: 14px;
+}
+
+.hud-hint-banner-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hud-hint-banner-text {
+  flex: 1;
+  font-size: 13px;
+  color: #f5e6b0;
+}
+
+.hud-hint-banner-more {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  background: rgba(241, 196, 15, 0.15);
+  border: 1px solid rgba(241, 196, 15, 0.45);
+  border-radius: 4px;
+  color: #f1c40f;
+  font-size: 12px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.hud-hint-banner-more:hover {
+  background: rgba(241, 196, 15, 0.3);
+}
+
+.hud-hint-banner-dismiss {
+  flex-shrink: 0;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 2px 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 4px;
+  color: #aaa;
+  font-size: 13px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.hud-hint-banner-dismiss:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #eee;
+}
+
+.hud-hint-banner-detail {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #ccc;
+  line-height: 1.5;
+  padding-bottom: 4px;
+}
+
+/* ── Options overlay hints row ── */
+
+.hud-options-hints-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+}
+
+.hud-options-hints-label {
+  font-size: 13px;
+  color: #ccc;
+  flex: 1;
+}
+
+.hud-options-hints-toggle {
+  min-width: 48px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+  color: #aaa;
+  font-size: 12px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.hud-options-hints-toggle--on {
+  border-color: rgba(241, 196, 15, 0.5);
+  background: rgba(241, 196, 15, 0.12);
+  color: #f1c40f;
+}
+
+.hud-options-hints-toggle:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.hud-options-hints-reset {
+  min-width: 56px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.06);
+  color: #ccc;
+  font-size: 12px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.hud-options-hints-reset:hover {
+  background: rgba(255, 255, 255, 0.14);
+}

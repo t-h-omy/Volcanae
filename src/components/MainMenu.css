@@ -1110,3 +1110,41 @@
   cursor: not-allowed;
   opacity: 0.65;
 }
+
+/* ── Hints toggle row (New Campaign panel) ── */
+
+.mm-hints-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0 4px;
+}
+
+.mm-hints-label {
+  flex: 1;
+  font-size: 13px;
+  color: var(--mm-text-secondary);
+}
+
+.mm-hints-toggle {
+  min-width: 48px;
+  padding: 4px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--mm-border-neutral-sm);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--mm-text-faint);
+  font-size: 13px;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.mm-hints-toggle--on {
+  border-color: rgba(241, 196, 15, 0.55);
+  background: rgba(241, 196, 15, 0.1);
+  color: #f1c40f;
+}
+
+.mm-hints-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+}

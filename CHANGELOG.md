@@ -1,5 +1,11 @@
 # Changelog
 
+### v0.96.0 - Situational Hint System
+
+Volcanae now includes a first-time-encounter hint system to help new players learn the game. Twenty contextual hints (H01 to H20) fire automatically on their first relevant encounter: building placement guidance, economy warnings (homeless/untrained units), lava advance, ember level ups, combat rules, tech tree prompts, crystal chamber resonance, and Emberbind leash mechanics. Each hint appears as a dismissable banner overlaying the resource top bar, with a "More" toggle to expand a detailed explanation.
+
+Hints are shown at most once per savegame and at most twice globally across all savegames. A global "Show hints" toggle is available in both the New Campaign panel (before starting a game) and the in-game Options overlay. The Options overlay also provides a "Reset hint counters" action that restores global availability without affecting per-save seen history. Save data is upgraded to version 16; saves from version 15 and earlier are automatically marked as having seen all hints and will never show any hint.
+
 ## Unreleased
 
 ### Fix: Continue / autosave silently discarded in-game progress

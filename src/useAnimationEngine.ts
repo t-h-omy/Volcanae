@@ -18,6 +18,7 @@ import { RENDER } from './renderConfig';
 import { BuildingType, Faction, UnitTag, UnitType } from './types';
 import type { GameEvent } from './gameEvents';
 import type { Position } from './types';
+import { tryTriggerHint } from './hintSystem';
 
 // ============================================================================
 // HELPERS
@@ -747,6 +748,7 @@ export function useAnimationEngine(): void {
           // Focus on the destroyed Crystal Chamber when present; otherwise centre on the new lava row.
           const focusPos = event.destroyedChamberPosition
             ?? { x: Math.floor(MAP.GRID_WIDTH / 2), y: event.newLavaRow };
+          tryTriggerHint('H06_LAVA_ADVANCE');
           useAnimationStore.getState().setCameraTarget(focusPos);
           await wait(ANIMATION.CAMERA_MOVE_DURATION_MS + ANIMATION.PRE_ACTION_IDLE_MS);
 

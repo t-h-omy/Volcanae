@@ -184,6 +184,7 @@ function makeState(units: Unit[]): GameState {
     activeWaveTheme: { entries: [], isReadPlayer: false },
     readPlayerThemeCount: 0,
     lastThemeSignature: null,
+    seenHints: [],
   };
 }
 

@@ -14,6 +14,7 @@ import 'fake-indexeddb/auto';
 import { IDBFactory } from 'fake-indexeddb';
 import { generateInitialGameState } from '../mapGenerator';
 import { saveSlot, saveSlotStrict, loadSlot, listSlots } from '../saveSystem';
+import { ALL_HINT_IDS } from '../hintConfig';
 import type { GameState } from '../types';
 
 beforeEach(() => {
@@ -55,5 +56,52 @@ describe('saveSlot round-trip', () => {
 
     const loaded = await loadSlot('slot_b');
     expect(loaded?.turn).toBe(7);
+  });
+
+  it('round-trips seenHints intact for a fresh state', async () => {
+    const base = generateInitialGameState();
+    const state: GameState = { ...base, seenHints: ['H01_BUILD_WOODCUTTER', 'H05_ATTACK_ENDS_TURN'] };
+    await saveSlot({ id: 'slot_c', name: 'Test', state });
+    const loaded = await loadSlot('slot_c');
+    expect(loaded).not.toBeNull();
+    expect(loaded?.seenHints).toEqual(['H01_BUILD_WOODCUTTER', 'H05_ATTACK_ENDS_TURN']);
+  });
+
+  it('migrates a v15 save to have all hints marked seen', async () => {
+    // Simulate a version-15 save by writing raw state via IDB and then loading
+    // through loadSlot (which runs migrateState).
+    const base = generateInitialGameState();
+    // Remove seenHints to simulate a pre-v16 save that doesn't have the field.
+    const stateWithoutHints = { ...base } as unknown as Record<string, unknown>;
+    delete stateWithoutHints.seenHints;
+
+    // Write the raw IDB record with version 15.
+    const idb = globalThis.indexedDB;
+    const dbReq = idb.open('volcanae', 1);
+    await new Promise<void>((resolve, reject) => {
+      dbReq.onupgradeneeded = () => {
+        const db = dbReq.result;
+        if (!db.objectStoreNames.contains('saveMeta')) db.createObjectStore('saveMeta', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('saveData')) db.createObjectStore('saveData', { keyPath: 'id' });
+      };
+      dbReq.onsuccess = () => resolve();
+      dbReq.onerror = () => reject(dbReq.error);
+    });
+    const db = dbReq.result;
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(['saveMeta', 'saveData'], 'readwrite');
+      tx.objectStore('saveMeta').put({ id: 'slot_v15', version: 15, turn: 1, savedAt: Date.now(), name: 'OldGame', difficulty: 'STANDARD' });
+      tx.objectStore('saveData').put({ id: 'slot_v15', version: 15, state: stateWithoutHints });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+
+    const loaded = await loadSlot('slot_v15');
+    expect(loaded).not.toBeNull();
+    expect(Array.isArray(loaded?.seenHints)).toBe(true);
+    // All hint IDs must be present so hints never fire on migrated saves.
+    for (const id of ALL_HINT_IDS) {
+      expect(loaded?.seenHints).toContain(id);
+    }
   });
 });
