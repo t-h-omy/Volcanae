@@ -4429,6 +4429,12 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
   // H01/H02/H03: starter chain, evaluated each player turn.
   useEffect(() => {
     if (phase !== GamePhase.PLAYER_TURN) return;
+    const seenHints = useGameStore.getState().seenHints;
+    if (
+      seenHints.includes('H01_BUILD_WOODCUTTER') &&
+      seenHints.includes('H02_BUILD_MINE') &&
+      seenHints.includes('H03_BUILD_ON_RUIN')
+    ) return;
     if (!playerBuildingTypes.has(BuildingType.WOODCUTTER)) {
       tryTriggerHint('H01_BUILD_WOODCUTTER');
     } else if (!playerBuildingTypes.has(BuildingType.MINE)) {
