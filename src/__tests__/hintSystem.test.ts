@@ -39,26 +39,34 @@ describe('tryTriggerHint', () => {
     resetStores();
   });
 
-  it('enqueues once, marks seenHints, increments globalShowCounts', () => {
+  it('returns false for the disabled first hint', () => {
     const result = tryTriggerHint('H01_BUILD_WOODCUTTER');
+    expect(result).toBe(false);
+    expect(useHintStore.getState().activeHintId).toBeNull();
+    expect(mockState.seenHints).not.toContain('H01_BUILD_WOODCUTTER');
+    expect(useHintOptionsStore.getState().globalShowCounts['H01_BUILD_WOODCUTTER']).toBeUndefined();
+  });
+
+  it('enqueues once, marks seenHints, increments globalShowCounts', () => {
+    const result = tryTriggerHint('H02_BUILD_MINE');
     expect(result).toBe(true);
 
     const { activeHintId } = useHintStore.getState();
-    expect(activeHintId).toBe('H01_BUILD_WOODCUTTER');
+    expect(activeHintId).toBe('H02_BUILD_MINE');
 
-    expect(mockState.seenHints).toContain('H01_BUILD_WOODCUTTER');
+    expect(mockState.seenHints).toContain('H02_BUILD_MINE');
 
     const { globalShowCounts } = useHintOptionsStore.getState();
-    expect(globalShowCounts['H01_BUILD_WOODCUTTER']).toBe(1);
+    expect(globalShowCounts['H02_BUILD_MINE']).toBe(1);
   });
 
   it('returns false on second call (seenHints gate), no duplicate queue entry', () => {
-    tryTriggerHint('H01_BUILD_WOODCUTTER');
+    tryTriggerHint('H02_BUILD_MINE');
 
     // Reset queue to simulate a fresh banner state but keep seenHints.
     useHintStore.setState({ queue: [], activeHintId: null, expanded: false });
 
-    const result = tryTriggerHint('H01_BUILD_WOODCUTTER');
+    const result = tryTriggerHint('H02_BUILD_MINE');
     expect(result).toBe(false);
     expect(useHintStore.getState().activeHintId).toBeNull();
   });

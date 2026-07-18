@@ -11,16 +11,21 @@ import { useHintOptionsStore } from './hintOptionsStore';
 import { useHintStore } from './hintStore';
 import { useGameStore } from './gameStore';
 
+const DISABLED_HINT_IDS: ReadonlySet<HintId> = new Set(['H01_BUILD_WOODCUTTER']);
+
 /**
  * Returns true and enqueues the hint if all gates pass; false otherwise.
  *
  * Gate order:
- *  1. hintsEnabled must be true.
- *  2. seenHints (per-save) must not include hintId.
- *  3. globalShowCounts[hintId] must be < HINTS.GLOBAL_MAX_SHOWS.
- *  4. On pass: markHintSeen, incrementShowCount, enqueue.
+ *  1. hintId must not be disabled.
+ *  2. hintsEnabled must be true.
+ *  3. seenHints (per-save) must not include hintId.
+ *  4. globalShowCounts[hintId] must be < HINTS.GLOBAL_MAX_SHOWS.
+ *  5. On pass: markHintSeen, incrementShowCount, enqueue.
  */
 export function tryTriggerHint(hintId: HintId): boolean {
+  if (DISABLED_HINT_IDS.has(hintId)) return false;
+
   const { hintsEnabled, globalShowCounts, incrementShowCount } = useHintOptionsStore.getState();
   if (!hintsEnabled) return false;
 
