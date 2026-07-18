@@ -2407,6 +2407,11 @@ export const useGameStore = create<GameStore>()(
     },
 
     applyEvent: (event: GameEvent) => {
+      const { processingRevision, queueRevision } = useAnimationStore.getState();
+      // Ignore stale in-flight animation events from a superseded queue batch.
+      if (processingRevision !== null && processingRevision !== queueRevision) {
+        return;
+      }
       let emberLevelUpFired = false;
       set((state) => {
         switch (event.type) {

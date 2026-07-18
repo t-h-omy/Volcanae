@@ -1808,6 +1808,7 @@ export function useAnimationEngine(): void {
         }
       }
       useAnimationStore.getState().setIsAnimating(false);
+      useAnimationStore.getState().finishProcessing();
       processing = false;
     }
 
@@ -1817,6 +1818,7 @@ export function useAnimationEngine(): void {
       if (processing || isAnimating || eventQueue.length === 0) return;
 
       processing = true;
+      useAnimationStore.getState().beginProcessingCurrentQueue();
       useAnimationStore.getState().setIsAnimating(true);
       void processQueue();
     });
