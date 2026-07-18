@@ -386,14 +386,6 @@ export const useGameStore = create<GameStore>()(
       });
       syncCameraToPlayerStronghold(initialState);
       useHintStore.getState().reset();
-      // The HUD's useEffect that fires H01/H02/H03 depends on [turn, phase,
-      // playerBuildingTypes]. When the HUD stays mounted (no screen transition)
-      // and the new game starts at the same turn/phase/buildings as the old one
-      // (e.g. restarting from turn 1 with no buildings), those deps are unchanged
-      // and the effect never re-runs, so H01 would silently never fire.
-      // Triggering it here guarantees the hint always shows on a fresh game
-      // started via the in-game menu, regardless of previous state.
-      tryTriggerHint('H01_BUILD_WOODCUTTER');
     },
 
     newGameInSlot: async (name: string, difficulty: Difficulty) => {

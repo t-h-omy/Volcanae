@@ -13,12 +13,14 @@ import { HINTS } from '../hintConfig';
 // even though vi.mock is hoisted to the top of the file.
 const mockState = vi.hoisted(() => ({
   seenHints: [] as string[],
+  turn: 2,
 }));
 
 vi.mock('../gameStore', () => ({
   useGameStore: {
     getState: () => ({
       seenHints: mockState.seenHints,
+      turn: mockState.turn,
       markHintSeen: (id: string) => {
         if (!mockState.seenHints.includes(id)) mockState.seenHints.push(id);
       },
@@ -32,6 +34,7 @@ function resetStores(hintsEnabled = true) {
   useHintStore.setState({ queue: [], activeHintId: null, expanded: false });
   useHintOptionsStore.setState({ hintsEnabled, globalShowCounts: {} });
   mockState.seenHints = [];
+  mockState.turn = 2;
 }
 
 describe('tryTriggerHint', () => {
@@ -80,6 +83,15 @@ describe('tryTriggerHint', () => {
     expect(result).toBe(false);
     expect(useHintStore.getState().activeHintId).toBeNull();
     expect(mockState.seenHints).not.toContain('H03_BUILD_ON_RUIN');
+  });
+
+  it('returns false during turn 1 without enqueueing or recording the hint', () => {
+    mockState.turn = 1;
+    const result = tryTriggerHint('H01_BUILD_WOODCUTTER');
+    expect(result).toBe(false);
+    expect(useHintStore.getState().activeHintId).toBeNull();
+    expect(mockState.seenHints).not.toContain('H01_BUILD_WOODCUTTER');
+    expect(useHintOptionsStore.getState().globalShowCounts['H01_BUILD_WOODCUTTER']).toBeUndefined();
   });
 
   it('resetShowCounts clears counters so a fresh save can trigger again', () => {

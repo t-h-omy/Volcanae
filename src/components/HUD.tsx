@@ -3237,6 +3237,7 @@ function BottomBar() {
   const isAnimating = useAnimationStore((s) => s.isAnimating);
   const cavePopupActive = useCaveScreamsStore((s) => s.tilePos !== null);
   const openCavePopup = useCaveScreamsStore((s) => s.open);
+  const activeHintId = useHintStore((s) => s.activeHintId);
 
   const selectedUnit: Unit | undefined = selectedUnitId
     ? units[selectedUnitId]
@@ -3280,6 +3281,7 @@ function BottomBar() {
   });
 
   const isPlayerTurn = phase === GamePhase.PLAYER_TURN;
+  const isHintBlocking = activeHintId !== null;
 
   // Auto-open cave screams popup at start of player's turn if a previously
   // selected unit is still standing on an unresolved cave mountain tile.
@@ -3312,14 +3314,14 @@ function BottomBar() {
         />
       )}
       {/* Construction panel for BUILDANDCAPTURE units on constructable tiles */}
-      {selectedUnit && showConstruction && !cavePopupActive && (
+      {selectedUnit && showConstruction && !cavePopupActive && !isHintBlocking && (
         <ConstructionPanel
           unit={selectedUnit}
           tilePos={selectedUnit.position}
         />
       )}
       {/* Conversion panel for BUILDANDCAPTURE units on own Ruin buildings */}
-      {selectedUnit && showConversion && !cavePopupActive && (
+      {selectedUnit && showConversion && !cavePopupActive && !isHintBlocking && (
         <ConversionPanel unit={selectedUnit} />
       )}
       {selectedBuilding && !selectedUnit && !cavePopupActive && (
@@ -3330,13 +3332,15 @@ function BottomBar() {
       )}
 
       {/* End Turn / Enemy Turn feedback */}
-      {isPlayerTurn && !isAnimating && (
+      {isPlayerTurn && !isAnimating && !isHintBlocking && (
         <button className="hud-end-turn-btn" onClick={endPlayerTurn}>
           End Turn ⏭️
         </button>
       )}
-      {(!isPlayerTurn || isAnimating) && (
-        <span className="hud-end-turn-btn hud-end-turn-btn--enemy-turn">⚔️ Enemy Turn…</span>
+      {(!isPlayerTurn || isAnimating || isHintBlocking) && (
+        <span className={`hud-end-turn-btn hud-end-turn-btn--enemy-turn${isHintBlocking ? ' hud-end-turn-btn--hint-blocked' : ''}`}>
+          {isHintBlocking ? '💡 Dismiss Hint' : '⚔️ Enemy Turn…'}
+        </span>
       )}
     </div>
   );

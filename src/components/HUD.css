@@ -2961,7 +2961,7 @@
 .hud-hint-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: 550;
   background: rgba(0, 0, 0, 0.65);
   pointer-events: auto;
 }
@@ -2971,7 +2971,7 @@
   top: 0;
   left: 0;
   right: 0;
-  z-index: 101;
+  z-index: 551;
   background: rgba(0, 0, 0, 0.92);
   border-bottom: 2px solid #f1c40f;
   pointer-events: auto;
@@ -3033,6 +3033,12 @@
   color: #ccc;
   line-height: 1.5;
   padding-bottom: 4px;
+}
+
+.hud-end-turn-btn--hint-blocked {
+  background: rgba(241, 196, 15, 0.18);
+  color: #f1c40f;
+  animation: none;
 }
 
 /* ── Options overlay hints row ── */

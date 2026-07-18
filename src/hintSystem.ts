@@ -16,15 +16,17 @@ import { useGameStore } from './gameStore';
  *
  * Gate order:
  *  1. hintsEnabled must be true.
- *  2. seenHints (per-save) must not include hintId.
- *  3. globalShowCounts[hintId] must be < HINTS.GLOBAL_MAX_SHOWS.
- *  4. On pass: markHintSeen, incrementShowCount, enqueue.
+ *  2. Hints never fire during turn 1.
+ *  3. seenHints (per-save) must not include hintId.
+ *  4. globalShowCounts[hintId] must be < HINTS.GLOBAL_MAX_SHOWS.
+ *  5. On pass: markHintSeen, incrementShowCount, enqueue.
  */
 export function tryTriggerHint(hintId: HintId): boolean {
   const { hintsEnabled, globalShowCounts, incrementShowCount } = useHintOptionsStore.getState();
   if (!hintsEnabled) return false;
 
-  const { seenHints, markHintSeen } = useGameStore.getState();
+  const { seenHints, markHintSeen, turn } = useGameStore.getState();
+  if (typeof turn === 'number' && turn < 2) return false;
 
   if (Array.isArray(seenHints) && seenHints.includes(hintId)) return false;
 
