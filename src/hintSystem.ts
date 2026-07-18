@@ -11,6 +11,7 @@ import { useHintOptionsStore } from './hintOptionsStore';
 import { useHintStore } from './hintStore';
 import { useGameStore } from './gameStore';
 
+// Temporarily suppress the first starter hint while investigating the reported bug.
 const DISABLED_HINT_IDS: ReadonlySet<HintId> = new Set(['H01_BUILD_WOODCUTTER']);
 
 /**
