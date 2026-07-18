@@ -235,35 +235,9 @@ describe('H11_UNTRAINED hint gate', () => {
     expect(finalUnits['sp1']?.tags).toContain(UnitTag.UNTRAINED);
   });
 
-  it('DOES fire when a Spearman was previously trained (Barracks present) and is now over capacity', () => {
-    // Barracks with unitLimit 3 — two Spearmen, one Barracks is fine.
-    // We simulate the "Barracks present last turn, Spearman trained" situation
-    // by giving the Spearman the UNTRAINED tag is NOT set and having a Barracks
-    // removed from buildings so Phase 6 sees them as newly untrained.
-    //
-    // The trick: state has a Barracks (so prevUntrainedIds is empty for sp1),
-    // but we manually remove the Barracks from the buildings record in a way
-    // that the ENEMY TURN doesn't know about.  Instead we simulate this by
-    // giving 4 Spearmen and only 1 Barracks (limit 3) — so sp4 is genuinely
-    // newly untrained because it didn't exist in the snapshot's capacity calc.
-    //
-    // Simpler approach: 1 Barracks (limit 3), 4 Spearmen but only 3 existed in
-    // the game's "snapshot" sense.  To fake this we start with 1 Barracks and
-    // 3 spearmen (all trained), then load the state fresh and add a 4th
-    // Spearman that was recruited during the player turn (not in snapshot yet).
-    //
-    // Easiest test: 1 Barracks (unitLimit=3), 4 Spearmen present at turn start.
-    // prevUntrainedIds will include sp4 (already over-cap at snapshot), so the
-    // hint won't fire — this is correct (the recruit hint H09 already warned them).
-    //
-    // True "newly untrained" scenario: Barracks exists in snapshot, enemy
-    // destroys it during enemy turn.  We test this by constructing two
-    // consecutive states: snapshot with Barracks, computedState without it.
-    // This is hard to trigger via endPlayerTurn without enemy action, so we
-    // directly exercise computeUntrainedUnitIds behavior instead.
-    //
-    // What we CAN test: unit has no UNTRAINED tag, there IS a Barracks at
-    // snapshot time, Barracks is still there → no untrained → no hint.
+  it('does NOT fire when a unit is within training capacity (Barracks present, one Spearman)', () => {
+    // Control case: Barracks with capacity 3, one Spearman — no over-capacity,
+    // so neither the tag nor the hint should appear.
     const stronghold = makeBuilding('stronghold', BuildingType.STRONGHOLD, Faction.PLAYER, { x: 5, y: 65 });
     const barracks = makeBuilding('barracks', BuildingType.BARRACKS, Faction.PLAYER, { x: 6, y: 65 });
     const spearman = makeUnit('sp1', UnitType.SPEARMAN, { x: 5, y: 66 });
@@ -275,7 +249,7 @@ describe('H11_UNTRAINED hint gate', () => {
     useGameStore.setState(state);
     useGameStore.getState().endPlayerTurn();
 
-    // Neither trained→untrained transition happened, so H11 must NOT fire.
+    // No over-capacity → H11 must NOT fire.
     const { activeHintId, queue } = useHintStore.getState();
     const hintFired =
       activeHintId === 'H11_UNTRAINED' || queue.includes('H11_UNTRAINED');
