@@ -2014,6 +2014,13 @@ export const useGameStore = create<GameStore>()(
           });
         }
 
+        // Capture which units were already over training capacity at the START of
+        // this player turn.  Only units that are NEW to the untrained set (not in
+        // this snapshot) should trigger the H11_UNTRAINED hint, so we don't fire
+        // it for units that have been over-capacity since game start (e.g. the
+        // starting Spearman when no Barracks exists yet).
+        const prevUntrainedIds = computeUntrainedUnitIds(snapshot);
+
         // Phase 2: Compute enemy turn on snapshot
         const { finalState: afterEnemy, events: enemyEvents } = runEnemyTurn(snapshot);
 
@@ -2172,7 +2179,7 @@ export const useGameStore = create<GameStore>()(
                 if (shouldBeUntrained) {
                   unit.tags.push(UnitTag.UNTRAINED);
                   applyTagStatEffects(unit, UnitTag.UNTRAINED);
-                  if (untrainedHintPos === null) {
+                  if (untrainedHintPos === null && !prevUntrainedIds.has(unit.id)) {
                     untrainedHintPos = { x: unit.position.x, y: unit.position.y };
                   }
                 } else {
