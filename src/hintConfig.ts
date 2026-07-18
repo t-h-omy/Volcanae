@@ -17,6 +17,8 @@ import {
 export const HINTS = {
   /** Maximum number of times any single hint may be shown globally across all savegames */
   GLOBAL_MAX_SHOWS: 2,
+  /** Hints begin firing on the second player turn and later. */
+  START_TURN: 2,
 } as const;
 
 // ============================================================================

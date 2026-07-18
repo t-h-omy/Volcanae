@@ -26,7 +26,7 @@ export function tryTriggerHint(hintId: HintId): boolean {
   if (!hintsEnabled) return false;
 
   const { seenHints, markHintSeen, turn } = useGameStore.getState();
-  if (typeof turn === 'number' && turn < 2) return false;
+  if (typeof turn === 'number' && turn < HINTS.START_TURN) return false;
 
   if (Array.isArray(seenHints) && seenHints.includes(hintId)) return false;
 

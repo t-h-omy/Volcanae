@@ -94,6 +94,13 @@ describe('tryTriggerHint', () => {
     expect(useHintOptionsStore.getState().globalShowCounts['H01_BUILD_WOODCUTTER']).toBeUndefined();
   });
 
+  it('starts allowing hints again on turn 2', () => {
+    mockState.turn = HINTS.START_TURN;
+    const result = tryTriggerHint('H01_BUILD_WOODCUTTER');
+    expect(result).toBe(true);
+    expect(useHintStore.getState().activeHintId).toBe('H01_BUILD_WOODCUTTER');
+  });
+
   it('resetShowCounts clears counters so a fresh save can trigger again', () => {
     useHintOptionsStore.setState({
       hintsEnabled: true,
