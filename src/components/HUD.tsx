@@ -832,29 +832,32 @@ function HintBanner() {
   const def = HINT_DEFINITIONS[activeHintId];
 
   return (
-    <div className="hud-hint-banner">
-      <div className="hud-hint-banner-row">
-        <span className="hud-hint-banner-text">{def.short}</span>
-        <button
-          className="hud-hint-banner-more"
-          onClick={toggleExpanded}
-          aria-expanded={expanded}
-          aria-label={expanded ? 'Collapse hint' : 'Expand hint'}
-        >
-          {expanded ? 'Less' : 'More'}
-        </button>
-        <button
-          className="hud-hint-banner-dismiss"
-          onClick={dismissActive}
-          aria-label="Dismiss hint"
-        >
-          ✕
-        </button>
+    <>
+      <div className="hud-hint-backdrop" aria-hidden="true" />
+      <div className="hud-hint-banner">
+        <div className="hud-hint-banner-row">
+          <span className="hud-hint-banner-text">{def.short}</span>
+          <button
+            className="hud-hint-banner-more"
+            onClick={toggleExpanded}
+            aria-expanded={expanded}
+            aria-label={expanded ? 'Collapse hint' : 'Expand hint'}
+          >
+            {expanded ? 'Less' : 'More'}
+          </button>
+          <button
+            className="hud-hint-banner-dismiss"
+            onClick={dismissActive}
+            aria-label="Dismiss hint"
+          >
+            ✕
+          </button>
+        </div>
+        {expanded && (
+          <div className="hud-hint-banner-detail">{def.detail}</div>
+        )}
       </div>
-      {expanded && (
-        <div className="hud-hint-banner-detail">{def.detail}</div>
-      )}
-    </div>
+    </>
   );
 }
 
@@ -2513,21 +2516,14 @@ function ConstructionPanel({
     [tilePos, grid],
   );
 
-  // H04/H20: fire when the construction panel is open and options are computed.
+  // H04: fire when the construction panel is open on a regular ruin tile.
   useEffect(() => {
     if (options.length === 0) return;
     const tile = useGameStore.getState().grid[tilePos.y]?.[tilePos.x];
     if (tile?.isRuin && !tile.isStrongholdRuin) {
       tryTriggerHint('H04_RUIN_MENU_FIRST');
     }
-    const hasUnaffordable = options.some(
-      (opt) => resources.iron < opt.cost.iron || resources.wood < opt.cost.wood,
-    );
-    if (hasUnaffordable) {
-      tryTriggerHint('H20_BUILD_NO_RESOURCES');
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tilePos, options.length, resources.iron, resources.wood]);
+  }, [tilePos, options.length]);
 
   if (options.length === 0) return null;
 
@@ -2548,12 +2544,19 @@ function ConstructionPanel({
           {options.map((opt) => {
             const canAffordThis =
               resources.iron >= opt.cost.iron && resources.wood >= opt.cost.wood;
+            const handleSelectConstruction = () => {
+              if (!canAffordThis) {
+                tryTriggerHint('H20_BUILD_NO_RESOURCES');
+                return;
+              }
+              setConfirmBuilding(opt);
+            };
             return (
               <button
                 key={opt.buildingType}
-                className="info-row-btn"
-                disabled={!canAffordThis}
-                onClick={() => setConfirmBuilding(opt)}
+                className={`info-row-btn${canAffordThis ? '' : ' info-row-btn--disabled'}`}
+                aria-disabled={!canAffordThis}
+                onClick={handleSelectConstruction}
               >
                 <span className="info-row-emoji">{opt.emoji}</span>
                 <div className="info-row-body">
@@ -2833,30 +2836,6 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
     (building.type === BuildingType.CRYSTAL_CHAMBER || building.type === BuildingType.CRYSTAL_CAVE) &&
     building.resonanceTurnsRemaining <= 0;
 
-  // H07/H08/H09: fire hints about recruit blockers when the building panel is open.
-  useEffect(() => {
-    if (!isPlayerOwned || recruitableTypes.length === 0) return;
-    for (const unitType of recruitableTypes) {
-      const isCrystalCost = unitType === UnitType.CRYSTAL_DRAKE;
-      const cost = isCrystalCost ? undefined : getEffectiveRecruitCost(gameState, unitType);
-      const crystalCost = isCrystalCost ? (UNIT_DEFINITIONS[unitType]?.cost?.crystals ?? 0) : 0;
-      const canAffordUnit = isCrystalCost
-        ? arcaneCrystals >= crystalCost
-        : cost ? resources.iron >= cost.iron && resources.wood >= cost.wood : false;
-      if (!canAffordUnit) {
-        tryTriggerHint('H07_RECRUIT_NO_RESOURCES');
-      }
-      const hasPopulation = canAffordPopulation(useGameStore.getState(), unitType);
-      if (canAffordUnit && !hasPopulation) {
-        tryTriggerHint('H08_RECRUIT_NO_POPULATION');
-      }
-    }
-    if (atUnitLimit) {
-      tryTriggerHint('H09_RECRUIT_NO_CAPACITY');
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [building.id, isPlayerOwned, recruitableTypes.length, resources.iron, resources.wood, arcaneCrystals, atUnitLimit]);
-
   // H16/H17: dormant chamber/cave.
   useEffect(() => {
     if (!isPlayerOwned) return;
@@ -3131,6 +3110,22 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
                 const popCost = UNIT_DEFINITIONS[unitType]?.populationCost as UnitPopulationCost | undefined;
                 const hasPopulation = canAffordPopulation(useGameStore.getState(), unitType);
                 const canRecruitThisUnit = !isDisabled && hasSpawnSpace && canAffordUnit && hasPopulation && !atUnitLimit && !alreadyRecruitedThisTurn;
+                const handleRecruitSelection = () => {
+                  if (!canAffordUnit) {
+                    tryTriggerHint('H07_RECRUIT_NO_RESOURCES');
+                    return;
+                  }
+                  if (!hasPopulation) {
+                    tryTriggerHint('H08_RECRUIT_NO_POPULATION');
+                    return;
+                  }
+                  if (atUnitLimit) {
+                    tryTriggerHint('H09_RECRUIT_NO_CAPACITY');
+                    return;
+                  }
+                  if (!canRecruitThisUnit) return;
+                  setConfirmRecruitUnit(unitType);
+                };
                 // Compute which population resource is actually insufficient for the error message
                 let popWarningMsg: string | null = null;
                 if (!hasPopulation && canAffordUnit && popCost) {
@@ -3149,9 +3144,9 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
                 return (
                   <div key={unitType} className="hud-recruit-option-wrapper">
                     <button
-                      className="info-row-btn"
-                      disabled={!canRecruitThisUnit}
-                      onClick={() => setConfirmRecruitUnit(unitType)}
+                      className={`info-row-btn${canRecruitThisUnit ? '' : ' info-row-btn--disabled'}`}
+                      aria-disabled={!canRecruitThisUnit}
+                      onClick={handleRecruitSelection}
                     >
                       <span className="info-row-emoji">{UNIT_EMOJI[unitType] ?? ''}</span>
                       <div className="info-row-body">

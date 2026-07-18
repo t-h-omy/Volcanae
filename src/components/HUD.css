@@ -1971,6 +1971,16 @@
   background: rgba(255, 255, 255, 0.04);
 }
 
+.info-row-btn--disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.info-row-btn--disabled:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
 .info-row-emoji {
   font-size: 18px;
 }
@@ -2947,6 +2957,14 @@
 }
 
 /* ── Hint Banner ── */
+
+.hud-hint-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.65);
+  pointer-events: auto;
+}
 
 .hud-hint-banner {
   position: fixed;
