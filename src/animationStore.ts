@@ -97,7 +97,11 @@ export const useAnimationStore = create<AnimationStore>((set, get) => ({
   },
 
   finishProcessing: () => {
-    set({ processingRevision: null });
+    set((state) => (
+      state.processingRevision === state.queueRevision
+        ? { processingRevision: null }
+        : {}
+    ));
   },
 
   clear: () => {

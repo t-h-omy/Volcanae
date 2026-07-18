@@ -60,4 +60,18 @@ describe('animation queue revision guard', () => {
     expect(useGameStore.getState().units[event.unit.id]).toBeDefined();
     expect(useGameStore.getState().grid[event.position.y][event.position.x].unitId).toBe(event.unit.id);
   });
+
+  it('keeps stale processing revision after clear so late stale events stay ignored', () => {
+    const event = firstEnemySpawnEvent();
+    useAnimationStore.setState({ queueRevision: 10, processingRevision: 10 });
+
+    useAnimationStore.getState().clear();
+    useAnimationStore.getState().finishProcessing();
+    useGameStore.getState().applyEvent(event);
+
+    const { queueRevision, processingRevision } = useAnimationStore.getState();
+    expect(queueRevision).toBe(11);
+    expect(processingRevision).toBe(10);
+    expect(useGameStore.getState().units[event.unit.id]).toBeUndefined();
+  });
 });
