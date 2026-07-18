@@ -4418,13 +4418,18 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
   });
 
   // Narrow building types for starter-chain hint evaluation (H01/H02/H03).
-  const playerBuildingTypes = useGameStore((s) => {
+  // Use stable Immer reference as memo dependency so the selector passed to
+  // useSyncExternalStore (Zustand v5) always returns the same reference between
+  // consecutive snapshot calls, preventing the "getSnapshot should be cached"
+  // invariant violation that causes an infinite render loop and crashes the app.
+  const hudBuildings = useGameStore((s) => s.buildings);
+  const playerBuildingTypes = useMemo(() => {
     const types = new Set<string>();
-    for (const b of Object.values(s.buildings)) {
+    for (const b of Object.values(hudBuildings)) {
       if (b.faction === Faction.PLAYER) types.add(b.type);
     }
     return types;
-  });
+  }, [hudBuildings]);
 
   // H01/H02/H03: starter chain, evaluated each player turn.
   useEffect(() => {

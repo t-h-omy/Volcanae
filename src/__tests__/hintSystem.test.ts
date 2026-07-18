@@ -39,34 +39,26 @@ describe('tryTriggerHint', () => {
     resetStores();
   });
 
-  it('returns false for the disabled first hint', () => {
-    const result = tryTriggerHint('H01_BUILD_WOODCUTTER');
-    expect(result).toBe(false);
-    expect(useHintStore.getState().activeHintId).toBeNull();
-    expect(mockState.seenHints).not.toContain('H01_BUILD_WOODCUTTER');
-    expect(useHintOptionsStore.getState().globalShowCounts['H01_BUILD_WOODCUTTER']).toBeUndefined();
-  });
-
   it('enqueues once, marks seenHints, increments globalShowCounts', () => {
-    const result = tryTriggerHint('H02_BUILD_MINE');
+    const result = tryTriggerHint('H01_BUILD_WOODCUTTER');
     expect(result).toBe(true);
 
     const { activeHintId } = useHintStore.getState();
-    expect(activeHintId).toBe('H02_BUILD_MINE');
+    expect(activeHintId).toBe('H01_BUILD_WOODCUTTER');
 
-    expect(mockState.seenHints).toContain('H02_BUILD_MINE');
+    expect(mockState.seenHints).toContain('H01_BUILD_WOODCUTTER');
 
     const { globalShowCounts } = useHintOptionsStore.getState();
-    expect(globalShowCounts['H02_BUILD_MINE']).toBe(1);
+    expect(globalShowCounts['H01_BUILD_WOODCUTTER']).toBe(1);
   });
 
   it('returns false on second call (seenHints gate), no duplicate queue entry', () => {
-    tryTriggerHint('H02_BUILD_MINE');
+    tryTriggerHint('H01_BUILD_WOODCUTTER');
 
     // Reset queue to simulate a fresh banner state but keep seenHints.
     useHintStore.setState({ queue: [], activeHintId: null, expanded: false });
 
-    const result = tryTriggerHint('H02_BUILD_MINE');
+    const result = tryTriggerHint('H01_BUILD_WOODCUTTER');
     expect(result).toBe(false);
     expect(useHintStore.getState().activeHintId).toBeNull();
   });
@@ -74,10 +66,10 @@ describe('tryTriggerHint', () => {
   it('returns false when globalShowCounts reaches HINTS.GLOBAL_MAX_SHOWS', () => {
     useHintOptionsStore.setState({
       hintsEnabled: true,
-      globalShowCounts: { H02_BUILD_MINE: HINTS.GLOBAL_MAX_SHOWS },
+      globalShowCounts: { H01_BUILD_WOODCUTTER: HINTS.GLOBAL_MAX_SHOWS },
     });
 
-    const result = tryTriggerHint('H02_BUILD_MINE');
+    const result = tryTriggerHint('H01_BUILD_WOODCUTTER');
     expect(result).toBe(false);
     expect(useHintStore.getState().activeHintId).toBeNull();
   });
