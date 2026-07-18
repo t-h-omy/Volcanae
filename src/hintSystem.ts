@@ -13,7 +13,7 @@ import { useGameStore } from './gameStore';
 
 // TODO: Re-enable once the first starter hint bug is understood and fixed.
 // Temporarily suppress the first starter hint while investigating the reported bug.
-const DISABLED_HINT_IDS: ReadonlySet<HintId> = new Set(['H01_BUILD_WOODCUTTER']);
+const DISABLED_HINT_IDS = new Set<HintId>(['H01_BUILD_WOODCUTTER']);
 
 /**
  * Returns true and enqueues the hint if all gates pass; false otherwise.
