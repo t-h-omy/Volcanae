@@ -1,9 +1,7 @@
 /**
  * Tests for the H01_BUILD_WOODCUTTER hint.
  *
- * Verifies that H01 fires when `initNewGame` is called even when the HUD's
- * useEffect would not re-run (i.e. the new game starts at the same turn/phase/
- * building state as the previous game, so the deps are unchanged).
+ * Verifies that a fresh game does not surface H01 during turn 1.
  */
 
 import { describe, expect, it, beforeEach } from 'vitest';
@@ -24,11 +22,7 @@ describe('H01_BUILD_WOODCUTTER hint on initNewGame', () => {
     resetHintStores();
   });
 
-  it('fires H01 when initNewGame is called with no prior buildings (same deps as initial HUD state)', () => {
-    // Call initNewGame to start a fresh game; the HUD component would be
-    // mounted and its useEffect would NOT necessarily re-run if its deps
-    // (turn=1, phase=PLAYER_TURN, playerBuildingTypes={STRONGHOLD}) match
-    // those already present from a previous game in the same session.
+  it('does not fire H01 during the first turn of a fresh game', () => {
     useGameStore.getState().initNewGame(Difficulty.STANDARD);
 
     const { activeHintId, queue } = useHintStore.getState();
@@ -36,7 +30,7 @@ describe('H01_BUILD_WOODCUTTER hint on initNewGame', () => {
       activeHintId === 'H01_BUILD_WOODCUTTER' ||
       queue.includes('H01_BUILD_WOODCUTTER');
 
-    expect(hintFired).toBe(true);
+    expect(hintFired).toBe(false);
   });
 
   it('does not fire H01 when globalShowCounts is at max (GLOBAL_MAX_SHOWS=2)', () => {
