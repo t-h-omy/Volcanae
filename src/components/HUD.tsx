@@ -4416,7 +4416,6 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
   // consecutive snapshot calls, preventing the "getSnapshot should be cached"
   // invariant violation that causes an infinite render loop and crashes the app.
   const hudBuildings = useGameStore((s) => s.buildings);
-  const hudUnits = useGameStore((s) => s.units);
   const playerBuildingTypes = useMemo(() => {
     const types = new Set<string>();
     for (const b of Object.values(hudBuildings)) {
@@ -4424,10 +4423,6 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
     }
     return types;
   }, [hudBuildings]);
-  const hasPlayerGuard = useMemo(
-    () => Object.values(hudUnits).some((u) => u.faction === Faction.PLAYER && u.type === UnitType.GUARD),
-    [hudUnits],
-  );
 
   // H01/H02/H03: starter chain, evaluated each player turn.
   useEffect(() => {
@@ -4467,9 +4462,11 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
     if (!hasSeenH01WoodcutterHint) return;
     if (h01SeenTurn === null) return;
     if (turn !== h01SeenTurn + 1) return;
+    const hasPlayerGuard = Object.values(useGameStore.getState().units)
+      .some((u) => u.faction === Faction.PLAYER && u.type === UnitType.GUARD);
     if (hasPlayerGuard) return;
     tryTriggerHint('H01B_RECRUIT_GUARD');
-  }, [hasPlayerGuard, hasSeenH01WoodcutterHint, phase, turn]);
+  }, [hasSeenH01WoodcutterHint, phase, turn]);
 
   const handleIntroDismiss = useCallback(() => {
     setHasSeenIntro(true);
