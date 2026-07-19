@@ -118,12 +118,12 @@ export const HINT_DEFINITIONS: Record<HintId, HintDefinition> = {
       'Every few turns the lava front moves one row north, consuming everything on it. The counter in the HUD shows turns until the next advance. You cannot stop it, keep moving north and let go of what lies behind.',
   },
   H07_RECRUIT_NO_RESOURCES: {
-    short: 'Not enough resources for some units.',
+    short: 'Not enough resources for this unit.',
     detail:
       'Each unit costs iron, wood or crystals. Expand Mines and Woodcutters to afford stronger units, or trade at a Market if you find one.',
   },
   H08_RECRUIT_NO_POPULATION: {
-    short: 'Not enough population to recruit some units.',
+    short: 'Not enough population to recruit this unit.',
     detail:
       'Units are recruited from your population: farmers live in Farms, nobles in Patrician Houses. Housing fills up over time. Build more housing, or wait for population to grow.',
   },
@@ -179,7 +179,7 @@ export const HINT_DEFINITIONS: Record<HintId, HintDefinition> = {
       "The bound Ember Demon stays loyal only while it remains within the Mage's leash range. If the Mage moves too far away (checked at end of turn, and during the enemy turn), the demon defects and turns hostile. Move the Mage carefully.",
   },
   H20_BUILD_NO_RESOURCES: {
-    short: 'Not enough resources to construct some buildings.',
+    short: 'Not enough resources to construct this building.',
     detail:
       'Each building costs iron and wood, shown on its button. Expand Woodcutters for wood and Mines for iron, and check the per-turn income badges in the top bar.',
   },
