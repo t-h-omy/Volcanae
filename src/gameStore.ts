@@ -3379,18 +3379,14 @@ export const useGameStore = create<GameStore>()(
     },
 
     setGameState: (newState: GameState) => {
-      let mergedSeenHints: string[] = Array.isArray(newState.seenHints) ? [...newState.seenHints] : [];
+      let stateForSave: GameState = newState;
       set((state) => {
+        const incomingSeenHints = Array.isArray(newState.seenHints) ? newState.seenHints : [];
         const currentSeenHints = Array.isArray(state.seenHints) ? state.seenHints : [];
-        if (currentSeenHints.length > 0) {
-          mergedSeenHints = Array.from(new Set([...mergedSeenHints, ...currentSeenHints]));
-        }
-        Object.assign(state, newState);
-        state.seenHints = mergedSeenHints;
+        const mergedSeenHints = Array.from(new Set([...incomingSeenHints, ...currentSeenHints]));
+        stateForSave = { ...newState, seenHints: mergedSeenHints };
+        Object.assign(state, stateForSave);
       });
-      const stateForSave = mergedSeenHints === newState.seenHints
-        ? newState
-        : { ...newState, seenHints: mergedSeenHints };
       // Autosave when transitioning to the player's turn, or when the game ends
       // so that the overlay is shown on reload rather than rewinding to the last turn.
       if (
