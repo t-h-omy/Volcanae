@@ -66,6 +66,8 @@ import { createMarket, restockAllSlots, tickMarketRefills } from './marketSystem
 import { MARKET } from './gameConfig';
 import { canUnitBuildBridge, getBridgeBuildTargets } from './unitActions';
 import { canUnitSetTrap, isTrapTileClear, canUnitExtinguish } from './unitActions';
+import { useHintStore } from './hintStore';
+import { tryTriggerHint } from './hintSystem';
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
@@ -158,6 +160,8 @@ interface GameActions {
   clearSavedGame: () => void;
   /** No-op (legacy); use listSlots/slotCount from saveSystem */
   hasSavedGame: () => boolean;
+  /** Mark a hint as seen in the current save's seenHints list */
+  markHintSeen: (hintId: string) => void;
 
   // ── Debug actions (development only) ──
   /** Debug: add the given specialist to globalSpecialistStorage and apply their effects */
@@ -381,6 +385,7 @@ export const useGameStore = create<GameStore>()(
         updateDiscovery(state);
       });
       syncCameraToPlayerStronghold(initialState);
+      useHintStore.getState().reset();
     },
 
     newGameInSlot: async (name: string, difficulty: Difficulty) => {
@@ -395,12 +400,19 @@ export const useGameStore = create<GameStore>()(
         updateDiscovery(draft);
         applySpecialistEffects(draft);
       });
+      // Clear any stale animation state from a previous game before applying
+      // the new game state and transitioning to the Game screen.  Without this,
+      // a processQueue() call that was still running when the user navigated
+      // to the menu (e.g. quit mid-animation) can overwrite the new game's
+      // state when it eventually finishes, causing a black screen.
+      useAnimationStore.getState().clear();
       set((state) => {
         Object.assign(state, initialState);
       });
       syncCameraToPlayerStronghold(initialState);
       await saveSlot({ id, name, state: initialState });
       useMenuStore.getState().enterGame(id);
+      useHintStore.getState().reset();
     },
 
     continueGame: async () => {
@@ -412,12 +424,15 @@ export const useGameStore = create<GameStore>()(
     loadIntoGame: async (id: string) => {
       const loaded = await loadSlot(id);
       if (!loaded) return;
+      // Clear stale animation state from any previous game before loading.
+      useAnimationStore.getState().clear();
       set((state) => {
         Object.assign(state, loaded);
         applySpecialistEffects(state);
       });
       syncCameraToPlayerStronghold(loaded);
       useMenuStore.getState().enterGame(id);
+      useHintStore.getState().reset();
     },
 
     discardFinishedGame: async () => {
@@ -454,6 +469,11 @@ export const useGameStore = create<GameStore>()(
           if (!alreadyActive && !arrivedThisTurn) {
             useCaveScreamsStore.getState().open({ x: unit.position.x, y: unit.position.y });
           }
+        }
+      }
+      if (unit && unit.faction === Faction.PLAYER && unit.type === UnitType.GUARD) {
+        if (!s.techNodes.FIELD_DUTIES?.unlocked) {
+          tryTriggerHint('H14_FIRST_TECH_FIELD_DUTIES');
         }
       }
     },
@@ -621,6 +641,7 @@ export const useGameStore = create<GameStore>()(
     attackUnit: (attackerId: string, targetId: string) => {
       let pendingEvents: GameEvent[] | null = null;
       let pendingResolvedState: GameState | null = null;
+      let attackerFactionCapture: string | null = null;
 
       set((state) => {
         const attacker = state.units[attackerId];
@@ -633,6 +654,7 @@ export const useGameStore = create<GameStore>()(
         const defenderHpBefore = defender.stats.currentHp;
         const defenderFaction = defender.faction;
         const attackerFaction = attacker.faction;
+        attackerFactionCapture = attackerFaction;
 
         // Take a plain snapshot of the current state so produce() can be called
         // without nesting immer producers (same pattern as endPlayerTurn).
@@ -783,6 +805,9 @@ export const useGameStore = create<GameStore>()(
 
       if (pendingEvents !== null && pendingResolvedState !== null) {
         useAnimationStore.getState().enqueue(pendingEvents, pendingResolvedState);
+      }
+      if (attackerFactionCapture === Faction.PLAYER) {
+        tryTriggerHint('H05_ATTACK_ENDS_TURN');
       }
     },
 
@@ -1045,6 +1070,9 @@ export const useGameStore = create<GameStore>()(
         updateDiscovery(state);
         checkGameConditions(state);
       });
+      if (buildingType === BuildingType.CRYSTAL_CHAMBER) {
+        tryTriggerHint('H15_CHAMBER_RESONANCE');
+      }
     },
 
     convertBuilding: (unitId: string, newBuildingType: BuildingType) => {
@@ -1814,6 +1842,9 @@ export const useGameStore = create<GameStore>()(
         } else {
           triggerSpellSfx('spell_cast');
         }
+        if (castSpellId === 'EMBERBIND') {
+          tryTriggerHint('H19_EMBERBIND_LEASH');
+        }
         // EXPLODE: add shockwave ring to match emberling explosion VFX
         if (castSpellId === 'EXPLODE') {
           const tileSize = typeof window !== 'undefined' && window.innerWidth <= RENDER.MOBILE_BREAKPOINT
@@ -1941,6 +1972,9 @@ export const useGameStore = create<GameStore>()(
       // below can pass the pure GameState (not useGameStore.getState() which
       // includes Zustand action methods and would throw DataCloneError in IDB).
       let pendingStateForSave: GameState | null = null;
+      let homelessHintPos: { x: number; y: number } | null = null;
+      let untrainedHintPos: { x: number; y: number } | null = null;
+      let hasBurningPlayerDamage = false;
 
       set((state) => {
         // Auto-deselect when the player ends their turn — no unit, building,
@@ -1985,6 +2019,13 @@ export const useGameStore = create<GameStore>()(
           });
         }
 
+        // Capture which units were already over training capacity at the START of
+        // this player turn.  Only units that are NEW to the untrained set (not in
+        // this snapshot) should trigger the H11_UNTRAINED hint, so we don't fire
+        // it for units that have been over-capacity since game start (e.g. the
+        // starting Spearman when no Barracks exists yet).
+        const prevUntrainedIds = computeUntrainedUnitIds(snapshot);
+
         // Phase 2: Compute enemy turn on snapshot
         const { finalState: afterEnemy, events: enemyEvents } = runEnemyTurn(snapshot);
 
@@ -2011,6 +2052,14 @@ export const useGameStore = create<GameStore>()(
         computedState = produce(computedState, (draft) => {
           processTileStatusEndOfTurn(draft, tileStatusEvents);
         });
+
+        // Capture burning damage status for hint trigger after set() completes.
+        hasBurningPlayerDamage = tileStatusEvents.some(
+          (ev) =>
+            ev.type === 'TILE_DAMAGE' &&
+            (ev as Extract<GameEvent, { type: 'TILE_DAMAGE' }>).damageSource === 'BURNING' &&
+            computedState.units[(ev as Extract<GameEvent, { type: 'TILE_DAMAGE' }>).unitId]?.faction === Faction.PLAYER,
+        );
 
         // Phase 4: Lava phase
         const allEvents: GameEvent[] = [...idleHealEvents, ...enemyEvents, ...tileStatusEvents];
@@ -2076,6 +2125,9 @@ export const useGameStore = create<GameStore>()(
               if (shouldBeHomeless && !isHomeless) {
                 unit.tags.push(UnitTag.HOMELESS);
                 applyTagStatEffects(unit, UnitTag.HOMELESS);
+                if (homelessHintPos === null) {
+                  homelessHintPos = { x: unit.position.x, y: unit.position.y };
+                }
               } else if (!shouldBeHomeless && isHomeless) {
                 unit.tags = unit.tags.filter((t) => t !== UnitTag.HOMELESS);
                 revokeTagStatEffects(unit, UnitTag.HOMELESS);
@@ -2132,6 +2184,9 @@ export const useGameStore = create<GameStore>()(
                 if (shouldBeUntrained) {
                   unit.tags.push(UnitTag.UNTRAINED);
                   applyTagStatEffects(unit, UnitTag.UNTRAINED);
+                  if (untrainedHintPos === null && !prevUntrainedIds.has(unit.id)) {
+                    untrainedHintPos = { x: unit.position.x, y: unit.position.y };
+                  }
                 } else {
                   unit.tags = unit.tags.filter((t) => t !== UnitTag.UNTRAINED);
                   revokeTagStatEffects(unit, UnitTag.UNTRAINED);
@@ -2343,9 +2398,33 @@ export const useGameStore = create<GameStore>()(
           }
         }
       }
+      // Fire hint triggers after the state mutation and animation queue are settled.
+      {
+        if (homelessHintPos !== null) {
+          const fired = tryTriggerHint('H10_HOMELESS');
+          if (fired) {
+            useAnimationStore.getState().setCameraTarget(homelessHintPos);
+          }
+        }
+        if (untrainedHintPos !== null) {
+          const fired = tryTriggerHint('H11_UNTRAINED');
+          if (fired) {
+            useAnimationStore.getState().setCameraTarget(untrainedHintPos);
+          }
+        }
+        if (hasBurningPlayerDamage) {
+          tryTriggerHint('H13_BURNING');
+        }
+      }
     },
 
     applyEvent: (event: GameEvent) => {
+      const { processingRevision, queueRevision } = useAnimationStore.getState();
+      // Ignore stale in-flight animation events from a superseded queue batch.
+      if (processingRevision !== null && processingRevision !== queueRevision) {
+        return;
+      }
+      let emberLevelUpFired = false;
       set((state) => {
         switch (event.type) {
           case 'ENEMY_SPAWN': {
@@ -3049,6 +3128,7 @@ export const useGameStore = create<GameStore>()(
               isEnemy: true,
               floaterType: 'xp',
             });
+            emberLevelUpFired = true;
             break;
           }
 
@@ -3248,6 +3328,9 @@ export const useGameStore = create<GameStore>()(
             assertNever(event);
         }
       });
+      if (emberLevelUpFired) {
+        tryTriggerHint('H18_EMBER_LEVEL');
+      }
     },
 
     applyMeleeAdvance: (attackerId: string, toPosition: Position) => {
@@ -3296,21 +3379,26 @@ export const useGameStore = create<GameStore>()(
     },
 
     setGameState: (newState: GameState) => {
+      let stateForSave: GameState = newState;
       set((state) => {
-        Object.assign(state, newState);
+        const incomingSeenHints = Array.isArray(newState.seenHints) ? newState.seenHints : [];
+        const currentSeenHints = Array.isArray(state.seenHints) ? state.seenHints : [];
+        const mergedSeenHints = Array.from(new Set([...incomingSeenHints, ...currentSeenHints]));
+        stateForSave = { ...newState, seenHints: mergedSeenHints };
+        Object.assign(state, stateForSave);
       });
       // Autosave when transitioning to the player's turn, or when the game ends
       // so that the overlay is shown on reload rather than rewinding to the last turn.
       if (
-        newState.phase === GamePhase.PLAYER_TURN ||
-        newState.phase === GamePhase.GAME_OVER ||
-        newState.phase === GamePhase.VICTORY
+        stateForSave.phase === GamePhase.PLAYER_TURN ||
+        stateForSave.phase === GamePhase.GAME_OVER ||
+        stateForSave.phase === GamePhase.VICTORY
       ) {
         const activeSaveId = useMenuStore.getState().activeSaveId;
         if (activeSaveId) {
           getSlotMeta(activeSaveId).then((meta) => {
-            const slotName = meta?.name ?? newState.turn.toString();
-            saveSlot({ id: activeSaveId, name: slotName, state: newState }).catch(() => undefined);
+            const slotName = meta?.name ?? stateForSave.turn.toString();
+            saveSlot({ id: activeSaveId, name: slotName, state: stateForSave }).catch(() => undefined);
           }).catch(() => undefined);
         }
       }
@@ -3345,6 +3433,15 @@ export const useGameStore = create<GameStore>()(
     hasSavedGame: () => {
       // Legacy no-op — use slotCount() from saveSystem instead.
       return false;
+    },
+
+    markHintSeen: (hintId: string) => {
+      set((state) => {
+        if (!Array.isArray(state.seenHints)) state.seenHints = [];
+        if (!state.seenHints.includes(hintId)) {
+          state.seenHints.push(hintId);
+        }
+      });
     },
 
     // ========================================================================

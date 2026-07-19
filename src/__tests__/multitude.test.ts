@@ -166,6 +166,7 @@ function makeBaseState(withMultitude: boolean, extraBuildings: Record<string, Bu
     activeWaveTheme: { entries: [], isReadPlayer: false },
     readPlayerThemeCount: 0,
     lastThemeSignature: null,
+    seenHints: [],
   };
 }
 

@@ -20,6 +20,12 @@ interface AnimationState {
   /** The fully resolved GameState after all queued events complete */
   resolvedState: GameState | null;
 
+  /** Monotonic queue revision; increments on enqueue/clear */
+  queueRevision: number;
+
+  /** Revision currently being processed by the animation engine */
+  processingRevision: number | null;
+
   /** Camera target — the grid position the viewport should center on */
   cameraTarget: Position;
 
@@ -36,6 +42,10 @@ interface AnimationActions {
   setCameraTarget: (pos: Position) => void;
   /** Set animation active state */
   setIsAnimating: (v: boolean) => void;
+  /** Marks the current queue revision as the active processing batch */
+  beginProcessingCurrentQueue: () => void;
+  /** Clears the active processing marker */
+  finishProcessing: () => void;
   /** Clear the queue and resolved state */
   clear: () => void;
 }
@@ -49,6 +59,8 @@ type AnimationStore = AnimationState & AnimationActions;
 export const useAnimationStore = create<AnimationStore>((set, get) => ({
   eventQueue: [],
   resolvedState: null,
+  queueRevision: 0,
+  processingRevision: null,
   cameraTarget: {
     x: Math.floor(MAP.GRID_WIDTH / 2),
     y: MAP.GRID_HEIGHT - MAP.LAVA_BUFFER_ROWS - 1 - Math.floor(MAP.ZONE_HEIGHT / 2),
@@ -56,7 +68,12 @@ export const useAnimationStore = create<AnimationStore>((set, get) => ({
   isAnimating: false,
 
   enqueue: (events, resolvedState) => {
-    set({ eventQueue: events, resolvedState });
+    const nextRevision = get().queueRevision + 1;
+    set({
+      eventQueue: events,
+      resolvedState,
+      queueRevision: nextRevision,
+    });
   },
 
   shiftEvent: () => {
@@ -75,7 +92,20 @@ export const useAnimationStore = create<AnimationStore>((set, get) => ({
     set({ isAnimating: v });
   },
 
+  beginProcessingCurrentQueue: () => {
+    set({ processingRevision: get().queueRevision });
+  },
+
+  finishProcessing: () => {
+    set((state) => (
+      state.processingRevision === state.queueRevision
+        ? { processingRevision: null }
+        : {}
+    ));
+  },
+
   clear: () => {
-    set({ eventQueue: [], resolvedState: null, isAnimating: false });
+    const nextRevision = get().queueRevision + 1;
+    set({ eventQueue: [], resolvedState: null, isAnimating: false, queueRevision: nextRevision });
   },
 }));

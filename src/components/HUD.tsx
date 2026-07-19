@@ -15,6 +15,11 @@ import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH
 import type { SpecialistDefinition } from '../gameConfig';
 import { UI } from '../uiConfig';
 import type { UnitPopulationCost, TechId } from '../types';
+import { useHintStore } from '../hintStore';
+import { useHintOptionsStore } from '../hintOptionsStore';
+import { HINT_DEFINITIONS } from '../hintConfig';
+import { tryTriggerHint } from '../hintSystem';
+import { isUnitOnCorruptedTile } from '../tileStatusSystem';
 import {
   hasSpawnSpaceAt,
   computePopulationUsage,
@@ -518,6 +523,10 @@ function OptionsOverlay({ onClose }: { onClose: () => void }) {
   const setVolume = useSoundOptionsStore((s) => s.setVolume);
   const setMuted = useSoundOptionsStore((s) => s.setMuted);
   const phase = useGameStore((s) => s.phase);
+  const hintsEnabled = useHintOptionsStore((s) => s.hintsEnabled);
+  const setHintsEnabled = useHintOptionsStore((s) => s.setHintsEnabled);
+  const resetShowCounts = useHintOptionsStore((s) => s.resetShowCounts);
+  const [resetDone, setResetDone] = useState(false);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -549,6 +558,12 @@ function OptionsOverlay({ onClose }: { onClose: () => void }) {
     }
     useMenuStore.getState().toMenu();
   }, [onClose, phase]);
+
+  const handleResetHints = useCallback(() => {
+    resetShowCounts();
+    setResetDone(true);
+    setTimeout(() => setResetDone(false), 1500);
+  }, [resetShowCounts]);
 
   return createPortal(
     <div className="hud-dev-overlay-backdrop" onClick={onClose}>
@@ -582,6 +597,29 @@ function OptionsOverlay({ onClose }: { onClose: () => void }) {
               title={muted ? 'Unmute' : 'Mute'}
             >
               {muted ? '🔇' : '🔊'}
+            </button>
+          </div>
+          <hr className="hud-options-separator" />
+          <div className="hud-dev-overlay-section-title">Hints</div>
+          <div className="hud-options-hints-row">
+            <span className="hud-options-hints-label">💡 Show hints</span>
+            <button
+              className={`hud-options-hints-toggle${hintsEnabled ? ' hud-options-hints-toggle--on' : ''}`}
+              onClick={() => setHintsEnabled(!hintsEnabled)}
+              aria-pressed={hintsEnabled}
+              aria-label={hintsEnabled ? 'Disable hints' : 'Enable hints'}
+            >
+              {hintsEnabled ? 'On' : 'Off'}
+            </button>
+          </div>
+          <div className="hud-options-hints-row">
+            <span className="hud-options-hints-label">🔄 Reset hint counters</span>
+            <button
+              className="hud-options-hints-reset"
+              onClick={handleResetHints}
+              aria-label="Reset hint counters"
+            >
+              {resetDone ? 'Done' : 'Reset'}
             </button>
           </div>
           <hr className="hud-options-separator" />
@@ -779,6 +817,50 @@ function NetIncomeBadge({ gross, upkeep }: { gross: number; upkeep: number }) {
   );
 }
 
+// ============================================================================
+// HINT BANNER
+// ============================================================================
+
+function HintBanner() {
+  const activeHintId = useHintStore((s) => s.activeHintId);
+  const expanded = useHintStore((s) => s.expanded);
+  const dismissActive = useHintStore((s) => s.dismissActive);
+  const toggleExpanded = useHintStore((s) => s.toggleExpanded);
+
+  if (!activeHintId) return null;
+
+  const def = HINT_DEFINITIONS[activeHintId];
+
+  return (
+    <>
+      <div className="hud-hint-backdrop" aria-hidden="true" />
+      <div className="hud-hint-banner">
+        <div className="hud-hint-banner-row">
+          <span className="hud-hint-banner-text">{def.short}</span>
+          <button
+            className="hud-hint-banner-more"
+            onClick={toggleExpanded}
+            aria-expanded={expanded}
+            aria-label={expanded ? 'Collapse hint' : 'Expand hint'}
+          >
+            {expanded ? 'Less' : 'More'}
+          </button>
+          <button
+            className="hud-hint-banner-dismiss"
+            onClick={dismissActive}
+            aria-label="Dismiss hint"
+          >
+            ✕
+          </button>
+        </div>
+        {expanded && (
+          <div className="hud-hint-banner-detail">{def.detail}</div>
+        )}
+      </div>
+    </>
+  );
+}
+
 function TopBar({
   onOpenTechTree,
   showTechButton,
@@ -826,12 +908,13 @@ function TopBar({
   const crystalsPerTurn = useGameStore((s) => computeCrystalIncomePerTurn(s).crystalsPerTurn);
 
   return (
-    <div className="hud-top-bar">
-      <button className="hud-stat hud-stat--clickable" onClick={() => setResourcePopup('iron')}>⛓️ {resources.iron}<NetIncomeBadge gross={ironPerTurn} upkeep={ironUpkeep} /></button>
-      <button className="hud-stat hud-stat--clickable" onClick={() => setResourcePopup('wood')}>🪵 {resources.wood}<NetIncomeBadge gross={woodPerTurn} upkeep={woodUpkeep} /></button>
-      <span className="hud-stat">🌾 {farmersUsed}/{farmerCapacity}</span>
-      <span className="hud-stat">🎖️ {noblesUsed}/{nobleCapacity}</span>
-      <button className="hud-stat hud-stat--clickable" onClick={() => setEmberPopupOpen(true)}>🔥 Ember {ember}</button>
+    <>
+      <div className="hud-top-bar">
+        <button className="hud-stat hud-stat--clickable" onClick={() => setResourcePopup('iron')}>⛓️ {resources.iron}<NetIncomeBadge gross={ironPerTurn} upkeep={ironUpkeep} /></button>
+        <button className="hud-stat hud-stat--clickable" onClick={() => setResourcePopup('wood')}>🪵 {resources.wood}<NetIncomeBadge gross={woodPerTurn} upkeep={woodUpkeep} /></button>
+        <span className="hud-stat">🌾 {farmersUsed}/{farmerCapacity}</span>
+        <span className="hud-stat">🎖️ {noblesUsed}/{nobleCapacity}</span>
+        <button className="hud-stat hud-stat--clickable" onClick={() => setEmberPopupOpen(true)}>🔥 Ember {ember}</button>
       <span className="hud-stat">🌋 Lava in {turnsUntilLavaAdvance}</span>
       <button className="hud-stat hud-stat--clickable" onClick={() => setResourcePopup('crystal')}>
         💎 {arcaneCrystals}{crystalsPerTurn > 0 && <span className="hud-income">(+{crystalsPerTurn})</span>}
@@ -884,6 +967,8 @@ function TopBar({
       )}
       <GameMenu />
     </div>
+    <HintBanner />
+    </>
   );
 }
 
@@ -1846,6 +1931,16 @@ function SelectedUnitPanel({
   // Scout extinguish
   const scoutExtinguish = useGameStore((s) => s.scoutExtinguish);
 
+  // H12: fire when player unit is on corrupted ground with a suppressed tag.
+  useEffect(() => {
+    if (!isPlayer) return;
+    if (!isUnitOnCorruptedTile(gameState, unit.id)) return;
+    if (unit.tags.some((t) => CORRUPTED_SUPPRESSED_TAGS.has(t))) {
+      tryTriggerHint('H12_CORRUPTION');
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [unit.id, isPlayer, unit.position.x, unit.position.y, unit.tags.length]);
+
   // Trade (Market)
   const canTrade = isPlayer && canUnitTrade(unit);
   const tradeMarket = isPlayer ? getTradeMarket(unit, gameState) : null;
@@ -2421,6 +2516,15 @@ function ConstructionPanel({
     [tilePos, grid],
   );
 
+  // H04: fire when the construction panel is open on a regular ruin tile.
+  useEffect(() => {
+    if (options.length === 0) return;
+    const tile = useGameStore.getState().grid[tilePos.y]?.[tilePos.x];
+    if (tile?.isRuin && !tile.isStrongholdRuin) {
+      tryTriggerHint('H04_RUIN_MENU_FIRST');
+    }
+  }, [tilePos, options.length]);
+
   if (options.length === 0) return null;
 
   return (
@@ -2440,12 +2544,19 @@ function ConstructionPanel({
           {options.map((opt) => {
             const canAffordThis =
               resources.iron >= opt.cost.iron && resources.wood >= opt.cost.wood;
+            const handleSelectConstruction = () => {
+              if (!canAffordThis) {
+                tryTriggerHint('H20_BUILD_NO_RESOURCES');
+                return;
+              }
+              setConfirmBuilding(opt);
+            };
             return (
               <button
                 key={opt.buildingType}
-                className="info-row-btn"
-                disabled={!canAffordThis}
-                onClick={() => setConfirmBuilding(opt)}
+                className={`info-row-btn${canAffordThis ? '' : ' info-row-btn--disabled'}`}
+                aria-disabled={!canAffordThis}
+                onClick={handleSelectConstruction}
               >
                 <span className="info-row-emoji">{opt.emoji}</span>
                 <div className="info-row-body">
@@ -2725,6 +2836,18 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
     (building.type === BuildingType.CRYSTAL_CHAMBER || building.type === BuildingType.CRYSTAL_CAVE) &&
     building.resonanceTurnsRemaining <= 0;
 
+  // H16/H17: dormant chamber/cave.
+  useEffect(() => {
+    if (!isPlayerOwned) return;
+    if (chamberNotResonating) {
+      if (building.type === BuildingType.CRYSTAL_CHAMBER) {
+        tryTriggerHint('H16_CHAMBER_NOT_RESONATING');
+      } else if (building.type === BuildingType.CRYSTAL_CAVE) {
+        tryTriggerHint('H17_CAVE_NOT_RESONATING');
+      }
+    }
+  }, [building.id, isPlayerOwned, chamberNotResonating, building.type]);
+
   // Production info for resource buildings
   const isMine = building.type === BuildingType.MINE && isPlayerOwned;
   const isWoodcutter = building.type === BuildingType.WOODCUTTER && isPlayerOwned;
@@ -2987,6 +3110,22 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
                 const popCost = UNIT_DEFINITIONS[unitType]?.populationCost as UnitPopulationCost | undefined;
                 const hasPopulation = canAffordPopulation(useGameStore.getState(), unitType);
                 const canRecruitThisUnit = !isDisabled && hasSpawnSpace && canAffordUnit && hasPopulation && !atUnitLimit && !alreadyRecruitedThisTurn;
+                const handleRecruitSelection = () => {
+                  if (!canAffordUnit) {
+                    tryTriggerHint('H07_RECRUIT_NO_RESOURCES');
+                    return;
+                  }
+                  if (!hasPopulation) {
+                    tryTriggerHint('H08_RECRUIT_NO_POPULATION');
+                    return;
+                  }
+                  if (atUnitLimit) {
+                    tryTriggerHint('H09_RECRUIT_NO_CAPACITY');
+                    return;
+                  }
+                  if (!canRecruitThisUnit) return;
+                  setConfirmRecruitUnit(unitType);
+                };
                 // Compute which population resource is actually insufficient for the error message
                 let popWarningMsg: string | null = null;
                 if (!hasPopulation && canAffordUnit && popCost) {
@@ -3005,9 +3144,9 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
                 return (
                   <div key={unitType} className="hud-recruit-option-wrapper">
                     <button
-                      className="info-row-btn"
-                      disabled={!canRecruitThisUnit}
-                      onClick={() => setConfirmRecruitUnit(unitType)}
+                      className={`info-row-btn${canRecruitThisUnit ? '' : ' info-row-btn--disabled'}`}
+                      aria-disabled={!canRecruitThisUnit}
+                      onClick={handleRecruitSelection}
                     >
                       <span className="info-row-emoji">{UNIT_EMOJI[unitType] ?? ''}</span>
                       <div className="info-row-body">
@@ -3098,6 +3237,7 @@ function BottomBar() {
   const isAnimating = useAnimationStore((s) => s.isAnimating);
   const cavePopupActive = useCaveScreamsStore((s) => s.tilePos !== null);
   const openCavePopup = useCaveScreamsStore((s) => s.open);
+  const activeHintId = useHintStore((s) => s.activeHintId);
 
   const selectedUnit: Unit | undefined = selectedUnitId
     ? units[selectedUnitId]
@@ -3141,6 +3281,7 @@ function BottomBar() {
   });
 
   const isPlayerTurn = phase === GamePhase.PLAYER_TURN;
+  const isHintBlocking = activeHintId !== null;
 
   // Auto-open cave screams popup at start of player's turn if a previously
   // selected unit is still standing on an unresolved cave mountain tile.
@@ -3173,14 +3314,14 @@ function BottomBar() {
         />
       )}
       {/* Construction panel for BUILDANDCAPTURE units on constructable tiles */}
-      {selectedUnit && showConstruction && !cavePopupActive && (
+      {selectedUnit && showConstruction && !cavePopupActive && !isHintBlocking && (
         <ConstructionPanel
           unit={selectedUnit}
           tilePos={selectedUnit.position}
         />
       )}
       {/* Conversion panel for BUILDANDCAPTURE units on own Ruin buildings */}
-      {selectedUnit && showConversion && !cavePopupActive && (
+      {selectedUnit && showConversion && !cavePopupActive && !isHintBlocking && (
         <ConversionPanel unit={selectedUnit} />
       )}
       {selectedBuilding && !selectedUnit && !cavePopupActive && (
@@ -3191,13 +3332,15 @@ function BottomBar() {
       )}
 
       {/* End Turn / Enemy Turn feedback */}
-      {isPlayerTurn && !isAnimating && (
+      {isPlayerTurn && !isAnimating && !isHintBlocking && (
         <button className="hud-end-turn-btn" onClick={endPlayerTurn}>
           End Turn ⏭️
         </button>
       )}
-      {(!isPlayerTurn || isAnimating) && (
-        <span className="hud-end-turn-btn hud-end-turn-btn--enemy-turn">⚔️ Enemy Turn…</span>
+      {(!isPlayerTurn || isAnimating || isHintBlocking) && (
+        <span className={`hud-end-turn-btn hud-end-turn-btn--enemy-turn${isHintBlocking ? ' hud-end-turn-btn--hint-blocked' : ''}`}>
+          {isHintBlocking ? '💡 Dismiss Hint' : '⚔️ Enemy Turn…'}
+        </span>
       )}
     </div>
   );
@@ -4240,6 +4383,7 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
   const arcaneCrystals = useGameStore((s) => s.arcaneCrystals);
   const [hasSeenIntro, setHasSeenIntro] = useState(false);
   const [showTechTree, setShowTechTree] = useState(false);
+  const h01SeenTurnRef = useRef<number | null>(null);
   // Track crystals at the moment the player last closed the tech tree.
   // Initialised to -1 so the badge shows from game start if there is an affordable tech.
   const [crystalsAtLastTechTreeClose, setCrystalsAtLastTechTreeClose] = useState(-1);
@@ -4264,6 +4408,65 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
       return s.arcaneCrystals >= computeResearchCost(def?.cost ?? 1, s.ember);
     });
   });
+  const hasSeenH01WoodcutterHint = useGameStore((s) => s.seenHints?.includes('H01_BUILD_WOODCUTTER') ?? false);
+
+  // Narrow building types for starter-chain hint evaluation (H01/H02/H03).
+  // Use stable Immer reference as memo dependency so the selector passed to
+  // useSyncExternalStore (Zustand v5) always returns the same reference between
+  // consecutive snapshot calls, preventing the "getSnapshot should be cached"
+  // invariant violation that causes an infinite render loop and crashes the app.
+  const hudBuildings = useGameStore((s) => s.buildings);
+  const playerBuildingTypes = useMemo(() => {
+    const types = new Set<string>();
+    for (const b of Object.values(hudBuildings)) {
+      if (b.faction === Faction.PLAYER) types.add(b.type);
+    }
+    return types;
+  }, [hudBuildings]);
+
+  // H01/H02/H03: starter chain, evaluated each player turn.
+  useEffect(() => {
+    if (phase !== GamePhase.PLAYER_TURN) return;
+    const seenHints = useGameStore.getState().seenHints;
+    if (
+      seenHints.includes('H01_BUILD_WOODCUTTER') &&
+      seenHints.includes('H02_BUILD_MINE') &&
+      seenHints.includes('H03_BUILD_ON_RUIN')
+    ) return;
+    if (!playerBuildingTypes.has(BuildingType.WOODCUTTER)) {
+      tryTriggerHint('H01_BUILD_WOODCUTTER');
+    } else if (!playerBuildingTypes.has(BuildingType.MINE)) {
+      tryTriggerHint('H02_BUILD_MINE');
+    } else {
+      const hasNonBasic = [...playerBuildingTypes].some(
+        (t) => t !== BuildingType.WOODCUTTER && t !== BuildingType.MINE && t !== BuildingType.STRONGHOLD,
+      );
+      if (!hasNonBasic) {
+        tryTriggerHint('H03_BUILD_ON_RUIN');
+      }
+    }
+  }, [turn, phase, playerBuildingTypes]);
+
+  // Track the turn when H01 was first seen in this session.
+  useEffect(() => {
+    if (!hasSeenH01WoodcutterHint) return;
+    if (phase !== GamePhase.PLAYER_TURN) return;
+    if (h01SeenTurnRef.current !== null) return;
+    h01SeenTurnRef.current = turn;
+  }, [hasSeenH01WoodcutterHint, phase, turn]);
+
+  // Follow-up hint: on the turn after H01, suggest recruiting a Guard if none exists yet.
+  useEffect(() => {
+    const h01SeenTurn = h01SeenTurnRef.current;
+    if (phase !== GamePhase.PLAYER_TURN) return;
+    if (!hasSeenH01WoodcutterHint) return;
+    if (h01SeenTurn === null) return;
+    if (turn !== h01SeenTurn + 1) return;
+    const hasPlayerGuard = Object.values(useGameStore.getState().units)
+      .some((u) => u.faction === Faction.PLAYER && u.type === UnitType.GUARD);
+    if (hasPlayerGuard) return;
+    tryTriggerHint('H01B_RECRUIT_GUARD');
+  }, [hasSeenH01WoodcutterHint, phase, turn]);
 
   const handleIntroDismiss = useCallback(() => {
     setHasSeenIntro(true);

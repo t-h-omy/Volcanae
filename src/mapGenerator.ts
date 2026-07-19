@@ -1660,6 +1660,7 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
       buildingsCapturedByEnemy: 0,
       buildingsDestroyedByLava: 0,
     },
+    seenHints: [],
     enemyUnitsSpawnedLastTurn: 0,
     difficulty,
     zoneLockoutUntilTurn: {},

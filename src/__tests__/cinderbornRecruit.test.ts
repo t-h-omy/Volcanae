@@ -148,6 +148,7 @@ function makeRecruitState(params: { lavaFrontRow: number; recruitY: number; with
     activeWaveTheme: { entries: [], isReadPlayer: false },
     readPlayerThemeCount: 0,
     lastThemeSignature: null,
+    seenHints: [],
   };
 }
 

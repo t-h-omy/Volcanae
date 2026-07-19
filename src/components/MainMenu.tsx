@@ -8,6 +8,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useMenuStore } from '../menuStore';
 import { useGameStore } from '../gameStore';
 import { useSoundOptionsStore } from '../soundOptionsStore';
+import { useHintOptionsStore } from '../hintOptionsStore';
 import {
   listSlots,
   slotCount,
@@ -376,6 +377,24 @@ function RootPanel({ hasSave, newestSlot }: { hasSave: boolean; newestSlot: Save
 // NEW GAME PANEL
 // ============================================================================
 
+function HintsToggleRow() {
+  const hintsEnabled = useHintOptionsStore((s) => s.hintsEnabled);
+  const setHintsEnabled = useHintOptionsStore((s) => s.setHintsEnabled);
+  return (
+    <div className="mm-hints-row">
+      <span className="mm-hints-label">💡 Show hints</span>
+      <button
+        className={`mm-hints-toggle${hintsEnabled ? ' mm-hints-toggle--on' : ''}`}
+        onClick={() => setHintsEnabled(!hintsEnabled)}
+        aria-pressed={hintsEnabled}
+        aria-label={hintsEnabled ? 'Disable hints' : 'Enable hints'}
+      >
+        {hintsEnabled ? 'On' : 'Off'}
+      </button>
+    </div>
+  );
+}
+
 function NewPanel() {
   const goPanel = useMenuStore((s) => s.goPanel);
   const newGameInSlot = useGameStore((s) => s.newGameInSlot);
@@ -459,6 +478,8 @@ function NewPanel() {
               <div className="mm-diff-card-desc">{DIFFICULTY_DESC[selectedDifficulty]}</div>
             </div>
           </div>
+
+          <HintsToggleRow />
 
           <button className="mm-world-gen-stub" disabled>
             <IconGlobe />

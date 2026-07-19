@@ -133,6 +133,7 @@ function makeState(builderX: number, builderY: number): GameState {
     activeWaveTheme: { entries: [], isReadPlayer: false },
     readPlayerThemeCount: 0,
     lastThemeSignature: null,
+    seenHints: [],
   };
 }
 

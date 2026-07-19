@@ -794,6 +794,8 @@ export interface GameState {
   unlockedSpells: SpellId[];
   /** Accumulated game statistics for the end-game screen */
   gameStats: GameStats;
+  /** Hint IDs that have already fired in this savegame (kept as string[] to avoid a types -> hintConfig import) */
+  seenHints: string[];
   /** Number of enemy units that were spawned during the most recent enemy turn */
   enemyUnitsSpawnedLastTurn: number;
   /** Selected difficulty level that scales enemy stats and lava speed */

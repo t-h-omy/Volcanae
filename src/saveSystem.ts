@@ -10,6 +10,7 @@
 import type { GameState } from './types';
 import { UnitType, UnitTag, BuildingType, TileStatus } from './types';
 import { TECH_TREE, POPULATION, SPECIALIST_DEFINITIONS, SAVE } from './gameConfig';
+import { ALL_HINT_IDS } from './hintConfig';
 import type { Difficulty } from './types';
 
 // ============================================================================
@@ -17,7 +18,7 @@ import type { Difficulty } from './types';
 // ============================================================================
 
 /** Increment this whenever the serialized shape changes incompatibly. */
-export const SAVE_VERSION = 15;
+export const SAVE_VERSION = 16;
 
 // ============================================================================
 // TYPES
@@ -385,6 +386,17 @@ function migrateState(parsed: { version: number; state: GameState }): GameState 
           }
         }
       }
+    }
+
+    // Migration v15 → v16: seenHints field.
+    // Saves created before the hint system was added mark all hints as seen so
+    // they never show hints regardless of the global toggle.
+    if (parsed.version < 16) {
+      gs.seenHints = [...ALL_HINT_IDS];
+    }
+    // Safety net: backfill seenHints for any v16+ state where the field is missing.
+    if (!Array.isArray(gs.seenHints)) {
+      gs.seenHints = [];
     }
 
     return s as GameState;
