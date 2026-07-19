@@ -85,6 +85,15 @@ describe('tryTriggerHint', () => {
     expect(mockState.seenHints).not.toContain('H03_BUILD_ON_RUIN');
   });
 
+  it('returns false during turn 1 without enqueueing or recording the hint', () => {
+    mockState.turn = 1;
+    const result = tryTriggerHint('H01_BUILD_WOODCUTTER');
+    expect(result).toBe(false);
+    expect(useHintStore.getState().activeHintId).toBeNull();
+    expect(mockState.seenHints).not.toContain('H01_BUILD_WOODCUTTER');
+    expect(useHintOptionsStore.getState().globalShowCounts['H01_BUILD_WOODCUTTER']).toBeUndefined();
+  });
+
   it('allows hints from HINTS.START_TURN onward', () => {
     mockState.turn = HINTS.START_TURN;
     const result = tryTriggerHint('H01_BUILD_WOODCUTTER');
