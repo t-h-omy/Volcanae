@@ -4107,14 +4107,6 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
   const unlockTech = useGameStore((s) => s.unlockTech);
   const getAvailableTechs = useGameStore((s) => s.getAvailableTechs);
 
-  // H14: fire once when tech tree is opened if FIELD_DUTIES is not yet unlocked.
-  useEffect(() => {
-    const nodes = useGameStore.getState().techNodes;
-    if (!nodes['FIELD_DUTIES']?.unlocked) {
-      tryTriggerHint('H14_FIRST_TECH_FIELD_DUTIES');
-    }
-  }, []);
-
   const [selectedId, setSelectedId] = useState<TechId | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [infoUnitType, setInfoUnitType] = useState<UnitType | null>(null);

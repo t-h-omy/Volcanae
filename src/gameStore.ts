@@ -471,6 +471,11 @@ export const useGameStore = create<GameStore>()(
           }
         }
       }
+      if (unit && unit.faction === Faction.PLAYER && unit.type === UnitType.GUARD) {
+        if (!s.techNodes.FIELD_DUTIES?.unlocked) {
+          tryTriggerHint('H14_FIRST_TECH_FIELD_DUTIES');
+        }
+      }
     },
 
     selectBuilding: (buildingId: string) => {
@@ -3374,21 +3379,30 @@ export const useGameStore = create<GameStore>()(
     },
 
     setGameState: (newState: GameState) => {
+      let mergedSeenHints: string[] = Array.isArray(newState.seenHints) ? [...newState.seenHints] : [];
       set((state) => {
+        const currentSeenHints = Array.isArray(state.seenHints) ? state.seenHints : [];
+        if (currentSeenHints.length > 0) {
+          mergedSeenHints = Array.from(new Set([...mergedSeenHints, ...currentSeenHints]));
+        }
         Object.assign(state, newState);
+        state.seenHints = mergedSeenHints;
       });
+      const stateForSave = mergedSeenHints === newState.seenHints
+        ? newState
+        : { ...newState, seenHints: mergedSeenHints };
       // Autosave when transitioning to the player's turn, or when the game ends
       // so that the overlay is shown on reload rather than rewinding to the last turn.
       if (
-        newState.phase === GamePhase.PLAYER_TURN ||
-        newState.phase === GamePhase.GAME_OVER ||
-        newState.phase === GamePhase.VICTORY
+        stateForSave.phase === GamePhase.PLAYER_TURN ||
+        stateForSave.phase === GamePhase.GAME_OVER ||
+        stateForSave.phase === GamePhase.VICTORY
       ) {
         const activeSaveId = useMenuStore.getState().activeSaveId;
         if (activeSaveId) {
           getSlotMeta(activeSaveId).then((meta) => {
-            const slotName = meta?.name ?? newState.turn.toString();
-            saveSlot({ id: activeSaveId, name: slotName, state: newState }).catch(() => undefined);
+            const slotName = meta?.name ?? stateForSave.turn.toString();
+            saveSlot({ id: activeSaveId, name: slotName, state: stateForSave }).catch(() => undefined);
           }).catch(() => undefined);
         }
       }
