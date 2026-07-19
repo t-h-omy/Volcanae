@@ -4457,7 +4457,7 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
     if (!hasSeenH01WoodcutterHint) return;
     if (phase !== GamePhase.PLAYER_TURN) return;
     if (h01SeenTurnRef.current !== null) return;
-    if (h01SeenTurnRef.current === null) h01SeenTurnRef.current = turn;
+    h01SeenTurnRef.current = turn;
   }, [hasSeenH01WoodcutterHint, phase, turn]);
 
   // Follow-up hint: on the turn after H01, suggest recruiting a Guard if none exists yet.
