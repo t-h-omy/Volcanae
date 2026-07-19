@@ -2999,7 +2999,7 @@
   border: 1px solid rgba(241, 196, 15, 0.45);
   border-radius: 4px;
   color: #f1c40f;
-  font-size: 12px;
+  font-size: 13px;
   cursor: pointer;
   touch-action: manipulation;
 }
@@ -3029,7 +3029,7 @@
 
 .hud-hint-banner-detail {
   margin-top: 6px;
-  font-size: 12px;
+  font-size: 13px;
   color: #ccc;
   line-height: 1.5;
   padding-bottom: 4px;
