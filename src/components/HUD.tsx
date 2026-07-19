@@ -4383,7 +4383,7 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
   const arcaneCrystals = useGameStore((s) => s.arcaneCrystals);
   const [hasSeenIntro, setHasSeenIntro] = useState(false);
   const [showTechTree, setShowTechTree] = useState(false);
-  const [h01SeenTurn, setH01SeenTurn] = useState<number | null>(null);
+  const h01SeenTurnRef = useRef<number | null>(null);
   // Track crystals at the moment the player last closed the tech tree.
   // Initialised to -1 so the badge shows from game start if there is an affordable tech.
   const [crystalsAtLastTechTreeClose, setCrystalsAtLastTechTreeClose] = useState(-1);
@@ -4407,8 +4407,8 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
       const def = TECH_TREE.find((d) => d.id === techId);
       return s.arcaneCrystals >= computeResearchCost(def?.cost ?? 1, s.ember);
     });
-    const hasSeenH01WoodcutterHint = useGameStore((s) => s.seenHints.includes('H01_BUILD_WOODCUTTER'));
   });
+  const hasSeenH01WoodcutterHint = useGameStore((s) => s.seenHints.includes('H01_BUILD_WOODCUTTER'));
 
   // Narrow building types for starter-chain hint evaluation (H01/H02/H03).
   // Use stable Immer reference as memo dependency so the selector passed to
@@ -4454,22 +4454,21 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
 
   // Track the turn when H01 was first seen in this session.
   useEffect(() => {
-    if (!hasSeenH01WoodcutterHint) {
-      if (h01SeenTurn !== null) setH01SeenTurn(null);
-      return;
-    }
+    if (!hasSeenH01WoodcutterHint) return;
     if (phase !== GamePhase.PLAYER_TURN) return;
-    if (h01SeenTurn === null) setH01SeenTurn(turn);
-  }, [hasSeenH01WoodcutterHint, h01SeenTurn, phase, turn]);
+    if (h01SeenTurnRef.current === null) h01SeenTurnRef.current = turn;
+  }, [hasSeenH01WoodcutterHint, phase, turn]);
 
   // Follow-up hint: on the turn after H01, suggest recruiting a Guard if none exists yet.
   useEffect(() => {
+    const h01SeenTurn = h01SeenTurnRef.current;
     if (phase !== GamePhase.PLAYER_TURN) return;
+    if (!hasSeenH01WoodcutterHint) return;
     if (h01SeenTurn === null) return;
     if (turn !== h01SeenTurn + 1) return;
     if (hasPlayerGuard) return;
     tryTriggerHint('H01B_RECRUIT_GUARD');
-  }, [h01SeenTurn, hasPlayerGuard, phase, turn]);
+  }, [hasPlayerGuard, hasSeenH01WoodcutterHint, phase, turn]);
 
   const handleIntroDismiss = useCallback(() => {
     setHasSeenIntro(true);
