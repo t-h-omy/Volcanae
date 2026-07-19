@@ -16,7 +16,7 @@ import { useGameStore } from './gameStore';
  *
  * Gate order:
  *  1. hintsEnabled must be true.
- *  2. Hints never fire during turn 1.
+ *  2. Hints only fire on/after HINTS.START_TURN.
  *  3. seenHints (per-save) must not include hintId.
  *  4. globalShowCounts[hintId] must be < HINTS.GLOBAL_MAX_SHOWS.
  *  5. On pass: markHintSeen, incrementShowCount, enqueue.
