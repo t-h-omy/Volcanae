@@ -4408,7 +4408,7 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
       return s.arcaneCrystals >= computeResearchCost(def?.cost ?? 1, s.ember);
     });
   });
-  const hasSeenH01WoodcutterHint = useGameStore((s) => s.seenHints.includes('H01_BUILD_WOODCUTTER'));
+  const hasSeenH01WoodcutterHint = useGameStore((s) => s.seenHints?.includes('H01_BUILD_WOODCUTTER') ?? false);
 
   // Narrow building types for starter-chain hint evaluation (H01/H02/H03).
   // Use stable Immer reference as memo dependency so the selector passed to
@@ -4456,6 +4456,7 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
   useEffect(() => {
     if (!hasSeenH01WoodcutterHint) return;
     if (phase !== GamePhase.PLAYER_TURN) return;
+    if (h01SeenTurnRef.current !== null) return;
     if (h01SeenTurnRef.current === null) h01SeenTurnRef.current = turn;
   }, [hasSeenH01WoodcutterHint, phase, turn]);
 
