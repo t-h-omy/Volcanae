@@ -4383,6 +4383,7 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
   const arcaneCrystals = useGameStore((s) => s.arcaneCrystals);
   const [hasSeenIntro, setHasSeenIntro] = useState(false);
   const [showTechTree, setShowTechTree] = useState(false);
+  const [h01SeenTurn, setH01SeenTurn] = useState<number | null>(null);
   // Track crystals at the moment the player last closed the tech tree.
   // Initialised to -1 so the badge shows from game start if there is an affordable tech.
   const [crystalsAtLastTechTreeClose, setCrystalsAtLastTechTreeClose] = useState(-1);
@@ -4406,6 +4407,7 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
       const def = TECH_TREE.find((d) => d.id === techId);
       return s.arcaneCrystals >= computeResearchCost(def?.cost ?? 1, s.ember);
     });
+    const hasSeenH01WoodcutterHint = useGameStore((s) => s.seenHints.includes('H01_BUILD_WOODCUTTER'));
   });
 
   // Narrow building types for starter-chain hint evaluation (H01/H02/H03).
@@ -4414,6 +4416,7 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
   // consecutive snapshot calls, preventing the "getSnapshot should be cached"
   // invariant violation that causes an infinite render loop and crashes the app.
   const hudBuildings = useGameStore((s) => s.buildings);
+  const hudUnits = useGameStore((s) => s.units);
   const playerBuildingTypes = useMemo(() => {
     const types = new Set<string>();
     for (const b of Object.values(hudBuildings)) {
@@ -4421,6 +4424,10 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
     }
     return types;
   }, [hudBuildings]);
+  const hasPlayerGuard = useMemo(
+    () => Object.values(hudUnits).some((u) => u.faction === Faction.PLAYER && u.type === UnitType.GUARD),
+    [hudUnits],
+  );
 
   // H01/H02/H03: starter chain, evaluated each player turn.
   useEffect(() => {
@@ -4444,6 +4451,25 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
       }
     }
   }, [turn, phase, playerBuildingTypes]);
+
+  // Track the turn when H01 was first seen in this session.
+  useEffect(() => {
+    if (!hasSeenH01WoodcutterHint) {
+      if (h01SeenTurn !== null) setH01SeenTurn(null);
+      return;
+    }
+    if (phase !== GamePhase.PLAYER_TURN) return;
+    if (h01SeenTurn === null) setH01SeenTurn(turn);
+  }, [hasSeenH01WoodcutterHint, h01SeenTurn, phase, turn]);
+
+  // Follow-up hint: on the turn after H01, suggest recruiting a Guard if none exists yet.
+  useEffect(() => {
+    if (phase !== GamePhase.PLAYER_TURN) return;
+    if (h01SeenTurn === null) return;
+    if (turn !== h01SeenTurn + 1) return;
+    if (hasPlayerGuard) return;
+    tryTriggerHint('H01B_RECRUIT_GUARD');
+  }, [h01SeenTurn, hasPlayerGuard, phase, turn]);
 
   const handleIntroDismiss = useCallback(() => {
     setHasSeenIntro(true);

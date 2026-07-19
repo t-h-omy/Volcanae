@@ -27,6 +27,7 @@ export const HINTS = {
 
 export type HintId =
   | 'H01_BUILD_WOODCUTTER'
+  | 'H01B_RECRUIT_GUARD'
   | 'H02_BUILD_MINE'
   | 'H03_BUILD_ON_RUIN'
   | 'H04_RUIN_MENU_FIRST'
@@ -49,6 +50,7 @@ export type HintId =
 
 export const ALL_HINT_IDS: HintId[] = [
   'H01_BUILD_WOODCUTTER',
+  'H01B_RECRUIT_GUARD',
   'H02_BUILD_MINE',
   'H03_BUILD_ON_RUIN',
   'H04_RUIN_MENU_FIRST',
@@ -84,6 +86,11 @@ export const HINT_DEFINITIONS: Record<HintId, HintDefinition> = {
     short: 'Move a unit onto a forest tile to build a Woodcutter for wood income.',
     detail:
       'Most of your units can construct buildings. Select a unit, move it onto a forest tile, then choose Build. Wood is needed for buildings and many units.',
+  },
+  H01B_RECRUIT_GUARD: {
+    short: 'Recruit a Guard in your Stronghold to secure your front line.',
+    detail:
+      'Open your Stronghold and recruit a Guard. Guards are sturdy frontline units, and after researching Field Duties they can also build and capture.',
   },
   H02_BUILD_MINE: {
     short: 'Now move a unit onto a mountain tile to build a Mine for iron.',
