@@ -381,24 +381,26 @@ function HintsControls({ showReset = false }: { showReset?: boolean }) {
   const hintsEnabled = useHintOptionsStore((s) => s.hintsEnabled);
   const setHintsEnabled = useHintOptionsStore((s) => s.setHintsEnabled);
   const resetShowCounts = useHintOptionsStore((s) => s.resetShowCounts);
-  const [resetDone, setResetDone] = useState(false);
+  const [showResetConfirmation, setShowResetConfirmation] = useState(false);
   const resetTimeoutRef = useRef<number | null>(null);
 
-  useEffect(() => () => {
-    if (resetTimeoutRef.current !== null) {
-      window.clearTimeout(resetTimeoutRef.current);
-    }
+  useEffect(() => {
+    return () => {
+      if (resetTimeoutRef.current !== null) {
+        window.clearTimeout(resetTimeoutRef.current);
+      }
+    };
   }, []);
 
   const handleResetHints = useCallback(() => {
     resetShowCounts();
-    setResetDone(true);
+    setShowResetConfirmation(true);
     if (resetTimeoutRef.current !== null) {
       window.clearTimeout(resetTimeoutRef.current);
     }
     resetTimeoutRef.current = window.setTimeout(() => {
       resetTimeoutRef.current = null;
-      setResetDone(false);
+      setShowResetConfirmation(false);
     }, 1500);
   }, [resetShowCounts]);
 
@@ -423,7 +425,7 @@ function HintsControls({ showReset = false }: { showReset?: boolean }) {
             onClick={handleResetHints}
             aria-label="Reset hint counters"
           >
-            {resetDone ? 'Done' : 'Reset'}
+            {showResetConfirmation ? 'Done' : 'Reset'}
           </button>
         </div>
       )}
