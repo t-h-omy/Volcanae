@@ -624,6 +624,7 @@ export default function GridRenderer() {
   const slidePreviewSet = useMemo<Set<string>>(() => {
     const set = new Set<string>();
     if (!selectedUnit || selectedUnit.faction !== Faction.PLAYER) return set;
+    if (selectedUnit.tags.includes(UnitTag.FLYING)) return set;
     for (const key of reachableSet) {
       const [kx, ky] = key.split(',').map(Number);
       const tile = grid[ky]?.[kx];

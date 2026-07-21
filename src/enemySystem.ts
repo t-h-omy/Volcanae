@@ -1354,6 +1354,7 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
   if (
     newTile.status === TileStatus.FROZEN &&
     unitAfterEffects &&
+    !unitAfterEffects.tags.includes(UnitTag.FLYING) &&
     unitAfterEffects.position.x === targetPosition.x &&
     unitAfterEffects.position.y === targetPosition.y
   ) {

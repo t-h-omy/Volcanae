@@ -2844,7 +2844,8 @@ export const TERRAIN_TAG_INFO: Record<TerrainTag, { label: string; desc: string 
     desc:
       'Units that end movement on this tile slide one additional tile in their movement direction. ' +
       'Sliding into water, canyon, or lava is fatal. ' +
-      'Spawning directly onto a frozen tile triggers no slide.',
+      'Spawning directly onto a frozen tile triggers no slide. ' +
+      'Flying units do not slide.',
   },
   [TerrainTag.BURNING]: {
     label: 'Burning',

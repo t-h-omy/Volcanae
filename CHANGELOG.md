@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.97.2 - Flying units no longer ice-slide
+
+Enemy FLYING units (such as Gargoyles raised by the enemy) were incorrectly ice-sliding when the AI moved them onto a FROZEN tile. The enemy movement path in `enemySystem.ts` now mirrors the guard already present in `movementSystem.ts` and `combatSystem.ts`: a FLYING tag check skips the `resolveSlide` call entirely. The slide-destination preview in `GridRenderer.tsx` also gains a FLYING guard so that a selected FLYING player unit never shows a phantom slide highlight. The FROZEN terrain tag description now notes that flying units do not slide.
+
 ### v0.96.0 - Situational Hint System
 
 Volcanae now includes a first-time-encounter hint system to help new players learn the game. Twenty contextual hints (H01 to H20) fire automatically on their first relevant encounter: building placement guidance, economy warnings (homeless/untrained units), lava advance, ember level ups, combat rules, tech tree prompts, crystal chamber resonance, and Emberbind leash mechanics. Each hint appears as a dismissable banner overlaying the resource top bar, with a "More" toggle to expand a detailed explanation.
