@@ -13,6 +13,26 @@
 export type TileCycleTarget = 'unit' | 'building' | 'terrain';
 
 /**
+ * Returns which occupant of the tile is currently the active selection, or
+ * null if nothing from this tile is selected.
+ *
+ * @param tileUnitId     tile.unitId
+ * @param tileBuildingId tile.buildingId
+ * @param selUnitId      store selectedUnitId
+ * @param selBuildingId  store selectedBuildingId
+ */
+export function tileSelectionState(
+  tileUnitId: string | null,
+  tileBuildingId: string | null,
+  selUnitId: string | null,
+  selBuildingId: string | null,
+): 'unit' | 'building' | null {
+  if (tileUnitId !== null && selUnitId === tileUnitId) return 'unit';
+  if (tileBuildingId !== null && selBuildingId === tileBuildingId) return 'building';
+  return null;
+}
+
+/**
  * Given the current selection state for a tile and its occupants, returns what
  * should be selected next when the player taps the tile.
  *

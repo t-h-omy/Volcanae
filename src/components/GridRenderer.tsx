@@ -35,7 +35,7 @@ import {
   type Building,
 } from '../types';
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
-import { nextTileCycleTarget } from '../tileCycleHelper';
+import { nextTileCycleTarget, tileSelectionState } from '../tileCycleHelper';
 import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, canUnitConstruct, canUnitCapture, hasUnitActed, getHealTargets, canUnitCast, getBridgeBuildTargets } from '../unitActions';
 import { getValidSpellTargets } from '../spellSystem';
 import './GridRenderer.css';
@@ -790,9 +790,7 @@ export default function GridRenderer() {
       if (tile.unitId) {
         const u = units[tile.unitId];
         if (u && u.faction === Faction.PLAYER) {
-          const sel = selectedUnitId === tile.unitId ? 'unit' as const
-            : (tile.buildingId && selectedBuildingId === tile.buildingId) ? 'building' as const
-            : null;
+          const sel = tileSelectionState(tile.unitId, tile.buildingId, selectedUnitId, selectedBuildingId);
           const target = nextTileCycleTarget(sel, true, !!tile.buildingId, tile.isRevealed && !tile.isLava);
           if (target === 'building') selectBuilding(tile.buildingId!);
           else if (target === 'terrain') selectTile({ x, y });
@@ -827,9 +825,7 @@ export default function GridRenderer() {
             buildingAttackUnit(selectedBuilding.id, tile.unitId);
             return;
           }
-          const sel = selectedUnitId === tile.unitId ? 'unit' as const
-            : (tile.buildingId && selectedBuildingId === tile.buildingId) ? 'building' as const
-            : null;
+          const sel = tileSelectionState(tile.unitId, tile.buildingId, selectedUnitId, selectedBuildingId);
           const target = nextTileCycleTarget(sel, true, !!tile.buildingId, tile.isRevealed && !tile.isLava);
           if (target === 'building') selectBuilding(tile.buildingId!);
           else if (target === 'terrain') selectTile({ x, y });

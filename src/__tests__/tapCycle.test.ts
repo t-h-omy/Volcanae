@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { nextTileCycleTarget } from '../tileCycleHelper';
+import { nextTileCycleTarget, tileSelectionState } from '../tileCycleHelper';
 
 describe('nextTileCycleTarget', () => {
   describe('unit + building tile (canSelectTerrain = true)', () => {
@@ -58,5 +58,21 @@ describe('nextTileCycleTarget', () => {
       expect(nextTileCycleTarget('unit', true, true, false)).toBe('building');
       expect(nextTileCycleTarget('building', true, true, false)).toBe('building');
     });
+  });
+});
+
+describe('tileSelectionState', () => {
+  it('returns unit when selected unit matches tile unit', () => {
+    expect(tileSelectionState('u1', 'b1', 'u1', null)).toBe('unit');
+  });
+  it('returns building when selected building matches tile building', () => {
+    expect(tileSelectionState('u1', 'b1', null, 'b1')).toBe('building');
+  });
+  it('returns null when nothing from this tile is selected', () => {
+    expect(tileSelectionState('u1', 'b1', 'u2', 'b2')).toBeNull();
+    expect(tileSelectionState('u1', 'b1', null, null)).toBeNull();
+  });
+  it('unit match takes priority over building match', () => {
+    expect(tileSelectionState('u1', 'b1', 'u1', 'b1')).toBe('unit');
   });
 });
