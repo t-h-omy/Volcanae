@@ -2660,7 +2660,7 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   [UnitTag.BLOCK]:        { label: 'Block',       desc: `Takes only ${BLOCK_MELEE_DAMAGE_MULTIPLIER * 100}% damage from melee attackers.` },
   [UnitTag.PUNCTURE]:     { label: 'Puncture',    desc: `Ignores defensive bonuses on the target. Stuns targets with base DEF above ${PUNCTURE_STUN_BASE_DEF_THRESHOLD} for ${PUNCTURE_STUN_DURATION} turn(s).` },
   [UnitTag.RELOAD]:       { label: 'Reload',      desc: `After this unit attacks, its DEF is reduced by ${RELOAD_DEF_PENALTY_PCT}% until the start of its next turn.` },
-  [UnitTag.BURN]:         { label: 'Burn',        desc: 'Attacks set the target\'s tile to Burning, dealing damage to non-lava units standing there at end of turn.' },
+  [UnitTag.BURN]:         { label: 'Burn',        desc: 'Attacks set the target\'s tile to Burning, dealing damage to non-lava units standing there at end of turn. Corrupted or frozen tiles cannot be ignited.' },
   [UnitTag.TUNNEL]:       { label: 'Tunnel',      desc: `Digs underground and re-emerges ${TUNNEL_RANGE_MIN}–${TUNNEL_RANGE_MAX} tiles south in the same column. Deals ${TUNNEL_EMERGE_DAMAGE} damage to enemies adjacent to the emergence tile. Sets the emergence tile to Corrupted.` },
   [UnitTag.EMBER_PORTAL]: { label: 'Ember Portal', desc: 'Casts a pair of portals: an entrance next to the Rift Lord and an exit behind the player\'s frontline. Any enemy unit stepping on the entrance teleports to the exit, if the exit is free. If the exit is blocked, the unit waits on the entrance and teleports the moment the exit clears. The Rift Lord cannot cast another pair until the current pair is removed. Portal tiles are corrupted and block player movement.' },
   // ── Overcapacity penalty tags ────────────────────────────────────────────────
@@ -2753,6 +2753,14 @@ export const TILE_STATUS_WHITELIST: Record<TileType, TileStatus[]> = {
 export const BURNING_TILE_DAMAGE = 10;
 
 /**
+ * Tile statuses that block BURNING from being applied. A tile whose current
+ * status is listed here will not be ignited — the existing status is preserved.
+ * Applying FROZEN or CORRUPTED over BURNING remains allowed (e.g. Frostcraft
+ * extinguishing a burning tile).
+ */
+export const BURNING_BLOCKED_BY_STATUSES: readonly TileStatus[] = [TileStatus.CORRUPTED, TileStatus.FROZEN];
+
+/**
  * Tags that are suppressed (i.e. have no effect) when a player unit stands on
  * a CORRUPTED tile. Used by the combat system to skip those abilities and by the
  * HUD to visually mark them as inactive.
@@ -2837,7 +2845,8 @@ export const TERRAIN_TAG_INFO: Record<TerrainTag, { label: string; desc: string 
       'No Phalanx bonuses, no Patchup healing, no Pin Down / Distraction / Splash effects on attack, ' +
       'and no tag-based attack bonuses (Knight, Lance Charge, Assassin, Bloodlust). ' +
       'Preventive Strike overwatch is also suppressed. ' +
-      'Base stats, movement, ranged capability, and persistent effects (Brandmarked) remain unchanged.',
+      'Base stats, movement, ranged capability, and persistent effects (Brandmarked) remain unchanged. ' +
+      'Cannot be set on fire.',
   },
   [TerrainTag.FROZEN]: {
     label: 'Frozen',
@@ -2845,7 +2854,8 @@ export const TERRAIN_TAG_INFO: Record<TerrainTag, { label: string; desc: string 
       'Units that end movement on this tile slide one additional tile in their movement direction. ' +
       'Sliding into water, canyon, or lava is fatal. ' +
       'Spawning directly onto a frozen tile triggers no slide. ' +
-      'Flying units do not slide.',
+      'Flying units do not slide. ' +
+      'Cannot be set on fire.',
   },
   [TerrainTag.BURNING]: {
     label: 'Burning',

@@ -13,7 +13,7 @@ import type { Draft } from 'immer';
 import { TileType, TileStatus, Faction, UnitTag } from './types';
 import type { GameState, Position } from './types';
 import type { GameEvent } from './gameEvents';
-import { TILE_STATUS_WHITELIST, BURNING_TILE_DAMAGE } from './gameConfig';
+import { TILE_STATUS_WHITELIST, BURNING_TILE_DAMAGE, BURNING_BLOCKED_BY_STATUSES } from './gameConfig';
 
 // ============================================================================
 // QUERY HELPERS
@@ -77,12 +77,14 @@ export function clearTileStatus(
 }
 
 /**
- * Applies a tile status. Any existing status is always cleared first
- * (and its side effects fire, e.g., drowning). If the new status is not
- * whitelisted for the tile's terrain, only the existing status is cleared —
- * no new status is set.
+ * Applies a tile status. If the new status is BURNING and the tile already
+ * has a status in BURNING_BLOCKED_BY_STATUSES (CORRUPTED or FROZEN), the call
+ * is a no-op and returns false — the existing status is preserved. Otherwise,
+ * any existing status is cleared first (and its side effects fire, e.g.,
+ * drowning). If the new status is not whitelisted for the tile's terrain, only
+ * the existing status is cleared — no new status is set.
  *
- * @returns true if the new status was written, false if only a clear occurred.
+ * @returns true if the new status was written, false otherwise.
  */
 export function applyTileStatus(
   state: Draft<GameState>,
@@ -92,6 +94,11 @@ export function applyTileStatus(
 ): boolean {
   const tile = state.grid[position.y]?.[position.x];
   if (!tile) return false;
+
+  // Guard: CORRUPTED and FROZEN tiles cannot be ignited — preserve existing status.
+  if (newStatus === TileStatus.BURNING && tile.status !== null && BURNING_BLOCKED_BY_STATUSES.includes(tile.status)) {
+    return false;
+  }
 
   // Step 1: Always clear the existing status first (triggers side effects).
   clearTileStatus(state, position, events);

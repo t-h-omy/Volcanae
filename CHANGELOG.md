@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.97.5 - Corrupted and frozen tiles are fireproof
+
+BURN attacks can no longer overwrite a CORRUPTED or FROZEN tile with BURNING. The existing status is preserved and the attack's tile-ignition has no effect. Applying FROZEN or CORRUPTED over a BURNING tile remains allowed (e.g. Frostcraft can still extinguish fire).
+
 ### v0.97.4 - Stronger corrupted-tag feedback flash
 
 The CORRUPTED tag pill now flashes three times with strong red contrast (saturated background, bright text, wide glow, slight scale pulse) over 1.6 s when the player closes a corruption-disabled tag popup, making the feedback significantly more noticeable.

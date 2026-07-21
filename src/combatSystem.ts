@@ -1536,7 +1536,8 @@ export function resolveAttack(
 
   // BURN: apply BURNING status to the tile the defender occupied.
   // applyTileStatus enforces the whitelist, so non-combustible terrain (WATER, CANYON, etc.)
-  // will not receive BURNING. It also clears any existing status first (e.g. FROZEN).
+  // will not receive BURNING. CORRUPTED and FROZEN tiles are also fireproof — BURN has no
+  // effect on them and the existing status is preserved.
   // Suppressed on CORRUPTED tile.
   if (!attackerDead && attacker.tags.includes(UnitTag.BURN) && !attackerOnCorrupted) {
     applyTileStatus(state, defenderPosition, TileStatus.BURNING);
