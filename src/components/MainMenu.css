@@ -1111,7 +1111,7 @@
   opacity: 0.65;
 }
 
-/* ── Hints toggle row (New Campaign panel) ── */
+/* ── Hint controls (New Campaign / Options panels) ── */
 
 .mm-hints-row {
   display: flex;
@@ -1147,4 +1147,23 @@
 
 .mm-hints-toggle:hover {
   background: rgba(255, 255, 255, 0.1);
+}
+
+.mm-hints-reset {
+  min-width: 56px;
+  padding: 4px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(120, 200, 255, 0.2);
+  background: rgba(120, 200, 255, 0.08);
+  color: var(--mm-text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.mm-hints-reset:hover {
+  background: rgba(120, 200, 255, 0.14);
+  border-color: rgba(120, 200, 255, 0.28);
+  color: var(--mm-text);
 }

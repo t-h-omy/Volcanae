@@ -47,7 +47,7 @@ import type { GameEvent } from './gameEvents';
 import { MAP, TERRAIN, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval, UNIT_DEFINITIONS, MAGE, TUNNEL_EMERGE_DAMAGE } from './gameConfig';
 import { RENDER } from './renderConfig';
 import { ANIMATION } from './animationConfig';
-import { saveSlot, loadSlot, listSlots, deleteSlot, getSlotMeta } from './saveSystem';
+import { saveSlot, loadSlot, listSlots, deleteSlot, getSlotMeta, saveSeenHintsForSlot } from './saveSystem';
 import { useMenuStore } from './menuStore';
 import { computeLevelFromXp, applyLevelUps } from './levelSystem';
 import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLogic, getGrantedTags, getRemovedTags, getStatMods, applyTagStatEffects, revokeTagStatEffects } from './techSystem';
@@ -67,7 +67,7 @@ import { MARKET } from './gameConfig';
 import { canUnitBuildBridge, getBridgeBuildTargets } from './unitActions';
 import { canUnitSetTrap, isTrapTileClear, canUnitExtinguish } from './unitActions';
 import { useHintStore } from './hintStore';
-import { tryTriggerHint } from './hintSystem';
+import { flushDeferredHints, tryTriggerHint } from './hintSystem';
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
@@ -296,6 +296,13 @@ function syncCameraToPlayerStronghold(state: GameState): void {
     return best;
   });
   useAnimationStore.getState().setCameraTarget(northMost.position);
+}
+
+function getSerializableGameStateSnapshot(): GameState {
+  const fullStore = useGameStore.getState();
+  return Object.fromEntries(
+    Object.entries(fullStore).filter(([, value]) => typeof value !== 'function'),
+  ) as GameState;
 }
 
 // ============================================================================
@@ -2368,6 +2375,16 @@ export const useGameStore = create<GameStore>()(
         }
       });
 
+      // Stage turn-start hints after the state mutation commits. Homeless and
+      // untrained should surface on the next player turn, not during end-turn
+      // resolution or enemy-turn playback.
+      if (homelessHintPos !== null) {
+        useHintStore.getState().defer({ hintId: 'H10_HOMELESS', cameraTarget: homelessHintPos });
+      }
+      if (untrainedHintPos !== null) {
+        useHintStore.getState().defer({ hintId: 'H11_UNTRAINED', cameraTarget: untrainedHintPos });
+      }
+
       // Enqueue outside the immer set so the draft has already committed before
       // the animation engine's subscribe handler fires.
       if (pendingEvents !== null && pendingResolvedState !== null) {
@@ -2382,6 +2399,9 @@ export const useGameStore = create<GameStore>()(
         // throw a DataCloneError when IDB tries to structured-clone the record.
         if (pendingStateForSave !== null) {
           const stateForSave = pendingStateForSave as GameState;
+          if (stateForSave.phase === GamePhase.PLAYER_TURN) {
+            flushDeferredHints();
+          }
           if (
             stateForSave.phase === GamePhase.PLAYER_TURN ||
             stateForSave.phase === GamePhase.GAME_OVER ||
@@ -2389,10 +2409,14 @@ export const useGameStore = create<GameStore>()(
           ) {
             const activeSaveId = useMenuStore.getState().activeSaveId;
             if (activeSaveId) {
+              const serializableState =
+                stateForSave.phase === GamePhase.PLAYER_TURN
+                  ? getSerializableGameStateSnapshot()
+                  : stateForSave;
               // Fire-and-forget autosave — failures must not crash the game.
               getSlotMeta(activeSaveId).then((meta) => {
-                const slotName = meta?.name ?? stateForSave.turn.toString();
-                saveSlot({ id: activeSaveId, name: slotName, state: stateForSave }).catch(() => undefined);
+                const slotName = meta?.name ?? serializableState.turn.toString();
+                saveSlot({ id: activeSaveId, name: slotName, state: serializableState }).catch(() => undefined);
               }).catch(() => undefined);
             }
           }
@@ -2400,18 +2424,6 @@ export const useGameStore = create<GameStore>()(
       }
       // Fire hint triggers after the state mutation and animation queue are settled.
       {
-        if (homelessHintPos !== null) {
-          const fired = tryTriggerHint('H10_HOMELESS');
-          if (fired) {
-            useAnimationStore.getState().setCameraTarget(homelessHintPos);
-          }
-        }
-        if (untrainedHintPos !== null) {
-          const fired = tryTriggerHint('H11_UNTRAINED');
-          if (fired) {
-            useAnimationStore.getState().setCameraTarget(untrainedHintPos);
-          }
-        }
         if (hasBurningPlayerDamage) {
           tryTriggerHint('H13_BURNING');
         }
@@ -3379,14 +3391,14 @@ export const useGameStore = create<GameStore>()(
     },
 
     setGameState: (newState: GameState) => {
-      let stateForSave: GameState = newState;
       set((state) => {
         const incomingSeenHints = Array.isArray(newState.seenHints) ? newState.seenHints : [];
         const currentSeenHints = Array.isArray(state.seenHints) ? state.seenHints : [];
         const mergedSeenHints = Array.from(new Set([...incomingSeenHints, ...currentSeenHints]));
-        stateForSave = { ...newState, seenHints: mergedSeenHints };
-        Object.assign(state, stateForSave);
+        Object.assign(state, { ...newState, seenHints: mergedSeenHints });
       });
+      flushDeferredHints();
+      const stateForSave = getSerializableGameStateSnapshot();
       // Autosave when transitioning to the player's turn, or when the game ends
       // so that the overlay is shown on reload rather than rewinding to the last turn.
       if (
@@ -3442,6 +3454,10 @@ export const useGameStore = create<GameStore>()(
           state.seenHints.push(hintId);
         }
       });
+      const activeSaveId = useMenuStore.getState().activeSaveId;
+      if (activeSaveId) {
+        saveSeenHintsForSlot(activeSaveId, useGameStore.getState().seenHints).catch(() => undefined);
+      }
     },
 
     // ========================================================================

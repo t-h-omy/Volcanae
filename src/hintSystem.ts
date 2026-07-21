@@ -10,6 +10,7 @@ import type { HintId } from './hintConfig';
 import { useHintOptionsStore } from './hintOptionsStore';
 import { useHintStore } from './hintStore';
 import { useGameStore } from './gameStore';
+import { useAnimationStore } from './animationStore';
 
 /**
  * Returns true and enqueues the hint if all gates pass; false otherwise.
@@ -38,4 +39,14 @@ export function tryTriggerHint(hintId: HintId): boolean {
   incrementShowCount(hintId);
   useHintStore.getState().enqueue(hintId);
   return true;
+}
+
+export function flushDeferredHints(): void {
+  const deferredHints = useHintStore.getState().takeDeferred();
+  for (const deferred of deferredHints) {
+    const fired = tryTriggerHint(deferred.hintId);
+    if (fired && deferred.cameraTarget) {
+      useAnimationStore.getState().setCameraTarget(deferred.cameraTarget);
+    }
+  }
 }

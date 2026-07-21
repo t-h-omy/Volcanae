@@ -6,10 +6,17 @@
 
 import { create } from 'zustand';
 import type { HintId } from './hintConfig';
+import type { Position } from './types';
+
+export interface DeferredHint {
+  hintId: HintId;
+  cameraTarget: Position | null;
+}
 
 interface HintStoreState {
   queue: HintId[];
   activeHintId: HintId | null;
+  deferredHints: DeferredHint[];
   expanded: boolean;
 
   /**
@@ -21,6 +28,12 @@ interface HintStoreState {
   /** Advance the queue, resetting expanded state. */
   dismissActive: () => void;
 
+  /** Defer a hint until the next player-turn start. */
+  defer: (hint: DeferredHint) => void;
+
+  /** Drain deferred hints in FIFO order. */
+  takeDeferred: () => DeferredHint[];
+
   /** Toggle the expanded detail panel. */
   toggleExpanded: () => void;
 
@@ -28,9 +41,10 @@ interface HintStoreState {
   reset: () => void;
 }
 
-export const useHintStore = create<HintStoreState>()((set) => ({
+export const useHintStore = create<HintStoreState>()((set, get) => ({
   queue: [],
   activeHintId: null,
+  deferredHints: [],
   expanded: false,
 
   enqueue: (hintId) => {
@@ -59,11 +73,30 @@ export const useHintStore = create<HintStoreState>()((set) => ({
     });
   },
 
+  defer: (hint) => {
+    set((state) => {
+      if (
+        state.activeHintId === hint.hintId ||
+        state.queue.includes(hint.hintId) ||
+        state.deferredHints.some((entry) => entry.hintId === hint.hintId)
+      ) {
+        return {};
+      }
+      return { deferredHints: [...state.deferredHints, hint] };
+    });
+  },
+
+  takeDeferred: () => {
+    const deferredHints = get().deferredHints;
+    set({ deferredHints: [] });
+    return deferredHints;
+  },
+
   toggleExpanded: () => {
     set((state) => ({ expanded: !state.expanded }));
   },
 
   reset: () => {
-    set({ queue: [], activeHintId: null, expanded: false });
+    set({ queue: [], activeHintId: null, deferredHints: [], expanded: false });
   },
 }));

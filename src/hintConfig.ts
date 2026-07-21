@@ -88,9 +88,9 @@ export const HINT_DEFINITIONS: Record<HintId, HintDefinition> = {
       'Most of your units can construct buildings. Select a unit, move it onto a forest tile, then choose Build. Wood is needed for buildings and many units.',
   },
   H01B_RECRUIT_GUARD: {
-    short: 'Recruit a Guard in your Stronghold to secure your front line.',
+    short: 'Recruit a Guard in your Stronghold to help construct and expand.',
     detail:
-      'Open your Stronghold and recruit a Guard. Guards are sturdy frontline units, and after researching Field Duties they can also build and capture.',
+      'Open your Stronghold and recruit a Guard. Guards are cheap, sturdy units, and after researching Field Duties they can also build and capture to support your early expansion.',
   },
   H02_BUILD_MINE: {
     short: 'Now move a unit onto a mountain tile to build a Mine for iron.',

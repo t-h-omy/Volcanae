@@ -9,7 +9,7 @@ import type { GameState } from '../types';
 import { UNIT_DEFINITIONS } from '../gameConfig';
 
 function resetHintStores() {
-  useHintStore.setState({ queue: [], activeHintId: null, expanded: false });
+  useHintStore.getState().reset();
   useHintOptionsStore.setState({ hintsEnabled: true, globalShowCounts: {} });
   useAnimationStore.getState().clear();
 }
@@ -74,7 +74,23 @@ describe('hint trigger regressions', () => {
 
     expect(useGameStore.getState().seenHints).toContain('H06_LAVA_ADVANCE');
 
-    useHintStore.setState({ queue: [], activeHintId: null, expanded: false });
+    useHintStore.getState().reset();
     expect(tryTriggerHint('H06_LAVA_ADVANCE')).toBe(false);
+  });
+
+  it('flushes deferred turn-start hints when the resolved player turn state is applied', () => {
+    const originalCamera = useAnimationStore.getState().cameraTarget;
+    useHintStore.getState().defer({
+      hintId: 'H10_HOMELESS',
+      cameraTarget: { x: 7, y: 8 },
+    });
+
+    const state = snapshotGameState();
+    useGameStore.getState().setGameState(state);
+
+    expect(useHintStore.getState().activeHintId).toBe('H10_HOMELESS');
+    expect(useAnimationStore.getState().cameraTarget).toEqual({ x: 7, y: 8 });
+    expect(useHintStore.getState().deferredHints).toEqual([]);
+    expect(useAnimationStore.getState().cameraTarget).not.toEqual(originalCamera);
   });
 });
