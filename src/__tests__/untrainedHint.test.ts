@@ -198,7 +198,7 @@ function makeBaseState(units: Unit[], buildings: Record<string, Building>): Game
 }
 
 function resetHintStores() {
-  useHintStore.setState({ queue: [], activeHintId: null, expanded: false });
+  useHintStore.getState().reset();
   useHintOptionsStore.setState({ hintsEnabled: true, globalShowCounts: {} });
   useAnimationStore.getState().clear();
 }

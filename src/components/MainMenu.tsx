@@ -377,21 +377,44 @@ function RootPanel({ hasSave, newestSlot }: { hasSave: boolean; newestSlot: Save
 // NEW GAME PANEL
 // ============================================================================
 
-function HintsToggleRow() {
+function HintsControls({ showReset = false }: { showReset?: boolean }) {
   const hintsEnabled = useHintOptionsStore((s) => s.hintsEnabled);
   const setHintsEnabled = useHintOptionsStore((s) => s.setHintsEnabled);
+  const resetShowCounts = useHintOptionsStore((s) => s.resetShowCounts);
+  const [resetDone, setResetDone] = useState(false);
+
+  const handleResetHints = useCallback(() => {
+    resetShowCounts();
+    setResetDone(true);
+    setTimeout(() => setResetDone(false), 1500);
+  }, [resetShowCounts]);
+
   return (
-    <div className="mm-hints-row">
-      <span className="mm-hints-label">💡 Show hints</span>
-      <button
-        className={`mm-hints-toggle${hintsEnabled ? ' mm-hints-toggle--on' : ''}`}
-        onClick={() => setHintsEnabled(!hintsEnabled)}
-        aria-pressed={hintsEnabled}
-        aria-label={hintsEnabled ? 'Disable hints' : 'Enable hints'}
-      >
-        {hintsEnabled ? 'On' : 'Off'}
-      </button>
-    </div>
+    <>
+      <div className="mm-hints-row">
+        <span className="mm-hints-label">💡 Show hints</span>
+        <button
+          className={`mm-hints-toggle${hintsEnabled ? ' mm-hints-toggle--on' : ''}`}
+          onClick={() => setHintsEnabled(!hintsEnabled)}
+          aria-pressed={hintsEnabled}
+          aria-label={hintsEnabled ? 'Disable hints' : 'Enable hints'}
+        >
+          {hintsEnabled ? 'On' : 'Off'}
+        </button>
+      </div>
+      {showReset && (
+        <div className="mm-hints-row">
+          <span className="mm-hints-label">🔄 Reset hint counters</span>
+          <button
+            className="mm-hints-reset"
+            onClick={handleResetHints}
+            aria-label="Reset hint counters"
+          >
+            {resetDone ? 'Done' : 'Reset'}
+          </button>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -479,7 +502,7 @@ function NewPanel() {
             </div>
           </div>
 
-          <HintsToggleRow />
+          <HintsControls />
 
           <button className="mm-world-gen-stub" disabled>
             <IconGlobe />
@@ -767,6 +790,13 @@ function OptionsPanel({
               onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
               aria-label="Sound FX volume"
             />
+          </div>
+
+          <div className="mm-options-divider" />
+
+          <div>
+            <div className="mm-field-label">Hints</div>
+            <HintsControls showReset />
           </div>
 
           <div className="mm-options-divider" />

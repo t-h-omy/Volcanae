@@ -545,6 +545,35 @@ export async function saveSlot(args: { id: string; name: string; state: GameStat
   }
 }
 
+/** Patch only the seenHints field of an existing slot's saved state. */
+export async function saveSeenHintsForSlot(id: string, seenHints: string[]): Promise<void> {
+  if (!idbAvailable()) return;
+  try {
+    const db = await openDb();
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(SAVE.STORE_DATA, 'readwrite');
+      const store = tx.objectStore(SAVE.STORE_DATA);
+      const req = store.get(id);
+      req.onsuccess = () => {
+        const record = req.result as { id: string; version: number; state: GameState } | undefined;
+        if (!record) return;
+        store.put({
+          ...record,
+          state: {
+            ...record.state,
+            seenHints: [...seenHints],
+          },
+        });
+      };
+      req.onerror = () => reject(req.error);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch {
+    // fail silently — hint persistence failures must not crash the game
+  }
+}
+
 /** Delete both metadata and state records for a slot. */
 export async function deleteSlot(id: string): Promise<void> {
   if (!idbAvailable()) return;

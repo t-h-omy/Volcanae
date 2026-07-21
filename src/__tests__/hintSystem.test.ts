@@ -31,7 +31,7 @@ vi.mock('../gameStore', () => ({
 import { tryTriggerHint } from '../hintSystem';
 
 function resetStores(hintsEnabled = true) {
-  useHintStore.setState({ queue: [], activeHintId: null, expanded: false });
+  useHintStore.getState().reset();
   useHintOptionsStore.setState({ hintsEnabled, globalShowCounts: {} });
   mockState.seenHints = [];
   mockState.turn = 2;
@@ -59,7 +59,7 @@ describe('tryTriggerHint', () => {
     tryTriggerHint('H01_BUILD_WOODCUTTER');
 
     // Reset queue to simulate a fresh banner state but keep seenHints.
-    useHintStore.setState({ queue: [], activeHintId: null, expanded: false });
+    useHintStore.getState().reset();
 
     const result = tryTriggerHint('H01_BUILD_WOODCUTTER');
     expect(result).toBe(false);

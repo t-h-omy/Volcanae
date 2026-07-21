@@ -13,7 +13,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import 'fake-indexeddb/auto';
 import { IDBFactory } from 'fake-indexeddb';
 import { generateInitialGameState } from '../mapGenerator';
-import { saveSlot, saveSlotStrict, loadSlot, listSlots } from '../saveSystem';
+import { saveSlot, saveSlotStrict, loadSlot, listSlots, saveSeenHintsForSlot } from '../saveSystem';
 import { ALL_HINT_IDS } from '../hintConfig';
 import type { GameState } from '../types';
 
@@ -65,6 +65,17 @@ describe('saveSlot round-trip', () => {
     const loaded = await loadSlot('slot_c');
     expect(loaded).not.toBeNull();
     expect(loaded?.seenHints).toEqual(['H01_BUILD_WOODCUTTER', 'H05_ATTACK_ENDS_TURN']);
+  });
+
+  it('can patch seenHints without overwriting the rest of the saved state', async () => {
+    const state: GameState = { ...generateInitialGameState(), turn: 9, seenHints: [] };
+    await saveSlot({ id: 'slot_seen', name: 'Hints', state });
+    await saveSeenHintsForSlot('slot_seen', ['H10_HOMELESS']);
+
+    const loaded = await loadSlot('slot_seen');
+    expect(loaded).not.toBeNull();
+    expect(loaded?.turn).toBe(9);
+    expect(loaded?.seenHints).toEqual(['H10_HOMELESS']);
   });
 
   it('migrates a v15 save to have all hints marked seen', async () => {

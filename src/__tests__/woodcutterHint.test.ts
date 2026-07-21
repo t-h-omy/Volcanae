@@ -12,7 +12,7 @@ import { useHintOptionsStore } from '../hintOptionsStore';
 import { useAnimationStore } from '../animationStore';
 
 function resetHintStores() {
-  useHintStore.setState({ queue: [], activeHintId: null, expanded: false });
+  useHintStore.getState().reset();
   useHintOptionsStore.setState({ hintsEnabled: true, globalShowCounts: {} });
   useAnimationStore.getState().clear();
 }
