@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.97.4 - Stronger corrupted-tag feedback flash
+
+The CORRUPTED tag pill now flashes three times with strong red contrast (saturated background, bright text, wide glow, slight scale pulse) over 1.6 s when the player closes a corruption-disabled tag popup, making the feedback significantly more noticeable.
+
 ### v0.97.3 - Fog-aware autocam for enemy portal teleports
 
 Enemy portal teleports now respect fog-of-war endpoint visibility. The portal autocam selects the entrance only when that tile is revealed, otherwise it focuses the revealed exit. PORTAL_USED animation playback is now a fog-aware two-beat sequence: entrance VFX is shown only on revealed entrance tiles, and exit camera/VFX playback is shown only on revealed exit tiles. Unrevealed endpoints no longer receive camera pans or portal VFX.
