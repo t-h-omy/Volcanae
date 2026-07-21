@@ -40,7 +40,9 @@ export function nextTileCycleTarget(
     if (canSelectTerrain) return 'terrain';
     return 'building';
   }
-  // 'terrain' or null (first tap / wrap-around): advance to the first occupant
+  // 'terrain' or null (first tap / wrap-around): advance to the first occupant.
+  // When no occupants exist and terrain is not selectable this is a degenerate state;
+  // returning 'terrain' is a safe no-op default.
   if (hasUnit) return 'unit';
   if (hasBuilding) return 'building';
   if (canSelectTerrain) return 'terrain';

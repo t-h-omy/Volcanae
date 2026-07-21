@@ -790,7 +790,9 @@ export default function GridRenderer() {
       if (tile.unitId) {
         const u = units[tile.unitId];
         if (u && u.faction === Faction.PLAYER) {
-          const sel = selectedUnitId === tile.unitId ? 'unit' as const : null;
+          const sel = selectedUnitId === tile.unitId ? 'unit' as const
+            : (tile.buildingId && selectedBuildingId === tile.buildingId) ? 'building' as const
+            : null;
           const target = nextTileCycleTarget(sel, true, !!tile.buildingId, tile.isRevealed && !tile.isLava);
           if (target === 'building') selectBuilding(tile.buildingId!);
           else if (target === 'terrain') selectTile({ x, y });
@@ -801,7 +803,7 @@ export default function GridRenderer() {
 
       // Priority 2 — Enemy unit on tile, valid attack available (unit or building attack)
       // Priority 3 — Enemy unit on tile, no valid attack: select for inspection
-      // Cycle: if this enemy unit is already selected and there is also a building → select the building
+      // Cycle: unit → building (if present) → terrain → unit
       if (tile.unitId) {
         const u = units[tile.unitId];
         if (u && u.faction === Faction.ENEMY) {
@@ -825,13 +827,13 @@ export default function GridRenderer() {
             buildingAttackUnit(selectedBuilding.id, tile.unitId);
             return;
           }
-          if (selectedUnitId === tile.unitId && tile.buildingId) {
-            selectBuilding(tile.buildingId);
-          } else if (selectedUnitId === tile.unitId && tile.isRevealed && !tile.isLava) {
-            selectTile({ x, y });
-          } else {
-            selectUnit(tile.unitId);
-          }
+          const sel = selectedUnitId === tile.unitId ? 'unit' as const
+            : (tile.buildingId && selectedBuildingId === tile.buildingId) ? 'building' as const
+            : null;
+          const target = nextTileCycleTarget(sel, true, !!tile.buildingId, tile.isRevealed && !tile.isLava);
+          if (target === 'building') selectBuilding(tile.buildingId!);
+          else if (target === 'terrain') selectTile({ x, y });
+          else selectUnit(tile.unitId);
           return;
         }
       }
