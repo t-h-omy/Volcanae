@@ -382,11 +382,24 @@ function HintsControls({ showReset = false }: { showReset?: boolean }) {
   const setHintsEnabled = useHintOptionsStore((s) => s.setHintsEnabled);
   const resetShowCounts = useHintOptionsStore((s) => s.resetShowCounts);
   const [resetDone, setResetDone] = useState(false);
+  const resetTimeoutRef = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (resetTimeoutRef.current !== null) {
+      window.clearTimeout(resetTimeoutRef.current);
+    }
+  }, []);
 
   const handleResetHints = useCallback(() => {
     resetShowCounts();
     setResetDone(true);
-    setTimeout(() => setResetDone(false), 1500);
+    if (resetTimeoutRef.current !== null) {
+      window.clearTimeout(resetTimeoutRef.current);
+    }
+    resetTimeoutRef.current = window.setTimeout(() => {
+      resetTimeoutRef.current = null;
+      setResetDone(false);
+    }, 1500);
   }, [resetShowCounts]);
 
   return (
