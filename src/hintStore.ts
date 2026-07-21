@@ -41,7 +41,7 @@ interface HintStoreState {
   reset: () => void;
 }
 
-export const useHintStore = create<HintStoreState>()((set) => ({
+export const useHintStore = create<HintStoreState>()((set, get) => ({
   queue: [],
   activeHintId: null,
   deferredHints: [],
@@ -87,7 +87,7 @@ export const useHintStore = create<HintStoreState>()((set) => ({
   },
 
   takeDeferred: () => {
-    const deferredHints = useHintStore.getState().deferredHints;
+    const deferredHints = get().deferredHints;
     set({ deferredHints: [] });
     return deferredHints;
   },
