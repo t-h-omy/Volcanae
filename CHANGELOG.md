@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.97.5 - Terrain panel reachable by tapping through unit and building
+
+Tapping the same tile now cycles through all occupants before returning to the first. A tile with a unit and a building cycles unit → building → terrain → unit. A building-only tile cycles building → terrain → building. A unit-only tile cycles unit → terrain → unit. The terrain step was previously skipped.
+
 ### v0.97.4 - Stronger corrupted-tag feedback flash
 
 The CORRUPTED tag pill now flashes three times with strong red contrast (saturated background, bright text, wide glow, slight scale pulse) over 1.6 s when the player closes a corruption-disabled tag popup, making the feedback significantly more noticeable.

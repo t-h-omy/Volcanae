@@ -35,6 +35,7 @@ import {
   type Building,
 } from '../types';
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
+import { nextTileCycleTarget } from '../tileCycleHelper';
 import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, canUnitConstruct, canUnitCapture, hasUnitActed, getHealTargets, canUnitCast, getBridgeBuildTargets } from '../unitActions';
 import { getValidSpellTargets } from '../spellSystem';
 import './GridRenderer.css';
@@ -785,15 +786,15 @@ export default function GridRenderer() {
       }
 
       // Priority 1 — Own player unit on tile
-      // Cycle: if this unit is already selected and there is also a building → select the building
+      // Cycle: unit → building (if present) → terrain → unit
       if (tile.unitId) {
         const u = units[tile.unitId];
         if (u && u.faction === Faction.PLAYER) {
-          if (selectedUnitId === tile.unitId && tile.buildingId) {
-            selectBuilding(tile.buildingId);
-          } else {
-            selectUnit(tile.unitId);
-          }
+          const sel = selectedUnitId === tile.unitId ? 'unit' as const : null;
+          const target = nextTileCycleTarget(sel, true, !!tile.buildingId, tile.isRevealed && !tile.isLava);
+          if (target === 'building') selectBuilding(tile.buildingId!);
+          else if (target === 'terrain') selectTile({ x, y });
+          else selectUnit(tile.unitId);
           return;
         }
       }
@@ -826,6 +827,8 @@ export default function GridRenderer() {
           }
           if (selectedUnitId === tile.unitId && tile.buildingId) {
             selectBuilding(tile.buildingId);
+          } else if (selectedUnitId === tile.unitId && tile.isRevealed && !tile.isLava) {
+            selectTile({ x, y });
           } else {
             selectUnit(tile.unitId);
           }
@@ -870,10 +873,10 @@ export default function GridRenderer() {
       }
 
       // Priority 5b — Building on tile, select it
-      // Cycle: if this building is already selected and there is also a unit → select the unit
+      // Cycle: building → terrain → building (or → unit on next tap if unit present)
       if (tile.buildingId) {
-        if (selectedBuildingId === tile.buildingId && tile.unitId) {
-          selectUnit(tile.unitId);
+        if (selectedBuildingId === tile.buildingId) {
+          selectTile({ x, y });
         } else {
           selectBuilding(tile.buildingId);
         }
