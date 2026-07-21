@@ -556,7 +556,10 @@ export async function saveSeenHintsForSlot(id: string, seenHints: string[]): Pro
       const req = store.get(id);
       req.onsuccess = () => {
         const record = req.result as { id: string; version: number; state: GameState } | undefined;
-        if (!record) return;
+        if (!record) {
+          resolve();
+          return;
+        }
         store.put({
           ...record,
           state: {
