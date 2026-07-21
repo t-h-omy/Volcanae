@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.97.3 - Fog-aware autocam for enemy portal teleports
+
+Enemy portal teleports now respect fog-of-war endpoint visibility. The portal autocam selects the entrance only when that tile is revealed, otherwise it focuses the revealed exit. PORTAL_USED animation playback is now a fog-aware two-beat sequence: entrance VFX is shown only on revealed entrance tiles, and exit camera/VFX playback is shown only on revealed exit tiles. Unrevealed endpoints no longer receive camera pans or portal VFX.
+
 ### v0.97.2 - Flying units no longer ice-slide
 
 Enemy FLYING units (such as Gargoyles raised by the enemy) were incorrectly ice-sliding when the AI moved them onto a FROZEN tile. The enemy movement path in `enemySystem.ts` now mirrors the guard already present in `movementSystem.ts` and `combatSystem.ts`: a FLYING tag check skips the `resolveSlide` call entirely. The slide-destination preview in `GridRenderer.tsx` also gains a FLYING guard so that a selected FLYING player unit never shows a phantom slide highlight. The FROZEN terrain tag description now notes that flying units do not slide.

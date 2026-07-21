@@ -19,6 +19,7 @@ import { BuildingType, Faction, UnitTag, UnitType } from './types';
 import type { GameEvent } from './gameEvents';
 import type { Position } from './types';
 import { tryTriggerHint } from './hintSystem';
+import { selectPortalUsedCameraEndpoint } from './portalAnimation';
 
 // ============================================================================
 // HELPERS
@@ -100,7 +101,7 @@ function eventPosition(event: GameEvent): Position {
     case 'PORTAL_CREATED':
       return event.entrancePos;
     case 'PORTAL_USED':
-      return event.fromPos;
+      return selectPortalUsedCameraEndpoint(event.fromPos, event.toPos, isTileRevealed(event.fromPos));
     case 'PORTAL_CLOSED':
       return event.entrancePos;
     case 'STUN_BLOCKED':
@@ -1602,8 +1603,11 @@ export function useAnimationEngine(): void {
 
         // ── Special handling for PORTAL_USED ──
         if (event.type === 'PORTAL_USED') {
-          if (visible) {
-            const store = useCombatAnimationStore.getState();
+          const fromVisible = isTileRevealed(event.fromPos);
+          const toVisible = isTileRevealed(event.toPos);
+          const store = useCombatAnimationStore.getState();
+
+          if (fromVisible) {
             store.addTileVfx({
               id: crypto.randomUUID(),
               x: event.fromPos.x,
@@ -1611,6 +1615,12 @@ export function useAnimationEngine(): void {
               variant: 'SPELL_IMPACT_PORTAL_ENTER',
               durationMs: ANIMATION.PORTAL_VFX_MS,
             });
+            await wait(ANIMATION.PORTAL_VFX_MS);
+          }
+
+          if (toVisible) {
+            useAnimationStore.getState().setCameraTarget(event.toPos);
+            await wait(ANIMATION.CAMERA_MOVE_DURATION_MS + ANIMATION.PRE_ACTION_IDLE_MS);
             store.addTileVfx({
               id: crypto.randomUUID(),
               x: event.toPos.x,
@@ -1618,6 +1628,7 @@ export function useAnimationEngine(): void {
               variant: 'SPELL_IMPACT_PORTAL_EXIT',
               durationMs: ANIMATION.PORTAL_VFX_MS,
             });
+            await wait(ANIMATION.POST_ACTION_IDLE_MS);
           }
           // No state effect to apply per-event; resolved state at queue end has
           // the final position.
