@@ -101,7 +101,12 @@ function eventPosition(event: GameEvent): Position {
     case 'PORTAL_CREATED':
       return event.entrancePos;
     case 'PORTAL_USED':
-      return selectPortalUsedCameraEndpoint(event.fromPos, event.toPos, isTileRevealed(event.fromPos));
+      return selectPortalUsedCameraEndpoint(
+        event.fromPos,
+        event.toPos,
+        isTileRevealed(event.fromPos),
+        isTileRevealed(event.toPos),
+      );
     case 'PORTAL_CLOSED':
       return event.entrancePos;
     case 'STUN_BLOCKED':
