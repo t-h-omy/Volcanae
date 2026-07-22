@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.97.9 - Consistent autocam pacing for tick damage and heals
+
+Consistent autocam pacing for tick damage and heals. TILE_DAMAGE, UNIT_HEAL, and CORRUPTION_APPLIED animation blocks now wait `POST_ACTION_IDLE_MS` after applying the event (when the tile is visible), matching the dwell time every other event type receives and preventing the camera from rushing past floaters and VFX.
+
 ### v0.97.8 - Kindler fire beam now advances toward its target
 
 Kindler fire beam now advances toward its target. The FIRE_SPIT line VFX uses a draw-on stroke-dashoffset animation so the beam visibly grows from the attacker to the target over the first 60% of its duration, then holds and fades. The beam is recoloured to the lava palette: bright orange core (`#FF7A3A`) with gold inner glow and deep-red outer shadow.

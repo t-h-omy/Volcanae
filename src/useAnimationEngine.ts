@@ -1572,6 +1572,7 @@ export function useAnimationEngine(): void {
           // applyEvent emits the damage floater. The VFX is short enough that the
           // floater rises through it visibly.
           useGameStore.getState().applyEvent(event);
+          if (visible) await wait(ANIMATION.POST_ACTION_IDLE_MS);
           continue;
         }
 
@@ -1587,6 +1588,7 @@ export function useAnimationEngine(): void {
             });
           }
           useGameStore.getState().applyEvent(event);
+          if (visible) await wait(ANIMATION.POST_ACTION_IDLE_MS);
           continue;
         }
 
@@ -1603,6 +1605,7 @@ export function useAnimationEngine(): void {
           }
           // No state effect; applyEvent will silently no-op.
           useGameStore.getState().applyEvent(event);
+          if (visible) await wait(ANIMATION.POST_ACTION_IDLE_MS);
           continue;
         }
 
