@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.97.10 - Blocked emberlings shuffle forward instead of freezing
+
+Blocked emberlings shuffle forward instead of freezing. When `findBfsPath` returns an empty path (all direct routes occupied), `moveEnemyUnitToward` now attempts one greedy step: it picks the free neighbour with the smallest Chebyshev distance to the target, breaking ties randomly. Lava tiles are never entered via this path — `SACRIFICE_TO_LAVA` remains the only intentional lava entry.
+
 ### v0.97.9 - Consistent autocam pacing for tick damage and heals
 
 Consistent autocam pacing for tick damage and heals. TILE_DAMAGE, UNIT_HEAL, and CORRUPTION_APPLIED animation blocks now wait `POST_ACTION_IDLE_MS` after applying the event (when the tile is visible), matching the dwell time every other event type receives and preventing the camera from rushing past floaters and VFX.

@@ -1473,6 +1473,63 @@ function moveEnemyUnitToward(
     const afterMove = state.units[unitId];
     if (afterMove && (afterMove.position.x !== nextPos.x || afterMove.position.y !== nextPos.y)) break;
   }
+  // Greedy fallback: when BFS found no path (congested frontline), try one
+  // immediate step toward the target by evaluating all 8 neighbours and
+  // picking the free one with the smallest edgeCircleDistance to the target
+  // (ties broken randomly). This unblocks SACRIFICIAL/EXPLOSIVE units (e.g.
+  // emberlings) that are surrounded on the direct path but still have a free
+  // sideways tile to shuffle onto. Lava entry is intentionally excluded so
+  // SACRIFICE_TO_LAVA remains the only route into lava.
+  if (path.length === 0) {
+    const uFallback = state.units[unitId];
+    if (
+      uFallback &&
+      // Guard: unit is not already at the target (findBfsPath returns [] for
+      // from === target, but there is nothing useful to do in that case).
+      (uFallback.position.x !== targetPosition.x || uFallback.position.y !== targetPosition.y)
+    ) {
+      let bestDist = Infinity;
+      const fallbackCandidates: Position[] = [];
+      for (const [dx, dy] of BFS_DIRECTIONS) {
+        const nx = uFallback.position.x + dx;
+        const ny = uFallback.position.y + dy;
+        if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;
+        const nTile = state.grid[ny][nx];
+        // Canyon/Water: impassable unless bridged (same rule as BFS and the step loop)
+        if (nTile.terrainType === TileType.CANYON || nTile.terrainType === TileType.WATER) {
+          if (!getBridgeAt(state, nx, ny) || !canTraverseEdge(state, uFallback.position.x, uFallback.position.y, nx, ny, false)) continue;
+        }
+        // Never step into lava — lava entry is only via SACRIFICE_TO_LAVA
+        if (nTile.isLava) continue;
+        // Blocked buildings are impassable
+        if (isBlockedBuildingForEnemyMovement(state, nTile.buildingId)) continue;
+        // Tile must be unoccupied
+        if (nTile.unitId !== null) continue;
+        // Zone lockout: respect the same zone-crossing restriction as the step loop
+        if (SANCTUM_COLLAPSE.ZONE_LOCKOUT_TURNS > 0) {
+          const nextZone = getZoneForRow(ny);
+          const curZone = getZoneForRow(uFallback.position.y);
+          if (
+            nextZone < curZone &&
+            state.zoneLockoutUntilTurn[nextZone] !== undefined &&
+            state.turn < (state.zoneLockoutUntilTurn[nextZone] ?? 0)
+          ) continue;
+        }
+        const dist = edgeCircleDistance(nx, ny, targetPosition.x, targetPosition.y);
+        if (dist < bestDist) {
+          bestDist = dist;
+          fallbackCandidates.length = 0;
+          fallbackCandidates.push({ x: nx, y: ny });
+        } else if (dist === bestDist) {
+          fallbackCandidates.push({ x: nx, y: ny });
+        }
+      }
+      if (fallbackCandidates.length > 0) {
+        const chosen = fallbackCandidates[Math.floor(Math.random() * fallbackCandidates.length)];
+        moveEnemyUnit(state, unitId, chosen, events);
+      }
+    }
+  }
   // Mark the movement action as consumed even if no steps were taken (e.g. path
   // was empty or every candidate tile was occupied). This prevents a second
   // scoring iteration from re-awarding ADVANCE_TOWARD_LAVA and lets blocked
