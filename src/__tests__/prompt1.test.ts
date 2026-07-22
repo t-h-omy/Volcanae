@@ -182,6 +182,11 @@ function makeNeutralBuilding(x: number, y: number, hp = 50): Building {
   return { ...bld, id: nextId('nbld'), faction: null };
 }
 
+function makeNeutralMarketBuilding(x: number, y: number, hp = 50): Building {
+  const bld = makeNeutralBuilding(x, y, hp);
+  return { ...bld, type: BuildingType.MARKET, combatStats: null };
+}
+
 // ── 1A (21): BLOODLUST corrupted-advance grant ────────────────────────────────
 
 describe('1A (21) – BLOODLUST corrupted-advance', () => {
@@ -283,6 +288,49 @@ describe('1A (19) – BLOODLUST no-target dangle', () => {
     const attacker = nextState.units[rider.id]!;
     expect(attacker.bloodlustAttackAvailable).toBe(true);
     expect(attacker.hasAttackedThisTurn).toBe(false);
+  });
+
+  it.each([
+    ['neutral Market', makeNeutralMarketBuilding],
+    ['neutral Watchtower', makeNeutralBuilding],
+  ])('clears the charge when only a %s is reachable after the kill', (_label, makeBuilding) => {
+    const rider = makePlayerUnit(UnitType.RIDER, 3, 5, [UnitTag.BLOODLUST]);
+    const enemy = makeEnemyUnit(UnitType.LAVA_GRUNT, 4, 5, { currentHp: 1, maxHp: 100 });
+    const neutralBuilding = makeBuilding(5, 5, 80);
+
+    const initialState = makeState([rider, enemy], [neutralBuilding]);
+    initialState.grid[5][5].buildingId = neutralBuilding.id;
+
+    const nextState = produce(initialState, (draft) => {
+      resolveAttack(draft, rider.id, enemy.id, true);
+    });
+
+    const attacker = nextState.units[rider.id]!;
+    expect(attacker.bloodlustAttackAvailable).toBe(false);
+    expect(attacker.hasAttackedThisTurn).toBe(true);
+  });
+});
+
+describe('1A (19) – BLOODLUST no-target dangle on building kill', () => {
+  it.each([
+    ['neutral Market', makeNeutralMarketBuilding],
+    ['neutral Watchtower', makeNeutralBuilding],
+  ])('clears the charge when only a %s is reachable after a building kill', (_label, makeBuilding) => {
+    const rider = makePlayerUnit(UnitType.RIDER, 3, 5, [UnitTag.BLOODLUST]);
+    const enemyBuilding = makeEnemyBuilding(4, 5, 1);
+    const neutralBuilding = makeBuilding(5, 5, 80);
+
+    const initialState = makeState([rider], [enemyBuilding, neutralBuilding]);
+    initialState.grid[5][4].buildingId = enemyBuilding.id;
+    initialState.grid[5][5].buildingId = neutralBuilding.id;
+
+    const nextState = produce(initialState, (draft) => {
+      resolveAttackOnBuilding(draft, rider.id, enemyBuilding.id, true);
+    });
+
+    const attacker = nextState.units[rider.id]!;
+    expect(attacker.bloodlustAttackAvailable).toBe(false);
+    expect(attacker.hasAttackedThisTurn).toBe(true);
   });
 });
 
