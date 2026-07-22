@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.97.12 - Pierce never harms friendly or neutral structures
+
+Pierce now consistently damages only opposing-faction targets behind the primary defender in both pierce paths (`resolveAttack` and `resolveAttackOnBuilding`). Added regression coverage for friendly rear units/buildings (VFX-only `PIERCE_DAMAGE` with amount 0), hostile rear-unit secondary damage scaling, enemy-attacker same-faction rear safety, and neutral rear-structure immunity.
+
 ### v0.97.11 - Recruitment panel explains exactly what blocks a recruit
 
 Recruitment panel explains exactly what blocks a recruit. Each blocked recruit option now shows a specific warning: missing resources name the exact shortfall with current/required amounts (e.g. "Not enough iron (need 12, have 7)"); crystal-cost units report the crystal gap analogously; population shortage already showed specific messages and is unchanged; and when the recruitment cap is the blocker, the option itself shows "Unit limit reached (X/Y), build another <building name>" (or "This cave already hosts a Crystal Drake" for Crystal Caves). Only the blocking condition is shown per option (priority: resources → population → cap).
