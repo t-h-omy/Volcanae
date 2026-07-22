@@ -18,6 +18,7 @@ import { cleanupRoostedUnits } from './buildingRemoval';
 import { getBridgeAt } from './bridgeSystem';
 import { resolveSlide } from './movementSystem';
 import { isSpecialistEffectActive } from './specialistSystem';
+import { anyAttackableEnemyTargetInRange } from './unitActions';
 
 // Counter for generating unique gravestone building IDs within this module
 let combatSystemIdCounter = 0;
@@ -535,24 +536,15 @@ function anyBloodlustTargetExists(
   range: number,
   attackerFaction: Faction,
 ): boolean {
-  for (const unit of Object.values(state.units)) {
-    if (!unit) continue;
-    if (unit.faction === attackerFaction) continue;
-    const ts = unit.tunnelState;
-    if (ts === 'DIGGING_IN' || ts === 'UNDERGROUND' || ts === 'EMERGING') continue;
-    if (isTileWithinEdgeCircleRange(fromX, fromY, unit.position.x, unit.position.y, range)) {
-      return true;
-    }
-  }
-  for (const building of Object.values(state.buildings)) {
-    if (!building) continue;
-    if (building.faction === attackerFaction) continue;
-    if (!building.combatStats && building.hp === undefined) continue;
-    if (isTileWithinEdgeCircleRange(fromX, fromY, building.position.x, building.position.y, range)) {
-      return true;
-    }
-  }
-  return false;
+  return anyAttackableEnemyTargetInRange(
+    state.units,
+    state.buildings,
+    state.grid,
+    fromX,
+    fromY,
+    range,
+    attackerFaction,
+  );
 }
 
 /**

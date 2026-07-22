@@ -201,6 +201,56 @@ export function getUnitAttackRange(
   return attackRange;
 }
 
+export function isAttackableEnemyUnit(
+  target: Unit,
+  attackerFaction: Faction,
+  grid: Tile[][],
+): boolean {
+  if (target.faction === attackerFaction) return false;
+  const ts = target.tunnelState;
+  if (ts === 'DIGGING_IN' || ts === 'UNDERGROUND' || ts === 'EMERGING') return false;
+  if (!grid[target.position.y]?.[target.position.x]?.isRevealed) return false;
+  return true;
+}
+
+export function isAttackableEnemyBuilding(
+  target: Building,
+  attackerFaction: Faction,
+  grid: Tile[][],
+): boolean {
+  if (target.faction === null || target.faction === attackerFaction) return false;
+  if (target.maxHp <= 0 || target.combatStats === null) return false;
+  if (target.type === BuildingType.INFERNALSANCTUM) return false;
+  if (!grid[target.position.y]?.[target.position.x]?.isRevealed) return false;
+  return true;
+}
+
+export function anyAttackableEnemyTargetInRange(
+  units: Record<string, Unit>,
+  buildings: Record<string, Building>,
+  grid: Tile[][],
+  fromX: number,
+  fromY: number,
+  range: number,
+  attackerFaction: Faction,
+): boolean {
+  for (const unit of Object.values(units)) {
+    if (!unit) continue;
+    if (!isAttackableEnemyUnit(unit, attackerFaction, grid)) continue;
+    if (isTileWithinEdgeCircleRange(fromX, fromY, unit.position.x, unit.position.y, range)) {
+      return true;
+    }
+  }
+  for (const building of Object.values(buildings)) {
+    if (!building) continue;
+    if (!isAttackableEnemyBuilding(building, attackerFaction, grid)) continue;
+    if (isTileWithinEdgeCircleRange(fromX, fromY, building.position.x, building.position.y, range)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /**
  * Returns the set of tile keys ("x,y") containing valid attack targets.
  * Includes revealed enemy units and revealed enemy buildings with combat stats.
@@ -219,20 +269,14 @@ export function getAttackTargets(
 
   // Enemy units
   for (const other of Object.values(units)) {
-    if (other.faction === Faction.ENEMY) {
-      // TUNNEL units that are underground or emerging are removed from the grid
-      // (tile.unitId = null) and cannot be attacked. Skip them to avoid highlighting
-      // the empty hole tile or the not-yet-placed emergence tile.
-      if (other.tunnelState === 'DIGGING_IN' || other.tunnelState === 'UNDERGROUND' || other.tunnelState === 'EMERGING') continue;
-      if (!grid[other.position.y]?.[other.position.x]?.isRevealed) continue;
-      const inRange = isTileWithinEdgeCircleRange(
-        unit.position.x, unit.position.y,
-        other.position.x, other.position.y,
-        attackRange,
-      );
-      if (inRange) {
-        keys.add(`${other.position.x},${other.position.y}`);
-      }
+    if (!isAttackableEnemyUnit(other, unit.faction, grid)) continue;
+    const inRange = isTileWithinEdgeCircleRange(
+      unit.position.x, unit.position.y,
+      other.position.x, other.position.y,
+      attackRange,
+    );
+    if (inRange) {
+      keys.add(`${other.position.x},${other.position.y}`);
     }
   }
 
@@ -240,19 +284,16 @@ export function getAttackTargets(
   // covered by an enemy unit — the unit takes priority as the attack target).
   // INFERNALSANCTUM is capture-only and cannot be directly attacked.
   for (const b of Object.values(buildings)) {
-    if (b.faction === Faction.ENEMY && b.maxHp > 0 && b.combatStats !== null
-        && b.type !== BuildingType.INFERNALSANCTUM) {
-      if (!grid[b.position.y]?.[b.position.x]?.isRevealed) continue;
-      const key = `${b.position.x},${b.position.y}`;
-      if (keys.has(key)) continue;
-      const inRange = isTileWithinEdgeCircleRange(
-        unit.position.x, unit.position.y,
-        b.position.x, b.position.y,
-        attackRange,
-      );
-      if (inRange) {
-        keys.add(key);
-      }
+    if (!isAttackableEnemyBuilding(b, unit.faction, grid)) continue;
+    const key = `${b.position.x},${b.position.y}`;
+    if (keys.has(key)) continue;
+    const inRange = isTileWithinEdgeCircleRange(
+      unit.position.x, unit.position.y,
+      b.position.x, b.position.y,
+      attackRange,
+    );
+    if (inRange) {
+      keys.add(key);
     }
   }
 
