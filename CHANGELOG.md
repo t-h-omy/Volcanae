@@ -1,5 +1,13 @@
 # Changelog
 
+### v0.97.14 - Autocam tracks Crystal Drake deaths on every cave-loss path
+
+Autocam tracks Crystal Drake deaths on every cave-loss path. The enemy `ATTACK_BUILDING` turn path now captures `getRoostedUnits` before calling `resolveAttackOnBuilding`, and emits `UNIT_DEATH` events for any bound drakes after `UNIT_ATTACK_BUILDING` if the building was destroyed. The cave-monster return-home path likewise captures roosted units before `cleanupRoostedUnits` and emits `UNIT_DEATH` before `CAVE_MONSTER_RETREAT` so the camera pans to the drake death before the retreat. The `applyEvent(UNIT_DEATH)` handler already tolerates missing units with an `if (unit)` guard, preventing any double-death. Two new Vitest cases (C and D in `crystalCave.test.ts`) verify both paths.
+
+**Remaining silent paths** (no `GameEvent[]` reachable without signature refactoring, deferred):
+- `captureSystem.ts` destroy contexts (~261, ~369, ~497): called from player-action paths where the caller holds no event array; the drake is still removed from state via `cleanupRoostedUnits`, just without a camera event.
+- `combatSystem.ts` building-dead branches (~1696, ~2039): inner helpers with no outEvents param; the ATTACK_BUILDING caller (enemySystem.ts) now covers the enemy-turn case.
+
 ### v0.97.13 - Spell popups show cast cost; cast cost is a named constant
 
 Spell popups show cast cost; cast cost is a named constant. `SpellInfoPopup` now renders a "Cast: 💎n" header line (using `MAGE.SPELL_CAST_CRYSTAL_COST`) for every spell, matching the style already used in `BuildingInfoPopup`. A new `MAGE.SPELL_CAST_CRYSTAL_COST: 1` constant replaces the raw `1` literals in `spellSystem.ts` (both the guard check and the deduction paths for TRANSPOSE and all other spells) and in the HUD spell-button cost badges. Both `BuildingInfoPopup` crystal-cave paths already reference `CRYSTAL_CAVE_CONFIG.CAVE_SPELL_CRYSTAL_COST` and are unchanged.

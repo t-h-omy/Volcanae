@@ -2566,6 +2566,9 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
             const attackerId = currentUnit.id;
             const buildingId = action.targetBuildingId;
 
+            // Collect any life-bound units (e.g. Crystal Drake) BEFORE the attack
+            // so we can emit UNIT_DEATH events if the building is destroyed.
+            const roosted = events ? getRoostedUnits(state, buildingId) : [];
             const secondaryEvents: GameEvent[] = [];
             resolveAttackOnBuilding(state, attackerId, buildingId, suppressFloaters, secondaryEvents);
 
@@ -2593,6 +2596,17 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
                 events.push({ type: 'UNIT_DEATH', unitId: attackerId, position: attackerPos, faction: currentUnit.faction });
               }
               events.push(...secondaryEvents);
+              // Emit UNIT_DEATH for any life-bound drakes so the auto-cam tracks them.
+              if (!buildingAfter && roosted.length > 0) {
+                for (const death of roosted) {
+                  events.push({
+                    type: 'UNIT_DEATH',
+                    unitId: death.unitId,
+                    position: death.position,
+                    faction: death.faction,
+                  });
+                }
+              }
             }
           } else if (!currentUnit.hasMovedThisTurn) {
             moveEnemyUnitToward(state, currentUnit.id, building.position, events);
@@ -3135,8 +3149,22 @@ function runCaveMonsterAi(state: Draft<GameState>, events?: GameEvent[]): void {
           (building.type === BuildingType.MINE || building.type === BuildingType.CRYSTAL_CAVE)
         ) {
           tile.buildingId = null;
+          // Collect any life-bound units BEFORE cleanup so we can emit UNIT_DEATH events.
+          const roosted = events ? getRoostedUnits(state, building.id) : [];
           cleanupRoostedUnits(state, building.id);
           delete state.buildings[building.id];
+          // Emit UNIT_DEATH before CAVE_MONSTER_RETREAT so the auto-cam pans to
+          // the drake death first, then shows the monster retreating.
+          if (events && roosted.length > 0) {
+            for (const death of roosted) {
+              events.push({
+                type: 'UNIT_DEATH',
+                unitId: death.unitId,
+                position: death.position,
+                faction: death.faction,
+              });
+            }
+          }
         }
       }
       tile.hasCaveMonster = false;

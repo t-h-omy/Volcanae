@@ -40,6 +40,7 @@ import {
   SpellId,
 } from '../types';
 import type { GameState, Unit, Building, Tile, Position } from '../types';
+import type { GameEvent } from '../gameEvents';
 import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, TECH_TREE, SPELL_DEFINITIONS, CRYSTAL_CAVE_CONFIG, MAP } from '../gameConfig';
 import { cleanupRoostedUnits } from '../buildingRemoval';
 import { getReachableTiles, resolveSlide } from '../movementSystem';
@@ -657,6 +658,115 @@ describe('Cave monster return — Crystal Cave interaction', () => {
       expect(finalState.units[monster.id]).toBeUndefined();
       // Encounter cleaned up
       expect(finalState.activeCaveEncounters.length).toBe(0);
+    },
+  );
+});
+
+// ───────────────────────────────────────────────────────────────────────────
+// PART 7 — autocam: UNIT_DEATH events emitted on every cave-loss path
+// ───────────────────────────────────────────────────────────────────────────
+
+describe('Autocam UNIT_DEATH events — cave-loss paths', () => {
+  it(
+    'C) enemy unit destroys a player Crystal Cave hosting a drake → events contain UNIT_DEATH for the drake',
+    () => {
+      // Set up an enemy LAVA_GRUNT adjacent to a Crystal Cave.
+      // Give the cave minimal combatStats so the AI targeting logic can select it
+      // as an ATTACK_BUILDING target, and set hp=1 so a single attack destroys it.
+      const cavePos = { x: 5, y: 4 };
+      const drakePos = { x: 6, y: 4 };
+      const gruntPos = { x: 4, y: 4 };
+
+      const grunt = makeUnit(UnitType.LAVA_GRUNT, gruntPos, Faction.ENEMY);
+
+      const cave = makeCave(cavePos);
+      cave.combatStats = { attack: 0, defense: 0, attackRange: 1 };
+      cave.hp = 1;
+      cave.maxHp = 1;
+
+      const drake = makeUnit(UnitType.CRYSTAL_DRAKE, drakePos);
+      drake.roostBuildingId = cave.id;
+
+      const state = makeEnemyTurnState({
+        units: [grunt, drake],
+        buildings: [cave],
+      });
+
+      const { events } = runEnemyTurn(state);
+
+      // The enemy should have attacked the cave and destroyed it.
+      const attackEvt = events.find(
+        (e): e is Extract<GameEvent, { type: 'UNIT_ATTACK_BUILDING' }> =>
+          e.type === 'UNIT_ATTACK_BUILDING' &&
+          (e as Extract<GameEvent, { type: 'UNIT_ATTACK_BUILDING' }>).buildingId === cave.id,
+      );
+      expect(attackEvt).toBeDefined();
+
+      // A UNIT_DEATH event for the drake must be present so the auto-cam can track it.
+      const drakeDeathEvt = events.find(
+        (e): e is Extract<GameEvent, { type: 'UNIT_DEATH' }> =>
+          e.type === 'UNIT_DEATH' &&
+          (e as Extract<GameEvent, { type: 'UNIT_DEATH' }>).unitId === drake.id,
+      );
+      expect(drakeDeathEvt).toBeDefined();
+      expect(drakeDeathEvt!.position).toEqual(drakePos);
+      expect(drakeDeathEvt!.faction).toBe(Faction.PLAYER);
+
+      // The drake death must appear after the cave attack event in the queue.
+      const attackIdx = events.indexOf(attackEvt!);
+      const deathIdx = events.indexOf(drakeDeathEvt!);
+      expect(deathIdx).toBeGreaterThan(attackIdx);
+    },
+  );
+
+  it(
+    'D) cave monster returning home over a Crystal Cave → events contain UNIT_DEATH for the drake before CAVE_MONSTER_RETREAT',
+    () => {
+      // Drake placed far from the monster (outside patrol radius) so the monster
+      // falls through to Priority 3 (return-home / despawn).
+      const homePos = { x: 5, y: 4 };
+      const drakePos = { x: 5, y: 15 }; // Chebyshev distance > PATROL_RADIUS (3)
+
+      const monster = makeUnit(UnitType.CAVE_MONSTER, homePos, Faction.ENEMY);
+      monster.hasMovedThisTurn = false;
+      monster.hasAttackedThisTurn = false;
+
+      const cave = makeCave(homePos);
+      const drake = makeUnit(UnitType.CRYSTAL_DRAKE, drakePos);
+      drake.roostBuildingId = cave.id;
+
+      const state = makeEnemyTurnState({
+        units: [monster, drake],
+        buildings: [cave],
+        activeCaveEncounters: [{ mountainTileId: '5,4', monsterId: monster.id }],
+      });
+      state.grid[homePos.y][homePos.x].terrainType = TileType.MOUNTAIN;
+
+      const { events } = runEnemyTurn(state);
+
+      // A UNIT_DEATH event for the drake must be present.
+      const drakeDeathEvt = events.find(
+        (e): e is Extract<GameEvent, { type: 'UNIT_DEATH' }> =>
+          e.type === 'UNIT_DEATH' &&
+          (e as Extract<GameEvent, { type: 'UNIT_DEATH' }>).unitId === drake.id,
+      );
+      expect(drakeDeathEvt).toBeDefined();
+      expect(drakeDeathEvt!.position).toEqual(drakePos);
+      expect(drakeDeathEvt!.faction).toBe(Faction.PLAYER);
+
+      // The CAVE_MONSTER_RETREAT event must also be present.
+      const retreatEvt = events.find(
+        (e): e is Extract<GameEvent, { type: 'CAVE_MONSTER_RETREAT' }> =>
+          e.type === 'CAVE_MONSTER_RETREAT' &&
+          (e as Extract<GameEvent, { type: 'CAVE_MONSTER_RETREAT' }>).unitId === monster.id,
+      );
+      expect(retreatEvt).toBeDefined();
+
+      // Drake death must appear BEFORE the retreat so the auto-cam shows the
+      // drake dying first, then the monster retreating.
+      const deathIdx = events.indexOf(drakeDeathEvt!);
+      const retreatIdx = events.indexOf(retreatEvt!);
+      expect(deathIdx).toBeLessThan(retreatIdx);
     },
   );
 });
