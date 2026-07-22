@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.97.15 - Bloodlust charges clear correctly and survive melee advances off corrupted ground
+
+Bloodlust charges now clear correctly when a kill leaves only neutral structures in follow-up range, and they still survive melee advances off corrupted ground when the destination tile is clean. Shared target-eligibility logic now keeps Bloodlust follow-up checks aligned with normal attack targeting for both unit kills and building kills. Regression coverage verifies neutral Market/Watchtower no-dangle cases plus corrupted-tile grant/suppression behavior.
+
 ### v0.97.14 - Autocam tracks Crystal Drake deaths on every cave-loss path
 
 Autocam tracks Crystal Drake deaths on every cave-loss path. The enemy `ATTACK_BUILDING` turn path now captures `getRoostedUnits` before calling `resolveAttackOnBuilding`, and emits `UNIT_DEATH` events for any bound drakes after `UNIT_ATTACK_BUILDING` if the building was destroyed. The cave-monster return-home path likewise captures roosted units before `cleanupRoostedUnits` and emits `UNIT_DEATH` before `CAVE_MONSTER_RETREAT` so the camera pans to the drake death before the retreat. The `applyEvent(UNIT_DEATH)` handler already tolerates missing units with an `if (unit)` guard, preventing any double-death. Two new Vitest cases (C and D in `crystalCave.test.ts`) verify both paths.
