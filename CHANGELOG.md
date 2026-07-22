@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.97.11 - Recruitment panel explains exactly what blocks a recruit
+
+Recruitment panel explains exactly what blocks a recruit. Each blocked recruit option now shows a specific warning: missing resources name the exact shortfall with current/required amounts (e.g. "Not enough iron (need 12, have 7)"); crystal-cost units report the crystal gap analogously; population shortage already showed specific messages and is unchanged; and when the recruitment cap is the blocker, the option itself shows "Unit limit reached (X/Y), build another <building name>" (or "This cave already hosts a Crystal Drake" for Crystal Caves). Only the blocking condition is shown per option (priority: resources → population → cap).
+
 ### v0.97.10 - Blocked emberlings shuffle forward instead of freezing
 
 Blocked emberlings shuffle forward instead of freezing. When `findBfsPath` returns an empty path (all direct routes occupied), `moveEnemyUnitToward` now attempts one greedy step: it picks the free neighbour with the smallest Chebyshev distance to the target, breaking ties randomly. Lava tiles are never entered via this path — `SACRIFICE_TO_LAVA` remains the only intentional lava entry.

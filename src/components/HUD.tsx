@@ -44,6 +44,7 @@ import {
 import { computeLevelFromXp } from '../levelSystem';
 import { computeUnitAiScores, computeRecruitmentScores, type ScoredAction } from '../enemySystem';
 import { renderEffect, getAvailableTechs as getAvailableTechsLogic } from '../techSystem';
+import { buildRecruitBlockMessages } from '../recruitMessages';
 import {
   Faction,
   GamePhase,
@@ -3126,21 +3127,29 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
                   if (!canRecruitThisUnit) return;
                   setConfirmRecruitUnit(unitType);
                 };
-                // Compute which population resource is actually insufficient for the error message
-                let popWarningMsg: string | null = null;
-                if (!hasPopulation && canAffordUnit && popCost) {
+                // Compute per-factor block messages using a pure helper
+                const { resourceWarningMsg, popWarningMsg, capWarningMsg } = (() => {
                   const state = useGameStore.getState();
                   const usage = computePopulationUsage(state);
                   const capacity = computePopulationCapacity(state);
-                  const needFarmers = popCost.farmers > 0 && usage.farmersUsed + popCost.farmers > capacity.farmerCapacity;
-                  const needNobles = popCost.nobles > 0 && usage.noblesUsed + popCost.nobles > capacity.nobleCapacity;
-                  const parts: string[] = [];
-                  if (needFarmers) parts.push('farmers — build more Farms');
-                  if (needNobles) parts.push('nobles — build more Patrician Houses');
-                  if (parts.length > 0) popWarningMsg = `Not enough ${parts.join(' and ')}`;
-                }
-                // Generic affordability warning when the unit's resource cost cannot be met
-                const resourceWarningMsg: string | null = !canAffordUnit ? 'Not enough resources' : null;
+                  return buildRecruitBlockMessages(
+                    isCrystalCost,
+                    cost ?? undefined,
+                    crystalCost,
+                    resources,
+                    arcaneCrystals,
+                    canAffordUnit,
+                    hasPopulation,
+                    popCost,
+                    usage,
+                    capacity,
+                    atUnitLimit,
+                    building.type === BuildingType.CRYSTAL_CAVE,
+                    recruitedUnits,
+                    unitLimit,
+                    BUILDING_NAME[building.type] ?? building.type,
+                  );
+                })();
                 return (
                   <div key={unitType} className="hud-recruit-option-wrapper">
                     <button
@@ -3171,6 +3180,9 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
                     )}
                     {popWarningMsg && (
                       <span className="hud-pop-warning">{popWarningMsg}</span>
+                    )}
+                    {capWarningMsg && (
+                      <span className="hud-pop-warning">{capWarningMsg}</span>
                     )}
                   </div>
                 );
