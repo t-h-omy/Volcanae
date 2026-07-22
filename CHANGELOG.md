@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.97.7 - Cave monster spawn-turn follow-up regression coverage
+
+Cave monsters attack reliably the round after spawning. Added a regression test that exercises the full `exploreCave` spawn path, verifies the monster skips its spawn-turn enemy phase, confirms its action flags are reset afterward, and then confirms it attacks on the following enemy turn.
+
 ### v0.97.6 - Burning-tile visual timing fix
 
 Burning tiles ignite visually at the attack beat. Enemy attack event emission now captures the defender tile status directly before attack resolution and uses that value for `tileBurningPosition` diffing, closing a Kindler enemy-attack path where the instant burn visual update could be skipped until resolved-state commit at enemy-turn end.

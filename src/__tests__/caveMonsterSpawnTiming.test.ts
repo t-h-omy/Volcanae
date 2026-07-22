@@ -145,7 +145,7 @@ function makeState(units: Unit[], mountainPos: Position): GameState {
 
 describe('cave monster spawn timing', () => {
   it('attacks on the enemy turn after its spawn turn', () => {
-    const mountainPos = { x: 10, y: 10 };
+    const mountainPos = { x: 4, y: 10 };
     const explorer = makeUnit(
       UnitType.SPEARMAN,
       Faction.PLAYER,
@@ -187,8 +187,10 @@ describe('cave monster spawn timing', () => {
       hasUsedPostAttackMoveThisTurn: false,
     });
 
-    const secondTurnInput = structuredClone(firstTurn.finalState);
-    secondTurnInput.turn += 1;
+    const secondTurnInput = {
+      ...firstTurn.finalState,
+      turn: firstTurn.finalState.turn + 1,
+    } as GameState;
     const secondTurn = runEnemyTurn(secondTurnInput);
     const explorerAfterSecondTurn = secondTurn.finalState.units[explorer.id];
 
