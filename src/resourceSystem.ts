@@ -796,6 +796,131 @@ export function computePopulationUsage(
   return { farmersUsed, noblesUsed };
 }
 
+// ----------------------------------------------------------------------------
+// POPULATION BREAKDOWN
+// ----------------------------------------------------------------------------
+
+/** A single entry in the capacity or usage breakdown for the population popup. */
+export interface PopulationBreakdownEntry {
+  /** Human-readable source label */
+  label: string;
+  /** Farmer contribution (positive integer) */
+  farmers: number;
+  /** Noble contribution (positive integer) */
+  nobles: number;
+}
+
+/** A single unit-type usage entry for the population popup. */
+export interface PopulationUsageEntry {
+  /** The unit type, so the popup can look up display names / emojis */
+  unitType: UnitType;
+  /** How many of these units are currently fielded */
+  count: number;
+  /** Total farmers consumed by these units (count × cost.farmers) */
+  farmers: number;
+  /** Total nobles consumed by these units (count × cost.nobles) */
+  nobles: number;
+}
+
+export interface PopulationBreakdown {
+  capacityEntries: PopulationBreakdownEntry[];
+  usageEntries: PopulationUsageEntry[];
+  farmerCapacity: number;
+  nobleCapacity: number;
+  farmersUsed: number;
+  noblesUsed: number;
+}
+
+/**
+ * Returns a detailed, source-attributed breakdown of population capacity and
+ * usage for the population info popups.
+ *
+ * Capacity entries mirror the logic in `computePopulationCapacity` exactly.
+ * Usage entries mirror `computePopulationUsage`, aggregated by unit type.
+ */
+export function computePopulationBreakdown(
+  state: GameState | Draft<GameState>,
+): PopulationBreakdown {
+  // ── Capacity breakdown ────────────────────────────────────────────────────
+  let farmCount = 0;
+  let farmFarmerCap = 0;
+  let houseCount = 0;
+  let houseNobleCap = 0;
+  let strongholdCount = 0;
+  let strongholdFarmerCap = 0;
+  let strongholdNobleCap = 0;
+
+  for (const building of Object.values(state.buildings)) {
+    if (building.faction !== Faction.PLAYER) continue;
+    if (building.type === BuildingType.FARM) {
+      farmCount++;
+      farmFarmerCap += building.populationCount;
+    } else if (building.type === BuildingType.PATRICIANHOUSE) {
+      houseCount++;
+      houseNobleCap += building.populationCount;
+    } else if (building.type === BuildingType.STRONGHOLD) {
+      strongholdCount++;
+      strongholdFarmerCap += building.populationCount;
+      strongholdNobleCap += building.strongholdNobles;
+    }
+  }
+
+  const capacityEntries: PopulationBreakdownEntry[] = [];
+
+  if (farmCount > 0) {
+    capacityEntries.push({
+      label: `Farm ×${farmCount}`,
+      farmers: farmFarmerCap,
+      nobles: 0,
+    });
+  }
+  if (houseCount > 0) {
+    capacityEntries.push({
+      label: `Patrician House ×${houseCount}`,
+      farmers: 0,
+      nobles: houseNobleCap,
+    });
+  }
+  if (strongholdCount > 0) {
+    const { farmerCap, nobleCap } = getStrongholdEffectiveCapWithDoctrines(state);
+    capacityEntries.push({
+      label: `Stronghold ×${strongholdCount} (max ${farmerCap}🌾 / ${nobleCap}🎖️ each)`,
+      farmers: strongholdFarmerCap,
+      nobles: strongholdNobleCap,
+    });
+  }
+
+  const farmerCapacity = farmFarmerCap + strongholdFarmerCap;
+  const nobleCapacity = houseNobleCap + strongholdNobleCap;
+
+  // ── Usage breakdown ───────────────────────────────────────────────────────
+  const unitTypeCounts = new Map<UnitType, number>();
+
+  for (const unit of Object.values(state.units)) {
+    if (unit.faction !== Faction.PLAYER) continue;
+    if (unit.tags.includes(UnitTag.SUMMONED)) continue;
+    const cost = UNIT_DEFINITIONS[unit.type as UnitType]?.populationCost as UnitPopulationCost | undefined;
+    if (!cost || (cost.farmers === 0 && cost.nobles === 0)) continue;
+    unitTypeCounts.set(unit.type as UnitType, (unitTypeCounts.get(unit.type as UnitType) ?? 0) + 1);
+  }
+
+  const usageEntries: PopulationUsageEntry[] = [];
+  let farmersUsed = 0;
+  let noblesUsed = 0;
+
+  for (const [unitType, count] of unitTypeCounts.entries()) {
+    const cost = UNIT_DEFINITIONS[unitType]?.populationCost as UnitPopulationCost | undefined;
+    if (!cost) continue;
+    const f = cost.farmers * count;
+    const n = cost.nobles * count;
+    usageEntries.push({ unitType, count, farmers: f, nobles: n });
+    farmersUsed += f;
+    noblesUsed += n;
+  }
+
+  return { capacityEntries, usageEntries, farmerCapacity, nobleCapacity, farmersUsed, noblesUsed };
+}
+
 /**
  * Returns the IDs of player units that should currently carry the HOMELESS tag.
  * Units are sorted by recruitedOnTurn descending (most recent first), then by id for

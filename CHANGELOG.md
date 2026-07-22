@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.97.16 - Population stats in the top bar open info popups
+
+Population stats in the top bar open info popups. The farmer (🌾) and noble (🎖️) stats are now tappable buttons that open a `PopulationInfoPopup` showing: current used/capacity, a capacity-source breakdown (Farms, Patrician Houses, Stronghold with doctrine-adjusted max caps), and a unit-usage breakdown grouped by unit type. The breakdown logic lives in a new `computePopulationBreakdown` helper in `resourceSystem.ts`; the popup follows the memoization pattern of `ResourceInfoPopup`. Unit tests for the helper verify that capacity entries sum to `computePopulationCapacity` and usage entries sum to `computePopulationUsage`.
+
 ### v0.97.15 - Bloodlust charges clear correctly and survive melee advances off corrupted ground
 
 Bloodlust charges now clear correctly when a kill leaves only neutral structures in follow-up range, and they still survive melee advances off corrupted ground when the destination tile is clean. Shared target-eligibility logic now keeps Bloodlust follow-up checks aligned with normal attack targeting for both unit kills and building kills. Regression coverage verifies neutral Market/Watchtower no-dangle cases plus corrupted-tile grant/suppression behavior.
