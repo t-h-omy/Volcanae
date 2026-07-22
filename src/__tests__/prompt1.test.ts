@@ -535,7 +535,7 @@ describe('1B (12) – PIERCE friendly fire in resolveAttackOnBuilding', () => {
     const rearInitialHp = hostileRear.stats.currentHp;
     const fullPrimaryDamage = calculateCombatFromStats(
       unitToCombatant(playerLancer),
-      buildingToCombatant(frontEnemyBuilding),
+      buildingToCombatant(frontEnemyBuilding)!,
     ).defenderHpLost;
     const expectedRearDamage = Math.max(1, Math.round(fullPrimaryDamage * PIERCE_SECONDARY_DAMAGE_MULTIPLIER));
 
