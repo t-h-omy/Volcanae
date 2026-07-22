@@ -1032,6 +1032,7 @@ function SpellInfoPopup({ spellId, onClose }: { spellId: SpellId; onClose: () =>
         <span className="info-popup-header-emoji">{def.emoji}</span>
         <div>
           <div className="info-popup-header-name">{def.name}</div>
+          <div className="info-popup-header-cost">Cast: 💎{MAGE.SPELL_CAST_CRYSTAL_COST}</div>
         </div>
       </div>
       <p className="info-popup-desc" style={{ marginBottom: 16 }}>{def.description}</p>
@@ -2317,10 +2318,10 @@ function SelectedUnitPanel({
                         className="hud-spell-btn"
                         disabled={!canCast}
                         onClick={() => startSpellCast(unit.id, spellId)}
-                        title={`${def?.description ?? ''} (costs 💎1)`}
+                        title={`${def?.description ?? ''} (costs 💎${MAGE.SPELL_CAST_CRYSTAL_COST})`}
                       >
                         <span className="hud-spell-btn-label">{def ? `${def.emoji} ${def.name}` : spellId}</span>
-                        <span className="hud-spell-btn-cost">💎1</span>
+                        <span className="hud-spell-btn-cost">💎{MAGE.SPELL_CAST_CRYSTAL_COST}</span>
                       </button>
                     );
                   })}
@@ -2331,10 +2332,10 @@ function SelectedUnitPanel({
                           className="hud-spell-btn"
                           disabled={!canCast || crystalTowerBlocked}
                           onClick={() => setConfirmCrystalTower(true)}
-                          title={`${SPELL_DEFINITIONS[SpellId.CRYSTAL_TOWER]?.description ?? ''} (costs 💎1)`}
+                          title={`${SPELL_DEFINITIONS[SpellId.CRYSTAL_TOWER]?.description ?? ''} (costs 💎${MAGE.SPELL_CAST_CRYSTAL_COST})`}
                         >
                           <span className="hud-spell-btn-label">{SPELL_DEFINITIONS[SpellId.CRYSTAL_TOWER] ? `${SPELL_DEFINITIONS[SpellId.CRYSTAL_TOWER].emoji} ${SPELL_DEFINITIONS[SpellId.CRYSTAL_TOWER].name}` : SpellId.CRYSTAL_TOWER}</span>
-                          <span className="hud-spell-btn-cost">💎1</span>
+                          <span className="hud-spell-btn-cost">💎{MAGE.SPELL_CAST_CRYSTAL_COST}</span>
                         </button>
                       ) : (
                         <div className="hud-fieldwork-confirm">

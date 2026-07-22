@@ -214,6 +214,10 @@ export const MAGE = {
   RUPTURE_PERCENT: 0.5,
   /** Crystal cost to cast the Rupture spell */
   RUPTURE_CRYSTAL_COST: 1,
+
+  // ── General spell cost ────────────────────────────────────────────────
+  /** Crystals consumed per spell cast (applies to all Mage spells) */
+  SPELL_CAST_CRYSTAL_COST: 1,
 } as const;
 
 // ============================================================================

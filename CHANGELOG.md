@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.97.13 - Spell popups show cast cost; cast cost is a named constant
+
+Spell popups show cast cost; cast cost is a named constant. `SpellInfoPopup` now renders a "Cast: 💎n" header line (using `MAGE.SPELL_CAST_CRYSTAL_COST`) for every spell, matching the style already used in `BuildingInfoPopup`. A new `MAGE.SPELL_CAST_CRYSTAL_COST: 1` constant replaces the raw `1` literals in `spellSystem.ts` (both the guard check and the deduction paths for TRANSPOSE and all other spells) and in the HUD spell-button cost badges. Both `BuildingInfoPopup` crystal-cave paths already reference `CRYSTAL_CAVE_CONFIG.CAVE_SPELL_CRYSTAL_COST` and are unchanged.
+
 ### v0.97.12 - Pierce never harms friendly or neutral structures
 
 Pierce now consistently damages only opposing-faction targets behind the primary defender in both pierce paths (`resolveAttack` and `resolveAttackOnBuilding`). Added regression coverage for friendly rear units/buildings (VFX-only `PIERCE_DAMAGE` with amount 0), hostile rear-unit secondary damage scaling, enemy-attacker same-faction rear safety, and neutral rear-structure immunity.
