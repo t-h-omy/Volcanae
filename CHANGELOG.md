@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.97.8 - Kindler fire beam now advances toward its target
+
+Kindler fire beam now advances toward its target. The FIRE_SPIT line VFX uses a draw-on stroke-dashoffset animation so the beam visibly grows from the attacker to the target over the first 60% of its duration, then holds and fades. The beam is recoloured to the lava palette: bright orange core (`#FF7A3A`) with gold inner glow and deep-red outer shadow.
+
 ### v0.97.7 - Cave monster spawn-turn follow-up regression coverage
 
 Cave monsters attack reliably the round after spawning. Added a regression test that exercises the full `exploreCave` spawn path, verifies the monster skips its spawn-turn enemy phase, confirms its action flags are reset afterward, and then confirms it attacks on the following enemy turn.

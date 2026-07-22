@@ -2431,6 +2431,7 @@ function LineVfxLayer({ tileSize }: { tileSize: number }) {
           y1={vfx.fromPx.y}
           x2={vfx.toPx.x}
           y2={vfx.toPx.y}
+          pathLength={vfx.variant === 'FIRE_SPIT' ? 1 : undefined}
           style={{ '--line-vfx-duration': `${vfx.durationMs}ms` } as React.CSSProperties}
           onAnimationEnd={() => removeLineVfx(vfx.id)}
         />
