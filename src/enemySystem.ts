@@ -2334,6 +2334,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
           const attackerId = currentUnit.id;
           const defenderId = action.targetUnitId;
           const stateBeforeAction = current(state);
+          const defenderTileStatusBefore = state.grid[defenderPos.y]?.[defenderPos.x]?.status;
 
           const secondaryEvents: GameEvent[] = [];
           resolveAttack(state, attackerId, defenderId, suppressFloaters, secondaryEvents);
@@ -2358,7 +2359,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
               ? detectBrandmarkSpawnPos(state, stateBeforeAction, attackerPos)
               : null;
             const tileBurningPosition = (
-              stateBeforeAction.grid[defenderPos.y]?.[defenderPos.x]?.status !== TileStatus.BURNING &&
+              defenderTileStatusBefore !== TileStatus.BURNING &&
               state.grid[defenderPos.y]?.[defenderPos.x]?.status === TileStatus.BURNING
             ) ? { ...defenderPos } : undefined;
             events.push({
@@ -2421,6 +2422,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
         const attackerId = currentUnit.id;
         const defenderId = action.targetUnitId;
         const stateBeforeAction = current(state);
+        const defenderTileStatusBefore = state.grid[defenderPos.y]?.[defenderPos.x]?.status;
 
         const secondaryEvents: GameEvent[] = [];
         resolveAttack(state, attackerId, defenderId, suppressFloaters, secondaryEvents);
@@ -2439,7 +2441,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
             ? detectBrandmarkSpawnPos(state, stateBeforeAction, attackerPos)
             : null;
           const tileBurningPosition = (
-            stateBeforeAction.grid[defenderPos.y]?.[defenderPos.x]?.status !== TileStatus.BURNING &&
+            defenderTileStatusBefore !== TileStatus.BURNING &&
             state.grid[defenderPos.y]?.[defenderPos.x]?.status === TileStatus.BURNING
           ) ? { ...defenderPos } : undefined;
           events.push({

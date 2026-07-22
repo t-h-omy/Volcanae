@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.97.6 - Burning-tile visual timing fix
+
+Burning tiles ignite visually at the attack beat. Enemy attack event emission now captures the defender tile status directly before attack resolution and uses that value for `tileBurningPosition` diffing, closing a Kindler enemy-attack path where the instant burn visual update could be skipped until resolved-state commit at enemy-turn end.
+
 ### v0.97.5 - Terrain panel reachable by tapping through unit and building
 
 Tapping the same tile now cycles through all occupants before returning to the first. A tile with a unit and a building cycles unit → building → terrain → unit. A building-only tile cycles building → terrain → building. A unit-only tile cycles unit → terrain → unit. The terrain step was previously skipped.
