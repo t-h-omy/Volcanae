@@ -18,6 +18,7 @@ import { cleanupRoostedUnits } from './buildingRemoval';
 import { getBridgeAt } from './bridgeSystem';
 import { resolveSlide } from './movementSystem';
 import { isSpecialistEffectActive } from './specialistSystem';
+import { anyAttackableEnemyTargetInRange } from './unitActions';
 
 // Counter for generating unique gravestone building IDs within this module
 let combatSystemIdCounter = 0;
@@ -535,24 +536,15 @@ function anyBloodlustTargetExists(
   range: number,
   attackerFaction: Faction,
 ): boolean {
-  for (const unit of Object.values(state.units)) {
-    if (!unit) continue;
-    if (unit.faction === attackerFaction) continue;
-    const ts = unit.tunnelState;
-    if (ts === 'DIGGING_IN' || ts === 'UNDERGROUND' || ts === 'EMERGING') continue;
-    if (isTileWithinEdgeCircleRange(fromX, fromY, unit.position.x, unit.position.y, range)) {
-      return true;
-    }
-  }
-  for (const building of Object.values(state.buildings)) {
-    if (!building) continue;
-    if (building.faction === attackerFaction) continue;
-    if (!building.combatStats && building.hp === undefined) continue;
-    if (isTileWithinEdgeCircleRange(fromX, fromY, building.position.x, building.position.y, range)) {
-      return true;
-    }
-  }
-  return false;
+  return anyAttackableEnemyTargetInRange(
+    state.units,
+    state.buildings,
+    state.grid,
+    fromX,
+    fromY,
+    range,
+    attackerFaction,
+  );
 }
 
 /**
@@ -1381,9 +1373,7 @@ export function resolveAttack(
 
   // PIERCE secondary: deal the full (pre-multiplier) primary damage to the unit or building
   // on the tile directly behind the defender (relative to the attacker).
-  // Applies regardless of faction — PIERCE is geometric, not faction-aware.
-  // WARNING: this includes intentional friendly-fire. A PIERCE attacker can harm its own
-  // allies if they stand directly behind the primary defender.
+  // Rear damage is faction-aware: only opposing-faction targets are damaged.
   // Suppressed on CORRUPTED tile.
   // VFX-only PIERCE_DAMAGE (amount 0) is emitted even when no target is behind.
   if (
@@ -1474,7 +1464,7 @@ export function resolveAttack(
           // Minimum 1 ensures the tag always registers a hit. HP is reduced to 0 (not
           // deleted inline) — building removal triggers normally on the next attack.
           // Fix (12): friendly rear buildings take no damage; VFX-only event is still emitted.
-          const isHostileRearBuilding = rearBuilding.faction !== attackerFaction;
+          const isHostileRearBuilding = rearBuilding.faction !== null && rearBuilding.faction !== attackerFaction;
           if (isHostileRearBuilding) {
             const finalPierceBuildingDamage = Math.max(1, Math.round(fullPrimaryDamage * PIERCE_SECONDARY_DAMAGE_MULTIPLIER));
             if (!suppressFloaters) {
@@ -2308,7 +2298,7 @@ export function resolveAttackOnBuilding(
           // PIERCE_SECONDARY_DAMAGE_MULTIPLIER × standard attack damage (pre-reduction).
           // Same fix: no building defense subtraction for the rear target.
           // Fix (12): friendly rear buildings take no damage; VFX-only event is still emitted.
-          const isHostileRearBuilding = rearBuilding.faction !== attackerFaction;
+          const isHostileRearBuilding = rearBuilding.faction !== null && rearBuilding.faction !== attackerFaction;
           if (isHostileRearBuilding) {
             const finalPierceBuildingDamage = Math.max(1, Math.round(fullPrimaryDamage * PIERCE_SECONDARY_DAMAGE_MULTIPLIER));
             if (!suppressFloaters) {

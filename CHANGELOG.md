@@ -1,5 +1,69 @@
 # Changelog
 
+### v0.97.16 - Population stats in the top bar open info popups
+
+Population stats in the top bar open info popups. The farmer (🌾) and noble (🎖️) stats are now tappable buttons that open a `PopulationInfoPopup` showing: current used/capacity, a capacity-source breakdown (Farms, Patrician Houses, Stronghold with doctrine-adjusted max caps), and a unit-usage breakdown grouped by unit type. The breakdown logic lives in a new `computePopulationBreakdown` helper in `resourceSystem.ts`; the popup follows the memoization pattern of `ResourceInfoPopup`. Unit tests for the helper verify that capacity entries sum to `computePopulationCapacity` and usage entries sum to `computePopulationUsage`.
+
+### v0.97.15 - Bloodlust charges clear correctly and survive melee advances off corrupted ground
+
+Bloodlust charges now clear correctly when a kill leaves only neutral structures in follow-up range, and they still survive melee advances off corrupted ground when the destination tile is clean. Shared target-eligibility logic now keeps Bloodlust follow-up checks aligned with normal attack targeting for both unit kills and building kills. Regression coverage verifies neutral Market/Watchtower no-dangle cases plus corrupted-tile grant/suppression behavior.
+
+### v0.97.14 - Autocam tracks Crystal Drake deaths on every cave-loss path
+
+Autocam tracks Crystal Drake deaths on every cave-loss path. The enemy `ATTACK_BUILDING` turn path now captures `getRoostedUnits` before calling `resolveAttackOnBuilding`, and emits `UNIT_DEATH` events for any bound drakes after `UNIT_ATTACK_BUILDING` if the building was destroyed. The cave-monster return-home path likewise captures roosted units before `cleanupRoostedUnits` and emits `UNIT_DEATH` before `CAVE_MONSTER_RETREAT` so the camera pans to the drake death before the retreat. The `applyEvent(UNIT_DEATH)` handler already tolerates missing units with an `if (unit)` guard, preventing any double-death. Two new Vitest cases (C and D in `crystalCave.test.ts`) verify both paths.
+
+**Remaining silent paths** (no `GameEvent[]` reachable without signature refactoring, deferred):
+- `captureSystem.ts` destroy contexts (~261, ~369, ~497): called from player-action paths where the caller holds no event array; the drake is still removed from state via `cleanupRoostedUnits`, just without a camera event.
+- `combatSystem.ts` building-dead branches (~1696, ~2039): inner helpers with no outEvents param; the ATTACK_BUILDING caller (enemySystem.ts) now covers the enemy-turn case.
+
+### v0.97.13 - Spell popups show cast cost; cast cost is a named constant
+
+Spell popups show cast cost; cast cost is a named constant. `SpellInfoPopup` now renders a "Cast: 💎n" header line (using `MAGE.SPELL_CAST_CRYSTAL_COST`) for every spell, matching the style already used in `BuildingInfoPopup`. A new `MAGE.SPELL_CAST_CRYSTAL_COST: 1` constant replaces the raw `1` literals in `spellSystem.ts` (both the guard check and the deduction paths for TRANSPOSE and all other spells) and in the HUD spell-button cost badges. Both `BuildingInfoPopup` crystal-cave paths already reference `CRYSTAL_CAVE_CONFIG.CAVE_SPELL_CRYSTAL_COST` and are unchanged.
+
+### v0.97.12 - Pierce never harms friendly or neutral structures
+
+Pierce now consistently damages only opposing-faction targets behind the primary defender in both pierce paths (`resolveAttack` and `resolveAttackOnBuilding`). Added regression coverage for friendly rear units/buildings (VFX-only `PIERCE_DAMAGE` with amount 0), hostile rear-unit secondary damage scaling, enemy-attacker same-faction rear safety, and neutral rear-structure immunity.
+
+### v0.97.11 - Recruitment panel explains exactly what blocks a recruit
+
+Recruitment panel explains exactly what blocks a recruit. Each blocked recruit option now shows a specific warning: missing resources name the exact shortfall with current/required amounts (e.g. "Not enough iron (need 12, have 7)"); crystal-cost units report the crystal gap analogously; population shortage already showed specific messages and is unchanged; and when the recruitment cap is the blocker, the option itself shows "Unit limit reached (X/Y), build another <building name>" (or "This cave already hosts a Crystal Drake" for Crystal Caves). Only the blocking condition is shown per option (priority: resources → population → cap).
+
+### v0.97.10 - Blocked emberlings shuffle forward instead of freezing
+
+Blocked emberlings shuffle forward instead of freezing. When `findBfsPath` returns an empty path (all direct routes occupied), `moveEnemyUnitToward` now attempts one greedy step: it picks the free neighbour with the smallest Chebyshev distance to the target, breaking ties randomly. Lava tiles are never entered via this path — `SACRIFICE_TO_LAVA` remains the only intentional lava entry.
+
+### v0.97.9 - Consistent autocam pacing for tick damage and heals
+
+Consistent autocam pacing for tick damage and heals. TILE_DAMAGE, UNIT_HEAL, and CORRUPTION_APPLIED animation blocks now wait `POST_ACTION_IDLE_MS` after applying the event (when the tile is visible), matching the dwell time every other event type receives and preventing the camera from rushing past floaters and VFX.
+
+### v0.97.8 - Kindler fire beam now advances toward its target
+
+Kindler fire beam now advances toward its target. The FIRE_SPIT line VFX uses a draw-on stroke-dashoffset animation so the beam visibly grows from the attacker to the target over the first 60% of its duration, then holds and fades. The beam is recoloured to the lava palette: bright orange core (`#FF7A3A`) with gold inner glow and deep-red outer shadow.
+
+### v0.97.7 - Cave monster spawn-turn follow-up regression coverage
+
+Cave monsters attack reliably the round after spawning. Added a regression test that exercises the full `exploreCave` spawn path, verifies the monster skips its spawn-turn enemy phase, confirms its action flags are reset afterward, and then confirms it attacks on the following enemy turn.
+
+### v0.97.6 - Burning-tile visual timing fix
+
+Burning tiles ignite visually at the attack beat. Enemy attack event emission now captures the defender tile status directly before attack resolution and uses that value for `tileBurningPosition` diffing, closing a Kindler enemy-attack path where the instant burn visual update could be skipped until resolved-state commit at enemy-turn end.
+
+### v0.97.5 - Terrain panel reachable by tapping through unit and building
+
+Tapping the same tile now cycles through all occupants before returning to the first. A tile with a unit and a building cycles unit → building → terrain → unit. A building-only tile cycles building → terrain → building. A unit-only tile cycles unit → terrain → unit. The terrain step was previously skipped.
+
+### v0.97.4 - Stronger corrupted-tag feedback flash
+
+The CORRUPTED tag pill now flashes three times with strong red contrast (saturated background, bright text, wide glow, slight scale pulse) over 1.6 s when the player closes a corruption-disabled tag popup, making the feedback significantly more noticeable.
+
+### v0.97.3 - Fog-aware autocam for enemy portal teleports
+
+Enemy portal teleports now respect fog-of-war endpoint visibility. The portal autocam selects the entrance only when that tile is revealed, otherwise it focuses the revealed exit. PORTAL_USED animation playback is now a fog-aware two-beat sequence: entrance VFX is shown only on revealed entrance tiles, and exit camera/VFX playback is shown only on revealed exit tiles. Unrevealed endpoints no longer receive camera pans or portal VFX.
+
+### v0.97.2 - Flying units no longer ice-slide
+
+Enemy FLYING units (such as Gargoyles raised by the enemy) were incorrectly ice-sliding when the AI moved them onto a FROZEN tile. The enemy movement path in `enemySystem.ts` now mirrors the guard already present in `movementSystem.ts` and `combatSystem.ts`: a FLYING tag check skips the `resolveSlide` call entirely. The slide-destination preview in `GridRenderer.tsx` also gains a FLYING guard so that a selected FLYING player unit never shows a phantom slide highlight. The FROZEN terrain tag description now notes that flying units do not slide.
+
 ### v0.96.0 - Situational Hint System
 
 Volcanae now includes a first-time-encounter hint system to help new players learn the game. Twenty contextual hints (H01 to H20) fire automatically on their first relevant encounter: building placement guidance, economy warnings (homeless/untrained units), lava advance, ember level ups, combat rules, tech tree prompts, crystal chamber resonance, and Emberbind leash mechanics. Each hint appears as a dismissable banner overlaying the resource top bar, with a "More" toggle to expand a detailed explanation.

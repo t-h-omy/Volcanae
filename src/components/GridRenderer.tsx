@@ -35,6 +35,7 @@ import {
   type Building,
 } from '../types';
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
+import { nextTileCycleTarget, tileSelectionState } from '../tileCycleHelper';
 import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, canUnitConstruct, canUnitCapture, hasUnitActed, getHealTargets, canUnitCast, getBridgeBuildTargets } from '../unitActions';
 import { getValidSpellTargets } from '../spellSystem';
 import './GridRenderer.css';
@@ -624,6 +625,7 @@ export default function GridRenderer() {
   const slidePreviewSet = useMemo<Set<string>>(() => {
     const set = new Set<string>();
     if (!selectedUnit || selectedUnit.faction !== Faction.PLAYER) return set;
+    if (selectedUnit.tags.includes(UnitTag.FLYING)) return set;
     for (const key of reachableSet) {
       const [kx, ky] = key.split(',').map(Number);
       const tile = grid[ky]?.[kx];
@@ -784,22 +786,22 @@ export default function GridRenderer() {
       }
 
       // Priority 1 — Own player unit on tile
-      // Cycle: if this unit is already selected and there is also a building → select the building
+      // Cycle: unit → building (if present) → terrain → unit
       if (tile.unitId) {
         const u = units[tile.unitId];
         if (u && u.faction === Faction.PLAYER) {
-          if (selectedUnitId === tile.unitId && tile.buildingId) {
-            selectBuilding(tile.buildingId);
-          } else {
-            selectUnit(tile.unitId);
-          }
+          const sel = tileSelectionState(tile.unitId, tile.buildingId, selectedUnitId, selectedBuildingId);
+          const target = nextTileCycleTarget(sel, true, !!tile.buildingId, tile.isRevealed && !tile.isLava);
+          if (target === 'building') selectBuilding(tile.buildingId!);
+          else if (target === 'terrain') selectTile({ x, y });
+          else selectUnit(tile.unitId);
           return;
         }
       }
 
       // Priority 2 — Enemy unit on tile, valid attack available (unit or building attack)
       // Priority 3 — Enemy unit on tile, no valid attack: select for inspection
-      // Cycle: if this enemy unit is already selected and there is also a building → select the building
+      // Cycle: unit → building (if present) → terrain → unit
       if (tile.unitId) {
         const u = units[tile.unitId];
         if (u && u.faction === Faction.ENEMY) {
@@ -823,11 +825,11 @@ export default function GridRenderer() {
             buildingAttackUnit(selectedBuilding.id, tile.unitId);
             return;
           }
-          if (selectedUnitId === tile.unitId && tile.buildingId) {
-            selectBuilding(tile.buildingId);
-          } else {
-            selectUnit(tile.unitId);
-          }
+          const sel = tileSelectionState(tile.unitId, tile.buildingId, selectedUnitId, selectedBuildingId);
+          const target = nextTileCycleTarget(sel, true, !!tile.buildingId, tile.isRevealed && !tile.isLava);
+          if (target === 'building') selectBuilding(tile.buildingId!);
+          else if (target === 'terrain') selectTile({ x, y });
+          else selectUnit(tile.unitId);
           return;
         }
       }
@@ -869,10 +871,10 @@ export default function GridRenderer() {
       }
 
       // Priority 5b — Building on tile, select it
-      // Cycle: if this building is already selected and there is also a unit → select the unit
+      // Cycle: building → terrain → building (or → unit on next tap if unit present)
       if (tile.buildingId) {
-        if (selectedBuildingId === tile.buildingId && tile.unitId) {
-          selectUnit(tile.unitId);
+        if (selectedBuildingId === tile.buildingId) {
+          selectTile({ x, y });
         } else {
           selectBuilding(tile.buildingId);
         }
@@ -2429,6 +2431,7 @@ function LineVfxLayer({ tileSize }: { tileSize: number }) {
           y1={vfx.fromPx.y}
           x2={vfx.toPx.x}
           y2={vfx.toPx.y}
+          pathLength={vfx.variant === 'FIRE_SPIT' ? 1 : undefined}
           style={{ '--line-vfx-duration': `${vfx.durationMs}ms` } as React.CSSProperties}
           onAnimationEnd={() => removeLineVfx(vfx.id)}
         />

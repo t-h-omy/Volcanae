@@ -909,14 +909,14 @@ export function castSpell(
   if (!canUnitCast(mage, state)) return false;
   if (!isSpellUnlocked(state, spellId)) return false;
 
-  // All spells cost 1 arcane crystal
-  if (state.arcaneCrystals < 1) return false;
+  // All spells cost MAGE.SPELL_CAST_CRYSTAL_COST arcane crystals
+  if (state.arcaneCrystals < MAGE.SPELL_CAST_CRYSTAL_COST) return false;
 
   // TRANSPOSE is special: first click selects the first unit (no cast yet),
   // second click performs the swap. Deduct crystal only on the actual swap.
   if (spellId === 'TRANSPOSE') {
     const result = handleTranspose(state, mage, targetPosition);
-    if (result) state.arcaneCrystals -= 1;
+    if (result) state.arcaneCrystals -= MAGE.SPELL_CAST_CRYSTAL_COST;
     return result;
   }
 
@@ -950,7 +950,7 @@ export function castSpell(
     default:
       return false;
   }
-  if (success) state.arcaneCrystals -= 1;
+  if (success) state.arcaneCrystals -= MAGE.SPELL_CAST_CRYSTAL_COST;
   return success;
 }
 

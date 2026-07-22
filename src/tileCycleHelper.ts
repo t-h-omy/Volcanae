@@ -1,0 +1,70 @@
+/**
+ * Pure helper for the tap-cycle selection logic on a single tile.
+ *
+ * The tap cycle (per tile) is:
+ *   unit + building  → U → B → T → U → …
+ *   unit only        → U → T → U → …
+ *   building only    → B → T → B → …
+ *
+ * This module has no React or Zustand dependencies and can be unit-tested
+ * directly.
+ */
+
+export type TileCycleTarget = 'unit' | 'building' | 'terrain';
+
+/**
+ * Returns which occupant of the tile is currently the active selection, or
+ * null if nothing from this tile is selected.
+ *
+ * @param tileUnitId     tile.unitId
+ * @param tileBuildingId tile.buildingId
+ * @param selUnitId      store selectedUnitId
+ * @param selBuildingId  store selectedBuildingId
+ */
+export function tileSelectionState(
+  tileUnitId: string | null,
+  tileBuildingId: string | null,
+  selUnitId: string | null,
+  selBuildingId: string | null,
+): 'unit' | 'building' | null {
+  if (tileUnitId !== null && selUnitId === tileUnitId) return 'unit';
+  if (tileBuildingId !== null && selBuildingId === tileBuildingId) return 'building';
+  return null;
+}
+
+/**
+ * Given the current selection state for a tile and its occupants, returns what
+ * should be selected next when the player taps the tile.
+ *
+ * @param selectedOnThisTile  What is currently selected from this tile:
+ *   'unit'     – the tile's unit is the active selection,
+ *   'building' – the tile's building is the active selection,
+ *   'terrain'  – this tile's terrain is the active selection,
+ *   null       – nothing from this tile is currently selected (first tap).
+ * @param hasUnit          The tile has a unit.
+ * @param hasBuilding      The tile has a building.
+ * @param canSelectTerrain tile.isRevealed && !tile.isLava
+ */
+export function nextTileCycleTarget(
+  selectedOnThisTile: 'unit' | 'building' | 'terrain' | null,
+  hasUnit: boolean,
+  hasBuilding: boolean,
+  canSelectTerrain: boolean,
+): TileCycleTarget {
+  if (selectedOnThisTile === 'unit') {
+    if (hasBuilding) return 'building';
+    if (canSelectTerrain) return 'terrain';
+    return 'unit';
+  }
+  if (selectedOnThisTile === 'building') {
+    if (canSelectTerrain) return 'terrain';
+    return 'building';
+  }
+  // 'terrain' or null (first tap / wrap-around): advance to the first occupant.
+  // When no occupants exist and terrain is not selectable this is a degenerate state;
+  // returning 'terrain' is a safe no-op default.
+  if (hasUnit) return 'unit';
+  if (hasBuilding) return 'building';
+  if (canSelectTerrain) return 'terrain';
+  return 'terrain';
+}

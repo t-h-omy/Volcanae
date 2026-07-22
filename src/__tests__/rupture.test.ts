@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { produce } from 'immer';
 import { castSpell, getValidSpellTargets } from '../spellSystem';
 import { applyEffectsForSpecialist, revokeEffectsForSpecialist, createInitialSpecialists } from '../specialistSystem';
-import { ABILITIES, MAGE, UNIT_DEFINITIONS } from '../gameConfig';
+import { MAGE, UNIT_DEFINITIONS } from '../gameConfig';
 import { Faction, GamePhase, SpellId, TileType, UnitType } from '../types';
 import type { GameState, Tile, Unit } from '../types';
 
@@ -296,7 +296,7 @@ describe('SP-16 The Sundered (spec_22) — RUPTURE spell', () => {
         expect(castSpell(draft, 'mage_1', SpellId.RUPTURE, { x: 4, y: 2 })).toBe(true);
       });
 
-      expect(nextState.arcaneCrystals).toBe(3 - ABILITIES.RUPTURE_CRYSTAL_COST);
+      expect(nextState.arcaneCrystals).toBe(3 - MAGE.SPELL_CAST_CRYSTAL_COST);
     });
 
     it('returns false when arcane crystals are insufficient', () => {

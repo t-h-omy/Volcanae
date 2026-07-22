@@ -31,6 +31,7 @@ import {
   computeRecruitmentBuildingUsage,
   computeResourceIncomeBreakdown,
   computeCrystalIncomePerTurn,
+  computePopulationBreakdown,
   getMineKilnBonusCount,
   getEffectiveHousingPopulationCap,
   getStrongholdEffectiveCapWithDoctrines,
@@ -44,6 +45,7 @@ import {
 import { computeLevelFromXp } from '../levelSystem';
 import { computeUnitAiScores, computeRecruitmentScores, type ScoredAction } from '../enemySystem';
 import { renderEffect, getAvailableTechs as getAvailableTechsLogic } from '../techSystem';
+import { buildRecruitBlockMessages } from '../recruitMessages';
 import {
   Faction,
   GamePhase,
@@ -901,6 +903,9 @@ function TopBar({
   // Resource info popup state: 'iron' | 'wood' | 'crystal' | null
   const [resourcePopup, setResourcePopup] = useState<'iron' | 'wood' | 'crystal' | null>(null);
 
+  // Population info popup state: 'farmers' | 'nobles' | null
+  const [populationPopup, setPopulationPopup] = useState<'farmers' | 'nobles' | null>(null);
+
   // Ember info popup
   const [emberPopupOpen, setEmberPopupOpen] = useState(false);
 
@@ -912,8 +917,8 @@ function TopBar({
       <div className="hud-top-bar">
         <button className="hud-stat hud-stat--clickable" onClick={() => setResourcePopup('iron')}>⛓️ {resources.iron}<NetIncomeBadge gross={ironPerTurn} upkeep={ironUpkeep} /></button>
         <button className="hud-stat hud-stat--clickable" onClick={() => setResourcePopup('wood')}>🪵 {resources.wood}<NetIncomeBadge gross={woodPerTurn} upkeep={woodUpkeep} /></button>
-        <span className="hud-stat">🌾 {farmersUsed}/{farmerCapacity}</span>
-        <span className="hud-stat">🎖️ {noblesUsed}/{nobleCapacity}</span>
+        <button className="hud-stat hud-stat--clickable" onClick={() => setPopulationPopup('farmers')}>🌾 {farmersUsed}/{farmerCapacity}</button>
+        <button className="hud-stat hud-stat--clickable" onClick={() => setPopulationPopup('nobles')}>🎖️ {noblesUsed}/{nobleCapacity}</button>
         <button className="hud-stat hud-stat--clickable" onClick={() => setEmberPopupOpen(true)}>🔥 Ember {ember}</button>
       <span className="hud-stat">🌋 Lava in {turnsUntilLavaAdvance}</span>
       <button className="hud-stat hud-stat--clickable" onClick={() => setResourcePopup('crystal')}>
@@ -960,6 +965,12 @@ function TopBar({
           resourceType={resourcePopup}
           current={resourcePopup === 'iron' ? resources.iron : resourcePopup === 'wood' ? resources.wood : arcaneCrystals}
           onClose={() => setResourcePopup(null)}
+        />
+      )}
+      {populationPopup && (
+        <PopulationInfoPopup
+          populationType={populationPopup}
+          onClose={() => setPopulationPopup(null)}
         />
       )}
       {emberPopupOpen && (
@@ -1031,6 +1042,7 @@ function SpellInfoPopup({ spellId, onClose }: { spellId: SpellId; onClose: () =>
         <span className="info-popup-header-emoji">{def.emoji}</span>
         <div>
           <div className="info-popup-header-name">{def.name}</div>
+          <div className="info-popup-header-cost">Cast: 💎{MAGE.SPELL_CAST_CRYSTAL_COST}</div>
         </div>
       </div>
       <p className="info-popup-desc" style={{ marginBottom: 16 }}>{def.description}</p>
@@ -1143,6 +1155,86 @@ function ResourceInfoPopup({
         <span>Net income</span>
         <span className={totalIncome >= 0 ? 'resource-popup-total-positive' : 'resource-popup-total-negative'}>
           {fmt(totalIncome)}
+        </span>
+      </div>
+      <button className="info-popup-btn info-popup-btn--secondary" style={{ marginTop: 14 }} onClick={onClose}>Close</button>
+    </Popup>
+  );
+}
+
+/** Population info popup — shows capacity sources and unit usage breakdown */
+function PopulationInfoPopup({
+  populationType,
+  onClose,
+}: {
+  populationType: 'farmers' | 'nobles';
+  onClose: () => void;
+}) {
+  // Use stable Immer references as memo dependencies to avoid invariant violation
+  const buildings = useGameStore((s) => s.buildings);
+  const units = useGameStore((s) => s.units);
+  const specialists = useGameStore((s) => s.specialists);
+  const globalSpecialistStorage = useGameStore((s) => s.globalSpecialistStorage);
+
+  const breakdown = useMemo(
+    () => computePopulationBreakdown(useGameStore.getState()),
+    [buildings, units, specialists, globalSpecialistStorage],
+  );
+
+  const isFarmers = populationType === 'farmers';
+  const emoji = isFarmers ? '🌾' : '🎖️';
+  const label = isFarmers ? 'Farmers' : 'Nobles';
+  const capacity = isFarmers ? breakdown.farmerCapacity : breakdown.nobleCapacity;
+  const used = isFarmers ? breakdown.farmersUsed : breakdown.noblesUsed;
+
+  const capacityRows = breakdown.capacityEntries.filter((e) =>
+    isFarmers ? e.farmers > 0 : e.nobles > 0,
+  );
+  const usageRows = breakdown.usageEntries.filter((e) =>
+    isFarmers ? e.farmers > 0 : e.nobles > 0,
+  );
+
+  return (
+    <Popup onClose={onClose}>
+      <div className="info-popup-header">
+        <span className="info-popup-header-emoji">{emoji}</span>
+        <div className="info-popup-header-name">{label}</div>
+      </div>
+      <div className="resource-popup-current">Used {used} of {capacity}</div>
+      <div className="resource-popup-section-title">Capacity sources</div>
+      {capacityRows.length === 0 ? (
+        <div className="resource-popup-row resource-popup-row--none">No capacity sources</div>
+      ) : (
+        capacityRows.map((e, i) => (
+          <div key={i} className="resource-popup-row">
+            <span className="resource-popup-row-label">{e.label}</span>
+            <span className="resource-popup-row-value">{isFarmers ? e.farmers : e.nobles}</span>
+          </div>
+        ))
+      )}
+      <div className="resource-popup-total">
+        <span>Total capacity</span>
+        <span className="resource-popup-total-positive">{capacity}</span>
+      </div>
+      <div className="resource-popup-section-title">Unit usage</div>
+      {usageRows.length === 0 ? (
+        <div className="resource-popup-row resource-popup-row--none">
+          No units using {label.toLowerCase()} population
+        </div>
+      ) : (
+        usageRows.map((e, i) => (
+          <div key={i} className="resource-popup-row">
+            <span className="resource-popup-row-label">
+              {UNIT_EMOJI[e.unitType] ?? ''} {UNIT_NAME[e.unitType] ?? e.unitType} ×{e.count}
+            </span>
+            <span className="resource-popup-row-value">{isFarmers ? e.farmers : e.nobles}</span>
+          </div>
+        ))
+      )}
+      <div className="resource-popup-total">
+        <span>Total used</span>
+        <span className={used > capacity ? 'resource-popup-total-negative' : 'resource-popup-total-positive'}>
+          {used}
         </span>
       </div>
       <button className="info-popup-btn info-popup-btn--secondary" style={{ marginTop: 14 }} onClick={onClose}>Close</button>
@@ -2316,10 +2408,10 @@ function SelectedUnitPanel({
                         className="hud-spell-btn"
                         disabled={!canCast}
                         onClick={() => startSpellCast(unit.id, spellId)}
-                        title={`${def?.description ?? ''} (costs 💎1)`}
+                        title={`${def?.description ?? ''} (costs 💎${MAGE.SPELL_CAST_CRYSTAL_COST})`}
                       >
                         <span className="hud-spell-btn-label">{def ? `${def.emoji} ${def.name}` : spellId}</span>
-                        <span className="hud-spell-btn-cost">💎1</span>
+                        <span className="hud-spell-btn-cost">💎{MAGE.SPELL_CAST_CRYSTAL_COST}</span>
                       </button>
                     );
                   })}
@@ -2330,10 +2422,10 @@ function SelectedUnitPanel({
                           className="hud-spell-btn"
                           disabled={!canCast || crystalTowerBlocked}
                           onClick={() => setConfirmCrystalTower(true)}
-                          title={`${SPELL_DEFINITIONS[SpellId.CRYSTAL_TOWER]?.description ?? ''} (costs 💎1)`}
+                          title={`${SPELL_DEFINITIONS[SpellId.CRYSTAL_TOWER]?.description ?? ''} (costs 💎${MAGE.SPELL_CAST_CRYSTAL_COST})`}
                         >
                           <span className="hud-spell-btn-label">{SPELL_DEFINITIONS[SpellId.CRYSTAL_TOWER] ? `${SPELL_DEFINITIONS[SpellId.CRYSTAL_TOWER].emoji} ${SPELL_DEFINITIONS[SpellId.CRYSTAL_TOWER].name}` : SpellId.CRYSTAL_TOWER}</span>
-                          <span className="hud-spell-btn-cost">💎1</span>
+                          <span className="hud-spell-btn-cost">💎{MAGE.SPELL_CAST_CRYSTAL_COST}</span>
                         </button>
                       ) : (
                         <div className="hud-fieldwork-confirm">
@@ -3126,21 +3218,29 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
                   if (!canRecruitThisUnit) return;
                   setConfirmRecruitUnit(unitType);
                 };
-                // Compute which population resource is actually insufficient for the error message
-                let popWarningMsg: string | null = null;
-                if (!hasPopulation && canAffordUnit && popCost) {
+                // Compute per-factor block messages using a pure helper
+                const { resourceWarningMsg, popWarningMsg, capWarningMsg } = (() => {
                   const state = useGameStore.getState();
                   const usage = computePopulationUsage(state);
                   const capacity = computePopulationCapacity(state);
-                  const needFarmers = popCost.farmers > 0 && usage.farmersUsed + popCost.farmers > capacity.farmerCapacity;
-                  const needNobles = popCost.nobles > 0 && usage.noblesUsed + popCost.nobles > capacity.nobleCapacity;
-                  const parts: string[] = [];
-                  if (needFarmers) parts.push('farmers — build more Farms');
-                  if (needNobles) parts.push('nobles — build more Patrician Houses');
-                  if (parts.length > 0) popWarningMsg = `Not enough ${parts.join(' and ')}`;
-                }
-                // Generic affordability warning when the unit's resource cost cannot be met
-                const resourceWarningMsg: string | null = !canAffordUnit ? 'Not enough resources' : null;
+                  return buildRecruitBlockMessages(
+                    isCrystalCost,
+                    cost ?? undefined,
+                    crystalCost,
+                    resources,
+                    arcaneCrystals,
+                    canAffordUnit,
+                    hasPopulation,
+                    popCost,
+                    usage,
+                    capacity,
+                    atUnitLimit,
+                    building.type === BuildingType.CRYSTAL_CAVE,
+                    recruitedUnits,
+                    unitLimit,
+                    BUILDING_NAME[building.type] ?? building.type,
+                  );
+                })();
                 return (
                   <div key={unitType} className="hud-recruit-option-wrapper">
                     <button
@@ -3171,6 +3271,9 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
                     )}
                     {popWarningMsg && (
                       <span className="hud-pop-warning">{popWarningMsg}</span>
+                    )}
+                    {capWarningMsg && (
+                      <span className="hud-pop-warning">{capWarningMsg}</span>
                     )}
                   </div>
                 );

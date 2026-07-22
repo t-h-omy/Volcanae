@@ -214,6 +214,10 @@ export const MAGE = {
   RUPTURE_PERCENT: 0.5,
   /** Crystal cost to cast the Rupture spell */
   RUPTURE_CRYSTAL_COST: 1,
+
+  // ── General spell cost ────────────────────────────────────────────────
+  /** Crystals consumed per spell cast (applies to all Mage spells) */
+  SPELL_CAST_CRYSTAL_COST: 1,
 } as const;
 
 // ============================================================================
@@ -2844,7 +2848,8 @@ export const TERRAIN_TAG_INFO: Record<TerrainTag, { label: string; desc: string 
     desc:
       'Units that end movement on this tile slide one additional tile in their movement direction. ' +
       'Sliding into water, canyon, or lava is fatal. ' +
-      'Spawning directly onto a frozen tile triggers no slide.',
+      'Spawning directly onto a frozen tile triggers no slide. ' +
+      'Flying units do not slide.',
   },
   [TerrainTag.BURNING]: {
     label: 'Burning',

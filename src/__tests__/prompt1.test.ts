@@ -12,12 +12,12 @@
 
 import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
-import { resolveAttack } from '../combatSystem';
+import { resolveAttack, resolveAttackOnBuilding, unitToCombatant, buildingToCombatant, calculateCombatFromStats } from '../combatSystem';
 import { applyLevelUps } from '../levelSystem';
 import { UnitType, Faction, UnitTag, TileType, TileStatus, DestroyBehavior, BuildingType } from '../types';
 import type { GameState, Unit, Tile, Building, GameStats } from '../types';
 import type { GameEvent } from '../gameEvents';
-import { UNIT_DEFINITIONS, FLYING_RANGED_DAMAGE_TAKEN_MULTIPLIER } from '../gameConfig';
+import { UNIT_DEFINITIONS, FLYING_RANGED_DAMAGE_TAKEN_MULTIPLIER, PIERCE_SECONDARY_DAMAGE_MULTIPLIER } from '../gameConfig';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -176,6 +176,17 @@ function makePlayerBuilding(x: number, y: number, hp = 50): Building {
   return { ...bld, id: nextId('pbld'), faction: Faction.PLAYER };
 }
 
+/** Minimal neutral building (e.g. Market/Watchtower/Gravestone ownership = null). */
+function makeNeutralBuilding(x: number, y: number, hp = 50): Building {
+  const bld = makeEnemyBuilding(x, y, hp);
+  return { ...bld, id: nextId('nbld'), faction: null };
+}
+
+function makeNeutralMarketBuilding(x: number, y: number, hp = 50): Building {
+  const bld = makeNeutralBuilding(x, y, hp);
+  return { ...bld, type: BuildingType.MARKET, combatStats: null };
+}
+
 // ── 1A (21): BLOODLUST corrupted-advance grant ────────────────────────────────
 
 describe('1A (21) – BLOODLUST corrupted-advance', () => {
@@ -278,6 +289,49 @@ describe('1A (19) – BLOODLUST no-target dangle', () => {
     expect(attacker.bloodlustAttackAvailable).toBe(true);
     expect(attacker.hasAttackedThisTurn).toBe(false);
   });
+
+  it.each([
+    ['neutral Market', makeNeutralMarketBuilding],
+    ['neutral Watchtower', makeNeutralBuilding],
+  ])('clears the charge when only a %s is reachable after the kill', (_label, makeBuilding) => {
+    const rider = makePlayerUnit(UnitType.RIDER, 3, 5, [UnitTag.BLOODLUST]);
+    const enemy = makeEnemyUnit(UnitType.LAVA_GRUNT, 4, 5, { currentHp: 1, maxHp: 100 });
+    const neutralBuilding = makeBuilding(5, 5, 80);
+
+    const initialState = makeState([rider, enemy], [neutralBuilding]);
+    initialState.grid[5][5].buildingId = neutralBuilding.id;
+
+    const nextState = produce(initialState, (draft) => {
+      resolveAttack(draft, rider.id, enemy.id, true);
+    });
+
+    const attacker = nextState.units[rider.id]!;
+    expect(attacker.bloodlustAttackAvailable).toBe(false);
+    expect(attacker.hasAttackedThisTurn).toBe(true);
+  });
+});
+
+describe('1A (19) – BLOODLUST no-target dangle on building kill', () => {
+  it.each([
+    ['neutral Market', makeNeutralMarketBuilding],
+    ['neutral Watchtower', makeNeutralBuilding],
+  ])('clears the charge when only a %s is reachable after a building kill', (_label, makeBuilding) => {
+    const rider = makePlayerUnit(UnitType.RIDER, 3, 5, [UnitTag.BLOODLUST]);
+    const enemyBuilding = makeEnemyBuilding(4, 5, 1);
+    const neutralBuilding = makeBuilding(5, 5, 80);
+
+    const initialState = makeState([rider], [enemyBuilding, neutralBuilding]);
+    initialState.grid[5][4].buildingId = enemyBuilding.id;
+    initialState.grid[5][5].buildingId = neutralBuilding.id;
+
+    const nextState = produce(initialState, (draft) => {
+      resolveAttackOnBuilding(draft, rider.id, enemyBuilding.id, true);
+    });
+
+    const attacker = nextState.units[rider.id]!;
+    expect(attacker.bloodlustAttackAvailable).toBe(false);
+    expect(attacker.hasAttackedThisTurn).toBe(true);
+  });
 });
 
 // ── 1A (1): BLOODLUST charge survives level-up ────────────────────────────────
@@ -373,12 +427,17 @@ describe('1B (12) – PIERCE friendly fire', () => {
   /**
    * Verify the enemy rear unit case is unchanged: it still takes full pierce damage.
    */
-  it('still damages a hostile rear unit', () => {
+  it('still damages a hostile rear unit for fullPrimaryDamage × PIERCE_SECONDARY_DAMAGE_MULTIPLIER', () => {
     const playerLancer = makePlayerUnit(UnitType.LANCER, 3, 5);
     const frontEnemy = makeEnemyUnit(UnitType.LAVA_GRUNT, 4, 5, { currentHp: 1, maxHp: 100 });
     // Hostile rear unit at (5,5)
     const hostileRear = makeEnemyUnit(UnitType.LAVA_GRUNT, 5, 5, { currentHp: 100, maxHp: 100 });
     const rearInitialHp = hostileRear.stats.currentHp;
+    const fullPrimaryDamage = calculateCombatFromStats(
+      unitToCombatant(playerLancer),
+      unitToCombatant(frontEnemy),
+    ).defenderHpLost;
+    const expectedRearDamage = Math.max(1, Math.round(fullPrimaryDamage * PIERCE_SECONDARY_DAMAGE_MULTIPLIER));
 
     const initialState = makeState([playerLancer, frontEnemy, hostileRear]);
     const outEvents: GameEvent[] = [];
@@ -389,14 +448,14 @@ describe('1B (12) – PIERCE friendly fire', () => {
     const rear = nextState.units[hostileRear.id];
     // HP must have decreased (or unit killed)
     const rearHp = rear ? rear.stats.currentHp : 0;
-    expect(rearHp).toBeLessThan(rearInitialHp);
+    expect(rearInitialHp - rearHp).toBe(expectedRearDamage);
 
     // PIERCE_DAMAGE event must have a positive amount
     const pierceEvt = outEvents.find(
       (e) => e.type === 'PIERCE_DAMAGE' && (e as { unitId: string | null }).unitId === hostileRear.id,
     );
     expect(pierceEvt).toBeDefined();
-    expect((pierceEvt as { amount: number }).amount).toBeGreaterThan(0);
+    expect((pierceEvt as { amount: number }).amount).toBe(expectedRearDamage);
   });
 
   /**
@@ -423,6 +482,169 @@ describe('1B (12) – PIERCE friendly fire', () => {
     // VFX-only event emitted with amount=0
     const pierceEvt = outEvents.find(
       (e) => e.type === 'PIERCE_DAMAGE' && (e as { buildingId: string | null }).buildingId === friendlyBuilding.id,
+    );
+    expect(pierceEvt).toBeDefined();
+    expect((pierceEvt as { amount: number }).amount).toBe(0);
+  });
+
+  it('enemy pierce attacker does not damage an enemy rear unit behind a player defender', () => {
+    const enemyLancer = makeEnemyUnit(UnitType.LANCER, 3, 5);
+    const playerFront = makePlayerUnit(UnitType.RIDER, 4, 5, [], { currentHp: 1, maxHp: 100 });
+    const enemyRear = makeEnemyUnit(UnitType.RIDER, 5, 5);
+    const rearInitialHp = enemyRear.stats.currentHp;
+
+    const initialState = makeState([enemyLancer, playerFront, enemyRear]);
+    const outEvents: GameEvent[] = [];
+    const nextState = produce(initialState, (draft) => {
+      resolveAttack(draft, enemyLancer.id, playerFront.id, true, outEvents);
+    });
+
+    expect(nextState.units[enemyRear.id]!.stats.currentHp).toBe(rearInitialHp);
+    const pierceEvt = outEvents.find(
+      (e) => e.type === 'PIERCE_DAMAGE' && (e as { unitId: string | null }).unitId === enemyRear.id,
+    );
+    expect(pierceEvt).toBeDefined();
+    expect((pierceEvt as { amount: number }).amount).toBe(0);
+  });
+
+  it('does not damage a neutral rear building and still emits VFX-only PIERCE_DAMAGE (amount 0)', () => {
+    const playerLancer = makePlayerUnit(UnitType.LANCER, 3, 5);
+    const frontEnemy = makeEnemyUnit(UnitType.LAVA_GRUNT, 4, 5, { currentHp: 1, maxHp: 100 });
+    const neutralBuilding = makeNeutralBuilding(5, 5, 80);
+    const initialHp = neutralBuilding.hp;
+
+    const initialState = makeState([playerLancer, frontEnemy], [neutralBuilding]);
+    initialState.grid[5][5].buildingId = neutralBuilding.id;
+
+    const outEvents: GameEvent[] = [];
+    const nextState = produce(initialState, (draft) => {
+      resolveAttack(draft, playerLancer.id, frontEnemy.id, true, outEvents);
+    });
+
+    expect(nextState.buildings[neutralBuilding.id]!.hp).toBe(initialHp);
+    const pierceEvt = outEvents.find(
+      (e) => e.type === 'PIERCE_DAMAGE' && (e as { buildingId: string | null }).buildingId === neutralBuilding.id,
+    );
+    expect(pierceEvt).toBeDefined();
+    expect((pierceEvt as { amount: number }).amount).toBe(0);
+  });
+});
+
+describe('1B (12) – PIERCE friendly fire in resolveAttackOnBuilding', () => {
+  it('deals no damage to a friendly rear unit but still emits a PIERCE_DAMAGE event (amount 0)', () => {
+    const playerLancer = makePlayerUnit(UnitType.LANCER, 3, 5);
+    const frontEnemyBuilding = makeEnemyBuilding(4, 5, 80);
+    const friendlyRear = makePlayerUnit(UnitType.RIDER, 5, 5);
+    const rearInitialHp = friendlyRear.stats.currentHp;
+
+    const initialState = makeState([playerLancer, friendlyRear], [frontEnemyBuilding]);
+    initialState.grid[5][4].buildingId = frontEnemyBuilding.id;
+
+    const outEvents: GameEvent[] = [];
+    const nextState = produce(initialState, (draft) => {
+      resolveAttackOnBuilding(draft, playerLancer.id, frontEnemyBuilding.id, true, outEvents);
+    });
+
+    expect(nextState.units[friendlyRear.id]!.stats.currentHp).toBe(rearInitialHp);
+    const pierceEvt = outEvents.find(
+      (e) => e.type === 'PIERCE_DAMAGE' && (e as { unitId: string | null }).unitId === friendlyRear.id,
+    );
+    expect(pierceEvt).toBeDefined();
+    expect((pierceEvt as { amount: number }).amount).toBe(0);
+  });
+
+  it('deals no damage to a friendly rear building but still emits a PIERCE_DAMAGE event (amount 0)', () => {
+    const playerLancer = makePlayerUnit(UnitType.LANCER, 3, 5);
+    const frontEnemyBuilding = makeEnemyBuilding(4, 5, 80);
+    const friendlyRearBuilding = makePlayerBuilding(5, 5, 80);
+    const initialHp = friendlyRearBuilding.hp;
+
+    const initialState = makeState([playerLancer], [frontEnemyBuilding, friendlyRearBuilding]);
+    initialState.grid[5][4].buildingId = frontEnemyBuilding.id;
+    initialState.grid[5][5].buildingId = friendlyRearBuilding.id;
+
+    const outEvents: GameEvent[] = [];
+    const nextState = produce(initialState, (draft) => {
+      resolveAttackOnBuilding(draft, playerLancer.id, frontEnemyBuilding.id, true, outEvents);
+    });
+
+    expect(nextState.buildings[friendlyRearBuilding.id]!.hp).toBe(initialHp);
+    const pierceEvt = outEvents.find(
+      (e) => e.type === 'PIERCE_DAMAGE' && (e as { buildingId: string | null }).buildingId === friendlyRearBuilding.id,
+    );
+    expect(pierceEvt).toBeDefined();
+    expect((pierceEvt as { amount: number }).amount).toBe(0);
+  });
+
+  it('still damages a hostile rear unit for fullPrimaryDamage × PIERCE_SECONDARY_DAMAGE_MULTIPLIER', () => {
+    const playerLancer = makePlayerUnit(UnitType.LANCER, 3, 5);
+    const frontEnemyBuilding = makeEnemyBuilding(4, 5, 80);
+    const hostileRear = makeEnemyUnit(UnitType.LAVA_GRUNT, 5, 5, { currentHp: 100, maxHp: 100 });
+    const rearInitialHp = hostileRear.stats.currentHp;
+    const fullPrimaryDamage = calculateCombatFromStats(
+      unitToCombatant(playerLancer),
+      buildingToCombatant(frontEnemyBuilding)!,
+    ).defenderHpLost;
+    const expectedRearDamage = Math.max(1, Math.round(fullPrimaryDamage * PIERCE_SECONDARY_DAMAGE_MULTIPLIER));
+
+    const initialState = makeState([playerLancer, hostileRear], [frontEnemyBuilding]);
+    initialState.grid[5][4].buildingId = frontEnemyBuilding.id;
+
+    const outEvents: GameEvent[] = [];
+    const nextState = produce(initialState, (draft) => {
+      resolveAttackOnBuilding(draft, playerLancer.id, frontEnemyBuilding.id, true, outEvents);
+    });
+
+    const rear = nextState.units[hostileRear.id];
+    const rearHp = rear ? rear.stats.currentHp : 0;
+    expect(rearInitialHp - rearHp).toBe(expectedRearDamage);
+    const pierceEvt = outEvents.find(
+      (e) => e.type === 'PIERCE_DAMAGE' && (e as { unitId: string | null }).unitId === hostileRear.id,
+    );
+    expect(pierceEvt).toBeDefined();
+    expect((pierceEvt as { amount: number }).amount).toBe(expectedRearDamage);
+  });
+
+  it('enemy pierce attacker does not damage an enemy rear unit behind a player building defender', () => {
+    const enemyLancer = makeEnemyUnit(UnitType.LANCER, 3, 5);
+    const playerBuilding = makePlayerBuilding(4, 5, 80);
+    const enemyRear = makeEnemyUnit(UnitType.RIDER, 5, 5);
+    const rearInitialHp = enemyRear.stats.currentHp;
+
+    const initialState = makeState([enemyLancer, enemyRear], [playerBuilding]);
+    initialState.grid[5][4].buildingId = playerBuilding.id;
+
+    const outEvents: GameEvent[] = [];
+    const nextState = produce(initialState, (draft) => {
+      resolveAttackOnBuilding(draft, enemyLancer.id, playerBuilding.id, true, outEvents);
+    });
+
+    expect(nextState.units[enemyRear.id]!.stats.currentHp).toBe(rearInitialHp);
+    const pierceEvt = outEvents.find(
+      (e) => e.type === 'PIERCE_DAMAGE' && (e as { unitId: string | null }).unitId === enemyRear.id,
+    );
+    expect(pierceEvt).toBeDefined();
+    expect((pierceEvt as { amount: number }).amount).toBe(0);
+  });
+
+  it('does not damage a neutral rear building and still emits VFX-only PIERCE_DAMAGE (amount 0)', () => {
+    const playerLancer = makePlayerUnit(UnitType.LANCER, 3, 5);
+    const frontEnemyBuilding = makeEnemyBuilding(4, 5, 80);
+    const neutralRearBuilding = makeNeutralBuilding(5, 5, 80);
+    const initialHp = neutralRearBuilding.hp;
+
+    const initialState = makeState([playerLancer], [frontEnemyBuilding, neutralRearBuilding]);
+    initialState.grid[5][4].buildingId = frontEnemyBuilding.id;
+    initialState.grid[5][5].buildingId = neutralRearBuilding.id;
+
+    const outEvents: GameEvent[] = [];
+    const nextState = produce(initialState, (draft) => {
+      resolveAttackOnBuilding(draft, playerLancer.id, frontEnemyBuilding.id, true, outEvents);
+    });
+
+    expect(nextState.buildings[neutralRearBuilding.id]!.hp).toBe(initialHp);
+    const pierceEvt = outEvents.find(
+      (e) => e.type === 'PIERCE_DAMAGE' && (e as { buildingId: string | null }).buildingId === neutralRearBuilding.id,
     );
     expect(pierceEvt).toBeDefined();
     expect((pierceEvt as { amount: number }).amount).toBe(0);

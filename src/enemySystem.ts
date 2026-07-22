@@ -1354,6 +1354,7 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
   if (
     newTile.status === TileStatus.FROZEN &&
     unitAfterEffects &&
+    !unitAfterEffects.tags.includes(UnitTag.FLYING) &&
     unitAfterEffects.position.x === targetPosition.x &&
     unitAfterEffects.position.y === targetPosition.y
   ) {
@@ -1471,6 +1472,63 @@ function moveEnemyUnitToward(
     // If the unit slid on a FROZEN tile, it's no longer at nextPos — stop multi-step movement.
     const afterMove = state.units[unitId];
     if (afterMove && (afterMove.position.x !== nextPos.x || afterMove.position.y !== nextPos.y)) break;
+  }
+  // Greedy fallback: when BFS found no path (congested frontline), try one
+  // immediate step toward the target by evaluating all 8 neighbours and
+  // picking the free one with the smallest edgeCircleDistance to the target
+  // (ties broken randomly). This unblocks SACRIFICIAL/EXPLOSIVE units (e.g.
+  // emberlings) that are surrounded on the direct path but still have a free
+  // sideways tile to shuffle onto. Lava entry is intentionally excluded so
+  // SACRIFICE_TO_LAVA remains the only route into lava.
+  if (path.length === 0) {
+    const uFallback = state.units[unitId];
+    if (
+      uFallback &&
+      // Guard: unit is not already at the target (findBfsPath returns [] for
+      // from === target, but there is nothing useful to do in that case).
+      (uFallback.position.x !== targetPosition.x || uFallback.position.y !== targetPosition.y)
+    ) {
+      let bestDist = Infinity;
+      const fallbackCandidates: Position[] = [];
+      for (const [dx, dy] of BFS_DIRECTIONS) {
+        const nx = uFallback.position.x + dx;
+        const ny = uFallback.position.y + dy;
+        if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;
+        const nTile = state.grid[ny][nx];
+        // Canyon/Water: impassable unless bridged (same rule as BFS and the step loop)
+        if (nTile.terrainType === TileType.CANYON || nTile.terrainType === TileType.WATER) {
+          if (!getBridgeAt(state, nx, ny) || !canTraverseEdge(state, uFallback.position.x, uFallback.position.y, nx, ny, false)) continue;
+        }
+        // Never step into lava — lava entry is only via SACRIFICE_TO_LAVA
+        if (nTile.isLava) continue;
+        // Blocked buildings are impassable
+        if (isBlockedBuildingForEnemyMovement(state, nTile.buildingId)) continue;
+        // Tile must be unoccupied
+        if (nTile.unitId !== null) continue;
+        // Zone lockout: respect the same zone-crossing restriction as the step loop
+        if (SANCTUM_COLLAPSE.ZONE_LOCKOUT_TURNS > 0) {
+          const nextZone = getZoneForRow(ny);
+          const curZone = getZoneForRow(uFallback.position.y);
+          if (
+            nextZone < curZone &&
+            state.zoneLockoutUntilTurn[nextZone] !== undefined &&
+            state.turn < (state.zoneLockoutUntilTurn[nextZone] ?? 0)
+          ) continue;
+        }
+        const dist = edgeCircleDistance(nx, ny, targetPosition.x, targetPosition.y);
+        if (dist < bestDist) {
+          bestDist = dist;
+          fallbackCandidates.length = 0;
+          fallbackCandidates.push({ x: nx, y: ny });
+        } else if (dist === bestDist) {
+          fallbackCandidates.push({ x: nx, y: ny });
+        }
+      }
+      if (fallbackCandidates.length > 0) {
+        const chosen = fallbackCandidates[Math.floor(Math.random() * fallbackCandidates.length)];
+        moveEnemyUnit(state, unitId, chosen, events);
+      }
+    }
   }
   // Mark the movement action as consumed even if no steps were taken (e.g. path
   // was empty or every candidate tile was occupied). This prevents a second
@@ -2333,6 +2391,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
           const attackerId = currentUnit.id;
           const defenderId = action.targetUnitId;
           const stateBeforeAction = current(state);
+          const defenderTileStatusBefore = state.grid[defenderPos.y]?.[defenderPos.x]?.status;
 
           const secondaryEvents: GameEvent[] = [];
           resolveAttack(state, attackerId, defenderId, suppressFloaters, secondaryEvents);
@@ -2357,7 +2416,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
               ? detectBrandmarkSpawnPos(state, stateBeforeAction, attackerPos)
               : null;
             const tileBurningPosition = (
-              stateBeforeAction.grid[defenderPos.y]?.[defenderPos.x]?.status !== TileStatus.BURNING &&
+              defenderTileStatusBefore !== TileStatus.BURNING &&
               state.grid[defenderPos.y]?.[defenderPos.x]?.status === TileStatus.BURNING
             ) ? { ...defenderPos } : undefined;
             events.push({
@@ -2420,6 +2479,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
         const attackerId = currentUnit.id;
         const defenderId = action.targetUnitId;
         const stateBeforeAction = current(state);
+        const defenderTileStatusBefore = state.grid[defenderPos.y]?.[defenderPos.x]?.status;
 
         const secondaryEvents: GameEvent[] = [];
         resolveAttack(state, attackerId, defenderId, suppressFloaters, secondaryEvents);
@@ -2438,7 +2498,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
             ? detectBrandmarkSpawnPos(state, stateBeforeAction, attackerPos)
             : null;
           const tileBurningPosition = (
-            stateBeforeAction.grid[defenderPos.y]?.[defenderPos.x]?.status !== TileStatus.BURNING &&
+            defenderTileStatusBefore !== TileStatus.BURNING &&
             state.grid[defenderPos.y]?.[defenderPos.x]?.status === TileStatus.BURNING
           ) ? { ...defenderPos } : undefined;
           events.push({
@@ -2506,6 +2566,9 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
             const attackerId = currentUnit.id;
             const buildingId = action.targetBuildingId;
 
+            // Collect any life-bound units (e.g. Crystal Drake) BEFORE the attack
+            // so we can emit UNIT_DEATH events if the building is destroyed.
+            const roosted = events ? getRoostedUnits(state, buildingId) : [];
             const secondaryEvents: GameEvent[] = [];
             resolveAttackOnBuilding(state, attackerId, buildingId, suppressFloaters, secondaryEvents);
 
@@ -2533,6 +2596,17 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
                 events.push({ type: 'UNIT_DEATH', unitId: attackerId, position: attackerPos, faction: currentUnit.faction });
               }
               events.push(...secondaryEvents);
+              // Emit UNIT_DEATH for any life-bound drakes so the auto-cam tracks them.
+              if (!buildingAfter && roosted.length > 0) {
+                for (const death of roosted) {
+                  events.push({
+                    type: 'UNIT_DEATH',
+                    unitId: death.unitId,
+                    position: death.position,
+                    faction: death.faction,
+                  });
+                }
+              }
             }
           } else if (!currentUnit.hasMovedThisTurn) {
             moveEnemyUnitToward(state, currentUnit.id, building.position, events);
@@ -3075,8 +3149,22 @@ function runCaveMonsterAi(state: Draft<GameState>, events?: GameEvent[]): void {
           (building.type === BuildingType.MINE || building.type === BuildingType.CRYSTAL_CAVE)
         ) {
           tile.buildingId = null;
+          // Collect any life-bound units BEFORE cleanup so we can emit UNIT_DEATH events.
+          const roosted = events ? getRoostedUnits(state, building.id) : [];
           cleanupRoostedUnits(state, building.id);
           delete state.buildings[building.id];
+          // Emit UNIT_DEATH before CAVE_MONSTER_RETREAT so the auto-cam pans to
+          // the drake death first, then shows the monster retreating.
+          if (events && roosted.length > 0) {
+            for (const death of roosted) {
+              events.push({
+                type: 'UNIT_DEATH',
+                unitId: death.unitId,
+                position: death.position,
+                faction: death.faction,
+              });
+            }
+          }
         }
       }
       tile.hasCaveMonster = false;
