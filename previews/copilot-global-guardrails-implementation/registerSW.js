@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/Volcanae/previews/copilot-global-guardrails-implementation/sw.js', { scope: '/Volcanae/previews/copilot-global-guardrails-implementation/' })})}
