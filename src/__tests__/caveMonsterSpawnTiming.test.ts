@@ -193,11 +193,13 @@ describe('cave monster spawn timing', () => {
     } as GameState;
     const secondTurn = runEnemyTurn(secondTurnInput);
     const explorerAfterSecondTurn = secondTurn.finalState.units[explorer.id];
+    const attackEvent = secondTurn.events.find(
+      (event) => event.type === 'ENEMY_ATTACK' && event.attackerId === monsterId,
+    );
 
-    expect(
-      secondTurn.events.some(
-        (event) => event.type === 'ENEMY_ATTACK' && event.attackerId === monsterId,
-      ) || (explorerAfterSecondTurn?.stats.currentHp ?? 0) < initialHp,
-    ).toBe(true);
+    expect(attackEvent).toBeDefined();
+    if (explorerAfterSecondTurn) {
+      expect(explorerAfterSecondTurn.stats.currentHp).toBeLessThan(initialHp);
+    }
   });
 });
