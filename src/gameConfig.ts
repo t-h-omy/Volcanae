@@ -350,8 +350,8 @@ export interface MarketOfferPoolEntry {
 
 export const MARKET = {
   // ── Placement (mapGenerator.ts) ──────────────────────────────────────────
-  MIN_PER_GAME: 1,
-  MAX_PER_GAME: 1,
+  MIN_PER_GAMEE: 2,
+  MAX_PER_GAME: 2,
   /**
    * Markets spawn ONLY in the MIDDLE zones. The first HEAD zones and the last
    * TAIL zones are EXCLUDED. Eligible = all zones except the first HEAD and the
@@ -363,7 +363,7 @@ export const MARKET = {
    * Current MAP.ZONE_COUNT = 10, so excluded = {1,2,3} ∪ {8,9,10} → eligible
    * middle zones {4,5,6,7}. Revisit these if ZONE_COUNT changes.
    */
-  EXCLUDED_ZONES_HEAD: 3,
+  EXCLUDED_ZONES_HEAD: 2,
   EXCLUDED_ZONES_TAIL: 3,
 
   // ── Slots (rolled per market at generation; default fixed at 3 / 1) ───────
@@ -753,7 +753,7 @@ export const TERRAIN = {
    * Keys are zone numbers (1–5). Missing keys fall back to FORESTS_PER_ZONE_MIN/MAX.
    * Example: { 1: { min: 1, max: 2 }, 3: { min: 3, max: 5 } }
    */
-  FORESTS_PER_ZONE_OVERRIDES: { 1: { min: 3, max: 3 } } as Record<number, { min: number; max: number }>,
+  FORESTS_PER_ZONE_OVERRIDES: { 1: { min: 3, max: 3 }, 4: { min: 3, max: 3 }  } as Record<number, { min: number; max: number }>,
   /** Minimum number of mountain tiles placed per zone (used if no zone-specific override is set) */
   MOUNTAINS_PER_ZONE_MIN: 2,
   /** Maximum number of mountain tiles placed per zone (used if no zone-specific override is set) */
