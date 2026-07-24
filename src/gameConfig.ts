@@ -350,7 +350,7 @@ export interface MarketOfferPoolEntry {
 
 export const MARKET = {
   // ── Placement (mapGenerator.ts) ──────────────────────────────────────────
-  MIN_PER_GAMEE: 2,
+  MIN_PER_GAME: 2,
   MAX_PER_GAME: 2,
   /**
    * Markets spawn ONLY in the MIDDLE zones. The first HEAD zones and the last
