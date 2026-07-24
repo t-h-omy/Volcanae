@@ -1057,7 +1057,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   LAVA_GRUNT: {
-    maxHp: 100, attack: 50, defense: 50,
+    maxHp: 100, attack: 50, defense: 45,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 3,
     tags: [UnitTag.BUILDANDCAPTURE, UnitTag.CORRUPT, UnitTag.LAVA],
