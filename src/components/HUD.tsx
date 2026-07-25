@@ -3801,6 +3801,9 @@ function MarketPanel() {
   const freeRestockTurnsRemaining = freeRestockOnCooldown
     ? MARKET.FREE_RESTOCK_INTERVAL_TURNS - (turn - lastFreeRestockTurn!)
     : 0;
+  const freeRestockLabel = freeRestockOnCooldown
+    ? `Free Restock in ${freeRestockTurnsRemaining} turn${freeRestockTurnsRemaining === 1 ? '' : 's'}`
+    : 'Free Restock';
 
   const currencyLabel = (cur: string, amount: number) => {
     if (cur === 'WOOD') return `🪵${amount}`;
@@ -3941,9 +3944,7 @@ function MarketPanel() {
             disabled={hasTradedThisTurn || freeRestockOnCooldown}
             onClick={() => freeRestockMarket(marketId)}
           >
-            {freeRestockOnCooldown
-              ? `Free Restock in ${freeRestockTurnsRemaining} turn${freeRestockTurnsRemaining === 1 ? '' : 's'}`
-              : 'Free Restock'}
+            {freeRestockLabel}
           </button>
         </div>
       </div>
