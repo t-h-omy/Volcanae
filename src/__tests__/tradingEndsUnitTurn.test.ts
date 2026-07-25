@@ -46,7 +46,7 @@ function makeTile(x: number, y: number): Tile {
     isRuin: false,
     isStrongholdRuin: false,
     terrainType: TileType.PLAINS,
-    status: undefined as unknown as Tile['status'],
+    status: null,
     hasCaveMonster: false,
   } as unknown as Tile;
 }
