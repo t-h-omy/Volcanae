@@ -114,7 +114,17 @@ export function isTileInSpellRange(
   );
 }
 
-/** Returns the legal target tiles for a spell. */
+const SPELL_TARGET_REASONS = {
+  TRANSPOSE_SECOND_PICK_FACTION: 'Faction must match first unit',
+  BRANDMARK_ALREADY_BRANDMARKED: 'Already brandmarked',
+  BRANDMARK_SUMMONED: 'Summoned units cannot be brandmarked',
+  BRANDMARK_SELF: 'Cannot cast on itself',
+  EXPLODE_MAGE: 'This unit type cannot explode',
+  FROSTCRAFT_TERRAIN: 'Cannot freeze this terrain',
+  OCCUPIED: 'Occupied',
+} as const;
+
+/** Returns the legal target tiles for a spell. Keep this rule set aligned with explainInvalidSpellTarget. */
 export function getValidSpellTargets(
   state: GameState | Draft<GameState>,
   mageId: string,
@@ -270,6 +280,99 @@ export function getValidSpellTargets(
 
     default:
       return [];
+  }
+}
+
+/** Returns a curated invalid-target reason. Keep this rule set aligned with getValidSpellTargets. */
+export function explainInvalidSpellTarget(
+  state: GameState | Draft<GameState>,
+  mageId: string,
+  spellId: SpellId,
+  pos: Position,
+): string | null {
+  const mage = state.units[mageId];
+  if (!mage) return null;
+  const tile = state.grid[pos.y]?.[pos.x];
+  if (!tile) return null;
+  const range = getMageSpellRange(mage);
+
+  switch (spellId) {
+    case 'TRANSPOSE': {
+      const firstId = state.pendingTransposeFirstUnitId;
+      if (!firstId || !tile.unitId) return null;
+      const first = state.units[firstId];
+      const tappedUnit = state.units[tile.unitId];
+      if (!first || !tappedUnit) return null;
+      if (tappedUnit.id === mageId || tappedUnit.id === firstId) return null;
+      if (!isTileInSpellRange(mage, tappedUnit.position, range)) return null;
+      if (tappedUnit.faction !== first.faction) {
+        return SPELL_TARGET_REASONS.TRANSPOSE_SECOND_PICK_FACTION;
+      }
+      return null;
+    }
+
+    case 'BRANDMARK_HEAL': {
+      if (!tile.unitId) return null;
+      const tappedUnit = state.units[tile.unitId];
+      if (!tappedUnit) return null;
+      if (tappedUnit.faction !== Faction.PLAYER) return null;
+      if (!isTileInSpellRange(mage, tappedUnit.position, range)) return null;
+      if (tappedUnit.tags.includes(UnitTag.BRANDMARKED)) {
+        return SPELL_TARGET_REASONS.BRANDMARK_ALREADY_BRANDMARKED;
+      }
+      if (tappedUnit.tags.includes(UnitTag.SUMMONED)) {
+        return SPELL_TARGET_REASONS.BRANDMARK_SUMMONED;
+      }
+      if (tappedUnit.id === mageId) {
+        return SPELL_TARGET_REASONS.BRANDMARK_SELF;
+      }
+      return null;
+    }
+
+    case 'EXPLODE': {
+      if (!tile.unitId) return null;
+      const tappedUnit = state.units[tile.unitId];
+      if (!tappedUnit) return null;
+      if (tappedUnit.faction !== Faction.PLAYER) return null;
+      if (!isTileInSpellRange(mage, tappedUnit.position, range)) return null;
+      if (tappedUnit.type === UnitType.MAGE) {
+        return SPELL_TARGET_REASONS.EXPLODE_MAGE;
+      }
+      return null;
+    }
+
+    case 'FROSTCRAFT': {
+      if (!tile.isRevealed) return null;
+      if (!isTileInSpellRange(mage, pos, range)) return null;
+      if (tile.status === TileStatus.FROZEN) return null;
+      if (!isStatusAllowedOnTerrain(tile.terrainType, TileStatus.FROZEN) || tile.isLava) {
+        return SPELL_TARGET_REASONS.FROSTCRAFT_TERRAIN;
+      }
+      return null;
+    }
+
+    case 'EMBERBIND': {
+      if (!tile.buildingId || !tile.unitId) return null;
+      if (!isTileInSpellRange(mage, pos, range)) return null;
+      const building = state.buildings[tile.buildingId];
+      if (building?.type === BuildingType.EMBERNEST) {
+        return SPELL_TARGET_REASONS.OCCUPIED;
+      }
+      return null;
+    }
+
+    case 'RAISE_SKELETON': {
+      if (!tile.buildingId || !tile.unitId) return null;
+      if (!isTileInSpellRange(mage, pos, range)) return null;
+      const building = state.buildings[tile.buildingId];
+      if (building?.type === BuildingType.GRAVESTONE) {
+        return SPELL_TARGET_REASONS.OCCUPIED;
+      }
+      return null;
+    }
+
+    default:
+      return null;
   }
 }
 

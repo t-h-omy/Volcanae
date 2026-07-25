@@ -36,8 +36,8 @@ import {
 } from '../types';
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
 import { nextTileCycleTarget, tileSelectionState } from '../tileCycleHelper';
-import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, canUnitConstruct, canUnitCapture, hasUnitActed, getHealTargets, canUnitCast, getBridgeBuildTargets } from '../unitActions';
-import { getValidSpellTargets } from '../spellSystem';
+import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, canUnitConstruct, canUnitCapture, hasUnitActed, getHealTargets, canUnitCast, getBridgeBuildTargets, explainInvalidHealTarget, explainInvalidBridgeTarget } from '../unitActions';
+import { getValidSpellTargets, explainInvalidSpellTarget } from '../spellSystem';
 import './GridRenderer.css';
 
 // ============================================================================
@@ -706,6 +706,17 @@ export default function GridRenderer() {
     });
   }, []);
 
+  const showInvalidReasonFloater = useCallback((x: number, y: number, reason: string) => {
+    useFloaterStore.getState().addFloater({
+      value: 0,
+      label: `🚫 ${reason}`,
+      x,
+      y,
+      isEnemy: false,
+      floaterType: 'damage',
+    });
+  }, []);
+
   const handleTileClick = useCallback(
     (x: number, y: number) => {
       if (dragState.current.isDragging) return;
@@ -726,7 +737,11 @@ export default function GridRenderer() {
         return;
       }
       if (pendingHealerId) {
-        // Clicked outside healable tiles — cancel heal mode
+        const reason = explainInvalidHealTarget(useGameStore.getState(), pendingHealerId, { x, y });
+        if (reason) {
+          showInvalidReasonFloater(x, y, reason);
+          return;
+        }
         triggerInvalidActionVfx(x, y);
         cancelHealMode();
         return;
@@ -739,6 +754,11 @@ export default function GridRenderer() {
         return;
       }
       if (pendingBridgeBuilderId) {
+        const reason = explainInvalidBridgeTarget(useGameStore.getState(), pendingBridgeBuilderId, { x, y });
+        if (reason) {
+          showInvalidReasonFloater(x, y, reason);
+          return;
+        }
         triggerInvalidActionVfx(x, y);
         cancelBridgeBuildMode();
         return;
@@ -750,35 +770,15 @@ export default function GridRenderer() {
         return;
       }
       if (pendingSpellCast) {
-        // Provide feedback when clicking a blocked EMBERBIND or RAISE_SKELETON target
-        // (e.g. an embernest or gravestone with a unit on it).
-        if (pendingSpellCast.spellId === 'EMBERBIND' && tile.buildingId) {
-          const b = buildings[tile.buildingId];
-          if (b?.type === BuildingType.EMBERNEST && tile.unitId) {
-            useFloaterStore.getState().addFloater({
-              value: 0,
-              label: '🚫 Occupied',
-              x,
-              y,
-              isEnemy: false,
-              floaterType: 'damage',
-            });
-            return;
-          }
-        }
-        if (pendingSpellCast.spellId === 'RAISE_SKELETON' && tile.buildingId) {
-          const b = buildings[tile.buildingId];
-          if (b?.type === BuildingType.GRAVESTONE && tile.unitId) {
-            useFloaterStore.getState().addFloater({
-              value: 0,
-              label: '🚫 Occupied',
-              x,
-              y,
-              isEnemy: false,
-              floaterType: 'damage',
-            });
-            return;
-          }
+        const reason = explainInvalidSpellTarget(
+          useGameStore.getState(),
+          pendingSpellCast.mageId,
+          pendingSpellCast.spellId,
+          { x, y },
+        );
+        if (reason) {
+          showInvalidReasonFloater(x, y, reason);
+          return;
         }
         triggerInvalidActionVfx(x, y);
         cancelSpellCast();
@@ -888,7 +888,7 @@ export default function GridRenderer() {
         clearSelection();
       }
     },
-    [grid, selectedUnitId, selectedBuildingId, selectedUnit, selectedBuilding, attackableSet, healableSet, spellTargetSet, reachableSet, bridgeBuildTargetSet, units, buildings, selectUnit, selectBuilding, selectTile, clearSelection, moveUnit, attackUnit, attackBuilding, buildingAttackUnit, buildingAttackBuilding, healUnit, pendingHealerId, cancelHealMode, pendingSpellCast, castSpell, cancelSpellCast, pendingBridgeBuilderId, buildBridge, cancelBridgeBuildMode, isAnimating, triggerInvalidActionVfx],
+    [grid, selectedUnitId, selectedBuildingId, selectedUnit, selectedBuilding, attackableSet, healableSet, spellTargetSet, reachableSet, bridgeBuildTargetSet, units, buildings, selectUnit, selectBuilding, selectTile, clearSelection, moveUnit, attackUnit, attackBuilding, buildingAttackUnit, buildingAttackBuilding, healUnit, pendingHealerId, cancelHealMode, pendingSpellCast, castSpell, cancelSpellCast, pendingBridgeBuilderId, buildBridge, cancelBridgeBuildMode, isAnimating, triggerInvalidActionVfx, showInvalidReasonFloater],
   );
 
   // Right-click / tap-hold → deselect (only when not used for drag-panning)
