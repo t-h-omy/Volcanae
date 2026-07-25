@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.98.8 - Riftworm exits avoid resources and other worms' exits
+
+Riftworm emergence targeting now uses an emergence-specific tile validator in `tunnelSystem.ts`. Planned exits still require the existing dig-in safety checks, and now additionally reject `FOREST`/`MOUNTAIN` tiles plus any tile already reserved as `tunnelPlannedEmergence` by another tunneling worm (`DIGGING_IN`, `UNDERGROUND`, or `EMERGING`). This validator is now used for initial exit planning, fallback exit search, and all emergence revalidation steps. Regression tests in `src/__tests__/tunnelSystem.test.ts` cover resource-terrain skipping, cross-worm exit de-duplication, and the self-plan allowance case (a worm is not blocked by its own planned exit record).
+
 ### v0.98.7 - Reload debuff covered by regression tests
 
 Regression tests confirm the Crossbowman RELOAD debuff is fully implemented. All three test axes pass on v0.98.0+: (a) an enemy attacking a fired Crossbowman (`hasAttackedThisTurn: true`) deals damage matching the `calculateCombatFromStats` formula with halved DEF; (b) an unfired Crossbowman takes full-DEF damage; (c) the display-penalty helper (`computeReloadDefPenalty`) returns `floor(effDef × 50%)` when fired and 0 otherwise. Two stale stat/cost assertions in the test file (ATK 70 → 65, iron cost 6 → 4) were corrected to match the current `gameConfig.ts`. The feature could not be reproduced as broken; this patch hardens it with the tests described in VG-10.

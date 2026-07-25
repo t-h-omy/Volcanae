@@ -2685,7 +2685,7 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
 };
 
 // Compute descriptions for UNIT_DEFINITIONS entries that reference TUNNEL constants.
-UNIT_DEFINITIONS.RIFTWORM.description = `Digs underground and re-emerges ${TUNNEL_RANGE_MIN}–${TUNNEL_RANGE_MAX} tiles south in the same column. On emergence, deals ${TUNNEL_EMERGE_DAMAGE} damage to all adjacent player units and corrupts the tile.`;
+UNIT_DEFINITIONS.RIFTWORM.description = `Digs underground and re-emerges ${TUNNEL_RANGE_MIN}–${TUNNEL_RANGE_MAX} tiles south in the same column, avoiding resource terrain and other riftworms' planned exits. On emergence, deals ${TUNNEL_EMERGE_DAMAGE} damage to all adjacent player units and corrupts the tile.`;
 // Compute Grimbeak description referencing the summoned-damage multiplier.
 UNIT_DEFINITIONS.GRIMBEAK.description = `Resilient lava beast that resists damage from summoned units, deals ${GRIMBEAK_SUMMONED_DAMAGE_MULTIPLIER}× damage to them, and prioritises attacking summoned units. Grows enraged in dense clusters.`;
 // ============================================================================

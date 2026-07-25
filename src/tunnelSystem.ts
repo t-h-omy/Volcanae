@@ -48,6 +48,39 @@ function isTileValidForTunnel(state: Draft<GameState>, x: number, y: number): bo
   return true;
 }
 
+/**
+ * True when the tile at (x, y) is a valid emergence position for `forUnitId`.
+ * Includes all dig-in constraints plus:
+ *  - no FOREST / MOUNTAIN terrain
+ *  - no other tunneling unit planning emergence on the same tile
+ */
+function isTileValidForEmergence(
+  state: Draft<GameState>,
+  x: number,
+  y: number,
+  forUnitId: string,
+): boolean {
+  if (!isTileValidForTunnel(state, x, y)) return false;
+  const tile = state.grid[y][x];
+  if (tile.terrainType === TileType.FOREST) return false;
+  if (tile.terrainType === TileType.MOUNTAIN) return false;
+
+  for (const other of Object.values(state.units)) {
+    if (other.id === forUnitId) continue;
+    if (
+      other.tunnelState !== 'DIGGING_IN'
+      && other.tunnelState !== 'UNDERGROUND'
+      && other.tunnelState !== 'EMERGING'
+    ) {
+      continue;
+    }
+    const planned = other.tunnelPlannedEmergence;
+    if (planned && planned.x === x && planned.y === y) return false;
+  }
+
+  return true;
+}
+
 /** True when the tile at (x, y) is free for a unit to stand on (no occupying unit). */
 function isTileFreeForUnit(state: Draft<GameState>, x: number, y: number): boolean {
   if (!isTileValidForTunnel(state, x, y)) return false;
@@ -63,10 +96,11 @@ function findEmergenceTile(
   state: Draft<GameState>,
   x: number,
   baseY: number,
+  forUnitId: string,
 ): Position | null {
   for (let dy = TUNNEL_RANGE_MIN; dy <= TUNNEL_RANGE_MAX; dy++) {
     const ey = baseY + dy;
-    if (isTileFreeForUnit(state, x, ey)) {
+    if (isTileValidForEmergence(state, x, ey, forUnitId) && state.grid[ey][x].unitId === null) {
       return { x, y: ey };
     }
   }
@@ -81,13 +115,14 @@ function findEmergenceTile(
 function findFallbackEmergence(
   state: Draft<GameState>,
   center: Position,
+  forUnitId: string,
 ): Position | null {
   for (let dy = -1; dy <= 1; dy++) {
     for (let dx = -1; dx <= 1; dx++) {
       if (dx === 0 && dy === 0) continue; // skip the center itself
       const nx = center.x + dx;
       const ny = center.y + dy;
-      if (isTileFreeForUnit(state, nx, ny)) {
+      if (isTileValidForEmergence(state, nx, ny, forUnitId) && state.grid[ny][nx].unitId === null) {
         return { x: nx, y: ny };
       }
     }
@@ -135,7 +170,7 @@ export function tryBeginTunnel(
   if (!isTileValidForTunnel(state, x, y)) return false;
 
   // Find a valid emergence tile
-  const emergenceTile = findEmergenceTile(state, x, y);
+  const emergenceTile = findEmergenceTile(state, x, y, unitId);
   if (!emergenceTile) return false;
 
   // Heuristic: only tunnel if ≥ 3 player units are south (higher Y) of the burrower
@@ -200,7 +235,10 @@ export function processTunnelTurn(
       }
 
       // Validate that the planned emergence tile is still free
-      if (isTileFreeForUnit(state, planned.x, planned.y)) {
+      if (
+        isTileValidForEmergence(state, planned.x, planned.y, unitId)
+        && state.grid[planned.y][planned.x].unitId === null
+      ) {
         // Transition to EMERGING and warn the player
         unit.tunnelState = 'EMERGING';
         events?.push({
@@ -220,7 +258,7 @@ export function processTunnelTurn(
       }
 
       // Retry budget exhausted — try to find an alternative
-      const fallback = findFallbackEmergence(state, planned);
+      const fallback = findFallbackEmergence(state, planned, unitId);
       if (fallback) {
         unit.tunnelPlannedEmergence = fallback;
         unit.tunnelState = 'EMERGING';
@@ -232,7 +270,12 @@ export function processTunnelTurn(
         return true;
       }
 
-      // Last resort: force-emerge on planned tile with HP reduction
+      // Last resort: force-emerge on planned tile with HP reduction, but never
+      // bypass emergence-only terrain/exit-collision constraints.
+      if (!isTileValidForEmergence(state, planned.x, planned.y, unitId)) {
+        _abortTunnel(state, unitId);
+        return false;
+      }
       unit.stats.currentHp = Math.max(1, Math.floor(unit.stats.currentHp * TUNNEL_FORCED_EMERGE_HP_MULTIPLIER));
       unit.tunnelState = 'EMERGING';
       events?.push({
@@ -252,15 +295,20 @@ export function processTunnelTurn(
 
       // Determine emergence position (use planned or best available)
       let emergePos: Position;
-      if (isTileFreeForUnit(state, planned.x, planned.y)) {
+      const plannedIsValidForEmergence = isTileValidForEmergence(state, planned.x, planned.y, unitId);
+      if (plannedIsValidForEmergence && state.grid[planned.y][planned.x].unitId === null) {
         emergePos = { x: planned.x, y: planned.y };
       } else {
-        const fallback = findFallbackEmergence(state, planned);
+        const fallback = findFallbackEmergence(state, planned, unitId);
         if (fallback) {
           emergePos = fallback;
-        } else {
+        } else if (plannedIsValidForEmergence) {
           // Force emerge anyway — displace any occupant by just landing on planned
           emergePos = { x: planned.x, y: planned.y };
+        } else {
+          // No legal emergence tile remains under emergence-specific constraints.
+          _abortTunnel(state, unitId);
+          return false;
         }
       }
 
