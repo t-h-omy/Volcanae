@@ -1448,6 +1448,11 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
         ? PLAYER_UNIT_SPRITE[unit.type]
         : UNIT_SPRITE[unit.type];
   const [unitSpriteError, setUnitSpriteError] = useState(false);
+  const [prevUnitSpritePath, setPrevUnitSpritePath] = useState(unitSpritePath);
+  if (unitSpritePath !== prevUnitSpritePath) {
+    setPrevUnitSpritePath(unitSpritePath);
+    setUnitSpriteError(false);
+  }
   const showUnitImg = typeof unitSpritePath === 'string' && unitSpritePath !== '' && !unitSpriteError;
 
   // A player unit that has moved but has no valid attack targets left to hit
