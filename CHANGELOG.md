@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.98.6 - Trading consumes the unit's whole turn
+
+After trading at a Market the unit can no longer move or attack during the same turn. `hasTradedThisTurn` is now checked in `canUnitMove`, `canUnitAttack`, and every sibling action gate (`canUnitCapture`, `canUnitConstruct`, `canUnitHeal`, `canUnitFieldwork`, `canUnitBuildBridge`, `canUnitSetTrap`, `canUnitExtinguish`) in `unitActions.ts`. The Market building description in `gameConfig.ts` has been updated to reflect this rule. `canUnitTrade` already required `!hasMovedThisTurn`, so the move-then-trade path was already blocked; this patch closes the trade-then-act direction.
+
 ### v0.98.5 - Gargoyle uses missing-sprite placeholder
 
 Gargoyle no longer reuses the Skeleton unit art. `GARGOYLE` in `assetRegistry.ts` now uses the intentional missing-sprite convention (`''`), so the pink placeholder is shown until dedicated Gargoyle art lands at `/sprites/units/Gargoyle_100px.png`.

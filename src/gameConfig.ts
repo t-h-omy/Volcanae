@@ -1719,7 +1719,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.NONE,
     constructionCost: { iron: 0, wood: 0 },
-    description: `A neutral market. A unit standing here may Trade once per turn for ${MARKET.RESOURCE_SLOTS_MAX} resource swaps and ${MARKET.SPECIALIST_SLOTS_MAX} specialist offer(s). Destroyed only by lava.`,
+    description: `A neutral market. A unit standing here may Trade once per turn for ${MARKET.RESOURCE_SLOTS_MAX} resource swaps and ${MARKET.SPECIALIST_SLOTS_MAX} specialist offer(s). Trading ends the unit's turn. Destroyed only by lava.`,
   },
   BRIDGE: {
     discoverRadius: 0,

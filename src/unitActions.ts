@@ -123,6 +123,7 @@ export function canUnitMove(
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasConstructedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
+  if (unit.hasTradedThisTurn) return false;
   // HIT_AND_RUN: can move before attacking (if not yet moved) OR after attacking (post-attack move, once per turn)
   if (unit.tags.includes(UnitTag.HIT_AND_RUN)) {
     if ((unit.spellsCastThisTurn ?? 0) >= 1) return false;
@@ -183,6 +184,7 @@ export function canUnitAttack(
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasConstructedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
+  if (unit.hasTradedThisTurn) return false;
   if (unit.hasMovedThisTurn && unit.tags.includes(UnitTag.PREP)) return false;
   if (unit.tags.includes(UnitTag.PASSIVE)) return false;
   return true;
@@ -323,6 +325,7 @@ export function canUnitCapture(unit: Unit): boolean {
   if (unit.hasAttackedThisTurn) return false;
   if (unit.hasConstructedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
+  if (unit.hasTradedThisTurn) return false;
   if (!unit.tags.includes(UnitTag.BUILDANDCAPTURE)) return false;
   return true;
 }
@@ -405,6 +408,7 @@ export function canUnitConstruct(unit: Unit): boolean {
   if (unit.hasAttackedThisTurn) return false;
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
+  if (unit.hasTradedThisTurn) return false;
   if (!unit.tags.includes(UnitTag.BUILDANDCAPTURE)) return false;
   return true;
 }
@@ -441,6 +445,7 @@ export function canUnitHeal(unit: Unit): boolean {
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasConstructedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
+  if (unit.hasTradedThisTurn) return false;
   return true;
 }
 
@@ -539,6 +544,7 @@ export function canUnitFieldwork(unit: Unit): boolean {
   if (unit.hasConstructedThisTurn) return false;
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
+  if (unit.hasTradedThisTurn) return false;
   return true;
 }
 
@@ -573,6 +579,7 @@ export function canUnitBuildBridge(
   if (unit.hasConstructedThisTurn) return false;
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
+  if (unit.hasTradedThisTurn) return false;
   return true;
 }
 
@@ -684,6 +691,7 @@ export function canUnitSetTrap(
   if (unit.hasConstructedThisTurn) return false;
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
+  if (unit.hasTradedThisTurn) return false;
   return true;
 }
 
@@ -711,6 +719,7 @@ export function canUnitExtinguish(
   if (unit.hasConstructedThisTurn) return false;
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
+  if (unit.hasTradedThisTurn) return false;
   return true;
 }
 
