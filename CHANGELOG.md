@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.98.2 - Buildings that slay cave monsters now grant the specialist reward
+
+Killing a cave monster with an Outpost, Watchtower, or Crystal Tower now opens the specialist hire modal. Three paths were missing the `CAVE_MONSTER_KILLED` event and encounter cleanup: (a) `buildingAttackUnit` in `gameStore.ts` (player-turn building attack), (c) `triggerPreventiveStrike` in `enemySystem.ts` (player siege unit reaction shot during the enemy turn), and (d) `triggerGarrisonOverwatch` in `enemySystem.ts` (Watch Captain building overwatch during the enemy turn). Each path now mirrors the unit-attack pattern: if the killed defender is a `CAVE_MONSTER`, its `activeCaveEncounters` entry is removed from the resolved state draft and a `CAVE_MONSTER_KILLED` event is pushed after `UNIT_DEATH`.
+
 ### v0.98.1 - Game music stops when returning to the main menu
 
 Returning to the main menu from a running game no longer leaves the game track playing in parallel with the menu theme. A new `stopGameMusic` function is called synchronously at the start of every exit path (the HUD return button, and the Main Menu buttons on the GameOver and Victory overlays), guaranteeing the audio element is paused and its source cleared before any async save work or screen transition begins. The existing pointerdown/keydown resume-handler race is also closed: the handler now checks that the current screen is still `GAME` before resuming playback, so a tap that simultaneously triggers the exit and an autoplay-unblock can no longer restart the audio mid-transition.

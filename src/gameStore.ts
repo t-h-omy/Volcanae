@@ -907,6 +907,15 @@ export const useGameStore = create<GameStore>()(
         // Compute the resolved state
         const resolvedState = produce(snapshot, (draft) => {
           resolveBuildingAttack(draft, buildingId, targetId, true);
+          // If the snapshot defender is a cave monster that was killed, remove its encounter entry
+          if (
+            snapshot.units[targetId]?.type === UnitType.CAVE_MONSTER &&
+            !draft.units[targetId]
+          ) {
+            draft.activeCaveEncounters = draft.activeCaveEncounters.filter(
+              (e) => e.monsterId !== targetId,
+            );
+          }
           updateDiscovery(draft);
           checkGameConditions(draft);
         });
@@ -951,6 +960,10 @@ export const useGameStore = create<GameStore>()(
             faction: defenderFaction,
             brandmarkSpawnPosition: defenderBrandmarkSpawnPosition,
           });
+          // If the killed defender was a cave monster, trigger the specialist-draw event
+          if (snapshot.units[targetId]?.type === UnitType.CAVE_MONSTER) {
+            events.push({ type: 'CAVE_MONSTER_KILLED', monsterId: targetId });
+          }
         }
 
         pendingEvents = events;
