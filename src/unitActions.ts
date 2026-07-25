@@ -453,9 +453,16 @@ export function isHealSuppressedByCorruption(
   return isUnitOnCorruptedTile(state, unitId) && unit.tags.includes(UnitTag.PATCHUP);
 }
 
+const ABILITY_TARGET_REASONS = {
+  HEAL_BRANDMARKED: 'Brandmarked units cannot be healed',
+  HEAL_SUMMONED: 'Summoned units cannot be healed',
+  BRIDGE_ENDPOINTS: 'Bridge needs accessible entry and exit tile',
+} as const;
+
 /**
  * Returns the IDs of adjacent (distance = 1, orthogonal + diagonal) friendly
  * units whose currentHp < maxHp.
+ * Keep this rule set aligned with explainInvalidHealTarget.
  */
 export function getHealTargets(
   state: GameState | Draft<GameState>,
@@ -483,6 +490,31 @@ export function getHealTargets(
     }
   }
   return targets;
+}
+
+/** Returns a curated invalid-target reason for heal mode. Keep this rule set aligned with getHealTargets. */
+export function explainInvalidHealTarget(
+  state: GameState | Draft<GameState>,
+  healerId: string,
+  pos: { x: number; y: number },
+): string | null {
+  const healer = state.units[healerId];
+  if (!healer) return null;
+  if (!isTileWithinEdgeCircleRange(healer.position.x, healer.position.y, pos.x, pos.y, 1)) {
+    return null;
+  }
+  const tile = state.grid[pos.y]?.[pos.x];
+  if (!tile?.unitId) return null;
+  const target = state.units[tile.unitId];
+  if (!target) return null;
+  if (target.faction !== healer.faction) return null;
+  if (target.tags.includes(UnitTag.BRANDMARKED)) {
+    return ABILITY_TARGET_REASONS.HEAL_BRANDMARKED;
+  }
+  if (target.tags.includes(UnitTag.SUMMONED)) {
+    return ABILITY_TARGET_REASONS.HEAL_SUMMONED;
+  }
+  return null;
 }
 
 // ── FIELDWORK ───────────────────────────────────────────────────────────────
@@ -557,6 +589,7 @@ export function canUnitBuildBridge(
  *     5. No bridge on any of C's 8 neighbours (no adjacent bridges)
  *     6. The far tile (C + D) is in bounds and is land (not CANYON, not WATER)
  * - orientation: (D is horizontal) → 'EW', else 'NS'
+ * Keep this rule set aligned with explainInvalidBridgeTarget.
  */
 export function getBridgeBuildTargets(
   unit: Unit,
@@ -605,6 +638,21 @@ export function getBridgeBuildTargets(
     targets.push({ pos: { x: cx, y: cy }, orientation });
   }
   return targets;
+}
+
+/** Returns a curated invalid-target reason for bridge mode. Keep this rule set aligned with getBridgeBuildTargets. */
+export function explainInvalidBridgeTarget(
+  state: GameState | Draft<GameState>,
+  builderId: string,
+  pos: { x: number; y: number },
+): string | null {
+  if (!state.units[builderId]) return null;
+  const tile = state.grid[pos.y]?.[pos.x];
+  if (!tile) return null;
+  if (tile.terrainType === TileType.CANYON || tile.terrainType === TileType.WATER) {
+    return ABILITY_TARGET_REASONS.BRIDGE_ENDPOINTS;
+  }
+  return null;
 }
 
 // ── SCOUT SET TRAP ────────────────────────────────────────────────────────────

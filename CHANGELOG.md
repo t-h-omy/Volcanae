@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.98.0 - Invalid spell and ability targets explain why
+
+Curated invalid-target floaters now explain a small whitelist of easy-to-forget exclusions while leaving every other invalid tap silent. Transpose second-pick faction mismatches, Brandmark exclusions, Explode's mage exclusion, Frostcraft terrain failures, heal exclusions, and blocked bridge endpoints now show targeted reasons. The existing Occupied floaters for Emberbind and Raise Skeleton are unchanged in behavior and now come from the same shared helper path.
+
 ### v0.97.16 - Population stats in the top bar open info popups
 
 Population stats in the top bar open info popups. The farmer (🌾) and noble (🎖️) stats are now tappable buttons that open a `PopulationInfoPopup` showing: current used/capacity, a capacity-source breakdown (Farms, Patrician Houses, Stronghold with doctrine-adjusted max caps), and a unit-usage breakdown grouped by unit type. The breakdown logic lives in a new `computePopulationBreakdown` helper in `resourceSystem.ts`; the popup follows the memoization pattern of `ResourceInfoPopup`. Unit tests for the helper verify that capacity entries sum to `computePopulationCapacity` and usage entries sum to `computePopulationUsage`.
