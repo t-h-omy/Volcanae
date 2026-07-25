@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.98.5 - Gargoyle uses intentional missing-sprite placeholder
+
+Gargoyle no longer reuses the Skeleton unit art. `GARGOYLE` in `assetRegistry.ts` now uses the intentional missing-sprite convention (`''`), so the pink placeholder is shown until dedicated Gargoyle art lands at `/sprites/units/Gargoyle_100px.png`.
+
 ### v0.98.4 - Bridges can end on frozen water
 
 Bridge builders may now target a canyon even when the far-side endpoint is water, as long as that water tile is currently frozen. The shared bridge-target validation in `unitActions.ts` now treats frozen water as a valid player-walkable far side, so both the UI target list and `buildBridge` accept the placement. If that frozen endpoint later thaws, the bridge can legitimately end at unwalkable water; that is accepted behavior.
