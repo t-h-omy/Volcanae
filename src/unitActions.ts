@@ -587,7 +587,8 @@ export function canUnitBuildBridge(
  *     3. C is not lava
  *     4. No bridge already on C
  *     5. No bridge on any of C's 8 neighbours (no adjacent bridges)
- *     6. The far tile (C + D) is in bounds and is land (not CANYON, not WATER)
+ *     6. The far tile (C + D) is in bounds and is not CANYON; WATER is allowed
+ *        only while frozen
  * - orientation: (D is horizontal) → 'EW', else 'NS'
  * Keep this rule set aligned with explainInvalidBridgeTarget.
  */
@@ -629,12 +630,13 @@ export function getBridgeBuildTargets(
       if (hasAdjacentBridge) break;
     }
     if (hasAdjacentBridge) continue;
-    // Far tile (C + D) must be in-bounds land
+    // Far tile (C + D) must be in bounds and walkable for player units
     const fx = cx + dx;
     const fy = cy + dy;
     if (fx < 0 || fx >= MAP.GRID_WIDTH || fy < 0 || fy >= MAP.GRID_HEIGHT) continue;
     const farTile = state.grid[fy][fx];
-    if (farTile.terrainType === TileType.CANYON || farTile.terrainType === TileType.WATER) continue;
+    if (farTile.terrainType === TileType.CANYON) continue;
+    if (farTile.terrainType === TileType.WATER && farTile.status !== TileStatus.FROZEN) continue;
     targets.push({ pos: { x: cx, y: cy }, orientation });
   }
   return targets;

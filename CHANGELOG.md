@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.98.4 - Bridges can end on frozen water
+
+Bridge builders may now target a canyon even when the far-side endpoint is water, as long as that water tile is currently frozen. The shared bridge-target validation in `unitActions.ts` now treats frozen water as a valid player-walkable far side, so both the UI target list and `buildBridge` accept the placement. If that frozen endpoint later thaws, the bridge can legitimately end at unwalkable water; that is accepted behavior.
+
 ### v0.98.3 - Unit sprite fallback no longer leaks to the next unit on a tile
 
 When a unit sprite fails to load, that fallback state now resets when the tile's occupant changes. `UnitBadge` in `GridRenderer.tsx` now mirrors the existing building-sprite pattern by tracking the previous sprite path and clearing `unitSpriteError` whenever a different unit sprite path is rendered, so a melee attacker that advances onto a dead placeholder-sprite unit's tile keeps its own sprite instead of inheriting the pink fallback.
