@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.98.1 - Game music stops when returning to the main menu
+
+Returning to the main menu from a running game no longer leaves the game track playing in parallel with the menu theme. A new `stopGameMusic` function is called synchronously at the start of every exit path (the HUD return button, and the Main Menu buttons on the GameOver and Victory overlays), guaranteeing the audio element is paused and its source cleared before any async save work or screen transition begins. The existing pointerdown/keydown resume-handler race is also closed: the handler now checks that the current screen is still `GAME` before resuming playback, so a tap that simultaneously triggers the exit and an autoplay-unblock can no longer restart the audio mid-transition.
+
 ### v0.98.0 - Invalid spell and ability targets explain why
 
 Curated invalid-target floaters now explain a small whitelist of easy-to-forget exclusions while leaving every other invalid tap silent. Transpose second-pick faction mismatches, Brandmark exclusions, Explode's mage exclusion, Frostcraft terrain failures, heal exclusions, and blocked bridge endpoints now show targeted reasons. The existing Occupied floaters for Emberbind and Raise Skeleton are unchanged in behavior and now come from the same shared helper path.

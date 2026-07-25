@@ -79,6 +79,7 @@ import { useMarketPanelStore } from '../marketPanelStore';
 import { saveSlot, saveSlotStrict, deleteSlot, exportSlot, getSlotMeta, listSlots, getNextDefaultSlotName, idbAvailable } from '../saveSystem';
 import { SAVE } from '../gameConfig';
 import { generateId } from '../mapGenerator';
+import { stopGameMusic } from '../useMusicPlayer';
 import './HUD.css';
 
 // ============================================================================
@@ -539,6 +540,7 @@ function OptionsOverlay({ onClose }: { onClose: () => void }) {
   }, [onClose]);
 
   const handleReturnToMenu = useCallback(async () => {
+    stopGameMusic();
     onClose();
     const activeSaveId = useMenuStore.getState().activeSaveId;
     if (activeSaveId) {
@@ -3508,6 +3510,7 @@ function GameOverOverlay() {
   }, [discardFinishedGame]);
 
   const handleMainMenu = useCallback(async () => {
+    stopGameMusic();
     await discardFinishedGame();
     useMenuStore.getState().toMenu();
   }, [discardFinishedGame]);
@@ -3561,6 +3564,7 @@ function VictoryOverlay() {
   }, [discardFinishedGame]);
 
   const handleMainMenu = useCallback(async () => {
+    stopGameMusic();
     await discardFinishedGame();
     useMenuStore.getState().toMenu();
   }, [discardFinishedGame]);
