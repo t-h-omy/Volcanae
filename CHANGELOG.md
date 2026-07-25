@@ -10,7 +10,7 @@ When a unit sprite fails to load, that fallback state now resets when the tile's
 
 ### v0.98.2 - Buildings that slay cave monsters now grant the specialist reward
 
-Killing a cave monster with an Outpost, Watchtower, or Crystal Tower now opens the specialist hire modal. Three paths were missing the `CAVE_MONSTER_KILLED` event and encounter cleanup: (a) `buildingAttackUnit` in `gameStore.ts` (player-turn building attack), (c) `triggerPreventiveStrike` in `enemySystem.ts` (player siege unit reaction shot during the enemy turn), and (d) `triggerGarrisonOverwatch` in `enemySystem.ts` (Watch Captain building overwatch during the enemy turn). Each path now mirrors the unit-attack pattern: if the killed defender is a `CAVE_MONSTER`, its `activeCaveEncounters` entry is removed from the resolved state draft and a `CAVE_MONSTER_KILLED` event is pushed after `UNIT_DEATH`.
+Killing a cave monster with an Outpost, Watchtower, or Crystal Tower now opens the specialist hire modal. Three paths were missing the `CAVE_MONSTER_KILLED` event and encounter cleanup: (a) `buildingAttackUnit` in `gameStore.ts` (player-turn building attack), (b) `triggerPreventiveStrike` in `enemySystem.ts` (player siege unit reaction shot during the enemy turn), and (c) `triggerGarrisonOverwatch` in `enemySystem.ts` (Watch Captain building overwatch during the enemy turn). Each path now mirrors the unit-attack pattern: if the killed defender is a `CAVE_MONSTER`, its `activeCaveEncounters` entry is removed from the resolved state draft and a `CAVE_MONSTER_KILLED` event is pushed after `UNIT_DEATH`.
 
 ### v0.98.1 - Game music stops when returning to the main menu
 
