@@ -290,7 +290,7 @@ describe('explainInvalidSpellTarget', () => {
 
   it('returns null for an out-of-range Brandmark tap', () => {
     const mage = makeUnit(UnitType.MAGE, { x: 5, y: 5 });
-    const target = makeUnit(UnitType.GUARD, { x: 12, y: 5 });
+    const target = makeUnit(UnitType.GUARD, { x: 5, y: 12 });
     const state = makeState({ units: [mage, target] });
 
     expect(explainInvalidSpellTarget(state, mage.id, SpellId.BRANDMARK_HEAL, target.position))
