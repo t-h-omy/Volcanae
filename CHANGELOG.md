@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.98.7 - Reload debuff covered by regression tests
+
+Regression tests confirm the Crossbowman RELOAD debuff is fully implemented. All three test axes pass on v0.98.0+: (a) an enemy attacking a fired Crossbowman (`hasAttackedThisTurn: true`) deals damage matching the `calculateCombatFromStats` formula with halved DEF; (b) an unfired Crossbowman takes full-DEF damage; (c) the display-penalty helper (`computeReloadDefPenalty`) returns `floor(effDef × 50%)` when fired and 0 otherwise. Two stale stat/cost assertions in the test file (ATK 70 → 65, iron cost 6 → 4) were corrected to match the current `gameConfig.ts`. The feature could not be reproduced as broken; this patch hardens it with the tests described in VG-10.
+
 ### v0.98.6 - Trading consumes the unit's whole turn
 
 After trading at a Market the unit can no longer move or attack during the same turn. `hasTradedThisTurn` is now checked in `canUnitMove`, `canUnitAttack`, and every sibling action gate (`canUnitCapture`, `canUnitConstruct`, `canUnitHeal`, `canUnitFieldwork`, `canUnitBuildBridge`, `canUnitSetTrap`, `canUnitExtinguish`) in `unitActions.ts`. The Market building description in `gameConfig.ts` has been updated to reflect this rule. `canUnitTrade` already required `!hasMovedThisTurn`, so the move-then-trade path was already blocked; this patch closes the trade-then-act direction.
