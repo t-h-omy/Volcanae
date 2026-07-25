@@ -379,6 +379,8 @@ export const MARKET = {
 
   // ── Restock: player-paid, rerolls ALL slots (incl. full), repeatable ──────
   RESTOCK_COST: { wood: 0, iron: 0, crystal: 1 } as { wood: number; iron: number; crystal: number },
+  /** One free restock is available per market every N player turns (balancable). */
+  FREE_RESTOCK_INTERVAL_TURNS: 3,
 
   // ── Specialist offers ─────────────────────────────────────────────────────
   /** Flat crystal cost per specialist acquisition (same for every specialist). */
@@ -1719,7 +1721,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.NONE,
     constructionCost: { iron: 0, wood: 0 },
-    description: `A neutral market. A unit standing here may Trade once per turn for ${MARKET.RESOURCE_SLOTS_MAX} resource swaps and ${MARKET.SPECIALIST_SLOTS_MAX} specialist offer(s). Trading ends the unit's turn. Destroyed only by lava.`,
+    description: `A neutral market. A unit standing here may Trade once per turn for ${MARKET.RESOURCE_SLOTS_MAX} resource swaps and ${MARKET.SPECIALIST_SLOTS_MAX} specialist offer(s). Trading ends the unit's turn. Includes one free restock every ${MARKET.FREE_RESTOCK_INTERVAL_TURNS} turns. Destroyed only by lava.`,
   },
   BRIDGE: {
     discoverRadius: 0,

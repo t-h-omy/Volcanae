@@ -3768,6 +3768,8 @@ function MarketPanel() {
   const buyMarketOffer = useGameStore((s) => s.buyMarketOffer);
   const buyMarketSpecialist = useGameStore((s) => s.buyMarketSpecialist);
   const restockMarket = useGameStore((s) => s.restockMarket);
+  const freeRestockMarket = useGameStore((s) => s.freeRestockMarket);
+  const turn = useGameStore((s) => s.turn);
 
   const resources = useGameStore((s) => s.resources);
   const arcaneCrystals = useGameStore((s) => s.arcaneCrystals);
@@ -3791,6 +3793,14 @@ function MarketPanel() {
     resources.wood >= MARKET.RESTOCK_COST.wood &&
     resources.iron >= MARKET.RESTOCK_COST.iron &&
     arcaneCrystals >= MARKET.RESTOCK_COST.crystal;
+
+  const lastFreeRestockTurn = market.lastFreeRestockTurn;
+  const freeRestockOnCooldown =
+    lastFreeRestockTurn !== undefined &&
+    turn - lastFreeRestockTurn < MARKET.FREE_RESTOCK_INTERVAL_TURNS;
+  const freeRestockTurnsRemaining = freeRestockOnCooldown
+    ? MARKET.FREE_RESTOCK_INTERVAL_TURNS - (turn - lastFreeRestockTurn!)
+    : 0;
 
   const currencyLabel = (cur: string, amount: number) => {
     if (cur === 'WOOD') return `🪵${amount}`;
@@ -3925,6 +3935,15 @@ function MarketPanel() {
             onClick={() => restockMarket(marketId)}
           >
             Restock
+          </button>
+          <button
+            className="market-panel-btn market-panel-btn--restock"
+            disabled={hasTradedThisTurn || freeRestockOnCooldown}
+            onClick={() => freeRestockMarket(marketId)}
+          >
+            {freeRestockOnCooldown
+              ? `Free Restock in ${freeRestockTurnsRemaining} turn${freeRestockTurnsRemaining === 1 ? '' : 's'}`
+              : 'Free Restock'}
           </button>
         </div>
       </div>

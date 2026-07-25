@@ -18,7 +18,7 @@ import type { Difficulty } from './types';
 // ============================================================================
 
 /** Increment this whenever the serialized shape changes incompatibly. */
-export const SAVE_VERSION = 16;
+export const SAVE_VERSION = 17;
 
 // ============================================================================
 // TYPES
@@ -398,6 +398,10 @@ function migrateState(parsed: { version: number; state: GameState }): GameState 
     if (!Array.isArray(gs.seenHints)) {
       gs.seenHints = [];
     }
+
+    // Migration v16 → v17: lastFreeRestockTurn on MARKET buildings.
+    // Leave the field undefined — undefined means the free restock is immediately
+    // available (i.e. never used), which is the correct default for old saves.
 
     return s as GameState;
   } catch {

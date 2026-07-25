@@ -216,6 +216,8 @@ interface GameActions {
   buyMarketSpecialist: (marketId: string, slotIndex: number, outgoingSpecialistId?: string) => void;
   /** Pay RESTOCK_COST to reroll all market slots */
   restockMarket: (marketId: string) => void;
+  /** Use the free restock (if off cooldown) to reroll all market slots at no cost */
+  freeRestockMarket: (marketId: string) => void;
 }
 
 // ============================================================================
@@ -3812,6 +3814,20 @@ export const useGameStore = create<GameStore>()(
 
         // Re-roll all slots (does NOT set hasTradedThisTurn per F-5)
         restockAllSlots(state, market);
+      });
+    },
+    freeRestockMarket: (marketId: string) => {
+      set((state) => {
+        const market = state.buildings[marketId];
+        if (!market || market.type !== BuildingType.MARKET) return;
+
+        // Check cooldown: available if never used or interval has elapsed
+        const lastTurn = market.lastFreeRestockTurn;
+        if (lastTurn !== undefined && state.turn - lastTurn < MARKET.FREE_RESTOCK_INTERVAL_TURNS) return;
+
+        // Re-roll all slots (does NOT set hasTradedThisTurn — parity with paid restock)
+        restockAllSlots(state, market);
+        market.lastFreeRestockTurn = state.turn;
       });
     },
   }))
