@@ -1,6 +1,6 @@
 # Changelog
 
-### v0.98.5 - Gargoyle uses intentional missing-sprite placeholder
+### v0.98.5 - Gargoyle uses missing-sprite placeholder
 
 Gargoyle no longer reuses the Skeleton unit art. `GARGOYLE` in `assetRegistry.ts` now uses the intentional missing-sprite convention (`''`), so the pink placeholder is shown until dedicated Gargoyle art lands at `/sprites/units/Gargoyle_100px.png`.
 
