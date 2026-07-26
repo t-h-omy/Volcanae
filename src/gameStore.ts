@@ -1938,7 +1938,8 @@ export const useGameStore = create<GameStore>()(
         if (tile.isRuin || tile.isStrongholdRuin) return;
         // Cannot build on resource terrain (forest or mountain)
         if (tile.terrainType === TileType.FOREST || tile.terrainType === TileType.MOUNTAIN) return;
-        // Deduct the Outpost construction cost
+        // Deduct the Outpost construction cost (currently wood only; iron cost is 0 but
+        // checked generically so any future cost change is automatically enforced)
         const outpostCost = BUILDING_DEFINITIONS.OUTPOST.constructionCost;
         if (state.resources.wood < outpostCost.wood || state.resources.iron < outpostCost.iron) return;
         state.resources.wood -= outpostCost.wood;

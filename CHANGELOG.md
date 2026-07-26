@@ -4,8 +4,6 @@
 
 Fieldwork now requires 4 wood to place an Outpost. `fieldworkUnit` in `gameStore.ts` checks `state.resources.wood >= 4` (reading `BUILDING_DEFINITIONS.OUTPOST.constructionCost.wood`) before proceeding and deducts the cost on success. The HUD "Build Outpost" button now shows a 🪵4 cost badge using the same `hud-spell-btn-cost` pattern as Build Bridge; it is disabled and shows a "Not enough wood" warning when the player cannot afford the action. The confirm step also displays the wood cost. The FIELDWORK tech node description, the FIELDWORK unit tag tooltip, and the Outpost building description all now state the 4-wood cost. The `canUnitFieldwork` doc comment that incorrectly said "Watchtower" has been corrected to "Outpost". Regression tests in `src/__tests__/fieldworkCost.test.ts` cover: insufficient wood (unit survives, no building, resources unchanged), sufficient wood (unit consumed, Outpost placed, wood deducted), and the exact-cost boundary case.
 
-Note: the WATCHTOWER building declares an 8-wood `constructionCost` in `BUILDING_DEFINITIONS` but no player build path exists; watchtowers are capture-only in the current code. The declared cost is unused and a player build path, if intended, is a separate design task.
-
 ### v0.98.10 - Drill Sergeant recruits render as ready to act
 
 Units spawned with the READY tag (granted by the Drill Sergeant specialist to Spearmen and Swordsmen) no longer render with the exhausted/toned-down visual filter on the turn they are recruited. The `isExhausted` check in `GridRenderer.tsx` now gates the recruit-turn dimming on `!unit.tags.includes(UnitTag.READY)`, matching the existing spawn logic that clears `hasMovedThisTurn`/`hasAttackedThisTurn` for READY units.
