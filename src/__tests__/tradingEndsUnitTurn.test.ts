@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { BuildingType, DestroyBehavior, Faction, TileType, UnitTag, UnitType } from '../types';
 import type { Building, GameState, Tile, Unit } from '../types';
 import { MAP, MARKET, UNIT_DEFINITIONS, SPECIALIST_DEFINITIONS } from '../gameConfig';
-import { setMarketRandomSource, createMarket, fillEmptyResourceSlots } from '../marketSystem';
+import { setMarketRandomSource } from '../marketSystem';
 import {
   canUnitMove,
   canUnitAttack,
@@ -133,6 +133,7 @@ function makeMarketBuilding(pos = { x: 5, y: 5 }): Building {
 function makeState(opts: {
   units?: Unit[];
   buildings?: Building[];
+  globalSpecialistStorage?: string[];
 } = {}): GameState {
   const units: Record<string, Unit> = {};
   for (const u of opts.units ?? []) units[u.id] = u;
@@ -154,7 +155,7 @@ function makeState(opts: {
     techFlags: [],
     portals: {},
     turn: 1,
-    globalSpecialistStorage: [],
+    globalSpecialistStorage: opts.globalSpecialistStorage ?? [],
     specialistSlotCap: 3,
     resources: { iron: 100, wood: 100 },
     arcaneCrystals: 0,
@@ -271,6 +272,24 @@ describe('canUnitBuildBridge — hasTradedThisTurn', () => {
     const state = makeState({ units: [unit] });
     (state as unknown as Record<string, unknown>).unlockedBuildings = [BuildingType.BRIDGE];
     expect(canUnitBuildBridge(unit, state)).toBe(false);
+  });
+});
+
+describe('canUnitSetTrap — hasTradedThisTurn', () => {
+  it('returns false after trading even with SCOUT_SET_TRAP specialist active', () => {
+    const unit = makeUnit({ type: UnitType.SCOUT, hasTradedThisTurn: true });
+    // spec_08 = Trapsmith, which grants the SCOUT_SET_TRAP effect
+    const state = makeState({ units: [unit], globalSpecialistStorage: ['spec_08'] });
+    expect(canUnitSetTrap(unit, state)).toBe(false);
+  });
+});
+
+describe('canUnitExtinguish — hasTradedThisTurn', () => {
+  it('returns false after trading even with SCOUT_EXTINGUISH specialist active', () => {
+    const unit = makeUnit({ type: UnitType.SCOUT, hasTradedThisTurn: true });
+    // spec_10 = Cinder Warden, which grants the SCOUT_EXTINGUISH effect
+    const state = makeState({ units: [unit], globalSpecialistStorage: ['spec_10'] });
+    expect(canUnitExtinguish(unit, state)).toBe(false);
   });
 });
 
