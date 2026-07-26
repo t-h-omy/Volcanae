@@ -366,6 +366,8 @@ export function collectResources(state: Draft<GameState>): void {
       if (kilnBonusCount > 0) {
         state.resources.iron += getKilnIronBonusPerKiln(state) * kilnBonusCount;
       }
+    } else if (building.type === BuildingType.DEEP_MINE) {
+      state.resources.iron += RESOURCES.DEEP_MINE_IRON_PER_TURN;
     } else if (building.type === BuildingType.WOODCUTTER) {
       state.resources.wood += RESOURCES.WOODCUTTER_WOOD_PER_TURN;
     }
@@ -455,6 +457,8 @@ export function computeResourceIncome(
       if (kilnBonusCount > 0) {
         ironPerTurn += getKilnIronBonusPerKiln(state) * kilnBonusCount;
       }
+    } else if (building.type === BuildingType.DEEP_MINE) {
+      ironPerTurn += RESOURCES.DEEP_MINE_IRON_PER_TURN;
     } else if (building.type === BuildingType.WOODCUTTER) {
       woodPerTurn += RESOURCES.WOODCUTTER_WOOD_PER_TURN;
     }
@@ -528,6 +532,7 @@ export function computeResourceIncomeBreakdown(
 
   // Per-building-type counters and per-tech bonus accumulators
   let mineCount = 0;
+  let deepMineCount = 0;
   let woodcutterCount = 0;
   // Count total additive kiln bonus increments across all player mines.
   let kilnBonusIncrementCount = 0;
@@ -541,6 +546,8 @@ export function computeResourceIncomeBreakdown(
     if (building.type === BuildingType.MINE) {
       mineCount++;
       kilnBonusIncrementCount += getMineKilnBonusCount(state, building);
+    } else if (building.type === BuildingType.DEEP_MINE) {
+      deepMineCount++;
     } else if (building.type === BuildingType.WOODCUTTER) {
       woodcutterCount++;
     }
@@ -561,6 +568,13 @@ export function computeResourceIncomeBreakdown(
     entries.push({
       label: `Mine ×${mineCount}`,
       iron: mineCount * RESOURCES.MINE_IRON_PER_TURN,
+      wood: 0,
+    });
+  }
+  if (deepMineCount > 0) {
+    entries.push({
+      label: `Deep Mine ×${deepMineCount}`,
+      iron: deepMineCount * RESOURCES.DEEP_MINE_IRON_PER_TURN,
       wood: 0,
     });
   }

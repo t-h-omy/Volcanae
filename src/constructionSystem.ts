@@ -30,6 +30,7 @@ export type ConstructableBuilding =
   | typeof BuildingType.WOODCUTTER
   | typeof BuildingType.CHARCOAL_KILN
   | typeof BuildingType.MINE
+  | typeof BuildingType.DEEP_MINE
   | typeof BuildingType.BARRACKS
   | typeof BuildingType.ARCHER_CAMP
   | typeof BuildingType.RIDER_CAMP
@@ -61,6 +62,7 @@ const BUILDING_COST: Record<ConstructableBuilding, { iron: number; wood: number 
   [BuildingType.WOODCUTTER]:     BUILDING_DEFINITIONS.WOODCUTTER.constructionCost,
   [BuildingType.CHARCOAL_KILN]:  BUILDING_DEFINITIONS.CHARCOAL_KILN.constructionCost,
   [BuildingType.MINE]:           BUILDING_DEFINITIONS.MINE.constructionCost,
+  [BuildingType.DEEP_MINE]:      BUILDING_DEFINITIONS.DEEP_MINE.constructionCost,
   [BuildingType.BARRACKS]:       BUILDING_DEFINITIONS.BARRACKS.constructionCost,
   [BuildingType.ARCHER_CAMP]:    BUILDING_DEFINITIONS.ARCHER_CAMP.constructionCost,
   [BuildingType.RIDER_CAMP]:     BUILDING_DEFINITIONS.RIDER_CAMP.constructionCost,
@@ -75,6 +77,7 @@ const BUILDING_LABEL: Record<ConstructableBuilding, string> = {
   [BuildingType.WOODCUTTER]:     'Woodcutter',
   [BuildingType.CHARCOAL_KILN]:  'Charcoal Kiln',
   [BuildingType.MINE]:           'Mine',
+  [BuildingType.DEEP_MINE]:      'Deep Mine',
   [BuildingType.BARRACKS]:       'Barracks',
   [BuildingType.ARCHER_CAMP]:    'Archer Camp',
   [BuildingType.RIDER_CAMP]:     'Rider Camp',
@@ -90,6 +93,8 @@ const BUILDING_EMOJI_MAP: Record<ConstructableBuilding, string> = {
   // 🔥 evokes the charcoal-burning process inside the kiln
   [BuildingType.CHARCOAL_KILN]:  '🔥',
   [BuildingType.MINE]:           '🏔️',
+  // ⛏️ evokes deep excavation work in the mountain
+  [BuildingType.DEEP_MINE]:      '⛏️',
   [BuildingType.BARRACKS]:       '🏚️',
   [BuildingType.ARCHER_CAMP]:    '🏕️',
   [BuildingType.RIDER_CAMP]:     '🏘️',
@@ -159,11 +164,16 @@ export const RUIN_BUILDABLE_TYPES: BuildingType[] = [
  * convert between the two alternatives on the same forest tile (e.g. replace
  * an existing Woodcutter with a Charcoal Kiln once the tech is unlocked, or
  * swap back in the other direction).
+ *
+ * MINE and DEEP_MINE are both listed here so that a unit can convert between
+ * the two alternatives on the same mountain tile once DEEP_MINING is unlocked.
  */
 export const RESOURCE_TERRAIN_CONVERTIBLE_TYPES: BuildingType[] = [
   BuildingType.CRYSTAL_CAVE,
   BuildingType.WOODCUTTER,
   BuildingType.CHARCOAL_KILN,
+  BuildingType.MINE,
+  BuildingType.DEEP_MINE,
 ];
 
 /**
@@ -209,9 +219,14 @@ export function getConstructionOptionsForTile(
     }
   }
 
-  // Mountain terrain (no existing building, not a ruin) → MINE
+  // Mountain terrain (no existing building, not a ruin) → MINE; also offer
+  // DEEP_MINE when the player has researched the DEEP_MINING tech node.
+  // These are mutually exclusive alternatives — only one can occupy a tile.
   if (tile.terrainType === TileType.MOUNTAIN && tile.buildingId === null && !tile.isRuin) {
     options.push(makeOption(BuildingType.MINE));
+    if (state.unlockedBuildings.includes(BuildingType.DEEP_MINE)) {
+      options.push(makeOption(BuildingType.DEEP_MINE));
+    }
   }
 
   // Ruin → all non-terrain player buildings that are tech-unlocked
@@ -260,6 +275,10 @@ export function getConversionTargetsForTile(
     }
     if (tile.terrainType === TileType.MOUNTAIN && !tile.isRuin) {
       options.push(makeOption(BuildingType.MINE));
+      // Deep Mine is the tech-gated alternative — offer it only when unlocked.
+      if (state.unlockedBuildings.includes(BuildingType.DEEP_MINE)) {
+        options.push(makeOption(BuildingType.DEEP_MINE));
+      }
     }
     if (tile.isRuin) {
       options.push(...getRuinBuildingOptions(state));

@@ -94,6 +94,12 @@ export const BuildingType = {
    */
   CHARCOAL_KILN: 'CHARCOAL_KILN',
   /**
+   * Advanced mining building constructed on a MOUNTAIN tile as an alternative to
+   * the standard Mine. Produces more iron per turn than a regular Mine.
+   * Unlocked by the DEEP_MINING tech node (requires WALLED_SETTLEMENT).
+   */
+  DEEP_MINE: 'DEEP_MINE',
+  /**
    * Neutral market placed at map-gen on a free PLAINS tile in the middle zones.
    * A non-SUMMONED player unit standing on it may Trade once per turn (gated
    * like capture: must not have moved this turn). Offers one-shot resource swaps

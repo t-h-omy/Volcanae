@@ -316,6 +316,8 @@ export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
 export const RESOURCES = {
   /** Iron produced per turn by a mine */
   MINE_IRON_PER_TURN: 2,
+  /** Iron produced per turn by a deep mine */
+  DEEP_MINE_IRON_PER_TURN: 3,
   /** Wood produced per turn by a woodcutter */
   WOODCUTTER_WOOD_PER_TURN: 2,
   /** Iron available at the start of a new game */
@@ -1563,6 +1565,12 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     constructionCost: { iron: 0, wood: 4 },
     description: `Produces ${RESOURCES.MINE_IRON_PER_TURN} iron per turn, the primary resource for training units.`,
   },
+  DEEP_MINE: {
+    discoverRadius: 2,
+    destroyBehavior: DestroyBehavior.NONE,
+    constructionCost: { iron: 0, wood: 15 },
+    description: `Produces ${RESOURCES.DEEP_MINE_IRON_PER_TURN} iron per turn. An advanced mine that delves deeper into the mountain to extract richer ore veins.`,
+  },
   WOODCUTTER: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.NONE,
@@ -2230,6 +2238,18 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'STRONGHOLD_CAP_MOD', capType: 'farmer', amount: ABILITIES.WALLED_SETTLEMENT_FARMER_BONUS },
       { type: 'FLAT_INCOME_MOD', resource: ResourceType.WOOD, amount: ABILITIES.WALLED_SETTLEMENT_WOOD_AMOUNT, requiresBuilding: BuildingType.STRONGHOLD },
       { type: 'FLAT_INCOME_MOD', resource: ResourceType.IRON, amount: ABILITIES.WALLED_SETTLEMENT_IRON_AMOUNT, requiresBuilding: BuildingType.STRONGHOLD },
+    ],
+  },
+  {
+    // Placed after WALLED_SETTLEMENT — an advanced mining technique that
+    // unlocks the Deep Mine, a more productive alternative to the standard Mine on mountains.
+    id: 'DEEP_MINING',
+    name: 'Deep Mining',
+    description: `Unlocks the Deep Mine, which produces +${RESOURCES.DEEP_MINE_IRON_PER_TURN} iron per turn — delving deeper into mountains for richer ore veins.`,
+    requires: ['WALLED_SETTLEMENT'],
+    cost: 4,
+    effects: [
+      { type: 'UNLOCK_BUILDING', buildingType: BuildingType.DEEP_MINE },
     ],
   },
   {
