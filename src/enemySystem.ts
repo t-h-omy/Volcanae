@@ -14,7 +14,7 @@ import { initiateCapture, canCapture } from './captureSystem';
 import { corruptTerrain, processMagmaSpyrAttacks, processEmberNestSpawns } from './corruptionSystem';
 import { enemyConstructBuilding } from './constructionSystem';
 import { getBridgeAt, canTraverseEdge } from './bridgeSystem';
-import { processEnemyLevelUps, grantXp } from './levelSystem';
+import { processEnemyLevelUps, grantXp, canGrantXp } from './levelSystem';
 import type { GameEvent } from './gameEvents';
 import { hasUnitActed } from './unitActions';
 import { sweepLeashes } from './spellSystem';
@@ -1096,6 +1096,8 @@ function triggerPreventiveStrike(
     const attackerHpBefore = unit.stats.currentHp;
     const defenderHpBefore = enemyUnit.stats.currentHp;
     const defenderType = enemyUnit.type;
+    // Capture pre-attack XP qualification so the event reflects what grantXp actually granted.
+    const attackerCanReceiveXp = canGrantXp(unit.type, unit.xp);
 
     // Calculate one-directional Preventive Strike damage:
     // PREVENTIVE_STRIKE_DAMAGE_PERCENT% of the damage the siege unit would deal in a
@@ -1150,7 +1152,7 @@ function triggerPreventiveStrike(
         attackerHpLost: attackerAfter ? attackerHpBefore - attackerAfter.stats.currentHp : attackerHpBefore,
         defenderHpLost: defenderAfter ? defenderHpBefore - defenderAfter.stats.currentHp : defenderHpBefore,
         advancedToPosition: null,
-        attackerXpGained: !defenderAfter && attackerAfter ? XP.KILL_UNIT : null,
+        attackerXpGained: !defenderAfter && attackerAfter && attackerCanReceiveXp ? XP.KILL_UNIT : null,
         defenderXpGained: null,
       });
       if (!defenderAfter) {
@@ -2427,8 +2429,11 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
               (attackerAfter.position.x !== attackerPos.x || attackerAfter.position.y !== attackerPos.y)
             ) ? { x: attackerAfter.position.x, y: attackerAfter.position.y } : null;
             // Attacker earns XP for killing the defender; defender earns XP for a counter-kill.
-            const attackerXpGained = !defenderAfter && attackerAfter ? XP.KILL_UNIT : null;
-            const defenderXpGained = !attackerAfter ? XP.KILL_UNIT : null;
+            // Use pre-attack XP to mirror the grantXp early-return for MAX_LEVEL units.
+            const attackerCanReceiveXpM = canGrantXp(stateBeforeAction.units[attackerId]?.type ?? '', stateBeforeAction.units[attackerId]?.xp ?? 0);
+            const defenderCanReceiveXpM = canGrantXp(stateBeforeAction.units[defenderId]?.type ?? '', stateBeforeAction.units[defenderId]?.xp ?? 0);
+            const attackerXpGained = !defenderAfter && attackerAfter && attackerCanReceiveXpM ? XP.KILL_UNIT : null;
+            const defenderXpGained = !attackerAfter && defenderCanReceiveXpM ? XP.KILL_UNIT : null;
             const defenderSpawnBrandmarkReplacement = targetUnit.tags.includes(UnitTag.BRANDMARKED);
             const attackerSpawnBrandmarkReplacement = currentUnit.tags.includes(UnitTag.BRANDMARKED);
             const defenderBrandmarkSpawnPosition = defenderSpawnBrandmarkReplacement
@@ -2509,8 +2514,11 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
         if (events) {
           const attackerAfter = state.units[attackerId];
           const defenderAfter = state.units[defenderId];
-          const attackerXpGained = !defenderAfter && attackerAfter ? XP.KILL_UNIT : null;
-          const defenderXpGained = !attackerAfter ? XP.KILL_UNIT : null;
+          // Use pre-attack XP to mirror the grantXp early-return for MAX_LEVEL units.
+          const attackerCanReceiveXpR = canGrantXp(stateBeforeAction.units[attackerId]?.type ?? '', stateBeforeAction.units[attackerId]?.xp ?? 0);
+          const defenderCanReceiveXpR = canGrantXp(stateBeforeAction.units[defenderId]?.type ?? '', stateBeforeAction.units[defenderId]?.xp ?? 0);
+          const attackerXpGained = !defenderAfter && attackerAfter && attackerCanReceiveXpR ? XP.KILL_UNIT : null;
+          const defenderXpGained = !attackerAfter && defenderCanReceiveXpR ? XP.KILL_UNIT : null;
           const defenderSpawnBrandmarkReplacement = targetUnit.tags.includes(UnitTag.BRANDMARKED);
           const attackerSpawnBrandmarkReplacement = currentUnit.tags.includes(UnitTag.BRANDMARKED);
           const defenderBrandmarkSpawnPosition = defenderSpawnBrandmarkReplacement
@@ -2988,6 +2996,9 @@ function resolveCaveMonsterAttack(
   const attackerHpBefore = attacker.stats.currentHp;
   const defenderHpBefore = defender.stats.currentHp;
   const defenderFaction = defender.faction;
+  // Capture pre-attack XP qualification to mirror the grantXp early-return for MAX_LEVEL units.
+  const attackerCanReceiveXpC = canGrantXp(attacker.type, attacker.xp);
+  const defenderCanReceiveXpC = canGrantXp(defender.type, defender.xp);
 
   resolveAttack(state, attackerId, defenderId, !!events);
 
@@ -3024,8 +3035,8 @@ function resolveCaveMonsterAttack(
         ? defenderHpBefore - defenderAfter.stats.currentHp
         : defenderHpBefore,
       advancedToPosition,
-      attackerXpGained: !defenderAfter && attackerAfter ? XP.KILL_UNIT : null,
-      defenderXpGained: !attackerAfter ? XP.KILL_UNIT : null,
+      attackerXpGained: !defenderAfter && attackerAfter && attackerCanReceiveXpC ? XP.KILL_UNIT : null,
+      defenderXpGained: !attackerAfter && defenderCanReceiveXpC ? XP.KILL_UNIT : null,
       tileBurningPosition,
     });
     if (!defenderAfter) {

@@ -30,6 +30,16 @@ export function computeLevelFromXp(unitType: string, xp: number): number {
 }
 
 /**
+ * Returns true if a unit with the given type and current XP would receive XP
+ * from a grantXp call (i.e. the unit does not already qualify for MAX_LEVEL).
+ * Use this at event-emit sites to avoid putting non-zero attackerXpGained /
+ * defenderXpGained on events when grantXp would have silently refused the XP.
+ */
+export function canGrantXp(unitType: string, currentXp: number): boolean {
+  return computeLevelFromXp(unitType, currentXp) < XP.MAX_LEVEL;
+}
+
+/**
  * Applies level-up stat changes to a unit, upgrading from its current level
  * to targetLevel. Restores HP to the new maxHp on each level gained.
  * Uses base stats from UNITS[unitType] for percent calculations.

@@ -49,7 +49,7 @@ import { RENDER } from './renderConfig';
 import { ANIMATION } from './animationConfig';
 import { saveSlot, loadSlot, listSlots, deleteSlot, getSlotMeta, saveSeenHintsForSlot } from './saveSystem';
 import { useMenuStore } from './menuStore';
-import { computeLevelFromXp, applyLevelUps } from './levelSystem';
+import { computeLevelFromXp, applyLevelUps, canGrantXp } from './levelSystem';
 import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLogic, getGrantedTags, getRemovedTags, getStatMods, applyTagStatEffects, revokeTagStatEffects } from './techSystem';
 import { canUnitHeal, getHealTargets, canUnitFieldwork, isHealSuppressedByCorruption } from './unitActions';
 import { createFieldworkOutpost } from './constructionSystem';
@@ -715,8 +715,14 @@ export const useGameStore = create<GameStore>()(
           (attackerAfter.position.x !== attackerPosition.x || attackerAfter.position.y !== attackerPosition.y)
         ) ? { x: attackerAfter.position.x, y: attackerAfter.position.y } : null;
         // Attacker earns XP for killing the defender; defender earns XP for a counter-kill.
-        const attackerXpGained = !defenderAfter && attackerAfter ? XP.KILL_UNIT : null;
-        const defenderXpGained = !attackerAfter ? XP.KILL_UNIT : null;
+        // Guard against the grantXp early-return: if the unit already qualifies for MAX_LEVEL,
+        // grantXp silently refuses the XP, so the event must carry 0 (null) to avoid a
+        // display flicker where applyEvent would optimistically add XP that the resolved
+        // state never granted.
+        const attackerCanReceiveXp = canGrantXp(snapshot.units[attackerId]?.type ?? '', snapshot.units[attackerId]?.xp ?? 0);
+        const defenderCanReceiveXp = canGrantXp(snapshot.units[targetId]?.type ?? '', snapshot.units[targetId]?.xp ?? 0);
+        const attackerXpGained = !defenderAfter && attackerAfter && attackerCanReceiveXp ? XP.KILL_UNIT : null;
+        const defenderXpGained = !attackerAfter && defenderCanReceiveXp ? XP.KILL_UNIT : null;
         const defenderSpawnBrandmarkReplacement = !!snapshot.units[targetId]?.tags.includes(UnitTag.BRANDMARKED);
         const attackerSpawnBrandmarkReplacement = !!snapshot.units[attackerId]?.tags.includes(UnitTag.BRANDMARKED);
         const defenderBrandmarkSpawnPosition = defenderSpawnBrandmarkReplacement
@@ -852,7 +858,10 @@ export const useGameStore = create<GameStore>()(
         // Building was killed if destroyed or went neutral (e.g. watchtower).
         const buildingDied = !buildingAfter || buildingAfter.faction !== buildingFactionBefore;
         // Player attacker earns XP for destroying an enemy building.
-        const attackerXpGained = buildingDied && attackerAfter ? XP.DESTROY_BUILDING : null;
+        // Guard against the grantXp early-return: units already at MAX_LEVEL qualifying XP
+        // receive no XP, so the event must reflect the actual granted amount.
+        const attackerCanReceiveXp = canGrantXp(snapshot.units[attackerId]?.type ?? '', snapshot.units[attackerId]?.xp ?? 0);
+        const attackerXpGained = buildingDied && attackerAfter && attackerCanReceiveXp ? XP.DESTROY_BUILDING : null;
 
         const attackBuildingEvent: GameEvent = {
           type: 'UNIT_ATTACK_BUILDING',
