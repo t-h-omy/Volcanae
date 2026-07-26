@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.98.10 - Drill Sergeant recruits render as ready to act
+
+Units spawned with the READY tag (granted by the Drill Sergeant specialist to Spearmen and Swordsmen) no longer render with the exhausted/toned-down visual filter on the turn they are recruited. The `isExhausted` check in `GridRenderer.tsx` now gates the recruit-turn dimming on `!unit.tags.includes(UnitTag.READY)`, matching the existing spawn logic that clears `hasMovedThisTurn`/`hasAttackedThisTurn` for READY units.
+
 ### v0.98.9 - XP display matches granted XP; level-up healing verified
 
 Attack events now carry `attackerXpGained` and `defenderXpGained` that reflect the amount `grantXp` actually granted, not merely whether the kill condition was satisfied. A new `canGrantXp` helper in `levelSystem.ts` replicates `grantXp`'s MAX_LEVEL early-return check; all six emit sites in `gameStore.ts` and `enemySystem.ts` (PLAYER_ATTACK, UNIT_ATTACK_BUILDING, ENEMY_ATTACK melee, ENEMY_ATTACK ranged, cave-monster attack, and preventive-strike overwatch) now gate XP-gain fields on this check. This removes the visible XP flicker where `applyEvent` would optimistically add XP to the display unit that the resolved state never granted, before snapping back at turn-end sync. Repro tests in `src/__tests__/xpGranted.test.ts` verify: (a) a level-1 unit with 7 banked XP shows `canLevelUp` semantics and `applyLevelUps` restores HP to the new `maxHp` on every level gained, ruling out the "level 3 without heal" hypothesis via `applyLevelUps`; (b) `grantXp` refuses additional XP when the unit already qualifies for MAX_LEVEL, with `canGrantXp` returning the correct boolean on either side of the threshold; (c) applying level-up boosts while UNTRAINED and HOMELESS tags are active heals to the new `maxHp`, and revoking both tags afterwards round-trips ATK and DEF without corrupting HP.
