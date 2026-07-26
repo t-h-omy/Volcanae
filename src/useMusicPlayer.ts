@@ -9,6 +9,7 @@
 
 import { useEffect } from 'react';
 import { useGameStore } from './gameStore';
+import { useMenuStore } from './menuStore';
 import { useSoundOptionsStore } from './soundOptionsStore';
 import { GamePhase } from './types';
 import { MusicQueue } from './musicSystem';
@@ -41,8 +42,20 @@ function clearPendingResumeHandler() {
   }
 }
 
+/**
+ * Explicitly stop game music and cancel any pending autoplay resume. Safe to
+ * call multiple times (idempotent).
+ */
+export function stopGameMusic(): void {
+  audio.pause();
+  audio.src = '';
+  clearPendingResumeHandler();
+}
+
 function loadNextTrack() {
   clearPendingResumeHandler();
+  // Bail out if we have already navigated away from the game screen.
+  if (useMenuStore.getState().screen !== 'GAME') return;
   const track = musicQueue.next();
   audio.src = `${import.meta.env.BASE_URL}music/${encodeURIComponent(track)}`;
   audio.load();
@@ -54,6 +67,9 @@ function loadNextTrack() {
       pendingResumeHandler = null;
       window.removeEventListener('pointerdown', resume);
       window.removeEventListener('keydown', resume);
+      // Guard against the race where a pointerdown that triggered the exit
+      // also fires this handler after navigation back to the menu screen.
+      if (useMenuStore.getState().screen !== 'GAME') return;
       audio.play().catch(() => undefined);
     };
     pendingResumeHandler = resume;
@@ -70,9 +86,7 @@ export function useMusicPlayer(): void {
   // Stop playback when the Game component unmounts (e.g. returning to main menu).
   useEffect(() => {
     return () => {
-      audio.pause();
-      audio.src = '';
-      clearPendingResumeHandler();
+      stopGameMusic();
     };
   }, []);
 
@@ -86,9 +100,7 @@ export function useMusicPlayer(): void {
 
     if (!isActive) {
       // Stop playback on game-over / victory / not started yet.
-      audio.pause();
-      audio.src = '';
-      clearPendingResumeHandler();
+      stopGameMusic();
       return;
     }
 

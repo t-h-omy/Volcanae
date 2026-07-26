@@ -616,6 +616,12 @@ export interface Building {
    * Defaults to ABILITIES.GRAVE_TRAP_STUN_TURNS at creation time.
    */
   trapStunTurns?: number;
+  /**
+   * The turn number on which a free restock was last used at this market.
+   * Undefined means the free restock has never been used (immediately available).
+   * Only set on MARKET buildings.
+   */
+  lastFreeRestockTurn?: number;
   /** Market resource offer slots — null entries are empty (used/not yet refilled). Only set on MARKET buildings. */
   marketResourceSlots?: (MarketResourceOffer | null)[];
   /** Market specialist offer slots — null entries are empty or unavailable. Only set on MARKET buildings. */

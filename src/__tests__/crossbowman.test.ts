@@ -192,7 +192,7 @@ describe('Crossbowman — stats and tags', () => {
 
   it('has the correct base stats', () => {
     expect(def.maxHp).toBe(100);
-    expect(def.attack).toBe(70);
+    expect(def.attack).toBe(65);
     expect(def.defense).toBe(35);
     expect(def.moveRange).toBe(1);
     expect(def.attackRange).toBe(2);
@@ -211,7 +211,7 @@ describe('Crossbowman — stats and tags', () => {
   });
 
   it('has the correct cost', () => {
-    expect(def.cost.iron).toBe(6);
+    expect(def.cost.iron).toBe(4);
     expect(def.cost.wood).toBe(12);
   });
 

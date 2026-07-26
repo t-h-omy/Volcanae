@@ -1095,6 +1095,7 @@ function triggerPreventiveStrike(
     const defenderPos = { x: enemyUnit.position.x, y: enemyUnit.position.y };
     const attackerHpBefore = unit.stats.currentHp;
     const defenderHpBefore = enemyUnit.stats.currentHp;
+    const defenderType = enemyUnit.type;
 
     // Calculate one-directional Preventive Strike damage:
     // PREVENTIVE_STRIKE_DAMAGE_PERCENT% of the damage the siege unit would deal in a
@@ -1121,6 +1122,12 @@ function triggerPreventiveStrike(
       state.gameStats.unitsKilled += 1;
       // Grant XP to the siege unit for the kill
       grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
+      // If the killed unit was a cave monster, remove its encounter entry
+      if (defenderType === UnitType.CAVE_MONSTER) {
+        state.activeCaveEncounters = state.activeCaveEncounters.filter(
+          (e) => e.monsterId !== defenderId,
+        );
+      }
     } else {
       enemyUnit.stats.currentHp = newDefenderHp;
     }
@@ -1148,6 +1155,10 @@ function triggerPreventiveStrike(
       });
       if (!defenderAfter) {
         events.push({ type: 'UNIT_DEATH', unitId: defenderId, position: defenderPos, faction: Faction.ENEMY });
+        // If the killed unit was a cave monster, trigger the specialist-draw event
+        if (defenderType === UnitType.CAVE_MONSTER) {
+          events.push({ type: 'CAVE_MONSTER_KILLED', monsterId: defenderId });
+        }
       }
     }
   }
@@ -1222,6 +1233,7 @@ function triggerGarrisonOverwatch(
     const buildingPos = { x: building.position.x, y: building.position.y };
     const defenderPos = { x: enemyUnit.position.x, y: enemyUnit.position.y };
     const defenderHpBefore = enemyUnit.stats.currentHp;
+    const defenderType = enemyUnit.type;
 
     const newDefenderHp = enemyUnit.stats.currentHp - strikeDamage;
     const defenderDead = newDefenderHp <= 0;
@@ -1236,6 +1248,12 @@ function triggerGarrisonOverwatch(
       }
       delete state.units[defenderId];
       state.gameStats.unitsKilled += 1;
+      // If the killed unit was a cave monster, remove its encounter entry
+      if (defenderType === UnitType.CAVE_MONSTER) {
+        state.activeCaveEncounters = state.activeCaveEncounters.filter(
+          (e) => e.monsterId !== defenderId,
+        );
+      }
     } else {
       enemyUnit.stats.currentHp = newDefenderHp;
     }
@@ -1264,6 +1282,10 @@ function triggerGarrisonOverwatch(
           position: defenderPos,
           faction: Faction.ENEMY,
         });
+        // If the killed unit was a cave monster, trigger the specialist-draw event
+        if (defenderType === UnitType.CAVE_MONSTER) {
+          events.push({ type: 'CAVE_MONSTER_KILLED', monsterId: defenderId });
+        }
       }
     }
   }

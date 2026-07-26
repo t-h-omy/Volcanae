@@ -1,5 +1,37 @@
 # Changelog
 
+### v0.98.8 - Riftworm exits avoid resources and other worms' exits
+
+Riftworm emergence targeting now uses an emergence-specific tile validator in `tunnelSystem.ts`. Planned exits still require the existing dig-in safety checks, and now additionally reject `FOREST`/`MOUNTAIN` tiles plus any tile already reserved as `tunnelPlannedEmergence` by another tunneling worm (`DIGGING_IN`, `UNDERGROUND`, or `EMERGING`). This validator is now used for initial exit planning, fallback exit search, and all emergence revalidation steps. Regression tests in `src/__tests__/tunnelSystem.test.ts` cover resource-terrain skipping, cross-worm exit de-duplication, and the self-plan allowance case (a worm is not blocked by its own planned exit record).
+
+### v0.98.7 - Reload debuff covered by regression tests
+
+Regression tests confirm the Crossbowman RELOAD debuff is fully implemented. All three test axes pass on v0.98.0+: (a) an enemy attacking a fired Crossbowman (`hasAttackedThisTurn: true`) deals damage matching the `calculateCombatFromStats` formula with halved DEF; (b) an unfired Crossbowman takes full-DEF damage; (c) the display-penalty helper (`computeReloadDefPenalty`) returns `floor(effDef × 50%)` when fired and 0 otherwise. Two stale stat/cost assertions in the test file (ATK 70 → 65, iron cost 6 → 4) were corrected to match the current `gameConfig.ts`. The feature could not be reproduced as broken; this patch hardens it with the tests described in VG-10.
+
+### v0.98.6 - Trading consumes the unit's whole turn
+
+After trading at a Market the unit can no longer move or attack during the same turn. `hasTradedThisTurn` is now checked in `canUnitMove`, `canUnitAttack`, and every sibling action gate (`canUnitCapture`, `canUnitConstruct`, `canUnitHeal`, `canUnitFieldwork`, `canUnitBuildBridge`, `canUnitSetTrap`, `canUnitExtinguish`) in `unitActions.ts`. The Market building description in `gameConfig.ts` has been updated to reflect this rule. `canUnitTrade` already required `!hasMovedThisTurn`, so the move-then-trade path was already blocked; this patch closes the trade-then-act direction.
+
+### v0.98.5 - Gargoyle uses missing-sprite placeholder
+
+Gargoyle no longer reuses the Skeleton unit art. `GARGOYLE` in `assetRegistry.ts` now uses the intentional missing-sprite convention (`''`), so the pink placeholder is shown until dedicated Gargoyle art lands at `/sprites/units/Gargoyle_100px.png`.
+
+### v0.98.4 - Bridges can end on frozen water
+
+Bridge builders may now target a canyon even when the far-side endpoint is water, as long as that water tile is currently frozen. The shared bridge-target validation in `unitActions.ts` now treats frozen water as a valid player-walkable far side, so both the UI target list and `buildBridge` accept the placement. If that frozen endpoint later thaws, the bridge can legitimately end at unwalkable water; that is accepted behavior.
+
+### v0.98.3 - Unit sprite fallback no longer leaks to the next unit on a tile
+
+When a unit sprite fails to load, that fallback state now resets when the tile's occupant changes. `UnitBadge` in `GridRenderer.tsx` now mirrors the existing building-sprite pattern by tracking the previous sprite path and clearing `unitSpriteError` whenever a different unit sprite path is rendered, so a melee attacker that advances onto a dead placeholder-sprite unit's tile keeps its own sprite instead of inheriting the pink fallback.
+
+### v0.98.2 - Buildings that slay cave monsters now grant the specialist reward
+
+Killing a cave monster with an Outpost, Watchtower, or Crystal Tower now opens the specialist hire modal. Three paths were missing the `CAVE_MONSTER_KILLED` event and encounter cleanup: (a) `buildingAttackUnit` in `gameStore.ts` (player-turn building attack), (b) `triggerPreventiveStrike` in `enemySystem.ts` (player siege unit reaction shot during the enemy turn), and (c) `triggerGarrisonOverwatch` in `enemySystem.ts` (Watch Captain building overwatch during the enemy turn). Each path now mirrors the unit-attack pattern: if the killed defender is a `CAVE_MONSTER`, its `activeCaveEncounters` entry is removed from the resolved state draft and a `CAVE_MONSTER_KILLED` event is pushed after `UNIT_DEATH`.
+
+### v0.98.1 - Game music stops when returning to the main menu
+
+Returning to the main menu from a running game no longer leaves the game track playing in parallel with the menu theme. A new `stopGameMusic` function is called synchronously at the start of every exit path (the HUD return button, and the Main Menu buttons on the GameOver and Victory overlays), guaranteeing the audio element is paused and its source cleared before any async save work or screen transition begins. The existing pointerdown/keydown resume-handler race is also closed: the handler now checks that the current screen is still `GAME` before resuming playback, so a tap that simultaneously triggers the exit and an autoplay-unblock can no longer restart the audio mid-transition.
+
 ### v0.98.0 - Invalid spell and ability targets explain why
 
 Curated invalid-target floaters now explain a small whitelist of easy-to-forget exclusions while leaving every other invalid tap silent. Transpose second-pick faction mismatches, Brandmark exclusions, Explode's mage exclusion, Frostcraft terrain failures, heal exclusions, and blocked bridge endpoints now show targeted reasons. The existing Occupied floaters for Emberbind and Raise Skeleton are unchanged in behavior and now come from the same shared helper path.

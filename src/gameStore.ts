@@ -216,6 +216,8 @@ interface GameActions {
   buyMarketSpecialist: (marketId: string, slotIndex: number, outgoingSpecialistId?: string) => void;
   /** Pay RESTOCK_COST to reroll all market slots */
   restockMarket: (marketId: string) => void;
+  /** Use the free restock (if off cooldown) to reroll all market slots at no cost */
+  freeRestockMarket: (marketId: string) => void;
 }
 
 // ============================================================================
@@ -907,6 +909,15 @@ export const useGameStore = create<GameStore>()(
         // Compute the resolved state
         const resolvedState = produce(snapshot, (draft) => {
           resolveBuildingAttack(draft, buildingId, targetId, true);
+          // If the snapshot defender is a cave monster that was killed, remove its encounter entry
+          if (
+            snapshot.units[targetId]?.type === UnitType.CAVE_MONSTER &&
+            !draft.units[targetId]
+          ) {
+            draft.activeCaveEncounters = draft.activeCaveEncounters.filter(
+              (e) => e.monsterId !== targetId,
+            );
+          }
           updateDiscovery(draft);
           checkGameConditions(draft);
         });
@@ -951,6 +962,10 @@ export const useGameStore = create<GameStore>()(
             faction: defenderFaction,
             brandmarkSpawnPosition: defenderBrandmarkSpawnPosition,
           });
+          // If the killed defender was a cave monster, trigger the specialist-draw event
+          if (snapshot.units[targetId]?.type === UnitType.CAVE_MONSTER) {
+            events.push({ type: 'CAVE_MONSTER_KILLED', monsterId: targetId });
+          }
         }
 
         pendingEvents = events;
@@ -3799,6 +3814,20 @@ export const useGameStore = create<GameStore>()(
 
         // Re-roll all slots (does NOT set hasTradedThisTurn per F-5)
         restockAllSlots(state, market);
+      });
+    },
+    freeRestockMarket: (marketId: string) => {
+      set((state) => {
+        const market = state.buildings[marketId];
+        if (!market || market.type !== BuildingType.MARKET) return;
+
+        // Check cooldown: available if never used or interval has elapsed
+        const lastTurn = market.lastFreeRestockTurn;
+        if (lastTurn !== undefined && state.turn - lastTurn < MARKET.FREE_RESTOCK_INTERVAL_TURNS) return;
+
+        // Re-roll all slots (does NOT set hasTradedThisTurn — parity with paid restock)
+        restockAllSlots(state, market);
+        market.lastFreeRestockTurn = state.turn;
       });
     },
   }))

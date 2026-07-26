@@ -16,6 +16,7 @@ import {
   BuildingType,
   DestroyBehavior,
   Faction,
+  TileStatus,
   TileType,
   UnitTag,
   UnitType,
@@ -26,6 +27,7 @@ import { getBridgeAt, isBridgeTraversalAllowed, canTraverseEdge } from '../bridg
 import { canUnitBuildBridge, getBridgeBuildTargets } from '../unitActions';
 import { getReachableTiles, resolveSlide } from '../movementSystem';
 import { advanceLavaWithEvents } from '../lavaSystem';
+import { useGameStore } from '../gameStore';
 
 // ============================================================================
 // Helpers
@@ -360,6 +362,34 @@ describe('getBridgeBuildTargets', () => {
     });
     const targets = getBridgeBuildTargets(scout, state);
     expect(targets.filter((t) => t.pos.x === 5 && t.pos.y === 5)).toHaveLength(0);
+  });
+
+  it('accepts when far tile is frozen water and buildBridge succeeds', () => {
+    const scout = makeUnit({ position: { x: 4, y: 5 }, tags: [UnitTag.BRIDGE_BUILDER] });
+    const state = makeState({
+      units: [scout],
+      tileOverrides: {
+        '5,5': { terrainType: TileType.CANYON },
+        '6,5': { terrainType: TileType.WATER, status: TileStatus.FROZEN },
+      },
+      unlockedBuildings: [BuildingType.BRIDGE],
+      resources: {
+        wood: BUILDING_DEFINITIONS.BRIDGE.constructionCost.wood,
+        iron: BUILDING_DEFINITIONS.BRIDGE.constructionCost.iron,
+      },
+    });
+
+    const targets = getBridgeBuildTargets(scout, state);
+    expect(targets).toEqual([{ pos: { x: 5, y: 5 }, orientation: 'EW' }]);
+
+    useGameStore.setState(state);
+    useGameStore.getState().buildBridge(scout.id, { x: 5, y: 5 });
+
+    const built = useGameStore.getState();
+    const bridgeId = built.grid[5][5].buildingId;
+    expect(bridgeId).toBeTruthy();
+    expect(bridgeId ? built.buildings[bridgeId]?.type : null).toBe(BuildingType.BRIDGE);
+    expect(built.units[scout.id]?.hasConstructedThisTurn).toBe(true);
   });
 
   it('rejects when canyon tile is lava', () => {
