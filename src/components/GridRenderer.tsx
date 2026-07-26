@@ -1491,8 +1491,9 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
       }));
 
   // A unit recruited this turn also gets the toned-down filter — it can't act this turn.
+  // Exception: the READY tag (e.g. Drill Sergeant) lets the unit act immediately, so skip the dimming.
   const isRecruitedThisTurn = (unit.recruitedOnTurn ?? 0) === currentTurn && currentTurn > 0;
-  const isExhausted = isRecruitedThisTurn || hasUnitActed(unit, useGameStore.getState()) || noAttackTargets;
+  const isExhausted = (isRecruitedThisTurn && !unit.tags.includes(UnitTag.READY)) || hasUnitActed(unit, useGameStore.getState()) || noAttackTargets;
 
   const anim = useCombatAnimationStore((s) => s.unitAnimations.get(unit.id));
 

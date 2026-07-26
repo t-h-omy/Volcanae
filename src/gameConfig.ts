@@ -1622,7 +1622,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
       destroyBehavior: DestroyBehavior.NONE,
       constructionCost: { iron: 0, wood: 4 },
       combatStats,
-      description: `Field fortification built by Spearmen via Fieldwork. Attacks enemies within ${combatStats.attackRange} tiles. Starting HP is based on the building unit's current HP, capped at ${combatStats.maxHp}.`,
+      description: `Field fortification built by Spearmen via Fieldwork (costs 4 wood). Attacks enemies within ${combatStats.attackRange} tiles. Starting HP is based on the building unit's current HP, capped at ${combatStats.maxHp}.`,
     };
   })(),
   LAVALAIR: {
@@ -2124,7 +2124,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'FIELDWORK',
     name: 'Fieldwork',
-    description: `Spearmen and Swordsmen can sacrifice themselves to build an Outpost (starting HP = unit HP × ${ABILITIES.FIELDWORK_HP_MULTIPLIER})`,
+    description: `Spearmen and Swordsmen can sacrifice themselves to build an Outpost (${BUILDING_DEFINITIONS.OUTPOST.constructionCost.wood} wood; starting HP = unit HP × ${ABILITIES.FIELDWORK_HP_MULTIPLIER})`,
     requires: ['FIELD_DUTIES'],
     cost: 4,
     effects: [
@@ -2626,7 +2626,7 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   [UnitTag.BUILDANDCAPTURE]:   { label: 'Build & Capture',   desc: 'Can construct buildings on ruins and resource terrain (forest/mountain), and capture enemy buildings. Strongholds and watchtowers transfer to your faction; other enemy buildings are demolished.' },
   [UnitTag.SACRIFICIAL]:       { label: 'Sacrificial',       desc: 'Prioritizes walking toward the lava to be consumed.' },
   [UnitTag.EXPLOSIVE]:         { label: 'Explosive',         desc: 'Deals heavy area damage to all adjacent enemies when adjacent to at least one enemy (preemptive self-detonation).' },
-  [UnitTag.FIELDWORK]:         { label: 'Fieldwork',         desc: `Can sacrifice itself on its current tile to instantly erect an Outpost (HP scales with the unit's current HP × ${ABILITIES.FIELDWORK_HP_MULTIPLIER}). Cannot be used on ruins or resource terrain.` },
+  [UnitTag.FIELDWORK]:         { label: 'Fieldwork',         desc: `Can sacrifice itself on its current tile to instantly erect an Outpost (costs ${BUILDING_DEFINITIONS.OUTPOST.constructionCost.wood} wood; HP scales with the unit's current HP × ${ABILITIES.FIELDWORK_HP_MULTIPLIER}). Cannot be used on ruins or resource terrain.` },
   [UnitTag.ASSASSIN]:          { label: 'Assassin',          desc: `Deals ${ABILITIES.ASSASSIN_DAMAGE_MULTIPLIER}× damage and receives no retaliation when striking an enemy that is still at full health.` },
   [UnitTag.PATCHUP]:           { label: 'Patch Up',          desc: `Can spend its action to restore ${ABILITIES.PATCHUP_HEAL_AMOUNT} HP on one adjacent friendly unit. Cannot heal Summoned or Brandmarked units.` },
   [UnitTag.PHALANX]:           { label: 'Phalanx',           desc: `Grants +${ABILITIES.PHALANX_DEFENSE_BONUS_PER_CARRIER} defense to each adjacent friendly unit and gains +${ABILITIES.PHALANX_ATTACK_BONUS_PER_ALLY} attack per adjacent friendly unit. Bonuses apply during combat only.` },
