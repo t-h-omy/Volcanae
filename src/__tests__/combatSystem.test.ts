@@ -451,3 +451,116 @@ describe('Change 5 – PIERCE rear-unit damage', () => {
     expect(frontHpLost).toBe(FRONT_DAMAGE);
   });
 });
+
+// ── CHANGE 6: CLEAVE no-defense-subtraction fix ──────────────────────────────
+
+describe('Change 6 – CLEAVE AoE damage', () => {
+  /**
+   * Compute expected values for SWORDSMAN (att=60, hp=120) vs LAVA_GRUNT (def=45, hp=100):
+   *   eff_att = 60 × (0.5 + 0.5 × 1) = 60
+   *   eff_def = 45 × (0.5 + 0.5 × 1) = 45
+   *   total   = 105
+   *   damage  = round(60 × 60/105) = round(34.28) = 34
+   * cleaveDamage = floor(34 × 0.5) = 17
+   *
+   * Bug:   Math.max(1, 17 − 45) = 1
+   * Fixed: Math.max(1, 17)      = 17
+   *
+   * Grid layout (9 × 12):
+   *   (3,5) = SWORDSMAN (CLEAVE, PLAYER)
+   *   (4,5) = LAVA_GRUNT primary defender
+   *   (4,4) = LAVA_GRUNT cleave target — adjacent to both (3,5) and (4,5)
+   */
+  const EXPECTED_PRIMARY_DAMAGE = 34;
+  const EXPECTED_CLEAVE_DAMAGE  = 17; // Math.floor(34 × 0.5)
+
+  /**
+   * 6.1 Cleave target with high defense takes 50% of primary damage, not 1.
+   */
+  it('deals 50% of primary damage to a high-defense cleave target, not 1', () => {
+    const swordsman   = makePlayerUnit(UnitType.SWORDSMAN, 3, 5);
+    const primary     = makeEnemyUnit(UnitType.LAVA_GRUNT, 4, 5);
+    const cleaveTarget = makeEnemyUnit(UnitType.LAVA_GRUNT, 4, 4);
+
+    const cleaveInitialHp = cleaveTarget.stats.currentHp; // 100
+
+    const initialState = makeState([swordsman, primary, cleaveTarget]);
+    const outEvents: GameEvent[] = [];
+    const nextState = produce(initialState, (draft) => {
+      resolveAttack(draft, swordsman.id, primary.id, true, outEvents);
+    });
+
+    // Swordsman must survive (melee counter ~19 dmg, 120 − 19 = 101 HP remaining)
+    expect(nextState.units[swordsman.id]).toBeDefined();
+
+    // Primary must have taken the expected HP loss
+    expect(nextState.units[primary.id]!.stats.currentHp).toBe(
+      primary.stats.currentHp - EXPECTED_PRIMARY_DAMAGE,
+    );
+
+    // Cleave target must still be alive (100 − 17 = 83 HP)
+    expect(nextState.units[cleaveTarget.id]).toBeDefined();
+
+    // HP lost must be 50% of primary damage, not 1
+    const cleaveHpLost = cleaveInitialHp - nextState.units[cleaveTarget.id]!.stats.currentHp;
+    expect(cleaveHpLost).toBe(EXPECTED_CLEAVE_DAMAGE);
+  });
+
+  /**
+   * 6.2 Cleave HP loss is independent of the cleave target's defense stat.
+   *
+   * Before the fix the defense was subtracted a second time, collapsing the
+   * result to 1 for any target with defense ≥ cleaveDamage.
+   */
+  it('cleave HP loss is independent of the cleave target defense stat', () => {
+    function cleaveScenario(cleaveTargetDefense: number): number {
+      const swordsman    = makePlayerUnit(UnitType.SWORDSMAN, 3, 5);
+      const primary      = makeEnemyUnit(UnitType.LAVA_GRUNT, 4, 5);
+      const ct = makeEnemyUnit(UnitType.LAVA_GRUNT, 4, 4, {
+        defense: cleaveTargetDefense,
+        currentHp: 100,
+        maxHp: 100,
+      });
+
+      const initialState = makeState([swordsman, primary, ct]);
+      const nextState = produce(initialState, (draft) => {
+        resolveAttack(draft, swordsman.id, primary.id, true);
+      });
+
+      const cleaveUnit = nextState.units[ct.id];
+      if (!cleaveUnit) return 100; // killed — HP lost = 100
+      return 100 - cleaveUnit.stats.currentHp;
+    }
+
+    const hpLostLowDef      = cleaveScenario(0);   // no defense
+    const hpLostHighDef     = cleaveScenario(45);   // high defense (was giving 1 before fix)
+    const hpLostVeryHighDef = cleaveScenario(99);   // very high defense
+
+    expect(hpLostLowDef).toBe(EXPECTED_CLEAVE_DAMAGE);
+    expect(hpLostHighDef).toBe(EXPECTED_CLEAVE_DAMAGE);
+    expect(hpLostVeryHighDef).toBe(EXPECTED_CLEAVE_DAMAGE);
+  });
+
+  /**
+   * 6.3 CLEAVE_DAMAGE event is emitted with the correct (50%) amount.
+   */
+  it('emits a CLEAVE_DAMAGE event with amount equal to 50% of primary damage', () => {
+    const swordsman    = makePlayerUnit(UnitType.SWORDSMAN, 3, 5);
+    const primary      = makeEnemyUnit(UnitType.LAVA_GRUNT, 4, 5);
+    const cleaveTarget = makeEnemyUnit(UnitType.LAVA_GRUNT, 4, 4, {
+      defense: 45, // high defense — would give wrong amount before fix
+      currentHp: 100,
+      maxHp: 100,
+    });
+
+    const initialState = makeState([swordsman, primary, cleaveTarget]);
+    const outEvents: GameEvent[] = [];
+    produce(initialState, (draft) => {
+      resolveAttack(draft, swordsman.id, primary.id, true, outEvents);
+    });
+
+    const cleaveEvt = outEvents.find((e) => e.type === 'CLEAVE_DAMAGE');
+    expect(cleaveEvt).toBeDefined();
+    expect((cleaveEvt as { amount: number }).amount).toBe(EXPECTED_CLEAVE_DAMAGE);
+  });
+});
