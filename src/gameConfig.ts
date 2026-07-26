@@ -767,7 +767,7 @@ export const TERRAIN = {
    */
   MOUNTAINS_PER_ZONE_OVERRIDES: {} as Record<number, { min: number; max: number }>,
   /** Minimum number of ruin tiles placed per zone (used if no zone-specific override is set) */
-  RUINS_PER_ZONE_MIN: 6,
+  RUINS_PER_ZONE_MIN: 7,
   /** Maximum number of ruin tiles placed per zone (used if no zone-specific override is set) */
   RUINS_PER_ZONE_MAX: 7,
   /**
@@ -947,7 +947,7 @@ export const LEVEL_UP_VALUES = {
  */
 export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   SPEARMAN: {
-    maxHp: 100, attack: 40, defense: 40,
+    maxHp: 100, attack: 45, defense: 45,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
     tags: [UnitTag.BUILDANDCAPTURE],
@@ -961,10 +961,10 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   SWORDSMAN: {
-    maxHp: 120, attack: 60, defense: 50,
+    maxHp: 120, attack: 60, defense: 55,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
-    tags: [UnitTag.BUILDANDCAPTURE],
+    tags: [UnitTag.BUILDANDCAPTURE, UnitTag.CLEAVE],
     cost: { iron: 14, wood: 8 },
     populationCost: { farmers: 1, nobles: 0 },
     levelUp: [
@@ -1286,7 +1286,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   SKELETON: {
-    maxHp: 80, attack: 40, defense: 35,
+    maxHp: 90, attack: 40, defense: 35,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
     tags: [],
@@ -1304,7 +1304,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     maxHp: 90, attack: 45, defense: 40,
     movementActions: 1, moveRange: 2, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
-    tags: [UnitTag.FLYING],
+    tags: [UnitTag.FLYING, UnitTag.RANGED],
     cost: { iron: 0, wood: 0 },
     populationCost: { farmers: 0, nobles: 0 },
     levelUp: [
@@ -1324,7 +1324,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     // SUMMONED → consumes no pop, cannot be healed, leaves no gravestone.
     // HIT_AND_RUN → can re-position after striking (mirrors Knight Rider).
     // FLYING → traverses canyon/water and shrugs off knockback over them.
-    tags: [UnitTag.SUMMONED, UnitTag.HIT_AND_RUN, UnitTag.FLYING, UnitTag.READY],
+    tags: [UnitTag.SUMMONED, UnitTag.HIT_AND_RUN, UnitTag.FLYING, UnitTag.READY, UnitTag.RANGED],
     cost: { iron: 0, wood: 0, crystals: 3 },
     populationCost: { farmers: 0, nobles: 0 },
     levelUp: [
