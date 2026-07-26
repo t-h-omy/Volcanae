@@ -1333,11 +1333,9 @@ export function resolveAttack(
           const cleaveTargetId = cleaveTile.unitId;
           const cleaveTarget = state.units[cleaveTargetId];
           if (!cleaveTarget || cleaveTarget.faction === attacker.faction) continue;
-          // CLEAVE ignores PHALANX — use stats.defense (raw runtime defense) which does NOT
-          // include the PHALANX bonus; that bonus is only added to defenderCombatant during
-          // the primary combat calculation via getPhalanxDefenseBonus.
-          // Minimum 1 ensures the tag is always meaningful even against high-defense targets.
-          const finalCleaveDamage = Math.max(1, cleaveDamage - cleaveTarget.stats.defense);
+          // CLEAVE deals 50% of the damage dealt to the primary defender directly — no
+          // second defense reduction. Minimum 1 ensures the tag is always meaningful.
+          const finalCleaveDamage = Math.max(1, cleaveDamage);
           const newCleaveHp = cleaveTarget.stats.currentHp - finalCleaveDamage;
           if (!suppressFloaters) {
             const { addFloater } = useFloaterStore.getState();
@@ -2178,7 +2176,7 @@ export function resolveAttackOnBuilding(
           const cleaveTargetId = cleaveTile.unitId;
           const cleaveTarget = state.units[cleaveTargetId];
           if (!cleaveTarget || cleaveTarget.faction === attacker.faction) continue;
-          const finalCleaveDamage = Math.max(1, cleaveDamage - cleaveTarget.stats.defense);
+          const finalCleaveDamage = Math.max(1, cleaveDamage);
           const newCleaveHp = cleaveTarget.stats.currentHp - finalCleaveDamage;
           if (!suppressFloaters) {
             const { addFloater } = useFloaterStore.getState();
