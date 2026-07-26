@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { BuildingType, DestroyBehavior, Faction, TileType, UnitTag, UnitType } from '../types';
 import type { Building, GameState, Tile, Unit } from '../types';
 import { MAP, MARKET, UNIT_DEFINITIONS, SPECIALIST_DEFINITIONS } from '../gameConfig';
-import { setMarketRandomSource, createMarket, fillEmptyResourceSlots } from '../marketSystem';
+import { setMarketRandomSource } from '../marketSystem';
 import {
   canUnitMove,
   canUnitAttack,
@@ -19,8 +19,6 @@ import {
   canUnitHeal,
   canUnitFieldwork,
   canUnitBuildBridge,
-  canUnitSetTrap,
-  canUnitExtinguish,
   getMovableTiles,
 } from '../unitActions';
 import { useGameStore } from '../gameStore';

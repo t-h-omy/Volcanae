@@ -7,7 +7,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { BuildingType, DestroyBehavior, Faction, TileType, UnitTag, UnitType } from '../types';
+import { BuildingType, Faction, TileType, UnitTag, UnitType } from '../types';
 import type { Building, GameState, Tile, Unit } from '../types';
 import { MAP, BUILDING_DEFINITIONS, UNIT_DEFINITIONS, SPECIALIST_DEFINITIONS } from '../gameConfig';
 import { useGameStore } from '../gameStore';
