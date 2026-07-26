@@ -964,14 +964,14 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     maxHp: 120, attack: 60, defense: 55,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
-    tags: [UnitTag.BUILDANDCAPTURE, UnitTag.CLEAVE],
+    tags: [UnitTag.BUILDANDCAPTURE],
     cost: { iron: 14, wood: 8 },
     populationCost: { farmers: 1, nobles: 0 },
     levelUp: [
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
-    description: 'Heavy infantry with superior combat strength. Unlocked by the Swordsman training tech.',
+    description: 'Heavy infantry with superior combat strength. Unlocked by the Swordsman Training tech. Cleave can be researched separately.',
   },
 
   ARCHER: {
@@ -1994,6 +1994,10 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
 // TECH TREE CONFIGURATION
 // ============================================================================
 
+/** Multiplier applied to primary attack damage when computing Cleave AoE damage.
+ *  Defined here (before TECH_TREE) so it can be referenced in tech descriptions. */
+export const CLEAVE_DAMAGE_MULTIPLIER = 0.5;
+
 /**
  * Tech tree node definitions.
  * Add a new tech node by adding one entry to this array — no logic files
@@ -2137,11 +2141,22 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'UNLOCK_SWORDSMAN',
     name: 'Swordsman Training',
-    description: 'Unlocks the Swordsman — elite heavy infantry with superior attack and defense — recruitable at the Barracks',
+    description: 'Unlocks the Swordsman — elite heavy infantry with superior attack and defense — recruitable at the Barracks. Swordsman recruitment costs +2 iron.',
     requires: ['FIELD_DUTIES'],
     cost: 4,
     effects: [
       { type: 'UNLOCK_UNIT', unitType: UnitType.SWORDSMAN },
+      { type: 'UNIT_COST_MOD', unitType: UnitType.SWORDSMAN, resource: 'iron', amount: 2 },
+    ],
+  },
+  {
+    id: 'SWORDSMAN_CLEAVE',
+    name: 'Cleaving Strike',
+    description: `Swordsmen learn to cleave through enemies — on hit, dealing ${CLEAVE_DAMAGE_MULTIPLIER * 100}% damage to all enemy units adjacent to both attacker and defender (ignores Phalanx defense)`,
+    requires: ['UNLOCK_SWORDSMAN'],
+    cost: 3,
+    effects: [
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.SWORDSMAN, tag: UnitTag.CLEAVE },
     ],
   },
   {
@@ -2550,9 +2565,6 @@ export const TAG_STAT_EFFECTS: Partial<Record<UnitTag, StatModifier[]>> = {
 // ============================================================================
 // COUNTER-TAG MECHANICS
 // ============================================================================
-
-/** Multiplier applied to primary attack damage when computing CLEAVE AoE damage. */
-export const CLEAVE_DAMAGE_MULTIPLIER = 0.5;
 
 /** Multiplier applied to defender damage when the attacker has PIERCE. */
 export const PIERCE_PRIMARY_DAMAGE_MULTIPLIER = 0.5;

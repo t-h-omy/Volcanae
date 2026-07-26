@@ -478,7 +478,7 @@ describe('Change 6 – CLEAVE AoE damage', () => {
    * 6.1 Cleave target with high defense takes 50% of primary damage, not 1.
    */
   it('deals 50% of primary damage to a high-defense cleave target, not 1', () => {
-    const swordsman   = makePlayerUnit(UnitType.SWORDSMAN, 3, 5);
+    const swordsman   = makePlayerUnit(UnitType.SWORDSMAN, 3, 5, [UnitTag.CLEAVE]);
     const primary     = makeEnemyUnit(UnitType.LAVA_GRUNT, 4, 5);
     const cleaveTarget = makeEnemyUnit(UnitType.LAVA_GRUNT, 4, 4);
 
@@ -514,7 +514,7 @@ describe('Change 6 – CLEAVE AoE damage', () => {
    */
   it('cleave HP loss is independent of the cleave target defense stat', () => {
     function cleaveScenario(cleaveTargetDefense: number): number {
-      const swordsman    = makePlayerUnit(UnitType.SWORDSMAN, 3, 5);
+      const swordsman    = makePlayerUnit(UnitType.SWORDSMAN, 3, 5, [UnitTag.CLEAVE]);
       const primary      = makeEnemyUnit(UnitType.LAVA_GRUNT, 4, 5);
       const ct = makeEnemyUnit(UnitType.LAVA_GRUNT, 4, 4, {
         defense: cleaveTargetDefense,
@@ -545,7 +545,7 @@ describe('Change 6 – CLEAVE AoE damage', () => {
    * 6.3 CLEAVE_DAMAGE event is emitted with the correct (50%) amount.
    */
   it('emits a CLEAVE_DAMAGE event with amount equal to 50% of primary damage', () => {
-    const swordsman    = makePlayerUnit(UnitType.SWORDSMAN, 3, 5);
+    const swordsman    = makePlayerUnit(UnitType.SWORDSMAN, 3, 5, [UnitTag.CLEAVE]);
     const primary      = makeEnemyUnit(UnitType.LAVA_GRUNT, 4, 5);
     const cleaveTarget = makeEnemyUnit(UnitType.LAVA_GRUNT, 4, 4, {
       defense: 45, // high defense — would give wrong amount before fix
