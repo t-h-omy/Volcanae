@@ -526,7 +526,7 @@ export function explainInvalidHealTarget(
 
 /**
  * Returns true if the unit is allowed to perform the fieldwork action this turn.
- * Fieldwork sacrifices the unit to build a Watchtower at its position.
+ * Fieldwork sacrifices the unit to build an Outpost at its position.
  *
  * Blocking rules:
  *   - hasMovedThisTurn: must not have moved

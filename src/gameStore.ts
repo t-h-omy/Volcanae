@@ -1938,6 +1938,11 @@ export const useGameStore = create<GameStore>()(
         if (tile.isRuin || tile.isStrongholdRuin) return;
         // Cannot build on resource terrain (forest or mountain)
         if (tile.terrainType === TileType.FOREST || tile.terrainType === TileType.MOUNTAIN) return;
+        // Deduct the Outpost construction cost
+        const outpostCost = BUILDING_DEFINITIONS.OUTPOST.constructionCost;
+        if (state.resources.wood < outpostCost.wood || state.resources.iron < outpostCost.iron) return;
+        state.resources.wood -= outpostCost.wood;
+        state.resources.iron -= outpostCost.iron;
         // Create an Outpost at the unit's position with HP based on the unit's current HP
         const newBuilding = createFieldworkOutpost({ x, y }, unit.stats.currentHp);
         // Apply FORTIFIED_GARRISON bonus to the newly created Outpost if the

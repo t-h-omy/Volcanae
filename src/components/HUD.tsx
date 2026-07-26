@@ -1992,6 +1992,11 @@ function SelectedUnitPanel({
     if (tile.terrainType === TileType.FOREST || tile.terrainType === TileType.MOUNTAIN) return true;
     return false;
   })();
+  const fieldworkResources = useGameStore((s) => s.resources);
+  const fieldworkAffordable = canFieldwork
+    ? fieldworkResources.wood >= BUILDING_DEFINITIONS.OUTPOST.constructionCost.wood &&
+      fieldworkResources.iron >= BUILDING_DEFINITIONS.OUTPOST.constructionCost.iron
+    : true;
   const trapBlocked = canSetTrap && !isTrapTileClear(unit, gameState);
   const [aiScoreModal, setAiScoreModal] = useState(false);
   const [aiScores, setAiScores] = useState<ScoredAction[]>([]);
@@ -2462,17 +2467,23 @@ function SelectedUnitPanel({
           {canFieldwork && (
             <>
               {!confirmFieldwork ? (
-                <button
-                  className="hud-capture-btn"
-                  disabled={fieldworkBlocked}
-                  onClick={() => setConfirmFieldwork(true)}
-                >
-                  🏗️ Build Outpost
-                </button>
+                <>
+                  <button
+                    className="hud-spell-btn"
+                    disabled={fieldworkBlocked || !fieldworkAffordable}
+                    onClick={() => setConfirmFieldwork(true)}
+                  >
+                    <span className="hud-spell-btn-label">🏗️ Build Outpost</span>
+                    <span className="hud-spell-btn-cost">🪵{BUILDING_DEFINITIONS.OUTPOST.constructionCost.wood}</span>
+                  </button>
+                  {!fieldworkAffordable && (
+                    <span className="hud-pop-warning">Not enough wood</span>
+                  )}
+                </>
               ) : (
                 <div className="hud-fieldwork-confirm">
                   <div className="hud-warning hud-capture-warning">
-                    ⚠️ This unit will be consumed!
+                    ⚠️ This unit will be consumed! (costs 🪵{BUILDING_DEFINITIONS.OUTPOST.constructionCost.wood})
                   </div>
                   <button
                     className="hud-capture-btn"
