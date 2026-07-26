@@ -3105,7 +3105,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
       )}
       {isDeepMine && (
         <div className="hud-production-row">
-          ⛏️ +{RESOURCES.DEEP_MINE_IRON_PER_TURN} iron per turn
+          ⛓️ +{RESOURCES.DEEP_MINE_IRON_PER_TURN} iron per turn
           {isDisabled && <span className="hud-dim"> (paused)</span>}
         </div>
       )}

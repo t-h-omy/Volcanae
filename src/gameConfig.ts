@@ -2245,7 +2245,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     // unlocks the Deep Mine, a more productive alternative to the standard Mine on mountains.
     id: 'DEEP_MINING',
     name: 'Deep Mining',
-    description: `Unlocks the Deep Mine, which produces +${RESOURCES.DEEP_MINE_IRON_PER_TURN} iron per turn — delving deeper into mountains for richer ore veins.`,
+    description: `Unlocks the Deep Mine, which produces ${RESOURCES.DEEP_MINE_IRON_PER_TURN} iron per turn (vs ${RESOURCES.MINE_IRON_PER_TURN} for a standard Mine) — delving deeper into mountains for richer ore veins.`,
     requires: ['WALLED_SETTLEMENT'],
     cost: 4,
     effects: [
