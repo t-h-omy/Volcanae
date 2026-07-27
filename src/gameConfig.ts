@@ -769,15 +769,15 @@ export const TERRAIN = {
    */
   MOUNTAINS_PER_ZONE_OVERRIDES: {} as Record<number, { min: number; max: number }>,
   /** Minimum number of ruin tiles placed per zone (used if no zone-specific override is set) */
-  RUINS_PER_ZONE_MIN: 7,
+  RUINS_PER_ZONE_MIN: 8,
   /** Maximum number of ruin tiles placed per zone (used if no zone-specific override is set) */
-  RUINS_PER_ZONE_MAX: 7,
+  RUINS_PER_ZONE_MAX: 8,
   /**
    * Optional per-zone ruin min/max overrides.
    * Keys are zone numbers (1–5). Missing keys fall back to RUINS_PER_ZONE_MIN/MAX.
    * Example: { 1: { min: 4, max: 5 }, 5: { min: 10, max: 12 } }
    */
-  RUINS_PER_ZONE_OVERRIDES: { 1: { min: 6, max: 6 } } as Record<number, { min: number; max: number }>,
+  RUINS_PER_ZONE_OVERRIDES: { 1: { min: 6, max: 6 }, 2: {min: 7, max: 7} } as Record<number, { min: number; max: number }>,
   /** Minimum number of ruin tiles placed in the lava buffer rows */
   RUINS_IN_LAVA_BUFFER_MIN: 3,
   /** Maximum number of ruin tiles placed in the lava buffer rows */
