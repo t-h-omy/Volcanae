@@ -801,7 +801,7 @@ export const TERRAIN = {
    * Maximum edge-circle distance from the zone 1 stronghold for the guaranteed
    * mountain tile placement in zone 1.
    */
-  ZONE1_MOUNTAIN_MAX_DISTANCE: 3,
+  ZONE1_MOUNTAIN_MAX_DISTANCE: 2,
 
   // Canyon config
   CANYON_LENGTH_MIN: 8,
