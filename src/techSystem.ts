@@ -405,6 +405,7 @@ const flagDescriptions: Record<TechFlag, string> = {
 const buildingDisplayNames: Record<BuildingType, string> = {
   [BuildingType.STRONGHOLD]: 'Stronghold',
   [BuildingType.MINE]: 'Mine',
+  [BuildingType.DEEP_MINE]: 'Deep Mine',
   [BuildingType.WOODCUTTER]: 'Woodcutter',
   [BuildingType.CHARCOAL_KILN]: 'Charcoal Kiln',
   [BuildingType.BARRACKS]: 'Barracks',

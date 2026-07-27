@@ -165,7 +165,7 @@ function getSpawnProbability(state: Draft<GameState>, building: Building): numbe
 }
 
 const SPAWNER_TYPES: BuildingType[] = [BuildingType.BARRACKS, BuildingType.ARCHER_CAMP, BuildingType.RIDER_CAMP, BuildingType.SIEGE_CAMP, BuildingType.LAVALAIR, BuildingType.INFERNALSANCTUM];
-const RESOURCE_TYPES: BuildingType[] = [BuildingType.MINE, BuildingType.WOODCUTTER];
+const RESOURCE_TYPES: BuildingType[] = [BuildingType.MINE, BuildingType.DEEP_MINE, BuildingType.WOODCUTTER];
 
 function buildingValueMultiplier(type: BuildingType): number {
   if (type === BuildingType.STRONGHOLD) return AI_SCORING.BUILDING_VALUE_STRONGHOLD;
@@ -3179,7 +3179,7 @@ function runCaveMonsterAi(state: Draft<GameState>, events?: GameEvent[]): void {
         const building = state.buildings[tile.buildingId];
         if (
           building &&
-          (building.type === BuildingType.MINE || building.type === BuildingType.CRYSTAL_CAVE)
+          (building.type === BuildingType.MINE || building.type === BuildingType.DEEP_MINE || building.type === BuildingType.CRYSTAL_CAVE)
         ) {
           tile.buildingId = null;
           // Collect any life-bound units BEFORE cleanup so we can emit UNIT_DEATH events.

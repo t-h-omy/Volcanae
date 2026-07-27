@@ -86,6 +86,8 @@ export const ENEMY_UNIT_SPRITE: Partial<Record<UnitType, string>> = withBase({
 export const BUILDING_SPRITE: Partial<Record<BuildingType, string>> = withBase({
   STRONGHOLD:      '/sprites/buildings/stronghold_100px.png',
   MINE:            '/sprites/buildings/mine_100px.png',
+  // TODO: replace DEEP_MINE with real art when available
+  DEEP_MINE:       '/sprites/buildings/deep_mine_100px.png',
   WOODCUTTER:      '/sprites/buildings/woodcutter_100px.png',
   BARRACKS:        '/sprites/buildings/barracks_100px.png',
   ARCHER_CAMP:     '/sprites/buildings/archer_camp_100px.png',
