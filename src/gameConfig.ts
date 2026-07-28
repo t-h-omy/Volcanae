@@ -111,7 +111,7 @@ export const BUILDINGS = {
   /** Number of turns specialist assignment is disabled after use */
   SPECIALIST_ASSIGN_DISABLE_TURNS: 1,
   /** Probability of spawning a WATCHTOWER in each zone (0.0 to 1.0) */
-  WATCHTOWER_SPAWN_CHANCE: 0.5,
+  WATCHTOWER_SPAWN_CHANCE: 0.75,
   /** Number of rows at the start (low-Y end) of a zone where strongholds may not spawn */
   STRONGHOLD_SPAWN_SKIP_FIRST_ROWS: 3,
   /** Number of rows at the end (high-Y end) of a zone where strongholds may not spawn */
@@ -423,9 +423,9 @@ export const ENEMY = {
   /** Base enemy spawn count per building */
   ENEMY_SPAWN_PER_BUILDING_BASE: 1,
   /** Bonus enemy spawn per 3 threat levels */
-  ENEMY_THREAT_SPAWN_BONUS: 0.02,
+  ENEMY_THREAT_SPAWN_BONUS: 0.00,
   /** Base probability (0.0–1.0) of spawning a unit per recruitment building per turn when no player unit is in discover radius and threat is 0 */
-  BASE_SPAWN_PROBABILITY: 0.08,
+  BASE_SPAWN_PROBABILITY: 0.15,
   /** Maximum additional probability granted at max threat (0.0–1.0) */
   MAX_THREAT_BONUS: 0.25,
   /** Threat level at which the full MAX_THREAT_BONUS is reached */
@@ -831,7 +831,7 @@ export const TERRAIN = {
    * Per-zone HP/ATK/DEF multiplier for the cave monster (index 0 = zone 1, index 4 = zone 5).
    * Higher zones are deeper into enemy territory and have stronger monsters.
    */
-  CAVE_MONSTER_ZONE_SCALE: [1.0, 1.2, 1.4, 1.6, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8] as const,
+  CAVE_MONSTER_ZONE_SCALE: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0] as const,
   /**
    * Chebyshev-distance radius within which the cave monster will patrol.
    * If the monster wanders outside this radius (no aggro), it returns to its home tile.
@@ -925,8 +925,8 @@ export const LEVEL_UP_VALUES = {
   /** Cumulative XP required to reach level 3 (applies to all unit types) */
   XP_TO_LEVEL_3: 7,
   /** Max-HP flat boost per level for most unit types */
-  HP_BOOST_DEFAULT: 20,
-  HP_BOOST_DEFAULT2: 30,
+  HP_BOOST_DEFAULT: 30,
+  HP_BOOST_DEFAULT2: 40,
   /** Max-HP flat boost per level for Scout units */
   HP_BOOST_SCOUT: 15,
   /** Max-HP flat boost per level for Emberling units */
