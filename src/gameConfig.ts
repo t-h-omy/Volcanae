@@ -1106,7 +1106,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   LAVA_SIEGE: {
-    maxHp: 75, attack: 85, defense: 0,
+    maxHp: 75, attack: 75, defense: 0,
     movementActions: 1, moveRange: 1, attackRange: 3,
     discoverRadius: 1, triggerRange: 4,
     tags: [UnitTag.RANGED, UnitTag.PREP, UnitTag.LAVA],
@@ -1121,7 +1121,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   REAPER: {
-    maxHp: 120, attack: 60, defense: 50,
+    maxHp: 120, attack: 50, defense: 45,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 3,
     tags: [UnitTag.CLEAVE, UnitTag.RAGE, UnitTag.CORRUPT, UnitTag.LAVA],
@@ -2592,18 +2592,18 @@ export const PIERCE_PRIMARY_DAMAGE_MULTIPLIER = 0.5;
 export const PIERCE_SECONDARY_DAMAGE_MULTIPLIER = 1.0;
 
 /** ATK bonus per adjacent enemy, granted to units with RAGE. */
-export const RAGE_ATK_PER_ADJACENT = 6;
+export const RAGE_ATK_PER_ADJACENT = 4;
 /** Maximum number of adjacent enemies that contribute to RAGE bonus. */
 export const RAGE_MAX_ADJACENT_COUNT = 8;
 
 /** Damage multiplier when a SUMMONED unit attacks a unit with IRONBLOOD. */
-export const IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER = 0.2;
+export const IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER = 0.5;
 
 /** Damage multiplier applied to GRIMBEAK attacks against SUMMONED units (100% extra = 2× default). */
 export const GRIMBEAK_SUMMONED_DAMAGE_MULTIPLIER = 2.0;
 
 /** Damage multiplier when a melee unit (attackRange === 1) attacks a unit with BLOCK. */
-export const BLOCK_MELEE_DAMAGE_MULTIPLIER = 0.5;
+export const BLOCK_MELEE_DAMAGE_MULTIPLIER = 0.7;
 
 /** Base DEF threshold above which PUNCTURE-stun is triggered. */
 export const PUNCTURE_STUN_BASE_DEF_THRESHOLD = 60;
@@ -2611,7 +2611,7 @@ export const PUNCTURE_STUN_BASE_DEF_THRESHOLD = 60;
 export const PUNCTURE_STUN_DURATION = 1;
 
 /** Damage multiplier applied to FLYING units when attacked by a non-flying RANGED unit. */
-export const FLYING_RANGED_DAMAGE_TAKEN_MULTIPLIER = 1.25; // +25%, balancable
+export const FLYING_RANGED_DAMAGE_TAKEN_MULTIPLIER = 1.5;
 
 /** TUNNEL: minimum number of tiles the unit must move south while underground. */
 export const TUNNEL_RANGE_MIN = 2;
@@ -2620,7 +2620,7 @@ export const TUNNEL_RANGE_MAX = 4;
 /** TUNNEL: damage applied to enemy units adjacent to the emergence tile. */
 export const TUNNEL_EMERGE_DAMAGE = 40;
 /** TUNNEL: cooldown turns after emergence before the unit can dig again. */
-export const TUNNEL_COOLDOWN_TURNS = 1;
+export const TUNNEL_COOLDOWN_TURNS = 2;
 /** TUNNEL: maximum number of turns the unit can stay underground while waiting for a free emergence tile. */
 export const TUNNEL_MAX_RETRY_TURNS = 1;
 /** TUNNEL: HP multiplier applied when a unit is forced to emerge with no valid free tile (last-resort fallback). */
@@ -2629,7 +2629,7 @@ export const TUNNEL_FORCED_EMERGE_HP_MULTIPLIER = 0.7;
 /** EMBER_PORTAL: number of enemy turns the pair is usable, including the cast turn.
  * Cast on turn T → usable on T, T+1, ..., T+L-1. Removed at the END of enemy turn T+L-1.
  */
-export const EMBER_PORTAL_LIFETIME_TURNS = 2;
+export const EMBER_PORTAL_LIFETIME_TURNS = 3;
 /** EMBER_PORTAL: minimum rows the exit tile must be south of the northernmost player unit. */
 export const EMBER_PORTAL_MIN_DISTANCE_BEHIND_FRONTLINE = 1;
 /** EMBER_PORTAL: maximum edge-circle distance between the entry and exit portals of a pair. */
@@ -2637,9 +2637,9 @@ export const EMBER_PORTAL_PAIR_MAX_DISTANCE = 4;
 /** EMBER_PORTAL: maximum enemy units that may score moving onto the same portal entrance per turn. */
 export const EMBER_PORTAL_MAX_USERS_PER_TURN = 2;
 /** EMBER_PORTAL: AI base score for moving onto a portal entrance whose exit is closer to the player. */
-export const EMBER_PORTAL_BASE_USE_SCORE = 60;
+export const EMBER_PORTAL_BASE_USE_SCORE = 80;
 /** EMBER_PORTAL: AI per-tile penalty for distance to the portal entrance. */
-export const EMBER_PORTAL_DISTANCE_PENALTY = 4;
+export const EMBER_PORTAL_DISTANCE_PENALTY = 15;
 
 // ============================================================================
 // TAG INFO — label and description for each unit tag
