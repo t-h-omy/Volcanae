@@ -2304,7 +2304,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     id: 'KNIGHTS',
     name: 'Knights',
     description: `Heavily armoured cavalry with +${ABILITIES.KNIGHT_MAX_HP_BONUS} max HP`,
-    requires: ['LANCE_CHARGE'],
+    requires: [A_NOBLE_STEAD'],
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.RIDER, tag: UnitTag.KNIGHT },
@@ -2326,7 +2326,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     id: 'OUTRIDERS',
     name: 'Outriders',
     description: `Fast raiding cavalry with +${ABILITIES.OUTRIDER_MOVE_BONUS} movement range`,
-    requires: ['HIT_AND_RUN'],
+    requires: ['KNIGHTS'],
     cost: 7,
     effects: [
       { type: 'GRANT_UNIT_TAG',  unitType: UnitType.RIDER, tag: UnitTag.OUTRIDER },
