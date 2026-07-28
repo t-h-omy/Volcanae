@@ -2304,7 +2304,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     id: 'KNIGHTS',
     name: 'Knights',
     description: `Heavily armoured cavalry with +${ABILITIES.KNIGHT_MAX_HP_BONUS} max HP`,
-    requires: [A_NOBLE_STEAD'],
+    requires: ['A_NOBLE_STEAD'],
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.RIDER, tag: UnitTag.KNIGHT },
