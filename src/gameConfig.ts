@@ -2142,8 +2142,8 @@ export const TECH_TREE: TechNodeDefinition[] = [
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SPEARMAN, tag: UnitTag.FIELDWORK },
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SWORDSMAN, tag: UnitTag.FIELDWORK },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.SPEARMAN, resource: 'wood', amount: 2 },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.SWORDSMAN, resource: 'wood', amount: 2 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.SPEARMAN, resource: 'wood', amount: 1 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.SWORDSMAN, resource: 'wood', amount: 1 },
     ],
   },
   {
@@ -2154,7 +2154,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 4,
     effects: [
       { type: 'UNLOCK_UNIT', unitType: UnitType.SWORDSMAN },
-      { type: 'UNIT_COST_MOD', unitType: UnitType.SWORDSMAN, resource: 'iron', amount: 2 },
+      { type: 'UNIT_COST_MOD', unitType: UnitType.SWORDSMAN, resource: 'iron', amount: 1 },
     ],
   },
   {
@@ -2175,7 +2175,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 7,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.GUARD, tag: UnitTag.PHALANX },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.GUARD, resource: 'iron', amount: 3 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.GUARD, resource: 'iron', amount: 1 },
     ],
   },
 
@@ -2188,7 +2188,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 2,
     effects: [
       { type: 'UNIT_STAT_MOD', unitType: UnitType.SCOUT, stat: 'discoverRadius', mode: 'add', value: ABILITIES.SCOUT_DISCOVER_BONUS },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.SCOUT, resource: 'wood', amount: 2 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.SCOUT, resource: 'wood', amount: 1 },
     ],
   },
   {
@@ -2199,7 +2199,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SCOUT, tag: UnitTag.ASSASSIN },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.SCOUT, resource: 'iron', amount: 2 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.SCOUT, resource: 'iron', amount: 1 },
     ],
   },
   {
@@ -2210,7 +2210,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SCOUT, tag: UnitTag.PATCHUP },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.SCOUT, resource: 'wood', amount: 3 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.SCOUT, resource: 'wood', amount: 2 },
     ],
   },
   {
@@ -2262,8 +2262,6 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'STRONGHOLD_CAP_MOD', capType: 'noble', amount: ABILITIES.CITADEL_NOBLE_BONUS },
       { type: 'UNIT_STAT_MOD', unitType: UnitType.SCOUT, stat: 'maxHp', mode: 'add', value: ABILITIES.CITADEL_HP_BOOST },
       { type: 'UNIT_STAT_MOD', unitType: UnitType.GUARD, stat: 'maxHp', mode: 'add', value: ABILITIES.CITADEL_HP_BOOST },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.SCOUT, resource: 'wood', amount: 1 },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.GUARD, resource: 'wood', amount: 1 },
     ],
   },
   {
@@ -2276,9 +2274,6 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.RIDER,  tag: UnitTag.ELITE },
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.GUARD,  tag: UnitTag.ELITE },
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SIEGE,  tag: UnitTag.ELITE },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.RIDER, resource: 'iron', amount: 1 },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.GUARD, resource: 'iron', amount: 1 },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.SIEGE, resource: 'iron', amount: 1 },
     ],
   },
   {
@@ -2313,7 +2308,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.RIDER, tag: UnitTag.KNIGHT },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.RIDER, resource: 'iron', amount: 2 },
+      { type: 'UNIT_COST_MOD',  unitType: UnitType.RIDER, resource: 'iron', amount: 1 },
     ],
   },
   {
@@ -2324,7 +2319,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG',  unitType: UnitType.RIDER, tag: UnitTag.HIT_AND_RUN },
-      { type: 'UNIT_COST_MOD',   unitType: UnitType.RIDER, resource: 'wood', amount: 2 },
+      { type: 'UNIT_COST_MOD',   unitType: UnitType.RIDER, resource: 'wood', amount: 1 },
     ],
   },
   {
@@ -2335,7 +2330,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 7,
     effects: [
       { type: 'GRANT_UNIT_TAG',  unitType: UnitType.RIDER, tag: UnitTag.OUTRIDER },
-      { type: 'UNIT_COST_MOD',   unitType: UnitType.RIDER, resource: 'wood', amount: 2 },
+      { type: 'UNIT_COST_MOD',   unitType: UnitType.RIDER, resource: 'wood', amount: 1 },
     ],
   },
 
@@ -2348,7 +2343,6 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.ARCHER,      tag: UnitTag.COVER },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.ARCHER,      resource: 'wood', amount: 1 },
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.CROSSBOWMAN, tag: UnitTag.COVER },
     ],
   },
@@ -2360,7 +2354,6 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 7,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.ARCHER, tag: UnitTag.SKIRMISHER },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.ARCHER, resource: 'wood', amount: 2 },
     ],
   },
   {
@@ -2382,7 +2375,6 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 7,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.ARCHER, tag: UnitTag.DISTRACTION },
-      { type: 'UNIT_COST_MOD',  unitType: UnitType.ARCHER, resource: 'iron', amount: 2 },
     ],
   },
 
