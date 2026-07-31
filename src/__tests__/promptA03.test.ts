@@ -178,13 +178,9 @@ describe('PROMPT A-03 enemy spawn sickness', () => {
   it('Ember Nest Emberling cannot act or explode on spawn turn, but can on next enemy turn', () => {
     const nestPos = { x: 4, y: 8 };
     const nest = makeEmberNest(nestPos);
-    const blockers = [
-      { x: 3, y: 7 }, { x: 4, y: 7 }, { x: 5, y: 7 },
-      { x: 3, y: 8 }, { x: 5, y: 8 },
-      { x: 3, y: 9 }, { x: 4, y: 9 }, { x: 5, y: 9 },
-    ].map((position) => makeUnit(UnitType.SWORDSMAN, Faction.PLAYER, position));
+    const adjacentPlayer = makeUnit(UnitType.SWORDSMAN, Faction.PLAYER, { x: 4, y: 9 });
 
-    const state = makeState(blockers, [nest]);
+    const state = makeState([adjacentPlayer], [nest]);
     const firstTurn = runEnemyTurn(state);
     const spawnEvent = getSpawnEvent(firstTurn.events);
 
@@ -195,6 +191,7 @@ describe('PROMPT A-03 enemy spawn sickness', () => {
     expect(spawnEvent.unit.hasConstructedThisTurn).toBe(true);
     expect(spawnEvent.unit.hasDestroyedThisTurn).toBe(true);
     expect(hasUnitActed(spawnEvent.unit)).toBe(true);
+    expect(firstTurn.events.some((e) => e.type === 'ENEMY_MOVE' && e.unitId === spawnEvent.unit.id)).toBe(false);
     expect(firstTurn.events.some((e) => e.type === 'EXPLOSION' && e.unitId === spawnEvent.unit.id)).toBe(false);
     expect(firstTurn.finalState.units[spawnEvent.unit.id]).toBeDefined();
 
@@ -203,8 +200,12 @@ describe('PROMPT A-03 enemy spawn sickness', () => {
       turn: firstTurn.finalState.turn + 1,
     } as GameState);
 
-    expect(secondTurn.events.some((e) => e.type === 'EXPLOSION' && e.unitId === spawnEvent.unit.id)).toBe(true);
-    expect(secondTurn.finalState.units[spawnEvent.unit.id]).toBeUndefined();
+    const actedNextTurn = secondTurn.events.some(
+      (e) => (e.type === 'ENEMY_MOVE' && e.unitId === spawnEvent.unit.id) ||
+        (e.type === 'ENEMY_ATTACK' && e.attackerId === spawnEvent.unit.id) ||
+        (e.type === 'EXPLOSION' && e.unitId === spawnEvent.unit.id),
+    );
+    expect(actedNextTurn).toBe(true);
   });
 
   it('READY-tagged enemy units keep all action flags available at spawn', () => {

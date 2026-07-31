@@ -3364,6 +3364,7 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
         unit.hasAttackedThisTurn = false;
         unit.spellsCastThisTurn = 0;
         unit.hasCapturedThisTurn = false;
+        unit.hasTradedThisTurn = false;
         unit.hasConstructedThisTurn = false;
         unit.hasDestroyedThisTurn = false;
         unit.hasUsedPostAttackMoveThisTurn = false;
