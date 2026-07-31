@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.104.0 - Hearthsteward split and Estate Warden
+
+Hearthsteward now grants +1 farmer capacity per Farm only, while the new Estate Warden specialist grants +1 noble capacity per Patrician House. Housing-cap calculation now applies those specialist bonuses independently per building type, so doctrine doubling still uses the correct per-building flat bonus. Regression tests cover the split housing-cap behavior and confirm Estate Warden enters the specialist offer pool.
+
 ### v0.103.1 - Spawn sickness for enemy spawns
 
 Enemy units spawned during the enemy turn now receive shared spawn action-flag initialization that enforces spawn sickness by default and only grants immediate action when the unit has the READY tag. Ember Nest Emberlings now spawn fully exhausted on their spawn turn, preventing same-turn EXPLODE actions, then correctly become available on the following enemy turn after the normal end-of-turn reset. Enemy recruitment and Ember Demon enemy-spawn paths were routed through the same helper so READY-tag behavior stays consistent across enemy spawn sites.

@@ -1523,8 +1523,10 @@ export const ABILITIES = {
   EXTINGUISH_RADIUS: 1,
   /** Attack-range bonus added to Scouts by the Farsight Marshal specialist */
   SCOUT_ATTACK_RANGE_BONUS: 1,
-  /** Extra population capacity (farmers or nobles) added by the Hearthsteward specialist */
+  /** Extra farmer capacity per Farm added by the Hearthsteward specialist */
   HOUSING_CAP_BONUS: 1,
+  /** Extra noble capacity per Patrician House added by the Estate Warden specialist */
+  NOBLE_HOUSING_CAP_BONUS: 1,
   /** Number of rows from the lava front that qualify for the Cinderborn ATK bonus */
   CINDERBORN_ROWS: 3,
   /** Flat ATK bonus granted to a unit recruited within CINDERBORN_ROWS of the lava front */
@@ -1911,7 +1913,7 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
   spec_14: {
     name: 'Hearthsteward',
     description:
-      `Each of your Farms and Patrician Houses can house ${ABILITIES.HOUSING_CAP_BONUS} extra person.`,
+      `Each of your Farms can house ${ABILITIES.HOUSING_CAP_BONUS} extra farmer.`,
     effects: [{ type: 'HOUSING_CAP_BONUS', params: { amount: ABILITIES.HOUSING_CAP_BONUS } }],
     upkeepIron: 0,
     upkeepWood: 0,
@@ -1993,6 +1995,14 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
     description:
       `Player units that took no action this turn are healed for ${ABILITIES.IDLE_HEAL_AMOUNT} HP at the end of the player turn.`,
     effects: [{ type: 'IDLE_HEAL', params: { amount: ABILITIES.IDLE_HEAL_AMOUNT } }],
+    upkeepIron: 0,
+    upkeepWood: 0,
+  },
+  spec_25: {
+    name: 'Estate Warden',
+    description:
+      `Each Patrician House houses ${ABILITIES.NOBLE_HOUSING_CAP_BONUS} extra noble.`,
+    effects: [{ type: 'NOBLE_HOUSING_CAP_BONUS', params: { amount: ABILITIES.NOBLE_HOUSING_CAP_BONUS } }],
     upkeepIron: 0,
     upkeepWood: 0,
   },

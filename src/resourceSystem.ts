@@ -63,15 +63,13 @@ export function getEffectiveHousingPopulationCap(
   state: GameState | Draft<GameState>,
   building: Building,
 ): number {
-  if (
-    building.type !== BuildingType.FARM &&
-    building.type !== BuildingType.PATRICIANHOUSE
-  ) {
+  if (building.type !== BuildingType.FARM && building.type !== BuildingType.PATRICIANHOUSE) {
     return building.populationCap;
   }
 
-  const params = getActiveEffectParams(state, 'HOUSING_CAP_BONUS');
-  const bonus = Number(params?.amount ?? 0);
+  const farmerBonus = Number(getActiveEffectParams(state, 'HOUSING_CAP_BONUS')?.amount ?? 0);
+  const nobleBonus = Number(getActiveEffectParams(state, 'NOBLE_HOUSING_CAP_BONUS')?.amount ?? 0);
+  const bonus = building.type === BuildingType.FARM ? farmerBonus : nobleBonus;
   const flatCap = building.populationCap + (Number.isFinite(bonus) ? bonus : 0);
   return isSpecialistEffectActive(state, 'POP_DOUBLING_DOCTRINE') ? flatCap * 2 : flatCap;
 }

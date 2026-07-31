@@ -251,6 +251,13 @@ describe('createMarket — slot generation', () => {
     const result = rollSpecialistId(state, []);
     expect(result).toBeNull();
   });
+
+  it('specialist slot can roll Estate Warden when it is the only eligible specialist', () => {
+    const ownedIds = Object.keys(SPECIALIST_DEFINITIONS).filter((id) => id !== 'spec_25');
+    const state = makeState({ globalSpecialistStorage: ownedIds });
+
+    expect(rollSpecialistId(state, [])).toBe('spec_25');
+  });
 });
 
 describe('markets — capture and movement rules', () => {
