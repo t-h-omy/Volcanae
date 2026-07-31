@@ -14,6 +14,7 @@ import { isTileWithinEdgeCircleRange, edgeCircleDistance } from './rangeUtils';
 import { resolveBuildingAttack, buildingToCombatant } from './combatSystem';
 import { applyTileStatus } from './tileStatusSystem';
 import type { GameEvent } from './gameEvents';
+import { applySpawnActionFlags } from './unitActions';
 
 // Adjacency offsets (orthogonal + diagonal)
 const ADJACENT_DIRS = [
@@ -383,7 +384,7 @@ export function processEmberNestSpawns(
         attackRange: unitConfig.attackRange,
       },
       tags: [...UNIT_DEFINITIONS[UnitType.EMBERLING].tags],
-      hasMovedThisTurn: true,
+      hasMovedThisTurn: false,
       hasAttackedThisTurn: false,
       hasConstructedThisTurn: false,
       hasDestroyedThisTurn: false,
@@ -397,6 +398,7 @@ export function processEmberNestSpawns(
       distractionDefPenalty: 0,
       lastMovedTurn: 0,
     };
+    applySpawnActionFlags(newUnit);
     const unitSnapshot: Unit = {
       ...newUnit,
       position: { ...newUnit.position },
@@ -420,6 +422,5 @@ export function processEmberNestSpawns(
     });
   }
 }
-
 
 

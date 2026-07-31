@@ -83,6 +83,18 @@ export function hasUnitActed(
   );
 }
 
+export function applySpawnActionFlags(unit: Unit): Unit {
+  const startsReady = unit.tags.includes(UnitTag.READY);
+  const spent = !startsReady;
+  unit.hasMovedThisTurn = spent;
+  unit.hasAttackedThisTurn = spent;
+  unit.hasCapturedThisTurn = spent;
+  unit.hasTradedThisTurn = spent;
+  unit.hasConstructedThisTurn = spent;
+  unit.hasDestroyedThisTurn = spent;
+  return unit;
+}
+
 /**
  * Returns the Y coordinate of the northernmost (lowest Y) player unit.
  * Returns undefined if there are no player units.

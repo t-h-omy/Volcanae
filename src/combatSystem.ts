@@ -18,7 +18,7 @@ import { cleanupRoostedUnits } from './buildingRemoval';
 import { getBridgeAt } from './bridgeSystem';
 import { resolveSlide } from './movementSystem';
 import { isSpecialistEffectActive } from './specialistSystem';
-import { anyAttackableEnemyTargetInRange } from './unitActions';
+import { anyAttackableEnemyTargetInRange, applySpawnActionFlags } from './unitActions';
 
 // Counter for generating unique gravestone building IDs within this module
 let combatSystemIdCounter = 0;
@@ -213,7 +213,7 @@ export function spawnEnemyEmberDemon(
   spawnPos: { x: number; y: number },
 ): void {
   const newId = generateId('unit_demon');
-  state.units[newId] = {
+  const spawnedUnit: Unit = {
     id: newId,
     type: UnitType.EMBER_DEMON,
     faction: Faction.ENEMY,
@@ -231,12 +231,12 @@ export function spawnEnemyEmberDemon(
     },
     tags: [UnitTag.LAVA],
     controllerMageId: null,
-    hasMovedThisTurn: true,
-    hasAttackedThisTurn: true,
-    hasCapturedThisTurn: true,
+    hasMovedThisTurn: false,
+    hasAttackedThisTurn: false,
+    hasCapturedThisTurn: false,
     hasTradedThisTurn: false,
-    hasConstructedThisTurn: true,
-    hasDestroyedThisTurn: true,
+    hasConstructedThisTurn: false,
+    hasDestroyedThisTurn: false,
     hasUsedPostAttackMoveThisTurn: false,
     spellsCastThisTurn: 0,
     bloodlustAttackAvailable: false,
@@ -246,6 +246,7 @@ export function spawnEnemyEmberDemon(
     lastMovedTurn: state.turn,
     distractionDefPenalty: 0,
   };
+  state.units[newId] = applySpawnActionFlags(spawnedUnit);
   state.grid[spawnPos.y][spawnPos.x].unitId = newId;
 }
 

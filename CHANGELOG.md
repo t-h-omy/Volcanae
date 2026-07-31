@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.103.1 - Spawn sickness for enemy spawns
+
+Enemy units spawned during the enemy turn now receive shared spawn action-flag initialization that enforces spawn sickness by default and only grants immediate action when the unit has the READY tag. Ember Nest Emberlings now spawn fully exhausted on their spawn turn, preventing same-turn EXPLODE actions, then correctly become available on the following enemy turn after the normal end-of-turn reset. Enemy recruitment and Ember Demon enemy-spawn paths were routed through the same helper so READY-tag behavior stays consistent across enemy spawn sites.
+
 ### v0.103.0 - Market discovery offers and cave loot exclusion
 
 Markets now keep their rolled slot counts but start with empty offer slots until the market tile is discovered; on first reveal, offers are initialized from live state so already-owned specialists are excluded. Automatic refill and manual restock now operate only on initialized discovered markets. Cave-monster specialist rewards now exclude any specialist currently offered in market specialist slots. Save migration v18 backfills MARKET offer initialization state so unrevealed markets load with hidden offers while revealed markets keep their offers.
