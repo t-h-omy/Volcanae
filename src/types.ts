@@ -635,6 +635,12 @@ export interface Building {
   /** Player turns remaining until the next empty-slot auto-refill. Only set on MARKET buildings. */
   marketRefillCountdown?: number;
   /**
+   * Whether this market's offer slots have been initialized.
+   * False/undefined means offers have not been generated yet (e.g. market not discovered).
+   * True means slots were initialized at least once and can refill/restock normally.
+   */
+  marketOffersInitialized?: boolean;
+  /**
    * Orientation of a BRIDGE building. 'EW' = east–west span (sprite default, 0° rotation);
    * 'NS' = north–south span (90° rotation). Only set on BRIDGE buildings.
    */

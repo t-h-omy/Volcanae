@@ -147,6 +147,7 @@ export function restockAllSlots(
   state: GameState | Draft<GameState>,
   market: Building | Draft<Building>,
 ): void {
+  if (market.marketOffersInitialized !== true) return;
   if (market.marketResourceSlots) {
     // Clear all slots then re-roll as if empty.
     const slots = market.marketResourceSlots as (MarketResourceOffer | null)[];
@@ -176,32 +177,24 @@ export function restockAllSlots(
 // ============================================================================
 
 /**
- * Create a new Market building at the given position with fully rolled slots.
+ * Create a new Market building at the given position with rolled slot counts,
+ * but empty offers until first discovery.
  */
 export function createMarket(
-  state: GameState | Draft<GameState> | null,
+  _state: GameState | Draft<GameState> | null,
   position: Position,
 ): Building {
   const resourceSlotCount = randInt(MARKET.RESOURCE_SLOTS_MIN, MARKET.RESOURCE_SLOTS_MAX);
   const specialistSlotCount = randInt(MARKET.SPECIALIST_SLOTS_MIN, MARKET.SPECIALIST_SLOTS_MAX);
 
-  // Roll resource slots
-  const marketResourceSlots: (MarketResourceOffer | null)[] = [];
-  const filled: MarketResourceOffer[] = [];
-  for (let i = 0; i < resourceSlotCount; i++) {
-    const offer = rollResourceOffer(filled);
-    marketResourceSlots.push(offer);
-    filled.push(offer);
-  }
-
-  // Roll specialist slots (requires state to check owned specialists)
-  const marketSpecialistSlots: (string | null)[] = [];
-  for (let i = 0; i < specialistSlotCount; i++) {
-    const slotsCopy = [...marketSpecialistSlots];
-    // Pass empty globalSpecialistStorage if no state available (map-gen entry)
-    const fakeState = state ?? ({ globalSpecialistStorage: [] } as unknown as GameState);
-    marketSpecialistSlots.push(rollSpecialistId(fakeState, slotsCopy));
-  }
+  const marketResourceSlots: (MarketResourceOffer | null)[] = Array.from(
+    { length: resourceSlotCount },
+    () => null,
+  );
+  const marketSpecialistSlots: (string | null)[] = Array.from(
+    { length: specialistSlotCount },
+    () => null,
+  );
 
   return {
     id: generateId('building'),
@@ -236,7 +229,19 @@ export function createMarket(
     marketResourceSlots,
     marketSpecialistSlots,
     marketRefillCountdown: MARKET.AUTO_REFILL_INTERVAL,
+    marketOffersInitialized: false,
   };
+}
+
+export function initializeMarketOffers(
+  state: GameState | Draft<GameState>,
+  market: Building | Draft<Building>,
+): void {
+  if (market.marketOffersInitialized === true) return;
+  fillEmptyResourceSlots(state, market);
+  fillEmptySpecialistSlots(state, market);
+  market.marketRefillCountdown = MARKET.AUTO_REFILL_INTERVAL;
+  market.marketOffersInitialized = true;
 }
 
 // ============================================================================
@@ -253,6 +258,9 @@ export function createMarket(
 export function tickMarketRefills(state: Draft<GameState>): void {
   for (const building of Object.values(state.buildings)) {
     if (building.type !== BuildingType.MARKET) continue;
+    if (building.marketOffersInitialized !== true) continue;
+    const tile = state.grid[building.position.y]?.[building.position.x];
+    if (!tile?.isRevealed) continue;
     if (building.marketRefillCountdown === undefined) continue;
 
     building.marketRefillCountdown -= 1;

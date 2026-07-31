@@ -19,12 +19,14 @@ import {
   createMarket,
   fillEmptyResourceSlots,
   fillEmptySpecialistSlots,
+  initializeMarketOffers,
   restockAllSlots,
   rollResourceOffer,
   rollSpecialistId,
   setMarketRandomSource,
   tickMarketRefills,
 } from '../marketSystem';
+import { updateDiscovery } from '../discoverySystem';
 import { canUnitTrade, getTradeMarket, getCaptureTarget } from '../unitActions';
 import { canCapture, initiateCapture } from '../captureSystem';
 import { getReachableTiles } from '../movementSystem';
@@ -138,6 +140,7 @@ function makeMarketBuilding(pos = { x: 0, y: 0 }, slotOverrides: Partial<Buildin
     marketResourceSlots: [],
     marketSpecialistSlots: [],
     marketRefillCountdown: MARKET.AUTO_REFILL_INTERVAL,
+    marketOffersInitialized: true,
     ...slotOverrides,
   };
 }
@@ -214,31 +217,21 @@ describe('createMarket — slot generation', () => {
     }
   });
 
-  it('resource offers are drawn from RESOURCE_OFFER_POOL', () => {
+  it('creates resource slots as null placeholders', () => {
     const state = makeState();
     const m = createMarket(state, { x: 0, y: 0 });
     for (const slot of m.marketResourceSlots ?? []) {
-      if (!slot) continue;
-      const poolMatch = MARKET.RESOURCE_OFFER_POOL.some(
-        (p) =>
-          p.give.currency === slot.give.currency &&
-          p.give.amount === slot.give.amount &&
-          p.gain.currency === slot.gain.currency &&
-          p.gain.amount === slot.gain.amount
-      );
-      expect(poolMatch).toBe(true);
+      expect(slot).toBeNull();
     }
   });
 
-  it('DISTINCT_RESOURCE_OFFERS: no duplicate give+gain keys when pool is large enough', () => {
-    if (!MARKET.DISTINCT_RESOURCE_OFFERS) return;
+  it('creates specialist slots as null placeholders and marks offers uninitialized', () => {
     const state = makeState();
     const m = createMarket(state, { x: 0, y: 0 });
-    const keys = (m.marketResourceSlots ?? []).filter(Boolean).map(
-      (s) => `${s!.give.currency}:${s!.give.amount}→${s!.gain.currency}:${s!.gain.amount}`
-    );
-    const unique = new Set(keys);
-    expect(unique.size).toBe(keys.length);
+    for (const slot of m.marketSpecialistSlots ?? []) {
+      expect(slot).toBeNull();
+    }
+    expect(m.marketOffersInitialized).toBe(false);
   });
 
   it('specialist slot excludes owned specialists', () => {
@@ -446,6 +439,23 @@ describe('restockAllSlots', () => {
     const returnValue = restockAllSlots(state, market);
     expect(returnValue).toBeUndefined();
   });
+
+  it('does nothing for uninitialized markets', () => {
+    const originalOffer = { give: { currency: 'WOOD' as const, amount: 6 }, gain: { currency: 'IRON' as const, amount: 3 } };
+    const market = makeMarketBuilding({ x: 0, y: 0 }, {
+      marketResourceSlots: [originalOffer, null],
+      marketSpecialistSlots: ['spec1', null],
+      marketOffersInitialized: false,
+    });
+    const state = makeState();
+
+    restockAllSlots(state, market);
+
+    expect(market.marketResourceSlots?.[0]).toBe(originalOffer);
+    expect(market.marketResourceSlots?.[1]).toBeNull();
+    expect(market.marketSpecialistSlots?.[0]).toBe('spec1');
+    expect(market.marketSpecialistSlots?.[1]).toBeNull();
+  });
 });
 
 // ============================================================================
@@ -511,6 +521,38 @@ describe('tickMarketRefills', () => {
     ).not.toThrow();
     // Countdown should NOT have changed
     expect(state.buildings[nonMarket.id].marketRefillCountdown).toBe(1);
+  });
+
+  it('does not fill unrevealed markets even when initialized', () => {
+    const market = makeMarketBuilding({ x: 2, y: 2 }, {
+      marketOffersInitialized: true,
+      marketRefillCountdown: 1,
+      marketResourceSlots: [null],
+      marketSpecialistSlots: [null],
+    });
+    const state = makeState({ buildings: [market] });
+    state.grid[2][2].isRevealed = false;
+
+    tickMarketRefills(state as unknown as Parameters<typeof tickMarketRefills>[0]);
+
+    expect(state.buildings[market.id].marketRefillCountdown).toBe(1);
+    expect(state.buildings[market.id].marketResourceSlots?.[0]).toBeNull();
+  });
+
+  it('does not fill uninitialized markets even when revealed', () => {
+    const market = makeMarketBuilding({ x: 2, y: 2 }, {
+      marketOffersInitialized: false,
+      marketRefillCountdown: 1,
+      marketResourceSlots: [null],
+      marketSpecialistSlots: [null],
+    });
+    const state = makeState({ buildings: [market] });
+    state.grid[2][2].isRevealed = true;
+
+    tickMarketRefills(state as unknown as Parameters<typeof tickMarketRefills>[0]);
+
+    expect(state.buildings[market.id].marketRefillCountdown).toBe(1);
+    expect(state.buildings[market.id].marketResourceSlots?.[0]).toBeNull();
   });
 });
 
@@ -584,6 +626,61 @@ describe('fillEmptySpecialistSlots', () => {
   });
 });
 
+describe('market offer initialization on discovery', () => {
+  it('initializeMarketOffers fills all slots, sets countdown, and excludes owned specialists', () => {
+    const ownedId = Object.keys(SPECIALIST_DEFINITIONS)[0];
+    const state = makeState({ globalSpecialistStorage: [ownedId] });
+    const market = createMarket(state, { x: 2, y: 2 });
+    market.marketRefillCountdown = 1;
+    expect(market.marketOffersInitialized).toBe(false);
+
+    initializeMarketOffers(state, market);
+
+    expect(market.marketOffersInitialized).toBe(true);
+    expect(market.marketRefillCountdown).toBe(MARKET.AUTO_REFILL_INTERVAL);
+    for (const slot of market.marketResourceSlots ?? []) {
+      expect(slot).not.toBeNull();
+    }
+    for (const slot of market.marketSpecialistSlots ?? []) {
+      expect(slot).not.toBe(ownedId);
+    }
+  });
+
+  it('updateDiscovery initializes market when tile transitions to revealed', () => {
+    const ownedId = Object.keys(SPECIALIST_DEFINITIONS)[0];
+    const unit = makeUnit({ position: { x: 1, y: 1 } });
+    const market = createMarket(null, { x: 2, y: 1 });
+    const state = makeState({ units: [unit], buildings: [market], globalSpecialistStorage: [ownedId] });
+    state.grid[market.position.y][market.position.x].isRevealed = false;
+
+    updateDiscovery(state as unknown as Parameters<typeof updateDiscovery>[0]);
+
+    const updated = state.buildings[market.id];
+    expect(updated.marketOffersInitialized).toBe(true);
+    expect(updated.marketRefillCountdown).toBe(MARKET.AUTO_REFILL_INTERVAL);
+    for (const slot of updated.marketResourceSlots ?? []) {
+      expect(slot).not.toBeNull();
+    }
+    for (const slot of updated.marketSpecialistSlots ?? []) {
+      expect(slot).not.toBe(ownedId);
+    }
+  });
+
+  it('updateDiscovery also initializes uninitialized market already on revealed tile', () => {
+    const market = createMarket(null, { x: 4, y: 4 });
+    const state = makeState({ buildings: [market] });
+    state.grid[market.position.y][market.position.x].isRevealed = true;
+
+    updateDiscovery(state as unknown as Parameters<typeof updateDiscovery>[0]);
+
+    const updated = state.buildings[market.id];
+    expect(updated.marketOffersInitialized).toBe(true);
+    for (const slot of updated.marketResourceSlots ?? []) {
+      expect(slot).not.toBeNull();
+    }
+  });
+});
+
 // ============================================================================
 // Placement (createMarket) — basic structural checks
 // ============================================================================
@@ -605,6 +702,12 @@ describe('createMarket — structure', () => {
     const state = makeState();
     const m = createMarket(state, { x: 5, y: 5 });
     expect(m.marketRefillCountdown).toBe(MARKET.AUTO_REFILL_INTERVAL);
+  });
+
+  it('starts with marketOffersInitialized false', () => {
+    const state = makeState();
+    const m = createMarket(state, { x: 5, y: 5 });
+    expect(m.marketOffersInitialized).toBe(false);
   });
 
   it('destroyBehavior is NONE', () => {

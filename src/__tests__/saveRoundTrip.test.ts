@@ -15,6 +15,8 @@ import { IDBFactory } from 'fake-indexeddb';
 import { generateInitialGameState } from '../mapGenerator';
 import { saveSlot, saveSlotStrict, loadSlot, listSlots, saveSeenHintsForSlot } from '../saveSystem';
 import { ALL_HINT_IDS } from '../hintConfig';
+import { BuildingType, DestroyBehavior } from '../types';
+import { MARKET } from '../gameConfig';
 import type { GameState } from '../types';
 
 beforeEach(() => {
@@ -114,5 +116,142 @@ describe('saveSlot round-trip', () => {
     for (const id of ALL_HINT_IDS) {
       expect(loaded?.seenHints).toContain(id);
     }
+  });
+
+  it('migrates v17 unrevealed filled market to hidden offers + uninitialized flag', async () => {
+    const state = generateInitialGameState() as GameState;
+    const marketId = 'm_v17_hidden';
+    state.buildings[marketId] = {
+      id: marketId,
+      type: BuildingType.MARKET,
+      faction: null,
+      position: { x: 0, y: 0 },
+      hp: MARKET.MAX_HP,
+      maxHp: MARKET.MAX_HP,
+      specialistSlot: null,
+      isDisabledForTurns: 0,
+      wasAttackedLastEnemyTurn: false,
+      captureProgress: 0,
+      isBeingCapturedBy: null,
+      lavaBoostEnabled: false,
+      discoverRadius: 2,
+      turnCapturedByPlayer: null,
+      wasEnemyOwnedBeforeCapture: false,
+      combatStats: null,
+      hasAttackedThisTurn: false,
+      tags: [],
+      consumesUnitOnCapture: false,
+      populationCount: 0,
+      populationCap: 0,
+      populationGrowthCounter: 0,
+      strongholdNobles: 0,
+      emberSpawnCounter: 0,
+      recruitmentQueue: null,
+      destroyBehavior: DestroyBehavior.NONE,
+      resonanceTurnsRemaining: 0,
+      spawnCooldownRemaining: 0,
+      lastRecruitmentTurn: 0,
+      marketResourceSlots: [{ give: { currency: 'WOOD', amount: 2 }, gain: { currency: 'IRON', amount: 1 } }],
+      marketSpecialistSlots: ['spec_01'],
+      marketRefillCountdown: MARKET.AUTO_REFILL_INTERVAL,
+    };
+    state.grid[0][0].buildingId = marketId;
+    state.grid[0][0].isRevealed = false;
+
+    const idb = globalThis.indexedDB;
+    const dbReq = idb.open('volcanae', 1);
+    await new Promise<void>((resolve, reject) => {
+      dbReq.onupgradeneeded = () => {
+        const db = dbReq.result;
+        if (!db.objectStoreNames.contains('saveMeta')) db.createObjectStore('saveMeta', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('saveData')) db.createObjectStore('saveData', { keyPath: 'id' });
+      };
+      dbReq.onsuccess = () => resolve();
+      dbReq.onerror = () => reject(dbReq.error);
+    });
+    const db = dbReq.result;
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(['saveMeta', 'saveData'], 'readwrite');
+      tx.objectStore('saveMeta').put({ id: 'slot_v17_hidden_market', version: 17, turn: 1, savedAt: Date.now(), name: 'OldGame', difficulty: 'STANDARD' });
+      tx.objectStore('saveData').put({ id: 'slot_v17_hidden_market', version: 17, state });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+
+    const loaded = await loadSlot('slot_v17_hidden_market');
+    expect(loaded).not.toBeNull();
+    const migrated = loaded!.buildings[marketId];
+    expect(migrated.marketOffersInitialized).toBe(false);
+    expect(migrated.marketResourceSlots?.every((s) => s === null)).toBe(true);
+    expect(migrated.marketSpecialistSlots?.every((s) => s === null)).toBe(true);
+  });
+
+  it('migrates v17 revealed filled market to initialized while preserving offers', async () => {
+    const state = generateInitialGameState() as GameState;
+    const marketId = 'm_v17_revealed';
+    const originalResourceOffer = { give: { currency: 'WOOD' as const, amount: 2 }, gain: { currency: 'IRON' as const, amount: 1 } };
+    state.buildings[marketId] = {
+      id: marketId,
+      type: BuildingType.MARKET,
+      faction: null,
+      position: { x: 1, y: 0 },
+      hp: MARKET.MAX_HP,
+      maxHp: MARKET.MAX_HP,
+      specialistSlot: null,
+      isDisabledForTurns: 0,
+      wasAttackedLastEnemyTurn: false,
+      captureProgress: 0,
+      isBeingCapturedBy: null,
+      lavaBoostEnabled: false,
+      discoverRadius: 2,
+      turnCapturedByPlayer: null,
+      wasEnemyOwnedBeforeCapture: false,
+      combatStats: null,
+      hasAttackedThisTurn: false,
+      tags: [],
+      consumesUnitOnCapture: false,
+      populationCount: 0,
+      populationCap: 0,
+      populationGrowthCounter: 0,
+      strongholdNobles: 0,
+      emberSpawnCounter: 0,
+      recruitmentQueue: null,
+      destroyBehavior: DestroyBehavior.NONE,
+      resonanceTurnsRemaining: 0,
+      spawnCooldownRemaining: 0,
+      lastRecruitmentTurn: 0,
+      marketResourceSlots: [originalResourceOffer],
+      marketSpecialistSlots: ['spec_02'],
+      marketRefillCountdown: MARKET.AUTO_REFILL_INTERVAL,
+    };
+    state.grid[0][1].buildingId = marketId;
+    state.grid[0][1].isRevealed = true;
+
+    const idb = globalThis.indexedDB;
+    const dbReq = idb.open('volcanae', 1);
+    await new Promise<void>((resolve, reject) => {
+      dbReq.onupgradeneeded = () => {
+        const db = dbReq.result;
+        if (!db.objectStoreNames.contains('saveMeta')) db.createObjectStore('saveMeta', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('saveData')) db.createObjectStore('saveData', { keyPath: 'id' });
+      };
+      dbReq.onsuccess = () => resolve();
+      dbReq.onerror = () => reject(dbReq.error);
+    });
+    const db = dbReq.result;
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(['saveMeta', 'saveData'], 'readwrite');
+      tx.objectStore('saveMeta').put({ id: 'slot_v17_revealed_market', version: 17, turn: 1, savedAt: Date.now(), name: 'OldGame', difficulty: 'STANDARD' });
+      tx.objectStore('saveData').put({ id: 'slot_v17_revealed_market', version: 17, state });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+
+    const loaded = await loadSlot('slot_v17_revealed_market');
+    expect(loaded).not.toBeNull();
+    const migrated = loaded!.buildings[marketId];
+    expect(migrated.marketOffersInitialized).toBe(true);
+    expect(migrated.marketResourceSlots?.[0]).toEqual(originalResourceOffer);
+    expect(migrated.marketSpecialistSlots?.[0]).toBe('spec_02');
   });
 });

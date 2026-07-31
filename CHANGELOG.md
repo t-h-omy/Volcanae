@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.103.0 - Market discovery offers and cave loot exclusion
+
+Markets now keep their rolled slot counts but start with empty offer slots until the market tile is discovered; on first reveal, offers are initialized from live state so already-owned specialists are excluded. Automatic refill and manual restock now operate only on initialized discovered markets. Cave-monster specialist rewards now exclude any specialist currently offered in market specialist slots. Save migration v18 backfills MARKET offer initialization state so unrevealed markets load with hidden offers while revealed markets keep their offers.
+
 ### v0.102.0 - Riftworm dig-in restrictions
 
 Riftworms can no longer start a tunnel from a tile occupied by a building, a ruin, a stronghold ruin, FOREST terrain or MOUNTAIN terrain. Movement onto those tiles is unaffected: only the dig-in action is blocked. The implementation splits `isTileValidForTunnel` in `tunnelSystem.ts` into a lax restore helper (`isTileValidForRestore`, used when placing an aborted worm back on the map) and the strict dig-in check (`isTileValidForTunnel`, which adds ruin, FOREST and MOUNTAIN blocks on top of the restore check). `isTileFreeForUnit` (used by `_abortTunnel`) now delegates to the lax helper, so abort-restore correctly places worms back on FOREST, MOUNTAIN and ruin tiles. The redundant FOREST and MOUNTAIN checks inside `isTileValidForEmergence` are removed since they are already covered by the updated `isTileValidForTunnel`. New tests in `src/__tests__/tunnelDigIn.test.ts` cover: dig-in rejected on FOREST, MOUNTAIN, ruin and building tiles; abort restore onto a FOREST start tile; and regression guards confirming emergence still refuses FOREST and MOUNTAIN targets.
