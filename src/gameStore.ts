@@ -2383,6 +2383,7 @@ export const useGameStore = create<GameStore>()(
               if (
                 b.faction === Faction.PLAYER &&
                 b.type === BuildingType.CRYSTAL_CHAMBER &&
+                b.isDisabledForTurns <= 0 &&
                 b.resonanceTurnsRemaining > 0 &&
                 b.resonanceCrystalBonus
               ) {

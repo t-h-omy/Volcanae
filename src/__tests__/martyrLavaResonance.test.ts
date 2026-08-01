@@ -339,4 +339,33 @@ describe('SP-16m The Martyr (spec_16) — RESONANCE_ON_UNIT_LAVA_DEATH', () => {
       CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN + ABILITIES.RESONANCE_BONUS_CRYSTALS,
     );
   });
+
+  it('does not grant Echo Warden bonus crystals from disabled Crystal Chambers', () => {
+    const state = makeState({
+      withMartyr: false,
+      doomedPlayerUnitPositions: [],
+    });
+    state.globalSpecialistStorage = ['spec_18'];
+    state.arcaneCrystals = 0;
+    state.buildings.surviving_chamber.resonanceTurnsRemaining = 2;
+    state.buildings.surviving_chamber.resonanceCrystalBonus = true;
+    state.buildings.surviving_chamber.isDisabledForTurns = 1;
+    const stronghold = makeBuilding(
+      'player_stronghold_disabled_bonus',
+      BuildingType.STRONGHOLD,
+      Faction.PLAYER,
+      { x: 3, y: 11 },
+    );
+    state.buildings[stronghold.id] = stronghold;
+    state.grid[stronghold.position.y][stronghold.position.x].buildingId = stronghold.id;
+    state.phase = GamePhase.PLAYER_TURN;
+    state.difficulty = Difficulty.STANDARD;
+    state.turnsUntilLavaAdvance = 5;
+
+    useGameStore.setState(state);
+    useGameStore.getState().endPlayerTurn();
+    const next = useGameStore.getState();
+
+    expect(next.arcaneCrystals).toBe(0);
+  });
 });

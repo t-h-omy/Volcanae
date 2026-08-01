@@ -5,8 +5,8 @@
 
 import type { GameState, Building, Position, Tile, UnitPopulationCost } from './types';
 import type { Draft } from 'immer';
-import { Faction, BuildingType, UnitType, UnitTag, ResourceType } from './types';
-import { RESOURCES, ABILITIES, UNIT_DEFINITIONS, POPULATION, CRYSTAL_CHAMBER_CONFIG, BUILDING_DEFINITIONS, TECH_TREE } from './gameConfig';
+import { Faction, BuildingType, UnitType, UnitTag, ResourceType, TechFlag } from './types';
+import { RESOURCES, ABILITIES, UNIT_DEFINITIONS, POPULATION, CRYSTAL_CHAMBER_CONFIG, BUILDING_DEFINITIONS, TECH_TREE, MAGE } from './gameConfig';
 import type { UnitCost } from './gameConfig';
 import { getGrantedTags, getStatMods, getBuildingProductionMods, getFlatIncomeMods, grantArcaneCrystals, getStrongholdEffectiveCap, getRemovedTags, getCostMods } from './techSystem';
 import { getTagsFromActiveSpecialists, isSpecialistEffectActive, getTagsFromActiveSpecialistsForSourceTag, getActiveEffectParams } from './specialistSystem';
@@ -725,26 +725,60 @@ export function computeBuildingUpkeep(
 
 /**
  * Returns the number of arcane crystals that would be granted this turn from
- * all currently resonating player-owned Crystal Chambers.
- * Matches the logic in collectResources so UI numbers always match gameplay.
+ * all current crystal income sources:
+ * - resonating player-owned Crystal Chambers (deterministic base)
+ * - Echo Warden resonance bonus (deterministic specialist bonus)
+ * - Grave Harvest per-gravestone tech bonus (fractional expected value)
+ * Matches gameplay expected value logic so UI numbers always match end-of-turn outcomes.
  */
 export function computeCrystalIncomePerTurn(
   state: GameState | Draft<GameState>,
-): { crystalsPerTurn: number; resonatingChambers: number } {
+): {
+  crystalsPerTurn: number;
+  resonatingChambers: number;
+  echoWardenBonus: number;
+  echoWardenChambers: number;
+  graveHarvestExpected: number;
+  gravestoneCount: number;
+} {
   let resonatingChambers = 0;
+  let echoWardenChambers = 0;
+  let gravestoneCount = 0;
+
+  const echoWardenActive = isSpecialistEffectActive(state, 'RESONANCE_CRYSTAL_BONUS');
+  const graveHarvestActive = state.techFlags.includes(TechFlag.GRAVE_HARVEST);
+
   for (const building of Object.values(state.buildings)) {
-    if (
-      building.faction === Faction.PLAYER &&
-      building.type === BuildingType.CRYSTAL_CHAMBER &&
-      building.isDisabledForTurns <= 0 &&
-      building.resonanceTurnsRemaining > 0
-    ) {
-      resonatingChambers++;
+    if (building.faction !== Faction.PLAYER) continue;
+
+    if (building.type === BuildingType.CRYSTAL_CHAMBER) {
+      const isResonatingAndActive = building.isDisabledForTurns <= 0 && building.resonanceTurnsRemaining > 0;
+      if (isResonatingAndActive) {
+        resonatingChambers++;
+      }
+      if (
+        echoWardenActive &&
+        isResonatingAndActive &&
+        building.resonanceCrystalBonus
+      ) {
+        echoWardenChambers++;
+      }
+    } else if (graveHarvestActive && building.type === BuildingType.GRAVESTONE) {
+      gravestoneCount++;
     }
   }
+
+  const baseCrystals = resonatingChambers * CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN;
+  const echoWardenBonus = echoWardenChambers * ABILITIES.RESONANCE_BONUS_CRYSTALS;
+  const graveHarvestExpected = gravestoneCount * (MAGE.GRAVE_HARVEST_CRYSTAL_CHANCE / 100);
+
   return {
-    crystalsPerTurn: resonatingChambers * CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN,
+    crystalsPerTurn: baseCrystals + echoWardenBonus + graveHarvestExpected,
     resonatingChambers,
+    echoWardenBonus,
+    echoWardenChambers,
+    graveHarvestExpected,
+    gravestoneCount,
   };
 }
 
