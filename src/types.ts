@@ -490,6 +490,11 @@ export interface Unit {
    * Used to apply the exhausted visual filter to freshly recruited units.
    */
   recruitedOnTurn?: number;
+  /**
+   * Latches true the first time this BERSERK unit's HP ratio drops below the
+   * activation threshold. Once true, it remains true for the unit's lifetime.
+   */
+  berserkActivated?: boolean;
 
   /** Current tunnel state for units with TUNNEL tag. */
   tunnelState?: 'IDLE' | 'DIGGING_IN' | 'UNDERGROUND' | 'EMERGING' | null;

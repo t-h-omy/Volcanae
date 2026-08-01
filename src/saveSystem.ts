@@ -9,7 +9,7 @@
 
 import type { GameState } from './types';
 import { UnitType, UnitTag, BuildingType, TileStatus } from './types';
-import { TECH_TREE, POPULATION, SPECIALIST_DEFINITIONS, SAVE } from './gameConfig';
+import { TECH_TREE, POPULATION, SPECIALIST_DEFINITIONS, SAVE, ABILITIES } from './gameConfig';
 import { ALL_HINT_IDS } from './hintConfig';
 import type { Difficulty } from './types';
 
@@ -18,7 +18,7 @@ import type { Difficulty } from './types';
 // ============================================================================
 
 /** Increment this whenever the serialized shape changes incompatibly. */
-export const SAVE_VERSION = 18;
+export const SAVE_VERSION = 19;
 
 // ============================================================================
 // TYPES
@@ -424,6 +424,23 @@ function migrateState(parsed: { version: number; state: GameState }): GameState 
           continue;
         }
         b.marketOffersInitialized = true;
+      }
+    }
+
+    // Migration v18 → v19: backfill BERSERK latch state.
+    if (parsed.version < 19 && s.units && typeof s.units === 'object') {
+      const threshold = ABILITIES.BERSERK_HP_THRESHOLD_PCT / 100;
+      for (const unit of Object.values(s.units) as Array<unknown>) {
+        const u = unit as Record<string, unknown>;
+        if (!u || !Array.isArray(u.tags) || typeof u.stats !== 'object' || u.stats === null) continue;
+        if ((u.tags as string[]).includes(UnitTag.BERSERK)) {
+          const stats = u.stats as Record<string, unknown>;
+          const currentHp = typeof stats.currentHp === 'number' ? stats.currentHp : 0;
+          const maxHp = typeof stats.maxHp === 'number' ? stats.maxHp : 0;
+          u.berserkActivated = maxHp > 0 ? (currentHp / maxHp) < threshold : false;
+        } else {
+          u.berserkActivated = false;
+        }
       }
     }
 

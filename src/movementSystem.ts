@@ -12,6 +12,7 @@ import { useFloaterStore } from './floaterStore';
 import { cleanupRoostedUnits } from './buildingRemoval';
 import { getBridgeAt, canTraverseEdge } from './bridgeSystem';
 import type { GameEvent } from './gameEvents';
+import { updateBerserkLatch } from './combatSystem';
 
 // ============================================================================
 // MOVEMENT CALCULATIONS
@@ -345,6 +346,7 @@ export function checkScoutTrapTrigger(
 
   // Deal damage to the triggering unit.
   unit.stats.currentHp -= damage;
+  updateBerserkLatch(unit);
 
   if (events) {
     events.push({

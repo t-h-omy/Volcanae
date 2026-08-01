@@ -21,7 +21,7 @@ import { generateId } from './mapGenerator';
 import { useFloaterStore } from './floaterStore';
 import { useCombatAnimationStore } from './combatAnimationStore';
 import { isStatusAllowedOnTerrain, applyTileStatus } from './tileStatusSystem';
-import { shouldLeaveGravestone, createGravestoneAt } from './combatSystem';
+import { shouldLeaveGravestone, createGravestoneAt, updateBerserkLatch } from './combatSystem';
 import { applyTagStatEffects } from './techSystem';
 import { cleanupRoostedUnits } from './buildingRemoval';
 import { getTagsFromActiveSpecialistsForSourceTag } from './specialistSystem';
@@ -947,6 +947,7 @@ function handleExplode(
     if (!adjUnit || adjUnit.faction !== Faction.ENEMY) continue;
 
     adjUnit.stats.currentHp -= dmg;
+    updateBerserkLatch(adjUnit);
     // Damage floater for each hit enemy
     useFloaterStore.getState().addFloater({
       value: dmg,
@@ -1000,6 +1001,7 @@ function handleRupture(
 
   const dmg = Math.floor(target.stats.currentHp * MAGE.RUPTURE_PERCENT);
   target.stats.currentHp = Math.max(1, target.stats.currentHp - dmg);
+  updateBerserkLatch(target);
 
   useFloaterStore.getState().addFloater({
     value: dmg,

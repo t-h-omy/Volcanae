@@ -7,7 +7,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { current, produce, type Draft } from 'immer';
 import { generateInitialGameState, generateId } from './mapGenerator';
-import { resolveAttack, resolveBuildingAttack, resolveAttackOnBuilding, resolveBuildingAttackOnBuilding, handleBrandmarkedUnitDeath, shouldLeaveGravestone, createGravestoneAt, findEmberDemonSpawnPos, spawnEnemyEmberDemon, detectBrandmarkSpawnPos } from './combatSystem';
+import { resolveAttack, resolveBuildingAttack, resolveAttackOnBuilding, resolveBuildingAttackOnBuilding, handleBrandmarkedUnitDeath, shouldLeaveGravestone, createGravestoneAt, findEmberDemonSpawnPos, spawnEnemyEmberDemon, detectBrandmarkSpawnPos, updateBerserkLatch } from './combatSystem';
 import { moveUnit as moveUnitLogic } from './movementSystem';
 import {
   initiateCapture as initiateCaptureLogic,
@@ -2215,6 +2215,7 @@ export const useGameStore = create<GameStore>()(
               if (shouldBeHomeless) {
                 const damage = Math.min(POPULATION.HOMELESS_HP_LOSS_PER_TURN, unit.stats.currentHp);
                 unit.stats.currentHp -= damage;
+                updateBerserkLatch(unit);
                 if (damage > 0) {
                   tagDamageEvents.push({
                     type: 'TILE_DAMAGE',
@@ -2282,6 +2283,7 @@ export const useGameStore = create<GameStore>()(
             if (!unit.tags.includes(UnitTag.BRANDMARKED)) continue;
             const damage = Math.min(MAGE.BRANDMARK_HP_LOSS_PER_TURN, unit.stats.currentHp);
             unit.stats.currentHp -= damage;
+            updateBerserkLatch(unit);
             if (damage > 0) {
               tagDamageEvents.push({
                 type: 'TILE_DAMAGE',
@@ -2346,6 +2348,9 @@ export const useGameStore = create<GameStore>()(
           }
 
           // Reset all player units for new turn
+          for (const unit of Object.values(draft.units)) {
+            updateBerserkLatch(unit);
+          }
           for (const unit of Object.values(draft.units)) {
             if (unit.faction === Faction.PLAYER) {
               unit.hasMovedThisTurn = false;
@@ -2550,9 +2555,11 @@ export const useGameStore = create<GameStore>()(
 
             if (defender && event.defenderHpLost > 0) {
               defender.stats.currentHp -= event.defenderHpLost;
+              updateBerserkLatch(defender);
             }
             if (attacker && event.attackerHpLost > 0) {
               attacker.stats.currentHp -= event.attackerHpLost;
+              updateBerserkLatch(attacker);
             }
 
             // Apply melee advance in display state so that subsequent ENEMY_MOVE events
@@ -2625,9 +2632,11 @@ export const useGameStore = create<GameStore>()(
 
             if (defender && event.defenderHpLost > 0) {
               defender.stats.currentHp -= event.defenderHpLost;
+              updateBerserkLatch(defender);
             }
             if (attacker && event.attackerHpLost > 0) {
               attacker.stats.currentHp -= event.attackerHpLost;
+              updateBerserkLatch(attacker);
             }
 
             // Mark attacker as having attacked so the UI shows it as exhausted
@@ -2780,6 +2789,7 @@ export const useGameStore = create<GameStore>()(
 
             if (defender && event.defenderHpLost > 0) {
               defender.stats.currentHp -= event.defenderHpLost;
+              updateBerserkLatch(defender);
             }
             if (building && event.buildingHpLost > 0) {
               building.hp -= event.buildingHpLost;
@@ -2868,6 +2878,7 @@ export const useGameStore = create<GameStore>()(
 
             if (attacker && event.attackerHpLost > 0) {
               attacker.stats.currentHp -= event.attackerHpLost;
+              updateBerserkLatch(attacker);
             }
             if (building && event.buildingHpLost > 0) {
               const newHp = building.hp - event.buildingHpLost;
@@ -3080,6 +3091,7 @@ export const useGameStore = create<GameStore>()(
               const target = state.units[targetId];
               if (target) {
                 target.stats.currentHp -= event.damagePerUnit;
+                updateBerserkLatch(target);
                 // If unit dies, it will be handled by the subsequent UNIT_DEATH event
               }
             }
@@ -3250,6 +3262,7 @@ export const useGameStore = create<GameStore>()(
             const splashTarget = state.units[event.unitId];
             if (splashTarget) {
               splashTarget.stats.currentHp = Math.max(0, splashTarget.stats.currentHp - event.amount);
+              updateBerserkLatch(splashTarget);
             }
             useFloaterStore.getState().addFloater({
               value: event.amount,
@@ -3264,6 +3277,7 @@ export const useGameStore = create<GameStore>()(
             const cleaveTarget = state.units[event.unitId];
             if (cleaveTarget) {
               cleaveTarget.stats.currentHp = Math.max(0, cleaveTarget.stats.currentHp - event.amount);
+              updateBerserkLatch(cleaveTarget);
             }
             useFloaterStore.getState().addFloater({
               value: event.amount,
@@ -3279,6 +3293,7 @@ export const useGameStore = create<GameStore>()(
               const pierceTarget = state.units[event.unitId];
               if (pierceTarget) {
                 pierceTarget.stats.currentHp = Math.max(0, pierceTarget.stats.currentHp - event.amount);
+                updateBerserkLatch(pierceTarget);
               }
             } else if (event.buildingId) {
               const pierceBuilding = state.buildings[event.buildingId];
@@ -3347,6 +3362,7 @@ export const useGameStore = create<GameStore>()(
                 const aoeTarget = state.units[aoeTargetTile.unitId];
                 if (aoeTarget && aoeTarget.faction === Faction.PLAYER) {
                   aoeTarget.stats.currentHp = Math.max(0, aoeTarget.stats.currentHp - TUNNEL_EMERGE_DAMAGE);
+                  updateBerserkLatch(aoeTarget);
                   addFloater({
                     value: TUNNEL_EMERGE_DAMAGE,
                     x: pos.x,

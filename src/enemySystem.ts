@@ -8,7 +8,7 @@ import type { Draft } from 'immer';
 import { current, produce } from 'immer';
 import { Faction, UnitType, UnitTag, BuildingType, TileType, TileStatus } from './types';
 import { UNIT_DEFINITIONS, ENEMY, MAP, TERRAIN, AI_SCORING, AI_RECRUITMENT, XP, DIFFICULTY_MULTIPLIER, SANCTUM_COLLAPSE, ABILITIES, COUNTER_UNIT_SCORING, PUNCTURE_STUN_BASE_DEF_THRESHOLD, EMBER_PORTAL_BASE_USE_SCORE, EMBER_PORTAL_DISTANCE_PENALTY, EMBER_PORTAL_MAX_USERS_PER_TURN } from './gameConfig';
-import { resolveAttack, calculateCombat, resolveBuildingAttack, buildingToCombatant, calculateCombatFromStats, unitToCombatant, resolveAttackOnBuilding, detectBrandmarkSpawnPos } from './combatSystem';
+import { resolveAttack, calculateCombat, resolveBuildingAttack, buildingToCombatant, calculateCombatFromStats, unitToCombatant, resolveAttackOnBuilding, detectBrandmarkSpawnPos, updateBerserkLatch } from './combatSystem';
 import { isTileWithinEdgeCircleRange, edgeCircleDistance } from './rangeUtils';
 import { initiateCapture, canCapture } from './captureSystem';
 import { corruptTerrain, processMagmaSpyrAttacks, processEmberNestSpawns } from './corruptionSystem';
@@ -1130,6 +1130,7 @@ function triggerPreventiveStrike(
       }
     } else {
       enemyUnit.stats.currentHp = newDefenderHp;
+      updateBerserkLatch(enemyUnit);
     }
 
     // Note: Preventive Strike does NOT consume the siege unit's attack action.
@@ -1256,6 +1257,7 @@ function triggerGarrisonOverwatch(
       }
     } else {
       enemyUnit.stats.currentHp = newDefenderHp;
+      updateBerserkLatch(enemyUnit);
     }
 
     // Mark this building as having fired during the current enemy turn.
@@ -1585,6 +1587,7 @@ export function resolveExplosion(
     if (!target) continue;
 
     target.stats.currentHp -= explosionDamage;
+    updateBerserkLatch(target);
     damagedUnitIds.push(targetId);
     // Track damage received by player
     state.gameStats.damageReceived += explosionDamage;
@@ -3337,6 +3340,9 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
     spawnEnemyUnits(draft, events);
 
     // 4. Reset enemy unit action flags for next turn
+    for (const unit of Object.values(draft.units)) {
+      updateBerserkLatch(unit);
+    }
     for (const unit of Object.values(draft.units)) {
       if (unit.faction === Faction.ENEMY) {
         unit.hasMovedThisTurn = false;

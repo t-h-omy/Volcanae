@@ -15,8 +15,8 @@ import { IDBFactory } from 'fake-indexeddb';
 import { generateInitialGameState } from '../mapGenerator';
 import { saveSlot, saveSlotStrict, loadSlot, listSlots, saveSeenHintsForSlot } from '../saveSystem';
 import { ALL_HINT_IDS } from '../hintConfig';
-import { BuildingType, DestroyBehavior } from '../types';
-import { MARKET } from '../gameConfig';
+import { BuildingType, DestroyBehavior, UnitTag } from '../types';
+import { ABILITIES, MARKET } from '../gameConfig';
 import type { GameState } from '../types';
 
 beforeEach(() => {
@@ -283,5 +283,41 @@ describe('saveSlot round-trip', () => {
     const loaded = await loadSlot('slot_v18_trap');
     expect(loaded).not.toBeNull();
     expect(loaded!.pendingTrapSetterId).toBeNull();
+  });
+
+  it('migrates v18 save to backfill berserkActivated from current HP ratio', async () => {
+    const state = generateInitialGameState() as GameState & Record<string, unknown>;
+    const unitId = Object.keys(state.units)[0];
+    if (!unitId) throw new Error('Expected at least one unit in initial state');
+    const unit = state.units[unitId];
+    unit.tags = [...unit.tags, UnitTag.BERSERK];
+    const thresholdHp = unit.stats.maxHp * ABILITIES.BERSERK_HP_THRESHOLD_PCT / 100;
+    unit.stats.currentHp = thresholdHp - 1;
+    delete (unit as unknown as Record<string, unknown>).berserkActivated;
+
+    const idb = globalThis.indexedDB;
+    const dbReq = idb.open('volcanae', 1);
+    await new Promise<void>((resolve, reject) => {
+      dbReq.onupgradeneeded = () => {
+        const db = dbReq.result;
+        if (!db.objectStoreNames.contains('saveMeta')) db.createObjectStore('saveMeta', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('saveData')) db.createObjectStore('saveData', { keyPath: 'id' });
+      };
+      dbReq.onsuccess = () => resolve();
+      dbReq.onerror = () => reject(dbReq.error);
+    });
+    const db = dbReq.result;
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(['saveMeta', 'saveData'], 'readwrite');
+      tx.objectStore('saveMeta').put({ id: 'slot_v18_berserk', version: 18, turn: 1, savedAt: Date.now(), name: 'OldGame', difficulty: 'STANDARD' });
+      tx.objectStore('saveData').put({ id: 'slot_v18_berserk', version: 18, state });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+
+    const loaded = await loadSlot('slot_v18_berserk');
+    expect(loaded).not.toBeNull();
+    const loadedUnit = loaded!.units[unitId];
+    expect(loadedUnit.berserkActivated).toBe(true);
   });
 });

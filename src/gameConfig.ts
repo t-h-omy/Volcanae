@@ -1963,7 +1963,7 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
   spec_20: {
     name: 'Last Stand',
     description:
-      `Your Archers gain the BERSERK tag: when HP drops below ${ABILITIES.BERSERK_HP_THRESHOLD_PCT}%, they gain +${ABILITIES.BERSERK_ATTACK_PCT}% ATK.`,
+      `Your Archers gain the BERSERK tag: when HP drops below ${ABILITIES.BERSERK_HP_THRESHOLD_PCT}%, they gain +${ABILITIES.BERSERK_ATTACK_PCT}% ATK. Once triggered, it stays active even if HP recovers.`,
     effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.ARCHER, tag: UnitTag.BERSERK } }],
     upkeepIron: 0,
     upkeepWood: 0,
@@ -2716,7 +2716,7 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   // ── SP-00 specialist-scaffolded tags ───────────────────────────────────────
   [UnitTag.KNOCKBACK]:    { label: 'Knockback',    desc: 'On hit, pushes the target one tile away. Lava kills any pushed unit. Non-flying units die if pushed into a canyon or water tile. Pushing onto a frozen tile causes an ice-slide. Units and occupied buildings block the push (no bonus damage). FLYING units can still be pushed but survive canyons and water.' },
   [UnitTag.CINDERBORN]:   { label: 'Cinderborn',   desc: `Recruited within ${ABILITIES.CINDERBORN_ROWS} rows of the lava front. Gains +${ABILITIES.CINDERBORN_ATTACK_BONUS} ATK and immunity to BURNING tile damage.` },
-  [UnitTag.BERSERK]:      { label: 'Berserk',      desc: `When HP drops below ${ABILITIES.BERSERK_HP_THRESHOLD_PCT}%, gains +${ABILITIES.BERSERK_ATTACK_PCT}% ATK.` },
+  [UnitTag.BERSERK]:      { label: 'Berserk',      desc: `When HP drops below ${ABILITIES.BERSERK_HP_THRESHOLD_PCT}%, gains +${ABILITIES.BERSERK_ATTACK_PCT}% ATK. Once triggered, stays active even if HP recovers.` },
   [UnitTag.BATTERY]:      { label: 'Battery',      desc: `Gains +${ABILITIES.SIEGE_BATTERY_ATK_PER_ADJACENT} ATK per adjacent friendly unit, up to ${ABILITIES.SIEGE_BATTERY_CAP} stacks.` },
 };
 

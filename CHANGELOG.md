@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.106.8 - Berserk stays active once triggered
+
+BERSERK now latches permanently per unit after first activation: once a BERSERK unit drops below the HP threshold, the bonus remains active even if the unit later heals above the threshold. Added a persisted `berserkActivated` unit field with v19 save migration backfill, updated combat and damage paths to set the latch when HP is reduced, and added end-of-turn safety sweeps plus regression coverage for combat-triggered latch, heal-after-trigger persistence, and v18 migration behavior.
+
 ### v0.106.7 - READY recruits render as actionable
 
 READY-tagged same-turn recruits now use unified exhausted-display logic and no longer render with the toned-down exhausted filter when they can still act (including Drill Sergeant Spearmen and Swordsmen). The exhausted visual decision is now centralized in `isUnitDisplayExhausted` and consumed reactively by the grid unit renderer, with focused regression coverage for READY/non-READY recruit paths, moved-no-targets and attacked exhaustion, and fresh READY gargoyle spawns.
