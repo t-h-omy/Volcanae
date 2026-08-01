@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.106.6 - Grave Trap requires an empty gravestone tile
+
+Grave Trap now follows the same empty-tile rule as Raise Skeleton: occupied Gravestones are excluded from valid spell targets, casts on them are rejected, and invalid taps show the "Occupied" reason. Empty Gravestones in range remain valid targets. The Grave Trap spell description now explicitly says the Gravestone tile must be empty.
+
 ### v0.106.5 - Trap triggers animate in sequence
 
 When an enemy walks into a Grave Trap or Scout Trap during the enemy turn, the stun/damage floaters now appear after the unit's move animation instead of before it. `checkGraveTrapTrigger` and `checkScoutTrapTrigger` in `movementSystem.ts` accept an optional `events?: GameEvent[]` parameter. On the enemy path (events provided), presentation is emitted as discrete events — `STUN_APPLIED` per stunned unit, `TILE_DAMAGE` (damageSource: `'TRAP'`) for Scout Trap damage, and a new `TRAP_TRIGGERED` event (buildingId + position) that removes the consumed building from the live display state during animation replay. The `STUN_APPLIED` applyEvent handler in `gameStore.ts` now emits the "💫 Stunned" floater so both paths render identically. The `TILE_DAMAGE` applyEvent handler uses the unit's faction for the floater colour so enemy trap victims get the correct orange tint. `TRAP_TRIGGERED` is treated as a fast, non-blocking event in the animation engine. The player path (no events array) is unchanged.

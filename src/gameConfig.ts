@@ -276,7 +276,7 @@ export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
     id: SpellId.GRAVE_TRAP,
     name: 'Grave Trap',
     emoji: '☠️',
-    description: `Convert a Gravestone within range into a magical trap. The next enemy unit to step onto it is stunned for ${MAGE.GRAVE_TRAP_STUN_TURNS} turns, and all enemies within 1 tile are stunned as well.`,
+    description: `Convert an empty Gravestone within range into a magical trap. The next enemy unit to step onto it is stunned for ${MAGE.GRAVE_TRAP_STUN_TURNS} turns, and all enemies within 1 tile are stunned as well.`,
     targetHint: 'Select a player Gravestone within range.',
   },
   [SpellId.EXPLODE]: {

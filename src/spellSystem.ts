@@ -235,6 +235,8 @@ export function getValidSpellTargets(
       for (const building of Object.values(state.buildings)) {
         if (building.type !== BuildingType.GRAVESTONE) continue;
         if (!isTileInSpellRange(mage, building.position, range)) continue;
+        const tile = state.grid[building.position.y]?.[building.position.x];
+        if (!tile || tile.unitId !== null) continue;
         targets.push({ ...building.position });
       }
       return targets;
@@ -362,6 +364,16 @@ export function explainInvalidSpellTarget(
     }
 
     case 'RAISE_SKELETON': {
+      if (!tile.buildingId || !tile.unitId) return null;
+      if (!isTileInSpellRange(mage, pos, range)) return null;
+      const building = state.buildings[tile.buildingId];
+      if (building?.type === BuildingType.GRAVESTONE) {
+        return SPELL_TARGET_REASONS.OCCUPIED;
+      }
+      return null;
+    }
+
+    case 'GRAVE_TRAP': {
       if (!tile.buildingId || !tile.unitId) return null;
       if (!isTileInSpellRange(mage, pos, range)) return null;
       const building = state.buildings[tile.buildingId];
@@ -821,6 +833,7 @@ function handleGraveTrap(
   if (!graveId) return false;
   const grave = state.buildings[graveId];
   if (!grave || grave.type !== BuildingType.GRAVESTONE) return false;
+  if (tile.unitId !== null) return false;
 
   // Replace with a GRAVE_TRAP building
   const trapId = generateId('building');
