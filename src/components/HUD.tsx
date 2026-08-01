@@ -11,7 +11,7 @@ import { useMenuStore } from '../menuStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
 import { useSoundOptionsStore } from '../soundOptionsStore';
-import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, computeResearchCost, SPELL_DEFINITIONS, TERRAIN_TAG_INFO, RAGE_ATK_PER_ADJACENT, MAGE, CORRUPTED_SUPPRESSED_TAGS, CRYSTAL_CAVE_CONFIG, CRYSTAL_CHAMBER_CONFIG, MARKET, SPECIALIST_DEFINITIONS, RELOAD_DEF_PENALTY_PCT, ENEMY } from '../gameConfig';
+import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, computeResearchCost, SPELL_DEFINITIONS, TERRAIN_TAG_INFO, RAGE_ATK_PER_ADJACENT, MAGE, CORRUPTED_SUPPRESSED_TAGS, CRYSTAL_CAVE_CONFIG, CRYSTAL_CHAMBER_CONFIG, MARKET, SPECIALIST_DEFINITIONS, RELOAD_DEF_PENALTY_PCT } from '../gameConfig';
 import type { SpecialistDefinition } from '../gameConfig';
 import { UI } from '../uiConfig';
 import type { UnitPopulationCost, TechId } from '../types';
@@ -79,6 +79,7 @@ import { saveSlot, saveSlotStrict, deleteSlot, exportSlot, getSlotMeta, listSlot
 import { SAVE } from '../gameConfig';
 import { generateId } from '../mapGenerator';
 import { stopGameMusic } from '../useMusicPlayer';
+import { shouldShowTurnPopupEmberRose } from '../turnPopup';
 import './HUD.css';
 
 // ============================================================================
@@ -4134,10 +4135,6 @@ function TurnAnnouncementPopup({ turn, emberRose }: { turn: number; emberRose: b
       {emberRose && <div className="hud-turn-popup-sub">Ember Level increased</div>}
     </div>
   );
-}
-
-export function shouldShowTurnPopupEmberRose(turn: number): boolean {
-  return turn > 1 && (turn - 1) % ENEMY.THREAT_LEVEL_INCREASE_INTERVAL === 0;
 }
 
 // ============================================================================

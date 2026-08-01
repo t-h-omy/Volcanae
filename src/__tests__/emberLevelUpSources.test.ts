@@ -6,7 +6,7 @@ import { advanceLavaWithEvents } from '../lavaSystem';
 import { increaseEmberOnStrongholdCapture } from '../enemySystem';
 import { useAnimationStore } from '../animationStore';
 import { useGameStore } from '../gameStore';
-import { shouldShowTurnPopupEmberRose } from '../components/HUD';
+import { shouldShowTurnPopupEmberRose } from '../turnPopup';
 import { BuildingType, DestroyBehavior, Difficulty, Faction, GamePhase, TileType, UnitType } from '../types';
 import type { Building, GameState, Position, Tile, Unit } from '../types';
 import type { GameEvent } from '../gameEvents';
@@ -150,6 +150,7 @@ function makeState(): GameState {
     pendingTransposeFirstUnitId: null,
     pendingBrandmarkTransforms: [],
     pendingBridgeBuilderId: null,
+    pendingTrapSetterId: null,
     portals: {},
     activeWaveTheme: { entries: [], isReadPlayer: false },
     readPlayerThemeCount: 0,
