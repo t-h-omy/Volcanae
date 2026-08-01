@@ -21,7 +21,6 @@ import { CORRUPTED_SUPPRESSED_TAGS, UNIT_DEFINITIONS, MAP } from '../gameConfig'
 import { useCombatAnimationStore } from '../combatAnimationStore';
 import { useFloaterStore } from '../floaterStore';
 import { useGameStore } from '../gameStore';
-import { RENDER } from '../renderConfig';
 import {
   Faction, UnitType, UnitTag, TileType, TileStatus, DestroyBehavior, BuildingType,
 } from '../types';
@@ -665,7 +664,7 @@ describe('PB – enemy frozen slide kill animation/event', () => {
     });
   });
 
-  it('enemy sliding from FROZEN into WATER emits UNIT_DEATH at water tile and adds slide-kill ghost', () => {
+  it('enemy sliding from FROZEN into WATER emits UNIT_KNOCKBACK then UNIT_DEATH at water tile', () => {
     const enemy = makeUnit(UnitType.LAVA_GRUNT, Faction.ENEMY, 2, 37);
     const player = makeUnit(UnitType.SWORDSMAN, Faction.PLAYER, 8, 37);
 
@@ -678,9 +677,18 @@ describe('PB – enemy frozen slide kill animation/event', () => {
       ],
     );
 
-    const addSlideKillGhostSpy = vi.spyOn(useCombatAnimationStore.getState(), 'addSlideKillGhost');
     const { events } = runEnemyTurn(state);
 
+    // UNIT_KNOCKBACK carries the slide animation from the FROZEN tile to the water tile.
+    const knockbackEvent = events.find(
+      (e): e is Extract<GameEvent, { type: 'UNIT_KNOCKBACK' }> =>
+        e.type === 'UNIT_KNOCKBACK' && e.unitId === enemy.id,
+    );
+    expect(knockbackEvent, 'UNIT_KNOCKBACK event should exist for slide-kill').toBeDefined();
+    expect(knockbackEvent!.fromPosition).toEqual({ x: 2, y: 38 });
+    expect(knockbackEvent!.toPosition).toEqual({ x: 2, y: 39 });
+
+    // UNIT_DEATH follows UNIT_KNOCKBACK in the event array.
     const deathEvent = events.find(
       (e) => e.type === 'UNIT_DEATH' && e.unitId === enemy.id,
     );
@@ -691,11 +699,8 @@ describe('PB – enemy frozen slide kill animation/event', () => {
       faction: Faction.ENEMY,
     });
 
-    expect(addSlideKillGhostSpy).toHaveBeenCalledTimes(1);
-    const ghost = addSlideKillGhostSpy.mock.calls[0][0];
-    expect(ghost.deathTileX).toBe(2);
-    expect(ghost.deathTileY).toBe(39);
-    expect(ghost.slideDx).toBeCloseTo(0, 5);
-    expect(ghost.slideDy).toBe(-RENDER.TILE_SIZE_DESKTOP);
+    const knockbackIdx = events.indexOf(knockbackEvent!);
+    const deathIdx = events.indexOf(deathEvent as GameEvent);
+    expect(knockbackIdx).toBeLessThan(deathIdx);
   });
 });

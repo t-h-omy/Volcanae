@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.106.4 - Enemy frozen slide animation
+
+When an enemy unit moves onto a FROZEN tile the slide now animates as part of the event-queue replay, immediately after the move animation, instead of jumping to the slid position at turn end. The out-of-band `setUnitAnimation`/`setTimeout` block and the ghost-VFX block in `moveEnemyUnit` are replaced by a `UNIT_KNOCKBACK` event pushed into the event array. For a slide that kills the unit (lava, canyon, water), a `UNIT_KNOCKBACK` event is pushed followed by `UNIT_DEATH`; the animation engine already handles a `UNIT_KNOCKBACK → UNIT_DEATH` pair with the correct slide-then-die sequence. The player-path slide (direct `setUnitAnimation` in `gameStore.ts`) is unchanged.
+
 ### v0.106.3 - Ember level feedback for all sources
 
 Every ember-level increment source now emits `EMBER_LEVEL_UP` (emberling sacrifice, enemy lava death, lava-advance consumption, turn-interval tick, and stronghold capture), so hint H18 and unified feedback trigger consistently. `EMBER_LEVEL_UP` now carries a typed `source` and optional `position` (for turn-interval events). Turn-interval rises are enqueued into the enemy-turn playback queue and the turn announcement popup now shows an additional line, “Ember Level increased,” on the immediately following player turn. Ember gain feedback adds a reusable screen-space fly-to-HUD system: a 🔥 icon now flies along a curved accelerating path from the source (or turn popup) to the ember HUD stat and pulses the target on arrival; source-based ember floaters now use a dedicated pulsating style.
