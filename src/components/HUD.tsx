@@ -11,7 +11,7 @@ import { useMenuStore } from '../menuStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
 import { useSoundOptionsStore } from '../soundOptionsStore';
-import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, computeResearchCost, SPELL_DEFINITIONS, TERRAIN_TAG_INFO, RAGE_ATK_PER_ADJACENT, RAGE_MAX_ADJACENT_COUNT, MAGE, CORRUPTED_SUPPRESSED_TAGS, CRYSTAL_CAVE_CONFIG, CRYSTAL_CHAMBER_CONFIG, MARKET, SPECIALIST_DEFINITIONS, RELOAD_DEF_PENALTY_PCT } from '../gameConfig';
+import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, computeResearchCost, SPELL_DEFINITIONS, TERRAIN_TAG_INFO, RAGE_ATK_PER_ADJACENT, MAGE, CORRUPTED_SUPPRESSED_TAGS, CRYSTAL_CAVE_CONFIG, CRYSTAL_CHAMBER_CONFIG, MARKET, SPECIALIST_DEFINITIONS, RELOAD_DEF_PENALTY_PCT } from '../gameConfig';
 import type { SpecialistDefinition } from '../gameConfig';
 import { UI } from '../uiConfig';
 import type { UnitPopulationCost, TechId } from '../types';
@@ -68,8 +68,7 @@ import {
   type GameState,
 } from '../types';
 import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast, getMageCastBudget, getUnitAttackRange, isHealSuppressedByCorruption, canUnitTrade, getTradeMarket, getCaptureTarget, canUnitBuildBridge, getBridgeBuildTargets, canUnitSetTrap, getTrapPlacementTargets, canUnitExtinguish } from '../unitActions';
-import { getBatteryAttackBonus, getPhalanxAttackBonus, getPhalanxDefenseBonus, getCrystalTowerChamberBonus } from '../combatSystem';
-import { isTileWithinEdgeCircleRange } from '../rangeUtils';
+import { getBatteryAttackBonus, getPhalanxAttackBonus, getPhalanxDefenseBonus, getCrystalTowerChamberBonus, getRageAttackContext } from '../combatSystem';
 import { isSpecialistEffectActive } from '../specialistSystem';
 import { RENDER } from '../renderConfig';
 import { useZoneClearedStore } from '../zoneClearedStore';
@@ -1761,15 +1760,7 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
 
   // ── RAGE bonus (shared between stat display and mods breakdown) ────────────
   const { rageBonus, rageAdjacentCount } = useMemo(() => {
-    if (!unit.tags.includes(UnitTag.RAGE)) return { rageBonus: 0, rageAdjacentCount: 0 };
-    let count = 0;
-    for (const otherId of Object.keys(gameState.units)) {
-      const other = gameState.units[otherId];
-      if (!other || other.faction === unit.faction) continue;
-      if (!isTileWithinEdgeCircleRange(unit.position.x, unit.position.y, other.position.x, other.position.y, 1)) continue;
-      count++;
-    }
-    return { rageBonus: Math.min(count, RAGE_MAX_ADJACENT_COUNT) * RAGE_ATK_PER_ADJACENT, rageAdjacentCount: count };
+    return getRageAttackContext(gameState, unit);
   }, [unit, gameState]);
 
   const batteryBonus = useMemo(() => getBatteryAttackBonus(gameState, unit), [gameState, unit]);
@@ -2215,14 +2206,7 @@ function SelectedUnitPanel({
 
     // RAGE: dynamic +ATK per adjacent enemy (works for both factions)
     if (unit.tags.includes(UnitTag.RAGE)) {
-      let adjacentEnemyCount = 0;
-      for (const otherId of Object.keys(gameState.units)) {
-        const other = gameState.units[otherId];
-        if (!other || other.faction === unit.faction) continue;
-        if (!isTileWithinEdgeCircleRange(unit.position.x, unit.position.y, other.position.x, other.position.y, 1)) continue;
-        adjacentEnemyCount++;
-      }
-      const rageBonus = Math.min(adjacentEnemyCount, RAGE_MAX_ADJACENT_COUNT) * RAGE_ATK_PER_ADJACENT;
+      const { rageBonus } = getRageAttackContext(gameState, unit);
       if (rageBonus > 0) addContextual('attack', rageBonus);
     }
     if (batteryBonus > 0) addContextual('attack', batteryBonus);

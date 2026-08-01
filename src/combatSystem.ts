@@ -448,6 +448,32 @@ export function getBatteryAttackBonus(state: GameState | Draft<GameState>, unit:
 }
 
 /**
+ * Returns the current RAGE attack bonus and raw adjacent-enemy count for a unit.
+ * The suppression check intentionally delegates to `isUnitOnCorruptedTile` so
+ * HUD and combat stay aligned with the same corruption semantics.
+ */
+export function getRageAttackContext(
+  state: GameState | Draft<GameState>,
+  unit: Unit,
+): { rageBonus: number; rageAdjacentCount: number } {
+  if (!unit.tags.includes(UnitTag.RAGE)) return { rageBonus: 0, rageAdjacentCount: 0 };
+  if (isUnitOnCorruptedTile(state, unit.id)) return { rageBonus: 0, rageAdjacentCount: 0 };
+
+  let rageAdjacentCount = 0;
+  for (const otherId of Object.keys(state.units)) {
+    const other = state.units[otherId];
+    if (!other || other.faction === unit.faction) continue;
+    if (!isTileWithinEdgeCircleRange(unit.position.x, unit.position.y, other.position.x, other.position.y, 1)) continue;
+    rageAdjacentCount++;
+  }
+
+  return {
+    rageBonus: Math.min(rageAdjacentCount, RAGE_MAX_ADJACENT_COUNT) * RAGE_ATK_PER_ADJACENT,
+    rageAdjacentCount,
+  };
+}
+
+/**
  * Returns the multiplicative BERSERK attack modifier for a unit.
  * BERSERK is derived at attack time only and never persisted in unit stats.
  * Activates only while current HP is strictly below the configured threshold.
@@ -847,14 +873,7 @@ export function resolveAttack(
   // RAGE: attacker gains +ATK per adjacent enemy unit, capped at RAGE_MAX_ADJACENT_COUNT.
   // Suppressed on CORRUPTED tile.
   if (attacker.tags.includes(UnitTag.RAGE) && !attackerOnCorrupted) {
-    let adjacentEnemyCount = 0;
-    for (const otherId of Object.keys(state.units)) {
-      const other = state.units[otherId];
-      if (!other || other.faction === attacker.faction) continue;
-      if (!isTileWithinEdgeCircleRange(attacker.position.x, attacker.position.y, other.position.x, other.position.y, 1)) continue;
-      adjacentEnemyCount++;
-    }
-    attackerCombatant.attack += Math.min(adjacentEnemyCount, RAGE_MAX_ADJACENT_COUNT) * RAGE_ATK_PER_ADJACENT;
+    attackerCombatant.attack += getRageAttackContext(state, attacker).rageBonus;
   }
 
   attackerCombatant.attack += getBatteryAttackBonus(state, attacker);
@@ -1837,14 +1856,7 @@ export function resolveAttackOnBuilding(
   // RAGE: attacker gains +ATK per adjacent enemy unit, capped at RAGE_MAX_ADJACENT_COUNT.
   // Suppressed on CORRUPTED tile.
   if (attacker.tags.includes(UnitTag.RAGE) && !attackerOnCorrupted) {
-    let adjacentEnemyCount = 0;
-    for (const otherId of Object.keys(state.units)) {
-      const other = state.units[otherId];
-      if (!other || other.faction === attacker.faction) continue;
-      if (!isTileWithinEdgeCircleRange(attacker.position.x, attacker.position.y, other.position.x, other.position.y, 1)) continue;
-      adjacentEnemyCount++;
-    }
-    attackerCombatant.attack += Math.min(adjacentEnemyCount, RAGE_MAX_ADJACENT_COUNT) * RAGE_ATK_PER_ADJACENT;
+    attackerCombatant.attack += getRageAttackContext(state, attacker).rageBonus;
   }
 
   attackerCombatant.attack += getBatteryAttackBonus(state, attacker);

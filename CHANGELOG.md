@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.106.1 - Rage bonus display respects corruption
+
+The HUD now uses the same RAGE bonus helper as combat, so units on CORRUPTED tiles show no RAGE attack bonus when corruption suppresses that tag. Regression tests cover the shared helper on normal tiles, corrupted player tiles, and the current enemy-unit corruption semantics exposed by `isUnitOnCorruptedTile`.
+
 ### v0.106.0 - Crystal income display: Echo Warden and Grave Harvest
 
 Crystal HUD income and the crystal resource popup now include all crystal sources that can apply this turn: base resonating Crystal Chamber income, Echo Warden specialist bonus crystals, and Grave Harvest expected-value crystal income from player-owned Gravestones (shown as fractional expected value, matching other probabilistic displays). The popup now shows source-attributed crystal rows and only shows "No income sources" when no crystal source contributes at all. Gameplay parity is also fixed: Echo Warden bonus crystals no longer apply to disabled Crystal Chambers.
