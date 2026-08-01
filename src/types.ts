@@ -874,6 +874,8 @@ export interface GameState {
   pendingBrandmarkTransforms: Array<{ unitId: string; position: Position }>;
   /** When non-null, the player is choosing a bridge build target on the map */
   pendingBridgeBuilderId: string | null;
+  /** When non-null, the player is choosing a trap placement target on the map (mutually exclusive with other pending modes) */
+  pendingTrapSetterId: string | null;
   /**
    * All active portals created by RIFT_LORD units.
    * Keyed by portal ID. Portals are cleaned up at the start of each enemy turn

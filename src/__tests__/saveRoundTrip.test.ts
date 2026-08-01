@@ -254,4 +254,34 @@ describe('saveSlot round-trip', () => {
     expect(migrated.marketResourceSlots?.[0]).toEqual(originalResourceOffer);
     expect(migrated.marketSpecialistSlots?.[0]).toBe('spec_02');
   });
+
+  it('migrates v18 save to backfill pendingTrapSetterId as null', async () => {
+    const state = generateInitialGameState() as GameState & Record<string, unknown>;
+    // Simulate a v18 save that doesn't yet have pendingTrapSetterId
+    delete state.pendingTrapSetterId;
+
+    const idb = globalThis.indexedDB;
+    const dbReq = idb.open('volcanae', 1);
+    await new Promise<void>((resolve, reject) => {
+      dbReq.onupgradeneeded = () => {
+        const db = dbReq.result;
+        if (!db.objectStoreNames.contains('saveMeta')) db.createObjectStore('saveMeta', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('saveData')) db.createObjectStore('saveData', { keyPath: 'id' });
+      };
+      dbReq.onsuccess = () => resolve();
+      dbReq.onerror = () => reject(dbReq.error);
+    });
+    const db = dbReq.result;
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(['saveMeta', 'saveData'], 'readwrite');
+      tx.objectStore('saveMeta').put({ id: 'slot_v18_trap', version: 18, turn: 1, savedAt: Date.now(), name: 'OldGame', difficulty: 'STANDARD' });
+      tx.objectStore('saveData').put({ id: 'slot_v18_trap', version: 18, state });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+
+    const loaded = await loadSlot('slot_v18_trap');
+    expect(loaded).not.toBeNull();
+    expect(loaded!.pendingTrapSetterId).toBeNull();
+  });
 });

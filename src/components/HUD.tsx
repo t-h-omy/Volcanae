@@ -67,7 +67,7 @@ import {
   type GameStats,
   type GameState,
 } from '../types';
-import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast, getMageCastBudget, getUnitAttackRange, isHealSuppressedByCorruption, canUnitTrade, getTradeMarket, getCaptureTarget, canUnitBuildBridge, getBridgeBuildTargets, canUnitSetTrap, isTrapTileClear, canUnitExtinguish } from '../unitActions';
+import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast, getMageCastBudget, getUnitAttackRange, isHealSuppressedByCorruption, canUnitTrade, getTradeMarket, getCaptureTarget, canUnitBuildBridge, getBridgeBuildTargets, canUnitSetTrap, getTrapPlacementTargets, canUnitExtinguish } from '../unitActions';
 import { getBatteryAttackBonus, getPhalanxAttackBonus, getPhalanxDefenseBonus, getCrystalTowerChamberBonus } from '../combatSystem';
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
 import { isSpecialistEffectActive } from '../specialistSystem';
@@ -1999,7 +1999,7 @@ function SelectedUnitPanel({
     ? fieldworkResources.wood >= BUILDING_DEFINITIONS.OUTPOST.constructionCost.wood &&
       fieldworkResources.iron >= BUILDING_DEFINITIONS.OUTPOST.constructionCost.iron
     : true;
-  const trapBlocked = canSetTrap && !isTrapTileClear(unit, gameState);
+  const trapBlocked = canSetTrap && getTrapPlacementTargets(unit, gameState).length === 0;
   const [aiScoreModal, setAiScoreModal] = useState(false);
   const [aiScores, setAiScores] = useState<ScoredAction[]>([]);
   const [unitInfoOpen, setUnitInfoOpen] = useState(false);
@@ -2027,7 +2027,10 @@ function SelectedUnitPanel({
   const [confirmBridgeTarget, setConfirmBridgeTarget] = useState<{ x: number; y: number; orientation: 'EW' | 'NS' } | null>(null);
 
   // Scout trap
-  const setTrap = useGameStore((s) => s.setTrap);
+  const startTrapSetMode = useGameStore((s) => s.startTrapSetMode);
+  const cancelTrapSetMode = useGameStore((s) => s.cancelTrapSetMode);
+  const pendingTrapSetterId = useGameStore((s) => s.pendingTrapSetterId);
+  const isInTrapSetMode = pendingTrapSetterId === unit.id;
 
   // Scout extinguish
   const scoutExtinguish = useGameStore((s) => s.scoutExtinguish);
@@ -2543,11 +2546,19 @@ function SelectedUnitPanel({
           )}
           {canSetTrap && (
             <button
-              className="hud-spell-btn"
+              className={`hud-spell-btn${isInTrapSetMode ? ' hud-heal-active' : ''}`}
               disabled={!!trapBlocked}
-              onClick={() => setTrap(unit.id)}
+              onClick={() => {
+                if (isInTrapSetMode) {
+                  cancelTrapSetMode();
+                } else {
+                  startTrapSetMode(unit.id);
+                }
+              }}
             >
-              <span className="hud-spell-btn-label">🪤 Set Trap</span>
+              <span className="hud-spell-btn-label">
+                {isInTrapSetMode ? '🪤 Choose tile…' : '🪤 Set Trap'}
+              </span>
               {ABILITIES.SCOUT_TRAP_WOOD_COST > 0 && (
                 <span className="hud-spell-btn-cost">🪵{ABILITIES.SCOUT_TRAP_WOOD_COST}</span>
               )}

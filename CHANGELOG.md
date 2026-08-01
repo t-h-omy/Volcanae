@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.105.0 - Trapsmith ranged trap placement
+
+Scouts with the Trapsmith specialist now enter a target-selection mode when the "Set Trap" button is pressed, allowing the trap to be placed on any valid tile within `SCOUT_TRAP_PLACE_RANGE` (1) tiles (edge-circle range, own tile included). Valid tiles must have no other unit, no building, no ruin or stronghold ruin, terrain not CANYON, WATER, FOREST or MOUNTAIN, and not lava. The HUD button toggles into "🪤 Choose tile…" mode (matching the bridge-builder pattern) and can be cancelled. The pending mode is cleared on unit deselection, selection change, end turn, spell cast, and all other cancel paths. `isTrapTileClear` in `unitActions.ts` was reworked to accept `(state, x, y, placingUnitId)` and encode the full validity rules; new helpers `getTrapPlacementTargets` and `explainInvalidTrapTarget` support target highlighting and invalid-reason floaters in GridRenderer. Save migration v18 is extended with a `pendingTrapSetterId` backfill (no version bump).
+
 ### v0.104.0 - Hearthsteward split and Estate Warden
 
 Hearthsteward now grants +1 farmer capacity per Farm only, while the new Estate Warden specialist grants +1 noble capacity per Patrician House. Housing-cap calculation now applies those specialist bonuses independently per building type, so doctrine doubling still uses the correct per-building flat bonus. Regression tests cover the split housing-cap behavior and confirm Estate Warden enters the specialist offer pool.

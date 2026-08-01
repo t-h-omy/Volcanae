@@ -41,7 +41,7 @@ import { getConstructionOptionsForTile } from './constructionSystem';
 import type { ConstructionOption } from './constructionSystem';
 import { canCapture } from './captureSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
-import { MAP, MAGE } from './gameConfig';
+import { MAP, MAGE, ABILITIES } from './gameConfig';
 import { getMageCastBudget } from './spellSystem';
 import { isUnitOnCorruptedTile } from './tileStatusSystem';
 import { getBridgeAt } from './bridgeSystem';
@@ -474,6 +474,12 @@ const ABILITY_TARGET_REASONS = {
   HEAL_BRANDMARKED: 'Brandmarked units cannot be healed',
   HEAL_SUMMONED: 'Summoned units cannot be healed',
   BRIDGE_ENDPOINTS: 'Bridge needs accessible entry and exit tile',
+  TRAP_OUT_OF_RANGE: 'Tile out of range',
+  TRAP_UNIT_ON_TILE: 'Another unit is on this tile',
+  TRAP_BUILDING_ON_TILE: 'A building already occupies this tile',
+  TRAP_RUIN: 'Cannot place trap on a ruin',
+  TRAP_TERRAIN: 'Cannot place trap on this terrain',
+  TRAP_LAVA: 'Cannot place trap on lava',
 } as const;
 
 /**
@@ -736,16 +742,86 @@ export function canUnitExtinguish(
 }
 
 /**
- * Returns true if the scout's current tile is eligible for trap placement.
- * Requires no building and no ruin on the tile.
+ * Returns true if the given tile is eligible for trap placement by the Scout
+ * with the given id.
+ *
+ * Validity rules:
+ *   - Tile must be in bounds
+ *   - No unit on the tile, OR the unit is the placing Scout itself
+ *   - No building on the tile
+ *   - Not a ruin or stronghold ruin
+ *   - Terrain not CANYON, WATER, FOREST, or MOUNTAIN
+ *   - Not lava
  */
 export function isTrapTileClear(
-  unit: Unit,
   state: GameState | Draft<GameState>,
+  x: number,
+  y: number,
+  placingUnitId: string,
 ): boolean {
-  const tile = state.grid[unit.position.y]?.[unit.position.x];
+  const tile = state.grid[y]?.[x];
   if (!tile) return false;
+  if (tile.unitId !== null && tile.unitId !== placingUnitId) return false;
   if (tile.buildingId !== null) return false;
   if (tile.isRuin || tile.isStrongholdRuin) return false;
+  if (
+    tile.terrainType === TileType.CANYON ||
+    tile.terrainType === TileType.WATER ||
+    tile.terrainType === TileType.FOREST ||
+    tile.terrainType === TileType.MOUNTAIN
+  ) return false;
+  if (tile.isLava) return false;
   return true;
+}
+
+/**
+ * Returns all tile coordinates within SCOUT_TRAP_PLACE_RANGE of the Scout
+ * that are valid trap placement targets (own tile included).
+ */
+export function getTrapPlacementTargets(
+  unit: Unit,
+  state: GameState | Draft<GameState>,
+): Array<{ x: number; y: number }> {
+  const { x, y } = unit.position;
+  const mapWidth = state.grid[0]?.length ?? 0;
+  const mapHeight = state.grid.length;
+  const results: Array<{ x: number; y: number }> = [];
+  // Include own tile (range 0) plus tiles within range
+  for (let ty = Math.max(0, y - ABILITIES.SCOUT_TRAP_PLACE_RANGE); ty <= Math.min(mapHeight - 1, y + ABILITIES.SCOUT_TRAP_PLACE_RANGE); ty++) {
+    for (let tx = Math.max(0, x - ABILITIES.SCOUT_TRAP_PLACE_RANGE); tx <= Math.min(mapWidth - 1, x + ABILITIES.SCOUT_TRAP_PLACE_RANGE); tx++) {
+      if (!isTileWithinEdgeCircleRange(x, y, tx, ty, ABILITIES.SCOUT_TRAP_PLACE_RANGE) && !(tx === x && ty === y)) continue;
+      if (isTrapTileClear(state, tx, ty, unit.id)) {
+        results.push({ x: tx, y: ty });
+      }
+    }
+  }
+  return results;
+}
+
+/** Returns a curated invalid-target reason for trap placement mode. Keep aligned with isTrapTileClear. */
+export function explainInvalidTrapTarget(
+  state: GameState | Draft<GameState>,
+  setterId: string,
+  pos: { x: number; y: number },
+): string | null {
+  const setter = state.units[setterId];
+  if (!setter) return null;
+  const { x, y } = pos;
+  // Out of range check (own tile is always in range)
+  const inRange = (x === setter.position.x && y === setter.position.y) ||
+    isTileWithinEdgeCircleRange(setter.position.x, setter.position.y, x, y, ABILITIES.SCOUT_TRAP_PLACE_RANGE);
+  if (!inRange) return ABILITY_TARGET_REASONS.TRAP_OUT_OF_RANGE;
+  const tile = state.grid[y]?.[x];
+  if (!tile) return null;
+  if (tile.isLava) return ABILITY_TARGET_REASONS.TRAP_LAVA;
+  if (tile.isRuin || tile.isStrongholdRuin) return ABILITY_TARGET_REASONS.TRAP_RUIN;
+  if (
+    tile.terrainType === TileType.CANYON ||
+    tile.terrainType === TileType.WATER ||
+    tile.terrainType === TileType.FOREST ||
+    tile.terrainType === TileType.MOUNTAIN
+  ) return ABILITY_TARGET_REASONS.TRAP_TERRAIN;
+  if (tile.buildingId !== null) return ABILITY_TARGET_REASONS.TRAP_BUILDING_ON_TILE;
+  if (tile.unitId !== null && tile.unitId !== setterId) return ABILITY_TARGET_REASONS.TRAP_UNIT_ON_TILE;
+  return null;
 }

@@ -3,9 +3,12 @@
  *
  * Covers:
  *  - canUnitSetTrap: gating rules (unit type, faction, specialist effect, action flags)
- *  - isTrapTileClear: tile eligibility rules
+ *  - isTrapTileClear: tile eligibility rules (updated for ranged placement)
+ *  - getTrapPlacementTargets: valid placement targets within range
  *  - checkScoutTrapTrigger: damage, stun, ALERT immunity, FLYING skip, trap deletion,
  *    unit kill on lethal damage, non-player guard, no-trap-on-tile guard
+ *  - Ranged placement: adjacent empty tile succeeds, own tile succeeds, rejections
+ *  - Pending mode cleared on unit deselection and end turn
  */
 
 import { describe, expect, it } from 'vitest';
@@ -13,7 +16,7 @@ import { produce } from 'immer';
 import { BuildingType, DestroyBehavior, Faction, TileType, UnitTag, UnitType } from '../types';
 import type { Building, GameState, Tile, Unit } from '../types';
 import { ABILITIES, MAP, UNIT_DEFINITIONS } from '../gameConfig';
-import { canUnitSetTrap, isTrapTileClear } from '../unitActions';
+import { canUnitSetTrap, isTrapTileClear, getTrapPlacementTargets } from '../unitActions';
 import { checkScoutTrapTrigger } from '../movementSystem';
 import { createInitialSpecialists } from '../specialistSystem';
 
@@ -231,35 +234,128 @@ describe('canUnitSetTrap', () => {
 // ============================================================================
 
 describe('isTrapTileClear', () => {
-  it('returns true on an empty plains tile', () => {
+  it('returns true on an empty plains tile at own position', () => {
     const scout = makeUnit({ position: { x: 5, y: 5 } });
     const state = makeState({ units: [scout] });
-    expect(isTrapTileClear(scout, state)).toBe(true);
+    expect(isTrapTileClear(state, 5, 5, scout.id)).toBe(true);
+  });
+
+  it('returns true on adjacent empty plains tile (Scout itself does not block own tile)', () => {
+    const scout = makeUnit({ position: { x: 5, y: 5 } });
+    const state = makeState({ units: [scout] });
+    // Own tile has the scout on it — Scout itself should not block
+    expect(isTrapTileClear(state, 5, 5, scout.id)).toBe(true);
+    // Adjacent tile (no unit)
+    expect(isTrapTileClear(state, 6, 5, scout.id)).toBe(true);
+  });
+
+  it('returns false when tile has another unit', () => {
+    const scout = makeUnit({ position: { x: 5, y: 5 } });
+    const other = makeUnit({ position: { x: 6, y: 5 } });
+    const state = makeState({ units: [scout, other] });
+    expect(isTrapTileClear(state, 6, 5, scout.id)).toBe(false);
   });
 
   it('returns false when tile has a building', () => {
     const scout = makeUnit({ position: { x: 5, y: 5 } });
-    const trap = makeScoutTrap(5, 5);
+    const trap = makeScoutTrap(6, 5);
     const state = makeState({ units: [scout], buildings: [trap] });
-    expect(isTrapTileClear(scout, state)).toBe(false);
+    expect(isTrapTileClear(state, 6, 5, scout.id)).toBe(false);
   });
 
   it('returns false on a ruin tile', () => {
     const scout = makeUnit({ position: { x: 5, y: 5 } });
     const state = makeState({
       units: [scout],
-      tileOverrides: { '5,5': { isRuin: true } },
+      tileOverrides: { '6,5': { isRuin: true } },
     });
-    expect(isTrapTileClear(scout, state)).toBe(false);
+    expect(isTrapTileClear(state, 6, 5, scout.id)).toBe(false);
   });
 
   it('returns false on a stronghold ruin tile', () => {
     const scout = makeUnit({ position: { x: 5, y: 5 } });
     const state = makeState({
       units: [scout],
-      tileOverrides: { '5,5': { isStrongholdRuin: true } },
+      tileOverrides: { '6,5': { isStrongholdRuin: true } },
     });
-    expect(isTrapTileClear(scout, state)).toBe(false);
+    expect(isTrapTileClear(state, 6, 5, scout.id)).toBe(false);
+  });
+
+  it('returns false on CANYON terrain', () => {
+    const scout = makeUnit({ position: { x: 5, y: 5 } });
+    const state = makeState({
+      units: [scout],
+      tileOverrides: { '6,5': { terrainType: TileType.CANYON } },
+    });
+    expect(isTrapTileClear(state, 6, 5, scout.id)).toBe(false);
+  });
+
+  it('returns false on WATER terrain', () => {
+    const scout = makeUnit({ position: { x: 5, y: 5 } });
+    const state = makeState({
+      units: [scout],
+      tileOverrides: { '6,5': { terrainType: TileType.WATER } },
+    });
+    expect(isTrapTileClear(state, 6, 5, scout.id)).toBe(false);
+  });
+
+  it('returns false on FOREST terrain', () => {
+    const scout = makeUnit({ position: { x: 5, y: 5 } });
+    const state = makeState({
+      units: [scout],
+      tileOverrides: { '6,5': { terrainType: TileType.FOREST } },
+    });
+    expect(isTrapTileClear(state, 6, 5, scout.id)).toBe(false);
+  });
+
+  it('returns false on MOUNTAIN terrain', () => {
+    const scout = makeUnit({ position: { x: 5, y: 5 } });
+    const state = makeState({
+      units: [scout],
+      tileOverrides: { '6,5': { terrainType: TileType.MOUNTAIN } },
+    });
+    expect(isTrapTileClear(state, 6, 5, scout.id)).toBe(false);
+  });
+
+  it('returns false on lava tile', () => {
+    const scout = makeUnit({ position: { x: 5, y: 5 } });
+    const state = makeState({
+      units: [scout],
+      tileOverrides: { '6,5': { isLava: true } },
+    });
+    expect(isTrapTileClear(state, 6, 5, scout.id)).toBe(false);
+  });
+});
+
+// ============================================================================
+// getTrapPlacementTargets
+// ============================================================================
+
+describe('getTrapPlacementTargets', () => {
+  it('includes own tile when clear', () => {
+    const scout = makeUnit({ position: { x: 5, y: 5 } });
+    const state = makeState({ units: [scout] });
+    const targets = getTrapPlacementTargets(scout, state);
+    expect(targets.some((t) => t.x === 5 && t.y === 5)).toBe(true);
+  });
+
+  it('includes adjacent empty grass tiles', () => {
+    const scout = makeUnit({ position: { x: 5, y: 5 } });
+    const state = makeState({ units: [scout] });
+    const targets = getTrapPlacementTargets(scout, state);
+    // At least the adjacent cardinal tiles should be valid on a plain grid
+    expect(targets.some((t) => t.x === 6 && t.y === 5)).toBe(true);
+    expect(targets.some((t) => t.x === 4 && t.y === 5)).toBe(true);
+  });
+
+  it('excludes a tile at range 2 when SCOUT_TRAP_PLACE_RANGE is 1', () => {
+    const scout = makeUnit({ position: { x: 5, y: 5 } });
+    const state = makeState({ units: [scout] });
+    const targets = getTrapPlacementTargets(scout, state);
+    expect(ABILITIES.SCOUT_TRAP_PLACE_RANGE).toBe(1);
+    // Distance-2 tile should not appear
+    expect(targets.some((t) => t.x === 7 && t.y === 5)).toBe(false);
+    expect(targets.some((t) => t.x === 5 && t.y === 7)).toBe(false);
   });
 });
 
@@ -418,5 +514,97 @@ describe('checkScoutTrapTrigger', () => {
     // GRAVE_TRAP is not consumed by checkScoutTrapTrigger
     expect(next.buildings[graveTrap.id]).toBeDefined();
     expect(next.units[enemy.id]!.stats.currentHp).toBe(UNIT_DEFINITIONS[UnitType.LAVA_GRUNT].maxHp);
+  });
+});
+
+// ============================================================================
+// Pending mode store tests (startTrapSetMode / placeTrapAt / clearSelection / endPlayerTurn)
+// ============================================================================
+
+import { beforeEach } from 'vitest';
+import { useGameStore } from '../gameStore';
+
+describe('trap placement pending mode', () => {
+  const SCOUT_X = 5;
+  const SCOUT_Y = 5;
+
+  function makeStoreState(scoutId: string) {
+    const scout = makeUnit({ id: scoutId, position: { x: SCOUT_X, y: SCOUT_Y } });
+    // Use makeState helper which produces a clean grid (all plains, no other units)
+    const gs = makeState({
+      units: [scout],
+      globalSpecialistStorage: ['spec_08'],
+      resources: { iron: 10, wood: 20 },
+    });
+    // Attach fields expected by the store that makeState doesn't set
+    return {
+      ...gs,
+      pendingTrapSetterId: null,
+      pendingBridgeBuilderId: null,
+      pendingHealerId: null,
+      pendingSpellCast: null,
+      pendingTransposeFirstUnitId: null,
+      pendingBrandmarkTransforms: [],
+    };
+  }
+
+  beforeEach(() => {
+    const scoutId = 'test-scout-pending';
+    useGameStore.setState(makeStoreState(scoutId) as unknown as ReturnType<typeof useGameStore.getState>);
+  });
+
+  it('startTrapSetMode sets pendingTrapSetterId', () => {
+    const scoutId = 'test-scout-pending';
+    useGameStore.getState().startTrapSetMode(scoutId);
+    expect(useGameStore.getState().pendingTrapSetterId).toBe(scoutId);
+  });
+
+  it('pendingTrapSetterId is cleared on selectUnit', () => {
+    const scoutId = 'test-scout-pending';
+    useGameStore.getState().startTrapSetMode(scoutId);
+    expect(useGameStore.getState().pendingTrapSetterId).toBe(scoutId);
+    useGameStore.getState().selectUnit(scoutId);
+    expect(useGameStore.getState().pendingTrapSetterId).toBeNull();
+  });
+
+  it('pendingTrapSetterId is cleared on clearSelection', () => {
+    const scoutId = 'test-scout-pending';
+    useGameStore.getState().startTrapSetMode(scoutId);
+    useGameStore.getState().clearSelection();
+    expect(useGameStore.getState().pendingTrapSetterId).toBeNull();
+  });
+
+  it('placeTrapAt on adjacent valid tile places trap and consumes action', () => {
+    const scoutId = 'test-scout-pending';
+    useGameStore.getState().startTrapSetMode(scoutId);
+    const woodBefore = useGameStore.getState().resources.wood;
+    // Place on adjacent tile (SCOUT_X+1, SCOUT_Y) — known empty on clean grid
+    useGameStore.getState().placeTrapAt(SCOUT_X + 1, SCOUT_Y);
+    const s = useGameStore.getState();
+    expect(s.pendingTrapSetterId).toBeNull();
+    expect(s.resources.wood).toBe(woodBefore - ABILITIES.SCOUT_TRAP_WOOD_COST);
+    expect(s.grid[SCOUT_Y][SCOUT_X + 1].buildingId).toBeTruthy();
+    expect(s.units[scoutId]?.hasConstructedThisTurn).toBe(true);
+  });
+
+  it('placeTrapAt on own tile succeeds (Scout itself does not block)', () => {
+    const scoutId = 'test-scout-pending';
+    useGameStore.getState().startTrapSetMode(scoutId);
+    useGameStore.getState().placeTrapAt(SCOUT_X, SCOUT_Y);
+    const s = useGameStore.getState();
+    expect(s.grid[SCOUT_Y][SCOUT_X].buildingId).toBeTruthy();
+    expect(s.units[scoutId]?.hasConstructedThisTurn).toBe(true);
+  });
+
+  it('placeTrapAt on out-of-range tile (range 2 with constant 1) clears mode and does not place', () => {
+    const scoutId = 'test-scout-pending';
+    expect(ABILITIES.SCOUT_TRAP_PLACE_RANGE).toBe(1);
+    useGameStore.getState().startTrapSetMode(scoutId);
+    const woodBefore = useGameStore.getState().resources.wood;
+    useGameStore.getState().placeTrapAt(SCOUT_X + 2, SCOUT_Y); // distance 2
+    const s = useGameStore.getState();
+    expect(s.pendingTrapSetterId).toBeNull();
+    expect(s.resources.wood).toBe(woodBefore);
+    expect(s.grid[SCOUT_Y][SCOUT_X + 2].buildingId).toBeNull();
   });
 });

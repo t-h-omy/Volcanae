@@ -1519,6 +1519,8 @@ export const ABILITIES = {
   SCOUT_TRAP_DAMAGE: 60,
   /** Turns the triggering enemy is stunned by a Scout Trap (this turn + next) */
   SCOUT_TRAP_STUN_TURNS: 1,
+  /** Tile range within which a Scout with SCOUT_SET_TRAP can place a Scout Trap (edge-circle, own tile included) */
+  SCOUT_TRAP_PLACE_RANGE: 1,
   /** Tile radius within which a Scout with SCOUT_EXTINGUISH removes BURNING tile status */
   EXTINGUISH_RADIUS: 1,
   /** Attack-range bonus added to Scouts by the Farsight Marshal specialist */
@@ -1859,7 +1861,7 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
   spec_08: {
     name: 'Trapsmith',
     description:
-      `Your Scouts can place a Scout Trap on their tile (costs ${ABILITIES.SCOUT_TRAP_WOOD_COST} wood). The next non-FLYING enemy to enter it takes ${ABILITIES.SCOUT_TRAP_DAMAGE} damage and is stunned for ${ABILITIES.SCOUT_TRAP_STUN_TURNS} turn(s).`,
+      `Your Scouts can place a Scout Trap within ${ABILITIES.SCOUT_TRAP_PLACE_RANGE} tile(s) of their position (costs ${ABILITIES.SCOUT_TRAP_WOOD_COST} wood). The next non-FLYING enemy to enter it takes ${ABILITIES.SCOUT_TRAP_DAMAGE} damage and is stunned for ${ABILITIES.SCOUT_TRAP_STUN_TURNS} turn(s).`,
     effects: [{
       type: 'SCOUT_SET_TRAP',
       params: { woodCost: ABILITIES.SCOUT_TRAP_WOOD_COST, ironCost: ABILITIES.SCOUT_TRAP_IRON_COST, damage: ABILITIES.SCOUT_TRAP_DAMAGE, stunTurns: ABILITIES.SCOUT_TRAP_STUN_TURNS },

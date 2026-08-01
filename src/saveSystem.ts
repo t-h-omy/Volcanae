@@ -208,6 +208,7 @@ function migrateState(parsed: { version: number; state: GameState }): GameState 
     if (!('pendingTransposeFirstUnitId' in gs)) gs.pendingTransposeFirstUnitId = null;
     if (!Array.isArray(gs.pendingBrandmarkTransforms)) gs.pendingBrandmarkTransforms = [];
     if (!('pendingBridgeBuilderId' in gs)) gs.pendingBridgeBuilderId = null;
+    if (!('pendingTrapSetterId' in gs)) gs.pendingTrapSetterId = null;
 
     // Migration: remove legacy MAGE tag.
     if (s.units && typeof s.units === 'object') {
