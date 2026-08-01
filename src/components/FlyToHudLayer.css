@@ -1,0 +1,25 @@
+.fly-to-hud-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 320;
+}
+
+.fly-to-hud-emoji {
+  position: fixed;
+  transform: translate(-50%, -50%);
+  font-size: 24px;
+  line-height: 1;
+  filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.6));
+  will-change: left, top, opacity;
+}
+
+.hud-target--pulse {
+  animation: hudTargetPulse var(--hud-target-pulse-ms, 350ms) ease-out;
+}
+
+@keyframes hudTargetPulse {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}

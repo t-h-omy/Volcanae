@@ -31,6 +31,7 @@ function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
+
 /**
  * Sound effect keys for spell actions.
  * Trigger implementation lives in soundOptionsStore.ts (triggerSpellSfx).
@@ -77,7 +78,7 @@ function eventPosition(event: GameEvent): Position {
       // No camera position needed — handled as a blocking modal, not a spatial event.
       return { x: Math.floor(MAP.GRID_WIDTH / 2), y: Math.floor(MAP.GRID_HEIGHT / 2) };
     case 'EMBER_LEVEL_UP':
-      return event.position;
+      return event.position ?? useAnimationStore.getState().cameraTarget;
     case 'TILE_DAMAGE':
       return event.position;
     case 'UNIT_HEAL':
@@ -191,7 +192,7 @@ function isEventVisible(event: GameEvent): boolean {
       // Always show the modal regardless of tile visibility.
       return true;
     case 'EMBER_LEVEL_UP':
-      return isTileRevealed(event.position);
+      return !event.position || isTileRevealed(event.position);
     case 'TILE_DAMAGE':
       if (useGameStore.getState().units[event.unitId]?.faction === Faction.PLAYER) {
         return true;

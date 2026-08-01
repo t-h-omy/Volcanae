@@ -11,7 +11,7 @@ import { useMenuStore } from '../menuStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
 import { useSoundOptionsStore } from '../soundOptionsStore';
-import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, computeResearchCost, SPELL_DEFINITIONS, TERRAIN_TAG_INFO, RAGE_ATK_PER_ADJACENT, MAGE, CORRUPTED_SUPPRESSED_TAGS, CRYSTAL_CAVE_CONFIG, CRYSTAL_CHAMBER_CONFIG, MARKET, SPECIALIST_DEFINITIONS, RELOAD_DEF_PENALTY_PCT } from '../gameConfig';
+import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, computeResearchCost, SPELL_DEFINITIONS, TERRAIN_TAG_INFO, RAGE_ATK_PER_ADJACENT, MAGE, CORRUPTED_SUPPRESSED_TAGS, CRYSTAL_CAVE_CONFIG, CRYSTAL_CHAMBER_CONFIG, MARKET, SPECIALIST_DEFINITIONS, RELOAD_DEF_PENALTY_PCT, ENEMY } from '../gameConfig';
 import type { SpecialistDefinition } from '../gameConfig';
 import { UI } from '../uiConfig';
 import type { UnitPopulationCost, TechId } from '../types';
@@ -923,7 +923,7 @@ function TopBar({
         <button className="hud-stat hud-stat--clickable" onClick={() => setResourcePopup('wood')}>🪵 {resources.wood}<NetIncomeBadge gross={woodPerTurn} upkeep={woodUpkeep} /></button>
         <button className="hud-stat hud-stat--clickable" onClick={() => setPopulationPopup('farmers')}>🌾 {farmersUsed}/{farmerCapacity}</button>
         <button className="hud-stat hud-stat--clickable" onClick={() => setPopulationPopup('nobles')}>🎖️ {noblesUsed}/{nobleCapacity}</button>
-        <button className="hud-stat hud-stat--clickable" onClick={() => setEmberPopupOpen(true)}>🔥 Ember {ember}</button>
+        <button className="hud-stat hud-stat--clickable" data-hud-target="ember" onClick={() => setEmberPopupOpen(true)}>🔥 Ember {ember}</button>
       <span className="hud-stat">🌋 Lava in {turnsUntilLavaAdvance}</span>
       <button className="hud-stat hud-stat--clickable" onClick={() => setResourcePopup('crystal')}>
         💎 {arcaneCrystals}{crystalsPerTurn > 0 && <span className="hud-income">(+{formattedCrystalIncome})</span>}
@@ -4123,16 +4123,21 @@ function CaveMonsterKillModal() {
 // TURN ANNOUNCEMENT POPUP
 // ============================================================================
 
-function TurnAnnouncementPopup({ turn }: { turn: number }) {
+function TurnAnnouncementPopup({ turn, emberRose }: { turn: number; emberRose: boolean }) {
   const totalMs = UI.TURN_POPUP_DISPLAY_MS + UI.TURN_POPUP_FADE_MS;
   return (
     <div
-      className="hud-turn-popup"
+      className={`hud-turn-popup${emberRose ? ' hud-turn-popup--ember' : ''}`}
       style={{ animationDuration: `${totalMs}ms` }}
     >
-      Turn {turn}
+      <div className="hud-turn-popup-main">Turn {turn}</div>
+      {emberRose && <div className="hud-turn-popup-sub">Ember Level increased</div>}
     </div>
   );
+}
+
+export function shouldShowTurnPopupEmberRose(turn: number): boolean {
+  return turn > 1 && (turn - 1) % ENEMY.THREAT_LEVEL_INCREASE_INTERVAL === 0;
 }
 
 // ============================================================================
@@ -4650,6 +4655,7 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
   }, [arcaneCrystals]);
 
   const isPlayerTurn = phase === GamePhase.PLAYER_TURN;
+  const emberRose = shouldShowTurnPopupEmberRose(turn);
   // Badge shows when crystals have been gained since the player last closed the tech tree
   // AND there is at least one affordable unlocked tech available.
   // crystalsAtLastTechTreeClose of -1 means the tech tree has never been closed this
@@ -4673,7 +4679,7 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
       {showTechTree && <TechTreeOverlay onClose={handleCloseTechTree} />}
       {phase === GamePhase.GAME_OVER && <GameOverOverlay />}
       {phase === GamePhase.VICTORY && <VictoryOverlay />}
-      {showTurnPopup && <TurnAnnouncementPopup turn={turn} />}
+      {showTurnPopup && <TurnAnnouncementPopup turn={turn} emberRose={emberRose} />}
     </>
   );
 }

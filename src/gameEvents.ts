@@ -161,16 +161,16 @@ export type GameEvent =
     }
   | {
       /**
-       * Emitted when Ember Level increases due to an Emberling sacrifice.
+       * Emitted whenever Ember Level increases, regardless of source.
        * Used to show player-facing feedback (floater + log).
        */
       type: 'EMBER_LEVEL_UP';
-      /** Position of the unit that caused the ember increase (sacrifice tile) */
-      position: Position;
+      /** Position of the source tile, when the source is spatial. */
+      position?: Position;
       /** Amount by which Ember Level increased */
       amount: number;
-      /** Whether the source was an Emberling sacrifice (true) or another cause (false) */
-      isEmberlingSacrifice: boolean;
+      /** Source category for the ember increase. */
+      source: 'EMBERLING_SACRIFICE' | 'LAVA_DEATH' | 'LAVA_ADVANCE' | 'TURN_INTERVAL' | 'STRONGHOLD_CAPTURE';
     }
   | {
       /**

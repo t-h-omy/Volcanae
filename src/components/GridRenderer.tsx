@@ -1798,9 +1798,11 @@ function DamageFloaterLayer({ tileSize }: { tileSize: number }) {
           '--color-levelup-floater': RENDER.COLORS.LEVEL_UP_FLOATER,
           '--color-xp-floater': RENDER.COLORS.XP_FLOATER,
           '--color-revive-floater': RENDER.COLORS.REVIVE_FLOATER,
+          '--color-emberlevel-floater': '#ffbf66',
           '--damage-floater-font-size': `${UI.DAMAGE_FLOATER_FONT_SIZE_PX}px`,
           '--levelup-floater-font-size': `${UI.LEVEL_UP_FLOATER_FONT_SIZE_PX}px`,
           '--xp-floater-font-size': `${UI.XP_FLOATER_FONT_SIZE_PX}px`,
+          '--emberlevel-floater-font-size': `${UI.EMBER_LEVEL_FLOATER_FONT_SIZE_PX}px`,
         } as React.CSSProperties
       }
     >
@@ -1814,6 +1816,8 @@ function DamageFloaterLayer({ tileSize }: { tileSize: number }) {
                 ? 'floater-xp'
                 : floater.floaterType === 'revive'
                   ? 'floater-revive'
+                  : floater.floaterType === 'emberlevel'
+                    ? 'floater-emberlevel'
                   : floater.isEnemy
                     ? 'floater-enemy'
                     : 'floater-player';

@@ -8,6 +8,7 @@ import { GamePhase } from './types'
 import { UI } from './uiConfig'
 import GridRenderer from './components/GridRenderer'
 import HUD from './components/HUD'
+import FlyToHudLayer from './components/FlyToHudLayer'
 import MainMenu from './components/MainMenu'
 import './App.css'
 
@@ -104,6 +105,7 @@ function Game({ canInstall, promptInstall }: { canInstall: boolean; promptInstal
         <>
           <GridRenderer />
           <HUD showTurnPopup={showTurnPopup} />
+          <FlyToHudLayer />
           {canInstall && (
             <button className="a2hs-btn" onClick={promptInstall}>
               📲 Install App

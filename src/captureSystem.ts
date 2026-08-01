@@ -219,7 +219,7 @@ export function initiateCapture(
 
     if (building.type === BuildingType.STRONGHOLD) {
       updateZonesUnlocked(state);
-      increaseEmberOnStrongholdCapture(state);
+      increaseEmberOnStrongholdCapture(state, building.position, events);
       grantArcaneCrystals(state, TECH.CRYSTALS_ON_ZONE_STRONGHOLD);
     }
     if (
@@ -284,7 +284,7 @@ export function initiateCapture(
     updateZonesUnlocked(state);
     // Increase threat level when player captures (destroys) a stronghold
     if (unitFaction === Faction.PLAYER) {
-      increaseEmberOnStrongholdCapture(state);
+      increaseEmberOnStrongholdCapture(state, { x, y }, events);
     }
   }
 
@@ -428,7 +428,7 @@ export function triggerSanctumCollapse(
  *
  * @param state - Immer draft of the game state (will be mutated)
  */
-export function resolveCaptures(state: Draft<GameState>): void {
+export function resolveCaptures(state: Draft<GameState>, events?: GameEvent[]): void {
   // Collect building IDs first to avoid mutation during iteration
   const buildingIds = Object.keys(state.buildings);
 
@@ -465,7 +465,7 @@ export function resolveCaptures(state: Draft<GameState>): void {
 
       if (building.type === BuildingType.STRONGHOLD) {
         updateZonesUnlocked(state);
-        increaseEmberOnStrongholdCapture(state);
+        increaseEmberOnStrongholdCapture(state, building.position, events);
         grantArcaneCrystals(state, TECH.CRYSTALS_ON_ZONE_STRONGHOLD);
       }
 
@@ -520,7 +520,7 @@ export function resolveCaptures(state: Draft<GameState>): void {
     if (buildingType === BuildingType.STRONGHOLD) {
       updateZonesUnlocked(state);
       if (capturingFaction === Faction.PLAYER) {
-        increaseEmberOnStrongholdCapture(state);
+        increaseEmberOnStrongholdCapture(state, { x, y }, events);
       }
     }
 

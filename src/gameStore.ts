@@ -67,6 +67,7 @@ import { canUnitBuildBridge, getBridgeBuildTargets } from './unitActions';
 import { canUnitSetTrap, isTrapTileClear, canUnitExtinguish } from './unitActions';
 import { useHintStore } from './hintStore';
 import { flushDeferredHints, tryTriggerHint } from './hintSystem';
+import { triggerEmberLevelUpVfx } from './emberLevelVfx';
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
@@ -1053,6 +1054,7 @@ export const useGameStore = create<GameStore>()(
     captureBuilding: (unitId: string, buildingId: string) => {
       let pendingEvents: GameEvent[] | null = null;
       let pendingResolvedState: GameState | null = null;
+      const immediateCaptureEvents: GameEvent[] = [];
 
       set((state) => {
         const unit = state.units[unitId];
@@ -1086,7 +1088,7 @@ export const useGameStore = create<GameStore>()(
           state.selectedBuildingId = null;
         } else {
           // Non-sanctum captures: apply directly (no animation needed)
-          initiateCaptureLogic(state, unitId, buildingId);
+          initiateCaptureLogic(state, unitId, buildingId, undefined, immediateCaptureEvents);
           updateDiscovery(state);
           checkGameConditions(state);
         }
@@ -1094,6 +1096,10 @@ export const useGameStore = create<GameStore>()(
 
       if (pendingEvents !== null && pendingResolvedState !== null) {
         useAnimationStore.getState().enqueue(pendingEvents, pendingResolvedState);
+      } else if (immediateCaptureEvents.length > 0) {
+        immediateCaptureEvents.forEach((event) => {
+          useGameStore.getState().applyEvent(event);
+        });
       }
     },
 
@@ -2046,6 +2052,7 @@ export const useGameStore = create<GameStore>()(
       let homelessHintPos: { x: number; y: number } | null = null;
       let untrainedHintPos: { x: number; y: number } | null = null;
       let hasBurningPlayerDamage = false;
+      const resolveCaptureEvents: GameEvent[] = [];
 
       set((state) => {
         // Auto-deselect when the player ends their turn — no unit, building,
@@ -2061,7 +2068,7 @@ export const useGameStore = create<GameStore>()(
         state.pendingTrapSetterId = null;
 
         // Phase 1: Resolve all pending captures (instant, no animation)
-        resolveCaptures(state);
+        resolveCaptures(state, resolveCaptureEvents);
 
         // Phase 1.5: End-of-player-turn idle heal (spec_24) before enemy actions.
         const idleHealEvents: GameEvent[] = [];
@@ -2134,7 +2141,7 @@ export const useGameStore = create<GameStore>()(
         );
 
         // Phase 4: Lava phase
-        const allEvents: GameEvent[] = [...idleHealEvents, ...enemyEvents, ...tileStatusEvents];
+        const allEvents: GameEvent[] = [...resolveCaptureEvents, ...idleHealEvents, ...enemyEvents, ...tileStatusEvents];
         computedState = produce(computedState, (draft) => {
           draft.turnsUntilLavaAdvance -= 1;
         });
@@ -2402,6 +2409,11 @@ export const useGameStore = create<GameStore>()(
           if (draft.turn > 0 && draft.turn % ENEMY.THREAT_LEVEL_INCREASE_INTERVAL === 0) {
             draft.ember += 1;
             draft.emberLevelSources.turns += 1;
+            allEvents.push({
+              type: 'EMBER_LEVEL_UP',
+              amount: 1,
+              source: 'TURN_INTERVAL',
+            });
           }
 
           // Expire elapsed zone lockouts
@@ -3195,17 +3207,30 @@ export const useGameStore = create<GameStore>()(
 
           case 'EMBER_LEVEL_UP': {
             // State was already mutated in enemySystem — this is presentation-only.
-            const sacrificeLabel = event.isEmberlingSacrifice
-              ? `Emberling sacrificed to lava · 🔥 Ember Level +${event.amount}`
-              : `Enemy consumed by lava · 🔥 Ember Level +${event.amount}`;
-            useFloaterStore.getState().addFloater({
-              label: sacrificeLabel,
-              value: 0,
-              x: event.position.x,
-              y: event.position.y,
-              isEnemy: true,
-              floaterType: 'xp',
-            });
+            if (event.source !== 'TURN_INTERVAL' && event.position) {
+              const sourceLabel = event.source === 'EMBERLING_SACRIFICE'
+                ? 'Emberling sacrificed'
+                : event.source === 'LAVA_DEATH'
+                  ? 'Enemy entered lava'
+                  : event.source === 'LAVA_ADVANCE'
+                    ? 'Enemy consumed by lava'
+                    : 'Stronghold captured';
+              useFloaterStore.getState().addFloater({
+                label: `${sourceLabel} · +${event.amount} Ember Level`,
+                value: 0,
+                x: event.position.x,
+                y: event.position.y,
+                isEnemy: true,
+                floaterType: 'emberlevel',
+              });
+            }
+            if (
+              event.source === 'TURN_INTERVAL' ||
+              (event.position &&
+                !!state.grid[event.position.y]?.[event.position.x]?.isRevealed)
+            ) {
+              triggerEmberLevelUpVfx(event);
+            }
             emberLevelUpFired = true;
             break;
           }

@@ -19,7 +19,7 @@ export interface DamageFloater {
   /** true = enemy took damage (orange), false = player took damage (red) */
   isEnemy: boolean;
   /** Visual type that controls colour and style; defaults to 'damage' */
-  floaterType?: 'damage' | 'heal' | 'levelup' | 'xp' | 'revive';
+  floaterType?: 'damage' | 'heal' | 'levelup' | 'xp' | 'revive' | 'emberlevel';
 }
 
 interface FloaterState {

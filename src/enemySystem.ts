@@ -1337,7 +1337,7 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
         type: 'EMBER_LEVEL_UP',
         position: sacrificePos,
         amount: 1,
-        isEmberlingSacrifice: isSacrifice,
+        source: isSacrifice ? 'EMBERLING_SACRIFICE' : 'LAVA_DEATH',
       });
     }
     return;
@@ -2737,7 +2737,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
             type: 'EMBER_LEVEL_UP',
             position: fallbackPos,
             amount: 1,
-            isEmberlingSacrifice: true,
+            source: 'EMBERLING_SACRIFICE',
           });
         }
       }
@@ -2846,20 +2846,21 @@ function decideAndExecute(
   executeAction(unit, chosen, state, events);
 }
 
-// ============================================================================
-// EMBER SCALING
-// ============================================================================
-
-export function updateEmberFromTurn(state: Draft<GameState>): void {
-  if (state.turn > 0 && state.turn % 10 === 0) {
-    state.ember += 1;
-    state.emberLevelSources.turns += 1;
-  }
-}
-
-export function increaseEmberOnStrongholdCapture(state: Draft<GameState>): void {
+export function increaseEmberOnStrongholdCapture(
+  state: Draft<GameState>,
+  position: Position,
+  events?: GameEvent[],
+): void {
   state.ember += 1;
   state.emberLevelSources.other += 1;
+  if (events) {
+    events.push({
+      type: 'EMBER_LEVEL_UP',
+      position: { x: position.x, y: position.y },
+      amount: 1,
+      source: 'STRONGHOLD_CAPTURE',
+    });
+  }
 }
 
 // ============================================================================

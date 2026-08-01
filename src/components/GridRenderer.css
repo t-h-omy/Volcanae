@@ -474,9 +474,22 @@
   font-size: var(--levelup-floater-font-size, 16px);
 }
 
+.damage-floater.floater-emberlevel {
+  color: var(--color-emberlevel-floater, #ffbf66);
+  font-size: var(--emberlevel-floater-font-size, 13px);
+  animation:
+    floatUp var(--float-duration, 2000ms) ease-out forwards,
+    emberLevelPulse 700ms ease-in-out infinite;
+}
+
 @keyframes floatUp {
   0%   { transform: translateX(-50%) translateY(0);                    opacity: 1; }
   100% { transform: translateX(-50%) translateY(var(--float-rise, -20px)); opacity: 0; }
+}
+
+@keyframes emberLevelPulse {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.45); }
 }
 
 /* ── Capture Indicator Layer ── */
