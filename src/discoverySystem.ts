@@ -13,9 +13,10 @@
 
 import type { GameState } from './types';
 import type { Draft } from 'immer';
-import { Faction } from './types';
+import { BuildingType, Faction } from './types';
 import { MAP } from './gameConfig';
 import { getTilesWithinEdgeCircleRange } from './rangeUtils';
+import { initializeMarketOffers } from './marketSystem';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -111,8 +112,25 @@ export function updateDiscovery(state: Draft<GameState>): void {
     for (let x = 0; x < MAP.GRID_WIDTH; x++) {
       const key = positionToKey(x, y);
       if (discoverableTiles.has(key)) {
+        const wasRevealed = state.grid[y][x].isRevealed;
         state.grid[y][x].isRevealed = true;
+        if (!wasRevealed) {
+          const buildingId = state.grid[y][x].buildingId;
+          if (!buildingId) continue;
+          const building = state.buildings[buildingId];
+          if (!building || building.type !== BuildingType.MARKET) continue;
+          if (building.marketOffersInitialized === true) continue;
+          initializeMarketOffers(state, building);
+        }
       }
     }
+  }
+
+  for (const building of Object.values(state.buildings)) {
+    if (building.type !== BuildingType.MARKET) continue;
+    if (building.marketOffersInitialized === true) continue;
+    const tile = state.grid[building.position.y]?.[building.position.x];
+    if (!tile?.isRevealed) continue;
+    initializeMarketOffers(state, building);
   }
 }

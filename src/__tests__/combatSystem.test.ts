@@ -19,8 +19,8 @@
 
 import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
-import { resolveAttack } from '../combatSystem';
-import { UnitType, Faction, UnitTag, TileType } from '../types';
+import { getRageAttackContext, resolveAttack } from '../combatSystem';
+import { UnitType, Faction, UnitTag, TileType, TileStatus } from '../types';
 import type { GameState, Unit, Tile, Building, GameStats } from '../types';
 import type { GameEvent } from '../gameEvents';
 import { UNIT_DEFINITIONS } from '../gameConfig';
@@ -206,6 +206,11 @@ function makeState(
   } as unknown as GameState;
 }
 
+function setTileStatus(state: GameState, x: number, y: number, status: TileStatus | null): GameState {
+  state.grid[y][x].status = status;
+  return state;
+}
+
 // ── CHANGE 4: SPLASH damage tests ────────────────────────────────────────────
 
 describe('Change 4 – SPLASH damage', () => {
@@ -321,6 +326,37 @@ describe('Change 4 – SPLASH damage', () => {
     const splashTargetIds = splashEvents.map((e) => (e as { unitId: string }).unitId);
     expect(splashTargetIds).toContain(splash1.id);
     expect(splashTargetIds).toContain(splash2.id);
+  });
+});
+
+describe('RAGE attack helper', () => {
+  it('returns a positive rage bonus when a rage unit is adjacent to an enemy on a normal tile', () => {
+    const rager = makePlayerUnit(UnitType.SWORDSMAN, 4, 5, [UnitTag.RAGE]);
+    const enemy = makeEnemyUnit(UnitType.LAVA_GRUNT, 5, 5);
+
+    const result = getRageAttackContext(makeState([rager, enemy]), rager);
+
+    expect(result.rageAdjacentCount).toBe(1);
+    expect(result.rageBonus).toBeGreaterThan(0);
+  });
+
+  it('returns zero rage bonus on a corrupted tile for a player rage unit', () => {
+    const rager = makePlayerUnit(UnitType.SWORDSMAN, 4, 5, [UnitTag.RAGE]);
+    const enemy = makeEnemyUnit(UnitType.LAVA_GRUNT, 5, 5);
+    const state = setTileStatus(makeState([rager, enemy]), 4, 5, TileStatus.CORRUPTED);
+
+    expect(getRageAttackContext(state, rager)).toEqual({ rageBonus: 0, rageAdjacentCount: 0 });
+  });
+
+  it('matches corruption semantics for enemy rage units by leaving the bonus active', () => {
+    const enemyRager = { ...makeEnemyUnit(UnitType.LAVA_GRUNT, 4, 5), tags: [...UNIT_DEFINITIONS[UnitType.LAVA_GRUNT].tags, UnitTag.RAGE] };
+    const player = makePlayerUnit(UnitType.SWORDSMAN, 5, 5);
+    const state = setTileStatus(makeState([enemyRager, player]), 4, 5, TileStatus.CORRUPTED);
+
+    const result = getRageAttackContext(state, enemyRager);
+
+    expect(result.rageAdjacentCount).toBe(1);
+    expect(result.rageBonus).toBeGreaterThan(0);
   });
 });
 

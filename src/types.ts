@@ -635,6 +635,12 @@ export interface Building {
   /** Player turns remaining until the next empty-slot auto-refill. Only set on MARKET buildings. */
   marketRefillCountdown?: number;
   /**
+   * Whether this market's offer slots have been initialized.
+   * False/undefined means offers have not been generated yet (e.g. market not discovered).
+   * True means slots were initialized at least once and can refill/restock normally.
+   */
+  marketOffersInitialized?: boolean;
+  /**
    * Orientation of a BRIDGE building. 'EW' = east–west span (sprite default, 0° rotation);
    * 'NS' = north–south span (90° rotation). Only set on BRIDGE buildings.
    */
@@ -868,6 +874,8 @@ export interface GameState {
   pendingBrandmarkTransforms: Array<{ unitId: string; position: Position }>;
   /** When non-null, the player is choosing a bridge build target on the map */
   pendingBridgeBuilderId: string | null;
+  /** When non-null, the player is choosing a trap placement target on the map (mutually exclusive with other pending modes) */
+  pendingTrapSetterId: string | null;
   /**
    * All active portals created by RIFT_LORD units.
    * Keyed by portal ID. Portals are cleaned up at the start of each enemy turn

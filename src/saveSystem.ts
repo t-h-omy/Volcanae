@@ -18,7 +18,7 @@ import type { Difficulty } from './types';
 // ============================================================================
 
 /** Increment this whenever the serialized shape changes incompatibly. */
-export const SAVE_VERSION = 17;
+export const SAVE_VERSION = 18;
 
 // ============================================================================
 // TYPES
@@ -208,6 +208,7 @@ function migrateState(parsed: { version: number; state: GameState }): GameState 
     if (!('pendingTransposeFirstUnitId' in gs)) gs.pendingTransposeFirstUnitId = null;
     if (!Array.isArray(gs.pendingBrandmarkTransforms)) gs.pendingBrandmarkTransforms = [];
     if (!('pendingBridgeBuilderId' in gs)) gs.pendingBridgeBuilderId = null;
+    if (!('pendingTrapSetterId' in gs)) gs.pendingTrapSetterId = null;
 
     // Migration: remove legacy MAGE tag.
     if (s.units && typeof s.units === 'object') {
@@ -402,6 +403,29 @@ function migrateState(parsed: { version: number; state: GameState }): GameState 
     // Migration v16 → v17: lastFreeRestockTurn on MARKET buildings.
     // Leave the field undefined — undefined means the free restock is immediately
     // available (i.e. never used), which is the correct default for old saves.
+
+    // Migration v17 → v18: hide market offers on unrevealed tiles.
+    if (parsed.version < 18 && s.buildings && typeof s.buildings === 'object') {
+      for (const building of Object.values(s.buildings) as Array<unknown>) {
+        const b = building as Record<string, unknown>;
+        if (!b || b.type !== BuildingType.MARKET) continue;
+        const pos = b.position as { x?: number; y?: number } | undefined;
+        if (typeof pos?.x !== 'number' || typeof pos?.y !== 'number') continue;
+        const tile = s.grid?.[pos.y]?.[pos.x];
+        const isRevealed = tile?.isRevealed === true;
+        if (!isRevealed) {
+          if (Array.isArray(b.marketResourceSlots)) {
+            b.marketResourceSlots = (b.marketResourceSlots as unknown[]).map(() => null);
+          }
+          if (Array.isArray(b.marketSpecialistSlots)) {
+            b.marketSpecialistSlots = (b.marketSpecialistSlots as unknown[]).map(() => null);
+          }
+          b.marketOffersInitialized = false;
+          continue;
+        }
+        b.marketOffersInitialized = true;
+      }
+    }
 
     return s as GameState;
   } catch {

@@ -36,7 +36,7 @@ import {
 } from '../types';
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
 import { nextTileCycleTarget, tileSelectionState } from '../tileCycleHelper';
-import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, canUnitConstruct, canUnitCapture, hasUnitActed, getHealTargets, canUnitCast, getBridgeBuildTargets, explainInvalidHealTarget, explainInvalidBridgeTarget } from '../unitActions';
+import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, canUnitConstruct, canUnitCapture, hasUnitActed, getHealTargets, canUnitCast, getBridgeBuildTargets, explainInvalidHealTarget, explainInvalidBridgeTarget, getTrapPlacementTargets, explainInvalidTrapTarget } from '../unitActions';
 import { getValidSpellTargets, explainInvalidSpellTarget } from '../spellSystem';
 import './GridRenderer.css';
 
@@ -148,6 +148,9 @@ export default function GridRenderer() {
   const pendingBridgeBuilderId = useGameStore((s) => s.pendingBridgeBuilderId);
   const cancelBridgeBuildMode = useGameStore((s) => s.cancelBridgeBuildMode);
   const buildBridge = useGameStore((s) => s.buildBridge);
+  const pendingTrapSetterId = useGameStore((s) => s.pendingTrapSetterId);
+  const cancelTrapSetMode = useGameStore((s) => s.cancelTrapSetMode);
+  const placeTrapAt = useGameStore((s) => s.placeTrapAt);
   const strongholdTotalCap = useGameStore((s) => getStrongholdEffectiveCap(s).totalCap);
   const portals = useGameStore((s) => s.portals);
   // Precompute recruitment usage (current/limit) for each player-owned recruitment building type.
@@ -552,6 +555,20 @@ export default function GridRenderer() {
     return set;
   }, [pendingBridgeBuilderId, units]);
 
+  // Trap placement target highlighting: when a trap setter is in trap-set mode
+  const trapPlacementTargetSet = useMemo<Set<string>>(() => {
+    if (!pendingTrapSetterId) return new Set();
+    const state = useGameStore.getState();
+    const setterUnit = state.units[pendingTrapSetterId];
+    if (!setterUnit) return new Set();
+    const targets = getTrapPlacementTargets(setterUnit, state);
+    const set = new Set<string>();
+    for (const t of targets) {
+      set.add(posKey(t.x, t.y));
+    }
+    return set;
+  }, [pendingTrapSetterId, units]);
+
   // Spell target highlighting: when a spell cast is pending, show valid target tiles
   const spellTargetSet = useMemo<Set<string>>(() => {
     if (!pendingSpellCast) return new Set();
@@ -764,6 +781,22 @@ export default function GridRenderer() {
         return;
       }
 
+      // Priority 0.45 — Trap set mode: clicking a valid tile places the trap
+      if (pendingTrapSetterId && trapPlacementTargetSet.has(key)) {
+        placeTrapAt(x, y);
+        return;
+      }
+      if (pendingTrapSetterId) {
+        const reason = explainInvalidTrapTarget(useGameStore.getState(), pendingTrapSetterId, { x, y });
+        if (reason) {
+          showInvalidReasonFloater(x, y, reason);
+          return;
+        }
+        triggerInvalidActionVfx(x, y);
+        cancelTrapSetMode();
+        return;
+      }
+
       // Priority 0.5 — Spell cast mode: clicking a valid target casts the spell; anything else cancels
       if (pendingSpellCast && spellTargetSet.has(key)) {
         castSpell({ x, y });
@@ -888,7 +921,7 @@ export default function GridRenderer() {
         clearSelection();
       }
     },
-    [grid, selectedUnitId, selectedBuildingId, selectedUnit, selectedBuilding, attackableSet, healableSet, spellTargetSet, reachableSet, bridgeBuildTargetSet, units, buildings, selectUnit, selectBuilding, selectTile, clearSelection, moveUnit, attackUnit, attackBuilding, buildingAttackUnit, buildingAttackBuilding, healUnit, pendingHealerId, cancelHealMode, pendingSpellCast, castSpell, cancelSpellCast, pendingBridgeBuilderId, buildBridge, cancelBridgeBuildMode, isAnimating, triggerInvalidActionVfx, showInvalidReasonFloater],
+    [grid, selectedUnitId, selectedBuildingId, selectedUnit, selectedBuilding, attackableSet, healableSet, spellTargetSet, reachableSet, bridgeBuildTargetSet, trapPlacementTargetSet, units, buildings, selectUnit, selectBuilding, selectTile, clearSelection, moveUnit, attackUnit, attackBuilding, buildingAttackUnit, buildingAttackBuilding, healUnit, pendingHealerId, cancelHealMode, pendingSpellCast, castSpell, cancelSpellCast, pendingBridgeBuilderId, buildBridge, cancelBridgeBuildMode, pendingTrapSetterId, placeTrapAt, cancelTrapSetMode, isAnimating, triggerInvalidActionVfx, showInvalidReasonFloater],
   );
 
   // Right-click / tap-hold → deselect (only when not used for drag-panning)

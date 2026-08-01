@@ -1674,6 +1674,7 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
     pendingTransposeFirstUnitId: null,
     pendingBrandmarkTransforms: [],
     pendingBridgeBuilderId: null,
+    pendingTrapSetterId: null,
     portals: {},
     activeWaveTheme: { entries: [], isReadPlayer: false },
     readPlayerThemeCount: 0,

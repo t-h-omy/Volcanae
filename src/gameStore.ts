@@ -126,6 +126,12 @@ interface GameActions {
   cancelBridgeBuildMode: () => void;
   /** Place a SCOUT_TRAP on the scout's current tile */
   setTrap: (unitId: string) => void;
+  /** Enter trap-placement target-selection mode */
+  startTrapSetMode: (unitId: string) => void;
+  /** Place a trap at the specified tile (called from GridRenderer after target selection) */
+  placeTrapAt: (x: number, y: number) => void;
+  /** Cancel trap-placement target-selection mode */
+  cancelTrapSetMode: () => void;
   /** Extinguish BURNING and CORRUPTED tiles within EXTINGUISH_RADIUS of the scout */
   scoutExtinguish: (unitId: string) => void;
   /** Enter spell-cast target-selection mode */
@@ -460,6 +466,7 @@ export const useGameStore = create<GameStore>()(
         state.selectedTilePos = null;
         state.pendingHealerId = null;
         state.pendingBridgeBuilderId = null;
+        state.pendingTrapSetterId = null;
       });
       // After selection, check if this player unit is standing on an unresolved
       // cave mountain tile — if so, open the screams popup (unless they arrived
@@ -494,6 +501,7 @@ export const useGameStore = create<GameStore>()(
         state.selectedTilePos = null;
         state.pendingHealerId = null;
         state.pendingBridgeBuilderId = null;
+        state.pendingTrapSetterId = null;
       });
     },
 
@@ -504,6 +512,7 @@ export const useGameStore = create<GameStore>()(
         state.selectedTilePos = null;
         state.pendingHealerId = null;
         state.pendingBridgeBuilderId = null;
+        state.pendingTrapSetterId = null;
       });
     },
 
@@ -514,6 +523,7 @@ export const useGameStore = create<GameStore>()(
         state.selectedBuildingId = null;
         state.pendingHealerId = null;
         state.pendingBridgeBuilderId = null;
+        state.pendingTrapSetterId = null;
       });
     },
 
@@ -1676,6 +1686,7 @@ export const useGameStore = create<GameStore>()(
           return;
         }
         state.pendingHealerId = null;
+        state.pendingTrapSetterId = null;
         state.pendingBridgeBuilderId = unitId;
       });
     },
@@ -1687,19 +1698,42 @@ export const useGameStore = create<GameStore>()(
     },
 
     setTrap: (unitId: string) => {
+      // Legacy single-call path kept for backwards compatibility; delegates to startTrapSetMode.
+      useGameStore.getState().startTrapSetMode(unitId);
+    },
+
+    startTrapSetMode: (unitId: string) => {
       set((state) => {
         const unit = state.units[unitId];
-        if (!unit) return;
-        if (!canUnitSetTrap(unit, state)) return;
-        if (!isTrapTileClear(unit, state)) return;
+        if (!unit || !canUnitSetTrap(unit, state)) {
+          state.pendingTrapSetterId = null;
+          return;
+        }
+        state.pendingHealerId = null;
+        state.pendingBridgeBuilderId = null;
+        state.pendingTrapSetterId = unitId;
+      });
+    },
+
+    placeTrapAt: (x: number, y: number) => {
+      set((state) => {
+        const unitId = state.pendingTrapSetterId;
+        if (!unitId) return;
+        const unit = state.units[unitId];
+        if (!unit) { state.pendingTrapSetterId = null; return; }
+        if (!canUnitSetTrap(unit, state)) { state.pendingTrapSetterId = null; return; }
+        // Range check: own tile is always valid, otherwise use edge-circle range
+        const inRange = (x === unit.position.x && y === unit.position.y) ||
+          isTileWithinEdgeCircleRange(unit.position.x, unit.position.y, x, y, ABILITIES.SCOUT_TRAP_PLACE_RANGE);
+        if (!inRange) { state.pendingTrapSetterId = null; return; }
+        if (!isTrapTileClear(state, x, y, unitId)) { state.pendingTrapSetterId = null; return; }
         // Check resource cost
-        if (state.resources.wood < ABILITIES.SCOUT_TRAP_WOOD_COST) return;
-        if (state.resources.iron < ABILITIES.SCOUT_TRAP_IRON_COST) return;
+        if (state.resources.wood < ABILITIES.SCOUT_TRAP_WOOD_COST) { state.pendingTrapSetterId = null; return; }
+        if (state.resources.iron < ABILITIES.SCOUT_TRAP_IRON_COST) { state.pendingTrapSetterId = null; return; }
 
         state.resources.wood -= ABILITIES.SCOUT_TRAP_WOOD_COST;
         state.resources.iron -= ABILITIES.SCOUT_TRAP_IRON_COST;
 
-        const { x, y } = unit.position;
         const trapId = `scout-trap-${x}-${y}-${state.turn}`;
         const buildingDef = BUILDING_DEFINITIONS[BuildingType.SCOUT_TRAP];
         state.buildings[trapId] = {
@@ -1737,6 +1771,7 @@ export const useGameStore = create<GameStore>()(
         };
         state.grid[y][x].buildingId = trapId;
         unit.hasConstructedThisTurn = true;
+        state.pendingTrapSetterId = null;
 
         useFloaterStore.getState().addFloater({
           value: 0,
@@ -1746,6 +1781,12 @@ export const useGameStore = create<GameStore>()(
           isEnemy: false,
           floaterType: 'revive',
         });
+      });
+    },
+
+    cancelTrapSetMode: () => {
+      set((state) => {
+        state.pendingTrapSetterId = null;
       });
     },
 
@@ -1790,6 +1831,7 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         state.pendingHealerId = null; // mutually exclusive with heal mode
         state.pendingBridgeBuilderId = null;
+        state.pendingTrapSetterId = null;
         state.pendingSpellCast = { mageId, spellId };
       });
     },
@@ -2024,6 +2066,7 @@ export const useGameStore = create<GameStore>()(
         state.pendingSpellCast = null;
         state.pendingTransposeFirstUnitId = null;
         state.pendingBridgeBuilderId = null;
+        state.pendingTrapSetterId = null;
 
         // Phase 1: Resolve all pending captures (instant, no animation)
         resolveCaptures(state);
@@ -2340,6 +2383,7 @@ export const useGameStore = create<GameStore>()(
               if (
                 b.faction === Faction.PLAYER &&
                 b.type === BuildingType.CRYSTAL_CHAMBER &&
+                b.isDisabledForTurns <= 0 &&
                 b.resonanceTurnsRemaining > 0 &&
                 b.resonanceCrystalBonus
               ) {

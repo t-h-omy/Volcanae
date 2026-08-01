@@ -18,7 +18,7 @@ import { cleanupRoostedUnits } from './buildingRemoval';
 import { getBridgeAt } from './bridgeSystem';
 import { resolveSlide } from './movementSystem';
 import { isSpecialistEffectActive } from './specialistSystem';
-import { anyAttackableEnemyTargetInRange } from './unitActions';
+import { anyAttackableEnemyTargetInRange, applySpawnActionFlags } from './unitActions';
 
 // Counter for generating unique gravestone building IDs within this module
 let combatSystemIdCounter = 0;
@@ -213,7 +213,7 @@ export function spawnEnemyEmberDemon(
   spawnPos: { x: number; y: number },
 ): void {
   const newId = generateId('unit_demon');
-  state.units[newId] = {
+  const spawnedUnit: Unit = {
     id: newId,
     type: UnitType.EMBER_DEMON,
     faction: Faction.ENEMY,
@@ -231,12 +231,12 @@ export function spawnEnemyEmberDemon(
     },
     tags: [UnitTag.LAVA],
     controllerMageId: null,
-    hasMovedThisTurn: true,
-    hasAttackedThisTurn: true,
-    hasCapturedThisTurn: true,
+    hasMovedThisTurn: false,
+    hasAttackedThisTurn: false,
+    hasCapturedThisTurn: false,
     hasTradedThisTurn: false,
-    hasConstructedThisTurn: true,
-    hasDestroyedThisTurn: true,
+    hasConstructedThisTurn: false,
+    hasDestroyedThisTurn: false,
     hasUsedPostAttackMoveThisTurn: false,
     spellsCastThisTurn: 0,
     bloodlustAttackAvailable: false,
@@ -246,6 +246,7 @@ export function spawnEnemyEmberDemon(
     lastMovedTurn: state.turn,
     distractionDefPenalty: 0,
   };
+  state.units[newId] = applySpawnActionFlags(spawnedUnit);
   state.grid[spawnPos.y][spawnPos.x].unitId = newId;
 }
 
@@ -444,6 +445,32 @@ export function getBatteryAttackBonus(state: GameState | Draft<GameState>, unit:
 
   return Math.min(adjacentFriendlyCount, ABILITIES.SIEGE_BATTERY_CAP)
     * ABILITIES.SIEGE_BATTERY_ATK_PER_ADJACENT;
+}
+
+/**
+ * Returns the current RAGE attack bonus and raw adjacent-enemy count for a unit.
+ * The suppression check intentionally delegates to `isUnitOnCorruptedTile` so
+ * HUD and combat stay aligned with the same corruption semantics.
+ */
+export function getRageAttackContext(
+  state: GameState | Draft<GameState>,
+  unit: Unit,
+): { rageBonus: number; rageAdjacentCount: number } {
+  if (!unit.tags.includes(UnitTag.RAGE)) return { rageBonus: 0, rageAdjacentCount: 0 };
+  if (isUnitOnCorruptedTile(state, unit.id)) return { rageBonus: 0, rageAdjacentCount: 0 };
+
+  let rageAdjacentCount = 0;
+  for (const otherId of Object.keys(state.units)) {
+    const other = state.units[otherId];
+    if (!other || other.faction === unit.faction) continue;
+    if (!isTileWithinEdgeCircleRange(unit.position.x, unit.position.y, other.position.x, other.position.y, 1)) continue;
+    rageAdjacentCount++;
+  }
+
+  return {
+    rageBonus: Math.min(rageAdjacentCount, RAGE_MAX_ADJACENT_COUNT) * RAGE_ATK_PER_ADJACENT,
+    rageAdjacentCount,
+  };
 }
 
 /**
@@ -846,14 +873,7 @@ export function resolveAttack(
   // RAGE: attacker gains +ATK per adjacent enemy unit, capped at RAGE_MAX_ADJACENT_COUNT.
   // Suppressed on CORRUPTED tile.
   if (attacker.tags.includes(UnitTag.RAGE) && !attackerOnCorrupted) {
-    let adjacentEnemyCount = 0;
-    for (const otherId of Object.keys(state.units)) {
-      const other = state.units[otherId];
-      if (!other || other.faction === attacker.faction) continue;
-      if (!isTileWithinEdgeCircleRange(attacker.position.x, attacker.position.y, other.position.x, other.position.y, 1)) continue;
-      adjacentEnemyCount++;
-    }
-    attackerCombatant.attack += Math.min(adjacentEnemyCount, RAGE_MAX_ADJACENT_COUNT) * RAGE_ATK_PER_ADJACENT;
+    attackerCombatant.attack += getRageAttackContext(state, attacker).rageBonus;
   }
 
   attackerCombatant.attack += getBatteryAttackBonus(state, attacker);
@@ -1836,14 +1856,7 @@ export function resolveAttackOnBuilding(
   // RAGE: attacker gains +ATK per adjacent enemy unit, capped at RAGE_MAX_ADJACENT_COUNT.
   // Suppressed on CORRUPTED tile.
   if (attacker.tags.includes(UnitTag.RAGE) && !attackerOnCorrupted) {
-    let adjacentEnemyCount = 0;
-    for (const otherId of Object.keys(state.units)) {
-      const other = state.units[otherId];
-      if (!other || other.faction === attacker.faction) continue;
-      if (!isTileWithinEdgeCircleRange(attacker.position.x, attacker.position.y, other.position.x, other.position.y, 1)) continue;
-      adjacentEnemyCount++;
-    }
-    attackerCombatant.attack += Math.min(adjacentEnemyCount, RAGE_MAX_ADJACENT_COUNT) * RAGE_ATK_PER_ADJACENT;
+    attackerCombatant.attack += getRageAttackContext(state, attacker).rageBonus;
   }
 
   attackerCombatant.attack += getBatteryAttackBonus(state, attacker);

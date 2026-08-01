@@ -16,7 +16,7 @@ import { enemyConstructBuilding } from './constructionSystem';
 import { getBridgeAt, canTraverseEdge } from './bridgeSystem';
 import { processEnemyLevelUps, grantXp, canGrantXp } from './levelSystem';
 import type { GameEvent } from './gameEvents';
-import { hasUnitActed } from './unitActions';
+import { hasUnitActed, applySpawnActionFlags } from './unitActions';
 import { sweepLeashes } from './spellSystem';
 import { checkGraveTrapTrigger, checkScoutTrapTrigger, resolveSlide } from './movementSystem';
 import { useCombatAnimationStore } from './combatAnimationStore';
@@ -541,7 +541,7 @@ function createEnemyUnit(
     tags.push(UnitTag.LAVABOOST);
   }
 
-  return {
+  const unit: Unit = {
     id: generateEnemyId(),
     type: unitType,
     faction: Faction.ENEMY,
@@ -558,12 +558,12 @@ function createEnemyUnit(
       attackRange: UNIT_DEFINITIONS[unitType].attackRange,
     },
     tags,
-    hasMovedThisTurn: true,
-    hasAttackedThisTurn: true,
-    hasCapturedThisTurn: true,
+    hasMovedThisTurn: false,
+    hasAttackedThisTurn: false,
+    hasCapturedThisTurn: false,
     hasTradedThisTurn: false,
-    hasConstructedThisTurn: true,
-    hasDestroyedThisTurn: true,
+    hasConstructedThisTurn: false,
+    hasDestroyedThisTurn: false,
     hasUsedPostAttackMoveThisTurn: false,
     bloodlustAttackAvailable: false,
     xp: 0,
@@ -572,6 +572,7 @@ function createEnemyUnit(
     distractionDefPenalty: 0,
     lastMovedTurn: 0,
   };
+  return applySpawnActionFlags(unit);
 }
 
 function spawnEnemyUnits(state: Draft<GameState>, events?: GameEvent[]): void {
@@ -3363,6 +3364,7 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
         unit.hasAttackedThisTurn = false;
         unit.spellsCastThisTurn = 0;
         unit.hasCapturedThisTurn = false;
+        unit.hasTradedThisTurn = false;
         unit.hasConstructedThisTurn = false;
         unit.hasDestroyedThisTurn = false;
         unit.hasUsedPostAttackMoveThisTurn = false;

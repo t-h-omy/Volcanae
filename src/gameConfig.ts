@@ -1519,12 +1519,16 @@ export const ABILITIES = {
   SCOUT_TRAP_DAMAGE: 60,
   /** Turns the triggering enemy is stunned by a Scout Trap (this turn + next) */
   SCOUT_TRAP_STUN_TURNS: 1,
+  /** Tile range within which a Scout with SCOUT_SET_TRAP can place a Scout Trap (edge-circle, own tile included) */
+  SCOUT_TRAP_PLACE_RANGE: 1,
   /** Tile radius within which a Scout with SCOUT_EXTINGUISH removes BURNING tile status */
   EXTINGUISH_RADIUS: 1,
   /** Attack-range bonus added to Scouts by the Farsight Marshal specialist */
   SCOUT_ATTACK_RANGE_BONUS: 1,
-  /** Extra population capacity (farmers or nobles) added by the Hearthsteward specialist */
+  /** Extra farmer capacity per Farm added by the Hearthsteward specialist */
   HOUSING_CAP_BONUS: 1,
+  /** Extra noble capacity per Patrician House added by the Estate Warden specialist */
+  NOBLE_HOUSING_CAP_BONUS: 1,
   /** Number of rows from the lava front that qualify for the Cinderborn ATK bonus */
   CINDERBORN_ROWS: 3,
   /** Flat ATK bonus granted to a unit recruited within CINDERBORN_ROWS of the lava front */
@@ -1729,7 +1733,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.NONE,
     constructionCost: { iron: 0, wood: 0 },
-    description: `A neutral market. A unit standing here may Trade once per turn for ${MARKET.RESOURCE_SLOTS_MAX} resource swaps and ${MARKET.SPECIALIST_SLOTS_MAX} specialist offer(s). Trading ends the unit's turn. Includes one free restock every ${MARKET.FREE_RESTOCK_INTERVAL_TURNS} turns. Destroyed only by lava.`,
+    description: `A neutral market. Offers appear when the market is discovered. A unit standing here may Trade once per turn for ${MARKET.RESOURCE_SLOTS_MAX} resource swaps and ${MARKET.SPECIALIST_SLOTS_MAX} specialist offer(s). Trading ends the unit's turn. Includes one free restock every ${MARKET.FREE_RESTOCK_INTERVAL_TURNS} turns. Destroyed only by lava.`,
   },
   BRIDGE: {
     discoverRadius: 0,
@@ -1857,7 +1861,7 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
   spec_08: {
     name: 'Trapsmith',
     description:
-      `Your Scouts can place a Scout Trap on their tile (costs ${ABILITIES.SCOUT_TRAP_WOOD_COST} wood). The next non-FLYING enemy to enter it takes ${ABILITIES.SCOUT_TRAP_DAMAGE} damage and is stunned for ${ABILITIES.SCOUT_TRAP_STUN_TURNS} turn(s).`,
+      `Your Scouts can place a Scout Trap within ${ABILITIES.SCOUT_TRAP_PLACE_RANGE} tile(s) of their position (costs ${ABILITIES.SCOUT_TRAP_WOOD_COST} wood). The next non-FLYING enemy to enter it takes ${ABILITIES.SCOUT_TRAP_DAMAGE} damage and is stunned for ${ABILITIES.SCOUT_TRAP_STUN_TURNS} turn(s).`,
     effects: [{
       type: 'SCOUT_SET_TRAP',
       params: { woodCost: ABILITIES.SCOUT_TRAP_WOOD_COST, ironCost: ABILITIES.SCOUT_TRAP_IRON_COST, damage: ABILITIES.SCOUT_TRAP_DAMAGE, stunTurns: ABILITIES.SCOUT_TRAP_STUN_TURNS },
@@ -1911,7 +1915,7 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
   spec_14: {
     name: 'Hearthsteward',
     description:
-      `Each of your Farms and Patrician Houses can house ${ABILITIES.HOUSING_CAP_BONUS} extra person.`,
+      `Each of your Farms can house ${ABILITIES.HOUSING_CAP_BONUS} extra farmer.`,
     effects: [{ type: 'HOUSING_CAP_BONUS', params: { amount: ABILITIES.HOUSING_CAP_BONUS } }],
     upkeepIron: 0,
     upkeepWood: 0,
@@ -1993,6 +1997,14 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
     description:
       `Player units that took no action this turn are healed for ${ABILITIES.IDLE_HEAL_AMOUNT} HP at the end of the player turn.`,
     effects: [{ type: 'IDLE_HEAL', params: { amount: ABILITIES.IDLE_HEAL_AMOUNT } }],
+    upkeepIron: 0,
+    upkeepWood: 0,
+  },
+  spec_25: {
+    name: 'Estate Warden',
+    description:
+      `Each Patrician House houses ${ABILITIES.NOBLE_HOUSING_CAP_BONUS} extra noble.`,
+    effects: [{ type: 'NOBLE_HOUSING_CAP_BONUS', params: { amount: ABILITIES.NOBLE_HOUSING_CAP_BONUS } }],
     upkeepIron: 0,
     upkeepWood: 0,
   },
@@ -2691,7 +2703,7 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   [UnitTag.PUNCTURE]:     { label: 'Puncture',    desc: `Ignores defensive bonuses on the target. Stuns targets with base DEF above ${PUNCTURE_STUN_BASE_DEF_THRESHOLD} for ${PUNCTURE_STUN_DURATION} turn(s).` },
   [UnitTag.RELOAD]:       { label: 'Reload',      desc: `After this unit attacks, its DEF is reduced by ${RELOAD_DEF_PENALTY_PCT}% until the start of its next turn.` },
   [UnitTag.BURN]:         { label: 'Burn',        desc: 'Attacks set the target\'s tile to Burning, dealing damage to non-lava units standing there at end of turn.' },
-  [UnitTag.TUNNEL]:       { label: 'Tunnel',      desc: `Digs underground and re-emerges ${TUNNEL_RANGE_MIN}–${TUNNEL_RANGE_MAX} tiles south in the same column. Deals ${TUNNEL_EMERGE_DAMAGE} damage to enemies adjacent to the emergence tile. Sets the emergence tile to Corrupted.` },
+  [UnitTag.TUNNEL]:       { label: 'Tunnel',      desc: `Digs underground and re-emerges ${TUNNEL_RANGE_MIN}–${TUNNEL_RANGE_MAX} tiles south in the same column. Digging in requires open ground (no buildings, ruins, forest or mountain). Deals ${TUNNEL_EMERGE_DAMAGE} damage to enemies adjacent to the emergence tile. Sets the emergence tile to Corrupted.` },
   [UnitTag.EMBER_PORTAL]: { label: 'Ember Portal', desc: 'Casts a pair of portals: an entrance next to the Rift Lord and an exit behind the player\'s frontline. Any enemy unit stepping on the entrance teleports to the exit, if the exit is free. If the exit is blocked, the unit waits on the entrance and teleports the moment the exit clears. The Rift Lord cannot cast another pair until the current pair is removed. Portal tiles are corrupted and block player movement.' },
   // ── Overcapacity penalty tags ────────────────────────────────────────────────
   [UnitTag.HOMELESS]:  { label: 'Homeless',  desc: `Unit has no shelter — population cap is exceeded. -${POPULATION.HOMELESS_DEF_PENALTY} DEF. Loses ${POPULATION.HOMELESS_HP_LOSS_PER_TURN} HP at the end of every player turn.`, icon: '🏚️' },
@@ -2709,7 +2721,7 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
 };
 
 // Compute descriptions for UNIT_DEFINITIONS entries that reference TUNNEL constants.
-UNIT_DEFINITIONS.RIFTWORM.description = `Digs underground and re-emerges ${TUNNEL_RANGE_MIN}–${TUNNEL_RANGE_MAX} tiles south in the same column, avoiding resource terrain and other riftworms' planned exits. On emergence, deals ${TUNNEL_EMERGE_DAMAGE} damage to all adjacent player units and corrupts the tile.`;
+UNIT_DEFINITIONS.RIFTWORM.description = `Digs underground and re-emerges ${TUNNEL_RANGE_MIN}–${TUNNEL_RANGE_MAX} tiles south in the same column, avoiding resource terrain and other riftworms' planned exits. Digging in requires open ground (no buildings, ruins, forest or mountain). On emergence, deals ${TUNNEL_EMERGE_DAMAGE} damage to all adjacent player units and corrupts the tile.`;
 // Compute Grimbeak description referencing the summoned-damage multiplier.
 UNIT_DEFINITIONS.GRIMBEAK.description = `Resilient lava beast that resists damage from summoned units, deals ${GRIMBEAK_SUMMONED_DAMAGE_MULTIPLIER}× damage to them, and prioritises attacking summoned units. Grows enraged in dense clusters.`;
 // ============================================================================

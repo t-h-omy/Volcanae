@@ -33,8 +33,13 @@ import type { GameEvent } from './gameEvents';
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-/** True when the tile at (x, y) is a valid dig-in / emergence position. */
-function isTileValidForTunnel(state: Draft<GameState>, x: number, y: number): boolean {
+/**
+ * Lax tile check used when restoring an aborted worm back onto the map.
+ * Blocks lava, CANYON, WATER, buildings and stronghold ruins only.
+ * Worms may legally stand on FOREST, MOUNTAIN and ruin tiles, so those
+ * are intentionally NOT blocked here.
+ */
+function isTileValidForRestore(state: Draft<GameState>, x: number, y: number): boolean {
   if (x < 0 || x >= MAP.GRID_WIDTH || y < 0 || y >= MAP.GRID_HEIGHT) return false;
   const tile = state.grid[y][x];
   // Must not be lava
@@ -49,9 +54,25 @@ function isTileValidForTunnel(state: Draft<GameState>, x: number, y: number): bo
 }
 
 /**
+ * True when the tile at (x, y) is a valid dig-in position.
+ * Blocks: lava, CANYON, WATER, building, ruin, stronghold ruin, FOREST, MOUNTAIN.
+ * For the lax restore check (placing an aborted worm back on the map) use
+ * `isTileValidForRestore` instead.
+ */
+function isTileValidForTunnel(state: Draft<GameState>, x: number, y: number): boolean {
+  if (!isTileValidForRestore(state, x, y)) return false;
+  const tile = state.grid[y][x];
+  // Dig-in requires open ground: no ruins, no resource terrain
+  if (tile.isRuin) return false;
+  if (tile.terrainType === TileType.FOREST) return false;
+  if (tile.terrainType === TileType.MOUNTAIN) return false;
+  return true;
+}
+
+/**
  * True when the tile at (x, y) is a valid emergence position for `forUnitId`.
- * Includes all dig-in constraints plus:
- *  - no FOREST / MOUNTAIN terrain
+ * Delegates to `isTileValidForTunnel` which already includes FOREST, MOUNTAIN
+ * and ruin constraints. Additional emergence constraints:
  *  - no other tunneling unit planning emergence on the same tile
  */
 function isTileValidForEmergence(
@@ -61,9 +82,6 @@ function isTileValidForEmergence(
   forUnitId: string,
 ): boolean {
   if (!isTileValidForTunnel(state, x, y)) return false;
-  const tile = state.grid[y][x];
-  if (tile.terrainType === TileType.FOREST) return false;
-  if (tile.terrainType === TileType.MOUNTAIN) return false;
 
   for (const other of Object.values(state.units)) {
     if (other.id === forUnitId) continue;
@@ -83,7 +101,7 @@ function isTileValidForEmergence(
 
 /** True when the tile at (x, y) is free for a unit to stand on (no occupying unit). */
 function isTileFreeForUnit(state: Draft<GameState>, x: number, y: number): boolean {
-  if (!isTileValidForTunnel(state, x, y)) return false;
+  if (!isTileValidForRestore(state, x, y)) return false;
   return state.grid[y][x].unitId === null;
 }
 

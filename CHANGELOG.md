@@ -1,5 +1,33 @@
 # Changelog
 
+### v0.106.1 - Rage bonus display respects corruption
+
+The HUD now uses the same RAGE bonus helper as combat, so units on CORRUPTED tiles show no RAGE attack bonus when corruption suppresses that tag. Regression tests cover the shared helper on normal tiles, corrupted player tiles, and the current enemy-unit corruption semantics exposed by `isUnitOnCorruptedTile`.
+
+### v0.106.0 - Crystal income display: Echo Warden and Grave Harvest
+
+Crystal HUD income and the crystal resource popup now include all crystal sources that can apply this turn: base resonating Crystal Chamber income, Echo Warden specialist bonus crystals, and Grave Harvest expected-value crystal income from player-owned Gravestones (shown as fractional expected value, matching other probabilistic displays). The popup now shows source-attributed crystal rows and only shows "No income sources" when no crystal source contributes at all. Gameplay parity is also fixed: Echo Warden bonus crystals no longer apply to disabled Crystal Chambers.
+
+### v0.105.0 - Trapsmith ranged trap placement
+
+Scouts with the Trapsmith specialist now enter a target-selection mode when the "Set Trap" button is pressed, allowing the trap to be placed on any valid tile within `SCOUT_TRAP_PLACE_RANGE` (1) tiles (edge-circle range, own tile included). Valid tiles must have no other unit, no building, no ruin or stronghold ruin, terrain not CANYON, WATER, FOREST or MOUNTAIN, and not lava. The HUD button toggles into "🪤 Choose tile…" mode (matching the bridge-builder pattern) and can be cancelled. The pending mode is cleared on unit deselection, selection change, end turn, spell cast, and all other cancel paths. `isTrapTileClear` in `unitActions.ts` was reworked to accept `(state, x, y, placingUnitId)` and encode the full validity rules; new helpers `getTrapPlacementTargets` and `explainInvalidTrapTarget` support target highlighting and invalid-reason floaters in GridRenderer. Save migration v18 is extended with a `pendingTrapSetterId` backfill (no version bump).
+
+### v0.104.0 - Hearthsteward split and Estate Warden
+
+Hearthsteward now grants +1 farmer capacity per Farm only, while the new Estate Warden specialist grants +1 noble capacity per Patrician House. Housing-cap calculation now applies those specialist bonuses independently per building type, so doctrine doubling still uses the correct per-building flat bonus. Regression tests cover the split housing-cap behavior and confirm Estate Warden enters the specialist offer pool.
+
+### v0.103.1 - Spawn sickness for enemy spawns
+
+Enemy units spawned during the enemy turn now receive shared spawn action-flag initialization that enforces spawn sickness by default and only grants immediate action when the unit has the READY tag. Ember Nest Emberlings now spawn fully exhausted on their spawn turn, preventing same-turn EXPLODE actions, then correctly become available on the following enemy turn after the normal end-of-turn reset. Enemy recruitment and Ember Demon enemy-spawn paths were routed through the same helper so READY-tag behavior stays consistent across enemy spawn sites.
+
+### v0.103.0 - Market discovery offers and cave loot exclusion
+
+Markets now keep their rolled slot counts but start with empty offer slots until the market tile is discovered; on first reveal, offers are initialized from live state so already-owned specialists are excluded. Automatic refill and manual restock now operate only on initialized discovered markets. Cave-monster specialist rewards now exclude any specialist currently offered in market specialist slots. Save migration v18 backfills MARKET offer initialization state so unrevealed markets load with hidden offers while revealed markets keep their offers.
+
+### v0.102.0 - Riftworm dig-in restrictions
+
+Riftworms can no longer start a tunnel from a tile occupied by a building, a ruin, a stronghold ruin, FOREST terrain or MOUNTAIN terrain. Movement onto those tiles is unaffected: only the dig-in action is blocked. The implementation splits `isTileValidForTunnel` in `tunnelSystem.ts` into a lax restore helper (`isTileValidForRestore`, used when placing an aborted worm back on the map) and the strict dig-in check (`isTileValidForTunnel`, which adds ruin, FOREST and MOUNTAIN blocks on top of the restore check). `isTileFreeForUnit` (used by `_abortTunnel`) now delegates to the lax helper, so abort-restore correctly places worms back on FOREST, MOUNTAIN and ruin tiles. The redundant FOREST and MOUNTAIN checks inside `isTileValidForEmergence` are removed since they are already covered by the updated `isTileValidForTunnel`. New tests in `src/__tests__/tunnelDigIn.test.ts` cover: dig-in rejected on FOREST, MOUNTAIN, ruin and building tiles; abort restore onto a FOREST start tile; and regression guards confirming emergence still refuses FOREST and MOUNTAIN targets.
+
 ### v0.99.0 - Fieldwork Outposts cost wood and say so
 
 Fieldwork now requires 4 wood to place an Outpost. `fieldworkUnit` in `gameStore.ts` checks `state.resources.wood >= 4` (reading `BUILDING_DEFINITIONS.OUTPOST.constructionCost.wood`) before proceeding and deducts the cost on success. The HUD "Build Outpost" button now shows a 🪵4 cost badge using the same `hud-spell-btn-cost` pattern as Build Bridge; it is disabled and shows a "Not enough wood" warning when the player cannot afford the action. The confirm step also displays the wood cost. The FIELDWORK tech node description, the FIELDWORK unit tag tooltip, and the Outpost building description all now state the 4-wood cost. The `canUnitFieldwork` doc comment that incorrectly said "Watchtower" has been corrected to "Outpost". Regression tests in `src/__tests__/fieldworkCost.test.ts` cover: insufficient wood (unit survives, no building, resources unchanged), sufficient wood (unit consumed, Outpost placed, wood deducted), and the exact-cost boundary case.

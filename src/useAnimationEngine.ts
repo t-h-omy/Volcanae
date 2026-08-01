@@ -17,7 +17,7 @@ import { MAP, MAGE } from './gameConfig';
 import { RENDER } from './renderConfig';
 import { BuildingType, Faction, UnitTag, UnitType } from './types';
 import type { GameEvent } from './gameEvents';
-import type { Position } from './types';
+import type { GameState, Position } from './types';
 import { tryTriggerHint } from './hintSystem';
 import { selectPortalUsedCameraEndpoint } from './portalAnimation';
 
@@ -128,6 +128,19 @@ function isTileRevealed(pos: Position): boolean {
   if (grid.length === 0 || pos.y < 0 || pos.y >= grid.length) return false;
   if (pos.x < 0 || pos.x >= grid[0].length) return false;
   return grid[pos.y][pos.x].isRevealed;
+}
+
+export function buildCaveSpecialistExclusionSet(
+  state: Pick<GameState, 'globalSpecialistStorage' | 'buildings'>,
+): Set<string> {
+  const excluded = new Set(state.globalSpecialistStorage);
+  for (const building of Object.values(state.buildings)) {
+    if (building.type !== BuildingType.MARKET) continue;
+    for (const specialistId of building.marketSpecialistSlots ?? []) {
+      if (specialistId !== null) excluded.add(specialistId);
+    }
+  }
+  return excluded;
 }
 
 /**
@@ -876,9 +889,11 @@ export function useAnimationEngine(): void {
           useGameStore.getState().applyEvent(event);
 
           // Draw a random specialist not already in global storage
-          const { specialists, globalSpecialistStorage, specialistSlotCap } = useGameStore.getState();
+          const gameState = useGameStore.getState();
+          const { specialists, globalSpecialistStorage, specialistSlotCap } = gameState;
           const allIds = Object.keys(specialists);
-          const available = allIds.filter((id) => !globalSpecialistStorage.includes(id));
+          const excluded = buildCaveSpecialistExclusionSet(gameState);
+          const available = allIds.filter((id) => !excluded.has(id));
 
           await new Promise<void>((resolve) => {
             if (available.length === 0) {

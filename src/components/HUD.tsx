@@ -11,7 +11,7 @@ import { useMenuStore } from '../menuStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
 import { useSoundOptionsStore } from '../soundOptionsStore';
-import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, computeResearchCost, SPELL_DEFINITIONS, TERRAIN_TAG_INFO, RAGE_ATK_PER_ADJACENT, RAGE_MAX_ADJACENT_COUNT, MAGE, CORRUPTED_SUPPRESSED_TAGS, CRYSTAL_CAVE_CONFIG, MARKET, SPECIALIST_DEFINITIONS, RELOAD_DEF_PENALTY_PCT } from '../gameConfig';
+import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, computeResearchCost, SPELL_DEFINITIONS, TERRAIN_TAG_INFO, RAGE_ATK_PER_ADJACENT, MAGE, CORRUPTED_SUPPRESSED_TAGS, CRYSTAL_CAVE_CONFIG, CRYSTAL_CHAMBER_CONFIG, MARKET, SPECIALIST_DEFINITIONS, RELOAD_DEF_PENALTY_PCT } from '../gameConfig';
 import type { SpecialistDefinition } from '../gameConfig';
 import { UI } from '../uiConfig';
 import type { UnitPopulationCost, TechId } from '../types';
@@ -67,9 +67,8 @@ import {
   type GameStats,
   type GameState,
 } from '../types';
-import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast, getMageCastBudget, getUnitAttackRange, isHealSuppressedByCorruption, canUnitTrade, getTradeMarket, getCaptureTarget, canUnitBuildBridge, getBridgeBuildTargets, canUnitSetTrap, isTrapTileClear, canUnitExtinguish } from '../unitActions';
-import { getBatteryAttackBonus, getPhalanxAttackBonus, getPhalanxDefenseBonus, getCrystalTowerChamberBonus } from '../combatSystem';
-import { isTileWithinEdgeCircleRange } from '../rangeUtils';
+import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast, getMageCastBudget, getUnitAttackRange, isHealSuppressedByCorruption, canUnitTrade, getTradeMarket, getCaptureTarget, canUnitBuildBridge, getBridgeBuildTargets, canUnitSetTrap, getTrapPlacementTargets, canUnitExtinguish } from '../unitActions';
+import { getBatteryAttackBonus, getPhalanxAttackBonus, getPhalanxDefenseBonus, getCrystalTowerChamberBonus, getRageAttackContext } from '../combatSystem';
 import { isSpecialistEffectActive } from '../specialistSystem';
 import { RENDER } from '../renderConfig';
 import { useZoneClearedStore } from '../zoneClearedStore';
@@ -915,6 +914,7 @@ function TopBar({
 
   // Crystal income per turn
   const crystalsPerTurn = useGameStore((s) => computeCrystalIncomePerTurn(s).crystalsPerTurn);
+  const formattedCrystalIncome = Number.isInteger(crystalsPerTurn) ? crystalsPerTurn : crystalsPerTurn.toFixed(1);
 
   return (
     <>
@@ -926,7 +926,7 @@ function TopBar({
         <button className="hud-stat hud-stat--clickable" onClick={() => setEmberPopupOpen(true)}>🔥 Ember {ember}</button>
       <span className="hud-stat">🌋 Lava in {turnsUntilLavaAdvance}</span>
       <button className="hud-stat hud-stat--clickable" onClick={() => setResourcePopup('crystal')}>
-        💎 {arcaneCrystals}{crystalsPerTurn > 0 && <span className="hud-income">(+{crystalsPerTurn})</span>}
+        💎 {arcaneCrystals}{crystalsPerTurn > 0 && <span className="hud-income">(+{formattedCrystalIncome})</span>}
       </button>
       {showTechButton && (
         <button className={`hud-tech-tree-btn${showTechBadge ? ' hud-tech-tree-btn--notify' : ''}`} onClick={onOpenTechTree}>
@@ -1070,14 +1070,22 @@ function ResourceInfoPopup({
   // reference between consecutive snapshot calls, preventing the
   // "getSnapshot should be cached" invariant violation that caused a crash.
   const buildings = useGameStore((s) => s.buildings);
+  const techFlags = useGameStore((s) => s.techFlags);
   const techNodes = useGameStore((s) => s.techNodes);
   const specialists = useGameStore((s) => s.specialists);
   const globalSpecialistStorage = useGameStore((s) => s.globalSpecialistStorage);
 
-  // Crystal income — recomputes only when buildings change
-  const { crystalsPerTurn, resonatingChambers } = useMemo(
+  // Crystal income — recomputes when crystal-income-related state changes
+  const {
+    crystalsPerTurn,
+    resonatingChambers,
+    echoWardenBonus,
+    echoWardenChambers,
+    graveHarvestExpected,
+    gravestoneCount,
+  } = useMemo(
     () => computeCrystalIncomePerTurn(useGameStore.getState()),
-    [buildings],
+    [buildings, techFlags, specialists, globalSpecialistStorage],
   );
 
   // Iron/wood breakdown — recomputes when any relevant state changes
@@ -1085,6 +1093,9 @@ function ResourceInfoPopup({
     () => computeResourceIncomeBreakdown(useGameStore.getState()),
     [buildings, techNodes, specialists, globalSpecialistStorage],
   );
+
+  /** Format a positive numeric amount with one decimal only if needed */
+  const fmtPositive = (n: number): string => `+${Number.isInteger(n) ? n : n.toFixed(1)}`;
 
   if (resourceType === 'crystal') {
     return (
@@ -1095,20 +1106,38 @@ function ResourceInfoPopup({
         </div>
         <div className="resource-popup-current">Current: {current}</div>
         <div className="resource-popup-section-title">Income this turn</div>
-        {resonatingChambers === 0 ? (
+        {resonatingChambers === 0 && echoWardenBonus === 0 && graveHarvestExpected === 0 ? (
           <div className="resource-popup-row resource-popup-row--none">
-            No active Crystal Chambers
+            No income sources
           </div>
         ) : (
-          <div className="resource-popup-row">
-            <span className="resource-popup-row-label">Crystal Chamber ×{resonatingChambers} (resonating)</span>
-            <span className="resource-popup-row-value">+{crystalsPerTurn}</span>
-          </div>
+          <>
+            {resonatingChambers > 0 && (
+              <div className="resource-popup-row">
+                <span className="resource-popup-row-label">Crystal Chamber ×{resonatingChambers} (resonating)</span>
+                <span className="resource-popup-row-value">
+                  {fmtPositive(resonatingChambers * CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN)}
+                </span>
+              </div>
+            )}
+            {echoWardenBonus > 0 && (
+              <div className="resource-popup-row">
+                <span className="resource-popup-row-label">Echo Warden ×{echoWardenChambers}</span>
+                <span className="resource-popup-row-value">{fmtPositive(echoWardenBonus)}</span>
+              </div>
+            )}
+            {techFlags.includes(TechFlag.GRAVE_HARVEST) && gravestoneCount > 0 && (
+              <div className="resource-popup-row">
+                <span className="resource-popup-row-label">Grave Harvest ×{gravestoneCount} gravestones ({MAGE.GRAVE_HARVEST_CRYSTAL_CHANCE}% each)</span>
+                <span className="resource-popup-row-value">~{fmtPositive(graveHarvestExpected)}</span>
+              </div>
+            )}
+          </>
         )}
         <div className="resource-popup-total">
           <span>Per turn</span>
           <span className="resource-popup-total-positive">
-            +{crystalsPerTurn}
+            {fmtPositive(crystalsPerTurn)}
           </span>
         </div>
         <p className="info-popup-desc" style={{ marginTop: 10, marginBottom: 8, fontSize: '0.82em', opacity: 0.8 }}>
@@ -1731,15 +1760,7 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
 
   // ── RAGE bonus (shared between stat display and mods breakdown) ────────────
   const { rageBonus, rageAdjacentCount } = useMemo(() => {
-    if (!unit.tags.includes(UnitTag.RAGE)) return { rageBonus: 0, rageAdjacentCount: 0 };
-    let count = 0;
-    for (const otherId of Object.keys(gameState.units)) {
-      const other = gameState.units[otherId];
-      if (!other || other.faction === unit.faction) continue;
-      if (!isTileWithinEdgeCircleRange(unit.position.x, unit.position.y, other.position.x, other.position.y, 1)) continue;
-      count++;
-    }
-    return { rageBonus: Math.min(count, RAGE_MAX_ADJACENT_COUNT) * RAGE_ATK_PER_ADJACENT, rageAdjacentCount: count };
+    return getRageAttackContext(gameState, unit);
   }, [unit, gameState]);
 
   const batteryBonus = useMemo(() => getBatteryAttackBonus(gameState, unit), [gameState, unit]);
@@ -1999,7 +2020,7 @@ function SelectedUnitPanel({
     ? fieldworkResources.wood >= BUILDING_DEFINITIONS.OUTPOST.constructionCost.wood &&
       fieldworkResources.iron >= BUILDING_DEFINITIONS.OUTPOST.constructionCost.iron
     : true;
-  const trapBlocked = canSetTrap && !isTrapTileClear(unit, gameState);
+  const trapBlocked = canSetTrap && getTrapPlacementTargets(unit, gameState).length === 0;
   const [aiScoreModal, setAiScoreModal] = useState(false);
   const [aiScores, setAiScores] = useState<ScoredAction[]>([]);
   const [unitInfoOpen, setUnitInfoOpen] = useState(false);
@@ -2027,7 +2048,10 @@ function SelectedUnitPanel({
   const [confirmBridgeTarget, setConfirmBridgeTarget] = useState<{ x: number; y: number; orientation: 'EW' | 'NS' } | null>(null);
 
   // Scout trap
-  const setTrap = useGameStore((s) => s.setTrap);
+  const startTrapSetMode = useGameStore((s) => s.startTrapSetMode);
+  const cancelTrapSetMode = useGameStore((s) => s.cancelTrapSetMode);
+  const pendingTrapSetterId = useGameStore((s) => s.pendingTrapSetterId);
+  const isInTrapSetMode = pendingTrapSetterId === unit.id;
 
   // Scout extinguish
   const scoutExtinguish = useGameStore((s) => s.scoutExtinguish);
@@ -2182,14 +2206,7 @@ function SelectedUnitPanel({
 
     // RAGE: dynamic +ATK per adjacent enemy (works for both factions)
     if (unit.tags.includes(UnitTag.RAGE)) {
-      let adjacentEnemyCount = 0;
-      for (const otherId of Object.keys(gameState.units)) {
-        const other = gameState.units[otherId];
-        if (!other || other.faction === unit.faction) continue;
-        if (!isTileWithinEdgeCircleRange(unit.position.x, unit.position.y, other.position.x, other.position.y, 1)) continue;
-        adjacentEnemyCount++;
-      }
-      const rageBonus = Math.min(adjacentEnemyCount, RAGE_MAX_ADJACENT_COUNT) * RAGE_ATK_PER_ADJACENT;
+      const { rageBonus } = getRageAttackContext(gameState, unit);
       if (rageBonus > 0) addContextual('attack', rageBonus);
     }
     if (batteryBonus > 0) addContextual('attack', batteryBonus);
@@ -2543,11 +2560,19 @@ function SelectedUnitPanel({
           )}
           {canSetTrap && (
             <button
-              className="hud-spell-btn"
+              className={`hud-spell-btn${isInTrapSetMode ? ' hud-heal-active' : ''}`}
               disabled={!!trapBlocked}
-              onClick={() => setTrap(unit.id)}
+              onClick={() => {
+                if (isInTrapSetMode) {
+                  cancelTrapSetMode();
+                } else {
+                  startTrapSetMode(unit.id);
+                }
+              }}
             >
-              <span className="hud-spell-btn-label">🪤 Set Trap</span>
+              <span className="hud-spell-btn-label">
+                {isInTrapSetMode ? '🪤 Choose tile…' : '🪤 Set Trap'}
+              </span>
               {ABILITIES.SCOUT_TRAP_WOOD_COST > 0 && (
                 <span className="hud-spell-btn-cost">🪵{ABILITIES.SCOUT_TRAP_WOOD_COST}</span>
               )}
