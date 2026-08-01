@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.106.2 - Seal cave without mine
+
+The cave popup "Seal & Build Mine" option is replaced by "Seal": sealing the entrance now dismisses the cave monster (clears hasCaveMonster, removes the activeCaveEncounters entry) without constructing a Mine and without consuming any of the unit's action flags. The BUILDANDCAPTURE player unit on the tile can still move, attack, and build on the same turn after sealing. The Explore option and gating logic (a player BUILDANDCAPTURE unit must stand on the cave tile) are unchanged. The dead `placeMineOnTile` helper in `constructionSystem.ts` is removed as it had no remaining callers.
+
 ### v0.106.1 - Rage bonus display respects corruption
 
 The HUD now uses the same RAGE bonus helper as combat, so units on CORRUPTED tiles show no RAGE attack bonus when corruption suppresses that tag. Regression tests cover the shared helper on normal tiles, corrupted player tiles, and the current enemy-unit corruption semantics exposed by `isUnitOnCorruptedTile`.

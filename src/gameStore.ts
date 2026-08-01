@@ -26,7 +26,6 @@ import {
 import {
   constructBuilding as constructBuildingLogic,
   convertBuilding as convertBuildingLogic,
-  placeMineOnTile,
 } from './constructionSystem';
 import { runEnemyTurn } from './enemySystem';
 import {
@@ -198,8 +197,8 @@ interface GameActions {
   unlockTech: (techId: TechId) => void;
   /** Return the list of tech IDs available for the player to pick */
   getAvailableTechs: () => TechId[];
-  /** Seal a cave mountain tile and construct a Mine on it */
-  sealAndBuildMine: (tilePos: Position) => void;
+  /** Seal a cave mountain tile (no mine built, unit actions unchanged) */
+  sealCave: (tilePos: Position) => void;
   /** Explore a cave mountain tile: spawns a cave monster near it */
   exploreCave: (tilePos: Position) => void;
   /** Permanently dismiss a cave tile without spawning a monster, building a mine, or exhausting the unit */
@@ -1125,23 +1124,17 @@ export const useGameStore = create<GameStore>()(
       });
     },
 
-    sealAndBuildMine: (tilePos: Position) => {
+    sealCave: (tilePos: Position) => {
       set((state) => {
         const tile = state.grid[tilePos.y]?.[tilePos.x];
         if (!tile) return;
 
-        // Sealing & building a mine is a construction action — exhaust the
-        // BUILDANDCAPTURE unit on the tile so it cannot act again this turn.
+        // Gating: a player BUILDANDCAPTURE unit must be standing on the tile.
         const unitOnTile = tile.unitId ? state.units[tile.unitId] : null;
         if (!unitOnTile || unitOnTile.faction !== Faction.PLAYER) return;
         if (!unitOnTile.tags.includes(UnitTag.BUILDANDCAPTURE)) return;
-        unitOnTile.hasMovedThisTurn = true;
-        unitOnTile.hasAttackedThisTurn = true;
-        unitOnTile.hasConstructedThisTurn = true;
-        unitOnTile.hasDestroyedThisTurn = true;
-        unitOnTile.hasCapturedThisTurn = true;
 
-        // Also clear the activeCaveEncounters entry for this tile if one exists
+        // Clear the activeCaveEncounters entry for this tile if one exists.
         const mountainTileId = `${tilePos.x},${tilePos.y}`;
         const encounterIdx = state.activeCaveEncounters.findIndex(
           (e) => e.mountainTileId === mountainTileId,
@@ -1150,7 +1143,6 @@ export const useGameStore = create<GameStore>()(
           state.activeCaveEncounters.splice(encounterIdx, 1);
         }
 
-        placeMineOnTile(state, tilePos);
         tile.hasCaveMonster = false;
         updateDiscovery(state);
         checkGameConditions(state);

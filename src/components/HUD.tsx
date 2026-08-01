@@ -3701,7 +3701,7 @@ function ZoneClearedPopup() {
 
 function CaveScreamsPopup() {
   const tilePos = useCaveScreamsStore((s) => s.tilePos);
-  const sealAndBuildMine = useGameStore((s) => s.sealAndBuildMine);
+  const sealCave = useGameStore((s) => s.sealCave);
   const exploreCave = useGameStore((s) => s.exploreCave);
   const ignoreCave = useGameStore((s) => s.ignoreCave);
 
@@ -3713,8 +3713,8 @@ function CaveScreamsPopup() {
   };
 
   const handleSeal = () => {
-    sealAndBuildMine(tilePos);
-    // close() is called inside sealAndBuildMine after state update
+    sealCave(tilePos);
+    // close() is called inside sealCave after state update
   };
 
   const handleIgnore = () => {
@@ -3726,14 +3726,14 @@ function CaveScreamsPopup() {
     <div className="cave-screams-overlay">
       <div className="cave-screams-card">
         <p className="cave-screams-flavor">
-          Screams echo from deep within the entrance. Venture inside and help, or seal it and build a mine?
+          Screams echo from deep within the entrance. Venture inside and help, or seal the entrance for good?
         </p>
         <div className="cave-screams-actions">
           <button className="cave-screams-btn" onClick={handleExplore}>
             🗡️ Explore
           </button>
           <button className="cave-screams-btn" onClick={handleSeal}>
-            ⛏️ Seal &amp; Build Mine
+            🪨 Seal
           </button>
           <button className="cave-screams-btn cave-screams-btn--leave" onClick={handleIgnore}>
             🚪 Leave Cave — Lose Specialist
