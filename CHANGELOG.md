@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.106.7 - READY recruits render as actionable
+
+READY-tagged same-turn recruits now use unified exhausted-display logic and no longer render with the toned-down exhausted filter when they can still act (including Drill Sergeant Spearmen and Swordsmen). The exhausted visual decision is now centralized in `isUnitDisplayExhausted` and consumed reactively by the grid unit renderer, with focused regression coverage for READY/non-READY recruit paths, moved-no-targets and attacked exhaustion, and fresh READY gargoyle spawns.
+
 ### v0.106.6 - Grave Trap requires an empty gravestone tile
 
 Grave Trap now follows the same empty-tile rule as Raise Skeleton: occupied Gravestones are excluded from valid spell targets, casts on them are rejected, and invalid taps show the "Occupied" reason. Empty Gravestones in range remain valid targets. The Grave Trap spell description now explicitly says the Gravestone tile must be empty.
