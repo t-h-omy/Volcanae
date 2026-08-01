@@ -1349,8 +1349,8 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
   triggerGarrisonOverwatch(state, unitId, from, events);
 
   // GRAVE_TRAP / SCOUT_TRAP: check if the enemy unit landed on a player trap
-  checkGraveTrapTrigger(state, unitId);
-  checkScoutTrapTrigger(state, unitId);
+  checkGraveTrapTrigger(state, unitId, events);
+  checkScoutTrapTrigger(state, unitId, events);
 
   // PORTAL: check if the unit stepped onto a portal entrance.
   if (state.units[unitId]) {

@@ -185,7 +185,7 @@ export type GameEvent =
       /** Amount of damage dealt */
       amount: number;
       /** High-level source of the damage event. */
-      damageSource?: 'BURNING' | 'TAG';
+      damageSource?: 'BURNING' | 'TAG' | 'TRAP';
     }
   | {
       /**
@@ -432,4 +432,18 @@ export type GameEvent =
       demonPos: Position;
       /** Position of the controlling Mage at the time of defection (equals demonPos if mage was dead) */
       magePos: Position;
+    }
+  | {
+      /**
+       * Emitted after a GRAVE_TRAP or SCOUT_TRAP consumes itself during an
+       * enemy unit's move. The trap building has already been deleted from the
+       * resolved state; this event mirrors the deletion into the live display
+       * state during animation replay so the building disappears at the right
+       * moment in the sequence.
+       */
+      type: 'TRAP_TRIGGERED';
+      /** ID of the trap building that was consumed */
+      buildingId: string;
+      /** Tile position of the trap */
+      position: Position;
     };

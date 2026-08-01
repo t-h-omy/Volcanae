@@ -3177,11 +3177,13 @@ export const useGameStore = create<GameStore>()(
 
           case 'TILE_DAMAGE': {
             // Emit a damage floater at the affected tile.
+            // Use the unit's faction to determine floater colour (isEnemy = true → orange for enemies).
+            const damagedUnit = state.units[event.unitId];
             useFloaterStore.getState().addFloater({
               value: event.amount,
               x: event.position.x,
               y: event.position.y,
-              isEnemy: false,
+              isEnemy: damagedUnit?.faction !== Faction.PLAYER,
               floaterType: 'damage',
             });
             break;
@@ -3367,7 +3369,15 @@ export const useGameStore = create<GameStore>()(
             break;
 
           case 'STUN_APPLIED':
-            // Presentation-only: defender.pinnedUntilTurn is set by the combat resolver.
+            // Emit a stun floater at the affected tile.
+            useFloaterStore.getState().addFloater({
+              value: 0,
+              label: '💫 Stunned',
+              x: event.position.x,
+              y: event.position.y,
+              isEnemy: true,
+              floaterType: 'revive',
+            });
             break;
 
           case 'PORTAL_CREATED':
@@ -3424,6 +3434,17 @@ export const useGameStore = create<GameStore>()(
               knockedUnit.position.x = event.toPosition.x;
               knockedUnit.position.y = event.toPosition.y;
             }
+            break;
+          }
+
+          case 'TRAP_TRIGGERED': {
+            // Remove the consumed trap building from the live display state so it
+            // disappears at the correct moment in the animation sequence.
+            const trapTile = state.grid[event.position.y]?.[event.position.x];
+            if (trapTile && trapTile.buildingId === event.buildingId) {
+              trapTile.buildingId = null;
+            }
+            delete state.buildings[event.buildingId];
             break;
           }
 

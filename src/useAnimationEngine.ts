@@ -122,6 +122,8 @@ function eventPosition(event: GameEvent): Position {
       return event.demonPos;
     case 'UNIT_KNOCKBACK':
       return event.toPosition;
+    case 'TRAP_TRIGGERED':
+      return event.position;
   }
 }
 function isTileRevealed(pos: Position): boolean {
@@ -234,6 +236,8 @@ function isEventVisible(event: GameEvent): boolean {
       return isTileRevealed(event.demonPos) || isTileRevealed(event.magePos);
     case 'UNIT_KNOCKBACK':
       return isTileRevealed(event.fromPosition) || isTileRevealed(event.toPosition);
+    case 'TRAP_TRIGGERED':
+      return isTileRevealed(event.position);
   }
 }
 
@@ -1575,7 +1579,7 @@ export function useAnimationEngine(): void {
         // ── Special handling for TILE_DAMAGE ──
         if (event.type === 'TILE_DAMAGE') {
           if (visible) {
-            if (event.damageSource !== 'TAG') {
+            if (event.damageSource !== 'TAG' && event.damageSource !== 'TRAP') {
               useCombatAnimationStore.getState().addTileVfx({
                 id: crypto.randomUUID(),
                 x: event.position.x,
@@ -1776,6 +1780,15 @@ export function useAnimationEngine(): void {
 
             await wait(ANIMATION.POST_ACTION_IDLE_MS);
           }
+          continue;
+        }
+
+        // ── Special handling for TRAP_TRIGGERED (trap building consumed) ──
+        if (event.type === 'TRAP_TRIGGERED') {
+          // applyEvent removes the building from the live display state so the
+          // trap sprite disappears at the correct moment in the sequence.
+          // Non-blocking: the stun indicators already provide sufficient visual feedback.
+          useGameStore.getState().applyEvent(event);
           continue;
         }
 

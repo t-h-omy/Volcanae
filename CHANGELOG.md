@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.106.5 - Trap triggers animate in sequence
+
+When an enemy walks into a Grave Trap or Scout Trap during the enemy turn, the stun/damage floaters now appear after the unit's move animation instead of before it. `checkGraveTrapTrigger` and `checkScoutTrapTrigger` in `movementSystem.ts` accept an optional `events?: GameEvent[]` parameter. On the enemy path (events provided), presentation is emitted as discrete events — `STUN_APPLIED` per stunned unit, `TILE_DAMAGE` (damageSource: `'TRAP'`) for Scout Trap damage, and a new `TRAP_TRIGGERED` event (buildingId + position) that removes the consumed building from the live display state during animation replay. The `STUN_APPLIED` applyEvent handler in `gameStore.ts` now emits the "💫 Stunned" floater so both paths render identically. The `TILE_DAMAGE` applyEvent handler uses the unit's faction for the floater colour so enemy trap victims get the correct orange tint. `TRAP_TRIGGERED` is treated as a fast, non-blocking event in the animation engine. The player path (no events array) is unchanged.
+
 ### v0.106.4 - Enemy frozen slide animation
 
 When an enemy unit moves onto a FROZEN tile the slide now animates as part of the event-queue replay, immediately after the move animation, instead of jumping to the slid position at turn end. The out-of-band `setUnitAnimation`/`setTimeout` block and the ghost-VFX block in `moveEnemyUnit` are replaced by a `UNIT_KNOCKBACK` event pushed into the event array. For a slide that kills the unit (lava, canyon, water), a `UNIT_KNOCKBACK` event is pushed followed by `UNIT_DEATH`; the animation engine already handles a `UNIT_KNOCKBACK → UNIT_DEATH` pair with the correct slide-then-die sequence. The player-path slide (direct `setUnitAnimation` in `gameStore.ts`) is unchanged.

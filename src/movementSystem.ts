@@ -11,6 +11,7 @@ import { getTilesWithinEdgeCircleRange } from './rangeUtils';
 import { useFloaterStore } from './floaterStore';
 import { cleanupRoostedUnits } from './buildingRemoval';
 import { getBridgeAt, canTraverseEdge } from './bridgeSystem';
+import type { GameEvent } from './gameEvents';
 
 // ============================================================================
 // MOVEMENT CALCULATIONS
@@ -235,10 +236,14 @@ export function getReachableTiles(
  * Checks whether the tile a unit just entered contains a GRAVE_TRAP building.
  * If it does, stuns the triggering unit and all enemy units in the 8-tile AOE
  * around the trap, then destroys the trap.
+ *
+ * When `events` is provided (enemy turn path), presentation is emitted as
+ * STUN_APPLIED / TRAP_TRIGGERED events instead of direct floaters.
  */
 export function checkGraveTrapTrigger(
   state: Draft<GameState>,
   unitId: string,
+  events?: GameEvent[],
 ): void {
   const unit = state.units[unitId];
   if (!unit) return;
@@ -251,21 +256,25 @@ export function checkGraveTrapTrigger(
   if (unit.faction === Faction.PLAYER) return;
 
   const trapPos = { x: unit.position.x, y: unit.position.y };
+  const trapBuildingId = tile.buildingId;
   const stunTurns = building.trapStunTurns ?? 1;
-  const floaterStore = useFloaterStore.getState();
 
   // Stun the triggering unit (ALERT-tagged units are immune).
   if (!unit.tags.includes(UnitTag.ALERT)) {
     unit.pinnedUntilTurn = state.turn + stunTurns - 1;
+    if (events) {
+      events.push({ type: 'STUN_APPLIED', unitId, position: { ...trapPos } });
+    } else {
+      useFloaterStore.getState().addFloater({
+        value: 0,
+        label: '💫 Stunned',
+        x: trapPos.x,
+        y: trapPos.y,
+        isEnemy: true,
+        floaterType: 'revive',
+      });
+    }
   }
-  floaterStore.addFloater({
-    value: 0,
-    label: '💫 Stunned',
-    x: trapPos.x,
-    y: trapPos.y,
-    isEnemy: true,
-    floaterType: 'revive',
-  });
 
   // AOE: stun all enemy (non-player) units in the 8 adjacent tiles.
   for (const [dx, dy] of MOVE_DIRECTIONS) {
@@ -279,19 +288,27 @@ export function checkGraveTrapTrigger(
     // ALERT-tagged units are immune to stun.
     if (adjUnit.tags.includes(UnitTag.ALERT)) continue;
     adjUnit.pinnedUntilTurn = state.turn + stunTurns - 1;
-    floaterStore.addFloater({
-      value: 0,
-      label: '💫 Stunned',
-      x: nx,
-      y: ny,
-      isEnemy: true,
-      floaterType: 'revive',
-    });
+    if (events) {
+      events.push({ type: 'STUN_APPLIED', unitId: adjTile.unitId, position: { x: nx, y: ny } });
+    } else {
+      useFloaterStore.getState().addFloater({
+        value: 0,
+        label: '💫 Stunned',
+        x: nx,
+        y: ny,
+        isEnemy: true,
+        floaterType: 'revive',
+      });
+    }
   }
 
-  cleanupRoostedUnits(state, tile.buildingId);
-  delete state.buildings[tile.buildingId];
+  cleanupRoostedUnits(state, trapBuildingId);
+  delete state.buildings[trapBuildingId];
   tile.buildingId = null;
+
+  if (events) {
+    events.push({ type: 'TRAP_TRIGGERED', buildingId: trapBuildingId, position: { ...trapPos } });
+  }
 }
 
 /**
@@ -299,10 +316,14 @@ export function checkGraveTrapTrigger(
  * If it does, deals damage to the triggering enemy unit (and stuns it unless
  * it is ALERT-tagged). The trap is then destroyed. FLYING units do not trigger
  * it. Single-target only (no AOE, unlike GRAVE_TRAP).
+ *
+ * When `events` is provided (enemy turn path), presentation is emitted as
+ * TILE_DAMAGE / STUN_APPLIED / TRAP_TRIGGERED events instead of direct floaters.
  */
 export function checkScoutTrapTrigger(
   state: Draft<GameState>,
   unitId: string,
+  events?: GameEvent[],
 ): void {
   const unit = state.units[unitId];
   if (!unit) return;
@@ -318,29 +339,39 @@ export function checkScoutTrapTrigger(
   if (unit.tags.includes(UnitTag.FLYING)) return;
 
   const trapPos = { x: unit.position.x, y: unit.position.y };
+  const trapBuildingId = tile.buildingId;
   const stunTurns = building.trapStunTurns ?? ABILITIES.SCOUT_TRAP_STUN_TURNS;
   const damage = building.trapDamage ?? ABILITIES.SCOUT_TRAP_DAMAGE;
-  const floaterStore = useFloaterStore.getState();
 
   // Deal damage to the triggering unit.
   unit.stats.currentHp -= damage;
 
-  floaterStore.addFloater({
-    value: -damage,
-    label: undefined,
-    x: trapPos.x,
-    y: trapPos.y,
-    isEnemy: true,
-    floaterType: 'damage',
-  });
+  if (events) {
+    events.push({
+      type: 'TILE_DAMAGE',
+      unitId,
+      position: { ...trapPos },
+      amount: damage,
+      damageSource: 'TRAP',
+    });
+  } else {
+    useFloaterStore.getState().addFloater({
+      value: -damage,
+      label: undefined,
+      x: trapPos.x,
+      y: trapPos.y,
+      isEnemy: true,
+      floaterType: 'damage',
+    });
+  }
 
   // If the unit is killed by the trap damage, remove it and the building.
   if (unit.stats.currentHp <= 0) {
     tile.unitId = null;
     state.gameStats.unitsKilled += 1;
     delete state.units[unitId];
-    cleanupRoostedUnits(state, tile.buildingId!);
-    delete state.buildings[tile.buildingId!];
+    cleanupRoostedUnits(state, trapBuildingId);
+    delete state.buildings[trapBuildingId];
     tile.buildingId = null;
     return;
   }
@@ -348,19 +379,27 @@ export function checkScoutTrapTrigger(
   // Stun the triggering unit (ALERT-tagged units are immune to stun).
   if (!unit.tags.includes(UnitTag.ALERT)) {
     unit.pinnedUntilTurn = state.turn + stunTurns - 1;
-    floaterStore.addFloater({
-      value: 0,
-      label: '💫 Stunned',
-      x: trapPos.x,
-      y: trapPos.y,
-      isEnemy: true,
-      floaterType: 'revive',
-    });
+    if (events) {
+      events.push({ type: 'STUN_APPLIED', unitId, position: { ...trapPos } });
+    } else {
+      useFloaterStore.getState().addFloater({
+        value: 0,
+        label: '💫 Stunned',
+        x: trapPos.x,
+        y: trapPos.y,
+        isEnemy: true,
+        floaterType: 'revive',
+      });
+    }
   }
 
-  cleanupRoostedUnits(state, tile.buildingId);
-  delete state.buildings[tile.buildingId];
+  cleanupRoostedUnits(state, trapBuildingId);
+  delete state.buildings[trapBuildingId];
   tile.buildingId = null;
+
+  if (events) {
+    events.push({ type: 'TRAP_TRIGGERED', buildingId: trapBuildingId, position: { ...trapPos } });
+  }
 }
 
 /**
