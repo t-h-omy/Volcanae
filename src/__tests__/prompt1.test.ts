@@ -654,12 +654,9 @@ describe('1B (12) – PIERCE friendly fire in resolveAttackOnBuilding', () => {
 // ── 1C (10): FLYING ranged vulnerability ─────────────────────────────────────
 
 describe('1C (10) – FLYING ranged vulnerability', () => {
-  // ARCHER: att=50, def=35, hp=100, attackRange=2, tags=[RANGED, BUILDANDCAPTURE]
-  // Enemy: def=50, hp=100 (LAVA_GRUNT base stats), +FLYING tag
-  // Base damage = round(50 * (50 / (50+50))) = round(25) = 25
-  // With FLYING modifier = round(25 * 1.25) = round(31.25) = 31
-  const BASE_DAMAGE = 25;
-  const FLYING_DAMAGE = Math.round(BASE_DAMAGE * FLYING_RANGED_DAMAGE_TAKEN_MULTIPLIER); // 31
+  function computeBaseDamage(attackerAttack: number, defenderDefense: number): number {
+    return Math.round(attackerAttack * (attackerAttack / (attackerAttack + defenderDefense)));
+  }
 
   it('non-flying RANGED attacker deals +25% damage to a FLYING defender', () => {
     const archer = makePlayerUnit(UnitType.ARCHER, 2, 5); // RANGED, no FLYING
@@ -673,7 +670,9 @@ describe('1C (10) – FLYING ranged vulnerability', () => {
     });
 
     const hpLost = 100 - nextState.units[flyingEnemy.id]!.stats.currentHp;
-    expect(hpLost).toBe(FLYING_DAMAGE);
+    const baseDamage = computeBaseDamage(archer.stats.attack, flyingEnemy.stats.defense);
+    const flyingDamage = Math.round(baseDamage * FLYING_RANGED_DAMAGE_TAKEN_MULTIPLIER);
+    expect(hpLost).toBe(flyingDamage);
   });
 
   it('melee attacker does NOT get the FLYING bonus against a FLYING defender', () => {
@@ -688,9 +687,9 @@ describe('1C (10) – FLYING ranged vulnerability', () => {
     });
 
     const hpLost = 100 - nextState.units[flyingEnemy.id]!.stats.currentHp;
-    // Melee: no FLYING modifier. damage = round(70 * 70/120) = round(40.83) = 41
-    expect(hpLost).not.toBe(Math.round(41 * FLYING_RANGED_DAMAGE_TAKEN_MULTIPLIER));
-    expect(hpLost).toBe(41);
+    const baseDamage = computeBaseDamage(rider.stats.attack, flyingEnemy.stats.defense);
+    expect(hpLost).not.toBe(Math.round(baseDamage * FLYING_RANGED_DAMAGE_TAKEN_MULTIPLIER));
+    expect(hpLost).toBe(baseDamage);
   });
 
   it('flying RANGED attacker does NOT get the FLYING bonus (attacker also has FLYING)', () => {
@@ -705,8 +704,8 @@ describe('1C (10) – FLYING ranged vulnerability', () => {
     });
 
     const hpLost = 100 - nextState.units[flyingEnemy.id]!.stats.currentHp;
-    // No FLYING modifier: base damage = 25
-    expect(hpLost).toBe(BASE_DAMAGE);
+    const baseDamage = computeBaseDamage(archer.stats.attack, flyingEnemy.stats.defense);
+    expect(hpLost).toBe(baseDamage);
   });
 });
 

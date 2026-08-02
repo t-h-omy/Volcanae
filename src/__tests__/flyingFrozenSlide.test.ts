@@ -208,6 +208,21 @@ const FROZEN_Y = 29;
 const SLIDE_DEST_Y = 30;
 const STRONGHOLD_Y = 70;
 
+function makeCorridorTileOverrides(): Record<string, Partial<Tile>> {
+  const overrides: Record<string, Partial<Tile>> = {
+    [`${COL},${FROZEN_Y}`]: { status: TileStatus.FROZEN },
+  };
+
+  for (let y = ENEMY_Y; y <= SLIDE_DEST_Y + 1; y += 1) {
+    for (let x = 0; x < MAP.GRID_WIDTH; x += 1) {
+      if (x === COL) continue;
+      overrides[`${x},${y}`] = { terrainType: TileType.CANYON };
+    }
+  }
+
+  return overrides;
+}
+
 describe('VF-01: FLYING enemy does not ice-slide on FROZEN tile', () => {
   it('FLYING enemy lands on FROZEN tile and stays there (no slide)', () => {
     const enemy = makeEnemy(COL, ENEMY_Y, { tags: [UnitTag.FLYING] });
@@ -216,9 +231,7 @@ describe('VF-01: FLYING enemy does not ice-slide on FROZEN tile', () => {
     const state = makeState({
       units: [enemy],
       buildings: [stronghold],
-      tileOverrides: {
-        [`${COL},${FROZEN_Y}`]: { status: TileStatus.FROZEN },
-      },
+      tileOverrides: makeCorridorTileOverrides(),
     });
 
     const { finalState } = runEnemyTurn(state);
@@ -237,9 +250,7 @@ describe('VF-01: FLYING enemy does not ice-slide on FROZEN tile', () => {
     const state = makeState({
       units: [enemy],
       buildings: [stronghold],
-      tileOverrides: {
-        [`${COL},${FROZEN_Y}`]: { status: TileStatus.FROZEN },
-      },
+      tileOverrides: makeCorridorTileOverrides(),
     });
 
     const { finalState } = runEnemyTurn(state);

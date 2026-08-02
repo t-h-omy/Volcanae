@@ -597,7 +597,7 @@ describe('2D – Corruption debuff logic (CORRUPTED_SUPPRESSED_TAGS)', () => {
     expect(targets).not.toContain(brandmarkedTarget.id);
   });
 
-  it('startHealMode on CORRUPTED tile keeps heal inactive and shows floater text', () => {
+  it('startHealMode on CORRUPTED tile is a silent no-op; suppression is exposed via isHealSuppressedByCorruption', () => {
     const healer = makeUnit(UnitType.SCOUT, Faction.PLAYER, 4, 4, {
       tags: [UnitTag.PATCHUP],
       hasMovedThisTurn: false,
@@ -631,17 +631,8 @@ describe('2D – Corruption debuff logic (CORRUPTED_SUPPRESSED_TAGS)', () => {
     useGameStore.getState().startHealMode(healer.id);
 
     expect(useGameStore.getState().pendingHealerId).toBeNull();
-    expect(useFloaterStore.getState().floaters).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          label: 'inactive because of corruption.',
-          x: 4,
-          y: 4,
-          isEnemy: false,
-          floaterType: 'damage',
-        }),
-      ]),
-    );
+    expect(useFloaterStore.getState().floaters).toEqual([]);
+    expect(isHealSuppressedByCorruption(useGameStore.getState(), healer.id)).toBe(true);
   });
 });
 

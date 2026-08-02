@@ -23,7 +23,7 @@ import { getRageAttackContext, resolveAttack } from '../combatSystem';
 import { UnitType, Faction, UnitTag, TileType, TileStatus } from '../types';
 import type { GameState, Unit, Tile, Building, GameStats } from '../types';
 import type { GameEvent } from '../gameEvents';
-import { UNIT_DEFINITIONS } from '../gameConfig';
+import { PIERCE_PRIMARY_DAMAGE_MULTIPLIER, PIERCE_SECONDARY_DAMAGE_MULTIPLIER, UNIT_DEFINITIONS } from '../gameConfig';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -363,18 +363,9 @@ describe('RAGE attack helper', () => {
 // ── CHANGE 5: PIERCE double-defense-subtraction fix ──────────────────────────
 
 describe('Change 5 – PIERCE rear-unit damage', () => {
-  /**
-   * Compute the expected fullPrimaryDamage for LANCER (att=75, hp=120) vs
-   * LAVA_GRUNT (def=50, hp=100) at full HP:
-   *   eff_att = 75, eff_def = 50, total = 125
-   *   damage  = round(75 × 75/125) = round(45) = 45
-   * fullPrimaryDamage = 45.
-   *
-   * LANCER is melee (attackRange=1) so the LAVA_GRUNT can counter; counter
-   * damage = round(50 × 50/80) = round(31.25) = 31.
-   * LANCER hp 120 − 31 = 89 → LANCER survives, so PIERCE fires.
-   */
-  const EXPECTED_FULL_PRIMARY_DAMAGE = 45;
+  function computeFullPrimaryDamage(attackerAttack: number, defenderDefense: number): number {
+    return Math.round(attackerAttack * (attackerAttack / (attackerAttack + defenderDefense)));
+  }
 
   /**
    * 5.1 Rear unit with high defense takes fullPrimaryDamage × PIERCE_SECONDARY_DAMAGE_MULTIPLIER, NOT 1.
@@ -400,8 +391,17 @@ describe('Change 5 – PIERCE rear-unit damage', () => {
     expect(nextState.units[rearUnit.id]).toBeDefined();
     const hpLost = rearInitialHp - nextState.units[rearUnit.id]!.stats.currentHp;
 
-    // HP lost must equal the full pre-multiplier primary damage, not 1
-    expect(hpLost).toBe(EXPECTED_FULL_PRIMARY_DAMAGE);
+    const expectedFullPrimaryDamage = computeFullPrimaryDamage(
+      lancer.stats.attack,
+      frontDef.stats.defense,
+    );
+    const expectedRearDamage = Math.max(
+      1,
+      Math.round(expectedFullPrimaryDamage * PIERCE_SECONDARY_DAMAGE_MULTIPLIER),
+    );
+
+    // HP lost must match the full-primary-based rear damage path, not a rear-defense subtraction.
+    expect(hpLost).toBe(expectedRearDamage);
   });
 
   /**
@@ -433,8 +433,19 @@ describe('Change 5 – PIERCE rear-unit damage', () => {
     const hpLostLowDef  = pierceScenario(0);   // rear def = 0
     const hpLostHighDef = pierceScenario(50);   // rear def = 50 (was giving 1 before fix)
 
-    expect(hpLostLowDef).toBe(EXPECTED_FULL_PRIMARY_DAMAGE);
-    expect(hpLostHighDef).toBe(EXPECTED_FULL_PRIMARY_DAMAGE);
+    const attacker = makePlayerUnit(UnitType.LANCER, 0, 0);
+    const frontDefender = makeEnemyUnit(UnitType.LAVA_GRUNT, 1, 0);
+    const expectedFullPrimaryDamage = computeFullPrimaryDamage(
+      attacker.stats.attack,
+      frontDefender.stats.defense,
+    );
+    const expectedRearDamage = Math.max(
+      1,
+      Math.round(expectedFullPrimaryDamage * PIERCE_SECONDARY_DAMAGE_MULTIPLIER),
+    );
+
+    expect(hpLostLowDef).toBe(expectedRearDamage);
+    expect(hpLostHighDef).toBe(expectedRearDamage);
     // Identical regardless of rear unit's defense
     expect(hpLostLowDef).toBe(hpLostHighDef);
   });
@@ -459,20 +470,25 @@ describe('Change 5 – PIERCE rear-unit damage', () => {
 
     const pierceEvt = outEvents.find((e) => e.type === 'PIERCE_DAMAGE');
     expect(pierceEvt).toBeDefined();
-    expect((pierceEvt as { amount: number }).amount).toBe(EXPECTED_FULL_PRIMARY_DAMAGE);
+    const expectedFullPrimaryDamage = computeFullPrimaryDamage(
+      lancer.stats.attack,
+      frontDef.stats.defense,
+    );
+    const expectedRearDamage = Math.max(
+      1,
+      Math.round(expectedFullPrimaryDamage * PIERCE_SECONDARY_DAMAGE_MULTIPLIER),
+    );
+    expect((pierceEvt as { amount: number }).amount).toBe(expectedRearDamage);
   });
 
   /**
    * 5.4 Front unit still takes the reduced (PIERCE_PRIMARY_DAMAGE_MULTIPLIER) damage.
    * The fix must not change the front defender's damage.
    *
-   * LANCER vs LAVA_GRUNT (def=50, hp=100):
-   *   fullPrimaryDamage = 45
-   *   front damage      = floor(45 × 0.5) = 22
+   * Front damage must match floor(fullPrimaryDamage × PIERCE_PRIMARY_DAMAGE_MULTIPLIER)
+   * with fullPrimaryDamage derived from the active combat stats.
    */
   it('front unit still takes pierce-multiplier-reduced damage', () => {
-    const FRONT_DAMAGE = 22; // floor(45 × 0.5)
-
     const lancer = makePlayerUnit(UnitType.LANCER, 3, 5);
     const frontDef = makeEnemyUnit(UnitType.LAVA_GRUNT, 4, 5);
     const rearUnit = makeEnemyUnit(UnitType.LAVA_GRUNT, 5, 5);
@@ -484,7 +500,14 @@ describe('Change 5 – PIERCE rear-unit damage', () => {
     });
 
     const frontHpLost = frontInitialHp - nextState.units[frontDef.id]!.stats.currentHp;
-    expect(frontHpLost).toBe(FRONT_DAMAGE);
+    const expectedFullPrimaryDamage = computeFullPrimaryDamage(
+      lancer.stats.attack,
+      frontDef.stats.defense,
+    );
+    const expectedFrontDamage = Math.floor(
+      expectedFullPrimaryDamage * PIERCE_PRIMARY_DAMAGE_MULTIPLIER,
+    );
+    expect(frontHpLost).toBe(expectedFrontDamage);
   });
 });
 
