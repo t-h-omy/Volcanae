@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { produce } from 'immer';
 import {
   BuildingType,
   DestroyBehavior,
@@ -11,7 +12,7 @@ import {
 } from '../types';
 import type { Building, GameState, Position, Tile, Unit } from '../types';
 import { MAP, UNIT_DEFINITIONS } from '../gameConfig';
-import { explainInvalidSpellTarget } from '../spellSystem';
+import { castSpell, explainInvalidSpellTarget, getValidSpellTargets } from '../spellSystem';
 import { explainInvalidBridgeTarget, explainInvalidHealTarget } from '../unitActions';
 
 let nextIdValue = 0;
@@ -276,6 +277,48 @@ describe('explainInvalidSpellTarget', () => {
 
     expect(explainInvalidSpellTarget(state, mage.id, SpellId.RAISE_SKELETON, gravestone.position))
       .toBe('Occupied');
+  });
+
+  it('returns Occupied for Grave Trap on an occupied gravestone', () => {
+    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 5 });
+    const occupant = makeUnit(UnitType.GUARD, { x: 6, y: 5 });
+    const gravestone = makeBuilding(BuildingType.GRAVESTONE, { x: 6, y: 5 });
+    const state = makeState({ units: [mage, occupant], buildings: [gravestone] });
+
+    expect(explainInvalidSpellTarget(state, mage.id, SpellId.GRAVE_TRAP, gravestone.position))
+      .toBe('Occupied');
+  });
+
+  it('excludes occupied gravestones from Grave Trap targets and rejects the cast', () => {
+    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 5 });
+    const occupant = makeUnit(UnitType.GUARD, { x: 6, y: 5 });
+    const occupiedGravestone = makeBuilding(BuildingType.GRAVESTONE, { x: 6, y: 5 });
+    const emptyGravestone = makeBuilding(BuildingType.GRAVESTONE, { x: 5, y: 6 });
+    const state = makeState({
+      units: [mage, occupant],
+      buildings: [occupiedGravestone, emptyGravestone],
+    });
+    state.unlockedSpells = [SpellId.GRAVE_TRAP];
+    state.arcaneCrystals = 1;
+
+    const targets = getValidSpellTargets(state, mage.id, SpellId.GRAVE_TRAP);
+    expect(targets).toContainEqual(emptyGravestone.position);
+    expect(targets).not.toContainEqual(occupiedGravestone.position);
+
+    const next = produce(state, (draft) => {
+      expect(castSpell(draft, mage.id, SpellId.GRAVE_TRAP, occupiedGravestone.position)).toBe(false);
+      expect(castSpell(draft, mage.id, SpellId.GRAVE_TRAP, emptyGravestone.position)).toBe(true);
+    });
+
+    expect(next.grid[occupiedGravestone.position.y][occupiedGravestone.position.x].buildingId)
+      .toBe(occupiedGravestone.id);
+    expect(next.grid[occupiedGravestone.position.y][occupiedGravestone.position.x].unitId)
+      .toBe(occupant.id);
+    const placedTrap = Object.values(next.buildings).find((building) =>
+      building.type === BuildingType.GRAVE_TRAP
+      && building.position.x === emptyGravestone.position.x
+      && building.position.y === emptyGravestone.position.y);
+    expect(placedTrap).toBeDefined();
   });
 
   it('returns null for Frostcraft on an already-frozen tile', () => {

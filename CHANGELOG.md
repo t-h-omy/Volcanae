@@ -1,5 +1,37 @@
 # Changelog
 
+### v0.106.9 - Cinderborn and Berserk stat visibility, active tag pills
+
+CINDERBORN's recruit-time baked ATK bonus is now surfaced in the HUD as a green ATK modifier and its own breakdown row without being re-applied dynamically. BERSERK now contributes a matching green ATK modifier and breakdown row whenever its live/latched condition is active, using the same pre-berserk standing attack basis the HUD already shows for PHALANX, RAGE, and BATTERY. Conditional tag pills now gain an active glow state for live BERSERK and RAGE tags, while corruption suppression still wins and keeps suppressed pills inactive. Added focused regression coverage for the extracted ATK display math and conditional-tag activity helper.
+
+### v0.106.8 - Berserk stays active once triggered
+
+BERSERK now latches permanently per unit after first activation: once a BERSERK unit drops below the HP threshold, the bonus remains active even if the unit later heals above the threshold. Added a persisted `berserkActivated` unit field with v19 save migration backfill, updated combat and damage paths to set the latch when HP is reduced, and added end-of-turn safety sweeps plus regression coverage for combat-triggered latch, heal-after-trigger persistence, and v18 migration behavior.
+
+### v0.106.7 - READY recruits render as actionable
+
+READY-tagged same-turn recruits now use unified exhausted-display logic and no longer render with the toned-down exhausted filter when they can still act (including Drill Sergeant Spearmen and Swordsmen). The exhausted visual decision is now centralized in `isUnitDisplayExhausted` and consumed reactively by the grid unit renderer, with focused regression coverage for READY/non-READY recruit paths, moved-no-targets and attacked exhaustion, and fresh READY gargoyle spawns.
+
+### v0.106.6 - Grave Trap requires an empty gravestone tile
+
+Grave Trap now follows the same empty-tile rule as Raise Skeleton: occupied Gravestones are excluded from valid spell targets, casts on them are rejected, and invalid taps show the "Occupied" reason. Empty Gravestones in range remain valid targets. The Grave Trap spell description now explicitly says the Gravestone tile must be empty.
+
+### v0.106.5 - Trap triggers animate in sequence
+
+When an enemy walks into a Grave Trap or Scout Trap during the enemy turn, the stun/damage floaters now appear after the unit's move animation instead of before it. `checkGraveTrapTrigger` and `checkScoutTrapTrigger` in `movementSystem.ts` accept an optional `events?: GameEvent[]` parameter. On the enemy path (events provided), presentation is emitted as discrete events — `STUN_APPLIED` per stunned unit, `TILE_DAMAGE` (damageSource: `'TRAP'`) for Scout Trap damage, and a new `TRAP_TRIGGERED` event (buildingId + position) that removes the consumed building from the live display state during animation replay. The `STUN_APPLIED` applyEvent handler in `gameStore.ts` now emits the "💫 Stunned" floater so both paths render identically. The `TILE_DAMAGE` applyEvent handler uses the unit's faction for the floater colour so enemy trap victims get the correct orange tint. `TRAP_TRIGGERED` is treated as a fast, non-blocking event in the animation engine. The player path (no events array) is unchanged.
+
+### v0.106.4 - Enemy frozen slide animation
+
+When an enemy unit moves onto a FROZEN tile the slide now animates as part of the event-queue replay, immediately after the move animation, instead of jumping to the slid position at turn end. The out-of-band `setUnitAnimation`/`setTimeout` block and the ghost-VFX block in `moveEnemyUnit` are replaced by a `UNIT_KNOCKBACK` event pushed into the event array. For a slide that kills the unit (lava, canyon, water), a `UNIT_KNOCKBACK` event is pushed followed by `UNIT_DEATH`; the animation engine already handles a `UNIT_KNOCKBACK → UNIT_DEATH` pair with the correct slide-then-die sequence. The player-path slide (direct `setUnitAnimation` in `gameStore.ts`) is unchanged.
+
+### v0.106.3 - Ember level feedback for all sources
+
+Every ember-level increment source now emits `EMBER_LEVEL_UP` (emberling sacrifice, enemy lava death, lava-advance consumption, turn-interval tick, and stronghold capture), so hint H18 and unified feedback trigger consistently. `EMBER_LEVEL_UP` now carries a typed `source` and optional `position` (for turn-interval events). Turn-interval rises are enqueued into the enemy-turn playback queue and the turn announcement popup now shows an additional line, “Ember Level increased,” on the immediately following player turn. Ember gain feedback adds a reusable screen-space fly-to-HUD system: a 🔥 icon now flies along a curved accelerating path from the source (or turn popup) to the ember HUD stat and pulses the target on arrival; source-based ember floaters now use a dedicated pulsating style.
+
+### v0.106.2 - Seal cave without mine
+
+The cave popup "Seal & Build Mine" option is replaced by "Seal": sealing the entrance now dismisses the cave monster (clears hasCaveMonster, removes the activeCaveEncounters entry) without constructing a Mine and without consuming any of the unit's action flags. The BUILDANDCAPTURE player unit on the tile can still move, attack, and build on the same turn after sealing. The Explore option and gating logic (a player BUILDANDCAPTURE unit must stand on the cave tile) are unchanged. The dead `placeMineOnTile` helper in `constructionSystem.ts` is removed as it had no remaining callers.
+
 ### v0.106.1 - Rage bonus display respects corruption
 
 The HUD now uses the same RAGE bonus helper as combat, so units on CORRUPTED tiles show no RAGE attack bonus when corruption suppresses that tag. Regression tests cover the shared helper on normal tiles, corrupted player tiles, and the current enemy-unit corruption semantics exposed by `isUnitOnCorruptedTile`.

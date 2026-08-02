@@ -122,6 +122,12 @@ export const ANIMATION = {
   SPAWN_VFX_MS: 450,
   /** Duration of the building-capture wash (ms) */
   CAPTURE_VFX_MS: 500,
+  /** Duration of flame fly-to-HUD travel (ms) */
+  FLY_TO_HUD_DURATION_MS: 700,
+  /** Perpendicular control-point offset as a fraction of source-target distance */
+  FLY_TO_HUD_CURVE_OFFSET_RATIO: 0.25,
+  /** Duration of ember-HUD pulse on flight arrival (ms) */
+  FLY_TO_HUD_TARGET_PULSE_MS: 350,
   /** Duration of the invalid-action red edge pulse (ms) — kept very short */
   INVALID_ACTION_VFX_MS: 250,
   /** Duration of the pierce connection line (ms) */

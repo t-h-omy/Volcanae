@@ -8,7 +8,7 @@ import type { Draft } from 'immer';
 import { current, produce } from 'immer';
 import { Faction, UnitType, UnitTag, BuildingType, TileType, TileStatus } from './types';
 import { UNIT_DEFINITIONS, ENEMY, MAP, TERRAIN, AI_SCORING, AI_RECRUITMENT, XP, DIFFICULTY_MULTIPLIER, SANCTUM_COLLAPSE, ABILITIES, COUNTER_UNIT_SCORING, PUNCTURE_STUN_BASE_DEF_THRESHOLD, EMBER_PORTAL_BASE_USE_SCORE, EMBER_PORTAL_DISTANCE_PENALTY, EMBER_PORTAL_MAX_USERS_PER_TURN } from './gameConfig';
-import { resolveAttack, calculateCombat, resolveBuildingAttack, buildingToCombatant, calculateCombatFromStats, unitToCombatant, resolveAttackOnBuilding, detectBrandmarkSpawnPos } from './combatSystem';
+import { resolveAttack, calculateCombat, resolveBuildingAttack, buildingToCombatant, calculateCombatFromStats, unitToCombatant, resolveAttackOnBuilding, detectBrandmarkSpawnPos, updateBerserkLatch } from './combatSystem';
 import { isTileWithinEdgeCircleRange, edgeCircleDistance } from './rangeUtils';
 import { initiateCapture, canCapture } from './captureSystem';
 import { corruptTerrain, processMagmaSpyrAttacks, processEmberNestSpawns } from './corruptionSystem';
@@ -19,9 +19,6 @@ import type { GameEvent } from './gameEvents';
 import { hasUnitActed, applySpawnActionFlags } from './unitActions';
 import { sweepLeashes } from './spellSystem';
 import { checkGraveTrapTrigger, checkScoutTrapTrigger, resolveSlide } from './movementSystem';
-import { useCombatAnimationStore } from './combatAnimationStore';
-import { ANIMATION } from './animationConfig';
-import { RENDER } from './renderConfig';
 import { tryBeginTunnel, processTunnelTurn } from './tunnelSystem';
 import { cleanupPortals, cleanupExpiredPortalsEndOfTurn, tryPlanPortalCast, castPortal, getUsablePortalAtEntrance, tryTeleportThroughPortal, processPendingPortalTeleports } from './portalSystem';
 import { cleanupRoostedUnits, getRoostedUnits } from './buildingRemoval';
@@ -1133,6 +1130,7 @@ function triggerPreventiveStrike(
       }
     } else {
       enemyUnit.stats.currentHp = newDefenderHp;
+      updateBerserkLatch(enemyUnit);
     }
 
     // Note: Preventive Strike does NOT consume the siege unit's attack action.
@@ -1259,6 +1257,7 @@ function triggerGarrisonOverwatch(
       }
     } else {
       enemyUnit.stats.currentHp = newDefenderHp;
+      updateBerserkLatch(enemyUnit);
     }
 
     // Mark this building as having fired during the current enemy turn.
@@ -1337,7 +1336,7 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
         type: 'EMBER_LEVEL_UP',
         position: sacrificePos,
         amount: 1,
-        isEmberlingSacrifice: isSacrifice,
+        source: isSacrifice ? 'EMBERLING_SACRIFICE' : 'LAVA_DEATH',
       });
     }
     return;
@@ -1352,8 +1351,8 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
   triggerGarrisonOverwatch(state, unitId, from, events);
 
   // GRAVE_TRAP / SCOUT_TRAP: check if the enemy unit landed on a player trap
-  checkGraveTrapTrigger(state, unitId);
-  checkScoutTrapTrigger(state, unitId);
+  checkGraveTrapTrigger(state, unitId, events);
+  checkScoutTrapTrigger(state, unitId, events);
 
   // PORTAL: check if the unit stepped onto a portal entrance.
   if (state.units[unitId]) {
@@ -1387,13 +1386,7 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
     const moveDy = targetPosition.y - from.y;
     const slideDirX = Math.sign(moveDx);
     const slideDirY = Math.sign(moveDy);
-    const tileSize =
-      typeof window !== 'undefined' && window.innerWidth <= RENDER.MOBILE_BREAKPOINT
-        ? RENDER.TILE_SIZE_MOBILE
-        : RENDER.TILE_SIZE_DESKTOP;
-    const unitBeforeSlide = state.units[unitId];
-    const unitTypeBeforeSlide = unitBeforeSlide?.type;
-    const factionBeforeSlide = unitBeforeSlide?.faction;
+    const factionBeforeSlide = state.units[unitId]?.faction;
     // Normalise to a unit-step: enemy can move multiple tiles per step via moveEnemyUnitToward,
     // but the slide should always cover exactly one tile in the movement direction.
     resolveSlide(state, unitId, slideDirX, slideDirY);
@@ -1403,20 +1396,34 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
       unitAfterSlide &&
       (unitAfterSlide.position.x !== targetPosition.x || unitAfterSlide.position.y !== targetPosition.y)
     ) {
-      const slideDx = (targetPosition.x - unitAfterSlide.position.x) * tileSize;
-      const slideDy = (targetPosition.y - unitAfterSlide.position.y) * tileSize;
-      const { setUnitAnimation } = useCombatAnimationStore.getState();
-      setUnitAnimation(unitId, { type: 'SLIDE', dx: slideDx, dy: slideDy });
-      const totalMs = ANIMATION.SLIDE_PAUSE_MS + ANIMATION.SLIDE_DURATION_MS + 60;
-      setTimeout(() => {
-        useCombatAnimationStore.getState().setUnitAnimation(unitId, null);
-      }, totalMs);
+      // Unit survived and slid to a new position: emit UNIT_KNOCKBACK so the event
+      // queue drives the slide animation at the correct point in the turn replay.
+      if (events) {
+        events.push({
+          type: 'UNIT_KNOCKBACK',
+          unitId,
+          fromPosition: targetPosition,
+          toPosition: { x: unitAfterSlide.position.x, y: unitAfterSlide.position.y },
+          isEnemy: true,
+          faction: Faction.ENEMY,
+        });
+      }
     }
 
-    if (!unitAfterSlide && unitTypeBeforeSlide !== undefined && factionBeforeSlide !== undefined) {
+    if (!unitAfterSlide && factionBeforeSlide !== undefined) {
+      // Unit was destroyed by the slide (lava / canyon / water): emit UNIT_KNOCKBACK
+      // so the animation engine plays the slide before the death sequence.
       const deathTileX = targetPosition.x + slideDirX;
       const deathTileY = targetPosition.y + slideDirY;
       if (events) {
+        events.push({
+          type: 'UNIT_KNOCKBACK',
+          unitId,
+          fromPosition: targetPosition,
+          toPosition: { x: deathTileX, y: deathTileY },
+          isEnemy: true,
+          faction: factionBeforeSlide,
+        });
         events.push({
           type: 'UNIT_DEATH',
           unitId,
@@ -1424,33 +1431,6 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
           faction: factionBeforeSlide,
         });
       }
-      const ghostId = `slide-kill-${unitId}-${Date.now()}`;
-      const ghost = {
-        id: ghostId,
-        unitType: unitTypeBeforeSlide,
-        faction: factionBeforeSlide,
-        deathTileX,
-        deathTileY,
-        slideDx: -slideDirX * tileSize,
-        slideDy: -slideDirY * tileSize,
-        phase: 'slide' as const,
-      };
-      const store = useCombatAnimationStore.getState();
-      store.addSlideKillGhost(ghost);
-
-      const slideTotalMs = ANIMATION.SLIDE_PAUSE_MS + ANIMATION.SLIDE_DURATION_MS;
-      setTimeout(() => {
-        useCombatAnimationStore.getState().setSlideKillGhostPhase(ghostId, 'dying');
-
-        const dyingTotalMs = ANIMATION.DIE_FLASH_DURATION_MS + ANIMATION.DIE_FADE_DURATION_MS;
-        setTimeout(() => {
-          useCombatAnimationStore.getState().setSlideKillGhostPhase(ghostId, 'falling');
-
-          setTimeout(() => {
-            useCombatAnimationStore.getState().removeSlideKillGhost(ghostId);
-          }, ANIMATION.SLIDE_KILL_FALL_DURATION_MS);
-        }, dyingTotalMs);
-      }, slideTotalMs);
     }
   }
 }
@@ -1607,6 +1587,7 @@ export function resolveExplosion(
     if (!target) continue;
 
     target.stats.currentHp -= explosionDamage;
+    updateBerserkLatch(target);
     damagedUnitIds.push(targetId);
     // Track damage received by player
     state.gameStats.damageReceived += explosionDamage;
@@ -2737,7 +2718,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
             type: 'EMBER_LEVEL_UP',
             position: fallbackPos,
             amount: 1,
-            isEmberlingSacrifice: true,
+            source: 'EMBERLING_SACRIFICE',
           });
         }
       }
@@ -2846,20 +2827,21 @@ function decideAndExecute(
   executeAction(unit, chosen, state, events);
 }
 
-// ============================================================================
-// EMBER SCALING
-// ============================================================================
-
-export function updateEmberFromTurn(state: Draft<GameState>): void {
-  if (state.turn > 0 && state.turn % 10 === 0) {
-    state.ember += 1;
-    state.emberLevelSources.turns += 1;
-  }
-}
-
-export function increaseEmberOnStrongholdCapture(state: Draft<GameState>): void {
+export function increaseEmberOnStrongholdCapture(
+  state: Draft<GameState>,
+  position: Position,
+  events?: GameEvent[],
+): void {
   state.ember += 1;
   state.emberLevelSources.other += 1;
+  if (events) {
+    events.push({
+      type: 'EMBER_LEVEL_UP',
+      position: { x: position.x, y: position.y },
+      amount: 1,
+      source: 'STRONGHOLD_CAPTURE',
+    });
+  }
 }
 
 // ============================================================================
@@ -3358,6 +3340,9 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
     spawnEnemyUnits(draft, events);
 
     // 4. Reset enemy unit action flags for next turn
+    for (const unit of Object.values(draft.units)) {
+      updateBerserkLatch(unit);
+    }
     for (const unit of Object.values(draft.units)) {
       if (unit.faction === Faction.ENEMY) {
         unit.hasMovedThisTurn = false;

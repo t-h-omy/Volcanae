@@ -42,7 +42,7 @@ import type { ConstructionOption } from './constructionSystem';
 import { canCapture } from './captureSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { MAP, MAGE, ABILITIES } from './gameConfig';
-import { getMageCastBudget } from './spellSystem';
+import { canUnitCast, getMageCastBudget } from './spellSystem';
 import { isUnitOnCorruptedTile } from './tileStatusSystem';
 import { getBridgeAt } from './bridgeSystem';
 import { getActiveEffectParams, isSpecialistEffectActive } from './specialistSystem';
@@ -81,6 +81,19 @@ export function hasUnitActed(
     unit.hasDestroyedThisTurn ||
     hasSpentMageCastBudget(unit, state)
   );
+}
+
+export function isUnitDisplayExhausted(unit: Unit, state: GameState): boolean {
+  const isRecruitedThisTurn = (unit.recruitedOnTurn ?? 0) === state.turn && state.turn > 0;
+  const noAttackTargets = (() => {
+    if (unit.faction !== Faction.PLAYER) return false;
+    if (hasUnitActed(unit, state)) return false;
+    if (unit.type === UnitType.MAGE && canUnitCast(unit, state) && state.arcaneCrystals >= 1) return false;
+    if (!unit.hasMovedThisTurn && !unit.bloodlustAttackAvailable) return false;
+    return getAttackTargets(unit, state.units, state.buildings, state.grid, state).size === 0;
+  })();
+
+  return (isRecruitedThisTurn && !unit.tags.includes(UnitTag.READY)) || hasUnitActed(unit, state) || noAttackTargets;
 }
 
 export function applySpawnActionFlags(unit: Unit): Unit {

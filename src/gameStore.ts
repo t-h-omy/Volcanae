@@ -7,7 +7,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { current, produce, type Draft } from 'immer';
 import { generateInitialGameState, generateId } from './mapGenerator';
-import { resolveAttack, resolveBuildingAttack, resolveAttackOnBuilding, resolveBuildingAttackOnBuilding, handleBrandmarkedUnitDeath, shouldLeaveGravestone, createGravestoneAt, findEmberDemonSpawnPos, spawnEnemyEmberDemon, detectBrandmarkSpawnPos } from './combatSystem';
+import { resolveAttack, resolveBuildingAttack, resolveAttackOnBuilding, resolveBuildingAttackOnBuilding, handleBrandmarkedUnitDeath, shouldLeaveGravestone, createGravestoneAt, findEmberDemonSpawnPos, spawnEnemyEmberDemon, detectBrandmarkSpawnPos, updateBerserkLatch } from './combatSystem';
 import { moveUnit as moveUnitLogic } from './movementSystem';
 import {
   initiateCapture as initiateCaptureLogic,
@@ -26,7 +26,6 @@ import {
 import {
   constructBuilding as constructBuildingLogic,
   convertBuilding as convertBuildingLogic,
-  placeMineOnTile,
 } from './constructionSystem';
 import { runEnemyTurn } from './enemySystem';
 import {
@@ -68,6 +67,7 @@ import { canUnitBuildBridge, getBridgeBuildTargets } from './unitActions';
 import { canUnitSetTrap, isTrapTileClear, canUnitExtinguish } from './unitActions';
 import { useHintStore } from './hintStore';
 import { flushDeferredHints, tryTriggerHint } from './hintSystem';
+import { triggerEmberLevelUpVfx } from './emberLevelVfx';
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
@@ -198,8 +198,8 @@ interface GameActions {
   unlockTech: (techId: TechId) => void;
   /** Return the list of tech IDs available for the player to pick */
   getAvailableTechs: () => TechId[];
-  /** Seal a cave mountain tile and construct a Mine on it */
-  sealAndBuildMine: (tilePos: Position) => void;
+  /** Seal a cave mountain tile (no mine built, unit actions unchanged) */
+  sealCave: (tilePos: Position) => void;
   /** Explore a cave mountain tile: spawns a cave monster near it */
   exploreCave: (tilePos: Position) => void;
   /** Permanently dismiss a cave tile without spawning a monster, building a mine, or exhausting the unit */
@@ -1054,6 +1054,7 @@ export const useGameStore = create<GameStore>()(
     captureBuilding: (unitId: string, buildingId: string) => {
       let pendingEvents: GameEvent[] | null = null;
       let pendingResolvedState: GameState | null = null;
+      const immediateCaptureEvents: GameEvent[] = [];
 
       set((state) => {
         const unit = state.units[unitId];
@@ -1087,7 +1088,7 @@ export const useGameStore = create<GameStore>()(
           state.selectedBuildingId = null;
         } else {
           // Non-sanctum captures: apply directly (no animation needed)
-          initiateCaptureLogic(state, unitId, buildingId);
+          initiateCaptureLogic(state, unitId, buildingId, undefined, immediateCaptureEvents);
           updateDiscovery(state);
           checkGameConditions(state);
         }
@@ -1095,6 +1096,10 @@ export const useGameStore = create<GameStore>()(
 
       if (pendingEvents !== null && pendingResolvedState !== null) {
         useAnimationStore.getState().enqueue(pendingEvents, pendingResolvedState);
+      } else if (immediateCaptureEvents.length > 0) {
+        immediateCaptureEvents.forEach((event) => {
+          useGameStore.getState().applyEvent(event);
+        });
       }
     },
 
@@ -1125,23 +1130,17 @@ export const useGameStore = create<GameStore>()(
       });
     },
 
-    sealAndBuildMine: (tilePos: Position) => {
+    sealCave: (tilePos: Position) => {
       set((state) => {
         const tile = state.grid[tilePos.y]?.[tilePos.x];
         if (!tile) return;
 
-        // Sealing & building a mine is a construction action — exhaust the
-        // BUILDANDCAPTURE unit on the tile so it cannot act again this turn.
+        // Gating: a player BUILDANDCAPTURE unit must be standing on the tile.
         const unitOnTile = tile.unitId ? state.units[tile.unitId] : null;
         if (!unitOnTile || unitOnTile.faction !== Faction.PLAYER) return;
         if (!unitOnTile.tags.includes(UnitTag.BUILDANDCAPTURE)) return;
-        unitOnTile.hasMovedThisTurn = true;
-        unitOnTile.hasAttackedThisTurn = true;
-        unitOnTile.hasConstructedThisTurn = true;
-        unitOnTile.hasDestroyedThisTurn = true;
-        unitOnTile.hasCapturedThisTurn = true;
 
-        // Also clear the activeCaveEncounters entry for this tile if one exists
+        // Clear the activeCaveEncounters entry for this tile if one exists.
         const mountainTileId = `${tilePos.x},${tilePos.y}`;
         const encounterIdx = state.activeCaveEncounters.findIndex(
           (e) => e.mountainTileId === mountainTileId,
@@ -1150,7 +1149,6 @@ export const useGameStore = create<GameStore>()(
           state.activeCaveEncounters.splice(encounterIdx, 1);
         }
 
-        placeMineOnTile(state, tilePos);
         tile.hasCaveMonster = false;
         updateDiscovery(state);
         checkGameConditions(state);
@@ -2054,6 +2052,7 @@ export const useGameStore = create<GameStore>()(
       let homelessHintPos: { x: number; y: number } | null = null;
       let untrainedHintPos: { x: number; y: number } | null = null;
       let hasBurningPlayerDamage = false;
+      const resolveCaptureEvents: GameEvent[] = [];
 
       set((state) => {
         // Auto-deselect when the player ends their turn — no unit, building,
@@ -2069,7 +2068,7 @@ export const useGameStore = create<GameStore>()(
         state.pendingTrapSetterId = null;
 
         // Phase 1: Resolve all pending captures (instant, no animation)
-        resolveCaptures(state);
+        resolveCaptures(state, resolveCaptureEvents);
 
         // Phase 1.5: End-of-player-turn idle heal (spec_24) before enemy actions.
         const idleHealEvents: GameEvent[] = [];
@@ -2142,7 +2141,7 @@ export const useGameStore = create<GameStore>()(
         );
 
         // Phase 4: Lava phase
-        const allEvents: GameEvent[] = [...idleHealEvents, ...enemyEvents, ...tileStatusEvents];
+        const allEvents: GameEvent[] = [...resolveCaptureEvents, ...idleHealEvents, ...enemyEvents, ...tileStatusEvents];
         computedState = produce(computedState, (draft) => {
           draft.turnsUntilLavaAdvance -= 1;
         });
@@ -2216,6 +2215,7 @@ export const useGameStore = create<GameStore>()(
               if (shouldBeHomeless) {
                 const damage = Math.min(POPULATION.HOMELESS_HP_LOSS_PER_TURN, unit.stats.currentHp);
                 unit.stats.currentHp -= damage;
+                updateBerserkLatch(unit);
                 if (damage > 0) {
                   tagDamageEvents.push({
                     type: 'TILE_DAMAGE',
@@ -2283,6 +2283,7 @@ export const useGameStore = create<GameStore>()(
             if (!unit.tags.includes(UnitTag.BRANDMARKED)) continue;
             const damage = Math.min(MAGE.BRANDMARK_HP_LOSS_PER_TURN, unit.stats.currentHp);
             unit.stats.currentHp -= damage;
+            updateBerserkLatch(unit);
             if (damage > 0) {
               tagDamageEvents.push({
                 type: 'TILE_DAMAGE',
@@ -2348,6 +2349,9 @@ export const useGameStore = create<GameStore>()(
 
           // Reset all player units for new turn
           for (const unit of Object.values(draft.units)) {
+            updateBerserkLatch(unit);
+          }
+          for (const unit of Object.values(draft.units)) {
             if (unit.faction === Faction.PLAYER) {
               unit.hasMovedThisTurn = false;
               unit.hasAttackedThisTurn = false;
@@ -2410,6 +2414,11 @@ export const useGameStore = create<GameStore>()(
           if (draft.turn > 0 && draft.turn % ENEMY.THREAT_LEVEL_INCREASE_INTERVAL === 0) {
             draft.ember += 1;
             draft.emberLevelSources.turns += 1;
+            allEvents.push({
+              type: 'EMBER_LEVEL_UP',
+              amount: 1,
+              source: 'TURN_INTERVAL',
+            });
           }
 
           // Expire elapsed zone lockouts
@@ -2546,9 +2555,11 @@ export const useGameStore = create<GameStore>()(
 
             if (defender && event.defenderHpLost > 0) {
               defender.stats.currentHp -= event.defenderHpLost;
+              updateBerserkLatch(defender);
             }
             if (attacker && event.attackerHpLost > 0) {
               attacker.stats.currentHp -= event.attackerHpLost;
+              updateBerserkLatch(attacker);
             }
 
             // Apply melee advance in display state so that subsequent ENEMY_MOVE events
@@ -2621,9 +2632,11 @@ export const useGameStore = create<GameStore>()(
 
             if (defender && event.defenderHpLost > 0) {
               defender.stats.currentHp -= event.defenderHpLost;
+              updateBerserkLatch(defender);
             }
             if (attacker && event.attackerHpLost > 0) {
               attacker.stats.currentHp -= event.attackerHpLost;
+              updateBerserkLatch(attacker);
             }
 
             // Mark attacker as having attacked so the UI shows it as exhausted
@@ -2776,6 +2789,7 @@ export const useGameStore = create<GameStore>()(
 
             if (defender && event.defenderHpLost > 0) {
               defender.stats.currentHp -= event.defenderHpLost;
+              updateBerserkLatch(defender);
             }
             if (building && event.buildingHpLost > 0) {
               building.hp -= event.buildingHpLost;
@@ -2864,6 +2878,7 @@ export const useGameStore = create<GameStore>()(
 
             if (attacker && event.attackerHpLost > 0) {
               attacker.stats.currentHp -= event.attackerHpLost;
+              updateBerserkLatch(attacker);
             }
             if (building && event.buildingHpLost > 0) {
               const newHp = building.hp - event.buildingHpLost;
@@ -3076,6 +3091,7 @@ export const useGameStore = create<GameStore>()(
               const target = state.units[targetId];
               if (target) {
                 target.stats.currentHp -= event.damagePerUnit;
+                updateBerserkLatch(target);
                 // If unit dies, it will be handled by the subsequent UNIT_DEATH event
               }
             }
@@ -3173,11 +3189,13 @@ export const useGameStore = create<GameStore>()(
 
           case 'TILE_DAMAGE': {
             // Emit a damage floater at the affected tile.
+            // Use the unit's faction to determine floater colour (isEnemy = true → orange for enemies).
+            const damagedUnit = state.units[event.unitId];
             useFloaterStore.getState().addFloater({
               value: event.amount,
               x: event.position.x,
               y: event.position.y,
-              isEnemy: false,
+              isEnemy: damagedUnit?.faction !== Faction.PLAYER,
               floaterType: 'damage',
             });
             break;
@@ -3203,17 +3221,30 @@ export const useGameStore = create<GameStore>()(
 
           case 'EMBER_LEVEL_UP': {
             // State was already mutated in enemySystem — this is presentation-only.
-            const sacrificeLabel = event.isEmberlingSacrifice
-              ? `Emberling sacrificed to lava · 🔥 Ember Level +${event.amount}`
-              : `Enemy consumed by lava · 🔥 Ember Level +${event.amount}`;
-            useFloaterStore.getState().addFloater({
-              label: sacrificeLabel,
-              value: 0,
-              x: event.position.x,
-              y: event.position.y,
-              isEnemy: true,
-              floaterType: 'xp',
-            });
+            if (event.source !== 'TURN_INTERVAL' && event.position) {
+              const sourceLabel = event.source === 'EMBERLING_SACRIFICE'
+                ? 'Emberling sacrificed'
+                : event.source === 'LAVA_DEATH'
+                  ? 'Enemy entered lava'
+                  : event.source === 'LAVA_ADVANCE'
+                    ? 'Enemy consumed by lava'
+                    : 'Stronghold captured';
+              useFloaterStore.getState().addFloater({
+                label: `${sourceLabel} · +${event.amount} Ember Level`,
+                value: 0,
+                x: event.position.x,
+                y: event.position.y,
+                isEnemy: true,
+                floaterType: 'emberlevel',
+              });
+            }
+            if (
+              event.source === 'TURN_INTERVAL' ||
+              (event.position &&
+                !!state.grid[event.position.y]?.[event.position.x]?.isRevealed)
+            ) {
+              triggerEmberLevelUpVfx(event);
+            }
             emberLevelUpFired = true;
             break;
           }
@@ -3231,6 +3262,7 @@ export const useGameStore = create<GameStore>()(
             const splashTarget = state.units[event.unitId];
             if (splashTarget) {
               splashTarget.stats.currentHp = Math.max(0, splashTarget.stats.currentHp - event.amount);
+              updateBerserkLatch(splashTarget);
             }
             useFloaterStore.getState().addFloater({
               value: event.amount,
@@ -3245,6 +3277,7 @@ export const useGameStore = create<GameStore>()(
             const cleaveTarget = state.units[event.unitId];
             if (cleaveTarget) {
               cleaveTarget.stats.currentHp = Math.max(0, cleaveTarget.stats.currentHp - event.amount);
+              updateBerserkLatch(cleaveTarget);
             }
             useFloaterStore.getState().addFloater({
               value: event.amount,
@@ -3260,6 +3293,7 @@ export const useGameStore = create<GameStore>()(
               const pierceTarget = state.units[event.unitId];
               if (pierceTarget) {
                 pierceTarget.stats.currentHp = Math.max(0, pierceTarget.stats.currentHp - event.amount);
+                updateBerserkLatch(pierceTarget);
               }
             } else if (event.buildingId) {
               const pierceBuilding = state.buildings[event.buildingId];
@@ -3328,6 +3362,7 @@ export const useGameStore = create<GameStore>()(
                 const aoeTarget = state.units[aoeTargetTile.unitId];
                 if (aoeTarget && aoeTarget.faction === Faction.PLAYER) {
                   aoeTarget.stats.currentHp = Math.max(0, aoeTarget.stats.currentHp - TUNNEL_EMERGE_DAMAGE);
+                  updateBerserkLatch(aoeTarget);
                   addFloater({
                     value: TUNNEL_EMERGE_DAMAGE,
                     x: pos.x,
@@ -3350,7 +3385,15 @@ export const useGameStore = create<GameStore>()(
             break;
 
           case 'STUN_APPLIED':
-            // Presentation-only: defender.pinnedUntilTurn is set by the combat resolver.
+            // Emit a stun floater at the affected tile.
+            useFloaterStore.getState().addFloater({
+              value: 0,
+              label: '💫 Stunned',
+              x: event.position.x,
+              y: event.position.y,
+              isEnemy: true,
+              floaterType: 'revive',
+            });
             break;
 
           case 'PORTAL_CREATED':
@@ -3407,6 +3450,17 @@ export const useGameStore = create<GameStore>()(
               knockedUnit.position.x = event.toPosition.x;
               knockedUnit.position.y = event.toPosition.y;
             }
+            break;
+          }
+
+          case 'TRAP_TRIGGERED': {
+            // Remove the consumed trap building from the live display state so it
+            // disappears at the correct moment in the animation sequence.
+            const trapTile = state.grid[event.position.y]?.[event.position.x];
+            if (trapTile && trapTile.buildingId === event.buildingId) {
+              trapTile.buildingId = null;
+            }
+            delete state.buildings[event.buildingId];
             break;
           }
 

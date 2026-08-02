@@ -4,10 +4,12 @@ import { ABILITIES, MAP, UNIT_DEFINITIONS } from '../gameConfig';
 import {
   calculateCombatFromStats,
   getBerserkAttackMultiplier,
+  isBerserkActive,
   resolveAttack,
   resolveAttackOnBuilding,
   unitToCombatant,
 } from '../combatSystem';
+import { runEnemyTurn } from '../enemySystem';
 import { recruitUnit } from '../resourceSystem';
 import { applySpecialistEffects, createInitialSpecialists } from '../specialistSystem';
 import { BuildingType, DestroyBehavior, Faction, TileType, UnitTag, UnitType } from '../types';
@@ -229,40 +231,55 @@ describe('SP-20 Last Stand (spec_20) — Archer BERSERK', () => {
     const archer = makeUnit('archer', UnitType.ARCHER, Faction.PLAYER, 2, 2, [UnitTag.BERSERK]);
     const thresholdHp = archer.stats.maxHp * ABILITIES.BERSERK_HP_THRESHOLD_PCT / 100;
     archer.stats.currentHp = thresholdHp;
+    expect(archer.berserkActivated).toBeUndefined();
+    expect(isBerserkActive(archer)).toBe(false);
     expect(getBerserkAttackMultiplier(archer)).toBe(1);
 
     archer.stats.currentHp = thresholdHp - 1;
+    expect(isBerserkActive(archer)).toBe(true);
     expect(getBerserkAttackMultiplier(archer)).toBe(1 + ABILITIES.BERSERK_ATTACK_PCT / 100);
   });
 
-  it('recomputes BERSERK at attack time and does not persist attack stat changes', () => {
-    const attacker = makeUnit('attacker', UnitType.ARCHER, Faction.PLAYER, 1, 5, [UnitTag.BERSERK]);
-    const defenderA = makeUnit('defender_a', UnitType.LAVA_GRUNT, Faction.ENEMY, 4, 5);
-    const defenderB = makeUnit('defender_b', UnitType.LAVA_GRUNT, Faction.ENEMY, 4, 6);
-    const state = makeState([attacker, defenderA, defenderB]);
-    const thresholdHp = attacker.stats.maxHp * ABILITIES.BERSERK_HP_THRESHOLD_PCT / 100;
-    state.units[attacker.id].stats.currentHp = thresholdHp - 1;
-    const initialAttack = state.units[attacker.id].stats.attack;
+  it('latches BERSERK after combat damage and keeps it active after healing', () => {
+    const attacker = makeUnit('enemy_attacker', UnitType.SCOUT, Faction.ENEMY, 3, 5);
+    const berserkDefender = makeUnit('berserk_defender', UnitType.ARCHER, Faction.PLAYER, 4, 5, [UnitTag.BERSERK]);
+    const state = makeState([attacker, berserkDefender]);
+    const thresholdHp = berserkDefender.stats.maxHp * ABILITIES.BERSERK_HP_THRESHOLD_PCT / 100;
+    state.units[berserkDefender.id].stats.currentHp = Math.floor(thresholdHp) + 5;
 
-    const lowHpAttacker = unitToCombatant(state.units[attacker.id]);
-    lowHpAttacker.attack *= getBerserkAttackMultiplier(state.units[attacker.id]);
-    const expectedLowHpDamage = calculateCombatFromStats(lowHpAttacker, unitToCombatant(defenderA)).defenderHpLost;
+    resolveAttack(state, attacker.id, berserkDefender.id, true);
 
-    resolveAttack(state, attacker.id, defenderA.id, true);
+    const defenderAfter = state.units[berserkDefender.id];
+    expect(defenderAfter).toBeDefined();
+    if (!defenderAfter) throw new Error('Berserk defender should survive test attack');
+    expect(defenderAfter.berserkActivated).toBe(true);
+    expect(isBerserkActive(defenderAfter)).toBe(true);
 
-    expect(state.units[defenderA.id].stats.currentHp).toBe(defenderA.stats.maxHp - expectedLowHpDamage);
-    expect(state.units[attacker.id].stats.attack).toBe(initialAttack);
+    defenderAfter.stats.currentHp = defenderAfter.stats.maxHp;
+    expect(isBerserkActive(defenderAfter)).toBe(true);
+    expect(getBerserkAttackMultiplier(defenderAfter)).toBe(1 + ABILITIES.BERSERK_ATTACK_PCT / 100);
+  });
 
-    state.units[attacker.id].stats.currentHp = thresholdHp;
-    const expectedThresholdDamage = calculateCombatFromStats(
-      unitToCombatant(state.units[attacker.id]),
-      unitToCombatant(defenderB),
-    ).defenderHpLost;
+  it('does not set berserkActivated when HP never goes below threshold', () => {
+    const archer = makeUnit('archer_high_hp', UnitType.ARCHER, Faction.PLAYER, 2, 2, [UnitTag.BERSERK]);
+    const thresholdHp = archer.stats.maxHp * ABILITIES.BERSERK_HP_THRESHOLD_PCT / 100;
+    archer.stats.currentHp = thresholdHp;
 
-    resolveAttack(state, attacker.id, defenderB.id, true);
+    expect(archer.berserkActivated).toBeUndefined();
+    expect(isBerserkActive(archer)).toBe(false);
+    expect(getBerserkAttackMultiplier(archer)).toBe(1);
+  });
 
-    expect(state.units[defenderB.id].stats.currentHp).toBe(defenderB.stats.maxHp - expectedThresholdDamage);
-    expect(state.units[attacker.id].stats.attack).toBe(initialAttack);
+  it('backfills the latch during end-of-turn unit sweep', () => {
+    const archer = makeUnit('archer_sweep', UnitType.ARCHER, Faction.PLAYER, 2, 2, [UnitTag.BERSERK]);
+    const thresholdHp = archer.stats.maxHp * ABILITIES.BERSERK_HP_THRESHOLD_PCT / 100;
+    archer.stats.currentHp = thresholdHp - 1;
+    archer.berserkActivated = undefined;
+    const state = makeState([archer]);
+
+    const { finalState } = runEnemyTurn(state);
+    expect(finalState.units[archer.id].berserkActivated).toBe(true);
+    expect(isBerserkActive(finalState.units[archer.id])).toBe(true);
   });
 
   it('applies the derived BERSERK multiplier during attacks on buildings', () => {

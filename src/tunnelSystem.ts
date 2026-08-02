@@ -28,6 +28,7 @@ import {
 import { applyTileStatus } from './tileStatusSystem';
 import { TileStatus } from './types';
 import type { GameEvent } from './gameEvents';
+import { updateBerserkLatch } from './combatSystem';
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -398,6 +399,7 @@ function _applyEmergenceDamage(
     affected.push({ x: target.position.x, y: target.position.y });
 
     target.stats.currentHp -= TUNNEL_EMERGE_DAMAGE;
+    updateBerserkLatch(target);
     state.gameStats.damageReceived += TUNNEL_EMERGE_DAMAGE;
 
     if (target.stats.currentHp <= 0) {

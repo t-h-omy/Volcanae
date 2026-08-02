@@ -14,6 +14,7 @@ import { TileType, TileStatus, Faction, UnitTag } from './types';
 import type { GameState, Position } from './types';
 import type { GameEvent } from './gameEvents';
 import { TILE_STATUS_WHITELIST, BURNING_TILE_DAMAGE } from './gameConfig';
+import { updateBerserkLatch } from './combatSystem';
 
 // ============================================================================
 // QUERY HELPERS
@@ -169,6 +170,7 @@ export function processTileStatusEndOfTurn(
 
       const damage = Math.min(BURNING_TILE_DAMAGE, unit.stats.currentHp);
       unit.stats.currentHp -= damage;
+      updateBerserkLatch(unit);
 
       if (events) {
         events.push({

@@ -15,6 +15,8 @@ export const UI = {
   LEVEL_UP_FLOATER_FONT_SIZE_PX: 16,
   /** Font size for XP-gain floaters (px) — smaller/subtler */
   XP_FLOATER_FONT_SIZE_PX: 12,
+  /** Font size for ember-level source floaters (px) */
+  EMBER_LEVEL_FLOATER_FONT_SIZE_PX: 13,
   /** Font size for the HP number shown above a unit (px) */
   UNIT_HP_TEXT_FONT_SIZE_PX: 8,
   /** Duration of the bounce animation on the capture-ready indicator */

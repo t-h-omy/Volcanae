@@ -475,14 +475,60 @@ export function getRageAttackContext(
 
 /**
  * Returns the multiplicative BERSERK attack modifier for a unit.
- * BERSERK is derived at attack time only and never persisted in unit stats.
- * Activates only while current HP is strictly below the configured threshold.
+ * Activates once HP first drops strictly below the configured threshold and
+ * then stays active for that unit.
  */
+export function isBerserkActive(unit: Pick<Unit, 'tags' | 'berserkActivated' | 'stats'>): boolean {
+  if (!unit.tags.includes(UnitTag.BERSERK)) return false;
+  if (unit.berserkActivated === true) return true;
+  if (unit.stats.maxHp <= 0) return false;
+  return (unit.stats.currentHp / unit.stats.maxHp) < (ABILITIES.BERSERK_HP_THRESHOLD_PCT / 100);
+}
+
+export function updateBerserkLatch(unit: Unit): void {
+  if (!unit.tags.includes(UnitTag.BERSERK)) return;
+  if (unit.berserkActivated === true) return;
+  if (unit.stats.maxHp <= 0) return;
+  if ((unit.stats.currentHp / unit.stats.maxHp) < (ABILITIES.BERSERK_HP_THRESHOLD_PCT / 100)) {
+    unit.berserkActivated = true;
+  }
+}
+
 export function getBerserkAttackMultiplier(unit: Unit): number {
-  if (!unit.tags.includes(UnitTag.BERSERK)) return 1;
-  if (unit.stats.maxHp <= 0) return 1;
-  if ((unit.stats.currentHp / unit.stats.maxHp) >= (ABILITIES.BERSERK_HP_THRESHOLD_PCT / 100)) return 1;
-  return 1 + ABILITIES.BERSERK_ATTACK_PCT / 100;
+  return isBerserkActive(unit) ? (1 + ABILITIES.BERSERK_ATTACK_PCT / 100) : 1;
+}
+
+/**
+ * Mirrors the combat-time BERSERK multiplier as a flat HUD bonus.
+ *
+ * The HUD passes the already-displayed standing attack total before BERSERK:
+ * base/applied ATK plus the contextual attack layers the panel already shows
+ * (currently PHALANX, RAGE, and BATTERY). This intentionally excludes
+ * action-specific transient attack states that are not displayed as standing
+ * stat modifiers (for example BLOODLUST's second-strike halving).
+ */
+export function getBerserkDisplayBonus(
+  unit: Pick<Unit, 'tags' | 'berserkActivated' | 'stats'>,
+  effectiveAttackBeforeBerserk: number,
+): number {
+  if (!isBerserkActive(unit)) return 0;
+  return Math.round(effectiveAttackBeforeBerserk * ABILITIES.BERSERK_ATTACK_PCT / 100);
+}
+
+/** Returns whether a conditional tag's live activation condition is currently met. */
+export function isTagConditionActive(
+  state: GameState | Draft<GameState>,
+  unit: Unit,
+  tag: UnitTag,
+): boolean {
+  switch (tag) {
+    case UnitTag.BERSERK:
+      return isBerserkActive(unit);
+    case UnitTag.RAGE:
+      return getRageAttackContext(state, unit).rageBonus > 0;
+    default:
+      return false;
+  }
 }
 
 // ============================================================================
@@ -1043,6 +1089,7 @@ export function resolveAttack(
   } else {
     // Update attacker HP and mark as acted
     attacker.stats.currentHp = newAttackerHp;
+    updateBerserkLatch(attacker);
     attacker.hasAttackedThisTurn = true;
 
     // BLOODLUST: clear the pending second-attack flag after it is used.
@@ -1200,6 +1247,7 @@ export function resolveAttack(
   } else {
     // Update defender HP
     defender.stats.currentHp = newDefenderHp;
+    updateBerserkLatch(defender);
 
     // DISTRACTION: permanently reduce defender's DEF on each hit.
     // Suppressed on CORRUPTED tile.
@@ -1326,6 +1374,7 @@ export function resolveAttack(
           });
         } else {
           splashTarget.stats.currentHp = newSplashHp;
+          updateBerserkLatch(splashTarget);
         }
       }
     }
@@ -1383,6 +1432,7 @@ export function resolveAttack(
             });
           } else {
             cleaveTarget.stats.currentHp = newCleaveHp;
+            updateBerserkLatch(cleaveTarget);
           }
         }
       }
@@ -1457,6 +1507,7 @@ export function resolveAttack(
               });
             } else {
               rearUnit.stats.currentHp = newRearHp;
+              updateBerserkLatch(rearUnit);
             }
           } else {
             // Friendly rear unit: no damage, but emit VFX-only so the lance renders through.
@@ -1779,6 +1830,7 @@ export function resolveBuildingAttack(
     }
   } else {
     defender.stats.currentHp = newDefenderHp;
+    updateBerserkLatch(defender);
   }
 }
 
@@ -1999,6 +2051,7 @@ export function resolveAttackOnBuilding(
     }
   } else {
     attacker.stats.currentHp = newAttackerHp;
+    updateBerserkLatch(attacker);
     attacker.hasAttackedThisTurn = true;
     // BLOODLUST: clear the pending second-attack flag after it is used.
     // Also clear the artificial non-attack locks (same reason as resolveAttack).
@@ -2163,6 +2216,7 @@ export function resolveAttackOnBuilding(
           });
         } else {
           splashTarget.stats.currentHp = newSplashHp;
+          updateBerserkLatch(splashTarget);
         }
       }
     }
@@ -2217,6 +2271,7 @@ export function resolveAttackOnBuilding(
             });
           } else {
             cleaveTarget.stats.currentHp = newCleaveHp;
+            updateBerserkLatch(cleaveTarget);
           }
         }
       }
@@ -2288,6 +2343,7 @@ export function resolveAttackOnBuilding(
               });
             } else {
               rearUnit.stats.currentHp = newRearHp;
+              updateBerserkLatch(rearUnit);
             }
           } else {
             // Friendly rear unit: no damage, but emit VFX-only so the lance renders through.

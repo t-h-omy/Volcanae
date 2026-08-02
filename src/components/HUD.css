@@ -655,6 +655,26 @@
   animation-fill-mode: both;
 }
 
+.hud-turn-popup-main {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+
+.hud-turn-popup--ember {
+  padding-bottom: 10px;
+}
+
+.hud-turn-popup-sub {
+  margin-top: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: none;
+  color: #ffbf66;
+}
+
 /* ── Game Over / Victory Overlay ── */
 
 .hud-overlay {
@@ -1832,10 +1852,15 @@
 }
 
 .info-popup-tag-pill {
+  --info-popup-tag-pill-color: #f0d080;
+  --info-popup-tag-pill-bg: rgba(240, 180, 40, 0.12);
+  --info-popup-tag-pill-border: rgba(240, 180, 40, 0.35);
+  --info-popup-tag-pill-shadow: none;
   font-size: 11px;
-  color: #f0d080;
-  background: rgba(240, 180, 40, 0.12);
-  border: 1px solid rgba(240, 180, 40, 0.35);
+  color: var(--info-popup-tag-pill-color);
+  background: var(--info-popup-tag-pill-bg);
+  border: 1px solid var(--info-popup-tag-pill-border);
+  box-shadow: var(--info-popup-tag-pill-shadow);
   border-radius: 20px;
   padding: 3px 10px;
   cursor: pointer;
@@ -1846,11 +1871,19 @@
 }
 
 .info-popup-tag-pill--inactive {
-  color: #7a6a3a;
-  background: rgba(100, 80, 20, 0.10);
-  border-color: rgba(100, 80, 20, 0.30);
+  --info-popup-tag-pill-color: #7a6a3a;
+  --info-popup-tag-pill-bg: rgba(100, 80, 20, 0.10);
+  --info-popup-tag-pill-border: rgba(100, 80, 20, 0.30);
+  --info-popup-tag-pill-shadow: none;
   text-decoration: line-through;
   opacity: 0.65;
+}
+
+.info-popup-tag-pill--active {
+  --info-popup-tag-pill-color: #ffd88a;
+  --info-popup-tag-pill-bg: rgba(255, 170, 40, 0.22);
+  --info-popup-tag-pill-border: rgba(255, 196, 92, 0.8);
+  --info-popup-tag-pill-shadow: 0 0 12px rgba(255, 170, 40, 0.4);
 }
 
 .info-popup-tag-pill--highlight {
@@ -1878,6 +1911,10 @@
   font-size: 9px;
   color: rgba(240, 180, 40, 0.6);
   font-family: sans-serif;
+}
+
+.info-popup-tag-pill--active .info-popup-tag-pill-i {
+  color: rgba(255, 224, 160, 0.85);
 }
 
 .info-popup-actions {

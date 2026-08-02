@@ -155,6 +155,14 @@ export function advanceLava(state: Draft<GameState>, outEvents?: GameEvent[], sk
         if (unit && unit.faction === Faction.ENEMY) {
           state.ember += 1;
           state.emberLevelSources.other += 1;
+          if (outEvents) {
+            outEvents.push({
+              type: 'EMBER_LEVEL_UP',
+              position: { x, y: newLavaRow },
+              amount: 1,
+              source: 'LAVA_ADVANCE',
+            });
+          }
         }
         if (unit && unit.faction === Faction.PLAYER) {
           state.gameStats.unitsLost += 1;

@@ -36,7 +36,7 @@ import {
 } from '../types';
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
 import { nextTileCycleTarget, tileSelectionState } from '../tileCycleHelper';
-import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, canUnitConstruct, canUnitCapture, hasUnitActed, getHealTargets, canUnitCast, getBridgeBuildTargets, explainInvalidHealTarget, explainInvalidBridgeTarget, getTrapPlacementTargets, explainInvalidTrapTarget } from '../unitActions';
+import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, canUnitConstruct, canUnitCapture, getHealTargets, canUnitCast, getBridgeBuildTargets, explainInvalidHealTarget, explainInvalidBridgeTarget, getTrapPlacementTargets, explainInvalidTrapTarget, isUnitDisplayExhausted } from '../unitActions';
 import { getValidSpellTargets, explainInvalidSpellTarget } from '../spellSystem';
 import './GridRenderer.css';
 
@@ -1488,19 +1488,6 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
   }
   const showUnitImg = typeof unitSpritePath === 'string' && unitSpritePath !== '' && !unitSpriteError;
 
-  // A player unit that has moved but has no valid attack targets left to hit
-  // should also appear exhausted — there's nothing more it can do this turn.
-  // For a bloodlust unit awaiting its second attack (bloodlustAttackAvailable), bypass the
-  // hasMovedThisTurn guard: the unit may not have moved yet but still has no target to finish
-  // the bloodlust sequence, so it should appear toned down.
-  const noAttackTargets = useGameStore((s) => {
-    if (unit.faction !== Faction.PLAYER) return false;
-    if (hasUnitActed(unit, s)) return false;
-    if (unit.type === UnitType.MAGE && canUnitCast(unit, s) && s.arcaneCrystals >= 1) return false;
-    if (!unit.hasMovedThisTurn && !unit.bloodlustAttackAvailable) return false;
-    return getAttackTargets(unit, s.units, s.buildings, s.grid, s).size === 0;
-  });
-
   const currentTurn = useGameStore((s) => s.turn);
   const isStunned = unit.pinnedUntilTurn >= currentTurn;
   const isOnCorruptedTile = useGameStore(
@@ -1523,10 +1510,10 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
         );
       }));
 
-  // A unit recruited this turn also gets the toned-down filter — it can't act this turn.
-  // Exception: the READY tag (e.g. Drill Sergeant) lets the unit act immediately, so skip the dimming.
-  const isRecruitedThisTurn = (unit.recruitedOnTurn ?? 0) === currentTurn && currentTurn > 0;
-  const isExhausted = (isRecruitedThisTurn && !unit.tags.includes(UnitTag.READY)) || hasUnitActed(unit, useGameStore.getState()) || noAttackTargets;
+  const isExhausted = useGameStore((s) => {
+    const liveUnit = s.units[unit.id] ?? unit;
+    return isUnitDisplayExhausted(liveUnit, s);
+  });
 
   const anim = useCombatAnimationStore((s) => s.unitAnimations.get(unit.id));
 
@@ -1798,9 +1785,11 @@ function DamageFloaterLayer({ tileSize }: { tileSize: number }) {
           '--color-levelup-floater': RENDER.COLORS.LEVEL_UP_FLOATER,
           '--color-xp-floater': RENDER.COLORS.XP_FLOATER,
           '--color-revive-floater': RENDER.COLORS.REVIVE_FLOATER,
+          '--color-emberlevel-floater': '#ffbf66',
           '--damage-floater-font-size': `${UI.DAMAGE_FLOATER_FONT_SIZE_PX}px`,
           '--levelup-floater-font-size': `${UI.LEVEL_UP_FLOATER_FONT_SIZE_PX}px`,
           '--xp-floater-font-size': `${UI.XP_FLOATER_FONT_SIZE_PX}px`,
+          '--emberlevel-floater-font-size': `${UI.EMBER_LEVEL_FLOATER_FONT_SIZE_PX}px`,
         } as React.CSSProperties
       }
     >
@@ -1814,6 +1803,8 @@ function DamageFloaterLayer({ tileSize }: { tileSize: number }) {
                 ? 'floater-xp'
                 : floater.floaterType === 'revive'
                   ? 'floater-revive'
+                  : floater.floaterType === 'emberlevel'
+                    ? 'floater-emberlevel'
                   : floater.isEnemy
                     ? 'floater-enemy'
                     : 'floater-player';

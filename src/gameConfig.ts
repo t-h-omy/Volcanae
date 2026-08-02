@@ -276,7 +276,7 @@ export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
     id: SpellId.GRAVE_TRAP,
     name: 'Grave Trap',
     emoji: '☠️',
-    description: `Convert a Gravestone within range into a magical trap. The next enemy unit to step onto it is stunned for ${MAGE.GRAVE_TRAP_STUN_TURNS} turns, and all enemies within 1 tile are stunned as well.`,
+    description: `Convert an empty Gravestone within range into a magical trap. The next enemy unit to step onto it is stunned for ${MAGE.GRAVE_TRAP_STUN_TURNS} turns, and all enemies within 1 tile are stunned as well.`,
     targetHint: 'Select a player Gravestone within range.',
   },
   [SpellId.EXPLODE]: {
@@ -1963,7 +1963,7 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
   spec_20: {
     name: 'Last Stand',
     description:
-      `Your Archers gain the BERSERK tag: when HP drops below ${ABILITIES.BERSERK_HP_THRESHOLD_PCT}%, they gain +${ABILITIES.BERSERK_ATTACK_PCT}% ATK.`,
+      `Your Archers gain the BERSERK tag: when HP drops below ${ABILITIES.BERSERK_HP_THRESHOLD_PCT}%, they gain +${ABILITIES.BERSERK_ATTACK_PCT}% ATK. Once triggered, it stays active even if HP recovers.`,
     effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.ARCHER, tag: UnitTag.BERSERK } }],
     upkeepIron: 0,
     upkeepWood: 0,
@@ -2572,6 +2572,10 @@ export const UPGRADE_TRADEOFF_TAGS: ReadonlySet<UnitTag> = new Set([
  * When a GRANT_UNIT_TAG effect is applied (either retroactively at tech unlock
  * or at unit spawn time), these mods are also applied to the unit's stats.
  * All values are driven by ABILITIES constants so they remain easy to balance.
+ *
+ * CINDERBORN is intentionally omitted here: its +ATK is baked in only at
+ * recruit time in resourceSystem.ts, so listing it here would double-apply the
+ * bonus when tags are granted dynamically.
  */
 export const TAG_STAT_EFFECTS: Partial<Record<UnitTag, StatModifier[]>> = {
   [UnitTag.ELITE]:   [{ stat: 'maxHp',   mode: 'add', value: ABILITIES.ELITE_MAX_HP_BONUS }],
@@ -2599,6 +2603,11 @@ export const PIERCE_SECONDARY_DAMAGE_MULTIPLIER = 1.0;
 export const RAGE_ATK_PER_ADJACENT = 4;
 /** Maximum number of adjacent enemies that contribute to RAGE bonus. */
 export const RAGE_MAX_ADJACENT_COUNT = 8;
+/** Tags whose pill should glow when their live condition is currently met. */
+export const CONDITIONAL_ACTIVE_TAGS: ReadonlySet<UnitTag> = new Set([
+  UnitTag.BERSERK,
+  UnitTag.RAGE,
+]);
 
 /** Damage multiplier when a SUMMONED unit attacks a unit with IRONBLOOD. */
 export const IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER = 0.5;
@@ -2716,7 +2725,7 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   // ── SP-00 specialist-scaffolded tags ───────────────────────────────────────
   [UnitTag.KNOCKBACK]:    { label: 'Knockback',    desc: 'On hit, pushes the target one tile away. Lava kills any pushed unit. Non-flying units die if pushed into a canyon or water tile. Pushing onto a frozen tile causes an ice-slide. Units and occupied buildings block the push (no bonus damage). FLYING units can still be pushed but survive canyons and water.' },
   [UnitTag.CINDERBORN]:   { label: 'Cinderborn',   desc: `Recruited within ${ABILITIES.CINDERBORN_ROWS} rows of the lava front. Gains +${ABILITIES.CINDERBORN_ATTACK_BONUS} ATK and immunity to BURNING tile damage.` },
-  [UnitTag.BERSERK]:      { label: 'Berserk',      desc: `When HP drops below ${ABILITIES.BERSERK_HP_THRESHOLD_PCT}%, gains +${ABILITIES.BERSERK_ATTACK_PCT}% ATK.` },
+  [UnitTag.BERSERK]:      { label: 'Berserk',      desc: `When HP drops below ${ABILITIES.BERSERK_HP_THRESHOLD_PCT}%, gains +${ABILITIES.BERSERK_ATTACK_PCT}% ATK. Once triggered, stays active even if HP recovers.` },
   [UnitTag.BATTERY]:      { label: 'Battery',      desc: `Gains +${ABILITIES.SIEGE_BATTERY_ATK_PER_ADJACENT} ATK per adjacent friendly unit, up to ${ABILITIES.SIEGE_BATTERY_CAP} stacks.` },
 };
 
