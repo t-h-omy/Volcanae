@@ -1,5 +1,13 @@
 # Changelog
 
+### v0.106.13 - Defecting demons swap sides visibly
+
+Leashed Ember Demons now swap to their enemy sprite immediately when they defect instead of waiting for the end-of-turn state commit. The live display-state `LEASH_DEFECT` replay now mirrors the resolved mutation by flipping faction, clearing `controllerMageId`, and removing the `LEASHED` / `SUMMONED` tags as soon as the event is applied.
+
+The defect sequence timing was also adjusted so the camera focus lands first, then the faction swap fires on the same beat as the leash burst pair and the `DEFECT_TO_ENEMY` animation. Hidden replays still apply the state mutation even when their waits and VFX are skipped, keeping the display state coherent.
+
+The `.unit--defecting` VFX now uses a lava-colored flash and glow on the swapped enemy sprite instead of the old hue-rotate fakeout.
+
 ### v0.106.12 - Ember counter counts up on flame arrival
 
 The ember counter in the HUD now visually ticks up exactly when the flying flame arrives at the ember element rather than silently at end-of-turn. A new `emberDisplayStore` holds a transient `pendingEmberOffset`; the HUD shows `Math.max(0, ember - pendingEmberOffset)`. Before each VFX flight is launched the offset is incremented by the event amount, and the `onArrival` callback (new optional field on `FlyToHudFlight`) releases it when the flight completes. All fallback paths in `emberLevelVfx.ts` (unresolvable start position, no DOM element found) call `onArrival` immediately so the counter never sticks. A safety-net `clear()` fires after `FLY_TO_HUD_DURATION_MS + EMBER_HUD_OFFSET_GRACE_MS` when the animation queue concludes.

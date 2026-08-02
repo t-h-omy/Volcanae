@@ -710,10 +710,20 @@
 }
 
 @keyframes defect-to-enemy {
-  0%   { filter: hue-rotate(0deg)    brightness(1);   }
-  25%  { filter: hue-rotate(-20deg)  brightness(2.5) saturate(3); }
-  60%  { filter: hue-rotate(-40deg)  brightness(1.8) saturate(2); }
-  100% { filter: hue-rotate(0deg)    brightness(1);   }
+  0% {
+    filter: brightness(2.6) saturate(2.2)
+      drop-shadow(0 0 18px var(--defect-flash-color, #e25822))
+      drop-shadow(0 0 8px rgba(255, 220, 160, 0.9));
+  }
+  40% {
+    filter: brightness(1.9) saturate(1.7)
+      drop-shadow(0 0 12px var(--defect-flash-color, #e25822))
+      drop-shadow(0 0 5px rgba(255, 210, 140, 0.55));
+  }
+  100% {
+    filter: brightness(1) saturate(1)
+      drop-shadow(0 0 0 var(--defect-flash-color, #e25822));
+  }
 }
 
 /* ── Unit Tag Icons ── */

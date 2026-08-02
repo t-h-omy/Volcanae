@@ -1569,6 +1569,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
           '--levelup-glow-mid2': `${ANIMATION.LEVEL_UP_GLOW_MID2_PX}px`,
           '--levelup-glow-color': RENDER.COLORS.LEVEL_UP_GLOW,
           '--xpgain-anim-duration': `${ANIMATION.XP_GAIN_ANIM_DURATION_MS}ms`,
+          '--defect-flash-color': RENDER.COLORS.LAVA,
           '--unit-hp-text-font-size': `${UI.UNIT_HP_TEXT_FONT_SIZE_PX}px`,
         } as React.CSSProperties
       }

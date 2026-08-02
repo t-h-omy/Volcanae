@@ -3376,11 +3376,17 @@ export const useGameStore = create<GameStore>()(
             break;
           }
 
-          case 'LEASH_DEFECT':
-            // sweepLeashes already applied the faction flip in the immer snapshot.
-            // The live display state reflects this at queue-end via setGameState.
-            // No incremental mutation needed here.
+          case 'LEASH_DEFECT': {
+            // Mirror the resolved leash-defection mutation into the live display
+            // state so the sprite swaps factions immediately during replay.
+            const unit = state.units[event.demonId];
+            if (unit) {
+              unit.faction = Faction.ENEMY;
+              unit.controllerMageId = null;
+              unit.tags = unit.tags.filter((t) => t !== UnitTag.LEASHED && t !== UnitTag.SUMMONED);
+            }
             break;
+          }
 
           case 'STUN_APPLIED':
             // Emit a stun floater at the affected tile.

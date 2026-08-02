@@ -1746,15 +1746,12 @@ export function useAnimationEngine(): void {
 
         // ── Special handling for LEASH_DEFECT (demon defects during enemy turn) ──
         if (event.type === 'LEASH_DEFECT') {
-          // sweepLeashes already mutated faction in the immer draft. applyEvent is
-          // called here for consistency (it is a no-mutation no-op for LEASH_DEFECT)
-          // so the live display state stays coherent with the resolved state.
-          useGameStore.getState().applyEvent(event);
           if (visible) {
             const combatStore = useCombatAnimationStore.getState();
             useAnimationStore.getState().setCameraTarget(event.demonPos);
             await wait(ANIMATION.CAMERA_MOVE_DURATION_MS + ANIMATION.PRE_ACTION_IDLE_MS);
-
+            // Swap to the enemy sprite on the same beat as the leash burst / flash.
+            useGameStore.getState().applyEvent(event);
             combatStore.addLeashBurstPair({
               mageId: event.mageId,
               demonId: event.demonId,
@@ -1780,6 +1777,9 @@ export function useAnimationEngine(): void {
             combatStore.removeLeashBurstPair(event.demonId);
 
             await wait(ANIMATION.POST_ACTION_IDLE_MS);
+          } else {
+            // Invisible events still need to keep the live display state coherent.
+            useGameStore.getState().applyEvent(event);
           }
           continue;
         }
