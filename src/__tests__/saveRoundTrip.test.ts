@@ -258,7 +258,7 @@ describe('saveSlot round-trip', () => {
   it('migrates v18 save to backfill pendingTrapSetterId as null', async () => {
     const state = generateInitialGameState() as GameState & Record<string, unknown>;
     // Simulate a v18 save that doesn't yet have pendingTrapSetterId
-    delete state.pendingTrapSetterId;
+    delete (state as Record<string, unknown>)['pendingTrapSetterId'];
 
     const idb = globalThis.indexedDB;
     const dbReq = idb.open('volcanae', 1);

@@ -180,6 +180,7 @@ function makeState(units: Unit[]): GameState {
     pendingTransposeFirstUnitId: null,
     pendingBrandmarkTransforms: [],
     pendingBridgeBuilderId: null,
+    pendingTrapSetterId: null,
     portals: {},
     activeWaveTheme: { entries: [], isReadPlayer: false },
     readPlayerThemeCount: 0,

@@ -205,6 +205,7 @@ function makeState(opts: {
     pendingTransposeFirstUnitId: null,
     pendingBrandmarkTransforms: [],
     pendingBridgeBuilderId: null,
+    pendingTrapSetterId: null,
     portals: {},
     activeWaveTheme: { entries: [], isReadPlayer: false },
     readPlayerThemeCount: 0,

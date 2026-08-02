@@ -203,6 +203,7 @@ function makeState(units: Unit[], buildings: Building[] = []): GameState {
     pendingTransposeFirstUnitId: null,
     pendingBrandmarkTransforms: [],
     pendingBridgeBuilderId: null,
+    pendingTrapSetterId: null,
     portals: {},
     activeWaveTheme: { entries: [], isReadPlayer: false },
     readPlayerThemeCount: 0,
