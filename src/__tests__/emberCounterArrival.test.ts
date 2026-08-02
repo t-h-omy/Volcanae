@@ -2,11 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEmberDisplayStore } from '../emberDisplayStore';
 import { useFloaterStore } from '../floaterStore';
 import { useAnimationStore } from '../animationStore';
-import { useGameStore } from '../gameStore';
-import { ENEMY, MAP } from '../gameConfig';
-import { Difficulty, Faction, GamePhase, TileType, UnitType, DestroyBehavior } from '../types';
-import type { GameState, Tile } from '../types';
-import { createInitialSpecialists } from '../specialistSystem';
 
 // ── Ember display store ──────────────────────────────────────────────────────
 
@@ -65,105 +60,18 @@ describe('emberDisplayStore', () => {
 
 // ── EMBER_LEVEL_UP floater label ─────────────────────────────────────────────
 
-function makeTile(x: number, y: number): Tile {
-  return {
-    position: { x, y },
-    isRevealed: true,
-    buildingId: null,
-    unitId: null,
-    isLava: false,
-    isLavaPreview: false,
-    isRuin: false,
-    isStrongholdRuin: false,
-    terrainType: TileType.PLAINS,
-    status: null,
-    hasCaveMonster: false,
-  } as Tile;
-}
-
-function makeBaseState(): GameState {
-  const grid = Array.from({ length: MAP.GRID_HEIGHT }, (_, y) =>
-    Array.from({ length: MAP.GRID_WIDTH }, (_, x) => makeTile(x, y)),
-  );
-  return {
-    turn: ENEMY.THREAT_LEVEL_INCREASE_INTERVAL + 1,
-    phase: GamePhase.PLAYER_TURN,
-    units: {},
-    buildings: {},
-    specialists: createInitialSpecialists(),
-    globalSpecialistStorage: [],
-    resources: { iron: 0, wood: 0 },
-    arcaneCrystals: 0,
-    techNodes: {} as GameState['techNodes'],
-    techFlags: [],
-    grid,
-    lavaFrontRow: MAP.GRID_HEIGHT,
-    turnsUntilLavaAdvance: 99,
-    selectedUnitId: null,
-    selectedBuildingId: null,
-    selectedTilePos: null,
-    pendingHealerId: null,
-    ember: 1,
-    emberLevelSources: { turns: 0, emberlingSacrifices: 0, other: 0 },
-    zonesUnlocked: [1],
-    unlockedBuildings: [],
-    unlockedUnits: [],
-    unlockedSpells: [],
-    gameStats: {
-      unitsKilled: 0, unitsLost: 0, damageDealt: 0, damageReceived: 0,
-      unitsRecruited: 0, buildingsConstructed: 0, buildingsConverted: 0,
-      techsUnlocked: 0, enemyBuildingsDestroyed: 0, enemyBuildingsCaptured: 0,
-      buildingsDestroyedByEnemy: 0, buildingsCapturedByEnemy: 0,
-      buildingsDestroyedByLava: 0,
-    },
-    enemyUnitsSpawnedLastTurn: 0,
-    difficulty: Difficulty.STANDARD,
-    zoneLockoutUntilTurn: {},
-    spawnFreezeUntilTurn: 0,
-    lavaFreezeUntilTurn: 0,
-    gameOverCause: null,
-    specialistSlotCap: 2,
-    activeCaveEncounters: [],
-    fortifiedGarrisonActive: false,
-    pendingSpellCast: null,
-    pendingTransposeFirstUnitId: null,
-    pendingBrandmarkTransforms: [],
-    pendingBridgeBuilderId: null,
-    pendingTrapSetterId: null,
-    portals: {},
-    activeWaveTheme: { entries: [], isReadPlayer: false },
-    readPlayerThemeCount: 0,
-    lastThemeSignature: null,
-    seenHints: [],
-  };
-}
 
 describe('EMBER_LEVEL_UP applyEvent floater label', () => {
   beforeEach(() => {
     useAnimationStore.getState().clear();
-    useFloaterStore.getState().clearFloaters?.();
     useEmberDisplayStore.getState().clear();
   });
-
-  function drainFloaters(): ReturnType<typeof useFloaterStore.getState>['floaters'] {
-    return useFloaterStore.getState().floaters;
-  }
-
-  function enqueueAndApply(
-    state: GameState,
-    event: { type: 'EMBER_LEVEL_UP'; amount: number; source: string; position?: { x: number; y: number } },
-  ) {
-    useGameStore.setState(state);
-    useAnimationStore.getState().enqueue([event as Parameters<typeof useAnimationStore.getState.enqueue>[0]]);
-  }
 
   it('produces label without source prefix for LAVA_ADVANCE', () => {
     // Spy on addFloater so we can inspect the call directly without running
     // the full animation engine in tests.
     const { addFloater } = useFloaterStore.getState();
     const spy = vi.spyOn(useFloaterStore.getState(), 'addFloater');
-
-    const state = makeBaseState();
     // Directly invoke the applyEvent path by enqueuing an EMBER_LEVEL_UP event
     // and checking what floater label gets produced.
     // We exercise this via the store's applyEvent path — call it indirectly by
