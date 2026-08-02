@@ -23,38 +23,51 @@ function tileToScreenCenter(position: Position): { x: number; y: number } | null
   };
 }
 
-function startFlight(from: { x: number; y: number }): void {
+function startFlight(from: { x: number; y: number }, onArrival?: () => void): void {
   useFlyToHudStore.getState().addFlight({
     emoji: '🔥',
     fromScreenX: from.x,
     fromScreenY: from.y,
     targetSelector: EMBER_HUD_SELECTOR,
+    onArrival,
   });
 }
 
-function triggerTurnIntervalFlight(attempt = 0): void {
+function triggerTurnIntervalFlight(onArrival?: () => void, attempt = 0): void {
   const popup = document.querySelector('.hud-turn-popup');
   if (popup) {
-    startFlight(centerOfElement(popup));
+    startFlight(centerOfElement(popup), onArrival);
     return;
   }
   if (attempt < 24) {
-    requestAnimationFrame(() => triggerTurnIntervalFlight(attempt + 1));
+    requestAnimationFrame(() => triggerTurnIntervalFlight(onArrival, attempt + 1));
     return;
   }
   const emberTarget = document.querySelector(EMBER_HUD_SELECTOR);
   if (emberTarget) {
-    startFlight(centerOfElement(emberTarget));
+    startFlight(centerOfElement(emberTarget), onArrival);
+  } else {
+    // No element found to fly to; release immediately so counter never sticks.
+    onArrival?.();
   }
 }
 
-export function triggerEmberLevelUpVfx(event: Extract<GameEvent, { type: 'EMBER_LEVEL_UP' }>): void {
+export function triggerEmberLevelUpVfx(
+  event: Extract<GameEvent, { type: 'EMBER_LEVEL_UP' }>,
+  onArrival?: () => void,
+): void {
   if (event.source === 'TURN_INTERVAL') {
-    triggerTurnIntervalFlight();
+    triggerTurnIntervalFlight(onArrival);
     return;
   }
-  if (!event.position) return;
+  if (!event.position) {
+    onArrival?.();
+    return;
+  }
   const sourceCenter = tileToScreenCenter(event.position);
-  if (!sourceCenter) return;
-  startFlight(sourceCenter);
+  if (!sourceCenter) {
+    onArrival?.();
+    return;
+  }
+  startFlight(sourceCenter, onArrival);
 }

@@ -479,7 +479,7 @@
   font-size: var(--emberlevel-floater-font-size, 13px);
   animation:
     floatUp var(--float-duration, 2000ms) ease-out forwards,
-    emberLevelPulse 700ms ease-in-out infinite;
+    emberLevelPulse var(--emberlevel-floater-pulse-ms, 600ms) ease-in-out infinite;
 }
 
 @keyframes floatUp {
@@ -488,8 +488,8 @@
 }
 
 @keyframes emberLevelPulse {
-  0%, 100% { filter: brightness(1); }
-  50% { filter: brightness(1.45); }
+  0%, 100% { filter: brightness(1);    transform: translateX(-50%) scale(1); }
+  40%       { filter: brightness(1.55); transform: translateX(-50%) scale(1.12); }
 }
 
 /* ── Capture Indicator Layer ── */

@@ -42,6 +42,8 @@ export const RENDER = {
     XP_FLOATER: '#e8c94f',
     /** Colour of the revive floater text */
     REVIVE_FLOATER: '#c77dff',
+    /** Colour of the ember-level floater text */
+    EMBER_LEVEL_FLOATER: '#ffbf66',
     /** Drop-shadow colour used in the level-up pulse animation */
     LEVEL_UP_GLOW: 'gold',
     /** HP bar outline colour when the selected player unit has an active debuff */

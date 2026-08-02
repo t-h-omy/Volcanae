@@ -1,5 +1,13 @@
 # Changelog
 
+### v0.106.12 - Ember counter counts up on flame arrival
+
+The ember counter in the HUD now visually ticks up exactly when the flying flame arrives at the ember element rather than silently at end-of-turn. A new `emberDisplayStore` holds a transient `pendingEmberOffset`; the HUD shows `Math.max(0, ember - pendingEmberOffset)`. Before each VFX flight is launched the offset is incremented by the event amount, and the `onArrival` callback (new optional field on `FlyToHudFlight`) releases it when the flight completes. All fallback paths in `emberLevelVfx.ts` (unresolvable start position, no DOM element found) call `onArrival` immediately so the counter never sticks. A safety-net `clear()` fires after `FLY_TO_HUD_DURATION_MS + EMBER_HUD_OFFSET_GRACE_MS` when the animation queue concludes.
+
+On arrival, the ember HUD button now also receives a strong `hud-target--ember-flash` class (bright orange glow plus scale pop; CSS in `HUD.css`) in addition to the existing lighter `hud-target--pulse`. Duration is controlled by the new `ANIMATION.EMBER_HUD_FLASH_MS` constant (500 ms).
+
+The floater for non-TURN_INTERVAL ember rises is now simply `+${amount} Ember Level` — source prefix removed. The `floater-emberlevel` pulse animation in `GridRenderer.css` now uses the `--emberlevel-floater-pulse-ms` custom property (fed from `UI.EMBER_LEVEL_FLOATER_PULSE_MS = 600`) and includes a scale component for extra pop. The raw `#ffbf66` hex in `GridRenderer.tsx` is replaced with `RENDER.COLORS.EMBER_LEVEL_FLOATER`. A new grace constant `ANIMATION.EMBER_HUD_OFFSET_GRACE_MS` (400 ms) is added to `animationConfig.ts`.
+
 ### v0.106.11 - Cave monster acts right after spawning
 
 The cave monster now spawns with all action flags set to false, so it acts in the enemy turn immediately following the player turn in which it was spawned. Previously the flags were set to true at spawn, causing the monster to idle through the first enemy turn and only attack on the second one. The `runCaveMonsterAi` skip guard (`hasUnitActed`) remains in place to prevent double-acting within the same enemy turn loop. The spawn-timing test has been updated to assert an attack event in the first enemy turn.

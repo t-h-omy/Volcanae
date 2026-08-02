@@ -81,6 +81,7 @@ import { generateId } from '../mapGenerator';
 import { stopGameMusic } from '../useMusicPlayer';
 import { shouldShowTurnPopupEmberRose } from '../turnPopup';
 import { getAttackDisplayModifiers } from '../unitStatDisplay';
+import { useEmberDisplayStore } from '../emberDisplayStore';
 import './HUD.css';
 
 // ============================================================================
@@ -880,7 +881,9 @@ function TopBar({
   showTechBadge: boolean;
 }) {
   const resources = useGameStore((s) => s.resources);
-  const ember = useGameStore((s) => s.ember);
+  const emberRaw = useGameStore((s) => s.ember);
+  const pendingEmberOffset = useEmberDisplayStore((s) => s.pendingEmberOffset);
+  const ember = Math.max(0, emberRaw - pendingEmberOffset);
   const turnsUntilLavaAdvance = useGameStore((s) => s.turnsUntilLavaAdvance);
 
   // Population usage and capacity (both live) — select primitives to avoid infinite re-render

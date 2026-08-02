@@ -1785,11 +1785,12 @@ function DamageFloaterLayer({ tileSize }: { tileSize: number }) {
           '--color-levelup-floater': RENDER.COLORS.LEVEL_UP_FLOATER,
           '--color-xp-floater': RENDER.COLORS.XP_FLOATER,
           '--color-revive-floater': RENDER.COLORS.REVIVE_FLOATER,
-          '--color-emberlevel-floater': '#ffbf66',
+          '--color-emberlevel-floater': RENDER.COLORS.EMBER_LEVEL_FLOATER,
           '--damage-floater-font-size': `${UI.DAMAGE_FLOATER_FONT_SIZE_PX}px`,
           '--levelup-floater-font-size': `${UI.LEVEL_UP_FLOATER_FONT_SIZE_PX}px`,
           '--xp-floater-font-size': `${UI.XP_FLOATER_FONT_SIZE_PX}px`,
           '--emberlevel-floater-font-size': `${UI.EMBER_LEVEL_FLOATER_FONT_SIZE_PX}px`,
+          '--emberlevel-floater-pulse-ms': `${UI.EMBER_LEVEL_FLOATER_PULSE_MS}ms`,
         } as React.CSSProperties
       }
     >

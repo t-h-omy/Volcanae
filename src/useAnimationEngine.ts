@@ -20,6 +20,7 @@ import type { GameEvent } from './gameEvents';
 import type { GameState, Position } from './types';
 import { tryTriggerHint } from './hintSystem';
 import { selectPortalUsedCameraEndpoint } from './portalAnimation';
+import { useEmberDisplayStore } from './emberDisplayStore';
 
 // ============================================================================
 // HELPERS
@@ -1857,6 +1858,11 @@ export function useAnimationEngine(): void {
       }
       useAnimationStore.getState().setIsAnimating(false);
       useAnimationStore.getState().finishProcessing();
+      // Safety net: clear any lingering ember display offset after animations settle.
+      setTimeout(
+        () => useEmberDisplayStore.getState().clear(),
+        ANIMATION.FLY_TO_HUD_DURATION_MS + ANIMATION.EMBER_HUD_OFFSET_GRACE_MS,
+      );
       processing = false;
     }
 
