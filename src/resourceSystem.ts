@@ -269,7 +269,7 @@ export function getEffectiveRecruitCost(
 
 /**
  * Returns the number of active, non-disabled player Charcoal Kilns that are
- * within range of the given player-owned MINE.
+ * within range of the given player-owned MINE or DEEP_MINE.
  *
  * Each in-range kiln contributes one additive bonus increment. Only player
  * kilns buff player mines; kilns with isDisabledForTurns > 0 grant no bonus.
@@ -306,6 +306,7 @@ export function getMineKilnBonusCount(
  * Returns the iron bonus awarded per in-range Charcoal Kiln.
  * When the KILN_BONUS specialist effect is active, ABILITIES.KILN_IRON_BONUS
  * is added on top of the base CHARCOAL_KILN_IRON_BONUS.
+ * Applies to both MINE and DEEP_MINE buildings.
  */
 function getKilnIronBonusPerKiln(state: GameState | Draft<GameState>): number {
   const ironBonus = isSpecialistEffectActive(state, 'KILN_BONUS')
@@ -314,7 +315,7 @@ function getKilnIronBonusPerKiln(state: GameState | Draft<GameState>): number {
   return RESOURCES.CHARCOAL_KILN_IRON_BONUS + ironBonus;
 }
 
-/** Backward-compatible boolean helper used by UI affordances. */
+/** Backward-compatible boolean helper used by UI affordances. Returns true when the given MINE or DEEP_MINE is buffed by at least one active in-range kiln. */
 export function isMineBuffedByKiln(
   state: GameState | Draft<GameState>,
   mine: Building,
@@ -366,6 +367,12 @@ export function collectResources(state: Draft<GameState>): void {
       }
     } else if (building.type === BuildingType.DEEP_MINE) {
       state.resources.iron += RESOURCES.DEEP_MINE_IRON_PER_TURN;
+      // Additive Charcoal Kiln bonus: each active in-range kiln adds one
+      // increment to this deep mine (base + any KILN_BONUS specialist modifier).
+      const kilnBonusCountDeep = getMineKilnBonusCount(state, building);
+      if (kilnBonusCountDeep > 0) {
+        state.resources.iron += getKilnIronBonusPerKiln(state) * kilnBonusCountDeep;
+      }
     } else if (building.type === BuildingType.WOODCUTTER) {
       state.resources.wood += RESOURCES.WOODCUTTER_WOOD_PER_TURN;
     }
@@ -457,6 +464,11 @@ export function computeResourceIncome(
       }
     } else if (building.type === BuildingType.DEEP_MINE) {
       ironPerTurn += RESOURCES.DEEP_MINE_IRON_PER_TURN;
+      // Additive Charcoal Kiln bonus (deterministic — always +integer).
+      const kilnBonusCountDeep = getMineKilnBonusCount(state, building);
+      if (kilnBonusCountDeep > 0) {
+        ironPerTurn += getKilnIronBonusPerKiln(state) * kilnBonusCountDeep;
+      }
     } else if (building.type === BuildingType.WOODCUTTER) {
       woodPerTurn += RESOURCES.WOODCUTTER_WOOD_PER_TURN;
     }
@@ -546,6 +558,7 @@ export function computeResourceIncomeBreakdown(
       kilnBonusIncrementCount += getMineKilnBonusCount(state, building);
     } else if (building.type === BuildingType.DEEP_MINE) {
       deepMineCount++;
+      kilnBonusIncrementCount += getMineKilnBonusCount(state, building);
     } else if (building.type === BuildingType.WOODCUTTER) {
       woodcutterCount++;
     }

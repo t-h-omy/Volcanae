@@ -2284,10 +2284,10 @@ function CharcoalKilnConnectionLayer({ tileSize }: { tileSize: number }) {
     const result: KilnMinePair[] = [];
 
     if (selectedBuilding.type === BuildingType.CHARCOAL_KILN) {
-      // Kiln selected — draw lines to every in-range player MINE.
+      // Kiln selected — draw lines to every in-range player MINE or DEEP_MINE.
       for (const b of Object.values(buildings)) {
         if (
-          b.type === BuildingType.MINE &&
+          (b.type === BuildingType.MINE || b.type === BuildingType.DEEP_MINE) &&
           b.faction === Faction.PLAYER &&
           isTileWithinEdgeCircleRange(
             selectedBuilding.position.x, selectedBuilding.position.y,
@@ -2298,8 +2298,8 @@ function CharcoalKilnConnectionLayer({ tileSize }: { tileSize: number }) {
           result.push({ kilnPos: selectedBuilding.position, minePos: b.position });
         }
       }
-    } else if (selectedBuilding.type === BuildingType.MINE) {
-      // Mine selected — draw lines to every in-range player Charcoal Kiln.
+    } else if (selectedBuilding.type === BuildingType.MINE || selectedBuilding.type === BuildingType.DEEP_MINE) {
+      // Mine or Deep Mine selected — draw lines to every in-range player Charcoal Kiln.
       for (const b of Object.values(buildings)) {
         if (
           b.type === BuildingType.CHARCOAL_KILN &&

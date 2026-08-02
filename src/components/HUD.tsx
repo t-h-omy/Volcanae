@@ -2998,8 +2998,9 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   const isDeepMine = building.type === BuildingType.DEEP_MINE && isPlayerOwned;
   const isWoodcutter = building.type === BuildingType.WOODCUTTER && isPlayerOwned;
   const isCharcoalKiln = building.type === BuildingType.CHARCOAL_KILN && isPlayerOwned;
-  // Additive kiln bonus increments currently applied to this mine.
-  const mineKilnBonusCount = isMine && !isDisabled ? getMineKilnBonusCount(gameState, building) : 0;
+  // Additive kiln bonus increments currently applied to this mine or deep mine.
+  const isKilnEligibleMine = (isMine || isDeepMine) && !isDisabled;
+  const mineKilnBonusCount = isKilnEligibleMine ? getMineKilnBonusCount(gameState, building) : 0;
   const mineHasKilnBuff = mineKilnBonusCount > 0;
 
   // Population info for FARM, PATRICIANHOUSE, and STRONGHOLD
@@ -3162,7 +3163,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
       {/* Charcoal Kiln panel: radius and current coverage */}
       {isCharcoalKiln && (
         <div className="hud-production-row">
-          🔥 Buffs mines within {RESOURCES.CHARCOAL_KILN_RADIUS} tiles (+{RESOURCES.CHARCOAL_KILN_IRON_BONUS} iron/turn per kiln)
+          🔥 Buffs mines and deep mines within {RESOURCES.CHARCOAL_KILN_RADIUS} tiles (+{RESOURCES.CHARCOAL_KILN_IRON_BONUS} iron/turn per kiln)
           {isDisabled && <span className="hud-dim"> (paused)</span>}
         </div>
       )}

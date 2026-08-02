@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.106.10 - Charcoal Kiln buffs Deep Mines
+
+The Charcoal Kiln iron bonus now applies to Deep Mine buildings in addition to standard Mines. All three resource-system sites (collection, income preview, and breakdown) have been updated to include the per-kiln bonus for Deep Mines, using the same `CHARCOAL_KILN_IRON_BONUS` value and radius rules. The KILN_BONUS specialist modifier (Ashwright) extends radius and iron bonus to Deep Mines identically. The GridRenderer kiln-mine connection lines now draw for selected Deep Mines, and the HUD building panel shows the kiln buff row for Deep Mines when applicable. Ingame descriptions for the Charcoal Kiln building, the Charcoal Kiln tech node, the Ashwright specialist, and the `CHARCOAL_KILN_IRON_BONUS` and `CHARCOAL_KILN_RADIUS` doc comments have all been updated to say "mines and deep mines". New Vitest tests cover all four required scenarios: collection in-range, collection out-of-range, mixed income preview, breakdown increment count, and KILN_BONUS specialist applied to Deep Mines.
+
 ### v0.106.9 - Cinderborn and Berserk stat visibility, active tag pills
 
 CINDERBORN's recruit-time baked ATK bonus is now surfaced in the HUD as a green ATK modifier and its own breakdown row without being re-applied dynamically. BERSERK now contributes a matching green ATK modifier and breakdown row whenever its live/latched condition is active, using the same pre-berserk standing attack basis the HUD already shows for PHALANX, RAGE, and BATTERY. Conditional tag pills now gain an active glow state for live BERSERK and RAGE tags, while corruption suppression still wins and keeps suppressed pills inactive. Added focused regression coverage for the extracted ATK display math and conditional-tag activity helper.

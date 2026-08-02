@@ -327,14 +327,14 @@ export const RESOURCES = {
 
   // ── Charcoal Kiln ─────────────────────────────────────────────────────────
   /**
-   * Flat iron bonus added to each eligible player MINE's iron per turn when
+   * Flat iron bonus added to each eligible player MINE or DEEP_MINE's iron per turn when
    * that mine is within CHARCOAL_KILN_RADIUS tiles of at least one active,
-   * non-disabled player Charcoal Kiln. The bonus stacks additively — a mine
+   * non-disabled player Charcoal Kiln. The bonus stacks additively: a mine
    * receives one increment per active in-range kiln.
    */
   CHARCOAL_KILN_IRON_BONUS: 1,
   /**
-   * Edge-circle radius used to determine which player MINE buildings benefit
+   * Edge-circle radius used to determine which player MINE or DEEP_MINE buildings benefit
    * from a given Charcoal Kiln (measured via isTileWithinEdgeCircleRange).
    */
   CHARCOAL_KILN_RADIUS: 2,
@@ -1509,7 +1509,7 @@ export const ABILITIES = {
   // ── SP-00 scaffolding: new specialist / building ability constants ──────────
   /** Extra tile radius added to Charcoal Kilns by the Ashwright specialist */
   KILN_RADIUS_BONUS: 1,
-  /** Extra iron/turn added to each in-range mine by the Ashwright specialist (on top of base kiln bonus) */
+  /** Extra iron/turn added to each in-range mine or deep mine by the Ashwright specialist (on top of base kiln bonus) */
   KILN_IRON_BONUS: 0,
   /** Wood cost for a Scout to place a Scout Trap */
   SCOUT_TRAP_WOOD_COST: 4,
@@ -1727,7 +1727,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     constructionCost: { iron: 0, wood: 8 },
     // No combatStats → tile remains walkable (same as MINE / WOODCUTTER).
     // Description must state the additive per-kiln effect.
-    description: `Grants +${RESOURCES.CHARCOAL_KILN_IRON_BONUS} iron per turn per in-range kiln to each mine within ${RESOURCES.CHARCOAL_KILN_RADIUS} tiles.`,
+    description: `Grants +${RESOURCES.CHARCOAL_KILN_IRON_BONUS} iron per turn per in-range kiln to each mine and deep mine within ${RESOURCES.CHARCOAL_KILN_RADIUS} tiles.`,
   },
   MARKET: {
     discoverRadius: 2,
@@ -1852,7 +1852,7 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
   spec_07: {
     name: 'Ashwright',
     description:
-      `Your Charcoal Kilns affect mines within ${RESOURCES.CHARCOAL_KILN_RADIUS + ABILITIES.KILN_RADIUS_BONUS} tiles instead of ${RESOURCES.CHARCOAL_KILN_RADIUS}.` +
+      `Your Charcoal Kilns affect mines and deep mines within ${RESOURCES.CHARCOAL_KILN_RADIUS + ABILITIES.KILN_RADIUS_BONUS} tiles instead of ${RESOURCES.CHARCOAL_KILN_RADIUS}.` +
       (ABILITIES.KILN_IRON_BONUS > 0 ? ` Each in-range kiln also grants an additional +${ABILITIES.KILN_IRON_BONUS} iron/turn.` : ''),
     effects: [{ type: 'KILN_BONUS', params: { radiusBonus: ABILITIES.KILN_RADIUS_BONUS, ironBonus: ABILITIES.KILN_IRON_BONUS } }],
     upkeepIron: 0,
@@ -2062,7 +2062,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     // with iron production, making them natural thematic siblings on the tree.
     id: 'CHARCOAL_KILN',
     name: 'Charcoal Kiln',
-    description: `Unlocks the Charcoal Kiln, which grants +${RESOURCES.CHARCOAL_KILN_IRON_BONUS} iron per turn per in-range kiln to nearby mines.`,
+    description: `Unlocks the Charcoal Kiln, which grants +${RESOURCES.CHARCOAL_KILN_IRON_BONUS} iron per turn per in-range kiln to nearby mines and deep mines.`,
     requires: ['A_NOBLE_STEAD'],
     cost: 4,
     effects: [
