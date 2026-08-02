@@ -1,5 +1,35 @@
 # Changelog
 
+### v0.106.14 - Specialist names and text cleanup
+
+Renamed specialist display names: spec_15 to "Forgemaster", spec_20 to "Deathsworn", and spec_23 to "The Matriarch". Updated related test strings and references.
+
+Removed em dashes from `src/gameConfig.ts` text and reworded the SWORDSMAN_CLEAVE description to follow project text rules. Added a config text-lint test to prevent em dashes in key gameConfig text fields, and a uniqueness/count assertion for specialist names.
+
+### v0.106.13 - Defecting demons swap sides visibly
+
+Leashed Ember Demons now swap to their enemy sprite immediately when they defect instead of waiting for the end-of-turn state commit. The live display-state `LEASH_DEFECT` replay now mirrors the resolved mutation by flipping faction, clearing `controllerMageId`, and removing the `LEASHED` / `SUMMONED` tags as soon as the event is applied.
+
+The defect sequence timing was also adjusted so the camera focus lands first, then the faction swap fires on the same beat as the leash burst pair and the `DEFECT_TO_ENEMY` animation. Hidden replays still apply the state mutation even when their waits and VFX are skipped, keeping the display state coherent.
+
+The `.unit--defecting` VFX now uses a lava-colored flash and glow on the swapped enemy sprite instead of the old hue-rotate fakeout.
+
+### v0.106.12 - Ember counter counts up on flame arrival
+
+The ember counter in the HUD now visually ticks up exactly when the flying flame arrives at the ember element rather than silently at end-of-turn. A new `emberDisplayStore` holds a transient `pendingEmberOffset`; the HUD shows `Math.max(0, ember - pendingEmberOffset)`. Before each VFX flight is launched the offset is incremented by the event amount, and the `onArrival` callback (new optional field on `FlyToHudFlight`) releases it when the flight completes. All fallback paths in `emberLevelVfx.ts` (unresolvable start position, no DOM element found) call `onArrival` immediately so the counter never sticks. A safety-net `clear()` fires after `FLY_TO_HUD_DURATION_MS + EMBER_HUD_OFFSET_GRACE_MS` when the animation queue concludes.
+
+On arrival, the ember HUD button now also receives a strong `hud-target--ember-flash` class (bright orange glow plus scale pop; CSS in `HUD.css`) in addition to the existing lighter `hud-target--pulse`. Duration is controlled by the new `ANIMATION.EMBER_HUD_FLASH_MS` constant (500 ms).
+
+The floater for non-TURN_INTERVAL ember rises is now simply `+${amount} Ember Level` — source prefix removed. The `floater-emberlevel` pulse animation in `GridRenderer.css` now uses the `--emberlevel-floater-pulse-ms` custom property (fed from `UI.EMBER_LEVEL_FLOATER_PULSE_MS = 600`) and includes a scale component for extra pop. The raw `#ffbf66` hex in `GridRenderer.tsx` is replaced with `RENDER.COLORS.EMBER_LEVEL_FLOATER`. A new grace constant `ANIMATION.EMBER_HUD_OFFSET_GRACE_MS` (400 ms) is added to `animationConfig.ts`.
+
+### v0.106.11 - Cave monster acts right after spawning
+
+The cave monster now spawns with all action flags set to false, so it acts in the enemy turn immediately following the player turn in which it was spawned. Previously the flags were set to true at spawn, causing the monster to idle through the first enemy turn and only attack on the second one. The `runCaveMonsterAi` skip guard (`hasUnitActed`) remains in place to prevent double-acting within the same enemy turn loop. The spawn-timing test has been updated to assert an attack event in the first enemy turn.
+
+### v0.106.10 - Charcoal Kiln buffs Deep Mines
+
+The Charcoal Kiln iron bonus now applies to Deep Mine buildings in addition to standard Mines. All three resource-system sites (collection, income preview, and breakdown) have been updated to include the per-kiln bonus for Deep Mines, using the same `CHARCOAL_KILN_IRON_BONUS` value and radius rules. The KILN_BONUS specialist modifier (Ashwright) extends radius and iron bonus to Deep Mines identically. The GridRenderer kiln-mine connection lines now draw for selected Deep Mines, and the HUD building panel shows the kiln buff row for Deep Mines when applicable. Ingame descriptions for the Charcoal Kiln building, the Charcoal Kiln tech node, the Ashwright specialist, and the `CHARCOAL_KILN_IRON_BONUS` and `CHARCOAL_KILN_RADIUS` doc comments have all been updated to say "mines and deep mines". New Vitest tests cover all four required scenarios: collection in-range, collection out-of-range, mixed income preview, breakdown increment count, and KILN_BONUS specialist applied to Deep Mines.
+
 ### v0.106.9 - Cinderborn and Berserk stat visibility, active tag pills
 
 CINDERBORN's recruit-time baked ATK bonus is now surfaced in the HUD as a green ATK modifier and its own breakdown row without being re-applied dynamically. BERSERK now contributes a matching green ATK modifier and breakdown row whenever its live/latched condition is active, using the same pre-berserk standing attack basis the HUD already shows for PHALANX, RAGE, and BATTERY. Conditional tag pills now gain an active glow state for live BERSERK and RAGE tags, while corruption suppression still wins and keeps suppressed pills inactive. Added focused regression coverage for the extracted ATK display math and conditional-tag activity helper.

@@ -81,6 +81,7 @@ import { generateId } from '../mapGenerator';
 import { stopGameMusic } from '../useMusicPlayer';
 import { shouldShowTurnPopupEmberRose } from '../turnPopup';
 import { getAttackDisplayModifiers } from '../unitStatDisplay';
+import { useEmberDisplayStore } from '../emberDisplayStore';
 import './HUD.css';
 
 // ============================================================================
@@ -880,7 +881,9 @@ function TopBar({
   showTechBadge: boolean;
 }) {
   const resources = useGameStore((s) => s.resources);
-  const ember = useGameStore((s) => s.ember);
+  const emberRaw = useGameStore((s) => s.ember);
+  const pendingEmberOffset = useEmberDisplayStore((s) => s.pendingEmberOffset);
+  const ember = Math.max(0, emberRaw - pendingEmberOffset);
   const turnsUntilLavaAdvance = useGameStore((s) => s.turnsUntilLavaAdvance);
 
   // Population usage and capacity (both live) — select primitives to avoid infinite re-render
@@ -2998,8 +3001,9 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   const isDeepMine = building.type === BuildingType.DEEP_MINE && isPlayerOwned;
   const isWoodcutter = building.type === BuildingType.WOODCUTTER && isPlayerOwned;
   const isCharcoalKiln = building.type === BuildingType.CHARCOAL_KILN && isPlayerOwned;
-  // Additive kiln bonus increments currently applied to this mine.
-  const mineKilnBonusCount = isMine && !isDisabled ? getMineKilnBonusCount(gameState, building) : 0;
+  // Additive kiln bonus increments currently applied to this mine or deep mine.
+  const isKilnEligibleMine = (isMine || isDeepMine) && !isDisabled;
+  const mineKilnBonusCount = isKilnEligibleMine ? getMineKilnBonusCount(gameState, building) : 0;
   const mineHasKilnBuff = mineKilnBonusCount > 0;
 
   // Population info for FARM, PATRICIANHOUSE, and STRONGHOLD
@@ -3162,7 +3166,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
       {/* Charcoal Kiln panel: radius and current coverage */}
       {isCharcoalKiln && (
         <div className="hud-production-row">
-          🔥 Buffs mines within {RESOURCES.CHARCOAL_KILN_RADIUS} tiles (+{RESOURCES.CHARCOAL_KILN_IRON_BONUS} iron/turn per kiln)
+          🔥 Buffs mines and deep mines within {RESOURCES.CHARCOAL_KILN_RADIUS} tiles (+{RESOURCES.CHARCOAL_KILN_IRON_BONUS} iron/turn per kiln)
           {isDisabled && <span className="hud-dim"> (paused)</span>}
         </div>
       )}

@@ -200,7 +200,7 @@ function makeState(units: Unit[], buildings: Building[] = []): GameState {
   };
 }
 
-describe('SP-20 Last Stand (spec_20) — Archer BERSERK', () => {
+describe('SP-20 Deathsworn (spec_20) — Archer BERSERK', () => {
   it('grants BERSERK to existing and newly recruited player Archers', () => {
     const existingArcher = makeUnit('archer_existing', UnitType.ARCHER, Faction.PLAYER, 1, 1);
     const state = produce(makeState([existingArcher]), (draft) => {

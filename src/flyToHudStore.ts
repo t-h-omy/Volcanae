@@ -6,6 +6,7 @@ export interface FlyToHudFlight {
   fromScreenX: number;
   fromScreenY: number;
   targetSelector: string;
+  onArrival?: () => void;
 }
 
 interface FlyToHudState {

@@ -17,6 +17,8 @@ export const UI = {
   XP_FLOATER_FONT_SIZE_PX: 12,
   /** Font size for ember-level source floaters (px) */
   EMBER_LEVEL_FLOATER_FONT_SIZE_PX: 13,
+  /** Duration of the ember-level floater pulse animation (ms) */
+  EMBER_LEVEL_FLOATER_PULSE_MS: 600,
   /** Font size for the HP number shown above a unit (px) */
   UNIT_HP_TEXT_FONT_SIZE_PX: 8,
   /** Duration of the bounce animation on the capture-ready indicator */

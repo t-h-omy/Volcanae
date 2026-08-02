@@ -128,6 +128,10 @@ export const ANIMATION = {
   FLY_TO_HUD_CURVE_OFFSET_RATIO: 0.25,
   /** Duration of ember-HUD pulse on flight arrival (ms) */
   FLY_TO_HUD_TARGET_PULSE_MS: 350,
+  /** Duration of the strong ember-HUD flash on flight arrival (ms) */
+  EMBER_HUD_FLASH_MS: 500,
+  /** Grace period added to FLY_TO_HUD_DURATION_MS before the safety-net offset clear fires (ms) */
+  EMBER_HUD_OFFSET_GRACE_MS: 400,
   /** Duration of the invalid-action red edge pulse (ms) — kept very short */
   INVALID_ACTION_VFX_MS: 250,
   /** Duration of the pierce connection line (ms) */

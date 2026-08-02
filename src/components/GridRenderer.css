@@ -479,7 +479,7 @@
   font-size: var(--emberlevel-floater-font-size, 13px);
   animation:
     floatUp var(--float-duration, 2000ms) ease-out forwards,
-    emberLevelPulse 700ms ease-in-out infinite;
+    emberLevelPulse var(--emberlevel-floater-pulse-ms, 600ms) ease-in-out infinite;
 }
 
 @keyframes floatUp {
@@ -488,8 +488,8 @@
 }
 
 @keyframes emberLevelPulse {
-  0%, 100% { filter: brightness(1); }
-  50% { filter: brightness(1.45); }
+  0%, 100% { filter: brightness(1);    transform: translateX(-50%) scale(1); }
+  40%       { filter: brightness(1.55); transform: translateX(-50%) scale(1.12); }
 }
 
 /* ── Capture Indicator Layer ── */
@@ -710,10 +710,20 @@
 }
 
 @keyframes defect-to-enemy {
-  0%   { filter: hue-rotate(0deg)    brightness(1);   }
-  25%  { filter: hue-rotate(-20deg)  brightness(2.5) saturate(3); }
-  60%  { filter: hue-rotate(-40deg)  brightness(1.8) saturate(2); }
-  100% { filter: hue-rotate(0deg)    brightness(1);   }
+  0% {
+    filter: brightness(2.6) saturate(2.2)
+      drop-shadow(0 0 18px var(--defect-flash-color, #e25822))
+      drop-shadow(0 0 8px rgba(255, 220, 160, 0.9));
+  }
+  40% {
+    filter: brightness(1.9) saturate(1.7)
+      drop-shadow(0 0 12px var(--defect-flash-color, #e25822))
+      drop-shadow(0 0 5px rgba(255, 210, 140, 0.55));
+  }
+  100% {
+    filter: brightness(1) saturate(1)
+      drop-shadow(0 0 0 var(--defect-flash-color, #e25822));
+  }
 }
 
 /* ── Unit Tag Icons ── */

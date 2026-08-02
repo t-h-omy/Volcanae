@@ -144,7 +144,7 @@ function makeState(units: Unit[], mountainPos: Position): GameState {
 }
 
 describe('cave monster spawn timing', () => {
-  it('attacks on the enemy turn after its spawn turn', () => {
+  it('attacks on the enemy turn immediately following its spawn turn', () => {
     const mountainPos = { x: 4, y: 10 };
     const explorer = makeUnit(
       UnitType.SPEARMAN,
@@ -165,41 +165,32 @@ describe('cave monster spawn timing', () => {
     expect(spawnedMonster).toBeDefined();
     expect(spawnedMonster.position).toEqual({ x: mountainPos.x, y: mountainPos.y - 1 });
 
-    const firstTurn = runEnemyTurn(spawnedState);
-    const monsterAfterFirstTurn = firstTurn.finalState.units[monsterId];
-    const explorerAfterFirstTurn = firstTurn.finalState.units[explorer.id];
-
-    expect(explorerAfterFirstTurn).toBeDefined();
-    expect(explorerAfterFirstTurn!.stats.currentHp).toBe(initialHp);
-    expect(
-      firstTurn.events.some(
-        (event) => event.type === 'ENEMY_ATTACK' && event.attackerId === monsterId,
-      ),
-    ).toBe(false);
-    expect(monsterAfterFirstTurn).toBeDefined();
-    expect(monsterAfterFirstTurn).toMatchObject({
+    // The monster spawns with all action flags false — it acts in the first enemy turn
+    expect(spawnedMonster).toMatchObject({
       hasMovedThisTurn: false,
       hasAttackedThisTurn: false,
       hasCapturedThisTurn: false,
       hasConstructedThisTurn: false,
       hasDestroyedThisTurn: false,
-      hasTradedThisTurn: false,
-      hasUsedPostAttackMoveThisTurn: false,
     });
 
-    const secondTurnInput = {
-      ...firstTurn.finalState,
-      turn: firstTurn.finalState.turn + 1,
-    } as GameState;
-    const secondTurn = runEnemyTurn(secondTurnInput);
-    const explorerAfterSecondTurn = secondTurn.finalState.units[explorer.id];
-    const attackEvent = secondTurn.events.find(
+    // First enemy turn: monster is adjacent and must attack
+    const firstTurn = runEnemyTurn(spawnedState);
+    const monsterAfterFirstTurn = firstTurn.finalState.units[monsterId];
+    const explorerAfterFirstTurn = firstTurn.finalState.units[explorer.id];
+
+    const attackEventFirstTurn = firstTurn.events.find(
       (event) => event.type === 'ENEMY_ATTACK' && event.attackerId === monsterId,
     );
+    expect(attackEventFirstTurn).toBeDefined();
+    expect(explorerAfterFirstTurn).toBeDefined();
+    expect(explorerAfterFirstTurn!.stats.currentHp).toBeLessThan(initialHp);
 
-    expect(attackEvent).toBeDefined();
-    if (explorerAfterSecondTurn) {
-      expect(explorerAfterSecondTurn.stats.currentHp).toBeLessThan(initialHp);
-    }
+    // Monster does not act twice in one enemy turn — exactly one attack event from it
+    expect(monsterAfterFirstTurn).toBeDefined();
+    const monsterAttackEvents = firstTurn.events.filter(
+      (event) => event.type === 'ENEMY_ATTACK' && event.attackerId === monsterId,
+    );
+    expect(monsterAttackEvents).toHaveLength(1);
   });
 });

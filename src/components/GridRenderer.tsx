@@ -1569,6 +1569,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
           '--levelup-glow-mid2': `${ANIMATION.LEVEL_UP_GLOW_MID2_PX}px`,
           '--levelup-glow-color': RENDER.COLORS.LEVEL_UP_GLOW,
           '--xpgain-anim-duration': `${ANIMATION.XP_GAIN_ANIM_DURATION_MS}ms`,
+          '--defect-flash-color': RENDER.COLORS.LAVA,
           '--unit-hp-text-font-size': `${UI.UNIT_HP_TEXT_FONT_SIZE_PX}px`,
         } as React.CSSProperties
       }
@@ -1785,11 +1786,12 @@ function DamageFloaterLayer({ tileSize }: { tileSize: number }) {
           '--color-levelup-floater': RENDER.COLORS.LEVEL_UP_FLOATER,
           '--color-xp-floater': RENDER.COLORS.XP_FLOATER,
           '--color-revive-floater': RENDER.COLORS.REVIVE_FLOATER,
-          '--color-emberlevel-floater': '#ffbf66',
+          '--color-emberlevel-floater': RENDER.COLORS.EMBER_LEVEL_FLOATER,
           '--damage-floater-font-size': `${UI.DAMAGE_FLOATER_FONT_SIZE_PX}px`,
           '--levelup-floater-font-size': `${UI.LEVEL_UP_FLOATER_FONT_SIZE_PX}px`,
           '--xp-floater-font-size': `${UI.XP_FLOATER_FONT_SIZE_PX}px`,
           '--emberlevel-floater-font-size': `${UI.EMBER_LEVEL_FLOATER_FONT_SIZE_PX}px`,
+          '--emberlevel-floater-pulse-ms': `${UI.EMBER_LEVEL_FLOATER_PULSE_MS}ms`,
         } as React.CSSProperties
       }
     >
@@ -2284,10 +2286,10 @@ function CharcoalKilnConnectionLayer({ tileSize }: { tileSize: number }) {
     const result: KilnMinePair[] = [];
 
     if (selectedBuilding.type === BuildingType.CHARCOAL_KILN) {
-      // Kiln selected — draw lines to every in-range player MINE.
+      // Kiln selected — draw lines to every in-range player MINE or DEEP_MINE.
       for (const b of Object.values(buildings)) {
         if (
-          b.type === BuildingType.MINE &&
+          (b.type === BuildingType.MINE || b.type === BuildingType.DEEP_MINE) &&
           b.faction === Faction.PLAYER &&
           isTileWithinEdgeCircleRange(
             selectedBuilding.position.x, selectedBuilding.position.y,
@@ -2298,8 +2300,8 @@ function CharcoalKilnConnectionLayer({ tileSize }: { tileSize: number }) {
           result.push({ kilnPos: selectedBuilding.position, minePos: b.position });
         }
       }
-    } else if (selectedBuilding.type === BuildingType.MINE) {
-      // Mine selected — draw lines to every in-range player Charcoal Kiln.
+    } else if (selectedBuilding.type === BuildingType.MINE || selectedBuilding.type === BuildingType.DEEP_MINE) {
+      // Mine or Deep Mine selected — draw lines to every in-range player Charcoal Kiln.
       for (const b of Object.values(buildings)) {
         if (
           b.type === BuildingType.CHARCOAL_KILN &&

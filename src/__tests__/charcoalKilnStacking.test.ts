@@ -241,3 +241,73 @@ describe('KILN_BONUS specialist (Ashwright)', () => {
     expect(kilnEntry?.iron).toBe(expectedIronPerKiln);
   });
 });
+
+describe('Charcoal Kiln buffs Deep Mines', () => {
+  it('deep mine within kiln radius yields base + kiln bonus on collection', () => {
+    const deepMine = makeBuilding(BuildingType.DEEP_MINE, Faction.PLAYER, 10, 10);
+    const kiln = makeBuilding(BuildingType.CHARCOAL_KILN, Faction.PLAYER, 10, 8);
+    const state = makeState([deepMine, kiln]);
+
+    const result = produce(state, (draft) => { collectResources(draft); });
+    expect(result.resources.iron).toBe(
+      RESOURCES.DEEP_MINE_IRON_PER_TURN + RESOURCES.CHARCOAL_KILN_IRON_BONUS,
+    );
+  });
+
+  it('deep mine out of kiln radius yields only base iron', () => {
+    const deepMine = makeBuilding(BuildingType.DEEP_MINE, Faction.PLAYER, 10, 10);
+    const farKiln = makeBuilding(BuildingType.CHARCOAL_KILN, Faction.PLAYER, 16, 10);
+    const state = makeState([deepMine, farKiln]);
+
+    const result = produce(state, (draft) => { collectResources(draft); });
+    expect(result.resources.iron).toBe(RESOURCES.DEEP_MINE_IRON_PER_TURN);
+  });
+
+  it('income preview matches collection for mixed mine, deep mine, and kiln in range of both', () => {
+    const mine = makeBuilding(BuildingType.MINE, Faction.PLAYER, 10, 10);
+    const deepMine = makeBuilding(BuildingType.DEEP_MINE, Faction.PLAYER, 10, 9);
+    const kiln = makeBuilding(BuildingType.CHARCOAL_KILN, Faction.PLAYER, 10, 8);
+    const state = makeState([mine, deepMine, kiln]);
+
+    const collectionResult = produce(state, (draft) => { collectResources(draft); });
+    const income = computeResourceIncome(state);
+
+    expect(income.ironPerTurn).toBe(collectionResult.resources.iron);
+    expect(income.ironPerTurn).toBe(
+      RESOURCES.MINE_IRON_PER_TURN + RESOURCES.CHARCOAL_KILN_IRON_BONUS +
+      RESOURCES.DEEP_MINE_IRON_PER_TURN + RESOURCES.CHARCOAL_KILN_IRON_BONUS,
+    );
+  });
+
+  it('breakdown increment count includes deep mines', () => {
+    const mine = makeBuilding(BuildingType.MINE, Faction.PLAYER, 10, 10);
+    const deepMine = makeBuilding(BuildingType.DEEP_MINE, Faction.PLAYER, 10, 9);
+    const kiln = makeBuilding(BuildingType.CHARCOAL_KILN, Faction.PLAYER, 10, 8);
+    const state = makeState([mine, deepMine, kiln]);
+
+    const breakdown = computeResourceIncomeBreakdown(state);
+    // Both mine and deep mine are each in range of one kiln: total increments = 2.
+    const kilnEntry = breakdown.find((entry) => entry.label === 'Charcoal Kiln bonus ×2');
+    expect(kilnEntry).toBeDefined();
+    expect(kilnEntry?.iron).toBe(RESOURCES.CHARCOAL_KILN_IRON_BONUS * 2);
+  });
+
+  it('KILN_BONUS specialist modifier applies to deep mines identically', () => {
+    const BASE_RADIUS = RESOURCES.CHARCOAL_KILN_RADIUS;
+    const EXTENDED_RADIUS = BASE_RADIUS + ABILITIES.KILN_RADIUS_BONUS;
+
+    const deepMine = makeBuilding(BuildingType.DEEP_MINE, Faction.PLAYER, 10, 10);
+    // Place kiln exactly EXTENDED_RADIUS tiles away (outside base radius, inside extended)
+    const edgeKiln = makeBuilding(BuildingType.CHARCOAL_KILN, Faction.PLAYER, 10 + EXTENDED_RADIUS, 10);
+
+    const stateNoBonus = makeState([deepMine, edgeKiln]);
+    expect(getMineKilnBonusCount(stateNoBonus, deepMine)).toBe(0);
+
+    const stateWithBonus = makeStateWithKilnBonus([deepMine, edgeKiln]);
+    expect(getMineKilnBonusCount(stateWithBonus, deepMine)).toBe(1);
+
+    const result = produce(stateWithBonus, (draft) => { collectResources(draft); });
+    const expectedIronPerKiln = RESOURCES.CHARCOAL_KILN_IRON_BONUS + ABILITIES.KILN_IRON_BONUS;
+    expect(result.resources.iron).toBe(RESOURCES.DEEP_MINE_IRON_PER_TURN + expectedIronPerKiln);
+  });
+});

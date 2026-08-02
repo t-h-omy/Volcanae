@@ -68,6 +68,7 @@ import { canUnitSetTrap, isTrapTileClear, canUnitExtinguish } from './unitAction
 import { useHintStore } from './hintStore';
 import { flushDeferredHints, tryTriggerHint } from './hintSystem';
 import { triggerEmberLevelUpVfx } from './emberLevelVfx';
+import { useEmberDisplayStore } from './emberDisplayStore';
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
@@ -1277,12 +1278,12 @@ export const useGameStore = create<GameStore>()(
             attackRange: base.attackRange,
           },
           tags: [...base.tags],
-          // All action flags true — monster does not move or attack on spawn turn
-          hasMovedThisTurn: true,
-          hasAttackedThisTurn: true,
-          hasConstructedThisTurn: true,
-          hasDestroyedThisTurn: true,
-          hasCapturedThisTurn: true,
+          // All action flags false — monster spawns ready and acts in the immediately following enemy turn
+          hasMovedThisTurn: false,
+          hasAttackedThisTurn: false,
+          hasConstructedThisTurn: false,
+          hasDestroyedThisTurn: false,
+          hasCapturedThisTurn: false,
           hasTradedThisTurn: false,
           hasUsedPostAttackMoveThisTurn: false,
           bloodlustAttackAvailable: false,
@@ -3222,15 +3223,8 @@ export const useGameStore = create<GameStore>()(
           case 'EMBER_LEVEL_UP': {
             // State was already mutated in enemySystem — this is presentation-only.
             if (event.source !== 'TURN_INTERVAL' && event.position) {
-              const sourceLabel = event.source === 'EMBERLING_SACRIFICE'
-                ? 'Emberling sacrificed'
-                : event.source === 'LAVA_DEATH'
-                  ? 'Enemy entered lava'
-                  : event.source === 'LAVA_ADVANCE'
-                    ? 'Enemy consumed by lava'
-                    : 'Stronghold captured';
               useFloaterStore.getState().addFloater({
-                label: `${sourceLabel} · +${event.amount} Ember Level`,
+                label: `+${event.amount} Ember Level`,
                 value: 0,
                 x: event.position.x,
                 y: event.position.y,
@@ -3243,7 +3237,11 @@ export const useGameStore = create<GameStore>()(
               (event.position &&
                 !!state.grid[event.position.y]?.[event.position.x]?.isRevealed)
             ) {
-              triggerEmberLevelUpVfx(event);
+              const amount = event.amount;
+              useEmberDisplayStore.getState().increment(amount);
+              triggerEmberLevelUpVfx(event, () => {
+                useEmberDisplayStore.getState().release(amount);
+              });
             }
             emberLevelUpFired = true;
             break;
@@ -3378,11 +3376,17 @@ export const useGameStore = create<GameStore>()(
             break;
           }
 
-          case 'LEASH_DEFECT':
-            // sweepLeashes already applied the faction flip in the immer snapshot.
-            // The live display state reflects this at queue-end via setGameState.
-            // No incremental mutation needed here.
+          case 'LEASH_DEFECT': {
+            // Mirror the resolved leash-defection mutation into the live display
+            // state so the sprite swaps factions immediately during replay.
+            const unit = state.units[event.demonId];
+            if (unit) {
+              unit.faction = Faction.ENEMY;
+              unit.controllerMageId = null;
+              unit.tags = unit.tags.filter((t) => t !== UnitTag.LEASHED && t !== UnitTag.SUMMONED);
+            }
             break;
+          }
 
           case 'STUN_APPLIED':
             // Emit a stun floater at the affected tile.

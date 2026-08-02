@@ -34,6 +34,14 @@ function FlyToHudSprite({ flight }: { flight: FlyToHudFlight }) {
       const pulseClass = 'hud-target--pulse';
       targetEl.classList.add(pulseClass);
       setTimeout(() => targetEl.classList.remove(pulseClass), ANIMATION.FLY_TO_HUD_TARGET_PULSE_MS);
+
+      if (flight.targetSelector === '[data-hud-target="ember"]') {
+        const flashClass = 'hud-target--ember-flash';
+        targetEl.classList.add(flashClass);
+        setTimeout(() => targetEl.classList.remove(flashClass), ANIMATION.EMBER_HUD_FLASH_MS);
+      }
+
+      flight.onArrival?.();
       removeFlight(flight.id);
     };
 
