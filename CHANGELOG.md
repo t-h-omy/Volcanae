@@ -1,5 +1,11 @@
 # Changelog
 
+### v0.106.14 - Specialist names and text cleanup
+
+Renamed specialist display names: spec_15 to "Forgemaster", spec_20 to "Deathsworn", and spec_23 to "The Matriarch". Updated related test strings and references.
+
+Removed em dashes from `src/gameConfig.ts` text and reworded the SWORDSMAN_CLEAVE description to follow project text rules. Added a config text-lint test to prevent em dashes in key gameConfig text fields, and a uniqueness/count assertion for specialist names.
+
 ### v0.106.13 - Defecting demons swap sides visibly
 
 Leashed Ember Demons now swap to their enemy sprite immediately when they defect instead of waiting for the end-of-turn state commit. The live display-state `LEASH_DEFECT` replay now mirrors the resolved mutation by flipping faction, clearing `controllerMageId`, and removing the `LEASHED` / `SUMMONED` tags as soon as the event is applied.

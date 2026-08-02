@@ -79,7 +79,7 @@ function makeBuilding(
   };
 }
 
-function makeRecruitState(params: { lavaFrontRow: number; recruitY: number; withEmberforged: boolean }): GameState {
+function makeRecruitState(params: { lavaFrontRow: number; recruitY: number; withForgemaster: boolean }): GameState {
   const barracks = makeBuilding('barracks', BuildingType.BARRACKS, 4, params.recruitY);
   const stronghold = makeBuilding('stronghold', BuildingType.STRONGHOLD, 0, 0, {
     populationCount: 5,
@@ -98,7 +98,7 @@ function makeRecruitState(params: { lavaFrontRow: number; recruitY: number; with
       [stronghold.id]: stronghold,
     },
     specialists: createInitialSpecialists(),
-    globalSpecialistStorage: params.withEmberforged ? ['spec_15'] : [],
+    globalSpecialistStorage: params.withForgemaster ? ['spec_15'] : [],
     resources: { iron: 999, wood: 999 },
     arcaneCrystals: 0,
     techNodes: {} as GameState['techNodes'],
@@ -188,9 +188,9 @@ function makeUnit(id: string, type: UnitType, x: number, y: number, tags: UnitTa
   };
 }
 
-describe('SP-15s Emberforged (spec_15) — CINDERBORN_RECRUIT', () => {
-  it('adds CINDERBORN and +attack when recruiting near the lava front while Emberforged is active', () => {
-    const state = makeRecruitState({ lavaFrontRow: 8, recruitY: 6, withEmberforged: true });
+describe('SP-15s Forgemaster (spec_15) — CINDERBORN_RECRUIT', () => {
+  it('adds CINDERBORN and +attack when recruiting near the lava front while Forgemaster is active', () => {
+    const state = makeRecruitState({ lavaFrontRow: 8, recruitY: 6, withForgemaster: true });
 
     recruitUnit(state as Draft<GameState>, 'barracks', UnitType.SWORDSMAN);
 
@@ -203,7 +203,7 @@ describe('SP-15s Emberforged (spec_15) — CINDERBORN_RECRUIT', () => {
   });
 
   it('does not add CINDERBORN when recruited outside the lava-front row threshold', () => {
-    const state = makeRecruitState({ lavaFrontRow: 8, recruitY: 1, withEmberforged: true });
+    const state = makeRecruitState({ lavaFrontRow: 8, recruitY: 1, withForgemaster: true });
 
     recruitUnit(state as Draft<GameState>, 'barracks', UnitType.SWORDSMAN);
 

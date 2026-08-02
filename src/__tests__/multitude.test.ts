@@ -1,5 +1,5 @@
 /**
- * Tests for SP-23 The Multitude (spec_23): POP_DOUBLING_DOCTRINE
+ * Tests for SP-23 The Matriarch (spec_23): POP_DOUBLING_DOCTRINE
  *
  * 1. ×2 population cap for FARM/PATRICIANHOUSE (after HOUSING_CAP_BONUS flat bonus)
  * 2. ×2 population cap for STRONGHOLD (after tech flat bonuses)

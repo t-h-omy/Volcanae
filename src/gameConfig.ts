@@ -71,7 +71,7 @@ export interface UnitDefinition {
   attackRange: number;
   discoverRadius: number;
   triggerRange: number;
-  /** Explosion damage radius dealt on death — only EMBERLING */
+  /** Explosion damage radius dealt on death - only EMBERLING */
   explosionDamage?: number;
 
   // ── Tags ─────────────────────────────────────────────────────────────────
@@ -283,7 +283,7 @@ export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
     id: SpellId.EXPLODE,
     name: 'Explode',
     emoji: '💥',
-    description: `Sacrifice a player unit within range. It deals ${MAGE.EXPLODE_DAMAGE_PERCENT}% of its current HP to each adjacent enemy. The unit is fully consumed — no gravestone is left.`,
+    description: `Sacrifice a player unit within range. It deals ${MAGE.EXPLODE_DAMAGE_PERCENT}% of its current HP to each adjacent enemy. The unit is fully consumed - no gravestone is left.`,
     targetHint: 'Select one of your own units within range to sacrifice.',
   },
   [SpellId.CRYSTAL_TOWER]: {
@@ -297,14 +297,14 @@ export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
     id: SpellId.CRYSTAL_CAVE,
     name: 'Crystal Cave',
     emoji: '🕳️',
-    description: `Conjure a Crystal Cave on a free mountain tile within range. While any of your Crystal Chambers resonate, the cave may recruit a single Crystal Drake — recruiting does not shorten the resonance window. If the cave is lost (lava, capture, conversion, destruction) the drake dies with it.`,
+    description: `Conjure a Crystal Cave on a free mountain tile within range. While any of your Crystal Chambers resonate, the cave may recruit a single Crystal Drake - recruiting does not shorten the resonance window. If the cave is lost (lava, capture, conversion, destruction) the drake dies with it.`,
     targetHint: 'Select a free mountain tile within range.',
   },
   [SpellId.RUPTURE]: {
     id: SpellId.RUPTURE,
     name: 'Rupture',
     emoji: '💢',
-    description: `Deal ${Math.round(MAGE.RUPTURE_PERCENT * 100)}% of the target's current HP as damage (never kills — target retains at least 1 HP). Costs ${MAGE.RUPTURE_CRYSTAL_COST} crystal. Unlocked by the Sundered specialist.`,
+    description: `Deal ${Math.round(MAGE.RUPTURE_PERCENT * 100)}% of the target's current HP as damage (never kills - target retains at least 1 HP). Costs ${MAGE.RUPTURE_CRYSTAL_COST} crystal. Unlocked by the Sundered specialist.`,
     targetHint: 'Select an enemy unit within range.',
   },
 };
@@ -344,7 +344,7 @@ export const RESOURCES = {
 // MARKET CONFIGURATION
 // ============================================================================
 
-/** Resource offer pool entry shape — inferred from MARKET.RESOURCE_OFFER_POOL. */
+/** Resource offer pool entry shape - inferred from MARKET.RESOURCE_OFFER_POOL. */
 export interface MarketOfferPoolEntry {
   give: { currency: MarketCurrency; amount: number };
   gain: { currency: MarketCurrency; amount: number };
@@ -359,7 +359,7 @@ export const MARKET = {
    * TAIL zones are EXCLUDED. Eligible = all zones except the first HEAD and the
    * last TAIL. Resolved against MAP.ZONE_COUNT. Max 1 market per zone.
    *
-   * DEPENDENCY — read before editing: eligible zone count = ZONE_COUNT - HEAD - TAIL.
+   * DEPENDENCY - read before editing: eligible zone count = ZONE_COUNT - HEAD - TAIL.
    * If HEAD + TAIL >= MAP.ZONE_COUNT there are NO eligible zones and markets can
    * never spawn. Keep HEAD + TAIL < MAP.ZONE_COUNT.
    * Current MAP.ZONE_COUNT = 10, so excluded = {1,2,3} ∪ {8,9,10} → eligible
@@ -658,13 +658,13 @@ export const AI_RECRUITMENT = {
 
   // ── Base scores per unit type ────────────────────────────────────────────
   // Starting score before any context bonuses or penalties are applied.
-  // Keep low — context should drive decisions. Adjust for coarse balancing.
+  // Keep low - context should drive decisions. Adjust for coarse balancing.
   BASE_SCORE_GRUNT: 0,
   BASE_SCORE_ARCHER: 0,
   BASE_SCORE_RIDER: 0,
   BASE_SCORE_SIEGE: 0,
   BASE_SCORE_EMBERLING: 0,
-  // Counter units — base scores for recruitment priority
+  // Counter units - base scores for recruitment priority
   BASE_SCORE_REAPER: 60,
   BASE_SCORE_LANCER: 55,
   BASE_SCORE_BULLWARK: 55,
@@ -934,7 +934,7 @@ export const LEVEL_UP_VALUES = {
 } as const;
 
 // ============================================================================
-// UNIT DEFINITIONS — single source of truth per unit type
+// UNIT DEFINITIONS - single source of truth per unit type
 // ============================================================================
 
 /**
@@ -944,7 +944,7 @@ export const LEVEL_UP_VALUES = {
  * Description authoring: see the DESCRIPTION AUTHORING RULE above the ABILITIES
  * constant. Descriptions that must reference the unit's own stats (attackRange,
  * moveRange, etc.) or config constants are set in the "Compute descriptions for
- * UNIT_DEFINITIONS" block below — use placeholder text here that contains NO
+ * UNIT_DEFINITIONS" block below - use placeholder text here that contains NO
  * hardcoded balancing numbers (mark with `// overwritten below`).
  */
 export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
@@ -1338,7 +1338,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
 };
 
 // Compute descriptions for UNIT_DEFINITIONS entries that reference their own stats.
-// All numeric values here are read from the unit definition or ABILITIES — never
+// All numeric values here are read from the unit definition or ABILITIES - never
 // hardcoded literals. See the DESCRIPTION AUTHORING RULE above ABILITIES.
 // NOTE: RELOAD_DEF_PENALTY_PCT is declared here (before the description block that
 // references it) rather than at the bottom of the file with the other tag-mechanic
@@ -1364,7 +1364,7 @@ export const RELOAD_DEF_PENALTY_PCT = 50;
 }
 
 // ============================================================================
-// BUILDING DEFINITIONS — single source of truth per building type
+// BUILDING DEFINITIONS - single source of truth per building type
 // ============================================================================
 
 /** All data for a single building type, combining construction cost, combat stats and UI descriptions. */
@@ -1375,7 +1375,7 @@ export interface BuildingDefinition {
   constructionCost: { iron: number; wood: number };
   /** Maximum HP of the building (0 for buildings that cannot be damaged) */
   maxHp?: number;
-  /** Combat stats — only present for buildings that can attack */
+  /** Combat stats - only present for buildings that can attack */
   combatStats?: {
     maxHp: number;
     attack: number;
@@ -1403,20 +1403,20 @@ export interface BuildingDefinition {
  * BUILDINGS.WATCHTOWER_STATS, BUILDINGS.OUTPOST_STATS, LAVA_LAIR.MAGMA_SPYR_STATS,
  * CONSTRUCTION.*_COST, CRYSTAL_CHAMBER_CONFIG.COST, and CRYSTAL_CHAMBER_CONFIG.DISCOVER_RADIUS.
  *
- * All description strings use template-literal references to named constants —
+ * All description strings use template-literal references to named constants -
  * never raw balancing numbers. See the DESCRIPTION AUTHORING RULE in the
  * ABILITIES block above.
  */
-/** Maximum HP for Gravestone buildings — defined here so BUILDING_DEFINITIONS can reference it; ABILITIES references it via GRAVESTONE_MAX_HP. */
+/** Maximum HP for Gravestone buildings - defined here so BUILDING_DEFINITIONS can reference it; ABILITIES references it via GRAVESTONE_MAX_HP. */
 const GRAVESTONE_MAX_HP = 25;
 
 // ============================================================================
-// ABILITIES — Balance-tunable constants for tag/flag-based abilities
+// ABILITIES - Balance-tunable constants for tag/flag-based abilities
 //
 // ── DESCRIPTION AUTHORING RULE (applies to ALL description fields) ──────────
 // Every numeric balancing value that appears in any description string
 // (TECH_TREE, TAG_INFO, UNIT_DEFINITIONS, BUILDING_DEFINITIONS) MUST be
-// injected via a template-literal reference to a named constant — never write
+// injected via a template-literal reference to a named constant - never write
 // raw numbers directly into description text.
 //
 // ✓  `Gain +${ABILITIES.HOLD_GROUND_DEFENSE_BONUS} defense`
@@ -1561,7 +1561,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     destroyBehavior: DestroyBehavior.STRONGHOLD_RUIN,
     constructionCost: { iron: 0, wood: 0 },
     unitLimit: 4,
-    description: 'Your capital — if you lose all your strongholds, the game is over.',
+    description: 'Your capital - if you lose all your strongholds, the game is over.',
   },
   MINE: {
     discoverRadius: 2,
@@ -1653,13 +1653,13 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.RUIN,
     constructionCost: { iron: 0, wood: 8 },
-    description: 'Housing for common folk — each pop raised lets you field one more basic unit.',
+    description: 'Housing for common folk - each pop raised lets you field one more basic unit.',
   },
   PATRICIANHOUSE: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.RUIN,
     constructionCost: { iron: 2, wood: 16 },
-    description: 'Noble estate — each noble raised lets you field one more elite unit.',
+    description: 'Noble estate - each noble raised lets you field one more elite unit.',
   },
   MAGMASPYR: (() => {
     const combatStats = { maxHp: 120, attack: 30, defense: 50, attackRange: 2, maxAttacksPerTurn: 2 };
@@ -1716,11 +1716,11 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     unitLimit: CRYSTAL_CAVE_CONFIG.CAVE_UNIT_LIMIT,
     // While any Crystal Chamber resonates, the cave's resonance flag is set
     // via the shared lava-resonance trigger. Recruiting a drake never consumes
-    // a resonance tick — the window decays on its own end-of-turn schedule.
+    // a resonance tick - the window decays on its own end-of-turn schedule.
     description: `Conjured mountain hollow that hosts a single Crystal Drake. While resonating, it can summon a Crystal Drake. If the cave falls (lava, capture, conversion, destruction) any bound drake dies with it.`,
   },
   CHARCOAL_KILN: {
-    // Shares the same sight radius and destroy behaviour as the Woodcutter —
+    // Shares the same sight radius and destroy behaviour as the Woodcutter -
     // both are economy-only forest buildings with no combat stats.
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.NONE,
@@ -1770,7 +1770,7 @@ export function computeResearchCost(baseCost: number, ember: number): number {
 }
 
 // ============================================================================
-// SPECIALIST DEFINITIONS — single source of truth per specialist
+// SPECIALIST DEFINITIONS - single source of truth per specialist
 // ============================================================================
 
 /** Static (balance-tunable) properties of a specialist. */
@@ -1786,7 +1786,7 @@ export interface SpecialistDefinition {
 
 /**
  * Single source of truth for all per-specialist data.
- * Descriptions that reference config constants use template literals — no
+ * Descriptions that reference config constants use template literals - no
  * raw balancing numbers allowed in description strings (see DESCRIPTION
  * AUTHORING RULE above the ABILITIES constant).
  */
@@ -1921,7 +1921,7 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
     upkeepWood: 0,
   },
   spec_15: {
-    name: 'Emberforged',
+    name: 'Forgemaster',
     description:
       `Units recruited within ${ABILITIES.CINDERBORN_ROWS} rows of the lava front gain the CINDERBORN tag (+${ABILITIES.CINDERBORN_ATTACK_BONUS} ATK).`,
     effects: [{ type: 'CINDERBORN_RECRUIT', params: { rows: ABILITIES.CINDERBORN_ROWS, attackBonus: ABILITIES.CINDERBORN_ATTACK_BONUS } }],
@@ -1961,7 +1961,7 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
     upkeepWood: 0,
   },
   spec_20: {
-    name: 'Last Stand',
+    name: 'Deathsworn',
     description:
       `Your Archers gain the BERSERK tag: when HP drops below ${ABILITIES.BERSERK_HP_THRESHOLD_PCT}%, they gain +${ABILITIES.BERSERK_ATTACK_PCT}% ATK. Once triggered, it stays active even if HP recovers.`,
     effects: [{ type: 'GRANT_UNIT_TAG_ALL', params: { unitType: UnitType.ARCHER, tag: UnitTag.BERSERK } }],
@@ -1985,7 +1985,7 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
     upkeepWood: 0,
   },
   spec_23: {
-    name: 'The Multitude',
+    name: 'The Matriarch',
     description:
       `The first time each of your housing buildings reaches full population, it immediately gains a second full complement of residents.`,
     effects: [{ type: 'POP_DOUBLING_DOCTRINE', params: {} }],
@@ -2020,7 +2020,7 @@ export const CLEAVE_DAMAGE_MULTIPLIER = 0.5;
 
 /**
  * Tech tree node definitions.
- * Add a new tech node by adding one entry to this array — no logic files
+ * Add a new tech node by adding one entry to this array - no logic files
  * touched, no switch statements updated, no hardcoded references.
  *
  * Description authoring: see the DESCRIPTION AUTHORING RULE comment above the
@@ -2058,7 +2058,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     ],
   },
   {
-    // Placed beside DEEP_VEINS — both require A_NOBLE_STEAD and both buff mines
+    // Placed beside DEEP_VEINS - both require A_NOBLE_STEAD and both buff mines
     // with iron production, making them natural thematic siblings on the tree.
     id: 'CHARCOAL_KILN',
     name: 'Charcoal Kiln',
@@ -2161,7 +2161,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'UNLOCK_SWORDSMAN',
     name: 'Swordsman Training',
-    description: 'Unlocks the Swordsman — elite heavy infantry with superior attack and defense — recruitable at the Barracks. Swordsman recruitment costs +2 iron.',
+    description: 'Unlocks the Swordsman - elite heavy infantry with superior attack and defense - recruitable at the Barracks. Swordsman recruitment costs +2 iron.',
     requires: ['FIELD_DUTIES'],
     cost: 4,
     effects: [
@@ -2172,7 +2172,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'SWORDSMAN_CLEAVE',
     name: 'Cleaving Strike',
-    description: `Swordsmen learn to cleave through enemies — on hit, dealing ${CLEAVE_DAMAGE_MULTIPLIER * 100}% damage to all enemy units adjacent to both attacker and defender (ignores Phalanx defense)`,
+    description: `Swordsmen learn to cleave through enemies: on hit, they deal ${CLEAVE_DAMAGE_MULTIPLIER * 100}% damage to all enemy units adjacent to both attacker and defender (ignores Phalanx defense)`,
     requires: ['UNLOCK_SWORDSMAN'],
     cost: 3,
     effects: [
@@ -2243,7 +2243,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'WALLED_SETTLEMENT',
     name: 'Walled Settlement',
-    description: `Strongholds gain +${ABILITIES.WALLED_SETTLEMENT_FARMER_BONUS} farmer capacity. Produces +${ABILITIES.WALLED_SETTLEMENT_IRON_AMOUNT} iron and +${ABILITIES.WALLED_SETTLEMENT_WOOD_AMOUNT} wood per turn (flat, once — requires at least one Stronghold)`,
+    description: `Strongholds gain +${ABILITIES.WALLED_SETTLEMENT_FARMER_BONUS} farmer capacity. Produces +${ABILITIES.WALLED_SETTLEMENT_IRON_AMOUNT} iron and +${ABILITIES.WALLED_SETTLEMENT_WOOD_AMOUNT} wood per turn (flat, once - requires at least one Stronghold)`,
     requires: ['CONSCRIPTION'],
     cost: 2,
     effects: [
@@ -2253,11 +2253,11 @@ export const TECH_TREE: TechNodeDefinition[] = [
     ],
   },
   {
-    // Placed after WALLED_SETTLEMENT — an advanced mining technique that
+    // Placed after WALLED_SETTLEMENT - an advanced mining technique that
     // unlocks the Deep Mine, a more productive alternative to the standard Mine on mountains.
     id: 'DEEP_MINING',
     name: 'Deep Mining',
-    description: `Unlocks the Deep Mine, which produces ${RESOURCES.DEEP_MINE_IRON_PER_TURN} iron per turn (vs ${RESOURCES.MINE_IRON_PER_TURN} for a standard Mine) — delving deeper into mountains for richer ore veins.`,
+    description: `Unlocks the Deep Mine, which produces ${RESOURCES.DEEP_MINE_IRON_PER_TURN} iron per turn (vs ${RESOURCES.MINE_IRON_PER_TURN} for a standard Mine) - delving deeper into mountains for richer ore veins.`,
     requires: ['WALLED_SETTLEMENT'],
     cost: 4,
     effects: [
@@ -2279,7 +2279,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'NOBLE_HERITAGE',
     name: 'Noble Heritage',
-    description: `Grants the ELITE tag to Riders, Guards, and Siege engines — each gaining +${ABILITIES.ELITE_MAX_HP_BONUS} max HP`,
+    description: `Grants the ELITE tag to Riders, Guards, and Siege engines - each gaining +${ABILITIES.ELITE_MAX_HP_BONUS} max HP`,
     requires: ['CITADEL'],
     cost: 7,
     effects: [
@@ -2371,7 +2371,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'PIN_DOWN',
     name: 'Pin Down',
-    description: `Archer hits have a ${Math.round(ABILITIES.PIN_DOWN_STUN_CHANCE * 100)}% chance to stun the target for one turn — it cannot move or attack`,
+    description: `Archer hits have a ${Math.round(ABILITIES.PIN_DOWN_STUN_CHANCE * 100)}% chance to stun the target for one turn - it cannot move or attack`,
     requires: ['FAR_REACH'],
     cost: 4,
     effects: [
@@ -2403,7 +2403,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     ],
   },
 
-  // ── Branch 6: Magic — root and 3 specialization paths ────────────────────
+  // ── Branch 6: Magic - root and 3 specialization paths ────────────────────
   {
     id: 'ARCANE_AWAKENING',
     name: 'Arcane Awakening',
@@ -2553,7 +2553,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
 ];
 
 // ============================================================================
-// TAG STAT EFFECTS — stat modifiers applied when a tag is granted to a unit
+// TAG STAT EFFECTS - stat modifiers applied when a tag is granted to a unit
 // ============================================================================
 
 /**
@@ -2655,7 +2655,7 @@ export const EMBER_PORTAL_BASE_USE_SCORE = 80;
 export const EMBER_PORTAL_DISTANCE_PENALTY = 15;
 
 // ============================================================================
-// TAG INFO — label and description for each unit tag
+// TAG INFO - label and description for each unit tag
 // ============================================================================
 
 /**
@@ -2663,7 +2663,7 @@ export const EMBER_PORTAL_DISTANCE_PENALTY = 15;
  *
  * Description authoring: see the DESCRIPTION AUTHORING RULE above the ABILITIES
  * constant. All numbers in `desc` strings must reference ABILITIES (or another
- * named config constant) via template literals — never hardcode raw numbers.
+ * named config constant) via template literals - never hardcode raw numbers.
  */
 export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: string }> = {
   [UnitTag.RANGED]:            { label: 'Ranged',            desc: 'Attacks from a distance and does not move onto a defeated enemy\'s tile.' },
@@ -2685,7 +2685,7 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   [UnitTag.OUTRIDER]:          { label: 'Outrider',          desc: `+${ABILITIES.OUTRIDER_MOVE_BONUS} movement range. Optimised for deep raids.` },
   [UnitTag.COVER]:             { label: 'Cover',             desc: 'Ranged enemy units cannot counter-attack.' },
   [UnitTag.SKIRMISHER]:        { label: 'Skirmisher',        desc: `+${ABILITIES.SKIRMISHER_MOVE_BONUS} movement range.` },
-  [UnitTag.PIN_DOWN]:          { label: 'Pin Down',          desc: `Each hit has a ${Math.round(ABILITIES.PIN_DOWN_STUN_CHANCE * 100)}% chance to stun the target — it cannot move or attack on its next action.` },
+  [UnitTag.PIN_DOWN]:          { label: 'Pin Down',          desc: `Each hit has a ${Math.round(ABILITIES.PIN_DOWN_STUN_CHANCE * 100)}% chance to stun the target - it cannot move or attack on its next action.` },
   [UnitTag.DISTRACTION]:       { label: 'Distraction',       desc: `Each hit permanently reduces the target's DEF by ${ABILITIES.DISTRACTION_DEF_REDUCTION}. Archer ATK is reduced by ${Math.abs(ABILITIES.DISTRACTION_ATTACK_MOD)}.` },
   [UnitTag.PREVENTIVE_STRIKE]: { label: 'Preventive Strike', desc: `Once per enemy turn, when an enemy moves from outside into this siege unit's attack range, it automatically fires, dealing ${ABILITIES.PREVENTIVE_STRIKE_DAMAGE_PERCENT}% of its normal attack damage. Suppressed while the siege unit stands on a Corrupted tile.` },
   [UnitTag.ELITE]:             { label: 'Elite',             desc: `+${ABILITIES.ELITE_MAX_HP_BONUS} max HP. Elite unit forged in the noble tradition.` },
@@ -2715,7 +2715,7 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   [UnitTag.TUNNEL]:       { label: 'Tunnel',      desc: `Digs underground and re-emerges ${TUNNEL_RANGE_MIN}–${TUNNEL_RANGE_MAX} tiles south in the same column. Digging in requires open ground (no buildings, ruins, forest or mountain). Deals ${TUNNEL_EMERGE_DAMAGE} damage to enemies adjacent to the emergence tile. Sets the emergence tile to Corrupted.` },
   [UnitTag.EMBER_PORTAL]: { label: 'Ember Portal', desc: 'Casts a pair of portals: an entrance next to the Rift Lord and an exit behind the player\'s frontline. Any enemy unit stepping on the entrance teleports to the exit, if the exit is free. If the exit is blocked, the unit waits on the entrance and teleports the moment the exit clears. The Rift Lord cannot cast another pair until the current pair is removed. Portal tiles are corrupted and block player movement.' },
   // ── Overcapacity penalty tags ────────────────────────────────────────────────
-  [UnitTag.HOMELESS]:  { label: 'Homeless',  desc: `Unit has no shelter — population cap is exceeded. -${POPULATION.HOMELESS_DEF_PENALTY} DEF. Loses ${POPULATION.HOMELESS_HP_LOSS_PER_TURN} HP at the end of every player turn.`, icon: '🏚️' },
+  [UnitTag.HOMELESS]:  { label: 'Homeless',  desc: `Unit has no shelter - population cap is exceeded. -${POPULATION.HOMELESS_DEF_PENALTY} DEF. Loses ${POPULATION.HOMELESS_HP_LOSS_PER_TURN} HP at the end of every player turn.`, icon: '🏚️' },
   [UnitTag.UNTRAINED]: { label: 'Untrained', desc: `Training facilities of this type are over capacity. -${TRAINING.UNTRAINED_ATK_PENALTY} ATK.`, icon: '📉' },
   // ── Movement tags ───────────────────────────────────────────────────────────
   [UnitTag.FLYING]:    { label: 'Flying',    desc: `Traverses canyons and unfrozen water tiles. Survives knockback over canyons and water (lava still kills). Does not ice-slide across frozen tiles. Takes +${Math.round((FLYING_RANGED_DAMAGE_TAKEN_MULTIPLIER - 1) * 100)}% damage from non-flying ranged attackers.`, icon: '🕊️' },
@@ -2783,7 +2783,7 @@ export const SANCTUM_COLLAPSE = {
  * For example, a PLAINS tile with a Mountain object on it has terrainType PLAINS
  * and may receive any status that PLAINS allows.
  *
- * FOREST and MOUNTAIN entries allow CORRUPTED (Magma Spyr) and FROZEN (Frostcraft —
+ * FOREST and MOUNTAIN entries allow CORRUPTED (Magma Spyr) and FROZEN (Frostcraft -
  * resource buildings such as WOODCUTTER on FOREST and MINE on MOUNTAIN must be
  * targetable by Frostcraft).
  */
