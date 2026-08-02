@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.106.11 - Cave monster acts right after spawning
+
+The cave monster now spawns with all action flags set to false, so it acts in the enemy turn immediately following the player turn in which it was spawned. Previously the flags were set to true at spawn, causing the monster to idle through the first enemy turn and only attack on the second one. The `runCaveMonsterAi` skip guard (`hasUnitActed`) remains in place to prevent double-acting within the same enemy turn loop. The spawn-timing test has been updated to assert an attack event in the first enemy turn.
+
 ### v0.106.10 - Charcoal Kiln buffs Deep Mines
 
 The Charcoal Kiln iron bonus now applies to Deep Mine buildings in addition to standard Mines. All three resource-system sites (collection, income preview, and breakdown) have been updated to include the per-kiln bonus for Deep Mines, using the same `CHARCOAL_KILN_IRON_BONUS` value and radius rules. The KILN_BONUS specialist modifier (Ashwright) extends radius and iron bonus to Deep Mines identically. The GridRenderer kiln-mine connection lines now draw for selected Deep Mines, and the HUD building panel shows the kiln buff row for Deep Mines when applicable. Ingame descriptions for the Charcoal Kiln building, the Charcoal Kiln tech node, the Ashwright specialist, and the `CHARCOAL_KILN_IRON_BONUS` and `CHARCOAL_KILN_RADIUS` doc comments have all been updated to say "mines and deep mines". New Vitest tests cover all four required scenarios: collection in-range, collection out-of-range, mixed income preview, breakdown increment count, and KILN_BONUS specialist applied to Deep Mines.

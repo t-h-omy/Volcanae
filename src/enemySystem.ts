@@ -3066,7 +3066,7 @@ function runCaveMonsterAi(state: Draft<GameState>, events?: GameEvent[]): void {
       continue;
     }
 
-    // Skip if the unit already acted this turn (spawn turn: all flags are true)
+    // Skip if the unit already acted this turn (prevents double-acting within the same enemy turn)
     if (hasUnitActed(unit, state)) continue;
 
     // PIN_DOWN / PUNCTURE stun: mirror the standard enemy loop behaviour

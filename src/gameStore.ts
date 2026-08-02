@@ -1277,12 +1277,12 @@ export const useGameStore = create<GameStore>()(
             attackRange: base.attackRange,
           },
           tags: [...base.tags],
-          // All action flags true — monster does not move or attack on spawn turn
-          hasMovedThisTurn: true,
-          hasAttackedThisTurn: true,
-          hasConstructedThisTurn: true,
-          hasDestroyedThisTurn: true,
-          hasCapturedThisTurn: true,
+          // All action flags false — monster spawns ready and acts in the immediately following enemy turn
+          hasMovedThisTurn: false,
+          hasAttackedThisTurn: false,
+          hasConstructedThisTurn: false,
+          hasDestroyedThisTurn: false,
+          hasCapturedThisTurn: false,
           hasTradedThisTurn: false,
           hasUsedPostAttackMoveThisTurn: false,
           bloodlustAttackAvailable: false,
