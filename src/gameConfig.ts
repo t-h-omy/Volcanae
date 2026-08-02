@@ -2572,6 +2572,10 @@ export const UPGRADE_TRADEOFF_TAGS: ReadonlySet<UnitTag> = new Set([
  * When a GRANT_UNIT_TAG effect is applied (either retroactively at tech unlock
  * or at unit spawn time), these mods are also applied to the unit's stats.
  * All values are driven by ABILITIES constants so they remain easy to balance.
+ *
+ * CINDERBORN is intentionally omitted here: its +ATK is baked in only at
+ * recruit time in resourceSystem.ts, so listing it here would double-apply the
+ * bonus when tags are granted dynamically.
  */
 export const TAG_STAT_EFFECTS: Partial<Record<UnitTag, StatModifier[]>> = {
   [UnitTag.ELITE]:   [{ stat: 'maxHp',   mode: 'add', value: ABILITIES.ELITE_MAX_HP_BONUS }],
@@ -2599,6 +2603,11 @@ export const PIERCE_SECONDARY_DAMAGE_MULTIPLIER = 1.0;
 export const RAGE_ATK_PER_ADJACENT = 4;
 /** Maximum number of adjacent enemies that contribute to RAGE bonus. */
 export const RAGE_MAX_ADJACENT_COUNT = 8;
+/** Tags whose pill should glow when their live condition is currently met. */
+export const CONDITIONAL_ACTIVE_TAGS: ReadonlySet<UnitTag> = new Set([
+  UnitTag.BERSERK,
+  UnitTag.RAGE,
+]);
 
 /** Damage multiplier when a SUMMONED unit attacks a unit with IRONBLOOD. */
 export const IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER = 0.5;

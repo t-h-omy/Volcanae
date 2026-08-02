@@ -11,7 +11,7 @@ import { useMenuStore } from '../menuStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
 import { useSoundOptionsStore } from '../soundOptionsStore';
-import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, computeResearchCost, SPELL_DEFINITIONS, TERRAIN_TAG_INFO, RAGE_ATK_PER_ADJACENT, MAGE, CORRUPTED_SUPPRESSED_TAGS, CRYSTAL_CAVE_CONFIG, CRYSTAL_CHAMBER_CONFIG, MARKET, SPECIALIST_DEFINITIONS, RELOAD_DEF_PENALTY_PCT } from '../gameConfig';
+import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, computeResearchCost, SPELL_DEFINITIONS, TERRAIN_TAG_INFO, MAGE, CORRUPTED_SUPPRESSED_TAGS, CRYSTAL_CAVE_CONFIG, CRYSTAL_CHAMBER_CONFIG, MARKET, SPECIALIST_DEFINITIONS, RELOAD_DEF_PENALTY_PCT, CONDITIONAL_ACTIVE_TAGS } from '../gameConfig';
 import type { SpecialistDefinition } from '../gameConfig';
 import { UI } from '../uiConfig';
 import type { UnitPopulationCost, TechId } from '../types';
@@ -68,7 +68,7 @@ import {
   type GameState,
 } from '../types';
 import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast, getMageCastBudget, getUnitAttackRange, isHealSuppressedByCorruption, canUnitTrade, getTradeMarket, getCaptureTarget, canUnitBuildBridge, getBridgeBuildTargets, canUnitSetTrap, getTrapPlacementTargets, canUnitExtinguish } from '../unitActions';
-import { getBatteryAttackBonus, getPhalanxAttackBonus, getPhalanxDefenseBonus, getCrystalTowerChamberBonus, getRageAttackContext } from '../combatSystem';
+import { getBatteryAttackBonus, getPhalanxAttackBonus, getPhalanxDefenseBonus, getCrystalTowerChamberBonus, getRageAttackContext, isTagConditionActive } from '../combatSystem';
 import { isSpecialistEffectActive } from '../specialistSystem';
 import { RENDER } from '../renderConfig';
 import { useZoneClearedStore } from '../zoneClearedStore';
@@ -80,6 +80,7 @@ import { SAVE } from '../gameConfig';
 import { generateId } from '../mapGenerator';
 import { stopGameMusic } from '../useMusicPlayer';
 import { shouldShowTurnPopupEmberRose } from '../turnPopup';
+import { getAttackDisplayModifiers } from '../unitStatDisplay';
 import './HUD.css';
 
 // ============================================================================
@@ -1277,10 +1278,10 @@ function PopulationInfoPopup({
 }
 
 /** Shared base for tappable tag pills — renders a labelled button with an "i" badge */
-function TagPillBase({ label, onClick, inactive, highlight, onHighlightEnd }: { label: string; onClick: () => void; inactive?: boolean; highlight?: boolean; onHighlightEnd?: () => void }) {
+function TagPillBase({ label, onClick, inactive, active, highlight, onHighlightEnd }: { label: string; onClick: () => void; inactive?: boolean; active?: boolean; highlight?: boolean; onHighlightEnd?: () => void }) {
   return (
     <button
-      className={`info-popup-tag-pill${inactive ? ' info-popup-tag-pill--inactive' : ''}${highlight ? ' info-popup-tag-pill--highlight' : ''}`}
+      className={`info-popup-tag-pill${inactive ? ' info-popup-tag-pill--inactive' : ''}${active ? ' info-popup-tag-pill--active' : ''}${highlight ? ' info-popup-tag-pill--highlight' : ''}`}
       onClick={onClick}
       onAnimationEnd={highlight ? onHighlightEnd : undefined}
     >
@@ -1291,9 +1292,9 @@ function TagPillBase({ label, onClick, inactive, highlight, onHighlightEnd }: { 
 }
 
 /** Tappable tag pill used in panels and popups */
-function InfoTagPill({ tag, onClick, inactive, highlight, onHighlightEnd }: { tag: UnitTag; onClick: () => void; inactive?: boolean; highlight?: boolean; onHighlightEnd?: () => void }) {
+function InfoTagPill({ tag, onClick, inactive, active, highlight, onHighlightEnd }: { tag: UnitTag; onClick: () => void; inactive?: boolean; active?: boolean; highlight?: boolean; onHighlightEnd?: () => void }) {
   const info = TAG_INFO[tag];
-  return <TagPillBase label={info?.label ?? tag} onClick={onClick} inactive={inactive} highlight={highlight} onHighlightEnd={onHighlightEnd} />;
+  return <TagPillBase label={info?.label ?? tag} onClick={onClick} inactive={inactive} active={active} highlight={highlight} onHighlightEnd={onHighlightEnd} />;
 }
 
 /** Tag info popup for terrain tags (tile status) */
@@ -1765,6 +1766,15 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
   }, [unit, gameState]);
 
   const batteryBonus = useMemo(() => getBatteryAttackBonus(gameState, unit), [gameState, unit]);
+  const attackDisplayMods = useMemo(() => getAttackDisplayModifiers(unit, {
+    phalanxAttack,
+    rageBonus,
+    rageAdjacentCount,
+    batteryBonus,
+  }), [unit, phalanxAttack, rageBonus, rageAdjacentCount, batteryBonus]);
+  const isConditionalTagActive = useCallback((tag: UnitTag) => {
+    return CONDITIONAL_ACTIVE_TAGS.has(tag) && isTagConditionActive(gameState, unit, tag);
+  }, [gameState, unit]);
 
   // ── Modifier maps for inline stat display ─────────────────────────────────
   // applied = baked into unit.stats; contextual = runtime-only
@@ -1798,15 +1808,12 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
       unit.stats.defense + phalanxDefense + contextualDef - unit.distractionDefPenalty,
     );
     if (reloadPenalty > 0) addC('defense', -reloadPenalty);
-    if (phalanxAttack !== 0) addC('attack', phalanxAttack);
+    if (attackDisplayMods.appliedAttackBonus !== 0) addA('attack', attackDisplayMods.appliedAttackBonus);
+    if (attackDisplayMods.contextualAttackBonus !== 0) addC('attack', attackDisplayMods.contextualAttackBonus);
     if (phalanxDefense !== 0) addC('defense', phalanxDefense);
     if (contextualDef !== 0) addC('defense', contextualDef);
     if (contextualMov.total !== 0) addC('moveRange', contextualMov.total);
     if (contextualRange !== 0) addC('attackRange', contextualRange);
-
-    // RAGE: dynamic +ATK per adjacent enemy (works for both factions)
-    if (rageBonus > 0) addC('attack', rageBonus);
-    if (batteryBonus > 0) addC('attack', batteryBonus);
 
     const hasAnyMap: Record<string, boolean> = {};
     const netMap: Record<string, number> = {};
@@ -1815,7 +1822,7 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
       netMap[k] = (appliedMap[k] ?? 0) + (contextualMap[k] ?? 0);
     }
     return { applied: appliedMap, net: netMap, hasAny: hasAnyMap };
-  }, [unit, gameState, phalanxAttack, phalanxDefense, contextualDef, contextualMov, contextualRange, rageBonus, batteryBonus]);
+  }, [unit, gameState, attackDisplayMods, phalanxDefense, contextualDef, contextualMov, contextualRange]);
 
   const showNetMod = (statKey: string) => {
     if (!hasAny[statKey]) return null;
@@ -1828,11 +1835,8 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
   // ── Full modifier list for breakdown section ───────────────────────────────
   const mods: StatModEntry[] = [];
 
-  if (phalanxAttack > 0) mods.push({ stat: 'ATK', value: phalanxAttack, kind: 'active', source: 'Phalanx Formation (adjacent guard)' });
+  mods.push(...attackDisplayMods.rows);
   if (phalanxDefense > 0) mods.push({ stat: 'DEF', value: phalanxDefense, kind: 'active', source: 'Phalanx Formation (adjacent guard)' });
-  // RAGE: dynamic +ATK per adjacent enemy (works for both factions)
-  if (rageBonus > 0) mods.push({ stat: 'ATK', value: rageBonus, kind: 'active', source: `Rage (+${RAGE_ATK_PER_ADJACENT} ATK per adjacent enemy, ${rageAdjacentCount} nearby)` });
-  if (batteryBonus > 0) mods.push({ stat: 'ATK', value: batteryBonus, kind: 'active', source: `Battery (+${ABILITIES.SIEGE_BATTERY_ATK_PER_ADJACENT} ATK per adjacent friendly unit)` });
   if (contextualDef > 0) mods.push({ stat: 'DEF', value: contextualDef, kind: 'active', source: 'Hold Ground (standing on own building)' });
   if (unit.tags.includes(UnitTag.SKIRMISHER)) mods.push({ stat: 'MOV', value: ABILITIES.SKIRMISHER_MOVE_BONUS, kind: 'active', source: 'Skirmisher (tag ability)' });
   if (unit.tags.includes(UnitTag.OUTRIDER)) mods.push({ stat: 'MOV', value: ABILITIES.OUTRIDER_MOVE_BONUS, kind: 'active', source: 'Outrider (tag ability)' });
@@ -1932,7 +1936,7 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
         {visibleTags.length > 0 && (
           <div className="info-popup-tags">
             {visibleTags.map((tag) => (
-              <InfoTagPill key={tag} tag={tag} onClick={() => setTagPopup(tag)} />
+              <InfoTagPill key={tag} tag={tag} onClick={() => setTagPopup(tag)} active={isConditionalTagActive(tag)} />
             ))}
           </div>
         )}
@@ -2157,7 +2161,17 @@ function SelectedUnitPanel({
   // Compute PHALANX formation bonuses (works for both factions)
   const phalanxAttack = useMemo(() => getPhalanxAttackBonus(gameState, unit), [gameState, unit]);
   const phalanxDefense = useMemo(() => getPhalanxDefenseBonus(gameState, unit), [gameState, unit]);
+  const { rageBonus, rageAdjacentCount } = useMemo(() => getRageAttackContext(gameState, unit), [gameState, unit]);
   const batteryBonus = useMemo(() => getBatteryAttackBonus(gameState, unit), [gameState, unit]);
+  const attackDisplayMods = useMemo(() => getAttackDisplayModifiers(unit, {
+    phalanxAttack,
+    rageBonus,
+    rageAdjacentCount,
+    batteryBonus,
+  }), [unit, phalanxAttack, rageBonus, rageAdjacentCount, batteryBonus]);
+  const isConditionalTagActive = useCallback((tag: UnitTag) => {
+    return CONDITIONAL_ACTIVE_TAGS.has(tag) && isTagConditionActive(gameState, unit, tag);
+  }, [gameState, unit]);
   // Unified modifier map: applied = baked into unit.stats; contextual = runtime-only.
   // Used to show white base value + one green/red/neutral net modifier badge per stat.
   const inlineStatMods = useMemo(() => {
@@ -2194,7 +2208,8 @@ function SelectedUnitPanel({
     if (unit.distractionDefPenalty > 0) addApplied('defense', -unit.distractionDefPenalty);
 
     // Contextual bonuses — applied at runtime, not reflected in unit.stats
-    if (phalanxAttack !== 0) addContextual('attack', phalanxAttack);
+    if (attackDisplayMods.appliedAttackBonus !== 0) addApplied('attack', attackDisplayMods.appliedAttackBonus);
+    if (attackDisplayMods.contextualAttackBonus !== 0) addContextual('attack', attackDisplayMods.contextualAttackBonus);
     if (phalanxDefense !== 0) addContextual('defense', phalanxDefense);
     if (statBonuses.def !== 0) addContextual('defense', statBonuses.def);
     if (statBonuses.mov !== 0) addContextual('moveRange', statBonuses.mov);
@@ -2205,13 +2220,6 @@ function SelectedUnitPanel({
     );
     if (reloadPenalty > 0) addContextual('defense', -reloadPenalty);
 
-    // RAGE: dynamic +ATK per adjacent enemy (works for both factions)
-    if (unit.tags.includes(UnitTag.RAGE)) {
-      const { rageBonus } = getRageAttackContext(gameState, unit);
-      if (rageBonus > 0) addContextual('attack', rageBonus);
-    }
-    if (batteryBonus > 0) addContextual('attack', batteryBonus);
-
     const hasAny: Record<string, boolean> = {};
     const net: Record<string, number> = {};
     for (const k of new Set([...Object.keys(applied), ...Object.keys(contextual)])) {
@@ -2220,7 +2228,7 @@ function SelectedUnitPanel({
     }
 
     return { applied, net, hasAny };
-  }, [unit, gameState, phalanxAttack, phalanxDefense, statBonuses, batteryBonus]);
+  }, [unit, gameState, attackDisplayMods, phalanxDefense, statBonuses]);
 
   // Renders one green/red/neutral badge for the net modifier of a stat key.
   // Returns null when there are no modifiers at all for that stat.
@@ -2345,16 +2353,20 @@ function SelectedUnitPanel({
       </button>
       {displayedTags.length > 0 && (
         <div className="hud-tag-pills">
-          {displayedTags.map((tag) => (
+          {displayedTags.map((tag) => {
+            const inactive = isOnCorruptedTile && CORRUPTED_SUPPRESSED_TAGS.has(tag);
+            return (
             <InfoTagPill
               key={tag}
               tag={tag}
               onClick={() => setTagPopup(tag)}
-              inactive={isOnCorruptedTile && CORRUPTED_SUPPRESSED_TAGS.has(tag)}
+              inactive={inactive}
+              active={!inactive && isConditionalTagActive(tag)}
               highlight={tag === UnitTag.CORRUPTED && highlightCorrupted}
               onHighlightEnd={tag === UnitTag.CORRUPTED ? () => setHighlightCorrupted(false) : undefined}
             />
-          ))}
+            );
+          })}
         </div>
       )}
       {isPlayer && (

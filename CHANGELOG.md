@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.106.9 - Cinderborn and Berserk stat visibility, active tag pills
+
+CINDERBORN's recruit-time baked ATK bonus is now surfaced in the HUD as a green ATK modifier and its own breakdown row without being re-applied dynamically. BERSERK now contributes a matching green ATK modifier and breakdown row whenever its live/latched condition is active, using the same pre-berserk standing attack basis the HUD already shows for PHALANX, RAGE, and BATTERY. Conditional tag pills now gain an active glow state for live BERSERK and RAGE tags, while corruption suppression still wins and keeps suppressed pills inactive. Added focused regression coverage for the extracted ATK display math and conditional-tag activity helper.
+
 ### v0.106.8 - Berserk stays active once triggered
 
 BERSERK now latches permanently per unit after first activation: once a BERSERK unit drops below the HP threshold, the bonus remains active even if the unit later heals above the threshold. Added a persisted `berserkActivated` unit field with v19 save migration backfill, updated combat and damage paths to set the latch when HP is reduced, and added end-of-turn safety sweeps plus regression coverage for combat-triggered latch, heal-after-trigger persistence, and v18 migration behavior.

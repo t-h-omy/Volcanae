@@ -478,7 +478,7 @@ export function getRageAttackContext(
  * Activates once HP first drops strictly below the configured threshold and
  * then stays active for that unit.
  */
-export function isBerserkActive(unit: Unit): boolean {
+export function isBerserkActive(unit: Pick<Unit, 'tags' | 'berserkActivated' | 'stats'>): boolean {
   if (!unit.tags.includes(UnitTag.BERSERK)) return false;
   if (unit.berserkActivated === true) return true;
   if (unit.stats.maxHp <= 0) return false;
@@ -496,6 +496,39 @@ export function updateBerserkLatch(unit: Unit): void {
 
 export function getBerserkAttackMultiplier(unit: Unit): number {
   return isBerserkActive(unit) ? (1 + ABILITIES.BERSERK_ATTACK_PCT / 100) : 1;
+}
+
+/**
+ * Mirrors the combat-time BERSERK multiplier as a flat HUD bonus.
+ *
+ * The HUD passes the already-displayed standing attack total before BERSERK:
+ * base/applied ATK plus the contextual attack layers the panel already shows
+ * (currently PHALANX, RAGE, and BATTERY). This intentionally excludes
+ * action-specific transient attack states that are not displayed as standing
+ * stat modifiers (for example BLOODLUST's second-strike halving).
+ */
+export function getBerserkDisplayBonus(
+  unit: Pick<Unit, 'tags' | 'berserkActivated' | 'stats'>,
+  effectiveAttackBeforeBerserk: number,
+): number {
+  if (!isBerserkActive(unit)) return 0;
+  return Math.round(effectiveAttackBeforeBerserk * ABILITIES.BERSERK_ATTACK_PCT / 100);
+}
+
+/** Returns whether a conditional tag's live activation condition is currently met. */
+export function isTagConditionActive(
+  state: GameState | Draft<GameState>,
+  unit: Unit,
+  tag: UnitTag,
+): boolean {
+  switch (tag) {
+    case UnitTag.BERSERK:
+      return isBerserkActive(unit);
+    case UnitTag.RAGE:
+      return getRageAttackContext(state, unit).rageBonus > 0;
+    default:
+      return false;
+  }
 }
 
 // ============================================================================
