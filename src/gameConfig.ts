@@ -1553,6 +1553,8 @@ export const ABILITIES = {
   RUPTURE_PERCENT: MAGE.RUPTURE_PERCENT,
   /** Crystal cost to cast the Rupture spell */
   RUPTURE_CRYSTAL_COST: MAGE.RUPTURE_CRYSTAL_COST,
+  /** Extra unit cap added per recruitment building and Stronghold by the Conscriptor specialist */
+  RECRUIT_CAP_BONUS: 1,
 } as const;
 
 export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
@@ -1985,10 +1987,10 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
     upkeepWood: 0,
   },
   spec_23: {
-    name: 'The Matriarch',
+    name: 'The Conscriptor',
     description:
-      `The first time each of your housing buildings reaches full population, it immediately gains a second full complement of residents.`,
-    effects: [{ type: 'POP_DOUBLING_DOCTRINE', params: {} }],
+      `All your recruitment buildings and each Stronghold can maintain ${ABILITIES.RECRUIT_CAP_BONUS} additional trained unit.`,
+    effects: [{ type: 'RECRUIT_CAP_BONUS', params: { amount: ABILITIES.RECRUIT_CAP_BONUS } }],
     upkeepIron: 0,
     upkeepWood: 0,
   },

@@ -317,8 +317,8 @@ export function applyEffectsForSpecialist(
       // No per-apply mutation needed here.
     } else if (effect.type === 'MAGE_CAST_BUDGET_MOD') {
       // No eager mutation: the budget is read from active specialists on demand.
-    } else if (effect.type === 'POP_DOUBLING_DOCTRINE') {
-    // Derived: all effects read from isSpecialistEffectActive at point-of-use.
+    } else if (effect.type === 'RECRUIT_CAP_BONUS') {
+      // Derived: recruitment cap is read from active specialists at point-of-use.
     }
   }
 }
@@ -350,8 +350,8 @@ export function revokeEffectsForSpecialist(
       // Eager one-shot: no mutation to revert.
     } else if (effect.type === 'MAGE_CAST_BUDGET_MOD') {
       // No eager mutation to revert: the budget is derived from active specialists.
-    } else if (effect.type === 'POP_DOUBLING_DOCTRINE') {
-      // Derived: all effects read from isSpecialistEffectActive at point-of-use.
+    } else if (effect.type === 'RECRUIT_CAP_BONUS') {
+      // Derived: recruitment cap is read from active specialists at point-of-use.
     }
   }
 }
@@ -453,8 +453,8 @@ export function applySpecialistEffects(state: Draft<GameState>): void {
         // Eager one-shot: no per-turn mutation needed.
       } else if (effect.type === 'MAGE_CAST_BUDGET_MOD') {
         // No eager mutation: spell budget is computed from currently active specialists.
-      } else if (effect.type === 'POP_DOUBLING_DOCTRINE') {
-        // Derived: all effects read from isSpecialistEffectActive at point-of-use.
+      } else if (effect.type === 'RECRUIT_CAP_BONUS') {
+        // Derived: recruitment cap is read from active specialists at point-of-use.
       }
     }
   }

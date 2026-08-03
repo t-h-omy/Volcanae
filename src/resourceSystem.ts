@@ -71,21 +71,17 @@ export function getEffectiveHousingPopulationCap(
   const nobleBonus = Number(getActiveEffectParams(state, 'NOBLE_HOUSING_CAP_BONUS')?.amount ?? 0);
   const bonus = building.type === BuildingType.FARM ? farmerBonus : nobleBonus;
   const flatCap = building.populationCap + (Number.isFinite(bonus) ? bonus : 0);
-  return isSpecialistEffectActive(state, 'POP_DOUBLING_DOCTRINE') ? flatCap * 2 : flatCap;
+  return flatCap;
 }
 
 /**
- * Returns the effective (tech + doctrine adjusted) population caps for a Stronghold.
- * Wraps getStrongholdEffectiveCap and applies ×2 when POP_DOUBLING_DOCTRINE is active
- * (applied after tech-provided flat bonuses: `(base + flat) * 2`).
+ * Returns the effective (tech adjusted) population caps for a Stronghold.
+ * Wraps getStrongholdEffectiveCap and applies tech-provided flat bonuses.
  */
 export function getStrongholdEffectiveCapWithDoctrines(
   state: GameState | Draft<GameState>,
 ): { farmerCap: number; nobleCap: number; totalCap: number } {
   const { farmerCap, nobleCap } = getStrongholdEffectiveCap(state);
-  if (isSpecialistEffectActive(state, 'POP_DOUBLING_DOCTRINE')) {
-    return { farmerCap: farmerCap * 2, nobleCap: nobleCap * 2, totalCap: (farmerCap + nobleCap) * 2 };
-  }
   return { farmerCap, nobleCap, totalCap: farmerCap + nobleCap };
 }
 
@@ -165,7 +161,7 @@ export function getRecruitableUnitTypes(buildingType: BuildingType): UnitType[] 
  * Computes the current unit count and cap for a recruitment building type.
  *
  * - `current`: number of player-owned units whose type can be recruited from this building.
- * - `limit`: (number of player-owned buildings of this type) × unitLimit from BUILDING_DEFINITIONS.
+ * - `limit`: (number of player-owned buildings of this type) × (unitLimit + RECRUIT_CAP_BONUS) from BUILDING_DEFINITIONS.
  *   Returns Infinity when the building type has no unitLimit defined (uncapped).
  *
  * For CRYSTAL_CAVE: when `specificBuildingId` is provided, returns per-cave usage
@@ -180,10 +176,11 @@ export function computeRecruitmentBuildingUsage(
   if (baseUnitLimit === undefined) {
     return { current: 0, limit: Infinity };
   }
-  const doctrineActive = state.specialists !== undefined && state.globalSpecialistStorage !== undefined
-    ? isSpecialistEffectActive(state as GameState, 'POP_DOUBLING_DOCTRINE')
-    : false;
-  const unitLimit = doctrineActive ? baseUnitLimit * 2 : baseUnitLimit;
+  const recruitCapParams = state.specialists !== undefined && state.globalSpecialistStorage !== undefined
+    ? getActiveEffectParams(state as GameState, 'RECRUIT_CAP_BONUS')
+    : null;
+  const bonusPerBuilding = recruitCapParams ? Number(recruitCapParams.amount) : 0;
+  const unitLimit = baseUnitLimit + bonusPerBuilding;
 
   // CRYSTAL_CAVE: each cave has its own cap of 1 drake (enforced per-cave via roostBuildingId).
   // When specificBuildingId is provided, return per-cave usage so the caller can gate
@@ -241,8 +238,7 @@ export function computeRecruitmentBuildingUsage(
 }
 
 /**
- * Computes the effective iron+wood recruit cost for a unit type, including tech cost mods
- * and the ×0.5 ceil halving applied when POP_DOUBLING_DOCTRINE is active.
+ * Computes the effective iron+wood recruit cost for a unit type, including tech cost mods.
  * Returns null when the unit has no iron/wood cost (e.g. Crystal Drake).
  */
 export function getEffectiveRecruitCost(
@@ -254,12 +250,8 @@ export function getEffectiveRecruitCost(
     return null;
   }
   const costMod = getCostMods(state, unitType);
-  let iron = baseCost.iron + costMod.iron;
-  let wood = baseCost.wood + costMod.wood;
-  if (isSpecialistEffectActive(state, 'POP_DOUBLING_DOCTRINE')) {
-    iron = Math.ceil(iron * 0.5);
-    wood = Math.ceil(wood * 0.5);
-  }
+  const iron = baseCost.iron + costMod.iron;
+  const wood = baseCost.wood + costMod.wood;
   return { iron, wood };
 }
 
@@ -1340,12 +1332,6 @@ export function recruitUnit(
   }
   // Ensure current HP matches the (possibly boosted) max HP for a freshly recruited unit
   unit.stats.currentHp = unit.stats.maxHp;
-
-  // POP_DOUBLING_DOCTRINE: halve (ceil) spawn maxHp — birth-time only
-  if (isSpecialistEffectActive(state, 'POP_DOUBLING_DOCTRINE')) {
-    unit.stats.maxHp = Math.ceil(unit.stats.maxHp * 0.5);
-    unit.stats.currentHp = unit.stats.maxHp;
-  }
 
   // Place unit on the grid
   state.grid[spawnPosition.y][spawnPosition.x].unitId = unitId;
