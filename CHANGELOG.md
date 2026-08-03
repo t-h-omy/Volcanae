@@ -1,5 +1,13 @@
 # Changelog
 
+### v0.106.16 - Test suite green: stale expectations repaired
+
+Repaired stale test expectations by deriving combat-damage assertions from active stats, making frozen-slide pathing deterministic with a constrained corridor, and updating corrupted-heal behavior coverage to the current silent no-op contract.
+
+### v0.106.15 - Lint and build unblocked
+
+Added non-DOM guards for ember level-up VFX, repaired ember counter applyEvent coverage in tests, and removed explicit any casts from garrison overwatch tests to unblock lint and build.
+
 ### v0.106.14 - Specialist names and text cleanup
 
 Renamed specialist display names: spec_15 to "Forgemaster", spec_20 to "Deathsworn", and spec_23 to "The Matriarch". Updated related test strings and references.

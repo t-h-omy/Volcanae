@@ -11,6 +11,7 @@ function centerOfElement(el: Element): { x: number; y: number } {
 }
 
 function tileToScreenCenter(position: Position): { x: number; y: number } | null {
+  if (typeof document === 'undefined') return null;
   const gridEl = document.querySelector('.grid-container');
   if (!gridEl) return null;
   const rect = gridEl.getBoundingClientRect();
@@ -34,6 +35,12 @@ function startFlight(from: { x: number; y: number }, onArrival?: () => void): vo
 }
 
 function triggerTurnIntervalFlight(onArrival?: () => void, attempt = 0): void {
+  if (typeof document === 'undefined') {
+    // Non-DOM environment (tests, SSR): no flight possible; release immediately
+    // so the displayed counter never sticks behind a pending offset.
+    onArrival?.();
+    return;
+  }
   const popup = document.querySelector('.hud-turn-popup');
   if (popup) {
     startFlight(centerOfElement(popup), onArrival);
