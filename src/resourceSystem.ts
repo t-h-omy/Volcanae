@@ -165,7 +165,8 @@ export function getRecruitableUnitTypes(buildingType: BuildingType): UnitType[] 
  *   Returns Infinity when the building type has no unitLimit defined (uncapped).
  *
  * For CRYSTAL_CAVE: when `specificBuildingId` is provided, returns per-cave usage
- * (0 or 1 current, limit 1). Without it, returns the global summary across all caves.
+ * (current = number of drakes roosted to that cave, limit = CAVE_UNIT_LIMIT + bonus).
+ * Without it, returns the global summary across all caves.
  */
 export function computeRecruitmentBuildingUsage(
   state: Pick<GameState, 'units' | 'buildings'> & Partial<Pick<GameState, 'specialists' | 'globalSpecialistStorage'>>,
@@ -187,11 +188,9 @@ export function computeRecruitmentBuildingUsage(
   // recruitment on whether THIS cave already has a roosted drake.
   if (buildingType === BuildingType.CRYSTAL_CAVE) {
     if (specificBuildingId) {
-      const current = Object.values(state.units).some(
+      const current = Object.values(state.units).filter(
         (u) => u.faction === Faction.PLAYER && u.roostBuildingId === specificBuildingId,
-      )
-        ? 1
-        : 0;
+      ).length;
       return { current, limit: unitLimit };
     }
     // Global summary (used for informational display when no specific cave is selected).

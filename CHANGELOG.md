@@ -1,5 +1,13 @@
 # Changelog
 
+### v0.106.17 - Conscriptor iterated: Crystal Cave fix, Matriarch restored
+
+Fixed a bug in `computeRecruitmentBuildingUsage` where the Crystal Cave per-cave `current` counter used `.some()` (always returning 0 or 1) instead of a proper count. With The Matriarch specialist active, the per-cave limit rises to 2, but the stale `.some()` check meant a cave with 2 drakes still reported `current=1`, allowing unlimited further recruitment. Changed to `.filter().length` so the cap is correctly enforced.
+
+Renamed specialist `spec_23` from "The Conscriptor" back to "The Matriarch" (restoring the name introduced in v0.106.14). Updated the description to explicitly list Crystal Chambers and Crystal Caves among the recruitment buildings that benefit from the +1 unit-cap bonus.
+
+Added nine new regression tests in `multitude.test.ts` covering Crystal Chamber global limit, Crystal Cave per-cave limit, drake counting at 0/1/2 drakes, and the two-drake cap behaviour with The Matriarch active. Updated the specialist-name assertion in the same file.
+
 ### v0.106.16 - Test suite green: stale expectations repaired
 
 Repaired stale test expectations by deriving combat-damage assertions from active stats, making frozen-slide pathing deterministic with a constrained corridor, and updating corrupted-heal behavior coverage to the current silent no-op contract.

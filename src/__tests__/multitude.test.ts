@@ -1,10 +1,12 @@
 /**
- * Tests for SP-23 The Conscriptor (spec_23): RECRUIT_CAP_BONUS
+ * Tests for SP-23 The Matriarch (spec_23): RECRUIT_CAP_BONUS
  *
  * 1. +RECRUIT_CAP_BONUS unit cap for each recruitment building (Barracks, Archer Camp, Rider Camp, Siege Camp)
  * 2. +RECRUIT_CAP_BONUS unit cap for Stronghold
- * 3. No change when specialist is inactive
- * 4. Scales correctly with multiple buildings
+ * 3. +RECRUIT_CAP_BONUS unit cap for Crystal Chamber
+ * 4. +RECRUIT_CAP_BONUS per-cave cap for Crystal Cave (per-cave path)
+ * 5. No change when specialist is inactive
+ * 6. Scales correctly with multiple buildings
  */
 import { describe, expect, it } from 'vitest';
 import {
@@ -21,8 +23,9 @@ import {
   DestroyBehavior,
   Faction,
   TileType,
+  UnitType,
 } from '../types';
-import type { Building, GameState, Tile } from '../types';
+import type { Building, GameState, Tile, Unit } from '../types';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -89,7 +92,36 @@ function makeBuilding(
   };
 }
 
-function makeBaseState(withConscriptor: boolean, extraBuildings: Record<string, Building> = {}): GameState {
+function makeUnit(id: string, type: UnitType, overrides: Partial<Unit> = {}): Unit {
+  return {
+    id,
+    type,
+    faction: Faction.PLAYER,
+    position: { x: 0, y: 0 },
+    stats: { maxHp: 100, currentHp: 100, attack: 10, defense: 10, moveRange: 1, discoverRadius: 1, triggerRange: 0, movementActions: 1, attackRange: 1 },
+    tags: [],
+    hasMovedThisTurn: false,
+    hasAttackedThisTurn: false,
+    hasConstructedThisTurn: false,
+    hasDestroyedThisTurn: false,
+    hasCapturedThisTurn: false,
+    hasTradedThisTurn: false,
+    hasUsedPostAttackMoveThisTurn: false,
+    bloodlustAttackAvailable: false,
+    xp: 0,
+    level: 1,
+    pinnedUntilTurn: 0,
+    distractionDefPenalty: 0,
+    lastMovedTurn: 0,
+    ...overrides,
+  } as Unit;
+}
+
+function makeBaseState(
+  withConscriptor: boolean,
+  extraBuildings: Record<string, Building> = {},
+  extraUnits: Record<string, Unit> = {},
+): GameState {
   const stronghold = makeBuilding('stronghold', BuildingType.STRONGHOLD, 0, 0, {
     populationCount: 0,
     strongholdNobles: 0,
@@ -103,7 +135,7 @@ function makeBaseState(withConscriptor: boolean, extraBuildings: Record<string, 
   return {
     turn: 1,
     phase: undefined as unknown as GameState['phase'],
-    units: {},
+    units: { ...extraUnits },
     buildings: { [stronghold.id]: stronghold, ...extraBuildings },
     specialists: createInitialSpecialists(),
     globalSpecialistStorage: withConscriptor ? ['spec_23'] : [],
@@ -234,14 +266,101 @@ describe('SP-23 RECRUIT_CAP_BONUS — Stronghold unit limit', () => {
 
 // ── 3. Specialist definition ──────────────────────────────────────────────────
 
-describe('SP-23 Conscriptor specialist definition', () => {
+describe('SP-23 Matriarch specialist definition', () => {
   it('has a RECRUIT_CAP_BONUS effect with default amount', () => {
     const specialists = createInitialSpecialists();
     const spec = specialists['spec_23'];
     expect(spec).toBeDefined();
-    expect(spec.name).toBe('The Conscriptor');
+    expect(spec.name).toBe('The Matriarch');
     expect(spec.effects).toHaveLength(1);
     expect(spec.effects[0].type).toBe('RECRUIT_CAP_BONUS');
     expect(spec.effects[0].params.amount).toBe(ABILITIES.RECRUIT_CAP_BONUS);
+  });
+});
+
+// ── 4. RECRUIT_CAP_BONUS: Crystal Chamber ────────────────────────────────────
+
+describe('SP-23 RECRUIT_CAP_BONUS — Crystal Chamber unit limit', () => {
+  it('increases CRYSTAL_CHAMBER global limit by RECRUIT_CAP_BONUS when active', () => {
+    const chamber = makeBuilding('cc1', BuildingType.CRYSTAL_CHAMBER, 3, 0);
+    const state = makeBaseState(true, { [chamber.id]: chamber });
+    const baseLimit = BUILDING_DEFINITIONS[BuildingType.CRYSTAL_CHAMBER]!.unitLimit!;
+    const { limit } = computeRecruitmentBuildingUsage(state, BuildingType.CRYSTAL_CHAMBER);
+    expect(limit).toBe(baseLimit + ABILITIES.RECRUIT_CAP_BONUS);
+  });
+
+  it('does not change CRYSTAL_CHAMBER limit when inactive', () => {
+    const chamber = makeBuilding('cc1', BuildingType.CRYSTAL_CHAMBER, 3, 0);
+    const state = makeBaseState(false, { [chamber.id]: chamber });
+    const baseLimit = BUILDING_DEFINITIONS[BuildingType.CRYSTAL_CHAMBER]!.unitLimit!;
+    const { limit } = computeRecruitmentBuildingUsage(state, BuildingType.CRYSTAL_CHAMBER);
+    expect(limit).toBe(baseLimit);
+  });
+
+  it('scales with multiple Crystal Chambers', () => {
+    const c1 = makeBuilding('cc1', BuildingType.CRYSTAL_CHAMBER, 3, 0);
+    const c2 = makeBuilding('cc2', BuildingType.CRYSTAL_CHAMBER, 4, 0);
+    const state = makeBaseState(true, { [c1.id]: c1, [c2.id]: c2 });
+    const baseLimit = BUILDING_DEFINITIONS[BuildingType.CRYSTAL_CHAMBER]!.unitLimit!;
+    const { limit } = computeRecruitmentBuildingUsage(state, BuildingType.CRYSTAL_CHAMBER);
+    expect(limit).toBe(2 * (baseLimit + ABILITIES.RECRUIT_CAP_BONUS));
+  });
+});
+
+// ── 5. RECRUIT_CAP_BONUS: Crystal Cave (per-cave path) ───────────────────────
+
+describe('SP-23 RECRUIT_CAP_BONUS — Crystal Cave per-cave limit', () => {
+  it('increases per-cave limit by RECRUIT_CAP_BONUS when active', () => {
+    const cave = makeBuilding('cave1', BuildingType.CRYSTAL_CAVE, 3, 0);
+    const state = makeBaseState(true, { [cave.id]: cave });
+    const baseLimit = BUILDING_DEFINITIONS[BuildingType.CRYSTAL_CAVE]!.unitLimit!;
+    const { limit } = computeRecruitmentBuildingUsage(state, BuildingType.CRYSTAL_CAVE, cave.id);
+    expect(limit).toBe(baseLimit + ABILITIES.RECRUIT_CAP_BONUS);
+  });
+
+  it('does not change per-cave limit when inactive', () => {
+    const cave = makeBuilding('cave1', BuildingType.CRYSTAL_CAVE, 3, 0);
+    const state = makeBaseState(false, { [cave.id]: cave });
+    const baseLimit = BUILDING_DEFINITIONS[BuildingType.CRYSTAL_CAVE]!.unitLimit!;
+    const { limit } = computeRecruitmentBuildingUsage(state, BuildingType.CRYSTAL_CAVE, cave.id);
+    expect(limit).toBe(baseLimit);
+  });
+
+  it('counts roosted drakes correctly — 0 drakes gives current=0', () => {
+    const cave = makeBuilding('cave1', BuildingType.CRYSTAL_CAVE, 3, 0);
+    const state = makeBaseState(true, { [cave.id]: cave });
+    const { current } = computeRecruitmentBuildingUsage(state, BuildingType.CRYSTAL_CAVE, cave.id);
+    expect(current).toBe(0);
+  });
+
+  it('counts roosted drakes correctly — 1 drake gives current=1', () => {
+    const cave = makeBuilding('cave1', BuildingType.CRYSTAL_CAVE, 3, 0);
+    const drake = makeUnit('drake1', UnitType.CRYSTAL_DRAKE, { roostBuildingId: cave.id });
+    const state = makeBaseState(true, { [cave.id]: cave }, { [drake.id]: drake });
+    const { current } = computeRecruitmentBuildingUsage(state, BuildingType.CRYSTAL_CAVE, cave.id);
+    expect(current).toBe(1);
+  });
+
+  it('with Conscriptor active: a second drake is allowed (current=1 < limit=2)', () => {
+    const cave = makeBuilding('cave1', BuildingType.CRYSTAL_CAVE, 3, 0);
+    const drake = makeUnit('drake1', UnitType.CRYSTAL_DRAKE, { roostBuildingId: cave.id });
+    const state = makeBaseState(true, { [cave.id]: cave }, { [drake.id]: drake });
+    const baseLimit = BUILDING_DEFINITIONS[BuildingType.CRYSTAL_CAVE]!.unitLimit!;
+    const { current, limit } = computeRecruitmentBuildingUsage(state, BuildingType.CRYSTAL_CAVE, cave.id);
+    expect(limit).toBe(baseLimit + ABILITIES.RECRUIT_CAP_BONUS);
+    expect(current).toBe(1);
+    expect(current < limit).toBe(true);
+  });
+
+  it('with Conscriptor active: two drakes fill the per-cave cap (current=2 >= limit=2)', () => {
+    const cave = makeBuilding('cave1', BuildingType.CRYSTAL_CAVE, 3, 0);
+    const drake1 = makeUnit('drake1', UnitType.CRYSTAL_DRAKE, { roostBuildingId: cave.id });
+    const drake2 = makeUnit('drake2', UnitType.CRYSTAL_DRAKE, { roostBuildingId: cave.id });
+    const state = makeBaseState(true, { [cave.id]: cave }, { [drake1.id]: drake1, [drake2.id]: drake2 });
+    const baseLimit = BUILDING_DEFINITIONS[BuildingType.CRYSTAL_CAVE]!.unitLimit!;
+    const { current, limit } = computeRecruitmentBuildingUsage(state, BuildingType.CRYSTAL_CAVE, cave.id);
+    expect(limit).toBe(baseLimit + ABILITIES.RECRUIT_CAP_BONUS);
+    expect(current).toBe(2);
+    expect(current >= limit).toBe(true);
   });
 });

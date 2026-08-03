@@ -1987,9 +1987,9 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
     upkeepWood: 0,
   },
   spec_23: {
-    name: 'The Conscriptor',
+    name: 'The Matriarch',
     description:
-      `All your recruitment buildings and each Stronghold can maintain ${ABILITIES.RECRUIT_CAP_BONUS} additional trained unit.`,
+      `All your recruitment buildings (Barracks, Archer Camp, Rider Camp, Siege Camp, Crystal Chambers, Crystal Caves) and each Stronghold can maintain ${ABILITIES.RECRUIT_CAP_BONUS} additional trained unit.`,
     effects: [{ type: 'RECRUIT_CAP_BONUS', params: { amount: ABILITIES.RECRUIT_CAP_BONUS } }],
     upkeepIron: 0,
     upkeepWood: 0,
