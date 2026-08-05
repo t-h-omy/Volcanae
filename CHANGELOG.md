@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.107.0 - Quartermaster specialist
+
+Added specialist spec_26 "Quartermaster". While owned and not dormant, the Quartermaster raises the per-building unit limit of every recruitment building by one (base limit + 1). STRONGHOLD, BARRACKS, ARCHER_CAMP, RIDER_CAMP, and SIEGE_CAMP are all affected. CRYSTAL_CAVE and CRYSTAL_CHAMBER are explicitly excluded. Multipliers such as the Pop Doubling Doctrine still apply to the base limit first; the Quartermaster flat bonus is applied after (e.g. Stronghold with both active: 4 * 2 + 1 = 9). The effect is purely derived at read time via isSpecialistEffectActive and no new persisted state is required.
+
 ### v0.106.16 - Test suite green: stale expectations repaired
 
 Repaired stale test expectations by deriving combat-damage assertions from active stats, making frozen-slide pathing deterministic with a constrained corridor, and updating corrupted-heal behavior coverage to the current silent no-op contract.
