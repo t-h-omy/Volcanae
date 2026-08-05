@@ -165,11 +165,14 @@ export function getRecruitableUnitTypes(buildingType: BuildingType): UnitType[] 
  * Computes the current unit count and cap for a recruitment building type.
  *
  * - `current`: number of player-owned units whose type can be recruited from this building.
- * - `limit`: (number of player-owned buildings of this type) × unitLimit from BUILDING_DEFINITIONS.
+ * - `limit`: (number of player-owned buildings of this type) x unitLimit from BUILDING_DEFINITIONS,
+ *   after applying modifiers in order: multipliers (e.g. Pop Doubling Doctrine) scale the base
+ *   limit, then flat bonuses (e.g. Quartermaster) are added afterwards.
  *   Returns Infinity when the building type has no unitLimit defined (uncapped).
  *
  * For CRYSTAL_CAVE: when `specificBuildingId` is provided, returns per-cave usage
  * (0 or 1 current, limit 1). Without it, returns the global summary across all caves.
+ * CRYSTAL_CAVE and CRYSTAL_CHAMBER are not affected by the Quartermaster flat bonus.
  */
 export function computeRecruitmentBuildingUsage(
   state: Pick<GameState, 'units' | 'buildings'> & Partial<Pick<GameState, 'specialists' | 'globalSpecialistStorage'>>,
@@ -183,11 +186,17 @@ export function computeRecruitmentBuildingUsage(
   const doctrineActive = state.specialists !== undefined && state.globalSpecialistStorage !== undefined
     ? isSpecialistEffectActive(state as GameState, 'POP_DOUBLING_DOCTRINE')
     : false;
+  const quartermasterActive = state.specialists !== undefined && state.globalSpecialistStorage !== undefined
+    ? isSpecialistEffectActive(state as GameState, 'RECRUITMENT_CAP_BONUS')
+    : false;
+  // Multipliers apply to base first; flat bonuses are added after.
+  // CRYSTAL_CAVE and CRYSTAL_CHAMBER are excluded from the Quartermaster flat bonus.
   const unitLimit = doctrineActive ? baseUnitLimit * 2 : baseUnitLimit;
 
   // CRYSTAL_CAVE: each cave has its own cap of 1 drake (enforced per-cave via roostBuildingId).
   // When specificBuildingId is provided, return per-cave usage so the caller can gate
   // recruitment on whether THIS cave already has a roosted drake.
+  // Quartermaster does not affect CRYSTAL_CAVE; return before the flat-bonus step.
   if (buildingType === BuildingType.CRYSTAL_CAVE) {
     if (specificBuildingId) {
       const current = Object.values(state.units).some(
@@ -237,7 +246,12 @@ export function computeRecruitmentBuildingUsage(
     }
   }
 
-  return { current, limit: buildingCount * unitLimit };
+  // Apply the Quartermaster flat bonus after multipliers; CRYSTAL_CHAMBER is excluded.
+  const effectiveUnitLimit = (quartermasterActive && buildingType !== BuildingType.CRYSTAL_CHAMBER)
+    ? unitLimit + ABILITIES.RECRUITMENT_CAP_BONUS
+    : unitLimit;
+
+  return { current, limit: buildingCount * effectiveUnitLimit };
 }
 
 /**

@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.107.0 - Quartermaster specialist
+
+Added specialist spec_26 "Quartermaster". While owned and not dormant, every recruitment building supports one additional unit (per-building unitLimit counts +1). Crystal Caves and Crystal Chambers are explicitly excluded from this bonus. The bonus is a flat addition applied after any multiplier modifiers, so with Pop Doubling Doctrine active the effective per-building limit is base * 2 + 1. The STRONGHOLD is affected. No new persisted state; the effect is derived at read time via isSpecialistEffectActive.
+
 ### v0.106.16 - Test suite green: stale expectations repaired
 
 Repaired stale test expectations by deriving combat-damage assertions from active stats, making frozen-slide pathing deterministic with a constrained corridor, and updating corrupted-heal behavior coverage to the current silent no-op contract.

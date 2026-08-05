@@ -1529,6 +1529,8 @@ export const ABILITIES = {
   HOUSING_CAP_BONUS: 1,
   /** Extra noble capacity per Patrician House added by the Estate Warden specialist */
   NOBLE_HOUSING_CAP_BONUS: 1,
+  /** Extra units each recruitment building supports while the Quartermaster specialist is active (Crystal Caves and Crystal Chambers excluded) */
+  RECRUITMENT_CAP_BONUS: 1,
   /** Number of rows from the lava front that qualify for the Cinderborn ATK bonus */
   CINDERBORN_ROWS: 3,
   /** Flat ATK bonus granted to a unit recruited within CINDERBORN_ROWS of the lava front */
@@ -2005,6 +2007,14 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
     description:
       `Each Patrician House houses ${ABILITIES.NOBLE_HOUSING_CAP_BONUS} extra noble.`,
     effects: [{ type: 'NOBLE_HOUSING_CAP_BONUS', params: { amount: ABILITIES.NOBLE_HOUSING_CAP_BONUS } }],
+    upkeepIron: 0,
+    upkeepWood: 0,
+  },
+  spec_26: {
+    name: 'Quartermaster',
+    description:
+      `\u{1F396} Each recruitment building supports ${ABILITIES.RECRUITMENT_CAP_BONUS} additional unit. Crystal Caves and Crystal Chambers are not affected.`,
+    effects: [{ type: 'RECRUITMENT_CAP_BONUS', params: { amount: ABILITIES.RECRUITMENT_CAP_BONUS } }],
     upkeepIron: 0,
     upkeepWood: 0,
   },
