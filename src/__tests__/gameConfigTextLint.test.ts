@@ -35,11 +35,11 @@ describe('gameConfig text lint', () => {
     assertNoEmDashInStringFields(TAG_INFO);
   });
 
-  it('exposes exactly 25 specialists with unique names', () => {
+  it('exposes exactly 26 specialists with unique names', () => {
     const specialistIds = Object.keys(SPECIALIST_DEFINITIONS);
     const specialistNames = specialistIds.map((id) => SPECIALIST_DEFINITIONS[id].name);
 
-    expect(specialistIds).toHaveLength(25);
+    expect(specialistIds).toHaveLength(26);
     expect(new Set(specialistNames).size).toBe(specialistNames.length);
   });
 });

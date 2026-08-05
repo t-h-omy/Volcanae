@@ -170,6 +170,10 @@ export function getRecruitableUnitTypes(buildingType: BuildingType): UnitType[] 
  *
  * For CRYSTAL_CAVE: when `specificBuildingId` is provided, returns per-cave usage
  * (0 or 1 current, limit 1). Without it, returns the global summary across all caves.
+ *
+ * Modifier ordering rule: multipliers (e.g. POP_DOUBLING_DOCTRINE) apply to the base limit
+ * first; flat bonuses (e.g. RECRUITMENT_CAP_BONUS from the Quartermaster specialist) are
+ * added afterwards. CRYSTAL_CAVE and CRYSTAL_CHAMBER are excluded from the flat bonus.
  */
 export function computeRecruitmentBuildingUsage(
   state: Pick<GameState, 'units' | 'buildings'> & Partial<Pick<GameState, 'specialists' | 'globalSpecialistStorage'>>,
@@ -183,11 +187,13 @@ export function computeRecruitmentBuildingUsage(
   const doctrineActive = state.specialists !== undefined && state.globalSpecialistStorage !== undefined
     ? isSpecialistEffectActive(state as GameState, 'POP_DOUBLING_DOCTRINE')
     : false;
-  const unitLimit = doctrineActive ? baseUnitLimit * 2 : baseUnitLimit;
+  // Multipliers apply to base limit first.
+  let unitLimit = doctrineActive ? baseUnitLimit * 2 : baseUnitLimit;
 
   // CRYSTAL_CAVE: each cave has its own cap of 1 drake (enforced per-cave via roostBuildingId).
   // When specificBuildingId is provided, return per-cave usage so the caller can gate
   // recruitment on whether THIS cave already has a roosted drake.
+  // Quartermaster flat bonus does NOT apply to Crystal Caves (or Crystal Chambers).
   if (buildingType === BuildingType.CRYSTAL_CAVE) {
     if (specificBuildingId) {
       const current = Object.values(state.units).some(
@@ -217,6 +223,15 @@ export function computeRecruitmentBuildingUsage(
       }
     }
     return { current, limit: buildingCount * unitLimit };
+  }
+
+  // Flat bonus: Quartermaster adds RECRUITMENT_CAP_BONUS per building after multipliers.
+  // Crystal Chamber is excluded (Crystal Cave already returned above).
+  const quartermasterActive = state.specialists !== undefined && state.globalSpecialistStorage !== undefined
+    ? isSpecialistEffectActive(state as GameState, 'RECRUITMENT_CAP_BONUS')
+    : false;
+  if (quartermasterActive && buildingType !== BuildingType.CRYSTAL_CHAMBER) {
+    unitLimit += ABILITIES.RECRUITMENT_CAP_BONUS;
   }
 
   const recruitableTypes = new Set(getRecruitableUnitTypes(buildingType));
