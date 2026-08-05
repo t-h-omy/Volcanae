@@ -165,7 +165,7 @@ export function getRecruitableUnitTypes(buildingType: BuildingType): UnitType[] 
  * Computes the current unit count and cap for a recruitment building type.
  *
  * - `current`: number of player-owned units whose type can be recruited from this building.
- * - `limit`: (number of player-owned buildings of this type) x unitLimit from BUILDING_DEFINITIONS.
+ * - `limit`: (number of player-owned buildings of this type) × unitLimit from BUILDING_DEFINITIONS.
  *   Returns Infinity when the building type has no unitLimit defined (uncapped).
  *
  * For CRYSTAL_CAVE: when `specificBuildingId` is provided, returns per-cave usage

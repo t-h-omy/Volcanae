@@ -77,7 +77,7 @@ function makeState(
   buildings: Building[],
   opts: {
     quartermasterActive?: boolean;
-    doctrinActive?: boolean;
+    doctrineActive?: boolean;
   } = {},
 ): Pick<GameState, 'units' | 'buildings'> &
   Partial<Pick<GameState, 'specialists' | 'globalSpecialistStorage'>> {
@@ -87,7 +87,7 @@ function makeState(
   if (opts.quartermasterActive) {
     globalStorage.push('spec_26');
   }
-  if (opts.doctrinActive) {
+  if (opts.doctrineActive) {
     globalStorage.push('spec_23'); // POP_DOUBLING_DOCTRINE spec id
   }
 
@@ -165,7 +165,7 @@ describe('Quartermaster specialist - unit limit per building', () => {
 describe('Quartermaster + Pop Doubling Doctrine interaction', () => {
   it('Stronghold with both active: base * 2 + 1 = 9', () => {
     const sh = makeBuilding('sh1', BuildingType.STRONGHOLD, 0, 0);
-    const state = makeState([sh], { quartermasterActive: true, doctrinActive: true });
+    const state = makeState([sh], { quartermasterActive: true, doctrineActive: true });
     const { limit } = computeRecruitmentBuildingUsage(state, BuildingType.STRONGHOLD);
     expect(limit).toBe(BASE_STRONGHOLD * 2 + BONUS);
   });
