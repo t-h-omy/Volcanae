@@ -113,7 +113,6 @@ interface ArmyProfile {
   /** Ratio of units with moveRange === 1 (static formation indicator). */
   staticRatio: number;
 }
-type ZoneId = number;
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -645,56 +644,6 @@ function getZoneForRow(row: number): number {
 }
 
 /**
- * Approximate frontline stagnation check using current frontline units.
- * Without explicit historical row snapshots in GameState, this checks whether
- * any unit currently on the southernmost enemy row has moved recently.
- */
-function isEnemyFrontlineStagnant(state: GameState): boolean {
-  const STAGNATION_WINDOW_TURNS = 3;
-  const enemyUnits = Object.values(state.units).filter(u => u.faction === Faction.ENEMY);
-  if (enemyUnits.length === 0) return false;
-
-  const southernmostEnemyRow = enemyUnits.reduce((max, u) => Math.max(max, u.position.y), -1);
-  const stagnantSinceTurn = state.turn - STAGNATION_WINDOW_TURNS;
-
-  const frontlineMovedRecently = enemyUnits.some(
-    u => u.position.y === southernmostEnemyRow && u.lastMovedTurn >= stagnantSinceTurn
-  );
-
-  return !frontlineMovedRecently;
-}
-
-/** Estimate of player backline value: weighted sum of mages, archers, crystal chambers. */
-function computePlayerBacklineValue(state: GameState): number {
-  const playerUnits = Object.values(state.units).filter(u => u.faction === Faction.PLAYER);
-  const mageCount = playerUnits.filter(u => u.type === UnitType.MAGE).length;
-  const archerCount = playerUnits.filter(u => u.type === UnitType.ARCHER).length;
-  const crystalChamberCount = Object.values(state.buildings).filter(
-    b => b.faction === Faction.PLAYER && b.type === BuildingType.CRYSTAL_CHAMBER
-  ).length;
-
-  return mageCount * 30 + archerCount * 10 + crystalChamberCount * 20;
-}
-
-/** Number of zones (sanctum regions) where the player has captured the sanctum. */
-function countPlayerControlledZones(state: GameState): number {
-  const controlledZones = new Set<number>();
-  for (const building of Object.values(state.buildings)) {
-    if (building.faction !== Faction.PLAYER) continue;
-    if (building.type !== BuildingType.INFERNALSANCTUM) continue;
-    controlledZones.add(getZoneForRow(building.position.y));
-  }
-  return controlledZones.size;
-}
-
-/** Count of enemy units of a specific type in a given zone. */
-function countEnemyUnitTypeInZone(state: GameState, zoneId: ZoneId, type: UnitType): number {
-  return Object.values(state.units).filter(
-    u => u.faction === Faction.ENEMY && u.type === type && getZoneForRow(u.position.y) === zoneId
-  ).length;
-}
-
-/**
  * Scores all eligible unit types for a single LAVA_LAIR or INFERNAL_SANCTUM
  * building and returns them sorted by score descending.
  *
@@ -730,7 +679,6 @@ function scoreRecruitmentForBuilding(
   building: Building,
 ): { type: UnitType; score: number }[] {
   const R = AI_RECRUITMENT;
-  const C = AI_RECRUITMENT;
 
   // Ember-gated eligible unit types; Emberlings only spawn from Ember Nests
   const eligibleTypes: UnitType[] = (Object.entries(UNIT_DEFINITIONS) as [UnitType, { enemyUnlockEmber?: number }][])
@@ -854,106 +802,6 @@ function scoreRecruitmentForBuilding(
       // Penalty when siege is over-represented in zone
       if (zoneProfile.totalCount > 0 && zoneProfile.siegeRatio >= R.SIEGE_OVERREPRESENTED_THRESHOLD) {
         score -= R.SIEGE_PENALTY_OVERREPRESENTED;
-      }
-    }
-
-    // ── REAPER scoring ──────────────────────────────────────────
-    if (unitType === UnitType.REAPER) {
-      if (playerProfile.meleeRatio >= 0.5 && playerProfile.totalCount >= 6) {
-        score += C.REAPER_BONUS_CLUSTER_TARGET;
-      }
-      if (playerProfile.slowMeleeRatio >= 0.4) {
-        score += C.REAPER_BONUS_SLOW_MELEE_HEAVY;
-      }
-      if (playerProfile.fastRatio >= 0.3) {
-        score += C.REAPER_PENALTY_FAST_PLAYER;
-      }
-    }
-
-    // ── LANCER scoring ──────────────────────────────────────────
-    if (unitType === UnitType.LANCER) {
-      if (playerProfile.rangedCount >= 2 && playerProfile.meleeCount >= 2) {
-        score += C.LANCER_BONUS_BACKLINE_FORMATION;
-      }
-      if (playerProfile.mageCount > 0) {
-        score += C.LANCER_BONUS_MAGE_PRESENT * playerProfile.mageCount;
-      }
-      if (countEnemyUnitTypeInZone(state, buildingZone, UnitType.LANCER) >= 2) {
-        score += C.LANCER_PENALTY_OVERREPRESENTED;
-      }
-    }
-
-    // ── BULLWARK scoring ─────────────────────────────────────────
-    if (unitType === UnitType.BULLWARK) {
-      if (playerProfile.guardCount >= 2) {
-        score += C.BULLWARK_BONUS_GUARDS_PRESENT * playerProfile.guardCount;
-      }
-      if (zoneProfile.meleeCount >= 3) {
-        score += C.BULLWARK_BONUS_MELEE_PROTECTION_NEEDED;
-      }
-      if (playerProfile.rangedRatio >= 0.4) {
-        score += C.BULLWARK_PENALTY_PLAYER_RANGED;
-      }
-    }
-
-    // ── KINDLER scoring ───────────────────────────────────────
-    if (unitType === UnitType.KINDLER) {
-      if (playerProfile.slowMeleeRatio >= 0.4 && playerProfile.rangedRatio >= 0.3) {
-        score += C.KINDLER_BONUS_STATIC_FORMATION;
-      }
-      if (zoneProfile.rangedCount < 2) {
-        score += C.KINDLER_BONUS_RANGED_GAP;
-      }
-      if (playerProfile.fastRatio >= 0.4) {
-        score += C.KINDLER_PENALTY_MOBILE_PLAYER;
-      }
-    }
-
-    // ── RIFTWORM scoring ────────────────────────────────────────
-    if (unitType === UnitType.RIFTWORM) {
-      if (playerProfile.totalCount >= 6 && playerProfile.meleeRatio >= 0.4) {
-        score += C.RIFTWORM_BONUS_DENSE_FORMATION;
-      }
-      if (playerProfile.mageCount > 0 || playerProfile.rangedCount >= 3) {
-        score += C.RIFTWORM_BONUS_BACKLINE_TARGETS;
-      }
-      if (isEnemyFrontlineStagnant(state)) {
-        score += C.RIFTWORM_BONUS_FRONTLINE_BYPASS;
-      }
-      if (playerProfile.fastRatio >= 0.3) {
-        score += C.RIFTWORM_PENALTY_SPREAD_PLAYER;
-      }
-    }
-
-    // ── GRIMBEAK scoring ───────────────────────────────────────────
-    if (unitType === UnitType.GRIMBEAK) {
-      if (playerProfile.summonedCount > 0) {
-        score += C.GRIMBEAK_BONUS_SUMMONED_PRESENT * playerProfile.summonedCount;
-      }
-      if (playerProfile.brandmarkActive) {
-        score += C.GRIMBEAK_BONUS_BRANDMARK_ACTIVE;
-      }
-      if (playerProfile.meleeRatio >= 0.5 && playerProfile.totalCount >= 6) {
-        score += C.GRIMBEAK_BONUS_CLUSTER_TARGET;
-      }
-    }
-
-    // ── RIFT_LORD scoring ───────────────────────────────────────
-    if (unitType === UnitType.RIFT_LORD) {
-      // Hard limit: max 1 hexcaster per zone
-      if (countEnemyUnitTypeInZone(state, buildingZone, UnitType.RIFT_LORD) >= 1) {
-        score = -Infinity;
-      } else {
-        const backlineValue = computePlayerBacklineValue(state);
-        if (backlineValue >= C.RIFT_LORD_BACKLINE_THRESHOLD) {
-          score += C.RIFT_LORD_BONUS_HIGH_BACKLINE_VALUE;
-        }
-        if (countPlayerControlledZones(state) >= 2) {
-          score += C.RIFT_LORD_BONUS_PLAYER_DOMINATING;
-        }
-        if (zoneProfile.totalCount < 2) {
-          score += C.RIFT_LORD_PENALTY_NO_PORTAL_USERS;
-        }
       }
     }
 
