@@ -5,8 +5,8 @@
  * produce/set callback. Call it only after the set(produce(...)) completes.
  */
 
-import { HINTS } from './hintConfig';
-import type { HintId } from './hintConfig';
+import { HINTS } from '../config/hints';
+import type { HintId } from '../config/hints';
 import { useHintOptionsStore } from './hintOptionsStore';
 import { useHintStore } from './hintStore';
 import { useGameStore } from './gameStore';

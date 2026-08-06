@@ -14,6 +14,11 @@ import * as techCfg from '../../config/tech';
 import * as specialistsCfg from '../../config/specialists';
 import * as enemyAiCfg from '../../config/enemyAi';
 import * as saveCfg from '../../config/save';
+import { UI } from '../../config/ui';
+import { RENDER } from '../../config/render';
+import { ANIMATION } from '../../config/animation';
+import { INPUT } from '../../config/input';
+import { HINTS } from '../../config/hints';
 
 describe('gameConfig structure', () => {
   it('exposes merged ABILITIES constants as numbers', () => {
@@ -52,5 +57,13 @@ describe('gameConfig structure', () => {
     for (const m of modules) {
       expect(Object.keys(m).every(k => k in cfg)).toBe(true);
     }
+  });
+
+  it('presentation and hint config modules export expected constants', () => {
+    expect(typeof UI).toBe('object');
+    expect(typeof RENDER).toBe('object');
+    expect(typeof ANIMATION).toBe('object');
+    expect(typeof INPUT).toBe('object');
+    expect(typeof HINTS.GLOBAL_MAX_SHOWS).toBe('number');
   });
 });

@@ -7,7 +7,7 @@ import type { Draft } from 'immer';
 import type { GameState } from './types';
 import { Faction, GamePhase, UnitType } from './types';
 import { UNIT_DEFINITIONS, XP } from './gameConfig';
-import { ANIMATION } from './animationConfig';
+import { ANIMATION } from '../config/animation';
 import { useFloaterStore } from './floaterStore';
 import { useCombatAnimationStore } from './combatAnimationStore';
 

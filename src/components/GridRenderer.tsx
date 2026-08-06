@@ -15,10 +15,10 @@ import { getConstructionOptionsForTile } from '../constructionSystem';
 import { MAP, UNIT_DEFINITIONS, BUILDING_DEFINITIONS, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, CORRUPTED_SUPPRESSED_TAGS, RESOURCES } from '../gameConfig';
 import { getStrongholdEffectiveCap } from '../techSystem';
 import { computeRecruitmentBuildingUsage, canBuildingEverRecruit, getEffectiveHousingPopulationCap } from '../resourceSystem';
-import { ANIMATION } from '../animationConfig';
-import { UI } from '../uiConfig';
-import { RENDER } from '../renderConfig';
-import { INPUT } from '../inputConfig';
+import { ANIMATION } from '../../config/animation';
+import { UI } from '../../config/ui';
+import { RENDER } from '../../config/render';
+import { INPUT } from '../../config/input';
 import { computeLevelFromXp } from '../levelSystem';
 import { useZoomStore } from '../zoomStore';
 import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE, TILE_STATUS_SPRITE, RESOURCE_SPRITE, ENEMY_BUILDING_SPRITE, PLAYER_BUILDING_SPRITE, TERRAIN_RESOURCE_SPRITE, CRYSTAL_CHAMBER_ACTIVE_SPRITE, CRYSTAL_CAVE_ACTIVE_SPRITE, ENEMY_UNIT_SPRITE, PLAYER_UNIT_SPRITE, TUNNEL_HOLE_SPRITE, TUNNEL_EARTHQUAKE_SPRITE, PORTAL_ENTRANCE_SPRITE, PORTAL_EXIT_SPRITE } from '../assetRegistry';
@@ -2393,7 +2393,7 @@ function CleaveVfxLayer({ tileSize }: { tileSize: number }) {
   const cleaveVfxList = useCombatAnimationStore((s) => s.cleaveVfxList);
   // The ring element has 0×0 size with a box-shadow spread of 3px.
   // To visually expand to CLEAVE_VFX_RADIUS_TILES tile widths the scale must equal
-  // (CLEAVE_VFX_RADIUS_TILES * tileSize) / 3. The constant is in animationConfig.ts.
+  // (CLEAVE_VFX_RADIUS_TILES * tileSize) / 3. The constant is in config/animation.ts.
   const finalScale = Math.round((ANIMATION.CLEAVE_VFX_RADIUS_TILES * tileSize) / 3);
   return (
     <div className="cleave-vfx-layer">

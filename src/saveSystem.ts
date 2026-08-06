@@ -10,7 +10,7 @@
 import type { GameState } from './types';
 import { UnitType, UnitTag, BuildingType, TileStatus } from './types';
 import { TECH_TREE, POPULATION, SPECIALIST_DEFINITIONS, SAVE, ABILITIES } from './gameConfig';
-import { ALL_HINT_IDS } from './hintConfig';
+import { ALL_HINT_IDS } from '../config/hints';
 import type { Difficulty } from './types';
 
 // ============================================================================

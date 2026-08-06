@@ -3,12 +3,9 @@
  * Single source of truth for hint IDs, texts, and global constants.
  */
 
-import {
-  POPULATION,
-  TRAINING,
-  BURNING_TILE_DAMAGE,
-  CRYSTAL_CHAMBER_CONFIG,
-} from './gameConfig';
+import { POPULATION, TRAINING } from './economy';
+import { BURNING_TILE_DAMAGE } from './tileStatus';
+import { CRYSTAL_CHAMBER_CONFIG } from './buildings';
 
 // ============================================================================
 // CONSTANTS

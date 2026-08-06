@@ -7,7 +7,7 @@
  */
 
 import { create } from 'zustand';
-import { RENDER } from './renderConfig';
+import { RENDER } from '../config/render';
 
 interface ZoomState {
   zoom: number;

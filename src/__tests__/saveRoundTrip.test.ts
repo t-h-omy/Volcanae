@@ -14,7 +14,7 @@ import 'fake-indexeddb/auto';
 import { IDBFactory } from 'fake-indexeddb';
 import { generateInitialGameState } from '../mapGenerator';
 import { saveSlot, saveSlotStrict, loadSlot, listSlots, saveSeenHintsForSlot } from '../saveSystem';
-import { ALL_HINT_IDS } from '../hintConfig';
+import { ALL_HINT_IDS } from '../../config/hints';
 import { BuildingType, DestroyBehavior, UnitTag } from '../types';
 import { ABILITIES, MARKET } from '../gameConfig';
 import type { GameState } from '../types';
