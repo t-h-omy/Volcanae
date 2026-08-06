@@ -315,7 +315,7 @@ export const UnitTag = {
   NO_GRAVESTONE: 'NO_GRAVESTONE',
   /** Unit leaves a Gravestone on death (granted by Necromancer tech tree). */
   LEAVES_GRAVESTONE: 'LEAVES_GRAVESTONE',
-  // ── Counter tags (enemy units that break dominant player strategies) ──────
+  // ── Combat modifier tags ──────
   /** On hit, deals AoE damage to enemy units adjacent to both attacker and defender. Ignores Phalanx defense. */
   CLEAVE: 'CLEAVE',
   /** On hit, deals 50% damage to the target and full damage to the unit/building directly behind the target. */

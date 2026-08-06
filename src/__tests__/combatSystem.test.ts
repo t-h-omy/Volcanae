@@ -23,7 +23,7 @@ import { getRageAttackContext, resolveAttack } from '../combatSystem';
 import { UnitType, Faction, UnitTag, TileType, TileStatus } from '../types';
 import type { GameState, Unit, Tile, Building, GameStats } from '../types';
 import type { GameEvent } from '../gameEvents';
-import { PIERCE_PRIMARY_DAMAGE_MULTIPLIER, PIERCE_SECONDARY_DAMAGE_MULTIPLIER, UNIT_DEFINITIONS } from '../gameConfig';
+import { ABILITIES, UNIT_DEFINITIONS } from '../gameConfig';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -368,7 +368,7 @@ describe('Change 5 – PIERCE rear-unit damage', () => {
   }
 
   /**
-   * 5.1 Rear unit with high defense takes fullPrimaryDamage × PIERCE_SECONDARY_DAMAGE_MULTIPLIER, NOT 1.
+   * 5.1 Rear unit with high defense takes fullPrimaryDamage × ABILITIES.PIERCE_SECONDARY_DAMAGE_MULTIPLIER, NOT 1.
    *
    * Before the fix: Math.max(1, 45 − 50) = 1.
    * After the fix:  Math.max(1, 45)       = 45.
@@ -397,7 +397,7 @@ describe('Change 5 – PIERCE rear-unit damage', () => {
     );
     const expectedRearDamage = Math.max(
       1,
-      Math.round(expectedFullPrimaryDamage * PIERCE_SECONDARY_DAMAGE_MULTIPLIER),
+      Math.round(expectedFullPrimaryDamage * ABILITIES.PIERCE_SECONDARY_DAMAGE_MULTIPLIER),
     );
 
     // HP lost must match the full-primary-based rear damage path, not a rear-defense subtraction.
@@ -441,7 +441,7 @@ describe('Change 5 – PIERCE rear-unit damage', () => {
     );
     const expectedRearDamage = Math.max(
       1,
-      Math.round(expectedFullPrimaryDamage * PIERCE_SECONDARY_DAMAGE_MULTIPLIER),
+      Math.round(expectedFullPrimaryDamage * ABILITIES.PIERCE_SECONDARY_DAMAGE_MULTIPLIER),
     );
 
     expect(hpLostLowDef).toBe(expectedRearDamage);
@@ -476,16 +476,16 @@ describe('Change 5 – PIERCE rear-unit damage', () => {
     );
     const expectedRearDamage = Math.max(
       1,
-      Math.round(expectedFullPrimaryDamage * PIERCE_SECONDARY_DAMAGE_MULTIPLIER),
+      Math.round(expectedFullPrimaryDamage * ABILITIES.PIERCE_SECONDARY_DAMAGE_MULTIPLIER),
     );
     expect((pierceEvt as { amount: number }).amount).toBe(expectedRearDamage);
   });
 
   /**
-   * 5.4 Front unit still takes the reduced (PIERCE_PRIMARY_DAMAGE_MULTIPLIER) damage.
+   * 5.4 Front unit still takes the reduced (ABILITIES.PIERCE_PRIMARY_DAMAGE_MULTIPLIER) damage.
    * The fix must not change the front defender's damage.
    *
-   * Front damage must match floor(fullPrimaryDamage × PIERCE_PRIMARY_DAMAGE_MULTIPLIER)
+   * Front damage must match floor(fullPrimaryDamage × ABILITIES.PIERCE_PRIMARY_DAMAGE_MULTIPLIER)
    * with fullPrimaryDamage derived from the active combat stats.
    */
   it('front unit still takes pierce-multiplier-reduced damage', () => {
@@ -505,7 +505,7 @@ describe('Change 5 – PIERCE rear-unit damage', () => {
       frontDef.stats.defense,
     );
     const expectedFrontDamage = Math.floor(
-      expectedFullPrimaryDamage * PIERCE_PRIMARY_DAMAGE_MULTIPLIER,
+      expectedFullPrimaryDamage * ABILITIES.PIERCE_PRIMARY_DAMAGE_MULTIPLIER,
     );
     expect(frontHpLost).toBe(expectedFrontDamage);
   });

@@ -1,6 +1,6 @@
 import type { ActiveWaveTheme, GameState, Unit, WaveThemeEntry } from './types';
 import { BuildingType, Faction, UnitTag, UnitType } from './types';
-import { AI_RECRUITMENT, COUNTER_UNIT_SCORING, ENEMY_WAVE_THEME, MAP, PUNCTURE_STUN_BASE_DEF_THRESHOLD, UNIT_DEFINITIONS } from './gameConfig';
+import { ABILITIES, AI_RECRUITMENT, ENEMY_WAVE_THEME, MAP, UNIT_DEFINITIONS } from './gameConfig';
 
 type RandomSource = () => number;
 
@@ -178,7 +178,7 @@ function buildArmyProfile(units: Unit[]): ArmyProfile {
 
     if (unit.type === UnitType.MAGE) mageCount++;
     if (unit.type === UnitType.GUARD) guardCount++;
-    if (u.defense > PUNCTURE_STUN_BASE_DEF_THRESHOLD) highDefCount++;
+    if (u.defense > ABILITIES.PUNCTURE_STUN_BASE_DEF_THRESHOLD) highDefCount++;
     if (unit.tags.includes(UnitTag.SUMMONED)) summonedCount++;
     if (unit.tags.includes(UnitTag.BRANDMARKED)) brandmarkActive = true;
     if (u.moveRange === 1) staticCount++;
@@ -482,7 +482,7 @@ export function scoreCountersForPlayer(
   state: GameState,
   options?: { zoneId?: number },
 ): { type: UnitType; score: number }[] {
-  const C = COUNTER_UNIT_SCORING;
+  const C = AI_RECRUITMENT;
   const counterTypes: UnitType[] = [
     UnitType.REAPER,
     UnitType.LANCER,

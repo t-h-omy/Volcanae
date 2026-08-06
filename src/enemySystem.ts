@@ -7,7 +7,7 @@ import type { GameState, Unit, Building, Position } from './types';
 import type { Draft } from 'immer';
 import { current, produce } from 'immer';
 import { Faction, UnitType, UnitTag, BuildingType, TileType, TileStatus } from './types';
-import { UNIT_DEFINITIONS, ENEMY, MAP, TERRAIN, AI_SCORING, AI_RECRUITMENT, XP, DIFFICULTY_MULTIPLIER, SANCTUM_COLLAPSE, ABILITIES, COUNTER_UNIT_SCORING, PUNCTURE_STUN_BASE_DEF_THRESHOLD, EMBER_PORTAL_BASE_USE_SCORE, EMBER_PORTAL_DISTANCE_PENALTY, EMBER_PORTAL_MAX_USERS_PER_TURN } from './gameConfig';
+import { UNIT_DEFINITIONS, ENEMY, MAP, TERRAIN, AI_SCORING, AI_RECRUITMENT, XP, DIFFICULTY_MULTIPLIER, SANCTUM_COLLAPSE, ABILITIES } from './gameConfig';
 import { resolveAttack, calculateCombat, resolveBuildingAttack, buildingToCombatant, calculateCombatFromStats, unitToCombatant, resolveAttackOnBuilding, detectBrandmarkSpawnPos, updateBerserkLatch } from './combatSystem';
 import { isTileWithinEdgeCircleRange, edgeCircleDistance } from './rangeUtils';
 import { initiateCapture, canCapture } from './captureSystem';
@@ -104,7 +104,7 @@ interface ArmyProfile {
   mageCount: number;
   /** Raw count of Guard units. */
   guardCount: number;
-  /** Count of units with base DEF > PUNCTURE_STUN_BASE_DEF_THRESHOLD. */
+  /** Count of units with base DEF > ABILITIES.PUNCTURE_STUN_BASE_DEF_THRESHOLD. */
   highDefCount: number;
   /** Count of SUMMONED units (Ember Demons, Skeletons). */
   summonedCount: number;
@@ -113,7 +113,6 @@ interface ArmyProfile {
   /** Ratio of units with moveRange === 1 (static formation indicator). */
   staticRatio: number;
 }
-type ZoneId = number;
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -481,7 +480,7 @@ function buildArmyProfile(units: Unit[]): ArmyProfile {
 
     if (unit.type === UnitType.MAGE) mageCount++;
     if (unit.type === UnitType.GUARD) guardCount++;
-    if (u.defense > PUNCTURE_STUN_BASE_DEF_THRESHOLD) highDefCount++;
+    if (u.defense > ABILITIES.PUNCTURE_STUN_BASE_DEF_THRESHOLD) highDefCount++;
     if (unit.tags.includes(UnitTag.SUMMONED)) summonedCount++;
     if (unit.tags.includes(UnitTag.BRANDMARKED)) brandmarkActive = true;
     if (u.moveRange === 1) staticCount++;
@@ -645,56 +644,6 @@ function getZoneForRow(row: number): number {
 }
 
 /**
- * Approximate frontline stagnation check using current frontline units.
- * Without explicit historical row snapshots in GameState, this checks whether
- * any unit currently on the southernmost enemy row has moved recently.
- */
-function isEnemyFrontlineStagnant(state: GameState): boolean {
-  const STAGNATION_WINDOW_TURNS = 3;
-  const enemyUnits = Object.values(state.units).filter(u => u.faction === Faction.ENEMY);
-  if (enemyUnits.length === 0) return false;
-
-  const southernmostEnemyRow = enemyUnits.reduce((max, u) => Math.max(max, u.position.y), -1);
-  const stagnantSinceTurn = state.turn - STAGNATION_WINDOW_TURNS;
-
-  const frontlineMovedRecently = enemyUnits.some(
-    u => u.position.y === southernmostEnemyRow && u.lastMovedTurn >= stagnantSinceTurn
-  );
-
-  return !frontlineMovedRecently;
-}
-
-/** Estimate of player backline value: weighted sum of mages, archers, crystal chambers. */
-function computePlayerBacklineValue(state: GameState): number {
-  const playerUnits = Object.values(state.units).filter(u => u.faction === Faction.PLAYER);
-  const mageCount = playerUnits.filter(u => u.type === UnitType.MAGE).length;
-  const archerCount = playerUnits.filter(u => u.type === UnitType.ARCHER).length;
-  const crystalChamberCount = Object.values(state.buildings).filter(
-    b => b.faction === Faction.PLAYER && b.type === BuildingType.CRYSTAL_CHAMBER
-  ).length;
-
-  return mageCount * 30 + archerCount * 10 + crystalChamberCount * 20;
-}
-
-/** Number of zones (sanctum regions) where the player has captured the sanctum. */
-function countPlayerControlledZones(state: GameState): number {
-  const controlledZones = new Set<number>();
-  for (const building of Object.values(state.buildings)) {
-    if (building.faction !== Faction.PLAYER) continue;
-    if (building.type !== BuildingType.INFERNALSANCTUM) continue;
-    controlledZones.add(getZoneForRow(building.position.y));
-  }
-  return controlledZones.size;
-}
-
-/** Count of enemy units of a specific type in a given zone. */
-function countEnemyUnitTypeInZone(state: GameState, zoneId: ZoneId, type: UnitType): number {
-  return Object.values(state.units).filter(
-    u => u.faction === Faction.ENEMY && u.type === type && getZoneForRow(u.position.y) === zoneId
-  ).length;
-}
-
-/**
  * Scores all eligible unit types for a single LAVA_LAIR or INFERNAL_SANCTUM
  * building and returns them sorted by score descending.
  *
@@ -730,7 +679,6 @@ function scoreRecruitmentForBuilding(
   building: Building,
 ): { type: UnitType; score: number }[] {
   const R = AI_RECRUITMENT;
-  const C = COUNTER_UNIT_SCORING;
 
   // Ember-gated eligible unit types; Emberlings only spawn from Ember Nests
   const eligibleTypes: UnitType[] = (Object.entries(UNIT_DEFINITIONS) as [UnitType, { enemyUnlockEmber?: number }][])
@@ -762,17 +710,13 @@ function scoreRecruitmentForBuilding(
       [UnitType.LAVA_ARCHER]: R.BASE_SCORE_ARCHER,
       [UnitType.LAVA_RIDER]: R.BASE_SCORE_RIDER,
       [UnitType.LAVA_SIEGE]: R.BASE_SCORE_SIEGE,
-      [UnitType.REAPER]: C.BASE_SCORE_REAPER,
-      [UnitType.LANCER]: C.BASE_SCORE_LANCER,
-      [UnitType.BULLWARK]: C.BASE_SCORE_BULLWARK,
-      [UnitType.KINDLER]: C.BASE_SCORE_KINDLER,
-      [UnitType.GRIMBEAK]: C.BASE_SCORE_GRIMBEAK,
-      [UnitType.RIFTWORM]: C.BASE_SCORE_RIFTWORM,
-      [UnitType.RIFT_LORD]: C.BASE_SCORE_RIFT_LORD,
     };
     let score = baseScores[unitType] ?? 0;
     if (isCounterThemeUnitType(unitType)) {
-      score = counterScoresByType.get(unitType) ?? score;
+      const counterScore = counterScoresByType.get(unitType);
+      // Counter-theme units eligible by ember are always scored by scoreCountersForPlayer with unlock lookahead coverage.
+      if (counterScore === undefined) continue;
+      score = counterScore;
       results.push({ type: unitType, score });
       continue;
     }
@@ -858,106 +802,6 @@ function scoreRecruitmentForBuilding(
       // Penalty when siege is over-represented in zone
       if (zoneProfile.totalCount > 0 && zoneProfile.siegeRatio >= R.SIEGE_OVERREPRESENTED_THRESHOLD) {
         score -= R.SIEGE_PENALTY_OVERREPRESENTED;
-      }
-    }
-
-    // ── REAPER scoring ──────────────────────────────────────────
-    if (unitType === UnitType.REAPER) {
-      if (playerProfile.meleeRatio >= 0.5 && playerProfile.totalCount >= 6) {
-        score += C.REAPER_BONUS_CLUSTER_TARGET;
-      }
-      if (playerProfile.slowMeleeRatio >= 0.4) {
-        score += C.REAPER_BONUS_SLOW_MELEE_HEAVY;
-      }
-      if (playerProfile.fastRatio >= 0.3) {
-        score += C.REAPER_PENALTY_FAST_PLAYER;
-      }
-    }
-
-    // ── LANCER scoring ──────────────────────────────────────────
-    if (unitType === UnitType.LANCER) {
-      if (playerProfile.rangedCount >= 2 && playerProfile.meleeCount >= 2) {
-        score += C.LANCER_BONUS_BACKLINE_FORMATION;
-      }
-      if (playerProfile.mageCount > 0) {
-        score += C.LANCER_BONUS_MAGE_PRESENT * playerProfile.mageCount;
-      }
-      if (countEnemyUnitTypeInZone(state, buildingZone, UnitType.LANCER) >= 2) {
-        score += C.LANCER_PENALTY_OVERREPRESENTED;
-      }
-    }
-
-    // ── BULLWARK scoring ─────────────────────────────────────────
-    if (unitType === UnitType.BULLWARK) {
-      if (playerProfile.guardCount >= 2) {
-        score += C.BULLWARK_BONUS_GUARDS_PRESENT * playerProfile.guardCount;
-      }
-      if (zoneProfile.meleeCount >= 3) {
-        score += C.BULLWARK_BONUS_MELEE_PROTECTION_NEEDED;
-      }
-      if (playerProfile.rangedRatio >= 0.4) {
-        score += C.BULLWARK_PENALTY_PLAYER_RANGED;
-      }
-    }
-
-    // ── KINDLER scoring ───────────────────────────────────────
-    if (unitType === UnitType.KINDLER) {
-      if (playerProfile.slowMeleeRatio >= 0.4 && playerProfile.rangedRatio >= 0.3) {
-        score += C.KINDLER_BONUS_STATIC_FORMATION;
-      }
-      if (zoneProfile.rangedCount < 2) {
-        score += C.KINDLER_BONUS_RANGED_GAP;
-      }
-      if (playerProfile.fastRatio >= 0.4) {
-        score += C.KINDLER_PENALTY_MOBILE_PLAYER;
-      }
-    }
-
-    // ── RIFTWORM scoring ────────────────────────────────────────
-    if (unitType === UnitType.RIFTWORM) {
-      if (playerProfile.totalCount >= 6 && playerProfile.meleeRatio >= 0.4) {
-        score += C.RIFTWORM_BONUS_DENSE_FORMATION;
-      }
-      if (playerProfile.mageCount > 0 || playerProfile.rangedCount >= 3) {
-        score += C.RIFTWORM_BONUS_BACKLINE_TARGETS;
-      }
-      if (isEnemyFrontlineStagnant(state)) {
-        score += C.RIFTWORM_BONUS_FRONTLINE_BYPASS;
-      }
-      if (playerProfile.fastRatio >= 0.3) {
-        score += C.RIFTWORM_PENALTY_SPREAD_PLAYER;
-      }
-    }
-
-    // ── GRIMBEAK scoring ───────────────────────────────────────────
-    if (unitType === UnitType.GRIMBEAK) {
-      if (playerProfile.summonedCount > 0) {
-        score += C.GRIMBEAK_BONUS_SUMMONED_PRESENT * playerProfile.summonedCount;
-      }
-      if (playerProfile.brandmarkActive) {
-        score += C.GRIMBEAK_BONUS_BRANDMARK_ACTIVE;
-      }
-      if (playerProfile.meleeRatio >= 0.5 && playerProfile.totalCount >= 6) {
-        score += C.GRIMBEAK_BONUS_CLUSTER_TARGET;
-      }
-    }
-
-    // ── RIFT_LORD scoring ───────────────────────────────────────
-    if (unitType === UnitType.RIFT_LORD) {
-      // Hard limit: max 1 hexcaster per zone
-      if (countEnemyUnitTypeInZone(state, buildingZone, UnitType.RIFT_LORD) >= 1) {
-        score = -Infinity;
-      } else {
-        const backlineValue = computePlayerBacklineValue(state);
-        if (backlineValue >= C.RIFT_LORD_BACKLINE_THRESHOLD) {
-          score += C.RIFT_LORD_BONUS_HIGH_BACKLINE_VALUE;
-        }
-        if (countPlayerControlledZones(state) >= 2) {
-          score += C.RIFT_LORD_BONUS_PLAYER_DOMINATING;
-        }
-        if (zoneProfile.totalCount < 2) {
-          score += C.RIFT_LORD_PENALTY_NO_PORTAL_USERS;
-        }
       }
     }
 
@@ -2310,14 +2154,14 @@ function scoreActionsForUnit(
       if (portal.exitPos.y <= portal.entrancePos.y) continue;
       // Skip if usage limit for this turn is already hit.
       const usersThisTurn = portalUsageIntents.get(portal.id) ?? 0;
-      if (usersThisTurn >= EMBER_PORTAL_MAX_USERS_PER_TURN) continue;
+      if (usersThisTurn >= ABILITIES.EMBER_PORTAL_MAX_USERS_PER_TURN) continue;
 
       // Check reachability using BFS path existence.
       const path = findBfsPath(unit.position, portal.entrancePos, state);
       if (path.length === 0 && (unit.position.x !== portal.entrancePos.x || unit.position.y !== portal.entrancePos.y)) continue;
 
       const distance = edgeCircleDistance(unit.position.x, unit.position.y, portal.entrancePos.x, portal.entrancePos.y);
-      const score = EMBER_PORTAL_BASE_USE_SCORE - (distance * EMBER_PORTAL_DISTANCE_PENALTY);
+      const score = ABILITIES.EMBER_PORTAL_BASE_USE_SCORE - (distance * ABILITIES.EMBER_PORTAL_DISTANCE_PENALTY);
       if (score <= 0) continue;
 
       candidates.push({
