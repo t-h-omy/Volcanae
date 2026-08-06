@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.108.0 - gameplay config split into config/ folder
+
+Physically split the monolithic `src/gameConfig.ts` (~2900 lines) into 13 domain modules in a new top-level `config/` folder (map, tileStatus, economy, progression, magic, abilities, units, buildings, tagInfo, tech, specialists, enemyAi, save). `src/gameConfig.ts` is now a permanent compatibility barrel (`export * from '../config/...'`) so all 31 existing consumers keep working unchanged. Zero export renames, zero value changes. `tsconfig.app.json` updated to include the new `config/` directory. Barrel invariant test added to `gameConfigStructure.test.ts`.
+
 ### v0.107.1 - gameConfig constant consolidation
 
 Consolidated counter-tag and portal or tunnel balance constants into `ABILITIES`, merged advanced enemy counter recruitment scoring into `AI_RECRUITMENT`, removed dead counter fallback scoring paths, removed the `GAME_CONFIG` aggregate default export, and updated all affected systems and tests to consume the new `ABILITIES.*` and `AI_RECRUITMENT.*` references without gameplay value or description text changes.

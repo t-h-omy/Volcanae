@@ -1,6 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { ABILITIES, AI_RECRUITMENT } from '../gameConfig';
 import * as cfg from '../gameConfig';
+import * as mapCfg from '../../config/map';
+import * as tileStatusCfg from '../../config/tileStatus';
+import * as economyCfg from '../../config/economy';
+import * as progressionCfg from '../../config/progression';
+import * as magicCfg from '../../config/magic';
+import * as abilitiesCfg from '../../config/abilities';
+import * as unitsCfg from '../../config/units';
+import * as buildingsCfg from '../../config/buildings';
+import * as tagInfoCfg from '../../config/tagInfo';
+import * as techCfg from '../../config/tech';
+import * as specialistsCfg from '../../config/specialists';
+import * as enemyAiCfg from '../../config/enemyAi';
+import * as saveCfg from '../../config/save';
 
 describe('gameConfig structure', () => {
   it('exposes merged ABILITIES constants as numbers', () => {
@@ -18,5 +31,26 @@ describe('gameConfig structure', () => {
   it('does not export deprecated counter scoring object or default export', () => {
     expect((cfg as Record<string, unknown>).COUNTER_UNIT_SCORING).toBeUndefined();
     expect((cfg as Record<string, unknown>).default).toBeUndefined();
+  });
+
+  it('barrel re-exports every key from every config module', () => {
+    const modules = [
+      mapCfg,
+      tileStatusCfg,
+      economyCfg,
+      progressionCfg,
+      magicCfg,
+      abilitiesCfg,
+      unitsCfg,
+      buildingsCfg,
+      tagInfoCfg,
+      techCfg,
+      specialistsCfg,
+      enemyAiCfg,
+      saveCfg,
+    ];
+    for (const m of modules) {
+      expect(Object.keys(m).every(k => k in cfg)).toBe(true);
+    }
   });
 });
