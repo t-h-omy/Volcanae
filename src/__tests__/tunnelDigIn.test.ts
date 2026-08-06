@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { tryBeginTunnel, processTunnelTurn } from '../tunnelSystem';
-import { UNIT_DEFINITIONS } from '../gameConfig';
+import { ABILITIES, UNIT_DEFINITIONS } from '../gameConfig';
 import { Faction, TileType, UnitTag, UnitType } from '../types';
 import type { GameState, GameStats, Tile, Unit } from '../types';
 import type { GameEvent } from '../gameEvents';
@@ -264,7 +264,7 @@ describe('Riftworm abort restore onto FOREST tile', () => {
 describe('Riftworm emergence still blocked by FOREST and MOUNTAIN', () => {
   it('skips FOREST as an emergence target', () => {
     // Worm at (4,2): valid plain dig-in tile.
-    // TUNNEL_RANGE_MIN=2, TUNNEL_RANGE_MAX=4 => emergence column is y=4,5,6.
+    // Emergence span is based on ABILITIES.TUNNEL_RANGE_MIN..ABILITIES.TUNNEL_RANGE_MAX, yielding y=4,5,6 here.
     // Block y=4 and y=5 with FOREST; y=6 is plain, so emergence lands there.
     const worm = makeUnit(UnitType.RIFTWORM, Faction.ENEMY, 4, 2);
     const players = makeSouthPlayerUnits();
@@ -282,7 +282,7 @@ describe('Riftworm emergence still blocked by FOREST and MOUNTAIN', () => {
     // Emergence must not be on any FOREST tile
     const emergence = state.units[worm.id].tunnelPlannedEmergence!;
     expect(state.grid[emergence.y][emergence.x].terrainType).not.toBe(TileType.FOREST);
-    expect(emergence).toEqual({ x: 4, y: 6 });
+    expect(emergence).toEqual({ x: 4, y: 2 + ABILITIES.TUNNEL_RANGE_MAX });
   });
 
   it('skips MOUNTAIN as an emergence target', () => {
@@ -302,6 +302,6 @@ describe('Riftworm emergence still blocked by FOREST and MOUNTAIN', () => {
     expect(began).toBe(true);
     const emergence = state.units[worm.id].tunnelPlannedEmergence!;
     expect(state.grid[emergence.y][emergence.x].terrainType).not.toBe(TileType.MOUNTAIN);
-    expect(emergence).toEqual({ x: 4, y: 6 });
+    expect(emergence).toEqual({ x: 4, y: 2 + ABILITIES.TUNNEL_RANGE_MAX });
   });
 });

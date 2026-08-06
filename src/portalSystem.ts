@@ -14,7 +14,7 @@
  *   - "Behind the player frontline" = SOUTH of the northernmost player unit
  *     = HIGHER Y than the northernmost player unit.
  *   - Exit portal placement target: tiles with Y > northernmost player's Y
- *     by at least EMBER_PORTAL_MIN_DISTANCE_BEHIND_FRONTLINE.
+ *     by at least ABILITIES.EMBER_PORTAL_MIN_DISTANCE_BEHIND_FRONTLINE.
  */
 
 import type { Draft } from 'immer';
@@ -22,9 +22,7 @@ import type { GameState, Portal, Position } from './types';
 import { Faction, TileType } from './types';
 import { TileStatus } from './types';
 import {
-  EMBER_PORTAL_LIFETIME_TURNS,
-  EMBER_PORTAL_MIN_DISTANCE_BEHIND_FRONTLINE,
-  EMBER_PORTAL_PAIR_MAX_DISTANCE,
+  ABILITIES,
   MAP,
 } from './gameConfig';
 import { applyTileStatus } from './tileStatusSystem';
@@ -142,8 +140,8 @@ function removePortalPair(state: Draft<GameState>, portalId: string, events?: Ga
  * 1. One pair per Rift Lord at a time: no cast if an active pair exists.
  * 2. Find the player's northernmost unit (true frontline).
  * 3. Entrance: any Chebyshev-1 neighbour of the caster that passes isValidEntranceTile.
- * 4. Exit: within EMBER_PORTAL_PAIR_MAX_DISTANCE (edge-circle) of the entrance,
- *    at Y >= frontlineRow + EMBER_PORTAL_MIN_DISTANCE_BEHIND_FRONTLINE,
+ * 4. Exit: within ABILITIES.EMBER_PORTAL_PAIR_MAX_DISTANCE (edge-circle) of the entrance,
+ *    at Y >= frontlineRow + ABILITIES.EMBER_PORTAL_MIN_DISTANCE_BEHIND_FRONTLINE,
  *    passes isValidExitTile.
  */
 export function tryPlanPortalCast(
@@ -162,7 +160,7 @@ export function tryPlanPortalCast(
   if (frontlineRow >= MAP.GRID_HEIGHT) return null; // No player units → no target.
 
   // Exit must be SOUTH of the frontline by at least MIN_DISTANCE rows.
-  const minExitY = frontlineRow + EMBER_PORTAL_MIN_DISTANCE_BEHIND_FRONTLINE;
+  const minExitY = frontlineRow + ABILITIES.EMBER_PORTAL_MIN_DISTANCE_BEHIND_FRONTLINE;
   if (minExitY >= MAP.GRID_HEIGHT) return null;
 
   const { x: cx, y: cy } = caster.position;
@@ -183,12 +181,12 @@ export function tryPlanPortalCast(
   }
   if (!chosenEntrance) return null;
 
-  // Pick the exit: within EMBER_PORTAL_PAIR_MAX_DISTANCE edge-circle of the entrance,
+  // Pick the exit: within ABILITIES.EMBER_PORTAL_PAIR_MAX_DISTANCE edge-circle of the entrance,
   // and at Y >= minExitY, valid exit tile.
   let chosenExit: Position | null = null;
   for (let ty = minExitY; ty < MAP.GRID_HEIGHT; ty++) {
     for (let tx = 0; tx < MAP.GRID_WIDTH; tx++) {
-      if (!isTileWithinEdgeCircleRange(chosenEntrance.x, chosenEntrance.y, tx, ty, EMBER_PORTAL_PAIR_MAX_DISTANCE)) continue;
+      if (!isTileWithinEdgeCircleRange(chosenEntrance.x, chosenEntrance.y, tx, ty, ABILITIES.EMBER_PORTAL_PAIR_MAX_DISTANCE)) continue;
       if (!isValidExitTile(state, tx, ty)) continue;
       chosenExit = { x: tx, y: ty };
       break;
@@ -224,7 +222,7 @@ export function castPortal(
     exitPos: { x: exitPos.x, y: exitPos.y },
     createdTurn: state.turn,
     // Cast on turn T with LIFETIME = L → usable on T, T+1, ..., T+L-1.
-    lastUsableTurn: state.turn + EMBER_PORTAL_LIFETIME_TURNS - 1,
+    lastUsableTurn: state.turn + ABILITIES.EMBER_PORTAL_LIFETIME_TURNS - 1,
     pendingTeleportUnitId: null,
   };
 

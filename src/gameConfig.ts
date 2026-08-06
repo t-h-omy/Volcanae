@@ -664,15 +664,6 @@ export const AI_RECRUITMENT = {
   BASE_SCORE_RIDER: 0,
   BASE_SCORE_SIEGE: 0,
   BASE_SCORE_EMBERLING: 0,
-  // Counter units - base scores for recruitment priority
-  BASE_SCORE_REAPER: 60,
-  BASE_SCORE_LANCER: 55,
-  BASE_SCORE_BULLWARK: 55,
-  BASE_SCORE_KINDLER: 50,
-  BASE_SCORE_GRIMBEAK: 50,
-  BASE_SCORE_RIFTWORM: 55,
-  BASE_SCORE_RIFT_LORD: 70,
-
   // ── Classification thresholds ───────────────────────────────────────────
   /** Unit offensiveScore >= this → counted as offensive */
   OFFENSIVE_THRESHOLD: 0.6,
@@ -734,6 +725,46 @@ export const AI_RECRUITMENT = {
   EMBERLING_BONUS_NONE_NEARBY: 20,
   EMBERLING_PENALTY_OVERREPRESENTED: 30,
   EMBERLING_NEARBY_OVERREPRESENTED_COUNT: 2,
+
+  // ── Per-unit recruitment scoring: advanced enemy units ─────────────────────
+  // Base scores
+  BASE_SCORE_REAPER: 60,
+  BASE_SCORE_LANCER: 55,
+  BASE_SCORE_BULLWARK: 55,
+  BASE_SCORE_KINDLER: 50,
+  BASE_SCORE_RIFTWORM: 55,
+  BASE_SCORE_GRIMBEAK: 50,
+  BASE_SCORE_RIFT_LORD: 70,
+  // REAPER
+  REAPER_BONUS_CLUSTER_TARGET: 30,
+  REAPER_BONUS_SLOW_MELEE_HEAVY: 20,
+  REAPER_PENALTY_FAST_PLAYER: -15,
+  // LANCER
+  LANCER_BONUS_BACKLINE_FORMATION: 25,
+  LANCER_BONUS_MAGE_PRESENT: 30,
+  LANCER_PENALTY_OVERREPRESENTED: -20,
+  // BULLWARK
+  BULLWARK_BONUS_GUARDS_PRESENT: 25,
+  BULLWARK_BONUS_MELEE_PROTECTION_NEEDED: 15,
+  BULLWARK_PENALTY_PLAYER_RANGED: -20,
+  // KINDLER
+  KINDLER_BONUS_STATIC_FORMATION: 25,
+  KINDLER_BONUS_RANGED_GAP: 15,
+  KINDLER_PENALTY_MOBILE_PLAYER: -20,
+  // RIFTWORM
+  RIFTWORM_BONUS_DENSE_FORMATION: 30,
+  RIFTWORM_BONUS_BACKLINE_TARGETS: 25,
+  RIFTWORM_BONUS_FRONTLINE_BYPASS: 20,
+  RIFTWORM_PENALTY_SPREAD_PLAYER: -15,
+  // GRIMBEAK
+  GRIMBEAK_BONUS_SUMMONED_PRESENT: 25,
+  GRIMBEAK_BONUS_BRANDMARK_ACTIVE: 20,
+  GRIMBEAK_BONUS_CLUSTER_TARGET: 20,
+  // RIFT_LORD
+  RIFT_LORD_BACKLINE_THRESHOLD: 50,
+  RIFT_LORD_BONUS_HIGH_BACKLINE_VALUE: 35,
+  RIFT_LORD_BONUS_PLAYER_DOMINATING: 25,
+  RIFT_LORD_PENALTY_NO_PORTAL_USERS: -30,
 
 } as const;
 
@@ -1337,32 +1368,6 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 };
 
-// Compute descriptions for UNIT_DEFINITIONS entries that reference their own stats.
-// All numeric values here are read from the unit definition or ABILITIES - never
-// hardcoded literals. See the DESCRIPTION AUTHORING RULE above ABILITIES.
-// NOTE: RELOAD_DEF_PENALTY_PCT is declared here (before the description block that
-// references it) rather than at the bottom of the file with the other tag-mechanic
-// constants, to satisfy TypeScript's block-scoped variable ordering rules.
-export const RELOAD_DEF_PENALTY_PCT = 50;
-{
-  const u = UNIT_DEFINITIONS;
-  u.ARCHER.description      = `Ranged attacker that strikes from ${u.ARCHER.attackRange} tiles away without stepping into melee range.`;
-  u.CROSSBOWMAN.description =
-    `Armor-piercing ranged attacker with ${u.CROSSBOWMAN.attackRange}-tile reach: ignores the target's defensive bonuses and stuns heavily-armored foes. ` +
-    `After firing, its own DEF drops ${RELOAD_DEF_PENALTY_PCT}% until its next turn.`;
-  u.RIDER.description       = `Swift cavalry that covers ${u.RIDER.moveRange} tiles per move to outflank and pressure the enemy.`;
-  u.SIEGE.description       = `Long-range bombard with ${u.SIEGE.attackRange}-tile reach; cannot fire in the same turn it moves.`;
-  u.LAVA_ARCHER.description = `Enemy ranged unit that attacks from ${u.LAVA_ARCHER.attackRange} tiles away.`;
-  u.LAVA_RIDER.description  = `Enemy fast cavalry that covers ${u.LAVA_RIDER.moveRange} tiles per move.`;
-  u.LAVA_SIEGE.description  = `Enemy long-range bombard with ${u.LAVA_SIEGE.attackRange}-tile reach.`;
-  u.EMBERLING.description   = `Fragile fire spirit that walks toward lava. Explodes on death, dealing ${u.EMBERLING.explosionDamage} damage to all units within 1 tile.`;
-  u.MAGE.description        = `Arcane caster that casts spells instead of attacking, with ${u.MAGE.attackRange}-tile range and ${MAGE.SPELLS_PER_TURN} spell cast${MAGE.SPELLS_PER_TURN !== 1 ? 's' : ''} per turn. Recruited from active Crystal Chambers.`;
-  u.EMBER_DEMON.description = `Powerful demonic unit.`;
-  u.SKELETON.description    = `Undead warrior raised from a gravestone.`;
-  u.GARGOYLE.description    = `Flying skeletal gargoyle raised from a Gravestone. Melee attacker that flies ${u.GARGOYLE.moveRange} tiles over canyons and water.`;
-  u.CRYSTAL_DRAKE.description = `A flying Drake summoned at a Crystal Cave. If its Crystal Cave is lost, the drake dies.`;
-}
-
 // ============================================================================
 // BUILDING DEFINITIONS - single source of truth per building type
 // ============================================================================
@@ -1407,9 +1412,6 @@ export interface BuildingDefinition {
  * never raw balancing numbers. See the DESCRIPTION AUTHORING RULE in the
  * ABILITIES block above.
  */
-/** Maximum HP for Gravestone buildings - defined here so BUILDING_DEFINITIONS can reference it; ABILITIES references it via GRAVESTONE_MAX_HP. */
-const GRAVESTONE_MAX_HP = 25;
-
 // ============================================================================
 // ABILITIES - Balance-tunable constants for tag/flag-based abilities
 //
@@ -1500,7 +1502,7 @@ export const ABILITIES = {
   /** Crystal cost to raise a Gargoyle from any Gravestone (Deathmender specialist) */
   GARGOYLE_CRYSTAL_COST: 1,
   /** Starting and maximum HP of a newly spawned Gravestone building */
-  GRAVESTONE_MAX_HP: GRAVESTONE_MAX_HP,
+  GRAVESTONE_MAX_HP: 25,
   /** Damage dealt by a PREVENTIVE_STRIKE shot as a percentage of normal attack damage */
   PREVENTIVE_STRIKE_DAMAGE_PERCENT: 50,
   // ── Mage system ability constants ────────────────────────────────────────────
@@ -1555,7 +1557,82 @@ export const ABILITIES = {
   RUPTURE_PERCENT: MAGE.RUPTURE_PERCENT,
   /** Crystal cost to cast the Rupture spell */
   RUPTURE_CRYSTAL_COST: MAGE.RUPTURE_CRYSTAL_COST,
+  // ── Combat modifier tag mechanics ───────────────────────────────────────────
+  /** Multiplier applied to primary attack damage when computing Cleave AoE damage. */
+  CLEAVE_DAMAGE_MULTIPLIER: 0.5,
+  /** Multiplier applied to defender damage when the attacker has PIERCE. */
+  PIERCE_PRIMARY_DAMAGE_MULTIPLIER: 0.5,
+  /** Multiplier applied to standard attack damage dealt to the unit behind the primary defender by PIERCE. Default 100%. */
+  PIERCE_SECONDARY_DAMAGE_MULTIPLIER: 1.0,
+  /** ATK bonus per adjacent enemy, granted to units with RAGE. */
+  RAGE_ATK_PER_ADJACENT: 4,
+  /** Maximum number of adjacent enemies that contribute to RAGE bonus. */
+  RAGE_MAX_ADJACENT_COUNT: 8,
+  /** Damage multiplier when a SUMMONED unit attacks a unit with IRONBLOOD. */
+  IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER: 0.5,
+  /** Damage multiplier applied to GRIMBEAK attacks against SUMMONED units (100% extra = 2× default). */
+  GRIMBEAK_SUMMONED_DAMAGE_MULTIPLIER: 2.0,
+  /** Damage multiplier when a melee unit (attackRange === 1) attacks a unit with BLOCK. */
+  BLOCK_MELEE_DAMAGE_MULTIPLIER: 0.7,
+  /** Base DEF threshold above which PUNCTURE-stun is triggered. */
+  PUNCTURE_STUN_BASE_DEF_THRESHOLD: 60,
+  /** Duration in turns of the stun applied by PUNCTURE. */
+  PUNCTURE_STUN_DURATION: 1,
+  /** Damage multiplier applied to FLYING units when attacked by a non-flying RANGED unit. */
+  FLYING_RANGED_DAMAGE_TAKEN_MULTIPLIER: 1.5,
+  /** DEF penalty applied after this unit attacks while carrying the RELOAD tag. */
+  RELOAD_DEF_PENALTY_PCT: 50,
+  // ── Tunnel (Riftworm) ───────────────────────────────────────────────────────
+  /** TUNNEL: minimum number of tiles the unit must move south while underground. */
+  TUNNEL_RANGE_MIN: 2,
+  /** TUNNEL: maximum number of tiles the unit can move south while underground. */
+  TUNNEL_RANGE_MAX: 4,
+  /** TUNNEL: damage applied to enemy units adjacent to the emergence tile. */
+  TUNNEL_EMERGE_DAMAGE: 40,
+  /** TUNNEL: cooldown turns after emergence before the unit can dig again. */
+  TUNNEL_COOLDOWN_TURNS: 2,
+  /** TUNNEL: maximum number of turns the unit can stay underground while waiting for a free emergence tile. */
+  TUNNEL_MAX_RETRY_TURNS: 1,
+  /** TUNNEL: HP multiplier applied when a unit is forced to emerge with no valid free tile (last-resort fallback). */
+  TUNNEL_FORCED_EMERGE_HP_MULTIPLIER: 0.7,
+  // ── Ember Portal (Rift Lord) ───────────────────────────────────────────────
+  /** EMBER_PORTAL: number of enemy turns the pair is usable, including the cast turn.
+   * Cast on turn T → usable on T, T+1, ..., T+L-1. Removed at the END of enemy turn T+L-1.
+   */
+  EMBER_PORTAL_LIFETIME_TURNS: 3,
+  /** EMBER_PORTAL: minimum rows the exit tile must be south of the northernmost player unit. */
+  EMBER_PORTAL_MIN_DISTANCE_BEHIND_FRONTLINE: 1,
+  /** EMBER_PORTAL: maximum edge-circle distance between the entry and exit portals of a pair. */
+  EMBER_PORTAL_PAIR_MAX_DISTANCE: 4,
+  /** EMBER_PORTAL: maximum enemy units that may score moving onto the same portal entrance per turn. */
+  EMBER_PORTAL_MAX_USERS_PER_TURN: 2,
+  /** EMBER_PORTAL: AI base score for moving onto a portal entrance whose exit is closer to the player. */
+  EMBER_PORTAL_BASE_USE_SCORE: 80,
+  /** EMBER_PORTAL: AI per-tile penalty for distance to the portal entrance. */
+  EMBER_PORTAL_DISTANCE_PENALTY: 15,
 } as const;
+
+// Compute descriptions for UNIT_DEFINITIONS entries that reference their own stats.
+// All numeric values here are read from the unit definition or ABILITIES - never
+// hardcoded literals. See the DESCRIPTION AUTHORING RULE above ABILITIES.
+{
+  const u = UNIT_DEFINITIONS;
+  u.ARCHER.description      = `Ranged attacker that strikes from ${u.ARCHER.attackRange} tiles away without stepping into melee range.`;
+  u.CROSSBOWMAN.description =
+    `Armor-piercing ranged attacker with ${u.CROSSBOWMAN.attackRange}-tile reach: ignores the target's defensive bonuses and stuns heavily-armored foes. ` +
+    `After firing, its own DEF drops ${ABILITIES.RELOAD_DEF_PENALTY_PCT}% until its next turn.`;
+  u.RIDER.description       = `Swift cavalry that covers ${u.RIDER.moveRange} tiles per move to outflank and pressure the enemy.`;
+  u.SIEGE.description       = `Long-range bombard with ${u.SIEGE.attackRange}-tile reach; cannot fire in the same turn it moves.`;
+  u.LAVA_ARCHER.description = `Enemy ranged unit that attacks from ${u.LAVA_ARCHER.attackRange} tiles away.`;
+  u.LAVA_RIDER.description  = `Enemy fast cavalry that covers ${u.LAVA_RIDER.moveRange} tiles per move.`;
+  u.LAVA_SIEGE.description  = `Enemy long-range bombard with ${u.LAVA_SIEGE.attackRange}-tile reach.`;
+  u.EMBERLING.description   = `Fragile fire spirit that walks toward lava. Explodes on death, dealing ${u.EMBERLING.explosionDamage} damage to all units within 1 tile.`;
+  u.MAGE.description        = `Arcane caster that casts spells instead of attacking, with ${u.MAGE.attackRange}-tile range and ${MAGE.SPELLS_PER_TURN} spell cast${MAGE.SPELLS_PER_TURN !== 1 ? 's' : ''} per turn. Recruited from active Crystal Chambers.`;
+  u.EMBER_DEMON.description = `Powerful demonic unit.`;
+  u.SKELETON.description    = `Undead warrior raised from a gravestone.`;
+  u.GARGOYLE.description    = `Flying skeletal gargoyle raised from a Gravestone. Melee attacker that flies ${u.GARGOYLE.moveRange} tiles over canyons and water.`;
+  u.CRYSTAL_DRAKE.description = `A flying Drake summoned at a Crystal Cave. If its Crystal Cave is lost, the drake dies.`;
+}
 
 export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
   STRONGHOLD: {
@@ -1690,7 +1767,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     discoverRadius: 1,
     destroyBehavior: DestroyBehavior.NONE,
     constructionCost: { iron: 0, wood: 0 },
-    maxHp: GRAVESTONE_MAX_HP,
+    maxHp: ABILITIES.GRAVESTONE_MAX_HP,
     description: `The grave of a fallen warrior. Revive the unit by paying ${ABILITIES.REVIVE_CRYSTAL_COST} crystal.`,
   },
   GRAVE_TRAP: {
@@ -2024,10 +2101,6 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
 // TECH TREE CONFIGURATION
 // ============================================================================
 
-/** Multiplier applied to primary attack damage when computing Cleave AoE damage.
- *  Defined here (before TECH_TREE) so it can be referenced in tech descriptions. */
-export const CLEAVE_DAMAGE_MULTIPLIER = 0.5;
-
 /**
  * Tech tree node definitions.
  * Add a new tech node by adding one entry to this array - no logic files
@@ -2182,7 +2255,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'SWORDSMAN_CLEAVE',
     name: 'Cleaving Strike',
-    description: `Swordsmen learn to cleave through enemies: on hit, they deal ${CLEAVE_DAMAGE_MULTIPLIER * 100}% damage to all enemy units adjacent to both attacker and defender (ignores Phalanx defense)`,
+    description: `Swordsmen learn to cleave through enemies: on hit, they deal ${ABILITIES.CLEAVE_DAMAGE_MULTIPLIER * 100}% damage to all enemy units adjacent to both attacker and defender (ignores Phalanx defense)`,
     requires: ['UNLOCK_SWORDSMAN'],
     cost: 3,
     effects: [
@@ -2577,6 +2650,12 @@ export const UPGRADE_TRADEOFF_TAGS: ReadonlySet<UnitTag> = new Set([
   UnitTag.DISTRACTION,  // −ATK is the trade-off for the DEF-reduction effect; it's an archer upgrade
 ]);
 
+/** Tags whose pill should glow when their live condition is currently met. */
+export const CONDITIONAL_ACTIVE_TAGS: ReadonlySet<UnitTag> = new Set([
+  UnitTag.BERSERK,
+  UnitTag.RAGE,
+]);
+
 /**
  * Stat changes that are intrinsic to a tag.
  * When a GRANT_UNIT_TAG effect is applied (either retroactively at tech unlock
@@ -2599,70 +2678,6 @@ export const TAG_STAT_EFFECTS: Partial<Record<UnitTag, StatModifier[]>> = {
   [UnitTag.UNTRAINED]:  [{ stat: 'attack',  mode: 'add', value: -TRAINING.UNTRAINED_ATK_PENALTY }],
 };
 
-
-// ============================================================================
-// COUNTER-TAG MECHANICS
-// ============================================================================
-
-/** Multiplier applied to defender damage when the attacker has PIERCE. */
-export const PIERCE_PRIMARY_DAMAGE_MULTIPLIER = 0.5;
-/** Multiplier applied to standard attack damage dealt to the unit behind the primary defender by PIERCE. Default 100%. */
-export const PIERCE_SECONDARY_DAMAGE_MULTIPLIER = 1.0;
-
-/** ATK bonus per adjacent enemy, granted to units with RAGE. */
-export const RAGE_ATK_PER_ADJACENT = 4;
-/** Maximum number of adjacent enemies that contribute to RAGE bonus. */
-export const RAGE_MAX_ADJACENT_COUNT = 8;
-/** Tags whose pill should glow when their live condition is currently met. */
-export const CONDITIONAL_ACTIVE_TAGS: ReadonlySet<UnitTag> = new Set([
-  UnitTag.BERSERK,
-  UnitTag.RAGE,
-]);
-
-/** Damage multiplier when a SUMMONED unit attacks a unit with IRONBLOOD. */
-export const IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER = 0.5;
-
-/** Damage multiplier applied to GRIMBEAK attacks against SUMMONED units (100% extra = 2× default). */
-export const GRIMBEAK_SUMMONED_DAMAGE_MULTIPLIER = 2.0;
-
-/** Damage multiplier when a melee unit (attackRange === 1) attacks a unit with BLOCK. */
-export const BLOCK_MELEE_DAMAGE_MULTIPLIER = 0.7;
-
-/** Base DEF threshold above which PUNCTURE-stun is triggered. */
-export const PUNCTURE_STUN_BASE_DEF_THRESHOLD = 60;
-/** Duration in turns of the stun applied by PUNCTURE. */
-export const PUNCTURE_STUN_DURATION = 1;
-
-/** Damage multiplier applied to FLYING units when attacked by a non-flying RANGED unit. */
-export const FLYING_RANGED_DAMAGE_TAKEN_MULTIPLIER = 1.5;
-
-/** TUNNEL: minimum number of tiles the unit must move south while underground. */
-export const TUNNEL_RANGE_MIN = 2;
-/** TUNNEL: maximum number of tiles the unit can move south while underground. */
-export const TUNNEL_RANGE_MAX = 4;
-/** TUNNEL: damage applied to enemy units adjacent to the emergence tile. */
-export const TUNNEL_EMERGE_DAMAGE = 40;
-/** TUNNEL: cooldown turns after emergence before the unit can dig again. */
-export const TUNNEL_COOLDOWN_TURNS = 2;
-/** TUNNEL: maximum number of turns the unit can stay underground while waiting for a free emergence tile. */
-export const TUNNEL_MAX_RETRY_TURNS = 1;
-/** TUNNEL: HP multiplier applied when a unit is forced to emerge with no valid free tile (last-resort fallback). */
-export const TUNNEL_FORCED_EMERGE_HP_MULTIPLIER = 0.7;
-
-/** EMBER_PORTAL: number of enemy turns the pair is usable, including the cast turn.
- * Cast on turn T → usable on T, T+1, ..., T+L-1. Removed at the END of enemy turn T+L-1.
- */
-export const EMBER_PORTAL_LIFETIME_TURNS = 3;
-/** EMBER_PORTAL: minimum rows the exit tile must be south of the northernmost player unit. */
-export const EMBER_PORTAL_MIN_DISTANCE_BEHIND_FRONTLINE = 1;
-/** EMBER_PORTAL: maximum edge-circle distance between the entry and exit portals of a pair. */
-export const EMBER_PORTAL_PAIR_MAX_DISTANCE = 4;
-/** EMBER_PORTAL: maximum enemy units that may score moving onto the same portal entrance per turn. */
-export const EMBER_PORTAL_MAX_USERS_PER_TURN = 2;
-/** EMBER_PORTAL: AI base score for moving onto a portal entrance whose exit is closer to the player. */
-export const EMBER_PORTAL_BASE_USE_SCORE = 80;
-/** EMBER_PORTAL: AI per-tile penalty for distance to the portal entrance. */
-export const EMBER_PORTAL_DISTANCE_PENALTY = 15;
 
 // ============================================================================
 // TAG INFO - label and description for each unit tag
@@ -2712,23 +2727,23 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   [UnitTag.LEAVES_GRAVESTONE]:  { label: 'Leaves Gravestone',  desc: 'Leaves a Gravestone on death.' },
   // ── Tile-status tags ────────────────────────────────────────────────────────
   [UnitTag.LAVA]:               { label: 'Lava',               desc: 'Lava-faction unit. Immune to BURNING tile damage. Retained even when faction changes.' },
-  // ── Counter tags ────────────────────────────────────────────────────────────
-  [UnitTag.CLEAVE]:       { label: 'Cleave',      desc: `On hit, deals ${CLEAVE_DAMAGE_MULTIPLIER * 100}% damage to all enemy units adjacent to both attacker and defender. Ignores Phalanx defense.` },
-  [UnitTag.PIERCE]:       { label: 'Pierce',      desc: `Deals ${PIERCE_PRIMARY_DAMAGE_MULTIPLIER * 100}% damage to the target; the enemy unit or building directly behind the target takes ${PIERCE_SECONDARY_DAMAGE_MULTIPLIER * 100}% of the standard attack damage.` },
-  [UnitTag.RAGE]:         { label: 'Rage',        desc: `Gains +${RAGE_ATK_PER_ADJACENT} attack per enemy adjacent to this unit, up to ${RAGE_MAX_ADJACENT_COUNT} enemies (max +${RAGE_ATK_PER_ADJACENT * RAGE_MAX_ADJACENT_COUNT}).` },
+  // ── Combat modifier tags ───────────────────────────────────────────────────
+  [UnitTag.CLEAVE]:       { label: 'Cleave',      desc: `On hit, deals ${ABILITIES.CLEAVE_DAMAGE_MULTIPLIER * 100}% damage to all enemy units adjacent to both attacker and defender. Ignores Phalanx defense.` },
+  [UnitTag.PIERCE]:       { label: 'Pierce',      desc: `Deals ${ABILITIES.PIERCE_PRIMARY_DAMAGE_MULTIPLIER * 100}% damage to the target; the enemy unit or building directly behind the target takes ${ABILITIES.PIERCE_SECONDARY_DAMAGE_MULTIPLIER * 100}% of the standard attack damage.` },
+  [UnitTag.RAGE]:         { label: 'Rage',        desc: `Gains +${ABILITIES.RAGE_ATK_PER_ADJACENT} attack per enemy adjacent to this unit, up to ${ABILITIES.RAGE_MAX_ADJACENT_COUNT} enemies (max +${ABILITIES.RAGE_ATK_PER_ADJACENT * ABILITIES.RAGE_MAX_ADJACENT_COUNT}).` },
   [UnitTag.ALERT]:        { label: 'Alert',       desc: 'Immune to stun effects.' },
-  [UnitTag.IRONBLOOD]:    { label: 'Ironblood',   desc: `Takes only ${IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER * 100}% damage from attacks by summoned units.` },
-  [UnitTag.BLOCK]:        { label: 'Block',       desc: `Takes only ${BLOCK_MELEE_DAMAGE_MULTIPLIER * 100}% damage from melee attackers.` },
-  [UnitTag.PUNCTURE]:     { label: 'Puncture',    desc: `Ignores defensive bonuses on the target. Stuns targets with base DEF above ${PUNCTURE_STUN_BASE_DEF_THRESHOLD} for ${PUNCTURE_STUN_DURATION} turn(s).` },
-  [UnitTag.RELOAD]:       { label: 'Reload',      desc: `After this unit attacks, its DEF is reduced by ${RELOAD_DEF_PENALTY_PCT}% until the start of its next turn.` },
+  [UnitTag.IRONBLOOD]:    { label: 'Ironblood',   desc: `Takes only ${ABILITIES.IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER * 100}% damage from attacks by summoned units.` },
+  [UnitTag.BLOCK]:        { label: 'Block',       desc: `Takes only ${ABILITIES.BLOCK_MELEE_DAMAGE_MULTIPLIER * 100}% damage from melee attackers.` },
+  [UnitTag.PUNCTURE]:     { label: 'Puncture',    desc: `Ignores defensive bonuses on the target. Stuns targets with base DEF above ${ABILITIES.PUNCTURE_STUN_BASE_DEF_THRESHOLD} for ${ABILITIES.PUNCTURE_STUN_DURATION} turn(s).` },
+  [UnitTag.RELOAD]:       { label: 'Reload',      desc: `After this unit attacks, its DEF is reduced by ${ABILITIES.RELOAD_DEF_PENALTY_PCT}% until the start of its next turn.` },
   [UnitTag.BURN]:         { label: 'Burn',        desc: 'Attacks set the target\'s tile to Burning, dealing damage to non-lava units standing there at end of turn.' },
-  [UnitTag.TUNNEL]:       { label: 'Tunnel',      desc: `Digs underground and re-emerges ${TUNNEL_RANGE_MIN}–${TUNNEL_RANGE_MAX} tiles south in the same column. Digging in requires open ground (no buildings, ruins, forest or mountain). Deals ${TUNNEL_EMERGE_DAMAGE} damage to enemies adjacent to the emergence tile. Sets the emergence tile to Corrupted.` },
+  [UnitTag.TUNNEL]:       { label: 'Tunnel',      desc: `Digs underground and re-emerges ${ABILITIES.TUNNEL_RANGE_MIN}–${ABILITIES.TUNNEL_RANGE_MAX} tiles south in the same column. Digging in requires open ground (no buildings, ruins, forest or mountain). Deals ${ABILITIES.TUNNEL_EMERGE_DAMAGE} damage to enemies adjacent to the emergence tile. Sets the emergence tile to Corrupted.` },
   [UnitTag.EMBER_PORTAL]: { label: 'Ember Portal', desc: 'Casts a pair of portals: an entrance next to the Rift Lord and an exit behind the player\'s frontline. Any enemy unit stepping on the entrance teleports to the exit, if the exit is free. If the exit is blocked, the unit waits on the entrance and teleports the moment the exit clears. The Rift Lord cannot cast another pair until the current pair is removed. Portal tiles are corrupted and block player movement.' },
   // ── Overcapacity penalty tags ────────────────────────────────────────────────
   [UnitTag.HOMELESS]:  { label: 'Homeless',  desc: `Unit has no shelter - population cap is exceeded. -${POPULATION.HOMELESS_DEF_PENALTY} DEF. Loses ${POPULATION.HOMELESS_HP_LOSS_PER_TURN} HP at the end of every player turn.`, icon: '🏚️' },
   [UnitTag.UNTRAINED]: { label: 'Untrained', desc: `Training facilities of this type are over capacity. -${TRAINING.UNTRAINED_ATK_PENALTY} ATK.`, icon: '📉' },
   // ── Movement tags ───────────────────────────────────────────────────────────
-  [UnitTag.FLYING]:    { label: 'Flying',    desc: `Traverses canyons and unfrozen water tiles. Survives knockback over canyons and water (lava still kills). Does not ice-slide across frozen tiles. Takes +${Math.round((FLYING_RANGED_DAMAGE_TAKEN_MULTIPLIER - 1) * 100)}% damage from non-flying ranged attackers.`, icon: '🕊️' },
+  [UnitTag.FLYING]:    { label: 'Flying',    desc: `Traverses canyons and unfrozen water tiles. Survives knockback over canyons and water (lava still kills). Does not ice-slide across frozen tiles. Takes +${Math.round((ABILITIES.FLYING_RANGED_DAMAGE_TAKEN_MULTIPLIER - 1) * 100)}% damage from non-flying ranged attackers.`, icon: '🕊️' },
   // ── Tile-presence status tags ────────────────────────────────────────────
   [UnitTag.CORRUPTED]: { label: 'Corrupted', desc: 'Standing on a corrupted tile. Some tag abilities are suppressed until this unit moves off the corrupted tile.', icon: '☠️' },
   [UnitTag.BRIDGE_BUILDER]: { label: 'Bridgebuilder', desc: `Can spend its action to build a Bridge (${BUILDING_DEFINITIONS.BRIDGE.constructionCost.wood} wood) across a 1-tile canyon gap between two land tiles. Bridge is crossable along its axis and diagonally.` },
@@ -2740,9 +2755,9 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
 };
 
 // Compute descriptions for UNIT_DEFINITIONS entries that reference TUNNEL constants.
-UNIT_DEFINITIONS.RIFTWORM.description = `Digs underground and re-emerges ${TUNNEL_RANGE_MIN}–${TUNNEL_RANGE_MAX} tiles south in the same column, avoiding resource terrain and other riftworms' planned exits. Digging in requires open ground (no buildings, ruins, forest or mountain). On emergence, deals ${TUNNEL_EMERGE_DAMAGE} damage to all adjacent player units and corrupts the tile.`;
+UNIT_DEFINITIONS.RIFTWORM.description = `Digs underground and re-emerges ${ABILITIES.TUNNEL_RANGE_MIN}–${ABILITIES.TUNNEL_RANGE_MAX} tiles south in the same column, avoiding resource terrain and other riftworms' planned exits. Digging in requires open ground (no buildings, ruins, forest or mountain). On emergence, deals ${ABILITIES.TUNNEL_EMERGE_DAMAGE} damage to all adjacent player units and corrupts the tile.`;
 // Compute Grimbeak description referencing the summoned-damage multiplier.
-UNIT_DEFINITIONS.GRIMBEAK.description = `Resilient lava beast that resists damage from summoned units, deals ${GRIMBEAK_SUMMONED_DAMAGE_MULTIPLIER}× damage to them, and prioritises attacking summoned units. Grows enraged in dense clusters.`;
+UNIT_DEFINITIONS.GRIMBEAK.description = `Resilient lava beast that resists damage from summoned units, deals ${ABILITIES.GRIMBEAK_SUMMONED_DAMAGE_MULTIPLIER}× damage to them, and prioritises attacking summoned units. Grows enraged in dense clusters.`;
 // ============================================================================
 
 export const SANCTUM_COLLAPSE = {
@@ -2837,52 +2852,6 @@ export const CORRUPTED_SUPPRESSED_TAGS = new Set<UnitTag>([
 ]);
 
 // ============================================================================
-// COUNTER-UNIT RECRUITMENT SCORING
-// ============================================================================
-
-/** Recruitment scoring bonuses/penalties for new counter units. */
-export const COUNTER_UNIT_SCORING = {
-  // Base scores
-  BASE_SCORE_REAPER: 60,
-  BASE_SCORE_LANCER: 55,
-  BASE_SCORE_BULLWARK: 55,
-  BASE_SCORE_KINDLER: 50,
-  BASE_SCORE_RIFTWORM: 55,
-  BASE_SCORE_GRIMBEAK: 50,
-  BASE_SCORE_RIFT_LORD: 70,
-  // REAPER
-  REAPER_BONUS_CLUSTER_TARGET: 30,
-  REAPER_BONUS_SLOW_MELEE_HEAVY: 20,
-  REAPER_PENALTY_FAST_PLAYER: -15,
-  // LANCER
-  LANCER_BONUS_BACKLINE_FORMATION: 25,
-  LANCER_BONUS_MAGE_PRESENT: 30,
-  LANCER_PENALTY_OVERREPRESENTED: -20,
-  // BULLWARK
-  BULLWARK_BONUS_GUARDS_PRESENT: 25,
-  BULLWARK_BONUS_MELEE_PROTECTION_NEEDED: 15,
-  BULLWARK_PENALTY_PLAYER_RANGED: -20,
-  // KINDLER
-  KINDLER_BONUS_STATIC_FORMATION: 25,
-  KINDLER_BONUS_RANGED_GAP: 15,
-  KINDLER_PENALTY_MOBILE_PLAYER: -20,
-  // RIFTWORM
-  RIFTWORM_BONUS_DENSE_FORMATION: 30,
-  RIFTWORM_BONUS_BACKLINE_TARGETS: 25,
-  RIFTWORM_BONUS_FRONTLINE_BYPASS: 20,
-  RIFTWORM_PENALTY_SPREAD_PLAYER: -15,
-  // GRIMBEAK
-  GRIMBEAK_BONUS_SUMMONED_PRESENT: 25,
-  GRIMBEAK_BONUS_BRANDMARK_ACTIVE: 20,
-  GRIMBEAK_BONUS_CLUSTER_TARGET: 20,
-  // RIFT_LORD
-  RIFT_LORD_BACKLINE_THRESHOLD: 50,
-  RIFT_LORD_BONUS_HIGH_BACKLINE_VALUE: 35,
-  RIFT_LORD_BONUS_PLAYER_DOMINATING: 25,
-  RIFT_LORD_PENALTY_NO_PORTAL_USERS: -30,
-} as const;
-
-// ============================================================================
 // CONVENIENCE EXPORTS
 // ============================================================================
 
@@ -2940,36 +2909,3 @@ export const SAVE = {
   /** File extension appended to exported save filenames. */
   EXPORT_FILE_EXT: '.volcanae.json',
 } as const;
-
-/**
- * Full game configuration object combining all config sections.
- */
-export const GAME_CONFIG = {
-  MAP,
-  LAVA,
-  LAVA_LAIR,
-  MAGE,
-  SPELL_DEFINITIONS,
-  UNIT_DEFINITIONS,
-  BUILDING_DEFINITIONS,
-  SPECIALIST_DEFINITIONS,
-  BUILDINGS,
-  RESOURCES,
-  MARKET,
-  TERRAIN,
-  POPULATION,
-  TRAINING,
-  ENEMY,
-  AI_SCORING,
-  AI_RECRUITMENT,
-  XP,
-  LEVEL_UP_VALUES,
-  TECH,
-  TECH_TREE,
-  CRYSTAL_CHAMBER_CONFIG,
-  ABILITIES,
-  SANCTUM_COLLAPSE,
-  SAVE,
-} as const;
-
-export default GAME_CONFIG;

@@ -10,7 +10,7 @@ import { BuildingType, Faction, UnitTag, UnitType, TechFlag, TileType, TileStatu
 import { useFloaterStore } from './floaterStore';
 import type { GameEvent } from './gameEvents';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
-import { UNIT_DEFINITIONS, XP, ABILITIES, MAP, BUILDING_DEFINITIONS, MAGE, CLEAVE_DAMAGE_MULTIPLIER, PIERCE_PRIMARY_DAMAGE_MULTIPLIER, PIERCE_SECONDARY_DAMAGE_MULTIPLIER, RAGE_ATK_PER_ADJACENT, RAGE_MAX_ADJACENT_COUNT, BLOCK_MELEE_DAMAGE_MULTIPLIER, IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER, GRIMBEAK_SUMMONED_DAMAGE_MULTIPLIER, PUNCTURE_STUN_BASE_DEF_THRESHOLD, PUNCTURE_STUN_DURATION, FLYING_RANGED_DAMAGE_TAKEN_MULTIPLIER, RELOAD_DEF_PENALTY_PCT } from './gameConfig';
+import { UNIT_DEFINITIONS, XP, ABILITIES, MAP, BUILDING_DEFINITIONS, MAGE } from './gameConfig';
 import { grantXp } from './levelSystem';
 import { generateId } from './mapGenerator';
 import { isUnitOnCorruptedTile, applyTileStatus } from './tileStatusSystem';
@@ -348,7 +348,7 @@ export function buildingToCombatant(building: Building): Combatant | null {
  */
 function applyReloadPenalty(unit: Unit, effectiveDefense: number): number {
   if (unit.tags.includes(UnitTag.RELOAD) && unit.hasAttackedThisTurn) {
-    return Math.floor(effectiveDefense * (1 - RELOAD_DEF_PENALTY_PCT / 100));
+    return Math.floor(effectiveDefense * (1 - ABILITIES.RELOAD_DEF_PENALTY_PCT / 100));
   }
   return effectiveDefense;
 }
@@ -468,7 +468,7 @@ export function getRageAttackContext(
   }
 
   return {
-    rageBonus: Math.min(rageAdjacentCount, RAGE_MAX_ADJACENT_COUNT) * RAGE_ATK_PER_ADJACENT,
+    rageBonus: Math.min(rageAdjacentCount, ABILITIES.RAGE_MAX_ADJACENT_COUNT) * ABILITIES.RAGE_ATK_PER_ADJACENT,
     rageAdjacentCount,
   };
 }
@@ -916,7 +916,7 @@ export function resolveAttack(
   attackerCombatant.attack += getPhalanxAttackBonus(state, attacker);
   defenderCombatant.defense += getPhalanxDefenseBonus(state, defender);
 
-  // RAGE: attacker gains +ATK per adjacent enemy unit, capped at RAGE_MAX_ADJACENT_COUNT.
+  // RAGE: attacker gains +ATK per adjacent enemy unit, capped at ABILITIES.RAGE_MAX_ADJACENT_COUNT.
   // Suppressed on CORRUPTED tile.
   if (attacker.tags.includes(UnitTag.RAGE) && !attackerOnCorrupted) {
     attackerCombatant.attack += getRageAttackContext(state, attacker).rageBonus;
@@ -963,28 +963,28 @@ export function resolveAttack(
   }
 
   // PIERCE: store full (pre-multiplier) primary damage for the rear-unit hit, then
-  // reduce damage to the primary defender by PIERCE_PRIMARY_DAMAGE_MULTIPLIER.
+  // reduce damage to the primary defender by ABILITIES.PIERCE_PRIMARY_DAMAGE_MULTIPLIER.
   // Suppressed on CORRUPTED tile.
   const fullPrimaryDamage = combatResult.defenderHpLost;
   if (attacker.tags.includes(UnitTag.PIERCE) && !attackerOnCorrupted) {
-    combatResult.defenderHpLost = Math.floor(combatResult.defenderHpLost * PIERCE_PRIMARY_DAMAGE_MULTIPLIER);
+    combatResult.defenderHpLost = Math.floor(combatResult.defenderHpLost * ABILITIES.PIERCE_PRIMARY_DAMAGE_MULTIPLIER);
   }
 
   // BLOCK: defender takes halved damage from melee attackers (attackRange === 1).
   // NOT suppressed on corrupted tiles — defensive self-property.
   if (defender.tags.includes(UnitTag.BLOCK) && attacker.stats.attackRange === 1) {
-    combatResult.defenderHpLost = Math.floor(combatResult.defenderHpLost * BLOCK_MELEE_DAMAGE_MULTIPLIER);
+    combatResult.defenderHpLost = Math.floor(combatResult.defenderHpLost * ABILITIES.BLOCK_MELEE_DAMAGE_MULTIPLIER);
   }
 
   // IRONBLOOD: defender takes reduced damage from SUMMONED attackers.
   // NOT suppressed on corrupted tiles — defensive self-property.
   if (defender.tags.includes(UnitTag.IRONBLOOD) && attacker.tags.includes(UnitTag.SUMMONED)) {
-    combatResult.defenderHpLost = Math.floor(combatResult.defenderHpLost * IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER);
+    combatResult.defenderHpLost = Math.floor(combatResult.defenderHpLost * ABILITIES.IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER);
   }
 
   // GRIMBEAK: deals bonus damage to SUMMONED defenders.
   if (attacker.type === UnitType.GRIMBEAK && defender.tags.includes(UnitTag.SUMMONED)) {
-    combatResult.defenderHpLost = Math.floor(combatResult.defenderHpLost * GRIMBEAK_SUMMONED_DAMAGE_MULTIPLIER);
+    combatResult.defenderHpLost = Math.floor(combatResult.defenderHpLost * ABILITIES.GRIMBEAK_SUMMONED_DAMAGE_MULTIPLIER);
   }
 
   // FLYING: flying defenders take extra damage from non-flying RANGED attackers.
@@ -994,7 +994,7 @@ export function resolveAttack(
     attacker.tags.includes(UnitTag.RANGED) &&
     !attacker.tags.includes(UnitTag.FLYING)
   ) {
-    combatResult.defenderHpLost = Math.round(combatResult.defenderHpLost * FLYING_RANGED_DAMAGE_TAKEN_MULTIPLIER);
+    combatResult.defenderHpLost = Math.round(combatResult.defenderHpLost * ABILITIES.FLYING_RANGED_DAMAGE_TAKEN_MULTIPLIER);
   }
 
   // Apply damage to defender
@@ -1273,18 +1273,18 @@ export function resolveAttack(
       }
     }
 
-    // PUNCTURE: stun the defender for PUNCTURE_STUN_DURATION turns when its base DEF
-    // exceeds PUNCTURE_STUN_BASE_DEF_THRESHOLD. Uses raw stats.defense (base value),
+    // PUNCTURE: stun the defender for ABILITIES.PUNCTURE_STUN_DURATION turns when its base DEF
+    // exceeds ABILITIES.PUNCTURE_STUN_BASE_DEF_THRESHOLD. Uses raw stats.defense (base value),
     // consistent with the DEF-bypass above. ALERT defenders are immune to the stun
     // but still receive the DEF-bypass damage reduction.
     // Suppressed on CORRUPTED tile.
     if (
       attacker.tags.includes(UnitTag.PUNCTURE) &&
       !attackerOnCorrupted &&
-      defender.stats.defense > PUNCTURE_STUN_BASE_DEF_THRESHOLD
+      defender.stats.defense > ABILITIES.PUNCTURE_STUN_BASE_DEF_THRESHOLD
     ) {
       if (!defender.tags.includes(UnitTag.ALERT)) {
-        defender.pinnedUntilTurn = state.turn + PUNCTURE_STUN_DURATION - 1;
+        defender.pinnedUntilTurn = state.turn + ABILITIES.PUNCTURE_STUN_DURATION - 1;
       } else {
         outEvents?.push({
           type: 'STUN_BLOCKED',
@@ -1380,7 +1380,7 @@ export function resolveAttack(
     }
   }
 
-  // CLEAVE: deal AoE damage (CLEAVE_DAMAGE_MULTIPLIER × primary damage) to all enemy units
+  // CLEAVE: deal AoE damage (ABILITIES.CLEAVE_DAMAGE_MULTIPLIER × primary damage) to all enemy units
   // on tiles adjacent to BOTH attacker AND defender. Ignores PHALANX bonus (uses raw defense).
   // Suppressed on CORRUPTED tile.
   if (
@@ -1389,7 +1389,7 @@ export function resolveAttack(
     attacker.tags.includes(UnitTag.CLEAVE) &&
     combatResult.defenderHpLost > 0
   ) {
-    const cleaveDamage = Math.floor(combatResult.defenderHpLost * CLEAVE_DAMAGE_MULTIPLIER);
+    const cleaveDamage = Math.floor(combatResult.defenderHpLost * ABILITIES.CLEAVE_DAMAGE_MULTIPLIER);
     if (cleaveDamage > 0) {
       for (let cy = 0; cy < state.grid.length; cy++) {
         for (let cx = 0; cx < state.grid[cy].length; cx++) {
@@ -1461,7 +1461,7 @@ export function resolveAttack(
         const rearUnit = state.units[behindTile.unitId];
         if (rearUnit) {
           const rearUnitId = behindTile.unitId;
-          // The rear unit takes PIERCE_SECONDARY_DAMAGE_MULTIPLIER × the standard attack
+          // The rear unit takes ABILITIES.PIERCE_SECONDARY_DAMAGE_MULTIPLIER × the standard attack
           // damage (fullPrimaryDamage, pre-PIERCE-reduction) — no second defense subtraction.
           // The front defender's defense was already baked into fullPrimaryDamage by
           // calculateCombatFromStats; subtracting the rear unit's defense a second time
@@ -1470,7 +1470,7 @@ export function resolveAttack(
           // so the lance renders through them.
           const isHostileRear = rearUnit.faction !== attackerFaction;
           if (isHostileRear) {
-            const finalPierceDamage = Math.max(1, Math.round(fullPrimaryDamage * PIERCE_SECONDARY_DAMAGE_MULTIPLIER));
+            const finalPierceDamage = Math.max(1, Math.round(fullPrimaryDamage * ABILITIES.PIERCE_SECONDARY_DAMAGE_MULTIPLIER));
             const newRearHp = rearUnit.stats.currentHp - finalPierceDamage;
             if (!suppressFloaters) {
               const { addFloater } = useFloaterStore.getState();
@@ -1526,7 +1526,7 @@ export function resolveAttack(
       } else if (behindTile.buildingId) {
         const rearBuilding = state.buildings[behindTile.buildingId];
         if (rearBuilding) {
-          // The rear building takes PIERCE_SECONDARY_DAMAGE_MULTIPLIER × the standard attack
+          // The rear building takes ABILITIES.PIERCE_SECONDARY_DAMAGE_MULTIPLIER × the standard attack
           // damage (fullPrimaryDamage, pre-PIERCE-reduction) — no defense subtraction.
           // Matching the unit-behind fix (Change 5): fullPrimaryDamage already accounts for
           // the front defender's defense via calculateCombatFromStats.
@@ -1535,7 +1535,7 @@ export function resolveAttack(
           // Fix (12): friendly rear buildings take no damage; VFX-only event is still emitted.
           const isHostileRearBuilding = rearBuilding.faction !== null && rearBuilding.faction !== attackerFaction;
           if (isHostileRearBuilding) {
-            const finalPierceBuildingDamage = Math.max(1, Math.round(fullPrimaryDamage * PIERCE_SECONDARY_DAMAGE_MULTIPLIER));
+            const finalPierceBuildingDamage = Math.max(1, Math.round(fullPrimaryDamage * ABILITIES.PIERCE_SECONDARY_DAMAGE_MULTIPLIER));
             if (!suppressFloaters) {
               const { addFloater } = useFloaterStore.getState();
               addFloater({ value: finalPierceBuildingDamage, x: behindPos.x, y: behindPos.y, isEnemy: rearBuilding.faction === Faction.ENEMY });
@@ -1905,7 +1905,7 @@ export function resolveAttackOnBuilding(
     attackerCombatant.attack += ABILITIES.LANCE_CHARGE_ATTACK_BONUS;
   }
 
-  // RAGE: attacker gains +ATK per adjacent enemy unit, capped at RAGE_MAX_ADJACENT_COUNT.
+  // RAGE: attacker gains +ATK per adjacent enemy unit, capped at ABILITIES.RAGE_MAX_ADJACENT_COUNT.
   // Suppressed on CORRUPTED tile.
   if (attacker.tags.includes(UnitTag.RAGE) && !attackerOnCorrupted) {
     attackerCombatant.attack += getRageAttackContext(state, attacker).rageBonus;
@@ -1967,11 +1967,11 @@ export function resolveAttackOnBuilding(
   // Capture full primary damage before any PIERCE reduction (used by PIERCE secondary target).
   const fullPrimaryDamage = combatResult.defenderHpLost;
 
-  // PIERCE: reduce primary building damage by PIERCE_PRIMARY_DAMAGE_MULTIPLIER;
+  // PIERCE: reduce primary building damage by ABILITIES.PIERCE_PRIMARY_DAMAGE_MULTIPLIER;
   // the full (pre-multiplier) damage is stored in fullPrimaryDamage for the secondary target.
   // Suppressed on CORRUPTED tile.
   if (attacker.tags.includes(UnitTag.PIERCE) && !attackerOnCorrupted) {
-    combatResult.defenderHpLost = Math.floor(combatResult.defenderHpLost * PIERCE_PRIMARY_DAMAGE_MULTIPLIER);
+    combatResult.defenderHpLost = Math.floor(combatResult.defenderHpLost * ABILITIES.PIERCE_PRIMARY_DAMAGE_MULTIPLIER);
   }
 
   const newBuildingHp = building.hp - combatResult.defenderHpLost;
@@ -2230,7 +2230,7 @@ export function resolveAttackOnBuilding(
     attacker.tags.includes(UnitTag.CLEAVE) &&
     combatResult.defenderHpLost > 0
   ) {
-    const cleaveDamage = Math.floor(combatResult.defenderHpLost * CLEAVE_DAMAGE_MULTIPLIER);
+    const cleaveDamage = Math.floor(combatResult.defenderHpLost * ABILITIES.CLEAVE_DAMAGE_MULTIPLIER);
     if (cleaveDamage > 0) {
       for (let cy = 0; cy < state.grid.length; cy++) {
         for (let cx = 0; cx < state.grid[cy].length; cx++) {
@@ -2299,14 +2299,14 @@ export function resolveAttackOnBuilding(
         const rearUnit = state.units[behindTile.unitId];
         if (rearUnit) {
           const rearUnitId = behindTile.unitId;
-          // PIERCE_SECONDARY_DAMAGE_MULTIPLIER × standard attack damage (pre-reduction).
+          // ABILITIES.PIERCE_SECONDARY_DAMAGE_MULTIPLIER × standard attack damage (pre-reduction).
           // Same fix as the unit-vs-unit PIERCE case (Change 5): no second defense
           // subtraction. fullPrimaryDamage already has the front building's defense
           // factored in via calculateCombatFromStats.
           // Fix (12): friendly rear units take no damage; VFX-only event is still emitted.
           const isHostileRear = rearUnit.faction !== attackerFaction;
           if (isHostileRear) {
-            const finalPierceDamage = Math.max(1, Math.round(fullPrimaryDamage * PIERCE_SECONDARY_DAMAGE_MULTIPLIER));
+            const finalPierceDamage = Math.max(1, Math.round(fullPrimaryDamage * ABILITIES.PIERCE_SECONDARY_DAMAGE_MULTIPLIER));
             const newRearHp = rearUnit.stats.currentHp - finalPierceDamage;
             if (!suppressFloaters) {
               const { addFloater } = useFloaterStore.getState();
@@ -2362,12 +2362,12 @@ export function resolveAttackOnBuilding(
       } else if (behindTile.buildingId) {
         const rearBuilding = state.buildings[behindTile.buildingId];
         if (rearBuilding) {
-          // PIERCE_SECONDARY_DAMAGE_MULTIPLIER × standard attack damage (pre-reduction).
+          // ABILITIES.PIERCE_SECONDARY_DAMAGE_MULTIPLIER × standard attack damage (pre-reduction).
           // Same fix: no building defense subtraction for the rear target.
           // Fix (12): friendly rear buildings take no damage; VFX-only event is still emitted.
           const isHostileRearBuilding = rearBuilding.faction !== null && rearBuilding.faction !== attackerFaction;
           if (isHostileRearBuilding) {
-            const finalPierceBuildingDamage = Math.max(1, Math.round(fullPrimaryDamage * PIERCE_SECONDARY_DAMAGE_MULTIPLIER));
+            const finalPierceBuildingDamage = Math.max(1, Math.round(fullPrimaryDamage * ABILITIES.PIERCE_SECONDARY_DAMAGE_MULTIPLIER));
             if (!suppressFloaters) {
               const { addFloater } = useFloaterStore.getState();
               addFloater({ value: finalPierceBuildingDamage, x: behindPos.x, y: behindPos.y, isEnemy: rearBuilding.faction === Faction.ENEMY });

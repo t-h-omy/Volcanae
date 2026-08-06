@@ -1,4 +1,4 @@
-import { ABILITIES, RAGE_ATK_PER_ADJACENT } from './gameConfig';
+import { ABILITIES } from './gameConfig';
 import { getBerserkDisplayBonus } from './combatSystem';
 import { UnitTag, type Unit } from './types';
 
@@ -65,7 +65,7 @@ export function getAttackDisplayModifiers(
       stat: 'ATK',
       value: context.rageBonus,
       kind: 'active',
-      source: `Rage (+${RAGE_ATK_PER_ADJACENT} ATK per adjacent enemy, ${context.rageAdjacentCount} nearby)`,
+      source: `Rage (+${ABILITIES.RAGE_ATK_PER_ADJACENT} ATK per adjacent enemy, ${context.rageAdjacentCount} nearby)`,
     });
   }
 

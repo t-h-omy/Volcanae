@@ -11,6 +11,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { computeRecruitmentScores } from '../enemySystem';
+import { scoreCountersForPlayer } from '../waveThemeSystem';
 import { UnitType, BuildingType, Faction, UnitTag, DestroyBehavior } from '../types';
 import type { GameState, Unit, Building } from '../types';
 import { UNIT_DEFINITIONS } from '../gameConfig';
@@ -302,5 +303,19 @@ describe('Part 8: AI recruitment scoring', () => {
     expect(scores).not.toBeNull();
     expect(scoreFor(scores, UnitType.RIFT_LORD)).toBe(-Infinity);
     expect(topType(scores)).not.toBe(UnitType.RIFT_LORD);
+  });
+
+  it('uses scoreCountersForPlayer values for eligible counter-unit recruitment scores', () => {
+    const lair = makeLavaLair(5);
+    const playerUnits = Array.from({ length: 6 }, () => makePlayerUnit(UnitType.SPEARMAN));
+    const state = makeState(playerUnits, [lair], 10);
+
+    const recruitmentScores = computeRecruitmentScores(state, lair.id)!;
+    const reaperRecruitmentScore = scoreFor(recruitmentScores, UnitType.REAPER);
+
+    const counterScores = scoreCountersForPlayer(state, { zoneId: 5 });
+    const reaperCounterScore = scoreFor(counterScores, UnitType.REAPER);
+
+    expect(reaperRecruitmentScore).toBe(reaperCounterScore);
   });
 });

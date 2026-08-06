@@ -11,7 +11,7 @@ import { useMenuStore } from '../menuStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
 import { useSoundOptionsStore } from '../soundOptionsStore';
-import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, computeResearchCost, SPELL_DEFINITIONS, TERRAIN_TAG_INFO, MAGE, CORRUPTED_SUPPRESSED_TAGS, CRYSTAL_CAVE_CONFIG, CRYSTAL_CHAMBER_CONFIG, MARKET, SPECIALIST_DEFINITIONS, RELOAD_DEF_PENALTY_PCT, CONDITIONAL_ACTIVE_TAGS } from '../gameConfig';
+import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, computeResearchCost, SPELL_DEFINITIONS, TERRAIN_TAG_INFO, MAGE, CORRUPTED_SUPPRESSED_TAGS, CRYSTAL_CAVE_CONFIG, CRYSTAL_CHAMBER_CONFIG, MARKET, SPECIALIST_DEFINITIONS, CONDITIONAL_ACTIVE_TAGS } from '../gameConfig';
 import type { SpecialistDefinition } from '../gameConfig';
 import { UI } from '../uiConfig';
 import type { UnitPopulationCost, TechId } from '../types';
@@ -1704,7 +1704,7 @@ function BuildingStatDetailModal({ building, onClose }: { building: Building; on
 function getReloadDefensePenalty(unit: Unit, effectiveDefenseBeforeReload: number): number {
   if (!unit.tags.includes(UnitTag.RELOAD) || !unit.hasAttackedThisTurn) return 0;
   return Math.floor(
-    Math.max(0, effectiveDefenseBeforeReload) * RELOAD_DEF_PENALTY_PCT / 100,
+    Math.max(0, effectiveDefenseBeforeReload) * ABILITIES.RELOAD_DEF_PENALTY_PCT / 100,
   );
 }
 
@@ -1804,7 +1804,7 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
       }
     }
     if (unit.distractionDefPenalty > 0) addA('defense', -unit.distractionDefPenalty);
-    // RELOAD: after firing, DEF is reduced by RELOAD_DEF_PENALTY_PCT% until next turn.
+    // RELOAD: after firing, DEF is reduced by ABILITIES.RELOAD_DEF_PENALTY_PCT% until next turn.
     // Runtime penalty (matches combat's applyReloadPenalty); surfaced so it shows in red.
     const reloadPenalty = getReloadDefensePenalty(
       unit,
@@ -1865,7 +1865,7 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
     unit,
     unit.stats.defense + phalanxDefense + contextualDef - unit.distractionDefPenalty,
   );
-  if (reloadPenalty > 0) mods.push({ stat: 'DEF', value: -reloadPenalty, kind: 'active', source: `Reload (fired this turn, -${RELOAD_DEF_PENALTY_PCT}% DEF)` });
+  if (reloadPenalty > 0) mods.push({ stat: 'DEF', value: -reloadPenalty, kind: 'active', source: `Reload (fired this turn, -${ABILITIES.RELOAD_DEF_PENALTY_PCT}% DEF)` });
 
   mods.sort((a, b) => {
     if (a.kind !== b.kind) return a.kind === 'active' ? -1 : 1;

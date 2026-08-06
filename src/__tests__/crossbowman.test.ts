@@ -17,9 +17,7 @@ import { resolveAttack } from '../combatSystem';
 import { getRecruitableUnitTypes, computeRecruitmentBuildingUsage } from '../resourceSystem';
 import {
   UNIT_DEFINITIONS,
-  RELOAD_DEF_PENALTY_PCT,
-  PUNCTURE_STUN_BASE_DEF_THRESHOLD,
-  PUNCTURE_STUN_DURATION,
+  ABILITIES,
   TECH_TREE,
 } from '../gameConfig';
 import { unlockTech } from '../techSystem';
@@ -261,11 +259,11 @@ describe('Crossbowman — PUNCTURE', () => {
 
   it('stuns a defender whose base DEF exceeds the threshold', () => {
     const crossbow = makeUnit(UnitType.CROSSBOWMAN, Faction.PLAYER, 1, 5);
-    // Give the defender high base defense (above PUNCTURE_STUN_BASE_DEF_THRESHOLD)
+    // Give the defender high base defense (above ABILITIES.PUNCTURE_STUN_BASE_DEF_THRESHOLD)
     const highDefDef = makeUnit(UnitType.LAVA_GRUNT, Faction.ENEMY, 3, 5, {
       stats: {
         maxHp: 200, currentHp: 200, attack: 20,
-        defense: PUNCTURE_STUN_BASE_DEF_THRESHOLD + 10,
+        defense: ABILITIES.PUNCTURE_STUN_BASE_DEF_THRESHOLD + 10,
         moveRange: 1, discoverRadius: 1, triggerRange: 0,
         movementActions: 1, attackRange: 1,
       },
@@ -281,7 +279,7 @@ describe('Crossbowman — PUNCTURE', () => {
     // Defender should be pinned (not dead — it has 200 HP)
     expect(defenderAfter).toBeDefined();
     expect(defenderAfter!.pinnedUntilTurn).toBeGreaterThanOrEqual(
-      state.turn + PUNCTURE_STUN_DURATION - 1,
+      state.turn + ABILITIES.PUNCTURE_STUN_DURATION - 1,
     );
   });
 
@@ -291,7 +289,7 @@ describe('Crossbowman — PUNCTURE', () => {
       tags: [UnitTag.ALERT],
       stats: {
         maxHp: 200, currentHp: 200, attack: 20,
-        defense: PUNCTURE_STUN_BASE_DEF_THRESHOLD + 10,
+        defense: ABILITIES.PUNCTURE_STUN_BASE_DEF_THRESHOLD + 10,
         moveRange: 1, discoverRadius: 1, triggerRange: 0,
         movementActions: 1, attackRange: 1,
       },
@@ -340,7 +338,7 @@ describe('Crossbowman — RELOAD', () => {
     if (!cbAfter) return; // might be dead — that's still more damage
 
     const baseDef = UNIT_DEFINITIONS[UnitType.CROSSBOWMAN].defense;
-    const penalisedDef = Math.floor(baseDef * (1 - RELOAD_DEF_PENALTY_PCT / 100));
+    const penalisedDef = Math.floor(baseDef * (1 - ABILITIES.RELOAD_DEF_PENALTY_PCT / 100));
     const atkValue = UNIT_DEFINITIONS[UnitType.LAVA_GRUNT].attack;
 
     const dmgWithPenalty = expectedDamage(atkValue, penalisedDef);
@@ -540,7 +538,7 @@ export function computeReloadDefPenalty(
   effDefBeforeReload: number,
 ): number {
   if (!hasAttackedThisTurn) return 0;
-  return Math.floor(Math.max(0, effDefBeforeReload) * RELOAD_DEF_PENALTY_PCT / 100);
+  return Math.floor(Math.max(0, effDefBeforeReload) * ABILITIES.RELOAD_DEF_PENALTY_PCT / 100);
 }
 
 describe('Crossbowman — RELOAD DEF penalty display logic', () => {
@@ -548,7 +546,7 @@ describe('Crossbowman — RELOAD DEF penalty display logic', () => {
 
   it('computes the correct penalty when hasAttackedThisTurn is true', () => {
     // Math.floor(35 * 50 / 100) = 17
-    const expected = Math.floor(BASE_DEF * RELOAD_DEF_PENALTY_PCT / 100);
+    const expected = Math.floor(BASE_DEF * ABILITIES.RELOAD_DEF_PENALTY_PCT / 100);
     expect(expected).toBe(17);
     expect(computeReloadDefPenalty(true, BASE_DEF)).toBe(17);
   });

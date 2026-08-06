@@ -17,7 +17,7 @@ import { applyLevelUps } from '../levelSystem';
 import { UnitType, Faction, UnitTag, TileType, TileStatus, DestroyBehavior, BuildingType } from '../types';
 import type { GameState, Unit, Tile, Building, GameStats } from '../types';
 import type { GameEvent } from '../gameEvents';
-import { UNIT_DEFINITIONS, FLYING_RANGED_DAMAGE_TAKEN_MULTIPLIER, PIERCE_SECONDARY_DAMAGE_MULTIPLIER } from '../gameConfig';
+import { UNIT_DEFINITIONS, ABILITIES } from '../gameConfig';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -427,7 +427,7 @@ describe('1B (12) – PIERCE friendly fire', () => {
   /**
    * Verify the enemy rear unit case is unchanged: it still takes full pierce damage.
    */
-  it('still damages a hostile rear unit for fullPrimaryDamage × PIERCE_SECONDARY_DAMAGE_MULTIPLIER', () => {
+  it('still damages a hostile rear unit for fullPrimaryDamage × ABILITIES.PIERCE_SECONDARY_DAMAGE_MULTIPLIER', () => {
     const playerLancer = makePlayerUnit(UnitType.LANCER, 3, 5);
     const frontEnemy = makeEnemyUnit(UnitType.LAVA_GRUNT, 4, 5, { currentHp: 1, maxHp: 100 });
     // Hostile rear unit at (5,5)
@@ -437,7 +437,7 @@ describe('1B (12) – PIERCE friendly fire', () => {
       unitToCombatant(playerLancer),
       unitToCombatant(frontEnemy),
     ).defenderHpLost;
-    const expectedRearDamage = Math.max(1, Math.round(fullPrimaryDamage * PIERCE_SECONDARY_DAMAGE_MULTIPLIER));
+    const expectedRearDamage = Math.max(1, Math.round(fullPrimaryDamage * ABILITIES.PIERCE_SECONDARY_DAMAGE_MULTIPLIER));
 
     const initialState = makeState([playerLancer, frontEnemy, hostileRear]);
     const outEvents: GameEvent[] = [];
@@ -576,7 +576,7 @@ describe('1B (12) – PIERCE friendly fire in resolveAttackOnBuilding', () => {
     expect((pierceEvt as { amount: number }).amount).toBe(0);
   });
 
-  it('still damages a hostile rear unit for fullPrimaryDamage × PIERCE_SECONDARY_DAMAGE_MULTIPLIER', () => {
+  it('still damages a hostile rear unit for fullPrimaryDamage × ABILITIES.PIERCE_SECONDARY_DAMAGE_MULTIPLIER', () => {
     const playerLancer = makePlayerUnit(UnitType.LANCER, 3, 5);
     const frontEnemyBuilding = makeEnemyBuilding(4, 5, 80);
     const hostileRear = makeEnemyUnit(UnitType.LAVA_GRUNT, 5, 5, { currentHp: 100, maxHp: 100 });
@@ -585,7 +585,7 @@ describe('1B (12) – PIERCE friendly fire in resolveAttackOnBuilding', () => {
       unitToCombatant(playerLancer),
       buildingToCombatant(frontEnemyBuilding)!,
     ).defenderHpLost;
-    const expectedRearDamage = Math.max(1, Math.round(fullPrimaryDamage * PIERCE_SECONDARY_DAMAGE_MULTIPLIER));
+    const expectedRearDamage = Math.max(1, Math.round(fullPrimaryDamage * ABILITIES.PIERCE_SECONDARY_DAMAGE_MULTIPLIER));
 
     const initialState = makeState([playerLancer, hostileRear], [frontEnemyBuilding]);
     initialState.grid[5][4].buildingId = frontEnemyBuilding.id;
@@ -671,7 +671,7 @@ describe('1C (10) – FLYING ranged vulnerability', () => {
 
     const hpLost = 100 - nextState.units[flyingEnemy.id]!.stats.currentHp;
     const baseDamage = computeBaseDamage(archer.stats.attack, flyingEnemy.stats.defense);
-    const flyingDamage = Math.round(baseDamage * FLYING_RANGED_DAMAGE_TAKEN_MULTIPLIER);
+    const flyingDamage = Math.round(baseDamage * ABILITIES.FLYING_RANGED_DAMAGE_TAKEN_MULTIPLIER);
     expect(hpLost).toBe(flyingDamage);
   });
 
@@ -688,7 +688,7 @@ describe('1C (10) – FLYING ranged vulnerability', () => {
 
     const hpLost = 100 - nextState.units[flyingEnemy.id]!.stats.currentHp;
     const baseDamage = computeBaseDamage(rider.stats.attack, flyingEnemy.stats.defense);
-    expect(hpLost).not.toBe(Math.round(baseDamage * FLYING_RANGED_DAMAGE_TAKEN_MULTIPLIER));
+    expect(hpLost).not.toBe(Math.round(baseDamage * ABILITIES.FLYING_RANGED_DAMAGE_TAKEN_MULTIPLIER));
     expect(hpLost).toBe(baseDamage);
   });
 

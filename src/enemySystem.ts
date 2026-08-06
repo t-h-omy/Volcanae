@@ -7,7 +7,7 @@ import type { GameState, Unit, Building, Position } from './types';
 import type { Draft } from 'immer';
 import { current, produce } from 'immer';
 import { Faction, UnitType, UnitTag, BuildingType, TileType, TileStatus } from './types';
-import { UNIT_DEFINITIONS, ENEMY, MAP, TERRAIN, AI_SCORING, AI_RECRUITMENT, XP, DIFFICULTY_MULTIPLIER, SANCTUM_COLLAPSE, ABILITIES, COUNTER_UNIT_SCORING, PUNCTURE_STUN_BASE_DEF_THRESHOLD, EMBER_PORTAL_BASE_USE_SCORE, EMBER_PORTAL_DISTANCE_PENALTY, EMBER_PORTAL_MAX_USERS_PER_TURN } from './gameConfig';
+import { UNIT_DEFINITIONS, ENEMY, MAP, TERRAIN, AI_SCORING, AI_RECRUITMENT, XP, DIFFICULTY_MULTIPLIER, SANCTUM_COLLAPSE, ABILITIES } from './gameConfig';
 import { resolveAttack, calculateCombat, resolveBuildingAttack, buildingToCombatant, calculateCombatFromStats, unitToCombatant, resolveAttackOnBuilding, detectBrandmarkSpawnPos, updateBerserkLatch } from './combatSystem';
 import { isTileWithinEdgeCircleRange, edgeCircleDistance } from './rangeUtils';
 import { initiateCapture, canCapture } from './captureSystem';
@@ -104,7 +104,7 @@ interface ArmyProfile {
   mageCount: number;
   /** Raw count of Guard units. */
   guardCount: number;
-  /** Count of units with base DEF > PUNCTURE_STUN_BASE_DEF_THRESHOLD. */
+  /** Count of units with base DEF > ABILITIES.PUNCTURE_STUN_BASE_DEF_THRESHOLD. */
   highDefCount: number;
   /** Count of SUMMONED units (Ember Demons, Skeletons). */
   summonedCount: number;
@@ -481,7 +481,7 @@ function buildArmyProfile(units: Unit[]): ArmyProfile {
 
     if (unit.type === UnitType.MAGE) mageCount++;
     if (unit.type === UnitType.GUARD) guardCount++;
-    if (u.defense > PUNCTURE_STUN_BASE_DEF_THRESHOLD) highDefCount++;
+    if (u.defense > ABILITIES.PUNCTURE_STUN_BASE_DEF_THRESHOLD) highDefCount++;
     if (unit.tags.includes(UnitTag.SUMMONED)) summonedCount++;
     if (unit.tags.includes(UnitTag.BRANDMARKED)) brandmarkActive = true;
     if (u.moveRange === 1) staticCount++;
@@ -730,7 +730,7 @@ function scoreRecruitmentForBuilding(
   building: Building,
 ): { type: UnitType; score: number }[] {
   const R = AI_RECRUITMENT;
-  const C = COUNTER_UNIT_SCORING;
+  const C = AI_RECRUITMENT;
 
   // Ember-gated eligible unit types; Emberlings only spawn from Ember Nests
   const eligibleTypes: UnitType[] = (Object.entries(UNIT_DEFINITIONS) as [UnitType, { enemyUnlockEmber?: number }][])
@@ -762,17 +762,13 @@ function scoreRecruitmentForBuilding(
       [UnitType.LAVA_ARCHER]: R.BASE_SCORE_ARCHER,
       [UnitType.LAVA_RIDER]: R.BASE_SCORE_RIDER,
       [UnitType.LAVA_SIEGE]: R.BASE_SCORE_SIEGE,
-      [UnitType.REAPER]: C.BASE_SCORE_REAPER,
-      [UnitType.LANCER]: C.BASE_SCORE_LANCER,
-      [UnitType.BULLWARK]: C.BASE_SCORE_BULLWARK,
-      [UnitType.KINDLER]: C.BASE_SCORE_KINDLER,
-      [UnitType.GRIMBEAK]: C.BASE_SCORE_GRIMBEAK,
-      [UnitType.RIFTWORM]: C.BASE_SCORE_RIFTWORM,
-      [UnitType.RIFT_LORD]: C.BASE_SCORE_RIFT_LORD,
     };
     let score = baseScores[unitType] ?? 0;
     if (isCounterThemeUnitType(unitType)) {
-      score = counterScoresByType.get(unitType) ?? score;
+      const counterScore = counterScoresByType.get(unitType);
+      // Counter-theme units eligible by ember are always scored by scoreCountersForPlayer with unlock lookahead coverage.
+      if (counterScore === undefined) continue;
+      score = counterScore;
       results.push({ type: unitType, score });
       continue;
     }
@@ -2310,14 +2306,14 @@ function scoreActionsForUnit(
       if (portal.exitPos.y <= portal.entrancePos.y) continue;
       // Skip if usage limit for this turn is already hit.
       const usersThisTurn = portalUsageIntents.get(portal.id) ?? 0;
-      if (usersThisTurn >= EMBER_PORTAL_MAX_USERS_PER_TURN) continue;
+      if (usersThisTurn >= ABILITIES.EMBER_PORTAL_MAX_USERS_PER_TURN) continue;
 
       // Check reachability using BFS path existence.
       const path = findBfsPath(unit.position, portal.entrancePos, state);
       if (path.length === 0 && (unit.position.x !== portal.entrancePos.x || unit.position.y !== portal.entrancePos.y)) continue;
 
       const distance = edgeCircleDistance(unit.position.x, unit.position.y, portal.entrancePos.x, portal.entrancePos.y);
-      const score = EMBER_PORTAL_BASE_USE_SCORE - (distance * EMBER_PORTAL_DISTANCE_PENALTY);
+      const score = ABILITIES.EMBER_PORTAL_BASE_USE_SCORE - (distance * ABILITIES.EMBER_PORTAL_DISTANCE_PENALTY);
       if (score <= 0) continue;
 
       candidates.push({

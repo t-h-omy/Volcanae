@@ -43,7 +43,7 @@ import { triggerSpellSfx } from './soundOptionsStore';
 import { Faction, GamePhase, BuildingType, TileType, TileStatus, Difficulty, DestroyBehavior, UnitType, UnitTag, TechFlag } from './types';
 import type { Building, GameState, Position, TechId, SpellId } from './types';
 import type { GameEvent } from './gameEvents';
-import { MAP, TERRAIN, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval, UNIT_DEFINITIONS, MAGE, TUNNEL_EMERGE_DAMAGE } from './gameConfig';
+import { MAP, TERRAIN, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval, UNIT_DEFINITIONS, MAGE } from './gameConfig';
 import { RENDER } from './renderConfig';
 import { ANIMATION } from './animationConfig';
 import { saveSlot, loadSlot, listSlots, deleteSlot, getSlotMeta, saveSeenHintsForSlot } from './saveSystem';
@@ -3359,10 +3359,10 @@ export const useGameStore = create<GameStore>()(
                 if (!aoeTargetTile?.unitId) continue;
                 const aoeTarget = state.units[aoeTargetTile.unitId];
                 if (aoeTarget && aoeTarget.faction === Faction.PLAYER) {
-                  aoeTarget.stats.currentHp = Math.max(0, aoeTarget.stats.currentHp - TUNNEL_EMERGE_DAMAGE);
+                  aoeTarget.stats.currentHp = Math.max(0, aoeTarget.stats.currentHp - ABILITIES.TUNNEL_EMERGE_DAMAGE);
                   updateBerserkLatch(aoeTarget);
                   addFloater({
-                    value: TUNNEL_EMERGE_DAMAGE,
+                    value: ABILITIES.TUNNEL_EMERGE_DAMAGE,
                     x: pos.x,
                     y: pos.y,
                     isEnemy: false,

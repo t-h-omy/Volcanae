@@ -17,12 +17,7 @@ import type { Draft } from 'immer';
 import type { GameState, Position } from './types';
 import { Faction, UnitTag, TileType } from './types';
 import {
-  TUNNEL_RANGE_MIN,
-  TUNNEL_RANGE_MAX,
-  TUNNEL_EMERGE_DAMAGE,
-  TUNNEL_COOLDOWN_TURNS,
-  TUNNEL_MAX_RETRY_TURNS,
-  TUNNEL_FORCED_EMERGE_HP_MULTIPLIER,
+  ABILITIES,
   MAP,
 } from './gameConfig';
 import { applyTileStatus } from './tileStatusSystem';
@@ -108,7 +103,7 @@ function isTileFreeForUnit(state: Draft<GameState>, x: number, y: number): boole
 
 /**
  * Find a valid emergence position in the column `x`, between
- * `baseY + TUNNEL_RANGE_MIN` and `baseY + TUNNEL_RANGE_MAX` (southward = higher Y).
+ * `baseY + ABILITIES.TUNNEL_RANGE_MIN` and `baseY + ABILITIES.TUNNEL_RANGE_MAX` (southward = higher Y).
  * Returns the first valid free tile, or null if none exists.
  */
 function findEmergenceTile(
@@ -117,7 +112,7 @@ function findEmergenceTile(
   baseY: number,
   forUnitId: string,
 ): Position | null {
-  for (let dy = TUNNEL_RANGE_MIN; dy <= TUNNEL_RANGE_MAX; dy++) {
+  for (let dy = ABILITIES.TUNNEL_RANGE_MIN; dy <= ABILITIES.TUNNEL_RANGE_MAX; dy++) {
     const ey = baseY + dy;
     if (isTileValidForEmergence(state, x, ey, forUnitId) && state.grid[ey][x].unitId === null) {
       return { x, y: ey };
@@ -162,7 +157,7 @@ function findFallbackEmergence(
  *  - Its tunnelState is IDLE or null/undefined
  *  - tunnelCooldownUntil is null/undefined or <= state.turn
  *  - Its current tile is valid for digging in
- *  - There is at least one valid emergence tile TUNNEL_RANGE_MIN..MAX southward
+ *  - There is at least one valid emergence tile ABILITIES.TUNNEL_RANGE_MIN..MAX southward
  *  - Heuristic: ≥ 3 player units are south of the burrower (higher Y) —
  *    meaning a dense player formation exists between the burrower and the stronghold
  *
@@ -270,7 +265,7 @@ export function processTunnelTurn(
 
       // Tile is blocked
       const turns = unit.tunnelTurnsUnderground ?? 0;
-      if (turns < TUNNEL_MAX_RETRY_TURNS) {
+      if (turns < ABILITIES.TUNNEL_MAX_RETRY_TURNS) {
         // Stay underground one more turn and retry
         unit.tunnelTurnsUnderground = turns + 1;
         return true;
@@ -295,7 +290,7 @@ export function processTunnelTurn(
         _abortTunnel(state, unitId);
         return false;
       }
-      unit.stats.currentHp = Math.max(1, Math.floor(unit.stats.currentHp * TUNNEL_FORCED_EMERGE_HP_MULTIPLIER));
+      unit.stats.currentHp = Math.max(1, Math.floor(unit.stats.currentHp * ABILITIES.TUNNEL_FORCED_EMERGE_HP_MULTIPLIER));
       unit.tunnelState = 'EMERGING';
       events?.push({
         type: 'TUNNEL_EMERGE_WARNING',
@@ -352,7 +347,7 @@ export function processTunnelTurn(
       unit.tunnelStartPosition = null;
       unit.tunnelPlannedEmergence = null;
       unit.tunnelTurnsUnderground = 0;
-      unit.tunnelCooldownUntil = state.turn + TUNNEL_COOLDOWN_TURNS;
+      unit.tunnelCooldownUntil = state.turn + ABILITIES.TUNNEL_COOLDOWN_TURNS;
 
       // Emit TUNNEL_EMERGE first so the animation engine shows the riftworm
       // before processing corruption and unit deaths.
@@ -398,9 +393,9 @@ function _applyEmergenceDamage(
     // even if the unit dies below.
     affected.push({ x: target.position.x, y: target.position.y });
 
-    target.stats.currentHp -= TUNNEL_EMERGE_DAMAGE;
+    target.stats.currentHp -= ABILITIES.TUNNEL_EMERGE_DAMAGE;
     updateBerserkLatch(target);
-    state.gameStats.damageReceived += TUNNEL_EMERGE_DAMAGE;
+    state.gameStats.damageReceived += ABILITIES.TUNNEL_EMERGE_DAMAGE;
 
     if (target.stats.currentHp <= 0) {
       const deathPos = { x: target.position.x, y: target.position.y };
@@ -457,5 +452,5 @@ function _abortTunnel(state: Draft<GameState>, unitId: string): void {
   unit.tunnelStartPosition = null;
   unit.tunnelPlannedEmergence = null;
   unit.tunnelTurnsUnderground = 0;
-  unit.tunnelCooldownUntil = state.turn + TUNNEL_COOLDOWN_TURNS;
+  unit.tunnelCooldownUntil = state.turn + ABILITIES.TUNNEL_COOLDOWN_TURNS;
 }
