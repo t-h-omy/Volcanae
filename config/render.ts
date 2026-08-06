@@ -1,7 +1,7 @@
 /**
  * Rendering configuration for Volcanae.
  * Tile sizes, breakpoints, filter values, color palette, and camera constants.
- * Pure presentation values — no gameplay logic depends on these.
+ * Pure presentation values - no gameplay logic depends on these.
  */
 
 export const RENDER = {

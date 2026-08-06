@@ -3,7 +3,7 @@
  */
 
 import { create } from 'zustand';
-import { UI } from './uiConfig';
+import { UI } from '../config/ui';
 
 // ============================================================================
 // TYPES

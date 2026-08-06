@@ -5,7 +5,7 @@
  */
 
 import { create } from 'zustand';
-import type { HintId } from './hintConfig';
+import type { HintId } from '../config/hints';
 import type { Position } from './types';
 
 export interface DeferredHint {

@@ -44,8 +44,8 @@ import { Faction, GamePhase, BuildingType, TileType, TileStatus, Difficulty, Des
 import type { Building, GameState, Position, TechId, SpellId } from './types';
 import type { GameEvent } from './gameEvents';
 import { MAP, TERRAIN, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval, UNIT_DEFINITIONS, MAGE } from './gameConfig';
-import { RENDER } from './renderConfig';
-import { ANIMATION } from './animationConfig';
+import { RENDER } from '../config/render';
+import { ANIMATION } from '../config/animation';
 import { saveSlot, loadSlot, listSlots, deleteSlot, getSlotMeta, saveSeenHintsForSlot } from './saveSystem';
 import { useMenuStore } from './menuStore';
 import { computeLevelFromXp, applyLevelUps, canGrantXp } from './levelSystem';

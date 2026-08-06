@@ -6,7 +6,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useHintStore } from '../hintStore';
 import { useHintOptionsStore } from '../hintOptionsStore';
-import { HINTS } from '../hintConfig';
+import { HINTS } from '../../config/hints';
 
 // ── Minimal gameStore stub ──────────────────────────────────────────────────
 // vi.hoisted ensures mockState is initialized before the mock factory runs,

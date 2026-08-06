@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.109.0 - presentation and hint configs moved into config/ folder
+
+Moved five remaining config files from `src/` into the top-level `config/` folder: `uiConfig.ts` to `config/ui.ts`, `renderConfig.ts` to `config/render.ts`, `animationConfig.ts` to `config/animation.ts`, `inputConfig.ts` to `config/input.ts`, and `hintConfig.ts` to `config/hints.ts`. The naming drops the `Config` suffix to match the existing module style. `config/hints.ts` imports from sibling modules (`economy`, `tileStatus`, `buildings`) instead of the barrel. All 22 import statements across 14 consumer files updated to the new paths. `src/gameConfig.ts` remains the barrel for gameplay modules only. Zero export renames, zero value changes. Tests extended in `gameConfigStructure.test.ts` to pin the five new module locations.
+
 ### v0.108.0 - gameplay config split into config/ folder
 
 Physically split the monolithic `src/gameConfig.ts` (~2900 lines) into 13 domain modules in a new top-level `config/` folder (map, tileStatus, economy, progression, magic, abilities, units, buildings, tagInfo, tech, specialists, enemyAi, save). `src/gameConfig.ts` is now a permanent compatibility barrel (`export * from '../config/...'`) so all 31 existing consumers keep working unchanged. Zero export renames, zero value changes. `tsconfig.app.json` updated to include the new `config/` directory. Barrel invariant test added to `gameConfigStructure.test.ts`.

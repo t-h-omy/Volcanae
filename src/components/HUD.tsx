@@ -13,11 +13,11 @@ import { useDevOptionsStore } from '../devOptionsStore';
 import { useSoundOptionsStore } from '../soundOptionsStore';
 import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, computeResearchCost, SPELL_DEFINITIONS, TERRAIN_TAG_INFO, MAGE, CORRUPTED_SUPPRESSED_TAGS, CRYSTAL_CAVE_CONFIG, CRYSTAL_CHAMBER_CONFIG, MARKET, SPECIALIST_DEFINITIONS, CONDITIONAL_ACTIVE_TAGS } from '../gameConfig';
 import type { SpecialistDefinition } from '../gameConfig';
-import { UI } from '../uiConfig';
+import { UI } from '../../config/ui';
 import type { UnitPopulationCost, TechId } from '../types';
 import { useHintStore } from '../hintStore';
 import { useHintOptionsStore } from '../hintOptionsStore';
-import { HINT_DEFINITIONS } from '../hintConfig';
+import { HINT_DEFINITIONS } from '../../config/hints';
 import { tryTriggerHint } from '../hintSystem';
 import { isUnitOnCorruptedTile } from '../tileStatusSystem';
 import {
@@ -70,7 +70,7 @@ import {
 import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast, getMageCastBudget, getUnitAttackRange, isHealSuppressedByCorruption, canUnitTrade, getTradeMarket, getCaptureTarget, canUnitBuildBridge, getBridgeBuildTargets, canUnitSetTrap, getTrapPlacementTargets, canUnitExtinguish } from '../unitActions';
 import { getBatteryAttackBonus, getPhalanxAttackBonus, getPhalanxDefenseBonus, getCrystalTowerChamberBonus, getRageAttackContext, isTagConditionActive } from '../combatSystem';
 import { isSpecialistEffectActive } from '../specialistSystem';
-import { RENDER } from '../renderConfig';
+import { RENDER } from '../../config/render';
 import { useZoneClearedStore } from '../zoneClearedStore';
 import { useCaveScreamsStore } from '../caveScreamsStore';
 import { useSpecialistHireStore } from '../specialistHireStore';

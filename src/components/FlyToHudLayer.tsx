@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ANIMATION } from '../animationConfig';
+import { ANIMATION } from '../../config/animation';
 import { computeFlyToHudControlPoint, quadraticBezierPoint, type ScreenPoint } from '../flyToHud';
 import { useFlyToHudStore, type FlyToHudFlight } from '../flyToHudStore';
 import './FlyToHudLayer.css';

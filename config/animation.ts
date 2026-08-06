@@ -1,7 +1,7 @@
 /**
  * Animation configuration for Volcanae.
  * Timing, duration, and keyframe constants for all animated effects.
- * Pure presentation values — no gameplay logic depends on these.
+ * Pure presentation values - no gameplay logic depends on these.
  */
 
 export const ANIMATION = {

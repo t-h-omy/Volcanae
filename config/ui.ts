@@ -1,7 +1,7 @@
 /**
  * UI configuration for Volcanae.
  * Floater sizes, font sizes, popup timings, and other HUD constants.
- * Pure presentation values — no gameplay logic depends on these.
+ * Pure presentation values - no gameplay logic depends on these.
  */
 
 export const UI = {
