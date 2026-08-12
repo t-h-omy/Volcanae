@@ -158,7 +158,7 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
   spec_15: {
     name: 'Forgemaster',
     description:
-      `Units recruited within ${ABILITIES.CINDERBORN_ROWS} rows of the lava front gain the CINDERBORN tag (+${ABILITIES.CINDERBORN_ATTACK_BONUS} ATK).`,
+      `Units recruited within ${ABILITIES.CINDERBORN_ROWS} rows of the lava front gain the CINDERBORN tag (+${ABILITIES.CINDERBORN_ATTACK_BONUS} ATK and immunity to BURNING tile damage).`,
     effects: [{ type: 'CINDERBORN_RECRUIT', params: { rows: ABILITIES.CINDERBORN_ROWS, attackBonus: ABILITIES.CINDERBORN_ATTACK_BONUS } }],
     upkeepIron: 0,
     upkeepWood: 0,
