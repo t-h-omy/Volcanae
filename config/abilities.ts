@@ -133,7 +133,7 @@ export const ABILITIES = {
   /** Extra units each recruitment building supports while the Quartermaster specialist is active (Crystal Caves and Crystal Chambers excluded) */
   RECRUITMENT_CAP_BONUS: 1,
   /** Number of rows from the lava front that qualify for the Cinderborn ATK bonus */
-  CINDERBORN_ROWS: 3,
+  CINDERBORN_ROWS: 5,
   /** Flat ATK bonus granted to a unit recruited within CINDERBORN_ROWS of the lava front */
   CINDERBORN_ATTACK_BONUS: 15,
   /** ATK bonus per adjacent friendly unit granted by the BATTERY tag */
