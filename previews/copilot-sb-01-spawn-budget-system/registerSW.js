@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/Volcanae/previews/copilot-sb-01-spawn-budget-system/sw.js', { scope: '/Volcanae/previews/copilot-sb-01-spawn-budget-system/' })})}
