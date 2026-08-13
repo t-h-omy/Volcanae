@@ -52,7 +52,7 @@ export const ENEMY = {
  *   to WEIGHT_MIN, which is reached at distance
  *   (WEIGHT_MAX - WEIGHT_MIN) / WEIGHT_DECAY_PER_TILE; beyond that all rear
  *   spawners are equally (un)likely. Spawners with a player unit inside their
- *   discoverRadius additionally multiply their weight by
+ *   discoverRadius additionally multiplies their weight by
  *   WEIGHT_IN_RANGE_MULTIPLIER (superlinear front focus). Sharpen concentration
  *   via WEIGHT_DECAY_PER_TILE or the multiplier; give the deep rear more
  *   activity via WEIGHT_MIN.

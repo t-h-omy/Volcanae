@@ -169,11 +169,10 @@ function pickWeightedWithoutReplacement<T>(items: Array<{ item: T; weight: numbe
   for (let i = 0; i < n; i++) {
     const totalWeight = pool.reduce((s, e) => s + e.weight, 0);
     let r = Math.random() * totalWeight;
-    let pickedIdx = 0;
+    let pickedIdx = pool.length - 1;
     for (let j = 0; j < pool.length; j++) {
       r -= pool[j].weight;
       if (r <= 0) { pickedIdx = j; break; }
-      pickedIdx = j;
     }
     result.push(pool[pickedIdx].item);
     pool.splice(pickedIdx, 1);
