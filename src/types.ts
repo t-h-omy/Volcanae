@@ -777,6 +777,21 @@ export interface ActiveWaveTheme {
   isReadPlayer: boolean;
 }
 
+/** Per-turn breakdown of the enemy spawn budget, for the Dev Stats overlay only. */
+export interface SpawnBudgetSnapshot {
+  base: number;
+  emberTerm: number;
+  margin: number;
+  contactActive: boolean;
+  ddaRelief: number;
+  budget: number;
+  accumulatorBefore: number;
+  spawnsNow: number;
+  accumulatorAfter: number;
+  /** Per eligible spawner: id, distance to nearest player unit, final weight, picked this turn. */
+  spawnerWeights: Array<{ buildingId: string; distance: number; weight: number; picked: boolean }>;
+}
+
 /** Complete game state */
 export interface GameState {
   turn: number;
@@ -837,6 +852,10 @@ export interface GameState {
    * Value of 0 means no active freeze.
    */
   spawnFreezeUntilTurn: number;
+  /** Fractional spawn budget carried between enemy turns (spawn budget system). */
+  spawnAccumulator: number;
+  /** Dev-stats snapshot of the last spawn budget evaluation; null before the first enemy turn. */
+  lastSpawnBudget: SpawnBudgetSnapshot | null;
   /**
    * Legacy field retained for save-file compatibility. No longer written by
    * Sanctum Collapse (which now increments turnsUntilLavaAdvance directly).

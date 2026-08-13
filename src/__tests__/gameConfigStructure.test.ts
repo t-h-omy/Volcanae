@@ -33,6 +33,15 @@ describe('gameConfig structure', () => {
     expect(typeof AI_RECRUITMENT.RIFT_LORD_PENALTY_NO_PORTAL_USERS).toBe('number');
   });
 
+  it('exposes SPAWN_BUDGET constants', () => {
+    expect(typeof (cfg as Record<string, unknown>).SPAWN_BUDGET).toBe('object');
+    const sb = (cfg as Record<string, unknown>).SPAWN_BUDGET as Record<string, unknown>;
+    expect(typeof sb.BASE_BUDGET).toBe('number');
+    expect(typeof sb.MIN_BUDGET).toBe('number');
+    expect(typeof sb.MAX_BUDGET).toBe('number');
+    expect(typeof sb.ACCUMULATOR_CAP).toBe('number');
+  });
+
   it('does not export deprecated counter scoring object or default export', () => {
     expect((cfg as Record<string, unknown>).COUNTER_UNIT_SCORING).toBeUndefined();
     expect((cfg as Record<string, unknown>).default).toBeUndefined();

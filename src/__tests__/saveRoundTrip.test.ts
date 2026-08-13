@@ -320,4 +320,43 @@ describe('saveSlot round-trip', () => {
     const loadedUnit = loaded!.units[unitId];
     expect(loadedUnit.berserkActivated).toBe(true);
   });
+
+  it('migrates v19 save to backfill spawnAccumulator and lastSpawnBudget', async () => {
+    const state = generateInitialGameState() as GameState & Record<string, unknown>;
+    delete (state as Record<string, unknown>)['spawnAccumulator'];
+    delete (state as Record<string, unknown>)['lastSpawnBudget'];
+
+    const idb = globalThis.indexedDB;
+    const dbReq = idb.open('volcanae', 1);
+    await new Promise<void>((resolve, reject) => {
+      dbReq.onupgradeneeded = () => {
+        const db = dbReq.result;
+        if (!db.objectStoreNames.contains('saveMeta')) db.createObjectStore('saveMeta', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('saveData')) db.createObjectStore('saveData', { keyPath: 'id' });
+      };
+      dbReq.onsuccess = () => resolve();
+      dbReq.onerror = () => reject(dbReq.error);
+    });
+    const db = dbReq.result;
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(['saveMeta', 'saveData'], 'readwrite');
+      tx.objectStore('saveMeta').put({ id: 'slot_v19_spawn_budget', version: 19, turn: 1, savedAt: Date.now(), name: 'OldGame', difficulty: 'STANDARD' });
+      tx.objectStore('saveData').put({ id: 'slot_v19_spawn_budget', version: 19, state });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+
+    const loaded = await loadSlot('slot_v19_spawn_budget');
+    expect(loaded).not.toBeNull();
+    expect(loaded!.spawnAccumulator).toBe(0);
+    expect(loaded!.lastSpawnBudget).toBeNull();
+  });
+
+  it('round-trips a non-zero spawnAccumulator intact', async () => {
+    const state: GameState = { ...generateInitialGameState(), spawnAccumulator: 2.75 };
+    await saveSlot({ id: 'slot_accumulator', name: 'Accumulator Test', state });
+    const loaded = await loadSlot('slot_accumulator');
+    expect(loaded).not.toBeNull();
+    expect(loaded!.spawnAccumulator).toBe(2.75);
+  });
 });

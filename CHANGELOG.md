@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.109.1 - Spawn Budget System
+
+Replaces per-building spawn probability with a global per-turn spawn budget and fractional accumulator. The enemy now produces a predictable expected number of spawns each turn (zero streak variance) rather than rolling independently per building. Budget is ember-scaled (BASE_BUDGET + ember * EMBER_BUDGET_PER_LEVEL) with MIN_BUDGET and MAX_BUDGET clamps; a contact-gated lava-margin relief term (DDA) reduces pressure when enemy units are close to the player but the frontline is still far from the lava. Spawner selection uses distance-weighted sampling without replacement, with a discoverRadius multiplier for front-line spawners. The fractional accumulator carries unspent budget between turns and is capped at ACCUMULATOR_CAP. Sanctum Collapse spawn freeze no longer blocks accumulation loss (cooldowns still tick during a freeze). Dev Stats overlay shows per-turn budget breakdown, accumulator, and per-spawner weights. Save version bumped to 20 with migration for spawnAccumulator and lastSpawnBudget.
+
 ### v0.109.0 - presentation and hint configs moved into config/ folder
 
 Moved five remaining config files from `src/` into the top-level `config/` folder: `uiConfig.ts` to `config/ui.ts`, `renderConfig.ts` to `config/render.ts`, `animationConfig.ts` to `config/animation.ts`, `inputConfig.ts` to `config/input.ts`, and `hintConfig.ts` to `config/hints.ts`. The naming drops the `Config` suffix to match the existing module style. `config/hints.ts` imports from sibling modules (`economy`, `tileStatus`, `buildings`) instead of the barrel. All 22 import statements across 14 consumer files updated to the new paths. `src/gameConfig.ts` remains the barrel for gameplay modules only. Zero export renames, zero value changes. Tests extended in `gameConfigStructure.test.ts` to pin the five new module locations.

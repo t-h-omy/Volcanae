@@ -100,7 +100,7 @@ function isValidEntranceTile(state: Draft<GameState>, x: number, y: number): boo
  * This is the player's true frontline — the most-advanced position.
  * Returns MAP.GRID_HEIGHT (sentinel: "no frontline") if no player units exist.
  */
-function getPlayerFrontlineRow(state: Draft<GameState>): number {
+export function getPlayerFrontlineRow(state: Draft<GameState>): number {
   let frontline: number = MAP.GRID_HEIGHT;
   for (const unit of Object.values(state.units)) {
     if (unit.faction === Faction.PLAYER && unit.position.y < frontline) {
