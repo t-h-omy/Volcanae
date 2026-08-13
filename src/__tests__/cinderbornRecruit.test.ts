@@ -135,6 +135,8 @@ function makeRecruitState(params: { lavaFrontRow: number; recruitY: number; with
     difficulty: undefined as unknown as GameState['difficulty'],
     zoneLockoutUntilTurn: {},
     spawnFreezeUntilTurn: 0,
+    spawnAccumulator: 0,
+    lastSpawnBudget: null,
     lavaFreezeUntilTurn: 0,
     gameOverCause: null,
     specialistSlotCap: 2,

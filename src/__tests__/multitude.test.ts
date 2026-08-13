@@ -153,6 +153,8 @@ function makeBaseState(withMultitude: boolean, extraBuildings: Record<string, Bu
     difficulty: undefined as unknown as GameState['difficulty'],
     zoneLockoutUntilTurn: {},
     spawnFreezeUntilTurn: 0,
+    spawnAccumulator: 0,
+    lastSpawnBudget: null,
     lavaFreezeUntilTurn: 0,
     gameOverCause: null,
     specialistSlotCap: 2,

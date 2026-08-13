@@ -171,6 +171,8 @@ function makeState(units: Unit[]): GameState {
     difficulty: Difficulty.STANDARD,
     zoneLockoutUntilTurn: {},
     spawnFreezeUntilTurn: 0,
+    spawnAccumulator: 0,
+    lastSpawnBudget: null,
     lavaFreezeUntilTurn: 0,
     gameOverCause: null,
     specialistSlotCap: 2,

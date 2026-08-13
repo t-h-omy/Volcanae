@@ -446,7 +446,7 @@ function migrateState(parsed: { version: number; state: GameState }): GameState 
 
     // Migration v19 -> v20: spawn budget system state.
     if (parsed.version < 20) {
-      const anyState = s as Record<string, unknown>;
+      const anyState = s as unknown as Record<string, unknown>;
       if (typeof anyState.spawnAccumulator !== 'number') anyState.spawnAccumulator = 0;
       if (anyState.lastSpawnBudget === undefined) anyState.lastSpawnBudget = null;
     }
