@@ -59,9 +59,9 @@ export const ENEMY = {
  */
 export const SPAWN_BUDGET = {
   /** Expected spawns per turn at ember 0 (before relief and clamps) */
-  BASE_BUDGET: 1.25,
+  BASE_BUDGET: 1.5,
   /** Budget added per ember level; quantity saturates once the MAX_BUDGET clamp binds (see block comment) */
-  EMBER_BUDGET_PER_LEVEL: 0.25,
+  EMBER_BUDGET_PER_LEVEL: 0.3334,
   /** Floor: the enemy never produces fewer expected spawns per turn than this, DDA relief cannot push below it */
   MIN_BUDGET: 1.0,
   /** Ceiling: expected spawns per turn never exceed this, regardless of ember */
