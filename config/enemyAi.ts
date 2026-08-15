@@ -16,18 +16,74 @@ export const ENEMY = {
   MAX_LAVA_BOOST_DISTANCE: 20,
   /** Maximum multiplier for lava proximity boost */
   MAX_LAVA_BOOST_MULTIPLIER: 0,
-  /** Base enemy spawn count per building */
-  ENEMY_SPAWN_PER_BUILDING_BASE: 1,
-  /** Bonus enemy spawn per 3 threat levels */
-  ENEMY_THREAT_SPAWN_BONUS: 0.00,
-  /** Base probability (0.0–1.0) of spawning a unit per recruitment building per turn when no player unit is in discover radius and threat is 0 */
-  BASE_SPAWN_PROBABILITY: 0.15,
-  /** Maximum additional probability granted at max threat (0.0–1.0) */
-  MAX_THREAT_BONUS: 0.25,
-  /** Threat level at which the full MAX_THREAT_BONUS is reached */
-  MAX_THREAT: 25,
   /** Number of player turns between automatic threat level increases */
   THREAT_LEVEL_INCREASE_INTERVAL: 10,
+} as const;
+
+/**
+ * SPAWN BUDGET SYSTEM
+ *
+ * Replaces per-building spawn probability. Each enemy turn ONE global budget
+ * (expected spawns per turn) is computed, paid into a fractional accumulator,
+ * and whole spawns are distributed over eligible spawner buildings by
+ * distance-to-player weighting. Over any stretch of turns the spawn COUNT
+ * equals the summed budget exactly (zero streak variance); randomness remains
+ * only in WHICH building spawns and WHICH unit type.
+ *
+ * HOW TO TUNE (read before changing values):
+ * - Quantity over a run: budget = clamp(BASE_BUDGET + ember * EMBER_BUDGET_PER_LEVEL
+ *   + ddaRelief, MIN_BUDGET, MAX_BUDGET). The ember scaling stops mattering once
+ *   BASE_BUDGET + ember * EMBER_BUDGET_PER_LEVEL >= MAX_BUDGET; ember levels beyond
+ *   that point raise only unit quality (unlock tiers), not quantity.
+ * - DDA relief is RELIEF ONLY (never positive) and only active while contactActive
+ *   (see DDA_CONTACT_RANGE). It starts once margin < DDA_EXPECTED_MARGIN and grows
+ *   by DDA_PER_ROW per missing row until DDA_MIN. Full DDA_MIN is reached at
+ *   margin = DDA_EXPECTED_MARGIN + DDA_MIN / DDA_PER_ROW.
+ * - The MIN_BUDGET floor absorbs relief at low ember: the full DDA_MIN only has
+ *   full effect while BASE_BUDGET + ember * EMBER_BUDGET_PER_LEVEL + DDA_MIN
+ *   >= MIN_BUDGET; below that, part of the relief is clamped away and the enemy
+ *   never drops under MIN_BUDGET spawns per turn.
+ * - Throughput ceiling: at most 1 spawn per eligible spawner per turn, so the
+ *   number of living spawner buildings hard-caps output regardless of budget;
+ *   surplus banks in the accumulator up to ACCUMULATOR_CAP and is discarded
+ *   beyond it. ACCUMULATOR_CAP must stay > MAX_BUDGET or budget is silently
+ *   lost EVERY turn even without blockades.
+ * - Spatial concentration: weight falls linearly from WEIGHT_MAX at distance 0
+ *   to WEIGHT_MIN, which is reached at distance
+ *   (WEIGHT_MAX - WEIGHT_MIN) / WEIGHT_DECAY_PER_TILE; beyond that all rear
+ *   spawners are equally (un)likely. Spawners with a player unit inside their
+ *   discoverRadius additionally multiplies their weight by
+ *   WEIGHT_IN_RANGE_MULTIPLIER (superlinear front focus). Sharpen concentration
+ *   via WEIGHT_DECAY_PER_TILE or the multiplier; give the deep rear more
+ *   activity via WEIGHT_MIN.
+ */
+export const SPAWN_BUDGET = {
+  /** Expected spawns per turn at ember 0 (before relief and clamps) */
+  BASE_BUDGET: 1.25,
+  /** Budget added per ember level; quantity saturates once the MAX_BUDGET clamp binds (see block comment) */
+  EMBER_BUDGET_PER_LEVEL: 0.25,
+  /** Floor: the enemy never produces fewer expected spawns per turn than this, DDA relief cannot push below it */
+  MIN_BUDGET: 1.0,
+  /** Ceiling: expected spawns per turn never exceed this, regardless of ember */
+  MAX_BUDGET: 5.0,
+  /** Frontline-to-lava margin (in rows) below which DDA relief starts; at or above it relief is 0 */
+  DDA_EXPECTED_MARGIN: 12,
+  /** Relief per row of missing margin (subtracted from the budget) */
+  DDA_PER_ROW: 0.25,
+  /** Maximum total relief (most negative value the DDA term can take) */
+  DDA_MIN: -3.0,
+  /** DDA gate: relief only applies while any enemy entity (unit or building) is within this edge-circle range of any player entity; prevents permanent early-game relief from spawning close to the lava without any enemy contact */
+  DDA_CONTACT_RANGE: 3,
+  /** Max banked fractional/blocked spawn debt; must stay greater than MAX_BUDGET (see block comment) */
+  ACCUMULATOR_CAP: 6.0,
+  /** Selection weight at distance 0 to the nearest player unit */
+  WEIGHT_MAX: 10,
+  /** Selection weight floor for distant spawners; also the uniform weight when no player units exist */
+  WEIGHT_MIN: 1,
+  /** Weight lost per tile of edge-circle distance to the nearest player unit */
+  WEIGHT_DECAY_PER_TILE: 0.5,
+  /** Extra multiplier on top of the distance weight for spawners with a player unit inside their discoverRadius */
+  WEIGHT_IN_RANGE_MULTIPLIER: 3,
 } as const;
 
 

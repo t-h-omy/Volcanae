@@ -1665,6 +1665,8 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
     difficulty,
     zoneLockoutUntilTurn: {},
     spawnFreezeUntilTurn: 0,
+    spawnAccumulator: 0,
+    lastSpawnBudget: null,
     lavaFreezeUntilTurn: 0,
     gameOverCause: null,
     specialistSlotCap: 2,

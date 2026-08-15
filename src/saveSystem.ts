@@ -18,7 +18,7 @@ import type { Difficulty } from './types';
 // ============================================================================
 
 /** Increment this whenever the serialized shape changes incompatibly. */
-export const SAVE_VERSION = 19;
+export const SAVE_VERSION = 20;
 
 // ============================================================================
 // TYPES
@@ -442,6 +442,13 @@ function migrateState(parsed: { version: number; state: GameState }): GameState 
           u.berserkActivated = false;
         }
       }
+    }
+
+    // Migration v19 -> v20: spawn budget system state.
+    if (parsed.version < 20) {
+      const anyState = s as unknown as Record<string, unknown>;
+      if (typeof anyState.spawnAccumulator !== 'number') anyState.spawnAccumulator = 0;
+      if (anyState.lastSpawnBudget === undefined) anyState.lastSpawnBudget = null;
     }
 
     return s as GameState;

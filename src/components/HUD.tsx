@@ -365,6 +365,7 @@ function DevStatsOverlay({ onClose }: { onClose: () => void }) {
   const buildings = useGameStore((s) => s.buildings);
   const enemyUnitsSpawnedLastTurn = useGameStore((s) => s.enemyUnitsSpawnedLastTurn);
   const activeWaveTheme = useGameStore((s) => s.activeWaveTheme);
+  const lastSpawnBudget = useGameStore((s) => s.lastSpawnBudget);
 
   const enemyRecruitingBuildingCount = useMemo(
     () => Object.values(buildings).filter(
@@ -387,10 +388,36 @@ function DevStatsOverlay({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  const spawnBudgetRows: Array<{ label: string; value: number | string; wrapValue?: boolean }> = lastSpawnBudget === null
+    ? [{ label: 'Spawn budget', value: 'n/a' }]
+    : [
+        {
+          label: 'Spawn budget',
+          value: `${lastSpawnBudget.budget.toFixed(2)} (base ${lastSpawnBudget.base.toFixed(2)} + ember ${lastSpawnBudget.emberTerm.toFixed(2)} + dda ${lastSpawnBudget.ddaRelief.toFixed(2)})`,
+        },
+        {
+          label: 'Lava margin / contact',
+          value: `${lastSpawnBudget.margin} rows, ${lastSpawnBudget.contactActive ? 'contact' : 'no contact'}`,
+        },
+        {
+          label: 'Spawn accumulator',
+          value: `${lastSpawnBudget.accumulatorBefore.toFixed(2)} -> ${lastSpawnBudget.accumulatorAfter.toFixed(2)}`,
+        },
+        { label: 'Spawns this turn', value: lastSpawnBudget.spawnsNow },
+        {
+          label: 'Spawner weights',
+          value: lastSpawnBudget.spawnerWeights
+            .map((sw) => `d=${sw.distance === Infinity ? 'inf' : sw.distance.toFixed(2)} w=${sw.weight.toFixed(2)}${sw.picked ? '*' : ''}`)
+            .join(' '),
+          wrapValue: true,
+        },
+      ];
+
   const stats: Array<{ label: string; value: number | string; wrapValue?: boolean }> = [
     { label: 'Enemy recruiting buildings', value: enemyRecruitingBuildingCount },
     { label: 'Enemy units spawned last turn', value: enemyUnitsSpawnedLastTurn },
     { label: currentThemeLabel, value: currentThemeValue, wrapValue: true },
+    ...spawnBudgetRows,
   ];
 
   return (

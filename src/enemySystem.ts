@@ -3,11 +3,11 @@
  * Implements enemy unit spawning and scoring-based AI behavior.
  */
 
-import type { GameState, Unit, Building, Position } from './types';
+import type { GameState, Unit, Building, Position, SpawnBudgetSnapshot } from './types';
 import type { Draft } from 'immer';
 import { current, produce } from 'immer';
 import { Faction, UnitType, UnitTag, BuildingType, TileType, TileStatus } from './types';
-import { UNIT_DEFINITIONS, ENEMY, MAP, TERRAIN, AI_SCORING, AI_RECRUITMENT, XP, DIFFICULTY_MULTIPLIER, SANCTUM_COLLAPSE, ABILITIES } from './gameConfig';
+import { UNIT_DEFINITIONS, ENEMY, MAP, TERRAIN, AI_SCORING, AI_RECRUITMENT, XP, DIFFICULTY_MULTIPLIER, SANCTUM_COLLAPSE, ABILITIES, SPAWN_BUDGET } from './gameConfig';
 import { resolveAttack, calculateCombat, resolveBuildingAttack, buildingToCombatant, calculateCombatFromStats, unitToCombatant, resolveAttackOnBuilding, detectBrandmarkSpawnPos, updateBerserkLatch } from './combatSystem';
 import { isTileWithinEdgeCircleRange, edgeCircleDistance } from './rangeUtils';
 import { initiateCapture, canCapture } from './captureSystem';
@@ -20,7 +20,7 @@ import { hasUnitActed, applySpawnActionFlags } from './unitActions';
 import { sweepLeashes } from './spellSystem';
 import { checkGraveTrapTrigger, checkScoutTrapTrigger, resolveSlide } from './movementSystem';
 import { tryBeginTunnel, processTunnelTurn } from './tunnelSystem';
-import { cleanupPortals, cleanupExpiredPortalsEndOfTurn, tryPlanPortalCast, castPortal, getUsablePortalAtEntrance, tryTeleportThroughPortal, processPendingPortalTeleports } from './portalSystem';
+import { cleanupPortals, cleanupExpiredPortalsEndOfTurn, tryPlanPortalCast, castPortal, getUsablePortalAtEntrance, tryTeleportThroughPortal, processPendingPortalTeleports, getPlayerFrontlineRow } from './portalSystem';
 import { cleanupRoostedUnits, getRoostedUnits } from './buildingRemoval';
 import { isUnitOnCorruptedTile } from './tileStatusSystem';
 import { isCounterThemeUnitType, pickUnitFromTheme, scoreCountersForPlayer } from './waveThemeSystem';
@@ -154,10 +154,30 @@ function isPlayerUnitInDiscoverRadius(state: Draft<GameState>, building: Buildin
   return false;
 }
 
-function getSpawnProbability(state: Draft<GameState>, building: Building): number {
-  if (isPlayerUnitInDiscoverRadius(state, building)) return 1.0;
-  const threatRatio = Math.min(state.ember / ENEMY.MAX_THREAT, 1);
-  return ENEMY.BASE_SPAWN_PROBABILITY + ENEMY.MAX_THREAT_BONUS * threatRatio;
+function clamp(v: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, v));
+}
+
+/**
+ * Weighted sampling without replacement. Draws up to `count` distinct items
+ * from `items` proportional to their weights. Returns the drawn items.
+ */
+function pickWeightedWithoutReplacement<T>(items: Array<{ item: T; weight: number }>, count: number): T[] {
+  const pool = items.slice();
+  const result: T[] = [];
+  const n = Math.min(count, pool.length);
+  for (let i = 0; i < n; i++) {
+    const totalWeight = pool.reduce((s, e) => s + e.weight, 0);
+    let r = Math.random() * totalWeight;
+    let pickedIdx = pool.length - 1;
+    for (let j = 0; j < pool.length; j++) {
+      r -= pool[j].weight;
+      if (r <= 0) { pickedIdx = j; break; }
+    }
+    result.push(pool[pickedIdx].item);
+    pool.splice(pickedIdx, 1);
+  }
+  return result;
 }
 
 const SPAWNER_TYPES: BuildingType[] = [BuildingType.BARRACKS, BuildingType.ARCHER_CAMP, BuildingType.RIDER_CAMP, BuildingType.SIEGE_CAMP, BuildingType.LAVALAIR, BuildingType.INFERNALSANCTUM];
@@ -571,34 +591,138 @@ function createEnemyUnit(
   return applySpawnActionFlags(unit);
 }
 
+/**
+ * Spawns enemy units each enemy turn using the global spawn budget system.
+ * Pipeline:
+ *   1. Decrement spawnCooldownRemaining on all enemy recruitment buildings (always).
+ *   2. If frozen by Sanctum Collapse, return early without accruing budget.
+ *   3. Compute eligible spawners (cooldown 0, tile free, not lava).
+ *   4. Evaluate per-turn budget with ember scaling and contact-gated DDA relief.
+ *   5. Advance the fractional accumulator; floor to get spawnsNow.
+ *   6. Weight eligible spawners by distance to nearest player unit, pick spawnsNow.
+ *   7. Spawn one unit per picked building and write the snapshot.
+ *
+ * See the SPAWN_BUDGET block comment in config/enemyAi.ts for tuning guidance.
+ */
 function spawnEnemyUnits(state: Draft<GameState>, events?: GameEvent[]): void {
-  if (SANCTUM_COLLAPSE.SPAWN_FREEZE_TURNS > 0 &&
-      state.spawnFreezeUntilTurn > 0 &&
-      state.turn < state.spawnFreezeUntilTurn) {
-    return; // spawn frozen by Sanctum Collapse
-  }
+  // Step 1: Decrement cooldowns unconditionally for all enemy recruitment buildings.
+  // This ordering is intentional: cooldowns must tick even during a spawn freeze
+  // so buildings are ready to spawn again as soon as the freeze ends.
   for (const building of Object.values(state.buildings)) {
     if (building.faction !== Faction.ENEMY) continue;
     if (!isRecruitmentBuilding(building)) continue;
+    if (building.spawnCooldownRemaining > 0) building.spawnCooldownRemaining -= 1;
+  }
 
-    // Per-building spawn cooldown: skip this building for one turn after its
-    // defender was killed, giving the player a window to move onto the tile.
-    if (building.spawnCooldownRemaining > 0) {
-      building.spawnCooldownRemaining -= 1;
-      continue;
+  // Step 2: Freeze check - no budget accrues while frozen; otherwise the banked
+  // debt would refund the removed pressure the moment the freeze ends.
+  if (SANCTUM_COLLAPSE.SPAWN_FREEZE_TURNS > 0 &&
+      state.spawnFreezeUntilTurn > 0 &&
+      state.turn < state.spawnFreezeUntilTurn) {
+    return;
+  }
+
+  // Step 3: Collect eligible spawners.
+  const eligibleSpawners = Object.values(state.buildings).filter(
+    (b) =>
+      b.faction === Faction.ENEMY &&
+      isRecruitmentBuilding(b) &&
+      b.spawnCooldownRemaining === 0 &&
+      state.grid[b.position.y][b.position.x].unitId === null &&
+      !state.grid[b.position.y][b.position.x].isLava,
+  );
+
+  // Step 4: Compute budget.
+  const playerUnits = Object.values(state.units).filter((u) => u.faction === Faction.PLAYER);
+  const frontlineRow = getPlayerFrontlineRow(state);
+  const noPlayerUnits = frontlineRow === MAP.GRID_HEIGHT;
+  const margin = state.lavaFrontRow - frontlineRow;
+
+  let contactActive = false;
+  if (!noPlayerUnits) {
+    // Check if any enemy entity is within DDA_CONTACT_RANGE of any player entity.
+    const enemyEntities: Array<{ x: number; y: number }> = [
+      ...Object.values(state.units)
+        .filter((u) => u.faction === Faction.ENEMY)
+        .map((u) => ({ x: u.position.x, y: u.position.y })),
+      ...Object.values(state.buildings)
+        .filter((b) => b.faction === Faction.ENEMY)
+        .map((b) => ({ x: b.position.x, y: b.position.y })),
+    ];
+    const playerEntities: Array<{ x: number; y: number }> = [
+      ...playerUnits.map((u) => ({ x: u.position.x, y: u.position.y })),
+      ...Object.values(state.buildings)
+        .filter((b) => b.faction === Faction.PLAYER)
+        .map((b) => ({ x: b.position.x, y: b.position.y })),
+    ];
+    outer: for (const e of enemyEntities) {
+      for (const p of playerEntities) {
+        if (isTileWithinEdgeCircleRange(e.x, e.y, p.x, p.y, SPAWN_BUDGET.DDA_CONTACT_RANGE)) {
+          contactActive = true;
+          break outer;
+        }
+      }
     }
+  }
+
+  const base = SPAWN_BUDGET.BASE_BUDGET;
+  const emberTerm = state.ember * SPAWN_BUDGET.EMBER_BUDGET_PER_LEVEL;
+  let ddaRelief = 0;
+  if (contactActive && !noPlayerUnits) {
+    ddaRelief = clamp(
+      (margin - SPAWN_BUDGET.DDA_EXPECTED_MARGIN) * SPAWN_BUDGET.DDA_PER_ROW,
+      SPAWN_BUDGET.DDA_MIN,
+      0,
+    );
+  }
+  const budget = clamp(base + emberTerm + ddaRelief, SPAWN_BUDGET.MIN_BUDGET, SPAWN_BUDGET.MAX_BUDGET);
+
+  // Step 5: Accumulator update.
+  const accumulatorBefore = state.spawnAccumulator;
+  state.spawnAccumulator = Math.min(state.spawnAccumulator + budget, SPAWN_BUDGET.ACCUMULATOR_CAP);
+  const spawnsNow = Math.min(Math.floor(state.spawnAccumulator), eligibleSpawners.length);
+  state.spawnAccumulator -= spawnsNow;
+  const accumulatorAfter = state.spawnAccumulator;
+
+  // Step 6: Compute weights for eligible spawners.
+  const spawnerCandidates: Array<{ item: Building; weight: number; distance: number }> = [];
+  for (const building of eligibleSpawners) {
+    let d = Infinity;
+    for (const unit of playerUnits) {
+      const dist = edgeCircleDistance(building.position.x, building.position.y, unit.position.x, unit.position.y);
+      if (dist < d) d = dist;
+    }
+    let weight: number;
+    if (noPlayerUnits) {
+      weight = SPAWN_BUDGET.WEIGHT_MIN;
+      d = Infinity;
+    } else {
+      const distW = clamp(
+        SPAWN_BUDGET.WEIGHT_MAX - d * SPAWN_BUDGET.WEIGHT_DECAY_PER_TILE,
+        SPAWN_BUDGET.WEIGHT_MIN,
+        SPAWN_BUDGET.WEIGHT_MAX,
+      );
+      weight = distW * (isPlayerUnitInDiscoverRadius(state, building) ? SPAWN_BUDGET.WEIGHT_IN_RANGE_MULTIPLIER : 1);
+    }
+    spawnerCandidates.push({ item: building, weight, distance: d });
+  }
+
+  // Step 7: Pick spawnsNow distinct spawners by weight.
+  const picked = new Set<string>();
+  if (spawnsNow > 0) {
+    const selected = pickWeightedWithoutReplacement(
+      spawnerCandidates.map((c) => ({ item: c.item, weight: c.weight })),
+      spawnsNow,
+    );
+    for (const b of selected) picked.add(b.id);
+  }
+
+  // Step 8: Spawn one unit per picked building.
+  for (const building of eligibleSpawners) {
+    if (!picked.has(building.id)) continue;
 
     const unitType: UnitType = pickUnitFromTheme(state, building);
-
-    const spawnProbability = getSpawnProbability(state, building);
-    if (Math.random() >= spawnProbability) continue;
-
-    // Only spawn on the building's own tile; skip if occupied or lava
-    const buildingTile = state.grid[building.position.y][building.position.x];
-    if (buildingTile.unitId !== null || buildingTile.isLava) continue;
-
     const spawnPosition: Position = { ...building.position };
-
     const unit = createEnemyUnit(spawnPosition, unitType, building.lavaBoostEnabled, state.lavaFrontRow, building.position, DIFFICULTY_MULTIPLIER[state.difficulty]);
 
     // Snapshot the unit BEFORE assigning to the draft (plain objects added
@@ -623,6 +747,26 @@ function spawnEnemyUnits(state: Draft<GameState>, events?: GameEvent[]): void {
       });
     }
   }
+
+  // Step 9: Write snapshot.
+  const snapshot: SpawnBudgetSnapshot = {
+    base,
+    emberTerm,
+    margin,
+    contactActive,
+    ddaRelief,
+    budget,
+    accumulatorBefore,
+    spawnsNow,
+    accumulatorAfter,
+    spawnerWeights: spawnerCandidates.map((c) => ({
+      buildingId: c.item.id,
+      distance: c.distance,
+      weight: c.weight,
+      picked: picked.has(c.item.id),
+    })),
+  };
+  state.lastSpawnBudget = snapshot;
 }
 
 // ============================================================================
