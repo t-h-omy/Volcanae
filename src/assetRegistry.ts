@@ -40,7 +40,7 @@ export const UNIT_SPRITE: Partial<Record<UnitType, string>> = withBase({
   SPEARMAN:    '/sprites/units/Spearman_100px.png',
   SWORDSMAN:   '/sprites/units/Swordsman_100px.png',
   ARCHER:      '/sprites/units/Archer_100px.png',
-  CROSSBOWMAN: '/sprites/units/crossbowman_100px.png',
+  CROSSBOWMAN: '/sprites/units/Crossbowman_100px.png',
   RIDER:       '/sprites/units/Rider_100px.png',
   SIEGE:       '/sprites/units/Catapult_100px.png',
   SCOUT:       '/sprites/units/Scout_100px.png',
@@ -48,7 +48,7 @@ export const UNIT_SPRITE: Partial<Record<UnitType, string>> = withBase({
   MAGE:        '/sprites/units/Mage_100px.png',
   EMBER_DEMON: '/sprites/units/Ember_Demon_Player_100px.png',
   SKELETON:    '/sprites/units/Skeleton_100px.png',
-  GARGOYLE:    '/sprites/units/gargoyle_100px.png',
+  GARGOYLE:    '/sprites/units/Gargoyle_100px.png',
   // Enemy units
   LAVA_GRUNT:   '/sprites/units/Grunt_100px.png',
   LAVA_ARCHER:  '/sprites/units/Spitter_100px.png',
