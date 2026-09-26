@@ -40,7 +40,7 @@ export const UNIT_SPRITE: Partial<Record<UnitType, string>> = withBase({
   SPEARMAN:    '/sprites/units/Spearman_100px.png',
   SWORDSMAN:   '/sprites/units/Swordsman_100px.png',
   ARCHER:      '/sprites/units/Archer_100px.png',
-  CROSSBOWMAN: '/sprites/units/Crossbowman_100px.png',
+  CROSSBOWMAN: '/sprites/units/crossbowman_100px.png',
   RIDER:       '/sprites/units/Rider_100px.png',
   SIEGE:       '/sprites/units/Catapult_100px.png',
   SCOUT:       '/sprites/units/Scout_100px.png',
@@ -48,7 +48,7 @@ export const UNIT_SPRITE: Partial<Record<UnitType, string>> = withBase({
   MAGE:        '/sprites/units/Mage_100px.png',
   EMBER_DEMON: '/sprites/units/Ember_Demon_Player_100px.png',
   SKELETON:    '/sprites/units/Skeleton_100px.png',
-  GARGOYLE:    '', // intentional missing until Gargoyle art lands; expected: /sprites/units/Gargoyle_100px.png
+  GARGOYLE:    '/sprites/units/gargoyle_100px.png',
   // Enemy units
   LAVA_GRUNT:   '/sprites/units/Grunt_100px.png',
   LAVA_ARCHER:  '/sprites/units/Spitter_100px.png',
@@ -109,6 +109,7 @@ export const BUILDING_SPRITE: Partial<Record<BuildingType, string>> = withBase({
   CRYSTAL_TOWER:   '/sprites/buildings/crystal_tower_100px.png',
   CRYSTAL_CAVE:    '/sprites/buildings/crystal_cave_100px.png',
   CHARCOAL_KILN:   '/sprites/buildings/charcoal_kiln_100px.png',
+  MARKET:          '/sprites/buildings/marketplace_100px.png',
   // TODO: replace BRIDGE with real art when available
   BRIDGE:          '/sprites/buildings/bridge_100px.png',
 });
@@ -237,11 +238,11 @@ export const TUNNEL_EARTHQUAKE_SPRITE = withBase({ earthquake: '' }).earthquake 
  * Rendered on the entrance tile while a portal is active.
  * Empty string = pink MissingSprite placeholder until real art is ready.
  */
-export const PORTAL_ENTRANCE_SPRITE = withBase({ portal_entrance: '' }).portal_entrance ?? '';
+export const PORTAL_ENTRANCE_SPRITE = withBase({ portal_entrance: '/sprites/buildings/portal_entry_100px.png' }).portal_entrance ?? '';
 
 /**
  * Sprite path for a portal exit tile overlay.
  * Rendered on the exit tile while a portal is active.
  * Empty string = pink MissingSprite placeholder until real art is ready.
  */
-export const PORTAL_EXIT_SPRITE = withBase({ portal_exit: '' }).portal_exit ?? '';
+export const PORTAL_EXIT_SPRITE = withBase({ portal_exit: '/sprites/buildings/portal_exit_100px.png' }).portal_exit ?? '';
