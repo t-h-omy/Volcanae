@@ -7,16 +7,41 @@
  * empty strings the returned promise resolves instantly.
  */
 
-import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE, RESOURCE_SPRITE, ENEMY_BUILDING_SPRITE, TERRAIN_RESOURCE_SPRITE } from './assetRegistry';
+import {
+  UNIT_SPRITE,
+  PLAYER_UNIT_SPRITE,
+  ENEMY_UNIT_SPRITE,
+  BUILDING_SPRITE,
+  PLAYER_BUILDING_SPRITE,
+  ENEMY_BUILDING_SPRITE,
+  CRYSTAL_CHAMBER_ACTIVE_SPRITE,
+  CRYSTAL_CAVE_ACTIVE_SPRITE,
+  TILE_SPRITE,
+  RESOURCE_SPRITE,
+  TERRAIN_RESOURCE_SPRITE,
+  TUNNEL_HOLE_SPRITE,
+  TUNNEL_EARTHQUAKE_SPRITE,
+  PORTAL_ENTRANCE_SPRITE,
+  PORTAL_EXIT_SPRITE,
+} from './assetRegistry';
 
 export function preloadAssets(): Promise<void> {
   const paths = [
     ...Object.values(UNIT_SPRITE),
+    ...Object.values(PLAYER_UNIT_SPRITE),
+    ...Object.values(ENEMY_UNIT_SPRITE),
     ...Object.values(BUILDING_SPRITE),
+    ...Object.values(PLAYER_BUILDING_SPRITE),
     ...Object.values(ENEMY_BUILDING_SPRITE),
+    CRYSTAL_CHAMBER_ACTIVE_SPRITE,
+    CRYSTAL_CAVE_ACTIVE_SPRITE,
     ...Object.values(TILE_SPRITE),
     ...Object.values(RESOURCE_SPRITE),
     ...Object.values(TERRAIN_RESOURCE_SPRITE),
+    TUNNEL_HOLE_SPRITE,
+    TUNNEL_EARTHQUAKE_SPRITE,
+    PORTAL_ENTRANCE_SPRITE,
+    PORTAL_EXIT_SPRITE,
   ].filter((p): p is string => typeof p === 'string' && p !== '');
 
   if (paths.length === 0) return Promise.resolve();

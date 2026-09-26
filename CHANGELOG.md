@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.109.2 - Sprite link refresh
+
+Linked the newly added Gargoyle, Crossbowman, Market, and portal overlay sprites in the asset registry so they render their shipped art instead of the pink placeholder. Expanded asset preloading to include faction overrides and standalone overlay/active sprites, and bumped the package patch version to 0.109.2.
+
 ### v0.109.1 - Spawn Budget System
 
 Replaces per-building spawn probability with a global per-turn spawn budget and fractional accumulator. The enemy now produces a predictable expected number of spawns each turn (zero streak variance) rather than rolling independently per building. Budget is ember-scaled (BASE_BUDGET + ember * EMBER_BUDGET_PER_LEVEL) with MIN_BUDGET and MAX_BUDGET clamps; a contact-gated lava-margin relief term (DDA) reduces pressure when enemy units are close to the player but the frontline is still far from the lava. Spawner selection uses distance-weighted sampling without replacement, with a discoverRadius multiplier for front-line spawners. The fractional accumulator carries unspent budget between turns and is capped at ACCUMULATOR_CAP. Sanctum Collapse spawn freeze no longer blocks accumulation loss (cooldowns still tick during a freeze). Dev Stats overlay shows per-turn budget breakdown, accumulator, and per-spawner weights. Save version bumped to 20 with migration for spawnAccumulator and lastSpawnBudget.
