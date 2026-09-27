@@ -20,7 +20,7 @@ import { hasUnitActed, applySpawnActionFlags } from './unitActions';
 import { sweepLeashes } from './spellSystem';
 import { checkGraveTrapTrigger, checkScoutTrapTrigger, resolveSlide } from './movementSystem';
 import { tryBeginTunnel, processTunnelTurn } from './tunnelSystem';
-import { cleanupPortals, cleanupExpiredPortalsEndOfTurn, tryPlanPortalCast, castPortal, getUsablePortalAtEntrance, tryTeleportThroughPortal, processPendingPortalTeleports } from './portalSystem';
+import { cleanupPortals, cleanupExpiredPortalsEndOfTurn, tryPlanPortalCast, castPortal, getUsablePortalAtEntrance, tryTeleportThroughPortal, processPendingPortalTeleports, getPlayerFrontlineRow } from './portalSystem';
 import { cleanupRoostedUnits, getRoostedUnits } from './buildingRemoval';
 import { isUnitOnCorruptedTile } from './tileStatusSystem';
 import { isCounterThemeUnitType, pickUnitFromTheme, scoreCountersForPlayer } from './waveThemeSystem';
@@ -650,9 +650,11 @@ function spawnEnemyUnits(state: Draft<GameState>, events?: GameEvent[]): void {
   // Step 4: Compute budget.
   const playerUnits = Object.values(state.units).filter((u) => u.faction === Faction.PLAYER);
   const noPlayerUnits = playerUnits.length === 0;
+  const frontlineRow = getPlayerFrontlineRow(state);
   const frontmostStrongholdRow = getPlayerFrontmostStrongholdRow(state);
   const noPlayerStrongholds = frontmostStrongholdRow === MAP.GRID_HEIGHT;
-  const margin = state.lavaFrontRow - frontmostStrongholdRow;
+  const reliefReferenceRow = noPlayerStrongholds ? frontlineRow : frontmostStrongholdRow;
+  const margin = state.lavaFrontRow - reliefReferenceRow;
 
   let contactActive = false;
   // Check if any enemy entity is within DDA_CONTACT_RANGE of any player entity.
@@ -684,7 +686,7 @@ function spawnEnemyUnits(state: Draft<GameState>, events?: GameEvent[]): void {
   const base = SPAWN_BUDGET.BASE_BUDGET;
   const emberTerm = state.ember * SPAWN_BUDGET.EMBER_BUDGET_PER_LEVEL;
   let ddaRelief = 0;
-  if (contactActive && !noPlayerStrongholds) {
+  if (contactActive && !noPlayerUnits) {
     ddaRelief = clamp(
       (margin - SPAWN_BUDGET.DDA_EXPECTED_MARGIN) * SPAWN_BUDGET.DDA_PER_ROW,
       SPAWN_BUDGET.DDA_MIN,

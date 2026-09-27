@@ -266,10 +266,13 @@ describe('budget math', () => {
     //   strongholdRow=5, margin=5-5=0
     //   DDA formula: clamp((0 - 12) * 0.25, -3, 0) = -3 = DDA_MIN
     // Lair at y=2, stronghold at y=5: distance=3 which is within DDA_CONTACT_RANGE=3 for contact.
+    // A nearby player unit keeps the existing DDA activation rule satisfied.
     const lair = makeLavaLair({ x: 5, y: 2 });
     const stronghold = makeStronghold({ x: 5, y: 5 }); // same row as lavaFrontRow => margin = 0
+    const playerUnit = makeUnit(UnitType.SPEARMAN, Faction.PLAYER, { x: 5, y: 4 });
     const state = makeState({
       buildings: [lair, stronghold],
+      units: [playerUnit],
       lavaFrontRow: 5,
       ember: 0,
     });
@@ -296,7 +299,7 @@ describe('budget math', () => {
     expect(snap.contactActive).toBe(true);
   });
 
-  it('keeps contact detection active without a stronghold but does not apply DDA relief', () => {
+  it('falls back to the frontmost unit only when no player stronghold exists', () => {
     const lair = makeLavaLair({ x: 5, y: 2 });
     const playerUnit = makeUnit(UnitType.SPEARMAN, Faction.PLAYER, { x: 5, y: 5 });
     const state = makeState({
@@ -308,7 +311,8 @@ describe('budget math', () => {
     const { finalState } = runEnemyTurn(state);
     const snap = finalState.lastSpawnBudget!;
     expect(snap.contactActive).toBe(true);
-    expect(snap.ddaRelief).toBe(0);
+    expect(snap.margin).toBe(0);
+    expect(snap.ddaRelief).toBe(SPAWN_BUDGET.DDA_MIN);
   });
 
   it('MIN_BUDGET clamp prevents budget going below MIN_BUDGET', () => {
@@ -316,8 +320,10 @@ describe('budget math', () => {
     // ember=0: base=1.5, DDA_MIN=-3.0 => raw = 1.5 + 0 - 3.0 = -1.5 => clamped to MIN_BUDGET=1.0
     const lair = makeLavaLair({ x: 5, y: 2 });
     const stronghold = makeStronghold({ x: 5, y: 3 });
+    const playerUnit = makeUnit(UnitType.SPEARMAN, Faction.PLAYER, { x: 5, y: 4 });
     const state = makeState({
       buildings: [lair, stronghold],
+      units: [playerUnit],
       lavaFrontRow: 5,
       ember: 0,
     });
