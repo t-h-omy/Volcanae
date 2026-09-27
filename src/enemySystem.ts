@@ -37,7 +37,7 @@ function generateEnemyId(): string {
 }
 
 function getPlayerFrontmostStrongholdRow(state: Draft<GameState>): number {
-  let frontline = MAP.GRID_HEIGHT;
+  let frontline: number = MAP.GRID_HEIGHT;
   for (const building of Object.values(state.buildings)) {
     if (
       building.faction === Faction.PLAYER &&
@@ -649,6 +649,7 @@ function spawnEnemyUnits(state: Draft<GameState>, events?: GameEvent[]): void {
 
   // Step 4: Compute budget.
   const playerUnits = Object.values(state.units).filter((u) => u.faction === Faction.PLAYER);
+  const noPlayerUnits = playerUnits.length === 0;
   const frontmostStrongholdRow = getPlayerFrontmostStrongholdRow(state);
   const noPlayerStrongholds = frontmostStrongholdRow === MAP.GRID_HEIGHT;
   const margin = state.lavaFrontRow - frontmostStrongholdRow;
