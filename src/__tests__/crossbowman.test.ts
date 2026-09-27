@@ -9,6 +9,7 @@
  *   4. Recruitment / unlock — ARCHER_CAMP lists CROSSBOWMAN; requires CROSSBOWMEN tech;
  *              shares the camp's unitLimit with archers
  *   5. COVER share — researching COVER grants COVER to crossbowmen too
+ *   6. Grave Warriors share — researching GRAVE_WARRIORS grants LEAVES_GRAVESTONE to crossbowmen too
  */
 
 import { describe, it, expect } from 'vitest';
@@ -521,7 +522,53 @@ describe('Crossbowman — COVER tech sharing', () => {
   });
 });
 
-// ── 6. RELOAD DEF penalty display logic ───────────────────────────────────────
+describe('Crossbowman — Grave Warriors tech sharing', () => {
+  it('GRAVE_WARRIORS tech node grants LEAVES_GRAVESTONE to CROSSBOWMAN', () => {
+    const node = TECH_TREE.find((n) => n.id === 'GRAVE_WARRIORS');
+    expect(node).toBeDefined();
+    const grantsCrossbowGravestone = node!.effects.some(
+      (e) =>
+        e.type === 'GRANT_UNIT_TAG' &&
+        e.unitType === UnitType.CROSSBOWMAN &&
+        e.tag === UnitTag.LEAVES_GRAVESTONE,
+    );
+    expect(grantsCrossbowGravestone).toBe(true);
+  });
+
+  it('researching GRAVE_WARRIORS grants LEAVES_GRAVESTONE to existing crossbowmen in the state', () => {
+    const crossbow = makeUnit(UnitType.CROSSBOWMAN, Faction.PLAYER, 2, 0);
+    const techNodes: Record<string, { unlocked: boolean }> = {};
+    for (const node of TECH_TREE) {
+      techNodes[node.id] = { unlocked: false };
+    }
+    techNodes['CONSCRIPTION'] = { unlocked: true };
+    techNodes['ARCANE_AWAKENING'] = { unlocked: true };
+    techNodes['RAISE_SKELETON'] = { unlocked: true };
+
+    const state = {
+      units: { [crossbow.id]: crossbow },
+      buildings: {},
+      unlockedUnits: [UnitType.CROSSBOWMAN],
+      unlockedBuildings: [],
+      techFlags: [],
+      techNodes,
+      gameStats: makeGameStats(),
+      arcaneCrystals: 99,
+      ember: 0,
+      resources: { iron: 99, wood: 99 },
+    } as unknown as GameState;
+
+    const nextState = produce(state, (draft) => {
+      unlockTech(draft, 'GRAVE_WARRIORS');
+    });
+
+    const cb = nextState.units[crossbow.id];
+    expect(cb).toBeDefined();
+    expect(cb.tags).toContain(UnitTag.LEAVES_GRAVESTONE);
+  });
+});
+
+// ── 7. RELOAD DEF penalty display logic ───────────────────────────────────────
 
 /**
  * Exported helper that mirrors the penalty calculation used in HUD.tsx so it
