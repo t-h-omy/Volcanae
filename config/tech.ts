@@ -518,13 +518,14 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'GRAVE_WARRIORS',
     name: 'Grave Warriors',
-    description: `Riders, Swordsmen, and Archers now leave Gravestones on death.`,
+    description: `Riders, Swordsmen, Archers, and Crossbowmen now leave Gravestones on death.`,
     requires: ['RAISE_SKELETON'],
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.RIDER,    tag: UnitTag.LEAVES_GRAVESTONE },
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SWORDSMAN, tag: UnitTag.LEAVES_GRAVESTONE },
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.ARCHER,   tag: UnitTag.LEAVES_GRAVESTONE },
+      { type: 'GRANT_UNIT_TAG', unitType: UnitType.CROSSBOWMAN, tag: UnitTag.LEAVES_GRAVESTONE },
     ],
   },
   {
@@ -562,4 +563,3 @@ export const TECH_TREE: TechNodeDefinition[] = [
   },
 
 ];
-
