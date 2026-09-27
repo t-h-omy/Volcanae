@@ -396,7 +396,7 @@ function DevStatsOverlay({ onClose }: { onClose: () => void }) {
           value: `${lastSpawnBudget.budget.toFixed(2)} (base ${lastSpawnBudget.base.toFixed(2)} + ember ${lastSpawnBudget.emberTerm.toFixed(2)} + dda ${lastSpawnBudget.ddaRelief.toFixed(2)})`,
         },
         {
-          label: 'Lava margin / contact',
+          label: 'Lava-stronghold margin / contact',
           value: `${lastSpawnBudget.margin} rows, ${lastSpawnBudget.contactActive ? 'contact' : 'no contact'}`,
         },
         {

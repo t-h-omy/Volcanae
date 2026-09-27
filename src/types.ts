@@ -781,6 +781,7 @@ export interface ActiveWaveTheme {
 export interface SpawnBudgetSnapshot {
   base: number;
   emberTerm: number;
+  /** Distance in rows between the lava front and the player's frontmost stronghold. */
   margin: number;
   contactActive: boolean;
   ddaRelief: number;

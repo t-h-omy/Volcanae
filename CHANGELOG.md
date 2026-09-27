@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.109.3 - Stronghold-based DDA margin
+
+The spawn-budget DDA margin now measures the distance between the lava front and the player's frontmost stronghold instead of the player's frontmost unit. The Dev Stats overlay label was updated to match, spawn-budget tests were adjusted to cover stronghold-based relief, and the package patch version was bumped to 0.109.3.
+
 ### v0.109.2 - Sprite link refresh
 
 Linked the newly added Gargoyle, Crossbowman, Market, and portal overlay sprites in the asset registry so they render their shipped art instead of the pink placeholder. Expanded asset preloading to include faction overrides and standalone overlay/active sprites, and bumped the package patch version to 0.109.2.

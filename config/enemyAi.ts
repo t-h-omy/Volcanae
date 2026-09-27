@@ -36,9 +36,10 @@ export const ENEMY = {
  *   BASE_BUDGET + ember * EMBER_BUDGET_PER_LEVEL >= MAX_BUDGET; ember levels beyond
  *   that point raise only unit quality (unlock tiers), not quantity.
  * - DDA relief is RELIEF ONLY (never positive) and only active while contactActive
- *   (see DDA_CONTACT_RANGE). It starts once margin < DDA_EXPECTED_MARGIN and grows
- *   by DDA_PER_ROW per missing row until DDA_MIN. Full DDA_MIN is reached at
- *   margin = DDA_EXPECTED_MARGIN + DDA_MIN / DDA_PER_ROW.
+ *   (see DDA_CONTACT_RANGE). Margin is measured from the lava front to the
+ *   player's frontmost stronghold. Relief starts once margin < DDA_EXPECTED_MARGIN
+ *   and grows by DDA_PER_ROW per missing row until DDA_MIN. Full DDA_MIN is
+ *   reached at margin = DDA_EXPECTED_MARGIN + DDA_MIN / DDA_PER_ROW.
  * - The MIN_BUDGET floor absorbs relief at low ember: the full DDA_MIN only has
  *   full effect while BASE_BUDGET + ember * EMBER_BUDGET_PER_LEVEL + DDA_MIN
  *   >= MIN_BUDGET; below that, part of the relief is clamped away and the enemy
@@ -66,7 +67,7 @@ export const SPAWN_BUDGET = {
   MIN_BUDGET: 1.0,
   /** Ceiling: expected spawns per turn never exceed this, regardless of ember */
   MAX_BUDGET: 5.0,
-  /** Frontline-to-lava margin (in rows) below which DDA relief starts; at or above it relief is 0 */
+  /** Frontmost-player-stronghold-to-lava margin (in rows) below which DDA relief starts; at or above it relief is 0 */
   DDA_EXPECTED_MARGIN: 12,
   /** Relief per row of missing margin (subtracted from the budget) */
   DDA_PER_ROW: 0.25,
@@ -447,5 +448,4 @@ export const SANCTUM_COLLAPSE = {
    */
   LAVA_ADVANCE_BONUS_TURNS: 0,
 } as const;
-
 

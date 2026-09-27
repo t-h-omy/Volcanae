@@ -20,7 +20,7 @@ import { hasUnitActed, applySpawnActionFlags } from './unitActions';
 import { sweepLeashes } from './spellSystem';
 import { checkGraveTrapTrigger, checkScoutTrapTrigger, resolveSlide } from './movementSystem';
 import { tryBeginTunnel, processTunnelTurn } from './tunnelSystem';
-import { cleanupPortals, cleanupExpiredPortalsEndOfTurn, tryPlanPortalCast, castPortal, getUsablePortalAtEntrance, tryTeleportThroughPortal, processPendingPortalTeleports, getPlayerFrontlineRow } from './portalSystem';
+import { cleanupPortals, cleanupExpiredPortalsEndOfTurn, tryPlanPortalCast, castPortal, getUsablePortalAtEntrance, tryTeleportThroughPortal, processPendingPortalTeleports } from './portalSystem';
 import { cleanupRoostedUnits, getRoostedUnits } from './buildingRemoval';
 import { isUnitOnCorruptedTile } from './tileStatusSystem';
 import { isCounterThemeUnitType, pickUnitFromTheme, scoreCountersForPlayer } from './waveThemeSystem';
@@ -34,6 +34,21 @@ let enemyIdCounter = 0;
 
 function generateEnemyId(): string {
   return `enemy_unit_${Date.now()}_${++enemyIdCounter}`;
+}
+
+function getPlayerFrontmostStrongholdRow(state: Draft<GameState>): number {
+  let frontline = MAP.GRID_HEIGHT;
+  for (const building of Object.values(state.buildings)) {
+    if (
+      building.faction === Faction.PLAYER &&
+      building.type === BuildingType.STRONGHOLD &&
+      building.position.y < frontline
+    ) {
+      frontline = building.position.y;
+      if (frontline === 0) break;
+    }
+  }
+  return frontline;
 }
 
 // ============================================================================
@@ -634,12 +649,12 @@ function spawnEnemyUnits(state: Draft<GameState>, events?: GameEvent[]): void {
 
   // Step 4: Compute budget.
   const playerUnits = Object.values(state.units).filter((u) => u.faction === Faction.PLAYER);
-  const frontlineRow = getPlayerFrontlineRow(state);
-  const noPlayerUnits = frontlineRow === MAP.GRID_HEIGHT;
-  const margin = state.lavaFrontRow - frontlineRow;
+  const frontmostStrongholdRow = getPlayerFrontmostStrongholdRow(state);
+  const noPlayerStrongholds = frontmostStrongholdRow === MAP.GRID_HEIGHT;
+  const margin = state.lavaFrontRow - frontmostStrongholdRow;
 
   let contactActive = false;
-  if (!noPlayerUnits) {
+  if (!noPlayerStrongholds) {
     // Check if any enemy entity is within DDA_CONTACT_RANGE of any player entity.
     const enemyEntities: Array<{ x: number; y: number }> = [
       ...Object.values(state.units)
@@ -668,7 +683,7 @@ function spawnEnemyUnits(state: Draft<GameState>, events?: GameEvent[]): void {
   const base = SPAWN_BUDGET.BASE_BUDGET;
   const emberTerm = state.ember * SPAWN_BUDGET.EMBER_BUDGET_PER_LEVEL;
   let ddaRelief = 0;
-  if (contactActive && !noPlayerUnits) {
+  if (contactActive && !noPlayerStrongholds) {
     ddaRelief = clamp(
       (margin - SPAWN_BUDGET.DDA_EXPECTED_MARGIN) * SPAWN_BUDGET.DDA_PER_ROW,
       SPAWN_BUDGET.DDA_MIN,
