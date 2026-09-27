@@ -296,6 +296,21 @@ describe('budget math', () => {
     expect(snap.contactActive).toBe(true);
   });
 
+  it('keeps contact detection active without a stronghold but does not apply DDA relief', () => {
+    const lair = makeLavaLair({ x: 5, y: 2 });
+    const playerUnit = makeUnit(UnitType.SPEARMAN, Faction.PLAYER, { x: 5, y: 5 });
+    const state = makeState({
+      buildings: [lair],
+      units: [playerUnit],
+      lavaFrontRow: 5,
+      ember: 0,
+    });
+    const { finalState } = runEnemyTurn(state);
+    const snap = finalState.lastSpawnBudget!;
+    expect(snap.contactActive).toBe(true);
+    expect(snap.ddaRelief).toBe(0);
+  });
+
   it('MIN_BUDGET clamp prevents budget going below MIN_BUDGET', () => {
     // With strong DDA relief: base + ember + DDA_MIN can go negative
     // ember=0: base=1.5, DDA_MIN=-3.0 => raw = 1.5 + 0 - 3.0 = -1.5 => clamped to MIN_BUDGET=1.0
