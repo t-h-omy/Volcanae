@@ -16,7 +16,7 @@ import { generateInitialGameState } from '../mapGenerator';
 import { saveSlot, saveSlotStrict, loadSlot, listSlots, saveSeenHintsForSlot } from '../saveSystem';
 import { ALL_HINT_IDS } from '../../config/hints';
 import { BuildingType, DestroyBehavior, UnitTag } from '../types';
-import { ABILITIES, MARKET } from '../gameConfig';
+import { ABILITIES, MARKET, SAVE } from '../gameConfig';
 import type { GameState } from '../types';
 
 beforeEach(() => {
@@ -90,12 +90,13 @@ describe('saveSlot round-trip', () => {
 
     // Write the raw IDB record with version 15.
     const idb = globalThis.indexedDB;
-    const dbReq = idb.open('volcanae', 1);
+    const dbReq = idb.open(SAVE.IDB_NAME, SAVE.IDB_VERSION);
     await new Promise<void>((resolve, reject) => {
       dbReq.onupgradeneeded = () => {
         const db = dbReq.result;
         if (!db.objectStoreNames.contains('saveMeta')) db.createObjectStore('saveMeta', { keyPath: 'id' });
         if (!db.objectStoreNames.contains('saveData')) db.createObjectStore('saveData', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains(SAVE.STORE_TRACE)) db.createObjectStore(SAVE.STORE_TRACE, { keyPath: 'key' });
       };
       dbReq.onsuccess = () => resolve();
       dbReq.onerror = () => reject(dbReq.error);
@@ -159,12 +160,13 @@ describe('saveSlot round-trip', () => {
     state.grid[0][0].isRevealed = false;
 
     const idb = globalThis.indexedDB;
-    const dbReq = idb.open('volcanae', 1);
+    const dbReq = idb.open(SAVE.IDB_NAME, SAVE.IDB_VERSION);
     await new Promise<void>((resolve, reject) => {
       dbReq.onupgradeneeded = () => {
         const db = dbReq.result;
         if (!db.objectStoreNames.contains('saveMeta')) db.createObjectStore('saveMeta', { keyPath: 'id' });
         if (!db.objectStoreNames.contains('saveData')) db.createObjectStore('saveData', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains(SAVE.STORE_TRACE)) db.createObjectStore(SAVE.STORE_TRACE, { keyPath: 'key' });
       };
       dbReq.onsuccess = () => resolve();
       dbReq.onerror = () => reject(dbReq.error);
@@ -228,12 +230,13 @@ describe('saveSlot round-trip', () => {
     state.grid[0][1].isRevealed = true;
 
     const idb = globalThis.indexedDB;
-    const dbReq = idb.open('volcanae', 1);
+    const dbReq = idb.open(SAVE.IDB_NAME, SAVE.IDB_VERSION);
     await new Promise<void>((resolve, reject) => {
       dbReq.onupgradeneeded = () => {
         const db = dbReq.result;
         if (!db.objectStoreNames.contains('saveMeta')) db.createObjectStore('saveMeta', { keyPath: 'id' });
         if (!db.objectStoreNames.contains('saveData')) db.createObjectStore('saveData', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains(SAVE.STORE_TRACE)) db.createObjectStore(SAVE.STORE_TRACE, { keyPath: 'key' });
       };
       dbReq.onsuccess = () => resolve();
       dbReq.onerror = () => reject(dbReq.error);
@@ -261,12 +264,13 @@ describe('saveSlot round-trip', () => {
     delete (state as Record<string, unknown>)['pendingTrapSetterId'];
 
     const idb = globalThis.indexedDB;
-    const dbReq = idb.open('volcanae', 1);
+    const dbReq = idb.open(SAVE.IDB_NAME, SAVE.IDB_VERSION);
     await new Promise<void>((resolve, reject) => {
       dbReq.onupgradeneeded = () => {
         const db = dbReq.result;
         if (!db.objectStoreNames.contains('saveMeta')) db.createObjectStore('saveMeta', { keyPath: 'id' });
         if (!db.objectStoreNames.contains('saveData')) db.createObjectStore('saveData', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains(SAVE.STORE_TRACE)) db.createObjectStore(SAVE.STORE_TRACE, { keyPath: 'key' });
       };
       dbReq.onsuccess = () => resolve();
       dbReq.onerror = () => reject(dbReq.error);
@@ -296,12 +300,13 @@ describe('saveSlot round-trip', () => {
     delete (unit as unknown as Record<string, unknown>).berserkActivated;
 
     const idb = globalThis.indexedDB;
-    const dbReq = idb.open('volcanae', 1);
+    const dbReq = idb.open(SAVE.IDB_NAME, SAVE.IDB_VERSION);
     await new Promise<void>((resolve, reject) => {
       dbReq.onupgradeneeded = () => {
         const db = dbReq.result;
         if (!db.objectStoreNames.contains('saveMeta')) db.createObjectStore('saveMeta', { keyPath: 'id' });
         if (!db.objectStoreNames.contains('saveData')) db.createObjectStore('saveData', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains(SAVE.STORE_TRACE)) db.createObjectStore(SAVE.STORE_TRACE, { keyPath: 'key' });
       };
       dbReq.onsuccess = () => resolve();
       dbReq.onerror = () => reject(dbReq.error);
@@ -327,12 +332,13 @@ describe('saveSlot round-trip', () => {
     delete (state as Record<string, unknown>)['lastSpawnBudget'];
 
     const idb = globalThis.indexedDB;
-    const dbReq = idb.open('volcanae', 1);
+    const dbReq = idb.open(SAVE.IDB_NAME, SAVE.IDB_VERSION);
     await new Promise<void>((resolve, reject) => {
       dbReq.onupgradeneeded = () => {
         const db = dbReq.result;
         if (!db.objectStoreNames.contains('saveMeta')) db.createObjectStore('saveMeta', { keyPath: 'id' });
         if (!db.objectStoreNames.contains('saveData')) db.createObjectStore('saveData', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains(SAVE.STORE_TRACE)) db.createObjectStore(SAVE.STORE_TRACE, { keyPath: 'key' });
       };
       dbReq.onsuccess = () => resolve();
       dbReq.onerror = () => reject(dbReq.error);

@@ -25,7 +25,7 @@ import { cleanupRoostedUnits, getRoostedUnits } from './buildingRemoval';
 import { isUnitOnCorruptedTile } from './tileStatusSystem';
 import { isCounterThemeUnitType, pickUnitFromTheme, scoreCountersForPlayer } from './waveThemeSystem';
 import { isSpecialistEffectActive } from './specialistSystem';
-import { AiTraceCollector, getActionCode, getBuildingFactionCode, getOutcomeBitMask, getStopCode, type ActionCode, type AiThreatEntry, type AiTraceChunk, type AiTraceIndexSeed, type MoveStopReason } from './aiTrace';
+import { AiTraceCollector, getActionCode, getBuildingFactionCode, getOutcomeBitMask, getStopCode, type AiThreatEntry, type AiTraceChunk, type AiTraceIndexSeed, type MoveStopReason } from './aiTrace';
 
 // ============================================================================
 // ID GENERATION

@@ -234,6 +234,8 @@ export function getBuildingFactionCode(building: Building | null | undefined): n
 }
 
 export class AiTraceCollector {
+  private readonly turn: number;
+  private readonly slotId: string;
   private readonly rows: AiRow[] = [];
   private readonly pendingUnits = new Map<number, AiUnitRow>();
   private readonly pendingBuildings = new Map<number, [number, string, string]>();
@@ -246,10 +248,12 @@ export class AiTraceCollector {
   private threats: AiThreatEntry[] = [];
 
   constructor(
-    private readonly turn: number,
-    private readonly slotId: string,
+    turn: number,
+    slotId: string,
     seed?: Partial<AiTraceIndexSeed> & { buildingTypes?: Record<string, string> },
   ) {
+    this.turn = turn;
+    this.slotId = slotId;
     for (const [id, index] of Object.entries(seed?.unitIds ?? {})) {
       this.unitIds.set(id, index);
     }
