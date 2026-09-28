@@ -12,7 +12,7 @@ import {
   STOP_CODE_INDEX,
   ACTION_CODE_INDEX,
 } from '../aiTrace';
-import { appendChunk, deleteTurnsAfter, getTraceSeed, getTraceStatus, readMeta, readRun } from '../aiTraceStore';
+import { appendChunk, deleteTurnsAfter, getTraceSeed, getTraceStatus, readRun } from '../aiTraceStore';
 import { deleteSlot } from '../saveSystem';
 import { ENEMY_ACTION_TYPES, runEnemyTurn } from '../enemySystem';
 import {
