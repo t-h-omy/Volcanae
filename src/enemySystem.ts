@@ -3613,6 +3613,10 @@ function runCaveMonsterAi(
       if (trace && ctx) {
         const afterUnit = state.units[unit.id];
         const targetAfter = state.units[directTarget.id];
+        const deathEvent = events?.slice(eventStart).find(
+          (event): event is Extract<GameEvent, { type: 'UNIT_DEATH' }> =>
+            event.type === 'UNIT_DEATH' && event.unitId === unit.id,
+        );
         if (!targetAfter) trace.markDeath(directTarget.id, 'KILLED');
         if (!afterUnit) trace.markDeath(unit.id, 'CM_ATTACK_IN_RANGE');
         recordTraceDecision(trace, {
@@ -3639,9 +3643,7 @@ function runCaveMonsterAi(
             ...(!afterUnit ? ['DIED' as const] : []),
             ...((afterUnit?.stats.currentHp ?? 0) < hpBefore ? ['COUNTERED' as const] : []),
           ],
-          deathPos: (events?.slice(eventStart).find((event): event is Extract<GameEvent, { type: 'UNIT_DEATH' }> => event.type === 'UNIT_DEATH' && event.unitId === unit.id))
-            ? { x: (events!.slice(eventStart).find((event): event is Extract<GameEvent, { type: 'UNIT_DEATH' }> => event.type === 'UNIT_DEATH' && event.unitId === unit.id)!).position.x, y: (events!.slice(eventStart).find((event): event is Extract<GameEvent, { type: 'UNIT_DEATH' }> => event.type === 'UNIT_DEATH' && event.unitId === unit.id)!).position.y }
-            : undefined,
+          deathPos: deathEvent ? { x: deathEvent.position.x, y: deathEvent.position.y } : undefined,
         });
       }
       continue;

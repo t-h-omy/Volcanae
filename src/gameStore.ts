@@ -2513,13 +2513,15 @@ export const useGameStore = create<GameStore>()(
                 stateForSave.phase === GamePhase.PLAYER_TURN
                   ? getSerializableGameStateSnapshot()
                   : stateForSave;
+              const traceChunkForSave = pendingTraceChunk;
+              const traceSlotIdForSave = pendingTraceSlotId;
               // Fire-and-forget autosave — failures must not crash the game.
               getSlotMeta(activeSaveId).then((meta) => {
                 const slotName = meta?.name ?? serializableState.turn.toString();
                 saveSlot({ id: activeSaveId, name: slotName, state: serializableState })
                   .then(() => {
-                    if (pendingTraceChunk && pendingTraceSlotId && activeSaveId === pendingTraceSlotId) {
-                      appendChunk(pendingTraceSlotId, pendingTraceChunk, stateForSave).catch(() => undefined);
+                    if (traceChunkForSave && traceSlotIdForSave && activeSaveId === traceSlotIdForSave) {
+                      appendChunk(traceSlotIdForSave, traceChunkForSave, stateForSave).catch(() => undefined);
                     }
                   })
                   .catch(() => undefined);

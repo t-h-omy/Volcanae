@@ -17,6 +17,13 @@ interface DevOptionsState {
 }
 
 function loadFromStorage(): Pick<DevOptionsState, 'showAiScores' | 'showRecruitingScores' | 'recordAiTrace'> {
+  if (typeof localStorage === 'undefined') {
+    return {
+      showAiScores: false,
+      showRecruitingScores: false,
+      recordAiTrace: false,
+    };
+  }
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
@@ -38,6 +45,7 @@ function loadFromStorage(): Pick<DevOptionsState, 'showAiScores' | 'showRecruiti
 }
 
 function saveToStorage(showAiScores: boolean, showRecruitingScores: boolean, recordAiTrace: boolean) {
+  if (typeof localStorage === 'undefined') return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ showAiScores, showRecruitingScores, recordAiTrace }));
   } catch {

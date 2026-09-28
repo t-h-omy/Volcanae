@@ -158,11 +158,19 @@ async function appendChunkInternal(slotId: string, chunk: AiTraceChunk, state?: 
       setStatus('CAPPED');
       return;
     }
-    const nextMeta = meta ? updateMeta(meta, chunk) : makeMeta(slotId, chunk, state);
+    const remainingRows = Math.max(0, AI_TRACE.MAX_ROWS - (meta?.rowCount ?? 0));
+    const chunkToWrite = chunk.rows.length > remainingRows
+      ? { ...chunk, rows: chunk.rows.slice(0, remainingRows) }
+      : chunk;
+    if (chunkToWrite.rows.length === 0) {
+      setStatus('CAPPED');
+      return;
+    }
+    const nextMeta = meta ? updateMeta(meta, chunkToWrite) : makeMeta(slotId, chunkToWrite, state);
     await new Promise<void>((resolve, reject) => {
       const tx = db.transaction(SAVE.STORE_TRACE, 'readwrite');
       const store = tx.objectStore(SAVE.STORE_TRACE);
-      store.put(chunk);
+      store.put(chunkToWrite);
       store.put(nextMeta);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
@@ -246,6 +254,10 @@ export async function deleteRun(slotId: string): Promise<void> {
 export async function deleteTurnsAfter(slotId: string, turn: number): Promise<void> {
   if (!idbAvailable()) return;
   try {
+    const pendingAppend = appendQueues.get(slotId);
+    if (pendingAppend) {
+      await pendingAppend.catch(() => undefined);
+    }
     const db = await openSaveDb();
     const lower = `${slotId}:${String(turn + 1).padStart(6, '0')}`;
     const upper = `${slotId}:\uffff`;
