@@ -238,6 +238,8 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
   const setShowAiScores = useDevOptionsStore((s) => s.setShowAiScores);
   const showRecruitingScores = useDevOptionsStore((s) => s.showRecruitingScores);
   const setShowRecruitingScores = useDevOptionsStore((s) => s.setShowRecruitingScores);
+  const recordAiTrace = useDevOptionsStore((s) => s.recordAiTrace);
+  const setRecordAiTrace = useDevOptionsStore((s) => s.setRecordAiTrace);
   const debugAdvanceLava = useGameStore((s) => s.debugAdvanceLava);
   const debugAddResources = useGameStore((s) => s.debugAddResources);
   const debugGiveSpecialist = useGameStore((s) => s.debugGiveSpecialist);
@@ -311,6 +313,15 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
                 className="hud-dev-option-toggle"
                 checked={showRecruitingScores}
                 onChange={(e) => setShowRecruitingScores(e.target.checked)}
+              />
+            </label>
+            <label className="hud-dev-option-row">
+              <span className="hud-dev-option-label">Record AI decisions (diagnostics)</span>
+              <input
+                type="checkbox"
+                className="hud-dev-option-toggle"
+                checked={recordAiTrace}
+                onChange={(e) => setRecordAiTrace(e.target.checked)}
               />
             </label>
             <div className="hud-dev-overlay-section-title">Stats</div>
