@@ -256,7 +256,9 @@ export async function deleteTurnsAfter(slotId: string, turn: number): Promise<vo
       req.onsuccess = () => {
         const cursor = req.result;
         if (!cursor) return;
-        store.delete(cursor.primaryKey);
+        if (cursor.primaryKey !== metaKey(slotId)) {
+          store.delete(cursor.primaryKey);
+        }
         cursor.continue();
       };
       req.onerror = () => reject(req.error);

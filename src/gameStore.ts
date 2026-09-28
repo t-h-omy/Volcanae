@@ -2516,11 +2516,14 @@ export const useGameStore = create<GameStore>()(
               // Fire-and-forget autosave — failures must not crash the game.
               getSlotMeta(activeSaveId).then((meta) => {
                 const slotName = meta?.name ?? serializableState.turn.toString();
-                saveSlot({ id: activeSaveId, name: slotName, state: serializableState }).catch(() => undefined);
+                saveSlot({ id: activeSaveId, name: slotName, state: serializableState })
+                  .then(() => {
+                    if (pendingTraceChunk && pendingTraceSlotId && activeSaveId === pendingTraceSlotId) {
+                      appendChunk(pendingTraceSlotId, pendingTraceChunk, stateForSave).catch(() => undefined);
+                    }
+                  })
+                  .catch(() => undefined);
               }).catch(() => undefined);
-              if (pendingTraceChunk && pendingTraceSlotId && activeSaveId === pendingTraceSlotId) {
-                appendChunk(pendingTraceSlotId, pendingTraceChunk, stateForSave).catch(() => undefined);
-              }
             }
           }
         }

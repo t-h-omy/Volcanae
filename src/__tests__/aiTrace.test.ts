@@ -443,7 +443,7 @@ describe('ai trace', () => {
     vi.resetModules();
     const traceStore2 = await import('../aiTraceStore');
     const enemySystem2 = await import('../enemySystem');
-    await traceStore2.readMeta('slot_restart');
+    await traceStore2.deleteTurnsAfter('slot_restart', 3);
     const second = enemySystem2.runEnemyTurn(
       makeState({ units: [structuredClone(enemy), structuredClone(player)], turn: 4 }),
       { trace: true, slotId: 'slot_restart', unitIndexSeed: traceStore2.getTraceSeed('slot_restart') },
