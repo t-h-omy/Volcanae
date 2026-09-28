@@ -2518,7 +2518,7 @@ export const useGameStore = create<GameStore>()(
                 const slotName = meta?.name ?? serializableState.turn.toString();
                 saveSlot({ id: activeSaveId, name: slotName, state: serializableState }).catch(() => undefined);
               }).catch(() => undefined);
-              if (pendingTraceChunk && pendingTraceSlotId) {
+              if (pendingTraceChunk && pendingTraceSlotId && activeSaveId === pendingTraceSlotId) {
                 appendChunk(pendingTraceSlotId, pendingTraceChunk, stateForSave).catch(() => undefined);
               }
             }

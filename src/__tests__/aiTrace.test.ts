@@ -426,6 +426,15 @@ describe('ai trace', () => {
     const read = await readRun('slot_p');
     expect(read.chunks.map((chunk) => chunk.turn)).toEqual([1, 2, 3]);
 
+    await Promise.all([
+      appendChunk('slot_concurrent', makeChunk('slot_concurrent', 1, [makeRow(1, 0)])),
+      appendChunk('slot_concurrent', makeChunk('slot_concurrent', 2, [makeRow(1, 0)])),
+    ]);
+    const concurrent = await readRun('slot_concurrent');
+    expect(concurrent.chunks.map((chunk) => chunk.turn)).toEqual([1, 2]);
+    expect(concurrent.meta?.rowCount).toBe(2);
+    expect(concurrent.meta?.lastTurn).toBe(2);
+
     const enemy = makeUnit(UnitType.LAVA_GRUNT, Faction.ENEMY, 4, 4);
     const player = makeUnit(UnitType.SPEARMAN, Faction.PLAYER, 4, 6);
     const first = await runTracedTurn(makeState({ units: [enemy, player] }), 'slot_restart');

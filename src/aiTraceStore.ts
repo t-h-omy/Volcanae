@@ -13,6 +13,7 @@ interface TraceStatusState {
 
 const META_SUFFIX = ':meta';
 const traceMetaCache = new Map<string, AiTraceMeta | null>();
+const appendQueues = new Map<string, Promise<void>>();
 
 export const useAiTraceStatusStore = create<TraceStatusState>()((set) => ({
   status: 'OK',
@@ -143,7 +144,7 @@ export function getTraceSeed(slotId: string): AiTraceSeed {
   };
 }
 
-export async function appendChunk(slotId: string, chunk: AiTraceChunk, state?: GameState): Promise<void> {
+async function appendChunkInternal(slotId: string, chunk: AiTraceChunk, state?: GameState): Promise<void> {
   if (!idbAvailable()) return;
   try {
     const cachedMeta = traceMetaCache.get(slotId) ?? null;
@@ -171,6 +172,21 @@ export async function appendChunk(slotId: string, chunk: AiTraceChunk, state?: G
     setStatus(nextMeta.capped ? 'CAPPED' : 'OK');
   } catch (error) {
     if (isQuotaError(error)) setStatus('STOPPED_QUOTA');
+  }
+}
+
+export async function appendChunk(slotId: string, chunk: AiTraceChunk, state?: GameState): Promise<void> {
+  const previous = appendQueues.get(slotId) ?? Promise.resolve();
+  const next = previous
+    .catch(() => undefined)
+    .then(() => appendChunkInternal(slotId, chunk, state));
+  appendQueues.set(slotId, next);
+  try {
+    await next;
+  } finally {
+    if (appendQueues.get(slotId) === next) {
+      appendQueues.delete(slotId);
+    }
   }
 }
 
