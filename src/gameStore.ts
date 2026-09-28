@@ -2055,6 +2055,7 @@ export const useGameStore = create<GameStore>()(
       // includes Zustand action methods and would throw DataCloneError in IDB).
       let pendingStateForSave: GameState | null = null;
       let pendingTraceChunk: AiTraceChunk | null = null;
+      let pendingTraceSlotId: string | null = null;
       let homelessHintPos: { x: number; y: number } | null = null;
       let untrainedHintPos: { x: number; y: number } | null = null;
       let hasBurningPlayerDamage = false;
@@ -2122,6 +2123,7 @@ export const useGameStore = create<GameStore>()(
           unitIndexSeed: traceSeed,
         });
         pendingTraceChunk = traceChunk;
+        pendingTraceSlotId = activeSaveId;
 
         // Phase 3: Check game conditions after enemy turn
         let computedState = produce(afterEnemy, (draft) => {
@@ -2516,8 +2518,8 @@ export const useGameStore = create<GameStore>()(
                 const slotName = meta?.name ?? serializableState.turn.toString();
                 saveSlot({ id: activeSaveId, name: slotName, state: serializableState }).catch(() => undefined);
               }).catch(() => undefined);
-              if (pendingTraceChunk) {
-                appendChunk(activeSaveId, pendingTraceChunk, stateForSave).catch(() => undefined);
+              if (pendingTraceChunk && pendingTraceSlotId) {
+                appendChunk(pendingTraceSlotId, pendingTraceChunk, stateForSave).catch(() => undefined);
               }
             }
           }

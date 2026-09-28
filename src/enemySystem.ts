@@ -1031,10 +1031,24 @@ function recordRuleTraceDecision(
   slot: number,
   hpBefore: number,
   moveOutcome: MoveOutcome | null = null,
+  newEvents: GameEvent[] = [],
 ): void {
   const afterUnit = state.units[unit.id];
+  const deathEvent = newEvents.find(
+    (event): event is Extract<GameEvent, { type: 'UNIT_DEATH' }> =>
+      event.type === 'UNIT_DEATH' && event.unitId === unit.id,
+  );
+  const bits: Array<
+    'KILL' | 'DIED' | 'CAPTURED' | 'BUILT' | 'CORRUPTED' | 'EXPLODED' | 'TELEPORTED' | 'SLID' |
+    'TRAPPED' | 'COUNTERED' | 'OVERWATCH_HIT' | 'PREVENTIVE_HIT' | 'BRIDGE_USED'
+  > = [];
+  if (newEvents.some((event) => event.type === 'EXPLOSION' && event.unitId === unit.id)) bits.push('EXPLODED');
+  if (newEvents.some((event) => event.type === 'TRAP_TRIGGERED')) bits.push('TRAPPED');
+  if (!afterUnit) bits.push('DIED');
+  if (moveOutcome?.bridgeSteps) bits.push('BRIDGE_USED');
+  if (moveOutcome?.slid) bits.push('SLID');
   if (afterUnit) trace.unitIndex(afterUnit);
-  else trace.markDeath(unit.id, moveOutcome?.stop === 'DIED' ? 'DIED' : 'RULE');
+  else trace.markDeath(unit.id, deathEvent ? actionCode.toString() : (moveOutcome?.stop ?? 'RULE'));
   recordTraceDecision(trace, {
     slot,
     unit,
@@ -1054,11 +1068,8 @@ function recordRuleTraceDecision(
     targetHpAfter: null,
     moveOutcome,
     ctx: buildTraceContext(unit, state, trace, threatBoard),
-    bits: [
-      ...(!afterUnit ? ['DIED' as const] : []),
-      ...(moveOutcome?.bridgeSteps ? ['BRIDGE_USED' as const] : []),
-      ...(moveOutcome?.slid ? ['SLID' as const] : []),
-    ],
+    bits,
+    deathPos: deathEvent ? { x: deathEvent.position.x, y: deathEvent.position.y } : undefined,
   });
 }
 
@@ -3961,18 +3972,20 @@ export function runEnemyTurn(
         if (currentUnit.tags.includes(UnitTag.TUNNEL)) {
           const hpBefore = currentUnit.stats.currentHp;
           if (currentUnit.tunnelState && currentUnit.tunnelState !== 'IDLE') {
+            const eventStart = events.length;
             const consumed = processTunnelTurn(draft, currentUnit.id, events);
             if (consumed) {
               if (traceCollector) {
-                recordRuleTraceDecision(traceCollector, currentUnit, draft, threatBoard, ACTION_CODE_INDEX.TUNNEL_TICK, i + 1, hpBefore);
+                recordRuleTraceDecision(traceCollector, currentUnit, draft, threatBoard, ACTION_CODE_INDEX.TUNNEL_TICK, i + 1, hpBefore, null, events.slice(eventStart));
               }
               break;
             }
           } else {
+            const eventStart = events.length;
             const began = tryBeginTunnel(draft, currentUnit.id, events);
             if (began) {
               if (traceCollector) {
-                recordRuleTraceDecision(traceCollector, currentUnit, draft, threatBoard, ACTION_CODE_INDEX.TUNNEL_BEGIN, i + 1, hpBefore);
+                recordRuleTraceDecision(traceCollector, currentUnit, draft, threatBoard, ACTION_CODE_INDEX.TUNNEL_BEGIN, i + 1, hpBefore, null, events.slice(eventStart));
               }
               break;
             }
@@ -3983,9 +3996,10 @@ export function runEnemyTurn(
           const hpBefore = currentUnit.stats.currentHp;
           const cast = tryPlanPortalCast(draft, currentUnit.id);
           if (cast) {
+            const eventStart = events.length;
             castPortal(draft, currentUnit.id, cast.entrancePos, cast.exitPos, events);
             if (traceCollector) {
-              recordRuleTraceDecision(traceCollector, currentUnit, draft, threatBoard, ACTION_CODE_INDEX.PORTAL_CAST, i + 1, hpBefore);
+              recordRuleTraceDecision(traceCollector, currentUnit, draft, threatBoard, ACTION_CODE_INDEX.PORTAL_CAST, i + 1, hpBefore, null, events.slice(eventStart));
             }
             // Hexcaster's action is fully consumed by casting — skip normal AI
             break;

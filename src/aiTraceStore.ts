@@ -39,6 +39,10 @@ function estimateChunkBytes(chunk: AiTraceChunk): number {
   }
 }
 
+function isQuotaError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === 'QuotaExceededError';
+}
+
 function makeMeta(slotId: string, chunk: AiTraceChunk, state?: GameState): AiTraceMeta {
   const width = state?.grid[0]?.length ?? MAP.GRID_WIDTH;
   const height = state?.grid.length ?? MAP.GRID_HEIGHT;
@@ -165,8 +169,8 @@ export async function appendChunk(slotId: string, chunk: AiTraceChunk, state?: G
     });
     traceMetaCache.set(slotId, nextMeta);
     setStatus(nextMeta.capped ? 'CAPPED' : 'OK');
-  } catch {
-    setStatus('STOPPED_QUOTA');
+  } catch (error) {
+    if (isQuotaError(error)) setStatus('STOPPED_QUOTA');
   }
 }
 
