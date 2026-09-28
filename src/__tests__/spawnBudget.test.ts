@@ -81,6 +81,41 @@ function makeLavaLair(position: Position, extra: Partial<Building> = {}): Buildi
   } as Building;
 }
 
+function makeStronghold(position: Position, extra: Partial<Building> = {}): Building {
+  return {
+    id: freshId('stronghold'),
+    type: BuildingType.STRONGHOLD,
+    faction: Faction.PLAYER,
+    position: { ...position },
+    hp: 100,
+    maxHp: 100,
+    specialistSlot: null,
+    isDisabledForTurns: 0,
+    wasAttackedLastEnemyTurn: false,
+    captureProgress: 0,
+    isBeingCapturedBy: null,
+    lavaBoostEnabled: false,
+    discoverRadius: 5,
+    turnCapturedByPlayer: null,
+    wasEnemyOwnedBeforeCapture: false,
+    combatStats: null,
+    hasAttackedThisTurn: false,
+    tags: [],
+    consumesUnitOnCapture: false,
+    populationCount: 0,
+    populationCap: 0,
+    populationGrowthCounter: 0,
+    strongholdNobles: 0,
+    emberSpawnCounter: 0,
+    recruitmentQueue: null,
+    destroyBehavior: DestroyBehavior.STRONGHOLD_RUIN,
+    resonanceTurnsRemaining: 0,
+    spawnCooldownRemaining: 0,
+    lastRecruitmentTurn: 0,
+    ...extra,
+  } as Building;
+}
+
 function makeUnit(type: UnitType, faction: Faction, position: Position): Unit {
   const def = UNIT_DEFINITIONS[type];
   return {
@@ -213,7 +248,7 @@ beforeEach(() => {
 
 describe('budget math', () => {
   it('ember 0 no contact gives budget = BASE_BUDGET', () => {
-    // No player units => frontline sentinel => ddaRelief forced to 0 regardless of margin
+    // No player stronghold => sentinel => ddaRelief forced to 0 regardless of margin
     const lair = makeLavaLair({ x: 5, y: 2 });
     const state = makeState({ buildings: [lair], ember: 0 });
     const { finalState } = runEnemyTurn(state);
@@ -226,18 +261,17 @@ describe('budget math', () => {
     );
   });
 
-  it('DDA relief clamps to DDA_MIN when margin is sufficiently small with contact', () => {
-    // Place player unit close to lavaFrontRow so margin = lavaFrontRow - frontlineRow hits minimum.
-    // With lair at (5,2) and player at (5,5), lavaFrontRow=5:
-    //   frontlineRow=5, margin=5-5=0
+  it('DDA relief clamps to DDA_MIN when the frontmost stronghold margin is sufficiently small with contact', () => {
+    // With lair at (5,2) and stronghold at (5,5), lavaFrontRow=5:
+    //   strongholdRow=5, margin=5-5=0
     //   DDA formula: clamp((0 - 12) * 0.25, -3, 0) = -3 = DDA_MIN
-    // Lair at y=2, player at y=5: distance=3 which is within DDA_CONTACT_RANGE=3 for contact.
-    const lairPos = { x: 5, y: 2 };
-    const playerPos = { x: 5, y: 5 }; // same row as lavaFrontRow => margin = 0
-    const lair = makeLavaLair(lairPos);
-    const playerUnit = makeUnit(UnitType.SPEARMAN, Faction.PLAYER, playerPos);
+    // Lair at y=2, stronghold at y=5: distance=3 which is within DDA_CONTACT_RANGE=3 for contact.
+    // A nearby player unit keeps the existing DDA activation rule satisfied.
+    const lair = makeLavaLair({ x: 5, y: 2 });
+    const stronghold = makeStronghold({ x: 5, y: 5 }); // same row as lavaFrontRow => margin = 0
+    const playerUnit = makeUnit(UnitType.SPEARMAN, Faction.PLAYER, { x: 5, y: 4 });
     const state = makeState({
-      buildings: [lair],
+      buildings: [lair, stronghold],
       units: [playerUnit],
       lavaFrontRow: 5,
       ember: 0,
@@ -248,15 +282,47 @@ describe('budget math', () => {
     expect(snap.contactActive).toBe(true);
   });
 
-  it('MIN_BUDGET clamp prevents budget going below MIN_BUDGET', () => {
-    // With strong DDA relief: base + ember + DDA_MIN can go negative
-    // ember=0: base=1.25, DDA_MIN=-3.0 => raw = 1.25 + 0 - 3.0 = -1.75 => clamped to MIN_BUDGET=1.0
-    const lairPos = { x: 5, y: 2 };
-    const playerPos = { x: 5, y: 3 };
-    const lair = makeLavaLair(lairPos);
-    const playerUnit = makeUnit(UnitType.SPEARMAN, Faction.PLAYER, playerPos);
+  it('uses the frontmost player stronghold for DDA margin instead of the frontmost unit', () => {
+    const lair = makeLavaLair({ x: 5, y: 11 });
+    const stronghold = makeStronghold({ x: 5, y: 14 });
+    const frontUnit = makeUnit(UnitType.SPEARMAN, Faction.PLAYER, { x: 0, y: 5 });
+    const state = makeState({
+      buildings: [lair, stronghold],
+      units: [frontUnit],
+      lavaFrontRow: 15,
+      ember: 0,
+    });
+    const { finalState } = runEnemyTurn(state);
+    const snap = finalState.lastSpawnBudget!;
+    expect(snap.margin).toBe(1);
+    expect(snap.ddaRelief).toBeCloseTo(-2.75);
+    expect(snap.contactActive).toBe(true);
+  });
+
+  it('falls back to the frontmost unit only when no player stronghold exists', () => {
+    const lair = makeLavaLair({ x: 5, y: 2 });
+    const playerUnit = makeUnit(UnitType.SPEARMAN, Faction.PLAYER, { x: 5, y: 5 });
     const state = makeState({
       buildings: [lair],
+      units: [playerUnit],
+      lavaFrontRow: 5,
+      ember: 0,
+    });
+    const { finalState } = runEnemyTurn(state);
+    const snap = finalState.lastSpawnBudget!;
+    expect(snap.contactActive).toBe(true);
+    expect(snap.margin).toBe(0);
+    expect(snap.ddaRelief).toBe(SPAWN_BUDGET.DDA_MIN);
+  });
+
+  it('MIN_BUDGET clamp prevents budget going below MIN_BUDGET', () => {
+    // With strong DDA relief: base + ember + DDA_MIN can go negative
+    // ember=0: base=1.5, DDA_MIN=-3.0 => raw = 1.5 + 0 - 3.0 = -1.5 => clamped to MIN_BUDGET=1.0
+    const lair = makeLavaLair({ x: 5, y: 2 });
+    const stronghold = makeStronghold({ x: 5, y: 3 });
+    const playerUnit = makeUnit(UnitType.SPEARMAN, Faction.PLAYER, { x: 5, y: 4 });
+    const state = makeState({
+      buildings: [lair, stronghold],
       units: [playerUnit],
       lavaFrontRow: 5,
       ember: 0,

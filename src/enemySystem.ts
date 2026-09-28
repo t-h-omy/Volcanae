@@ -36,6 +36,21 @@ function generateEnemyId(): string {
   return `enemy_unit_${Date.now()}_${++enemyIdCounter}`;
 }
 
+function getPlayerFrontmostStrongholdRow(state: Draft<GameState>): number {
+  let frontline: number = MAP.GRID_HEIGHT;
+  for (const building of Object.values(state.buildings)) {
+    if (
+      building.faction === Faction.PLAYER &&
+      building.type === BuildingType.STRONGHOLD &&
+      building.position.y < frontline
+    ) {
+      frontline = building.position.y;
+      if (frontline === 0) break;
+    }
+  }
+  return frontline;
+}
+
 // ============================================================================
 // AI TYPES (local to this module)
 // ============================================================================
@@ -634,27 +649,30 @@ function spawnEnemyUnits(state: Draft<GameState>, events?: GameEvent[]): void {
 
   // Step 4: Compute budget.
   const playerUnits = Object.values(state.units).filter((u) => u.faction === Faction.PLAYER);
+  const noPlayerUnits = playerUnits.length === 0;
   const frontlineRow = getPlayerFrontlineRow(state);
-  const noPlayerUnits = frontlineRow === MAP.GRID_HEIGHT;
-  const margin = state.lavaFrontRow - frontlineRow;
+  const frontmostStrongholdRow = getPlayerFrontmostStrongholdRow(state);
+  const noPlayerStrongholds = frontmostStrongholdRow === MAP.GRID_HEIGHT;
+  const reliefReferenceRow = noPlayerStrongholds ? frontlineRow : frontmostStrongholdRow;
+  const margin = state.lavaFrontRow - reliefReferenceRow;
 
   let contactActive = false;
-  if (!noPlayerUnits) {
-    // Check if any enemy entity is within DDA_CONTACT_RANGE of any player entity.
-    const enemyEntities: Array<{ x: number; y: number }> = [
-      ...Object.values(state.units)
-        .filter((u) => u.faction === Faction.ENEMY)
-        .map((u) => ({ x: u.position.x, y: u.position.y })),
-      ...Object.values(state.buildings)
-        .filter((b) => b.faction === Faction.ENEMY)
-        .map((b) => ({ x: b.position.x, y: b.position.y })),
-    ];
-    const playerEntities: Array<{ x: number; y: number }> = [
-      ...playerUnits.map((u) => ({ x: u.position.x, y: u.position.y })),
-      ...Object.values(state.buildings)
-        .filter((b) => b.faction === Faction.PLAYER)
-        .map((b) => ({ x: b.position.x, y: b.position.y })),
-    ];
+  // Check if any enemy entity is within DDA_CONTACT_RANGE of any player entity.
+  const enemyEntities: Array<{ x: number; y: number }> = [
+    ...Object.values(state.units)
+      .filter((u) => u.faction === Faction.ENEMY)
+      .map((u) => ({ x: u.position.x, y: u.position.y })),
+    ...Object.values(state.buildings)
+      .filter((b) => b.faction === Faction.ENEMY)
+      .map((b) => ({ x: b.position.x, y: b.position.y })),
+  ];
+  const playerEntities: Array<{ x: number; y: number }> = [
+    ...playerUnits.map((u) => ({ x: u.position.x, y: u.position.y })),
+    ...Object.values(state.buildings)
+      .filter((b) => b.faction === Faction.PLAYER)
+      .map((b) => ({ x: b.position.x, y: b.position.y })),
+  ];
+  if (playerEntities.length > 0) {
     outer: for (const e of enemyEntities) {
       for (const p of playerEntities) {
         if (isTileWithinEdgeCircleRange(e.x, e.y, p.x, p.y, SPAWN_BUDGET.DDA_CONTACT_RANGE)) {
