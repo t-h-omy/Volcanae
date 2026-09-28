@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.110.0 - AI trace recorder
+
+Added the first AI decision trace diagnostics pass. This ships the trace config, row and summary types, the plain-array collector, IndexedDB chunk persistence, enemy-turn recording hooks, movement stop instrumentation, and a persisted dev toggle for recording AI decisions. Save data version stays at 20, the trace stays outside GameState, and there is still no trace UI export or score-term decomposition in this run.
+
 ### v0.109.3 - Stronghold-based DDA margin
 
 The spawn-budget DDA margin now measures the distance between the lava front and the player's frontmost stronghold instead of the player's frontmost unit. The Dev Stats overlay label was updated to match, spawn-budget tests were adjusted to cover stronghold-based relief, and the package patch version was bumped to 0.109.3.

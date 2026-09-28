@@ -68,6 +68,9 @@ import { canUnitSetTrap, isTrapTileClear, canUnitExtinguish } from './unitAction
 import { useHintStore } from './hintStore';
 import { flushDeferredHints, tryTriggerHint } from './hintSystem';
 import { triggerEmberLevelUpVfx } from './emberLevelVfx';
+import { useDevOptionsStore } from './devOptionsStore';
+import { appendChunk, deleteTurnsAfter, getTraceSeed } from './aiTraceStore';
+import type { AiTraceChunk } from './aiTrace';
 import { useEmberDisplayStore } from './emberDisplayStore';
 
 // ============================================================================
@@ -440,6 +443,7 @@ export const useGameStore = create<GameStore>()(
     loadIntoGame: async (id: string) => {
       const loaded = await loadSlot(id);
       if (!loaded) return;
+      await deleteTurnsAfter(id, loaded.turn);
       // Clear stale animation state from any previous game before loading.
       useAnimationStore.getState().clear();
       set((state) => {
@@ -2050,6 +2054,7 @@ export const useGameStore = create<GameStore>()(
       // below can pass the pure GameState (not useGameStore.getState() which
       // includes Zustand action methods and would throw DataCloneError in IDB).
       let pendingStateForSave: GameState | null = null;
+      let pendingTraceChunk: AiTraceChunk | null = null;
       let homelessHintPos: { x: number; y: number } | null = null;
       let untrainedHintPos: { x: number; y: number } | null = null;
       let hasBurningPlayerDamage = false;
@@ -2107,7 +2112,16 @@ export const useGameStore = create<GameStore>()(
         const prevUntrainedIds = computeUntrainedUnitIds(snapshot);
 
         // Phase 2: Compute enemy turn on snapshot
-        const { finalState: afterEnemy, events: enemyEvents } = runEnemyTurn(snapshot);
+        const recordAiTrace = useDevOptionsStore.getState().recordAiTrace;
+        const activeSaveId = useMenuStore.getState().activeSaveId;
+        const traceEnabled = recordAiTrace && !!activeSaveId;
+        const traceSeed = traceEnabled && activeSaveId ? getTraceSeed(activeSaveId) : undefined;
+        const { finalState: afterEnemy, events: enemyEvents, trace: traceChunk } = runEnemyTurn(snapshot, {
+          trace: traceEnabled,
+          slotId: activeSaveId ?? undefined,
+          unitIndexSeed: traceSeed,
+        });
+        pendingTraceChunk = traceChunk;
 
         // Phase 3: Check game conditions after enemy turn
         let computedState = produce(afterEnemy, (draft) => {
@@ -2502,6 +2516,9 @@ export const useGameStore = create<GameStore>()(
                 const slotName = meta?.name ?? serializableState.turn.toString();
                 saveSlot({ id: activeSaveId, name: slotName, state: serializableState }).catch(() => undefined);
               }).catch(() => undefined);
+              if (pendingTraceChunk) {
+                appendChunk(activeSaveId, pendingTraceChunk, stateForSave).catch(() => undefined);
+              }
             }
           }
         }

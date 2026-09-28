@@ -25,6 +25,19 @@ import { cleanupRoostedUnits, getRoostedUnits } from './buildingRemoval';
 import { isUnitOnCorruptedTile } from './tileStatusSystem';
 import { isCounterThemeUnitType, pickUnitFromTheme, scoreCountersForPlayer } from './waveThemeSystem';
 import { isSpecialistEffectActive } from './specialistSystem';
+import { AI_TRACE } from './gameConfig';
+import {
+  ACTION_CODE_INDEX,
+  AiTraceCollector,
+  type AiTraceChunk,
+  type AiTraceSeed,
+  type AiThreatEntry,
+  type AiTurnSummary,
+  type MoveOutcome,
+  STOP_CODE_INDEX,
+  encodeOutcomeBits,
+  encodeTerrainTile,
+} from './aiTrace';
 
 // ============================================================================
 // ID GENERATION
@@ -55,33 +68,36 @@ function getPlayerFrontmostStrongholdRow(state: Draft<GameState>): number {
 // AI TYPES (local to this module)
 // ============================================================================
 
-type EnemyActionType =
-  | 'ATTACK_UNIT'
-  | 'RANGED_ATTACK_UNIT'
-  | 'ATTACK_BUILDING'
-  | 'RANGED_ATTACK_BUILDING'
-  | 'INTERCEPT_CAPTOR'
-  | 'CAPTURE_BUILDING'
-  | 'CONTEST_BUILDING'
-  | 'RETAKE_BUILDING'
-  | 'DEFEND_ENEMY_BUILDING'
-  | 'PROTECT_SPAWNER'
-  | 'PUSH_TO_STRONGHOLD'
-  | 'PUSH_TO_ZONE_EDGE'
-  | 'SPREAD_TO_FLANK'
-  | 'MOVE_TO_PLAYER_BUILDING'
-  | 'MOVE_TO_NEUTRAL_BUILDING'
-  | 'MOVE_TO_UNIT'
-  | 'ADVANCE_TOWARD_LAVA'
-  | 'FLANK_UNIT'
-  | 'SACRIFICE_TO_LAVA'
-  | 'CORRUPT_TERRAIN'
-  | 'BUILD_LAVA_LAIR'
-  | 'BUILD_INFERNAL_SANCTUM'
-  | 'MOVE_TO_SAFE_RANGED_POSITION'
-  | 'EXPLODE'
-  | 'MOVE_TO_PORTAL'
-  | 'HOLD_POSITION';
+export const ENEMY_ACTION_TYPES = [
+  'ATTACK_UNIT',
+  'RANGED_ATTACK_UNIT',
+  'ATTACK_BUILDING',
+  'RANGED_ATTACK_BUILDING',
+  'INTERCEPT_CAPTOR',
+  'CAPTURE_BUILDING',
+  'CONTEST_BUILDING',
+  'RETAKE_BUILDING',
+  'DEFEND_ENEMY_BUILDING',
+  'PROTECT_SPAWNER',
+  'PUSH_TO_STRONGHOLD',
+  'PUSH_TO_ZONE_EDGE',
+  'SPREAD_TO_FLANK',
+  'MOVE_TO_PLAYER_BUILDING',
+  'MOVE_TO_NEUTRAL_BUILDING',
+  'MOVE_TO_UNIT',
+  'ADVANCE_TOWARD_LAVA',
+  'FLANK_UNIT',
+  'SACRIFICE_TO_LAVA',
+  'CORRUPT_TERRAIN',
+  'BUILD_LAVA_LAIR',
+  'BUILD_INFERNAL_SANCTUM',
+  'MOVE_TO_SAFE_RANGED_POSITION',
+  'EXPLODE',
+  'MOVE_TO_PORTAL',
+  'HOLD_POSITION',
+] as const;
+
+export type EnemyActionType = (typeof ENEMY_ACTION_TYPES)[number];
 
 interface ScoredAction {
   type: EnemyActionType;
@@ -94,6 +110,19 @@ interface ScoredAction {
 }
 
 export type { ScoredAction };
+
+type TraceThreatBoardEntry = AiThreatEntry & {
+  buildingId: string;
+  position: Position;
+};
+
+const DEFENDER_ACTION_CODES = new Set<number>([
+  ACTION_CODE_INDEX.DEFEND_ENEMY_BUILDING,
+  ACTION_CODE_INDEX.CONTEST_BUILDING,
+  ACTION_CODE_INDEX.RETAKE_BUILDING,
+  ACTION_CODE_INDEX.PROTECT_SPAWNER,
+  ACTION_CODE_INDEX.INTERCEPT_CAPTOR,
+]);
 
 interface ArmyProfile {
   totalCount: number;
@@ -805,6 +834,289 @@ function getZoneForRow(row: number): number {
   return Math.min(zoneIndex + 1, MAP.ZONE_COUNT);
 }
 
+function getEnemyFrontlineRow(state: Pick<GameState, 'units' | 'buildings'>): number {
+  let frontline = -1;
+  for (const unit of Object.values(state.units)) {
+    if (unit.faction === Faction.ENEMY && unit.position.y > frontline) frontline = unit.position.y;
+  }
+  for (const building of Object.values(state.buildings)) {
+    if (building.faction === Faction.ENEMY && building.position.y > frontline) frontline = building.position.y;
+  }
+  return frontline;
+}
+
+function getTerrainCode(tile: { terrainType: TileType }): string {
+  switch (tile.terrainType) {
+    case TileType.PLAINS:
+      return 'P';
+    case TileType.FOREST:
+      return 'F';
+    case TileType.MOUNTAIN:
+      return 'M';
+    case TileType.CANYON:
+      return 'C';
+    case TileType.WATER:
+      return 'W';
+    default:
+      return 'E';
+  }
+}
+
+function getBuildingFactionCode(building: Building | null | undefined): number {
+  if (!building) return 0;
+  if (building.faction === Faction.ENEMY) return 1;
+  if (building.faction === Faction.PLAYER) return 2;
+  return 3;
+}
+
+function sumUnitHp(units: Unit[]): number {
+  return units.reduce((sum, unit) => sum + unit.stats.currentHp, 0);
+}
+
+function sumUnitAtk(units: Unit[]): number {
+  return units.reduce((sum, unit) => sum + unit.stats.attack, 0);
+}
+
+function buildThreatBoard(state: Draft<GameState>, collector: AiTraceCollector): TraceThreatBoardEntry[] {
+  const playerUnits = Object.values(state.units).filter((unit) => unit.faction === Faction.PLAYER);
+  const enemyUnits = Object.values(state.units).filter((unit) => unit.faction === Faction.ENEMY);
+  const threats: TraceThreatBoardEntry[] = [];
+  for (const building of Object.values(state.buildings)) {
+    if (building.faction !== Faction.ENEMY) continue;
+    const adj = playerUnits.filter((unit) => edgeCircleDistance(unit.position.x, unit.position.y, building.position.x, building.position.y) <= 1).length;
+    const cap = building.isBeingCapturedBy ? 1 : 0;
+    if (adj === 0 && cap === 0) continue;
+    const near = enemyUnits.filter((unit) => edgeCircleDistance(unit.position.x, unit.position.y, building.position.x, building.position.y) <= AI_TRACE.THREAT_RADIUS).length;
+    threats.push({
+      b: collector.buildingIndex(building.id, building.type),
+      ty: building.type,
+      p: [building.position.x, building.position.y],
+      adj,
+      cap,
+      near,
+      def: 0,
+      buildingId: building.id,
+      position: { x: building.position.x, y: building.position.y },
+    });
+  }
+  return threats;
+}
+
+function buildTraceContext(
+  unit: Unit,
+  state: Draft<GameState>,
+  collector: AiTraceCollector,
+  threatBoard: TraceThreatBoardEntry[],
+): number[] {
+  const tile = state.grid[unit.position.y][unit.position.x];
+  const building = tile.buildingId ? state.buildings[tile.buildingId] : null;
+  const playerUnits = Object.values(state.units).filter((other) => other.faction === Faction.PLAYER);
+  const playerBuildings = Object.values(state.buildings).filter((other) => other.faction === Faction.PLAYER);
+  const alliedUnits = Object.values(state.units).filter((other) => other.faction === Faction.ENEMY && other.id !== unit.id);
+  const nearestPlayerUnit = playerUnits.reduce((best, other) => {
+    const dist = edgeCircleDistance(unit.position.x, unit.position.y, other.position.x, other.position.y);
+    return Math.min(best, dist);
+  }, Infinity);
+  const nearestPlayerBuilding = playerBuildings.reduce((best, other) => {
+    const dist = edgeCircleDistance(unit.position.x, unit.position.y, other.position.x, other.position.y);
+    return Math.min(best, dist);
+  }, Infinity);
+  const nearestThreat = threatBoard.reduce((best, threat) => {
+    const dist = edgeCircleDistance(unit.position.x, unit.position.y, threat.position.x, threat.position.y);
+    return Math.min(best, dist);
+  }, Infinity);
+  return [
+    getZoneForRow(unit.position.y),
+    state.lavaFrontRow - unit.position.y,
+    Number.isFinite(nearestPlayerUnit) ? nearestPlayerUnit : -1,
+    Number.isFinite(nearestPlayerBuilding) ? nearestPlayerBuilding : -1,
+    alliedUnits.filter((other) => edgeCircleDistance(unit.position.x, unit.position.y, other.position.x, other.position.y) <= AI_TRACE.ALLY_RADIUS).length,
+    building ? collector.buildingIndex(building.id, building.type) : -1,
+    getBuildingFactionCode(building),
+    Number.isFinite(nearestThreat) ? nearestThreat : -1,
+  ];
+}
+
+function applyThreatDefenders(chunk: AiTraceChunk, threats: TraceThreatBoardEntry[]): void {
+  for (const threat of threats) {
+    threat.def = chunk.rows.filter((row) => row[12] === 2 && row[13] === threat.b && DEFENDER_ACTION_CODES.has(row[3])).length;
+  }
+  chunk.summary.threats = threats.map(({ buildingId: _buildingId, position: _position, ...entry }) => entry);
+}
+
+function inferDirectMoveOutcome(
+  action: ScoredAction,
+  from: Position,
+  to: Position,
+  state: Draft<GameState>,
+): MoveOutcome | null {
+  if (!action.targetPosition) return null;
+  const moved = from.x !== to.x || from.y !== to.y;
+  if (!moved && action.type !== 'SACRIFICE_TO_LAVA') return null;
+  const tile = state.grid[action.targetPosition.y]?.[action.targetPosition.x];
+  const terr = tile ? encodeTerrainTile(getTerrainCode(tile), tile.status ?? null, false) : '';
+  return {
+    steps: moved ? 1 : 0,
+    pathLen: moved ? 1 : 0,
+    stop: moved ? 'REACHED' : 'ALREADY_THERE',
+    terr,
+    bridgeSteps: 0,
+    slid: false,
+  };
+}
+
+function recordTraceDecision(
+  trace: AiTraceCollector,
+  args: {
+    slot: number;
+    unit: Unit;
+    state: Draft<GameState>;
+    actionCode: number;
+    score: number | null;
+    secondScore: number | null;
+    candidates: number[];
+    from: Position;
+    hpBefore: number;
+    hpAfter: number;
+    targetKind: number;
+    targetIndex: number;
+    targetPos: Position;
+    targetDistance: number;
+    targetHpBefore: number | null;
+    targetHpAfter: number | null;
+    moveOutcome: MoveOutcome | null;
+    ctx: number[];
+    bits: Array<
+      'KILL' | 'DIED' | 'CAPTURED' | 'BUILT' | 'CORRUPTED' | 'EXPLODED' | 'TELEPORTED' | 'SLID' |
+      'TRAPPED' | 'COUNTERED' | 'OVERWATCH_HIT' | 'PREVENTIVE_HIT' | 'BRIDGE_USED'
+    >;
+    deathPos?: Position;
+  },
+): void {
+  const afterUnit = args.state.units[args.unit.id];
+  const to = afterUnit
+    ? { x: afterUnit.position.x, y: afterUnit.position.y }
+    : args.deathPos ?? args.from;
+  trace.pushDecision({
+    slot: args.slot,
+    unitIndex: trace.unitIndex(args.unit),
+    action: args.actionCode,
+    score: args.score,
+    secondScore: args.secondScore,
+    candidates: args.candidates,
+    from: args.from,
+    to,
+    hp: args.hpAfter,
+    targetKind: args.targetKind,
+    targetIndex: args.targetIndex,
+    targetPos: args.targetPos,
+    targetDistance: args.targetDistance,
+    moveSteps: args.moveOutcome?.steps ?? 0,
+    stop: args.moveOutcome ? STOP_CODE_INDEX[args.moveOutcome.stop] : -1,
+    pathLen: args.moveOutcome?.pathLen ?? 0,
+    terrain: args.moveOutcome?.terr ?? '',
+    damage: args.targetHpBefore === null ? 0 : Math.max(0, args.targetHpBefore - (args.targetHpAfter ?? 0)),
+    received: Math.max(0, args.hpBefore - args.hpAfter),
+    flags: encodeOutcomeBits(args.bits),
+    ctx: args.ctx,
+  });
+}
+
+function recordRuleTraceDecision(
+  trace: AiTraceCollector,
+  unit: Unit,
+  state: Draft<GameState>,
+  threatBoard: TraceThreatBoardEntry[],
+  actionCode: number,
+  slot: number,
+  hpBefore: number,
+  moveOutcome: MoveOutcome | null = null,
+): void {
+  const afterUnit = state.units[unit.id];
+  if (afterUnit) trace.unitIndex(afterUnit);
+  else trace.markDeath(unit.id, moveOutcome?.stop === 'DIED' ? 'DIED' : 'RULE');
+  recordTraceDecision(trace, {
+    slot,
+    unit,
+    state,
+    actionCode,
+    score: null,
+    secondScore: null,
+    candidates: [],
+    from: { x: unit.position.x, y: unit.position.y },
+    hpBefore,
+    hpAfter: afterUnit?.stats.currentHp ?? 0,
+    targetKind: 0,
+    targetIndex: -1,
+    targetPos: { x: -1, y: -1 },
+    targetDistance: -1,
+    targetHpBefore: null,
+    targetHpAfter: null,
+    moveOutcome,
+    ctx: buildTraceContext(unit, state, trace, threatBoard),
+    bits: [
+      ...(!afterUnit ? ['DIED' as const] : []),
+      ...(moveOutcome?.bridgeSteps ? ['BRIDGE_USED' as const] : []),
+      ...(moveOutcome?.slid ? ['SLID' as const] : []),
+    ],
+  });
+}
+
+function buildTurnSummary(
+  startState: GameState,
+  finalState: GameState,
+  chunk: AiTraceChunk,
+): AiTurnSummary {
+  const playerUnits = Object.values(startState.units).filter((unit) => unit.faction === Faction.PLAYER);
+  const enemyUnits = Object.values(startState.units).filter((unit) => unit.faction === Faction.ENEMY);
+  const playerBuildings = Object.values(startState.buildings).filter((building) => building.faction === Faction.PLAYER);
+  const enemyBuildings = Object.values(startState.buildings).filter((building) => building.faction === Faction.ENEMY);
+  const actions = new Array(Object.keys(ACTION_CODE_INDEX).length).fill(0);
+  const stops = new Array(Object.keys(STOP_CODE_INDEX).length).fill(0);
+  let blocked = 0;
+  let staticCount = 0;
+  let slot2 = 0;
+  let kills = 0;
+  let losses = 0;
+  for (const row of chunk.rows) {
+    actions[row[3]] += 1;
+    if (row[18] >= 0) stops[row[18]] += 1;
+    if (row[18] === STOP_CODE_INDEX.BLOCKED_UNIT) blocked += 1;
+    if (row[17] === 0) staticCount += 1;
+    if (row[1] === 2) slot2 += 1;
+    if ((row[23] & (1 << 0)) !== 0) kills += 1;
+    if ((row[23] & (1 << 1)) !== 0) losses += 1;
+  }
+  return {
+    turn: startState.turn,
+    enemyUnits: enemyUnits.length,
+    playerUnits: playerUnits.length,
+    pHp: sumUnitHp(playerUnits),
+    pAtk: sumUnitAtk(playerUnits),
+    pB: playerBuildings.length,
+    eHp: sumUnitHp(enemyUnits),
+    eAtk: sumUnitAtk(enemyUnits),
+    eB: enemyBuildings.length,
+    ember: finalState.ember,
+    lavaFrontRow: finalState.lavaFrontRow,
+    front: [getPlayerFrontlineRow(startState), getEnemyFrontlineRow(startState)],
+    spawns: finalState.enemyUnitsSpawnedLastTurn,
+    lastSpawnBudget: finalState.lastSpawnBudget ? { ...finalState.lastSpawnBudget } : null,
+    actions,
+    stops,
+    blocked,
+    static: staticCount,
+    slot2,
+    kills,
+    losses,
+    activeLockoutZones: Object.keys(finalState.zoneLockoutUntilTurn)
+      .map((value) => Number(value))
+      .filter((zone) => finalState.turn < (finalState.zoneLockoutUntilTurn[zone] ?? 0))
+      .sort((a, b) => a - b),
+    threats: chunk.summary.threats,
+  };
+}
+
 /**
  * Scores all eligible unit types for a single LAVA_LAIR or INFERNAL_SANCTUM
  * building and returns them sorted by score descending.
@@ -1456,15 +1768,30 @@ function moveEnemyUnitToward(
   unitId: string,
   targetPosition: Position,
   events?: GameEvent[],
-): void {
+  trace?: AiTraceCollector | null,
+): MoveOutcome {
   const unit = state.units[unitId];
-  if (!unit) return;
+  if (!unit) {
+    return { steps: 0, pathLen: 0, stop: 'DIED', terr: '', bridgeSteps: 0, slid: false };
+  }
+  if (unit.position.x === targetPosition.x && unit.position.y === targetPosition.y) {
+    return { steps: 0, pathLen: 0, stop: 'ALREADY_THERE', terr: '', bridgeSteps: 0, slid: false };
+  }
   const moveRange = unit.stats.moveRange;
   const path = findBfsPath(unit.position, targetPosition, state);
+  let steps = 0;
+  let stop: MoveOutcome['stop'] = path.length > moveRange ? 'RANGE' : 'REACHED';
+  let terr = '';
+  let bridgeSteps = 0;
+  let slid = false;
   for (let step = 0; step < Math.min(moveRange, path.length); step++) {
     const current = state.units[unitId];
-    if (!current) break; // unit was destroyed (e.g. walked into lava)
+    if (!current) {
+      stop = 'DIED';
+      break;
+    }
     const nextPos = path[step];
+    const fromPos = { x: current.position.x, y: current.position.y };
     // Zone lockout: prevent crossing into a locked-out zone.
     if (SANCTUM_COLLAPSE.ZONE_LOCKOUT_TURNS > 0) {
       const nextZone = getZoneForRow(nextPos.y);
@@ -1474,15 +1801,37 @@ function moveEnemyUnitToward(
         state.zoneLockoutUntilTurn[nextZone] !== undefined &&
         state.turn < (state.zoneLockoutUntilTurn[nextZone] ?? 0)
       ) {
-        break; // stop movement — cannot cross from above into locked zone
+        stop = 'ZONE_LOCKOUT';
+        break;
       }
     }
     const tile = state.grid[nextPos.y][nextPos.x];
-    if (tile.unitId !== null) break; // blocked by a unit occupying the tile
+    if (tile.unitId !== null) {
+      stop = 'BLOCKED_UNIT';
+      break;
+    }
     moveEnemyUnit(state, unitId, nextPos, events);
+    steps += 1;
+    if (trace) {
+      const bridged = !!getBridgeAt(state, nextPos.x, nextPos.y) && canTraverseEdge(state, fromPos.x, fromPos.y, nextPos.x, nextPos.y, false);
+      terr += encodeTerrainTile(getTerrainCode(tile), tile.status ?? null, bridged);
+      if (bridged) bridgeSteps += 1;
+    }
+    const afterStep = state.units[unitId];
+    if (!afterStep) {
+      stop = 'DIED';
+      break;
+    }
     // If the unit slid on a FROZEN tile, it's no longer at nextPos — stop multi-step movement.
-    const afterMove = state.units[unitId];
-    if (afterMove && (afterMove.position.x !== nextPos.x || afterMove.position.y !== nextPos.y)) break;
+    if (afterStep.position.x !== nextPos.x || afterStep.position.y !== nextPos.y) {
+      if (trace) {
+        const slideTile = state.grid[afterStep.position.y]?.[afterStep.position.x];
+        if (slideTile) terr += encodeTerrainTile(getTerrainCode(slideTile), slideTile.status ?? null, false);
+      }
+      stop = 'SLID';
+      slid = true;
+      break;
+    }
   }
   // Greedy fallback: when BFS found no path (congested frontline), try one
   // immediate step toward the target by evaluating all 8 neighbours and
@@ -1537,16 +1886,38 @@ function moveEnemyUnitToward(
       }
       if (fallbackCandidates.length > 0) {
         const chosen = fallbackCandidates[Math.floor(Math.random() * fallbackCandidates.length)];
+        const fromPos = { x: uFallback.position.x, y: uFallback.position.y };
+        const tile = state.grid[chosen.y][chosen.x];
         moveEnemyUnit(state, unitId, chosen, events);
+        steps = 1;
+        stop = 'FALLBACK';
+        if (trace) {
+          const bridged = !!getBridgeAt(state, chosen.x, chosen.y) && canTraverseEdge(state, fromPos.x, fromPos.y, chosen.x, chosen.y, false);
+          terr += encodeTerrainTile(getTerrainCode(tile), tile.status ?? null, bridged);
+          if (bridged) bridgeSteps += 1;
+          const afterFallback = state.units[unitId];
+          if (!afterFallback) {
+            stop = 'DIED';
+          } else if (afterFallback.position.x !== chosen.x || afterFallback.position.y !== chosen.y) {
+            const slideTile = state.grid[afterFallback.position.y]?.[afterFallback.position.x];
+            if (slideTile) terr += encodeTerrainTile(getTerrainCode(slideTile), slideTile.status ?? null, false);
+            stop = 'SLID';
+            slid = true;
+          }
+        } else if (!state.units[unitId]) {
+          stop = 'DIED';
+        }
+        return { steps, pathLen: 0, stop, terr, bridgeSteps, slid };
       }
     }
+    const unitAfterFallback = state.units[unitId];
+    if (unitAfterFallback) unitAfterFallback.hasMovedThisTurn = true;
+    return { steps: 0, pathLen: 0, stop: 'NO_PATH', terr, bridgeSteps, slid };
   }
-  // Mark the movement action as consumed even if no steps were taken (e.g. path
-  // was empty or every candidate tile was occupied). This prevents a second
-  // scoring iteration from re-awarding ADVANCE_TOWARD_LAVA and lets blocked
-  // EXPLOSIVE/SACRIFICIAL units (emberlings) correctly score EXPLODE instead.
+
   const unitAfterLoop = state.units[unitId];
-  if (unitAfterLoop) unitAfterLoop.hasMovedThisTurn = true;
+  if (steps === 0 && unitAfterLoop) unitAfterLoop.hasMovedThisTurn = true;
+  return { steps, pathLen: path.length, stop, terr, bridgeSteps, slid };
 }
 
 // ============================================================================
@@ -2379,9 +2750,15 @@ function destroyUnit(state: Draft<GameState>, unitId: string, events?: GameEvent
   delete state.units[unitId];
 }
 
-function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>, events?: GameEvent[]): void {
+function executeAction(
+  unit: Unit,
+  action: ScoredAction,
+  state: Draft<GameState>,
+  events?: GameEvent[],
+  trace?: AiTraceCollector | null,
+): MoveOutcome | null {
   const currentUnit = state.units[unit.id];
-  if (!currentUnit) return;
+  if (!currentUnit) return null;
 
   const suppressFloaters = !!events;
 
@@ -2478,7 +2855,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
             events.push(...remainingSecEvts);
           }
         } else if (!currentUnit.hasMovedThisTurn) {
-          moveEnemyUnitToward(state, currentUnit.id, targetUnit.position, events);
+          return moveEnemyUnitToward(state, currentUnit.id, targetUnit.position, events, trace);
         }
       }
       break;
@@ -2627,7 +3004,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
               }
             }
           } else if (!currentUnit.hasMovedThisTurn) {
-            moveEnemyUnitToward(state, currentUnit.id, building.position, events);
+            return moveEnemyUnitToward(state, currentUnit.id, building.position, events, trace);
           }
         }
       }
@@ -2679,7 +3056,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
     case 'MOVE_TO_NEUTRAL_BUILDING':
     case 'SPREAD_TO_FLANK': {
       if (action.targetPosition) {
-        moveEnemyUnitToward(state, currentUnit.id, action.targetPosition, events);
+        return moveEnemyUnitToward(state, currentUnit.id, action.targetPosition, events, trace);
       }
       break;
     }
@@ -2687,7 +3064,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
     case 'MOVE_TO_UNIT':
     case 'FLANK_UNIT': {
       if (action.targetPosition) {
-        moveEnemyUnitToward(state, currentUnit.id, action.targetPosition, events);
+        return moveEnemyUnitToward(state, currentUnit.id, action.targetPosition, events, trace);
       }
       break;
     }
@@ -2704,8 +3081,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
         x: currentUnit.position.x,
         y: Math.min(MAP.GRID_HEIGHT - 1, currentUnit.position.y + currentUnit.stats.moveRange),
       };
-      moveEnemyUnitToward(state, currentUnit.id, lavaTarget, events);
-      break;
+      return moveEnemyUnitToward(state, currentUnit.id, lavaTarget, events, trace);
     }
 
     case 'SACRIFICE_TO_LAVA': {
@@ -2728,7 +3104,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
           });
         }
       }
-      return;
+      return null;
     }
 
     case 'PUSH_TO_ZONE_EDGE': {
@@ -2738,8 +3114,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
         targetY = Math.min(MAP.GRID_HEIGHT - 1, Math.max(...playerBuildings.map(b => b.position.y)));
       }
       const targetPos: Position = { x: currentUnit.position.x, y: targetY };
-      moveEnemyUnitToward(state, currentUnit.id, targetPos, events);
-      break;
+      return moveEnemyUnitToward(state, currentUnit.id, targetPos, events, trace);
     }
 
     case 'BUILD_LAVA_LAIR': {
@@ -2748,7 +3123,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
         if (isOnTile) {
           enemyConstructBuilding(state, currentUnit.id, action.targetPosition, BuildingType.LAVALAIR, suppressFloaters);
         } else if (!currentUnit.hasMovedThisTurn) {
-          moveEnemyUnitToward(state, currentUnit.id, action.targetPosition, events);
+          return moveEnemyUnitToward(state, currentUnit.id, action.targetPosition, events, trace);
         }
       }
       break;
@@ -2760,7 +3135,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
         if (isOnTile) {
           enemyConstructBuilding(state, currentUnit.id, action.targetPosition, BuildingType.INFERNALSANCTUM, suppressFloaters);
         } else if (!currentUnit.hasMovedThisTurn) {
-          moveEnemyUnitToward(state, currentUnit.id, action.targetPosition, events);
+          return moveEnemyUnitToward(state, currentUnit.id, action.targetPosition, events, trace);
         }
       }
       break;
@@ -2775,7 +3150,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
           currentUnit.hasConstructedThisTurn = true;
         } else if (!currentUnit.hasMovedThisTurn) {
           // Move 1 step toward the terrain tile
-          moveEnemyUnitToward(state, currentUnit.id, action.targetPosition, events);
+          return moveEnemyUnitToward(state, currentUnit.id, action.targetPosition, events, trace);
         }
       }
       break;
@@ -2783,7 +3158,7 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
 
     case 'EXPLODE': {
       resolveExplosion(state, currentUnit.id, events ?? []);
-      return; // unit is destroyed, no further processing
+      return null;
     }
 
     case 'HOLD_POSITION':
@@ -2791,11 +3166,12 @@ function executeAction(unit: Unit, action: ScoredAction, state: Draft<GameState>
 
     case 'MOVE_TO_PORTAL': {
       if (action.targetPosition && !currentUnit.hasMovedThisTurn) {
-        moveEnemyUnitToward(state, currentUnit.id, action.targetPosition, events);
+        return moveEnemyUnitToward(state, currentUnit.id, action.targetPosition, events, trace);
       }
       break;
     }
   }
+  return null;
 }
 
 // ============================================================================
@@ -2809,6 +3185,9 @@ function decideAndExecute(
   recentlyLostBuildingIds: Set<string>,
   portalUsageIntents: Map<string, number>,
   events?: GameEvent[],
+  trace?: AiTraceCollector | null,
+  slot = 1,
+  threatBoard: TraceThreatBoardEntry[] = [],
 ): void {
   // All units go through the unified scoring — tag-based behaviors
   // (EXPLOSIVE, SACRIFICIAL, etc.) are handled within scoreActionsForUnit
@@ -2830,7 +3209,113 @@ function decideAndExecute(
     portalUsageIntents.set(chosen.portalIntentId, (portalUsageIntents.get(chosen.portalIntentId) ?? 0) + 1);
   }
 
-  executeAction(unit, chosen, state, events);
+  if (!trace) {
+    executeAction(unit, chosen, state, events, null);
+    return;
+  }
+
+  const currentUnit = state.units[unit.id];
+  if (!currentUnit) return;
+  const from = { x: currentUnit.position.x, y: currentUnit.position.y };
+  const hpBefore = currentUnit.stats.currentHp;
+  const ctx = buildTraceContext(currentUnit, state, trace, threatBoard);
+  const actionCode = ACTION_CODE_INDEX[chosen.type];
+  const candidateCodes = candidates
+    .filter((candidate) => candidate.score > 0)
+    .map((candidate) => ACTION_CODE_INDEX[candidate.type]);
+  const secondScore = candidates.length > 1 ? candidates[1].score : null;
+  const targetUnit = chosen.targetUnitId ? state.units[chosen.targetUnitId] : null;
+  const targetBuilding = chosen.targetBuildingId ? state.buildings[chosen.targetBuildingId] : null;
+  const targetKind = targetUnit ? 1 : targetBuilding ? 2 : chosen.targetPosition ? 3 : 0;
+  const targetIndex = targetUnit
+    ? trace.unitIndex(targetUnit)
+    : targetBuilding
+      ? trace.buildingIndex(targetBuilding.id, targetBuilding.type)
+      : -1;
+  const targetPos = targetUnit
+    ? { x: targetUnit.position.x, y: targetUnit.position.y }
+    : targetBuilding
+      ? { x: targetBuilding.position.x, y: targetBuilding.position.y }
+      : chosen.targetPosition
+        ? { x: chosen.targetPosition.x, y: chosen.targetPosition.y }
+        : { x: -1, y: -1 };
+  const targetDistance = targetKind === 0 ? -1 : edgeCircleDistance(from.x, from.y, targetPos.x, targetPos.y);
+  const targetHpBefore = targetUnit
+    ? targetUnit.stats.currentHp
+    : targetBuilding
+      ? targetBuilding.hp
+      : null;
+  const eventStart = events?.length ?? 0;
+  let moveOutcome = executeAction(unit, chosen, state, events, trace);
+  const targetUnitAfter = targetUnit ? state.units[targetUnit.id] : null;
+  const targetBuildingAfter = targetBuilding ? state.buildings[targetBuilding.id] : null;
+  const afterUnit = state.units[unit.id];
+  const hpAfter = afterUnit?.stats.currentHp ?? 0;
+  const targetHpAfter = targetUnit
+    ? targetUnitAfter?.stats.currentHp ?? 0
+    : targetBuilding
+      ? targetBuildingAfter?.hp ?? 0
+      : null;
+  const newEvents = events?.slice(eventStart) ?? [];
+  const deathEvent = newEvents.find(
+    (event): event is Extract<GameEvent, { type: 'UNIT_DEATH' }> =>
+      event.type === 'UNIT_DEATH' && event.unitId === unit.id,
+  );
+  if (!moveOutcome) {
+    moveOutcome = inferDirectMoveOutcome(chosen, from, afterUnit?.position ?? from, state);
+  }
+  const bits: Array<
+    'KILL' | 'DIED' | 'CAPTURED' | 'BUILT' | 'CORRUPTED' | 'EXPLODED' | 'TELEPORTED' | 'SLID' |
+    'TRAPPED' | 'COUNTERED' | 'OVERWATCH_HIT' | 'PREVENTIVE_HIT' | 'BRIDGE_USED'
+  > = [];
+  if ((targetUnit && !targetUnitAfter) || (targetBuilding && !targetBuildingAfter)) bits.push('KILL');
+  if (!afterUnit) bits.push('DIED');
+  if (newEvents.some((event) => event.type === 'BUILDING_CAPTURE')) bits.push('CAPTURED');
+  if (
+    (chosen.type === 'BUILD_LAVA_LAIR' || chosen.type === 'BUILD_INFERNAL_SANCTUM') &&
+    chosen.targetPosition &&
+    state.grid[chosen.targetPosition.y][chosen.targetPosition.x].buildingId
+  ) bits.push('BUILT');
+  if (
+    chosen.type === 'CORRUPT_TERRAIN' &&
+    chosen.targetPosition &&
+    state.grid[chosen.targetPosition.y][chosen.targetPosition.x].status === TileStatus.CORRUPTED
+  ) bits.push('CORRUPTED');
+  if (newEvents.some((event) => event.type === 'EXPLOSION')) bits.push('EXPLODED');
+  if (newEvents.some((event) => event.type === 'PORTAL_USED' && event.unitId === unit.id)) bits.push('TELEPORTED');
+  if (moveOutcome?.slid) bits.push('SLID');
+  if (newEvents.some((event) => event.type === 'TRAP_TRIGGERED')) bits.push('TRAPPED');
+  if ((chosen.type === 'ATTACK_UNIT' || chosen.type === 'RANGED_ATTACK_UNIT' || chosen.type === 'ATTACK_BUILDING' || chosen.type === 'RANGED_ATTACK_BUILDING') && hpAfter < hpBefore) {
+    bits.push('COUNTERED');
+  }
+  if (moveOutcome && moveOutcome.bridgeSteps > 0) bits.push('BRIDGE_USED');
+
+  if (targetUnit && !targetUnitAfter) trace.markDeath(targetUnit.id, 'KILLED');
+  if (afterUnit) trace.unitIndex(afterUnit);
+  if (!afterUnit) trace.markDeath(unit.id, moveOutcome?.stop === 'DIED' ? 'DIED' : chosen.type);
+
+  recordTraceDecision(trace, {
+    slot,
+    unit,
+    state,
+    actionCode,
+    score: chosen.score,
+    secondScore,
+    candidates: candidateCodes,
+    from,
+    hpBefore,
+    hpAfter,
+    targetKind,
+    targetIndex,
+    targetPos,
+    targetDistance,
+    targetHpBefore,
+    targetHpAfter,
+    moveOutcome,
+    ctx,
+    bits,
+    deathPos: deathEvent ? { x: deathEvent.position.x, y: deathEvent.position.y } : undefined,
+  });
 }
 
 export function increaseEmberOnStrongholdCapture(
@@ -3059,7 +3544,12 @@ function resolveCaveMonsterAttack(
  *      move toward it; after moving, attack if now in range.
  *   3. Return — move toward the home mountain; despawn upon arrival.
  */
-function runCaveMonsterAi(state: Draft<GameState>, events?: GameEvent[]): void {
+function runCaveMonsterAi(
+  state: Draft<GameState>,
+  events?: GameEvent[],
+  trace?: AiTraceCollector | null,
+  threatBoard: TraceThreatBoardEntry[] = [],
+): void {
   const PATROL_RADIUS = TERRAIN.CAVE_MONSTER_PATROL_RADIUS;
 
   for (const encounter of [...state.activeCaveEncounters]) {
@@ -3103,7 +3593,46 @@ function runCaveMonsterAi(state: Draft<GameState>, events?: GameEvent[]): void {
     }
 
     if (directTarget) {
+      const from = { x: unit.position.x, y: unit.position.y };
+      const hpBefore = unit.stats.currentHp;
+      const targetHpBefore = directTarget.stats.currentHp;
+      const ctx = trace ? buildTraceContext(unit, state, trace, threatBoard) : null;
+      const eventStart = events?.length ?? 0;
       resolveCaveMonsterAttack(state, unit.id, directTarget.id, events);
+      if (trace && ctx) {
+        const afterUnit = state.units[unit.id];
+        const targetAfter = state.units[directTarget.id];
+        if (!targetAfter) trace.markDeath(directTarget.id, 'KILLED');
+        if (!afterUnit) trace.markDeath(unit.id, 'CM_ATTACK_IN_RANGE');
+        recordTraceDecision(trace, {
+          slot: 1,
+          unit,
+          state,
+          actionCode: ACTION_CODE_INDEX.CM_ATTACK_IN_RANGE,
+          score: null,
+          secondScore: null,
+          candidates: [],
+          from,
+          hpBefore,
+          hpAfter: afterUnit?.stats.currentHp ?? 0,
+          targetKind: 1,
+          targetIndex: trace.unitIndex(directTarget),
+          targetPos: { x: directTarget.position.x, y: directTarget.position.y },
+          targetDistance: edgeCircleDistance(from.x, from.y, directTarget.position.x, directTarget.position.y),
+          targetHpBefore,
+          targetHpAfter: targetAfter?.stats.currentHp ?? 0,
+          moveOutcome: null,
+          ctx,
+          bits: [
+            ...(targetAfter ? [] : ['KILL' as const]),
+            ...(!afterUnit ? ['DIED' as const] : []),
+            ...((afterUnit?.stats.currentHp ?? 0) < hpBefore ? ['COUNTERED' as const] : []),
+          ],
+          deathPos: (events?.slice(eventStart).find((event): event is Extract<GameEvent, { type: 'UNIT_DEATH' }> => event.type === 'UNIT_DEATH' && event.unitId === unit.id))
+            ? { x: (events!.slice(eventStart).find((event): event is Extract<GameEvent, { type: 'UNIT_DEATH' }> => event.type === 'UNIT_DEATH' && event.unitId === unit.id)!).position.x, y: (events!.slice(eventStart).find((event): event is Extract<GameEvent, { type: 'UNIT_DEATH' }> => event.type === 'UNIT_DEATH' && event.unitId === unit.id)!).position.y }
+            : undefined,
+        });
+      }
       continue;
     }
 
@@ -3125,10 +3654,38 @@ function runCaveMonsterAi(state: Draft<GameState>, events?: GameEvent[]): void {
     }
 
     if (aggroTarget) {
-      moveEnemyUnitToward(state, unit.id, aggroTarget.position, events);
+      const from = { x: unit.position.x, y: unit.position.y };
+      const hpBefore = unit.stats.currentHp;
+      const targetHpBefore = aggroTarget.stats.currentHp;
+      const ctx = trace ? buildTraceContext(unit, state, trace, threatBoard) : null;
+      const moveOutcome = moveEnemyUnitToward(state, unit.id, aggroTarget.position, events, trace);
       // Re-fetch the unit — it may have been destroyed (e.g. PREVENTIVE_STRIKE)
       const movedUnit = state.units[unit.id];
       if (!movedUnit) {
+        if (trace && ctx) {
+          trace.markDeath(unit.id, moveOutcome.stop);
+          recordTraceDecision(trace, {
+            slot: 1,
+            unit,
+            state,
+            actionCode: ACTION_CODE_INDEX.CM_MOVE_AND_ATTACK,
+            score: null,
+            secondScore: null,
+            candidates: [],
+            from,
+            hpBefore,
+            hpAfter: 0,
+            targetKind: 1,
+            targetIndex: trace.unitIndex(aggroTarget),
+            targetPos: { x: aggroTarget.position.x, y: aggroTarget.position.y },
+            targetDistance: edgeCircleDistance(from.x, from.y, aggroTarget.position.x, aggroTarget.position.y),
+            targetHpBefore,
+            targetHpAfter: state.units[aggroTarget.id]?.stats.currentHp ?? targetHpBefore,
+            moveOutcome,
+            ctx,
+            bits: ['DIED', ...(moveOutcome.bridgeSteps > 0 ? ['BRIDGE_USED' as const] : []), ...(moveOutcome.slid ? ['SLID' as const] : [])],
+          });
+        }
         state.activeCaveEncounters = state.activeCaveEncounters.filter(
           (e) => e.monsterId !== encounter.monsterId,
         );
@@ -3145,6 +3702,36 @@ function runCaveMonsterAi(state: Draft<GameState>, events?: GameEvent[]): void {
       ) {
         resolveCaveMonsterAttack(state, movedUnit.id, aggroTarget.id, events);
       }
+      if (trace && ctx) {
+        const targetAfter = state.units[aggroTarget.id];
+        if (!targetAfter) trace.markDeath(aggroTarget.id, 'KILLED');
+        recordTraceDecision(trace, {
+          slot: 1,
+          unit,
+          state,
+          actionCode: ACTION_CODE_INDEX.CM_MOVE_AND_ATTACK,
+          score: null,
+          secondScore: null,
+          candidates: [],
+          from,
+          hpBefore,
+          hpAfter: state.units[unit.id]?.stats.currentHp ?? 0,
+          targetKind: 1,
+          targetIndex: trace.unitIndex(aggroTarget),
+          targetPos: { x: aggroTarget.position.x, y: aggroTarget.position.y },
+          targetDistance: edgeCircleDistance(from.x, from.y, aggroTarget.position.x, aggroTarget.position.y),
+          targetHpBefore,
+          targetHpAfter: targetAfter?.stats.currentHp ?? 0,
+          moveOutcome,
+          ctx,
+          bits: [
+            ...(targetAfter ? [] : ['KILL' as const]),
+            ...((state.units[unit.id]?.stats.currentHp ?? 0) < hpBefore ? ['COUNTERED' as const] : []),
+            ...(moveOutcome.bridgeSteps > 0 ? ['BRIDGE_USED' as const] : []),
+            ...(moveOutcome.slid ? ['SLID' as const] : []),
+          ],
+        });
+      }
       continue;
     }
 
@@ -3156,6 +3743,31 @@ function runCaveMonsterAi(state: Draft<GameState>, events?: GameEvent[]): void {
       unit.position.x === homePos.x && unit.position.y === homePos.y;
 
     if (onHomeTile) {
+      if (trace) {
+        recordTraceDecision(trace, {
+          slot: 1,
+          unit,
+          state,
+          actionCode: ACTION_CODE_INDEX.CM_DESPAWN,
+          score: null,
+          secondScore: null,
+          candidates: [],
+          from: { x: unit.position.x, y: unit.position.y },
+          hpBefore: unit.stats.currentHp,
+          hpAfter: 0,
+          targetKind: 3,
+          targetIndex: -1,
+          targetPos: { x: homePos.x, y: homePos.y },
+          targetDistance: 0,
+          targetHpBefore: null,
+          targetHpAfter: null,
+          moveOutcome: null,
+          ctx: buildTraceContext(unit, state, trace, threatBoard),
+          bits: ['DIED'],
+          deathPos: { x: unit.position.x, y: unit.position.y },
+        });
+        trace.markDeath(unit.id, 'CM_DESPAWN');
+      }
       // Despawn: monster has returned to its mountain with no nearby threat.
       const tile = state.grid[unit.position.y][unit.position.x];
       if (tile.unitId === unit.id) tile.unitId = null;
@@ -3205,7 +3817,40 @@ function runCaveMonsterAi(state: Draft<GameState>, events?: GameEvent[]): void {
     }
 
     // Not on home tile — move toward home mountain
-    moveEnemyUnitToward(state, unit.id, homePos, events);
+    {
+      const from = { x: unit.position.x, y: unit.position.y };
+      const hpBefore = unit.stats.currentHp;
+      const moveOutcome = moveEnemyUnitToward(state, unit.id, homePos, events, trace);
+      if (trace) {
+        const afterUnit = state.units[unit.id];
+        if (!afterUnit) trace.markDeath(unit.id, moveOutcome.stop);
+        recordTraceDecision(trace, {
+          slot: 1,
+          unit,
+          state,
+          actionCode: ACTION_CODE_INDEX.CM_RETURN_HOME,
+          score: null,
+          secondScore: null,
+          candidates: [],
+          from,
+          hpBefore,
+          hpAfter: afterUnit?.stats.currentHp ?? 0,
+          targetKind: 3,
+          targetIndex: -1,
+          targetPos: { x: homePos.x, y: homePos.y },
+          targetDistance: edgeCircleDistance(from.x, from.y, homePos.x, homePos.y),
+          targetHpBefore: null,
+          targetHpAfter: null,
+          moveOutcome,
+          ctx: buildTraceContext(unit, state, trace, threatBoard),
+          bits: [
+            ...(!afterUnit ? ['DIED' as const] : []),
+            ...(moveOutcome.bridgeSteps > 0 ? ['BRIDGE_USED' as const] : []),
+            ...(moveOutcome.slid ? ['SLID' as const] : []),
+          ],
+        });
+      }
+    }
     // If destroyed en route (e.g. lava), clean up the encounter
     if (!state.units[unit.id]) {
       state.activeCaveEncounters = state.activeCaveEncounters.filter(
@@ -3219,9 +3864,32 @@ function runCaveMonsterAi(state: Draft<GameState>, events?: GameEvent[]): void {
 // MAIN ENEMY TURN FUNCTION
 // ============================================================================
 
-export function runEnemyTurn(state: GameState): { finalState: GameState; events: GameEvent[] } {
+interface RunEnemyTurnOptions {
+  trace?: boolean;
+  slotId?: string;
+  unitIndexSeed?: AiTraceSeed;
+}
+
+export function runEnemyTurn(
+  state: GameState,
+  options?: RunEnemyTurnOptions,
+): { finalState: GameState; events: GameEvent[]; trace: AiTraceChunk | null } {
   const events: GameEvent[] = [];
+  const traceCollector = options?.trace && options.slotId
+    ? new AiTraceCollector(state.turn, options.slotId, {
+      nextUnitIndex: options.unitIndexSeed?.meta?.nextUnitIndex ?? 0,
+      nextBuildingIndex: options.unitIndexSeed?.meta?.nextBuildingIndex ?? 0,
+      unitRowsById: options.unitIndexSeed?.meta?.unitRowsById ?? {},
+      buildingRowsById: options.unitIndexSeed?.meta?.buildingRowsById ?? {},
+      remainingRows: options.unitIndexSeed?.remainingRows ?? AI_TRACE.MAX_ROWS,
+    })
+    : null;
+  let threatBoard: TraceThreatBoardEntry[] = [];
   const finalState = produce(state, (draft) => {
+    if (traceCollector) {
+      threatBoard = buildThreatBoard(draft, traceCollector);
+      traceCollector.setThreats(threatBoard.map(({ buildingId: _buildingId, position: _position, ...entry }) => entry));
+    }
     // 0. Process deferred enemy level-ups (XP may have been earned during player turn)
     processEnemyLevelUps(draft);
 
@@ -3263,7 +3931,7 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
     cleanupPortals(draft, events);
 
     // 2b. Cave monster AI (dedicated, separate from standard enemy AI)
-    runCaveMonsterAi(draft, events);
+    runCaveMonsterAi(draft, events, traceCollector, threatBoard);
 
     // 2c. Enemy-owned attacking buildings (e.g. watchtowers) fire at player units in range
     executeBuildingAttacks(draft, events);
@@ -3291,25 +3959,40 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
         }
         // Tunnel mechanic — pre-empts normal AI for TUNNEL-tagged units
         if (currentUnit.tags.includes(UnitTag.TUNNEL)) {
+          const hpBefore = currentUnit.stats.currentHp;
           if (currentUnit.tunnelState && currentUnit.tunnelState !== 'IDLE') {
             const consumed = processTunnelTurn(draft, currentUnit.id, events);
-            if (consumed) break; // Skip normal AI turn
+            if (consumed) {
+              if (traceCollector) {
+                recordRuleTraceDecision(traceCollector, currentUnit, draft, threatBoard, ACTION_CODE_INDEX.TUNNEL_TICK, i + 1, hpBefore);
+              }
+              break;
+            }
           } else {
             const began = tryBeginTunnel(draft, currentUnit.id, events);
-            if (began) break; // Skip normal AI turn (tunnel just started)
+            if (began) {
+              if (traceCollector) {
+                recordRuleTraceDecision(traceCollector, currentUnit, draft, threatBoard, ACTION_CODE_INDEX.TUNNEL_BEGIN, i + 1, hpBefore);
+              }
+              break;
+            }
           }
         }
         // Portal mechanic — hexcasters never attack; they cast a portal each turn
         if (currentUnit.tags.includes(UnitTag.EMBER_PORTAL)) {
+          const hpBefore = currentUnit.stats.currentHp;
           const cast = tryPlanPortalCast(draft, currentUnit.id);
           if (cast) {
             castPortal(draft, currentUnit.id, cast.entrancePos, cast.exitPos, events);
+            if (traceCollector) {
+              recordRuleTraceDecision(traceCollector, currentUnit, draft, threatBoard, ACTION_CODE_INDEX.PORTAL_CAST, i + 1, hpBefore);
+            }
             // Hexcaster's action is fully consumed by casting — skip normal AI
             break;
           }
           // If no cast possible, fall through to standard movement (toward player)
         }
-        decideAndExecute(currentUnit, draft, targetingIntents, recentlyLostBuildingIds, portalUsageIntents, events);
+        decideAndExecute(currentUnit, draft, targetingIntents, recentlyLostBuildingIds, portalUsageIntents, events, traceCollector, i + 1, threatBoard);
       }
       // Sweep leashes after each enemy unit's turn to handle mage displacement
       // Pre-capture mage/demon positions before sweepLeashes mutates faction.
@@ -3374,7 +4057,37 @@ export function runEnemyTurn(state: GameState): { finalState: GameState; events:
     //    for the full L turns and then removed at end of their last usable turn.
     cleanupExpiredPortalsEndOfTurn(draft, events);
   });
-  return { finalState, events };
+  let trace: AiTraceChunk | null = null;
+  if (traceCollector && options?.slotId) {
+    trace = traceCollector.finish({
+      turn: state.turn,
+      enemyUnits: 0,
+      playerUnits: 0,
+      pHp: 0,
+      pAtk: 0,
+      pB: 0,
+      eHp: 0,
+      eAtk: 0,
+      eB: 0,
+      ember: 0,
+      lavaFrontRow: 0,
+      front: [0, 0],
+      spawns: 0,
+      lastSpawnBudget: null,
+      actions: [],
+      stops: [],
+      blocked: 0,
+      static: 0,
+      slot2: 0,
+      kills: 0,
+      losses: 0,
+      activeLockoutZones: [],
+      threats: [],
+    });
+    trace.summary = buildTurnSummary(state, finalState, trace);
+    applyThreatDefenders(trace, threatBoard);
+  }
+  return { finalState, events, trace };
 }
 
 // ============================================================================

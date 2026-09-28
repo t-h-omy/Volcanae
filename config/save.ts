@@ -17,11 +17,15 @@ export const SAVE = {
   /** IndexedDB database name. */
   IDB_NAME: 'volcanae',
   /** IndexedDB database version. */
-  IDB_VERSION: 1,
+  IDB_VERSION: 2,
   /** IndexedDB object store name for lightweight save metadata. */
   STORE_META: 'saveMeta',
   /** IndexedDB object store name for full serialized game state. */
   STORE_DATA: 'saveData',
+  /** IndexedDB object store name for AI decision traces. */
+  STORE_TRACE: 'aiTrace',
   /** File extension appended to exported save filenames. */
   EXPORT_FILE_EXT: '.volcanae.json',
+  /** File extension appended to exported AI trace filenames. */
+  TRACE_EXPORT_FILE_EXT: '.aitrace.json',
 } as const;
