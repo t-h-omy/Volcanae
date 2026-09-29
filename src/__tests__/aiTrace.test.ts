@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import 'fake-indexeddb/auto';
 import { IDBFactory } from 'fake-indexeddb';
 import { createInitialSpecialists } from '../specialistSystem';
-import { deleteSlot, openSaveDb } from '../saveSystem';
+import { deleteSlot, getSlotMeta, openSaveDb, saveSlot } from '../saveSystem';
 import { runEnemyTurn, ENEMY_ACTION_TYPES } from '../enemySystem';
 import { AI_TRACE, BUILDING_DEFINITIONS, MAP, SAVE, UNIT_DEFINITIONS } from '../gameConfig';
 import {
@@ -16,8 +16,11 @@ import {
   appendChunk,
   deleteTurnsAfter,
   getTraceStatus,
+  listSealedRuns,
+  pruneSealedRuns,
   readMeta,
   readRun,
+  sealRun,
 } from '../aiTraceStore';
 import {
   BuildingType,
@@ -30,6 +33,10 @@ import {
 } from '../types';
 import type { Building, GameState, Tile, Unit } from '../types';
 import * as saveSystem from '../saveSystem';
+import { buildTraceExport } from '../aiTraceExport';
+import { useDevOptionsStore } from '../devOptionsStore';
+import { useGameStore } from '../gameStore';
+import { useMenuStore } from '../menuStore';
 
 let nextId = 0;
 
@@ -510,13 +517,48 @@ describe('aiTrace recorder', () => {
     expect(chunks.map((chunk) => chunk.turn)).toEqual([1]);
   });
 
-  it('deleteSlot clears trace chunks and the meta record', async () => {
+  it('deleteSlot on an unsealed trace clears trace chunks and the meta record', async () => {
     const slotId = 'slot_delete';
     await appendChunk(slotId, makeChunk(slotId, 1, [1, 1, 0, 0, 1, null, [0], 0, 0, 0, 0, 10, 0, -1, -1, -1, -1, 0, -1, 0, '', 0, 0, 0, [0, 0, 0, 0, 0, -1, 0, -1], -1, null, null]));
     await deleteSlot(slotId);
     const { meta, chunks } = await readRun(slotId);
     expect(meta).toBeNull();
     expect(chunks).toHaveLength(0);
+  });
+
+  it('sealRun stores archive fields and is idempotent', async () => {
+    const slotId = 'slot_sealed';
+    const state = makeState({ turn: 12 });
+    await saveSlot({ id: slotId, name: 'Archive Run', state });
+    await appendChunk(slotId, makeChunk(slotId, 12, [12, 1, 0, 0, 1, null, [0], 0, 0, 0, 0, 10, 0, -1, -1, -1, -1, 0, -1, 0, '', 0, 0, 0, [0, 0, 0, 0, 0, -1, 0, -1], -1, null, null]));
+    vi.spyOn(Date, 'now').mockReturnValue(1700000000000);
+    await sealRun(slotId, 'VICTORY', 12);
+    const firstSeal = await readMeta(slotId);
+    vi.spyOn(Date, 'now').mockReturnValue(1800000000000);
+    await sealRun(slotId, 'DEFEAT', 99);
+    const meta = await readMeta(slotId);
+    expect(meta).not.toBeNull();
+    expect(meta).toMatchObject({
+      sealed: true,
+      outcome: 'VICTORY',
+      endTurn: 12,
+      sealedAt: firstSeal?.sealedAt,
+      slotName: 'Archive Run',
+    });
+  });
+
+  it('deleteSlot on a sealed trace removes the save and keeps every trace record', async () => {
+    const slotId = 'slot_keep_sealed';
+    const state = makeState({ turn: 4 });
+    await saveSlot({ id: slotId, name: 'Finished Run', state });
+    await appendChunk(slotId, makeChunk(slotId, 3, [3, 1, 0, 0, 1, null, [0], 0, 0, 0, 0, 10, 0, -1, -1, -1, -1, 0, -1, 0, '', 0, 0, 0, [0, 0, 0, 0, 0, -1, 0, -1], -1, null, null]));
+    await appendChunk(slotId, makeChunk(slotId, 4, [4, 1, 1, 0, 1, null, [0], 0, 0, 0, 0, 10, 0, -1, -1, -1, -1, 0, -1, 0, '', 0, 0, 0, [0, 0, 0, 0, 0, -1, 0, -1], -1, null, null]));
+    await sealRun(slotId, 'DEFEAT', 4);
+    await deleteSlot(slotId);
+    const { meta, chunks } = await readRun(slotId);
+    expect(await getSlotMeta(slotId)).toBeNull();
+    expect(meta?.sealed).toBe(true);
+    expect(chunks.map((chunk) => chunk.turn)).toEqual([3, 4]);
   });
 
   it('sets STOPPED_QUOTA on write failure and does not throw into the caller', async () => {
@@ -540,6 +582,97 @@ describe('aiTrace recorder', () => {
     } finally {
       (AI_TRACE as { MAX_ROWS: number }).MAX_ROWS = originalMaxRows;
     }
+  });
+
+  it('listSealedRuns returns newest first and excludes unsealed runs', async () => {
+    const slotA = 'slot_archive_a';
+    const slotB = 'slot_archive_b';
+    const slotC = 'slot_archive_c';
+    await saveSlot({ id: slotA, name: 'Run A', state: makeState({ turn: 2 }) });
+    await saveSlot({ id: slotB, name: 'Run B', state: makeState({ turn: 3 }) });
+    await saveSlot({ id: slotC, name: 'Run C', state: makeState({ turn: 4 }) });
+    await appendChunk(slotA, makeChunk(slotA, 2, [2, 1, 0, 0, 1, null, [0], 0, 0, 0, 0, 10, 0, -1, -1, -1, -1, 0, -1, 0, '', 0, 0, 0, [0, 0, 0, 0, 0, -1, 0, -1], -1, null, null]));
+    await appendChunk(slotB, makeChunk(slotB, 3, [3, 1, 0, 0, 1, null, [0], 0, 0, 0, 0, 10, 0, -1, -1, -1, -1, 0, -1, 0, '', 0, 0, 0, [0, 0, 0, 0, 0, -1, 0, -1], -1, null, null]));
+    await appendChunk(slotC, makeChunk(slotC, 4, [4, 1, 0, 0, 1, null, [0], 0, 0, 0, 0, 10, 0, -1, -1, -1, -1, 0, -1, 0, '', 0, 0, 0, [0, 0, 0, 0, 0, -1, 0, -1], -1, null, null]));
+    const nowSpy = vi.spyOn(Date, 'now');
+    nowSpy.mockReturnValueOnce(1000);
+    await sealRun(slotA, 'DEFEAT', 2);
+    nowSpy.mockReturnValueOnce(3000);
+    await sealRun(slotB, 'VICTORY', 3);
+    const sealed = await listSealedRuns();
+    expect(sealed.map((meta) => meta.slotId)).toEqual([slotB, slotA]);
+    expect(sealed.some((meta) => meta.slotId === slotC)).toBe(false);
+  });
+
+  it('pruneSealedRuns keeps the newest archived runs and drops the oldest chunks', async () => {
+    const originalCap = AI_TRACE.MAX_ARCHIVED_RUNS;
+    (AI_TRACE as { MAX_ARCHIVED_RUNS: number }).MAX_ARCHIVED_RUNS = 2;
+    try {
+      const slots = ['slot_prune_1', 'slot_prune_2', 'slot_prune_3'] as const;
+      for (const [index, slotId] of slots.entries()) {
+        await saveSlot({ id: slotId, name: `Run ${index + 1}`, state: makeState({ turn: index + 1 }) });
+        await appendChunk(slotId, makeChunk(slotId, index + 1, [index + 1, 1, index, 0, 1, null, [0], 0, 0, 0, 0, 10, 0, -1, -1, -1, -1, 0, -1, 0, '', 0, 0, 0, [0, 0, 0, 0, 0, -1, 0, -1], -1, null, null]));
+      }
+      const nowSpy = vi.spyOn(Date, 'now');
+      nowSpy.mockReturnValueOnce(1000);
+      await sealRun(slots[0], 'DEFEAT', 1);
+      nowSpy.mockReturnValueOnce(2000);
+      await sealRun(slots[1], 'DEFEAT', 2);
+      nowSpy.mockReturnValueOnce(3000);
+      await sealRun(slots[2], 'VICTORY', 3);
+      await pruneSealedRuns();
+      const sealed = await listSealedRuns();
+      expect(sealed.map((meta) => meta.slotId)).toEqual([slots[2], slots[1]]);
+      expect((await readRun(slots[0])).chunks).toHaveLength(0);
+      expect((await readRun(slots[1])).chunks).toHaveLength(1);
+      expect((await readRun(slots[2])).chunks).toHaveLength(1);
+    } finally {
+      (AI_TRACE as { MAX_ARCHIVED_RUNS: number }).MAX_ARCHIVED_RUNS = originalCap;
+    }
+  });
+
+  it('buildTraceExport works after a sealed run save slot has been deleted', async () => {
+    const slotId = 'slot_export_after_delete';
+    await saveSlot({ id: slotId, name: 'Sealed Export Run', state: makeState({ turn: 9 }) });
+    await appendChunk(slotId, makeChunk(slotId, 9, [9, 1, 0, 0, 4, null, [0], 0, 0, 1, 1, 10, 0, -1, -1, -1, -1, 1, 0, 1, 'P', 0, 0, 0, [0, 0, 0, 0, 0, -1, 0, -1], -1, null, null]));
+    await sealRun(slotId, 'VICTORY', 9);
+    await deleteSlot(slotId);
+    const result = await buildTraceExport(slotId, 'full');
+    expect(result).not.toBeNull();
+    expect(result!.filename).toContain('Sealed Export Run');
+  });
+
+  it('seals finished runs on endPlayerTurn and discardFinishedGame preserves the trace', async () => {
+    const slotId = 'slot_finished_trace';
+    await saveSlot({ id: slotId, name: 'Finished Trace', state: makeState({ turn: 7 }) });
+    await appendChunk(slotId, makeChunk(slotId, 7, [7, 1, 0, 0, 4, null, [0], 0, 0, 1, 1, 10, 0, -1, -1, -1, -1, 1, 0, 1, 'P', 0, 0, 0, [0, 0, 0, 0, 0, -1, 0, -1], -1, null, null]));
+    useDevOptionsStore.setState({ showAiScores: false, showRecruitingScores: false, recordAiTrace: true });
+    useMenuStore.setState({ screen: 'GAME', panel: 'ROOT', navDir: 'forward', activeSaveId: slotId });
+    useGameStore.setState({
+      ...makeState({ turn: 7 }),
+      phase: GamePhase.PLAYER_TURN,
+      buildings: {},
+    });
+    useGameStore.getState().endPlayerTurn();
+    await vi.waitFor(async () => {
+      expect((await readMeta(slotId))?.sealed).toBe(true);
+    });
+    expect((await readMeta(slotId))?.outcome).toBe('DEFEAT');
+    await useGameStore.getState().discardFinishedGame();
+    expect(await getSlotMeta(slotId)).toBeNull();
+    expect((await readMeta(slotId))?.sealed).toBe(true);
+    expect(await buildTraceExport(slotId, 'full')).not.toBeNull();
+  });
+
+  it('builds byte-identical trace exports for repeated requests of the same run and mode', async () => {
+    const slotId = 'slot_same_export';
+    await saveSlot({ id: slotId, name: 'Same Export', state: makeState({ turn: 5 }) });
+    await appendChunk(slotId, makeChunk(slotId, 5, [5, 1, 0, 0, 4, null, [0], 0, 0, 1, 1, 10, 0, -1, -1, -1, -1, 1, 0, 1, 'P', 0, 0, 0, [0, 0, 0, 0, 0, -1, 0, -1], -1, null, null]));
+    const first = await buildTraceExport(slotId, 'flaggedOnly');
+    const second = await buildTraceExport(slotId, 'flaggedOnly');
+    expect(first).not.toBeNull();
+    expect(second).not.toBeNull();
+    expect(await first!.blob.text()).toBe(await second!.blob.text());
   });
 
   it('persists devOptionsStore and tolerates corrupt localStorage entries', async () => {

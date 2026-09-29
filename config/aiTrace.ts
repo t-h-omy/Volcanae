@@ -16,6 +16,8 @@ export const AI_TRACE = {
   ALLY_RADIUS: 3,
   /** Maximum score terms stored per candidate (run C). */
   MAX_TERMS: 6,
+  /** Sealed runs kept in IndexedDB. The oldest is pruned when a new run is sealed. */
+  MAX_ARCHIVED_RUNS: 5,
   /** Schema version of the trace format, bumped when columns change. */
   SCHEMA_VERSION: 1,
 } as const;

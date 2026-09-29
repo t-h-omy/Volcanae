@@ -188,6 +188,11 @@ export interface AiTraceMeta extends AiTraceIndexSeed {
   rowCount: number;
   byteEstimate: number;
   capped: boolean;
+  sealed: boolean;
+  outcome: 'VICTORY' | 'DEFEAT' | null;
+  endTurn: number;
+  sealedAt: number;
+  slotName: string;
   buildingTypes: Record<string, string>;
 }
 
@@ -519,6 +524,11 @@ export function createEmptyTraceMeta(slotId: string): AiTraceMeta {
     rowCount: 0,
     byteEstimate: 0,
     capped: false,
+    sealed: false,
+    outcome: null,
+    endTurn: -1,
+    sealedAt: 0,
+    slotName: '',
     nextUnitIndex: 0,
     nextBuildingIndex: 0,
     unitIds: {},

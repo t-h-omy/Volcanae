@@ -365,7 +365,7 @@ export async function buildTraceExport(slotId: string, mode: TraceExportMode): P
     mode === 'noTerms' ? stripTermColumns(row) : row,
   );
   const slotMeta = await getSlotMeta(slotId);
-  const safeSlotName = sanitizeSlotName(slotMeta?.name ?? 'save');
+  const safeSlotName = sanitizeSlotName(slotMeta?.name ?? meta.slotName ?? 'save');
   const timestamp = formatTimestamp(new Date());
   const lastTurn = meta.lastTurn >= 0 ? meta.lastTurn : chunks[chunks.length - 1]?.turn ?? 0;
 

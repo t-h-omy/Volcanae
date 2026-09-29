@@ -644,15 +644,21 @@ export async function deleteSlot(id: string): Promise<void> {
       tx.objectStore(SAVE.STORE_META).delete(id);
       tx.objectStore(SAVE.STORE_DATA).delete(id);
       const traceStore = tx.objectStore(SAVE.STORE_TRACE);
-      const range = IDBKeyRange.bound(`${id}:`, `${id}:\uffff`);
-      const req = traceStore.openKeyCursor(range);
-      req.onsuccess = () => {
-        const cursor = req.result;
-        if (!cursor) return;
-        traceStore.delete(cursor.primaryKey);
-        cursor.continue();
+      const metaReq = traceStore.get(`${id}:meta`);
+      metaReq.onsuccess = () => {
+        const sealed = Boolean((metaReq.result as { sealed?: boolean } | undefined)?.sealed);
+        if (sealed) return;
+        const range = IDBKeyRange.bound(`${id}:`, `${id}:\uffff`);
+        const req = traceStore.openKeyCursor(range);
+        req.onsuccess = () => {
+          const cursor = req.result;
+          if (!cursor) return;
+          traceStore.delete(cursor.primaryKey);
+          cursor.continue();
+        };
+        req.onerror = () => reject(req.error);
       };
-      req.onerror = () => reject(req.error);
+      metaReq.onerror = () => reject(metaReq.error);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });

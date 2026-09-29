@@ -70,7 +70,7 @@ import { flushDeferredHints, tryTriggerHint } from './hintSystem';
 import { triggerEmberLevelUpVfx } from './emberLevelVfx';
 import { useEmberDisplayStore } from './emberDisplayStore';
 import { useDevOptionsStore } from './devOptionsStore';
-import { appendChunk, deleteTurnsAfter, getTraceIndexSeed, readMeta as readAiTraceMeta } from './aiTraceStore';
+import { appendChunk, deleteTurnsAfter, getTraceIndexSeed, readMeta as readAiTraceMeta, sealRun } from './aiTraceStore';
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
@@ -2521,6 +2521,13 @@ export const useGameStore = create<GameStore>()(
                 const slotName = meta?.name ?? serializableState.turn.toString();
                 saveSlot({ id: activeSaveId, name: slotName, state: serializableState }).catch(() => undefined);
               }).catch(() => undefined);
+              if (stateForSave.phase === GamePhase.GAME_OVER || stateForSave.phase === GamePhase.VICTORY) {
+                sealRun(
+                  activeSaveId,
+                  stateForSave.phase === GamePhase.VICTORY ? 'VICTORY' : 'DEFEAT',
+                  stateForSave.turn,
+                ).catch(() => undefined);
+              }
             }
           }
         }

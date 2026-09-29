@@ -82,7 +82,9 @@ import { stopGameMusic } from '../useMusicPlayer';
 import { shouldShowTurnPopupEmberRose } from '../turnPopup';
 import { getAttackDisplayModifiers } from '../unitStatDisplay';
 import { useEmberDisplayStore } from '../emberDisplayStore';
+import { deleteRun, listSealedRuns, readMeta as readAiTraceMeta, type AiTraceMeta } from '../aiTraceStore';
 import { AiTraceBadge } from './AiTraceBadge';
+import { AiTraceExportControls, exportAiTrace, formatAiTraceBytes } from './AiTraceExportControls';
 import './HUD.css';
 
 // ============================================================================
@@ -230,6 +232,19 @@ function getDisplayVersion(full: string): string {
 
 const displayVersion = getDisplayVersion(__APP_VERSION__);
 
+async function downloadSaveExport(slotId: string): Promise<void> {
+  const blob = await exportSlot(slotId);
+  if (!blob) return;
+  const meta = await getSlotMeta(slotId);
+  const safeName = (meta?.name ?? 'save').replace(/[^\w\s\-().]/g, '_').trim() || 'save';
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = `${safeName}${SAVE.EXPORT_FILE_EXT}`;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
 // ============================================================================
 // DEV OPTIONS OVERLAY
 // ============================================================================
@@ -241,6 +256,8 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
   const setShowRecruitingScores = useDevOptionsStore((s) => s.setShowRecruitingScores);
   const recordAiTrace = useDevOptionsStore((s) => s.recordAiTrace);
   const setRecordAiTrace = useDevOptionsStore((s) => s.setRecordAiTrace);
+  const activeSaveId = useMenuStore((s) => s.activeSaveId);
+  const turn = useGameStore((s) => s.turn);
   const debugAdvanceLava = useGameStore((s) => s.debugAdvanceLava);
   const debugAddResources = useGameStore((s) => s.debugAddResources);
   const debugGiveSpecialist = useGameStore((s) => s.debugGiveSpecialist);
@@ -259,6 +276,9 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
   const showSwap = useSpecialistHireStore((s) => s.showSwap);
   const [devStatsOpen, setDevStatsOpen] = useState(false);
   const [specPickerOpen, setSpecPickerOpen] = useState(false);
+  const [currentTraceMeta, setCurrentTraceMeta] = useState<AiTraceMeta | null>(null);
+  const [sealedTraceRuns, setSealedTraceRuns] = useState<AiTraceMeta[]>([]);
+  const [traceBusyId, setTraceBusyId] = useState<string | null>(null);
 
   // Specialists not yet in the player's roster
   const availableSpecialists = useMemo(
@@ -280,6 +300,15 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
     }
   }, [globalSpecialistStorage, specialistSlotCap, debugGiveSpecialist, swapSpecialist, showSwap, onClose]);
 
+  const refreshTraceState = useCallback(async () => {
+    const [meta, sealedRuns] = await Promise.all([
+      activeSaveId && recordAiTrace ? readAiTraceMeta(activeSaveId) : Promise.resolve(null),
+      listSealedRuns(),
+    ]);
+    setCurrentTraceMeta(meta);
+    setSealedTraceRuns(sealedRuns);
+  }, [activeSaveId, recordAiTrace]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -287,6 +316,42 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
+
+  useEffect(() => {
+    void refreshTraceState();
+  }, [refreshTraceState, turn]);
+
+  const handleClearCurrentTrace = useCallback(async () => {
+    if (!activeSaveId) return;
+    if (!window.confirm('Clear the AI trace for this save?')) return;
+    setTraceBusyId(activeSaveId);
+    try {
+      await deleteRun(activeSaveId);
+      await refreshTraceState();
+    } finally {
+      setTraceBusyId(null);
+    }
+  }, [activeSaveId, refreshTraceState]);
+
+  const handleDeleteSealedTrace = useCallback(async (slotId: string) => {
+    if (!window.confirm('Delete this finished AI trace?')) return;
+    setTraceBusyId(slotId);
+    try {
+      await deleteRun(slotId);
+      await refreshTraceState();
+    } finally {
+      setTraceBusyId(null);
+    }
+  }, [refreshTraceState]);
+
+  const handleExportSealedTrace = useCallback(async (slotId: string) => {
+    setTraceBusyId(slotId);
+    try {
+      await exportAiTrace(slotId, 'full');
+    } finally {
+      setTraceBusyId(null);
+    }
+  }, []);
 
   return createPortal(
     <>
@@ -325,6 +390,48 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
                 onChange={(e) => setRecordAiTrace(e.target.checked)}
               />
             </label>
+            <div className="hud-dev-overlay-section-title">AI Trace</div>
+            {activeSaveId && recordAiTrace && currentTraceMeta && currentTraceMeta.rowCount > 0 ? (
+              <>
+                <AiTraceExportControls slotId={activeSaveId} />
+                <button className="hud-dev-action-btn ai-trace-panel-clear" onClick={() => void handleClearCurrentTrace()} disabled={traceBusyId !== null}>
+                  {traceBusyId === activeSaveId ? 'Working...' : 'Clear trace for this save'}
+                </button>
+              </>
+            ) : (
+              <div className="hud-dev-trace-empty">
+                {!activeSaveId
+                  ? 'No active run.'
+                  : !recordAiTrace
+                  ? 'AI trace recording is off for this run.'
+                  : 'This run has no AI trace rows yet.'}
+              </div>
+            )}
+            <div className="hud-dev-overlay-section-title">Finished runs</div>
+            {sealedTraceRuns.length === 0 ? (
+              <div className="hud-dev-trace-empty">No finished AI traces saved.</div>
+            ) : (
+              <div className="hud-dev-trace-archive-list">
+                {sealedTraceRuns.map((meta) => (
+                  <div key={meta.slotId} className="hud-dev-trace-archive-row">
+                    <div className="hud-dev-trace-archive-main">
+                      <div className="hud-dev-trace-archive-title">{meta.slotName || meta.slotId}</div>
+                      <div className="hud-dev-trace-archive-meta">
+                        {meta.outcome === 'VICTORY' ? 'Victory' : 'Defeat'} · turn {meta.endTurn} · {meta.rowCount} rows · {formatAiTraceBytes(meta.byteEstimate)}
+                      </div>
+                    </div>
+                    <div className="hud-dev-trace-archive-actions">
+                      <button className="hud-dev-action-btn" onClick={() => void handleExportSealedTrace(meta.slotId)} disabled={traceBusyId !== null}>
+                        {traceBusyId === meta.slotId ? 'Working...' : 'Export'}
+                      </button>
+                      <button className="hud-dev-action-btn ai-trace-panel-clear" onClick={() => void handleDeleteSealedTrace(meta.slotId)} disabled={traceBusyId !== null}>
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="hud-dev-overlay-section-title">Stats</div>
             <button className="hud-dev-action-btn" onClick={() => setDevStatsOpen(true)}>📊 Dev Stats</button>
             <div className="hud-dev-overlay-section-title">Actions</div>
@@ -3591,6 +3698,25 @@ function EndGameStats({ stats }: { stats: GameStats }) {
   );
 }
 
+function EndScreenAiTraceExport({ slotId }: { slotId: string }) {
+  const [traceRows, setTraceRows] = useState<number>(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    readAiTraceMeta(slotId).then((meta) => {
+      if (!cancelled) setTraceRows(meta?.rowCount ?? 0);
+    }).catch(() => {
+      if (!cancelled) setTraceRows(0);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [slotId]);
+
+  if (traceRows <= 0) return null;
+  return <AiTraceExportControls slotId={slotId} compact />;
+}
+
 function GameOverOverlay() {
   const turn = useGameStore((s) => s.turn);
   const gameStats = useGameStore((s) => s.gameStats);
@@ -3618,16 +3744,7 @@ function GameOverOverlay() {
 
   const handleExport = useCallback(async () => {
     if (!activeSaveId) return;
-    const blob = await exportSlot(activeSaveId);
-    if (!blob) return;
-    const meta = await getSlotMeta(activeSaveId);
-    const safeName = (meta?.name ?? 'save').replace(/[^\w\s\-().]/g, '_').trim() || 'save';
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${safeName}${SAVE.EXPORT_FILE_EXT}`;
-    a.click();
-    URL.revokeObjectURL(url);
+    await downloadSaveExport(activeSaveId);
   }, [activeSaveId]);
 
   return (
@@ -3638,9 +3755,12 @@ function GameOverOverlay() {
         {causeText && <p className="hud-overlay-cause">{causeText}</p>}
         <EndGameStats stats={gameStats} />
         {activeSaveId && (
-          <button className="hud-play-again-btn" onClick={handleExport}>
-            📤 Export Run
-          </button>
+          <>
+            <button className="hud-play-again-btn" onClick={() => void handleExport()}>
+              📤 Export Run
+            </button>
+            <EndScreenAiTraceExport slotId={activeSaveId} />
+          </>
         )}
         <button className="hud-play-again-btn" onClick={handleNewGame}>
           🔄 New Game
@@ -3672,16 +3792,7 @@ function VictoryOverlay() {
 
   const handleExport = useCallback(async () => {
     if (!activeSaveId) return;
-    const blob = await exportSlot(activeSaveId);
-    if (!blob) return;
-    const meta = await getSlotMeta(activeSaveId);
-    const safeName = (meta?.name ?? 'save').replace(/[^\w\s\-().]/g, '_').trim() || 'save';
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${safeName}${SAVE.EXPORT_FILE_EXT}`;
-    a.click();
-    URL.revokeObjectURL(url);
+    await downloadSaveExport(activeSaveId);
   }, [activeSaveId]);
 
   return (
@@ -3691,9 +3802,12 @@ function VictoryOverlay() {
         <p className="hud-overlay-sub">Completed in {turn} turns</p>
         <EndGameStats stats={gameStats} />
         {activeSaveId && (
-          <button className="hud-play-again-btn" onClick={handleExport}>
-            📤 Export Run
-          </button>
+          <>
+            <button className="hud-play-again-btn" onClick={() => void handleExport()}>
+              📤 Export Run
+            </button>
+            <EndScreenAiTraceExport slotId={activeSaveId} />
+          </>
         )}
         <button className="hud-play-again-btn" onClick={handleNewGame}>
           🔄 New Game
