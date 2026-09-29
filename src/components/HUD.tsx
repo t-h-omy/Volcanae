@@ -82,9 +82,11 @@ import { stopGameMusic } from '../useMusicPlayer';
 import { shouldShowTurnPopupEmberRose } from '../turnPopup';
 import { getAttackDisplayModifiers } from '../unitStatDisplay';
 import { useEmberDisplayStore } from '../emberDisplayStore';
-import { deleteRun, listSealedRuns, readMeta as readAiTraceMeta, type AiTraceMeta } from '../aiTraceStore';
+import { deleteRun, listSealedRuns, readMeta as readAiTraceMeta } from '../aiTraceStore';
+import { exportAiTrace, formatAiTraceBytes } from '../aiTraceExportClient';
+import type { AiTraceMeta } from '../aiTrace';
 import { AiTraceBadge } from './AiTraceBadge';
-import { AiTraceExportControls, exportAiTrace, formatAiTraceBytes } from './AiTraceExportControls';
+import { AiTraceExportControls } from './AiTraceExportControls';
 import './HUD.css';
 
 // ============================================================================

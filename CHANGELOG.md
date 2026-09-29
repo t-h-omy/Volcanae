@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.113.0 - AI trace export access
+
+Added run D of the AI trace diagnostics flow. Finished runs now seal and preserve their traces before save-slot cleanup, archived traces are retained in IndexedDB with bounded pruning, Dev Options can export or delete both the active trace and finished runs, and defeat or victory screens now expose the sealed AI trace export button alongside the existing save export.
+
 ### v0.112.0 - AI trace score terms
 
 Added run C of the AI trace diagnostics flow. Enemy action scoring now records dominant score terms and contested winner and runner-up term lists without changing AI behaviour, and exports now include the term legend, dominant-term action stats, and a BASE-dominated tuning flag.

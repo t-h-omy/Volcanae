@@ -3,8 +3,9 @@ import { useGameStore } from '../gameStore';
 import { useMenuStore } from '../menuStore';
 import { useDevOptionsStore } from '../devOptionsStore';
 import { deleteRun, readMeta, useAiTraceStatusStore } from '../aiTraceStore';
+import { formatAiTraceBytes } from '../aiTraceExportClient';
 import type { AiTraceMeta } from '../aiTrace';
-import { AiTraceExportControls, formatAiTraceBytes } from './AiTraceExportControls';
+import { AiTraceExportControls } from './AiTraceExportControls';
 
 export function AiTraceBadge() {
   const turn = useGameStore((s) => s.turn);
