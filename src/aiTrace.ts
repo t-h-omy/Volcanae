@@ -1,6 +1,7 @@
 import { AI_TRACE } from './gameConfig';
 import { Faction } from './types';
 import type { Building, Position, SpawnBudgetSnapshot, Unit } from './types';
+import type { EnemyActionType, ScoredAction } from './enemySystem';
 
 export const ACTION_TABLE = [
   'ATTACK_UNIT', 'RANGED_ATTACK_UNIT', 'ATTACK_BUILDING', 'RANGED_ATTACK_BUILDING',
@@ -23,13 +24,52 @@ export const OUTCOME_BITS = [
   'TRAPPED', 'COUNTERED', 'OVERWATCH_HIT', 'PREVENTIVE_HIT', 'BRIDGE_USED',
 ] as const;
 
+export const TERM_TABLE = [
+  'BASE',
+  'COMBAT',
+  'SATURATION',
+  'DEATH_RISK',
+  'DISTANCE',
+  'BUILDING_VALUE',
+  'ZONE',
+  'ARMY_PROFILE',
+  'TAG',
+  'THREAT',
+  'LAVA',
+  'PORTAL',
+  'TERRAIN',
+  'CAP',
+  'OTHER',
+] as const;
+
 export type ActionCode = typeof ACTION_TABLE[number];
 export type MoveStopReason = typeof STOP_TABLE[number];
 export type OutcomeBit = typeof OUTCOME_BITS[number];
+export type TermCode = typeof TERM_TABLE[number];
+export type TraceTerm = [number, number];
 
 const ACTION_CODE_BY_NAME = new Map<ActionCode, number>(ACTION_TABLE.map((name, index) => [name, index]));
 const STOP_CODE_BY_NAME = new Map<MoveStopReason, number>(STOP_TABLE.map((name, index) => [name, index]));
 const OUTCOME_BIT_BY_NAME = new Map<OutcomeBit, number>(OUTCOME_BITS.map((name, index) => [name, index]));
+const TERM_CODE_BY_NAME = new Map<TermCode, number>(TERM_TABLE.map((name, index) => [name, index]));
+
+export const TERM_CODES = Object.freeze({
+  BASE: TERM_CODE_BY_NAME.get('BASE') ?? -1,
+  COMBAT: TERM_CODE_BY_NAME.get('COMBAT') ?? -1,
+  SATURATION: TERM_CODE_BY_NAME.get('SATURATION') ?? -1,
+  DEATH_RISK: TERM_CODE_BY_NAME.get('DEATH_RISK') ?? -1,
+  DISTANCE: TERM_CODE_BY_NAME.get('DISTANCE') ?? -1,
+  BUILDING_VALUE: TERM_CODE_BY_NAME.get('BUILDING_VALUE') ?? -1,
+  ZONE: TERM_CODE_BY_NAME.get('ZONE') ?? -1,
+  ARMY_PROFILE: TERM_CODE_BY_NAME.get('ARMY_PROFILE') ?? -1,
+  TAG: TERM_CODE_BY_NAME.get('TAG') ?? -1,
+  THREAT: TERM_CODE_BY_NAME.get('THREAT') ?? -1,
+  LAVA: TERM_CODE_BY_NAME.get('LAVA') ?? -1,
+  PORTAL: TERM_CODE_BY_NAME.get('PORTAL') ?? -1,
+  TERRAIN: TERM_CODE_BY_NAME.get('TERRAIN') ?? -1,
+  CAP: TERM_CODE_BY_NAME.get('CAP') ?? -1,
+  OTHER: TERM_CODE_BY_NAME.get('OTHER') ?? -1,
+} as const);
 
 export type AiRow = [
   t: number, s: number, uIdx: number, act: number,
@@ -173,6 +213,83 @@ export interface AiDecisionArgs {
   received: number;
   flags: number;
   context: number[];
+  domTerm?: number;
+  terms?: TraceTerm[] | null;
+  terms2?: TraceTerm[] | null;
+}
+
+function cloneTraceTerms(terms: TraceTerm[]): TraceTerm[] {
+  return terms.map(([code, value]) => [code, value] as TraceTerm);
+}
+
+function sumTraceTerms(terms: TraceTerm[]): number {
+  return terms.reduce((sum, [, value]) => sum + value, 0);
+}
+
+function capTraceTerms(terms: TraceTerm[]): TraceTerm[] {
+  if (terms.length <= AI_TRACE.MAX_TERMS) return cloneTraceTerms(terms);
+  const indexed = terms
+    .map((term, index) => ({ term, index, magnitude: Math.abs(term[1]) }))
+    .sort((a, b) => a.magnitude - b.magnitude || a.index - b.index);
+  const foldCount = terms.length - AI_TRACE.MAX_TERMS + 1;
+  const foldedValue = indexed.slice(0, foldCount).reduce((sum, entry) => sum + entry.term[1], 0);
+  const kept = indexed
+    .slice(foldCount)
+    .sort((a, b) => a.index - b.index)
+    .map((entry) => [entry.term[0], entry.term[1]] as TraceTerm);
+  kept.push([TERM_CODES.OTHER, foldedValue]);
+  return kept;
+}
+
+export function finalizeTraceTerms(terms: TraceTerm[]): { score: number; terms: TraceTerm[] } {
+  const normalized = cloneTraceTerms(terms);
+  const rawScore = sumTraceTerms(normalized);
+  const score = Math.max(0, rawScore);
+  if (score !== rawScore) {
+    normalized.push([TERM_CODES.CAP, score - rawScore]);
+  }
+  return {
+    score,
+    terms: capTraceTerms(normalized),
+  };
+}
+
+export function getDominantTraceTerm(terms: readonly TraceTerm[] | null | undefined): number {
+  if (!terms || terms.length === 0) return -1;
+  let bestCode = -1;
+  let bestMagnitude = -1;
+  for (const [code, value] of terms) {
+    const magnitude = Math.abs(value);
+    if (magnitude > bestMagnitude) {
+      bestMagnitude = magnitude;
+      bestCode = code;
+    }
+  }
+  return bestCode;
+}
+
+export function pushCandidate(
+  out: ScoredAction[],
+  type: EnemyActionType,
+  terms: TraceTerm[],
+  meta: Pick<ScoredAction, 'targetUnitId' | 'targetBuildingId' | 'targetPosition' | 'portalIntentId'>,
+  tracing: boolean,
+): void {
+  const { score, terms: normalized } = finalizeTraceTerms(terms);
+  if (tracing) {
+    out.push({
+      type,
+      score,
+      ...meta,
+      traceTerms: normalized,
+    });
+    return;
+  }
+  out.push({
+    type,
+    score,
+    ...meta,
+  });
 }
 
 function cloneUnitRow(row: AiUnitRow): AiUnitRow {
@@ -341,9 +458,9 @@ export class AiTraceCollector {
       args.received,
       args.flags,
       [...args.context],
-      -1,
-      null,
-      null,
+      args.domTerm ?? -1,
+      args.terms ? cloneTraceTerms(args.terms) : null,
+      args.terms2 ? cloneTraceTerms(args.terms2) : null,
     ]);
   }
 

@@ -96,7 +96,7 @@ async function exportJson(slotId: string, rows: AiRow[], mode: 'full' | 'noTerms
     rows: unknown[][];
     config: { AI_SCORING: unknown };
     legend: { actions: string[]; flags: Array<{ name: string; definition: string }> };
-    actionStats: { columns: string[]; rows: Array<[string, number, number, number | null, number | null, number | null, boolean]> };
+    actionStats: { columns: string[]; rows: Array<[string, number, number, number | null, number | null, number | null, boolean, string | null]> };
     units: { columns: string[]; rows: unknown[][] };
     summaries: { columns: string[]; rows: unknown[][] };
     unitDefs: Array<{ type: string }>;
@@ -131,7 +131,7 @@ describe('aiTrace export', () => {
     const json = await exportJson('slot_stats', rows);
     const attack = json.actionStats.rows.find((entry) => entry[0] === 'ATTACK_UNIT');
     const portalCast = json.actionStats.rows.find((entry) => entry[0] === 'PORTAL_CAST');
-    expect(attack).toEqual(['ATTACK_UNIT', 2, 2, 1, 10, 6, false]);
+    expect(attack).toEqual(['ATTACK_UNIT', 2, 2, 1, 10, 6, false, null]);
     expect(portalCast?.[3]).toBeNull();
   });
 

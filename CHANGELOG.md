@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.112.0 - AI trace score terms
+
+Added run C of the AI trace diagnostics flow. Enemy action scoring now records dominant score terms and contested winner and runner-up term lists without changing AI behaviour, and exports now include the term legend, dominant-term action stats, and a BASE-dominated tuning flag.
+
 ### v0.111.0 - AI trace export and badge
 
 Added run B of the AI trace diagnostics flow. Recorded AI traces can now be exported in full, no-terms, or flagged-only modes with embedded config, legends, summaries, action stats, and derived anomaly flags. A new in-game REC badge shows trace activity, opens the export panel, and can clear the current save's trace data.

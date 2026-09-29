@@ -1,7 +1,7 @@
 import { AI_RECRUITMENT, AI_SCORING, AI_TRACE, SAVE, SPAWN_BUDGET, UNIT_DEFINITIONS } from './gameConfig';
 import { getSlotMeta } from './saveSystem';
 import { readRun } from './aiTraceStore';
-import { ACTION_TABLE, AI_ROW_COLUMNS, OUTCOME_BITS, STOP_TABLE, getOutcomeBitMask, getStopCode, type AiRow, type AiTraceChunk, type AiUnitRow } from './aiTrace';
+import { ACTION_TABLE, AI_ROW_COLUMNS, OUTCOME_BITS, STOP_TABLE, TERM_TABLE, getOutcomeBitMask, getStopCode, type AiRow, type AiTraceChunk, type AiUnitRow } from './aiTrace';
 import { edgeCircleDistance } from './rangeUtils';
 
 export type TraceExportMode = 'full' | 'noTerms' | 'flaggedOnly';
@@ -36,7 +36,7 @@ type SummaryRow = [
   AiTraceChunk['summary']['threats'],
 ];
 
-type ActionStatsRow = [string, number, number, number | null, number | null, number | null, boolean];
+type ActionStatsRow = [string, number, number, number | null, number | null, number | null, boolean, string | null];
 
 const ANALYSIS_GUIDE = [
   'import json, pandas as pd',
@@ -53,7 +53,7 @@ const SUMMARY_COLUMNS = [
 ] as const;
 
 const UNIT_COLUMNS = ['uIdx', 'id', 'type', 'spawnTurn', 'spawnBuildingId', 'sx', 'sy', 'deathTurn', 'deathCause', 'maxLevel'] as const;
-const ACTION_STATS_COLUMNS = ['action', 'candidate', 'won', 'winRate', 'avgScore', 'avgMargin', 'neverWins'] as const;
+const ACTION_STATS_COLUMNS = ['action', 'candidate', 'won', 'winRate', 'avgScore', 'avgMargin', 'neverWins', 'dominantTerm'] as const;
 const FLAG_COLUMN = 'flagNames';
 const TERM_COLUMNS = new Set(['domTerm', 'terms', 'terms2']);
 const DEFENSIVE_ACTIONS = new Set(['DEFEND_ENEMY_BUILDING', 'CONTEST_BUILDING', 'RETAKE_BUILDING', 'PROTECT_SPAWNER', 'INTERCEPT_CAPTOR']);
@@ -114,13 +114,19 @@ function computeActionStats(rows: readonly AiRow[]): ActionStatsRow[] {
     let won = 0;
     const scores: number[] = [];
     const margins: number[] = [];
+    const dominantTerms = new Map<number, number>();
     for (const row of rows) {
       if (row[6].includes(actionIndex)) candidate += 1;
       if (row[3] !== actionIndex) continue;
       won += 1;
       if (typeof row[4] === 'number') scores.push(row[4]);
       if (typeof row[4] === 'number' && typeof row[5] === 'number') margins.push(row[4] - row[5]);
+      if (row[25] >= 0) {
+        dominantTerms.set(row[25], (dominantTerms.get(row[25]) ?? 0) + 1);
+      }
     }
+    const dominantTerm = [...dominantTerms.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0] - b[0])[0]?.[0] ?? null;
     return [
       actionName,
       candidate,
@@ -129,6 +135,7 @@ function computeActionStats(rows: readonly AiRow[]): ActionStatsRow[] {
       mean(scores),
       mean(margins),
       candidate >= 20 && won === 0,
+      dominantTerm === null ? null : TERM_TABLE[dominantTerm] ?? null,
     ];
   });
   return stats.sort((a, b) => b[1] - a[1]);
@@ -237,6 +244,7 @@ function deriveFlagNames(rows: readonly AiRow[], summaries: readonly SummaryRow[
     if (straightLineHasBridgeOpportunity(row) && (row[23] & BRIDGE_USED_MASK) === 0 && row[20].includes('B') === false && row[12] !== 0) flags.add('BRIDGE_AVAILABLE_UNUSED');
     if (row[17] > 0 && targetDistance > 0 && row[19] > 1.5 * targetDistance) flags.add('TERRAIN_DETOUR');
     if (typeof row[4] === 'number' && typeof row[5] === 'number' && row[4] - row[5] < CLOSE_CALL_DELTA) flags.add('CLOSE_CALL');
+    if (row[25] === 0 && row[6].length >= 4) flags.add('DOMINATED_BY_BASE');
     if (row[24][6] === 1 && row[17] === 0 && row[21] === 0 && row[24][2] >= 0 && row[24][2] <= 4) flags.add('IDLE_ON_OWN_BUILDING');
     if (row[24][7] >= 0 && row[24][7] <= AI_TRACE.THREAT_RADIUS && !DEFENSIVE_ACTIONS.has(actionName)) flags.add('THREAT_IGNORED');
     if ((row[23] & DIED_MASK) !== 0 && row[21] < row[22]) flags.add('SUICIDE_ATTACK');
@@ -316,6 +324,7 @@ function buildLegend(modeColumns: readonly string[]) {
       { name: 'BRIDGE_AVAILABLE_UNUSED', definition: 'Best-effort straight-line bridge opportunity without a BRIDGE_USED outcome bit.' },
       { name: 'TERRAIN_DETOUR', definition: 'Recorded path length is more than 1.5x the edge-circle distance to target.' },
       { name: 'CLOSE_CALL', definition: 'Winner score beat the runner-up by less than AI_TRACE.CLOSE_CALL_DELTA.' },
+      { name: 'DOMINATED_BY_BASE', definition: 'Winner was dominated by BASE while at least three other positive-score candidates existed.' },
       { name: 'IDLE_ON_OWN_BUILDING', definition: 'Unit stayed idle on an enemy-owned building while a player threat was nearby.' },
       { name: 'THREAT_IGNORED', definition: 'Threatened own building was nearby and the action was not a defensive response.' },
       { name: 'STUCK', definition: 'Same start tile repeated for AI_TRACE.STUCK_TURNS consecutive turns.' },
@@ -324,7 +333,7 @@ function buildLegend(modeColumns: readonly string[]) {
       { name: 'SUICIDE_ATTACK', definition: 'Unit died while dealing less damage than it received.' },
       { name: 'SLOT2_UNUSED', definition: 'Unit only recorded a first-slot action on that turn.' },
     ],
-    terms: [],
+    terms: [...TERM_TABLE],
   };
 }
 

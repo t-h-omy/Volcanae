@@ -25,7 +25,22 @@ import { cleanupRoostedUnits, getRoostedUnits } from './buildingRemoval';
 import { isUnitOnCorruptedTile } from './tileStatusSystem';
 import { isCounterThemeUnitType, pickUnitFromTheme, scoreCountersForPlayer } from './waveThemeSystem';
 import { isSpecialistEffectActive } from './specialistSystem';
-import { AiTraceCollector, getActionCode, getBuildingFactionCode, getOutcomeBitMask, getStopCode, type AiThreatEntry, type AiTraceChunk, type AiTraceIndexSeed, type MoveStopReason } from './aiTrace';
+import {
+  AiTraceCollector,
+  TERM_CODES,
+  finalizeTraceTerms,
+  getActionCode,
+  getBuildingFactionCode,
+  getDominantTraceTerm,
+  getOutcomeBitMask,
+  getStopCode,
+  pushCandidate,
+  type AiThreatEntry,
+  type AiTraceChunk,
+  type AiTraceIndexSeed,
+  type MoveStopReason,
+  type TraceTerm,
+} from './aiTrace';
 
 // ============================================================================
 // ID GENERATION
@@ -95,9 +110,12 @@ interface ScoredAction {
   targetPosition?: Position;
   /** Portal ID tagged on MOVE_TO_PORTAL actions for intent tracking. */
   portalIntentId?: string;
+  traceTerms?: TraceTerm[];
 }
 
 export type { ScoredAction };
+
+const T = TERM_CODES;
 
 export interface MoveOutcome {
   steps: number;
@@ -343,6 +361,14 @@ function projectBuildingCombatScore(attacker: Unit, building: Building): number 
   bonus -= calcDeathRiskPenalty(attacker, attackerHpLost, buildingCanCounter);
 
   return bonus;
+}
+
+function applyTraceScoreAdjustment(candidate: ScoredAction, code: number, delta: number): void {
+  if (!candidate.traceTerms) return;
+  const terms = [...candidate.traceTerms, [code, delta] as TraceTerm];
+  const normalized = finalizeTraceTerms(terms);
+  candidate.score = normalized.score;
+  candidate.traceTerms = normalized.terms;
 }
 
 const BFS_DIRECTIONS: [number, number][] = [
@@ -1148,6 +1174,7 @@ function scoreConstructionActions(
   unit: Unit,
   state: Draft<GameState>,
   candidates: ScoredAction[],
+  tracing = false,
 ): void {
   // Only BUILDANDCAPTURE units can construct
   if (!unit.tags.includes(UnitTag.BUILDANDCAPTURE)) return;
@@ -1167,33 +1194,59 @@ function scoreConstructionActions(
 
       // ── BUILD_LAVA_LAIR on ruin tiles ──
       if (tile.isRuin) {
-        let score = AI_SCORING.BASE_BUILD_LAVA_LAIR
-          - AI_SCORING.DISTANCE_PENALTY_PER_TILE * distance;
+        const baseScore = AI_SCORING.BASE_BUILD_LAVA_LAIR;
+        const distancePenalty = -AI_SCORING.DISTANCE_PENALTY_PER_TILE * distance;
+        let score = baseScore + distancePenalty;
 
         // Bonus if no other LAVA_LAIR buildings exist within 4 tiles (encourages spread)
         const nearbyLavaLair = Object.values(state.buildings).some(
           b => b.type === BuildingType.LAVALAIR && edgeCircleDistance(b.position.x, b.position.y, tx, ty) <= 4,
         );
+        const spreadBonus = !nearbyLavaLair ? 15 : 0;
         if (!nearbyLavaLair) {
-          score += 15;
+          score += spreadBonus;
         }
 
-        candidates.push({ type: 'BUILD_LAVA_LAIR', score: Math.max(0, score), targetPosition: { x: tx, y: ty } });
+        if (tracing) {
+          pushCandidate(candidates, 'BUILD_LAVA_LAIR', [
+            [T.BASE, baseScore],
+            [T.DISTANCE, distancePenalty],
+            [T.OTHER, spreadBonus],
+          ], { targetPosition: { x: tx, y: ty } }, true);
+        } else {
+          candidates.push({ type: 'BUILD_LAVA_LAIR', score: Math.max(0, score), targetPosition: { x: tx, y: ty } });
+        }
       }
 
       // ── BUILD_INFERNAL_SANCTUM on stronghold ruin tiles ──
       if (tile.isStrongholdRuin) {
-        const score = AI_SCORING.BASE_BUILD_LAVA_LAIR + 20
-          - AI_SCORING.DISTANCE_PENALTY_PER_TILE * distance;
-        candidates.push({ type: 'BUILD_INFERNAL_SANCTUM', score: Math.max(0, score), targetPosition: { x: tx, y: ty } });
+        const baseScore = AI_SCORING.BASE_BUILD_LAVA_LAIR + 20;
+        const distancePenalty = -AI_SCORING.DISTANCE_PENALTY_PER_TILE * distance;
+        const score = baseScore + distancePenalty;
+        if (tracing) {
+          pushCandidate(candidates, 'BUILD_INFERNAL_SANCTUM', [
+            [T.BASE, baseScore],
+            [T.DISTANCE, distancePenalty],
+          ], { targetPosition: { x: tx, y: ty } }, true);
+        } else {
+          candidates.push({ type: 'BUILD_INFERNAL_SANCTUM', score: Math.max(0, score), targetPosition: { x: tx, y: ty } });
+        }
       }
 
       // ── CORRUPT_TERRAIN for CORRUPT tag units on FOREST/MOUNTAIN tiles ──
       if (unit.tags.includes(UnitTag.CORRUPT)) {
         if ((tile.terrainType === TileType.FOREST || tile.terrainType === TileType.MOUNTAIN) && !tile.buildingId) {
-          const score = AI_SCORING.BASE_CORRUPT_TERRAIN
-            - AI_SCORING.DISTANCE_PENALTY_PER_TILE * distance;
-          candidates.push({ type: 'CORRUPT_TERRAIN', score: Math.max(0, score), targetPosition: { x: tx, y: ty } });
+          const baseScore = AI_SCORING.BASE_CORRUPT_TERRAIN;
+          const distancePenalty = -AI_SCORING.DISTANCE_PENALTY_PER_TILE * distance;
+          const score = baseScore + distancePenalty;
+          if (tracing) {
+            pushCandidate(candidates, 'CORRUPT_TERRAIN', [
+              [T.BASE, baseScore],
+              [T.DISTANCE, distancePenalty],
+            ], { targetPosition: { x: tx, y: ty } }, true);
+          } else {
+            candidates.push({ type: 'CORRUPT_TERRAIN', score: Math.max(0, score), targetPosition: { x: tx, y: ty } });
+          }
         }
       }
     }
@@ -1962,6 +2015,7 @@ function scoreActionsForUnit(
   targetingIntents: Map<string, number>,
   recentlyLostBuildingIds: Set<string>,
   portalUsageIntents: Map<string, number>,
+  tracing = false,
 ): ScoredAction[] {
   const candidates: ScoredAction[] = [];
   const triggerRange = unit.stats.triggerRange;
@@ -2005,12 +2059,25 @@ function scoreActionsForUnit(
       captors.sort((a, b) => edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y) - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
       const target = captors[0];
       const distance = edgeCircleDistance(unit.position.x, unit.position.y, target.position.x, target.position.y);
+      const combatScore = projectCombatScore(unit, target);
+      const saturation = saturationPenalty(target.id, targetingIntents);
+      const distancePenalty = -distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE;
       const score = AI_SCORING.BASE_INTERCEPT_CAPTOR
-        - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
-        + projectCombatScore(unit, target)
+        + distancePenalty
+        + combatScore
         + AI_SCORING.BONUS_PLAYER_CAPTURING
-        - saturationPenalty(target.id, targetingIntents);
-      candidates.push({ type: 'INTERCEPT_CAPTOR', score: Math.max(0, score), targetUnitId: target.id, targetPosition: target.position });
+        - saturation;
+      if (tracing) {
+        pushCandidate(candidates, 'INTERCEPT_CAPTOR', [
+          [T.BASE, AI_SCORING.BASE_INTERCEPT_CAPTOR],
+          [T.DISTANCE, distancePenalty],
+          [T.COMBAT, combatScore],
+          [T.THREAT, AI_SCORING.BONUS_PLAYER_CAPTURING],
+          [T.SATURATION, -saturation],
+        ], { targetUnitId: target.id, targetPosition: target.position }, true);
+      } else {
+        candidates.push({ type: 'INTERCEPT_CAPTOR', score: Math.max(0, score), targetUnitId: target.id, targetPosition: target.position });
+      }
     }
   }
 
@@ -2021,10 +2088,20 @@ function scoreActionsForUnit(
       const building = state.buildings[tile.buildingId];
       // Exclude buildings that consume the capturing unit (e.g. watchtowers) — they must be attacked/destroyed instead
       if (building && building.faction !== Faction.ENEMY && !building.consumesUnitOnCapture) {
-        const score = AI_SCORING.BASE_CAPTURE_BUILDING
-          * buildingValueMultiplier(building.type)
-          - saturationPenalty(building.id, targetingIntents);
-        candidates.push({ type: 'CAPTURE_BUILDING', score: Math.max(0, score), targetBuildingId: building.id, targetPosition: building.position });
+        const baseScore = AI_SCORING.BASE_CAPTURE_BUILDING;
+        const buildingValue = baseScore * buildingValueMultiplier(building.type);
+        const buildingValueBonus = buildingValue - baseScore;
+        const saturation = saturationPenalty(building.id, targetingIntents);
+        const score = buildingValue - saturation;
+        if (tracing) {
+          pushCandidate(candidates, 'CAPTURE_BUILDING', [
+            [T.BASE, baseScore],
+            [T.BUILDING_VALUE, buildingValueBonus],
+            [T.SATURATION, -saturation],
+          ], { targetBuildingId: building.id, targetPosition: building.position }, true);
+        } else {
+          candidates.push({ type: 'CAPTURE_BUILDING', score: Math.max(0, score), targetBuildingId: building.id, targetPosition: building.position });
+        }
       }
     }
   }
@@ -2049,13 +2126,28 @@ function scoreActionsForUnit(
       contestable.sort((a, b) => edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y) - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
       const building = contestable[0];
       const distance = edgeCircleDistance(unit.position.x, unit.position.y, building.position.x, building.position.y);
-      const score = AI_SCORING.BASE_CONTEST_BUILDING
-        * buildingValueMultiplier(building.type)
-        - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
+      const baseScore = AI_SCORING.BASE_CONTEST_BUILDING;
+      const buildingValue = baseScore * buildingValueMultiplier(building.type);
+      const buildingValueBonus = buildingValue - baseScore;
+      const distancePenalty = -distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE;
+      const capturingBonus = building.isBeingCapturedBy ? AI_SCORING.BONUS_PLAYER_CAPTURING : 0;
+      const saturation = saturationPenalty(building.id, targetingIntents);
+      const score = buildingValue
+        + distancePenalty
         + AI_SCORING.BONUS_PLAYER_ON_BUILDING
-        + (building.isBeingCapturedBy ? AI_SCORING.BONUS_PLAYER_CAPTURING : 0)
-        - saturationPenalty(building.id, targetingIntents);
-      candidates.push({ type: 'CONTEST_BUILDING', score: Math.max(0, score), targetBuildingId: building.id, targetPosition: building.position });
+        + capturingBonus
+        - saturation;
+      if (tracing) {
+        pushCandidate(candidates, 'CONTEST_BUILDING', [
+          [T.BASE, baseScore],
+          [T.BUILDING_VALUE, buildingValueBonus],
+          [T.DISTANCE, distancePenalty],
+          [T.THREAT, AI_SCORING.BONUS_PLAYER_ON_BUILDING + capturingBonus],
+          [T.SATURATION, -saturation],
+        ], { targetBuildingId: building.id, targetPosition: building.position }, true);
+      } else {
+        candidates.push({ type: 'CONTEST_BUILDING', score: Math.max(0, score), targetBuildingId: building.id, targetPosition: building.position });
+      }
     }
   }
 
@@ -2066,12 +2158,26 @@ function scoreActionsForUnit(
       retakeable.sort((a, b) => edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y) - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
       const building = retakeable[0];
       const distance = edgeCircleDistance(unit.position.x, unit.position.y, building.position.x, building.position.y);
-      const score = AI_SCORING.BASE_RETAKE_BUILDING
-        * buildingValueMultiplier(building.type)
-        - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
+      const baseScore = AI_SCORING.BASE_RETAKE_BUILDING;
+      const buildingValue = baseScore * buildingValueMultiplier(building.type);
+      const buildingValueBonus = buildingValue - baseScore;
+      const distancePenalty = -distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE;
+      const saturation = saturationPenalty(building.id, targetingIntents);
+      const score = buildingValue
+        + distancePenalty
         + AI_SCORING.BONUS_RECENT_LOSS
-        - saturationPenalty(building.id, targetingIntents);
-      candidates.push({ type: 'RETAKE_BUILDING', score: Math.max(0, score), targetBuildingId: building.id, targetPosition: building.position });
+        - saturation;
+      if (tracing) {
+        pushCandidate(candidates, 'RETAKE_BUILDING', [
+          [T.BASE, baseScore],
+          [T.BUILDING_VALUE, buildingValueBonus],
+          [T.DISTANCE, distancePenalty],
+          [T.THREAT, AI_SCORING.BONUS_RECENT_LOSS],
+          [T.SATURATION, -saturation],
+        ], { targetBuildingId: building.id, targetPosition: building.position }, true);
+      } else {
+        candidates.push({ type: 'RETAKE_BUILDING', score: Math.max(0, score), targetBuildingId: building.id, targetPosition: building.position });
+      }
     }
   }
 
@@ -2088,11 +2194,23 @@ function scoreActionsForUnit(
     }
     if (bestTarget) {
       const distance = edgeCircleDistance(unit.position.x, unit.position.y, bestTarget.position.x, bestTarget.position.y);
+      const combatScore = projectCombatScore(unit, bestTarget);
+      const saturation = saturationPenalty(bestTarget.id, targetingIntents);
+      const distancePenalty = -distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE;
       const score = AI_SCORING.BASE_ATTACK_UNIT
-        - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
-        + projectCombatScore(unit, bestTarget)
-        - saturationPenalty(bestTarget.id, targetingIntents);
-      candidates.push({ type: 'ATTACK_UNIT', score: Math.max(0, score), targetUnitId: bestTarget.id, targetPosition: bestTarget.position });
+        + distancePenalty
+        + combatScore
+        - saturation;
+      if (tracing) {
+        pushCandidate(candidates, 'ATTACK_UNIT', [
+          [T.BASE, AI_SCORING.BASE_ATTACK_UNIT],
+          [T.DISTANCE, distancePenalty],
+          [T.COMBAT, combatScore],
+          [T.SATURATION, -saturation],
+        ], { targetUnitId: bestTarget.id, targetPosition: bestTarget.position }, true);
+      } else {
+        candidates.push({ type: 'ATTACK_UNIT', score: Math.max(0, score), targetUnitId: bestTarget.id, targetPosition: bestTarget.position });
+      }
     }
   }
 
@@ -2107,30 +2225,62 @@ function scoreActionsForUnit(
         for (const target of rangedTargets) {
           const distance = edgeCircleDistance(unit.position.x, unit.position.y, target.position.x, target.position.y);
           const uncounterable = target.stats.attackRange < distance;
+          const combatScore = projectCombatScore(unit, target);
+          const distancePenalty = -distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE;
+          const prepBonus = uncounterable ? AI_SCORING.BONUS_PREP_UNCOUNTERABLE_TARGET : 0;
+          const saturation = saturationPenalty(target.id, targetingIntents);
           const score = AI_SCORING.BASE_RANGED_ATTACK_UNIT
-            - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
-            + projectCombatScore(unit, target)
+            + distancePenalty
+            + combatScore
             + AI_SCORING.BONUS_RANGED_SAFE_ATTACK
-            + (uncounterable ? AI_SCORING.BONUS_PREP_UNCOUNTERABLE_TARGET : 0)
-            - saturationPenalty(target.id, targetingIntents);
+            + prepBonus
+            - saturation;
           if (score > bestScore) {
             bestScore = score;
             bestTarget = target;
           }
         }
         if (bestTarget) {
-          candidates.push({ type: 'RANGED_ATTACK_UNIT', score: Math.max(0, bestScore), targetUnitId: bestTarget.id, targetPosition: bestTarget.position });
+          const distance = edgeCircleDistance(unit.position.x, unit.position.y, bestTarget.position.x, bestTarget.position.y);
+          const combatScore = projectCombatScore(unit, bestTarget);
+          const distancePenalty = -distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE;
+          const prepBonus = bestTarget.stats.attackRange < distance ? AI_SCORING.BONUS_PREP_UNCOUNTERABLE_TARGET : 0;
+          const saturation = saturationPenalty(bestTarget.id, targetingIntents);
+          if (tracing) {
+            pushCandidate(candidates, 'RANGED_ATTACK_UNIT', [
+              [T.BASE, AI_SCORING.BASE_RANGED_ATTACK_UNIT],
+              [T.DISTANCE, distancePenalty],
+              [T.COMBAT, combatScore],
+              [T.TAG, AI_SCORING.BONUS_RANGED_SAFE_ATTACK + prepBonus],
+              [T.SATURATION, -saturation],
+            ], { targetUnitId: bestTarget.id, targetPosition: bestTarget.position }, true);
+          } else {
+            candidates.push({ type: 'RANGED_ATTACK_UNIT', score: Math.max(0, bestScore), targetUnitId: bestTarget.id, targetPosition: bestTarget.position });
+          }
         }
       } else {
         rangedTargets.sort((a, b) => edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y) - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
         const target = rangedTargets[0];
         const distance = edgeCircleDistance(unit.position.x, unit.position.y, target.position.x, target.position.y);
+        const combatScore = projectCombatScore(unit, target);
+        const saturation = saturationPenalty(target.id, targetingIntents);
+        const distancePenalty = -distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE;
         const score = AI_SCORING.BASE_RANGED_ATTACK_UNIT
-          - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
-          + projectCombatScore(unit, target)
+          + distancePenalty
+          + combatScore
           + AI_SCORING.BONUS_RANGED_SAFE_ATTACK
-          - saturationPenalty(target.id, targetingIntents);
-        candidates.push({ type: 'RANGED_ATTACK_UNIT', score: Math.max(0, score), targetUnitId: target.id, targetPosition: target.position });
+          - saturation;
+        if (tracing) {
+          pushCandidate(candidates, 'RANGED_ATTACK_UNIT', [
+            [T.BASE, AI_SCORING.BASE_RANGED_ATTACK_UNIT],
+            [T.DISTANCE, distancePenalty],
+            [T.COMBAT, combatScore],
+            [T.TAG, AI_SCORING.BONUS_RANGED_SAFE_ATTACK],
+            [T.SATURATION, -saturation],
+          ], { targetUnitId: target.id, targetPosition: target.position }, true);
+        } else {
+          candidates.push({ type: 'RANGED_ATTACK_UNIT', score: Math.max(0, score), targetUnitId: target.id, targetPosition: target.position });
+        }
       }
     }
   }
@@ -2227,15 +2377,24 @@ function scoreActionsForUnit(
       }
 
       if (bestPairTile && bestPairTarget) {
+        const saturation = saturationPenalty(bestPairTarget.id, targetingIntents);
         const score = AI_SCORING.BASE_MOVE_TO_SAFE_RANGED_POSITION
           + bestPairScore
-          - saturationPenalty(bestPairTarget.id, targetingIntents);
-        candidates.push({
-          type: 'MOVE_TO_SAFE_RANGED_POSITION',
-          score: Math.max(0, score),
-          targetUnitId: bestPairTarget.id,
-          targetPosition: bestPairTile,
-        });
+          - saturation;
+        if (tracing) {
+          pushCandidate(candidates, 'MOVE_TO_SAFE_RANGED_POSITION', [
+            [T.BASE, AI_SCORING.BASE_MOVE_TO_SAFE_RANGED_POSITION],
+            [T.COMBAT, bestPairScore],
+            [T.SATURATION, -saturation],
+          ], { targetUnitId: bestPairTarget.id, targetPosition: bestPairTile }, true);
+        } else {
+          candidates.push({
+            type: 'MOVE_TO_SAFE_RANGED_POSITION',
+            score: Math.max(0, score),
+            targetUnitId: bestPairTarget.id,
+            targetPosition: bestPairTile,
+          });
+        }
       } else if (bestSafeTile) {
         // No safe+attack pair was found. If the archer is currently adjacent to
         // a player unit it should still retreat to safety rather than attacking
@@ -2247,11 +2406,17 @@ function scoreActionsForUnit(
           return Math.max(cdx, cdy) <= 1;
         });
         if (isCurrentlyAdjacent) {
-          candidates.push({
-            type: 'MOVE_TO_SAFE_RANGED_POSITION',
-            score: AI_SCORING.BASE_RETREAT_FROM_ADJACENT,
-            targetPosition: bestSafeTile,
-          });
+          if (tracing) {
+            pushCandidate(candidates, 'MOVE_TO_SAFE_RANGED_POSITION', [
+              [T.BASE, AI_SCORING.BASE_RETREAT_FROM_ADJACENT],
+            ], { targetPosition: bestSafeTile }, true);
+          } else {
+            candidates.push({
+              type: 'MOVE_TO_SAFE_RANGED_POSITION',
+              score: AI_SCORING.BASE_RETREAT_FROM_ADJACENT,
+              targetPosition: bestSafeTile,
+            });
+          }
         }
       }
     }
@@ -2281,11 +2446,23 @@ function scoreActionsForUnit(
       }
       if (bestBuilding) {
         const distance = edgeCircleDistance(unit.position.x, unit.position.y, bestBuilding.position.x, bestBuilding.position.y);
+        const combatScore = projectBuildingCombatScore(unit, bestBuilding);
+        const saturation = saturationPenalty(bestBuilding.id, targetingIntents);
+        const distancePenalty = -distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE;
         const score = AI_SCORING.BASE_ATTACK_BUILDING
-          - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
-          + projectBuildingCombatScore(unit, bestBuilding)
-          - saturationPenalty(bestBuilding.id, targetingIntents);
-        candidates.push({ type: 'ATTACK_BUILDING', score: Math.max(0, score), targetBuildingId: bestBuilding.id, targetPosition: bestBuilding.position });
+          + distancePenalty
+          + combatScore
+          - saturation;
+        if (tracing) {
+          pushCandidate(candidates, 'ATTACK_BUILDING', [
+            [T.BASE, AI_SCORING.BASE_ATTACK_BUILDING],
+            [T.DISTANCE, distancePenalty],
+            [T.COMBAT, combatScore],
+            [T.SATURATION, -saturation],
+          ], { targetBuildingId: bestBuilding.id, targetPosition: bestBuilding.position }, true);
+        } else {
+          candidates.push({ type: 'ATTACK_BUILDING', score: Math.max(0, score), targetBuildingId: bestBuilding.id, targetPosition: bestBuilding.position });
+        }
       }
     }
   }
@@ -2304,12 +2481,25 @@ function scoreActionsForUnit(
       rangedBuildingTargets.sort((a, b) => edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y) - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
       const target = rangedBuildingTargets[0];
       const distance = edgeCircleDistance(unit.position.x, unit.position.y, target.position.x, target.position.y);
+      const combatScore = projectBuildingCombatScore(unit, target);
+      const saturation = saturationPenalty(target.id, targetingIntents);
+      const distancePenalty = -distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE;
       const score = AI_SCORING.BASE_RANGED_ATTACK_BUILDING
-        - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
-        + projectBuildingCombatScore(unit, target)
+        + distancePenalty
+        + combatScore
         + AI_SCORING.BONUS_RANGED_SAFE_ATTACK
-        - saturationPenalty(target.id, targetingIntents);
-      candidates.push({ type: 'RANGED_ATTACK_BUILDING', score: Math.max(0, score), targetBuildingId: target.id, targetPosition: target.position });
+        - saturation;
+      if (tracing) {
+        pushCandidate(candidates, 'RANGED_ATTACK_BUILDING', [
+          [T.BASE, AI_SCORING.BASE_RANGED_ATTACK_BUILDING],
+          [T.DISTANCE, distancePenalty],
+          [T.COMBAT, combatScore],
+          [T.TAG, AI_SCORING.BONUS_RANGED_SAFE_ATTACK],
+          [T.SATURATION, -saturation],
+        ], { targetBuildingId: target.id, targetPosition: target.position }, true);
+      } else {
+        candidates.push({ type: 'RANGED_ATTACK_BUILDING', score: Math.max(0, score), targetBuildingId: target.id, targetPosition: target.position });
+      }
     }
   }
 
@@ -2330,12 +2520,27 @@ function scoreActionsForUnit(
       const building = defendable[0];
       const distance = edgeCircleDistance(unit.position.x, unit.position.y, building.position.x, building.position.y);
       const isUndefended = alliedUnitsNear(building.position, 3, unit.id, state) === 0;
-      const score = AI_SCORING.BASE_DEFEND_ENEMY_BUILDING
-        * buildingValueMultiplier(building.type)
-        - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
-        + (isUndefended ? AI_SCORING.BONUS_UNDEFENDED_BUILDING : 0)
-        - saturationPenalty(building.id, targetingIntents);
-      candidates.push({ type: 'DEFEND_ENEMY_BUILDING', score: Math.max(0, score), targetBuildingId: building.id, targetPosition: building.position });
+      const baseScore = AI_SCORING.BASE_DEFEND_ENEMY_BUILDING;
+      const buildingValue = baseScore * buildingValueMultiplier(building.type);
+      const buildingValueBonus = buildingValue - baseScore;
+      const distancePenalty = -distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE;
+      const undefendedBonus = isUndefended ? AI_SCORING.BONUS_UNDEFENDED_BUILDING : 0;
+      const saturation = saturationPenalty(building.id, targetingIntents);
+      const score = buildingValue
+        + distancePenalty
+        + undefendedBonus
+        - saturation;
+      if (tracing) {
+        pushCandidate(candidates, 'DEFEND_ENEMY_BUILDING', [
+          [T.BASE, baseScore],
+          [T.BUILDING_VALUE, buildingValueBonus],
+          [T.DISTANCE, distancePenalty],
+          [T.THREAT, undefendedBonus],
+          [T.SATURATION, -saturation],
+        ], { targetBuildingId: building.id, targetPosition: building.position }, true);
+      } else {
+        candidates.push({ type: 'DEFEND_ENEMY_BUILDING', score: Math.max(0, score), targetBuildingId: building.id, targetPosition: building.position });
+      }
     }
   }
 
@@ -2356,12 +2561,27 @@ function scoreActionsForUnit(
       const building = spawners[0];
       const distance = edgeCircleDistance(unit.position.x, unit.position.y, building.position.x, building.position.y);
       const isUndefended = alliedUnitsNear(building.position, 3, unit.id, state) === 0;
-      const score = AI_SCORING.BASE_PROTECT_SPAWNER
-        * AI_SCORING.BUILDING_VALUE_SPAWNER
-        - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
-        + (isUndefended ? AI_SCORING.BONUS_UNDEFENDED_BUILDING : 0)
-        - saturationPenalty(building.id, targetingIntents);
-      candidates.push({ type: 'PROTECT_SPAWNER', score: Math.max(0, score), targetBuildingId: building.id, targetPosition: building.position });
+      const baseScore = AI_SCORING.BASE_PROTECT_SPAWNER;
+      const buildingValue = baseScore * AI_SCORING.BUILDING_VALUE_SPAWNER;
+      const buildingValueBonus = buildingValue - baseScore;
+      const distancePenalty = -distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE;
+      const undefendedBonus = isUndefended ? AI_SCORING.BONUS_UNDEFENDED_BUILDING : 0;
+      const saturation = saturationPenalty(building.id, targetingIntents);
+      const score = buildingValue
+        + distancePenalty
+        + undefendedBonus
+        - saturation;
+      if (tracing) {
+        pushCandidate(candidates, 'PROTECT_SPAWNER', [
+          [T.BASE, baseScore],
+          [T.BUILDING_VALUE, buildingValueBonus],
+          [T.DISTANCE, distancePenalty],
+          [T.THREAT, undefendedBonus],
+          [T.SATURATION, -saturation],
+        ], { targetBuildingId: building.id, targetPosition: building.position }, true);
+      } else {
+        candidates.push({ type: 'PROTECT_SPAWNER', score: Math.max(0, score), targetBuildingId: building.id, targetPosition: building.position });
+      }
     }
   }
 
@@ -2380,11 +2600,24 @@ function scoreActionsForUnit(
       const playerUnitOnStronghold = strongholdTile.unitId != null
         && state.units[strongholdTile.unitId]?.faction === Faction.PLAYER;
       if (!(playerUnitOnStronghold && distance <= attackRange)) {
-        const score = AI_SCORING.BASE_PUSH_TO_STRONGHOLD
-          * AI_SCORING.BUILDING_VALUE_STRONGHOLD
-          - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
-          - saturationPenalty(building.id, targetingIntents);
-        candidates.push({ type: 'PUSH_TO_STRONGHOLD', score: Math.max(0, score), targetBuildingId: building.id, targetPosition: building.position });
+        const baseScore = AI_SCORING.BASE_PUSH_TO_STRONGHOLD;
+        const buildingValue = baseScore * AI_SCORING.BUILDING_VALUE_STRONGHOLD;
+        const buildingValueBonus = buildingValue - baseScore;
+        const distancePenalty = -distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE;
+        const saturation = saturationPenalty(building.id, targetingIntents);
+        const score = buildingValue
+          + distancePenalty
+          - saturation;
+        if (tracing) {
+          pushCandidate(candidates, 'PUSH_TO_STRONGHOLD', [
+            [T.BASE, baseScore],
+            [T.BUILDING_VALUE, buildingValueBonus],
+            [T.DISTANCE, distancePenalty],
+            [T.SATURATION, -saturation],
+          ], { targetBuildingId: building.id, targetPosition: building.position }, true);
+        } else {
+          candidates.push({ type: 'PUSH_TO_STRONGHOLD', score: Math.max(0, score), targetBuildingId: building.id, targetPosition: building.position });
+        }
       }
     }
   }
@@ -2396,11 +2629,24 @@ function scoreActionsForUnit(
       playerBuildings.sort((a, b) => edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y) - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
       const building = playerBuildings[0];
       const distance = edgeCircleDistance(unit.position.x, unit.position.y, building.position.x, building.position.y);
-      const score = AI_SCORING.BASE_MOVE_TO_PLAYER_BUILDING
-        * buildingValueMultiplier(building.type)
-        - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
-        - saturationPenalty(building.id, targetingIntents);
-      candidates.push({ type: 'MOVE_TO_PLAYER_BUILDING', score: Math.max(0, score), targetBuildingId: building.id, targetPosition: building.position });
+      const baseScore = AI_SCORING.BASE_MOVE_TO_PLAYER_BUILDING;
+      const buildingValue = baseScore * buildingValueMultiplier(building.type);
+      const buildingValueBonus = buildingValue - baseScore;
+      const distancePenalty = -distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE;
+      const saturation = saturationPenalty(building.id, targetingIntents);
+      const score = buildingValue
+        + distancePenalty
+        - saturation;
+      if (tracing) {
+        pushCandidate(candidates, 'MOVE_TO_PLAYER_BUILDING', [
+          [T.BASE, baseScore],
+          [T.BUILDING_VALUE, buildingValueBonus],
+          [T.DISTANCE, distancePenalty],
+          [T.SATURATION, -saturation],
+        ], { targetBuildingId: building.id, targetPosition: building.position }, true);
+      } else {
+        candidates.push({ type: 'MOVE_TO_PLAYER_BUILDING', score: Math.max(0, score), targetBuildingId: building.id, targetPosition: building.position });
+      }
     }
   }
 
@@ -2411,11 +2657,24 @@ function scoreActionsForUnit(
       neutralBuildings.sort((a, b) => edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y) - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
       const building = neutralBuildings[0];
       const distance = edgeCircleDistance(unit.position.x, unit.position.y, building.position.x, building.position.y);
-      const score = AI_SCORING.BASE_MOVE_TO_NEUTRAL_BUILDING
-        * buildingValueMultiplier(building.type)
-        - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
-        - saturationPenalty(building.id, targetingIntents);
-      candidates.push({ type: 'MOVE_TO_NEUTRAL_BUILDING', score: Math.max(0, score), targetBuildingId: building.id, targetPosition: building.position });
+      const baseScore = AI_SCORING.BASE_MOVE_TO_NEUTRAL_BUILDING;
+      const buildingValue = baseScore * buildingValueMultiplier(building.type);
+      const buildingValueBonus = buildingValue - baseScore;
+      const distancePenalty = -distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE;
+      const saturation = saturationPenalty(building.id, targetingIntents);
+      const score = buildingValue
+        + distancePenalty
+        - saturation;
+      if (tracing) {
+        pushCandidate(candidates, 'MOVE_TO_NEUTRAL_BUILDING', [
+          [T.BASE, baseScore],
+          [T.BUILDING_VALUE, buildingValueBonus],
+          [T.DISTANCE, distancePenalty],
+          [T.SATURATION, -saturation],
+        ], { targetBuildingId: building.id, targetPosition: building.position }, true);
+      } else {
+        candidates.push({ type: 'MOVE_TO_NEUTRAL_BUILDING', score: Math.max(0, score), targetBuildingId: building.id, targetPosition: building.position });
+      }
     }
   }
 
@@ -2444,12 +2703,24 @@ function scoreActionsForUnit(
         unit.type === UnitType.GRIMBEAK && target.tags.includes(UnitTag.SUMMONED)
           ? AI_SCORING.GRIMBEAK_SUMMONED_TARGET_BONUS
           : 0;
+      const saturation = saturationPenalty(target.id, targetingIntents);
+      const distancePenalty = -distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE;
       const score = AI_SCORING.BASE_MOVE_TO_UNIT
-        - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE
+        + distancePenalty
         + nextTurnKillBonus
         + grimbeakSummonedBonus
-        - saturationPenalty(target.id, targetingIntents);
-      candidates.push({ type: 'MOVE_TO_UNIT', score: Math.max(0, score), targetUnitId: target.id, targetPosition: target.position });
+        - saturation;
+      if (tracing) {
+        pushCandidate(candidates, 'MOVE_TO_UNIT', [
+          [T.BASE, AI_SCORING.BASE_MOVE_TO_UNIT],
+          [T.DISTANCE, distancePenalty],
+          [T.COMBAT, nextTurnKillBonus],
+          [T.TAG, grimbeakSummonedBonus],
+          [T.SATURATION, -saturation],
+        ], { targetUnitId: target.id, targetPosition: target.position }, true);
+      } else {
+        candidates.push({ type: 'MOVE_TO_UNIT', score: Math.max(0, score), targetUnitId: target.id, targetPosition: target.position });
+      }
     }
   }
 
@@ -2458,7 +2729,13 @@ function scoreActionsForUnit(
     const hasPlayerTargets = playerUnitsInTriggerRange.length > 0;
     const hasCapturable = buildingsInTriggerRange.some(b => (b.faction === null || b.faction === Faction.PLAYER) && b.type !== BuildingType.MARKET);
     if (!hasPlayerTargets && !hasCapturable) {
-      candidates.push({ type: 'PUSH_TO_ZONE_EDGE', score: AI_SCORING.BASE_PUSH_TO_ZONE_EDGE });
+      if (tracing) {
+        pushCandidate(candidates, 'PUSH_TO_ZONE_EDGE', [
+          [T.BASE, AI_SCORING.BASE_PUSH_TO_ZONE_EDGE],
+        ], {}, true);
+      } else {
+        candidates.push({ type: 'PUSH_TO_ZONE_EDGE', score: AI_SCORING.BASE_PUSH_TO_ZONE_EDGE });
+      }
     }
   }
 
@@ -2494,12 +2771,26 @@ function scoreActionsForUnit(
       }
 
       if (bestBuilding && bestScore > 0) {
-        candidates.push({
-          type: 'SPREAD_TO_FLANK',
-          score: bestScore,
-          targetBuildingId: bestBuilding.id,
-          targetPosition: bestBuilding.position,
-        });
+        const distance = edgeCircleDistance(unit.position.x, unit.position.y, bestBuilding.position.x, bestBuilding.position.y);
+        const alliesInColumn = Object.values(state.units).filter(
+          u => u.faction === Faction.ENEMY && u.id !== unit.id && u.position.x === bestBuilding.position.x,
+        ).length;
+        const saturation = saturationPenalty(bestBuilding.id, targetingIntents);
+        if (tracing) {
+          pushCandidate(candidates, 'SPREAD_TO_FLANK', [
+            [T.BASE, AI_SCORING.BASE_SPREAD_TO_FLANK],
+            [T.DISTANCE, -distance * AI_SCORING.SPREAD_DISTANCE_PENALTY],
+            [T.ZONE, -alliesInColumn * AI_SCORING.SPREAD_COLUMN_COVERAGE_PENALTY],
+            [T.SATURATION, -saturation],
+          ], { targetBuildingId: bestBuilding.id, targetPosition: bestBuilding.position }, true);
+        } else {
+          candidates.push({
+            type: 'SPREAD_TO_FLANK',
+            score: bestScore,
+            targetBuildingId: bestBuilding.id,
+            targetPosition: bestBuilding.position,
+          });
+        }
       }
     }
   }
@@ -2514,9 +2805,17 @@ function scoreActionsForUnit(
       const dy = Math.abs(target.position.y - unit.position.y);
       if (dx >= 2 || dy >= 2) {
         const distance = edgeCircleDistance(unit.position.x, unit.position.y, target.position.x, target.position.y);
+        const distancePenalty = -distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE;
         const score = AI_SCORING.BASE_FLANK_UNIT
-          - distance * AI_SCORING.DISTANCE_PENALTY_PER_TILE;
-        candidates.push({ type: 'FLANK_UNIT', score: Math.max(0, score), targetUnitId: target.id, targetPosition: target.position });
+          + distancePenalty;
+        if (tracing) {
+          pushCandidate(candidates, 'FLANK_UNIT', [
+            [T.BASE, AI_SCORING.BASE_FLANK_UNIT],
+            [T.DISTANCE, distancePenalty],
+          ], { targetUnitId: target.id, targetPosition: target.position }, true);
+        } else {
+          candidates.push({ type: 'FLANK_UNIT', score: Math.max(0, score), targetUnitId: target.id, targetPosition: target.position });
+        }
         break;
       }
     }
@@ -2529,21 +2828,42 @@ function scoreActionsForUnit(
 
   // ── ADVANCE_TOWARD_LAVA ──
   if (!unit.hasMovedThisTurn) {
-    const score = AI_SCORING.BASE_ADVANCE_TOWARD_LAVA
-      + (unit.tags.includes(UnitTag.SACRIFICIAL) ? AI_SCORING.BONUS_SACRIFICIAL_ADVANCE_TOWARD_LAVA : 0);
+    const sacrificialBonus = unit.tags.includes(UnitTag.SACRIFICIAL) ? AI_SCORING.BONUS_SACRIFICIAL_ADVANCE_TOWARD_LAVA : 0;
+    const score = AI_SCORING.BASE_ADVANCE_TOWARD_LAVA + sacrificialBonus;
     const lavaTarget: Position = { x: unit.position.x, y: Math.min(MAP.GRID_HEIGHT - 1, state.lavaFrontRow) };
     if (isBlockedFromLava) {
       // When blocked, target the nearest player unit to push through the blocker
       const playerUnits = Object.values(state.units).filter(u => u.faction === Faction.PLAYER);
       if (playerUnits.length > 0) {
         playerUnits.sort((a, b) => edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y) - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
-        candidates.push({ type: 'ADVANCE_TOWARD_LAVA', score, targetPosition: playerUnits[0].position });
+        if (tracing) {
+          pushCandidate(candidates, 'ADVANCE_TOWARD_LAVA', [
+            [T.BASE, AI_SCORING.BASE_ADVANCE_TOWARD_LAVA],
+            [T.LAVA, sacrificialBonus],
+          ], { targetPosition: playerUnits[0].position }, true);
+        } else {
+          candidates.push({ type: 'ADVANCE_TOWARD_LAVA', score, targetPosition: playerUnits[0].position });
+        }
       } else {
         // No player units to push through — BFS will navigate around obstacles
-        candidates.push({ type: 'ADVANCE_TOWARD_LAVA', score, targetPosition: lavaTarget });
+        if (tracing) {
+          pushCandidate(candidates, 'ADVANCE_TOWARD_LAVA', [
+            [T.BASE, AI_SCORING.BASE_ADVANCE_TOWARD_LAVA],
+            [T.LAVA, sacrificialBonus],
+          ], { targetPosition: lavaTarget }, true);
+        } else {
+          candidates.push({ type: 'ADVANCE_TOWARD_LAVA', score, targetPosition: lavaTarget });
+        }
       }
     } else {
-      candidates.push({ type: 'ADVANCE_TOWARD_LAVA', score, targetPosition: lavaTarget });
+      if (tracing) {
+        pushCandidate(candidates, 'ADVANCE_TOWARD_LAVA', [
+          [T.BASE, AI_SCORING.BASE_ADVANCE_TOWARD_LAVA],
+          [T.LAVA, sacrificialBonus],
+        ], { targetPosition: lavaTarget }, true);
+      } else {
+        candidates.push({ type: 'ADVANCE_TOWARD_LAVA', score, targetPosition: lavaTarget });
+      }
     }
   }
 
@@ -2561,9 +2881,16 @@ function scoreActionsForUnit(
       }
     }
     if (adjacentLavaPos) {
-      const score = AI_SCORING.BASE_SACRIFICE_TO_LAVA
-        + (unit.tags.includes(UnitTag.SACRIFICIAL) ? AI_SCORING.BONUS_SACRIFICIAL_SACRIFICE_TO_LAVA : 0);
-      candidates.push({ type: 'SACRIFICE_TO_LAVA', score, targetPosition: adjacentLavaPos });
+      const sacrificialBonus = unit.tags.includes(UnitTag.SACRIFICIAL) ? AI_SCORING.BONUS_SACRIFICIAL_SACRIFICE_TO_LAVA : 0;
+      const score = AI_SCORING.BASE_SACRIFICE_TO_LAVA + sacrificialBonus;
+      if (tracing) {
+        pushCandidate(candidates, 'SACRIFICE_TO_LAVA', [
+          [T.BASE, AI_SCORING.BASE_SACRIFICE_TO_LAVA],
+          [T.LAVA, sacrificialBonus],
+        ], { targetPosition: adjacentLavaPos }, true);
+      } else {
+        candidates.push({ type: 'SACRIFICE_TO_LAVA', score, targetPosition: adjacentLavaPos });
+      }
     }
   }
 
@@ -2586,7 +2913,14 @@ function scoreActionsForUnit(
         // Only award the big "blocked sacrificial" bonus once the unit has already moved this
         // turn — ensuring it tries to advance first and only explodes when truly stuck.
         const blockedBonus = (isSacrificial && isBlockedFromLava && unit.hasMovedThisTurn) ? AI_SCORING.BONUS_BLOCKED_SACRIFICIAL_EXPLODE : 0;
-        candidates.push({ type: 'EXPLODE', score: AI_SCORING.BASE_EXPLODE + blockedBonus });
+        if (tracing) {
+          pushCandidate(candidates, 'EXPLODE', [
+            [T.BASE, AI_SCORING.BASE_EXPLODE],
+            [T.LAVA, blockedBonus],
+          ], {}, true);
+        } else {
+          candidates.push({ type: 'EXPLODE', score: AI_SCORING.BASE_EXPLODE + blockedBonus });
+        }
       }
     }
   }
@@ -2594,11 +2928,17 @@ function scoreActionsForUnit(
   // ── CONSTRUCTION & CORRUPTION ──
   // scoreConstructionActions handles BUILD_LAVA_LAIR, BUILD_INFERNAL_SANCTUM, and CORRUPT_TERRAIN
   if (!hasUnitActed(unit, state) && !unit.hasMovedThisTurn) {
-    scoreConstructionActions(unit, state, candidates);
+    scoreConstructionActions(unit, state, candidates, tracing);
   }
 
   // ── HOLD_POSITION ──
-  candidates.push({ type: 'HOLD_POSITION', score: AI_SCORING.BASE_HOLD_POSITION });
+  if (tracing) {
+    pushCandidate(candidates, 'HOLD_POSITION', [
+      [T.BASE, AI_SCORING.BASE_HOLD_POSITION],
+    ], {}, true);
+  } else {
+    candidates.push({ type: 'HOLD_POSITION', score: AI_SCORING.BASE_HOLD_POSITION });
+  }
 
   // ── MOVE_TO_PORTAL ──
   // Add a strong incentive to step onto a portal entrance when the exit advances
@@ -2623,12 +2963,22 @@ function scoreActionsForUnit(
       const score = ABILITIES.EMBER_PORTAL_BASE_USE_SCORE - (distance * ABILITIES.EMBER_PORTAL_DISTANCE_PENALTY);
       if (score <= 0) continue;
 
-      candidates.push({
-        type: 'MOVE_TO_PORTAL',
-        score,
-        targetPosition: portal.entrancePos,
-        portalIntentId: portal.id,
-      });
+      if (tracing) {
+        pushCandidate(candidates, 'MOVE_TO_PORTAL', [
+          [T.PORTAL, ABILITIES.EMBER_PORTAL_BASE_USE_SCORE],
+          [T.DISTANCE, -(distance * ABILITIES.EMBER_PORTAL_DISTANCE_PENALTY)],
+        ], {
+          targetPosition: portal.entrancePos,
+          portalIntentId: portal.id,
+        }, true);
+      } else {
+        candidates.push({
+          type: 'MOVE_TO_PORTAL',
+          score,
+          targetPosition: portal.entrancePos,
+          portalIntentId: portal.id,
+        });
+      }
     }
   }
 
@@ -2647,6 +2997,9 @@ function scoreActionsForUnit(
       const b = state.buildings[tile.buildingId];
       if (b && b.faction === Faction.ENEMY && isRecruitmentBuilding(b)) {
         candidate.score = Math.max(0, candidate.score - AI_SCORING.PENALTY_STEP_ONTO_RECRUITMENT_BUILDING);
+        if (tracing) {
+          applyTraceScoreAdjustment(candidate, T.TERRAIN, -AI_SCORING.PENALTY_STEP_ONTO_RECRUITMENT_BUILDING);
+        }
       }
     }
   }
@@ -3121,7 +3474,8 @@ function decideAndExecute(
 ): void {
   // All units go through the unified scoring — tag-based behaviors
   // (EXPLOSIVE, SACRIFICIAL, etc.) are handled within scoreActionsForUnit
-  const candidates = scoreActionsForUnit(unit, state, targetingIntents, recentlyLostBuildingIds, portalUsageIntents);
+  const tracing = !!trace;
+  const candidates = scoreActionsForUnit(unit, state, targetingIntents, recentlyLostBuildingIds, portalUsageIntents, tracing);
 
   candidates.sort((a, b) => b.score - a.score);
 
@@ -3245,6 +3599,10 @@ function decideAndExecute(
     trace.unitIndex(actingUnitAfter);
   }
 
+  const winnerTerms = chosen.traceTerms ?? null;
+  const runnerUpTerms = candidates[1]?.traceTerms ?? null;
+  const contested = shouldPersistDecisionTerms(chosen.score, candidates[1]?.score ?? null, chosen.type, moveOutcome ? moveOutcome.steps : null);
+
   trace.pushDecision({
     slot,
     unit: beforeUnit,
@@ -3267,7 +3625,22 @@ function decideAndExecute(
     received: Math.max(0, ownHpBefore - ownHpAfter),
     flags,
     context,
+    domTerm: getDominantTraceTerm(winnerTerms),
+    terms: contested ? winnerTerms : null,
+    terms2: contested ? runnerUpTerms : null,
   });
+}
+
+export function shouldPersistDecisionTerms(
+  winnerScore: number | null,
+  runnerUpScore: number | null,
+  actionType: EnemyActionType,
+  moveTiles: number | null,
+): boolean {
+  const isCloseCall = winnerScore !== null
+    && runnerUpScore !== null
+    && winnerScore - runnerUpScore < AI_TRACE.CLOSE_CALL_DELTA;
+  return isCloseCall || actionType === 'HOLD_POSITION' || moveTiles === 0;
 }
 
 export function increaseEmberOnStrongholdCapture(
@@ -4157,7 +4530,7 @@ export function runEnemyTurn(
  * priority behaviour (Aggro → Return → Patrol → Despawn) rather than the
  * scored-action system, so this function returns an empty array for them.
  */
-export function computeUnitAiScores(state: GameState, unitId: string): ScoredAction[] {
+export function computeUnitAiScores(state: GameState, unitId: string, tracing = false): ScoredAction[] {
   const unit = state.units[unitId];
   if (!unit || unit.faction !== Faction.ENEMY) return [];
   // Cave monsters use their own dedicated AI loop — not scored actions.
@@ -4184,6 +4557,7 @@ export function computeUnitAiScores(state: GameState, unitId: string): ScoredAct
     targetingIntents,
     recentlyLostBuildingIds,
     portalUsageIntents,
+    tracing,
   );
   return scores.sort((a, b) => b.score - a.score);
 }
