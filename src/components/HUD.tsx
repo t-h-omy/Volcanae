@@ -82,6 +82,7 @@ import { stopGameMusic } from '../useMusicPlayer';
 import { shouldShowTurnPopupEmberRose } from '../turnPopup';
 import { getAttackDisplayModifiers } from '../unitStatDisplay';
 import { useEmberDisplayStore } from '../emberDisplayStore';
+import { AiTraceBadge } from './AiTraceBadge';
 import './HUD.css';
 
 // ============================================================================
@@ -4726,6 +4727,7 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
         arcaneCrystals={arcaneCrystals}
         showTechBadge={showTechBadge}
       />
+      <AiTraceBadge />
       <BottomBar />
       {showTechTree && <TechTreeOverlay onClose={handleCloseTechTree} />}
       {phase === GamePhase.GAME_OVER && <GameOverOverlay />}

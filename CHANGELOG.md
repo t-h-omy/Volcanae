@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.111.0 - AI trace export and badge
+
+Added run B of the AI trace diagnostics flow. Recorded AI traces can now be exported in full, no-terms, or flagged-only modes with embedded config, legends, summaries, action stats, and derived anomaly flags. A new in-game REC badge shows trace activity, opens the export panel, and can clear the current save's trace data.
+
 ### v0.110.0 - AI decision trace recorder
 
 Added the run A AI trace recorder: config and code tables, a per-turn collector, movement stop and terrain instrumentation, IndexedDB trace persistence, game-store wiring, and a persisted dev toggle for recording enemy AI decisions. This ships without export UI or score-term decomposition, keeps trace data out of GameState and save migrations, bumps the save database schema to add the dedicated trace store, and adds regression coverage for tracing neutrality and persistence.
