@@ -1,7 +1,7 @@
-import { AI_RECRUITMENT, AI_ROW_COLUMNS, AI_SCORING, AI_TRACE, ACTION_TABLE, OUTCOME_BITS, SAVE, SPAWN_BUDGET, STOP_TABLE, UNIT_DEFINITIONS } from './gameConfig';
+import { AI_RECRUITMENT, AI_SCORING, AI_TRACE, SAVE, SPAWN_BUDGET, UNIT_DEFINITIONS } from './gameConfig';
 import { getSlotMeta } from './saveSystem';
 import { readRun } from './aiTraceStore';
-import { getOutcomeBitMask, getStopCode, type AiRow, type AiTraceChunk, type AiTraceMeta, type AiUnitRow } from './aiTrace';
+import { ACTION_TABLE, AI_ROW_COLUMNS, OUTCOME_BITS, STOP_TABLE, getOutcomeBitMask, getStopCode, type AiRow, type AiTraceChunk, type AiUnitRow } from './aiTrace';
 import { edgeCircleDistance } from './rangeUtils';
 
 export type TraceExportMode = 'full' | 'noTerms' | 'flaggedOnly';
@@ -347,7 +347,10 @@ export async function buildTraceExport(slotId: string, mode: TraceExportMode): P
   const unitDefs = buildUnitDefs(units);
   const flagNames = deriveFlagNames(rows, summaries);
   const fullRows = rows.map((row, index) => cloneRowWithFlags(row, flagNames[index]));
-  const flaggedRows = fullRows.filter((row) => row[row.length - 1].length > 0);
+  const flaggedRows = fullRows.filter((row) => {
+    const flagNames = row[row.length - 1] as string[];
+    return flagNames.length > 0;
+  });
   const modeColumns = buildModeColumns(mode);
   const outputRows = (mode === 'flaggedOnly' ? flaggedRows : fullRows).map((row) =>
     mode === 'noTerms' ? stripTermColumns(row) : row,
