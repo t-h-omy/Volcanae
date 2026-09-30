@@ -66,7 +66,8 @@ export const SPAWN_BUDGET = {
   /** Floor: the enemy never produces fewer expected spawns per turn than this, DDA relief cannot push below it */
   MIN_BUDGET: 1.0,
   /** Ceiling: expected spawns per turn never exceed this, regardless of ember */
-  MAX_BUDGET: 5.0,
+  /** ACCUMULATOR_CAP must always be be greater than MAX_BUDGET */
+  MAX_BUDGET: 6.0,
   /** Frontmost-player-stronghold-to-lava margin (in rows) below which DDA relief starts; at or above it relief is 0 */
   DDA_EXPECTED_MARGIN: 12,
   /** Relief per row of missing margin (subtracted from the budget) */
@@ -76,7 +77,7 @@ export const SPAWN_BUDGET = {
   /** DDA gate: relief only applies while any enemy entity (unit or building) is within this edge-circle range of any player entity; prevents permanent early-game relief from spawning close to the lava without any enemy contact */
   DDA_CONTACT_RANGE: 3,
   /** Max banked fractional/blocked spawn debt; must stay greater than MAX_BUDGET (see block comment) */
-  ACCUMULATOR_CAP: 6.0,
+  ACCUMULATOR_CAP: 7.0,
   /** Selection weight at distance 0 to the nearest player unit */
   WEIGHT_MAX: 10,
   /** Selection weight floor for distant spawners; also the uniform weight when no player units exist */
