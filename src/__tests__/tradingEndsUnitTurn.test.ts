@@ -126,7 +126,6 @@ function makeMarketBuilding(pos = { x: 5, y: 5 }): Building {
     lastRecruitmentTurn: 0,
     marketResourceSlots: [],
     marketSpecialistSlots: [],
-    marketRefillCountdown: MARKET.AUTO_REFILL_INTERVAL,
     marketOffersInitialized: true,
   };
 }
