@@ -62,7 +62,7 @@ export const SPAWN_BUDGET = {
   /** Expected spawns per turn at ember 0 (before relief and clamps) */
   BASE_BUDGET: 1.5,
   /** Budget added per ember level; quantity saturates once the MAX_BUDGET clamp binds (see block comment) */
-  EMBER_BUDGET_PER_LEVEL: 0.3334,
+  EMBER_BUDGET_PER_LEVEL: 0.4,
   /** Floor: the enemy never produces fewer expected spawns per turn than this, DDA relief cannot push below it */
   MIN_BUDGET: 1.0,
   /** Ceiling: expected spawns per turn never exceed this, regardless of ember */
@@ -71,7 +71,7 @@ export const SPAWN_BUDGET = {
   /** Frontmost-player-stronghold-to-lava margin (in rows) below which DDA relief starts; at or above it relief is 0 */
   DDA_EXPECTED_MARGIN: 12,
   /** Relief per row of missing margin (subtracted from the budget) */
-  DDA_PER_ROW: 0.25,
+  DDA_PER_ROW: 0.5,
   /** Maximum total relief (most negative value the DDA term can take) */
   DDA_MIN: -3.0,
   /** DDA gate: relief only applies while any enemy entity (unit or building) is within this edge-circle range of any player entity; prevents permanent early-game relief from spawning close to the lava without any enemy contact */
