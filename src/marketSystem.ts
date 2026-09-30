@@ -4,9 +4,12 @@
  * Provides pure functions for creating and managing Market buildings:
  * - createMarket: build the initial Building record with rolled slots
  * - rollResourceOffer / rollSpecialistId: offer generation
- * - fillEmptyResourceSlots / fillEmptySpecialistSlots: auto-refill helpers
- * - restockAllSlots: paid restock (rerolls everything)
- * - tickMarketRefills: decrement countdown; trigger fill on zero
+ * - fillEmptyResourceSlots / fillEmptySpecialistSlots: first-discovery fill helpers
+ * - initializeMarketOffers: one-time offer generation on first discovery
+ * - restockAllSlots: manual restock (paid or free; rerolls everything)
+ *
+ * Offers never refresh automatically: a bought slot stays empty (null) until
+ * the player uses a paid or free restock.
  *
  * Uses an injectable RNG source (setMarketRandomSource) identical to the
  * pattern in waveThemeSystem.ts so tests can use a seeded deterministic RNG.
@@ -104,7 +107,7 @@ export function rollSpecialistId(
 
 /**
  * Fill all EMPTY (null) resource slots in the market with fresh rolled offers.
- * Does NOT touch filled slots.
+ * Does NOT touch filled slots. Only used for first-time market initialization.
  */
 export function fillEmptyResourceSlots(
   _state: GameState | Draft<GameState>,
@@ -124,7 +127,7 @@ export function fillEmptyResourceSlots(
 
 /**
  * Fill all EMPTY (null) specialist slots in the market.
- * Does NOT touch filled slots.
+ * Does NOT touch filled slots. Only used for first-time market initialization.
  */
 export function fillEmptySpecialistSlots(
   state: GameState | Draft<GameState>,
@@ -141,7 +144,7 @@ export function fillEmptySpecialistSlots(
 
 /**
  * Restock: clear ALL slots (resource and specialist) then re-roll them.
- * This is the paid player action — label "Restock" in the UI.
+ * Used by both manual restock actions (paid and free).
  */
 export function restockAllSlots(
   state: GameState | Draft<GameState>,
@@ -228,7 +231,6 @@ export function createMarket(
     lastRecruitmentTurn: 0,
     marketResourceSlots,
     marketSpecialistSlots,
-    marketRefillCountdown: MARKET.AUTO_REFILL_INTERVAL,
     marketOffersInitialized: false,
   };
 }
@@ -240,34 +242,5 @@ export function initializeMarketOffers(
   if (market.marketOffersInitialized === true) return;
   fillEmptyResourceSlots(state, market);
   fillEmptySpecialistSlots(state, market);
-  market.marketRefillCountdown = MARKET.AUTO_REFILL_INTERVAL;
   market.marketOffersInitialized = true;
-}
-
-// ============================================================================
-// AUTO-REFILL TICK
-// ============================================================================
-
-/**
- * Decrement each market's refill countdown. When it reaches zero,
- * fill empty slots and reset to AUTO_REFILL_INTERVAL.
- *
- * Call once per player turn-end (after other bookkeeping, alongside
- * where hasCapturedThisTurn is reset).
- */
-export function tickMarketRefills(state: Draft<GameState>): void {
-  for (const building of Object.values(state.buildings)) {
-    if (building.type !== BuildingType.MARKET) continue;
-    if (building.marketOffersInitialized !== true) continue;
-    const tile = state.grid[building.position.y]?.[building.position.x];
-    if (!tile?.isRevealed) continue;
-    if (building.marketRefillCountdown === undefined) continue;
-
-    building.marketRefillCountdown -= 1;
-    if (building.marketRefillCountdown <= 0) {
-      fillEmptyResourceSlots(state, building);
-      fillEmptySpecialistSlots(state, building);
-      building.marketRefillCountdown = MARKET.AUTO_REFILL_INTERVAL;
-    }
-  }
 }

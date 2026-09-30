@@ -633,16 +633,14 @@ export interface Building {
    * Only set on MARKET buildings.
    */
   lastFreeRestockTurn?: number;
-  /** Market resource offer slots — null entries are empty (used/not yet refilled). Only set on MARKET buildings. */
+  /** Market resource offer slots — null entries are empty (bought; stay empty until a manual restock). Only set on MARKET buildings. */
   marketResourceSlots?: (MarketResourceOffer | null)[];
   /** Market specialist offer slots — null entries are empty or unavailable. Only set on MARKET buildings. */
   marketSpecialistSlots?: (string | null)[];
-  /** Player turns remaining until the next empty-slot auto-refill. Only set on MARKET buildings. */
-  marketRefillCountdown?: number;
   /**
    * Whether this market's offer slots have been initialized.
    * False/undefined means offers have not been generated yet (e.g. market not discovered).
-   * True means slots were initialized at least once and can refill/restock normally.
+   * True means slots were initialized once; afterwards only manual restocks reroll them.
    */
   marketOffersInitialized?: boolean;
   /**
