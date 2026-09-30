@@ -40,7 +40,7 @@ export const RESOURCES = {
    * non-disabled player Charcoal Kiln. The bonus stacks additively: a mine
    * receives one increment per active in-range kiln.
    */
-  CHARCOAL_KILN_IRON_BONUS: 1,
+  CHARCOAL_KILN_IRON_BONUS: 2,
   /**
    * Edge-circle radius used to determine which player MINE or DEEP_MINE buildings benefit
    * from a given Charcoal Kiln (measured via isTileWithinEdgeCircleRange).
@@ -57,8 +57,8 @@ export interface MarketOfferPoolEntry {
 
 export const MARKET = {
   // ── Placement (mapGenerator.ts) ──────────────────────────────────────────
-  MIN_PER_GAME: 2,
-  MAX_PER_GAME: 2,
+  MIN_PER_GAME: 3,
+  MAX_PER_GAME: 3,
   /**
    * Markets spawn ONLY in the MIDDLE zones. The first HEAD zones and the last
    * TAIL zones are EXCLUDED. Eligible = all zones except the first HEAD and the
@@ -71,7 +71,7 @@ export const MARKET = {
    * middle zones {4,5,6,7}. Revisit these if ZONE_COUNT changes.
    */
   EXCLUDED_ZONES_HEAD: 2,
-  EXCLUDED_ZONES_TAIL: 3,
+  EXCLUDED_ZONES_TAIL: 2,
 
   // ── Slots (rolled per market at generation; default fixed at 3 / 1) ───────
   RESOURCE_SLOTS_MIN: 3,
@@ -91,7 +91,7 @@ export const MARKET = {
 
   // ── Specialist offers ─────────────────────────────────────────────────────
   /** Flat crystal cost per specialist acquisition (same for every specialist). */
-  SPECIALIST_PRICE_CRYSTAL: 3,
+  SPECIALIST_PRICE_CRYSTAL: 5,
 
   // ── Building ──────────────────────────────────────────────────────────────
   /** Market HP (lava-only removal; kept for data-model consistency). */
@@ -99,20 +99,20 @@ export const MARKET = {
 
   // ── Resource offer pool: give X of A → gain Y of B ────────────────────────
   RESOURCE_OFFER_POOL: [
-    { give: { currency: 'WOOD'    as MarketCurrency, amount: 6  }, gain: { currency: 'IRON'    as MarketCurrency, amount: 3  } },
-    { give: { currency: 'IRON'    as MarketCurrency, amount: 6  }, gain: { currency: 'WOOD'    as MarketCurrency, amount: 3  } },
-    { give: { currency: 'WOOD'    as MarketCurrency, amount: 10 }, gain: { currency: 'IRON'    as MarketCurrency, amount: 6  } },
-    { give: { currency: 'IRON'    as MarketCurrency, amount: 10 }, gain: { currency: 'WOOD'    as MarketCurrency, amount: 6  } },
-    { give: { currency: 'WOOD'    as MarketCurrency, amount: 20 }, gain: { currency: 'IRON'    as MarketCurrency, amount: 14 } },
-    { give: { currency: 'IRON'    as MarketCurrency, amount: 20 }, gain: { currency: 'WOOD'    as MarketCurrency, amount: 14 } },
+    { give: { currency: 'WOOD'    as MarketCurrency, amount: 6  }, gain: { currency: 'IRON'    as MarketCurrency, amount: 4  } },
+    { give: { currency: 'IRON'    as MarketCurrency, amount: 6  }, gain: { currency: 'WOOD'    as MarketCurrency, amount: 4  } },
+    { give: { currency: 'WOOD'    as MarketCurrency, amount: 10 }, gain: { currency: 'IRON'    as MarketCurrency, amount: 7  } },
+    { give: { currency: 'IRON'    as MarketCurrency, amount: 10 }, gain: { currency: 'WOOD'    as MarketCurrency, amount: 7  } },
+    { give: { currency: 'WOOD'    as MarketCurrency, amount: 20 }, gain: { currency: 'IRON'    as MarketCurrency, amount: 15 } },
+    { give: { currency: 'IRON'    as MarketCurrency, amount: 20 }, gain: { currency: 'WOOD'    as MarketCurrency, amount: 15 } },
     { give: { currency: 'CRYSTAL' as MarketCurrency, amount: 1  }, gain: { currency: 'WOOD'    as MarketCurrency, amount: 5  } },
     { give: { currency: 'CRYSTAL' as MarketCurrency, amount: 1  }, gain: { currency: 'IRON'    as MarketCurrency, amount: 5  } },
-    { give: { currency: 'WOOD'    as MarketCurrency, amount: 10 }, gain: { currency: 'CRYSTAL' as MarketCurrency, amount: 1  } },
-    { give: { currency: 'IRON'    as MarketCurrency, amount: 10 }, gain: { currency: 'CRYSTAL' as MarketCurrency, amount: 1  } },
+    { give: { currency: 'WOOD'    as MarketCurrency, amount: 10 }, gain: { currency: 'CRYSTAL' as MarketCurrency, amount: 3  } },
+    { give: { currency: 'IRON'    as MarketCurrency, amount: 10 }, gain: { currency: 'CRYSTAL' as MarketCurrency, amount: 3  } },
     { give: { currency: 'CRYSTAL' as MarketCurrency, amount: 2  }, gain: { currency: 'WOOD'    as MarketCurrency, amount: 12 } },
     { give: { currency: 'CRYSTAL' as MarketCurrency, amount: 2  }, gain: { currency: 'IRON'    as MarketCurrency, amount: 12 } },
-    { give: { currency: 'WOOD'    as MarketCurrency, amount: 20 }, gain: { currency: 'CRYSTAL' as MarketCurrency, amount: 2  } },
-    { give: { currency: 'IRON'    as MarketCurrency, amount: 20 }, gain: { currency: 'CRYSTAL' as MarketCurrency, amount: 2  } },
+    { give: { currency: 'WOOD'    as MarketCurrency, amount: 20 }, gain: { currency: 'CRYSTAL' as MarketCurrency, amount: 8  } },
+    { give: { currency: 'IRON'    as MarketCurrency, amount: 20 }, gain: { currency: 'CRYSTAL' as MarketCurrency, amount: 8  } },
   ] as MarketOfferPoolEntry[],
 } as const;
 
