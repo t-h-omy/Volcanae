@@ -1,5 +1,21 @@
 # Changelog
 
+### v0.113.0 - AI trace export access
+
+Added run D of the AI trace diagnostics flow. Finished runs now seal and preserve their traces before save-slot cleanup, archived traces are retained in IndexedDB with bounded pruning, Dev Options can export or delete both the active trace and finished runs, and defeat or victory screens now expose the sealed AI trace export button alongside the existing save export.
+
+### v0.112.0 - AI trace score terms
+
+Added run C of the AI trace diagnostics flow. Enemy action scoring now records dominant score terms and contested winner and runner-up term lists without changing AI behaviour, and exports now include the term legend, dominant-term action stats, and a BASE-dominated tuning flag.
+
+### v0.111.0 - AI trace export and badge
+
+Added run B of the AI trace diagnostics flow. Recorded AI traces can now be exported in full, no-terms, or flagged-only modes with embedded config, legends, summaries, action stats, and derived anomaly flags. A new in-game REC badge shows trace activity, opens the export panel, and can clear the current save's trace data.
+
+### v0.110.0 - AI decision trace recorder
+
+Added the run A AI trace recorder: config and code tables, a per-turn collector, movement stop and terrain instrumentation, IndexedDB trace persistence, game-store wiring, and a persisted dev toggle for recording enemy AI decisions. This ships without export UI or score-term decomposition, keeps trace data out of GameState and save migrations, bumps the save database schema to add the dedicated trace store, and adds regression coverage for tracing neutrality and persistence.
+
 ### v0.109.3 - Stronghold-based DDA margin
 
 The spawn-budget DDA margin now measures the distance between the lava front and the player's frontmost stronghold instead of the player's frontmost unit. The Dev Stats overlay label was updated to match, spawn-budget tests were adjusted to cover stronghold-based relief, and the package patch version was bumped to 0.109.3.

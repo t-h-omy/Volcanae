@@ -93,6 +93,129 @@
   letter-spacing: 1px;
 }
 
+/* ── AI trace badge ── */
+
+.ai-trace-badge-shell {
+  position: fixed;
+  top: 42px;
+  left: 50%;
+  z-index: 101;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.ai-trace-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.82);
+  color: #eee;
+  font-size: 11px;
+  font-weight: 700;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.ai-trace-badge-pill--ok .ai-trace-badge-dot {
+  color: #d24a43;
+}
+
+.ai-trace-badge-pill--warn .ai-trace-badge-dot {
+  color: #d6a343;
+}
+
+.ai-trace-panel {
+  max-width: 360px;
+}
+
+.ai-trace-panel-status {
+  max-width: 180px;
+  text-align: right;
+  white-space: normal;
+}
+
+.ai-trace-panel-clear {
+  color: #f0bbbb;
+}
+
+.ai-trace-export-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-trace-export-controls--compact {
+  margin: 8px 0 10px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.14);
+}
+
+.ai-trace-export-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ai-trace-export-actions--compact {
+  flex-direction: row;
+  align-items: center;
+}
+
+.ai-trace-export-actions-compact-secondary {
+  flex: 0 0 auto;
+  min-width: 112px;
+}
+
+.hud-dev-trace-empty {
+  font-size: 12px;
+  color: #bbb;
+  padding: 4px 0 8px;
+}
+
+.hud-dev-trace-archive-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hud-dev-trace-archive-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.hud-dev-trace-archive-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.hud-dev-trace-archive-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #eee;
+}
+
+.hud-dev-trace-archive-meta {
+  margin-top: 2px;
+  font-size: 11px;
+  color: #bbb;
+}
+
+.hud-dev-trace-archive-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 /* ── Bottom Bar ── */
 
 .hud-bottom-bar {

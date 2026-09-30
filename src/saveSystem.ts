@@ -60,7 +60,7 @@ export function idbAvailable(): boolean {
 }
 
 /** Open (or create) the Volcanae IndexedDB database. */
-function openDb(): Promise<IDBDatabase> {
+export function openSaveDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(SAVE.IDB_NAME, SAVE.IDB_VERSION);
     req.onupgradeneeded = () => {
@@ -71,11 +71,16 @@ function openDb(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(SAVE.STORE_DATA)) {
         db.createObjectStore(SAVE.STORE_DATA, { keyPath: 'id' });
       }
+      if (!db.objectStoreNames.contains(SAVE.STORE_TRACE)) {
+        db.createObjectStore(SAVE.STORE_TRACE, { keyPath: 'key' });
+      }
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
 }
+
+const openDb = openSaveDb;
 
 /**
  * Migrate and validate a raw parsed save payload.
@@ -635,9 +640,25 @@ export async function deleteSlot(id: string): Promise<void> {
   try {
     const db = await openDb();
     await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction([SAVE.STORE_META, SAVE.STORE_DATA], 'readwrite');
+      const tx = db.transaction([SAVE.STORE_META, SAVE.STORE_DATA, SAVE.STORE_TRACE], 'readwrite');
       tx.objectStore(SAVE.STORE_META).delete(id);
       tx.objectStore(SAVE.STORE_DATA).delete(id);
+      const traceStore = tx.objectStore(SAVE.STORE_TRACE);
+      const metaReq = traceStore.get(`${id}:meta`);
+      metaReq.onsuccess = () => {
+        const sealed = Boolean((metaReq.result as { sealed?: boolean } | undefined)?.sealed);
+        if (sealed) return;
+        const range = IDBKeyRange.bound(`${id}:`, `${id}:\uffff`);
+        const req = traceStore.openKeyCursor(range);
+        req.onsuccess = () => {
+          const cursor = req.result;
+          if (!cursor) return;
+          traceStore.delete(cursor.primaryKey);
+          cursor.continue();
+        };
+        req.onerror = () => reject(req.error);
+      };
+      metaReq.onerror = () => reject(metaReq.error);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });

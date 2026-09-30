@@ -16,4 +16,5 @@ export * from '../config/tagInfo';
 export * from '../config/tech';
 export * from '../config/specialists';
 export * from '../config/enemyAi';
+export * from '../config/aiTrace';
 export * from '../config/save';

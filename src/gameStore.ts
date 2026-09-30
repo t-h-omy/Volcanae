@@ -69,6 +69,8 @@ import { useHintStore } from './hintStore';
 import { flushDeferredHints, tryTriggerHint } from './hintSystem';
 import { triggerEmberLevelUpVfx } from './emberLevelVfx';
 import { useEmberDisplayStore } from './emberDisplayStore';
+import { useDevOptionsStore } from './devOptionsStore';
+import { appendChunk, deleteTurnsAfter, getTraceIndexSeed, readMeta as readAiTraceMeta, sealRun } from './aiTraceStore';
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
@@ -440,6 +442,8 @@ export const useGameStore = create<GameStore>()(
     loadIntoGame: async (id: string) => {
       const loaded = await loadSlot(id);
       if (!loaded) return;
+      await deleteTurnsAfter(id, loaded.turn);
+      await readAiTraceMeta(id);
       // Clear stale animation state from any previous game before loading.
       useAnimationStore.getState().clear();
       set((state) => {
@@ -2054,6 +2058,7 @@ export const useGameStore = create<GameStore>()(
       let untrainedHintPos: { x: number; y: number } | null = null;
       let hasBurningPlayerDamage = false;
       const resolveCaptureEvents: GameEvent[] = [];
+      let pendingTraceChunk: ReturnType<typeof runEnemyTurn>['trace'] = null;
 
       set((state) => {
         // Auto-deselect when the player ends their turn — no unit, building,
@@ -2107,7 +2112,15 @@ export const useGameStore = create<GameStore>()(
         const prevUntrainedIds = computeUntrainedUnitIds(snapshot);
 
         // Phase 2: Compute enemy turn on snapshot
-        const { finalState: afterEnemy, events: enemyEvents } = runEnemyTurn(snapshot);
+        const activeSaveId = useMenuStore.getState().activeSaveId;
+        const traceEnabled = useDevOptionsStore.getState().recordAiTrace;
+        const traceSeed = activeSaveId ? getTraceIndexSeed(activeSaveId) ?? undefined : undefined;
+        const { finalState: afterEnemy, events: enemyEvents, trace } = runEnemyTurn(snapshot, {
+          trace: traceEnabled && !!activeSaveId,
+          slotId: activeSaveId ?? undefined,
+          unitIndexSeed: traceSeed,
+        });
+        pendingTraceChunk = trace;
 
         // Phase 3: Check game conditions after enemy turn
         let computedState = produce(afterEnemy, (draft) => {
@@ -2468,6 +2481,12 @@ export const useGameStore = create<GameStore>()(
       if (untrainedHintPos !== null) {
         useHintStore.getState().defer({ hintId: 'H11_UNTRAINED', cameraTarget: untrainedHintPos });
       }
+      if (pendingTraceChunk !== null) {
+        const activeSaveId = useMenuStore.getState().activeSaveId;
+        if (activeSaveId) {
+          appendChunk(activeSaveId, pendingTraceChunk).catch(() => undefined);
+        }
+      }
 
       // Enqueue outside the immer set so the draft has already committed before
       // the animation engine's subscribe handler fires.
@@ -2502,6 +2521,13 @@ export const useGameStore = create<GameStore>()(
                 const slotName = meta?.name ?? serializableState.turn.toString();
                 saveSlot({ id: activeSaveId, name: slotName, state: serializableState }).catch(() => undefined);
               }).catch(() => undefined);
+              if (stateForSave.phase === GamePhase.GAME_OVER || stateForSave.phase === GamePhase.VICTORY) {
+                sealRun(
+                  activeSaveId,
+                  stateForSave.phase === GamePhase.VICTORY ? 'VICTORY' : 'DEFEAT',
+                  stateForSave.turn,
+                ).catch(() => undefined);
+              }
             }
           }
         }
