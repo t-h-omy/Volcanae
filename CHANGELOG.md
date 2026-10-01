@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.113.5 - Portal occupancy ownership
+
+Enemy units can no longer stack on a portal tile. Teleports now require the entrance tile to be owned by the moving unit and the exit tile to be empty, never clear or overwrite a tile owned by a different unit, and keep a single waiting unit per entrance. Stale pending waiters (removed, moved away, or no longer owning the entrance tile) are cleared, the portal AI no longer offers `MOVE_TO_PORTAL` for an occupied entrance or while another unit is waiting, and the low-level enemy move refuses to write a destination owned by another unit. The animation replay of `PORTAL_USED` and `ENEMY_MOVE` keeps the same occupancy invariant and logs a development diagnostic instead of orphaning the occupying unit. `EMBER_PORTAL_MAX_USERS_PER_TURN` is unchanged; two sequential users per turn still work when the entrance and exit actually clear. Added portal occupancy regression tests with a reusable `expectUnitGridOccupancyConsistent()` assertion.
+
 ### v0.113.4 - HIT_AND_RUN exhausted display
 
 Player units with HIT_AND_RUN (such as the Crystal Drake) are no longer dimmed as exhausted right after attacking while their post-attack move is still available and has at least one legal destination. `isUnitDisplayExhausted()` now derives this from the same `getMovableTiles()`/`canUnitMove()` rules used by gameplay; once the post-attack move is used, or if no tile is reachable, the unit is shown as exhausted as before. Gameplay rules, `hasUnitActed()`, and enemy AI are unchanged. Added regression tests.
