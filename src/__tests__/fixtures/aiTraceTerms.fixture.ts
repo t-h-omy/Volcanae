@@ -12033,7 +12033,7 @@ export const EXPECTED_ENEMY_TURN_FINAL_STATE: GameState = {
     "spec_23": {
       "id": "spec_23",
       "name": "The Matriarch",
-      "description": "The first time each of your housing buildings reaches full population, it immediately gains a second full complement of residents.",
+      "description": "Doubles farmer and noble housing caps and recruitment unit limits. New units have their iron and wood recruitment cost and max HP halved, rounded up.",
       "effects": [
         {
           "type": "POP_DOUBLING_DOCTRINE",

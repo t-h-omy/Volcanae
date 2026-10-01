@@ -222,7 +222,7 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
   spec_23: {
     name: 'The Matriarch',
     description:
-      `The first time each of your housing buildings reaches full population, it immediately gains a second full complement of residents.`,
+      'Doubles farmer and noble housing caps and recruitment unit limits. New units have their iron and wood recruitment cost and max HP halved, rounded up.',
     effects: [{ type: 'POP_DOUBLING_DOCTRINE', params: {} }],
     upkeepIron: 0,
     upkeepWood: 0,
@@ -252,4 +252,3 @@ export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
     upkeepWood: 0,
   },
 };
-

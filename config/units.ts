@@ -365,7 +365,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     ],
     enemyUnlockEmber: 1,
     themeEligible: false,
-    description: 'Fragile fire spirit that walks toward lava. Explodes when it cannot move closer to lava.', // overwritten below
+    description: 'Sacrificial fire spirit that seeks lava and can explode when blocked.', // overwritten below
   },
 
   CAVE_MONSTER: {
@@ -476,7 +476,9 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   u.LAVA_ARCHER.description = `Enemy ranged unit that attacks from ${u.LAVA_ARCHER.attackRange} tiles away.`;
   u.LAVA_RIDER.description  = `Enemy fast cavalry that covers ${u.LAVA_RIDER.moveRange} tiles per move.`;
   u.LAVA_SIEGE.description  = `Enemy long-range bombard with ${u.LAVA_SIEGE.attackRange}-tile reach.`;
-  u.EMBERLING.description   = `Fragile fire spirit that walks toward lava. Explodes on death, dealing ${u.EMBERLING.explosionDamage} damage to all units within 1 tile.`;
+  u.EMBERLING.description   =
+    `Sacrificial fire spirit that seeks lava. Reaching lava destroys it and raises Ember by 1. ` +
+    `Its EXPLODE action is available when it is blocked from reaching lava and next to player units; it deals ${u.EMBERLING.explosionDamage} damage to all player units within 1 tile and destroys itself.`;
   u.MAGE.description        = `Arcane caster that casts spells instead of attacking, with ${u.MAGE.attackRange}-tile range and ${MAGE.SPELLS_PER_TURN} spell cast${MAGE.SPELLS_PER_TURN !== 1 ? 's' : ''} per turn. Recruited from active Crystal Chambers.`;
   u.EMBER_DEMON.description = `Powerful demonic unit.`;
   u.SKELETON.description    = `Undead warrior raised from a gravestone.`;
@@ -489,4 +491,3 @@ UNIT_DEFINITIONS.RIFTWORM.description = `Digs underground and re-emerges ${ABILI
 // Compute Grimbeak description referencing the summoned-damage multiplier.
 UNIT_DEFINITIONS.GRIMBEAK.description = `Resilient lava beast that resists damage from summoned units, deals ${ABILITIES.GRIMBEAK_SUMMONED_DAMAGE_MULTIPLIER}× damage to them, and prioritises attacking summoned units. Grows enraged in dense clusters.`;
 // ============================================================================
-
