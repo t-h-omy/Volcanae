@@ -37,7 +37,7 @@ import {
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
 import { nextTileCycleTarget, tileSelectionState } from '../tileCycleHelper';
 import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, canUnitConstruct, canUnitCapture, getHealTargets, getBridgeBuildTargets, explainInvalidHealTarget, explainInvalidBridgeTarget, getTrapPlacementTargets, explainInvalidTrapTarget, isUnitDisplayExhausted } from '../unitActions';
-import { getValidSpellTargets, explainInvalidSpellTarget } from '../spellSystem';
+import { getValidSpellTargets, explainInvalidSpellTarget, getTransposeTerrainBlockedTargets } from '../spellSystem';
 import './GridRenderer.css';
 
 // ============================================================================
@@ -582,6 +582,18 @@ export default function GridRenderer() {
     return set;
   }, [pendingSpellCast, pendingTransposeFirstUnitId, units, buildings, grid]);
 
+  // Transpose second pick: same-faction in-range units whose swap fails only
+  // the destination-terrain check get a blocked marker before clicking.
+  const spellBlockedSet = useMemo<Set<string>>(() => {
+    if (!pendingSpellCast || pendingSpellCast.spellId !== 'TRANSPOSE' || !pendingTransposeFirstUnitId) {
+      return new Set();
+    }
+    const targets = getTransposeTerrainBlockedTargets(useGameStore.getState(), pendingSpellCast.mageId);
+    const set = new Set<string>();
+    for (const p of targets) set.add(posKey(p.x, p.y));
+    return set;
+  }, [pendingSpellCast, pendingTransposeFirstUnitId, units, buildings, grid]);
+
   // Leash visual: when a Mage (with leashed demons) or an Ember Demon is selected,
   // highlight both the demon tile and the mage tile.
   const leashSet = useMemo<Set<string>>(() => {
@@ -990,6 +1002,7 @@ export default function GridRenderer() {
             const isAttackable = attackableSet.has(key);
             const isHealable = healableSet.has(key);
             const isSpellTarget = spellTargetSet.has(key);
+            const isSpellBlocked = spellBlockedSet.has(key);
             const isBridgeBuildTarget = bridgeBuildTargetSet.has(key);
             const isLeashed = leashSet.has(key);
             const isLeashWarn = leashWarnSet.has(key);
@@ -1013,6 +1026,7 @@ export default function GridRenderer() {
                 isAttackable={isAttackable}
                 isHealable={isHealable}
                 isSpellTarget={isSpellTarget}
+                isSpellBlocked={isSpellBlocked}
                 isBridgeBuildTarget={isBridgeBuildTarget}
                 isLeashed={isLeashed}
                 isLeashWarn={isLeashWarn}
@@ -1064,6 +1078,8 @@ interface TileCellProps {
   isAttackable: boolean;
   isHealable: boolean;
   isSpellTarget: boolean;
+  /** True when this tile holds a spell target blocked only by terrain legality (Transpose second pick). */
+  isSpellBlocked: boolean;
   /** True when this canyon tile is a valid bridge-build target for the pending builder. */
   isBridgeBuildTarget: boolean;
   isLeashed: boolean;
@@ -1095,6 +1111,7 @@ function TileCellInner({
   isAttackable,
   isHealable,
   isSpellTarget,
+  isSpellBlocked,
   isBridgeBuildTarget,
   isLeashed,
   isLeashWarn,
@@ -1333,6 +1350,9 @@ function TileCellInner({
 
       {/* spell target overlay */}
       {isSpellTarget && <div className="tile-overlay tile--spell-target" />}
+
+      {/* blocked spell target overlay — Transpose swap that fails terrain legality */}
+      {isSpellBlocked && <div className="tile-overlay tile--spell-blocked" />}
 
       {/* slide-preview overlay — secondary destination when moving onto a FROZEN tile */}
       {isSlidePreview && <div className="tile-overlay tile--slide-preview" />}

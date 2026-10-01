@@ -3,7 +3,7 @@
  * Implements unit movement logic with reachability calculation.
  */
 
-import type { GameState, Position } from './types';
+import type { GameState, Position, Unit } from './types';
 import type { Draft } from 'immer';
 import { BuildingType, Faction, TechFlag, TileType, TileStatus, UnitTag } from './types';
 import { MAP, ABILITIES } from './gameConfig';
@@ -24,6 +24,36 @@ const MOVE_DIRECTIONS: [number, number][] = [
   [-1,  0],          [1,  0],
   [-1,  1], [0,  1], [1,  1],
 ];
+
+/**
+ * Returns true if `unit` may legally STAND on tile (x, y) under the terrain
+ * occupancy rules. This models final-tile occupancy only — not pathing,
+ * bridge direction rules, fog, lava, unit/building occupancy, or portals.
+ *
+ * Rules:
+ *  - FLYING units may occupy CANYON and WATER tiles.
+ *  - Non-flying units may occupy CANYON only when a BRIDGE stands on it.
+ *  - Non-flying player units may occupy WATER only when it is FROZEN.
+ *  - Non-flying enemy units may never occupy WATER (frozen or not).
+ */
+export function canUnitOccupyTerrain(
+  state: GameState | Draft<GameState>,
+  unit: Pick<Unit, 'faction' | 'tags'>,
+  x: number,
+  y: number,
+): boolean {
+  const tile = state.grid[y]?.[x];
+  if (!tile) return false;
+  if (unit.tags.includes(UnitTag.FLYING)) return true;
+  if (tile.terrainType === TileType.CANYON) {
+    return getBridgeAt(state, x, y) !== null;
+  }
+  if (tile.terrainType === TileType.WATER) {
+    if (tile.status !== TileStatus.FROZEN) return false;
+    if (unit.faction === Faction.ENEMY) return false;
+  }
+  return true;
+}
 
 /**
  * Gets all tiles that a unit can reach from its current position.
@@ -163,24 +193,12 @@ export function getReachableTiles(
       // a flying unit takes the heat and burns.
       const isFlying = unit.tags.includes(UnitTag.FLYING);
 
-      // CANYON: blocked for non-flying unless there is a bridge on that tile
-      // AND the movement direction is allowed by the bridge's orientation.
-      // Also gate the exit from a bridged canyon tile (canTraverseEdge handles both).
-      if (tile.terrainType === TileType.CANYON && !isFlying) {
-        const bridge = getBridgeAt(state, nx, ny);
-        if (!bridge) continue;
-        // Bridge exists — check directional edge rules for entry (and exit from
-        // current tile if it is also a bridge, though bridges can't be adjacent).
-        if (!canTraverseEdge(state, x, y, nx, ny, false)) continue;
-      } else if (tile.terrainType !== TileType.CANYON) {
-        // For non-canyon tiles, still enforce the exit direction rule if the
-        // current tile (x, y) has a bridge (unit is leaving a bridge).
-        if (!isFlying && !canTraverseEdge(state, x, y, nx, ny, false)) continue;
-      }
-      if (tile.terrainType === TileType.WATER && !isFlying) {
-        if (tile.status !== TileStatus.FROZEN) continue;
-        if (unit.faction === Faction.ENEMY) continue;
-      }
+      // Final-tile terrain occupancy (canyon needs a bridge, water must be
+      // frozen and the unit must not be an enemy) — shared with Transpose.
+      if (!canUnitOccupyTerrain(state, unit, nx, ny)) continue;
+      // Bridge direction rules gate both entering a bridged canyon tile and
+      // leaving a bridge tile (canTraverseEdge handles both).
+      if (!isFlying && !canTraverseEdge(state, x, y, nx, ny, false)) continue;
 
       // Cannot enter undiscovered tiles (player units only)
       if (!tile.isRevealed && unit.faction === Faction.PLAYER) continue;

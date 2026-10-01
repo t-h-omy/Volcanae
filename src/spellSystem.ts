@@ -25,6 +25,7 @@ import { shouldLeaveGravestone, createGravestoneAt, updateBerserkLatch } from '.
 import { applyTagStatEffects } from './techSystem';
 import { cleanupRoostedUnits } from './buildingRemoval';
 import { getTagsFromActiveSpecialistsForSourceTag } from './specialistSystem';
+import { canUnitOccupyTerrain } from './movementSystem';
 
 /** Returns the effective spell range for a mage (its attack range). */
 export function getMageSpellRange(
@@ -116,6 +117,7 @@ export function isTileInSpellRange(
 
 const SPELL_TARGET_REASONS = {
   TRANSPOSE_SECOND_PICK_FACTION: 'Faction must match first unit',
+  TRANSPOSE_TERRAIN: 'Cannot transpose: unit cannot occupy that terrain.',
   BRANDMARK_ALREADY_BRANDMARKED: 'Already brandmarked',
   BRANDMARK_SUMMONED: 'Summoned units cannot be brandmarked',
   BRANDMARK_SELF: 'Cannot cast on itself',
@@ -123,6 +125,47 @@ const SPELL_TARGET_REASONS = {
   FROSTCRAFT_TERRAIN: 'Cannot freeze this terrain',
   OCCUPIED: 'Occupied',
 } as const;
+
+/**
+ * True iff swapping units `a` and `b` leaves each on terrain it may legally
+ * occupy. The swap is simultaneous, so the other unit is not a blocker.
+ */
+export function isTransposeTerrainLegal(
+  state: GameState | Draft<GameState>,
+  a: Unit | Draft<Unit>,
+  b: Unit | Draft<Unit>,
+): boolean {
+  return (
+    canUnitOccupyTerrain(state, a, b.position.x, b.position.y) &&
+    canUnitOccupyTerrain(state, b, a.position.x, a.position.y)
+  );
+}
+
+/**
+ * Returns Transpose second-pick tiles that pass every rule except the
+ * destination-terrain check (same faction, in Mage range). Used by the UI to
+ * mark blocked swaps before the player clicks them.
+ */
+export function getTransposeTerrainBlockedTargets(
+  state: GameState | Draft<GameState>,
+  mageId: string,
+): Position[] {
+  const mage = state.units[mageId];
+  const firstId = state.pendingTransposeFirstUnitId;
+  if (!mage || !firstId) return [];
+  const first = state.units[firstId];
+  if (!first) return [];
+  const range = getMageSpellRange(mage);
+  const targets: Position[] = [];
+  for (const unit of Object.values(state.units)) {
+    if (unit.id === firstId || unit.id === mageId) continue;
+    if (unit.faction !== first.faction) continue;
+    if (!isTileInSpellRange(mage, unit.position, range)) continue;
+    if (isTransposeTerrainLegal(state, first, unit)) continue;
+    targets.push({ ...unit.position });
+  }
+  return targets;
+}
 
 /** Returns the legal target tiles for a spell. Keep this rule set aligned with explainInvalidSpellTarget. */
 export function getValidSpellTargets(
@@ -157,6 +200,7 @@ export function getValidSpellTargets(
           if (unit.id === firstId || unit.id === mageId) continue;
           if (unit.faction !== first.faction) continue;
           if (!isTileInSpellRange(mage, unit.position, range)) continue;
+          if (!isTransposeTerrainLegal(state, first, unit)) continue;
           targets.push({ ...unit.position });
         }
         return targets;
@@ -310,6 +354,9 @@ export function explainInvalidSpellTarget(
       if (tappedUnit.faction !== first.faction) {
         return SPELL_TARGET_REASONS.TRANSPOSE_SECOND_PICK_FACTION;
       }
+      if (!isTransposeTerrainLegal(state, first, tappedUnit)) {
+        return SPELL_TARGET_REASONS.TRANSPOSE_TERRAIN;
+      }
       return null;
     }
 
@@ -425,6 +472,8 @@ function handleTranspose(
   if (!secondUnit) return false;
   if (secondUnit.faction !== firstUnit.faction) return false;
   if (!isTileInSpellRange(mage, secondUnit.position, range)) return false;
+  // Authoritative terrain check: keep the first pick so targeting stays active.
+  if (!isTransposeTerrainLegal(state, firstUnit, secondUnit)) return false;
 
   // Perform the swap
   const posA = { ...firstUnit.position };
