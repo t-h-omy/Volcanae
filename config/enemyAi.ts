@@ -12,10 +12,6 @@ export const LAVA_LAIR = {
 
 
 export const ENEMY = {
-  /** Maximum distance from lava for boost calculation */
-  MAX_LAVA_BOOST_DISTANCE: 20,
-  /** Maximum multiplier for lava proximity boost */
-  MAX_LAVA_BOOST_MULTIPLIER: 0,
   /** Number of player turns between automatic threat level increases */
   THREAT_LEVEL_INCREASE_INTERVAL: 10,
 } as const;
@@ -449,4 +445,3 @@ export const SANCTUM_COLLAPSE = {
    */
   LAVA_ADVANCE_BONUS_TURNS: 0,
 } as const;
-

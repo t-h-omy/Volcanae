@@ -41,7 +41,6 @@ const TAG_INFO = {
   FIELDWORK:      { label: "Fieldwork",       desc: "Can sacrifice itself on its current tile to instantly erect a Watchtower." },
   ASSASSIN:       { label: "Assassin",        desc: "Deals bonus damage when striking an enemy that is still at full health." },
   PATCHUP:        { label: "Patch Up",        desc: "Can spend its action to restore health on one adjacent friendly unit (except Summoned or Brandmarked units)." },
-  LAVABOOST:      { label: "Lava-Boosted",    desc: "Gains combat bonuses when fighting near the advancing lava front." },
 };
 
 const BUILDING_DESCRIPTIONS = {

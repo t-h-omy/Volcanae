@@ -83,7 +83,6 @@ function makeEmberNest(position: Position): Building {
     wasAttackedLastEnemyTurn: false,
     captureProgress: 0,
     isBeingCapturedBy: null,
-    lavaBoostEnabled: false,
     discoverRadius: BUILDING_DEFINITIONS[BuildingType.EMBERNEST].discoverRadius,
     turnCapturedByPlayer: null,
     wasEnemyOwnedBeforeCapture: false,

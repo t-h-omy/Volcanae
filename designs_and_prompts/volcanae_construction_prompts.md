@@ -32,7 +32,6 @@ ADD to the UnitType const object:
 
 REPLACE the UnitTag const object entirely with these values (do not keep NO_CAPTURE):
 - RANGED: 'RANGED' (existing — unit has ranged attack)
-- LAVA_BOOST: 'LAVA_BOOST' (existing — unit stats boosted at spawn based on lava proximity)
 - PREP: 'PREP' (existing — unit cannot move and attack in same turn)
 - BUILD_AND_CAPTURE: 'BUILD_AND_CAPTURE' (new unified tag — unit can construct buildings AND initiate captures)
 - CORRUPT: 'CORRUPT' (new — enemy unit can corrupt FOREST and MOUNTAIN terrain tiles)
@@ -311,7 +310,6 @@ enemyConstructBuilding(state: Draft<GameState>, unitId, tilePos, buildingType): 
 Steps:
 1. Validate with canEnemyConstructAt
 2. Create a new Building of the given type with faction = ENEMY
-3. For LAVA_LAIR: lavaBoostEnabled = true (enemy spawn units get lava boost)
 4. Add building to state.buildings
 5. Set grid tile buildingId
 6. Set tile.isRuin = false (or isStrongholdRuin = false if applicable)
@@ -474,7 +472,6 @@ Logic per LAVA_LAIR building:
 
 SECTION: INFERNAL_SANCTUM behavior
 
-INFERNAL_SANCTUM behaves like a LAVA_LAIR but with a higher lavaBoostEnabled multiplier.
 The existing BUILDING_SPAWN_UNIT_TYPE map must be updated to include:
 - LAVA_LAIR: UnitType.LAVA_GRUNT (default spawn)
 - INFERNAL_SANCTUM: UnitType.LAVA_RIDER (default spawn — stronger building, stronger unit)

@@ -131,7 +131,6 @@ function makeCave(pos: Position, resonance = 0): Building {
     wasAttackedLastEnemyTurn: false,
     captureProgress: 0,
     isBeingCapturedBy: null,
-    lavaBoostEnabled: false,
     discoverRadius: 0,
     turnCapturedByPlayer: null,
     wasEnemyOwnedBeforeCapture: false,

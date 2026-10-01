@@ -7,7 +7,7 @@ import type { GameState, Unit, Building, Position, SpawnBudgetSnapshot, Tile } f
 import type { Draft } from 'immer';
 import { current, produce } from 'immer';
 import { Faction, UnitType, UnitTag, BuildingType, TileType, TileStatus } from './types';
-import { UNIT_DEFINITIONS, ENEMY, MAP, TERRAIN, AI_SCORING, AI_RECRUITMENT, XP, DIFFICULTY_MULTIPLIER, SANCTUM_COLLAPSE, ABILITIES, SPAWN_BUDGET, AI_TRACE } from './gameConfig';
+import { UNIT_DEFINITIONS, MAP, TERRAIN, AI_SCORING, AI_RECRUITMENT, XP, DIFFICULTY_MULTIPLIER, SANCTUM_COLLAPSE, ABILITIES, SPAWN_BUDGET, AI_TRACE } from './gameConfig';
 import { resolveAttack, calculateCombat, resolveBuildingAttack, buildingToCombatant, calculateCombatFromStats, unitToCombatant, resolveAttackOnBuilding, detectBrandmarkSpawnPos, updateBerserkLatch } from './combatSystem';
 import { isTileWithinEdgeCircleRange, edgeCircleDistance } from './rangeUtils';
 import { initiateCapture, canCapture } from './captureSystem';
@@ -182,12 +182,6 @@ function isRecruitmentBuilding(building: Building): boolean {
     building.type === BuildingType.LAVALAIR ||
     building.type === BuildingType.INFERNALSANCTUM
   );
-}
-
-function calculateLavaBoostFactor(buildingPosition: Position, lavaFrontRow: number): number {
-  const effectiveLavaRow = Math.min(MAP.GRID_HEIGHT - 1, lavaFrontRow);
-  const distanceToLava = effectiveLavaRow - buildingPosition.y;
-  return Math.max(0, 1 - distanceToLava / ENEMY.MAX_LAVA_BOOST_DISTANCE);
 }
 
 function isPlayerUnitInDiscoverRadius(state: Draft<GameState>, building: Building): boolean {
@@ -588,28 +582,16 @@ function buildArmyProfile(units: Unit[]): ArmyProfile {
 function createEnemyUnit(
   position: Position,
   unitType: UnitType,
-  lavaBoostEnabled: boolean,
-  lavaFrontRow: number,
-  buildingPosition: Position,
   difficultyMult: number
 ): Unit {
   const baseHp: number = UNIT_DEFINITIONS[unitType].maxHp;
   const baseAttack: number = UNIT_DEFINITIONS[unitType].attack;
   const baseDefense: number = UNIT_DEFINITIONS[unitType].defense;
 
-  let finalHp: number = Math.round(baseHp * difficultyMult);
-  let finalAttack: number = Math.round(baseAttack * difficultyMult);
+  const finalHp: number = Math.round(baseHp * difficultyMult);
+  const finalAttack: number = Math.round(baseAttack * difficultyMult);
   const finalDefense: number = Math.round(baseDefense * difficultyMult);
   const tags: UnitTag[] = [...UNIT_DEFINITIONS[unitType].tags];
-
-  if (lavaBoostEnabled) {
-    const boostFactor = calculateLavaBoostFactor(buildingPosition, lavaFrontRow);
-    const boostMultiplier = 1 + boostFactor * ENEMY.MAX_LAVA_BOOST_MULTIPLIER;
-
-    finalHp = Math.round(finalHp * boostMultiplier);
-    finalAttack = Math.round(finalAttack * boostMultiplier);
-    tags.push(UnitTag.LAVABOOST);
-  }
 
   const unit: Unit = {
     id: generateEnemyId(),
@@ -780,7 +762,7 @@ function spawnEnemyUnits(state: Draft<GameState>, events?: GameEvent[]): void {
 
     const unitType: UnitType = pickUnitFromTheme(state, building);
     const spawnPosition: Position = { ...building.position };
-    const unit = createEnemyUnit(spawnPosition, unitType, building.lavaBoostEnabled, state.lavaFrontRow, building.position, DIFFICULTY_MULTIPLIER[state.difficulty]);
+    const unit = createEnemyUnit(spawnPosition, unitType, DIFFICULTY_MULTIPLIER[state.difficulty]);
 
     // Snapshot the unit BEFORE assigning to the draft (plain objects added
     // to a draft are not immediately proxied, so current() cannot be used).

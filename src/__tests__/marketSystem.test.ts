@@ -118,7 +118,6 @@ function makeMarketBuilding(pos = { x: 0, y: 0 }, slotOverrides: Partial<Buildin
     wasAttackedLastEnemyTurn: false,
     captureProgress: 0,
     isBeingCapturedBy: null,
-    lavaBoostEnabled: false,
     discoverRadius: 2,
     turnCapturedByPlayer: null,
     wasEnemyOwnedBeforeCapture: false,

@@ -108,7 +108,6 @@ function makeScoutTrap(x: number, y: number): Building {
     wasAttackedLastEnemyTurn: false,
     captureProgress: 0,
     isBeingCapturedBy: null,
-    lavaBoostEnabled: false,
     discoverRadius: 1,
     turnCapturedByPlayer: null,
     wasEnemyOwnedBeforeCapture: false,

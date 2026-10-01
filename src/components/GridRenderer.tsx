@@ -1490,7 +1490,6 @@ const TileCell = React.memo(TileCellInner);
 
 function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
   const hpPct = (unit.stats.currentHp / unit.stats.maxHp) * 100;
-  const hasLavaBoost = unit.tags.includes(UnitTag.LAVABOOST);
   const unitEmojiSize = tileSize;
 
   // Unit sprite selection — faction-specific overrides take priority over UNIT_SPRITE.
@@ -1637,12 +1636,6 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
         <span className="unit-skull-emoji" style={{ fontSize: `${unitEmojiSize}px` }}>
           💀
         </span>
-      )}
-      {hasLavaBoost && (
-        <div
-          className="lava-boost-bar"
-          style={{ '--color-lava-boost': RENDER.COLORS.LAVA_BOOST_BAR } as React.CSSProperties}
-        />
       )}
       {isStunned && (
         <span className="unit-stun-symbol">💫</span>

@@ -33,7 +33,6 @@ export const RENDER = {
     WATER: '#4AABDB',
     HP_GREEN: '#2ecc71',
     HP_RED: '#e74c3c',
-    LAVA_BOOST_BAR: '#e67e22',
     /** Colour of the heal floater text */
     HEAL_FLOATER: '#2ecc71',
     /** Colour of the level-up floater text */

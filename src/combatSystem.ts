@@ -90,7 +90,6 @@ export function createGravestoneAt(
     wasAttackedLastEnemyTurn: false,
     captureProgress: 0,
     isBeingCapturedBy: null,
-    lavaBoostEnabled: false,
     discoverRadius: BUILDING_DEFINITIONS.GRAVESTONE.discoverRadius,
     turnCapturedByPlayer: null,
     wasEnemyOwnedBeforeCapture: false,
