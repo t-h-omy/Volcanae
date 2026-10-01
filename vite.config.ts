@@ -96,5 +96,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts'],
+    // Needed so stylesheet layout contracts can be asserted via `?raw` imports.
+    css: true,
   },
 })

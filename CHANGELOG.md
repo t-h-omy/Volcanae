@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.113.6 - Specialist swap popup fits mobile viewports
+
+The Market "Replace a Specialist" popup now fits inside the visible mobile browser viewport, including with three owned specialists. The swap card is a bounded flex column sized with `100dvh` (with a `vh` fallback) instead of scrolling as one long document, the specialist list is the only scrolling region, and `Cancel` sits in a sticky non-scrolling footer with safe-area-aware bottom padding so it is always reachable. The swap header also gained a top-right close control matching the Market panel. Replacement rules, pricing, and the HUD theme are unchanged. Added a layout regression test for a portrait mobile viewport.
+
 ### v0.113.5 - Portal occupancy ownership
 
 Enemy units can no longer stack on a portal tile. Teleports now require the entrance tile to be owned by the moving unit and the exit tile to be empty, never clear or overwrite a tile owned by a different unit, and keep a single waiting unit per entrance. Stale pending waiters (removed, moved away, or no longer owning the entrance tile) are cleared, the portal AI no longer offers `MOVE_TO_PORTAL` for an occupied entrance or while another unit is waiting, and the low-level enemy move refuses to write a destination owned by another unit. The animation replay of `PORTAL_USED` and `ENEMY_MOVE` keeps the same occupancy invariant and logs a development diagnostic instead of orphaning the occupying unit. `EMBER_PORTAL_MAX_USERS_PER_TURN` is unchanged; two sequential users per turn still work when the entrance and exit actually clear. Added portal occupancy regression tests with a reusable `expectUnitGridOccupancyConsistent()` assertion.

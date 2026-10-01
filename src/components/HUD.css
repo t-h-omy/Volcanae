@@ -3044,6 +3044,10 @@
   flex-direction: column;
   gap: 6px;
   margin-bottom: 10px;
+  overflow-y: auto;
+  min-height: 0;
+  flex: 1 1 auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .market-panel-swap-row {
@@ -3099,6 +3103,32 @@
   color: #fff;
   margin-top: 8px;
   width: 100%;
+}
+
+/* Bounded flex-column layout so Cancel stays visible on mobile browsers. */
+.market-panel-card--swap {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  max-height: calc(80vh - 24px);
+  max-height: calc(100dvh - 24px);
+  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+}
+
+.market-panel-card--swap .market-panel-swap-head {
+  flex: 0 0 auto;
+}
+
+.market-panel-swap-footer {
+  flex: 0 0 auto;
+  position: sticky;
+  bottom: 0;
+  background: rgba(20, 18, 28, 0.97);
+  padding-top: 4px;
+}
+
+.market-panel-swap-footer .market-panel-btn--close {
+  margin-top: 0;
 }
 
 .market-panel-btn--close:hover {
