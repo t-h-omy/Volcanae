@@ -26,6 +26,7 @@ export interface SpecialistDefinition {
  * AUTHORING RULE above the ABILITIES constant).
  */
 const ARCHMAGE_CAST_BUDGET_BONUS = 1;
+export const CAVE_SPECIALIST_ROB_REWARD_CRYSTALS = 5;
 
 export const SPECIALIST_DEFINITIONS: Record<string, SpecialistDefinition> = {
   spec_01: {

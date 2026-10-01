@@ -46,6 +46,7 @@ import type { GameEvent } from './gameEvents';
 import { MAP, TERRAIN, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval, UNIT_DEFINITIONS, MAGE } from './gameConfig';
 import { RENDER } from '../config/render';
 import { ANIMATION } from '../config/animation';
+import { CAVE_SPECIALIST_ROB_REWARD_CRYSTALS } from '../config/specialists';
 import { saveSlot, loadSlot, listSlots, deleteSlot, getSlotMeta, saveSeenHintsForSlot } from './saveSystem';
 import { useMenuStore } from './menuStore';
 import { computeLevelFromXp, applyLevelUps, canGrantXp } from './levelSystem';
@@ -149,6 +150,7 @@ interface GameActions {
   hireSpecialist: (specialistId: string) => void;
   /** Replace an existing specialist with a new one (called after cave monster swap) */
   swapSpecialist: (outgoingId: string, incomingId: string) => void;
+  grantCaveSpecialistRobReward: () => void;
   /** End the player turn - triggers enemy turn, lava phase, then next player turn */
   endPlayerTurn: () => void;
   /** Apply a single game event from the animation queue */
@@ -2035,6 +2037,12 @@ export const useGameStore = create<GameStore>()(
             applyEffectsForSpecialist(state, state.specialists[incomingId]);
           }
         }
+      });
+    },
+
+    grantCaveSpecialistRobReward: () => {
+      set((state) => {
+        state.arcaneCrystals += CAVE_SPECIALIST_ROB_REWARD_CRYSTALS;
       });
     },
 

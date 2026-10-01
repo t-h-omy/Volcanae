@@ -11,6 +11,7 @@ import { useCombatAnimationStore } from './combatAnimationStore';
 import { useShockwaveStore } from './shockwaveStore';
 import { useZoneClearedStore } from './zoneClearedStore';
 import { useSpecialistHireStore } from './specialistHireStore';
+import type { CaveSpecialistRewardOutcome } from './specialistHireStore';
 import { useFloaterStore } from './floaterStore';
 import { ANIMATION } from '../config/animation';
 import { MAP, MAGE } from './gameConfig';
@@ -21,6 +22,21 @@ import type { GameState, Position } from './types';
 import { tryTriggerHint } from './hintSystem';
 import { selectPortalUsedCameraEndpoint } from './portalAnimation';
 import { useEmberDisplayStore } from './emberDisplayStore';
+
+export function applyCaveSpecialistReward(drawn: string, outcome: CaveSpecialistRewardOutcome): void {
+  const game = useGameStore.getState();
+  switch (outcome.type) {
+    case 'hire':
+      game.hireSpecialist(drawn);
+      break;
+    case 'swap':
+      game.swapSpecialist(outcome.outgoingId, drawn);
+      break;
+    case 'rob':
+      game.grantCaveSpecialistRobReward();
+      break;
+  }
+}
 
 // ============================================================================
 // HELPERS
@@ -718,11 +734,9 @@ export function useAnimationEngine(): void {
     let alive = true;
 
     async function processQueue() {
-      // Tracks a specialist hired during this batch so the hire can be
-      // applied after setGameState(resolvedState) without being overwritten.
-      let hiredSpecialistId: string | null = null;
-      // Tracks a swap performed during this batch (outgoing replaced by incoming).
-      let swapResult: { incomingId: string; outgoingId: string } | null = null;
+      // Reapply rewards after setGameState(resolvedState) so the final snapshot
+      // does not overwrite decisions made during the blocking modal.
+      const caveRewards: { drawn: string; outcome: CaveSpecialistRewardOutcome }[] = [];
 
       while (true) {
         if (!alive) break;
@@ -903,40 +917,23 @@ export function useAnimationEngine(): void {
 
           await new Promise<void>((resolve) => {
             if (available.length === 0) {
-              useSpecialistHireStore.getState().showExhausted((_hired) => {
-                // pool exhausted — the hired parameter is always false; nothing to act on
-                resolve();
-              });
+              useSpecialistHireStore.getState().showExhausted(resolve);
             } else {
               const drawn = available[Math.floor(Math.random() * available.length)];
+              const onResolve = (outcome: CaveSpecialistRewardOutcome) => {
+                caveRewards.push({ drawn, outcome });
+                applyCaveSpecialistReward(drawn, outcome);
+                resolve();
+              };
               if (globalSpecialistStorage.length >= specialistSlotCap) {
                 // All slots full — show swap flow
-                useSpecialistHireStore.getState().showSwap(drawn, (outgoingId) => {
-                  if (outgoingId !== null) {
-                    swapResult = { incomingId: drawn, outgoingId };
-                  }
-                  resolve();
-                });
+                useSpecialistHireStore.getState().showSwap(drawn, onResolve);
               } else {
                 // Empty slot available — show hire flow
-                useSpecialistHireStore.getState().showHire(drawn, (hired) => {
-                  if (hired) hiredSpecialistId = drawn;
-                  resolve();
-                });
+                useSpecialistHireStore.getState().showHire(drawn, onResolve);
               }
             }
           });
-
-          // Apply hire/swap immediately so the specialist appears in the slots
-          // right after the modal is dismissed, without waiting for all remaining
-          // animations (e.g. lava events) to finish.
-          if (hiredSpecialistId) {
-            useGameStore.getState().hireSpecialist(hiredSpecialistId);
-          }
-          if (swapResult) {
-            const swap = swapResult as { outgoingId: string; incomingId: string };
-            useGameStore.getState().swapSpecialist(swap.outgoingId, swap.incomingId);
-          }
 
           continue;
         }
@@ -1845,15 +1842,10 @@ export function useAnimationEngine(): void {
         // Idempotent: no-ops on empty queue. Must run after setGameState so the
         // resolved pendingBrandmarkTransforms list is in the live store.
         useGameStore.getState().finalizeBrandmarkTransforms();
-        // If the player hired a specialist during this batch, apply the hire now
-        // (after setGameState so it isn't overwritten by the resolved state).
-        if (hiredSpecialistId) {
-          useGameStore.getState().hireSpecialist(hiredSpecialistId);
-        }
-        // If the player swapped a specialist, apply the swap after setGameState.
-        if (swapResult) {
-          const swap = swapResult as { outgoingId: string; incomingId: string };
-          useGameStore.getState().swapSpecialist(swap.outgoingId, swap.incomingId);
+        if (resolvedState) {
+          for (const { drawn, outcome } of caveRewards) {
+            applyCaveSpecialistReward(drawn, outcome);
+          }
         }
       }
       useAnimationStore.getState().setIsAnimating(false);
