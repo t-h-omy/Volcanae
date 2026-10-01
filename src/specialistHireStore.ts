@@ -1,62 +1,70 @@
 /**
- * Zustand store for the specialist hire / no-survivor / swap modal.
+ * Zustand store for the cave specialist reward / no-survivor modal.
  *
  * Opened by the animation engine when a CAVE_MONSTER_KILLED event is processed.
  * Three modes:
- *   'hire'      — empty slot available; player may hire or send away.
- *   'exhausted' — all specialists already hired; flavor-text only.
- *   'swap'      — all slots full; player may replace one current specialist or send away.
+ *   'hire'      — empty slot available; player may hire or rob.
+ *   'exhausted' — no eligible specialists; flavor-text only.
+ *   'swap'      — all slots full; player may replace one current specialist or rob.
  */
 
 import { create } from 'zustand';
 
 type HireMode = 'hire' | 'exhausted' | 'swap' | null;
 
+export type CaveSpecialistRewardOutcome =
+  | { type: 'hire' }
+  | { type: 'swap'; outgoingId: string }
+  | { type: 'rob' };
+
 interface SpecialistHireState {
   mode: HireMode;
   /** ID of the incoming (drawn) specialist. */
   specialistId: string | null;
-  /** Resolve callback for hire/exhausted modes — called with true if the specialist was hired. */
-  onDismiss: ((hired: boolean) => void) | null;
-  /** Resolve callback for swap mode — called with the outgoing specialist ID, or null if sent away. */
-  onSwapDismiss: ((outgoingId: string | null) => void) | null;
+  onResolve: ((outcome: CaveSpecialistRewardOutcome) => void) | null;
+  onCloseExhausted: (() => void) | null;
 }
 
 interface SpecialistHireActions {
   /** Show the hire modal for a specific specialist (empty-slot flow). */
-  showHire: (specialistId: string, onDismiss: (hired: boolean) => void) => void;
+  showHire: (specialistId: string, onResolve: (outcome: CaveSpecialistRewardOutcome) => void) => void;
   /** Show the pool-exhausted / no-survivor modal. */
-  showExhausted: (onDismiss: (hired: boolean) => void) => void;
+  showExhausted: (onClose: () => void) => void;
   /** Show the swap modal (all slots full). */
-  showSwap: (specialistId: string, onSwapDismiss: (outgoingId: string | null) => void) => void;
-  /** Dismiss a hire/exhausted modal; hired=true if the player clicked Hire. */
-  dismiss: (hired: boolean) => void;
-  /** Dismiss the swap modal; outgoingId is the specialist being replaced, null means send away. */
-  dismissSwap: (outgoingId: string | null) => void;
+  showSwap: (specialistId: string, onResolve: (outcome: CaveSpecialistRewardOutcome) => void) => void;
+  resolveReward: (outcome: CaveSpecialistRewardOutcome) => void;
+  closeExhausted: () => void;
 }
 
 export const useSpecialistHireStore = create<SpecialistHireState & SpecialistHireActions>((set, get) => ({
   mode: null,
   specialistId: null,
-  onDismiss: null,
-  onSwapDismiss: null,
+  onResolve: null,
+  onCloseExhausted: null,
 
-  showHire: (specialistId, onDismiss) =>
-    set({ mode: 'hire', specialistId, onDismiss, onSwapDismiss: null }),
+  showHire: (specialistId, onResolve) =>
+    set({ mode: 'hire', specialistId, onResolve, onCloseExhausted: null }),
 
-  showExhausted: (onDismiss) =>
-    set({ mode: 'exhausted', specialistId: null, onDismiss, onSwapDismiss: null }),
+  showExhausted: (onCloseExhausted) =>
+    set({ mode: 'exhausted', specialistId: null, onResolve: null, onCloseExhausted }),
 
-  showSwap: (specialistId, onSwapDismiss) =>
-    set({ mode: 'swap', specialistId, onDismiss: null, onSwapDismiss }),
+  showSwap: (specialistId, onResolve) =>
+    set({ mode: 'swap', specialistId, onResolve, onCloseExhausted: null }),
 
-  dismiss: (hired) => {
-    get().onDismiss?.(hired);
-    set({ mode: null, specialistId: null, onDismiss: null, onSwapDismiss: null });
+  resolveReward: (outcome) => {
+    const { mode, onResolve } = get();
+    if (!onResolve || !(
+      (mode === 'hire' && (outcome.type === 'hire' || outcome.type === 'rob')) ||
+      (mode === 'swap' && (outcome.type === 'swap' || outcome.type === 'rob'))
+    )) return;
+    set({ mode: null, specialistId: null, onResolve: null, onCloseExhausted: null });
+    onResolve(outcome);
   },
 
-  dismissSwap: (outgoingId) => {
-    get().onSwapDismiss?.(outgoingId);
-    set({ mode: null, specialistId: null, onDismiss: null, onSwapDismiss: null });
+  closeExhausted: () => {
+    const { mode, onCloseExhausted } = get();
+    if (mode !== 'exhausted' || !onCloseExhausted) return;
+    set({ mode: null, specialistId: null, onResolve: null, onCloseExhausted: null });
+    onCloseExhausted();
   },
 }));

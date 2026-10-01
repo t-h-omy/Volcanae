@@ -14,6 +14,7 @@ import { useSoundOptionsStore } from '../soundOptionsStore';
 import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, computeResearchCost, SPELL_DEFINITIONS, TERRAIN_TAG_INFO, MAGE, CORRUPTED_SUPPRESSED_TAGS, CRYSTAL_CAVE_CONFIG, CRYSTAL_CHAMBER_CONFIG, MARKET, SPECIALIST_DEFINITIONS, CONDITIONAL_ACTIVE_TAGS } from '../gameConfig';
 import type { SpecialistDefinition } from '../gameConfig';
 import { UI } from '../../config/ui';
+import { CAVE_SPECIALIST_ROB_REWARD_CRYSTALS } from '../../config/specialists';
 import type { UnitPopulationCost, TechId } from '../types';
 import { useHintStore } from '../hintStore';
 import { useHintOptionsStore } from '../hintOptionsStore';
@@ -294,9 +295,11 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
     } else {
       // All slots full — close the dev overlay and trigger the substitute popup
       onClose();
-      showSwap(specId, (outgoingId) => {
-        if (outgoingId !== null) {
-          swapSpecialist(outgoingId, specId);
+      showSwap(specId, (outcome) => {
+        if (outcome.type === 'swap') {
+          swapSpecialist(outcome.outgoingId, specId);
+        } else if (outcome.type === 'rob') {
+          useGameStore.getState().grantCaveSpecialistRobReward();
         }
       });
     }
@@ -4168,8 +4171,8 @@ function MarketPanel() {
 function CaveMonsterKillModal() {
   const mode = useSpecialistHireStore((s) => s.mode);
   const specialistId = useSpecialistHireStore((s) => s.specialistId);
-  const dismiss = useSpecialistHireStore((s) => s.dismiss);
-  const dismissSwap = useSpecialistHireStore((s) => s.dismissSwap);
+  const resolveReward = useSpecialistHireStore((s) => s.resolveReward);
+  const closeExhausted = useSpecialistHireStore((s) => s.closeExhausted);
   const specialists = useGameStore((s) => s.specialists);
   const globalSpecialistStorage = useGameStore((s) => s.globalSpecialistStorage);
 
@@ -4182,14 +4185,16 @@ function CaveMonsterKillModal() {
     return (
       <div className="cave-kill-overlay">
         <div className="cave-kill-card">
-          <p className="cave-kill-flavor">
-            <em>
-              "The creature falls. You search the darkness — but find only silence.
-              Whatever was in there is gone."
-            </em>
-          </p>
+          <div className="cave-kill-body">
+            <p className="cave-kill-flavor">
+              <em>
+                "The creature falls. You search the darkness — but find only silence.
+                Whatever was in there is gone."
+              </em>
+            </p>
+          </div>
           <div className="cave-kill-actions">
-            <button className="cave-kill-btn cave-kill-btn--close" onClick={() => dismiss(false)}>
+            <button className="cave-kill-btn cave-kill-btn--close" onClick={closeExhausted}>
               Close
             </button>
           </div>
@@ -4205,23 +4210,25 @@ function CaveMonsterKillModal() {
     return (
       <div className="cave-kill-overlay">
         <div className="cave-kill-card">
-          <p className="cave-kill-flavor">
-            <em>
-              "The creature falls. From the darkness stumbles a survivor — battered,
-              grateful, and with nowhere else to go. They offer their skills to your cause."
-            </em>
-          </p>
-          <div className="cave-kill-specialist-card">
-            <span className="cave-kill-specialist-name">🧙 {incomingSpecialist.name}</span>
-            <p className="cave-kill-specialist-desc">{incomingSpecialist.description}</p>
-            <SpecialistUpkeepLine iron={incomingSpecialist.upkeepIron ?? 0} wood={incomingSpecialist.upkeepWood ?? 0} />
+          <div className="cave-kill-body">
+            <p className="cave-kill-flavor">
+              <em>
+                "The creature falls. From the darkness stumbles a survivor — battered,
+                grateful, and with nowhere else to go. They offer their skills to your cause."
+              </em>
+            </p>
+            <div className="cave-kill-specialist-card">
+              <span className="cave-kill-specialist-name">🧙 {incomingSpecialist.name}</span>
+              <p className="cave-kill-specialist-desc">{incomingSpecialist.description}</p>
+              <SpecialistUpkeepLine iron={incomingSpecialist.upkeepIron ?? 0} wood={incomingSpecialist.upkeepWood ?? 0} />
+            </div>
           </div>
           <div className="cave-kill-actions">
-            <button className="cave-kill-btn cave-kill-btn--hire" onClick={() => dismiss(true)}>
+            <button className="cave-kill-btn cave-kill-btn--hire" onClick={() => resolveReward({ type: 'hire' })}>
               Hire
             </button>
-            <button className="cave-kill-btn cave-kill-btn--sendaway" onClick={() => dismiss(false)}>
-              Send Away
+            <button className="cave-kill-btn cave-kill-btn--rob" onClick={() => resolveReward({ type: 'rob' })}>
+              Rob for 💎{CAVE_SPECIALIST_ROB_REWARD_CRYSTALS}
             </button>
           </div>
         </div>
@@ -4242,16 +4249,17 @@ function CaveMonsterKillModal() {
       )}
       <div className="cave-kill-overlay">
         <div className="cave-kill-card cave-kill-card--swap">
-          <div className="cave-kill-swap-incoming-label">Incoming Survivor</div>
-          <div className="cave-kill-specialist-card cave-kill-specialist-card--incoming">
-            <span className="cave-kill-specialist-name">🧙 {incomingSpecialist.name}</span>
-            <p className="cave-kill-specialist-desc">{incomingSpecialist.description}</p>
-            <SpecialistUpkeepLine iron={incomingSpecialist.upkeepIron ?? 0} wood={incomingSpecialist.upkeepWood ?? 0} />
-          </div>
-          <div className="cave-kill-swap-divider">
-            <span className="cave-kill-swap-divider-label">Replace one of your specialists</span>
-          </div>
-          <div className="cave-kill-swap-current-row">
+          <div className="cave-kill-body">
+            <div className="cave-kill-swap-incoming-label">Incoming Survivor</div>
+            <div className="cave-kill-specialist-card cave-kill-specialist-card--incoming">
+              <span className="cave-kill-specialist-name">🧙 {incomingSpecialist.name}</span>
+              <p className="cave-kill-specialist-desc">{incomingSpecialist.description}</p>
+              <SpecialistUpkeepLine iron={incomingSpecialist.upkeepIron ?? 0} wood={incomingSpecialist.upkeepWood ?? 0} />
+            </div>
+            <div className="cave-kill-swap-divider">
+              <span className="cave-kill-swap-divider-label">Replace one of your specialists</span>
+            </div>
+            <div className="cave-kill-swap-current-row">
             {globalSpecialistStorage.map((specId) => {
               const spec = specialists[specId];
               if (!spec) return null;
@@ -4268,17 +4276,18 @@ function CaveMonsterKillModal() {
                   </button>
                   <button
                     className="cave-kill-btn cave-kill-btn--replace"
-                    onClick={() => { setInfoSpecId(null); dismissSwap(specId); }}
+                    onClick={() => { setInfoSpecId(null); resolveReward({ type: 'swap', outgoingId: specId }); }}
                   >
                     Replace
                   </button>
                 </div>
               );
             })}
+            </div>
           </div>
           <div className="cave-kill-actions">
-            <button className="cave-kill-btn cave-kill-btn--sendaway" onClick={() => { setInfoSpecId(null); dismissSwap(null); }}>
-              Send Away
+            <button className="cave-kill-btn cave-kill-btn--rob" onClick={() => { setInfoSpecId(null); resolveReward({ type: 'rob' }); }}>
+              Rob for 💎{CAVE_SPECIALIST_ROB_REWARD_CRYSTALS}
             </button>
           </div>
         </div>

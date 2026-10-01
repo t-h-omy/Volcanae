@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.114.0 - Cave specialist rob reward
+
+Cave Monster Specialist rewards now offer Hire/Replace or Rob for 5 crystals; Send Away has been removed from valid Specialist reward flows. Rob grants 5 crystals without recruiting the Specialist, and robbed Specialists remain eligible for future Cave rewards under normal exclusion rules. The reward modal now uses mobile-safe scrolling with visible actions. Added regression tests for reward resolution, crystal mutation, eligibility, and mobile layout.
+
 ### v0.113.8 - Simplified cave monster resolution
 
 Merged the redundant cave popup choices for sealing and leaving the cave. Sealing is now the single non-exploration option and clearly indicates that the specialist reward is lost.
