@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { recruitUnit } from '../resourceSystem';
-import { UNIT_DEFINITIONS } from '../gameConfig';
+import { MAP, UNIT_DEFINITIONS } from '../gameConfig';
 import { createInitialSpecialists } from '../specialistSystem';
 import { isUnitDisplayExhausted } from '../unitActions';
 import { BuildingType, DestroyBehavior, Faction, TileType, UnitTag, UnitType } from '../types';
@@ -155,6 +155,34 @@ function makeDisplayState(unit: Unit): GameState {
   } as unknown as GameState;
 }
 
+function makeOpenDisplayState(unit: Unit, { revealed = true }: { revealed?: boolean } = {}): GameState {
+  const grid: Tile[][] = [];
+  for (let y = 0; y < MAP.GRID_HEIGHT; y++) {
+    const row: Tile[] = [];
+    for (let x = 0; x < MAP.GRID_WIDTH; x++) {
+      const tile = makeTile(x, y);
+      tile.isRevealed = revealed;
+      row.push(tile);
+    }
+    grid.push(row);
+  }
+  const ownTile = grid[unit.position.y][unit.position.x];
+  ownTile.isRevealed = true;
+  ownTile.unitId = unit.id;
+  return {
+    turn: 3,
+    units: { [unit.id]: unit },
+    buildings: {},
+    portals: {},
+    grid,
+    arcaneCrystals: 0,
+    specialists: createInitialSpecialists(),
+    globalSpecialistStorage: [],
+    techNodes: {},
+    techFlags: [],
+  } as unknown as GameState;
+}
+
 describe('isUnitDisplayExhausted', () => {
   it('does not exhaust Drill Sergeant READY recruits (SWORDSMAN and SPEARMAN)', () => {
     const { state: swordState, barracksId: swordBarracksId } = makeRecruitState(['spec_04']);
@@ -199,5 +227,54 @@ describe('isUnitDisplayExhausted', () => {
     });
     const state = makeDisplayState(gargoyle);
     expect(isUnitDisplayExhausted(gargoyle, state)).toBe(false);
+  });
+
+  it('does not exhaust a HIT_AND_RUN unit that attacked but still has a reachable post-attack move', () => {
+    const drake = makeUnit(UnitType.CRYSTAL_DRAKE, {
+      position: { x: 1, y: 1 },
+      hasMovedThisTurn: true,
+      hasAttackedThisTurn: true,
+    });
+    const state = makeOpenDisplayState(drake);
+    expect(isUnitDisplayExhausted(drake, state)).toBe(false);
+  });
+
+  it('exhausts a HIT_AND_RUN unit once its post-attack move is used', () => {
+    const drake = makeUnit(UnitType.CRYSTAL_DRAKE, {
+      position: { x: 1, y: 1 },
+      hasMovedThisTurn: true,
+      hasAttackedThisTurn: true,
+      hasUsedPostAttackMoveThisTurn: true,
+    });
+    const state = makeOpenDisplayState(drake);
+    expect(isUnitDisplayExhausted(drake, state)).toBe(true);
+  });
+
+  it('exhausts a HIT_AND_RUN unit that attacked but has no reachable tile', () => {
+    const drake = makeUnit(UnitType.CRYSTAL_DRAKE, {
+      position: { x: 1, y: 1 },
+      hasMovedThisTurn: true,
+      hasAttackedThisTurn: true,
+    });
+    const state = makeOpenDisplayState(drake, { revealed: false });
+    expect(isUnitDisplayExhausted(drake, state)).toBe(true);
+  });
+
+  it('exhausts a non-HIT_AND_RUN unit that attacked even with open tiles around it', () => {
+    const swordsman = makeUnit(UnitType.SWORDSMAN, {
+      position: { x: 1, y: 1 },
+      hasAttackedThisTurn: true,
+    });
+    const state = makeOpenDisplayState(swordsman);
+    expect(isUnitDisplayExhausted(swordsman, state)).toBe(true);
+  });
+
+  it('exhausts a moved non-HIT_AND_RUN unit with no attack targets even with open tiles around it', () => {
+    const swordsman = makeUnit(UnitType.SWORDSMAN, {
+      position: { x: 1, y: 1 },
+      hasMovedThisTurn: true,
+    });
+    const state = makeOpenDisplayState(swordsman);
+    expect(isUnitDisplayExhausted(swordsman, state)).toBe(true);
   });
 });

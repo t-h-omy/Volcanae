@@ -85,6 +85,19 @@ export function hasUnitActed(
 
 export function isUnitDisplayExhausted(unit: Unit, state: GameState): boolean {
   const isRecruitedThisTurn = (unit.recruitedOnTurn ?? 0) === state.turn && state.turn > 0;
+  if (isRecruitedThisTurn && !unit.tags.includes(UnitTag.READY)) return true;
+
+  // HIT_AND_RUN: after attacking, the unit still has its post-attack move.
+  // Only show it as active if that move is allowed and has a legal destination.
+  if (
+    unit.faction === Faction.PLAYER &&
+    unit.tags.includes(UnitTag.HIT_AND_RUN) &&
+    unit.hasAttackedThisTurn &&
+    getMovableTiles(unit, state).size > 0
+  ) {
+    return false;
+  }
+
   const noAttackTargets = (() => {
     if (unit.faction !== Faction.PLAYER) return false;
     if (hasUnitActed(unit, state)) return false;
@@ -93,7 +106,7 @@ export function isUnitDisplayExhausted(unit: Unit, state: GameState): boolean {
     return getAttackTargets(unit, state.units, state.buildings, state.grid, state).size === 0;
   })();
 
-  return (isRecruitedThisTurn && !unit.tags.includes(UnitTag.READY)) || hasUnitActed(unit, state) || noAttackTargets;
+  return hasUnitActed(unit, state) || noAttackTargets;
 }
 
 export function applySpawnActionFlags(unit: Unit): Unit {

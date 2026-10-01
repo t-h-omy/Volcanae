@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.113.4 - HIT_AND_RUN exhausted display
+
+Player units with HIT_AND_RUN (such as the Crystal Drake) are no longer dimmed as exhausted right after attacking while their post-attack move is still available and has at least one legal destination. `isUnitDisplayExhausted()` now derives this from the same `getMovableTiles()`/`canUnitMove()` rules used by gameplay; once the post-attack move is used, or if no tile is reachable, the unit is shown as exhausted as before. Gameplay rules, `hasUnitActed()`, and enemy AI are unchanged. Added regression tests.
+
 ### v0.113.3 - Transpose terrain legality
 
 Transpose now refuses swaps that would leave either unit on terrain it cannot occupy, such as a non-flying unit landing on ordinary water or an unbridged canyon held by a flying unit. A new shared `canUnitOccupyTerrain()` helper in the movement system models final-tile occupancy (FLYING units ignore canyon and water, bridged canyons are occupiable, player units may stand on frozen water, enemy units never stand on water) and drives normal movement, Transpose target listing, invalid-target reasons, and the authoritative cast check. Tapping such a target shows "Cannot transpose: unit cannot occupy that terrain." and keeps Transpose targeting active without spending a crystal or Mage cast, and same-faction in-range units blocked only by terrain now get a red blocked-target marker during the second pick. Added regression tests.
