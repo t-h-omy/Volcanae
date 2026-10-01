@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.113.7 - Flying units ignore burning terrain
+
+FLYING units no longer take damage while standing on burning terrain. Updated the FLYING tag, burning-terrain tooltip, and burning hint descriptions to document that immunity, and added regression coverage.
+
 ### v0.113.6 - Specialist swap popup fits mobile viewports
 
 The Market "Replace a Specialist" popup now fits inside the visible mobile browser viewport, including with three owned specialists. The swap card is a bounded flex column sized with `100dvh` (with a `vh` fallback) instead of scrolling as one long document, the specialist list is the only scrolling region, and `Cancel` sits in a sticky non-scrolling footer with safe-area-aware bottom padding so it is always reachable. The swap header also gained a top-right close control matching the Market panel. Replacement rules, pricing, and the HUD theme are unchanged. Added a layout regression test for a portrait mobile viewport.

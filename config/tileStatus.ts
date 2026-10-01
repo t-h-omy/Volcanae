@@ -33,7 +33,7 @@ export const TILE_STATUS_WHITELIST: Record<TileType, TileStatus[]> = {
   [TileType.MOUNTAIN]: [TileStatus.CORRUPTED, TileStatus.FROZEN],
 };
 
-/** Damage dealt to each non-LAVA unit standing on a BURNING tile at end of turn. */
+/** Damage dealt to each non-LAVA, non-FLYING, non-CINDERBORN unit on a BURNING tile at end of turn. */
 export const BURNING_TILE_DAMAGE = 10;
 
 /**
@@ -84,7 +84,6 @@ export const TERRAIN_TAG_INFO: Record<TerrainTag, { label: string; desc: string 
   },
   [TerrainTag.BURNING]: {
     label: 'Burning',
-    desc: `Non-lava units on this tile take ${BURNING_TILE_DAMAGE} damage at the end of each turn.`,
+    desc:     `Non-LAVA, non-FLYING, non-CINDERBORN units on this tile take ${BURNING_TILE_DAMAGE} damage at the end of each turn.`,
   },
 };
-
