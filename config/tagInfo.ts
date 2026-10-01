@@ -30,7 +30,6 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   [UnitTag.ASSASSIN]:          { label: 'Assassin',          desc: `Deals ${ABILITIES.ASSASSIN_DAMAGE_MULTIPLIER}× damage and receives no retaliation when striking an enemy that is still at full health.` },
   [UnitTag.PATCHUP]:           { label: 'Patch Up',          desc: `Can spend its action to restore ${ABILITIES.PATCHUP_HEAL_AMOUNT} HP on one adjacent friendly unit. Cannot heal Summoned or Brandmarked units.` },
   [UnitTag.PHALANX]:           { label: 'Phalanx',           desc: `Grants +${ABILITIES.PHALANX_DEFENSE_BONUS_PER_CARRIER} defense to each adjacent friendly unit and gains +${ABILITIES.PHALANX_ATTACK_BONUS_PER_ALLY} attack per adjacent friendly unit. Bonuses apply during combat only.` },
-  [UnitTag.LAVABOOST]:         { label: 'Lava-Boosted',      desc: 'Spawns with boosted stats when its spawning building is close to the lava front.' },
   [UnitTag.CORRUPT]:           { label: 'Corrupt',           desc: 'Places an Embernest on forest tiles and a Magmaspyr on mountain tiles. Corrupts the tile.' },
   [UnitTag.PASSIVE]:           { label: 'Passive',           desc: 'Cannot initiate attacks. Still defends at full effectiveness when attacked by enemies.' },
   // ── Deep tech tree tags ──────────────────────────────────────────────────────

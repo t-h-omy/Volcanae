@@ -44,7 +44,6 @@ function makeBuilding(type: BuildingType, overrides: Partial<Building> = {}): Bu
     wasAttackedLastEnemyTurn: false,
     captureProgress: 0,
     isBeingCapturedBy: null,
-    lavaBoostEnabled: false,
     discoverRadius: 2,
     turnCapturedByPlayer: null,
     wasEnemyOwnedBeforeCapture: false,

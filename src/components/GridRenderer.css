@@ -167,16 +167,6 @@
   background: var(--color-hp-green, #2ecc71);
 }
 
-/* ── Lava Boost bar ── */
-
-.lava-boost-bar {
-  width: 60%;
-  height: 3px;
-  border-radius: 1px;
-  background: var(--color-lava-boost, #e67e22);
-  margin-top: 1px;
-}
-
 /* ── Unit stun symbol ── */
 
 .unit-stun-symbol {

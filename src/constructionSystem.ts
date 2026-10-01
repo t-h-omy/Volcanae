@@ -554,7 +554,6 @@ function createBuildingObject(
     wasAttackedLastEnemyTurn: false,
     captureProgress: 0,
     isBeingCapturedBy: null,
-    lavaBoostEnabled: false,
     discoverRadius: BUILDING_DEFINITIONS[type].discoverRadius,
     turnCapturedByPlayer: null,
     wasEnemyOwnedBeforeCapture: false,
@@ -684,11 +683,6 @@ export function enemyConstructBuilding(
 
   // Create the new building with ENEMY faction
   const newBuilding = createBuildingObject(buildingType, tilePos, Faction.ENEMY);
-
-  // LAVA_LAIR gets lava boost enabled
-  if (buildingType === BuildingType.LAVALAIR) {
-    newBuilding.lavaBoostEnabled = true;
-  }
 
   // Add building to state
   state.buildings[newBuilding.id] = newBuilding;

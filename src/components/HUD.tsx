@@ -203,7 +203,6 @@ const TAG_EMOJI: Partial<Record<UnitTag, string>> = {
   [UnitTag.ASSASSIN]:        '🗡️',
   [UnitTag.PATCHUP]:         '🩹',
   [UnitTag.PHALANX]:         '🔰',
-  [UnitTag.LAVABOOST]:       '🌋',
   [UnitTag.CORRUPT]:         '☠️',
   [UnitTag.PASSIVE]:         '🕊️',
   [UnitTag.BLOODLUST]:       '🩸',

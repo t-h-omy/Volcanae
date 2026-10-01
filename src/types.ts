@@ -248,8 +248,6 @@ export type TerrainTag = (typeof TerrainTag)[keyof typeof TerrainTag];
 export const UnitTag = {
   /** Unit has ranged attack capability */
   RANGED: 'RANGED',
-  /** Unit stats are boosted at spawn based on spawning building proximity to lava */
-  LAVABOOST: 'LAVABOOST',
   /** Unit cannot attack after moving (preparation required) */
   PREP: 'PREP',
   /** Unit can construct buildings AND initiate captures */
@@ -582,7 +580,6 @@ export interface Building {
   wasAttackedLastEnemyTurn: boolean;
   captureProgress: number;
   isBeingCapturedBy: string | null;
-  lavaBoostEnabled: boolean;
   discoverRadius: number;
   turnCapturedByPlayer: number | null;
   wasEnemyOwnedBeforeCapture: boolean;

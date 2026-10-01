@@ -71,7 +71,6 @@ function makeOutpost(x: number, y: number): Building {
     wasAttackedLastEnemyTurn: false,
     captureProgress: 0,
     isBeingCapturedBy: null,
-    lavaBoostEnabled: false,
     discoverRadius: cfg.discoverRadius,
     turnCapturedByPlayer: null,
     wasEnemyOwnedBeforeCapture: false,

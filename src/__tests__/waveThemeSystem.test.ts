@@ -101,7 +101,6 @@ function makeSanctum(id: string, y: number, faction: Faction = Faction.ENEMY): B
     wasAttackedLastEnemyTurn: false,
     captureProgress: 0,
     isBeingCapturedBy: null,
-    lavaBoostEnabled: false,
     discoverRadius: 0,
     turnCapturedByPlayer: null,
     wasEnemyOwnedBeforeCapture: false,

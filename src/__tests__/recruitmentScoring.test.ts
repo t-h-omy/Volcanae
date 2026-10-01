@@ -109,7 +109,6 @@ function makeLavaLair(row = 5): Building {
     wasAttackedLastEnemyTurn: false,
     captureProgress: 0,
     isBeingCapturedBy: null,
-    lavaBoostEnabled: false,
     discoverRadius: 0,
     turnCapturedByPlayer: null,
     wasEnemyOwnedBeforeCapture: false,

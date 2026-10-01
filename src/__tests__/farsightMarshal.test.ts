@@ -78,7 +78,6 @@ function makeBuilding(id: string, type: BuildingType, x: number, y: number, over
     wasAttackedLastEnemyTurn: false,
     captureProgress: 0,
     isBeingCapturedBy: null,
-    lavaBoostEnabled: false,
     discoverRadius: 2,
     turnCapturedByPlayer: null,
     wasEnemyOwnedBeforeCapture: false,

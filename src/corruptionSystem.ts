@@ -145,7 +145,6 @@ export function corruptTerrain(
     wasAttackedLastEnemyTurn: false,
     captureProgress: 0,
     isBeingCapturedBy: null,
-    lavaBoostEnabled: false,
     discoverRadius: BUILDING_DEFINITIONS[buildingType].discoverRadius,
     turnCapturedByPlayer: null,
     wasEnemyOwnedBeforeCapture: false,
@@ -422,5 +421,4 @@ export function processEmberNestSpawns(
     });
   }
 }
-
 

@@ -149,7 +149,6 @@ function makeBuilding(
     wasAttackedLastEnemyTurn: false,
     captureProgress: 0,
     isBeingCapturedBy: null,
-    lavaBoostEnabled: false,
     discoverRadius: def?.discoverRadius ?? 2,
     turnCapturedByPlayer: null,
     wasEnemyOwnedBeforeCapture: false,

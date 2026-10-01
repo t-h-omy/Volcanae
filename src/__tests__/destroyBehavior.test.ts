@@ -29,7 +29,6 @@ function makeMagmaspyr(id: string, x: number, y: number): Building {
     wasAttackedLastEnemyTurn: false,
     captureProgress: 0,
     isBeingCapturedBy: null,
-    lavaBoostEnabled: false,
     discoverRadius: 2,
     turnCapturedByPlayer: null,
     wasEnemyOwnedBeforeCapture: false,

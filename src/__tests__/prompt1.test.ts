@@ -155,7 +155,6 @@ function makeEnemyBuilding(x: number, y: number, hp = 50): Building {
     wasAttackedLastEnemyTurn: false,
     captureProgress: 0,
     isBeingCapturedBy: null,
-    lavaBoostEnabled: false,
     discoverRadius: 1,
     turnCapturedByPlayer: null,
     wasEnemyOwnedBeforeCapture: false,
