@@ -1522,6 +1522,9 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
   const oldTile = state.grid[unit.position.y][unit.position.x];
   const newTile = state.grid[targetPosition.y][targetPosition.x];
 
+  // Occupancy ownership: never overwrite a tile owned by a different unit.
+  if (newTile.unitId !== null && newTile.unitId !== unitId) return;
+
   if (oldTile.unitId === unitId) {
     oldTile.unitId = null;
   }
@@ -2954,6 +2957,12 @@ function scoreActionsForUnit(
       // Skip if usage limit for this turn is already hit.
       const usersThisTurn = portalUsageIntents.get(portal.id) ?? 0;
       if (usersThisTurn >= ABILITIES.EMBER_PORTAL_MAX_USERS_PER_TURN) continue;
+      // Skip while another unit is already waiting on the entrance for the exit to clear.
+      if (portal.pendingTeleportUnitId !== null && portal.pendingTeleportUnitId !== unit.id) continue;
+      // Skip if the entrance tile is currently occupied by another unit.
+      const entranceTile = state.grid[portal.entrancePos.y]?.[portal.entrancePos.x];
+      if (!entranceTile) continue;
+      if (entranceTile.unitId !== null && entranceTile.unitId !== unit.id) continue;
 
       // Check reachability using BFS path existence.
       const path = findBfsPath(unit.position, portal.entrancePos, state);

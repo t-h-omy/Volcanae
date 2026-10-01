@@ -324,6 +324,27 @@ function assertNever(x: never): never {
   throw new Error(`Unhandled event type: ${(x as { type: string }).type}`);
 }
 
+/**
+ * Animation replay guard: a movement/teleport replay must never overwrite a destination
+ * tile owned by a different unit. Returns true when the write is safe.
+ * Logs a diagnostic in development when an impossible conflict is detected; the resolved
+ * simulation state handed over at queue end remains authoritative.
+ */
+function canReplayOccupyTile(
+  eventType: string,
+  movingUnitId: string,
+  to: Position,
+  occupyingUnitId: string | null,
+): boolean {
+  if (occupyingUnitId === null || occupyingUnitId === movingUnitId) return true;
+  if (import.meta.env.DEV) {
+    console.warn(
+      `[replay] ${eventType}: unit ${movingUnitId} cannot move to (${to.x}, ${to.y}) — tile is occupied by unit ${occupyingUnitId}`,
+    );
+  }
+  return false;
+}
+
 function tookNoActionThisTurn(unit: GameState['units'][string]): boolean {
   return (
     !unit.hasMovedThisTurn &&
@@ -2559,16 +2580,18 @@ export const useGameStore = create<GameStore>()(
           case 'ENEMY_MOVE': {
             const unit = state.units[event.unitId];
             if (unit) {
-              // Clear old tile
-              const oldTile = state.grid[event.from.y][event.from.x];
-              if (oldTile.unitId === event.unitId) {
-                oldTile.unitId = null;
-              }
-              // Place on new tile
+              // Place on new tile — never overwrite another unit's occupancy.
               const newTile = state.grid[event.to.y][event.to.x];
-              newTile.unitId = event.unitId;
-              unit.position.x = event.to.x;
-              unit.position.y = event.to.y;
+              if (canReplayOccupyTile('ENEMY_MOVE', event.unitId, event.to, newTile.unitId)) {
+                // Clear old tile
+                const oldTile = state.grid[event.from.y][event.from.x];
+                if (oldTile.unitId === event.unitId) {
+                  oldTile.unitId = null;
+                }
+                newTile.unitId = event.unitId;
+                unit.position.x = event.to.x;
+                unit.position.y = event.to.y;
+              }
             }
             break;
           }
@@ -3435,15 +3458,15 @@ export const useGameStore = create<GameStore>()(
             // until setGameState(resolvedState) fires at queue end.
             const teleportUnit = state.units[event.unitId];
             if (teleportUnit) {
-              const fromTile = state.grid[event.fromPos.y]?.[event.fromPos.x];
-              if (fromTile && fromTile.unitId === event.unitId) {
-                fromTile.unitId = null;
-              }
               const toTile = state.grid[event.toPos.y]?.[event.toPos.x];
-              if (toTile) {
+              if (toTile && canReplayOccupyTile('PORTAL_USED', event.unitId, event.toPos, toTile.unitId)) {
+                const fromTile = state.grid[event.fromPos.y]?.[event.fromPos.x];
+                if (fromTile && fromTile.unitId === event.unitId) {
+                  fromTile.unitId = null;
+                }
                 toTile.unitId = event.unitId;
+                teleportUnit.position = { x: event.toPos.x, y: event.toPos.y };
               }
-              teleportUnit.position = { x: event.toPos.x, y: event.toPos.y };
             }
             break;
           }

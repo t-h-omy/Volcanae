@@ -251,8 +251,10 @@ export function castPortal(
  * - If the exit tile is currently free, performs the teleport immediately, emits PORTAL_USED,
  *   clears any `pendingTeleportUnitId` on the portal, and returns true.
  * - If the exit tile is blocked, sets `portal.pendingTeleportUnitId = unitId` so the unit
- *   waits on the entrance. Returns false.
- * - If the unit is not on the entrance tile, this is a no-op (returns false).
+ *   waits on the entrance — unless another unit is already waiting. Returns false.
+ * - If the unit is not on the entrance tile, or the entrance tile is owned by a different
+ *   unit, or the exit tile is occupied, this is a no-op teleport (returns false).
+ *   A teleport never overwrites or clears occupancy owned by another unit.
  */
 export function tryTeleportThroughPortal(
   state: Draft<GameState>,
@@ -269,20 +271,27 @@ export function tryTeleportThroughPortal(
   // Unit must be on the entrance tile.
   if (unit.position.x !== portal.entrancePos.x || unit.position.y !== portal.entrancePos.y) return false;
 
+  // Occupancy ownership: the entrance tile must actually belong to this unit.
+  // Never clear a tile owned by a different unit.
+  const entranceTile = state.grid[portal.entrancePos.y]?.[portal.entrancePos.x];
+  if (!entranceTile || entranceTile.unitId !== unitId) return false;
+
   const exitTile = state.grid[portal.exitPos.y]?.[portal.exitPos.x];
   const exitPassable =
     exitTile &&
-    !exitTile.unitId &&
+    exitTile.unitId === null &&
     !exitTile.isLava &&
     exitTile.buildingId === null;
 
   if (!exitPassable) {
-    portal.pendingTeleportUnitId = unitId;
+    // Only one unit may wait on the entrance at a time.
+    if (portal.pendingTeleportUnitId === null || portal.pendingTeleportUnitId === unitId) {
+      portal.pendingTeleportUnitId = unitId;
+    }
     return false;
   }
 
   // Perform teleport.
-  const entranceTile = state.grid[portal.entrancePos.y][portal.entrancePos.x];
   const teleportFrom = { x: unit.position.x, y: unit.position.y };
   entranceTile.unitId = null;
   unit.position = { x: portal.exitPos.x, y: portal.exitPos.y };
@@ -324,6 +333,12 @@ export function processPendingPortalTeleports(
         continue;
       }
       if (waiter.position.x !== portal.entrancePos.x || waiter.position.y !== portal.entrancePos.y) {
+        portal.pendingTeleportUnitId = null;
+        continue;
+      }
+      // Stale waiter: the entrance tile no longer points at the recorded waiter.
+      const entranceTile = state.grid[portal.entrancePos.y]?.[portal.entrancePos.x];
+      if (!entranceTile || entranceTile.unitId !== waiterId) {
         portal.pendingTeleportUnitId = null;
         continue;
       }
