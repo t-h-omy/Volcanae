@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.113.3 - Transpose terrain legality
+
+Transpose now refuses swaps that would leave either unit on terrain it cannot occupy, such as a non-flying unit landing on ordinary water or an unbridged canyon held by a flying unit. A new shared `canUnitOccupyTerrain()` helper in the movement system models final-tile occupancy (FLYING units ignore canyon and water, bridged canyons are occupiable, player units may stand on frozen water, enemy units never stand on water) and drives normal movement, Transpose target listing, invalid-target reasons, and the authoritative cast check. Tapping such a target shows "Cannot transpose: unit cannot occupy that terrain." and keeps Transpose targeting active without spending a crystal or Mage cast, and same-faction in-range units blocked only by terrain now get a red blocked-target marker during the second pick. Added regression tests.
+
 ### v0.113.2 - Emberling description correction
 
 Corrected the Emberling description to explain that reaching lava raises Ember and that its EXPLODE action is available when blocked near player units, rather than implying it explodes automatically on death. Gameplay is unchanged.
