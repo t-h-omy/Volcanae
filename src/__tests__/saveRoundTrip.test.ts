@@ -154,7 +154,6 @@ describe('saveSlot round-trip', () => {
       lastRecruitmentTurn: 0,
       marketResourceSlots: [{ give: { currency: 'WOOD', amount: 2 }, gain: { currency: 'IRON', amount: 1 } }],
       marketSpecialistSlots: ['spec_01'],
-      marketRefillCountdown: MARKET.AUTO_REFILL_INTERVAL,
     };
     state.grid[0][0].buildingId = marketId;
     state.grid[0][0].isRevealed = false;
@@ -224,7 +223,6 @@ describe('saveSlot round-trip', () => {
       lastRecruitmentTurn: 0,
       marketResourceSlots: [originalResourceOffer],
       marketSpecialistSlots: ['spec_02'],
-      marketRefillCountdown: MARKET.AUTO_REFILL_INTERVAL,
     };
     state.grid[0][1].buildingId = marketId;
     state.grid[0][1].isRevealed = true;
@@ -256,6 +254,57 @@ describe('saveSlot round-trip', () => {
     expect(migrated.marketOffersInitialized).toBe(true);
     expect(migrated.marketResourceSlots?.[0]).toEqual(originalResourceOffer);
     expect(migrated.marketSpecialistSlots?.[0]).toBe('spec_02');
+  });
+
+  it('loads a save whose market still carries the obsolete marketRefillCountdown field', async () => {
+    const state = generateInitialGameState() as GameState;
+    const marketId = 'm_legacy_refill_countdown';
+    const offer = { give: { currency: 'WOOD' as const, amount: 2 }, gain: { currency: 'IRON' as const, amount: 1 } };
+    state.buildings[marketId] = {
+      id: marketId,
+      type: BuildingType.MARKET,
+      faction: null,
+      position: { x: 2, y: 0 },
+      hp: MARKET.MAX_HP,
+      maxHp: MARKET.MAX_HP,
+      specialistSlot: null,
+      isDisabledForTurns: 0,
+      wasAttackedLastEnemyTurn: false,
+      captureProgress: 0,
+      isBeingCapturedBy: null,
+      lavaBoostEnabled: false,
+      discoverRadius: 2,
+      turnCapturedByPlayer: null,
+      wasEnemyOwnedBeforeCapture: false,
+      combatStats: null,
+      hasAttackedThisTurn: false,
+      tags: [],
+      consumesUnitOnCapture: false,
+      populationCount: 0,
+      populationCap: 0,
+      populationGrowthCounter: 0,
+      strongholdNobles: 0,
+      emberSpawnCounter: 0,
+      recruitmentQueue: null,
+      destroyBehavior: DestroyBehavior.NONE,
+      resonanceTurnsRemaining: 0,
+      spawnCooldownRemaining: 0,
+      lastRecruitmentTurn: 0,
+      marketResourceSlots: [offer, null],
+      marketSpecialistSlots: [null],
+      marketOffersInitialized: true,
+      // Obsolete field from the removed auto-refill feature.
+      ...({ marketRefillCountdown: 2 } as Record<string, unknown>),
+    };
+    state.grid[0][2].buildingId = marketId;
+
+    await saveSlotStrict({ id: 'slot_legacy_refill', name: 'Legacy', state });
+    const loaded = await loadSlot('slot_legacy_refill');
+    expect(loaded).not.toBeNull();
+    const market = loaded!.buildings[marketId];
+    expect(market.marketOffersInitialized).toBe(true);
+    expect(market.marketResourceSlots).toEqual([offer, null]);
+    expect(market.marketSpecialistSlots).toEqual([null]);
   });
 
   it('migrates v18 save to backfill pendingTrapSetterId as null', async () => {

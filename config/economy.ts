@@ -81,9 +81,6 @@ export const MARKET = {
   /** Resource slots draw distinct offers when the pool allows (else duplicates permitted). */
   DISTINCT_RESOURCE_OFFERS: true,
 
-  // ── Auto-refill: fills EMPTY slots only, free, every N player turns ───────
-  AUTO_REFILL_INTERVAL: 3,
-
   // ── Restock: player-paid, rerolls ALL slots (incl. full), repeatable ──────
   RESTOCK_COST: { wood: 0, iron: 0, crystal: 1 } as { wood: number; iron: number; crystal: number },
   /** One free restock is available per market every N player turns (balancable). */

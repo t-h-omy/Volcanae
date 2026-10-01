@@ -85,7 +85,6 @@ function makeMarketBuilding(overrides: Partial<Building> = {}): Building {
     lastRecruitmentTurn: 0,
     marketResourceSlots: [null, null, null],
     marketSpecialistSlots: [null],
-    marketRefillCountdown: MARKET.AUTO_REFILL_INTERVAL,
     marketOffersInitialized: true,
     ...overrides,
   } as unknown as Building;

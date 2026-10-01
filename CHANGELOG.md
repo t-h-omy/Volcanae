@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.113.1 - Market offers no longer auto-refill
+
+Removed the Market's automatic empty-slot refill. Offers are generated once on first discovery; bought resource trades and bought or swapped specialists leave their slot empty until the player uses a paid or free restock. Dropped `MARKET.AUTO_REFILL_INTERVAL`, `Building.marketRefillCountdown`, and `tickMarketRefills()`; legacy saves that still carry the countdown field load unchanged. Added regression tests covering multi-turn empty slots, manual restocks, and one-time discovery initialization.
+
 ### v0.113.0 - AI trace export access
 
 Added run D of the AI trace diagnostics flow. Finished runs now seal and preserve their traces before save-slot cleanup, archived traces are retained in IndexedDB with bounded pruning, Dev Options can export or delete both the active trace and finished runs, and defeat or victory screens now expose the sealed AI trace export button alongside the existing save export.

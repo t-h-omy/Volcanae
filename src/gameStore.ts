@@ -61,7 +61,7 @@ import { cleanupRoostedUnits } from './buildingRemoval';
 import { rollNextWaveTheme, applyThemeToFoggedUnits } from './waveThemeSystem';
 import { useMarketPanelStore } from './marketPanelStore';
 import { canUnitTrade } from './unitActions';
-import { createMarket, restockAllSlots, tickMarketRefills } from './marketSystem';
+import { createMarket, restockAllSlots } from './marketSystem';
 import { MARKET } from './gameConfig';
 import { canUnitBuildBridge, getBridgeBuildTargets } from './unitActions';
 import { canUnitSetTrap, isTrapTileClear, canUnitExtinguish } from './unitActions';
@@ -2422,8 +2422,6 @@ export const useGameStore = create<GameStore>()(
             }
           }
 
-          // Tick market auto-refill countdowns
-          tickMarketRefills(draft);
           // Check ember level
           if (draft.turn > 0 && draft.turn % ENEMY.THREAT_LEVEL_INCREASE_INTERVAL === 0) {
             draft.ember += 1;

@@ -24,7 +24,6 @@ import {
   rollResourceOffer,
   rollSpecialistId,
   setMarketRandomSource,
-  tickMarketRefills,
 } from '../marketSystem';
 import { updateDiscovery } from '../discoverySystem';
 import { canUnitTrade, getTradeMarket, getCaptureTarget } from '../unitActions';
@@ -139,7 +138,6 @@ function makeMarketBuilding(pos = { x: 0, y: 0 }, slotOverrides: Partial<Buildin
     lastRecruitmentTurn: 0,
     marketResourceSlots: [],
     marketSpecialistSlots: [],
-    marketRefillCountdown: MARKET.AUTO_REFILL_INTERVAL,
     marketOffersInitialized: true,
     ...slotOverrides,
   };
@@ -466,104 +464,6 @@ describe('restockAllSlots', () => {
 });
 
 // ============================================================================
-// Auto-refill
-// ============================================================================
-
-describe('tickMarketRefills', () => {
-  it('decrements countdown each tick', () => {
-    const market = makeMarketBuilding({ x: 0, y: 0 }, {
-      marketRefillCountdown: 3,
-      marketResourceSlots: [null],
-      marketSpecialistSlots: [],
-    });
-    const state = makeState({ buildings: [market] });
-    // Manually write to draft-like plain object
-    tickMarketRefills(state as unknown as Parameters<typeof tickMarketRefills>[0]);
-    expect(state.buildings[market.id].marketRefillCountdown).toBe(2);
-  });
-
-  it('fills empty slots and resets countdown at zero', () => {
-    const market = makeMarketBuilding({ x: 0, y: 0 }, {
-      marketRefillCountdown: 1,
-      marketResourceSlots: [null, null],
-      marketSpecialistSlots: [],
-    });
-    const state = makeState({ buildings: [market] });
-    tickMarketRefills(state as unknown as Parameters<typeof tickMarketRefills>[0]);
-    // After tick: countdown was 1 → decremented to 0 → trigger refill → reset
-    expect(state.buildings[market.id].marketRefillCountdown).toBe(MARKET.AUTO_REFILL_INTERVAL);
-    // Slots should have been filled
-    const slots = state.buildings[market.id].marketResourceSlots ?? [];
-    for (const slot of slots) {
-      expect(slot).not.toBeNull();
-    }
-  });
-
-  it('does NOT touch filled slots during auto-refill', () => {
-    const existingOffer = { give: { currency: 'WOOD' as const, amount: 6 }, gain: { currency: 'IRON' as const, amount: 3 } };
-    const market = makeMarketBuilding({ x: 0, y: 0 }, {
-      marketRefillCountdown: 1,
-      marketResourceSlots: [existingOffer, null],
-      marketSpecialistSlots: [],
-    });
-    const state = makeState({ buildings: [market] });
-    tickMarketRefills(state as unknown as Parameters<typeof tickMarketRefills>[0]);
-    // First slot (was filled) must be the same offer
-    const firstSlot = state.buildings[market.id].marketResourceSlots?.[0];
-    expect(firstSlot).not.toBeNull();
-    expect(firstSlot?.give.currency).toBe('WOOD');
-    expect(firstSlot?.give.amount).toBe(6);
-  });
-
-  it('only refills markets (not other building types)', () => {
-    const nonMarket: Building = {
-      ...makeMarketBuilding({ x: 1, y: 0 }),
-      type: BuildingType.MINE,
-      marketRefillCountdown: 1,
-    };
-    const state = makeState({ buildings: [nonMarket] });
-    // Should not throw or refill
-    expect(() =>
-      tickMarketRefills(state as unknown as Parameters<typeof tickMarketRefills>[0])
-    ).not.toThrow();
-    // Countdown should NOT have changed
-    expect(state.buildings[nonMarket.id].marketRefillCountdown).toBe(1);
-  });
-
-  it('does not fill unrevealed markets even when initialized', () => {
-    const market = makeMarketBuilding({ x: 2, y: 2 }, {
-      marketOffersInitialized: true,
-      marketRefillCountdown: 1,
-      marketResourceSlots: [null],
-      marketSpecialistSlots: [null],
-    });
-    const state = makeState({ buildings: [market] });
-    state.grid[2][2].isRevealed = false;
-
-    tickMarketRefills(state as unknown as Parameters<typeof tickMarketRefills>[0]);
-
-    expect(state.buildings[market.id].marketRefillCountdown).toBe(1);
-    expect(state.buildings[market.id].marketResourceSlots?.[0]).toBeNull();
-  });
-
-  it('does not fill uninitialized markets even when revealed', () => {
-    const market = makeMarketBuilding({ x: 2, y: 2 }, {
-      marketOffersInitialized: false,
-      marketRefillCountdown: 1,
-      marketResourceSlots: [null],
-      marketSpecialistSlots: [null],
-    });
-    const state = makeState({ buildings: [market] });
-    state.grid[2][2].isRevealed = true;
-
-    tickMarketRefills(state as unknown as Parameters<typeof tickMarketRefills>[0]);
-
-    expect(state.buildings[market.id].marketRefillCountdown).toBe(1);
-    expect(state.buildings[market.id].marketResourceSlots?.[0]).toBeNull();
-  });
-});
-
-// ============================================================================
 // Commit point: hasTradedThisTurn semantics (F-5)
 // ============================================================================
 
@@ -634,17 +534,15 @@ describe('fillEmptySpecialistSlots', () => {
 });
 
 describe('market offer initialization on discovery', () => {
-  it('initializeMarketOffers fills all slots, sets countdown, and excludes owned specialists', () => {
+  it('initializeMarketOffers fills all slots and excludes owned specialists', () => {
     const ownedId = Object.keys(SPECIALIST_DEFINITIONS)[0];
     const state = makeState({ globalSpecialistStorage: [ownedId] });
     const market = createMarket(state, { x: 2, y: 2 });
-    market.marketRefillCountdown = 1;
     expect(market.marketOffersInitialized).toBe(false);
 
     initializeMarketOffers(state, market);
 
     expect(market.marketOffersInitialized).toBe(true);
-    expect(market.marketRefillCountdown).toBe(MARKET.AUTO_REFILL_INTERVAL);
     for (const slot of market.marketResourceSlots ?? []) {
       expect(slot).not.toBeNull();
     }
@@ -664,7 +562,6 @@ describe('market offer initialization on discovery', () => {
 
     const updated = state.buildings[market.id];
     expect(updated.marketOffersInitialized).toBe(true);
-    expect(updated.marketRefillCountdown).toBe(MARKET.AUTO_REFILL_INTERVAL);
     for (const slot of updated.marketResourceSlots ?? []) {
       expect(slot).not.toBeNull();
     }
@@ -703,12 +600,6 @@ describe('createMarket — structure', () => {
     const state = makeState();
     const m = createMarket(state, { x: 5, y: 5 });
     expect(m.type).toBe(BuildingType.MARKET);
-  });
-
-  it('sets marketRefillCountdown to AUTO_REFILL_INTERVAL', () => {
-    const state = makeState();
-    const m = createMarket(state, { x: 5, y: 5 });
-    expect(m.marketRefillCountdown).toBe(MARKET.AUTO_REFILL_INTERVAL);
   });
 
   it('starts with marketOffersInitialized false', () => {
