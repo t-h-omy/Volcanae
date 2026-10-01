@@ -66,14 +66,14 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   [UnitTag.BLOCK]:        { label: 'Block',       desc: `Takes only ${ABILITIES.BLOCK_MELEE_DAMAGE_MULTIPLIER * 100}% damage from melee attackers.` },
   [UnitTag.PUNCTURE]:     { label: 'Puncture',    desc: `Ignores defensive bonuses on the target. Stuns targets with base DEF above ${ABILITIES.PUNCTURE_STUN_BASE_DEF_THRESHOLD} for ${ABILITIES.PUNCTURE_STUN_DURATION} turn(s).` },
   [UnitTag.RELOAD]:       { label: 'Reload',      desc: `After this unit attacks, its DEF is reduced by ${ABILITIES.RELOAD_DEF_PENALTY_PCT}% until the start of its next turn.` },
-  [UnitTag.BURN]:         { label: 'Burn',        desc: 'Attacks set the target\'s tile to Burning, dealing damage to non-lava units standing there at end of turn.' },
+  [UnitTag.BURN]:         { label: 'Burn',        desc: 'Attacks set the target\'s tile to Burning, dealing damage to non-LAVA, non-FLYING, non-CINDERBORN units standing there at end of turn.' },
   [UnitTag.TUNNEL]:       { label: 'Tunnel',      desc: `Digs underground and re-emerges ${ABILITIES.TUNNEL_RANGE_MIN}–${ABILITIES.TUNNEL_RANGE_MAX} tiles south in the same column. Digging in requires open ground (no buildings, ruins, forest or mountain). Deals ${ABILITIES.TUNNEL_EMERGE_DAMAGE} damage to enemies adjacent to the emergence tile. Sets the emergence tile to Corrupted.` },
   [UnitTag.EMBER_PORTAL]: { label: 'Ember Portal', desc: 'Casts a pair of portals: an entrance next to the Rift Lord and an exit behind the player\'s frontline. Any enemy unit stepping on the entrance teleports to the exit, if the exit is free. If the exit is blocked, the unit waits on the entrance and teleports the moment the exit clears. The Rift Lord cannot cast another pair until the current pair is removed. Portal tiles are corrupted and block player movement.' },
   // ── Overcapacity penalty tags ────────────────────────────────────────────────
   [UnitTag.HOMELESS]:  { label: 'Homeless',  desc: `Unit has no shelter - population cap is exceeded. -${POPULATION.HOMELESS_DEF_PENALTY} DEF. Loses ${POPULATION.HOMELESS_HP_LOSS_PER_TURN} HP at the end of every player turn.`, icon: '🏚️' },
   [UnitTag.UNTRAINED]: { label: 'Untrained', desc: `Training facilities of this type are over capacity. -${TRAINING.UNTRAINED_ATK_PENALTY} ATK.`, icon: '📉' },
   // ── Movement tags ───────────────────────────────────────────────────────────
-  [UnitTag.FLYING]:    { label: 'Flying',    desc: `Traverses canyons and unfrozen water tiles. Survives knockback over canyons and water (lava still kills). Does not ice-slide across frozen tiles. Takes +${Math.round((ABILITIES.FLYING_RANGED_DAMAGE_TAKEN_MULTIPLIER - 1) * 100)}% damage from non-flying ranged attackers.`, icon: '🕊️' },
+  [UnitTag.FLYING]:    { label: 'Flying',    desc: `Traverses canyons and unfrozen water tiles. Survives knockback over canyons and water (lava still kills). Immune to BURNING tile damage. Does not ice-slide across frozen tiles. Takes +${Math.round((ABILITIES.FLYING_RANGED_DAMAGE_TAKEN_MULTIPLIER - 1) * 100)}% damage from non-flying ranged attackers.`, icon: '🕊️' },
   // ── Tile-presence status tags ────────────────────────────────────────────
   [UnitTag.CORRUPTED]: { label: 'Corrupted', desc: 'Standing on a corrupted tile. Some tag abilities are suppressed until this unit moves off the corrupted tile.', icon: '☠️' },
   [UnitTag.BRIDGE_BUILDER]: { label: 'Bridgebuilder', desc: `Can spend its action to build a Bridge (${BUILDING_DEFINITIONS.BRIDGE.constructionCost.wood} wood) across a 1-tile canyon gap between two land tiles. Bridge is crossable along its axis and diagonally.` },
@@ -83,4 +83,3 @@ export const TAG_INFO: Record<UnitTag, { label: string; desc: string; icon?: str
   [UnitTag.BERSERK]:      { label: 'Berserk',      desc: `When HP drops below ${ABILITIES.BERSERK_HP_THRESHOLD_PCT}%, gains +${ABILITIES.BERSERK_ATTACK_PCT}% ATK. Once triggered, stays active even if HP recovers.` },
   [UnitTag.BATTERY]:      { label: 'Battery',      desc: `Gains +${ABILITIES.SIEGE_BATTERY_ATK_PER_ADJACENT} ATK per adjacent friendly unit, up to ${ABILITIES.SIEGE_BATTERY_CAP} stacks.` },
 };
-

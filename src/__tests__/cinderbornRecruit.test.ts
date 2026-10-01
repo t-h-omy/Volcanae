@@ -215,16 +215,19 @@ describe('SP-15s Forgemaster (spec_15) — CINDERBORN_RECRUIT', () => {
     expect(recruited.stats.attack).toBe(UNIT_DEFINITIONS[UnitType.SWORDSMAN].attack);
   });
 
-  it('treats CINDERBORN like LAVA for BURNING tile damage immunity', () => {
+  it('keeps CINDERBORN and FLYING units immune to BURNING tile damage', () => {
     const cinderborn = makeUnit('u_cinder', UnitType.SWORDSMAN, 2, 2, [UnitTag.CINDERBORN]);
     const normal = makeUnit('u_normal', UnitType.SWORDSMAN, 3, 2);
+    const flying = makeUnit('u_flying', UnitType.SWORDSMAN, 4, 2, [UnitTag.FLYING]);
     const grid = makeGrid();
     grid[2][2].unitId = cinderborn.id;
     grid[2][2].status = TileStatus.BURNING;
     grid[2][3].unitId = normal.id;
     grid[2][3].status = TileStatus.BURNING;
+    grid[2][4].unitId = flying.id;
+    grid[2][4].status = TileStatus.BURNING;
     const state = {
-      units: { [cinderborn.id]: cinderborn, [normal.id]: normal },
+      units: { [cinderborn.id]: cinderborn, [normal.id]: normal, [flying.id]: flying },
       grid,
       gameStats: {
         unitsLost: 0,
@@ -238,7 +241,9 @@ describe('SP-15s Forgemaster (spec_15) — CINDERBORN_RECRUIT', () => {
     expect(state.units[normal.id].stats.currentHp).toBe(
       UNIT_DEFINITIONS[UnitType.SWORDSMAN].maxHp - BURNING_TILE_DAMAGE,
     );
+    expect(state.units[flying.id].stats.currentHp).toBe(UNIT_DEFINITIONS[UnitType.SWORDSMAN].maxHp);
     expect(events.some((e) => 'unitId' in e && e.unitId === cinderborn.id)).toBe(false);
     expect(events.some((e) => 'unitId' in e && e.unitId === normal.id)).toBe(true);
+    expect(events.some((e) => 'unitId' in e && e.unitId === flying.id)).toBe(false);
   });
 });

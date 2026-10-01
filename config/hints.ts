@@ -144,7 +144,7 @@ export const HINT_DEFINITIONS: Record<HintId, HintDefinition> = {
   },
   H13_BURNING: {
     short: 'Burning ground! Units standing on it take damage.',
-    detail: `Burning tiles deal ${BURNING_TILE_DAMAGE} damage to every non-lava unit at the end of the turn. Move out of the fire. LAVA and CINDERBORN units are immune.`,
+    detail: `Burning tiles deal ${BURNING_TILE_DAMAGE} damage to non-LAVA, non-FLYING, non-CINDERBORN units at the end of the turn. Move out of the fire. LAVA, FLYING, and CINDERBORN units are immune.`,
   },
   H14_FIRST_TECH_FIELD_DUTIES: {
     short: 'Good first research: Field Duties. Guards learn to build and capture.',

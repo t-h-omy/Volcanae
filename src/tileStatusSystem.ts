@@ -145,7 +145,7 @@ export function isUnitOnCorruptedTile(
  * End-of-turn processing for tile statuses. Called once per player turn,
  * before the lava tick (Phase 3.5 in endPlayerTurn).
  *
- * BURNING: every non-LAVA unit standing on a BURNING tile takes
+ * BURNING: every non-LAVA, non-FLYING, non-CINDERBORN unit standing on a BURNING tile takes
  * BURNING_TILE_DAMAGE hp. Units that die emit a UNIT_DEATH event.
  * A TILE_DAMAGE event is emitted for each unit that takes damage (for floaters).
  */
@@ -165,8 +165,12 @@ export function processTileStatusEndOfTurn(
 
       const unit = state.units[tile.unitId];
       if (!unit) continue;
-      // LAVA-tagged and CINDERBORN units are immune to BURNING tile damage.
-      if (unit.tags.includes(UnitTag.LAVA) || unit.tags.includes(UnitTag.CINDERBORN)) continue;
+      // LAVA-tagged, CINDERBORN, and FLYING units are immune to BURNING tile damage.
+      if (
+        unit.tags.includes(UnitTag.LAVA)
+        || unit.tags.includes(UnitTag.CINDERBORN)
+        || unit.tags.includes(UnitTag.FLYING)
+      ) continue;
 
       const damage = Math.min(BURNING_TILE_DAMAGE, unit.stats.currentHp);
       unit.stats.currentHp -= damage;
