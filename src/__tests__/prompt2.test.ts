@@ -14,7 +14,9 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { produce } from 'immer';
+import { resolveAttack } from '../combatSystem';
 import { resolveExplosion, runEnemyTurn } from '../enemySystem';
+import * as enemySystem from '../enemySystem';
 import { isUnitOnCorruptedTile } from '../tileStatusSystem';
 import { canUnitHeal, getHealTargets, isHealSuppressedByCorruption } from '../unitActions';
 import { CORRUPTED_SUPPRESSED_TAGS, UNIT_DEFINITIONS, MAP } from '../gameConfig';
@@ -452,6 +454,43 @@ describe('2B – Explosive unit does not detonate with no adjacent player', () =
     const playerAfter = nextState.units[player.id];
     const playerHp = playerAfter?.stats.currentHp ?? 0;
     expect(playerHp).toBeLessThan(player.stats.currentHp);
+  });
+});
+
+describe('Emberling normal death', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('describes its lava sacrifice and blocked-only EXPLODE action', () => {
+    const { description, explosionDamage } = UNIT_DEFINITIONS[UnitType.EMBERLING];
+
+    expect(description).toContain('raises Ember by 1');
+    expect(description).toContain('EXPLODE action');
+    expect(description).toContain('blocked from reaching lava');
+    expect(description).toContain(`${explosionDamage} damage to all player units within 1 tile`);
+  });
+
+  it('does not call resolveExplosion or damage adjacent player units when killed in combat', () => {
+    const attacker = makeUnit(UnitType.SPEARMAN, Faction.PLAYER, 4, 4);
+    const emberling = makeUnit(UnitType.EMBERLING, Faction.ENEMY, 4, 5);
+    const adjacentPlayer = makeUnit(UnitType.SCOUT, Faction.PLAYER, 5, 4);
+    emberling.stats.currentHp = 1;
+
+    const state = makeStateForEnemyTurn([attacker, emberling, adjacentPlayer]);
+    const events: GameEvent[] = [];
+    const resolveExplosionSpy = vi.spyOn(enemySystem, 'resolveExplosion');
+    const adjacentPlayerHp = adjacentPlayer.stats.currentHp;
+
+    const nextState = produce(state, (draft) => {
+      resolveAttack(draft, attacker.id, emberling.id, true, events);
+    });
+
+    expect(nextState.units[emberling.id]).toBeUndefined();
+    expect(resolveExplosionSpy).not.toHaveBeenCalled();
+    expect(events.some((event) => event.type === 'EXPLOSION')).toBe(false);
+    expect(nextState.units[adjacentPlayer.id]?.stats.currentHp).toBe(adjacentPlayerHp);
+
   });
 });
 

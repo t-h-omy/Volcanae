@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.113.2 - Emberling description correction
+
+Corrected the Emberling description to explain that reaching lava raises Ember and that its EXPLODE action is available when blocked near player units, rather than implying it explodes automatically on death. Gameplay is unchanged.
+
 ### v0.113.1 - Market offers no longer auto-refill
 
 Removed the Market's automatic empty-slot refill. Offers are generated once on first discovery; bought resource trades and bought or swapped specialists leave their slot empty until the player uses a paid or free restock. Dropped `MARKET.AUTO_REFILL_INTERVAL`, `Building.marketRefillCountdown`, and `tickMarketRefills()`; legacy saves that still carry the countdown field load unchanged. Added regression tests covering multi-turn empty slots, manual restocks, and one-time discovery initialization.
