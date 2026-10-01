@@ -3875,7 +3875,6 @@ function CaveScreamsPopup() {
   const tilePos = useCaveScreamsStore((s) => s.tilePos);
   const sealCave = useGameStore((s) => s.sealCave);
   const exploreCave = useGameStore((s) => s.exploreCave);
-  const ignoreCave = useGameStore((s) => s.ignoreCave);
 
   if (!tilePos) return null;
 
@@ -3889,11 +3888,6 @@ function CaveScreamsPopup() {
     // close() is called inside sealCave after state update
   };
 
-  const handleIgnore = () => {
-    ignoreCave(tilePos);
-    // ignoreCave calls close() on the caveScreamsStore internally
-  };
-
   return (
     <div className="cave-screams-overlay">
       <div className="cave-screams-card">
@@ -3905,10 +3899,7 @@ function CaveScreamsPopup() {
             🗡️ Explore
           </button>
           <button className="cave-screams-btn" onClick={handleSeal}>
-            🪨 Seal
-          </button>
-          <button className="cave-screams-btn cave-screams-btn--leave" onClick={handleIgnore}>
-            🚪 Leave Cave — Lose Specialist
+            🪨 Seal — Lose Specialist
           </button>
         </div>
       </div>

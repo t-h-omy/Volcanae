@@ -205,8 +205,6 @@ interface GameActions {
   sealCave: (tilePos: Position) => void;
   /** Explore a cave mountain tile: spawns a cave monster near it */
   exploreCave: (tilePos: Position) => void;
-  /** Permanently dismiss a cave tile without spawning a monster, building a mine, or exhausting the unit */
-  ignoreCave: (tilePos: Position) => void;
   /** Revive a fallen infantry unit from a Gravestone building (costs 1 arcane crystal) */
   reviveUnit: (buildingId: string) => void;
   /** Raise a flying Gargoyle from any player Gravestone (Deathmender specialist; costs arcane crystals) */
@@ -1337,27 +1335,6 @@ export const useGameStore = create<GameStore>()(
         const pos = vfxPos as { x: number; y: number };
         useCombatAnimationStore.getState().addTileFlash(pos.x, pos.y, 600);
       }
-    },
-
-    ignoreCave: (tilePos: Position) => {
-      set((state) => {
-        const tile = state.grid[tilePos.y]?.[tilePos.x];
-        if (!tile) return;
-
-        // Permanently dismiss this cave: clear the monster marker and any
-        // active encounter entry. The mountain becomes a normal mountain.
-        // The unit is NOT exhausted — it can still move and act this turn.
-        tile.hasCaveMonster = false;
-
-        const mountainTileId = `${tilePos.x},${tilePos.y}`;
-        const encounterIdx = state.activeCaveEncounters.findIndex(
-          (e) => e.mountainTileId === mountainTileId,
-        );
-        if (encounterIdx !== -1) {
-          state.activeCaveEncounters.splice(encounterIdx, 1);
-        }
-      });
-      useCaveScreamsStore.getState().close();
     },
 
     reviveUnit: (buildingId: string) => {

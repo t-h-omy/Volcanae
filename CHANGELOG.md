@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.113.8 - Simplified cave monster resolution
+
+Merged the redundant cave popup choices for sealing and leaving the cave. Sealing is now the single non-exploration option and clearly indicates that the specialist reward is lost.
+
 ### v0.113.7 - Flying units ignore burning terrain
 
 FLYING units no longer take damage while standing on burning terrain. Updated the FLYING tag, burning-terrain tooltip, and burning hint descriptions to document that immunity, and added regression coverage.
