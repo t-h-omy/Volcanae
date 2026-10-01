@@ -142,29 +142,43 @@ export function isTransposeTerrainLegal(
 }
 
 /**
+ * Returns the Transpose first pick and every second-pick candidate that passes
+ * all non-terrain rules (different unit, not the Mage, same faction, in range).
+ */
+function getTransposeSecondPickCandidates(
+  state: GameState | Draft<GameState>,
+  mageId: string,
+): { first: Unit | Draft<Unit>; candidates: (Unit | Draft<Unit>)[] } | null {
+  const mage = state.units[mageId];
+  const firstId = state.pendingTransposeFirstUnitId;
+  if (!mage || !firstId) return null;
+  const first = state.units[firstId];
+  if (!first) return null;
+  const range = getMageSpellRange(mage);
+  const candidates: (Unit | Draft<Unit>)[] = [];
+  for (const unit of Object.values(state.units)) {
+    if (unit.id === firstId || unit.id === mageId) continue;
+    if (unit.faction !== first.faction) continue;
+    if (!isTileInSpellRange(mage, unit.position, range)) continue;
+    candidates.push(unit);
+  }
+  return { first, candidates };
+}
+
+/**
  * Returns Transpose second-pick tiles that pass every rule except the
- * destination-terrain check (same faction, in Mage range). Used by the UI to
- * mark blocked swaps before the player clicks them.
+ * destination-terrain check. Used by the UI to mark blocked swaps before the
+ * player clicks them.
  */
 export function getTransposeTerrainBlockedTargets(
   state: GameState | Draft<GameState>,
   mageId: string,
 ): Position[] {
-  const mage = state.units[mageId];
-  const firstId = state.pendingTransposeFirstUnitId;
-  if (!mage || !firstId) return [];
-  const first = state.units[firstId];
-  if (!first) return [];
-  const range = getMageSpellRange(mage);
-  const targets: Position[] = [];
-  for (const unit of Object.values(state.units)) {
-    if (unit.id === firstId || unit.id === mageId) continue;
-    if (unit.faction !== first.faction) continue;
-    if (!isTileInSpellRange(mage, unit.position, range)) continue;
-    if (isTransposeTerrainLegal(state, first, unit)) continue;
-    targets.push({ ...unit.position });
-  }
-  return targets;
+  const result = getTransposeSecondPickCandidates(state, mageId);
+  if (!result) return [];
+  return result.candidates
+    .filter((unit) => !isTransposeTerrainLegal(state, result.first, unit))
+    .map((unit) => ({ ...unit.position }));
 }
 
 /** Returns the legal target tiles for a spell. Keep this rule set aligned with explainInvalidSpellTarget. */
@@ -192,18 +206,13 @@ export function getValidSpellTargets(
         return targets;
       } else {
         // Second pick: a different unit of the same faction as the first pick,
-        // within mage spell range (no constraint on proximity to first unit).
-        const first = state.units[firstId];
-        if (!first) return [];
-        const targets: Position[] = [];
-        for (const unit of Object.values(state.units)) {
-          if (unit.id === firstId || unit.id === mageId) continue;
-          if (unit.faction !== first.faction) continue;
-          if (!isTileInSpellRange(mage, unit.position, range)) continue;
-          if (!isTransposeTerrainLegal(state, first, unit)) continue;
-          targets.push({ ...unit.position });
-        }
-        return targets;
+        // within mage spell range (no constraint on proximity to first unit),
+        // whose swap leaves both units on terrain they may occupy.
+        const result = getTransposeSecondPickCandidates(state, mageId);
+        if (!result) return [];
+        return result.candidates
+          .filter((unit) => isTransposeTerrainLegal(state, result.first, unit))
+          .map((unit) => ({ ...unit.position }));
       }
     }
 
