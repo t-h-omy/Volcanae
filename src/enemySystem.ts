@@ -1523,7 +1523,14 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
   const newTile = state.grid[targetPosition.y][targetPosition.x];
 
   // Occupancy ownership: never overwrite a tile owned by a different unit.
-  if (newTile.unitId !== null && newTile.unitId !== unitId) return;
+  if (newTile.unitId !== null && newTile.unitId !== unitId) {
+    if (import.meta.env.DEV) {
+      console.warn(
+        `[enemyMove] unit ${unitId} cannot move to (${targetPosition.x}, ${targetPosition.y}) — tile is occupied by unit ${newTile.unitId}`,
+      );
+    }
+    return;
+  }
 
   if (oldTile.unitId === unitId) {
     oldTile.unitId = null;

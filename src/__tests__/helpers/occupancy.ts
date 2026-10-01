@@ -25,7 +25,7 @@ export function expectUnitGridOccupancyConsistent(state: GameState): void {
 
     const key = `${x},${y}`;
     const other = seenPositions.get(key);
-    expect(other, `units ${other} and ${unit.id} share position (${x}, ${y})`).toBeUndefined();
+    expect(other, `unit ${unit.id} shares position (${x}, ${y}) with unit ${other}`).toBeUndefined();
     seenPositions.set(key, unit.id);
   }
 
