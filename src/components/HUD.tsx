@@ -4040,18 +4040,21 @@ function MarketPanel() {
     const incomingSpec = incomingSpecId ? (specialists[incomingSpecId] ?? SPECIALIST_DEFINITIONS[incomingSpecId] ?? null) : null;
     return (
       <div className="market-panel-overlay">
-        <div className="market-panel-card">
-          <div className="market-panel-header">
-            <span className="market-panel-title">🔄 Replace a Specialist</span>
-          </div>
-          {incomingSpec && (
-            <div className="market-panel-specialist-incoming">
-              <span className="market-panel-specialist-name">🧙 {incomingSpec.name}</span>
-              <p className="market-panel-specialist-desc">{incomingSpec.description}</p>
-              <span className="market-panel-specialist-cost">Cost: 💎{MARKET.SPECIALIST_PRICE_CRYSTAL}</span>
+        <div className="market-panel-card market-panel-card--swap">
+          <div className="market-panel-swap-head">
+            <div className="market-panel-header">
+              <span className="market-panel-title">🔄 Replace a Specialist</span>
+              <button className="market-panel-close" onClick={cancelSpecialistSwap} aria-label="Cancel specialist replacement">✕</button>
             </div>
-          )}
-          <div className="market-panel-swap-divider">Replace one of your specialists:</div>
+            {incomingSpec && (
+              <div className="market-panel-specialist-incoming">
+                <span className="market-panel-specialist-name">🧙 {incomingSpec.name}</span>
+                <p className="market-panel-specialist-desc">{incomingSpec.description}</p>
+                <span className="market-panel-specialist-cost">Cost: 💎{MARKET.SPECIALIST_PRICE_CRYSTAL}</span>
+              </div>
+            )}
+            <div className="market-panel-swap-divider">Replace one of your specialists:</div>
+          </div>
           <div className="market-panel-swap-list">
             {globalSpecialistStorage.map((specId) => {
               const spec = specialists[specId] ?? SPECIALIST_DEFINITIONS[specId];
@@ -4072,9 +4075,11 @@ function MarketPanel() {
               );
             })}
           </div>
-          <button className="market-panel-btn market-panel-btn--close" onClick={cancelSpecialistSwap}>
-            Cancel
-          </button>
+          <div className="market-panel-swap-footer">
+            <button className="market-panel-btn market-panel-btn--close" onClick={cancelSpecialistSwap}>
+              Cancel
+            </button>
+          </div>
         </div>
       </div>
     );
