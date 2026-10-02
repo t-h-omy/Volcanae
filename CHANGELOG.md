@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.114.2 - Construction previews link to research
+
+Future tile-compatible construction options now remain visible as dimmed, clickable rows with a full-opacity 💎 research badge. Selecting a locked option opens the Tech Tree directly at its required technology, centered above the detail sheet, selected, and highlighted with a three-second animated glow. Units that can gain BUILDANDCAPTURE through research can preview construction while action-ready; their ability technology is shown before any building-specific unlock. Research updates the menu immediately. Actual construction legality, costs, tile restrictions, and action rules are unchanged.
+
 ### v0.114.1 - Remove enemy lava boost
 
 Enemy units no longer gain boosted HP or attack based on their spawning building's proximity to lava. Removed the unused lava-boost tag and its unit display indicator; enemy difficulty scaling is unchanged.

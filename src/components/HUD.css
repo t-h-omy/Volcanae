@@ -1662,6 +1662,7 @@
 
 .tech-canvas-scroll {
   flex: 1;
+  min-height: 0;
   overflow: auto;
   padding: 24px;
   -webkit-overflow-scrolling: touch;
@@ -1671,6 +1672,12 @@
   position: relative;
   flex-shrink: 0;
   margin: auto;
+}
+
+/* Leave scroll room to center even nodes at the edges of the focused tree. */
+.tech-overlay--focused .tech-canvas {
+  margin: 50vh 50vw;
+  margin: 50dvh 50dvw;
 }
 
 .tech-edges {
@@ -1726,6 +1733,24 @@
   opacity: 0.45;
 }
 
+.tech-node--focus-highlight {
+  opacity: 1;
+  z-index: 1;
+  transition: none;
+  animation: tech-focus-pulse 1s ease-in-out 3;
+}
+
+@keyframes tech-focus-pulse {
+  0%, 100% {
+    border-color: #8ddcff;
+    box-shadow: 0 0 0 3px rgba(141, 220, 255, 0.3), 0 0 14px rgba(52, 152, 219, 0.6);
+  }
+  50% {
+    border-color: #e0f7ff;
+    box-shadow: 0 0 0 6px rgba(141, 220, 255, 0.5), 0 0 26px rgba(52, 152, 219, 0.9);
+  }
+}
+
 .tech-node-name {
   font-size: 11px;
   font-weight: 600;
@@ -1761,6 +1786,18 @@
   max-height: 280px;
   padding: 16px 20px;
   overflow-y: auto;
+}
+
+.tech-overlay--focused .tech-detail-sheet {
+  position: relative;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  transition: none;
+}
+
+.tech-overlay--focused .tech-detail-sheet--open {
+  max-height: min(280px, 45vh);
+  max-height: min(280px, 45dvh);
 }
 
 .tech-detail-title {
@@ -2143,6 +2180,25 @@
 
 .info-row-btn--disabled:hover {
   background: rgba(255, 255, 255, 0.04);
+}
+
+.info-row-btn--tech-locked {
+  position: relative;
+  padding-right: 36px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.info-row-btn--tech-locked .info-row-emoji,
+.info-row-btn--tech-locked .info-row-body {
+  opacity: 0.45;
+}
+
+.hud-construction-tech-lock-badge {
+  position: absolute;
+  top: 7px;
+  right: 9px;
+  opacity: 1;
+  font-size: 14px;
 }
 
 .info-row-emoji {

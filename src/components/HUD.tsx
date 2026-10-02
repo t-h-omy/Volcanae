@@ -4,7 +4,7 @@
  * and game-over/victory overlay screens.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useGameStore } from '../gameStore';
 import { useMenuStore } from '../menuStore';
@@ -39,7 +39,7 @@ import {
   getEffectiveRecruitCost,
 } from '../resourceSystem';
 import {
-  getConstructionOptionsForTile,
+  getConstructionMenuOptionsForTile,
   getConversionTargetsForTile,
   canUnitConvertBuilding,
 } from '../constructionSystem';
@@ -68,7 +68,7 @@ import {
   type GameStats,
   type GameState,
 } from '../types';
-import { canUnitMove, canUnitAttack, canUnitCapture, canUnitConstruct, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast, getMageCastBudget, getUnitAttackRange, isHealSuppressedByCorruption, canUnitTrade, getTradeMarket, getCaptureTarget, canUnitBuildBridge, getBridgeBuildTargets, canUnitSetTrap, getTrapPlacementTargets, canUnitExtinguish } from '../unitActions';
+import { canUnitMove, canUnitAttack, canUnitCapture, canUnitPreviewConstruction, getConstructionMenuUnlockTechId, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast, getMageCastBudget, getUnitAttackRange, isHealSuppressedByCorruption, canUnitTrade, getTradeMarket, getCaptureTarget, canUnitBuildBridge, getBridgeBuildTargets, canUnitSetTrap, getTrapPlacementTargets, canUnitExtinguish } from '../unitActions';
 import { getBatteryAttackBonus, getPhalanxAttackBonus, getPhalanxDefenseBonus, getCrystalTowerChamberBonus, getRageAttackContext, isTagConditionActive } from '../combatSystem';
 import { isSpecialistEffectActive } from '../specialistSystem';
 import { RENDER } from '../../config/render';
@@ -2799,19 +2799,23 @@ function SelectedUnitPanel({
 function ConstructionPanel({
   unit,
   tilePos,
+  onOpenTechTreeAt,
 }: {
   unit: Unit;
   tilePos: Position;
+  onOpenTechTreeAt: (techId: TechId) => void;
 }) {
   const resources = useGameStore((s) => s.resources);
   const constructBuilding = useGameStore((s) => s.constructBuilding);
   const grid = useGameStore((s) => s.grid);
+  const unlockedBuildings = useGameStore((s) => s.unlockedBuildings);
+  const techNodes = useGameStore((s) => s.techNodes);
   const [confirmBuilding, setConfirmBuilding] = useState<typeof options[number] | null>(null);
   const [collapsed, setCollapsed] = useState(true);
 
   const options = useMemo(
-    () => getConstructionOptionsForTile(useGameStore.getState(), tilePos),
-    [tilePos, grid],
+    () => getConstructionMenuOptionsForTile({ grid, unlockedBuildings }, tilePos),
+    [tilePos, grid, unlockedBuildings],
   );
 
   // H04: fire when the construction panel is open on a regular ruin tile.
@@ -2840,9 +2844,15 @@ function ConstructionPanel({
       {!collapsed && (
         <div className="hud-construct-options">
           {options.map((opt) => {
+            const unlockTechId = getConstructionMenuUnlockTechId({ techNodes }, unit, opt);
+            const techLocked = !opt.buildingUnlocked || unlockTechId !== null;
             const canAffordThis =
               resources.iron >= opt.cost.iron && resources.wood >= opt.cost.wood;
             const handleSelectConstruction = () => {
+              if (techLocked) {
+                if (unlockTechId) onOpenTechTreeAt(unlockTechId);
+                return;
+              }
               if (!canAffordThis) {
                 tryTriggerHint('H20_BUILD_NO_RESOURCES');
                 return;
@@ -2852,16 +2862,19 @@ function ConstructionPanel({
             return (
               <button
                 key={opt.buildingType}
-                className={`info-row-btn${canAffordThis ? '' : ' info-row-btn--disabled'}`}
-                aria-disabled={!canAffordThis}
+                className={`info-row-btn${techLocked ? ' info-row-btn--tech-locked' : canAffordThis ? '' : ' info-row-btn--disabled'}`}
+                aria-disabled={!techLocked && !canAffordThis}
+                aria-label={techLocked ? `${opt.label}. Locked. Open unlock technology in Tech Tree.` : undefined}
+                title={techLocked ? 'Unlock in Tech Tree' : undefined}
                 onClick={handleSelectConstruction}
               >
                 <span className="info-row-emoji">{opt.emoji}</span>
                 <div className="info-row-body">
                   <div className="info-row-name">
                     {opt.label}
-                    <span className="info-badge info-badge--small">i</span>
+                    {!techLocked && <span className="info-badge info-badge--small">i</span>}
                   </div>
+                  {techLocked && <span className="hud-construction-tech-lock-badge" aria-hidden="true">💎</span>}
                   <div className="info-row-cost">⛓️{opt.cost.iron} 🪵{opt.cost.wood}</div>
                 </div>
               </button>
@@ -3539,7 +3552,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
 // BOTTOM BAR
 // ============================================================================
 
-function BottomBar() {
+function BottomBar({ onOpenTechTreeAt }: { onOpenTechTreeAt: (techId: TechId) => void }) {
   const phase = useGameStore((s) => s.phase);
   const turn = useGameStore((s) => s.turn);
   const selectedUnitId = useGameStore((s) => s.selectedUnitId);
@@ -3581,14 +3594,10 @@ function BottomBar() {
     }
   }, [selectedUnitId, captureTargetId, captureBuilding]);
 
-  // Construction panel: show when a player BUILDANDCAPTURE unit is selected
-  // and its tile has construction options
+  // Preview eligibility is separate from authoritative construction legality.
   const showConstruction = useGameStore((s) => {
-    if (!selectedUnit || selectedUnit.faction !== Faction.PLAYER) return false;
-    if (!selectedUnit.tags.includes(UnitTag.BUILDANDCAPTURE)) return false;
-    if (!canUnitConstruct(selectedUnit)) return false;
-    const options = getConstructionOptionsForTile(s, selectedUnit.position);
-    return options.length > 0;
+    const unit = s.selectedUnitId ? s.units[s.selectedUnitId] : undefined;
+    return !!unit && canUnitPreviewConstruction(unit, s);
   });
 
   // Conversion panel: show when a player BUILD_AND_CAPTURE unit is on a convertible building
@@ -3635,6 +3644,7 @@ function BottomBar() {
         <ConstructionPanel
           unit={selectedUnit}
           tilePos={selectedUnit.position}
+          onOpenTechTreeAt={onOpenTechTreeAt}
         />
       )}
       {/* Conversion panel for BUILDANDCAPTURE units on own Ruin buildings */}
@@ -4449,14 +4459,15 @@ function nodeCentre(id: string): { x: number; y: number } {
 // TECH TREE OVERLAY
 // ============================================================================
 
-function TechTreeOverlay({ onClose }: { onClose: () => void }) {
+function TechTreeOverlay({ onClose, focusId }: { onClose: () => void; focusId: TechId | null }) {
   const techNodes = useGameStore((s) => s.techNodes);
   const arcaneCrystals = useGameStore((s) => s.arcaneCrystals);
   const ember = useGameStore((s) => s.ember);
   const unlockTech = useGameStore((s) => s.unlockTech);
   const getAvailableTechs = useGameStore((s) => s.getAvailableTechs);
 
-  const [selectedId, setSelectedId] = useState<TechId | null>(null);
+  const [selectedId, setSelectedId] = useState<TechId | null>(focusId);
+  const [highlightId, setHighlightId] = useState<TechId | null>(focusId);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [infoUnitType, setInfoUnitType] = useState<UnitType | null>(null);
   const [infoBuildingType, setInfoBuildingType] = useState<BuildingType | null>(null);
@@ -4509,21 +4520,43 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  // On open, scroll the canvas so the root node is near the left-center of the viewport
   useEffect(() => {
+    if (!focusId) return;
+    const timeout = window.setTimeout(() => setHighlightId(null), 3000);
+    return () => window.clearTimeout(timeout);
+  }, [focusId]);
+
+  // Position before paint; focused opens reserve space for the detail sheet.
+  useLayoutEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
+    if (focusId) {
+      const centre = nodeCentre(focusId);
+      const centreFocus = () => {
+        const canvas = el.firstElementChild as HTMLElement;
+        const viewportRect = el.getBoundingClientRect();
+        const canvasRect = canvas.getBoundingClientRect();
+        const x = centre.x + canvasRect.left - viewportRect.left + el.scrollLeft;
+        const y = centre.y + canvasRect.top - viewportRect.top + el.scrollTop;
+        el.scrollLeft = Math.max(0, Math.min(el.scrollWidth - el.clientWidth, x - el.clientWidth / 2));
+        el.scrollTop = Math.max(0, Math.min(el.scrollHeight - el.clientHeight, y - el.clientHeight / 2));
+      };
+      centreFocus();
+      const observer = new ResizeObserver(centreFocus);
+      observer.observe(el);
+      return () => observer.disconnect();
+    }
     const rootCenter = nodeCentre(TECH_TREE.find((d) => d.requires.length === 0)?.id ?? '');
     el.scrollLeft = rootCenter.x - NODE_W;
     el.scrollTop = rootCenter.y - el.clientHeight / 2;
-  }, []);
+  }, [focusId]);
 
   // Canvas dimensions computed from the dynamic layout
   const canvasW = TECH_CANVAS_W;
   const canvasH = TECH_CANVAS_H;
 
   return (
-    <div className="tech-overlay">
+    <div className={`tech-overlay${focusId ? ' tech-overlay--focused' : ''}`}>
       {/* Header */}
       <div className="tech-overlay-header">
         <span>🔬 Tech Tree</span>
@@ -4569,7 +4602,7 @@ function TechTreeOverlay({ onClose }: { onClose: () => void }) {
             return (
               <div
                 key={def.id}
-                className={`tech-node ${stateClass} ${selectedId === def.id ? 'tech-node--selected' : ''}`}
+                className={`tech-node ${stateClass} ${selectedId === def.id ? 'tech-node--selected' : ''} ${highlightId === def.id ? 'tech-node--focus-highlight' : ''}`}
                 style={{
                   left: pos.x,
                   top: pos.y,
@@ -4732,6 +4765,11 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
   const arcaneCrystals = useGameStore((s) => s.arcaneCrystals);
   const [hasSeenIntro, setHasSeenIntro] = useState(false);
   const [showTechTree, setShowTechTree] = useState(false);
+  const [techTreeFocusId, setTechTreeFocusId] = useState<TechId | null>(null);
+  const openTechTreeAt = useCallback((techId: TechId) => {
+    setTechTreeFocusId(techId);
+    setShowTechTree(true);
+  }, []);
   const h01SeenTurnRef = useRef<number | null>(null);
   // Track crystals at the moment the player last closed the tech tree.
   // Initialised to -1 so the badge shows from game start if there is an affordable tech.
@@ -4823,6 +4861,7 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
 
   const handleCloseTechTree = useCallback(() => {
     setShowTechTree(false);
+    setTechTreeFocusId(null);
     setCrystalsAtLastTechTreeClose(arcaneCrystals);
   }, [arcaneCrystals]);
 
@@ -4842,14 +4881,17 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
       <CaveMonsterKillModal />
       <MarketPanel />
       <TopBar
-        onOpenTechTree={() => setShowTechTree(true)}
+        onOpenTechTree={() => {
+          setTechTreeFocusId(null);
+          setShowTechTree(true);
+        }}
         showTechButton={isPlayerTurn}
         arcaneCrystals={arcaneCrystals}
         showTechBadge={showTechBadge}
       />
       <AiTraceBadge />
-      <BottomBar />
-      {showTechTree && <TechTreeOverlay onClose={handleCloseTechTree} />}
+      <BottomBar onOpenTechTreeAt={openTechTreeAt} />
+      {showTechTree && <TechTreeOverlay onClose={handleCloseTechTree} focusId={techTreeFocusId} />}
       {phase === GamePhase.GAME_OVER && <GameOverOverlay />}
       {phase === GamePhase.VICTORY && <VictoryOverlay />}
       {showTurnPopup && <TurnAnnouncementPopup turn={turn} emberRose={emberRose} />}

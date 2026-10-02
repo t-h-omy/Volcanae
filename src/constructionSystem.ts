@@ -20,6 +20,8 @@ import { generateId } from './mapGenerator';
 import { grantXp } from './levelSystem';
 import { cleanupRoostedUnits } from './buildingRemoval';
 import { isSpecialistEffectActive } from './specialistSystem';
+import { getBuildingUnlockTechId } from './techSystem';
+import type { TechId } from './types';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -51,6 +53,12 @@ export interface ConstructionOption {
   cost: { iron: number; wood: number };
   label: string;
   emoji: string;
+}
+
+/** Display-only construction option; locked entries are not legal action targets. */
+export interface ConstructionMenuOption extends ConstructionOption {
+  buildingUnlocked: boolean;
+  buildingUnlockTechId: TechId | null;
 }
 
 // ============================================================================
@@ -235,6 +243,39 @@ export function getConstructionOptionsForTile(
   }
 
   return options;
+}
+
+/** Display-only tile options, including future unlocks under the same terrain rules. */
+export function getConstructionMenuOptionsForTile(
+  state: Pick<GameState, 'grid' | 'unlockedBuildings'>,
+  tilePos: Position,
+): ConstructionMenuOption[] {
+  const tile = state.grid[tilePos.y]?.[tilePos.x];
+  if (!tile) return [];
+  const types: ConstructableBuilding[] = [];
+  if (tile.isStrongholdRuin) {
+    types.push(BuildingType.STRONGHOLD);
+  } else {
+    if (tile.terrainType === TileType.FOREST && tile.buildingId === null) {
+      types.push(BuildingType.WOODCUTTER, BuildingType.CHARCOAL_KILN);
+    }
+    if (tile.terrainType === TileType.MOUNTAIN && tile.buildingId === null && !tile.isRuin) {
+      types.push(BuildingType.MINE, BuildingType.DEEP_MINE);
+    }
+    if (tile.isRuin) {
+      types.push(...RUIN_BUILDABLE_TYPES as ConstructableBuilding[]);
+    }
+  }
+  return types.map((buildingType) => {
+    const option = makeOption(buildingType);
+    const buildingUnlockTechId = getBuildingUnlockTechId(option.buildingType);
+    return {
+      ...option,
+      buildingUnlocked: buildingUnlockTechId === null
+        || state.unlockedBuildings.includes(option.buildingType),
+      buildingUnlockTechId,
+    };
+  });
 }
 
 // ============================================================================
