@@ -2878,12 +2878,12 @@ function ConstructionPanel({
                     {opt.label}
                     {!techLocked && <span className="info-badge info-badge--small">i</span>}
                   </div>
-                  {techLocked && <span className="hud-construction-tech-lock-badge" aria-hidden="true">💎</span>}
                   <div className="info-row-cost">⛓️{opt.cost.iron} 🪵{opt.cost.wood}</div>
-                  {!techLocked && !canAffordThis && (
+                  {!canAffordThis && (
                     <div className="hud-pop-warning">Need {missingResources}</div>
                   )}
                 </div>
+                {techLocked && <span className="hud-construction-tech-lock-badge" aria-hidden="true">💎</span>}
               </button>
             );
           })}

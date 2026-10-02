@@ -2,7 +2,7 @@
 
 ### v0.114.3 - Explain construction resource shortages
 
-Unlocked construction rows now show exactly how much more iron or wood is needed, even when hints are disabled or have already been seen. This distinguishes insufficient resources from technology locks after researching Field Duties. Building costs and Guard construction rules are unchanged.
+Construction rows now show exactly how much more iron or wood is needed, including technology-locked options and even when hints are disabled or have already been seen. The research diamond sits outside the dimmed row content so it remains fully opaque. This distinguishes insufficient resources from technology locks after researching Field Duties. Building costs and Guard construction rules are unchanged.
 
 ### v0.114.2 - Construction previews link to research
 

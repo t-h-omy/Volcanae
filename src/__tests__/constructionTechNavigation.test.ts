@@ -25,10 +25,10 @@ describe('construction research navigation UI contract', () => {
     expect(construction).toContain('hud-construction-tech-lock-badge');
   });
 
-  it('shows resource shortages on researched rows even with hints disabled', () => {
+  it('shows resource shortages on both researched and locked rows even with hints disabled', () => {
     expect(construction).toContain('`${opt.cost.iron - resources.iron} more iron`');
     expect(construction).toContain('`${opt.cost.wood - resources.wood} more wood`');
-    expect(construction).toMatch(/!techLocked && !canAffordThis && \(\s*<div className="hud-pop-warning">Need \{missingResources\}/);
+    expect(construction).toMatch(/\{!canAffordThis && \(\s*<div className="hud-pop-warning">Need \{missingResources\}/);
     expect(construction).not.toContain('hintsEnabled');
   });
 
@@ -38,6 +38,9 @@ describe('construction research navigation UI contract', () => {
     expect(parent).not.toContain('opacity');
     expect(HUD_CSS).toMatch(/\.info-row-btn--tech-locked \.info-row-emoji,[\s\S]*?\.info-row-btn--tech-locked \.info-row-body \{\s*opacity: 0\.45;/);
     expect(HUD_CSS).toMatch(/\.hud-construction-tech-lock-badge \{[^}]*opacity: 1;/);
+    expect(construction).toMatch(/<\/div>\s*\{techLocked && <span className="hud-construction-tech-lock-badge" aria-hidden="true">💎<\/span>\}\s*<\/button>/);
+    const body = construction.slice(construction.indexOf('<div className="info-row-body">'), construction.indexOf('</button>'));
+    expect(body.indexOf('hud-construction-tech-lock-badge')).toBeGreaterThan(body.lastIndexOf('</div>'));
   });
 
   it('selects the requested tech on initial render and positions it before paint', () => {
