@@ -2848,6 +2848,10 @@ function ConstructionPanel({
             const techLocked = !opt.buildingUnlocked || unlockTechId !== null;
             const canAffordThis =
               resources.iron >= opt.cost.iron && resources.wood >= opt.cost.wood;
+            const missingResources = [
+              resources.iron < opt.cost.iron ? `${opt.cost.iron - resources.iron} more iron` : null,
+              resources.wood < opt.cost.wood ? `${opt.cost.wood - resources.wood} more wood` : null,
+            ].filter(Boolean).join(' and ');
             const handleSelectConstruction = () => {
               if (techLocked) {
                 if (unlockTechId) onOpenTechTreeAt(unlockTechId);
@@ -2874,9 +2878,12 @@ function ConstructionPanel({
                     {opt.label}
                     {!techLocked && <span className="info-badge info-badge--small">i</span>}
                   </div>
-                  {techLocked && <span className="hud-construction-tech-lock-badge" aria-hidden="true">💎</span>}
                   <div className="info-row-cost">⛓️{opt.cost.iron} 🪵{opt.cost.wood}</div>
+                  {!canAffordThis && (
+                    <div className="hud-pop-warning">Need {missingResources}</div>
+                  )}
                 </div>
+                {techLocked && <span className="hud-construction-tech-lock-badge" aria-hidden="true">💎</span>}
               </button>
             );
           })}
