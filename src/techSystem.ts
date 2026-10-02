@@ -5,8 +5,8 @@
  */
 
 import type { Draft } from 'immer';
-import type { GameState, TechId, TechEffect, UnitStats, StatModifier, Unit, UnitTag } from './types';
-import { Faction, TechFlag, BuildingType } from './types';
+import type { GameState, TechId, TechEffect, UnitStats, StatModifier, Unit } from './types';
+import { Faction, TechFlag, BuildingType, UnitTag } from './types';
 import { TECH_TREE, ABILITIES, TAG_STAT_EFFECTS, computeResearchCost, POPULATION, MAGE, SPELL_DEFINITIONS } from './gameConfig';
 
 // ============================================================================
@@ -221,6 +221,24 @@ export function revokeTagStatEffects(unit: Draft<Unit>, tag: UnitTag): void {
 // ============================================================================
 
 import type { UnitType, ResourceType } from './types';
+
+/** Returns the tech that unlocks a building, or null for buildings without a tech gate. */
+export function getBuildingUnlockTechId(buildingType: BuildingType): TechId | null {
+  return TECH_TREE.find((def) => def.effects.some(
+    (effect) => effect.type === 'UNLOCK_BUILDING' && effect.buildingType === buildingType,
+  ))?.id ?? null;
+}
+
+/** Returns an unresearched tech that grants this unit type construction capability. */
+export function getUnitConstructionUnlockTechId(
+  state: Pick<GameState, 'techNodes'>,
+  unitType: UnitType,
+): TechId | null {
+  return TECH_TREE.find((def) => !state.techNodes[def.id]?.unlocked && def.effects.some(
+    (effect) => effect.type === 'GRANT_UNIT_TAG'
+      && effect.unitType === unitType && effect.tag === UnitTag.BUILDANDCAPTURE,
+  ))?.id ?? null;
+}
 
 /**
  * Returns all GRANT_UNIT_TAG effects for the given unit type from unlocked techs.

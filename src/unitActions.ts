@@ -35,10 +35,11 @@
 import type { GameState } from './types';
 import type { Draft } from 'immer';
 import { Faction, UnitTag, BuildingType, UnitType, TileType, TileStatus } from './types';
-import type { Unit, Building, Tile } from './types';
+import type { Unit, Building, Tile, TechId } from './types';
 import { getReachableTiles } from './movementSystem';
-import { getConstructionOptionsForTile } from './constructionSystem';
-import type { ConstructionOption } from './constructionSystem';
+import { getConstructionOptionsForTile, getConstructionMenuOptionsForTile } from './constructionSystem';
+import type { ConstructionOption, ConstructionMenuOption } from './constructionSystem';
+import { getUnitConstructionUnlockTechId } from './techSystem';
 import { canCapture } from './captureSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { MAP, MAGE, ABILITIES } from './gameConfig';
@@ -449,6 +450,34 @@ export function canUnitConstruct(unit: Unit): boolean {
   if (unit.hasTradedThisTurn) return false;
   if (!unit.tags.includes(UnitTag.BUILDANDCAPTURE)) return false;
   return true;
+}
+
+/** Display-only eligibility; never use this to authorize construction. */
+export function canUnitPreviewConstruction(
+  unit: Unit,
+  state: GameState | Draft<GameState>,
+): boolean {
+  if (unit.faction !== Faction.PLAYER) return false;
+  const hasConstructionTag = unit.tags.includes(UnitTag.BUILDANDCAPTURE);
+  if (!hasConstructionTag && getUnitConstructionUnlockTechId(state, unit.type) === null) return false;
+  const previewUnit = hasConstructionTag
+    ? unit
+    : { ...unit, tags: [...unit.tags, UnitTag.BUILDANDCAPTURE] };
+  return canUnitConstruct(previewUnit)
+    && getConstructionMenuOptionsForTile(state, unit.position).length > 0;
+}
+
+/** Unit capability locks take precedence over building locks in the display menu. */
+export function getConstructionMenuUnlockTechId(
+  state: Pick<GameState, 'techNodes'>,
+  unit: Unit,
+  option: ConstructionMenuOption,
+): TechId | null {
+  if (!unit.tags.includes(UnitTag.BUILDANDCAPTURE)) {
+    const unitUnlockTechId = getUnitConstructionUnlockTechId(state, unit.type);
+    if (unitUnlockTechId !== null) return unitUnlockTechId;
+  }
+  return option.buildingUnlocked ? null : option.buildingUnlockTechId;
 }
 
 /**
