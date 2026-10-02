@@ -231,6 +231,32 @@ describe('display-only unit eligibility', () => {
 });
 
 describe('lock precedence and live research state', () => {
+  it('keeps a researched Guard resource-blocked until it can afford construction', () => {
+    let state = makeState({}, makeUnit(UnitType.GUARD));
+    state.resources = { iron: 2, wood: 6 };
+    state = produce(state, (draft) => {
+      unlockTech(draft, 'CONSCRIPTION');
+      unlockTech(draft, 'FIELD_DUTIES');
+    });
+    expect(canUnitConstruct(state.units.unit)).toBe(true);
+    expect(canUnitPreviewConstruction(state.units.unit, state)).toBe(true);
+    const unlockedOptions = getConstructionMenuOptionsForTile(state, position)
+      .filter((option) => option.buildingUnlocked);
+    expect(unlockedOptions.map((option) => option.buildingType))
+      .toEqual([BuildingType.BARRACKS, BuildingType.FARM, BuildingType.CRYSTAL_CHAMBER]);
+    for (const option of unlockedOptions) {
+      expect(getConstructionMenuUnlockTechId(state, state.units.unit, option)).toBeNull();
+      expect(canConstructAt(state, 'unit', position, option.buildingType)).toBe(false);
+    }
+    state = produce(state, (draft) => {
+      draft.resources.iron += 2;
+      constructBuilding(draft, 'unit', position, BuildingType.BARRACKS);
+    });
+    expect(Object.values(state.buildings).map((building) => building.type)).toEqual([BuildingType.BARRACKS]);
+    expect(state.resources).toEqual({ iron: 0, wood: 2 });
+    expect(state.units.unit.hasConstructedThisTurn).toBe(true);
+  });
+
   it('uses FIELD_DUTIES before all building locks, then updates after research', () => {
     let state = makeState({}, makeUnit(UnitType.GUARD));
     const oldOptions = getConstructionMenuOptionsForTile(state, position);

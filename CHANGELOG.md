@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.114.3 - Explain construction resource shortages
+
+Unlocked construction rows now show exactly how much more iron or wood is needed, even when hints are disabled or have already been seen. This distinguishes insufficient resources from technology locks after researching Field Duties. Building costs and Guard construction rules are unchanged.
+
 ### v0.114.2 - Construction previews link to research
 
 Future tile-compatible construction options now remain visible as dimmed, clickable rows with a full-opacity 💎 research badge. Selecting a locked option opens the Tech Tree directly at its required technology, centered above the detail sheet, selected, and highlighted with a three-second animated glow. Units that can gain BUILDANDCAPTURE through research can preview construction while action-ready; their ability technology is shown before any building-specific unlock. Research updates the menu immediately. Actual construction legality, costs, tile restrictions, and action rules are unchanged.

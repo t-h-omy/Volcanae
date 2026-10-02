@@ -25,6 +25,13 @@ describe('construction research navigation UI contract', () => {
     expect(construction).toContain('hud-construction-tech-lock-badge');
   });
 
+  it('shows resource shortages on researched rows even with hints disabled', () => {
+    expect(construction).toContain('`${opt.cost.iron - resources.iron} more iron`');
+    expect(construction).toContain('`${opt.cost.wood - resources.wood} more wood`');
+    expect(construction).toMatch(/!techLocked && !canAffordThis && \(\s*<div className="hud-pop-warning">Need \{missingResources\}/);
+    expect(construction).not.toContain('hintsEnabled');
+  });
+
   it('dims only content, leaving the research badge at full opacity', () => {
     expect(HUD_CSS).toMatch(/\.info-row-btn--tech-locked \{[^}]*\}/);
     const parent = HUD_CSS.match(/\.info-row-btn--tech-locked \{([^}]*)\}/)![1];
