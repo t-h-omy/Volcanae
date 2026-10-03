@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ABILITIES, UNIT_DEFINITIONS } from '../gameConfig';
-import { getBerserkDisplayBonus, isTagConditionActive } from '../combatSystem';
+import { getBerserkDisplayBonus, getLanceChargeAttackBonus, hasAssassinDamageBonusTarget, isTagConditionActive } from '../combatSystem';
 import { getAttackDisplayModifiers } from '../unitStatDisplay';
 import { Faction, TileType, TileStatus, UnitTag, UnitType } from '../types';
 import type { GameState, Tile, Unit } from '../types';
@@ -108,6 +108,8 @@ describe('unit stat display helpers', () => {
       rageBonus: 0,
       rageAdjacentCount: 0,
       batteryBonus: 4,
+      lanceChargeBonus: 0,
+      assassinBonusActive: false,
     });
 
     expect(mods.rows).toContainEqual({
@@ -149,5 +151,85 @@ describe('unit stat display helpers', () => {
     expect(isTagConditionActive(activeRageState, berserkUnit, UnitTag.BERSERK)).toBe(true);
     expect(isTagConditionActive(activeRageState, rageUnit, UnitTag.RAGE)).toBe(true);
     expect(isTagConditionActive(corruptedRageState, rageUnit, UnitTag.RAGE)).toBe(false);
+  });
+
+  it('shows Lance Charge only while unmoved and not suppressed by corruption', () => {
+    const lanceUnit = makeUnit('u_lance', UnitType.RIDER, Faction.PLAYER, 1, 1, [UnitTag.LANCE_CHARGE]);
+    const movedLanceUnit = { ...lanceUnit, hasMovedThisTurn: true };
+    const activeState = makeState([lanceUnit]);
+    const movedState = makeState([movedLanceUnit]);
+    const corruptedState = makeState([lanceUnit], [{ x: 1, y: 1 }]);
+
+    expect(getLanceChargeAttackBonus(activeState, lanceUnit)).toBe(ABILITIES.LANCE_CHARGE_ATTACK_BONUS);
+    expect(isTagConditionActive(activeState, lanceUnit, UnitTag.LANCE_CHARGE)).toBe(true);
+    expect(getLanceChargeAttackBonus(movedState, movedLanceUnit)).toBe(0);
+    expect(isTagConditionActive(movedState, movedLanceUnit, UnitTag.LANCE_CHARGE)).toBe(false);
+    expect(getLanceChargeAttackBonus(corruptedState, lanceUnit)).toBe(0);
+    expect(isTagConditionActive(corruptedState, lanceUnit, UnitTag.LANCE_CHARGE)).toBe(false);
+
+    const mods = getAttackDisplayModifiers(lanceUnit, {
+      phalanxAttack: 0,
+      rageBonus: 0,
+      rageAdjacentCount: 0,
+      batteryBonus: 0,
+      lanceChargeBonus: getLanceChargeAttackBonus(activeState, lanceUnit),
+      assassinBonusActive: false,
+    });
+    expect(mods.rows).toContainEqual({
+      stat: 'ATK',
+      value: ABILITIES.LANCE_CHARGE_ATTACK_BONUS,
+      kind: 'active',
+      source: 'Lance Charge (has not moved this turn)',
+    });
+    expect(mods.netAttackModifier).toBe(ABILITIES.LANCE_CHARGE_ATTACK_BONUS);
+  });
+
+  it('shows Assassin and Bloodlust effects only while their combat conditions are active', () => {
+    const assassin = makeUnit('u_assassin', UnitType.RIDER, Faction.PLAYER, 1, 1, [UnitTag.ASSASSIN]);
+    const fullHealthEnemy = makeUnit('u_full', UnitType.LAVA_GRUNT, Faction.ENEMY, 2, 1);
+    const damagedEnemy = makeUnit('u_damaged', UnitType.LAVA_GRUNT, Faction.ENEMY, 2, 1, [], {
+      stats: { currentHp: UNIT_DEFINITIONS[UnitType.LAVA_GRUNT].maxHp - 1 },
+    });
+    const activeAssassinState = makeState([assassin, fullHealthEnemy]);
+    const damagedTargetState = makeState([assassin, damagedEnemy]);
+    const corruptedAssassinState = makeState([assassin, fullHealthEnemy], [{ x: 1, y: 1 }]);
+
+    expect(hasAssassinDamageBonusTarget(activeAssassinState, assassin)).toBe(true);
+    expect(isTagConditionActive(activeAssassinState, assassin, UnitTag.ASSASSIN)).toBe(true);
+    expect(hasAssassinDamageBonusTarget(damagedTargetState, assassin)).toBe(false);
+    expect(hasAssassinDamageBonusTarget(corruptedAssassinState, assassin)).toBe(false);
+
+    const bloodlustUnit = makeUnit('u_bloodlust', UnitType.RIDER, Faction.PLAYER, 1, 1, [UnitTag.ASSASSIN, UnitTag.BLOODLUST], {
+      bloodlustAttackAvailable: true,
+    });
+    const bloodlustState = makeState([bloodlustUnit, fullHealthEnemy]);
+    expect(isTagConditionActive(bloodlustState, bloodlustUnit, UnitTag.BLOODLUST)).toBe(true);
+    expect(hasAssassinDamageBonusTarget(bloodlustState, bloodlustUnit)).toBe(true);
+
+    const mods = getAttackDisplayModifiers(bloodlustUnit, {
+      phalanxAttack: 0,
+      rageBonus: 0,
+      rageAdjacentCount: 0,
+      batteryBonus: 0,
+      lanceChargeBonus: 0,
+      assassinBonusActive: hasAssassinDamageBonusTarget(bloodlustState, bloodlustUnit),
+    });
+
+    expect(mods.effects).toContainEqual({
+      stat: 'DMG',
+      value: 1,
+      displayValue: `×${ABILITIES.ASSASSIN_DAMAGE_MULTIPLIER}`,
+      kind: 'active',
+      source: 'Assassin',
+      condition: 'Only against full-health targets',
+    });
+    expect(mods.effects).toContainEqual({
+      stat: 'ATK',
+      value: -1,
+      displayValue: '×0.5',
+      kind: 'active',
+      source: 'Bloodlust second strike (base attack halved)',
+    });
+    expect(mods.netAttackModifier).toBe(0);
   });
 });

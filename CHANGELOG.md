@@ -1,5 +1,17 @@
 # Changelog
 
+### v0.114.8 - Clarify target-dependent combat effects
+
+Added a separate Target-dependent section to unit stat details so effects that vary by enemy are not presented as general bonuses or penalties. Assassin's ×4 damage is labeled as applying only against full-health targets. Other active combat modifiers retain their existing display.
+
+### v0.114.7 - Show Assassin and Bloodlust combat effects
+
+Unit stat details now show Assassin's ×4 damage effect when a full-health attackable target is in range, and Bloodlust's ×0.5 base-attack effect while its second strike is available. Both tags highlight while their effect is active; Assassin remains suppressed on corrupted tiles. These action-specific effects are shown separately and do not alter the standing ATK total.
+
+### v0.114.6 - Show Lance Charge attack bonus
+
+Lance Charge now appears as an active attack bonus in the unit stats when the unit has not moved, and its tag highlights while the bonus is available. The display follows combat's CORRUPTED-tile suppression. Other contextual attack bonuses remain displayed; target-dependent Assassin damage and Bloodlust's second-strike penalty are not standing ATK bonuses.
+
 ### v0.114.5 - Buildable construction options first
 
 The construction menu now places currently buildable buildings above technology-locked or unaffordable options. Both groups retain the same fixed tile-specific order, and update immediately when resources or research change. Guard previews still require Field Duties; construction rules and costs are unchanged.

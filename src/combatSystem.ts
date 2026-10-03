@@ -18,7 +18,7 @@ import { cleanupRoostedUnits } from './buildingRemoval';
 import { getBridgeAt } from './bridgeSystem';
 import { resolveSlide } from './movementSystem';
 import { isSpecialistEffectActive } from './specialistSystem';
-import { anyAttackableEnemyTargetInRange, applySpawnActionFlags } from './unitActions';
+import { anyAttackableEnemyTargetInRange, applySpawnActionFlags, getAttackTargets } from './unitActions';
 
 // Counter for generating unique gravestone building IDs within this module
 let combatSystemIdCounter = 0;
@@ -446,6 +446,29 @@ export function getBatteryAttackBonus(state: GameState | Draft<GameState>, unit:
     * ABILITIES.SIEGE_BATTERY_ATK_PER_ADJACENT;
 }
 
+/** Returns the Lance Charge attack bonus while the unit has not moved and is not corrupted. */
+export function getLanceChargeAttackBonus(state: GameState | Draft<GameState>, unit: Unit): number {
+  if (!unit.tags.includes(UnitTag.LANCE_CHARGE) || unit.hasMovedThisTurn) return 0;
+  if (isUnitOnCorruptedTile(state, unit.id)) return 0;
+  return ABILITIES.LANCE_CHARGE_ATTACK_BONUS;
+}
+
+/** Returns whether an Assassin can currently attack any full-health target. */
+export function hasAssassinDamageBonusTarget(state: GameState | Draft<GameState>, unit: Unit): boolean {
+  if (!unit.tags.includes(UnitTag.ASSASSIN) || isUnitOnCorruptedTile(state, unit.id)) return false;
+
+  for (const key of getAttackTargets(unit, state.units, state.buildings, state.grid, state)) {
+    const [x, y] = key.split(',').map(Number);
+    const tile = state.grid[y]?.[x];
+    const targetUnit = tile?.unitId ? state.units[tile.unitId] : undefined;
+    if (targetUnit && targetUnit.stats.currentHp === targetUnit.stats.maxHp) return true;
+    const targetBuilding = tile?.buildingId ? state.buildings[tile.buildingId] : undefined;
+    if (targetBuilding && targetBuilding.hp === targetBuilding.maxHp) return true;
+  }
+
+  return false;
+}
+
 /**
  * Returns the current RAGE attack bonus and raw adjacent-enemy count for a unit.
  * The suppression check intentionally delegates to `isUnitOnCorruptedTile` so
@@ -525,6 +548,12 @@ export function isTagConditionActive(
       return isBerserkActive(unit);
     case UnitTag.RAGE:
       return getRageAttackContext(state, unit).rageBonus > 0;
+    case UnitTag.LANCE_CHARGE:
+      return getLanceChargeAttackBonus(state, unit) > 0;
+    case UnitTag.ASSASSIN:
+      return hasAssassinDamageBonusTarget(state, unit);
+    case UnitTag.BLOODLUST:
+      return unit.bloodlustAttackAvailable;
     default:
       return false;
   }
@@ -893,8 +922,9 @@ export function resolveAttack(
 
   // LANCE_CHARGE: attacker gains attack bonus when it has not yet moved this turn.
   // Suppressed on CORRUPTED tile.
-  if (attacker.tags.includes(UnitTag.LANCE_CHARGE) && !attacker.hasMovedThisTurn && !attackerOnCorrupted) {
-    attackerCombatant.attack += ABILITIES.LANCE_CHARGE_ATTACK_BONUS;
+  const lanceChargeBonus = getLanceChargeAttackBonus(state, attacker);
+  if (lanceChargeBonus > 0) {
+    attackerCombatant.attack += lanceChargeBonus;
   }
 
   // ASSASSIN: bonus damage vs. full-HP targets is suppressed on CORRUPTED tile.
@@ -1900,8 +1930,9 @@ export function resolveAttackOnBuilding(
 
   // LANCE_CHARGE: attacker gains attack bonus when it has not yet moved this turn.
   // Suppressed on CORRUPTED tile.
-  if (attacker.tags.includes(UnitTag.LANCE_CHARGE) && !attacker.hasMovedThisTurn && !attackerOnCorrupted) {
-    attackerCombatant.attack += ABILITIES.LANCE_CHARGE_ATTACK_BONUS;
+  const lanceChargeBonus = getLanceChargeAttackBonus(state, attacker);
+  if (lanceChargeBonus > 0) {
+    attackerCombatant.attack += lanceChargeBonus;
   }
 
   // RAGE: attacker gains +ATK per adjacent enemy unit, capped at ABILITIES.RAGE_MAX_ADJACENT_COUNT.

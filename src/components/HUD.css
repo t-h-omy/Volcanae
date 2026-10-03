@@ -1437,6 +1437,11 @@
   flex: 1;
 }
 
+.hud-stat-detail-condition {
+  color: #b8c6d8;
+  font-style: italic;
+}
+
 /* ── Tag pills ── */
 
 .hud-tag-pills {
