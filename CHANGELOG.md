@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.114.5 - Buildable construction options first
+
+The construction menu now places currently buildable buildings above technology-locked or unaffordable options. Both groups retain the same fixed tile-specific order, and update immediately when resources or research change. Guard previews still require Field Duties; construction rules and costs are unchanged.
+
 ### v0.114.4 - Mobile construction focus mode
 
 Opening Construct Building on mobile now hides the selected-unit panel and End Turn until the menu is collapsed. Selection/tile changes and construction-panel dismissal reset expansion so the HUD cannot remain stuck in focus mode. Construction rows use a stable 58 px mobile height with a 215 px scrolling cap: short lists retain their natural height, while four or more choices show three full rows and half of the next row. Desktop, conversion menus, and construction gameplay are unchanged. Added UI contract regression tests and mobile usage documentation.
