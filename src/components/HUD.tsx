@@ -68,7 +68,7 @@ import {
   type GameStats,
   type GameState,
 } from '../types';
-import { canUnitMove, canUnitAttack, canUnitCapture, canUnitPreviewConstruction, getConstructionMenuUnlockTechId, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast, getMageCastBudget, getUnitAttackRange, isHealSuppressedByCorruption, canUnitTrade, getTradeMarket, getCaptureTarget, canUnitBuildBridge, getBridgeBuildTargets, canUnitSetTrap, getTrapPlacementTargets, canUnitExtinguish } from '../unitActions';
+import { canUnitMove, canUnitAttack, canUnitCapture, canUnitPreviewConstruction, getConstructionMenuUnlockTechId, sortConstructionMenuOptions, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast, getMageCastBudget, getUnitAttackRange, isHealSuppressedByCorruption, canUnitTrade, getTradeMarket, getCaptureTarget, canUnitBuildBridge, getBridgeBuildTargets, canUnitSetTrap, getTrapPlacementTargets, canUnitExtinguish } from '../unitActions';
 import { getBatteryAttackBonus, getPhalanxAttackBonus, getPhalanxDefenseBonus, getCrystalTowerChamberBonus, getRageAttackContext, isTagConditionActive } from '../combatSystem';
 import { isSpecialistEffectActive } from '../specialistSystem';
 import { RENDER } from '../../config/render';
@@ -2821,8 +2821,12 @@ function ConstructionPanel({
   }, [onExpandedChange]);
 
   const options = useMemo(
-    () => getConstructionMenuOptionsForTile({ grid, unlockedBuildings }, tilePos),
-    [tilePos, grid, unlockedBuildings],
+    () => sortConstructionMenuOptions(
+      { techNodes, resources },
+      unit,
+      getConstructionMenuOptionsForTile({ grid, unlockedBuildings }, tilePos),
+    ),
+    [tilePos, grid, unlockedBuildings, techNodes, resources, unit],
   );
 
   // H04: fire when the construction panel is open on a regular ruin tile.

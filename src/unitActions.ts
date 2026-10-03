@@ -480,6 +480,25 @@ export function getConstructionMenuUnlockTechId(
   return option.buildingUnlocked ? null : option.buildingUnlockTechId;
 }
 
+/** Display-only stable partition; keep the tile's fixed order within each group. */
+export function sortConstructionMenuOptions(
+  state: Pick<GameState, 'techNodes' | 'resources'>,
+  unit: Unit,
+  options: readonly ConstructionMenuOption[],
+): ConstructionMenuOption[] {
+  const buildable: ConstructionMenuOption[] = [];
+  const unavailable: ConstructionMenuOption[] = [];
+  for (const option of options) {
+    const canBuild = canUnitConstruct(unit)
+      && option.buildingUnlocked
+      && getConstructionMenuUnlockTechId(state, unit, option) === null
+      && state.resources.iron >= option.cost.iron
+      && state.resources.wood >= option.cost.wood;
+    (canBuild ? buildable : unavailable).push(option);
+  }
+  return [...buildable, ...unavailable];
+}
+
 /**
  * Returns the list of buildings the unit can construct on its current tile.
  * Returns an empty array if canUnitConstruct is false or the tile has no options.

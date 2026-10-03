@@ -7,6 +7,13 @@ const construction = HUD_TSX.slice(HUD_TSX.indexOf('function ConstructionPanel('
 const overlay = HUD_TSX.slice(HUD_TSX.indexOf('function TechTreeOverlay('), HUD_TSX.indexOf('function TechTreeOverlay(') + 14000);
 
 describe('construction research navigation UI contract', () => {
+  it('renders ordered options and recalculates when resources, research, or unit change', () => {
+    expect(construction).toContain('() => sortConstructionMenuOptions(');
+    expect(construction).toContain('{ techNodes, resources }');
+    expect(construction).toContain('[tilePos, grid, unlockedBuildings, techNodes, resources, unit]');
+    expect(construction).toContain('{options.map((opt) =>');
+  });
+
   it('navigates locked rows before resource hints or building confirmation', () => {
     const handler = construction.slice(construction.indexOf('const handleSelectConstruction'), construction.indexOf('return (', construction.indexOf('const handleSelectConstruction')));
     expect(handler.indexOf('if (techLocked)')).toBeLessThan(handler.indexOf('if (!canAffordThis)'));

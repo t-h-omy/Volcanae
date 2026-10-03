@@ -7,7 +7,7 @@ import {
 } from '../constructionSystem';
 import {
   canUnitConstruct, canUnitPreviewConstruction, getConstructionMenuUnlockTechId,
-  getConstructionTargets,
+  getConstructionTargets, sortConstructionMenuOptions,
 } from '../unitActions';
 import {
   getBuildingUnlockTechId, getUnitConstructionUnlockTechId, unlockTech,
@@ -134,6 +134,80 @@ describe('construction preview tile rules', () => {
     first[0].cost.wood = -999;
     expect(getConstructionMenuOptionsForTile(state, position)[0].cost)
       .toEqual(BUILDING_DEFINITIONS.BARRACKS.constructionCost);
+  });
+});
+
+describe('construction menu ordering', () => {
+  function orderedTypes(state: GameState) {
+    return sortConstructionMenuOptions(
+      state, state.units.unit, getConstructionMenuOptionsForTile(state, position),
+    ).map((option) => option.buildingType);
+  }
+
+  it('puts affordable, unlocked buildings first in fixed tile order without mutation', () => {
+    const state = makeState();
+    state.unlockedBuildings = [BuildingType.FARM, BuildingType.ARCHER_CAMP];
+    const options = getConstructionMenuOptionsForTile(state, position);
+    const before = structuredClone(options);
+    const expected = [
+      BuildingType.ARCHER_CAMP, BuildingType.FARM,
+      ...RUIN_BUILDABLE_TYPES.filter((type) => !state.unlockedBuildings.includes(type)),
+    ];
+    expect(orderedTypes(state)).toEqual(expected);
+    expect(sortConstructionMenuOptions(state, state.units.unit, options).map((o) => o.buildingType))
+      .toEqual(expected);
+    expect(options).toEqual(before);
+    state.unlockedBuildings.reverse();
+    expect(orderedTypes(state)).toEqual(expected);
+  });
+
+  it('updates both groups as resources or research change, including exact costs', () => {
+    const state = makeState({ terrainType: TileType.FOREST });
+    state.unlockedBuildings = [BuildingType.FARM];
+    const options = getConstructionMenuOptionsForTile(state, position);
+    const woodcutter = options.find((o) => o.buildingType === BuildingType.WOODCUTTER)!;
+    const farm = options.find((o) => o.buildingType === BuildingType.FARM)!;
+    woodcutter.cost = { iron: 10, wood: 5 };
+    farm.cost = { iron: 0, wood: 10 };
+    const types = () => sortConstructionMenuOptions(state, state.units.unit, options).map((o) => o.buildingType);
+    const originalTypes = options.map((o) => o.buildingType);
+    state.resources = { iron: 0, wood: 10 };
+    expect(types()).toEqual([BuildingType.FARM, ...originalTypes.filter((t) => t !== BuildingType.FARM)]);
+    state.resources = { iron: 10, wood: 5 };
+    expect(types()).toEqual(originalTypes);
+    state.resources = { iron: 10, wood: 10 };
+    expect(types()).toEqual([
+      BuildingType.WOODCUTTER, BuildingType.FARM,
+      ...originalTypes.filter((t) => t !== BuildingType.WOODCUTTER && t !== BuildingType.FARM),
+    ]);
+    state.resources = { iron: 0, wood: 0 };
+    expect(types()).toEqual(originalTypes);
+    state.resources = { iron: 999, wood: 999 };
+    state.unlockedBuildings.push(BuildingType.CHARCOAL_KILN);
+    expect(orderedTypes(state).slice(0, 3))
+      .toEqual([BuildingType.WOODCUTTER, BuildingType.CHARCOAL_KILN, BuildingType.FARM]);
+  });
+
+  it('preserves fixed order when all choices are buildable or none are buildable', () => {
+    const state = makeState();
+    expect(orderedTypes(state)).toEqual(RUIN_BUILDABLE_TYPES);
+    state.unlockedBuildings = [...RUIN_BUILDABLE_TYPES];
+    expect(orderedTypes(state)).toEqual(RUIN_BUILDABLE_TYPES);
+    state.units.unit.hasMovedThisTurn = true;
+    expect(orderedTypes(state)).toEqual(RUIN_BUILDABLE_TYPES);
+    expect(sortConstructionMenuOptions(state, state.units.unit, [])).toEqual([]);
+  });
+
+  it('keeps Guard previews unavailable until Field Duties is researched', () => {
+    const guard = makeUnit(UnitType.GUARD);
+    const state = makeState({}, guard);
+    state.unlockedBuildings = [BuildingType.FARM];
+    expect(orderedTypes(state)).toEqual(RUIN_BUILDABLE_TYPES);
+    state.techNodes.CONSCRIPTION.unlocked = true;
+    unlockTech(state, 'FIELD_DUTIES');
+    expect(orderedTypes(state)).toEqual([
+      BuildingType.FARM, ...RUIN_BUILDABLE_TYPES.filter((t) => t !== BuildingType.FARM),
+    ]);
   });
 });
 
