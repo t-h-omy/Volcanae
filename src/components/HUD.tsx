@@ -2800,10 +2800,14 @@ function ConstructionPanel({
   unit,
   tilePos,
   onOpenTechTreeAt,
+  isExpanded,
+  onExpandedChange,
 }: {
   unit: Unit;
   tilePos: Position;
   onOpenTechTreeAt: (techId: TechId) => void;
+  isExpanded: boolean;
+  onExpandedChange: (expanded: boolean) => void;
 }) {
   const resources = useGameStore((s) => s.resources);
   const constructBuilding = useGameStore((s) => s.constructBuilding);
@@ -2811,7 +2815,10 @@ function ConstructionPanel({
   const unlockedBuildings = useGameStore((s) => s.unlockedBuildings);
   const techNodes = useGameStore((s) => s.techNodes);
   const [confirmBuilding, setConfirmBuilding] = useState<typeof options[number] | null>(null);
-  const [collapsed, setCollapsed] = useState(true);
+
+  useLayoutEffect(() => {
+    return () => onExpandedChange(false);
+  }, [onExpandedChange]);
 
   const options = useMemo(
     () => getConstructionMenuOptionsForTile({ grid, unlockedBuildings }, tilePos),
@@ -2831,18 +2838,18 @@ function ConstructionPanel({
 
   return (
     <div className="hud-info-panel hud-construction-panel">
-      <div className="hud-panel-header hud-panel-header--clickable" onClick={() => setCollapsed((c) => !c)}>
+      <div className="hud-panel-header hud-panel-header--clickable" onClick={() => onExpandedChange(!isExpanded)}>
         <span className="hud-panel-emoji">🔨</span>
         <span className="hud-panel-name">Construct Building</span>
         <span
           className="hud-construct-toggle"
-          title={collapsed ? 'Expand' : 'Collapse'}
+          title={isExpanded ? 'Collapse' : 'Expand'}
         >
-          {collapsed ? '▲' : '▼'}
+          {isExpanded ? '▼' : '▲'}
         </span>
       </div>
-      {!collapsed && (
-        <div className="hud-construct-options">
+      {isExpanded && (
+        <div className="hud-construct-options hud-construction-options">
           {options.map((opt) => {
             const unlockTechId = getConstructionMenuUnlockTechId({ techNodes }, unit, opt);
             const techLocked = !opt.buildingUnlocked || unlockTechId !== null;
@@ -2866,7 +2873,7 @@ function ConstructionPanel({
             return (
               <button
                 key={opt.buildingType}
-                className={`info-row-btn${techLocked ? ' info-row-btn--tech-locked' : canAffordThis ? '' : ' info-row-btn--disabled'}`}
+                className={`info-row-btn hud-construction-option${techLocked ? ' info-row-btn--tech-locked' : canAffordThis ? '' : ' info-row-btn--disabled'}`}
                 aria-disabled={!techLocked && !canAffordThis}
                 aria-label={techLocked ? `${opt.label}. Locked. Open unlock technology in Tech Tree.` : undefined}
                 title={techLocked ? 'Unlock in Tech Tree' : undefined}
@@ -3560,6 +3567,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
 // ============================================================================
 
 function BottomBar({ onOpenTechTreeAt }: { onOpenTechTreeAt: (techId: TechId) => void }) {
+  const [isConstructionExpanded, setIsConstructionExpanded] = useState(false);
   const phase = useGameStore((s) => s.phase);
   const turn = useGameStore((s) => s.turn);
   const selectedUnitId = useGameStore((s) => s.selectedUnitId);
@@ -3615,6 +3623,8 @@ function BottomBar({ onOpenTechTreeAt }: { onOpenTechTreeAt: (techId: TechId) =>
 
   const isPlayerTurn = phase === GamePhase.PLAYER_TURN;
   const isHintBlocking = activeHintId !== null;
+  const constructionFocusActive =
+    isConstructionExpanded && !!selectedUnit && showConstruction && !cavePopupActive && !isHintBlocking;
 
   // Auto-open cave screams popup at start of player's turn if a previously
   // selected unit is still standing on an unresolved cave mountain tile.
@@ -3637,21 +3647,26 @@ function BottomBar({ onOpenTechTreeAt }: { onOpenTechTreeAt: (techId: TechId) =>
   }, [turn, phase]);
 
   return (
-    <div className="hud-bottom-bar">
+    <div className={`hud-bottom-bar${constructionFocusActive ? ' hud-bottom-bar--construction-focus' : ''}`}>
       {/* Info panels — hidden while cave screams popup is active */}
       {selectedUnit && !cavePopupActive && (
-        <SelectedUnitPanel
-          unit={selectedUnit}
-          captureTarget={captureTarget}
-          onCapture={handleCapture}
-        />
+        <div className="hud-selected-unit-slot">
+          <SelectedUnitPanel
+            unit={selectedUnit}
+            captureTarget={captureTarget}
+            onCapture={handleCapture}
+          />
+        </div>
       )}
       {/* Construction panel for BUILDANDCAPTURE units on constructable tiles */}
       {selectedUnit && showConstruction && !cavePopupActive && !isHintBlocking && (
         <ConstructionPanel
+          key={`${selectedUnit.id}:${selectedUnit.position.x},${selectedUnit.position.y}`}
           unit={selectedUnit}
           tilePos={selectedUnit.position}
           onOpenTechTreeAt={onOpenTechTreeAt}
+          isExpanded={isConstructionExpanded}
+          onExpandedChange={setIsConstructionExpanded}
         />
       )}
       {/* Conversion panel for BUILDANDCAPTURE units on own Ruin buildings */}

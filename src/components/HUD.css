@@ -233,6 +233,10 @@
   font-size: 13px;
 }
 
+.hud-selected-unit-slot {
+  display: contents;
+}
+
 /* ── End Turn Button ── */
 
 .hud-end-turn-btn {
@@ -1260,6 +1264,11 @@
     padding: 6px 8px;
   }
 
+  .hud-bottom-bar--construction-focus > .hud-selected-unit-slot,
+  .hud-bottom-bar--construction-focus > .hud-end-turn-btn {
+    display: none;
+  }
+
   .hud-end-turn-btn {
     margin-left: 0;
     width: 100%;
@@ -2221,6 +2230,40 @@
 .info-row-cost {
   font-size: 10px;
   color: #f0a840;
+}
+
+@media (max-width: 768px) {
+  .hud-construction-panel:has(.hud-construction-options) {
+    max-width: 100%;
+  }
+
+  .hud-construction-options {
+    /* Three 58px cards, three 4px gaps, and half of the fourth card. */
+    max-height: 215px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .hud-construction-option {
+    box-sizing: border-box;
+    height: 58px;
+    flex: 0 0 58px;
+    padding-top: 3px;
+    padding-bottom: 3px;
+  }
+
+  .hud-construction-option .info-row-body {
+    min-width: 0;
+  }
+
+  .hud-construction-option .info-row-name {
+    line-height: 15px;
+  }
+
+  .hud-construction-option .info-row-cost,
+  .hud-construction-option .hud-pop-warning {
+    line-height: 12px;
+  }
 }
 
 /* Tech tree effect tile with ⓘ */
