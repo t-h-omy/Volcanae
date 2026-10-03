@@ -69,7 +69,7 @@ import {
   type GameState,
 } from '../types';
 import { canUnitMove, canUnitAttack, canUnitCapture, canUnitPreviewConstruction, getConstructionMenuUnlockTechId, sortConstructionMenuOptions, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast, getMageCastBudget, getUnitAttackRange, isHealSuppressedByCorruption, canUnitTrade, getTradeMarket, getCaptureTarget, canUnitBuildBridge, getBridgeBuildTargets, canUnitSetTrap, getTrapPlacementTargets, canUnitExtinguish } from '../unitActions';
-import { getBatteryAttackBonus, getLanceChargeAttackBonus, getPhalanxAttackBonus, getPhalanxDefenseBonus, getCrystalTowerChamberBonus, getRageAttackContext, isTagConditionActive } from '../combatSystem';
+import { getBatteryAttackBonus, getLanceChargeAttackBonus, getPhalanxAttackBonus, getPhalanxDefenseBonus, getCrystalTowerChamberBonus, getRageAttackContext, hasAssassinDamageBonusTarget, isTagConditionActive } from '../combatSystem';
 import { isSpecialistEffectActive } from '../specialistSystem';
 import { RENDER } from '../../config/render';
 import { useZoneClearedStore } from '../zoneClearedStore';
@@ -1752,6 +1752,7 @@ function statKeyToLabel(key: string): string {
 type StatModEntry = {
   stat: string;
   value: number;
+  displayValue?: string;
   /** 'active' = contextual (not baked into unit.stats); 'applied' = baked into unit.stats */
   kind: 'active' | 'applied';
   source: string;
@@ -1925,6 +1926,7 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
     rageAdjacentCount,
     batteryBonus,
     lanceChargeBonus: getLanceChargeAttackBonus(gameState, unit),
+    assassinBonusActive: hasAssassinDamageBonusTarget(gameState, unit),
   }), [unit, gameState, phalanxAttack, rageBonus, rageAdjacentCount, batteryBonus]);
   const isConditionalTagActive = useCallback((tag: UnitTag) => {
     return CONDITIONAL_ACTIVE_TAGS.has(tag) && isTagConditionActive(gameState, unit, tag);
@@ -1989,7 +1991,7 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
   // ── Full modifier list for breakdown section ───────────────────────────────
   const mods: StatModEntry[] = [];
 
-  mods.push(...attackDisplayMods.rows);
+  mods.push(...attackDisplayMods.rows, ...attackDisplayMods.effects);
   if (phalanxDefense > 0) mods.push({ stat: 'DEF', value: phalanxDefense, kind: 'active', source: 'Phalanx Formation (adjacent guard)' });
   if (contextualDef > 0) mods.push({ stat: 'DEF', value: contextualDef, kind: 'active', source: 'Hold Ground (standing on own building)' });
   if (unit.tags.includes(UnitTag.SKIRMISHER)) mods.push({ stat: 'MOV', value: ABILITIES.SKIRMISHER_MOVE_BONUS, kind: 'active', source: 'Skirmisher (tag ability)' });
@@ -2065,7 +2067,7 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
                 {bonuses.map((m, i) => (
                   <div key={i} className="hud-stat-detail-row">
                     <span className="hud-stat-detail-stat">{m.stat}</span>
-                    <span className="hud-stat-detail-value hud-stat-bonus">+{m.value}</span>
+                    <span className="hud-stat-detail-value hud-stat-bonus">{m.displayValue ?? `+${m.value}`}</span>
                     <span className="hud-stat-detail-source">{m.source}{m.kind === 'applied' ? ' ✓' : ''}</span>
                   </div>
                 ))}
@@ -2077,7 +2079,7 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
                 {penalties.map((m, i) => (
                   <div key={i} className="hud-stat-detail-row">
                     <span className="hud-stat-detail-stat">{m.stat}</span>
-                    <span className="hud-stat-detail-value hud-stat-penalty">{m.value}</span>
+                    <span className="hud-stat-detail-value hud-stat-penalty">{m.displayValue ?? m.value}</span>
                     <span className="hud-stat-detail-source">{m.source}{m.kind === 'applied' ? ' ✓' : ''}</span>
                   </div>
                 ))}
@@ -2323,6 +2325,7 @@ function SelectedUnitPanel({
     rageAdjacentCount,
     batteryBonus,
     lanceChargeBonus: getLanceChargeAttackBonus(gameState, unit),
+    assassinBonusActive: hasAssassinDamageBonusTarget(gameState, unit),
   }), [unit, gameState, phalanxAttack, rageBonus, rageAdjacentCount, batteryBonus]);
   const isConditionalTagActive = useCallback((tag: UnitTag) => {
     return CONDITIONAL_ACTIVE_TAGS.has(tag) && isTagConditionActive(gameState, unit, tag);

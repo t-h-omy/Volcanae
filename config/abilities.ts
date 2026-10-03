@@ -224,7 +224,9 @@ export const UPGRADE_TRADEOFF_TAGS: ReadonlySet<UnitTag> = new Set([
 
 /** Tags whose pill should glow when their live condition is currently met. */
 export const CONDITIONAL_ACTIVE_TAGS: ReadonlySet<UnitTag> = new Set([
+  UnitTag.ASSASSIN,
   UnitTag.BERSERK,
+  UnitTag.BLOODLUST,
   UnitTag.RAGE,
   UnitTag.LANCE_CHARGE,
 ]);
@@ -250,4 +252,3 @@ export const TAG_STAT_EFFECTS: Partial<Record<UnitTag, StatModifier[]>> = {
   [UnitTag.HOMELESS]:   [{ stat: 'defense', mode: 'add', value: -POPULATION.HOMELESS_DEF_PENALTY }],
   [UnitTag.UNTRAINED]:  [{ stat: 'attack',  mode: 'add', value: -TRAINING.UNTRAINED_ATK_PENALTY }],
 };
-

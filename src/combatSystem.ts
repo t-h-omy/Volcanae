@@ -18,7 +18,7 @@ import { cleanupRoostedUnits } from './buildingRemoval';
 import { getBridgeAt } from './bridgeSystem';
 import { resolveSlide } from './movementSystem';
 import { isSpecialistEffectActive } from './specialistSystem';
-import { anyAttackableEnemyTargetInRange, applySpawnActionFlags } from './unitActions';
+import { anyAttackableEnemyTargetInRange, applySpawnActionFlags, getAttackTargets } from './unitActions';
 
 // Counter for generating unique gravestone building IDs within this module
 let combatSystemIdCounter = 0;
@@ -453,6 +453,22 @@ export function getLanceChargeAttackBonus(state: GameState | Draft<GameState>, u
   return ABILITIES.LANCE_CHARGE_ATTACK_BONUS;
 }
 
+/** Returns whether an Assassin can currently attack any full-health target. */
+export function hasAssassinDamageBonusTarget(state: GameState | Draft<GameState>, unit: Unit): boolean {
+  if (!unit.tags.includes(UnitTag.ASSASSIN) || isUnitOnCorruptedTile(state, unit.id)) return false;
+
+  for (const key of getAttackTargets(unit, state.units, state.buildings, state.grid, state)) {
+    const [x, y] = key.split(',').map(Number);
+    const tile = state.grid[y]?.[x];
+    const targetUnit = tile?.unitId ? state.units[tile.unitId] : undefined;
+    if (targetUnit && targetUnit.stats.currentHp === targetUnit.stats.maxHp) return true;
+    const targetBuilding = tile?.buildingId ? state.buildings[tile.buildingId] : undefined;
+    if (targetBuilding && targetBuilding.hp === targetBuilding.maxHp) return true;
+  }
+
+  return false;
+}
+
 /**
  * Returns the current RAGE attack bonus and raw adjacent-enemy count for a unit.
  * The suppression check intentionally delegates to `isUnitOnCorruptedTile` so
@@ -534,6 +550,10 @@ export function isTagConditionActive(
       return getRageAttackContext(state, unit).rageBonus > 0;
     case UnitTag.LANCE_CHARGE:
       return getLanceChargeAttackBonus(state, unit) > 0;
+    case UnitTag.ASSASSIN:
+      return hasAssassinDamageBonusTarget(state, unit);
+    case UnitTag.BLOODLUST:
+      return unit.bloodlustAttackAvailable;
     default:
       return false;
   }

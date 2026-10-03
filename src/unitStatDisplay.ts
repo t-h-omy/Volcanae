@@ -9,12 +9,21 @@ export type AttackDisplayRow = {
   source: string;
 };
 
+export type AttackDisplayEffect = {
+  stat: 'ATK' | 'DMG';
+  value: number;
+  displayValue: string;
+  kind: 'active';
+  source: string;
+};
+
 export type AttackDisplayContext = {
   phalanxAttack: number;
   rageBonus: number;
   rageAdjacentCount: number;
   batteryBonus: number;
   lanceChargeBonus: number;
+  assassinBonusActive: boolean;
 };
 
 /**
@@ -26,7 +35,7 @@ export type AttackDisplayContext = {
  * standing total so the HUD badge matches resolved combat math.
  */
 export function getAttackDisplayModifiers(
-  unit: Pick<Unit, 'tags' | 'stats' | 'berserkActivated'>,
+  unit: Pick<Unit, 'tags' | 'stats' | 'berserkActivated' | 'bloodlustAttackAvailable'>,
   context: AttackDisplayContext,
 ): {
   appliedAttackBonus: number;
@@ -35,8 +44,10 @@ export function getAttackDisplayModifiers(
   berserkDisplayBonus: number;
   netAttackModifier: number;
   rows: AttackDisplayRow[];
+  effects: AttackDisplayEffect[];
 } {
   const rows: AttackDisplayRow[] = [];
+  const effects: AttackDisplayEffect[] = [];
   let appliedAttackBonus = 0;
   let contextualAttackBonus = 0;
 
@@ -90,6 +101,26 @@ export function getAttackDisplayModifiers(
     });
   }
 
+  if (context.assassinBonusActive) {
+    effects.push({
+      stat: 'DMG',
+      value: 1,
+      displayValue: `×${ABILITIES.ASSASSIN_DAMAGE_MULTIPLIER}`,
+      kind: 'active',
+      source: 'Assassin (against a full-health target)',
+    });
+  }
+
+  if (unit.tags.includes(UnitTag.BLOODLUST) && unit.bloodlustAttackAvailable) {
+    effects.push({
+      stat: 'ATK',
+      value: -1,
+      displayValue: '×0.5',
+      kind: 'active',
+      source: 'Bloodlust second strike (base attack halved)',
+    });
+  }
+
   const effectiveAttackBeforeBerserk = unit.stats.attack + contextualAttackBonus;
   const berserkDisplayBonus = getBerserkDisplayBonus(unit, effectiveAttackBeforeBerserk);
   if (berserkDisplayBonus > 0) {
@@ -109,5 +140,6 @@ export function getAttackDisplayModifiers(
     berserkDisplayBonus,
     netAttackModifier: appliedAttackBonus + contextualAttackBonus,
     rows,
+    effects,
   };
 }
