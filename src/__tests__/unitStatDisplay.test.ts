@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ABILITIES, UNIT_DEFINITIONS } from '../gameConfig';
-import { getBerserkDisplayBonus, isTagConditionActive } from '../combatSystem';
+import { getBerserkDisplayBonus, getLanceChargeAttackBonus, isTagConditionActive } from '../combatSystem';
 import { getAttackDisplayModifiers } from '../unitStatDisplay';
 import { Faction, TileType, TileStatus, UnitTag, UnitType } from '../types';
 import type { GameState, Tile, Unit } from '../types';
@@ -108,6 +108,7 @@ describe('unit stat display helpers', () => {
       rageBonus: 0,
       rageAdjacentCount: 0,
       batteryBonus: 4,
+      lanceChargeBonus: 0,
     });
 
     expect(mods.rows).toContainEqual({
@@ -149,5 +150,35 @@ describe('unit stat display helpers', () => {
     expect(isTagConditionActive(activeRageState, berserkUnit, UnitTag.BERSERK)).toBe(true);
     expect(isTagConditionActive(activeRageState, rageUnit, UnitTag.RAGE)).toBe(true);
     expect(isTagConditionActive(corruptedRageState, rageUnit, UnitTag.RAGE)).toBe(false);
+  });
+
+  it('shows Lance Charge only while unmoved and not suppressed by corruption', () => {
+    const lanceUnit = makeUnit('u_lance', UnitType.RIDER, Faction.PLAYER, 1, 1, [UnitTag.LANCE_CHARGE]);
+    const movedLanceUnit = { ...lanceUnit, hasMovedThisTurn: true };
+    const activeState = makeState([lanceUnit]);
+    const movedState = makeState([movedLanceUnit]);
+    const corruptedState = makeState([lanceUnit], [{ x: 1, y: 1 }]);
+
+    expect(getLanceChargeAttackBonus(activeState, lanceUnit)).toBe(ABILITIES.LANCE_CHARGE_ATTACK_BONUS);
+    expect(isTagConditionActive(activeState, lanceUnit, UnitTag.LANCE_CHARGE)).toBe(true);
+    expect(getLanceChargeAttackBonus(movedState, movedLanceUnit)).toBe(0);
+    expect(isTagConditionActive(movedState, movedLanceUnit, UnitTag.LANCE_CHARGE)).toBe(false);
+    expect(getLanceChargeAttackBonus(corruptedState, lanceUnit)).toBe(0);
+    expect(isTagConditionActive(corruptedState, lanceUnit, UnitTag.LANCE_CHARGE)).toBe(false);
+
+    const mods = getAttackDisplayModifiers(lanceUnit, {
+      phalanxAttack: 0,
+      rageBonus: 0,
+      rageAdjacentCount: 0,
+      batteryBonus: 0,
+      lanceChargeBonus: getLanceChargeAttackBonus(activeState, lanceUnit),
+    });
+    expect(mods.rows).toContainEqual({
+      stat: 'ATK',
+      value: ABILITIES.LANCE_CHARGE_ATTACK_BONUS,
+      kind: 'active',
+      source: 'Lance Charge (has not moved this turn)',
+    });
+    expect(mods.netAttackModifier).toBe(ABILITIES.LANCE_CHARGE_ATTACK_BONUS);
   });
 });

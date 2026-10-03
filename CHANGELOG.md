@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.114.6 - Show Lance Charge attack bonus
+
+Lance Charge now appears as an active attack bonus in the unit stats when the unit has not moved, and its tag highlights while the bonus is available. The display follows combat's CORRUPTED-tile suppression. Other contextual attack bonuses remain displayed; target-dependent Assassin damage and Bloodlust's second-strike penalty are not standing ATK bonuses.
+
 ### v0.114.5 - Buildable construction options first
 
 The construction menu now places currently buildable buildings above technology-locked or unaffordable options. Both groups retain the same fixed tile-specific order, and update immediately when resources or research change. Guard previews still require Field Duties; construction rules and costs are unchanged.

@@ -14,6 +14,7 @@ export type AttackDisplayContext = {
   rageBonus: number;
   rageAdjacentCount: number;
   batteryBonus: number;
+  lanceChargeBonus: number;
 };
 
 /**
@@ -76,6 +77,16 @@ export function getAttackDisplayModifiers(
       value: context.batteryBonus,
       kind: 'active',
       source: `Battery (+${ABILITIES.SIEGE_BATTERY_ATK_PER_ADJACENT} ATK per adjacent friendly unit)`,
+    });
+  }
+
+  if (context.lanceChargeBonus > 0) {
+    contextualAttackBonus += context.lanceChargeBonus;
+    rows.push({
+      stat: 'ATK',
+      value: context.lanceChargeBonus,
+      kind: 'active',
+      source: 'Lance Charge (has not moved this turn)',
     });
   }
 

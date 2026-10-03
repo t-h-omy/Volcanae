@@ -69,7 +69,7 @@ import {
   type GameState,
 } from '../types';
 import { canUnitMove, canUnitAttack, canUnitCapture, canUnitPreviewConstruction, getConstructionMenuUnlockTechId, sortConstructionMenuOptions, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast, getMageCastBudget, getUnitAttackRange, isHealSuppressedByCorruption, canUnitTrade, getTradeMarket, getCaptureTarget, canUnitBuildBridge, getBridgeBuildTargets, canUnitSetTrap, getTrapPlacementTargets, canUnitExtinguish } from '../unitActions';
-import { getBatteryAttackBonus, getPhalanxAttackBonus, getPhalanxDefenseBonus, getCrystalTowerChamberBonus, getRageAttackContext, isTagConditionActive } from '../combatSystem';
+import { getBatteryAttackBonus, getLanceChargeAttackBonus, getPhalanxAttackBonus, getPhalanxDefenseBonus, getCrystalTowerChamberBonus, getRageAttackContext, isTagConditionActive } from '../combatSystem';
 import { isSpecialistEffectActive } from '../specialistSystem';
 import { RENDER } from '../../config/render';
 import { useZoneClearedStore } from '../zoneClearedStore';
@@ -1924,7 +1924,8 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
     rageBonus,
     rageAdjacentCount,
     batteryBonus,
-  }), [unit, phalanxAttack, rageBonus, rageAdjacentCount, batteryBonus]);
+    lanceChargeBonus: getLanceChargeAttackBonus(gameState, unit),
+  }), [unit, gameState, phalanxAttack, rageBonus, rageAdjacentCount, batteryBonus]);
   const isConditionalTagActive = useCallback((tag: UnitTag) => {
     return CONDITIONAL_ACTIVE_TAGS.has(tag) && isTagConditionActive(gameState, unit, tag);
   }, [gameState, unit]);
@@ -2321,7 +2322,8 @@ function SelectedUnitPanel({
     rageBonus,
     rageAdjacentCount,
     batteryBonus,
-  }), [unit, phalanxAttack, rageBonus, rageAdjacentCount, batteryBonus]);
+    lanceChargeBonus: getLanceChargeAttackBonus(gameState, unit),
+  }), [unit, gameState, phalanxAttack, rageBonus, rageAdjacentCount, batteryBonus]);
   const isConditionalTagActive = useCallback((tag: UnitTag) => {
     return CONDITIONAL_ACTIVE_TAGS.has(tag) && isTagConditionActive(gameState, unit, tag);
   }, [gameState, unit]);
