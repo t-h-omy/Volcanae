@@ -1991,7 +1991,11 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
   // ── Full modifier list for breakdown section ───────────────────────────────
   const mods: StatModEntry[] = [];
 
-  mods.push(...attackDisplayMods.rows, ...attackDisplayMods.effects);
+  const conditionalEffects = attackDisplayMods.effects.filter((effect) => effect.condition);
+  mods.push(
+    ...attackDisplayMods.rows,
+    ...attackDisplayMods.effects.filter((effect) => !effect.condition),
+  );
   if (phalanxDefense > 0) mods.push({ stat: 'DEF', value: phalanxDefense, kind: 'active', source: 'Phalanx Formation (adjacent guard)' });
   if (contextualDef > 0) mods.push({ stat: 'DEF', value: contextualDef, kind: 'active', source: 'Hold Ground (standing on own building)' });
   if (unit.tags.includes(UnitTag.SKIRMISHER)) mods.push({ stat: 'MOV', value: ABILITIES.SKIRMISHER_MOVE_BONUS, kind: 'active', source: 'Skirmisher (tag ability)' });
@@ -2059,7 +2063,7 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
         </div>
 
         {/* Modifier breakdown — only shown when there are active modifiers */}
-        {(bonuses.length > 0 || penalties.length > 0) && (
+        {(bonuses.length > 0 || penalties.length > 0 || conditionalEffects.length > 0) && (
           <div className="hud-stat-detail-list">
             {bonuses.length > 0 && (
               <div className="hud-stat-detail-section">
@@ -2081,6 +2085,20 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
                     <span className="hud-stat-detail-stat">{m.stat}</span>
                     <span className="hud-stat-detail-value hud-stat-penalty">{m.displayValue ?? m.value}</span>
                     <span className="hud-stat-detail-source">{m.source}{m.kind === 'applied' ? ' ✓' : ''}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {conditionalEffects.length > 0 && (
+              <div className="hud-stat-detail-section">
+                <div className="hud-stat-detail-section-title">🎯 Target-dependent</div>
+                {conditionalEffects.map((effect, i) => (
+                  <div key={`conditional-${i}`} className="hud-stat-detail-row">
+                    <span className="hud-stat-detail-stat">{effect.stat}</span>
+                    <span className="hud-stat-detail-value hud-stat-bonus">{effect.displayValue}</span>
+                    <span className="hud-stat-detail-source">
+                      {effect.source} <span className="hud-stat-detail-condition">({effect.condition})</span>
+                    </span>
                   </div>
                 ))}
               </div>

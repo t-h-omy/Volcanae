@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.114.8 - Clarify target-dependent combat effects
+
+Added a separate Target-dependent section to unit stat details so effects that vary by enemy are not presented as general bonuses or penalties. Assassin's ×4 damage is labeled as applying only against full-health targets. Other active combat modifiers retain their existing display.
+
 ### v0.114.7 - Show Assassin and Bloodlust combat effects
 
 Unit stat details now show Assassin's ×4 damage effect when a full-health attackable target is in range, and Bloodlust's ×0.5 base-attack effect while its second strike is available. Both tags highlight while their effect is active; Assassin remains suppressed on corrupted tiles. These action-specific effects are shown separately and do not alter the standing ATK total.

@@ -220,7 +220,8 @@ describe('unit stat display helpers', () => {
       value: 1,
       displayValue: `×${ABILITIES.ASSASSIN_DAMAGE_MULTIPLIER}`,
       kind: 'active',
-      source: 'Assassin (against a full-health target)',
+      source: 'Assassin',
+      condition: 'Only against full-health targets',
     });
     expect(mods.effects).toContainEqual({
       stat: 'ATK',

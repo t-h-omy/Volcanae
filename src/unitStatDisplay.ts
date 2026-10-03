@@ -15,6 +15,7 @@ export type AttackDisplayEffect = {
   displayValue: string;
   kind: 'active';
   source: string;
+  condition?: string;
 };
 
 export type AttackDisplayContext = {
@@ -107,7 +108,8 @@ export function getAttackDisplayModifiers(
       value: 1,
       displayValue: `×${ABILITIES.ASSASSIN_DAMAGE_MULTIPLIER}`,
       kind: 'active',
-      source: 'Assassin (against a full-health target)',
+      source: 'Assassin',
+      condition: 'Only against full-health targets',
     });
   }
 
