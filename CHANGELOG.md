@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.114.4 - Mobile construction focus mode
+
+Opening Construct Building on mobile now hides the selected-unit panel and End Turn until the menu is collapsed. Selection/tile changes and construction-panel dismissal reset expansion so the HUD cannot remain stuck in focus mode. Construction rows use a stable 58 px mobile height with a 215 px scrolling cap: short lists retain their natural height, while four or more choices show three full rows and half of the next row. Desktop, conversion menus, and construction gameplay are unchanged. Added UI contract regression tests and mobile usage documentation.
+
 ### v0.114.3 - Explain construction resource shortages
 
 Construction rows now show exactly how much more iron or wood is needed, including technology-locked options and even when hints are disabled or have already been seen. The research diamond sits outside the dimmed row content so it remains fully opaque. This distinguishes insufficient resources from technology locks after researching Field Duties. Building costs and Guard construction rules are unchanged.

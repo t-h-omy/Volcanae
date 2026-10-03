@@ -18,6 +18,12 @@ To toggle hints on or off, use the "Show hints" option in the New Campaign panel
 - 🎨 Dark theme (black background, dark red accents)
 - 📏 Fullscreen responsive design
 
+## Mobile Construction
+
+At widths up to 768 px, expanding **Construct Building** temporarily hides the selected-unit panel and **End Turn** while keeping the map visible. Tap the construction header again to restore the normal HUD. Changing units or tiles, losing construction eligibility, or opening a blocking hint or cave popup resets the menu.
+
+Lists of one to three buildings use only their natural height. Longer lists show three full rows and half of the next row; swipe vertically within the list to see more while the header stays visible. Costs, resource warnings, locked-entry research navigation, and building confirmation are unchanged. Desktop and conversion menus retain their existing behavior.
+
 ## Getting Started
 
 ```bash
