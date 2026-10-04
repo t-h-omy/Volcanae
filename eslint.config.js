@@ -23,4 +23,16 @@ export default defineConfig([
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     },
   },
+  {
+    files: ['src/i18n/**/*.{ts,tsx}', 'config/i18n.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'Literal[value=/—/]',
+          message: 'Use a hyphen, colon, or other locale-appropriate punctuation instead of an em dash.',
+        },
+      ],
+    },
+  },
 ])

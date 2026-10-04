@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.114.9 - Add localization infrastructure
+
+Added supported-locale configuration, persistent locale selection, ICU message formatting, starter catalogs, translator guidance, and catalog quality checks. No player-facing text or save data changed.
+
 ### v0.114.8 - Clarify target-dependent combat effects
 
 Added a separate Target-dependent section to unit stat details so effects that vary by enemy are not presented as general bonuses or penalties. Assassin's ×4 damage is labeled as applying only against full-health targets. Other active combat modifiers retain their existing display.

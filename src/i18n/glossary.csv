@@ -1,0 +1,17 @@
+term,note,do_not_translate,de,fr,es,it,pt-BR
+Volcanae,game title,true,Volcanae,Volcanae,Volcanae,Volcanae,Volcanae
+Volcael,enemy faction name,true,Volcael,Volcael,Volcael,Volcael,Volcael
+Ember,game resource,false,Glut,Kumaroja,Braza,Brace,Brasa
+Ember Level,player progression level,false,Glutstufe,Niveau de braise,Nivel de brasa, livello brace,Nível de brasa
+lava,terrain hazard,false,Lava,lave,lava, lava,lava
+lava front,advancing edge of lava,false,Lavafront,front de lave,frente de lava,fronte di lava,frente de lava
+crystal,research resource,false,Kristall,cristal,cristal,cristallo,cristal
+resonance,magical energy concept,false,Resonanz,résonance,resonancia,risonanza,ressonância
+resonate,verb for magical attunement,false,resonieren,résonner,resonar,risuonare,ressoar
+turn,gameplay turn,false,Zug,tour,turno,turno,turno
+tile,board cell,false,Feld,case,casilla,casella,quadrado
+zone,world region,false,Zone,zone,zona,zona,zona
+research,technology progress,false,Forschung,recherche,investigación,ricerca,pesquisa
+recruit,hire a unit,false,rekrutieren,recruter,reclutar,reclutare,recrutar
+capture,claim a location,false,einnehmen,capturer,capturar,conquistare,conquistar
+upkeep,ongoing unit cost,false,Unterhalt,entretien,mantenimiento,mantenimento,manutenção

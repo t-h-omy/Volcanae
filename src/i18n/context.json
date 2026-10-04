@@ -1,0 +1,6 @@
+{
+  "options.language": {
+    "note": "Label of the language selector row in Options.",
+    "maxLen": 16
+  }
+}
