@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  BUILDING_DEFINITIONS,
-  SPECIALIST_DEFINITIONS,
-  TAG_INFO,
-  TECH_TREE,
-  UNIT_DEFINITIONS,
-} from '../gameConfig';
+import { SPECIALIST_DEFINITIONS, TECH_TREE } from '../gameConfig';
 
 const EM_DASH = '—';
 const SCANNED_KEYS = new Set(['name', 'description', 'label', 'desc']);
@@ -28,11 +22,8 @@ function assertNoEmDashInStringFields(value: unknown): void {
 
 describe('gameConfig text lint', () => {
   it('contains no em dashes in name/label/description string fields', () => {
-    assertNoEmDashInStringFields(UNIT_DEFINITIONS);
-    assertNoEmDashInStringFields(BUILDING_DEFINITIONS);
     assertNoEmDashInStringFields(SPECIALIST_DEFINITIONS);
     assertNoEmDashInStringFields(TECH_TREE);
-    assertNoEmDashInStringFields(TAG_INFO);
   });
 
   it('exposes exactly 26 specialists with unique names', () => {

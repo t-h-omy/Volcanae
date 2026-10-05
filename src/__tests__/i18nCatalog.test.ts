@@ -1,6 +1,13 @@
 import IntlMessageFormat from 'intl-messageformat';
 import { describe, expect, it } from 'vitest';
 import { SUPPORTED_LOCALES, type LocaleCode } from '../../config/i18n';
+import {
+  BUILDING_DEFINITIONS,
+  TAG_INFO,
+  TERRAIN_TAG_INFO,
+  UNIT_DEFINITIONS,
+} from '../gameConfig';
+import { BuildingType, Difficulty, TerrainTag, UnitTag, UnitType } from '../types';
 import context from '../i18n/context.json';
 
 type Catalog = Record<string, string>;
@@ -79,6 +86,43 @@ describe('localization catalogs', () => {
         };
         checkPlural(targetAst);
       }
+    }
+  });
+
+  it('d: every entity, resource, population, difficulty, and stat key exists in English', () => {
+    const keys = [
+      ...Object.values(UnitType).flatMap((type) => [`unit.${type}.name`, `unit.${type}.desc`]),
+      ...Object.values(BuildingType).flatMap((type) => [`building.${type}.name`, `building.${type}.desc`]),
+      ...Object.values(UnitTag).flatMap((tag) => [`tag.${tag}.label`, `tag.${tag}.desc`]),
+      ...Object.values(TerrainTag).flatMap((tag) => [`terrainTag.${tag}.label`, `terrainTag.${tag}.desc`]),
+      ...Object.values(Difficulty).map((difficulty) => `difficulty.${difficulty}`),
+      ...['IRON', 'WOOD', 'CRYSTAL'].map((resource) => `resource.${resource}.name`),
+      ...['farmer', 'noble'].map((population) => `population.${population}.name`),
+      ...['hp', 'attack', 'defense', 'moveRange', 'attackRange', 'discoverRadius', 'triggerRange', 'movementActions']
+        .map((stat) => `stat.${stat}`),
+    ];
+    for (const key of keys) expect(en).toHaveProperty(key);
+  });
+
+  it('e: entity description arguments match configured text parameters', () => {
+    const definitions = [
+      ...Object.entries(UNIT_DEFINITIONS).map(([id, definition]) => [`unit.${id}.desc`, definition.textParams] as const),
+      ...Object.entries(BUILDING_DEFINITIONS).map(([id, definition]) => [`building.${id}.desc`, definition.textParams] as const),
+      ...Object.entries(TAG_INFO).map(([id, definition]) => [`tag.${id}.desc`, definition.textParams] as const),
+      ...Object.entries(TERRAIN_TAG_INFO).map(([id, definition]) => [`terrainTag.${id}.desc`, definition.textParams] as const),
+    ];
+    for (const [key, params] of definitions) {
+      expect([...collectArguments(astFor(en[key]!, 'en'))].sort(), key).toEqual(Object.keys(params ?? {}).sort());
+    }
+  });
+
+  it('f: entity messages contain no ASCII digits outside the allowlist', () => {
+    const digitAllowlist: string[] = [
+      // Structural numeric phrases belong here only when no gameplay constant backs them.
+    ];
+    for (const [key, message] of Object.entries(en)) {
+      if (!/^(unit|building|tag|terrainTag)\./.test(key) || digitAllowlist.includes(key)) continue;
+      expect(message, key).not.toMatch(/[0-9]/);
     }
   });
 

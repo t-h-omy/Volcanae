@@ -63,7 +63,7 @@ describe('mobile construction focus UI contract', () => {
 
   it('retains construction information without changing conversion rows or expansion', () => {
     expect(construction).toContain('info-row-emoji');
-    expect(construction).toContain('{opt.label}');
+    expect(construction).toContain('{buildingName(opt.buildingType)}');
     expect(construction).toContain('info-row-cost');
     expect(construction).toContain('Need {missingResources}');
     expect(construction).toContain('hud-construction-tech-lock-badge');

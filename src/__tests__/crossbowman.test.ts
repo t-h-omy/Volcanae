@@ -25,6 +25,7 @@ import { unlockTech } from '../techSystem';
 import { BuildingType, DestroyBehavior, Faction, TileType, UnitTag, UnitType } from '../types';
 import type { Building, GameState, GameStats, Tile, Unit } from '../types';
 import type { GameEvent } from '../gameEvents';
+import { unitDesc } from '../i18n/entityText';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -205,7 +206,7 @@ describe('Crossbowman — stats and tags', () => {
   });
 
   it('has a non-empty description', () => {
-    expect(def.description.length).toBeGreaterThan(0);
+    expect(unitDesc(UnitType.CROSSBOWMAN).length).toBeGreaterThan(0);
   });
 
   it('has the correct cost', () => {

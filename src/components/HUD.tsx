@@ -11,7 +11,7 @@ import { useMenuStore } from '../menuStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
 import { useSoundOptionsStore } from '../soundOptionsStore';
-import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, computeResearchCost, SPELL_DEFINITIONS, TERRAIN_TAG_INFO, MAGE, CORRUPTED_SUPPRESSED_TAGS, CRYSTAL_CAVE_CONFIG, CRYSTAL_CHAMBER_CONFIG, MARKET, SPECIALIST_DEFINITIONS, CONDITIONAL_ACTIVE_TAGS } from '../gameConfig';
+import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, computeResearchCost, SPELL_DEFINITIONS, MAGE, CORRUPTED_SUPPRESSED_TAGS, CRYSTAL_CAVE_CONFIG, CRYSTAL_CHAMBER_CONFIG, MARKET, SPECIALIST_DEFINITIONS, CONDITIONAL_ACTIVE_TAGS } from '../gameConfig';
 import type { SpecialistDefinition } from '../gameConfig';
 import { UI } from '../../config/ui';
 import { CAVE_SPECIALIST_ROB_REWARD_CRYSTALS } from '../../config/specialists';
@@ -765,6 +765,7 @@ function OptionsOverlay({ onClose }: { onClose: () => void }) {
 }
 
 function GameMenu() {
+  const { difficultyLabel } = useText();
   const [open, setOpen] = useState(false);
   const [devOptionsOverlayOpen, setDevOptionsOverlayOpen] = useState(false);
   const [difficultyOverlayOpen, setDifficultyOverlayOpen] = useState(false);
@@ -888,7 +889,7 @@ function GameMenu() {
               role="menuitem"
               onClick={() => { setOpen(false); setDifficultyOverlayOpen(true); }}
             >
-              ⚔️ Difficulty ({DIFFICULTY_LABEL[currentDifficulty]})
+              ⚔️ Difficulty ({difficultyLabel(currentDifficulty)})
             </button>
             <button className="hud-menu-item" role="menuitem" onClick={handleResetCache}>
               🗑️ Reset Cache &amp; Reload
@@ -1146,15 +1147,14 @@ function Popup({ onClose, children }: { onClose: () => void; children: React.Rea
 
 /** Tag info popup — shows label + description with an OK button */
 function TagPopup({ tag, disabledByCorruption, onClose }: { tag: UnitTag; disabledByCorruption?: boolean; onClose: () => void }) {
-  const info = TAG_INFO[tag];
-  if (!info) return null;
+  const { tagLabel, tagDesc } = useText();
   return (
     <Popup onClose={onClose}>
-      <div className="info-popup-header-name" style={{ marginBottom: 10 }}>{info.label}</div>
+      <div className="info-popup-header-name" style={{ marginBottom: 10 }}>{tagLabel(tag)}</div>
       {disabledByCorruption && (
         <p className="info-popup-corruption-notice">Disabled by corruption</p>
       )}
-      <p className="info-popup-desc" style={{ marginBottom: 16 }}>{info.desc}</p>
+      <p className="info-popup-desc" style={{ marginBottom: 16 }}>{tagDesc(tag)}</p>
       <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>OK</button>
     </Popup>
   );
@@ -1189,6 +1189,7 @@ function ResourceInfoPopup({
   current: number;
   onClose: () => void;
 }) {
+  const { resourceName, unitName } = useText();
   // Use stable Immer references as memo dependencies so that the selectors
   // passed to useSyncExternalStore (Zustand v5) always return the same
   // reference between consecutive snapshot calls, preventing the
@@ -1226,7 +1227,7 @@ function ResourceInfoPopup({
       <Popup onClose={onClose}>
         <div className="info-popup-header">
           <span className="info-popup-header-emoji">💎</span>
-          <div className="info-popup-header-name">Arcane Crystals</div>
+          <div className="info-popup-header-name">{resourceName('CRYSTAL')}</div>
         </div>
         <div className="resource-popup-current">Current: {current}</div>
         <div className="resource-popup-section-title">Income this turn</div>
@@ -1274,7 +1275,7 @@ function ResourceInfoPopup({
 
   const isIron = resourceType === 'iron';
   const emoji = isIron ? '⛓️' : '🪵';
-  const label = isIron ? 'Iron' : 'Wood';
+  const label = resourceName(isIron ? 'IRON' : 'WOOD');
 
   const totalIncome = entries.reduce((sum, e) => sum + (isIron ? e.iron : e.wood), 0);
 
@@ -1327,6 +1328,7 @@ function PopulationInfoPopup({
   populationType: 'farmers' | 'nobles';
   onClose: () => void;
 }) {
+  const { populationName, unitName } = useText();
   // Use stable Immer references as memo dependencies to avoid invariant violation
   const buildings = useGameStore((s) => s.buildings);
   const units = useGameStore((s) => s.units);
@@ -1340,7 +1342,7 @@ function PopulationInfoPopup({
 
   const isFarmers = populationType === 'farmers';
   const emoji = isFarmers ? '🌾' : '🎖️';
-  const label = isFarmers ? 'Farmers' : 'Nobles';
+  const label = populationName(isFarmers ? 'farmer' : 'noble');
   const capacity = isFarmers ? breakdown.farmerCapacity : breakdown.nobleCapacity;
   const used = isFarmers ? breakdown.farmersUsed : breakdown.noblesUsed;
 
@@ -1382,7 +1384,7 @@ function PopulationInfoPopup({
         usageRows.map((e, i) => (
           <div key={i} className="resource-popup-row">
             <span className="resource-popup-row-label">
-              {UNIT_EMOJI[e.unitType] ?? ''} {UNIT_NAME[e.unitType] ?? e.unitType} ×{e.count}
+              {UNIT_EMOJI[e.unitType] ?? ''} {unitName(e.unitType)} ×{e.count}
             </span>
             <span className="resource-popup-row-value">{isFarmers ? e.farmers : e.nobles}</span>
           </div>
@@ -1415,18 +1417,17 @@ function TagPillBase({ label, onClick, inactive, active, highlight, onHighlightE
 
 /** Tappable tag pill used in panels and popups */
 function InfoTagPill({ tag, onClick, inactive, active, highlight, onHighlightEnd }: { tag: UnitTag; onClick: () => void; inactive?: boolean; active?: boolean; highlight?: boolean; onHighlightEnd?: () => void }) {
-  const info = TAG_INFO[tag];
-  return <TagPillBase label={info?.label ?? tag} onClick={onClick} inactive={inactive} active={active} highlight={highlight} onHighlightEnd={onHighlightEnd} />;
+  const { tagLabel } = useText();
+  return <TagPillBase label={tagLabel(tag)} onClick={onClick} inactive={inactive} active={active} highlight={highlight} onHighlightEnd={onHighlightEnd} />;
 }
 
 /** Tag info popup for terrain tags (tile status) */
 function TerrainTagPopup({ tag, onClose }: { tag: TerrainTag; onClose: () => void }) {
-  const info = TERRAIN_TAG_INFO[tag];
-  if (!info) return null;
+  const { terrainTagLabel, terrainTagDesc } = useText();
   return (
     <Popup onClose={onClose}>
-      <div className="info-popup-header-name" style={{ marginBottom: 10 }}>{info.label}</div>
-      <p className="info-popup-desc" style={{ marginBottom: 16 }}>{info.desc}</p>
+      <div className="info-popup-header-name" style={{ marginBottom: 10 }}>{terrainTagLabel(tag)}</div>
+      <p className="info-popup-desc" style={{ marginBottom: 16 }}>{terrainTagDesc(tag)}</p>
       <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>OK</button>
     </Popup>
   );
@@ -1434,8 +1435,8 @@ function TerrainTagPopup({ tag, onClose }: { tag: TerrainTag; onClose: () => voi
 
 /** Tappable terrain-tag pill for terrain status (used in SelectedTilePanel) */
 function TerrainTagPill({ tag, onClick }: { tag: TerrainTag; onClick: () => void }) {
-  const info = TERRAIN_TAG_INFO[tag];
-  return <TagPillBase label={info?.label ?? tag} onClick={onClick} />;
+  const { terrainTagLabel } = useText();
+  return <TagPillBase label={terrainTagLabel(tag)} onClick={onClick} />;
 }
 
 /** Ember Level info popup — explains what Ember Level does and shows source breakdown */
@@ -1498,11 +1499,12 @@ function UnitInfoPopup({
   onClose: () => void;
   isReadOnly?: boolean;
 }) {
+  const { unitName, unitDesc, statAbbr } = useText();
   const [tagPopup, setTagPopup] = useState<UnitTag | null>(null);
-  const desc = UNIT_DEFINITIONS[unitType]?.description;
+  const desc = unitDesc(unitType);
   const baseTags = UNIT_DEFINITIONS[unitType]?.tags ?? [];
   const emoji = UNIT_EMOJI[unitType] ?? '?';
-  const name = UNIT_NAME[unitType] ?? unitType;
+  const name = unitName(unitType);
 
   // Always show base stats from UNIT_DEFINITIONS so info is consistent regardless of call site
   const baseConfig = UNIT_DEFINITIONS[unitType as keyof typeof UNIT_DEFINITIONS] as
@@ -1537,11 +1539,11 @@ function UnitInfoPopup({
         {stats && (
           <div className="info-popup-stats">
             {([
-              ['ATK', stats.attack],
-              ['DEF', stats.defense],
-              ['MOV', stats.moveRange],
-              ['RNG', stats.attackRange] as const,
-              ['VIS', stats.discoverRadius],
+              [statAbbr('attack'), stats.attack],
+              [statAbbr('defense'), stats.defense],
+              [statAbbr('moveRange'), stats.moveRange],
+              [statAbbr('attackRange'), stats.attackRange] as const,
+              [statAbbr('discoverRadius'), stats.discoverRadius],
             ] as const).map(([l, v]) => (
               <div key={l} className="info-popup-stat-cell">
                 <div className="info-popup-stat-label">{l}</div>
@@ -1599,10 +1601,11 @@ function BuildingInfoPopup({
   onClose: () => void;
   isReadOnly?: boolean;
 }) {
+  const { buildingName, buildingDesc } = useText();
   const def = BUILDING_DEFINITIONS[buildingType];
-  const desc = def?.description;
+  const desc = buildingDesc(buildingType);
   const emoji = BUILDING_EMOJI[buildingType] ?? '?';
-  const name = BUILDING_NAME[buildingType] ?? buildingType;
+  const name = buildingName(buildingType);
   const upkeepIron = def?.upkeepIron ?? 0;
   const upkeepWood = def?.upkeepWood ?? 0;
   const hasUpkeep = upkeepIron > 0 || upkeepWood > 0;
@@ -1710,18 +1713,6 @@ function RecruitScoreModal({
 // STAT HELPERS (used by UnitCombinedInfoPopup and BuildingStatDetailModal)
 // ============================================================================
 
-/** Human-readable label for UnitStats keys */
-function statKeyToLabel(key: string): string {
-  const labels: Record<string, string> = {
-    maxHp: 'HP', currentHp: 'HP',
-    attack: 'ATK', defense: 'DEF',
-    moveRange: 'MOV', attackRange: 'RNG',
-    discoverRadius: 'VIS', triggerRange: 'TRG',
-    movementActions: 'ACT',
-  };
-  return labels[key] ?? key.toUpperCase();
-}
-
 type StatModEntry = {
   stat: string;
   value: number;
@@ -1740,6 +1731,7 @@ type StatModEntry = {
  * (Watchtower, Outpost, etc.).
  */
 function BuildingStatDetailModal({ building, onClose }: { building: Building; onClose: () => void }) {
+  const { buildingName, statAbbr } = useText();
   const fortifiedGarrisonActive = useGameStore((s) => s.fortifiedGarrisonActive);
   const gameState = useGameStore((s) => s);
 
@@ -1755,12 +1747,12 @@ function BuildingStatDetailModal({ building, onClose }: { building: Building; on
 
   if (isGarrisonBuilding && fortifiedGarrisonActive) {
     mods.push({
-      stat: 'ATK',
+      stat: statAbbr('attack'),
       value: ABILITIES.FORTIFIED_GARRISON_ATTACK_BONUS,
       source: 'Fortified Garrison (specialist)',
     });
     mods.push({
-      stat: 'RNG',
+      stat: statAbbr('attackRange'),
       value: ABILITIES.FORTIFIED_GARRISON_RANGE_BONUS,
       source: 'Fortified Garrison (specialist)',
     });
@@ -1771,7 +1763,7 @@ function BuildingStatDetailModal({ building, onClose }: { building: Building; on
   if (chamberBonus > 0) {
     const connectedCount = chamberBonus / MAGE.CRYSTAL_TOWER_CHAMBER_ATTACK_BONUS;
     mods.push({
-      stat: 'ATK',
+      stat: statAbbr('attack'),
       value: chamberBonus,
       source: `Crystal Chamber link (×${connectedCount} connected)`,
     });
@@ -1785,7 +1777,7 @@ function BuildingStatDetailModal({ building, onClose }: { building: Building; on
       <div className="info-popup-header">
         <span className="info-popup-header-emoji">📊</span>
         <div className="info-popup-header-name">
-          {BUILDING_NAME[building.type] ?? building.type} — Stat Details
+          {buildingName(building.type)}: Stat Details
         </div>
       </div>
 
@@ -1845,13 +1837,14 @@ function getReloadDefensePenalty(unit: Unit, effectiveDefenseBeforeReload: numbe
  * stats bar button so that there is exactly ONE popup for unit info.
  */
 function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => void }) {
+  const { unitName, unitDesc, statAbbr, tagLabel } = useText();
   const [tagPopup, setTagPopup] = useState<UnitTag | null>(null);
   const gameState = useGameStore((s) => s);
 
-  const desc = UNIT_DEFINITIONS[unit.type]?.description;
+  const desc = unitDesc(unit.type);
   const visibleTags = unit.tags.filter((t) => !HIDDEN_UNIT_TAGS.has(t));
   const emoji = UNIT_EMOJI[unit.type] ?? '?';
-  const name = UNIT_NAME[unit.type] ?? unit.type;
+  const name = unitName(unit.type);
 
   // ── Contextual runtime bonuses (not baked into unit.stats) ───────────────
   const phalanxAttack = getPhalanxAttackBonus(gameState, unit);
@@ -1969,15 +1962,15 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
     ...attackDisplayMods.rows,
     ...attackDisplayMods.effects.filter((effect) => !effect.condition),
   );
-  if (phalanxDefense > 0) mods.push({ stat: 'DEF', value: phalanxDefense, kind: 'active', source: 'Phalanx Formation (adjacent guard)' });
-  if (contextualDef > 0) mods.push({ stat: 'DEF', value: contextualDef, kind: 'active', source: 'Hold Ground (standing on own building)' });
-  if (unit.tags.includes(UnitTag.SKIRMISHER)) mods.push({ stat: 'MOV', value: ABILITIES.SKIRMISHER_MOVE_BONUS, kind: 'active', source: 'Skirmisher (tag ability)' });
-  if (unit.tags.includes(UnitTag.OUTRIDER)) mods.push({ stat: 'MOV', value: ABILITIES.OUTRIDER_MOVE_BONUS, kind: 'active', source: 'Outrider (tag ability)' });
-  if (contextualMov.techBonus > 0) mods.push({ stat: 'MOV', value: contextualMov.techBonus, kind: 'active', source: 'To the Front (far behind frontline)' });
-  if (contextualRange > 0) mods.push({ stat: 'RNG', value: contextualRange, kind: 'active', source: 'Farsight Marshal (specialist)' });
+  if (phalanxDefense > 0) mods.push({ stat: statAbbr('defense'), value: phalanxDefense, kind: 'active', source: 'Phalanx Formation (adjacent guard)' });
+  if (contextualDef > 0) mods.push({ stat: statAbbr('defense'), value: contextualDef, kind: 'active', source: 'Hold Ground (standing on own building)' });
+  if (unit.tags.includes(UnitTag.SKIRMISHER)) mods.push({ stat: statAbbr('moveRange'), value: ABILITIES.SKIRMISHER_MOVE_BONUS, kind: 'active', source: 'Skirmisher (tag ability)' });
+  if (unit.tags.includes(UnitTag.OUTRIDER)) mods.push({ stat: statAbbr('moveRange'), value: ABILITIES.OUTRIDER_MOVE_BONUS, kind: 'active', source: 'Outrider (tag ability)' });
+  if (contextualMov.techBonus > 0) mods.push({ stat: statAbbr('moveRange'), value: contextualMov.techBonus, kind: 'active', source: 'To the Front (far behind frontline)' });
+  if (contextualRange > 0) mods.push({ stat: statAbbr('attackRange'), value: contextualRange, kind: 'active', source: 'Farsight Marshal (specialist)' });
   for (const tag of unit.tags) {
     for (const mod of TAG_STAT_EFFECTS[tag] ?? []) {
-      if (mod.mode === 'add') mods.push({ stat: statKeyToLabel(mod.stat), value: mod.value, kind: 'applied', source: `${TAG_INFO[tag]?.label ?? tag} (tag)` });
+      if (mod.mode === 'add') mods.push({ stat: statAbbr(mod.stat), value: mod.value, kind: 'applied', source: `${tagLabel(tag)} (tag)` });
     }
   }
   if (unit.faction === Faction.PLAYER) {
@@ -1985,17 +1978,17 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
       if (!gameState.techNodes[def.id]?.unlocked) continue;
       for (const effect of def.effects) {
         if (effect.type === 'UNIT_STAT_MOD' && effect.unitType === unit.type && effect.mode === 'add') {
-          mods.push({ stat: statKeyToLabel(effect.stat), value: effect.value, kind: 'applied', source: `${def.name} (tech)` });
+          mods.push({ stat: statAbbr(effect.stat), value: effect.value, kind: 'applied', source: `${def.name} (tech)` });
         }
       }
     }
   }
-  if (unit.distractionDefPenalty > 0) mods.push({ stat: 'DEF', value: -unit.distractionDefPenalty, kind: 'applied', source: 'Distraction arrows (permanent, from archer hits)' });
+  if (unit.distractionDefPenalty > 0) mods.push({ stat: statAbbr('defense'), value: -unit.distractionDefPenalty, kind: 'applied', source: 'Distraction arrows (permanent, from archer hits)' });
   const reloadPenalty = getReloadDefensePenalty(
     unit,
     unit.stats.defense + phalanxDefense + contextualDef - unit.distractionDefPenalty,
   );
-  if (reloadPenalty > 0) mods.push({ stat: 'DEF', value: -reloadPenalty, kind: 'active', source: `Reload (fired this turn, -${ABILITIES.RELOAD_DEF_PENALTY_PCT}% DEF)` });
+  if (reloadPenalty > 0) mods.push({ stat: statAbbr('defense'), value: -reloadPenalty, kind: 'active', source: `Reload (fired this turn, -${ABILITIES.RELOAD_DEF_PENALTY_PCT}% DEF)` });
 
   mods.sort((a, b) => {
     if (a.kind !== b.kind) return a.kind === 'active' ? -1 : 1;
@@ -2019,11 +2012,11 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
         {/* Live stats with buff/debuff badges */}
         <div className="info-popup-stats">
           {([
-            ['ATK', 'attack', unit.stats.attack] as const,
-            ['DEF', 'defense', unit.stats.defense] as const,
-            ['MOV', 'moveRange', unit.stats.moveRange] as const,
-            ['RNG', 'attackRange', unit.stats.attackRange] as const,
-            ['VIS', 'discoverRadius', unit.stats.discoverRadius] as const,
+            [statAbbr('attack'), 'attack', unit.stats.attack] as const,
+            [statAbbr('defense'), 'defense', unit.stats.defense] as const,
+            [statAbbr('moveRange'), 'moveRange', unit.stats.moveRange] as const,
+            [statAbbr('attackRange'), 'attackRange', unit.stats.attackRange] as const,
+            [statAbbr('discoverRadius'), 'discoverRadius', unit.stats.discoverRadius] as const,
           ]).map(([label, key, rawVal]) => (
             <div key={label} className="info-popup-stat-cell">
               <div className="info-popup-stat-label">{label}</div>
@@ -2136,6 +2129,7 @@ function SelectedUnitPanel({
   captureTarget?: Building;
   onCapture?: () => void;
 }) {
+  const { unitName, buildingName, statAbbr } = useText();
   const isPlayer = unit.faction === Faction.PLAYER;
   const gameState = useGameStore((s) => s);
   const hpPct = (unit.stats.currentHp / unit.stats.maxHp) * 100;
@@ -2429,10 +2423,10 @@ function SelectedUnitPanel({
   return (
     <div className={`hud-info-panel${!isPlayer ? ' hud-panel-enemy' : ''}`}>
       {/* Header — entire row is tappable to open UnitCombinedInfoPopup */}
-      <button className="hud-panel-header-btn" onClick={() => setUnitInfoOpen(true)} aria-label={`View ${UNIT_NAME[unit.type] ?? unit.type} info`}>
+      <button className="hud-panel-header-btn" onClick={() => setUnitInfoOpen(true)} aria-label={`View ${unitName(unit.type)} info`}>
         <span className="hud-panel-emoji">{UNIT_EMOJI[unit.type] ?? '?'}</span>
         <span className="hud-panel-name">
-          {UNIT_NAME[unit.type] ?? unit.type}
+          {unitName(unit.type)}
           <span className="info-badge" aria-hidden="true">i</span>
         </span>
         {!isPlayer && <span className="hud-faction-label hud-faction-enemy">🔴 Enemy</span>}
@@ -2472,27 +2466,27 @@ function SelectedUnitPanel({
       )}
       <button className="hud-unit-stats-btn" onClick={() => setUnitInfoOpen(true)} aria-label="View stat details and modifiers">
         <div className="hud-unit-stats">
-          <span className="hud-stat-label">ATK</span>
+          <span className="hud-stat-label">{statAbbr('attack')}</span>
           <span className="hud-stat-value">
             {unit.stats.attack - (inlineStatMods.applied.attack ?? 0)}
             {showNetMod('attack')}
           </span>
-          <span className="hud-stat-label">DEF</span>
+          <span className="hud-stat-label">{statAbbr('defense')}</span>
           <span className="hud-stat-value">
             {unit.stats.defense - (inlineStatMods.applied.defense ?? 0)}
             {showNetMod('defense')}
           </span>
-          <span className="hud-stat-label">MOV</span>
+          <span className="hud-stat-label">{statAbbr('moveRange')}</span>
           <span className="hud-stat-value">
             {unit.stats.moveRange - (inlineStatMods.applied.moveRange ?? 0)}
             {showNetMod('moveRange')}
           </span>
-          <span className="hud-stat-label">RNG</span>
+          <span className="hud-stat-label">{statAbbr('attackRange')}</span>
           <span className="hud-stat-value">
             {unit.stats.attackRange - (inlineStatMods.applied.attackRange ?? 0)}
             {showNetMod('attackRange')}
           </span>
-          <span className="hud-stat-label">VIS</span>
+          <span className="hud-stat-label">{statAbbr('discoverRadius')}</span>
           <span className="hud-stat-value">
             {unit.stats.discoverRadius - (inlineStatMods.applied.discoverRadius ?? 0)}
             {showNetMod('discoverRadius')}
@@ -2542,7 +2536,7 @@ function SelectedUnitPanel({
               >
                 {unit.hasMovedThisTurn
                   ? '🏳️ Capture — move here first'
-                  : `🏳️ Capture ${BUILDING_NAME[captureTarget.type] ?? captureTarget.type}`}
+                  : `🏳️ Capture ${buildingName(captureTarget.type)}`}
               </button>
             </>
           )}
@@ -2805,6 +2799,7 @@ function ConstructionPanel({
   isExpanded: boolean;
   onExpandedChange: (expanded: boolean) => void;
 }) {
+  const { buildingName } = useText();
   const resources = useGameStore((s) => s.resources);
   const constructBuilding = useGameStore((s) => s.constructBuilding);
   const grid = useGameStore((s) => s.grid);
@@ -2875,14 +2870,14 @@ function ConstructionPanel({
                 key={opt.buildingType}
                 className={`info-row-btn hud-construction-option${techLocked ? ' info-row-btn--tech-locked' : canAffordThis ? '' : ' info-row-btn--disabled'}`}
                 aria-disabled={!techLocked && !canAffordThis}
-                aria-label={techLocked ? `${opt.label}. Locked. Open unlock technology in Tech Tree.` : undefined}
+                aria-label={techLocked ? `${buildingName(opt.buildingType)}. Locked. Open unlock technology in Tech Tree.` : undefined}
                 title={techLocked ? 'Unlock in Tech Tree' : undefined}
                 onClick={handleSelectConstruction}
               >
                 <span className="info-row-emoji">{opt.emoji}</span>
                 <div className="info-row-body">
                   <div className="info-row-name">
-                    {opt.label}
+                    {buildingName(opt.buildingType)}
                     {!techLocked && <span className="info-badge info-badge--small">i</span>}
                   </div>
                   <div className="info-row-cost">⛓️{opt.cost.iron} 🪵{opt.cost.wood}</div>
@@ -2921,6 +2916,7 @@ function ConversionPanel({
 }: {
   unit: Unit;
 }) {
+  const { buildingName } = useText();
   const resources = useGameStore((s) => s.resources);
   const buildings = useGameStore((s) => s.buildings);
   const convertBuilding = useGameStore((s) => s.convertBuilding);
@@ -2943,7 +2939,7 @@ function ConversionPanel({
   if (options.length === 0) return null;
 
   const currentBuildingName = currentBuilding
-    ? (BUILDING_NAME[currentBuilding.type] ?? currentBuilding.type)
+    ? buildingName(currentBuilding.type)
     : 'Building';
 
   return (
@@ -2973,7 +2969,7 @@ function ConversionPanel({
                 <span className="info-row-emoji">{opt.emoji}</span>
                 <div className="info-row-body">
                   <div className="info-row-name">
-                    {opt.label}
+                    {buildingName(opt.buildingType)}
                     <span className="info-badge info-badge--small">i</span>
                   </div>
                   <div className="info-row-cost">⛓️{opt.cost.iron} 🪵{opt.cost.wood}</div>
@@ -3068,6 +3064,7 @@ function SelectedTilePanel({ tile }: { tile: Tile }) {
 // ============================================================================
 
 function SelectedBuildingPanel({ building }: { building: Building }) {
+  const { buildingName, unitName, populationName } = useText();
   const resources = useGameStore((s) => s.resources);
   const grid = useGameStore((s) => s.grid);
   const gameState = useGameStore((s) => s);
@@ -3187,9 +3184,9 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   const isHousingBuilding =
     isPlayerOwned &&
     (building.type === BuildingType.FARM || building.type === BuildingType.PATRICIANHOUSE || building.type === BuildingType.STRONGHOLD);
-  const housingLabel = building.type === BuildingType.FARM ? 'farmers'
-    : building.type === BuildingType.PATRICIANHOUSE ? 'nobles'
-    : 'farmers + nobles';
+  const housingLabel = building.type === BuildingType.FARM ? populationName('farmer')
+    : building.type === BuildingType.PATRICIANHOUSE ? populationName('noble')
+    : `${populationName('farmer')} + ${populationName('noble')}`;
   const turnsUntilNextPop = (() => {
     if (!isHousingBuilding) return null;
     if (building.type === BuildingType.STRONGHOLD) {
@@ -3211,10 +3208,10 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   return (
     <div className="hud-info-panel hud-building-panel">
       {/* Header */}
-      <button className="hud-panel-header hud-panel-header-btn" onClick={() => setBuildingInfoOpen(true)} aria-label={`View ${BUILDING_NAME[building.type] ?? building.type} info`}>
+      <button className="hud-panel-header hud-panel-header-btn" onClick={() => setBuildingInfoOpen(true)} aria-label={`View ${buildingName(building.type)} info`}>
         <span className="hud-panel-emoji">{BUILDING_EMOJI[building.type] ?? '?'}</span>
         <span className="hud-panel-name">
-          {BUILDING_NAME[building.type] ?? building.type}
+          {buildingName(building.type)}
           <span className="info-badge" aria-hidden="true">i</span>
         </span>
         <span className="hud-faction-label">{factionLabel}</span>
@@ -3479,7 +3476,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
                     building.type === BuildingType.CRYSTAL_CAVE,
                     recruitedUnits,
                     unitLimit,
-                    BUILDING_NAME[building.type] ?? building.type,
+                    buildingName(building.type),
                   );
                 })();
                 return (
@@ -3492,7 +3489,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
                       <span className="info-row-emoji">{UNIT_EMOJI[unitType] ?? ''}</span>
                       <div className="info-row-body">
                         <div className="info-row-name">
-                          {UNIT_NAME[unitType] ?? unitType}
+                          {unitName(unitType)}
                           <span className="info-badge info-badge--small">i</span>
                         </div>
                         {isCrystalCost && <div className="info-row-cost">💎{crystalCost}</div>}
@@ -4482,6 +4479,7 @@ function nodeCentre(id: string): { x: number; y: number } {
 // ============================================================================
 
 function TechTreeOverlay({ onClose, focusId }: { onClose: () => void; focusId: TechId | null }) {
+  const { unitName, buildingName, tagLabel } = useText();
   const techNodes = useGameStore((s) => s.techNodes);
   const arcaneCrystals = useGameStore((s) => s.arcaneCrystals);
   const ember = useGameStore((s) => s.ember);
@@ -4668,7 +4666,7 @@ function TechTreeOverlay({ onClose, focusId }: { onClose: () => void; focusId: T
                   return (
                     <button key={i} className="tech-effect-tile" onClick={() => setInfoUnitType(e.unitType)}>
                       <span className="tech-effect-tile-emoji">{UNIT_EMOJI[e.unitType] ?? '?'}</span>
-                      <span className="tech-effect-tile-name">{UNIT_NAME[e.unitType] ?? e.unitType}</span>
+                      <span className="tech-effect-tile-name">{unitName(e.unitType)}</span>
                       <span className="info-badge">i</span>
                     </button>
                   );
@@ -4677,18 +4675,18 @@ function TechTreeOverlay({ onClose, focusId }: { onClose: () => void; focusId: T
                   return (
                     <button key={i} className="tech-effect-tile" onClick={() => setInfoBuildingType(e.buildingType)}>
                       <span className="tech-effect-tile-emoji">{BUILDING_EMOJI[e.buildingType] ?? '?'}</span>
-                      <span className="tech-effect-tile-name">{BUILDING_NAME[e.buildingType] ?? e.buildingType}</span>
+                      <span className="tech-effect-tile-name">{buildingName(e.buildingType)}</span>
                       <span className="info-badge">i</span>
                     </button>
                   );
                 }
                 if (e.type === TechEffectType.GRANT_UNIT_TAG) {
-                  const tagLabel = TAG_INFO[e.tag]?.label ?? e.tag;
-                  const unitLabel = UNIT_NAME[e.unitType] ?? e.unitType;
+                  const localizedTagLabel = tagLabel(e.tag);
+                  const unitLabel = unitName(e.unitType);
                   return (
                     <button key={i} className="tech-effect-tile" onClick={() => setInfoUnitTag(e.tag)}>
                       <span className="tech-effect-tile-emoji">{TAG_EMOJI[e.tag] ?? '✦'}</span>
-                      <span className="tech-effect-tile-name">{unitLabel} gains {tagLabel}</span>
+                      <span className="tech-effect-tile-name">{unitLabel} gains {localizedTagLabel}</span>
                       <span className="info-badge">i</span>
                     </button>
                   );
