@@ -128,7 +128,7 @@ export function formatList(items: readonly string[]): string {
 }
 
 export function formatRelativeTime(timestampMs: number, nowMs = Date.now()): string {
-  const deltaSeconds = (timestampMs - nowMs) / 1000;
+  const deltaSeconds = (timestampMs - nowMs) / I18N.MILLISECONDS_PER_SECOND;
   const absoluteSeconds = Math.abs(deltaSeconds);
   let unit: Intl.RelativeTimeFormatUnit;
   let divisor: number;

@@ -52,8 +52,6 @@ export function detectLocale(languages: readonly string[], candidates: readonly 
   for (const language of languages) {
     const exact = candidateByLower.get(language.toLowerCase());
     if (exact) return exact;
-  }
-  for (const language of languages) {
     const base = language.split('-')[0]?.toLowerCase();
     const match = candidates.find((candidate) => candidate.split('-')[0]?.toLowerCase() === base);
     if (match) return match;
