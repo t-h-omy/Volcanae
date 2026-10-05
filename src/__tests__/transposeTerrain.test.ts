@@ -24,6 +24,7 @@ import {
 } from '../spellSystem';
 import { canUnitOccupyTerrain, getReachableTiles } from '../movementSystem';
 import { useGameStore } from '../gameStore';
+import { t } from '../i18n/i18n';
 
 let nextIdValue = 0;
 
@@ -261,7 +262,7 @@ function hasPos(list: Position[], p: Position): boolean {
 function expectRejected({ state, mage, first, second }: Scenario): void {
   expect(hasPos(getValidSpellTargets(state, mage.id, SpellId.TRANSPOSE), second.position)).toBe(false);
   expect(hasPos(getTransposeTerrainBlockedTargets(state, mage.id), second.position)).toBe(true);
-  expect(explainInvalidSpellTarget(state, mage.id, SpellId.TRANSPOSE, second.position))
+  expect(t(explainInvalidSpellTarget(state, mage.id, SpellId.TRANSPOSE, second.position)!))
     .toBe(TERRAIN_REASON);
 
   const next = produce(state, (draft) => {

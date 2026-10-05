@@ -1964,8 +1964,10 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
 
   const conditionalEffects = attackDisplayMods.effects.filter((effect) => effect.condition);
   mods.push(
-    ...attackDisplayMods.rows,
-    ...attackDisplayMods.effects.filter((effect) => !effect.condition),
+    ...attackDisplayMods.rows.map((row) => ({ ...row, source: t(row.source) })),
+    ...attackDisplayMods.effects
+      .filter((effect) => !effect.condition)
+      .map((effect) => ({ ...effect, source: t(effect.source) })),
   );
   if (phalanxDefense > 0) mods.push({ stat: statAbbr('defense'), value: phalanxDefense, kind: 'active', source: 'Phalanx Formation (adjacent guard)' });
   if (contextualDef > 0) mods.push({ stat: statAbbr('defense'), value: contextualDef, kind: 'active', source: 'Hold Ground (standing on own building)' });
@@ -2043,7 +2045,7 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
                   <div key={i} className="hud-stat-detail-row">
                     <span className="hud-stat-detail-stat">{m.stat}</span>
                     <span className="hud-stat-detail-value hud-stat-bonus">{m.displayValue ?? `+${m.value}`}</span>
-                    <span className="hud-stat-detail-source">{t(m.source)}{m.kind === 'applied' ? ' ✓' : ''}</span>
+                    <span className="hud-stat-detail-source">{m.source}{m.kind === 'applied' ? ' ✓' : ''}</span>
                   </div>
                 ))}
               </div>
@@ -2055,7 +2057,7 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
                   <div key={i} className="hud-stat-detail-row">
                     <span className="hud-stat-detail-stat">{m.stat}</span>
                     <span className="hud-stat-detail-value hud-stat-penalty">{m.displayValue ?? m.value}</span>
-                    <span className="hud-stat-detail-source">{t(m.source)}{m.kind === 'applied' ? ' ✓' : ''}</span>
+                    <span className="hud-stat-detail-source">{m.source}{m.kind === 'applied' ? ' ✓' : ''}</span>
                   </div>
                 ))}
               </div>

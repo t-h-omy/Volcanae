@@ -137,5 +137,9 @@
   },
   "specialist.spec_20.name": {
     "note": "A coined title for an archer specialist whose units become berserk at low health."
+  },
+  "statDisplay.assassin": {
+    "note": "Assassin is written identically in French and English.",
+    "sameAsSource": ["fr"]
   }
 }
