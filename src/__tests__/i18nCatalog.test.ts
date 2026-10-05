@@ -70,6 +70,10 @@ describe('localization catalogs', () => {
   it('c: arguments and plural categories match for each locale', () => {
     for (const locale of SUPPORTED_LOCALES) {
       const catalog = catalogs[`../i18n/locales/${locale}.json`]!;
+      const rules = new Intl.PluralRules(locale);
+      const pluralCategories = new Set(
+        Array.from({ length: 1000 }, (_, value) => rules.select(value)),
+      );
       for (const [key, message] of Object.entries(en)) {
         const sourceAst = astFor(message, 'en');
         const targetAst = astFor(catalog[key]!, locale);
@@ -79,9 +83,7 @@ describe('localization catalogs', () => {
             if (node.pluralType) {
               const options = Object.keys(node.options ?? {});
               expect(options, `${locale}:${key} plural other`).toContain('other');
-              const rules = new Intl.PluralRules(locale);
-              for (let value = 0; value <= 999; value += 1) {
-                const category = rules.select(value);
+              for (const category of pluralCategories) {
                 expect(options, `${locale}:${key} plural ${category}`).toContain(category);
               }
             }

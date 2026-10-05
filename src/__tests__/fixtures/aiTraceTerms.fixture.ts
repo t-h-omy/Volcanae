@@ -11617,8 +11617,6 @@ export const EXPECTED_ENEMY_TURN_FINAL_STATE: GameState = {
   "specialists": {
     "spec_01": {
       "id": "spec_01",
-      "name": "Garrison Commander",
-      "description": "All your Watchtowers, Outposts, and Crystal Towers gain +15 attack and +1 attack range.",
       "effects": [
         {
           "type": "FORTIFIED_GARRISON",
@@ -11632,8 +11630,6 @@ export const EXPECTED_ENEMY_TURN_FINAL_STATE: GameState = {
     },
     "spec_02": {
       "id": "spec_02",
-      "name": "Bloodrider",
-      "description": "When one of your Riders kills an enemy, it may attack once more this turn at half attack and without retaliation.",
       "effects": [
         {
           "type": "GRANT_UNIT_TAG_ALL",
@@ -11650,8 +11646,6 @@ export const EXPECTED_ENEMY_TURN_FINAL_STATE: GameState = {
     },
     "spec_03": {
       "id": "spec_03",
-      "name": "Siege Tactician",
-      "description": "Your Siege units deal 25% of their damage to all enemy units surrounding their target.",
       "effects": [
         {
           "type": "GRANT_UNIT_TAG_ALL",
@@ -11668,8 +11662,6 @@ export const EXPECTED_ENEMY_TURN_FINAL_STATE: GameState = {
     },
     "spec_04": {
       "id": "spec_04",
-      "name": "Drill Sergeant",
-      "description": "Your Spearman and Swordsman units can move and attack immediately after being recruited.",
       "effects": [
         {
           "type": "GRANT_UNIT_TAG_ALL",
@@ -11693,8 +11685,6 @@ export const EXPECTED_ENEMY_TURN_FINAL_STATE: GameState = {
     },
     "spec_05": {
       "id": "spec_05",
-      "name": "Deathmender",
-      "description": "When one of your Spearmen, Scouts, or Guards dies, a Gravestone is left on their tile. Pay 1 crystal to raise a flying Gargoyle from any Gravestone.",
       "effects": [
         {
           "type": "GRANT_UNIT_TAG_ALL",
@@ -11729,8 +11719,6 @@ export const EXPECTED_ENEMY_TURN_FINAL_STATE: GameState = {
     },
     "spec_06": {
       "id": "spec_06",
-      "name": "Archmage",
-      "description": "Your Mages can cast 2 spells per turn instead of 1.",
       "effects": [
         {
           "type": "MAGE_CAST_BUDGET_MOD",
@@ -11746,8 +11734,6 @@ export const EXPECTED_ENEMY_TURN_FINAL_STATE: GameState = {
     },
     "spec_07": {
       "id": "spec_07",
-      "name": "Ashwright",
-      "description": "Your Charcoal Kilns affect mines and deep mines within 3 tiles instead of 2.",
       "effects": [
         {
           "type": "KILN_BONUS",
@@ -11764,8 +11750,6 @@ export const EXPECTED_ENEMY_TURN_FINAL_STATE: GameState = {
     },
     "spec_08": {
       "id": "spec_08",
-      "name": "Trapsmith",
-      "description": "Your Scouts can place a Scout Trap within 1 tile(s) of their position (costs 4 wood). The next non-FLYING enemy to enter it takes 60 damage and is stunned for 1 turn(s).",
       "effects": [
         {
           "type": "SCOUT_SET_TRAP",
@@ -11784,8 +11768,6 @@ export const EXPECTED_ENEMY_TURN_FINAL_STATE: GameState = {
     },
     "spec_09": {
       "id": "spec_09",
-      "name": "Watch Captain",
-      "description": "Your garrisoned Watchtowers, Outposts, and Crystal Towers fire a preventive shot at 50% damage when an enemy enters their range.",
       "effects": [
         {
           "type": "GARRISON_OVERWATCH",
@@ -11799,8 +11781,6 @@ export const EXPECTED_ENEMY_TURN_FINAL_STATE: GameState = {
     },
     "spec_10": {
       "id": "spec_10",
-      "name": "Cinder Warden",
-      "description": "Your Scouts can extinguish BURNING and CORRUPTED tiles within 1 tile(s), consuming their action.",
       "effects": [
         {
           "type": "SCOUT_EXTINGUISH",
@@ -11816,8 +11796,6 @@ export const EXPECTED_ENEMY_TURN_FINAL_STATE: GameState = {
     },
     "spec_11": {
       "id": "spec_11",
-      "name": "Farsight Marshal",
-      "description": "Your Scouts gain +1 attack range and become ranged.",
       "effects": [
         {
           "type": "SCOUT_RANGE_BONUS",
@@ -11840,8 +11818,6 @@ export const EXPECTED_ENEMY_TURN_FINAL_STATE: GameState = {
     },
     "spec_12": {
       "id": "spec_12",
-      "name": "Tramplelord",
-      "description": "Your Riders push enemies one tile away on every hit (KNOCKBACK).",
       "effects": [
         {
           "type": "GRANT_UNIT_TAG_ALL",
@@ -11858,8 +11834,6 @@ export const EXPECTED_ENEMY_TURN_FINAL_STATE: GameState = {
     },
     "spec_13": {
       "id": "spec_13",
-      "name": "Hellbinder",
-      "description": "All your SUMMONED units gain the RAGE and CLEAVE tags.",
       "effects": [
         {
           "type": "GRANT_TAG_TO_UNITS_WITH_TAG",
@@ -11876,8 +11850,6 @@ export const EXPECTED_ENEMY_TURN_FINAL_STATE: GameState = {
     },
     "spec_14": {
       "id": "spec_14",
-      "name": "Hearthsteward",
-      "description": "Each of your Farms can house 1 extra farmer.",
       "effects": [
         {
           "type": "HOUSING_CAP_BONUS",
@@ -11893,8 +11865,6 @@ export const EXPECTED_ENEMY_TURN_FINAL_STATE: GameState = {
     },
     "spec_15": {
       "id": "spec_15",
-      "name": "Forgemaster",
-      "description": "Units recruited within 5 rows of the lava front gain the CINDERBORN tag (+15 ATK and immunity to BURNING tile damage).",
       "effects": [
         {
           "type": "CINDERBORN_RECRUIT",
@@ -11911,8 +11881,6 @@ export const EXPECTED_ENEMY_TURN_FINAL_STATE: GameState = {
     },
     "spec_16": {
       "id": "spec_16",
-      "name": "The Martyr",
-      "description": "When one of your units is consumed by lava, all surviving Crystal Chambers begin resonating as if a chamber were destroyed.",
       "effects": [
         {
           "type": "RESONANCE_ON_UNIT_LAVA_DEATH",
@@ -11926,8 +11894,6 @@ export const EXPECTED_ENEMY_TURN_FINAL_STATE: GameState = {
     },
     "spec_17": {
       "id": "spec_17",
-      "name": "Bombardier",
-      "description": "Your Siege units gain the BATTERY tag: each adjacent friendly unit grants +7 ATK, up to 3 stacks.",
       "effects": [
         {
           "type": "GRANT_UNIT_TAG_ALL",
@@ -11944,8 +11910,6 @@ export const EXPECTED_ENEMY_TURN_FINAL_STATE: GameState = {
     },
     "spec_18": {
       "id": "spec_18",
-      "name": "Echo Warden",
-      "description": "While resonating, each Crystal Chamber within 3 rows of the lava front generates +1 extra crystal per turn.",
       "effects": [
         {
           "type": "RESONANCE_CRYSTAL_BONUS",
@@ -11962,8 +11926,6 @@ export const EXPECTED_ENEMY_TURN_FINAL_STATE: GameState = {
     },
     "spec_19": {
       "id": "spec_19",
-      "name": "Wallbreaker",
-      "description": "Your Archers deal 50% bonus damage when attacking buildings.",
       "effects": [
         {
           "type": "ARCHER_VS_STRUCTURE",
@@ -11979,8 +11941,6 @@ export const EXPECTED_ENEMY_TURN_FINAL_STATE: GameState = {
     },
     "spec_20": {
       "id": "spec_20",
-      "name": "Deathsworn",
-      "description": "Your Archers gain the BERSERK tag: when HP drops below 50%, they gain +50% ATK. Once triggered, it stays active even if HP recovers.",
       "effects": [
         {
           "type": "GRANT_UNIT_TAG_ALL",
@@ -11997,8 +11957,6 @@ export const EXPECTED_ENEMY_TURN_FINAL_STATE: GameState = {
     },
     "spec_21": {
       "id": "spec_21",
-      "name": "Pathfinder",
-      "description": "Capturing an enemy Stronghold immediately reveals the full zone it belongs to.",
       "effects": [
         {
           "type": "STRONGHOLD_ZONE_REVEAL",
@@ -12012,8 +11970,6 @@ export const EXPECTED_ENEMY_TURN_FINAL_STATE: GameState = {
     },
     "spec_22": {
       "id": "spec_22",
-      "name": "The Sundered",
-      "description": "Your Mages unlock the Rupture spell: deals 50% of the target's current HP as damage for 1 crystal.",
       "effects": [
         {
           "type": "RUPTURE_UNLOCK",
@@ -12027,8 +11983,6 @@ export const EXPECTED_ENEMY_TURN_FINAL_STATE: GameState = {
     },
     "spec_23": {
       "id": "spec_23",
-      "name": "The Matriarch",
-      "description": "Doubles farmer and noble housing caps and recruitment unit limits. New units have their iron and wood recruitment cost and max HP halved, rounded up.",
       "effects": [
         {
           "type": "POP_DOUBLING_DOCTRINE",
@@ -12042,8 +11996,6 @@ export const EXPECTED_ENEMY_TURN_FINAL_STATE: GameState = {
     },
     "spec_24": {
       "id": "spec_24",
-      "name": "Field Chirurgeon",
-      "description": "Player units that took no action this turn are healed for 30 HP at the end of the player turn.",
       "effects": [
         {
           "type": "IDLE_HEAL",
@@ -12059,8 +12011,6 @@ export const EXPECTED_ENEMY_TURN_FINAL_STATE: GameState = {
     },
     "spec_25": {
       "id": "spec_25",
-      "name": "Estate Warden",
-      "description": "Each Patrician House houses 1 extra noble.",
       "effects": [
         {
           "type": "NOBLE_HOUSING_CAP_BONUS",
@@ -12076,8 +12026,6 @@ export const EXPECTED_ENEMY_TURN_FINAL_STATE: GameState = {
     },
     "spec_26": {
       "id": "spec_26",
-      "name": "Quartermaster",
-      "description": "🎖️ Each recruitment building supports 1 additional unit. Crystal Caves and Crystal Chambers are not affected.",
       "effects": [
         {
           "type": "RECRUITMENT_CAP_BONUS",

@@ -113,5 +113,29 @@
   "specialist.spec_17.name": {
     "note": "A specialist title for an artillery expert.",
     "sameAsSource": ["de", "fr"]
+  },
+  "tech.A_NOBLE_STEAD.name": {
+    "note": "Technology that attracts noble residents and unlocks cavalry."
+  },
+  "tech.COVER.name": {
+    "note": "Technology that prevents ranged enemy units from counterattacking."
+  },
+  "specialist.spec_02.name": {
+    "note": "A coined cavalry title combining bloodshed and riding."
+  },
+  "specialist.spec_05.name": {
+    "note": "A coined title for a specialist who raises undead from gravestones."
+  },
+  "specialist.spec_07.name": {
+    "note": "A coined craft title for the specialist who improves charcoal kilns."
+  },
+  "specialist.spec_12.name": {
+    "note": "A coined cavalry title emphasizing the ability to trample and knock back enemies."
+  },
+  "specialist.spec_13.name": {
+    "note": "A coined title for the specialist who binds summoned creatures to infernal power."
+  },
+  "specialist.spec_20.name": {
+    "note": "A coined title for an archer specialist whose units become berserk at low health."
   }
 }
