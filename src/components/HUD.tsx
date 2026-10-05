@@ -4002,7 +4002,7 @@ function SpecialistUpkeepLine({ iron, wood, isDormant }: { iron: number; wood: n
   return (
     <div className="specialist-info-upkeep">
       {hasUpkeep ? (
-        <>{t('hud.specialistInfo.upkeep')}{iron > 0 && <span>⛓️{iron}</span>}{iron > 0 && wood > 0 && ' '}{wood > 0 && <span>🪵{wood}</span>}
+        <>{t('hud.specialistInfo.upkeep')} {iron > 0 && <span>⛓️{iron}</span>}{iron > 0 && wood > 0 && ' '}{wood > 0 && <span>🪵{wood}</span>}
           {isDormant && <span className="specialist-info-dormant-note"> · {t('hud.specialistInfo.cannotPayUpkeep')}</span>}
         </>
       ) : (
@@ -4052,7 +4052,7 @@ function SpecialistInfoPopup({ specialist, onClose, onDismiss }: { specialist: S
 }
 
 function MarketPanel() {
-  const { specialistName, specialistDesc } = useText();
+  const { specialistName, specialistDesc, t } = useText();
   const open = useMarketPanelStore((s) => s.open);
   const marketId = useMarketPanelStore((s) => s.marketId);
   const unitId = useMarketPanelStore((s) => s.unitId);
@@ -4098,8 +4098,8 @@ function MarketPanel() {
     ? MARKET.FREE_RESTOCK_INTERVAL_TURNS - (turn - lastFreeRestockTurn!)
     : 0;
   const freeRestockLabel = freeRestockOnCooldown
-    ? `Free Restock in ${freeRestockTurnsRemaining} turn${freeRestockTurnsRemaining === 1 ? '' : 's'}`
-    : 'Free Restock';
+    ? t('hud.market.freeRestockCooldown', { turns: freeRestockTurnsRemaining })
+    : t('hud.market.freeRestock');
 
   const currencyLabel = (cur: string, amount: number) => {
     if (cur === 'WOOD') return `🪵${amount}`;
@@ -4122,17 +4122,17 @@ function MarketPanel() {
         <div className="market-panel-card market-panel-card--swap">
           <div className="market-panel-swap-head">
             <div className="market-panel-header">
-              <span className="market-panel-title">🔄 Replace a Specialist</span>
-              <button className="market-panel-close" onClick={cancelSpecialistSwap} aria-label="Cancel specialist replacement">✕</button>
+              <span className="market-panel-title">🔄 {t('hud.market.replaceSpecialist')}</span>
+              <button className="market-panel-close" onClick={cancelSpecialistSwap} aria-label={t('hud.market.cancelSpecialistReplacement')}>✕</button>
             </div>
             {incomingSpec && (
               <div className="market-panel-specialist-incoming">
                 <span className="market-panel-specialist-name">🧙 {specialistName(incomingSpec.id)}</span>
                 <p className="market-panel-specialist-desc">{specialistDesc(incomingSpec.id)}</p>
-                <span className="market-panel-specialist-cost">Cost: 💎{MARKET.SPECIALIST_PRICE_CRYSTAL}</span>
+                <span className="market-panel-specialist-cost">{t('hud.market.specialistCost', { cost: MARKET.SPECIALIST_PRICE_CRYSTAL })}</span>
               </div>
             )}
-            <div className="market-panel-swap-divider">Replace one of your specialists:</div>
+            <div className="market-panel-swap-divider">{t('hud.market.replaceOneSpecialist')}</div>
           </div>
           <div className="market-panel-swap-list">
             {globalSpecialistStorage.map((specId) => {
@@ -4148,7 +4148,7 @@ function MarketPanel() {
                       buyMarketSpecialist(marketId, pendingSpecialistSlot, specId);
                     }}
                   >
-                    Replace (💎{MARKET.SPECIALIST_PRICE_CRYSTAL})
+                    {t('hud.market.replaceForCrystals', { cost: MARKET.SPECIALIST_PRICE_CRYSTAL })}
                   </button>
                 </div>
               );
@@ -4156,7 +4156,7 @@ function MarketPanel() {
           </div>
           <div className="market-panel-swap-footer">
             <button className="market-panel-btn market-panel-btn--close" onClick={cancelSpecialistSwap}>
-              Cancel
+              {t('common.cancel')}
             </button>
           </div>
         </div>
@@ -4168,12 +4168,12 @@ function MarketPanel() {
     <div className="market-panel-overlay">
       <div className="market-panel-card">
         <div className="market-panel-header">
-          <span className="market-panel-title">🪙 Market</span>
-          <button className="market-panel-close" onClick={closeMarket} aria-label="Close market">✕</button>
+          <span className="market-panel-title">🪙 {t('hud.market.title')}</span>
+          <button className="market-panel-close" onClick={closeMarket} aria-label={t('hud.market.closeMarket')}>✕</button>
         </div>
 
         {/* Resource slots */}
-        <div className="market-panel-section-label">Resource Trades</div>
+        <div className="market-panel-section-label">{t('hud.market.resourceTrades')}</div>
         {resourceSlots.map((slot, i) =>
           slot ? (
             <div key={i} className="market-panel-offer-row">
@@ -4185,18 +4185,18 @@ function MarketPanel() {
                 disabled={hasTradedThisTurn || !canAffordOffer(slot.give)}
                 onClick={() => buyMarketOffer(marketId, i)}
               >
-                Buy
+                {t('hud.market.buy')}
               </button>
             </div>
           ) : (
             <div key={i} className="market-panel-offer-row market-panel-offer-empty">
-              <span className="market-panel-offer-trade">— empty —</span>
+              <span className="market-panel-offer-trade">{t('hud.market.empty')}</span>
             </div>
           )
         )}
 
         {/* Specialist slots */}
-        <div className="market-panel-section-label">Specialist Offers</div>
+        <div className="market-panel-section-label">{t('hud.market.specialistOffers')}</div>
         {specialistSlots.map((specId, i) => {
           const specDef = specId ? (specialists[specId] ?? SPECIALIST_DEFINITIONS[specId] ?? null) : null;
           return specDef ? (
@@ -4216,12 +4216,12 @@ function MarketPanel() {
                   }
                 }}
               >
-                Buy 💎{MARKET.SPECIALIST_PRICE_CRYSTAL}
+                {t('hud.market.buyForCrystals', { cost: MARKET.SPECIALIST_PRICE_CRYSTAL })}
               </button>
             </div>
           ) : (
             <div key={i} className="market-panel-offer-row market-panel-offer-empty">
-              <span className="market-panel-offer-trade">— none available —</span>
+              <span className="market-panel-offer-trade">{t('hud.market.noneAvailable')}</span>
             </div>
           );
         })}
@@ -4229,16 +4229,18 @@ function MarketPanel() {
         {/* Restock button */}
         <div className="market-panel-restock-row">
           <span className="market-panel-restock-cost">
-            Restock all: {MARKET.RESTOCK_COST.wood > 0 && `🪵${MARKET.RESTOCK_COST.wood} `}
-            {MARKET.RESTOCK_COST.iron > 0 && `⛓️${MARKET.RESTOCK_COST.iron} `}
-            {MARKET.RESTOCK_COST.crystal > 0 && `💎${MARKET.RESTOCK_COST.crystal}`}
+            {t('hud.market.restockAll', { cost: [
+              ...(MARKET.RESTOCK_COST.wood > 0 ? [`🪵${MARKET.RESTOCK_COST.wood}`] : []),
+              ...(MARKET.RESTOCK_COST.iron > 0 ? [`⛓️${MARKET.RESTOCK_COST.iron}`] : []),
+              ...(MARKET.RESTOCK_COST.crystal > 0 ? [`💎${MARKET.RESTOCK_COST.crystal}`] : []),
+            ].join(' ') })}
           </span>
           <button
             className="market-panel-btn market-panel-btn--restock"
             disabled={hasTradedThisTurn || !canAffordRestock}
             onClick={() => restockMarket(marketId)}
           >
-            Restock
+            {t('hud.market.restock')}
           </button>
           <button
             className="market-panel-btn market-panel-btn--restock"
@@ -4254,7 +4256,7 @@ function MarketPanel() {
 }
 
 function CaveMonsterKillModal() {
-  const { specialistName, specialistDesc } = useText();
+  const { specialistName, specialistDesc, t } = useText();
   const mode = useSpecialistHireStore((s) => s.mode);
   const specialistId = useSpecialistHireStore((s) => s.specialistId);
   const resolveReward = useSpecialistHireStore((s) => s.resolveReward);
@@ -4274,14 +4276,13 @@ function CaveMonsterKillModal() {
           <div className="cave-kill-body">
             <p className="cave-kill-flavor">
               <em>
-                "The creature falls. You search the darkness — but find only silence.
-                Whatever was in there is gone."
+                {t('hud.caveKill.exhaustedFlavor')}
               </em>
             </p>
           </div>
           <div className="cave-kill-actions">
             <button className="cave-kill-btn cave-kill-btn--close" onClick={closeExhausted}>
-              Close
+              {t('common.close')}
             </button>
           </div>
         </div>
@@ -4299,8 +4300,7 @@ function CaveMonsterKillModal() {
           <div className="cave-kill-body">
             <p className="cave-kill-flavor">
               <em>
-                "The creature falls. From the darkness stumbles a survivor — battered,
-                grateful, and with nowhere else to go. They offer their skills to your cause."
+                {t('hud.caveKill.hireFlavor')}
               </em>
             </p>
             <div className="cave-kill-specialist-card">
@@ -4311,10 +4311,10 @@ function CaveMonsterKillModal() {
           </div>
           <div className="cave-kill-actions">
             <button className="cave-kill-btn cave-kill-btn--hire" onClick={() => resolveReward({ type: 'hire' })}>
-              Hire
+              {t('hud.caveKill.hire')}
             </button>
             <button className="cave-kill-btn cave-kill-btn--rob" onClick={() => resolveReward({ type: 'rob' })}>
-              Rob for 💎{CAVE_SPECIALIST_ROB_REWARD_CRYSTALS}
+              {t('hud.caveKill.rob', { crystals: CAVE_SPECIALIST_ROB_REWARD_CRYSTALS })}
             </button>
           </div>
         </div>
@@ -4336,14 +4336,14 @@ function CaveMonsterKillModal() {
       <div className="cave-kill-overlay">
         <div className="cave-kill-card cave-kill-card--swap">
           <div className="cave-kill-body">
-            <div className="cave-kill-swap-incoming-label">Incoming Survivor</div>
+            <div className="cave-kill-swap-incoming-label">{t('hud.caveKill.incomingSurvivor')}</div>
             <div className="cave-kill-specialist-card cave-kill-specialist-card--incoming">
               <span className="cave-kill-specialist-name">🧙 {specialistName(incomingSpecialist.id)}</span>
               <p className="cave-kill-specialist-desc">{specialistDesc(incomingSpecialist.id)}</p>
               <SpecialistUpkeepLine iron={incomingSpecialist.upkeepIron ?? 0} wood={incomingSpecialist.upkeepWood ?? 0} />
             </div>
             <div className="cave-kill-swap-divider">
-              <span className="cave-kill-swap-divider-label">Replace one of your specialists</span>
+              <span className="cave-kill-swap-divider-label">{t('hud.market.replaceOneSpecialist')}</span>
             </div>
             <div className="cave-kill-swap-current-row">
             {globalSpecialistStorage.map((specId) => {
@@ -4354,17 +4354,17 @@ function CaveMonsterKillModal() {
                   <button
                     className="cave-kill-swap-current-info"
                     onClick={() => setInfoSpecId(specId)}
-                    title="View details"
+                    title={t('hud.specialistInfo.viewDetails')}
                   >
                     <span className="cave-kill-specialist-name">🧙 {specialistName(spec.id)}</span>
                     <p className="cave-kill-specialist-desc">{specialistDesc(spec.id)}</p>
-                    <span className="cave-kill-swap-info-hint">ℹ Details</span>
+                    <span className="cave-kill-swap-info-hint">ℹ {t('hud.specialistInfo.details')}</span>
                   </button>
                   <button
                     className="cave-kill-btn cave-kill-btn--replace"
                     onClick={() => { setInfoSpecId(null); resolveReward({ type: 'swap', outgoingId: specId }); }}
                   >
-                    Replace
+                    {t('hud.caveKill.replace')}
                   </button>
                 </div>
               );
@@ -4373,7 +4373,7 @@ function CaveMonsterKillModal() {
           </div>
           <div className="cave-kill-actions">
             <button className="cave-kill-btn cave-kill-btn--rob" onClick={() => { setInfoSpecId(null); resolveReward({ type: 'rob' }); }}>
-              Rob for 💎{CAVE_SPECIALIST_ROB_REWARD_CRYSTALS}
+              {t('hud.caveKill.rob', { crystals: CAVE_SPECIALIST_ROB_REWARD_CRYSTALS })}
             </button>
           </div>
         </div>
@@ -4387,14 +4387,15 @@ function CaveMonsterKillModal() {
 // ============================================================================
 
 function TurnAnnouncementPopup({ turn, emberRose }: { turn: number; emberRose: boolean }) {
+  const { t } = useText();
   const totalMs = UI.TURN_POPUP_DISPLAY_MS + UI.TURN_POPUP_FADE_MS;
   return (
     <div
       className={`hud-turn-popup${emberRose ? ' hud-turn-popup--ember' : ''}`}
       style={{ animationDuration: `${totalMs}ms` }}
     >
-      <div className="hud-turn-popup-main">Turn {turn}</div>
-      {emberRose && <div className="hud-turn-popup-sub">Ember Level increased</div>}
+      <div className="hud-turn-popup-main">{t('hud.turnAnnouncement.turn', { turn })}</div>
+      {emberRose && <div className="hud-turn-popup-sub">{t('hud.turnAnnouncement.emberIncreased')}</div>}
     </div>
   );
 }
@@ -4537,7 +4538,7 @@ function nodeCentre(id: string): { x: number; y: number } {
 // ============================================================================
 
 function TechTreeOverlay({ onClose, focusId }: { onClose: () => void; focusId: TechId | null }) {
-  const { unitName, buildingName, techName, techDesc, techEffectText, spellName } = useText();
+  const { unitName, buildingName, techName, techDesc, techEffectText, spellName, formatList, t } = useText();
   const techNodes = useGameStore((s) => s.techNodes);
   const arcaneCrystals = useGameStore((s) => s.arcaneCrystals);
   const ember = useGameStore((s) => s.ember);
@@ -4634,9 +4635,9 @@ function TechTreeOverlay({ onClose, focusId }: { onClose: () => void; focusId: T
     <div className={`tech-overlay${focusId ? ' tech-overlay--focused' : ''}`}>
       {/* Header */}
       <div className="tech-overlay-header">
-        <span>🔬 Tech Tree</span>
+        <span>🔬 {t('hud.techTree.title')}</span>
         {arcaneCrystals > 0 && (
-          <span className="tech-overlay-picks">💎 {arcaneCrystals} crystal{arcaneCrystals > 1 ? 's' : ''} available{ember > 0 ? ` · 🔥 Ember ${ember}` : ''}</span>
+          <span className="tech-overlay-picks">💎 {t('hud.techTree.crystalsAvailable', { count: arcaneCrystals })}{ember > 0 ? ` · 🔥 ${t('hud.techTree.emberLevel', { ember })}` : ''}</span>
         )}
         <button className="tech-overlay-close" onClick={onClose}>✕</button>
       </div>
@@ -4703,15 +4704,15 @@ function TechTreeOverlay({ onClose, focusId }: { onClose: () => void; focusId: T
           <>
             <div className="tech-detail-title">
               {techName(selectedDef.id)}
-              {selectedState === 'unlocked' && <span className="tech-detail-label"> (completed)</span>}
-              {selectedState === 'locked' && <span className="tech-detail-label"> (locked)</span>}
+              {selectedState === 'unlocked' && <span className="tech-detail-label"> ({t('hud.techTree.completed')})</span>}
+              {selectedState === 'locked' && <span className="tech-detail-label"> ({t('hud.techTree.locked')})</span>}
             </div>
 
             {selectedState === 'unlocked' && (
-              <p className="tech-detail-text">You have already researched this technology.</p>
+              <p className="tech-detail-text">{t('hud.techTree.alreadyResearched')}</p>
             )}
             {selectedState === 'locked' && unmetPrereqs.length > 0 && (
-              <p className="tech-detail-text">Requires: {unmetPrereqs.join(', ')}</p>
+              <p className="tech-detail-text">{t('hud.techTree.requires', { list: formatList(unmetPrereqs) })}</p>
             )}
             <p className="tech-detail-text">{techDesc(selectedDef.id)}</p>
 
@@ -4769,9 +4770,11 @@ function TechTreeOverlay({ onClose, focusId }: { onClose: () => void; focusId: T
                     className={`tech-detail-btn tech-detail-btn--primary ${!canAfford ? 'tech-detail-btn--disabled' : ''}`}
                     onClick={handleResearch}
                     disabled={!canAfford}
-                    title={!canAfford ? `Need ${techCost} crystals (have ${arcaneCrystals})` : undefined}
+                    title={!canAfford ? t('hud.techTree.needCrystals', { needed: techCost, have: arcaneCrystals }) : undefined}
                   >
-                    {canAfford ? `RESEARCH (💎 ${techCost})` : `RESEARCH (need 💎 ${techCost})`}
+                    {canAfford
+                      ? t('hud.techTree.research', { cost: techCost })
+                      : t('hud.techTree.researchNeed', { cost: techCost })}
                   </button>
                 );
               })()}
@@ -4779,7 +4782,7 @@ function TechTreeOverlay({ onClose, focusId }: { onClose: () => void; focusId: T
                 className="tech-detail-btn tech-detail-btn--secondary"
                 onClick={() => setSelectedId(null)}
               >
-                BACK
+                {t('common.back').toLocaleUpperCase()}
               </button>
             </div>
           </>
@@ -4787,7 +4790,7 @@ function TechTreeOverlay({ onClose, focusId }: { onClose: () => void; focusId: T
       </div>
       {/* Footer caption */}
       <div className="tech-overlay-footer">
-        🔥 Costs increase with Ember level
+        🔥 {t('hud.techTree.costsIncrease')}
       </div>
 
       {infoUnitType && (
