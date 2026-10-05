@@ -3097,7 +3097,7 @@ function SelectedTilePanel({ tile }: { tile: Tile }) {
 // ============================================================================
 
 function SelectedBuildingPanel({ building }: { building: Building }) {
-  const { buildingName, unitName, populationName, t } = useText();
+  const { buildingName, unitName, populationName, tagLabel, formatList, t } = useText();
   const resources = useGameStore((s) => s.resources);
   const grid = useGameStore((s) => s.grid);
   const gameState = useGameStore((s) => s);
@@ -3115,10 +3115,10 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
 
   const factionLabel =
     building.faction === Faction.PLAYER
-      ? '🔵 Player'
+      ? `🔵 ${t('hud.buildingPanel.player')}`
       : building.faction === Faction.ENEMY
-        ? '🔴 Enemy'
-        : '⚪ Neutral';
+        ? `🔴 ${t('hud.buildingPanel.enemy')}`
+        : `⚪ ${t('hud.buildingPanel.neutral')}`;
 
   const isPlayerOwned = building.faction === Faction.PLAYER;
   const isDisabled = building.isDisabledForTurns > 0;
@@ -3241,7 +3241,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
   return (
     <div className="hud-info-panel hud-building-panel">
       {/* Header */}
-      <button className="hud-panel-header hud-panel-header-btn" onClick={() => setBuildingInfoOpen(true)} aria-label={`View ${buildingName(building.type)} info`}>
+      <button className="hud-panel-header hud-panel-header-btn" onClick={() => setBuildingInfoOpen(true)} aria-label={t('hud.buildingPanel.viewBuildingInfo', { building: buildingName(building.type) })}>
         <span className="hud-panel-emoji">{BUILDING_EMOJI[building.type] ?? '?'}</span>
         <span className="hud-panel-name">
           {buildingName(building.type)}
@@ -3264,7 +3264,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
 
       {/* Combat stats for attacking buildings — clickable to show modifier details */}
       {hasCombatStats && building.combatStats && (
-        <button className="hud-unit-stats-btn" onClick={() => setBuildingStatDetailOpen(true)} aria-label="View stat modifiers">
+        <button className="hud-unit-stats-btn" onClick={() => setBuildingStatDetailOpen(true)} aria-label={t('hud.buildingPanel.viewStatModifiers')}>
           <div className="hud-unit-stats">
             <span className="hud-stat-label">ATK</span>
             <span className="hud-stat-value">
@@ -3290,7 +3290,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
         <div className="hud-tag-pills">
           {building.tags.filter((t) => !HIDDEN_UNIT_TAGS.has(t)).map((tag) => (
             <span key={tag} className="hud-tag-pill">
-              {tag === UnitTag.RANGED ? '◎ Ranged' : tag}
+              {tag === UnitTag.RANGED ? `◎ ${t('hud.buildingPanel.ranged')}` : tagLabel(tag)}
             </span>
           ))}
         </div>
@@ -3299,33 +3299,33 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
       {/* Action tags for player-owned attacking buildings */}
       {isPlayerOwned && hasCombatStats && (
         <div className="hud-action-tags">
-          <span className={`hud-action-tag ${canAttack ? '' : 'hud-action-used'}`}>Attack</span>
+          <span className={`hud-action-tag ${canAttack ? '' : 'hud-action-used'}`}>{t('hud.unitPanel.attack')}</span>
         </div>
       )}
 
       {/* Capture warning: unit is consumed when capturing this building */}
       {building.consumesUnitOnCapture && (
         <div className="hud-warning hud-capture-warning">
-          ⚠️ Capturing consumes the unit!
+          ⚠️ {t('hud.buildingPanel.captureConsumesUnit')}
         </div>
       )}
 
       {/* Warnings */}
       {isDisabled && (
         <div className="hud-warning hud-disabled-note">
-          🚫 Disabled for {building.isDisabledForTurns} turn(s)
+          🚫 {t('hud.buildingPanel.disabledFor', { turns: building.isDisabledForTurns })}
         </div>
       )}
       {isUnderAttack && (
         <div className="hud-warning hud-attack-warning">
-          ⚔️ Under Attack!
+          ⚔️ {t('hud.buildingPanel.underAttack')}
         </div>
       )}
 
       {/* Crystal Chamber / Crystal Cave resonance status */}
       {(building.type === BuildingType.CRYSTAL_CHAMBER || building.type === BuildingType.CRYSTAL_CAVE) && building.resonanceTurnsRemaining > 0 && (
         <div className="hud-production-row">
-          ✨ Resonating — {building.resonanceTurnsRemaining} turn{building.resonanceTurnsRemaining !== 1 ? 's' : ''} remaining
+          ✨ {t('hud.buildingPanel.resonating', { turns: building.resonanceTurnsRemaining })}
         </div>
       )}
 
@@ -3338,7 +3338,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
             setRecruitScoreModal(true);
           }}
         >
-          🛠️ Recruit Scores
+          🛠️ {t('hud.buildingPanel.recruitScores')}
         </button>
       )}
       {recruitScoreModal && (
@@ -3348,33 +3348,33 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
       {/* Production rate for resource buildings */}
       {isMine && (
         <div className="hud-production-row">
-          ⛓️ +{RESOURCES.MINE_IRON_PER_TURN} iron per turn
-          {isDisabled && <span className="hud-dim"> (paused)</span>}
+          {t('hud.buildingPanel.ironPerTurn', { amount: RESOURCES.MINE_IRON_PER_TURN })}
+          {isDisabled && <span className="hud-dim"> ({t('hud.buildingPanel.paused')})</span>}
         </div>
       )}
       {isDeepMine && (
         <div className="hud-production-row">
-          ⛓️ +{RESOURCES.DEEP_MINE_IRON_PER_TURN} iron per turn
-          {isDisabled && <span className="hud-dim"> (paused)</span>}
+          {t('hud.buildingPanel.ironPerTurn', { amount: RESOURCES.DEEP_MINE_IRON_PER_TURN })}
+          {isDisabled && <span className="hud-dim"> ({t('hud.buildingPanel.paused')})</span>}
         </div>
       )}
       {/* Charcoal Kiln buff indicator on a selected mine */}
       {mineHasKilnBuff && (
         <div className="hud-production-row hud-buff-note">
-          🔥 +{RESOURCES.CHARCOAL_KILN_IRON_BONUS * mineKilnBonusCount} iron per turn (Charcoal Kiln ×{mineKilnBonusCount})
+          {t('hud.buildingPanel.kilnMineBonus', { amount: RESOURCES.CHARCOAL_KILN_IRON_BONUS * mineKilnBonusCount, count: mineKilnBonusCount })}
         </div>
       )}
       {isWoodcutter && (
         <div className="hud-production-row">
-          🪵 +{RESOURCES.WOODCUTTER_WOOD_PER_TURN} wood per turn
-          {isDisabled && <span className="hud-dim"> (paused)</span>}
+          {t('hud.buildingPanel.woodPerTurn', { amount: RESOURCES.WOODCUTTER_WOOD_PER_TURN })}
+          {isDisabled && <span className="hud-dim"> ({t('hud.buildingPanel.paused')})</span>}
         </div>
       )}
       {/* Charcoal Kiln panel: radius and current coverage */}
       {isCharcoalKiln && (
         <div className="hud-production-row">
-          🔥 Buffs mines and deep mines within {RESOURCES.CHARCOAL_KILN_RADIUS} tiles (+{RESOURCES.CHARCOAL_KILN_IRON_BONUS} iron/turn per kiln)
-          {isDisabled && <span className="hud-dim"> (paused)</span>}
+          {t('hud.buildingPanel.kilnDescription', { radius: RESOURCES.CHARCOAL_KILN_RADIUS, amount: RESOURCES.CHARCOAL_KILN_IRON_BONUS })}
+          {isDisabled && <span className="hud-dim"> ({t('hud.buildingPanel.paused')})</span>}
         </div>
       )}
 
@@ -3385,19 +3385,30 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
             <>
               {(() => {
                 const { farmerCap, nobleCap } = getStrongholdEffectiveCapWithDoctrines(gameState);
-                return <>👥 {building.populationCount}/{farmerCap} farmers, {building.strongholdNobles}/{nobleCap} nobles</>;
+                return t('hud.buildingPanel.strongholdPopulation', {
+                  farmers: building.populationCount,
+                  farmerCap,
+                  nobles: building.strongholdNobles,
+                  nobleCap,
+                  farmerName: populationName('farmer'),
+                  nobleName: populationName('noble'),
+                });
               })()}
             </>
           ) : (
             <>
               {(() => {
                 const effectiveCap = getEffectiveHousingPopulationCap(gameState, building);
-                return <>👥 {building.populationCount} / {effectiveCap} {housingLabel}</>;
+                return t('hud.buildingPanel.housingPopulation', {
+                  count: building.populationCount,
+                  capacity: effectiveCap,
+                  population: housingLabel,
+                });
               })()}
             </>
           )}
           {turnsUntilNextPop !== null && (
-            <span className="hud-dim"> — Next pop in {turnsUntilNextPop} turn(s)</span>
+            <span className="hud-dim"> · {t('hud.buildingPanel.nextPopulation', { turns: turnsUntilNextPop })}</span>
           )}
         </div>
       )}
@@ -3405,16 +3416,16 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
       {/* Unit limit for recruitment buildings */}
       {isRecruitmentBuilding && isFinite(unitLimit) && recruitableTypes.length > 0 && (
         <div className="hud-production-row">
-          🗡️ {recruitedUnits}/{unitLimit} units
+          🗡️ {t('hud.buildingPanel.recruitmentLimit', { current: recruitedUnits, limit: unitLimit })}
           {atUnitLimit && (
-            <span className="hud-dim"> — Build more to raise the limit</span>
+            <span className="hud-dim"> · {t('hud.buildingPanel.buildMoreForLimit')}</span>
           )}
         </div>
       )}
       {/* Per-building recruitment turn limit indicator */}
       {alreadyRecruitedThisTurn && (
         <div className="hud-production-row hud-dim">
-          ⏳ Already recruited this turn
+          ⏳ {t('hud.buildingPanel.alreadyRecruited')}
         </div>
       )}
 
@@ -3422,15 +3433,15 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
       {canRaiseGargoyleHere && (
         <div className="hud-revive-row">
           {graveOccupied ? (
-            <span className="hud-dim">A unit is standing here — move it to raise a Gargoyle.</span>
+            <span className="hud-dim">{t('hud.buildingPanel.moveUnitToRaiseGargoyle')}</span>
           ) : (
             <button
               className="hud-recruit-btn"
               disabled={!canRaiseGargoyle}
               onClick={handleRaiseGargoyle}
-              title={!canRaiseGargoyle ? `Need ${ABILITIES.GARGOYLE_CRYSTAL_COST} crystal (have ${arcaneCrystals})` : undefined}
+              title={!canRaiseGargoyle ? t('hud.buildingPanel.needCrystals', { needed: ABILITIES.GARGOYLE_CRYSTAL_COST, have: arcaneCrystals }) : undefined}
             >
-              🗿 Raise Gargoyle (💎{ABILITIES.GARGOYLE_CRYSTAL_COST})
+              🗿 {t('hud.buildingPanel.raiseGargoyle', { cost: ABILITIES.GARGOYLE_CRYSTAL_COST })}
             </button>
           )}
         </div>
@@ -3439,22 +3450,22 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
       {/* Grave Trap description */}
       {isGraveTrap && (
         <div className="hud-revive-row">
-          <span className="hud-dim">Will stun the next unit to enter — any faction.</span>
+          <span className="hud-dim">{t('hud.buildingPanel.graveTrapDescription')}</span>
         </div>
       )}
 
       {/* Recruitment */}
       {recruitableTypes.length > 0 && isPlayerOwned && (
         <div className="hud-recruit-row">
-          <span className="hud-label">Recruit:</span>
+          <span className="hud-label">{t('hud.buildingPanel.recruit')}</span>
           {chamberNotResonating ? (
             <span className="hud-dim">
               {building.type === BuildingType.CRYSTAL_CAVE
-                ? 'Cave must be resonating to recruit'
-                : 'Chamber must be resonating to recruit'}
+                ? t('hud.buildingPanel.caveMustResonate')
+                : t('hud.buildingPanel.chamberMustResonate')}
             </span>
           ) : !hasSpawnSpace ? (
-            <span className="hud-dim">No space</span>
+            <span className="hud-dim">{t('hud.buildingPanel.noSpace')}</span>
           ) : (
             <div className="hud-recruit-options">
               {recruitableTypes.map((unitType) => {
@@ -3531,10 +3542,12 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
                     </button>
                     {popCost && (popCost.farmers > 0 || popCost.nobles > 0) && (
                       <span className="hud-pop-req">
-                        Requires:{' '}
-                        {popCost.farmers > 0 && `🌾 ${popCost.farmers} farmer${popCost.farmers > 1 ? 's' : ''}`}
-                        {popCost.farmers > 0 && popCost.nobles > 0 && ', '}
-                        {popCost.nobles > 0 && `🎖️ ${popCost.nobles} noble${popCost.nobles > 1 ? 's' : ''}`}
+                        {t('hud.buildingPanel.requiresPopulation', {
+                          population: formatList([
+                            ...(popCost.farmers > 0 ? [t('hud.buildingPanel.farmerCost', { count: popCost.farmers })] : []),
+                            ...(popCost.nobles > 0 ? [t('hud.buildingPanel.nobleCost', { count: popCost.nobles })] : []),
+                          ]),
+                        })}
                       </span>
                     )}
                     {resourceWarningMsg && (
@@ -3566,7 +3579,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
           <UnitInfoPopup
             unitType={confirmRecruitUnit}
             costLabel={costLabel}
-            actionLabel="Recruit"
+            actionLabel={t('hud.buildingPanel.recruitAction')}
             onAction={() => {
               // TODO: player spawn VFX once recruitment emits an event
               recruitUnit(building.id, confirmRecruitUnit);
@@ -3597,6 +3610,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
 // ============================================================================
 
 function BottomBar({ onOpenTechTreeAt }: { onOpenTechTreeAt: (techId: TechId) => void }) {
+  const { t } = useText();
   const [isConstructionExpanded, setIsConstructionExpanded] = useState(false);
   const phase = useGameStore((s) => s.phase);
   const turn = useGameStore((s) => s.turn);
@@ -3713,12 +3727,12 @@ function BottomBar({ onOpenTechTreeAt }: { onOpenTechTreeAt: (techId: TechId) =>
       {/* End Turn / Enemy Turn feedback */}
       {isPlayerTurn && !isAnimating && !isHintBlocking && (
         <button className="hud-end-turn-btn" onClick={endPlayerTurn}>
-          End Turn ⏭️
+          {t('hud.bottomBar.endTurn')} ⏭️
         </button>
       )}
       {(!isPlayerTurn || isAnimating || isHintBlocking) && (
         <span className={`hud-end-turn-btn hud-end-turn-btn--enemy-turn${isHintBlocking ? ' hud-end-turn-btn--hint-blocked' : ''}`}>
-          {isHintBlocking ? '💡 Dismiss Hint' : '⚔️ Enemy Turn…'}
+          {isHintBlocking ? `💡 ${t('hud.bottomBar.dismissHint')}` : `⚔️ ${t('hud.bottomBar.enemyTurn')}`}
         </span>
       )}
     </div>
@@ -3730,34 +3744,35 @@ function BottomBar({ onOpenTechTreeAt }: { onOpenTechTreeAt: (techId: TechId) =>
 // ============================================================================
 
 function EndGameStats({ stats }: { stats: GameStats }) {
+  const { t } = useText();
   return (
     <div className="hud-endgame-stats">
       <div className="hud-endgame-stats-grid">
-        <span className="hud-endgame-stat-label">⚔️ Units killed</span>
+        <span className="hud-endgame-stat-label">⚔️ {t('hud.endGameStats.unitsKilled')}</span>
         <span className="hud-endgame-stat-value">{stats.unitsKilled}</span>
-        <span className="hud-endgame-stat-label">💀 Units lost</span>
+        <span className="hud-endgame-stat-label">💀 {t('hud.endGameStats.unitsLost')}</span>
         <span className="hud-endgame-stat-value">{stats.unitsLost}</span>
-        <span className="hud-endgame-stat-label">🗡️ Damage dealt</span>
+        <span className="hud-endgame-stat-label">🗡️ {t('hud.endGameStats.damageDealt')}</span>
         <span className="hud-endgame-stat-value">{stats.damageDealt}</span>
-        <span className="hud-endgame-stat-label">🛡️ Damage received</span>
+        <span className="hud-endgame-stat-label">🛡️ {t('hud.endGameStats.damageReceived')}</span>
         <span className="hud-endgame-stat-value">{stats.damageReceived}</span>
-        <span className="hud-endgame-stat-label">🪖 Units recruited</span>
+        <span className="hud-endgame-stat-label">🪖 {t('hud.endGameStats.unitsRecruited')}</span>
         <span className="hud-endgame-stat-value">{stats.unitsRecruited}</span>
-        <span className="hud-endgame-stat-label">🏗️ Buildings constructed</span>
+        <span className="hud-endgame-stat-label">🏗️ {t('hud.endGameStats.buildingsConstructed')}</span>
         <span className="hud-endgame-stat-value">{stats.buildingsConstructed}</span>
-        <span className="hud-endgame-stat-label">🔄 Buildings converted</span>
+        <span className="hud-endgame-stat-label">🔄 {t('hud.endGameStats.buildingsConverted')}</span>
         <span className="hud-endgame-stat-value">{stats.buildingsConverted}</span>
-        <span className="hud-endgame-stat-label">🔬 Techs unlocked</span>
+        <span className="hud-endgame-stat-label">🔬 {t('hud.endGameStats.techsUnlocked')}</span>
         <span className="hud-endgame-stat-value">{stats.techsUnlocked}</span>
-        <span className="hud-endgame-stat-label">💥 Enemy buildings destroyed</span>
+        <span className="hud-endgame-stat-label">💥 {t('hud.endGameStats.enemyBuildingsDestroyed')}</span>
         <span className="hud-endgame-stat-value">{stats.enemyBuildingsDestroyed}</span>
-        <span className="hud-endgame-stat-label">🚩 Enemy buildings captured</span>
+        <span className="hud-endgame-stat-label">🚩 {t('hud.endGameStats.enemyBuildingsCaptured')}</span>
         <span className="hud-endgame-stat-value">{stats.enemyBuildingsCaptured}</span>
-        <span className="hud-endgame-stat-label">🏚️ Buildings destroyed by enemy</span>
+        <span className="hud-endgame-stat-label">🏚️ {t('hud.endGameStats.buildingsDestroyedByEnemy')}</span>
         <span className="hud-endgame-stat-value">{stats.buildingsDestroyedByEnemy}</span>
-        <span className="hud-endgame-stat-label">🔴 Buildings captured by enemy</span>
+        <span className="hud-endgame-stat-label">🔴 {t('hud.endGameStats.buildingsCapturedByEnemy')}</span>
         <span className="hud-endgame-stat-value">{stats.buildingsCapturedByEnemy}</span>
-        <span className="hud-endgame-stat-label">🌋 Buildings destroyed by lava</span>
+        <span className="hud-endgame-stat-label">🌋 {t('hud.endGameStats.buildingsDestroyedByLava')}</span>
         <span className="hud-endgame-stat-value">{stats.buildingsDestroyedByLava}</span>
       </div>
     </div>
@@ -3784,6 +3799,7 @@ function EndScreenAiTraceExport({ slotId }: { slotId: string }) {
 }
 
 function GameOverOverlay() {
+  const { t } = useText();
   const turn = useGameStore((s) => s.turn);
   const gameStats = useGameStore((s) => s.gameStats);
   const discardFinishedGame = useGameStore((s) => s.discardFinishedGame);
@@ -3792,9 +3808,9 @@ function GameOverOverlay() {
 
   const causeText =
     gameOverCause === 'LAVA'
-      ? 'The last Stronghold was consumed by the rising lava.'
+      ? t('hud.gameOver.lavaCause')
       : gameOverCause === 'ENEMY'
-      ? 'The last Stronghold fell to the Volcael.'
+      ? t('hud.gameOver.enemyCause')
       : null;
 
   const handleNewGame = useCallback(async () => {
@@ -3816,23 +3832,23 @@ function GameOverOverlay() {
   return (
     <div className="hud-overlay">
       <div className="hud-overlay-box">
-        <h1 className="hud-overlay-title hud-defeat">💀 DEFEATED</h1>
-        <p className="hud-overlay-sub">You survived {turn} turns</p>
+        <h1 className="hud-overlay-title hud-defeat">💀 {t('hud.gameOver.defeated')}</h1>
+        <p className="hud-overlay-sub">{t('hud.gameOver.survived', { turns: turn })}</p>
         {causeText && <p className="hud-overlay-cause">{causeText}</p>}
         <EndGameStats stats={gameStats} />
         {activeSaveId && (
           <>
             <button className="hud-play-again-btn" onClick={() => void handleExport()}>
-              📤 Export Run
+              📤 {t('hud.gameOver.exportRun')}
             </button>
             <EndScreenAiTraceExport slotId={activeSaveId} />
           </>
         )}
         <button className="hud-play-again-btn" onClick={handleNewGame}>
-          🔄 New Game
+          🔄 {t('hud.gameMenu.newGame')}
         </button>
         <button className="hud-play-again-btn" onClick={handleMainMenu}>
-          🏠 Main Menu
+          🏠 {t('hud.options.mainMenu')}
         </button>
       </div>
     </div>
@@ -3840,6 +3856,7 @@ function GameOverOverlay() {
 }
 
 function VictoryOverlay() {
+  const { t } = useText();
   const turn = useGameStore((s) => s.turn);
   const gameStats = useGameStore((s) => s.gameStats);
   const discardFinishedGame = useGameStore((s) => s.discardFinishedGame);
@@ -3864,22 +3881,22 @@ function VictoryOverlay() {
   return (
     <div className="hud-overlay">
       <div className="hud-overlay-box">
-        <h1 className="hud-overlay-title hud-victory">🏆 VICTORY</h1>
-        <p className="hud-overlay-sub">Completed in {turn} turns</p>
+        <h1 className="hud-overlay-title hud-victory">🏆 {t('hud.victory.title')}</h1>
+        <p className="hud-overlay-sub">{t('hud.victory.completedIn', { turns: turn })}</p>
         <EndGameStats stats={gameStats} />
         {activeSaveId && (
           <>
             <button className="hud-play-again-btn" onClick={() => void handleExport()}>
-              📤 Export Run
+              📤 {t('hud.gameOver.exportRun')}
             </button>
             <EndScreenAiTraceExport slotId={activeSaveId} />
           </>
         )}
         <button className="hud-play-again-btn" onClick={handleNewGame}>
-          🔄 New Game
+          🔄 {t('hud.gameMenu.newGame')}
         </button>
         <button className="hud-play-again-btn" onClick={handleMainMenu}>
-          🏠 Main Menu
+          🏠 {t('hud.options.mainMenu')}
         </button>
       </div>
     </div>
@@ -3891,16 +3908,17 @@ function VictoryOverlay() {
 // ============================================================================
 
 function GameIntroPopup({ onDismiss }: { onDismiss: () => void }) {
+  const { t } = useText();
   return (
     <div className="hud-intro-overlay">
       <div className="hud-intro-card">
         <div className="hud-intro-icon">🌋</div>
         <p className="hud-intro-text">
-          Lava devours the land at your back. The Volcael advance from the north, racing it.<br />
-          Push forward — raze every Infernal Sanctum. If your last Stronghold falls, the war is lost.
+          {t('hud.gameIntro.firstSentence')} {t('hud.gameIntro.secondSentence')}<br />
+          {t('hud.gameIntro.thirdSentence')} {t('hud.gameIntro.fourthSentence')}
         </p>
         <button className="hud-intro-cta" onClick={onDismiss}>
-          March North!
+          {t('hud.gameIntro.continue')}
         </button>
       </div>
     </div>
@@ -3912,6 +3930,7 @@ function GameIntroPopup({ onDismiss }: { onDismiss: () => void }) {
 // ============================================================================
 
 function ZoneClearedPopup() {
+  const { t } = useText();
   const active = useZoneClearedStore((s) => s.active);
   const zone = useZoneClearedStore((s) => s.zone);
   const dismiss = useZoneClearedStore((s) => s.dismiss);
@@ -3921,10 +3940,10 @@ function ZoneClearedPopup() {
   return (
     <div className="hud-zone-cleared-overlay">
       <div className="hud-zone-cleared-card">
-        <span className="hud-zone-cleared-label">ZONE {zone}</span>
-        <span className="hud-zone-cleared-title">CLEARED</span>
+        <span className="hud-zone-cleared-label">{t('hud.zoneCleared.zone', { zone })}</span>
+        <span className="hud-zone-cleared-title">{t('hud.zoneCleared.title')}</span>
         <button className="hud-zone-cleared-btn" onClick={dismiss}>
-          Press On
+          {t('hud.zoneCleared.continue')}
         </button>
       </div>
     </div>
@@ -3936,6 +3955,7 @@ function ZoneClearedPopup() {
 // ============================================================================
 
 function CaveScreamsPopup() {
+  const { t } = useText();
   const tilePos = useCaveScreamsStore((s) => s.tilePos);
   const sealCave = useGameStore((s) => s.sealCave);
   const exploreCave = useGameStore((s) => s.exploreCave);
@@ -3956,14 +3976,14 @@ function CaveScreamsPopup() {
     <div className="cave-screams-overlay">
       <div className="cave-screams-card">
         <p className="cave-screams-flavor">
-          Screams echo from deep within the entrance. Venture inside and help, or seal the entrance for good?
+          {t('hud.caveScreams.description')}
         </p>
         <div className="cave-screams-actions">
           <button className="cave-screams-btn" onClick={handleExplore}>
-            🗡️ Explore
+            🗡️ {t('hud.caveScreams.explore')}
           </button>
           <button className="cave-screams-btn" onClick={handleSeal}>
-            🪨 Seal — Lose Specialist
+            🪨 {t('hud.caveScreams.seal')}
           </button>
         </div>
       </div>
@@ -3977,15 +3997,16 @@ function CaveScreamsPopup() {
 
 /** Small inline upkeep display used inside specialist cards across hire/swap/info popups. */
 function SpecialistUpkeepLine({ iron, wood, isDormant }: { iron: number; wood: number; isDormant?: boolean }) {
+  const { t } = useText();
   const hasUpkeep = iron > 0 || wood > 0;
   return (
     <div className="specialist-info-upkeep">
       {hasUpkeep ? (
-        <>Upkeep: {iron > 0 && <span>⛓️{iron}</span>}{iron > 0 && wood > 0 && ' '}{wood > 0 && <span>🪵{wood}</span>}
-          {isDormant && <span className="specialist-info-dormant-note"> — cannot pay upkeep</span>}
+        <>{t('hud.specialistInfo.upkeep')}{iron > 0 && <span>⛓️{iron}</span>}{iron > 0 && wood > 0 && ' '}{wood > 0 && <span>🪵{wood}</span>}
+          {isDormant && <span className="specialist-info-dormant-note"> · {t('hud.specialistInfo.cannotPayUpkeep')}</span>}
         </>
       ) : (
-        <span className="specialist-info-no-upkeep">No upkeep</span>
+        <span className="specialist-info-no-upkeep">{t('hud.specialistInfo.noUpkeep')}</span>
       )}
     </div>
   );
@@ -3993,7 +4014,7 @@ function SpecialistUpkeepLine({ iron, wood, isDormant }: { iron: number; wood: n
 
 /** Specialist info popup — shown when clicking a filled specialist slot in the top bar, or in swap view */
 function SpecialistInfoPopup({ specialist, onClose, onDismiss }: { specialist: Specialist; onClose: () => void; onDismiss?: () => void }) {
-  const { specialistName, specialistDesc } = useText();
+  const { specialistName, specialistDesc, t } = useText();
   const name = specialistName(specialist.id);
   const iron = specialist.upkeepIron ?? 0;
   const wood = specialist.upkeepWood ?? 0;
@@ -4004,25 +4025,25 @@ function SpecialistInfoPopup({ specialist, onClose, onDismiss }: { specialist: S
     <Popup onClose={onClose}>
       <div className="specialist-info-header">
         <span className="specialist-info-name">🧙 {name}</span>
-        {isDormant && <span className="specialist-info-dormant"> ⚠️ Inactive</span>}
+        {isDormant && <span className="specialist-info-dormant"> ⚠️ {t('hud.specialistInfo.inactive')}</span>}
       </div>
       <p className="info-popup-desc">{specialistDesc(specialist.id)}</p>
       <SpecialistUpkeepLine iron={iron} wood={wood} isDormant={isDormant} />
       {confirmingDismiss && onDismiss ? (
         <div className="specialist-dismiss-confirm">
           <p className="specialist-dismiss-confirm-text">
-            Dismiss <strong>{name}</strong> permanently? Their effects will stop immediately, their slot becomes free, and they cannot be recovered.
+            {t('hud.specialistInfo.dismissConfirm', { name })}
           </p>
           <div className="specialist-dismiss-confirm-actions">
-            <button className="info-popup-btn info-popup-btn--danger" onClick={onDismiss}>Confirm Dismiss</button>
-            <button className="info-popup-btn info-popup-btn--secondary" onClick={() => setConfirmingDismiss(false)}>Cancel</button>
+            <button className="info-popup-btn info-popup-btn--danger" onClick={onDismiss}>{t('hud.specialistInfo.confirmDismiss')}</button>
+            <button className="info-popup-btn info-popup-btn--secondary" onClick={() => setConfirmingDismiss(false)}>{t('common.cancel')}</button>
           </div>
         </div>
       ) : (
         <div className="specialist-info-actions">
-          <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>Close</button>
+          <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>{t('common.close')}</button>
           {onDismiss && (
-            <button className="info-popup-btn info-popup-btn--dismiss" onClick={() => setConfirmingDismiss(true)}>Dismiss Specialist</button>
+            <button className="info-popup-btn info-popup-btn--dismiss" onClick={() => setConfirmingDismiss(true)}>{t('hud.specialistInfo.dismiss')}</button>
           )}
         </div>
       )}
