@@ -654,7 +654,6 @@ function DifficultyOverlay({
 
 function OptionsOverlay({ onClose }: { onClose: () => void }) {
   const locale = useLocaleStore((s) => s.locale);
-  const setLocale = useLocaleStore((s) => s.setLocale);
   const { t } = useText();
   const volume = useSoundOptionsStore((s) => s.volume);
   const muted = useSoundOptionsStore((s) => s.muted);
@@ -749,7 +748,7 @@ function OptionsOverlay({ onClose }: { onClose: () => void }) {
                       key={code}
                       className={`hud-options-language-btn${locale === code ? ' hud-options-language-btn--active' : ''}`}
                       aria-pressed={locale === code}
-                      onClick={() => void setLocale(code)}
+                      onClick={() => void useLocaleStore.getState().setLocale(code)}
                     >
                       {LOCALE_ENDONYMS[code]}
                     </button>
@@ -1083,7 +1082,7 @@ function TopBar({
         <button className="hud-stat hud-stat--clickable" data-hud-target="ember" onClick={() => setEmberPopupOpen(true)} aria-label={t('hud.topBar.emberCounter', { amount: ember })}>🔥 {t('hud.topBar.ember')} {ember}</button>
       <span className="hud-stat">{t('hud.topBar.lavaCounter', { turns: turnsUntilLavaAdvance })}</span>
       <button className="hud-stat hud-stat--clickable" onClick={() => setResourcePopup('crystal')}>
-        💎 {arcaneCrystals}{crystalsPerTurn > 0 && <span className="hud-income">(+{formattedCrystalIncome})</span>}
+        💎 {arcaneCrystals}{crystalsPerTurn > 0 && <span className="hud-income">({formattedCrystalIncome})</span>}
       </button>
       {showTechButton && (
         <button className={`hud-tech-tree-btn${showTechBadge ? ' hud-tech-tree-btn--notify' : ''}`} onClick={onOpenTechTree}>
@@ -1222,7 +1221,7 @@ function ResourceInfoPopup({
   current: number;
   onClose: () => void;
 }) {
-  const { resourceName, formatNumber, formatSigned, t } = useText();
+  const { resourceName, buildingName, specialistName, techName, formatNumber, formatSigned, t } = useText();
   // Use stable Immer references as memo dependencies so that the selectors
   // passed to useSyncExternalStore (Zustand v5) always return the same
   // reference between consecutive snapshot calls, preventing the
@@ -1271,7 +1270,7 @@ function ResourceInfoPopup({
           <>
             {resonatingChambers > 0 && (
               <div className="resource-popup-row">
-                <span className="resource-popup-row-label">{t('hud.resourceInfo.resonatingChambers', { count: resonatingChambers })}</span>
+                <span className="resource-popup-row-label">{t('hud.resourceInfo.resonatingChambers', { building: buildingName(BuildingType.CRYSTAL_CHAMBER), count: resonatingChambers })}</span>
                 <span className="resource-popup-row-value">
                   {fmtPositive(resonatingChambers * CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN)}
                 </span>
@@ -1279,13 +1278,13 @@ function ResourceInfoPopup({
             )}
             {echoWardenBonus > 0 && (
               <div className="resource-popup-row">
-                <span className="resource-popup-row-label">{t('hud.resourceInfo.echoWarden', { count: echoWardenChambers })}</span>
+                <span className="resource-popup-row-label">{t('hud.resourceInfo.echoWarden', { specialist: specialistName('spec_18'), count: echoWardenChambers })}</span>
                 <span className="resource-popup-row-value">{fmtPositive(echoWardenBonus)}</span>
               </div>
             )}
             {techFlags.includes(TechFlag.GRAVE_HARVEST) && gravestoneCount > 0 && (
               <div className="resource-popup-row">
-                <span className="resource-popup-row-label">{t('hud.resourceInfo.graveHarvest', { count: gravestoneCount, chance: MAGE.GRAVE_HARVEST_CRYSTAL_CHANCE })}</span>
+                <span className="resource-popup-row-label">{t('hud.resourceInfo.graveHarvest', { tech: techName('GRAVE_HARVEST'), count: gravestoneCount, chance: MAGE.GRAVE_HARVEST_CRYSTAL_CHANCE })}</span>
                 <span className="resource-popup-row-value">~{fmtPositive(graveHarvestExpected)}</span>
               </div>
             )}
@@ -1660,7 +1659,7 @@ function BuildingInfoPopup({
       {!isReadOnly && onAction ? (
         <div className="info-popup-actions">
           <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>{t('common.back')}</button>
-          <button className="info-popup-btn info-popup-btn--primary" onClick={onAction}>{actionLabel ?? 'Construct'}</button>
+          <button className="info-popup-btn info-popup-btn--primary" onClick={onAction}>{actionLabel ?? t('common.construct')}</button>
         </div>
       ) : (
         <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>

@@ -15,6 +15,6 @@ describe('in-game language option UI contract', () => {
   });
 
   it('sets the selected locale without closing the options overlay', () => {
-    expect(options).toMatch(/onClick=\{\(\) => void setLocale\(code\)\}/);
+    expect(options).toMatch(/onClick=\{\(\) => void useLocaleStore\.getState\(\)\.setLocale\(code\)\}/);
   });
 });
