@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.114.14 - Localized HUD panels, market, cave rewards and tech tree
+
+Localized HUD panels, market, cave rewards and tech tree for all supported locales.
+
 ### v0.114.13 - Localized HUD menus, top bar and info popups
 
 Localized HUD menus, top bar and info popups for all supported locales, added locale-aware number formatting, and prepared the language selector in in-game Options.

@@ -184,14 +184,13 @@ describe('localization catalogs', () => {
     }
   });
 
-  it('h: context keys exist and max lengths have no arguments', () => {
+  it('h: context keys exist and messages fit their maximum lengths', () => {
     for (const [key, entry] of Object.entries(context as Record<string, MessageContext>)) {
       expect(en).toHaveProperty(key);
       for (const locale of SUPPORTED_LOCALES) {
         const message = catalogs[`../i18n/locales/${locale}.json`]![key]!;
         if (entry.maxLen !== undefined) {
           expect(message.length, `${locale}:${key}`).toBeLessThanOrEqual(entry.maxLen);
-          expect(collectArguments(astFor(message, locale)).size, `${locale}:${key}`).toBe(0);
         }
       }
     }

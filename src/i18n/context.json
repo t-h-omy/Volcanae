@@ -274,5 +274,45 @@
   "hud.constructionPanel.needResources": {
     "note": "Resource warning in a 58 px mobile construction row.",
     "maxLen": 45
+  },
+  "hud.unitPanel.xpMax": {
+    "note": "XP and level abbreviations are shared in German and Italian.",
+    "sameAsSource": ["de", "it"]
+  },
+  "hud.unitPanel.xpProgress": {
+    "note": "XP and level abbreviations are shared in German and Italian.",
+    "sameAsSource": ["de", "it"]
+  },
+  "hud.unitPanel.level": {
+    "note": "The level abbreviation is shared in German and Italian.",
+    "sameAsSource": ["de", "it"]
+  },
+  "hud.buildingPanel.neutral": {
+    "note": "Neutral is the same adjective in German and Spanish.",
+    "sameAsSource": ["de", "es"]
+  },
+  "hud.buildingPanel.strongholdPopulation": {
+    "note": "The numeric layout is shared; population names are localized parameters.",
+    "sameAsSource": ["de", "fr", "es", "it", "pt-BR"]
+  },
+  "hud.buildingPanel.housingPopulation": {
+    "note": "The numeric layout is shared; the population name is a localized parameter.",
+    "sameAsSource": ["de", "fr", "es", "it", "pt-BR"]
+  },
+  "hud.zoneCleared.zone": {
+    "note": "The word for zone is shared in German and French.",
+    "sameAsSource": ["de", "fr"]
+  },
+  "hud.specialistInfo.details": {
+    "note": "Details is the same word in German.",
+    "sameAsSource": ["de"]
+  },
+  "hud.tilePanel.canyon": {
+    "note": "Canyon is the same term in French and Italian.",
+    "sameAsSource": ["fr", "it"]
+  },
+  "hud.buildingPanel.nobleCost": {
+    "note": "Noble is the same word in French and Spanish.",
+    "sameAsSource": ["fr", "es"]
   }
 }

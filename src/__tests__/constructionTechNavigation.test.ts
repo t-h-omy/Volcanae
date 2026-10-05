@@ -28,15 +28,15 @@ describe('construction research navigation UI contract', () => {
   it('keeps locked rows clickable, labels their navigation, and hides the info affordance', () => {
     expect(construction).not.toMatch(/\sdisabled=/);
     expect(construction).toContain("t('hud.constructionPanel.lockedRowLabel'");
-    expect(en['hud.constructionPanel.lockedRowLabel']).toBe('Locked. Open unlock technology in Tech Tree.');
+    expect(en['hud.constructionPanel.lockedRowLabel']).toBe('{building}. Locked. Open unlock technology in Tech Tree.');
     expect(construction).toContain("t('hud.constructionPanel.unlockInTechTree')");
     expect(construction).toContain('!techLocked && <span className="info-badge');
     expect(construction).toContain('hud-construction-tech-lock-badge');
   });
 
   it('shows resource shortages on both researched and locked rows even with hints disabled', () => {
-    expect(construction).toContain('`${opt.cost.iron - resources.iron} more iron`');
-    expect(construction).toContain('`${opt.cost.wood - resources.wood} more wood`');
+    expect(construction).toContain("t('hud.constructionPanel.moreIron', { amount: opt.cost.iron - resources.iron })");
+    expect(construction).toContain("t('hud.constructionPanel.moreWood', { amount: opt.cost.wood - resources.wood })");
     expect(construction).toContain("t('hud.constructionPanel.needResources', { resources: missingResources })");
     expect(construction).not.toContain('hintsEnabled');
   });
