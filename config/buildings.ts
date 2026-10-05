@@ -1,5 +1,6 @@
 /**
- * Building type interface, crystal building configurations, and building definitions.
+ * Building type interface, crystal building configurations, building definitions,
+ * and localized text parameters.
  */
 
 import { BuildingType, DestroyBehavior } from '../src/types';
@@ -35,7 +36,7 @@ export const CRYSTAL_CAVE_CONFIG = {
 } as const;
 
 
-/** All data for a single building type, combining construction cost, combat stats and UI descriptions. */
+/** All data for a single building type, including parameters for localized text. */
 export interface BuildingDefinition {
   discoverRadius: number;
   destroyBehavior: DestroyBehavior;
@@ -62,7 +63,7 @@ export interface BuildingDefinition {
   upkeepIron?: number;
   /** Wood upkeep cost per player turn for each player-owned building of this type. */
   upkeepWood?: number;
-  description: string;
+  textParams?: { [name: string]: number };
 }
 
 /**
@@ -71,9 +72,7 @@ export interface BuildingDefinition {
  * BUILDINGS.WATCHTOWER_STATS, BUILDINGS.OUTPOST_STATS, LAVA_LAIR.MAGMA_SPYR_STATS,
  * CONSTRUCTION.*_COST, CRYSTAL_CHAMBER_CONFIG.COST, and CRYSTAL_CHAMBER_CONFIG.DISCOVER_RADIUS.
  *
- * All description strings use template-literal references to named constants -
- * never raw balancing numbers. See the DESCRIPTION AUTHORING RULE in the
- * ABILITIES block above.
+ * Localized text parameters use the named values in this definition or config.
  */
 
 export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
@@ -82,25 +81,24 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     destroyBehavior: DestroyBehavior.STRONGHOLD_RUIN,
     constructionCost: { iron: 0, wood: 0 },
     unitLimit: 4,
-    description: 'Your capital - if you lose all your strongholds, the game is over.',
   },
   MINE: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.NONE,
     constructionCost: { iron: 0, wood: 4 },
-    description: `Produces ${RESOURCES.MINE_IRON_PER_TURN} iron per turn, the primary resource for training units.`,
+    textParams: { ironPerTurn: RESOURCES.MINE_IRON_PER_TURN },
   },
   DEEP_MINE: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.NONE,
     constructionCost: { iron: 0, wood: 15 },
-    description: `Produces ${RESOURCES.DEEP_MINE_IRON_PER_TURN} iron per turn. An advanced mine that delves deeper into the mountain to extract richer ore veins.`,
+    textParams: { ironPerTurn: RESOURCES.DEEP_MINE_IRON_PER_TURN },
   },
   WOODCUTTER: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.NONE,
     constructionCost: { iron: 0, wood: 0 },
-    description: `Produces ${RESOURCES.WOODCUTTER_WOOD_PER_TURN} wood per turn, used alongside iron for buildings and recruitment.`,
+    textParams: { woodPerTurn: RESOURCES.WOODCUTTER_WOOD_PER_TURN },
   },
   BARRACKS: {
     discoverRadius: 2,
@@ -109,7 +107,6 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     unitLimit: 3,
     upkeepIron: 1,
     upkeepWood: 1,
-    description: 'Military hall that trains Spearman and Swordsman.',
   },
   ARCHER_CAMP: {
     discoverRadius: 2,
@@ -118,7 +115,6 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     unitLimit: 3,
     upkeepWood: 2,
     upkeepIron: 2,
-    description: 'Archery range that trains Archers.',
   },
   RIDER_CAMP: {
     discoverRadius: 2,
@@ -127,7 +123,6 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     unitLimit: 3,
     upkeepIron: 2,
     upkeepWood: 2,
-    description: 'Stable that trains Riders.',
   },
   SIEGE_CAMP: {
     discoverRadius: 2,
@@ -136,7 +131,6 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     unitLimit: 2,
     upkeepIron: 2,
     upkeepWood: 2,
-    description: 'Engineering works that trains Siege engines.',
   },
   WATCHTOWER: (() => {
     const combatStats = { maxHp: 150, attack: 55, defense: 55, attackRange: 3 };
@@ -145,42 +139,43 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
       destroyBehavior: DestroyBehavior.RUIN,
       constructionCost: { iron: 0, wood: 8 },
       combatStats,
-      description: `Defensive tower that attacks enemies within ${combatStats.attackRange} tiles and expands your vision.`,
+      textParams: { attackRange: combatStats.attackRange },
     };
   })(),
   OUTPOST: (() => {
     const combatStats = { maxHp: 200, attack: 55, defense: 50, attackRange: 2 };
+    const constructionCost = { iron: 0, wood: 4 };
     return {
       discoverRadius: 3,
       destroyBehavior: DestroyBehavior.NONE,
-      constructionCost: { iron: 0, wood: 4 },
+      constructionCost,
       combatStats,
-      description: `Field fortification built by Spearmen via Fieldwork (costs 4 wood). Attacks enemies within ${combatStats.attackRange} tiles. Starting HP is based on the building unit's current HP, capped at ${combatStats.maxHp}.`,
+      textParams: {
+        woodCost: constructionCost.wood,
+        attackRange: combatStats.attackRange,
+        maxHp: combatStats.maxHp,
+      },
     };
   })(),
   LAVALAIR: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.RUIN,
     constructionCost: { iron: 0, wood: 0 },
-    description: 'Enemy spawner building. Produces Lava Grunt units.',
   },
   INFERNALSANCTUM: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.STRONGHOLD_RUIN,
     constructionCost: { iron: 0, wood: 0 },
-    description: 'Enemy zone stronghold. Capturing it triggers a Sanctum Collapse.',
   },
   FARM: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.RUIN,
     constructionCost: { iron: 0, wood: 8 },
-    description: 'Housing for common folk - each pop raised lets you field one more basic unit.',
   },
   PATRICIANHOUSE: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.RUIN,
     constructionCost: { iron: 2, wood: 16 },
-    description: 'Noble estate - each noble raised lets you field one more elite unit.',
   },
   MAGMASPYR: (() => {
     const combatStats = { maxHp: 120, attack: 30, defense: 50, attackRange: 2, maxAttacksPerTurn: 2 };
@@ -189,34 +184,34 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
       destroyBehavior: DestroyBehavior.RESOURCE,
       constructionCost: { iron: 0, wood: 0 },
       combatStats,
-      description: `Corrupted mountain spire that attacks nearby units up to ${combatStats.maxAttacksPerTurn} times per turn.`,
+      textParams: { maxAttacksPerTurn: combatStats.maxAttacksPerTurn! },
     };
   })(),
   EMBERNEST: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.RESOURCE,
     constructionCost: { iron: 0, wood: 0 },
-    description: `Corrupted forest nest that spawns Emberlings every ${LAVA_LAIR.EMBER_NEST_SPAWN_INTERVAL} turns.`,
+    textParams: { spawnInterval: LAVA_LAIR.EMBER_NEST_SPAWN_INTERVAL },
   },
   CRYSTAL_CHAMBER: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.RUIN,
     constructionCost: { iron: 8, wood: 4 },
     unitLimit: CRYSTAL_CHAMBER_CONFIG.CHAMBER_UNIT_LIMIT,
-    description: `Arcane resonator. When a Crystal Chamber is consumed by lava, all surviving chambers begin resonating and generate ${CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN} crystal${CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN !== 1 ? 's' : ''} per turn. While active, Mages can be recruited once Arcane Awakening is researched.`,
+    textParams: { crystalsPerTurn: CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN },
   },
   GRAVESTONE: {
     discoverRadius: 1,
     destroyBehavior: DestroyBehavior.NONE,
     constructionCost: { iron: 0, wood: 0 },
     maxHp: ABILITIES.GRAVESTONE_MAX_HP,
-    description: `The grave of a fallen warrior. Revive the unit by paying ${ABILITIES.REVIVE_CRYSTAL_COST} crystal.`,
+    textParams: { reviveCrystalCost: ABILITIES.REVIVE_CRYSTAL_COST },
   },
   GRAVE_TRAP: {
     discoverRadius: 1,
     destroyBehavior: DestroyBehavior.NONE,
     constructionCost: { iron: 0, wood: 0 },
-    description: `A magic trap forged from a gravestone. The next enemy to step onto it is stunned for ${MAGE.GRAVE_TRAP_STUN_TURNS} turns, along with all adjacent enemies. The trap is consumed on trigger.`,
+    textParams: { stunTurns: MAGE.GRAVE_TRAP_STUN_TURNS },
   },
   CRYSTAL_TOWER: (() => {
     const combatStats = { maxHp: 200, attack: 40, defense: 55, attackRange: 2, maxAttacksPerTurn: 1 };
@@ -225,7 +220,12 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
       destroyBehavior: DestroyBehavior.RUIN,
       constructionCost: { iron: 2, wood: 4 },
       combatStats,
-      description: `Arcane combat tower. Attacks enemies within ${combatStats.attackRange} tiles. Each enemy unit it kills generates ${MAGE.CRYSTAL_TOWER_KILL_CRYSTAL_REWARD} crystal. Gains +${MAGE.CRYSTAL_TOWER_CHAMBER_ATTACK_BONUS} attack per connected Crystal Chamber within ${MAGE.CRYSTAL_TOWER_CHAMBER_CONNECT_RANGE} tiles.`,
+      textParams: {
+        attackRange: combatStats.attackRange,
+        crystalReward: MAGE.CRYSTAL_TOWER_KILL_CRYSTAL_REWARD,
+        chamberAttackBonus: MAGE.CRYSTAL_TOWER_CHAMBER_ATTACK_BONUS,
+        chamberConnectRange: MAGE.CRYSTAL_TOWER_CHAMBER_CONNECT_RANGE,
+      },
     };
   })(),
   CRYSTAL_CAVE: {
@@ -238,7 +238,6 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     // While any Crystal Chamber resonates, the cave's resonance flag is set
     // via the shared lava-resonance trigger. Recruiting a drake never consumes
     // a resonance tick - the window decays on its own end-of-turn schedule.
-    description: `Conjured mountain hollow that hosts a single Crystal Drake. While resonating, it can summon a Crystal Drake. If the cave falls (lava, capture, conversion, destruction) any bound drake dies with it.`,
   },
   CHARCOAL_KILN: {
     // Shares the same sight radius and destroy behaviour as the Woodcutter -
@@ -248,28 +247,36 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     constructionCost: { iron: 0, wood: 8 },
     // No combatStats → tile remains walkable (same as MINE / WOODCUTTER).
     // Description must state the additive per-kiln effect.
-    description: `Grants +${RESOURCES.CHARCOAL_KILN_IRON_BONUS} iron per turn per in-range kiln to each mine and deep mine within ${RESOURCES.CHARCOAL_KILN_RADIUS} tiles.`,
+    textParams: {
+      ironBonus: RESOURCES.CHARCOAL_KILN_IRON_BONUS,
+      radius: RESOURCES.CHARCOAL_KILN_RADIUS,
+    },
   },
   MARKET: {
     discoverRadius: 2,
     destroyBehavior: DestroyBehavior.NONE,
     constructionCost: { iron: 0, wood: 0 },
-    description: `A neutral market. Offers appear when the market is discovered. A unit standing here may Trade once per turn for ${MARKET.RESOURCE_SLOTS_MAX} resource swaps and ${MARKET.SPECIALIST_SLOTS_MAX} specialist offer(s). Trading ends the unit's turn. Includes one free restock every ${MARKET.FREE_RESTOCK_INTERVAL_TURNS} turns. Destroyed only by lava.`,
+    textParams: {
+      resourceSlots: MARKET.RESOURCE_SLOTS_MAX,
+      specialistSlots: MARKET.SPECIALIST_SLOTS_MAX,
+      tradesPerTurn: MARKET.TRADES_PER_UNIT_PER_TURN,
+      freeRestocks: MARKET.FREE_RESTOCKS_PER_INTERVAL,
+      freeRestockInterval: MARKET.FREE_RESTOCK_INTERVAL_TURNS,
+    },
   },
   BRIDGE: {
     discoverRadius: 0,
     destroyBehavior: DestroyBehavior.NONE,
     constructionCost: { iron: 0, wood: 8 }, // balanceable wood/iron
-    description:
-      `A timber bridge spanning a single canyon tile between two land tiles. ` +
-      `Cross along its axis or diagonally; lava destroys it.`,
   },
   SCOUT_TRAP: {
     discoverRadius: 1,
     destroyBehavior: DestroyBehavior.NONE,
     // Placed by Scout action, not the build menu; cost is enforced in the action handler.
     constructionCost: { iron: 0, wood: 0 },
-    description: `A concealed trap laid by a Scout. The next non-FLYING enemy to enter it takes ${ABILITIES.SCOUT_TRAP_DAMAGE} damage and is stunned for ${ABILITIES.SCOUT_TRAP_STUN_TURNS} turn(s), then the trap is consumed.`,
+    textParams: {
+      damage: ABILITIES.SCOUT_TRAP_DAMAGE,
+      stunTurns: ABILITIES.SCOUT_TRAP_STUN_TURNS,
+    },
   },
 };
-
