@@ -6,7 +6,7 @@ export type Catalog = { [key: string]: string };
 type CatalogModule = { default: Catalog };
 type CatalogLoader = () => Promise<CatalogModule>;
 
-const loaders = import.meta.glob<CatalogModule>('./locales/*.json');
+const loaders = import.meta.glob<CatalogModule>(['./locales/*.json', '!./locales/en.json']);
 const localeLoaders = new Map<LocaleCode, CatalogLoader>();
 
 for (const code of SUPPORTED_LOCALES) {
