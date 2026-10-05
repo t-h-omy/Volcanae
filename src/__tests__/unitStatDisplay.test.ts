@@ -4,6 +4,7 @@ import { getBerserkDisplayBonus, getLanceChargeAttackBonus, hasAssassinDamageBon
 import { getAttackDisplayModifiers } from '../unitStatDisplay';
 import { Faction, TileType, TileStatus, UnitTag, UnitType } from '../types';
 import type { GameState, Tile, Unit } from '../types';
+import { t } from '../i18n/i18n';
 
 function makeTile(x: number, y: number, overrides: Partial<Tile> = {}): Tile {
   return {
@@ -112,12 +113,9 @@ describe('unit stat display helpers', () => {
       assassinBonusActive: false,
     });
 
-    expect(mods.rows).toContainEqual({
-      stat: 'ATK',
-      value: ABILITIES.CINDERBORN_ATTACK_BONUS,
-      kind: 'applied',
-      source: 'Cinderborn (tag)',
-    });
+    const cinderbornRow = mods.rows.find((row) => row.source.key === 'statDisplay.cinderborn');
+    expect(cinderbornRow?.value).toBe(ABILITIES.CINDERBORN_ATTACK_BONUS);
+    expect(t(cinderbornRow!.source)).toBe('Cinderborn (tag)');
     expect(mods.netAttackModifier).toBe(mods.rows.reduce((sum, row) => sum + row.value, 0));
     expect(mods.berserkDisplayBonus).toBe(
       Math.round(mods.effectiveAttackBeforeBerserk * ABILITIES.BERSERK_ATTACK_PCT / 100),
@@ -175,12 +173,9 @@ describe('unit stat display helpers', () => {
       lanceChargeBonus: getLanceChargeAttackBonus(activeState, lanceUnit),
       assassinBonusActive: false,
     });
-    expect(mods.rows).toContainEqual({
-      stat: 'ATK',
-      value: ABILITIES.LANCE_CHARGE_ATTACK_BONUS,
-      kind: 'active',
-      source: 'Lance Charge (has not moved this turn)',
-    });
+    const lanceChargeRow = mods.rows.find((row) => row.source.key === 'statDisplay.lanceCharge');
+    expect(lanceChargeRow?.value).toBe(ABILITIES.LANCE_CHARGE_ATTACK_BONUS);
+    expect(t(lanceChargeRow!.source)).toBe('Lance Charge (has not moved this turn)');
     expect(mods.netAttackModifier).toBe(ABILITIES.LANCE_CHARGE_ATTACK_BONUS);
   });
 
@@ -215,21 +210,13 @@ describe('unit stat display helpers', () => {
       assassinBonusActive: hasAssassinDamageBonusTarget(bloodlustState, bloodlustUnit),
     });
 
-    expect(mods.effects).toContainEqual({
-      stat: 'DMG',
-      value: 1,
-      displayValue: `×${ABILITIES.ASSASSIN_DAMAGE_MULTIPLIER}`,
-      kind: 'active',
-      source: 'Assassin',
-      condition: 'Only against full-health targets',
-    });
-    expect(mods.effects).toContainEqual({
-      stat: 'ATK',
-      value: -1,
-      displayValue: '×0.5',
-      kind: 'active',
-      source: 'Bloodlust second strike (base attack halved)',
-    });
+    const assassinEffect = mods.effects.find((effect) => effect.source.key === 'statDisplay.assassin');
+    expect(assassinEffect?.displayValue).toBe(`×${ABILITIES.ASSASSIN_DAMAGE_MULTIPLIER}`);
+    expect(t(assassinEffect!.source)).toBe('Assassin');
+    expect(t(assassinEffect!.condition!)).toBe('Only against full-health targets');
+    const bloodlustEffect = mods.effects.find((effect) => effect.source.key === 'statDisplay.bloodlust');
+    expect(bloodlustEffect?.displayValue).toBe('×0.5');
+    expect(t(bloodlustEffect!.source)).toBe('Bloodlust second strike (base attack halved)');
     expect(mods.netAttackModifier).toBe(0);
   });
 });

@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { buildRecruitBlockMessages } from '../recruitMessages';
 import type { PopCapacity, PopUsage, RecruitCost, ResourceSnapshot } from '../recruitMessages';
+import { BuildingType } from '../types';
+import { t } from '../i18n/i18n';
 
 const defaultResources: ResourceSnapshot = { iron: 10, wood: 10 };
 const defaultPopUsage: PopUsage = { farmersUsed: 0, noblesUsed: 0 };
@@ -17,7 +19,7 @@ describe('buildRecruitBlockMessages – resource warnings', () => {
       false, cost, 0, defaultResources, 0,
       true, true, NO_POP_COST,
       defaultPopUsage, defaultPopCapacity,
-      false, false, 0, Infinity, 'Barracks',
+      false, false, 0, Infinity, BuildingType.BARRACKS,
     );
     expect(msgs.resourceWarningMsg).toBeNull();
   });
@@ -29,9 +31,10 @@ describe('buildRecruitBlockMessages – resource warnings', () => {
       false, cost, 0, resources, 0,
       false, true, NO_POP_COST,
       defaultPopUsage, defaultPopCapacity,
-      false, false, 0, Infinity, 'Barracks',
+      false, false, 0, Infinity, BuildingType.BARRACKS,
     );
-    expect(msgs.resourceWarningMsg).toBe('Not enough iron (need 12, have 7)');
+    expect(msgs.resourceWarningMsg?.key).toBe('recruit.notEnoughIron');
+    expect(t(msgs.resourceWarningMsg!)).toBe('Not enough iron (need 12, have 7)');
   });
 
   it('reports missing wood specifically', () => {
@@ -41,21 +44,23 @@ describe('buildRecruitBlockMessages – resource warnings', () => {
       false, cost, 0, resources, 0,
       false, true, NO_POP_COST,
       defaultPopUsage, defaultPopCapacity,
-      false, false, 0, Infinity, 'Barracks',
+      false, false, 0, Infinity, BuildingType.BARRACKS,
     );
-    expect(msgs.resourceWarningMsg).toBe('Not enough wood (need 8, have 2)');
+    expect(msgs.resourceWarningMsg?.key).toBe('recruit.notEnoughWood');
+    expect(t(msgs.resourceWarningMsg!)).toBe('Not enough wood (need 8, have 2)');
   });
 
-  it('joins both iron and wood when both are short', () => {
+  it('returns a distinct key when both iron and wood are short', () => {
     const cost: RecruitCost = { iron: 15, wood: 20 };
     const resources: ResourceSnapshot = { iron: 5, wood: 5 };
     const msgs = buildRecruitBlockMessages(
       false, cost, 0, resources, 0,
       false, true, NO_POP_COST,
       defaultPopUsage, defaultPopCapacity,
-      false, false, 0, Infinity, 'Barracks',
+      false, false, 0, Infinity, BuildingType.BARRACKS,
     );
-    expect(msgs.resourceWarningMsg).toBe(
+    expect(msgs.resourceWarningMsg?.key).toBe('recruit.notEnoughIronAndWood');
+    expect(t(msgs.resourceWarningMsg!)).toBe(
       'Not enough iron (need 15, have 5) and wood (need 20, have 5)',
     );
   });
@@ -65,9 +70,9 @@ describe('buildRecruitBlockMessages – resource warnings', () => {
       true, undefined, 5, defaultResources, 2,
       false, true, NO_POP_COST,
       defaultPopUsage, defaultPopCapacity,
-      false, true, 0, 1, 'Crystal Cave',
+      false, true, 0, 1, BuildingType.CRYSTAL_CAVE,
     );
-    expect(msgs.resourceWarningMsg).toBe(
+    expect(t(msgs.resourceWarningMsg!)).toBe(
       'Not enough crystals (need 5, have 2, missing 3)',
     );
   });
@@ -81,7 +86,7 @@ describe('buildRecruitBlockMessages – population warnings', () => {
       false, { iron: 1, wood: 1 }, 0, defaultResources, 0,
       true, true, { farmers: 2, nobles: 0 },
       { farmersUsed: 0, noblesUsed: 0 }, { farmerCapacity: 10, nobleCapacity: 10 },
-      false, false, 0, Infinity, 'Barracks',
+      false, false, 0, Infinity, BuildingType.BARRACKS,
     );
     expect(msgs.popWarningMsg).toBeNull();
   });
@@ -91,9 +96,9 @@ describe('buildRecruitBlockMessages – population warnings', () => {
       false, { iron: 1, wood: 1 }, 0, defaultResources, 0,
       true, false, { farmers: 3, nobles: 0 },
       { farmersUsed: 9, noblesUsed: 0 }, { farmerCapacity: 10, nobleCapacity: 10 },
-      false, false, 0, Infinity, 'Barracks',
+      false, false, 0, Infinity, BuildingType.BARRACKS,
     );
-    expect(msgs.popWarningMsg).toBe('Not enough farmers — build more Farms');
+    expect(t(msgs.popWarningMsg!)).toBe('Not enough farmers: build more Farms');
   });
 
   it('reports noble shortage', () => {
@@ -101,9 +106,9 @@ describe('buildRecruitBlockMessages – population warnings', () => {
       false, { iron: 1, wood: 1 }, 0, defaultResources, 0,
       true, false, { farmers: 0, nobles: 2 },
       { farmersUsed: 0, noblesUsed: 9 }, { farmerCapacity: 10, nobleCapacity: 10 },
-      false, false, 0, Infinity, 'Barracks',
+      false, false, 0, Infinity, BuildingType.BARRACKS,
     );
-    expect(msgs.popWarningMsg).toBe('Not enough nobles — build more Patrician Houses');
+    expect(t(msgs.popWarningMsg!)).toBe('Not enough nobles: build more Patrician Houses');
   });
 
   it('reports both farmer and noble shortage', () => {
@@ -111,11 +116,9 @@ describe('buildRecruitBlockMessages – population warnings', () => {
       false, { iron: 1, wood: 1 }, 0, defaultResources, 0,
       true, false, { farmers: 2, nobles: 2 },
       { farmersUsed: 9, noblesUsed: 9 }, { farmerCapacity: 10, nobleCapacity: 10 },
-      false, false, 0, Infinity, 'Barracks',
+      false, false, 0, Infinity, BuildingType.BARRACKS,
     );
-    expect(msgs.popWarningMsg).toBe(
-      'Not enough farmers — build more Farms and nobles — build more Patrician Houses',
-    );
+    expect(t(msgs.popWarningMsg!)).toBe('Not enough farmers and nobles: build more Farms and Patrician Houses');
   });
 
   it('suppresses popWarningMsg when resources are the blocker', () => {
@@ -124,7 +127,7 @@ describe('buildRecruitBlockMessages – population warnings', () => {
       false, { iron: 99, wood: 99 }, 0, defaultResources, 0,
       false, false, { farmers: 3, nobles: 0 },
       { farmersUsed: 9, noblesUsed: 0 }, { farmerCapacity: 10, nobleCapacity: 10 },
-      false, false, 0, Infinity, 'Barracks',
+      false, false, 0, Infinity, BuildingType.BARRACKS,
     );
     expect(msgs.popWarningMsg).toBeNull();
   });
@@ -138,7 +141,7 @@ describe('buildRecruitBlockMessages – cap warnings', () => {
       false, { iron: 1, wood: 1 }, 0, defaultResources, 0,
       true, true, NO_POP_COST,
       defaultPopUsage, defaultPopCapacity,
-      false, false, 2, 4, 'Barracks',
+      false, false, 2, 4, BuildingType.BARRACKS,
     );
     expect(msgs.capWarningMsg).toBeNull();
   });
@@ -148,11 +151,9 @@ describe('buildRecruitBlockMessages – cap warnings', () => {
       false, { iron: 1, wood: 1 }, 0, defaultResources, 0,
       true, true, NO_POP_COST,
       defaultPopUsage, defaultPopCapacity,
-      true, false, 4, 4, 'Barracks',
+      true, false, 4, 4, BuildingType.BARRACKS,
     );
-    expect(msgs.capWarningMsg).toBe(
-      'Unit limit reached (4/4), build another Barracks',
-    );
+    expect(t(msgs.capWarningMsg!)).toBe('Unit limit reached (4/4). Build another: Barracks');
   });
 
   it('shows crystal-cave-specific message', () => {
@@ -160,9 +161,9 @@ describe('buildRecruitBlockMessages – cap warnings', () => {
       true, undefined, 5, defaultResources, 10,
       true, true, NO_POP_COST,
       defaultPopUsage, defaultPopCapacity,
-      true, true, 1, 1, 'Crystal Cave',
+      true, true, 1, 1, BuildingType.CRYSTAL_CAVE,
     );
-    expect(msgs.capWarningMsg).toBe('This cave already hosts a Crystal Drake');
+    expect(t(msgs.capWarningMsg!)).toBe('This cave already hosts a Crystal Drake');
   });
 
   it('suppresses capWarningMsg when resources are the primary block', () => {
@@ -170,7 +171,7 @@ describe('buildRecruitBlockMessages – cap warnings', () => {
       false, { iron: 99, wood: 99 }, 0, defaultResources, 0,
       false, true, NO_POP_COST,
       defaultPopUsage, defaultPopCapacity,
-      true, false, 4, 4, 'Barracks',
+      true, false, 4, 4, BuildingType.BARRACKS,
     );
     expect(msgs.capWarningMsg).toBeNull();
   });
@@ -180,7 +181,7 @@ describe('buildRecruitBlockMessages – cap warnings', () => {
       false, { iron: 1, wood: 1 }, 0, defaultResources, 0,
       true, false, { farmers: 2, nobles: 0 },
       { farmersUsed: 9, noblesUsed: 0 }, { farmerCapacity: 10, nobleCapacity: 10 },
-      true, false, 4, 4, 'Barracks',
+      true, false, 4, 4, BuildingType.BARRACKS,
     );
     expect(msgs.capWarningMsg).toBeNull();
   });

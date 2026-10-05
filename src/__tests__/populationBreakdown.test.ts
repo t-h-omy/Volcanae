@@ -18,6 +18,7 @@ import {
 import { UnitType, BuildingType, Faction, UnitTag, DestroyBehavior } from '../types';
 import type { GameState, Unit, Building } from '../types';
 import { UNIT_DEFINITIONS, POPULATION } from '../gameConfig';
+import { t } from '../i18n/i18n';
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -155,7 +156,7 @@ describe('computePopulationBreakdown — capacity sums match computePopulationCa
 
     // Should have one entry for farms
     expect(breakdown.capacityEntries).toHaveLength(1);
-    expect(breakdown.capacityEntries[0].label).toMatch(/Farm ×2/);
+    expect(t(breakdown.capacityEntries[0].label)).toMatch(/Farm ×2/);
     expect(breakdown.capacityEntries[0].farmers).toBe(3);
   });
 
@@ -169,7 +170,7 @@ describe('computePopulationBreakdown — capacity sums match computePopulationCa
 
     const capNobles = breakdown.capacityEntries.reduce((s, e) => s + e.nobles, 0);
     expect(capNobles).toBe(nobleCapacity);
-    expect(breakdown.capacityEntries[0].label).toMatch(/Patrician House ×2/);
+    expect(t(breakdown.capacityEntries[0].label)).toMatch(/Patrician House ×2/);
   });
 
   it('stronghold contributes to both farmers and nobles', () => {
@@ -180,13 +181,13 @@ describe('computePopulationBreakdown — capacity sums match computePopulationCa
     expect(breakdown.farmerCapacity).toBe(farmerCapacity);
     expect(breakdown.nobleCapacity).toBe(nobleCapacity);
 
-    const sh = breakdown.capacityEntries.find((e) => e.label.includes('Stronghold'));
+    const sh = breakdown.capacityEntries.find((e) => t(e.label).includes('Stronghold'));
     expect(sh).toBeDefined();
     expect(sh!.farmers).toBe(2);
     expect(sh!.nobles).toBe(2);
     // Label references config caps
-    expect(sh!.label).toMatch(/max/);
-    expect(sh!.label).toMatch(new RegExp(String(POPULATION.STRONGHOLD_FARMER_CAP)));
+    expect(t(sh!.label)).toMatch(/max/);
+    expect(t(sh!.label)).toMatch(new RegExp(String(POPULATION.STRONGHOLD_FARMER_CAP)));
   });
 
   it('mixed buildings', () => {

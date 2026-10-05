@@ -14,6 +14,7 @@ import type { Building, GameState, Position, Tile, Unit } from '../types';
 import { MAP, UNIT_DEFINITIONS } from '../gameConfig';
 import { castSpell, explainInvalidSpellTarget, getValidSpellTargets } from '../spellSystem';
 import { explainInvalidBridgeTarget, explainInvalidHealTarget } from '../unitActions';
+import { t } from '../i18n/i18n';
 
 let nextIdValue = 0;
 
@@ -210,7 +211,7 @@ describe('explainInvalidSpellTarget', () => {
       pendingTransposeFirstUnitId: first.id,
     });
 
-    expect(explainInvalidSpellTarget(state, mage.id, SpellId.TRANSPOSE, enemy.position))
+    expect(t(explainInvalidSpellTarget(state, mage.id, SpellId.TRANSPOSE, enemy.position)!))
       .toBe('Faction must match first unit');
   });
 
@@ -219,7 +220,7 @@ describe('explainInvalidSpellTarget', () => {
     const target = makeUnit(UnitType.GUARD, { x: 6, y: 5 }, Faction.PLAYER, [UnitTag.BRANDMARKED]);
     const state = makeState({ units: [mage, target] });
 
-    expect(explainInvalidSpellTarget(state, mage.id, SpellId.BRANDMARK_HEAL, target.position))
+    expect(t(explainInvalidSpellTarget(state, mage.id, SpellId.BRANDMARK_HEAL, target.position)!))
       .toBe('Already brandmarked');
   });
 
@@ -228,7 +229,7 @@ describe('explainInvalidSpellTarget', () => {
     const target = makeUnit(UnitType.GUARD, { x: 6, y: 5 }, Faction.PLAYER, [UnitTag.SUMMONED]);
     const state = makeState({ units: [mage, target] });
 
-    expect(explainInvalidSpellTarget(state, mage.id, SpellId.BRANDMARK_HEAL, target.position))
+    expect(t(explainInvalidSpellTarget(state, mage.id, SpellId.BRANDMARK_HEAL, target.position)!))
       .toBe('Summoned units cannot be brandmarked');
   });
 
@@ -236,7 +237,7 @@ describe('explainInvalidSpellTarget', () => {
     const mage = makeUnit(UnitType.MAGE, { x: 5, y: 5 });
     const state = makeState({ units: [mage] });
 
-    expect(explainInvalidSpellTarget(state, mage.id, SpellId.BRANDMARK_HEAL, mage.position))
+    expect(t(explainInvalidSpellTarget(state, mage.id, SpellId.BRANDMARK_HEAL, mage.position)!))
       .toBe('Cannot cast on itself');
   });
 
@@ -245,7 +246,7 @@ describe('explainInvalidSpellTarget', () => {
     const otherMage = makeUnit(UnitType.MAGE, { x: 6, y: 5 });
     const state = makeState({ units: [mage, otherMage] });
 
-    expect(explainInvalidSpellTarget(state, mage.id, SpellId.EXPLODE, otherMage.position))
+    expect(t(explainInvalidSpellTarget(state, mage.id, SpellId.EXPLODE, otherMage.position)!))
       .toBe('This unit type cannot explode');
   });
 
@@ -254,7 +255,7 @@ describe('explainInvalidSpellTarget', () => {
     const state = makeState({ units: [mage] });
     state.grid[5][6].terrainType = TileType.CANYON;
 
-    expect(explainInvalidSpellTarget(state, mage.id, SpellId.FROSTCRAFT, { x: 6, y: 5 }))
+    expect(t(explainInvalidSpellTarget(state, mage.id, SpellId.FROSTCRAFT, { x: 6, y: 5 })!))
       .toBe('Cannot freeze this terrain');
   });
 
@@ -264,7 +265,7 @@ describe('explainInvalidSpellTarget', () => {
     const embernest = makeBuilding(BuildingType.EMBERNEST, { x: 6, y: 5 });
     const state = makeState({ units: [mage, occupant], buildings: [embernest] });
 
-    expect(explainInvalidSpellTarget(state, mage.id, SpellId.EMBERBIND, embernest.position))
+    expect(t(explainInvalidSpellTarget(state, mage.id, SpellId.EMBERBIND, embernest.position)!))
       .toBe('Occupied');
   });
 
@@ -274,7 +275,7 @@ describe('explainInvalidSpellTarget', () => {
     const gravestone = makeBuilding(BuildingType.GRAVESTONE, { x: 6, y: 5 });
     const state = makeState({ units: [mage, occupant], buildings: [gravestone] });
 
-    expect(explainInvalidSpellTarget(state, mage.id, SpellId.RAISE_SKELETON, gravestone.position))
+    expect(t(explainInvalidSpellTarget(state, mage.id, SpellId.RAISE_SKELETON, gravestone.position)!))
       .toBe('Occupied');
   });
 
@@ -284,7 +285,7 @@ describe('explainInvalidSpellTarget', () => {
     const gravestone = makeBuilding(BuildingType.GRAVESTONE, { x: 6, y: 5 });
     const state = makeState({ units: [mage, occupant], buildings: [gravestone] });
 
-    expect(explainInvalidSpellTarget(state, mage.id, SpellId.GRAVE_TRAP, gravestone.position))
+    expect(t(explainInvalidSpellTarget(state, mage.id, SpellId.GRAVE_TRAP, gravestone.position)!))
       .toBe('Occupied');
   });
 
@@ -365,7 +366,7 @@ describe('explainInvalidHealTarget', () => {
     target.stats.currentHp -= 1;
     const state = makeState({ units: [healer, target] });
 
-    expect(explainInvalidHealTarget(state, healer.id, target.position))
+    expect(t(explainInvalidHealTarget(state, healer.id, target.position)!))
       .toBe('Brandmarked units cannot be healed');
   });
 
@@ -375,7 +376,7 @@ describe('explainInvalidHealTarget', () => {
     target.stats.currentHp -= 1;
     const state = makeState({ units: [healer, target] });
 
-    expect(explainInvalidHealTarget(state, healer.id, target.position))
+    expect(t(explainInvalidHealTarget(state, healer.id, target.position)!))
       .toBe('Summoned units cannot be healed');
   });
 
@@ -394,7 +395,7 @@ describe('explainInvalidBridgeTarget', () => {
     const state = makeState({ units: [builder] });
     state.grid[5][6].terrainType = TileType.WATER;
 
-    expect(explainInvalidBridgeTarget(state, builder.id, { x: 6, y: 5 }))
+    expect(t(explainInvalidBridgeTarget(state, builder.id, { x: 6, y: 5 })!))
       .toBe('Bridge needs accessible entry and exit tile');
   });
 

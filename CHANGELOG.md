@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.114.12 - Localize gameplay messages
+
+Localized recruit warnings, invalid-target reasons, floaters, popups, income and population breakdowns, and save names for all supported locales.
+
 ### v0.114.11 - Localize tech, spell, specialist and hint text
 
 Localized technology, spell, specialist and hint catalogs for all supported locales. Specialist names and descriptions are no longer stored in saves; SAVE_VERSION now migrates version 20 saves.
