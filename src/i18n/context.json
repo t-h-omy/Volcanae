@@ -93,5 +93,25 @@
   },
   "tag.BERSERK.label": {
     "sameAsSource": ["it", "pt-BR"]
+  },
+  "tech.CONSCRIPTION.name": {
+    "note": "French cognate for the basic military conscription technology.",
+    "sameAsSource": ["fr"]
+  },
+  "tech.ASSASSIN.name": {
+    "note": "French uses the same word for this technology name.",
+    "sameAsSource": ["fr"]
+  },
+  "tech.DISTRACTION.name": {
+    "note": "French uses the same word for this technology name.",
+    "sameAsSource": ["fr"]
+  },
+  "spell.RUPTURE.name": {
+    "note": "French uses the same word for this spell name.",
+    "sameAsSource": ["fr"]
+  },
+  "specialist.spec_17.name": {
+    "note": "A specialist title for an artillery expert.",
+    "sameAsSource": ["de", "fr"]
   }
 }
