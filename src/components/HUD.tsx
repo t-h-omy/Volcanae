@@ -18,7 +18,6 @@ import { CAVE_SPECIALIST_ROB_REWARD_CRYSTALS } from '../../config/specialists';
 import type { UnitPopulationCost, TechId } from '../types';
 import { useHintStore } from '../hintStore';
 import { useHintOptionsStore } from '../hintOptionsStore';
-import { HINT_DEFINITIONS } from '../../config/hints';
 import { tryTriggerHint } from '../hintSystem';
 import { isUnitOnCorruptedTile } from '../tileStatusSystem';
 import {
@@ -45,7 +44,7 @@ import {
 } from '../constructionSystem';
 import { computeLevelFromXp } from '../levelSystem';
 import { computeUnitAiScores, computeRecruitmentScores, type ScoredAction } from '../enemySystem';
-import { renderEffect, getAvailableTechs as getAvailableTechsLogic } from '../techSystem';
+import { getAvailableTechs as getAvailableTechsLogic } from '../techSystem';
 import { buildRecruitBlockMessages } from '../recruitMessages';
 import {
   Faction,
@@ -553,6 +552,7 @@ function DevSpecPickerOverlay({
   onSelect: (id: string) => void;
   onClose: () => void;
 }) {
+  const { specialistName, specialistDesc } = useText();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -572,10 +572,8 @@ function DevSpecPickerOverlay({
           {availableSpecialists.map(([id, def]) => (
             <li key={id} className="hud-modal-item">
               <div className="hud-modal-item-info">
-                <span className="hud-modal-item-name">🧙 {def.name}</span>
-                {def.description && (
-                  <span className="hud-modal-item-desc">{def.description}</span>
-                )}
+                <span className="hud-modal-item-name">🧙 {specialistName(id)}</span>
+                <span className="hud-modal-item-desc">{specialistDesc(id)}</span>
               </div>
               <button
                 className="hud-modal-assign-btn"
@@ -956,6 +954,7 @@ function NetIncomeBadge({ gross, upkeep }: { gross: number; upkeep: number }) {
 // ============================================================================
 
 function HintBanner() {
+  const { hintShort, hintDetail } = useText();
   const activeHintId = useHintStore((s) => s.activeHintId);
   const expanded = useHintStore((s) => s.expanded);
   const dismissActive = useHintStore((s) => s.dismissActive);
@@ -963,14 +962,12 @@ function HintBanner() {
 
   if (!activeHintId) return null;
 
-  const def = HINT_DEFINITIONS[activeHintId];
-
   return (
     <>
       <div className="hud-hint-backdrop" aria-hidden="true" />
       <div className="hud-hint-banner">
         <div className="hud-hint-banner-row">
-          <span className="hud-hint-banner-text">{def.short}</span>
+          <span className="hud-hint-banner-text">{hintShort(activeHintId)}</span>
           <button
             className="hud-hint-banner-more"
             onClick={toggleExpanded}
@@ -988,7 +985,7 @@ function HintBanner() {
           </button>
         </div>
         {expanded && (
-          <div className="hud-hint-banner-detail">{def.detail}</div>
+          <div className="hud-hint-banner-detail">{hintDetail(activeHintId)}</div>
         )}
       </div>
     </>
@@ -1006,6 +1003,7 @@ function TopBar({
   arcaneCrystals: number;
   showTechBadge: boolean;
 }) {
+  const { specialistName } = useText();
   const resources = useGameStore((s) => s.resources);
   const emberRaw = useGameStore((s) => s.ember);
   const pendingEmberOffset = useEmberDisplayStore((s) => s.pendingEmberOffset);
@@ -1075,9 +1073,9 @@ function TopBar({
                 key={i}
                 className={`hud-specialist-slot hud-specialist-slot--filled${spec.dormant ? ' hud-specialist-slot--dormant' : ''}`}
                 onClick={() => setOpenSpecialistInfo(spec.id)}
-                title={`${spec.name} — click for info`}
+                title={`${specialistName(spec.id)} - click for info`}
               >
-                <span className="hud-specialist-slot-name">🧙 {spec.name}</span>
+                <span className="hud-specialist-slot-name">🧙 {specialistName(spec.id)}</span>
               </button>
             );
           }
@@ -1168,6 +1166,7 @@ function TagPopup({ tag, disabledByCorruption, onClose }: { tag: UnitTag; disabl
 
 /** Spell info popup — shown when clicking a spell tile in the tech tree */
 function SpellInfoPopup({ spellId, onClose }: { spellId: SpellId; onClose: () => void }) {
+  const { spellName, spellDesc } = useText();
   const def = SPELL_DEFINITIONS[spellId];
   if (!def) return null;
   return (
@@ -1175,11 +1174,11 @@ function SpellInfoPopup({ spellId, onClose }: { spellId: SpellId; onClose: () =>
       <div className="info-popup-header">
         <span className="info-popup-header-emoji">{def.emoji}</span>
         <div>
-          <div className="info-popup-header-name">{def.name}</div>
+          <div className="info-popup-header-name">{spellName(spellId)}</div>
           <div className="info-popup-header-cost">Cast: 💎{MAGE.SPELL_CAST_CRYSTAL_COST}</div>
         </div>
       </div>
-      <p className="info-popup-desc" style={{ marginBottom: 16 }}>{def.description}</p>
+      <p className="info-popup-desc" style={{ marginBottom: 16 }}>{spellDesc(spellId)}</p>
       <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>OK</button>
     </Popup>
   );
@@ -1843,7 +1842,7 @@ function getReloadDefensePenalty(unit: Unit, effectiveDefenseBeforeReload: numbe
  * stats bar button so that there is exactly ONE popup for unit info.
  */
 function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => void }) {
-  const { unitName, unitDesc, statAbbr, tagLabel } = useText();
+  const { unitName, unitDesc, statAbbr, tagLabel, techName } = useText();
   const [tagPopup, setTagPopup] = useState<UnitTag | null>(null);
   const gameState = useGameStore((s) => s);
 
@@ -1984,7 +1983,7 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
       if (!gameState.techNodes[def.id]?.unlocked) continue;
       for (const effect of def.effects) {
         if (effect.type === 'UNIT_STAT_MOD' && effect.unitType === unit.type && effect.mode === 'add') {
-          mods.push({ stat: statAbbr(effect.stat), value: effect.value, kind: 'applied', source: `${def.name} (tech)` });
+          mods.push({ stat: statAbbr(effect.stat), value: effect.value, kind: 'applied', source: `${techName(def.id)} (tech)` });
         }
       }
     }
@@ -2135,7 +2134,7 @@ function SelectedUnitPanel({
   captureTarget?: Building;
   onCapture?: () => void;
 }) {
-  const { unitName, buildingName, statAbbr } = useText();
+  const { unitName, buildingName, statAbbr, spellName, spellDesc, spellTargetHint } = useText();
   const isPlayer = unit.faction === Faction.PLAYER;
   const gameState = useGameStore((s) => s);
   const hpPct = (unit.stats.currentHp / unit.stats.maxHp) * 100;
@@ -2392,10 +2391,10 @@ function SelectedUnitPanel({
   // Cast-mode focused view: replaces the unit panel while the mage is casting a spell
   if (isInSpellCastMode && pendingSpellCast) {
     const spellDef = SPELL_DEFINITIONS[pendingSpellCast.spellId];
-    const hintText =
-      spellDef?.targetHintSecondPick && pendingTransposeFirstUnitId
-        ? spellDef.targetHintSecondPick
-        : spellDef?.targetHint ?? 'Select a target.';
+    const hintText = spellTargetHint(
+      pendingSpellCast.spellId,
+      Boolean(pendingTransposeFirstUnitId),
+    );
     return (
       <div className="hud-info-panel hud-spell-cast-panel">
         <div className="hud-panel-header">
@@ -2405,7 +2404,7 @@ function SelectedUnitPanel({
             onClick={() => setCastModeInfoSpellId(pendingSpellCast.spellId)}
             title="View spell info"
           >
-            Casting {spellDef?.name ?? 'spell'}
+            Casting {spellName(pendingSpellCast.spellId)}
             <span className="info-badge" aria-hidden="true">i</span>
           </button>
         </div>
@@ -2596,9 +2595,9 @@ function SelectedUnitPanel({
                         className="hud-spell-btn"
                         disabled={!canCast}
                         onClick={() => startSpellCast(unit.id, spellId)}
-                        title={`${def?.description ?? ''} (costs 💎${MAGE.SPELL_CAST_CRYSTAL_COST})`}
+                        title={`${spellDesc(spellId)} (costs 💎${MAGE.SPELL_CAST_CRYSTAL_COST})`}
                       >
-                        <span className="hud-spell-btn-label">{def ? `${def.emoji} ${def.name}` : spellId}</span>
+                        <span className="hud-spell-btn-label">{def ? `${def.emoji} ${spellName(spellId)}` : spellId}</span>
                         <span className="hud-spell-btn-cost">💎{MAGE.SPELL_CAST_CRYSTAL_COST}</span>
                       </button>
                     );
@@ -2610,9 +2609,9 @@ function SelectedUnitPanel({
                           className="hud-spell-btn"
                           disabled={!canCast || crystalTowerBlocked}
                           onClick={() => setConfirmCrystalTower(true)}
-                          title={`${SPELL_DEFINITIONS[SpellId.CRYSTAL_TOWER]?.description ?? ''} (costs 💎${MAGE.SPELL_CAST_CRYSTAL_COST})`}
+                          title={`${spellDesc(SpellId.CRYSTAL_TOWER)} (costs 💎${MAGE.SPELL_CAST_CRYSTAL_COST})`}
                         >
-                          <span className="hud-spell-btn-label">{SPELL_DEFINITIONS[SpellId.CRYSTAL_TOWER] ? `${SPELL_DEFINITIONS[SpellId.CRYSTAL_TOWER].emoji} ${SPELL_DEFINITIONS[SpellId.CRYSTAL_TOWER].name}` : SpellId.CRYSTAL_TOWER}</span>
+                          <span className="hud-spell-btn-label">{SPELL_DEFINITIONS[SpellId.CRYSTAL_TOWER] ? `${SPELL_DEFINITIONS[SpellId.CRYSTAL_TOWER].emoji} ${spellName(SpellId.CRYSTAL_TOWER)}` : SpellId.CRYSTAL_TOWER}</span>
                           <span className="hud-spell-btn-cost">💎{MAGE.SPELL_CAST_CRYSTAL_COST}</span>
                         </button>
                       ) : (
@@ -3966,6 +3965,8 @@ function SpecialistUpkeepLine({ iron, wood, isDormant }: { iron: number; wood: n
 
 /** Specialist info popup — shown when clicking a filled specialist slot in the top bar, or in swap view */
 function SpecialistInfoPopup({ specialist, onClose, onDismiss }: { specialist: Specialist; onClose: () => void; onDismiss?: () => void }) {
+  const { specialistName, specialistDesc } = useText();
+  const name = specialistName(specialist.id);
   const iron = specialist.upkeepIron ?? 0;
   const wood = specialist.upkeepWood ?? 0;
   const isDormant = !!specialist.dormant;
@@ -3974,15 +3975,15 @@ function SpecialistInfoPopup({ specialist, onClose, onDismiss }: { specialist: S
   return (
     <Popup onClose={onClose}>
       <div className="specialist-info-header">
-        <span className="specialist-info-name">🧙 {specialist.name}</span>
+        <span className="specialist-info-name">🧙 {name}</span>
         {isDormant && <span className="specialist-info-dormant"> ⚠️ Inactive</span>}
       </div>
-      <p className="info-popup-desc">{specialist.description}</p>
+      <p className="info-popup-desc">{specialistDesc(specialist.id)}</p>
       <SpecialistUpkeepLine iron={iron} wood={wood} isDormant={isDormant} />
       {confirmingDismiss && onDismiss ? (
         <div className="specialist-dismiss-confirm">
           <p className="specialist-dismiss-confirm-text">
-            Dismiss <strong>{specialist.name}</strong> permanently? Their effects will stop immediately, their slot becomes free, and they cannot be recovered.
+            Dismiss <strong>{name}</strong> permanently? Their effects will stop immediately, their slot becomes free, and they cannot be recovered.
           </p>
           <div className="specialist-dismiss-confirm-actions">
             <button className="info-popup-btn info-popup-btn--danger" onClick={onDismiss}>Confirm Dismiss</button>
@@ -4002,6 +4003,7 @@ function SpecialistInfoPopup({ specialist, onClose, onDismiss }: { specialist: S
 }
 
 function MarketPanel() {
+  const { specialistName, specialistDesc } = useText();
   const open = useMarketPanelStore((s) => s.open);
   const marketId = useMarketPanelStore((s) => s.marketId);
   const unitId = useMarketPanelStore((s) => s.unitId);
@@ -4076,8 +4078,8 @@ function MarketPanel() {
             </div>
             {incomingSpec && (
               <div className="market-panel-specialist-incoming">
-                <span className="market-panel-specialist-name">🧙 {incomingSpec.name}</span>
-                <p className="market-panel-specialist-desc">{incomingSpec.description}</p>
+                <span className="market-panel-specialist-name">🧙 {specialistName(incomingSpec.id)}</span>
+                <p className="market-panel-specialist-desc">{specialistDesc(incomingSpec.id)}</p>
                 <span className="market-panel-specialist-cost">Cost: 💎{MARKET.SPECIALIST_PRICE_CRYSTAL}</span>
               </div>
             )}
@@ -4089,7 +4091,7 @@ function MarketPanel() {
               if (!spec) return null;
               return (
                 <div key={specId} className="market-panel-swap-row">
-                  <span className="market-panel-specialist-name">🧙 {spec.name}</span>
+                  <span className="market-panel-specialist-name">🧙 {specialistName(spec.id)}</span>
                   <button
                     className="market-panel-btn market-panel-btn--buy"
                     disabled={arcaneCrystals < MARKET.SPECIALIST_PRICE_CRYSTAL}
@@ -4151,8 +4153,8 @@ function MarketPanel() {
           return specDef ? (
             <div key={i} className="market-panel-offer-row">
               <div className="market-panel-specialist-info">
-                <span className="market-panel-specialist-name">🧙 {specDef.name}</span>
-                <p className="market-panel-specialist-desc">{specDef.description}</p>
+                <span className="market-panel-specialist-name">🧙 {specialistName(specDef.id)}</span>
+                <p className="market-panel-specialist-desc">{specialistDesc(specDef.id)}</p>
               </div>
               <button
                 className="market-panel-btn market-panel-btn--buy"
@@ -4203,6 +4205,7 @@ function MarketPanel() {
 }
 
 function CaveMonsterKillModal() {
+  const { specialistName, specialistDesc } = useText();
   const mode = useSpecialistHireStore((s) => s.mode);
   const specialistId = useSpecialistHireStore((s) => s.specialistId);
   const resolveReward = useSpecialistHireStore((s) => s.resolveReward);
@@ -4252,8 +4255,8 @@ function CaveMonsterKillModal() {
               </em>
             </p>
             <div className="cave-kill-specialist-card">
-              <span className="cave-kill-specialist-name">🧙 {incomingSpecialist.name}</span>
-              <p className="cave-kill-specialist-desc">{incomingSpecialist.description}</p>
+              <span className="cave-kill-specialist-name">🧙 {specialistName(incomingSpecialist.id)}</span>
+              <p className="cave-kill-specialist-desc">{specialistDesc(incomingSpecialist.id)}</p>
               <SpecialistUpkeepLine iron={incomingSpecialist.upkeepIron ?? 0} wood={incomingSpecialist.upkeepWood ?? 0} />
             </div>
           </div>
@@ -4286,8 +4289,8 @@ function CaveMonsterKillModal() {
           <div className="cave-kill-body">
             <div className="cave-kill-swap-incoming-label">Incoming Survivor</div>
             <div className="cave-kill-specialist-card cave-kill-specialist-card--incoming">
-              <span className="cave-kill-specialist-name">🧙 {incomingSpecialist.name}</span>
-              <p className="cave-kill-specialist-desc">{incomingSpecialist.description}</p>
+              <span className="cave-kill-specialist-name">🧙 {specialistName(incomingSpecialist.id)}</span>
+              <p className="cave-kill-specialist-desc">{specialistDesc(incomingSpecialist.id)}</p>
               <SpecialistUpkeepLine iron={incomingSpecialist.upkeepIron ?? 0} wood={incomingSpecialist.upkeepWood ?? 0} />
             </div>
             <div className="cave-kill-swap-divider">
@@ -4304,8 +4307,8 @@ function CaveMonsterKillModal() {
                     onClick={() => setInfoSpecId(specId)}
                     title="View details"
                   >
-                    <span className="cave-kill-specialist-name">🧙 {spec.name}</span>
-                    <p className="cave-kill-specialist-desc">{spec.description}</p>
+                    <span className="cave-kill-specialist-name">🧙 {specialistName(spec.id)}</span>
+                    <p className="cave-kill-specialist-desc">{specialistDesc(spec.id)}</p>
                     <span className="cave-kill-swap-info-hint">ℹ Details</span>
                   </button>
                   <button
@@ -4485,7 +4488,7 @@ function nodeCentre(id: string): { x: number; y: number } {
 // ============================================================================
 
 function TechTreeOverlay({ onClose, focusId }: { onClose: () => void; focusId: TechId | null }) {
-  const { unitName, buildingName, tagLabel } = useText();
+  const { unitName, buildingName, techName, techDesc, techEffectText, spellName } = useText();
   const techNodes = useGameStore((s) => s.techNodes);
   const arcaneCrystals = useGameStore((s) => s.arcaneCrystals);
   const ember = useGameStore((s) => s.ember);
@@ -4525,10 +4528,7 @@ function TechTreeOverlay({ onClose, focusId }: { onClose: () => void; focusId: T
     if (!selectedDef) return [];
     return selectedDef.requires
       .filter((reqId) => !techNodes[reqId]?.unlocked)
-      .map((reqId) => {
-        const def = TECH_TREE.find((d) => d.id === reqId);
-        return def?.name ?? reqId;
-      });
+      .map((reqId) => techName(reqId));
   }, [selectedDef, techNodes]);
 
   const handleResearch = useCallback(() => {
@@ -4640,7 +4640,7 @@ function TechTreeOverlay({ onClose, focusId }: { onClose: () => void; focusId: T
                   setSelectedId(def.id);
                 }}
               >
-                <span className="tech-node-name">{def.name}</span>
+                <span className="tech-node-name">{techName(def.id)}</span>
                 {isAvailable && <span className="tech-node-cost">💎 {computeResearchCost(def.cost ?? 1, ember)}</span>}
               </div>
             );
@@ -4653,7 +4653,7 @@ function TechTreeOverlay({ onClose, focusId }: { onClose: () => void; focusId: T
         {selectedDef && (
           <>
             <div className="tech-detail-title">
-              {selectedDef.name}
+              {techName(selectedDef.id)}
               {selectedState === 'unlocked' && <span className="tech-detail-label"> (completed)</span>}
               {selectedState === 'locked' && <span className="tech-detail-label"> (locked)</span>}
             </div>
@@ -4664,7 +4664,7 @@ function TechTreeOverlay({ onClose, focusId }: { onClose: () => void; focusId: T
             {selectedState === 'locked' && unmetPrereqs.length > 0 && (
               <p className="tech-detail-text">Requires: {unmetPrereqs.join(', ')}</p>
             )}
-            <p className="tech-detail-text">{selectedDef.description}</p>
+            <p className="tech-detail-text">{techDesc(selectedDef.id)}</p>
 
             <div className="tech-detail-effects">
               {selectedDef.effects.map((e, i) => {
@@ -4687,12 +4687,10 @@ function TechTreeOverlay({ onClose, focusId }: { onClose: () => void; focusId: T
                   );
                 }
                 if (e.type === TechEffectType.GRANT_UNIT_TAG) {
-                  const localizedTagLabel = tagLabel(e.tag);
-                  const unitLabel = unitName(e.unitType);
                   return (
                     <button key={i} className="tech-effect-tile" onClick={() => setInfoUnitTag(e.tag)}>
                       <span className="tech-effect-tile-emoji">{TAG_EMOJI[e.tag] ?? '✦'}</span>
-                      <span className="tech-effect-tile-name">{unitLabel} gains {localizedTagLabel}</span>
+                      <span className="tech-effect-tile-name">{techEffectText(e)}</span>
                       <span className="info-badge">i</span>
                     </button>
                   );
@@ -4702,13 +4700,13 @@ function TechTreeOverlay({ onClose, focusId }: { onClose: () => void; focusId: T
                   return (
                     <button key={i} className="tech-effect-tile" onClick={() => setInfoSpellId(e.spellId)}>
                       <span className="tech-effect-tile-emoji">{def?.emoji ?? '✨'}</span>
-                      <span className="tech-effect-tile-name">{def?.name ?? e.spellId}</span>
+                      <span className="tech-effect-tile-name">{spellName(e.spellId)}</span>
                       <span className="info-badge">i</span>
                     </button>
                   );
                 }
                 return (
-                  <span key={i} className="tech-detail-effect-chip">{renderEffect(e)}</span>
+                  <span key={i} className="tech-detail-effect-chip">{techEffectText(e)}</span>
                 );
               })}
             </div>

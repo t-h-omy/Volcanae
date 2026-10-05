@@ -3,7 +3,7 @@
  * Implements resource production, recruitment, and unit spawning.
  */
 
-import type { GameState, Building, Position, Tile, UnitPopulationCost } from './types';
+import type { GameState, Building, Position, Tile, UnitPopulationCost, TechId } from './types';
 import type { Draft } from 'immer';
 import { Faction, BuildingType, UnitType, UnitTag, ResourceType, TechFlag } from './types';
 import { RESOURCES, ABILITIES, UNIT_DEFINITIONS, POPULATION, CRYSTAL_CHAMBER_CONFIG, BUILDING_DEFINITIONS, TECH_TREE, MAGE } from './gameConfig';
@@ -11,6 +11,7 @@ import type { UnitCost } from './gameConfig';
 import { getGrantedTags, getStatMods, getBuildingProductionMods, getFlatIncomeMods, grantArcaneCrystals, getStrongholdEffectiveCap, getRemovedTags, getCostMods } from './techSystem';
 import { getTagsFromActiveSpecialists, isSpecialistEffectActive, getTagsFromActiveSpecialistsForSourceTag, getActiveEffectParams } from './specialistSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
+import { specialistName, techName } from './i18n/entityText';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -540,16 +541,16 @@ export function computeResourceIncomeBreakdown(
 ): ResourceIncomeEntry[] {
   const entries: ResourceIncomeEntry[] = [];
 
-  // Pre-build a map from "buildingType|resource|amount|chance" → tech name so
+  // Pre-build a map from "buildingType|resource|amount|chance" → tech ID so
   // attribution is O(techs × effects) once instead of per-building.
-  const modKeyToTechName = new Map<string, string>();
+  const modKeyToTechId = new Map<string, TechId>();
   for (const t of TECH_TREE) {
     if (!state.techNodes[t.id]?.unlocked) continue;
     for (const e of t.effects) {
       if (e.type === 'BUILDING_PRODUCTION_MOD') {
         const key = `${e.buildingType}|${e.resource}|${e.amount}|${e.chancePercent}`;
         if (!modKeyToTechName.has(key)) {
-          modKeyToTechName.set(key, t.name);
+          modKeyToTechId.set(key, t.id);
         }
       }
     }
@@ -561,8 +562,8 @@ export function computeResourceIncomeBreakdown(
   let woodcutterCount = 0;
   // Count total additive kiln bonus increments across all player mines.
   let kilnBonusIncrementCount = 0;
-  const techIron: Record<string, number> = {};
-  const techWood: Record<string, number> = {};
+  const techIron = new Map<TechId, number>();
+  const techWood = new Map<TechId, number>();
 
   for (const building of Object.values(state.buildings)) {
     if (building.faction !== Faction.PLAYER) continue;
@@ -581,11 +582,12 @@ export function computeResourceIncomeBreakdown(
     for (const mod of getBuildingProductionMods(state, building.type)) {
       const expected = mod.amount * (mod.chancePercent / 100);
       const key = `${building.type}|${mod.resource}|${mod.amount}|${mod.chancePercent}`;
-      const techName = modKeyToTechName.get(key) ?? 'Tech bonus';
+      const techId = modKeyToTechId.get(key);
+      if (!techId) continue;
       if (mod.resource === ResourceType.IRON) {
-        techIron[techName] = (techIron[techName] ?? 0) + expected;
+        techIron.set(techId, (techIron.get(techId) ?? 0) + expected);
       } else if (mod.resource === ResourceType.WOOD) {
-        techWood[techName] = (techWood[techName] ?? 0) + expected;
+        techWood.set(techId, (techWood.get(techId) ?? 0) + expected);
       }
     }
   }
@@ -621,38 +623,39 @@ export function computeResourceIncomeBreakdown(
   }
 
   // Tech-attributed building production bonuses
-  const techNames = new Set([...Object.keys(techIron), ...Object.keys(techWood)]);
-  for (const name of techNames) {
-    const iron = techIron[name] ?? 0;
-    const wood = techWood[name] ?? 0;
-    entries.push({ label: name, iron, wood });
+  const techIds = new Set([...techIron.keys(), ...techWood.keys()]);
+  for (const id of techIds) {
+    const iron = techIron.get(id) ?? 0;
+    const wood = techWood.get(id) ?? 0;
+    entries.push({ label: techName(id), iron, wood });
   }
 
-  // Flat income mods — build a map of tech name → iron/wood for breakdown display
+  // Flat income mods — build a map of tech IDs → iron/wood for breakdown display
   const playerBuildingTypesForBreakdown = getActivePlayerBuildingTypes(state);
-  const flatTechName = new Map<string, string>();
+  const flatTechId = new Map<string, TechId>();
   for (const t of TECH_TREE) {
     if (!state.techNodes[t.id]?.unlocked) continue;
     for (const e of t.effects) {
       if (e.type === 'FLAT_INCOME_MOD') {
-        flatTechName.set(`${e.resource}|${e.amount}|${e.requiresBuilding}`, t.name);
+        flatTechId.set(`${e.resource}|${e.amount}|${e.requiresBuilding}`, t.id);
       }
     }
   }
-  const flatIron: Record<string, number> = {};
-  const flatWood: Record<string, number> = {};
+  const flatIron = new Map<TechId, number>();
+  const flatWood = new Map<TechId, number>();
   for (const mod of getFlatIncomeMods(state)) {
     if (!playerBuildingTypesForBreakdown.has(mod.requiresBuilding)) continue;
-    const name = flatTechName.get(`${mod.resource}|${mod.amount}|${mod.requiresBuilding}`) ?? 'Tech bonus';
+    const techId = flatTechId.get(`${mod.resource}|${mod.amount}|${mod.requiresBuilding}`);
+    if (!techId) continue;
     if (mod.resource === ResourceType.IRON) {
-      flatIron[name] = (flatIron[name] ?? 0) + mod.amount;
+      flatIron.set(techId, (flatIron.get(techId) ?? 0) + mod.amount);
     } else if (mod.resource === ResourceType.WOOD) {
-      flatWood[name] = (flatWood[name] ?? 0) + mod.amount;
+      flatWood.set(techId, (flatWood.get(techId) ?? 0) + mod.amount);
     }
   }
-  const flatNames = new Set([...Object.keys(flatIron), ...Object.keys(flatWood)]);
-  for (const name of flatNames) {
-    entries.push({ label: name, iron: flatIron[name] ?? 0, wood: flatWood[name] ?? 0 });
+  const flatTechIds = new Set([...flatIron.keys(), ...flatWood.keys()]);
+  for (const id of flatTechIds) {
+    entries.push({ label: techName(id), iron: flatIron.get(id) ?? 0, wood: flatWood.get(id) ?? 0 });
   }
 
   // Specialist upkeep (negative modifiers)
@@ -663,7 +666,7 @@ export function computeResourceIncomeBreakdown(
     const wood = spec.upkeepWood ?? 0;
     if (iron > 0 || wood > 0) {
       entries.push({
-        label: `${spec.name} (upkeep)`,
+        label: `${specialistName(spec.id)} (upkeep)`,
         iron: -iron,
         wood: -wood,
       });
