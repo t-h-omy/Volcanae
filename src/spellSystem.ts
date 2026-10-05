@@ -26,6 +26,9 @@ import { applyTagStatEffects } from './techSystem';
 import { cleanupRoostedUnits } from './buildingRemoval';
 import { getTagsFromActiveSpecialistsForSourceTag } from './specialistSystem';
 import { canUnitOccupyTerrain } from './movementSystem';
+import type { TextRef } from './i18n/i18n';
+import { t } from './i18n/i18n';
+import { spellName } from './i18n/entityText';
 
 /** Returns the effective spell range for a mage (its attack range). */
 export function getMageSpellRange(
@@ -115,15 +118,15 @@ export function isTileInSpellRange(
   );
 }
 
-const SPELL_TARGET_REASONS = {
-  TRANSPOSE_SECOND_PICK_FACTION: 'Faction must match first unit',
-  TRANSPOSE_TERRAIN: 'Cannot transpose: unit cannot occupy that terrain.',
-  BRANDMARK_ALREADY_BRANDMARKED: 'Already brandmarked',
-  BRANDMARK_SUMMONED: 'Summoned units cannot be brandmarked',
-  BRANDMARK_SELF: 'Cannot cast on itself',
-  EXPLODE_MAGE: 'This unit type cannot explode',
-  FROSTCRAFT_TERRAIN: 'Cannot freeze this terrain',
-  OCCUPIED: 'Occupied',
+const SPELL_TARGET_REASONS: Record<string, TextRef> = {
+  TRANSPOSE_SECOND_PICK_FACTION: { key: 'reason.spell.transposeSecondPickFaction' },
+  TRANSPOSE_TERRAIN: { key: 'reason.spell.transposeTerrain' },
+  BRANDMARK_ALREADY_BRANDMARKED: { key: 'reason.spell.brandmarkAlreadyBrandmarked' },
+  BRANDMARK_SUMMONED: { key: 'reason.spell.brandmarkSummoned' },
+  BRANDMARK_SELF: { key: 'reason.spell.brandmarkSelf' },
+  EXPLODE_MAGE: { key: 'reason.spell.explodeMage' },
+  FROSTCRAFT_TERRAIN: { key: 'reason.spell.frostcraftTerrain' },
+  OCCUPIED: { key: 'reason.spell.occupied' },
 } as const;
 
 /**
@@ -344,7 +347,7 @@ export function explainInvalidSpellTarget(
   mageId: string,
   spellId: SpellId,
   pos: Position,
-): string | null {
+): TextRef | null {
   const mage = state.units[mageId];
   if (!mage) return null;
   const tile = state.grid[pos.y]?.[pos.x];
@@ -499,8 +502,9 @@ function handleTranspose(
   state.pendingTransposeFirstUnitId = null;
 
   const { addFloater } = useFloaterStore.getState();
-  addFloater({ value: 0, label: '🔄 Transpose', x: posA.x, y: posA.y, isEnemy: false, floaterType: 'revive' });
-  addFloater({ value: 0, label: '🔄 Transpose', x: posB.x, y: posB.y, isEnemy: false, floaterType: 'revive' });
+  const transposeLabel = `🔄 ${spellName('TRANSPOSE')}`;
+  addFloater({ value: 0, label: transposeLabel, x: posA.x, y: posA.y, isEnemy: false, floaterType: 'revive' });
+  addFloater({ value: 0, label: transposeLabel, x: posB.x, y: posB.y, isEnemy: false, floaterType: 'revive' });
 
   return true;
 }
@@ -590,7 +594,7 @@ function handleEmberbind(
 
   useFloaterStore.getState().addFloater({
     value: 0,
-    label: '🔥 Bound!',
+    label: `🔥 ${t('floater.bound')}`,
     x: spawnPos.x,
     y: spawnPos.y,
     isEnemy: false,
@@ -625,7 +629,7 @@ function handleBrandmarkHeal(
 
   useFloaterStore.getState().addFloater({
     value: 0,
-    label: '🩸 Brandmarked',
+    label: `🩸 ${t('floater.brandmarked')}`,
     x: targetPosition.x,
     y: targetPosition.y,
     isEnemy: false,
@@ -706,7 +710,7 @@ function handleCrystalTower(
 
   useFloaterStore.getState().addFloater({
     value: 0,
-    label: '💎 Crystal Tower',
+    label: `💎 ${spellName('CRYSTAL_TOWER')}`,
     x,
     y,
     isEnemy: false,
@@ -799,7 +803,7 @@ function handleCrystalCave(
 
   useFloaterStore.getState().addFloater({
     value: 0,
-    label: '🕳️ Crystal Cave',
+    label: `🕳️ ${spellName('CRYSTAL_CAVE')}`,
     x,
     y,
     isEnemy: false,
@@ -868,7 +872,7 @@ function handleRaiseSkeleton(
 
   useFloaterStore.getState().addFloater({
     value: 0,
-    label: '💀 Raised',
+    label: `💀 ${t('floater.raised')}`,
     x: targetPosition.x,
     y: targetPosition.y,
     isEnemy: false,
@@ -933,7 +937,7 @@ function handleGraveTrap(
 
   useFloaterStore.getState().addFloater({
     value: 0,
-    label: '☠️ Trapped',
+    label: `☠️ ${t('floater.trapped')}`,
     x: targetPosition.x,
     y: targetPosition.y,
     isEnemy: false,
@@ -958,7 +962,7 @@ function handleFrostcraft(
 
   useFloaterStore.getState().addFloater({
     value: 0,
-    label: '❄️ Frozen',
+    label: `❄️ ${t('floater.frozen')}`,
     x: targetPosition.x,
     y: targetPosition.y,
     isEnemy: false,

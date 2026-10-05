@@ -1194,7 +1194,7 @@ function ResourceInfoPopup({
   current: number;
   onClose: () => void;
 }) {
-  const { resourceName } = useText();
+  const { resourceName, t } = useText();
   // Use stable Immer references as memo dependencies so that the selectors
   // passed to useSyncExternalStore (Zustand v5) always return the same
   // reference between consecutive snapshot calls, preventing the
@@ -1308,7 +1308,7 @@ function ResourceInfoPopup({
           const amount = isIron ? e.iron : e.wood;
           return (
             <div key={i} className={`resource-popup-row${amount < 0 ? ' resource-popup-row--negative' : ''}`}>
-              <span className="resource-popup-row-label">{e.label}</span>
+              <span className="resource-popup-row-label">{t(e.label)}</span>
               <span className="resource-popup-row-value">{fmt(amount)}</span>
             </div>
           );
@@ -1333,7 +1333,7 @@ function PopulationInfoPopup({
   populationType: 'farmers' | 'nobles';
   onClose: () => void;
 }) {
-  const { populationName, unitName } = useText();
+  const { populationName, unitName, t } = useText();
   // Use stable Immer references as memo dependencies to avoid invariant violation
   const buildings = useGameStore((s) => s.buildings);
   const units = useGameStore((s) => s.units);
@@ -1371,7 +1371,7 @@ function PopulationInfoPopup({
       ) : (
         capacityRows.map((e, i) => (
           <div key={i} className="resource-popup-row">
-            <span className="resource-popup-row-label">{e.label}</span>
+            <span className="resource-popup-row-label">{t(e.label)}</span>
             <span className="resource-popup-row-value">{isFarmers ? e.farmers : e.nobles}</span>
           </div>
         ))
@@ -1842,7 +1842,7 @@ function getReloadDefensePenalty(unit: Unit, effectiveDefenseBeforeReload: numbe
  * stats bar button so that there is exactly ONE popup for unit info.
  */
 function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => void }) {
-  const { unitName, unitDesc, statAbbr, tagLabel, techName } = useText();
+  const { unitName, unitDesc, statAbbr, tagLabel, techName, t } = useText();
   const [tagPopup, setTagPopup] = useState<UnitTag | null>(null);
   const gameState = useGameStore((s) => s);
 
@@ -2043,7 +2043,7 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
                   <div key={i} className="hud-stat-detail-row">
                     <span className="hud-stat-detail-stat">{m.stat}</span>
                     <span className="hud-stat-detail-value hud-stat-bonus">{m.displayValue ?? `+${m.value}`}</span>
-                    <span className="hud-stat-detail-source">{m.source}{m.kind === 'applied' ? ' ✓' : ''}</span>
+                    <span className="hud-stat-detail-source">{t(m.source)}{m.kind === 'applied' ? ' ✓' : ''}</span>
                   </div>
                 ))}
               </div>
@@ -2055,7 +2055,7 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
                   <div key={i} className="hud-stat-detail-row">
                     <span className="hud-stat-detail-stat">{m.stat}</span>
                     <span className="hud-stat-detail-value hud-stat-penalty">{m.displayValue ?? m.value}</span>
-                    <span className="hud-stat-detail-source">{m.source}{m.kind === 'applied' ? ' ✓' : ''}</span>
+                    <span className="hud-stat-detail-source">{t(m.source)}{m.kind === 'applied' ? ' ✓' : ''}</span>
                   </div>
                 ))}
               </div>
@@ -2068,7 +2068,7 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
                     <span className="hud-stat-detail-stat">{effect.stat}</span>
                     <span className="hud-stat-detail-value hud-stat-bonus">{effect.displayValue}</span>
                     <span className="hud-stat-detail-source">
-                      {effect.source} <span className="hud-stat-detail-condition">({effect.condition})</span>
+                      {t(effect.source)} <span className="hud-stat-detail-condition">({effect.condition ? t(effect.condition) : ''})</span>
                     </span>
                   </div>
                 ))}
@@ -3069,7 +3069,7 @@ function SelectedTilePanel({ tile }: { tile: Tile }) {
 // ============================================================================
 
 function SelectedBuildingPanel({ building }: { building: Building }) {
-  const { buildingName, unitName, populationName } = useText();
+  const { buildingName, unitName, populationName, t } = useText();
   const resources = useGameStore((s) => s.resources);
   const grid = useGameStore((s) => s.grid);
   const gameState = useGameStore((s) => s);
@@ -3481,7 +3481,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
                     building.type === BuildingType.CRYSTAL_CAVE,
                     recruitedUnits,
                     unitLimit,
-                    buildingName(building.type),
+                    building.type,
                   );
                 })();
                 return (
@@ -3510,13 +3510,13 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
                       </span>
                     )}
                     {resourceWarningMsg && (
-                      <span className="hud-pop-warning">{resourceWarningMsg}</span>
+                      <span className="hud-pop-warning">{t(resourceWarningMsg)}</span>
                     )}
                     {popWarningMsg && (
-                      <span className="hud-pop-warning">{popWarningMsg}</span>
+                      <span className="hud-pop-warning">{t(popWarningMsg)}</span>
                     )}
                     {capWarningMsg && (
-                      <span className="hud-pop-warning">{capWarningMsg}</span>
+                      <span className="hud-pop-warning">{t(capWarningMsg)}</span>
                     )}
                   </div>
                 );

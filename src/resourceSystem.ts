@@ -4,6 +4,7 @@
  */
 
 import type { GameState, Building, Position, Tile, UnitPopulationCost, TechId } from './types';
+import type { TextRef } from './i18n/i18n';
 import type { Draft } from 'immer';
 import { Faction, BuildingType, UnitType, UnitTag, ResourceType, TechFlag } from './types';
 import { RESOURCES, ABILITIES, UNIT_DEFINITIONS, POPULATION, CRYSTAL_CHAMBER_CONFIG, BUILDING_DEFINITIONS, TECH_TREE, MAGE } from './gameConfig';
@@ -11,7 +12,7 @@ import type { UnitCost } from './gameConfig';
 import { getGrantedTags, getStatMods, getBuildingProductionMods, getFlatIncomeMods, grantArcaneCrystals, getStrongholdEffectiveCap, getRemovedTags, getCostMods } from './techSystem';
 import { getTagsFromActiveSpecialists, isSpecialistEffectActive, getTagsFromActiveSpecialistsForSourceTag, getActiveEffectParams } from './specialistSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
-import { specialistName, techName } from './i18n/entityText';
+import { buildingNameRef, specialistNameRef, techNameRef } from './i18n/entityText';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -520,8 +521,8 @@ export function computeResourceIncome(
 
 /** A single line in the resource income breakdown */
 export interface ResourceIncomeEntry {
-  /** Human-readable source label */
-  label: string;
+  /** Localizable source label */
+  label: TextRef;
   /** Iron amount (positive = income, negative = cost) */
   iron: number;
   /** Wood amount (positive = income, negative = cost) */
@@ -543,7 +544,7 @@ export function computeResourceIncomeBreakdown(
 
   // Pre-build a map from "buildingType|resource|amount|chance" → tech ID so
   // attribution is O(techs × effects) once instead of per-building.
-  const modKeyToTechId = new Map<string, TechId>();
+  const modKeyToTechId = new Map<string, TechId | 'techBonus'>();
   for (const t of TECH_TREE) {
     if (!state.techNodes[t.id]?.unlocked) continue;
     for (const e of t.effects) {
@@ -562,8 +563,8 @@ export function computeResourceIncomeBreakdown(
   let woodcutterCount = 0;
   // Count total additive kiln bonus increments across all player mines.
   let kilnBonusIncrementCount = 0;
-  const techIron = new Map<TechId, number>();
-  const techWood = new Map<TechId, number>();
+  const techIron = new Map<TechId | 'techBonus', number>();
+  const techWood = new Map<TechId | 'techBonus', number>();
 
   for (const building of Object.values(state.buildings)) {
     if (building.faction !== Faction.PLAYER) continue;
@@ -582,8 +583,7 @@ export function computeResourceIncomeBreakdown(
     for (const mod of getBuildingProductionMods(state, building.type)) {
       const expected = mod.amount * (mod.chancePercent / 100);
       const key = `${building.type}|${mod.resource}|${mod.amount}|${mod.chancePercent}`;
-      const techId = modKeyToTechId.get(key);
-      if (!techId) continue;
+      const techId = modKeyToTechId.get(key) ?? 'techBonus';
       if (mod.resource === ResourceType.IRON) {
         techIron.set(techId, (techIron.get(techId) ?? 0) + expected);
       } else if (mod.resource === ResourceType.WOOD) {
@@ -594,14 +594,14 @@ export function computeResourceIncomeBreakdown(
 
   if (mineCount > 0) {
     entries.push({
-      label: `Mine ×${mineCount}`,
+      label: { key: 'breakdown.buildingCount', params: { building: buildingNameRef(BuildingType.MINE), count: mineCount } },
       iron: mineCount * RESOURCES.MINE_IRON_PER_TURN,
       wood: 0,
     });
   }
   if (deepMineCount > 0) {
     entries.push({
-      label: `Deep Mine ×${deepMineCount}`,
+      label: { key: 'breakdown.buildingCount', params: { building: buildingNameRef(BuildingType.DEEP_MINE), count: deepMineCount } },
       iron: deepMineCount * RESOURCES.DEEP_MINE_IRON_PER_TURN,
       wood: 0,
     });
@@ -609,14 +609,14 @@ export function computeResourceIncomeBreakdown(
   // Charcoal Kiln bonus — one line for all additive increments combined.
   if (kilnBonusIncrementCount > 0) {
     entries.push({
-      label: `Charcoal Kiln bonus ×${kilnBonusIncrementCount}`,
+      label: { key: 'breakdown.kilnBonus', params: { building: buildingNameRef(BuildingType.CHARCOAL_KILN), count: kilnBonusIncrementCount } },
       iron: kilnBonusIncrementCount * getKilnIronBonusPerKiln(state),
       wood: 0,
     });
   }
   if (woodcutterCount > 0) {
     entries.push({
-      label: `Woodcutter ×${woodcutterCount}`,
+      label: { key: 'breakdown.buildingCount', params: { building: buildingNameRef(BuildingType.WOODCUTTER), count: woodcutterCount } },
       iron: 0,
       wood: woodcutterCount * RESOURCES.WOODCUTTER_WOOD_PER_TURN,
     });
@@ -627,12 +627,18 @@ export function computeResourceIncomeBreakdown(
   for (const id of techIds) {
     const iron = techIron.get(id) ?? 0;
     const wood = techWood.get(id) ?? 0;
-    entries.push({ label: techName(id), iron, wood });
+    entries.push({
+      label: id === 'techBonus'
+        ? { key: 'breakdown.techBonus' }
+        : { key: 'breakdown.tech', params: { tech: techNameRef(id) } },
+      iron,
+      wood,
+    });
   }
 
   // Flat income mods — build a map of tech IDs → iron/wood for breakdown display
   const playerBuildingTypesForBreakdown = getActivePlayerBuildingTypes(state);
-  const flatTechId = new Map<string, TechId>();
+  const flatTechId = new Map<string, TechId | 'techBonus'>();
   for (const t of TECH_TREE) {
     if (!state.techNodes[t.id]?.unlocked) continue;
     for (const e of t.effects) {
@@ -641,12 +647,11 @@ export function computeResourceIncomeBreakdown(
       }
     }
   }
-  const flatIron = new Map<TechId, number>();
-  const flatWood = new Map<TechId, number>();
+  const flatIron = new Map<TechId | 'techBonus', number>();
+  const flatWood = new Map<TechId | 'techBonus', number>();
   for (const mod of getFlatIncomeMods(state)) {
     if (!playerBuildingTypesForBreakdown.has(mod.requiresBuilding)) continue;
-    const techId = flatTechId.get(`${mod.resource}|${mod.amount}|${mod.requiresBuilding}`);
-    if (!techId) continue;
+    const techId = flatTechId.get(`${mod.resource}|${mod.amount}|${mod.requiresBuilding}`) ?? 'techBonus';
     if (mod.resource === ResourceType.IRON) {
       flatIron.set(techId, (flatIron.get(techId) ?? 0) + mod.amount);
     } else if (mod.resource === ResourceType.WOOD) {
@@ -655,7 +660,13 @@ export function computeResourceIncomeBreakdown(
   }
   const flatTechIds = new Set([...flatIron.keys(), ...flatWood.keys()]);
   for (const id of flatTechIds) {
-    entries.push({ label: techName(id), iron: flatIron.get(id) ?? 0, wood: flatWood.get(id) ?? 0 });
+    entries.push({
+      label: id === 'techBonus'
+        ? { key: 'breakdown.techBonus' }
+        : { key: 'breakdown.tech', params: { tech: techNameRef(id) } },
+      iron: flatIron.get(id) ?? 0,
+      wood: flatWood.get(id) ?? 0,
+    });
   }
 
   // Specialist upkeep (negative modifiers)
@@ -666,7 +677,7 @@ export function computeResourceIncomeBreakdown(
     const wood = spec.upkeepWood ?? 0;
     if (iron > 0 || wood > 0) {
       entries.push({
-        label: `${specialistName(spec.id)} (upkeep)`,
+        label: { key: 'breakdown.specialistUpkeep', params: { name: specialistNameRef(spec.id) } },
         iron: -iron,
         wood: -wood,
       });
@@ -692,12 +703,8 @@ export function computeResourceIncomeBreakdown(
     const count = buildingUpkeepCount[buildingType] ?? 0;
     const iron = buildingUpkeepIron[buildingType] ?? 0;
     const wood = buildingUpkeepWood[buildingType] ?? 0;
-    const label = buildingType
-      .split('_')
-      .map((word) => word.charAt(0) + word.slice(1).toLowerCase())
-      .join(' ');
     entries.push({
-      label: `${label} ×${count} (upkeep)`,
+      label: { key: 'breakdown.buildingUpkeep', params: { building: buildingNameRef(buildingType), count } },
       iron: -iron,
       wood: -wood,
     });
@@ -879,8 +886,8 @@ export function computePopulationUsage(
 
 /** A single entry in the capacity or usage breakdown for the population popup. */
 export interface PopulationBreakdownEntry {
-  /** Human-readable source label */
-  label: string;
+  /** Localizable source label */
+  label: TextRef;
   /** Farmer contribution (positive integer) */
   farmers: number;
   /** Noble contribution (positive integer) */
@@ -946,14 +953,14 @@ export function computePopulationBreakdown(
 
   if (farmCount > 0) {
     capacityEntries.push({
-      label: `Farm ×${farmCount}`,
+      label: { key: 'breakdown.buildingCount', params: { building: buildingNameRef(BuildingType.FARM), count: farmCount } },
       farmers: farmFarmerCap,
       nobles: 0,
     });
   }
   if (houseCount > 0) {
     capacityEntries.push({
-      label: `Patrician House ×${houseCount}`,
+      label: { key: 'breakdown.buildingCount', params: { building: buildingNameRef(BuildingType.PATRICIANHOUSE), count: houseCount } },
       farmers: 0,
       nobles: houseNobleCap,
     });
@@ -961,7 +968,15 @@ export function computePopulationBreakdown(
   if (strongholdCount > 0) {
     const { farmerCap, nobleCap } = getStrongholdEffectiveCapWithDoctrines(state);
     capacityEntries.push({
-      label: `Stronghold ×${strongholdCount} (max ${farmerCap}🌾 / ${nobleCap}🎖️ each)`,
+      label: {
+        key: 'breakdown.strongholdCap',
+        params: {
+          building: buildingNameRef(BuildingType.STRONGHOLD),
+          count: strongholdCount,
+          farmers: farmerCap,
+          nobles: nobleCap,
+        },
+      },
       farmers: strongholdFarmerCap,
       nobles: strongholdNobleCap,
     });

@@ -11,7 +11,8 @@ import { pseudoLocalize } from './pseudo';
 import en from './locales/en.json';
 
 export type TextKey = keyof typeof en;
-export type TextParams = { [name: string]: string | number };
+export type TextParam = string | number | TextRef;
+export type TextParams = { [name: string]: TextParam };
 export type TextRef = { key: TextKey; params?: TextParams };
 
 export function isTextRef(value: unknown): value is TextRef {
@@ -61,8 +62,13 @@ export function formatMessage(
   const sourceLocale = locale === PSEUDO_LOCALE ? DEFAULT_LOCALE : locale;
   const targetMessage = catalogFor(sourceLocale)?.[key];
   const englishMessage = catalogFor(DEFAULT_LOCALE)?.[key] ?? en[key];
+  const resolveParams = (values: TextParams | undefined): Record<string, string | number> =>
+    Object.fromEntries(Object.entries(values ?? {}).map(([name, value]) => [
+      name,
+      isTextRef(value) ? formatMessage(locale, value.key, value.params, catalogFor) : value,
+    ]));
   const format = (message: string, formatLocale: string) =>
-    String(getFormatter(formatLocale, key, message).format(params ?? {}));
+    String(getFormatter(formatLocale, key, message).format(resolveParams(params)));
   let result: string;
   if (targetMessage !== undefined) {
     try {

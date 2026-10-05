@@ -1,7 +1,19 @@
 import type { BuildingType, Difficulty, ResourceType, SpellId, TechEffect, TechFlag, TechId, TerrainTag, UnitStats, UnitTag, UnitType } from '../types';
 import { BUILDING_DEFINITIONS, SPELL_DEFINITIONS, SPECIALIST_DEFINITIONS, TAG_INFO, TECH_TREE, TERRAIN_TAG_INFO, UNIT_DEFINITIONS } from '../gameConfig';
 import { HINT_DEFINITIONS, type HintId } from '../../config/hints';
-import { formatSigned, t, type TextKey, type TextParams } from './i18n';
+import { formatSigned, t, type TextKey, type TextParams, type TextRef } from './i18n';
+
+export function buildingNameRef(type: BuildingType): TextRef {
+  return { key: `building.${type}.name` as TextKey };
+}
+
+export function techNameRef(id: TechId): TextRef {
+  return { key: `tech.${id}.name` as TextKey };
+}
+
+export function specialistNameRef(id: string): TextRef {
+  return { key: `specialist.${id}.name` as TextKey };
+}
 
 export function unitName(type: UnitType): string {
   return t(`unit.${type}.name`);

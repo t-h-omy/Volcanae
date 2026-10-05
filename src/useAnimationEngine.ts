@@ -13,6 +13,7 @@ import { useZoneClearedStore } from './zoneClearedStore';
 import { useSpecialistHireStore } from './specialistHireStore';
 import type { CaveSpecialistRewardOutcome } from './specialistHireStore';
 import { useFloaterStore } from './floaterStore';
+import { t } from './i18n/i18n';
 import { ANIMATION } from '../config/animation';
 import { MAP, MAGE } from './gameConfig';
 import { RENDER } from '../config/render';
@@ -1761,7 +1762,7 @@ export function useAnimationEngine(): void {
             });
             useFloaterStore.getState().addFloater({
               value: 0,
-              label: '⚠️ Defected!',
+              label: `⚠️ ${t('floater.defected')}`,
               x: event.demonPos.x,
               y: event.demonPos.y,
               isEnemy: true,

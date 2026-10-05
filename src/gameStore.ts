@@ -71,6 +71,8 @@ import { flushDeferredHints, tryTriggerHint } from './hintSystem';
 import { triggerEmberLevelUpVfx } from './emberLevelVfx';
 import { useEmberDisplayStore } from './emberDisplayStore';
 import { useDevOptionsStore } from './devOptionsStore';
+import { t } from './i18n/i18n';
+import { resourceName } from './i18n/entityText';
 import { appendChunk, deleteTurnsAfter, getTraceIndexSeed, readMeta as readAiTraceMeta, sealRun } from './aiTraceStore';
 
 // ============================================================================
@@ -1442,7 +1444,7 @@ export const useGameStore = create<GameStore>()(
         const { addFloater } = useFloaterStore.getState();
         addFloater({
           value: 0,
-          label: '✨ Revived!',
+          label: `✨ ${t('floater.revived')}`,
           x: building.position.x,
           y: building.position.y,
           isEnemy: false,
@@ -1523,7 +1525,7 @@ export const useGameStore = create<GameStore>()(
         const { addFloater } = useFloaterStore.getState();
         addFloater({
           value: 0,
-          label: '🗿 Raised',
+          label: `🗿 ${t('floater.raised')}`,
           x: building.position.x,
           y: building.position.y,
           isEnemy: false,
@@ -1565,7 +1567,7 @@ export const useGameStore = create<GameStore>()(
           // Show "Risen" floater for the player-turn tick brandmark death path
           useFloaterStore.getState().addFloater({
             value: 0,
-            label: '😈 Risen',
+            label: `😈 ${t('floater.risen')}`,
             x: position.x,
             y: position.y,
             isEnemy: true,
@@ -1671,7 +1673,7 @@ export const useGameStore = create<GameStore>()(
 
         useFloaterStore.getState().addFloater({
           value: 0,
-          label: '🌉 Bridge built',
+          label: `🌉 ${t('floater.bridgeBuilt')}`,
           x: canyonPos.x,
           y: canyonPos.y,
           isEnemy: false,
@@ -1776,7 +1778,7 @@ export const useGameStore = create<GameStore>()(
 
         useFloaterStore.getState().addFloater({
           value: 0,
-          label: '🪤 Trap set',
+          label: `🪤 ${t('floater.trapSet')}`,
           x,
           y,
           isEnemy: false,
@@ -1819,7 +1821,7 @@ export const useGameStore = create<GameStore>()(
 
         useFloaterStore.getState().addFloater({
           value: 0,
-          label: '🔥 Extinguished',
+          label: `🔥 ${t('floater.extinguished')}`,
           x,
           y,
           isEnemy: false,
@@ -2750,7 +2752,7 @@ export const useGameStore = create<GameStore>()(
               if (isBrandmarked) {
                 useFloaterStore.getState().addFloater({
                   value: 0,
-                  label: '😈 Risen',
+                  label: `😈 ${t('floater.risen')}`,
                   x: unit.position.x,
                   y: unit.position.y,
                   isEnemy: true,
@@ -3196,12 +3198,11 @@ export const useGameStore = create<GameStore>()(
             // Notification floater on the sanctum tile
             let label: string;
             if (event.lavaAdvanceBonus > 0) {
-              label = `Infernal Sanctum destroyed! Lava advance delayed by +${event.lavaAdvanceBonus}`;
+              label = `🌋 ${t('popup.infernalSanctumDestroyed', { turns: event.lavaAdvanceBonus })}`;
             } else {
-              label = `🌋 Zone ${event.zone} purged!`;
-              if (event.spawnFreezeUntilTurn > state.turn) {
-                label += ` · Spawns frozen (${event.spawnFreezeUntilTurn - state.turn}t)`;
-              }
+              label = event.spawnFreezeUntilTurn > state.turn
+                ? `🌋 ${t('popup.zonePurgedSpawnsFrozen', { zone: event.zone, turns: event.spawnFreezeUntilTurn - state.turn })}`
+                : `🌋 ${t('popup.zonePurged', { zone: event.zone })}`;
             }
             useFloaterStore.getState().addFloater({
               label,
@@ -3254,7 +3255,7 @@ export const useGameStore = create<GameStore>()(
             // State was already mutated in enemySystem — this is presentation-only.
             if (event.source !== 'TURN_INTERVAL' && event.position) {
               useFloaterStore.getState().addFloater({
-                label: `+${event.amount} Ember Level`,
+                label: t('floater.emberLevel', { amount: event.amount }),
                 value: 0,
                 x: event.position.x,
                 y: event.position.y,
@@ -3422,7 +3423,7 @@ export const useGameStore = create<GameStore>()(
             // Emit a stun floater at the affected tile.
             useFloaterStore.getState().addFloater({
               value: 0,
-              label: '💫 Stunned',
+              label: `💫 ${t('floater.stunned')}`,
               x: event.position.x,
               y: event.position.y,
               isEnemy: true,
@@ -3856,7 +3857,7 @@ export const useGameStore = create<GameStore>()(
         // Visual feedback
         useFloaterStore.getState().addFloater({
           value: gain.amount,
-          label: `🪙 +${gain.amount} ${gain.currency.toLowerCase()}`,
+          label: `🪙 ${t('floater.marketGain', { amount: gain.amount, resource: resourceName(gain.currency) })}`,
           x: unit.position.x,
           y: unit.position.y,
           isEnemy: false,
@@ -3896,7 +3897,7 @@ export const useGameStore = create<GameStore>()(
 
           useFloaterStore.getState().addFloater({
             value: 0,
-            label: `💎 Hired`,
+            label: `💎 ${t('floater.hired')}`,
             x: unit.position.x,
             y: unit.position.y,
             isEnemy: false,
@@ -3930,7 +3931,7 @@ export const useGameStore = create<GameStore>()(
 
           useFloaterStore.getState().addFloater({
             value: 0,
-            label: `💎 Swapped`,
+            label: `💎 ${t('floater.swapped')}`,
             x: unit.position.x,
             y: unit.position.y,
             isEnemy: false,
