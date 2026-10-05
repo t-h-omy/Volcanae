@@ -573,7 +573,7 @@
   "hud.options.soundVolume": "Volume audio",
   "hud.options.title": "Opzioni",
   "hud.options.unmute": "Riattiva",
-  "hud.options.volume": "Volume",
+  "hud.options.volume": "Audio",
   "hud.populationInfo.capacitySources": "Fonti di capienza",
   "hud.populationInfo.noCapacitySources": "Nessuna fonte di capienza",
   "hud.populationInfo.noUnitsUsingPopulation": "Nessuna unità usa questa popolazione: {population}",

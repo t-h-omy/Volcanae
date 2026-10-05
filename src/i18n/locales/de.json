@@ -610,7 +610,7 @@
   "hud.tagPopup.disabledByCorruption": "Durch Verderbnis deaktiviert",
   "hud.topBar.ember": "Glut",
   "hud.topBar.emberCounter": "Glut {amount}",
-  "hud.topBar.lavaCounter": "Lava in {turns}",
+  "hud.topBar.lavaCounter": "Lava rückt in {turns} vor",
   "hud.topBar.techTree": "Techbaum",
   "tag.BURN.label": "Brand",
   "tag.HIT_AND_RUN.label": "Treffer & Lauf",

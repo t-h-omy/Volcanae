@@ -161,19 +161,20 @@
     "sameAsSource": ["fr"]
   },
   "common.back": { "maxLen": 6 },
-  "common.castCost": { "maxLen": 22 },
   "common.close": { "maxLen": 7 },
   "common.construct": { "maxLen": 13 },
   "common.done": { "maxLen": 6 },
   "common.less": { "maxLen": 6 },
   "common.more": { "maxLen": 6 },
   "common.off": { "maxLen": 5 },
-  "common.ok": { "maxLen": 3 },
+  "common.ok": {
+    "maxLen": 3,
+    "sameAsSource": ["de"]
+  },
   "common.on": { "maxLen": 3 },
   "common.reset": { "maxLen": 7 },
   "hud.gameMenu.clearSave": { "maxLen": 14 },
   "hud.gameMenu.devOptions": { "maxLen": 15 },
-  "hud.gameMenu.difficulty": { "maxLen": 34 },
   "hud.gameMenu.menu": { "maxLen": 13 },
   "hud.gameMenu.newGame": { "maxLen": 11 },
   "hud.gameMenu.resetCacheReload": { "maxLen": 27 },
@@ -184,9 +185,15 @@
   "hud.options.title": { "maxLen": 10 },
   "hud.options.unmute": { "maxLen": 9 },
   "hud.topBar.ember": { "maxLen": 7 },
-  "hud.topBar.emberCounter": { "maxLen": 19 },
-  "hud.topBar.lavaCounter": { "maxLen": 21 },
   "hud.topBar.techTree": { "maxLen": 13 },
+  "hud.emberInfo.total": {
+    "note": "Total is the same word in these locales.",
+    "sameAsSource": ["fr", "es", "pt-BR"]
+  },
+  "hud.statSource.tag": {
+    "note": "Tag is the established French term in the game's interface.",
+    "sameAsSource": ["fr"]
+  },
   "tag.ALERT.label": { "maxLen": 7 },
   "tag.BATTERY.label": { "maxLen": 10 },
   "tag.BLOCK.label": { "maxLen": 7 },
