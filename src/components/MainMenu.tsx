@@ -26,18 +26,13 @@ import {
 import type { SaveSlotMeta } from '../saveSystem';
 import { SAVE } from '../gameConfig';
 import { Difficulty } from '../types';
+import { useText } from '../i18n/useText';
 import { MENU_TRACK } from '../musicSystem';
 import './MainMenu.css';
 
 // ============================================================================
 // DIFFICULTY LABELS & DESCRIPTIONS
 // ============================================================================
-
-const DIFFICULTY_LABEL: Record<Difficulty, string> = {
-  [Difficulty.EASY]: 'Easy',
-  [Difficulty.STANDARD]: 'Standard',
-  [Difficulty.HARD]: 'Hard',
-};
 
 const DIFFICULTY_DESC: Record<Difficulty, string> = {
   [Difficulty.EASY]: 'Gentler heat. Reduced enemy pressure and slower lava advancement — good for learning the front.',
@@ -507,12 +502,12 @@ function NewPanel() {
                   className={`mm-seg-btn${selectedDifficulty === d ? ' mm-seg-btn--active' : ''}`}
                   onClick={() => setSelectedDifficulty(d)}
                 >
-                  {DIFFICULTY_LABEL[d]}
+                  {difficultyLabel(d)}
                 </button>
               ))}
             </div>
             <div className="mm-diff-card">
-              <div className="mm-diff-card-name">{DIFFICULTY_LABEL[selectedDifficulty]}</div>
+              <div className="mm-diff-card-name">{difficultyLabel(selectedDifficulty)}</div>
               <div className="mm-diff-card-desc">{DIFFICULTY_DESC[selectedDifficulty]}</div>
             </div>
           </div>
@@ -640,7 +635,7 @@ function LoadPanel() {
               const rowVariant = !compatible ? 'incompatible' : isFirst ? 'active' : 'normal';
               const iconColorClass = `mm-slot-icon--${rowVariant}`;
               const metaColorClass = `mm-slot-meta--${rowVariant}`;
-              const metaLine = `TURN ${meta.turn} · ${DIFFICULTY_LABEL[meta.difficulty].toUpperCase()} · ${formatRelativeTime(meta.savedAt).toUpperCase()}`;
+              const metaLine = `TURN ${meta.turn} · ${difficultyLabel(meta.difficulty).toUpperCase()} · ${formatRelativeTime(meta.savedAt).toUpperCase()}`;
 
               return (
                 <div key={meta.id} className={`mm-slot-row mm-slot-row--${rowVariant}`}>
@@ -740,6 +735,7 @@ function OptionsPanel({
   isInstalled: boolean;
   promptInstall: () => void;
 }) {
+  const { difficultyLabel } = useText();
   const goPanel = useMenuStore((s) => s.goPanel);
   const navDir = useMenuStore((s) => s.navDir);
   const volume = useSoundOptionsStore((s) => s.volume);

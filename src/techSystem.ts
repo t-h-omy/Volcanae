@@ -8,6 +8,7 @@ import type { Draft } from 'immer';
 import type { GameState, TechId, TechEffect, UnitStats, StatModifier, Unit } from './types';
 import { Faction, TechFlag, BuildingType, UnitTag } from './types';
 import { TECH_TREE, ABILITIES, TAG_STAT_EFFECTS, computeResearchCost, POPULATION, MAGE, SPELL_DEFINITIONS } from './gameConfig';
+import { buildingName } from './i18n/entityText';
 
 // ============================================================================
 // PICK GRANTS
@@ -420,36 +421,8 @@ const flagDescriptions: Record<TechFlag, string> = {
   [TechFlag.GRAVE_HARVEST]: `Each player-owned Gravestone has a ${MAGE.GRAVE_HARVEST_CRYSTAL_CHANCE}% chance per turn to grant 1 crystal`,
 };
 
-const buildingDisplayNames: Record<BuildingType, string> = {
-  [BuildingType.STRONGHOLD]: 'Stronghold',
-  [BuildingType.MINE]: 'Mine',
-  [BuildingType.DEEP_MINE]: 'Deep Mine',
-  [BuildingType.WOODCUTTER]: 'Woodcutter',
-  [BuildingType.CHARCOAL_KILN]: 'Charcoal Kiln',
-  [BuildingType.BARRACKS]: 'Barracks',
-  [BuildingType.ARCHER_CAMP]: 'Archer Camp',
-  [BuildingType.RIDER_CAMP]: 'Rider Camp',
-  [BuildingType.SIEGE_CAMP]: 'Siege Camp',
-  [BuildingType.WATCHTOWER]: 'Watchtower',
-  [BuildingType.OUTPOST]: 'Outpost',
-  [BuildingType.LAVALAIR]: 'Lava Lair',
-  [BuildingType.INFERNALSANCTUM]: 'Infernal Sanctum',
-  [BuildingType.FARM]: 'Farm',
-  [BuildingType.PATRICIANHOUSE]: 'Patrician House',
-  [BuildingType.MAGMASPYR]: 'Magma Spyr',
-  [BuildingType.EMBERNEST]: 'Ember Nest',
-  [BuildingType.CRYSTAL_CHAMBER]: 'Crystal Chamber',
-  [BuildingType.CRYSTAL_TOWER]: 'Crystal Tower',
-  [BuildingType.CRYSTAL_CAVE]: 'Crystal Cave',
-  [BuildingType.GRAVESTONE]: 'Gravestone',
-  [BuildingType.GRAVE_TRAP]: 'Grave Trap',
-  [BuildingType.MARKET]: 'Market',
-  [BuildingType.BRIDGE]: 'Bridge',
-  [BuildingType.SCOUT_TRAP]: 'Scout Trap',
-};
-
 function renderUnlockedBuilding(buildingType: BuildingType): string {
-  const name = buildingDisplayNames[buildingType] ?? buildingType;
+  const name = buildingName(buildingType);
   if (buildingType === BuildingType.CRYSTAL_TOWER) {
     return `Unlocks ${name} erection via spell`;
   }

@@ -90,6 +90,7 @@ import { exportAiTrace, formatAiTraceBytes } from '../aiTraceExportClient';
 import type { AiTraceMeta } from '../aiTrace';
 import { AiTraceBadge } from './AiTraceBadge';
 import { AiTraceExportControls } from './AiTraceExportControls';
+import { useText } from '../i18n/useText';
 import './HUD.css';
 
 // ============================================================================
@@ -118,28 +119,6 @@ const UNIT_EMOJI: Record<string, string> = {
   [UnitType.CRYSTAL_DRAKE]: '🐲',
 };
 
-const UNIT_NAME: Record<string, string> = {
-  [UnitType.SPEARMAN]: 'Spearman',
-  [UnitType.SWORDSMAN]: 'Swordsman',
-  [UnitType.ARCHER]: 'Archer',
-  [UnitType.CROSSBOWMAN]: 'Crossbowman',
-  [UnitType.RIDER]: 'Rider',
-  [UnitType.SIEGE]: 'Siege',
-  [UnitType.SCOUT]: 'Scout',
-  [UnitType.GUARD]: 'Guard',
-  [UnitType.LAVA_GRUNT]: 'Lava Grunt',
-  [UnitType.LAVA_ARCHER]: 'Lava Archer',
-  [UnitType.LAVA_RIDER]: 'Lava Rider',
-  [UnitType.LAVA_SIEGE]: 'Lava Siege',
-  [UnitType.EMBERLING]: 'Emberling',
-  [UnitType.CAVE_MONSTER]: 'Cave Monster',
-  [UnitType.MAGE]: 'Mage',
-  [UnitType.EMBER_DEMON]: 'Ember Demon',
-  [UnitType.SKELETON]: 'Skeleton',
-  [UnitType.GARGOYLE]: 'Gargoyle',
-  [UnitType.CRYSTAL_DRAKE]: 'Crystal Drake',
-};
-
 const BUILDING_EMOJI: Record<string, string> = {
   [BuildingType.STRONGHOLD]: '🏰',
   [BuildingType.MINE]: '🏔️',
@@ -165,34 +144,6 @@ const BUILDING_EMOJI: Record<string, string> = {
   [BuildingType.GRAVE_TRAP]: '☠️',
   [BuildingType.BRIDGE]: '🌉',
   [BuildingType.SCOUT_TRAP]: '🪤',
-};
-
-const BUILDING_NAME: Record<string, string> = {
-  [BuildingType.STRONGHOLD]: 'Stronghold',
-  [BuildingType.MINE]: 'Mine',
-  [BuildingType.DEEP_MINE]: 'Deep Mine',
-  [BuildingType.WOODCUTTER]: 'Woodcutter',
-  [BuildingType.CHARCOAL_KILN]: 'Charcoal Kiln',
-  [BuildingType.BARRACKS]: 'Barracks',
-  [BuildingType.ARCHER_CAMP]: 'Archer Camp',
-  [BuildingType.RIDER_CAMP]: 'Rider Camp',
-  [BuildingType.SIEGE_CAMP]: 'Siege Camp',
-  [BuildingType.WATCHTOWER]: 'Watchtower',
-  [BuildingType.OUTPOST]: 'Outpost',
-  [BuildingType.LAVALAIR]: 'Lava Lair',
-  [BuildingType.INFERNALSANCTUM]: 'Infernal Sanctum',
-  [BuildingType.FARM]: 'Farm',
-  [BuildingType.PATRICIANHOUSE]: 'Patrician House',
-  [BuildingType.MAGMASPYR]: 'Magma Spyr',
-  [BuildingType.EMBERNEST]: 'Ember Nest',
-  [BuildingType.CRYSTAL_CHAMBER]: 'Crystal Chamber',
-  [BuildingType.CRYSTAL_TOWER]: 'Crystal Tower',
-  [BuildingType.CRYSTAL_CAVE]: 'Crystal Cave',
-  [BuildingType.GRAVESTONE]: 'Gravestone',
-  [BuildingType.GRAVE_TRAP]: 'Grave Trap',
-  [BuildingType.MARKET]: 'Market',
-  [BuildingType.BRIDGE]: 'Bridge',
-  [BuildingType.SCOUT_TRAP]: 'Scout Trap',
 };
 
 const TAG_EMOJI: Partial<Record<UnitTag, string>> = {
@@ -504,6 +455,7 @@ const ENEMY_RECRUITMENT_TYPES = new Set<BuildingType>([
 
 /* eslint-disable no-restricted-syntax */
 function DevStatsOverlay({ onClose }: { onClose: () => void }) {
+  const { unitName } = useText();
   const buildings = useGameStore((s) => s.buildings);
   const enemyUnitsSpawnedLastTurn = useGameStore((s) => s.enemyUnitsSpawnedLastTurn);
   const activeWaveTheme = useGameStore((s) => s.activeWaveTheme);
@@ -518,7 +470,7 @@ function DevStatsOverlay({ onClose }: { onClose: () => void }) {
   const currentThemeLabel = activeWaveTheme.isReadPlayer ? 'Current theme (read player)' : 'Current theme';
   const currentThemeValue = activeWaveTheme.entries.length > 0
     ? activeWaveTheme.entries
-      .map((entry) => `${UNIT_NAME[entry.type] ?? entry.type} ${entry.percent}%`)
+      .map((entry) => `${unitName(entry.type)} ${entry.percent}%`)
       .join(', ')
     : 'None';
 
@@ -638,12 +590,6 @@ function DevSpecPickerOverlay({
 // DIFFICULTY OVERLAY
 // ============================================================================
 
-const DIFFICULTY_LABEL: Record<Difficulty, string> = {
-  [Difficulty.EASY]: '🟢 Easy',
-  [Difficulty.STANDARD]: '🟡 Standard',
-  [Difficulty.HARD]: '🔴 Hard',
-};
-
 const DIFFICULTY_DESC: Record<Difficulty, string> = {
   [Difficulty.EASY]: `Enemies are weaker (×${DIFFICULTY_MULTIPLIER[Difficulty.EASY]}). Lava advances every ${getLavaAdvanceInterval(Difficulty.EASY)} turns.`,
   [Difficulty.STANDARD]: `Enemies are at full strength. Lava advances every ${getLavaAdvanceInterval(Difficulty.STANDARD)} turns.`,
@@ -659,6 +605,7 @@ function DifficultyOverlay({
   onSelect: (d: Difficulty) => void;
   onClose: () => void;
 }) {
+  const { difficultyLabel } = useText();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -681,7 +628,7 @@ function DifficultyOverlay({
               className={`hud-difficulty-btn${currentDifficulty === d ? ' hud-difficulty-btn--active' : ''}`}
               onClick={() => onSelect(d)}
             >
-              <span className="hud-difficulty-btn-label">{DIFFICULTY_LABEL[d]}</span>
+              <span className="hud-difficulty-btn-label">{difficultyLabel(d)}</span>
               <span className="hud-difficulty-btn-desc">{DIFFICULTY_DESC[d]}</span>
             </button>
           ))}

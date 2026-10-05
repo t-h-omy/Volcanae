@@ -51,7 +51,6 @@ export type EnemyConstructableBuilding =
 export interface ConstructionOption {
   buildingType: BuildingType;
   cost: { iron: number; wood: number };
-  label: string;
   emoji: string;
 }
 
@@ -81,21 +80,6 @@ const BUILDING_COST: Record<ConstructableBuilding, { iron: number; wood: number 
   [BuildingType.CRYSTAL_CHAMBER]:BUILDING_DEFINITIONS.CRYSTAL_CHAMBER.constructionCost,
 };
 
-const BUILDING_LABEL: Record<ConstructableBuilding, string> = {
-  [BuildingType.WOODCUTTER]:     'Woodcutter',
-  [BuildingType.CHARCOAL_KILN]:  'Charcoal Kiln',
-  [BuildingType.MINE]:           'Mine',
-  [BuildingType.DEEP_MINE]:      'Deep Mine',
-  [BuildingType.BARRACKS]:       'Barracks',
-  [BuildingType.ARCHER_CAMP]:    'Archer Camp',
-  [BuildingType.RIDER_CAMP]:     'Rider Camp',
-  [BuildingType.SIEGE_CAMP]:     'Siege Camp',
-  [BuildingType.FARM]:           'Farm',
-  [BuildingType.PATRICIANHOUSE]: 'Patrician House',
-  [BuildingType.STRONGHOLD]:     'Stronghold',
-  [BuildingType.CRYSTAL_CHAMBER]:'Crystal Chamber',
-};
-
 const BUILDING_EMOJI_MAP: Record<ConstructableBuilding, string> = {
   [BuildingType.WOODCUTTER]:     '🛖',
   // 🔥 evokes the charcoal-burning process inside the kiln
@@ -118,10 +102,6 @@ const BUILDING_EMOJI_MAP: Record<ConstructableBuilding, string> = {
  * player build menu). Keyed by BuildingType. Used by HUD and action-layer code
  * to show a human-readable name for these buildings.
  */
-export const ACTION_PLACED_BUILDING_LABEL: Partial<Record<BuildingType, string>> = {
-  [BuildingType.SCOUT_TRAP]: 'Scout Trap',
-};
-
 /**
  * Emoji icons for buildings that are placed by unit actions (not through the
  * player build menu). Keyed by BuildingType.
@@ -138,7 +118,6 @@ function makeOption(buildingType: ConstructableBuilding): ConstructionOption {
   return {
     buildingType,
     cost: { ...BUILDING_COST[buildingType] },
-    label: BUILDING_LABEL[buildingType],
     emoji: BUILDING_EMOJI_MAP[buildingType],
   };
 }
