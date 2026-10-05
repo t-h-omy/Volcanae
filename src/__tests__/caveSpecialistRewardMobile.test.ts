@@ -10,7 +10,7 @@ describe('cave reward modal layout and choices', () => {
     expect(modal).toContain('resolveReward({ type: \'hire\' })');
     expect(modal).toContain('resolveReward({ type: \'swap\', outgoingId: specId })');
     expect(modal.match(/resolveReward\(\{ type: 'rob' \}\)/g)).toHaveLength(2);
-    expect(modal.match(/Rob for 💎\{CAVE_SPECIALIST_ROB_REWARD_CRYSTALS\}/g)).toHaveLength(2);
+    expect(modal.match(/t\('hud\.caveKill\.rob', \{ crystals: CAVE_SPECIALIST_ROB_REWARD_CRYSTALS \}\)/g)).toHaveLength(2);
     expect(modal).toContain('onClick={closeExhausted}');
     expect(modal.indexOf('cave-kill-swap-current-row')).toBeLessThan(modal.lastIndexOf('cave-kill-actions'));
   });

@@ -259,5 +259,20 @@
   "specialist.spec_23.name": { "maxLen": 18 },
   "specialist.spec_24.name": { "maxLen": 22 },
   "specialist.spec_25.name": { "maxLen": 18 },
-  "specialist.spec_26.name": { "maxLen": 18 }
+  "specialist.spec_26.name": { "maxLen": 18 },
+  "common.cancel": { "maxLen": 10 },
+  "common.expand": { "maxLen": 10 },
+  "common.collapse": { "maxLen": 12 },
+  "hud.constructionPanel.moreIron": {
+    "note": "Secondary resource shortage text in mobile construction rows.",
+    "maxLen": 24
+  },
+  "hud.constructionPanel.moreWood": {
+    "note": "Secondary resource shortage text in mobile construction rows.",
+    "maxLen": 24
+  },
+  "hud.constructionPanel.needResources": {
+    "note": "Resource warning in a 58 px mobile construction row.",
+    "maxLen": 45
+  }
 }

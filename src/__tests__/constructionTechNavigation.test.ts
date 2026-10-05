@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import HUD_TSX from '../components/HUD.tsx?raw';
 import HUD_CSS from '../components/HUD.css?raw';
+import en from '../i18n/locales/en.json';
 
 // The existing Vitest setup has no DOM engine; assert the UI wiring and layout contract.
 const construction = HUD_TSX.slice(HUD_TSX.indexOf('function ConstructionPanel('), HUD_TSX.indexOf('function ConversionPanel('));
@@ -26,8 +27,9 @@ describe('construction research navigation UI contract', () => {
 
   it('keeps locked rows clickable, labels their navigation, and hides the info affordance', () => {
     expect(construction).not.toMatch(/\sdisabled=/);
-    expect(construction).toContain('Locked. Open unlock technology in Tech Tree.');
-    expect(construction).toContain("'Unlock in Tech Tree'");
+    expect(construction).toContain("t('hud.constructionPanel.lockedRowLabel'");
+    expect(en['hud.constructionPanel.lockedRowLabel']).toBe('Locked. Open unlock technology in Tech Tree.');
+    expect(construction).toContain("t('hud.constructionPanel.unlockInTechTree')");
     expect(construction).toContain('!techLocked && <span className="info-badge');
     expect(construction).toContain('hud-construction-tech-lock-badge');
   });
@@ -35,7 +37,7 @@ describe('construction research navigation UI contract', () => {
   it('shows resource shortages on both researched and locked rows even with hints disabled', () => {
     expect(construction).toContain('`${opt.cost.iron - resources.iron} more iron`');
     expect(construction).toContain('`${opt.cost.wood - resources.wood} more wood`');
-    expect(construction).toMatch(/\{!canAffordThis && \(\s*<div className="hud-pop-warning">Need \{missingResources\}/);
+    expect(construction).toContain("t('hud.constructionPanel.needResources', { resources: missingResources })");
     expect(construction).not.toContain('hintsEnabled');
   });
 

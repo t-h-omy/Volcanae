@@ -3097,7 +3097,7 @@ function SelectedTilePanel({ tile }: { tile: Tile }) {
 // ============================================================================
 
 function SelectedBuildingPanel({ building }: { building: Building }) {
-  const { buildingName, unitName, populationName, tagLabel, formatList, t } = useText();
+  const { buildingName, unitName, populationName, tagLabel, statAbbr, formatList, t } = useText();
   const resources = useGameStore((s) => s.resources);
   const grid = useGameStore((s) => s.grid);
   const gameState = useGameStore((s) => s);
@@ -3266,19 +3266,19 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
       {hasCombatStats && building.combatStats && (
         <button className="hud-unit-stats-btn" onClick={() => setBuildingStatDetailOpen(true)} aria-label={t('hud.buildingPanel.viewStatModifiers')}>
           <div className="hud-unit-stats">
-            <span className="hud-stat-label">ATK</span>
+            <span className="hud-stat-label">{statAbbr('attack')}</span>
             <span className="hud-stat-value">
               {building.combatStats.attack - garrisonAtkMod}
               {showBuildingStatMod(totalAtkMod)}
             </span>
-            <span className="hud-stat-label">DEF</span>
+            <span className="hud-stat-label">{statAbbr('defense')}</span>
             <span className="hud-stat-value">{building.combatStats.defense}</span>
-            <span className="hud-stat-label">RNG</span>
+            <span className="hud-stat-label">{statAbbr('attackRange')}</span>
             <span className="hud-stat-value">
               {building.combatStats.attackRange - garrisonRngMod}
               {showBuildingStatMod(garrisonRngMod)}
             </span>
-            <span className="hud-stat-label">VIS</span>
+            <span className="hud-stat-label">{statAbbr('discoverRadius')}</span>
             <span className="hud-stat-value">{building.discoverRadius}</span>
           </div>
           <span className="hud-unit-stats-hint" aria-hidden="true">📊</span>
@@ -3799,7 +3799,7 @@ function EndScreenAiTraceExport({ slotId }: { slotId: string }) {
 }
 
 function GameOverOverlay() {
-  const { t } = useText();
+  const { t, buildingName } = useText();
   const turn = useGameStore((s) => s.turn);
   const gameStats = useGameStore((s) => s.gameStats);
   const discardFinishedGame = useGameStore((s) => s.discardFinishedGame);
@@ -3808,9 +3808,9 @@ function GameOverOverlay() {
 
   const causeText =
     gameOverCause === 'LAVA'
-      ? t('hud.gameOver.lavaCause')
+      ? t('hud.gameOver.lavaCause', { stronghold: buildingName(BuildingType.STRONGHOLD) })
       : gameOverCause === 'ENEMY'
-      ? t('hud.gameOver.enemyCause')
+      ? t('hud.gameOver.enemyCause', { stronghold: buildingName(BuildingType.STRONGHOLD) })
       : null;
 
   const handleNewGame = useCallback(async () => {
@@ -3908,14 +3908,15 @@ function VictoryOverlay() {
 // ============================================================================
 
 function GameIntroPopup({ onDismiss }: { onDismiss: () => void }) {
-  const { t } = useText();
+  const { t, buildingName } = useText();
   return (
     <div className="hud-intro-overlay">
       <div className="hud-intro-card">
         <div className="hud-intro-icon">🌋</div>
         <p className="hud-intro-text">
           {t('hud.gameIntro.firstSentence')} {t('hud.gameIntro.secondSentence')}<br />
-          {t('hud.gameIntro.thirdSentence')} {t('hud.gameIntro.fourthSentence')}
+          {t('hud.gameIntro.thirdSentence', { sanctum: buildingName(BuildingType.INFERNALSANCTUM) })}{' '}
+          {t('hud.gameIntro.fourthSentence', { stronghold: buildingName(BuildingType.STRONGHOLD) })}
         </p>
         <button className="hud-intro-cta" onClick={onDismiss}>
           {t('hud.gameIntro.continue')}
@@ -4538,7 +4539,7 @@ function nodeCentre(id: string): { x: number; y: number } {
 // ============================================================================
 
 function TechTreeOverlay({ onClose, focusId }: { onClose: () => void; focusId: TechId | null }) {
-  const { unitName, buildingName, techName, techDesc, techEffectText, spellName, formatList, t } = useText();
+  const { unitName, buildingName, techName, techDesc, techEffectText, spellName, formatList, toLocaleUpper, t } = useText();
   const techNodes = useGameStore((s) => s.techNodes);
   const arcaneCrystals = useGameStore((s) => s.arcaneCrystals);
   const ember = useGameStore((s) => s.ember);
@@ -4782,7 +4783,7 @@ function TechTreeOverlay({ onClose, focusId }: { onClose: () => void; focusId: T
                 className="tech-detail-btn tech-detail-btn--secondary"
                 onClick={() => setSelectedId(null)}
               >
-                {t('common.back').toLocaleUpperCase()}
+                {toLocaleUpper(t('common.back'))}
               </button>
             </div>
           </>

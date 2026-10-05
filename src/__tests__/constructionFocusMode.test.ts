@@ -65,7 +65,7 @@ describe('mobile construction focus UI contract', () => {
     expect(construction).toContain('info-row-emoji');
     expect(construction).toContain('{buildingName(opt.buildingType)}');
     expect(construction).toContain('info-row-cost');
-    expect(construction).toContain('Need {missingResources}');
+    expect(construction).toContain("t('hud.constructionPanel.needResources', { resources: missingResources })");
     expect(construction).toContain('hud-construction-tech-lock-badge');
     expect(conversion).toContain('const [collapsed, setCollapsed] = useState(true)');
     expect(conversion).not.toContain('hud-construction-option');
