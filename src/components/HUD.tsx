@@ -1080,7 +1080,7 @@ function TopBar({
         <button className="hud-stat hud-stat--clickable" onClick={() => setPopulationPopup('farmers')}>🌾 {farmersUsed}/{farmerCapacity}</button>
         <button className="hud-stat hud-stat--clickable" onClick={() => setPopulationPopup('nobles')}>🎖️ {noblesUsed}/{nobleCapacity}</button>
         <button className="hud-stat hud-stat--clickable" data-hud-target="ember" onClick={() => setEmberPopupOpen(true)} aria-label={t('hud.topBar.emberCounter', { amount: ember })}>🔥 {t('hud.topBar.ember')} {ember}</button>
-      <span className="hud-stat">{t('hud.topBar.lavaCounter', { turns: turnsUntilLavaAdvance })}</span>
+      <span className="hud-stat">🌋 {t('hud.topBar.lavaCounter', { turns: turnsUntilLavaAdvance })}</span>
       <button className="hud-stat hud-stat--clickable" onClick={() => setResourcePopup('crystal')}>
         💎 {arcaneCrystals}{crystalsPerTurn > 0 && <span className="hud-income">({formattedCrystalIncome})</span>}
       </button>
@@ -1202,7 +1202,7 @@ function SpellInfoPopup({ spellId, onClose }: { spellId: SpellId; onClose: () =>
         <span className="info-popup-header-emoji">{def.emoji}</span>
         <div>
           <div className="info-popup-header-name">{spellName(spellId)}</div>
-          <div className="info-popup-header-cost">{t('hud.spellInfo.castCost', { amount: MAGE.SPELL_CAST_CRYSTAL_COST })}</div>
+          <div className="info-popup-header-cost">{t('common.castCost', { amount: MAGE.SPELL_CAST_CRYSTAL_COST })}</div>
         </div>
       </div>
       <p className="info-popup-desc" style={{ marginBottom: 16 }}>{spellDesc(spellId)}</p>
@@ -1649,7 +1649,7 @@ function BuildingInfoPopup({
         <div>
           <div className="info-popup-header-name">{name}</div>
           {derivedCost && <div className="info-popup-header-cost">{t('hud.buildingInfo.buildCost', { iron: derivedCost.iron, wood: derivedCost.wood })}</div>}
-          {crystalCost !== undefined && <div className="info-popup-header-cost">{t('hud.buildingInfo.castCost', { amount: crystalCost })}</div>}
+          {crystalCost !== undefined && <div className="info-popup-header-cost">{t('common.castCost', { amount: crystalCost })}</div>}
           {hasUpkeep && <div className="info-popup-header-cost">{t('hud.buildingInfo.upkeep', { iron: upkeepIron, wood: upkeepWood })}</div>}
         </div>
       </div>
@@ -1792,7 +1792,10 @@ function BuildingStatDetailModal({ building, onClose }: { building: Building; on
     mods.push({
       stat: statAbbr('attack'),
       value: chamberBonus,
-      source: t('hud.statSource.crystalChamberLink', { count: connectedCount }),
+      source: t('hud.statSource.crystalChamberLink', {
+        building: buildingName(BuildingType.CRYSTAL_CHAMBER),
+        count: connectedCount,
+      }),
     });
   }
 

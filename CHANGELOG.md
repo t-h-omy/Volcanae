@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.114.13 - Localized HUD menus, top bar and info popups
+
+Localized HUD menus, top bar and info popups for all supported locales, added locale-aware number formatting, and prepared the language selector in in-game Options.
+
 ### v0.114.12 - Localize gameplay messages
 
 Localized recruit warnings, invalid-target reasons, floaters, popups, income and population breakdowns, and save names for all supported locales.

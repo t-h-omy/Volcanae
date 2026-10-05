@@ -1,7 +1,7 @@
 {
   "options.language": {
     "note": "Label of the language selector row in Options.",
-    "maxLen": 16
+    "maxLen": 11
   },
   "unit.REAPER.name": {
     "note": "Enemy unit name for a relentless hunter that pursues player units."
@@ -39,6 +39,7 @@
     "sameAsSource": ["de", "fr"]
   },
   "difficulty.STANDARD": {
+    "maxLen": 11,
     "sameAsSource": ["de", "fr", "it"]
   },
   "population.noble.name": {
@@ -46,52 +47,62 @@
   },
   "stat.hp": { "maxLen": 3 },
   "stat.attack": {
-    "maxLen": 3,
+    "maxLen": 5,
     "sameAsSource": ["de"]
   },
   "stat.defense": {
-    "maxLen": 3,
+    "maxLen": 5,
     "sameAsSource": ["de", "fr", "es", "pt-BR"]
   },
   "stat.moveRange": {
-    "maxLen": 3,
+    "maxLen": 5,
     "sameAsSource": ["es", "it", "pt-BR"]
   },
-  "stat.attackRange": { "maxLen": 3 },
+  "stat.attackRange": { "maxLen": 5 },
   "stat.discoverRadius": {
-    "maxLen": 3,
+    "maxLen": 5,
     "sameAsSource": ["fr", "es", "it", "pt-BR"]
   },
-  "stat.triggerRange": { "maxLen": 3 },
+  "stat.triggerRange": { "maxLen": 5 },
   "stat.movementActions": {
-    "maxLen": 3,
+    "maxLen": 5,
     "sameAsSource": ["fr"]
   },
   "tag.PHALANX.label": {
+    "maxLen": 10,
     "sameAsSource": ["de"]
   },
   "tag.ELITE.label": {
+    "maxLen": 7,
     "sameAsSource": ["de", "pt-BR"]
   },
+  "tag.EMBER_PORTAL.label": { "maxLen": 17 },
   "tag.LAVA.label": {
+    "maxLen": 6,
     "sameAsSource": ["de", "es", "it", "pt-BR"]
   },
   "tag.RAGE.label": {
+    "maxLen": 6,
     "sameAsSource": ["de", "fr"]
   },
   "tag.TUNNEL.label": {
+    "maxLen": 9,
     "sameAsSource": ["de", "fr", "it"]
   },
   "tag.ASSASSIN.label": {
+    "maxLen": 11,
     "sameAsSource": ["fr"]
   },
   "tag.DISTRACTION.label": {
+    "maxLen": 15,
     "sameAsSource": ["fr"]
   },
   "tag.SACRIFICIAL.label": {
+    "maxLen": 15,
     "sameAsSource": ["es", "pt-BR"]
   },
   "tag.BERSERK.label": {
+    "maxLen": 10,
     "sameAsSource": ["it", "pt-BR"]
   },
   "tech.CONSCRIPTION.name": {
@@ -112,6 +123,7 @@
   },
   "specialist.spec_17.name": {
     "note": "A specialist title for an artillery expert.",
+    "maxLen": 14,
     "sameAsSource": ["de", "fr"]
   },
   "tech.A_NOBLE_STEAD.name": {
@@ -121,25 +133,124 @@
     "note": "Technology that prevents ranged enemy units from counterattacking."
   },
   "specialist.spec_02.name": {
-    "note": "A coined cavalry title combining bloodshed and riding."
+    "note": "A coined cavalry title combining bloodshed and riding.",
+    "maxLen": 14
   },
   "specialist.spec_05.name": {
-    "note": "A coined title for a specialist who raises undead from gravestones."
+    "note": "A coined title for a specialist who raises undead from gravestones.",
+    "maxLen": 15
   },
   "specialist.spec_07.name": {
-    "note": "A coined craft title for the specialist who improves charcoal kilns."
+    "note": "A coined craft title for the specialist who improves charcoal kilns.",
+    "maxLen": 13
   },
   "specialist.spec_12.name": {
-    "note": "A coined cavalry title emphasizing the ability to trample and knock back enemies."
+    "note": "A coined cavalry title emphasizing the ability to trample and knock back enemies.",
+    "maxLen": 15
   },
   "specialist.spec_13.name": {
-    "note": "A coined title for the specialist who binds summoned creatures to infernal power."
+    "note": "A coined title for the specialist who binds summoned creatures to infernal power.",
+    "maxLen": 14
   },
   "specialist.spec_20.name": {
-    "note": "A coined title for an archer specialist whose units become berserk at low health."
+    "note": "A coined title for an archer specialist whose units become berserk at low health.",
+    "maxLen": 14
   },
   "statDisplay.assassin": {
     "note": "Assassin is written identically in French and English.",
     "sameAsSource": ["fr"]
-  }
+  },
+  "common.back": { "maxLen": 6 },
+  "common.castCost": { "maxLen": 22 },
+  "common.close": { "maxLen": 7 },
+  "common.construct": { "maxLen": 13 },
+  "common.done": { "maxLen": 6 },
+  "common.less": { "maxLen": 6 },
+  "common.more": { "maxLen": 6 },
+  "common.off": { "maxLen": 5 },
+  "common.ok": { "maxLen": 3 },
+  "common.on": { "maxLen": 3 },
+  "common.reset": { "maxLen": 7 },
+  "hud.gameMenu.clearSave": { "maxLen": 14 },
+  "hud.gameMenu.devOptions": { "maxLen": 15 },
+  "hud.gameMenu.difficulty": { "maxLen": 34 },
+  "hud.gameMenu.menu": { "maxLen": 13 },
+  "hud.gameMenu.newGame": { "maxLen": 11 },
+  "hud.gameMenu.resetCacheReload": { "maxLen": 27 },
+  "hud.gameMenu.saveGame": { "maxLen": 13 },
+  "hud.options.mainMenu": { "maxLen": 13 },
+  "hud.options.mute": { "maxLen": 6 },
+  "hud.options.resetHintCounters": { "maxLen": 26 },
+  "hud.options.title": { "maxLen": 10 },
+  "hud.options.unmute": { "maxLen": 9 },
+  "hud.topBar.ember": { "maxLen": 7 },
+  "hud.topBar.emberCounter": { "maxLen": 19 },
+  "hud.topBar.lavaCounter": { "maxLen": 21 },
+  "hud.topBar.techTree": { "maxLen": 13 },
+  "tag.ALERT.label": { "maxLen": 7 },
+  "tag.BATTERY.label": { "maxLen": 10 },
+  "tag.BLOCK.label": { "maxLen": 7 },
+  "tag.BLOODLUST.label": { "maxLen": 13 },
+  "tag.BRANDMARKED.label": { "maxLen": 15 },
+  "tag.BRIDGE_BUILDER.label": { "maxLen": 18 },
+  "tag.BUILDANDCAPTURE.label": { "maxLen": 21 },
+  "tag.BURN.label": { "maxLen": 6 },
+  "tag.CINDERBORN.label": { "maxLen": 14 },
+  "tag.CLEAVE.label": { "maxLen": 9 },
+  "tag.CORRUPT.label": { "maxLen": 10 },
+  "tag.CORRUPTED.label": { "maxLen": 13 },
+  "tag.COVER.label": { "maxLen": 7 },
+  "tag.EXPLOSIVE.label": { "maxLen": 13 },
+  "tag.FIELDWORK.label": { "maxLen": 13 },
+  "tag.FLYING.label": { "maxLen": 9 },
+  "tag.FORTIFIED_GARRISON.label": { "maxLen": 25 },
+  "tag.HIT_AND_RUN.label": { "maxLen": 15 },
+  "tag.HOMELESS.label": { "maxLen": 11 },
+  "tag.IRONBLOOD.label": { "maxLen": 13 },
+  "tag.KNIGHT.label": { "maxLen": 9 },
+  "tag.KNOCKBACK.label": { "maxLen": 13 },
+  "tag.LANCE_CHARGE.label": { "maxLen": 17 },
+  "tag.LEASHED.label": { "maxLen": 10 },
+  "tag.LEAVES_GRAVESTONE.label": { "maxLen": 23 },
+  "tag.NO_GRAVESTONE.label": { "maxLen": 18 },
+  "tag.OUTRIDER.label": { "maxLen": 11 },
+  "tag.PASSIVE.label": { "maxLen": 10 },
+  "tag.PATCHUP.label": { "maxLen": 11 },
+  "tag.PIERCE.label": { "maxLen": 9 },
+  "tag.PIN_DOWN.label": { "maxLen": 11 },
+  "tag.PREP.label": { "maxLen": 6 },
+  "tag.PREVENTIVE_STRIKE.label": { "maxLen": 23 },
+  "tag.PUNCTURE.label": { "maxLen": 11 },
+  "tag.RANGED.label": { "maxLen": 9 },
+  "tag.READY.label": { "maxLen": 7 },
+  "tag.RELOAD.label": { "maxLen": 9 },
+  "tag.REVIVABLE.label": { "maxLen": 13 },
+  "tag.SKIRMISHER.label": { "maxLen": 14 },
+  "tag.SPLASH.label": { "maxLen": 9 },
+  "tag.SUMMONED.label": { "maxLen": 11 },
+  "tag.UNTRAINED.label": { "maxLen": 13 },
+  "terrainTag.BURNING.label": { "maxLen": 10 },
+  "terrainTag.CORRUPTED.label": { "maxLen": 13 },
+  "terrainTag.FROZEN.label": { "maxLen": 9 },
+  "difficulty.EASY": { "maxLen": 6 },
+  "difficulty.HARD": { "maxLen": 6 },
+  "specialist.spec_01.name": { "maxLen": 25 },
+  "specialist.spec_03.name": { "maxLen": 21 },
+  "specialist.spec_04.name": { "maxLen": 19 },
+  "specialist.spec_06.name": { "maxLen": 11 },
+  "specialist.spec_08.name": { "maxLen": 13 },
+  "specialist.spec_09.name": { "maxLen": 18 },
+  "specialist.spec_10.name": { "maxLen": 18 },
+  "specialist.spec_11.name": { "maxLen": 22 },
+  "specialist.spec_14.name": { "maxLen": 18 },
+  "specialist.spec_15.name": { "maxLen": 15 },
+  "specialist.spec_16.name": { "maxLen": 14 },
+  "specialist.spec_18.name": { "maxLen": 15 },
+  "specialist.spec_19.name": { "maxLen": 15 },
+  "specialist.spec_21.name": { "maxLen": 14 },
+  "specialist.spec_22.name": { "maxLen": 17 },
+  "specialist.spec_23.name": { "maxLen": 18 },
+  "specialist.spec_24.name": { "maxLen": 22 },
+  "specialist.spec_25.name": { "maxLen": 18 },
+  "specialist.spec_26.name": { "maxLen": 18 }
 }
