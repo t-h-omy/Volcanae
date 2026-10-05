@@ -119,6 +119,12 @@ const UNIT_EMOJI: Record<string, string> = {
   [UnitType.CRYSTAL_DRAKE]: '🐲',
 };
 
+const DIFFICULTY_EMOJI: Record<Difficulty, string> = {
+  [Difficulty.EASY]: '🟢',
+  [Difficulty.STANDARD]: '🟡',
+  [Difficulty.HARD]: '🔴',
+};
+
 const BUILDING_EMOJI: Record<string, string> = {
   [BuildingType.STRONGHOLD]: '🏰',
   [BuildingType.MINE]: '🏔️',
@@ -628,7 +634,7 @@ function DifficultyOverlay({
               className={`hud-difficulty-btn${currentDifficulty === d ? ' hud-difficulty-btn--active' : ''}`}
               onClick={() => onSelect(d)}
             >
-              <span className="hud-difficulty-btn-label">{difficultyLabel(d)}</span>
+              <span className="hud-difficulty-btn-label">{DIFFICULTY_EMOJI[d]} {difficultyLabel(d)}</span>
               <span className="hud-difficulty-btn-desc">{DIFFICULTY_DESC[d]}</span>
             </button>
           ))}
@@ -889,7 +895,7 @@ function GameMenu() {
               role="menuitem"
               onClick={() => { setOpen(false); setDifficultyOverlayOpen(true); }}
             >
-              ⚔️ Difficulty ({difficultyLabel(currentDifficulty)})
+              ⚔️ Difficulty ({DIFFICULTY_EMOJI[currentDifficulty]} {difficultyLabel(currentDifficulty)})
             </button>
             <button className="hud-menu-item" role="menuitem" onClick={handleResetCache}>
               🗑️ Reset Cache &amp; Reload
@@ -1189,7 +1195,7 @@ function ResourceInfoPopup({
   current: number;
   onClose: () => void;
 }) {
-  const { resourceName, unitName } = useText();
+  const { resourceName } = useText();
   // Use stable Immer references as memo dependencies so that the selectors
   // passed to useSyncExternalStore (Zustand v5) always return the same
   // reference between consecutive snapshot calls, preventing the

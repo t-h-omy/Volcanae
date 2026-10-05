@@ -28,6 +28,7 @@ import {
 } from '../types';
 import type { GameState, Unit, Tile, Building, GameStats } from '../types';
 import type { GameEvent } from '../gameEvents';
+import { unitDesc } from '../i18n/entityText';
 
 // ── ID counter ────────────────────────────────────────────────────────────────
 
@@ -462,12 +463,13 @@ describe('Emberling normal death', () => {
   });
 
   it('describes its lava sacrifice and blocked-only EXPLODE action', () => {
-    const { description, explosionDamage } = UNIT_DEFINITIONS[UnitType.EMBERLING];
+    const def = UNIT_DEFINITIONS[UnitType.EMBERLING];
+    const description = unitDesc(UnitType.EMBERLING);
 
-    expect(description).toContain('raises Ember by 1');
+    expect(description).toContain(`raises Ember by ${def.textParams?.emberGain}`);
     expect(description).toContain('EXPLODE action');
     expect(description).toContain('blocked from reaching lava');
-    expect(description).toContain(`${explosionDamage} damage to all player units within 1 tile`);
+    expect(description).toContain(`${def.textParams?.explosionDamage} damage to all player units within 1 tile`);
   });
 
   it('does not call resolveExplosion or damage adjacent player units when killed in combat', () => {

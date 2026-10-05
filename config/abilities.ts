@@ -2,8 +2,8 @@
  * Balance-tunable constants for tag/flag-based unit and building abilities,
  * upgrade tradeoff tags, conditional active tags, and tag stat effects.
  *
- * All description strings in UNIT_DEFINITIONS, BUILDING_DEFINITIONS, TECH_TREE, and
- * TAG_INFO must reference named constants from this module (never raw numbers).
+ * Numeric values in localized entity text must come from named constants and
+ * reach catalog messages through config textParams.
  */
 
 import { UnitTag } from '../src/types';

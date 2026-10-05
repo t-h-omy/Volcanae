@@ -2,5 +2,96 @@
   "options.language": {
     "note": "Label of the language selector row in Options.",
     "maxLen": 16
+  },
+  "unit.REAPER.name": {
+    "note": "Enemy unit name for a relentless hunter that pursues player units."
+  },
+  "unit.LANCER.name": {
+    "note": "Enemy unit name for a fast cavalry unit that charges across the battlefield."
+  },
+  "unit.KINDLER.name": {
+    "note": "Enemy unit name for a fire spirit that spreads burning terrain."
+  },
+  "unit.GRIMBEAK.name": {
+    "note": "Enemy unit name for a dark, predatory bird that attacks from above.",
+    "sameAsSource": ["de", "it"]
+  },
+  "unit.RIFTWORM.name": {
+    "note": "Enemy unit name for a burrowing creature that emerges from rifts."
+  },
+  "unit.RIFT_LORD.name": {
+    "note": "Enemy unit name for the powerful ruler of the rift creatures."
+  },
+  "unit.ARCHER.name": {
+    "sameAsSource": ["fr"]
+  },
+  "unit.GARGOYLE.name": {
+    "sameAsSource": ["de", "it"]
+  },
+  "unit.MAGE.name": {
+    "sameAsSource": ["fr"]
+  },
+  "unit.BULLWARK.name": {
+    "note": "Spelling is intentional; coined name. A heavily armored enemy defender.",
+    "sameAsSource": ["de", "fr", "es", "it", "pt-BR"]
+  },
+  "building.MINE.name": {
+    "sameAsSource": ["de", "fr"]
+  },
+  "difficulty.STANDARD": {
+    "sameAsSource": ["de", "fr", "it"]
+  },
+  "population.noble.name": {
+    "sameAsSource": ["fr", "es"]
+  },
+  "stat.hp": { "maxLen": 3 },
+  "stat.attack": {
+    "maxLen": 3,
+    "sameAsSource": ["de"]
+  },
+  "stat.defense": {
+    "maxLen": 3,
+    "sameAsSource": ["de", "fr", "es", "pt-BR"]
+  },
+  "stat.moveRange": {
+    "maxLen": 3,
+    "sameAsSource": ["es", "it", "pt-BR"]
+  },
+  "stat.attackRange": { "maxLen": 3 },
+  "stat.discoverRadius": {
+    "maxLen": 3,
+    "sameAsSource": ["fr", "es", "it", "pt-BR"]
+  },
+  "stat.triggerRange": { "maxLen": 3 },
+  "stat.movementActions": {
+    "maxLen": 3,
+    "sameAsSource": ["fr"]
+  },
+  "tag.PHALANX.label": {
+    "sameAsSource": ["de"]
+  },
+  "tag.ELITE.label": {
+    "sameAsSource": ["de", "pt-BR"]
+  },
+  "tag.LAVA.label": {
+    "sameAsSource": ["de", "es", "it", "pt-BR"]
+  },
+  "tag.RAGE.label": {
+    "sameAsSource": ["de", "fr"]
+  },
+  "tag.TUNNEL.label": {
+    "sameAsSource": ["de", "fr", "it"]
+  },
+  "tag.ASSASSIN.label": {
+    "sameAsSource": ["fr"]
+  },
+  "tag.DISTRACTION.label": {
+    "sameAsSource": ["fr"]
+  },
+  "tag.SACRIFICIAL.label": {
+    "sameAsSource": ["es", "pt-BR"]
+  },
+  "tag.BERSERK.label": {
+    "sameAsSource": ["it", "pt-BR"]
   }
 }

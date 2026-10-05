@@ -12,7 +12,7 @@
  *   6. Grave Warriors share — researching GRAVE_WARRIORS grants LEAVES_GRAVESTONE to crossbowmen too
  */
 
-import { describe, it, expect } from 'vitest';
+import { beforeAll, describe, it, expect } from 'vitest';
 import { produce } from 'immer';
 import { resolveAttack } from '../combatSystem';
 import { getRecruitableUnitTypes, computeRecruitmentBuildingUsage } from '../resourceSystem';
@@ -26,6 +26,11 @@ import { BuildingType, DestroyBehavior, Faction, TileType, UnitTag, UnitType } f
 import type { Building, GameState, GameStats, Tile, Unit } from '../types';
 import type { GameEvent } from '../gameEvents';
 import { unitDesc } from '../i18n/entityText';
+import { useLocaleStore } from '../i18n/localeStore';
+
+beforeAll(async () => {
+  await useLocaleStore.getState().setLocale('en');
+});
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.114.10 - Localize unit, building and tag text
+
+Moved unit, building, tag, terrain-tag, resource, population, difficulty, and stat text into catalogs translated for all supported locales. Added display names for seven previously unnamed enemy units.
+
 ### v0.114.9 - Localization infrastructure
 
 Added the i18n layer, six locale catalogs, catalog QA tests, and a Dev Options language picker. No player-facing text changes.

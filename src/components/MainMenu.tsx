@@ -429,6 +429,7 @@ function HintsControls({ showReset = false }: { showReset?: boolean }) {
 }
 
 function NewPanel() {
+  const { difficultyLabel } = useText();
   const goPanel = useMenuStore((s) => s.goPanel);
   const newGameInSlot = useGameStore((s) => s.newGameInSlot);
   const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty>(Difficulty.STANDARD);
@@ -548,6 +549,7 @@ function NewPanel() {
 // ============================================================================
 
 function LoadPanel() {
+  const { difficultyLabel } = useText();
   const goPanel = useMenuStore((s) => s.goPanel);
   const loadIntoGame = useGameStore((s) => s.loadIntoGame);
   const navDir = useMenuStore((s) => s.navDir);
@@ -735,7 +737,6 @@ function OptionsPanel({
   isInstalled: boolean;
   promptInstall: () => void;
 }) {
-  const { difficultyLabel } = useText();
   const goPanel = useMenuStore((s) => s.goPanel);
   const navDir = useMenuStore((s) => s.navDir);
   const volume = useSoundOptionsStore((s) => s.volume);
