@@ -6,8 +6,8 @@
 
 import type { Draft } from 'immer';
 import type { GameState, TechId, TechEffect, UnitStats, StatModifier, Unit } from './types';
-import { Faction, TechFlag, BuildingType, UnitTag } from './types';
-import { TECH_TREE, ABILITIES, TAG_STAT_EFFECTS, computeResearchCost, POPULATION, MAGE } from './gameConfig';
+import { Faction, BuildingType, UnitTag } from './types';
+import { TECH_TREE, TAG_STAT_EFFECTS, computeResearchCost, POPULATION } from './gameConfig';
 
 // ============================================================================
 // PICK GRANTS

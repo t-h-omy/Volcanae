@@ -129,8 +129,6 @@ function makeStateWithKilnBonus(buildings: Building[]): GameState {
   const specDef = SPECIALIST_DEFINITIONS.spec_07;
   const specialist: Specialist = {
     id: 'spec_07',
-    name: specDef.name,
-    description: specDef.description,
     effects: specDef.effects as Specialist['effects'],
     assignedBuildingId: null,
     upkeepIron: specDef.upkeepIron,

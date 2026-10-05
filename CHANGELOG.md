@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.114.11 - Localize tech, spell, specialist and hint text
+
+Localized technology, spell, specialist and hint catalogs for all supported locales. Specialist names and descriptions are no longer stored in saves; SAVE_VERSION now migrates version 20 saves.
+
 ### v0.114.10 - Localize unit, building and tag text
 
 Moved unit, building, tag, terrain-tag, resource, population, difficulty, and stat text into catalogs translated for all supported locales. Added display names for seven previously unnamed enemy units.

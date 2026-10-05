@@ -549,7 +549,7 @@ export function computeResourceIncomeBreakdown(
     for (const e of t.effects) {
       if (e.type === 'BUILDING_PRODUCTION_MOD') {
         const key = `${e.buildingType}|${e.resource}|${e.amount}|${e.chancePercent}`;
-        if (!modKeyToTechName.has(key)) {
+        if (!modKeyToTechId.has(key)) {
           modKeyToTechId.set(key, t.id);
         }
       }

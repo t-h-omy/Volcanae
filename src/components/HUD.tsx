@@ -569,7 +569,7 @@ function DevSpecPickerOverlay({
           <button className="hud-modal-close" onClick={onClose}>✕</button>
         </div>
         <ul className="hud-modal-list">
-          {availableSpecialists.map(([id, def]) => (
+          {availableSpecialists.map(([id]) => (
             <li key={id} className="hud-modal-item">
               <div className="hud-modal-item-info">
                 <span className="hud-modal-item-name">🧙 {specialistName(id)}</span>

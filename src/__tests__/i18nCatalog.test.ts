@@ -3,11 +3,15 @@ import { describe, expect, it } from 'vitest';
 import { SUPPORTED_LOCALES, type LocaleCode } from '../../config/i18n';
 import {
   BUILDING_DEFINITIONS,
+  SPECIALIST_DEFINITIONS,
+  SPELL_DEFINITIONS,
   TAG_INFO,
   TERRAIN_TAG_INFO,
+  TECH_TREE,
   UNIT_DEFINITIONS,
 } from '../gameConfig';
-import { BuildingType, Difficulty, TerrainTag, UnitTag, UnitType } from '../types';
+import { HINT_DEFINITIONS } from '../../config/hints';
+import { BuildingType, Difficulty, SpellId, TechFlag, TerrainTag, UnitTag, UnitType } from '../types';
 import context from '../i18n/context.json';
 
 type Catalog = Record<string, string>;
@@ -95,6 +99,27 @@ describe('localization catalogs', () => {
       ...Object.values(BuildingType).flatMap((type) => [`building.${type}.name`, `building.${type}.desc`]),
       ...Object.values(UnitTag).flatMap((tag) => [`tag.${tag}.label`, `tag.${tag}.desc`]),
       ...Object.values(TerrainTag).flatMap((tag) => [`terrainTag.${tag}.label`, `terrainTag.${tag}.desc`]),
+      ...TECH_TREE.flatMap(({ id }) => [`tech.${id}.name`, `tech.${id}.desc`]),
+      ...Object.values(TechFlag).map((flag) => `techFlag.${flag}.desc`),
+      ...[
+        'UNLOCK_BUILDING',
+        'UNLOCK_BUILDING_SPELL',
+        'UNLOCK_UNIT',
+        'GRANT_UNIT_TAG',
+        'REMOVE_UNIT_TAG',
+        'UNIT_STAT_MOD_ADD',
+        'UNIT_STAT_MOD_PERCENT',
+        'UNIT_COST_MOD',
+        'BUILDING_PRODUCTION_MOD',
+        'FLAT_INCOME_MOD',
+        'STRONGHOLD_CAP_MOD',
+        'SPECIALIST_SLOT_MOD',
+        'UNLOCK_SPELL',
+      ].map((type) => `techEffect.${type}`),
+      ...Object.values(SpellId).flatMap((id) => [`spell.${id}.name`, `spell.${id}.desc`, `spell.${id}.targetHint`]),
+      'spell.TRANSPOSE.targetHintSecondPick',
+      ...Object.keys(SPECIALIST_DEFINITIONS).flatMap((id) => [`specialist.${id}.name`, `specialist.${id}.desc`]),
+      ...Object.keys(HINT_DEFINITIONS).flatMap((id) => [`hint.${id}.short`, `hint.${id}.detail`]),
       ...Object.values(Difficulty).map((difficulty) => `difficulty.${difficulty}`),
       ...['IRON', 'WOOD', 'CRYSTAL'].map((resource) => `resource.${resource}.name`),
       ...['farmer', 'noble'].map((population) => `population.${population}.name`),
@@ -110,9 +135,32 @@ describe('localization catalogs', () => {
       ...Object.entries(BUILDING_DEFINITIONS).map(([id, definition]) => [`building.${id}.desc`, definition.textParams] as const),
       ...Object.entries(TAG_INFO).map(([id, definition]) => [`tag.${id}.desc`, definition.textParams] as const),
       ...Object.entries(TERRAIN_TAG_INFO).map(([id, definition]) => [`terrainTag.${id}.desc`, definition.textParams] as const),
+      ...TECH_TREE.map((definition) => [`tech.${definition.id}.desc`, definition.textParams] as const),
+      ...TECH_TREE.filter((definition) => definition.textParams).map((definition) => [`tech.${definition.id}.desc`, definition.textParams] as const),
     ];
     for (const [key, params] of definitions) {
       expect([...collectArguments(astFor(en[key]!, 'en'))].sort(), key).toEqual(Object.keys(params ?? {}).sort());
+    }
+
+    const referencedDefinitions = [
+      ...TECH_TREE.flatMap((definition) => definition.effects
+        .filter((effect) => effect.type === 'FLAG')
+        .map((effect) => [`techFlag.${effect.flag}.desc`, definition.textParams] as const)),
+      ...Object.entries(SPELL_DEFINITIONS).flatMap(([id, definition]) => [
+        [`spell.${id}.desc`, definition.textParams] as const,
+        [`spell.${id}.targetHint`, definition.textParams] as const,
+        ...(id === SpellId.TRANSPOSE ? [[`spell.${id}.targetHintSecondPick`, definition.textParams] as const] : []),
+      ]),
+      ...Object.entries(SPECIALIST_DEFINITIONS).map(([id, definition]) => [`specialist.${id}.desc`, definition.textParams] as const),
+      ...Object.entries(HINT_DEFINITIONS).flatMap(([id, definition]) => [
+        [`hint.${id}.short`, definition.textParams] as const,
+        [`hint.${id}.detail`, definition.textParams] as const,
+      ]),
+    ];
+    for (const [key, params] of referencedDefinitions) {
+      for (const arg of collectArguments(astFor(en[key]!, 'en'))) {
+        expect(Object.keys(params ?? {}), `${key}:${arg}`).toContain(arg);
+      }
     }
   });
 
@@ -121,7 +169,7 @@ describe('localization catalogs', () => {
       // Structural numeric phrases belong here only when no gameplay constant backs them.
     ];
     for (const [key, message] of Object.entries(en)) {
-      if (!/^(unit|building|tag|terrainTag)\./.test(key) || digitAllowlist.includes(key)) continue;
+      if (!/^(unit|building|tag|terrainTag|tech|techFlag|techEffect|spell|specialist|hint)\./.test(key) || digitAllowlist.includes(key)) continue;
       expect(message, key).not.toMatch(/[0-9]/);
     }
   });
@@ -172,6 +220,14 @@ describe('localization catalogs', () => {
       for (const [key, message] of Object.entries(en)) {
         expect(emojiSet(catalog[key]! ), `${locale}:${key}`).toEqual(emojiSet(message));
       }
+    }
+  });
+
+  it('l: specialist names are unique in every locale', () => {
+    for (const locale of SUPPORTED_LOCALES) {
+      const catalog = catalogs[`../i18n/locales/${locale}.json`]!;
+      const names = Object.keys(SPECIALIST_DEFINITIONS).map((id) => catalog[`specialist.${id}.name`]!.trim().toLocaleLowerCase(locale));
+      expect(new Set(names).size, locale).toBe(names.length);
     }
   });
 });

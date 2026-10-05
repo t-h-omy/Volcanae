@@ -35,8 +35,8 @@ export function terrainTagDesc(tag: TerrainTag): string {
   return t(`terrainTag.${tag}.desc`, TERRAIN_TAG_INFO[tag].textParams);
 }
 
-export function resourceName(resource: ResourceType | 'CRYSTAL'): string {
-  return t(`resource.${resource}.name`);
+export function resourceName(resource: ResourceType | 'CRYSTAL' | Lowercase<ResourceType>): string {
+  return t(`resource.${resource.toUpperCase()}.name` as TextKey);
 }
 
 export function populationName(population: 'farmer' | 'noble'): string {

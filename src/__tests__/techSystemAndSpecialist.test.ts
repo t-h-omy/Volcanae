@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { renderEffect } from '../techSystem';
+import { techEffectText } from '../i18n/entityText';
 import { recruitUnit } from '../resourceSystem';
 import { createInitialSpecialists } from '../specialistSystem';
 import { UNIT_DEFINITIONS } from '../gameConfig';
@@ -61,14 +61,14 @@ function makeBuilding(
   };
 }
 
-describe('renderEffect', () => {
-  it('renders friendly names for unlocked buildings', () => {
+describe('techEffectText', () => {
+  it('renders localized names for unlocked buildings', () => {
     expect(
-      renderEffect({ type: 'UNLOCK_BUILDING', buildingType: BuildingType.CHARCOAL_KILN }),
-    ).toBe('Unlocks Charcoal Kiln construction');
+      techEffectText({ type: 'UNLOCK_BUILDING', buildingType: BuildingType.CHARCOAL_KILN }),
+    ).toBe('Unlocks construction: Charcoal Kiln');
     expect(
-      renderEffect({ type: 'UNLOCK_BUILDING', buildingType: BuildingType.CRYSTAL_TOWER }),
-    ).toBe('Unlocks Crystal Tower erection via spell');
+      techEffectText({ type: 'UNLOCK_BUILDING', buildingType: BuildingType.CRYSTAL_TOWER }),
+    ).toBe('Unlocks via spell: Crystal Tower');
   });
 });
 

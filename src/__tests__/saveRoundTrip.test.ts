@@ -18,6 +18,8 @@ import { ALL_HINT_IDS } from '../../config/hints';
 import { BuildingType, DestroyBehavior, UnitTag } from '../types';
 import { ABILITIES, MARKET, SAVE } from '../gameConfig';
 import type { GameState } from '../types';
+import { specialistName } from '../i18n/entityText';
+import { useLocaleStore } from '../i18n/localeStore';
 
 beforeEach(() => {
   // Fresh in-memory IndexedDB for every test.
@@ -410,5 +412,41 @@ describe('saveSlot round-trip', () => {
     const loaded = await loadSlot('slot_accumulator');
     expect(loaded).not.toBeNull();
     expect(loaded!.spawnAccumulator).toBe(2.75);
+  });
+
+  it('migrates v20 specialist display text out of saved state', async () => {
+    await useLocaleStore.getState().setLocale('en');
+    const state = generateInitialGameState() as GameState & {
+      specialists: Record<string, GameState['specialists'][string] & { name: string; description: string }>;
+    };
+    state.specialists.spec_07.name = 'Old Ashwright';
+    state.specialists.spec_07.description = 'Old saved description';
+
+    const idb = globalThis.indexedDB;
+    const dbReq = idb.open(SAVE.IDB_NAME, SAVE.IDB_VERSION);
+    await new Promise<void>((resolve, reject) => {
+      dbReq.onupgradeneeded = () => {
+        const db = dbReq.result;
+        if (!db.objectStoreNames.contains(SAVE.STORE_META)) db.createObjectStore(SAVE.STORE_META, { keyPath: 'id' });
+        if (!db.objectStoreNames.contains(SAVE.STORE_DATA)) db.createObjectStore(SAVE.STORE_DATA, { keyPath: 'id' });
+        if (!db.objectStoreNames.contains(SAVE.STORE_TRACE)) db.createObjectStore(SAVE.STORE_TRACE, { keyPath: 'key' });
+      };
+      dbReq.onsuccess = () => resolve();
+      dbReq.onerror = () => reject(dbReq.error);
+    });
+    const db = dbReq.result;
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction([SAVE.STORE_META, SAVE.STORE_DATA], 'readwrite');
+      tx.objectStore(SAVE.STORE_META).put({ id: 'slot_v20_specialist_text', version: 20, turn: 1, savedAt: Date.now(), name: 'OldGame', difficulty: 'STANDARD' });
+      tx.objectStore(SAVE.STORE_DATA).put({ id: 'slot_v20_specialist_text', version: 20, state });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+
+    const loaded = await loadSlot('slot_v20_specialist_text');
+    expect(loaded).not.toBeNull();
+    expect(loaded!.specialists.spec_07).not.toHaveProperty('name');
+    expect(loaded!.specialists.spec_07).not.toHaveProperty('description');
+    expect(specialistName(loaded!.specialists.spec_07.id)).toBe('Ashwright');
   });
 });

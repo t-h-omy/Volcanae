@@ -13,7 +13,6 @@ import {
   BUILDING_DEFINITIONS,
   MAP,
   POPULATION,
-  SPECIALIST_DEFINITIONS,
   UNIT_DEFINITIONS,
 } from '../gameConfig';
 import {
@@ -34,10 +33,12 @@ import {
 } from '../types';
 import type { Building, GameState, Tile } from '../types';
 import type { Draft } from 'immer';
+import { specialistDesc, specialistName } from '../i18n/entityText';
 
 describe('SP-23 specialist description', () => {
   it('communicates the housing cap, recruitment cap, recruit cost, and max HP effects', () => {
-    const { name, description } = SPECIALIST_DEFINITIONS.spec_23;
+    const name = specialistName('spec_23');
+    const description = specialistDesc('spec_23');
 
     expect(name).toBe('The Matriarch');
     expect(description).toMatch(/doubles .*housing caps/i);
