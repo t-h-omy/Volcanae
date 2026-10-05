@@ -83,6 +83,8 @@ import { stopGameMusic } from '../useMusicPlayer';
 import { shouldShowTurnPopupEmberRose } from '../turnPopup';
 import { getAttackDisplayModifiers } from '../unitStatDisplay';
 import { useEmberDisplayStore } from '../emberDisplayStore';
+import { LOCALE_ENDONYMS, PSEUDO_LOCALE, SUPPORTED_LOCALES } from '../../config/i18n';
+import { useLocaleStore, type ActiveLocale } from '../i18n/localeStore';
 import { deleteRun, listSealedRuns, readMeta as readAiTraceMeta } from '../aiTraceStore';
 import { exportAiTrace, formatAiTraceBytes } from '../aiTraceExportClient';
 import type { AiTraceMeta } from '../aiTrace';
@@ -251,6 +253,7 @@ async function downloadSaveExport(slotId: string): Promise<void> {
 // DEV OPTIONS OVERLAY
 // ============================================================================
 
+/* eslint-disable no-restricted-syntax */
 function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
   const showAiScores = useDevOptionsStore((s) => s.showAiScores);
   const setShowAiScores = useDevOptionsStore((s) => s.setShowAiScores);
@@ -276,6 +279,8 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
   const debugClearTileStatus = useGameStore((s) => s.debugClearTileStatus);
   const selectedTilePos = useGameStore((s) => s.selectedTilePos);
   const showSwap = useSpecialistHireStore((s) => s.showSwap);
+  const locale = useLocaleStore((s) => s.locale);
+  const setLocale = useLocaleStore((s) => s.setLocale);
   const [devStatsOpen, setDevStatsOpen] = useState(false);
   const [specPickerOpen, setSpecPickerOpen] = useState(false);
   const [currentTraceMeta, setCurrentTraceMeta] = useState<AiTraceMeta | null>(null);
@@ -367,6 +372,18 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
           </div>
           <div className="hud-dev-overlay-body">
             <div className="hud-dev-overlay-section-title">Toggles</div>
+            <label className="hud-dev-option-row">
+              <span className="hud-dev-option-label">Language (dev)</span>
+              <select
+                value={locale}
+                onChange={(event) => void setLocale(event.target.value as ActiveLocale)}
+              >
+                {SUPPORTED_LOCALES.map((code) => (
+                  <option key={code} value={code}>{LOCALE_ENDONYMS[code]}</option>
+                ))}
+                <option value={PSEUDO_LOCALE}>Pseudo (en-XA)</option>
+              </select>
+            </label>
             <label className="hud-dev-option-row">
               <span className="hud-dev-option-label">Show AI Scores for Enemy Units</span>
               <input
@@ -477,6 +494,7 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
     document.body,
   );
 }
+/* eslint-enable no-restricted-syntax */
 
 /** Enemy recruitment building types — buildings that spawn enemy units each turn. */
 const ENEMY_RECRUITMENT_TYPES = new Set<BuildingType>([
@@ -484,6 +502,7 @@ const ENEMY_RECRUITMENT_TYPES = new Set<BuildingType>([
   BuildingType.INFERNALSANCTUM,
 ]);
 
+/* eslint-disable no-restricted-syntax */
 function DevStatsOverlay({ onClose }: { onClose: () => void }) {
   const buildings = useGameStore((s) => s.buildings);
   const enemyUnitsSpawnedLastTurn = useGameStore((s) => s.enemyUnitsSpawnedLastTurn);
@@ -564,7 +583,9 @@ function DevStatsOverlay({ onClose }: { onClose: () => void }) {
     </div>
   );
 }
+/* eslint-enable no-restricted-syntax */
 
+/* eslint-disable no-restricted-syntax */
 function DevSpecPickerOverlay({
   availableSpecialists,
   onSelect,
@@ -611,6 +632,7 @@ function DevSpecPickerOverlay({
     </div>
   );
 }
+/* eslint-enable no-restricted-syntax */
 
 // ============================================================================
 // DIFFICULTY OVERLAY
@@ -1675,6 +1697,7 @@ function BuildingInfoPopup({
 // AI SCORE MODAL (dev option)
 // ============================================================================
 
+/* eslint-disable no-restricted-syntax */
 function AiScoreModal({ scores, onClose }: { scores: ScoredAction[]; onClose: () => void }) {
   return (
     <div className="hud-modal-backdrop" onClick={onClose}>
@@ -1700,7 +1723,9 @@ function AiScoreModal({ scores, onClose }: { scores: ScoredAction[]; onClose: ()
     </div>
   );
 }
+/* eslint-enable no-restricted-syntax */
 
+/* eslint-disable no-restricted-syntax */
 function RecruitScoreModal({
   scores,
   onClose,
@@ -1732,6 +1757,7 @@ function RecruitScoreModal({
     </div>
   );
 }
+/* eslint-enable no-restricted-syntax */
 
 // ============================================================================
 // STAT HELPERS (used by UnitCombinedInfoPopup and BuildingStatDetailModal)

@@ -24,10 +24,11 @@ Game configuration for Volcanae (gameplay and presentation), split into domain m
 | `animation.ts` | Animation timings, durations, keyframe constants. |
 | `input.ts` | Touch and pointer interaction constants. |
 | `hints.ts` | Hint IDs, hint texts, hint system constants. |
+| `i18n.ts` | Supported locale metadata and localization thresholds. |
 
 ## Rules
 
 1. **Every gameplay tunable belongs in the module matching its domain.** Mirror the no-raw-literals convention: add the constant to the relevant config module, then reference it in description strings.
 2. **Config modules may only import from `../src/types.ts` and from sibling `./` modules.** No other `src/` imports.
 3. **Imports must be acyclic.** If a new export requires importing a module that already imports from your module, create a new module or restructure per the table above.
-4. **`src/gameConfig.ts` is the compatibility barrel for gameplay modules only.** All existing consumers of the gameplay modules continue to import from it. The presentation and hint modules (`ui.ts`, `render.ts`, `animation.ts`, `input.ts`, `hints.ts`) are imported directly from `config/`.
+4. **`src/gameConfig.ts` is the compatibility barrel for gameplay modules only.** All existing consumers of the gameplay modules continue to import from it. The presentation and hint modules (`ui.ts`, `render.ts`, `animation.ts`, `input.ts`, `hints.ts`, `i18n.ts`) are imported directly from `config/`.
