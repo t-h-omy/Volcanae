@@ -23,6 +23,20 @@ import { POPULATION, TRAINING } from './economy';
 export const ABILITIES = {
   /** Structural edge distance for tile adjacency; exposed to entity text. */
   ADJACENCY_RANGE: 1,
+  /** Iron cost surcharge for Swordsman recruitment. */
+  SWORDSMAN_RECRUIT_IRON_COST: 2,
+  /** Canyon width bridged by the Bridgebuilder research. */
+  BRIDGEBUILDER_GAP_TILES: 1,
+  /** Specialist slots opened by the Master Recruiter research. */
+  MASTER_RECRUITER_SLOT_COUNT: 3,
+  /** Total movement actions available to a Hit and Run Rider. */
+  HIT_AND_RUN_MOVE_COUNT: 2,
+  /** Number of turns Pin Down stuns a target. */
+  PIN_DOWN_STUN_TURNS: 1,
+  /** Preventive Strike shots per siege unit and enemy turn. */
+  PREVENTIVE_STRIKE_SHOTS_PER_TURN: 1,
+  /** Arcane crystals granted by Grave Harvest when its chance succeeds. */
+  GRAVE_HARVEST_CRYSTAL_AMOUNT: 1,
   /** Ember gained when an Emberling reaches lava; exposed to its description. */
   EMBERLING_EMBER_GAIN: 1,
   /** Damage multiplier applied when ASSASSIN tag attacks a full-HP target */

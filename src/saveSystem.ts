@@ -18,7 +18,7 @@ import type { Difficulty } from './types';
 // ============================================================================
 
 /** Increment this whenever the serialized shape changes incompatibly. */
-export const SAVE_VERSION = 20;
+export const SAVE_VERSION = 21;
 
 // ============================================================================
 // TYPES
@@ -454,6 +454,16 @@ function migrateState(parsed: { version: number; state: GameState }): GameState 
       const anyState = s as unknown as Record<string, unknown>;
       if (typeof anyState.spawnAccumulator !== 'number') anyState.spawnAccumulator = 0;
       if (anyState.lastSpawnBudget === undefined) anyState.lastSpawnBudget = null;
+    }
+
+    // Migration v20 -> v21: specialist display text is resolved from locale catalogs.
+    if (parsed.version < 21 && s.specialists && typeof s.specialists === 'object') {
+      for (const specialist of Object.values(s.specialists) as Array<unknown>) {
+        const entry = specialist as Record<string, unknown>;
+        if (!entry || typeof entry !== 'object') continue;
+        delete entry.name;
+        delete entry.description;
+      }
     }
 
     return s as GameState;
