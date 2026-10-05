@@ -82,7 +82,7 @@ import { stopGameMusic } from '../useMusicPlayer';
 import { shouldShowTurnPopupEmberRose } from '../turnPopup';
 import { getAttackDisplayModifiers } from '../unitStatDisplay';
 import { useEmberDisplayStore } from '../emberDisplayStore';
-import { LOCALE_ENDONYMS, PSEUDO_LOCALE, SUPPORTED_LOCALES } from '../../config/i18n';
+import { LOCALE_ENDONYMS, PSEUDO_LOCALE, RELEASE_LOCALES, SUPPORTED_LOCALES } from '../../config/i18n';
 import { useLocaleStore, type ActiveLocale } from '../i18n/localeStore';
 import { deleteRun, listSealedRuns, readMeta as readAiTraceMeta } from '../aiTraceStore';
 import { exportAiTrace, formatAiTraceBytes } from '../aiTraceExportClient';
@@ -595,9 +595,9 @@ function DevSpecPickerOverlay({
 // ============================================================================
 
 const DIFFICULTY_DESC: Record<Difficulty, string> = {
-  [Difficulty.EASY]: `Enemies are weaker (×${DIFFICULTY_MULTIPLIER[Difficulty.EASY]}). Lava advances every ${getLavaAdvanceInterval(Difficulty.EASY)} turns.`,
-  [Difficulty.STANDARD]: `Enemies are at full strength. Lava advances every ${getLavaAdvanceInterval(Difficulty.STANDARD)} turns.`,
-  [Difficulty.HARD]: `Enemies are stronger (×${DIFFICULTY_MULTIPLIER[Difficulty.HARD]}). Lava advances every ${getLavaAdvanceInterval(Difficulty.HARD)} turns.`,
+  [Difficulty.EASY]: 'hud.difficulty.easyDescription',
+  [Difficulty.STANDARD]: 'hud.difficulty.standardDescription',
+  [Difficulty.HARD]: 'hud.difficulty.hardDescription',
 };
 
 function DifficultyOverlay({
@@ -609,7 +609,7 @@ function DifficultyOverlay({
   onSelect: (d: Difficulty) => void;
   onClose: () => void;
 }) {
-  const { difficultyLabel } = useText();
+  const { difficultyLabel, t } = useText();
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -622,8 +622,8 @@ function DifficultyOverlay({
     <div className="hud-dev-overlay-backdrop" onClick={onClose}>
       <div className="hud-difficulty-overlay" onClick={(e) => e.stopPropagation()}>
         <div className="hud-dev-overlay-header">
-          <span>⚔️ Choose Difficulty</span>
-          <button className="hud-close-btn" onClick={onClose} aria-label="Close">✕</button>
+          <span>⚔️ {t('hud.difficulty.title')}</span>
+          <button className="hud-close-btn" onClick={onClose} aria-label={t('common.close')}>✕</button>
         </div>
         <div className="hud-difficulty-overlay-body">
           {([Difficulty.EASY, Difficulty.STANDARD, Difficulty.HARD] as Difficulty[]).map((d) => (
@@ -633,10 +633,15 @@ function DifficultyOverlay({
               onClick={() => onSelect(d)}
             >
               <span className="hud-difficulty-btn-label">{DIFFICULTY_EMOJI[d]} {difficultyLabel(d)}</span>
-              <span className="hud-difficulty-btn-desc">{DIFFICULTY_DESC[d]}</span>
+              <span className="hud-difficulty-btn-desc">
+                {t(DIFFICULTY_DESC[d] as 'hud.difficulty.easyDescription' | 'hud.difficulty.standardDescription' | 'hud.difficulty.hardDescription', {
+                  multiplier: DIFFICULTY_MULTIPLIER[d],
+                  turns: getLavaAdvanceInterval(d),
+                })}
+              </span>
             </button>
           ))}
-          <p className="hud-difficulty-note">Starting a new game will apply the selected difficulty.</p>
+          <p className="hud-difficulty-note">{t('hud.difficulty.startingNote')}</p>
         </div>
       </div>
     </div>
@@ -648,6 +653,9 @@ function DifficultyOverlay({
 // ============================================================================
 
 function OptionsOverlay({ onClose }: { onClose: () => void }) {
+  const locale = useLocaleStore((s) => s.locale);
+  const setLocale = useLocaleStore((s) => s.setLocale);
+  const { t } = useText();
   const volume = useSoundOptionsStore((s) => s.volume);
   const muted = useSoundOptionsStore((s) => s.muted);
   const setVolume = useSoundOptionsStore((s) => s.setVolume);
@@ -700,13 +708,13 @@ function OptionsOverlay({ onClose }: { onClose: () => void }) {
     <div className="hud-dev-overlay-backdrop" onClick={onClose}>
       <div className="hud-dev-overlay hud-options-overlay" onClick={(e) => e.stopPropagation()}>
         <div className="hud-dev-overlay-header">
-          <span>⚙️ Options</span>
-          <button className="hud-modal-close" onClick={onClose}>✕</button>
+          <span>⚙️ {t('hud.options.title')}</span>
+          <button className="hud-modal-close" onClick={onClose} aria-label={t('common.close')}>✕</button>
         </div>
         <div className="hud-dev-overlay-body">
-          <div className="hud-dev-overlay-section-title">Sound</div>
+          <div className="hud-dev-overlay-section-title">{t('hud.options.soundSection')}</div>
           <div className="hud-options-volume-row">
-            <span className="hud-options-volume-label">🔊 Volume</span>
+            <span className="hud-options-volume-label">🔊 {t('hud.options.volume')}</span>
             <input
               type="range"
               className={`hud-options-volume-slider${muted ? ' hud-options-volume-slider--muted' : ''}`}
@@ -719,47 +727,67 @@ function OptionsOverlay({ onClose }: { onClose: () => void }) {
                 setVolume(val);
                 if (muted) setMuted(false);
               }}
-              aria-label="Sound volume"
+              aria-label={t('hud.options.soundVolume')}
             />
             <button
               className={`hud-options-mute-btn${muted ? ' hud-options-mute-btn--muted' : ''}`}
               onClick={() => setMuted(!muted)}
-              aria-label={muted ? 'Unmute' : 'Mute'}
-              title={muted ? 'Unmute' : 'Mute'}
+              aria-label={t(muted ? 'hud.options.unmute' : 'hud.options.mute')}
+              title={t(muted ? 'hud.options.unmute' : 'hud.options.mute')}
             >
               {muted ? '🔇' : '🔊'}
             </button>
           </div>
           <hr className="hud-options-separator" />
-          <div className="hud-dev-overlay-section-title">Hints</div>
+          {RELEASE_LOCALES.length > 1 && (
+            <>
+              <div className="hud-options-language-row">
+                <span className="hud-options-hints-label">{t('options.language')}</span>
+                <div className="hud-options-language-buttons">
+                  {RELEASE_LOCALES.map((code) => (
+                    <button
+                      key={code}
+                      className={`hud-options-language-btn${locale === code ? ' hud-options-language-btn--active' : ''}`}
+                      aria-pressed={locale === code}
+                      onClick={() => void setLocale(code)}
+                    >
+                      {LOCALE_ENDONYMS[code]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <hr className="hud-options-separator" />
+            </>
+          )}
+          <div className="hud-dev-overlay-section-title">{t('hud.options.hintsSection')}</div>
           <div className="hud-options-hints-row">
-            <span className="hud-options-hints-label">💡 Show hints</span>
+            <span className="hud-options-hints-label">💡 {t('hud.options.showHints')}</span>
             <button
               className={`hud-options-hints-toggle${hintsEnabled ? ' hud-options-hints-toggle--on' : ''}`}
               onClick={() => setHintsEnabled(!hintsEnabled)}
               aria-pressed={hintsEnabled}
-              aria-label={hintsEnabled ? 'Disable hints' : 'Enable hints'}
+              aria-label={t(hintsEnabled ? 'hud.options.disableHints' : 'hud.options.enableHints')}
             >
-              {hintsEnabled ? 'On' : 'Off'}
+              {t(hintsEnabled ? 'common.on' : 'common.off')}
             </button>
           </div>
           <div className="hud-options-hints-row">
-            <span className="hud-options-hints-label">🔄 Reset hint counters</span>
+            <span className="hud-options-hints-label">🔄 {t('hud.options.resetHintCounters')}</span>
             <button
               className="hud-options-hints-reset"
               onClick={handleResetHints}
-              aria-label="Reset hint counters"
+              aria-label={t('hud.options.resetHintCounters')}
             >
-              {resetDone ? 'Done' : 'Reset'}
+              {t(resetDone ? 'common.done' : 'common.reset')}
             </button>
           </div>
           <hr className="hud-options-separator" />
           <button
             className="hud-menu-item hud-menu-item--danger"
             onClick={handleReturnToMenu}
-            title="Save and return to the main menu"
+            title={t('hud.options.saveReturnToMenu')}
           >
-            🏠 Main Menu
+            🏠 {t('hud.options.mainMenu')}
           </button>
         </div>
       </div>
@@ -769,7 +797,7 @@ function OptionsOverlay({ onClose }: { onClose: () => void }) {
 }
 
 function GameMenu() {
-  const { difficultyLabel } = useText();
+  const { difficultyLabel, t } = useText();
   const [open, setOpen] = useState(false);
   const [devOptionsOverlayOpen, setDevOptionsOverlayOpen] = useState(false);
   const [difficultyOverlayOpen, setDifficultyOverlayOpen] = useState(false);
@@ -825,7 +853,7 @@ function GameMenu() {
       await persistCurrentGameForReload();
     } catch (error) {
       console.error('Failed to save before cache reset reload.', error);
-      window.alert('Reload cancelled because the current game could not be saved first. Please use the Save Game option in the menu before attempting to reload. If that also fails, please report the issue.');
+      window.alert(t('hud.gameMenu.reloadSaveFailed'));
       return;
     }
     if ('caches' in window) {
@@ -837,7 +865,7 @@ function GameMenu() {
       await Promise.all(registrations.map((r) => r.unregister()));
     }
     window.location.reload();
-  }, [persistCurrentGameForReload]);
+  }, [persistCurrentGameForReload, t]);
 
   const handleDifficultySelect = useCallback((d: Difficulty) => {
     initNewGame(d);
@@ -863,7 +891,7 @@ function GameMenu() {
       <button
         className="hud-menu-btn"
         onClick={() => setOpen((o) => !o)}
-        aria-label="Game menu"
+        aria-label={t('hud.gameMenu.menu')}
         aria-expanded={open}
         aria-haspopup="menu"
       >
@@ -878,39 +906,39 @@ function GameMenu() {
           />
           <div className="hud-menu-dropdown" role="menu">
             <button className="hud-menu-item" role="menuitem" onClick={handleSaveGame}>
-              💾 Save Game
+              💾 {t('hud.gameMenu.saveGame')}
             </button>
             {saveExists && (
               <button className="hud-menu-item" role="menuitem" onClick={handleClearSave}>
-                🗑️ Clear Save
+                🗑️ {t('hud.gameMenu.clearSave')}
               </button>
             )}
             <button className="hud-menu-item" role="menuitem" onClick={handleNewGame}>
-              🔄 New Game
+              🔄 {t('hud.gameMenu.newGame')}
             </button>
             <button
               className="hud-menu-item"
               role="menuitem"
               onClick={() => { setOpen(false); setDifficultyOverlayOpen(true); }}
             >
-              ⚔️ Difficulty ({DIFFICULTY_EMOJI[currentDifficulty]} {difficultyLabel(currentDifficulty)})
+              ⚔️ {t('hud.gameMenu.difficulty', { difficulty: `${DIFFICULTY_EMOJI[currentDifficulty]} ${difficultyLabel(currentDifficulty)}` })}
             </button>
             <button className="hud-menu-item" role="menuitem" onClick={handleResetCache}>
-              🗑️ Reset Cache &amp; Reload
+              🗑️ {t('hud.gameMenu.resetCacheReload')}
             </button>
             <button
               className="hud-menu-item"
               role="menuitem"
               onClick={() => { setOpen(false); setOptionsOverlayOpen(true); }}
             >
-              ⚙️ Options
+              ⚙️ {t('hud.options.title')}
             </button>
             <button
               className="hud-menu-item"
               role="menuitem"
               onClick={() => { setOpen(false); setDevOptionsOverlayOpen(true); }}
             >
-              🛠️ Dev Options
+              🛠️ {t('hud.gameMenu.devOptions')}
             </button>
             <div className="hud-menu-version">v{displayVersion}</div>
           </div>
@@ -939,12 +967,12 @@ function GameMenu() {
 
 /** Renders a net-income badge (green for positive, red for negative, hidden for zero). */
 function NetIncomeBadge({ gross, upkeep }: { gross: number; upkeep: number }) {
+  const { formatSigned } = useText();
   const net = gross - upkeep;
   if (net === 0) return null;
-  const formatted = Number.isInteger(net) ? String(net) : net.toFixed(1);
   return (
     <span className={net > 0 ? 'hud-income' : 'hud-income-negative'}>
-      ({net > 0 ? '+' : ''}{formatted})
+      ({formatSigned(net)})
     </span>
   );
 }
@@ -954,7 +982,7 @@ function NetIncomeBadge({ gross, upkeep }: { gross: number; upkeep: number }) {
 // ============================================================================
 
 function HintBanner() {
-  const { hintShort, hintDetail } = useText();
+  const { hintShort, hintDetail, t } = useText();
   const activeHintId = useHintStore((s) => s.activeHintId);
   const expanded = useHintStore((s) => s.expanded);
   const dismissActive = useHintStore((s) => s.dismissActive);
@@ -972,14 +1000,14 @@ function HintBanner() {
             className="hud-hint-banner-more"
             onClick={toggleExpanded}
             aria-expanded={expanded}
-            aria-label={expanded ? 'Collapse hint' : 'Expand hint'}
+            aria-label={t(expanded ? 'hud.hintBanner.collapse' : 'hud.hintBanner.expand')}
           >
-            {expanded ? 'Less' : 'More'}
+            {t(expanded ? 'common.less' : 'common.more')}
           </button>
           <button
             className="hud-hint-banner-dismiss"
             onClick={dismissActive}
-            aria-label="Dismiss hint"
+            aria-label={t('hud.hintBanner.dismiss')}
           >
             ✕
           </button>
@@ -1003,7 +1031,7 @@ function TopBar({
   arcaneCrystals: number;
   showTechBadge: boolean;
 }) {
-  const { specialistName } = useText();
+  const { specialistName, formatSigned, t } = useText();
   const resources = useGameStore((s) => s.resources);
   const emberRaw = useGameStore((s) => s.ember);
   const pendingEmberOffset = useEmberDisplayStore((s) => s.pendingEmberOffset);
@@ -1043,7 +1071,7 @@ function TopBar({
 
   // Crystal income per turn
   const crystalsPerTurn = useGameStore((s) => computeCrystalIncomePerTurn(s).crystalsPerTurn);
-  const formattedCrystalIncome = Number.isInteger(crystalsPerTurn) ? crystalsPerTurn : crystalsPerTurn.toFixed(1);
+  const formattedCrystalIncome = formatSigned(crystalsPerTurn);
 
   return (
     <>
@@ -1052,14 +1080,14 @@ function TopBar({
         <button className="hud-stat hud-stat--clickable" onClick={() => setResourcePopup('wood')}>🪵 {resources.wood}<NetIncomeBadge gross={woodPerTurn} upkeep={woodUpkeep} /></button>
         <button className="hud-stat hud-stat--clickable" onClick={() => setPopulationPopup('farmers')}>🌾 {farmersUsed}/{farmerCapacity}</button>
         <button className="hud-stat hud-stat--clickable" onClick={() => setPopulationPopup('nobles')}>🎖️ {noblesUsed}/{nobleCapacity}</button>
-        <button className="hud-stat hud-stat--clickable" data-hud-target="ember" onClick={() => setEmberPopupOpen(true)}>🔥 Ember {ember}</button>
-      <span className="hud-stat">🌋 Lava in {turnsUntilLavaAdvance}</span>
+        <button className="hud-stat hud-stat--clickable" data-hud-target="ember" onClick={() => setEmberPopupOpen(true)} aria-label={t('hud.topBar.emberCounter', { amount: ember })}>🔥 {t('hud.topBar.ember')} {ember}</button>
+      <span className="hud-stat">{t('hud.topBar.lavaCounter', { turns: turnsUntilLavaAdvance })}</span>
       <button className="hud-stat hud-stat--clickable" onClick={() => setResourcePopup('crystal')}>
         💎 {arcaneCrystals}{crystalsPerTurn > 0 && <span className="hud-income">(+{formattedCrystalIncome})</span>}
       </button>
       {showTechButton && (
         <button className={`hud-tech-tree-btn${showTechBadge ? ' hud-tech-tree-btn--notify' : ''}`} onClick={onOpenTechTree}>
-          🔬 Tech Tree
+          🔬 {t('hud.topBar.techTree')}
           {showTechBadge && <span className="hud-tech-tree-badge">!</span>}
         </button>
       )}
@@ -1073,7 +1101,7 @@ function TopBar({
                 key={i}
                 className={`hud-specialist-slot hud-specialist-slot--filled${spec.dormant ? ' hud-specialist-slot--dormant' : ''}`}
                 onClick={() => setOpenSpecialistInfo(spec.id)}
-                title={`${specialistName(spec.id)} - click for info`}
+                title={t('hud.specialistSlot.title', { name: specialistName(spec.id) })}
               >
                 <span className="hud-specialist-slot-name">🧙 {specialistName(spec.id)}</span>
               </button>
@@ -1151,22 +1179,22 @@ function Popup({ onClose, children }: { onClose: () => void; children: React.Rea
 
 /** Tag info popup — shows label + description with an OK button */
 function TagPopup({ tag, disabledByCorruption, onClose }: { tag: UnitTag; disabledByCorruption?: boolean; onClose: () => void }) {
-  const { tagLabel, tagDesc } = useText();
+  const { tagLabel, tagDesc, t } = useText();
   return (
     <Popup onClose={onClose}>
       <div className="info-popup-header-name" style={{ marginBottom: 10 }}>{tagLabel(tag)}</div>
       {disabledByCorruption && (
-        <p className="info-popup-corruption-notice">Disabled by corruption</p>
+        <p className="info-popup-corruption-notice">{t('hud.tagPopup.disabledByCorruption')}</p>
       )}
       <p className="info-popup-desc" style={{ marginBottom: 16 }}>{tagDesc(tag)}</p>
-      <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>OK</button>
+      <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>{t('common.ok')}</button>
     </Popup>
   );
 }
 
 /** Spell info popup — shown when clicking a spell tile in the tech tree */
 function SpellInfoPopup({ spellId, onClose }: { spellId: SpellId; onClose: () => void }) {
-  const { spellName, spellDesc } = useText();
+  const { spellName, spellDesc, t } = useText();
   const def = SPELL_DEFINITIONS[spellId];
   if (!def) return null;
   return (
@@ -1175,11 +1203,11 @@ function SpellInfoPopup({ spellId, onClose }: { spellId: SpellId; onClose: () =>
         <span className="info-popup-header-emoji">{def.emoji}</span>
         <div>
           <div className="info-popup-header-name">{spellName(spellId)}</div>
-          <div className="info-popup-header-cost">Cast: 💎{MAGE.SPELL_CAST_CRYSTAL_COST}</div>
+          <div className="info-popup-header-cost">{t('hud.spellInfo.castCost', { amount: MAGE.SPELL_CAST_CRYSTAL_COST })}</div>
         </div>
       </div>
       <p className="info-popup-desc" style={{ marginBottom: 16 }}>{spellDesc(spellId)}</p>
-      <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>OK</button>
+      <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>{t('common.ok')}</button>
     </Popup>
   );
 }
@@ -1194,7 +1222,7 @@ function ResourceInfoPopup({
   current: number;
   onClose: () => void;
 }) {
-  const { resourceName, t } = useText();
+  const { resourceName, formatNumber, formatSigned, t } = useText();
   // Use stable Immer references as memo dependencies so that the selectors
   // passed to useSyncExternalStore (Zustand v5) always return the same
   // reference between consecutive snapshot calls, preventing the
@@ -1224,8 +1252,7 @@ function ResourceInfoPopup({
     [buildings, techNodes, specialists, globalSpecialistStorage],
   );
 
-  /** Format a positive numeric amount with one decimal only if needed */
-  const fmtPositive = (n: number): string => `+${Number.isInteger(n) ? n : n.toFixed(1)}`;
+  const fmtPositive = (n: number): string => formatSigned(n);
 
   if (resourceType === 'crystal') {
     return (
@@ -1234,17 +1261,17 @@ function ResourceInfoPopup({
           <span className="info-popup-header-emoji">💎</span>
           <div className="info-popup-header-name">{resourceName('CRYSTAL')}</div>
         </div>
-        <div className="resource-popup-current">Current: {current}</div>
-        <div className="resource-popup-section-title">Income this turn</div>
+        <div className="resource-popup-current">{t('hud.resourceInfo.current', { amount: formatNumber(current) })}</div>
+        <div className="resource-popup-section-title">{t('hud.resourceInfo.incomeThisTurn')}</div>
         {resonatingChambers === 0 && echoWardenBonus === 0 && graveHarvestExpected === 0 ? (
           <div className="resource-popup-row resource-popup-row--none">
-            No income sources
+            {t('hud.resourceInfo.noIncomeSources')}
           </div>
         ) : (
           <>
             {resonatingChambers > 0 && (
               <div className="resource-popup-row">
-                <span className="resource-popup-row-label">Crystal Chamber ×{resonatingChambers} (resonating)</span>
+                <span className="resource-popup-row-label">{t('hud.resourceInfo.resonatingChambers', { count: resonatingChambers })}</span>
                 <span className="resource-popup-row-value">
                   {fmtPositive(resonatingChambers * CRYSTAL_CHAMBER_CONFIG.CRYSTALS_PER_CHAMBER_PER_TURN)}
                 </span>
@@ -1252,28 +1279,28 @@ function ResourceInfoPopup({
             )}
             {echoWardenBonus > 0 && (
               <div className="resource-popup-row">
-                <span className="resource-popup-row-label">Echo Warden ×{echoWardenChambers}</span>
+                <span className="resource-popup-row-label">{t('hud.resourceInfo.echoWarden', { count: echoWardenChambers })}</span>
                 <span className="resource-popup-row-value">{fmtPositive(echoWardenBonus)}</span>
               </div>
             )}
             {techFlags.includes(TechFlag.GRAVE_HARVEST) && gravestoneCount > 0 && (
               <div className="resource-popup-row">
-                <span className="resource-popup-row-label">Grave Harvest ×{gravestoneCount} gravestones ({MAGE.GRAVE_HARVEST_CRYSTAL_CHANCE}% each)</span>
+                <span className="resource-popup-row-label">{t('hud.resourceInfo.graveHarvest', { count: gravestoneCount, chance: MAGE.GRAVE_HARVEST_CRYSTAL_CHANCE })}</span>
                 <span className="resource-popup-row-value">~{fmtPositive(graveHarvestExpected)}</span>
               </div>
             )}
           </>
         )}
         <div className="resource-popup-total">
-          <span>Per turn</span>
+          <span>{t('hud.resourceInfo.perTurn')}</span>
           <span className="resource-popup-total-positive">
             {fmtPositive(crystalsPerTurn)}
           </span>
         </div>
         <p className="info-popup-desc" style={{ marginTop: 10, marginBottom: 8, fontSize: '0.82em', opacity: 0.8 }}>
-          Crystals are used to research technologies. Crystal Chambers generate crystals while resonating — resonance activates when a chamber is consumed by lava.
+          {t('hud.resourceInfo.crystalDescription')}
         </p>
-        <button className="info-popup-btn info-popup-btn--secondary" style={{ marginTop: 6 }} onClick={onClose}>Close</button>
+        <button className="info-popup-btn info-popup-btn--secondary" style={{ marginTop: 6 }} onClick={onClose}>{t('common.close')}</button>
       </Popup>
     );
   }
@@ -1284,11 +1311,7 @@ function ResourceInfoPopup({
 
   const totalIncome = entries.reduce((sum, e) => sum + (isIron ? e.iron : e.wood), 0);
 
-  /** Format a numeric amount as a signed string with one decimal only if needed */
-  const fmt = (n: number): string => {
-    const sign = n >= 0 ? '+' : '';
-    return `${sign}${Number.isInteger(n) ? n : n.toFixed(1)}`;
-  };
+  const fmt = (n: number): string => formatSigned(n);
 
   // Filter entries that have a non-zero contribution for this resource type
   const relevantEntries = entries.filter((e) => (isIron ? e.iron : e.wood) !== 0);
@@ -1299,10 +1322,10 @@ function ResourceInfoPopup({
         <span className="info-popup-header-emoji">{emoji}</span>
         <div className="info-popup-header-name">{label}</div>
       </div>
-      <div className="resource-popup-current">Current: {current}</div>
-      <div className="resource-popup-section-title">Income this turn</div>
+      <div className="resource-popup-current">{t('hud.resourceInfo.current', { amount: formatNumber(current) })}</div>
+      <div className="resource-popup-section-title">{t('hud.resourceInfo.incomeThisTurn')}</div>
       {relevantEntries.length === 0 ? (
-        <div className="resource-popup-row resource-popup-row--none">No income sources</div>
+        <div className="resource-popup-row resource-popup-row--none">{t('hud.resourceInfo.noIncomeSources')}</div>
       ) : (
         relevantEntries.map((e, i) => {
           const amount = isIron ? e.iron : e.wood;
@@ -1315,12 +1338,12 @@ function ResourceInfoPopup({
         })
       )}
       <div className="resource-popup-total">
-        <span>Net income</span>
+        <span>{t('hud.resourceInfo.netIncome')}</span>
         <span className={totalIncome >= 0 ? 'resource-popup-total-positive' : 'resource-popup-total-negative'}>
           {fmt(totalIncome)}
         </span>
       </div>
-      <button className="info-popup-btn info-popup-btn--secondary" style={{ marginTop: 14 }} onClick={onClose}>Close</button>
+      <button className="info-popup-btn info-popup-btn--secondary" style={{ marginTop: 14 }} onClick={onClose}>{t('common.close')}</button>
     </Popup>
   );
 }
@@ -1333,7 +1356,7 @@ function PopulationInfoPopup({
   populationType: 'farmers' | 'nobles';
   onClose: () => void;
 }) {
-  const { populationName, unitName, t } = useText();
+  const { populationName, unitName, formatNumber, t } = useText();
   // Use stable Immer references as memo dependencies to avoid invariant violation
   const buildings = useGameStore((s) => s.buildings);
   const units = useGameStore((s) => s.units);
@@ -1364,10 +1387,10 @@ function PopulationInfoPopup({
         <span className="info-popup-header-emoji">{emoji}</span>
         <div className="info-popup-header-name">{label}</div>
       </div>
-      <div className="resource-popup-current">Used {used} of {capacity}</div>
-      <div className="resource-popup-section-title">Capacity sources</div>
+      <div className="resource-popup-current">{t('hud.populationInfo.usedOfCapacity', { used: formatNumber(used), capacity: formatNumber(capacity) })}</div>
+      <div className="resource-popup-section-title">{t('hud.populationInfo.capacitySources')}</div>
       {capacityRows.length === 0 ? (
-        <div className="resource-popup-row resource-popup-row--none">No capacity sources</div>
+        <div className="resource-popup-row resource-popup-row--none">{t('hud.populationInfo.noCapacitySources')}</div>
       ) : (
         capacityRows.map((e, i) => (
           <div key={i} className="resource-popup-row">
@@ -1377,31 +1400,31 @@ function PopulationInfoPopup({
         ))
       )}
       <div className="resource-popup-total">
-        <span>Total capacity</span>
+        <span>{t('hud.populationInfo.totalCapacity')}</span>
         <span className="resource-popup-total-positive">{capacity}</span>
       </div>
-      <div className="resource-popup-section-title">Unit usage</div>
+      <div className="resource-popup-section-title">{t('hud.populationInfo.unitUsage')}</div>
       {usageRows.length === 0 ? (
         <div className="resource-popup-row resource-popup-row--none">
-          No units using {label.toLowerCase()} population
+          {t('hud.populationInfo.noUnitsUsingPopulation', { population: label })}
         </div>
       ) : (
         usageRows.map((e, i) => (
           <div key={i} className="resource-popup-row">
             <span className="resource-popup-row-label">
-              {UNIT_EMOJI[e.unitType] ?? ''} {unitName(e.unitType)} ×{e.count}
+              {UNIT_EMOJI[e.unitType] ?? ''} {t('hud.populationInfo.unitCount', { unit: unitName(e.unitType), count: e.count })}
             </span>
             <span className="resource-popup-row-value">{isFarmers ? e.farmers : e.nobles}</span>
           </div>
         ))
       )}
       <div className="resource-popup-total">
-        <span>Total used</span>
+        <span>{t('hud.populationInfo.totalUsed')}</span>
         <span className={used > capacity ? 'resource-popup-total-negative' : 'resource-popup-total-positive'}>
           {used}
         </span>
       </div>
-      <button className="info-popup-btn info-popup-btn--secondary" style={{ marginTop: 14 }} onClick={onClose}>Close</button>
+      <button className="info-popup-btn info-popup-btn--secondary" style={{ marginTop: 14 }} onClick={onClose}>{t('common.close')}</button>
     </Popup>
   );
 }
@@ -1428,12 +1451,12 @@ function InfoTagPill({ tag, onClick, inactive, active, highlight, onHighlightEnd
 
 /** Tag info popup for terrain tags (tile status) */
 function TerrainTagPopup({ tag, onClose }: { tag: TerrainTag; onClose: () => void }) {
-  const { terrainTagLabel, terrainTagDesc } = useText();
+  const { terrainTagLabel, terrainTagDesc, t } = useText();
   return (
     <Popup onClose={onClose}>
       <div className="info-popup-header-name" style={{ marginBottom: 10 }}>{terrainTagLabel(tag)}</div>
       <p className="info-popup-desc" style={{ marginBottom: 16 }}>{terrainTagDesc(tag)}</p>
-      <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>OK</button>
+      <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>{t('common.ok')}</button>
     </Popup>
   );
 }
@@ -1448,39 +1471,39 @@ function TerrainTagPill({ tag, onClick }: { tag: TerrainTag; onClick: () => void
 function EmberInfoPopup({ onClose }: { onClose: () => void }) {
   const ember = useGameStore((s) => s.ember);
   const sources = useGameStore((s) => s.emberLevelSources);
+  const { formatNumber, t } = useText();
   const { turns, emberlingSacrifices, other } = sources;
 
   return (
     <Popup onClose={onClose}>
       <div className="info-popup-header">
         <span className="info-popup-header-emoji">🔥</span>
-        <div className="info-popup-header-name">Ember Level</div>
+        <div className="info-popup-header-name">{t('hud.emberInfo.title')}</div>
       </div>
-      <div className="resource-popup-current">Current Ember Level: {ember}</div>
+      <div className="resource-popup-current">{t('hud.emberInfo.currentLevel', { amount: formatNumber(ember) })}</div>
       <p className="info-popup-desc" style={{ margin: '8px 0', fontSize: '0.85em' }}>
-        Higher Ember Level increases enemy pressure. It raises the probability that enemy
-        spawners recruit new units each turn and unlocks stronger enemy unit types over time.
+        {t('hud.emberInfo.description')}
       </p>
-      <div className="resource-popup-section-title">Source breakdown</div>
+      <div className="resource-popup-section-title">{t('hud.emberInfo.sourceBreakdown')}</div>
       <div className="resource-popup-row">
-        <span className="resource-popup-row-label">Turn progression</span>
+        <span className="resource-popup-row-label">{t('hud.emberInfo.turnProgression')}</span>
         <span className="resource-popup-row-value">+{turns}</span>
       </div>
       <div className="resource-popup-row">
-        <span className="resource-popup-row-label">Emberling sacrifices</span>
+        <span className="resource-popup-row-label">{t('hud.emberInfo.emberlingSacrifices')}</span>
         <span className="resource-popup-row-value">+{emberlingSacrifices}</span>
       </div>
       {other > 0 && (
         <div className="resource-popup-row">
-          <span className="resource-popup-row-label">Other sources</span>
+          <span className="resource-popup-row-label">{t('hud.emberInfo.otherSources')}</span>
           <span className="resource-popup-row-value">+{other}</span>
         </div>
       )}
       <div className="resource-popup-total">
-        <span>Total</span>
+        <span>{t('hud.emberInfo.total')}</span>
         <span>{ember}</span>
       </div>
-      <button className="info-popup-btn info-popup-btn--secondary" style={{ marginTop: 14 }} onClick={onClose}>Close</button>
+      <button className="info-popup-btn info-popup-btn--secondary" style={{ marginTop: 14 }} onClick={onClose}>{t('common.close')}</button>
     </Popup>
   );
 }
@@ -1504,7 +1527,7 @@ function UnitInfoPopup({
   onClose: () => void;
   isReadOnly?: boolean;
 }) {
-  const { unitName, unitDesc, statAbbr } = useText();
+  const { unitName, unitDesc, statAbbr, formatNumber, t } = useText();
   const [tagPopup, setTagPopup] = useState<UnitTag | null>(null);
   const desc = unitDesc(unitType);
   const baseTags = UNIT_DEFINITIONS[unitType]?.tags ?? [];
@@ -1552,7 +1575,7 @@ function UnitInfoPopup({
             ] as const).map(([l, v]) => (
               <div key={l} className="info-popup-stat-cell">
                 <div className="info-popup-stat-label">{l}</div>
-                <div className="info-popup-stat-value">{v}</div>
+                <div className="info-popup-stat-value">{formatNumber(v)}</div>
               </div>
             ))}
           </div>
@@ -1570,12 +1593,12 @@ function UnitInfoPopup({
         {/* Action buttons */}
         {!isReadOnly && onAction ? (
           <div className="info-popup-actions">
-            <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>Back</button>
-            <button className="info-popup-btn info-popup-btn--primary" onClick={onAction}>{actionLabel ?? 'OK'}</button>
+            <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>{t('common.back')}</button>
+            <button className="info-popup-btn info-popup-btn--primary" onClick={onAction}>{actionLabel ?? t('common.ok')}</button>
           </div>
         ) : (
           <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>
-            {isReadOnly ? 'OK' : 'Back'}
+            {t(isReadOnly ? 'common.ok' : 'common.back')}
           </button>
         )}
       </Popup>
@@ -1606,7 +1629,7 @@ function BuildingInfoPopup({
   onClose: () => void;
   isReadOnly?: boolean;
 }) {
-  const { buildingName, buildingDesc } = useText();
+  const { buildingName, buildingDesc, t } = useText();
   const def = BUILDING_DEFINITIONS[buildingType];
   const desc = buildingDesc(buildingType);
   const emoji = BUILDING_EMOJI[buildingType] ?? '?';
@@ -1626,9 +1649,9 @@ function BuildingInfoPopup({
         <span className="info-popup-header-emoji">{emoji}</span>
         <div>
           <div className="info-popup-header-name">{name}</div>
-          {derivedCost && <div className="info-popup-header-cost">Build: ⛓️{derivedCost.iron} 🪵{derivedCost.wood}</div>}
-          {crystalCost !== undefined && <div className="info-popup-header-cost">Cast: 💎{crystalCost}</div>}
-          {hasUpkeep && <div className="info-popup-header-cost">Upkeep: ⛓️{upkeepIron} 🪵{upkeepWood}/turn</div>}
+          {derivedCost && <div className="info-popup-header-cost">{t('hud.buildingInfo.buildCost', { iron: derivedCost.iron, wood: derivedCost.wood })}</div>}
+          {crystalCost !== undefined && <div className="info-popup-header-cost">{t('hud.buildingInfo.castCost', { amount: crystalCost })}</div>}
+          {hasUpkeep && <div className="info-popup-header-cost">{t('hud.buildingInfo.upkeep', { iron: upkeepIron, wood: upkeepWood })}</div>}
         </div>
       </div>
 
@@ -1636,12 +1659,12 @@ function BuildingInfoPopup({
 
       {!isReadOnly && onAction ? (
         <div className="info-popup-actions">
-          <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>Back</button>
+          <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>{t('common.back')}</button>
           <button className="info-popup-btn info-popup-btn--primary" onClick={onAction}>{actionLabel ?? 'Construct'}</button>
         </div>
       ) : (
         <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>
-          {isReadOnly ? 'OK' : 'Back'}
+          {t(isReadOnly ? 'common.ok' : 'common.back')}
         </button>
       )}
     </Popup>
@@ -1736,7 +1759,7 @@ type StatModEntry = {
  * (Watchtower, Outpost, etc.).
  */
 function BuildingStatDetailModal({ building, onClose }: { building: Building; onClose: () => void }) {
-  const { buildingName, statAbbr } = useText();
+  const { buildingName, statAbbr, formatSigned, t } = useText();
   const fortifiedGarrisonActive = useGameStore((s) => s.fortifiedGarrisonActive);
   const gameState = useGameStore((s) => s);
 
@@ -1754,12 +1777,12 @@ function BuildingStatDetailModal({ building, onClose }: { building: Building; on
     mods.push({
       stat: statAbbr('attack'),
       value: ABILITIES.FORTIFIED_GARRISON_ATTACK_BONUS,
-      source: 'Fortified Garrison (specialist)',
+      source: t('hud.statSource.fortifiedGarrison'),
     });
     mods.push({
       stat: statAbbr('attackRange'),
       value: ABILITIES.FORTIFIED_GARRISON_RANGE_BONUS,
-      source: 'Fortified Garrison (specialist)',
+      source: t('hud.statSource.fortifiedGarrison'),
     });
   }
 
@@ -1770,7 +1793,7 @@ function BuildingStatDetailModal({ building, onClose }: { building: Building; on
     mods.push({
       stat: statAbbr('attack'),
       value: chamberBonus,
-      source: `Crystal Chamber link (×${connectedCount} connected)`,
+      source: t('hud.statSource.crystalChamberLink', { count: connectedCount }),
     });
   }
 
@@ -1782,21 +1805,21 @@ function BuildingStatDetailModal({ building, onClose }: { building: Building; on
       <div className="info-popup-header">
         <span className="info-popup-header-emoji">📊</span>
         <div className="info-popup-header-name">
-          {buildingName(building.type)}: Stat Details
+          {t('hud.buildingStatDetail.title', { building: buildingName(building.type) })}
         </div>
       </div>
 
       {bonuses.length === 0 && penalties.length === 0 ? (
-        <p className="info-popup-desc">No active modifiers.</p>
+        <p className="info-popup-desc">{t('hud.buildingStatDetail.noActiveModifiers')}</p>
       ) : (
         <div className="hud-stat-detail-list">
           {bonuses.length > 0 && (
             <div className="hud-stat-detail-section">
-              <div className="hud-stat-detail-section-title">📈 Bonuses</div>
+              <div className="hud-stat-detail-section-title">📈 {t('hud.statDetails.bonuses')}</div>
               {bonuses.map((m, i) => (
                 <div key={i} className="hud-stat-detail-row">
                   <span className="hud-stat-detail-stat">{m.stat}</span>
-                  <span className="hud-stat-detail-value hud-stat-bonus">+{m.value}</span>
+                  <span className="hud-stat-detail-value hud-stat-bonus">{formatSigned(m.value)}</span>
                   <span className="hud-stat-detail-source">{m.source} ✓</span>
                 </div>
               ))}
@@ -1804,11 +1827,11 @@ function BuildingStatDetailModal({ building, onClose }: { building: Building; on
           )}
           {penalties.length > 0 && (
             <div className="hud-stat-detail-section">
-              <div className="hud-stat-detail-section-title">📉 Penalties</div>
+              <div className="hud-stat-detail-section-title">📉 {t('hud.statDetails.penalties')}</div>
               {penalties.map((m, i) => (
                 <div key={i} className="hud-stat-detail-row">
                   <span className="hud-stat-detail-stat">{m.stat}</span>
-                  <span className="hud-stat-detail-value hud-stat-penalty">{m.value}</span>
+                  <span className="hud-stat-detail-value hud-stat-penalty">{formatSigned(m.value)}</span>
                   <span className="hud-stat-detail-source">{m.source} ✓</span>
                 </div>
               ))}
@@ -1817,7 +1840,7 @@ function BuildingStatDetailModal({ building, onClose }: { building: Building; on
         </div>
       )}
 
-      <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>OK</button>
+      <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>{t('common.ok')}</button>
     </Popup>
   );
 }
@@ -1842,7 +1865,7 @@ function getReloadDefensePenalty(unit: Unit, effectiveDefenseBeforeReload: numbe
  * stats bar button so that there is exactly ONE popup for unit info.
  */
 function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => void }) {
-  const { unitName, unitDesc, statAbbr, tagLabel, techName, t } = useText();
+  const { unitName, unitDesc, statAbbr, tagLabel, techName, formatNumber, t } = useText();
   const [tagPopup, setTagPopup] = useState<UnitTag | null>(null);
   const gameState = useGameStore((s) => s);
 
@@ -1969,15 +1992,15 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
       .filter((effect) => !effect.condition)
       .map((effect) => ({ ...effect, source: t(effect.source) })),
   );
-  if (phalanxDefense > 0) mods.push({ stat: statAbbr('defense'), value: phalanxDefense, kind: 'active', source: 'Phalanx Formation (adjacent guard)' });
-  if (contextualDef > 0) mods.push({ stat: statAbbr('defense'), value: contextualDef, kind: 'active', source: 'Hold Ground (standing on own building)' });
-  if (unit.tags.includes(UnitTag.SKIRMISHER)) mods.push({ stat: statAbbr('moveRange'), value: ABILITIES.SKIRMISHER_MOVE_BONUS, kind: 'active', source: 'Skirmisher (tag ability)' });
-  if (unit.tags.includes(UnitTag.OUTRIDER)) mods.push({ stat: statAbbr('moveRange'), value: ABILITIES.OUTRIDER_MOVE_BONUS, kind: 'active', source: 'Outrider (tag ability)' });
-  if (contextualMov.techBonus > 0) mods.push({ stat: statAbbr('moveRange'), value: contextualMov.techBonus, kind: 'active', source: 'To the Front (far behind frontline)' });
-  if (contextualRange > 0) mods.push({ stat: statAbbr('attackRange'), value: contextualRange, kind: 'active', source: 'Farsight Marshal (specialist)' });
+  if (phalanxDefense > 0) mods.push({ stat: statAbbr('defense'), value: phalanxDefense, kind: 'active', source: t('hud.statSource.phalanxDefense') });
+  if (contextualDef > 0) mods.push({ stat: statAbbr('defense'), value: contextualDef, kind: 'active', source: t('hud.statSource.holdGround') });
+  if (unit.tags.includes(UnitTag.SKIRMISHER)) mods.push({ stat: statAbbr('moveRange'), value: ABILITIES.SKIRMISHER_MOVE_BONUS, kind: 'active', source: t('hud.statSource.skirmisher') });
+  if (unit.tags.includes(UnitTag.OUTRIDER)) mods.push({ stat: statAbbr('moveRange'), value: ABILITIES.OUTRIDER_MOVE_BONUS, kind: 'active', source: t('hud.statSource.outrider') });
+  if (contextualMov.techBonus > 0) mods.push({ stat: statAbbr('moveRange'), value: contextualMov.techBonus, kind: 'active', source: t('hud.statSource.toTheFront') });
+  if (contextualRange > 0) mods.push({ stat: statAbbr('attackRange'), value: contextualRange, kind: 'active', source: t('hud.statSource.farsightMarshal') });
   for (const tag of unit.tags) {
     for (const mod of TAG_STAT_EFFECTS[tag] ?? []) {
-      if (mod.mode === 'add') mods.push({ stat: statAbbr(mod.stat), value: mod.value, kind: 'applied', source: `${tagLabel(tag)} (tag)` });
+      if (mod.mode === 'add') mods.push({ stat: statAbbr(mod.stat), value: mod.value, kind: 'applied', source: t('hud.statSource.tag', { name: tagLabel(tag) }) });
     }
   }
   if (unit.faction === Faction.PLAYER) {
@@ -1985,17 +2008,17 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
       if (!gameState.techNodes[def.id]?.unlocked) continue;
       for (const effect of def.effects) {
         if (effect.type === 'UNIT_STAT_MOD' && effect.unitType === unit.type && effect.mode === 'add') {
-          mods.push({ stat: statAbbr(effect.stat), value: effect.value, kind: 'applied', source: `${techName(def.id)} (tech)` });
+          mods.push({ stat: statAbbr(effect.stat), value: effect.value, kind: 'applied', source: t('hud.statSource.tech', { name: techName(def.id) }) });
         }
       }
     }
   }
-  if (unit.distractionDefPenalty > 0) mods.push({ stat: statAbbr('defense'), value: -unit.distractionDefPenalty, kind: 'applied', source: 'Distraction arrows (permanent, from archer hits)' });
+  if (unit.distractionDefPenalty > 0) mods.push({ stat: statAbbr('defense'), value: -unit.distractionDefPenalty, kind: 'applied', source: t('hud.statSource.distractionArrows') });
   const reloadPenalty = getReloadDefensePenalty(
     unit,
     unit.stats.defense + phalanxDefense + contextualDef - unit.distractionDefPenalty,
   );
-  if (reloadPenalty > 0) mods.push({ stat: statAbbr('defense'), value: -reloadPenalty, kind: 'active', source: `Reload (fired this turn, -${ABILITIES.RELOAD_DEF_PENALTY_PCT}% DEF)` });
+  if (reloadPenalty > 0) mods.push({ stat: statAbbr('defense'), value: -reloadPenalty, kind: 'active', source: t('hud.statSource.reload', { penalty: ABILITIES.RELOAD_DEF_PENALTY_PCT }) });
 
   mods.sort((a, b) => {
     if (a.kind !== b.kind) return a.kind === 'active' ? -1 : 1;
@@ -2028,7 +2051,7 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
             <div key={label} className="info-popup-stat-cell">
               <div className="info-popup-stat-label">{label}</div>
               <div className="info-popup-stat-value">
-                {rawVal - (applied[key] ?? 0)}
+                {formatNumber(rawVal - (applied[key] ?? 0))}
                 {showNetMod(key)}
               </div>
             </div>
@@ -2040,7 +2063,7 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
           <div className="hud-stat-detail-list">
             {bonuses.length > 0 && (
               <div className="hud-stat-detail-section">
-                <div className="hud-stat-detail-section-title">📈 Bonuses</div>
+                <div className="hud-stat-detail-section-title">📈 {t('hud.statDetails.bonuses')}</div>
                 {bonuses.map((m, i) => (
                   <div key={i} className="hud-stat-detail-row">
                     <span className="hud-stat-detail-stat">{m.stat}</span>
@@ -2052,7 +2075,7 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
             )}
             {penalties.length > 0 && (
               <div className="hud-stat-detail-section">
-                <div className="hud-stat-detail-section-title">📉 Penalties</div>
+                <div className="hud-stat-detail-section-title">📉 {t('hud.statDetails.penalties')}</div>
                 {penalties.map((m, i) => (
                   <div key={i} className="hud-stat-detail-row">
                     <span className="hud-stat-detail-stat">{m.stat}</span>
@@ -2064,7 +2087,7 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
             )}
             {conditionalEffects.length > 0 && (
               <div className="hud-stat-detail-section">
-                <div className="hud-stat-detail-section-title">🎯 Target-dependent</div>
+                <div className="hud-stat-detail-section-title">🎯 {t('hud.statDetails.targetDependent')}</div>
                 {conditionalEffects.map((effect, i) => (
                   <div key={`conditional-${i}`} className="hud-stat-detail-row">
                     <span className="hud-stat-detail-stat">{effect.stat}</span>
@@ -2088,7 +2111,7 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
           </div>
         )}
 
-        <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>OK</button>
+        <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>{t('common.ok')}</button>
       </Popup>
 
       {tagPopup && <TagPopup tag={tagPopup} onClose={() => setTagPopup(null)} />}
