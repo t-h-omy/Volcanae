@@ -26,7 +26,7 @@ export default defineConfig([
   {
     files: ['src/components/**/*.tsx'],
     rules: {
-      'no-restricted-syntax': ['warn',
+      'no-restricted-syntax': ['error',
         {
           selector: 'JSXText[value=/[A-Za-z]{2,}/]',
           message: 'Player-facing text must come from useText()',

@@ -124,7 +124,7 @@ function getBuildingAttackableTileKeys(
 // ============================================================================
 
 export default function GridRenderer() {
-  const { t } = useText();
+  const { formatNumber, t } = useText();
   // ── Store selectors ──
   const grid = useGameStore((s) => s.grid);
   const units = useGameStore((s) => s.units);
@@ -1616,7 +1616,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
         </>
       )}
       {UNIT_DEFINITIONS[unit.type]?.levelUp?.length > 0 && (
-        <span className="unit-xp-text">{unit.xp} xp</span>
+        <span className="unit-xp-text">{t('grid.unitXp', { xp: formatNumber(unit.xp) })}</span>
       )}
       {showUnitImg ? (
         <img

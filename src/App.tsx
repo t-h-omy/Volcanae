@@ -10,6 +10,7 @@ import GridRenderer from './components/GridRenderer'
 import HUD from './components/HUD'
 import FlyToHudLayer from './components/FlyToHudLayer'
 import MainMenu from './components/MainMenu'
+import { useText } from './i18n/useText'
 import './App.css'
 
 function isAppInstalled(): boolean {
@@ -65,6 +66,7 @@ function useA2HS(): { canInstall: boolean; isInstalled: boolean; promptInstall: 
 
 /** The in-game view: grid, HUD, music, animation engine, turn popup. */
 function Game({ canInstall, promptInstall }: { canInstall: boolean; promptInstall: () => void }) {
+  const { t } = useText();
   const phase = useGameStore((s) => s.phase);
   const turn = useGameStore((s) => s.turn);
   const [showTurnPopup, setShowTurnPopup] = useState(false);
@@ -100,7 +102,7 @@ function Game({ canInstall, promptInstall }: { canInstall: boolean; promptInstal
   return (
     <div className="app-container">
       {!assetsReady ? (
-        <div role="status" aria-live="polite" className="loading-text">Loading…</div>
+        <div role="status" aria-live="polite" className="loading-text">{t('app.loading')}</div>
       ) : phase ? (
         <>
           <GridRenderer />
@@ -108,12 +110,12 @@ function Game({ canInstall, promptInstall }: { canInstall: boolean; promptInstal
           <FlyToHudLayer />
           {canInstall && (
             <button className="a2hs-btn" onClick={promptInstall}>
-              📲 Install App
+              📲 {t('app.install')}
             </button>
           )}
         </>
       ) : (
-        <span className="loading-text">Volcanae - Loading...</span>
+        <span className="loading-text">{t('app.loadingTitle')}</span>
       )}
     </div>
   );

@@ -27,6 +27,8 @@ import type { SaveSlotMeta } from '../saveSystem';
 import { SAVE } from '../gameConfig';
 import { Difficulty } from '../types';
 import { useText } from '../i18n/useText';
+import { useLocaleStore } from '../i18n/localeStore';
+import { LOCALE_ENDONYMS, RELEASE_LOCALES } from '../../config/i18n';
 import { MENU_TRACK } from '../musicSystem';
 import './MainMenu.css';
 
@@ -34,36 +36,9 @@ import './MainMenu.css';
 // DIFFICULTY LABELS & DESCRIPTIONS
 // ============================================================================
 
-const DIFFICULTY_DESC: Record<Difficulty, string> = {
-  [Difficulty.EASY]: 'Gentler heat. Reduced enemy pressure and slower lava advancement — good for learning the front.',
-  [Difficulty.STANDARD]: 'Balanced heat. Enemy pressure and lava advancement as designed — the intended way to play.',
-  [Difficulty.HARD]: 'Relentless heat. Aggressive enemies and quicker lava advancement — every push has to count.',
-};
-
 function getBaseAssetUrl(path: string): string {
   const base = import.meta.env.BASE_URL.endsWith('/') ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
   return `${base}${path.replace(/^\/+/, '')}`;
-}
-
-// ============================================================================
-// HELPERS
-// ============================================================================
-
-function formatRelativeTime(ms: number): string {
-  const diff = Date.now() - ms;
-  const seconds = Math.floor(diff / 1000);
-  if (seconds < 60) return 'just now';
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 // ============================================================================
@@ -298,13 +273,17 @@ function useMenuMusic(): void {
 // ============================================================================
 
 function RootPanel({ hasSave, newestSlot }: { hasSave: boolean; newestSlot: SaveSlotMeta | null }) {
+  const { formatNumber, t, toLocaleUpper } = useText();
   const goPanel = useMenuStore((s) => s.goPanel);
   const continueGame = useGameStore((s) => s.continueGame);
   const logoSrc = getBaseAssetUrl('assets/game_logo_transparent_1024px.png');
 
   const continueSubtitle = newestSlot
-    ? `TURN ${newestSlot.turn} · ${newestSlot.name.toUpperCase()}`
-    : 'RESUME GAME';
+    ? toLocaleUpper(t('menu.root.continueSubtitle', {
+      turn: formatNumber(newestSlot.turn),
+      name: newestSlot.name,
+    }))
+    : toLocaleUpper(t('menu.root.resumeGame'));
 
   return (
     <>
@@ -312,7 +291,7 @@ function RootPanel({ hasSave, newestSlot }: { hasSave: boolean; newestSlot: Save
         <img
           className="mm-logo"
           src={logoSrc}
-          alt="Volcanae"
+          alt={t('menu.root.logoAlt')}
         />
       </div>
 
@@ -323,7 +302,7 @@ function RootPanel({ hasSave, newestSlot }: { hasSave: boolean; newestSlot: Save
               <IconPlay />
             </span>
             <span className="mm-continue-labels">
-              <span className="mm-continue-title">Continue</span>
+              <span className="mm-continue-title">{t('menu.root.continue')}</span>
               <span className="mm-continue-subtitle">{continueSubtitle}</span>
             </span>
             <span className="mm-chevron-continue">
@@ -336,7 +315,7 @@ function RootPanel({ hasSave, newestSlot }: { hasSave: boolean; newestSlot: Save
           <span className="mm-icon-tile-secondary">
             <IconNew />
           </span>
-          <span className="mm-btn-secondary-label">New Game</span>
+          <span className="mm-btn-secondary-label">{t('menu.root.newGame')}</span>
           <span className="mm-chevron-secondary">
             <IconChevronRight size={17} />
           </span>
@@ -346,7 +325,7 @@ function RootPanel({ hasSave, newestSlot }: { hasSave: boolean; newestSlot: Save
           <span className="mm-icon-tile-secondary">
             <IconFolder />
           </span>
-          <span className="mm-btn-secondary-label">Load Game</span>
+          <span className="mm-btn-secondary-label">{t('menu.root.loadGame')}</span>
           <span className="mm-chevron-secondary">
             <IconChevronRight size={17} />
           </span>
@@ -356,7 +335,7 @@ function RootPanel({ hasSave, newestSlot }: { hasSave: boolean; newestSlot: Save
           <span className="mm-icon-tile-secondary">
             <IconGear />
           </span>
-          <span className="mm-btn-secondary-label">Options</span>
+          <span className="mm-btn-secondary-label">{t('menu.root.options')}</span>
           <span className="mm-chevron-secondary">
             <IconChevronRight size={17} />
           </span>
@@ -373,6 +352,7 @@ function RootPanel({ hasSave, newestSlot }: { hasSave: boolean; newestSlot: Save
 // ============================================================================
 
 function HintsControls({ showReset = false }: { showReset?: boolean }) {
+  const { t } = useText();
   const hintsEnabled = useHintOptionsStore((s) => s.hintsEnabled);
   const setHintsEnabled = useHintOptionsStore((s) => s.setHintsEnabled);
   const resetShowCounts = useHintOptionsStore((s) => s.resetShowCounts);
@@ -402,25 +382,25 @@ function HintsControls({ showReset = false }: { showReset?: boolean }) {
   return (
     <>
       <div className="mm-hints-row">
-        <span className="mm-hints-label">💡 Show hints</span>
+        <span className="mm-hints-label">💡 {t('menu.new.showHints')}</span>
         <button
           className={`mm-hints-toggle${hintsEnabled ? ' mm-hints-toggle--on' : ''}`}
           onClick={() => setHintsEnabled(!hintsEnabled)}
           aria-pressed={hintsEnabled}
-          aria-label={hintsEnabled ? 'Disable hints' : 'Enable hints'}
+          aria-label={hintsEnabled ? t('menu.new.disableHints') : t('menu.new.enableHints')}
         >
-          {hintsEnabled ? 'On' : 'Off'}
+          {hintsEnabled ? t('common.on') : t('common.off')}
         </button>
       </div>
       {showReset && (
         <div className="mm-hints-row">
-          <span className="mm-hints-label">🔄 Reset hint counters</span>
+          <span className="mm-hints-label">🔄 {t('menu.new.resetHintCounters')}</span>
           <button
             className="mm-hints-reset"
             onClick={handleResetHints}
-            aria-label="Reset hint counters"
+            aria-label={t('menu.new.resetHintCounters')}
           >
-            {showResetConfirmation ? 'Done' : 'Reset'}
+            {showResetConfirmation ? t('common.done') : t('common.reset')}
           </button>
         </div>
       )}
@@ -429,7 +409,7 @@ function HintsControls({ showReset = false }: { showReset?: boolean }) {
 }
 
 function NewPanel() {
-  const { difficultyLabel } = useText();
+  const { difficultyLabel, t } = useText();
   const goPanel = useMenuStore((s) => s.goPanel);
   const newGameInSlot = useGameStore((s) => s.newGameInSlot);
   const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty>(Difficulty.STANDARD);
@@ -473,15 +453,15 @@ function NewPanel() {
     <div className="mm-panel" data-dir={navDir}>
       <div className="mm-panel-inner">
         <div className="mm-panel-header">
-          <button className="mm-back-btn" onClick={() => goPanel('ROOT', 'back')} aria-label="Back">
+          <button className="mm-back-btn" onClick={() => goPanel('ROOT', 'back')} aria-label={t('common.back')}>
             <IconChevronLeft size={20} />
           </button>
-          <span className="mm-panel-title">New Campaign</span>
+          <span className="mm-panel-title">{t('menu.new.title')}</span>
         </div>
 
         <div className="mm-panel-scroll">
           <div>
-            <div className="mm-field-label">Campaign name</div>
+            <div className="mm-field-label">{t('menu.new.campaignName')}</div>
             <input
               className="mm-name-input"
               type="text"
@@ -495,7 +475,7 @@ function NewPanel() {
           </div>
 
           <div>
-            <div className="mm-field-label">Difficulty</div>
+            <div className="mm-field-label">{t('menu.new.difficulty')}</div>
             <div className="mm-difficulty-segs">
               {([Difficulty.EASY, Difficulty.STANDARD, Difficulty.HARD] as Difficulty[]).map((d) => (
                 <button
@@ -509,7 +489,7 @@ function NewPanel() {
             </div>
             <div className="mm-diff-card">
               <div className="mm-diff-card-name">{difficultyLabel(selectedDifficulty)}</div>
-              <div className="mm-diff-card-desc">{DIFFICULTY_DESC[selectedDifficulty]}</div>
+              <div className="mm-diff-card-desc">{t(`menu.new.difficulty${selectedDifficulty}Desc`)}</div>
             </div>
           </div>
 
@@ -517,15 +497,15 @@ function NewPanel() {
 
           <button className="mm-world-gen-stub" disabled>
             <IconGlobe />
-            World generation — coming soon
+            {t('menu.new.worldGeneration')}
           </button>
 
           {capReached && (
             <div className="mm-cap-notice">
-              Save limit reached ({SAVE.SLOT_CAP}). Delete a save to start a new game.
+              {t('menu.new.saveLimit', { slotCap: SAVE.SLOT_CAP })}
               <br />
               <button className="mm-cap-notice-go" onClick={() => goPanel('LOAD', 'forward')}>
-                <IconFolder /> Go to Load / Delete saves
+                <IconFolder /> {t('menu.new.goToLoadDelete')}
               </button>
             </div>
           )}
@@ -537,7 +517,7 @@ function NewPanel() {
           disabled={capReached || starting || !idbAvailable()}
         >
           <IconPlay />
-          {starting ? 'Starting…' : 'Start Campaign'}
+          {starting ? t('menu.new.starting') : t('menu.new.start')}
         </button>
       </div>
     </div>
@@ -549,7 +529,7 @@ function NewPanel() {
 // ============================================================================
 
 function LoadPanel() {
-  const { difficultyLabel } = useText();
+  const { difficultyLabel, formatNumber, formatRelativeTime, t, toLocaleUpper } = useText();
   const goPanel = useMenuStore((s) => s.goPanel);
   const loadIntoGame = useGameStore((s) => s.loadIntoGame);
   const navDir = useMenuStore((s) => s.navDir);
@@ -602,34 +582,34 @@ function LoadPanel() {
     setImportError(null);
     const newMeta = await importSlotFromFile(file);
     if (!newMeta) {
-      setImportError('Failed to import: file is invalid or incompatible.');
+      setImportError(t('menu.load.importError'));
       return;
     }
     setPage(0);
     refresh();
-  }, [refresh]);
+  }, [refresh, t]);
 
   return (
     <div className="mm-panel" data-dir={navDir}>
       <div className="mm-panel-inner">
         <div className="mm-panel-header">
-          <button className="mm-back-btn" onClick={() => goPanel('ROOT', 'back')} aria-label="Back">
+          <button className="mm-back-btn" onClick={() => goPanel('ROOT', 'back')} aria-label={t('common.back')}>
             <IconChevronLeft size={20} />
           </button>
-          <span className="mm-panel-title">Load Game</span>
+          <span className="mm-panel-title">{t('menu.load.title')}</span>
         </div>
 
         {!idbAvailable() && (
           <div className="mm-cap-notice" style={{ marginBottom: '12px' }}>
-            Save storage is unavailable in this context.
+            {t('menu.load.storageUnavailable')}
           </div>
         )}
 
         <div className="mm-load-scroll">
           {loading ? (
-            <div className="mm-load-empty">Loading saves…</div>
+            <div className="mm-load-empty">{t('menu.load.loading')}</div>
           ) : slots.length === 0 ? (
-            <div className="mm-load-empty">No saves found.</div>
+            <div className="mm-load-empty">{t('menu.load.empty')}</div>
           ) : (
             pageSlots.map((meta, idx) => {
               const compatible = isSlotCompatible(meta);
@@ -637,7 +617,11 @@ function LoadPanel() {
               const rowVariant = !compatible ? 'incompatible' : isFirst ? 'active' : 'normal';
               const iconColorClass = `mm-slot-icon--${rowVariant}`;
               const metaColorClass = `mm-slot-meta--${rowVariant}`;
-              const metaLine = `TURN ${meta.turn} · ${difficultyLabel(meta.difficulty).toUpperCase()} · ${formatRelativeTime(meta.savedAt).toUpperCase()}`;
+              const metaLine = toLocaleUpper(t('menu.load.slotMeta', {
+                turn: formatNumber(meta.turn),
+                difficulty: difficultyLabel(meta.difficulty),
+                time: formatRelativeTime(meta.savedAt),
+              }));
 
               return (
                 <div key={meta.id} className={`mm-slot-row mm-slot-row--${rowVariant}`}>
@@ -647,7 +631,7 @@ function LoadPanel() {
                   <div className="mm-slot-info">
                     <div className="mm-slot-name">{meta.name}</div>
                     <div className={`mm-slot-meta ${metaColorClass}`}>
-                      {!compatible ? `INCOMPATIBLE (v${meta.version})` : metaLine}
+                      {!compatible ? toLocaleUpper(t('menu.load.incompatible', { version: meta.version })) : metaLine}
                     </div>
                   </div>
                   <div className="mm-slot-actions">
@@ -656,26 +640,26 @@ function LoadPanel() {
                       disabled={!compatible}
                       onClick={() => loadIntoGame(meta.id)}
                     >
-                      Load
+                      {t('menu.load.load')}
                     </button>
                     <button
                       className="mm-action-btn mm-action-btn--export"
-                      title="Export save"
+                      title={t('menu.load.export')}
                       onClick={() => handleExport(meta)}
                     >
                       <IconExport />
                     </button>
                     <button
                       className={confirmDeleteId === meta.id ? 'mm-action-btn mm-action-btn--delete-confirm' : 'mm-action-btn mm-action-btn--delete'}
-                      title="Delete save"
+                      title={t('menu.load.delete')}
                       onClick={() => handleDelete(meta.id)}
                     >
-                      {confirmDeleteId === meta.id ? 'Sure?' : <IconTrash />}
+                      {confirmDeleteId === meta.id ? t('menu.load.sure') : <IconTrash />}
                     </button>
                     {confirmDeleteId === meta.id && (
                       <button
                         className="mm-action-btn mm-action-btn--export"
-                        title="Cancel delete"
+                        title={t('menu.load.cancelDelete')}
                         onClick={() => setConfirmDeleteId(null)}
                       >
                         <IconClose />
@@ -694,7 +678,7 @@ function LoadPanel() {
 
         <div className="mm-load-footer">
           <button className="mm-import-pill" onClick={() => fileInputRef.current?.click()}>
-            <IconImport /> Import save
+            <IconImport /> {t('menu.load.import')}
           </button>
           <input
             ref={fileInputRef}
@@ -709,11 +693,11 @@ function LoadPanel() {
           />
           {showPagination && (
             <div className="mm-pager">
-              <button className="mm-pager-btn" disabled={page === 0} onClick={() => setPage((p) => p - 1)} aria-label="Previous page">
+              <button className="mm-pager-btn" disabled={page === 0} onClick={() => setPage((p) => p - 1)} aria-label={t('menu.load.previousPage')}>
                 <IconChevronLeft size={15} />
               </button>
-              {page + 1} / {totalPages}
-              <button className="mm-pager-btn" disabled={page >= totalPages - 1} onClick={() => setPage((p) => p + 1)} aria-label="Next page">
+              {t('menu.load.page', { page: formatNumber(page + 1), totalPages: formatNumber(totalPages) })}
+              <button className="mm-pager-btn" disabled={page >= totalPages - 1} onClick={() => setPage((p) => p + 1)} aria-label={t('menu.load.nextPage')}>
                 <IconChevronRight size={15} />
               </button>
             </div>
@@ -737,6 +721,8 @@ function OptionsPanel({
   isInstalled: boolean;
   promptInstall: () => void;
 }) {
+  const { formatKilobytes, t } = useText();
+  const locale = useLocaleStore((state) => state.locale);
   const goPanel = useMenuStore((s) => s.goPanel);
   const navDir = useMenuStore((s) => s.navDir);
   const volume = useSoundOptionsStore((s) => s.volume);
@@ -761,16 +747,16 @@ function OptionsPanel({
     <div className="mm-panel" data-dir={navDir}>
       <div className="mm-panel-inner">
         <div className="mm-panel-header">
-          <button className="mm-back-btn" onClick={() => goPanel('ROOT', 'back')} aria-label="Back">
+          <button className="mm-back-btn" onClick={() => goPanel('ROOT', 'back')} aria-label={t('common.back')}>
             <IconChevronLeft size={20} />
           </button>
-          <span className="mm-panel-title">Options</span>
+          <span className="mm-panel-title">{t('menu.options.title')}</span>
         </div>
 
         <div className="mm-options-scroll">
           <div>
             <div className="mm-slider-row-label">
-              <span>Music</span>
+              <span>{t('menu.options.music')}</span>
               <span className="mm-slider-row-pct">{pct}%</span>
             </div>
             <input
@@ -781,7 +767,7 @@ function OptionsPanel({
               step={0.01}
               value={volume}
               onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-              aria-label="Music volume"
+              aria-label={t('menu.options.musicVolume')}
             />
           </div>
 
@@ -789,7 +775,7 @@ function OptionsPanel({
               once soundOptionsStore exposes a dedicated sfxVolume field. */}
           <div>
             <div className="mm-slider-row-label">
-              <span>Sound FX</span>
+              <span>{t('menu.options.soundFx')}</span>
               <span className="mm-slider-row-pct">{pct}%</span>
             </div>
             <input
@@ -800,48 +786,72 @@ function OptionsPanel({
               step={0.01}
               value={volume}
               onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-              aria-label="Sound FX volume"
+              aria-label={t('menu.options.soundFxVolume')}
             />
           </div>
 
           <div className="mm-options-divider" />
 
           <div>
-            <div className="mm-field-label">Hints</div>
+            <div className="mm-field-label">{t('menu.options.hints')}</div>
             <HintsControls showReset />
           </div>
 
           <div className="mm-options-divider" />
 
+          {RELEASE_LOCALES.length > 1 && (
+            <>
+              <div className="mm-language-row">
+                <span className="mm-field-label">{t('options.language')}</span>
+                <div className="mm-language-buttons">
+                  {RELEASE_LOCALES.map((code) => (
+                    <button
+                      key={code}
+                      className={`mm-language-btn${locale === code ? ' mm-language-btn--active' : ''}`}
+                      aria-pressed={locale === code}
+                      onClick={() => void useLocaleStore.getState().setLocale(code)}
+                    >
+                      {LOCALE_ENDONYMS[code]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="mm-options-divider" />
+            </>
+          )}
+
           <div>
-            <div className="mm-field-label">Storage</div>
+            <div className="mm-field-label">{t('menu.options.storage')}</div>
             <div className="mm-storage-card">
               <span className={`mm-storage-dot ${persisted ? 'mm-storage-dot--active' : 'mm-storage-dot--inactive'}`} />
               <div className="mm-storage-info">
                 <div className="mm-storage-status">
                   {persisted === null
-                    ? 'Checking…'
+                    ? t('menu.options.checking')
                     : persisted
-                    ? 'Durable storage active'
-                    : 'Storage not persisted'}
+                    ? t('menu.options.durableStorage')
+                    : t('menu.options.notPersisted')}
                 </div>
                 {usage && (
                   <div className="mm-storage-usage">
-                    {formatBytes(usage.usage)} / {formatBytes(usage.quota)} used
+                    {t('menu.options.storageUsage', {
+                      used: formatKilobytes(usage.usage),
+                      quota: formatKilobytes(usage.quota),
+                    })}
                   </div>
                 )}
               </div>
             </div>
 
             <div className="mm-a2hs-note">
-              Installing the app to your home screen improves save durability.
+              {t('menu.options.installNote')}
               <br />
               <button
                 className="mm-btn-install"
                 onClick={promptInstall}
                 disabled={isInstalled || !canInstall}
               >
-                Install App
+                {t('menu.options.install')}
               </button>
             </div>
           </div>
@@ -866,6 +876,7 @@ export default function MainMenu({
 }) {
   const panel = useMenuStore((s) => s.panel);
   const navDir = useMenuStore((s) => s.navDir);
+  const { t } = useText();
   const [hasSave, setHasSave] = useState(false);
   const [newestSlot, setNewestSlot] = useState<SaveSlotMeta | null>(null);
   const noIdb = !idbAvailable();
@@ -913,7 +924,7 @@ export default function MainMenu({
       <div className="mm-root-content">
         {noIdb && (
           <div className="mm-root-notice">
-            Saving is unavailable in this context (e.g. private mode). You can still play, but progress will not be saved.
+            {t('menu.main.saveUnavailable')}
           </div>
         )}
         <RootPanel hasSave={hasSave} newestSlot={newestSlot} />
