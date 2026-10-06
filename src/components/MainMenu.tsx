@@ -418,6 +418,11 @@ function NewPanel() {
   const [capReached, setCapReached] = useState(false);
   const [starting, setStarting] = useState(false);
   const navDir = useMenuStore((s) => s.navDir);
+  const difficultyDescription = selectedDifficulty === Difficulty.EASY
+    ? t('menu.new.difficultyEasyDesc')
+    : selectedDifficulty === Difficulty.STANDARD
+    ? t('menu.new.difficultyStandardDesc')
+    : t('menu.new.difficultyHardDesc');
 
   // Compute default name on mount.
   useEffect(() => {
@@ -489,7 +494,7 @@ function NewPanel() {
             </div>
             <div className="mm-diff-card">
               <div className="mm-diff-card-name">{difficultyLabel(selectedDifficulty)}</div>
-              <div className="mm-diff-card-desc">{t(`menu.new.difficulty${selectedDifficulty}Desc`)}</div>
+              <div className="mm-diff-card-desc">{difficultyDescription}</div>
             </div>
           </div>
 

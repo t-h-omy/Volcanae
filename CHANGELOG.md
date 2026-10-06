@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.114.15 - Localized main menu and remaining UI
+
+Localized the main menu, app loading states, and unit XP labels for all supported locales. Added locale-aware relative time and storage sizes, prepared the language option in main-menu Options, and enforced the hardcoded-text lint rule.
+
 ### v0.114.14 - Localized HUD panels, market, cave rewards and tech tree
 
 Localized HUD panels, market, cave rewards and tech tree for all supported locales.

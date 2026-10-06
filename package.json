@@ -1,7 +1,7 @@
 {
   "name": "volcanae",
   "private": true,
-  "version": "0.114.14",
+  "version": "0.114.15",
   "type": "module",
   "scripts": {
     "dev": "vite",
