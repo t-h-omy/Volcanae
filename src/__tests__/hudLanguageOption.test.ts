@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import HUD_TSX from '../components/HUD.tsx?raw';
 import MAIN_MENU_TSX from '../components/MainMenu.tsx?raw';
+import { LOCALE_ENDONYMS, RELEASE_LOCALES } from '../../config/i18n';
 
 const options = HUD_TSX.slice(
   HUD_TSX.indexOf('function OptionsOverlay('),
@@ -12,6 +13,11 @@ const menuOptions = MAIN_MENU_TSX.slice(
 );
 
 describe('in-game language option UI contract', () => {
+  it('releases only English and German with their endonyms', () => {
+    expect(RELEASE_LOCALES).toEqual(['en', 'de']);
+    expect(RELEASE_LOCALES.map((code) => LOCALE_ENDONYMS[code])).toEqual(['English', 'Deutsch']);
+  });
+
   it('shows release locale endonyms only when multiple locales are released', () => {
     expect(options).toContain('{RELEASE_LOCALES.length > 1 && (');
     expect(options).toContain('LOCALE_ENDONYMS[code]');

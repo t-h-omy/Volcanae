@@ -4,6 +4,10 @@ A top down push forward strategy game built with React + TypeScript + Vite.
 
 Grid orientation: see `src/GRID_ORIENTATION.md`.
 
+## Languages
+
+Available languages are English and German. Choose a language in Options; on first launch, the game automatically detects German browsers and uses English for other languages.
+
 ## Hint System
 
 Volcanae includes a situational hint system for new players. Hints appear as a dismissable banner overlaying the resource bar on your first encounter with key game mechanics: economy basics, lava advance, combat rules, crystal chambers, and more. Each hint can be expanded to read a detailed explanation.

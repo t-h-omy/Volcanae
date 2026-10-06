@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.115.0 - German language
+
+German is now selectable in Options and is auto-detected on first launch; English remains the default for other browser languages.
+
 ### v0.114.16 - Translation review tooling
 
 Added locale review sheet export and validated import, plus an advisory terminology and catalog report.

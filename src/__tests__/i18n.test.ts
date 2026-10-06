@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { type LocaleCode } from '../../config/i18n';
+import { RELEASE_LOCALES, type LocaleCode } from '../../config/i18n';
 import { formatMessage, formatList, formatNumber, formatSigned, type TextKey } from '../i18n/i18n';
 import { detectLocale, useLocaleStore } from '../i18n/localeStore';
 import { pseudoLocalize } from '../i18n/pseudo';
@@ -53,6 +53,11 @@ describe('localization runtime', () => {
     expect(detectLocale(['ja'], ['en'])).toBe('en');
     expect(detectLocale([], ['en', 'de'])).toBe('en');
     expect(detectLocale(['ja-JP'], ['en', 'de'])).not.toBe('ja-JP');
+  });
+
+  it('auto-detects German and defaults other browser languages to English', () => {
+    expect(detectLocale(['de-DE', 'en-US'], RELEASE_LOCALES)).toBe('de');
+    expect(detectLocale(['fr-FR', 'es-ES'], RELEASE_LOCALES)).toBe('en');
   });
 
   it('formats numbers and lists using the selected locale', async () => {

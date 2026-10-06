@@ -1,7 +1,7 @@
 export const SUPPORTED_LOCALES = ['en', 'de', 'fr', 'es', 'it', 'pt-BR'] as const;
 export type LocaleCode = (typeof SUPPORTED_LOCALES)[number];
 
-export const RELEASE_LOCALES: readonly LocaleCode[] = SUPPORTED_LOCALES;
+export const RELEASE_LOCALES: readonly LocaleCode[] = ['en', 'de'];
 export const DEFAULT_LOCALE: LocaleCode = 'en';
 export const PSEUDO_LOCALE = 'en-XA' as const;
 
