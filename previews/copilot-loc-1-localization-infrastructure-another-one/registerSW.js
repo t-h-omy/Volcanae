@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/Volcanae/previews/copilot-loc-1-localization-infrastructure-another-one/sw.js', { scope: '/Volcanae/previews/copilot-loc-1-localization-infrastructure-another-one/' })})}
