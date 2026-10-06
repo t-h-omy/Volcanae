@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax */
 import { useCallback, useEffect, useState } from 'react';
 import { useGameStore } from '../gameStore';
 import { useMenuStore } from '../menuStore';

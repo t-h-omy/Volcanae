@@ -1001,6 +1001,39 @@
   flex: none;
 }
 
+.mm-language-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mm-language-row .mm-field-label {
+  margin-bottom: 0;
+}
+
+.mm-language-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mm-language-btn {
+  border: 1px solid var(--mm-border-neutral-sm);
+  border-radius: 8px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--mm-text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.mm-language-btn--active {
+  border-color: var(--mm-border-accent-strong);
+  background: rgba(67, 214, 255, 0.12);
+  color: var(--mm-cyan-light-3);
+}
+
 /* Storage section */
 .mm-storage-card {
   display: flex;

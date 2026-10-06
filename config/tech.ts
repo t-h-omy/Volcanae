@@ -34,16 +34,13 @@ export function computeResearchCost(baseCost: number, ember: number): number {
  * Add a new tech node by adding one entry to this array - no logic files
  * touched, no switch statements updated, no hardcoded references.
  *
- * Description authoring: see the DESCRIPTION AUTHORING RULE comment above the
- * ABILITIES constant. All numbers in `description` strings must reference
- * ABILITIES (or another named config constant) via template literals.
+ * Display text lives in src/i18n/locales/en.json. Numeric values are supplied
+ * by textParams backed by named config constants.
  */
 export const TECH_TREE: TechNodeDefinition[] = [
   // ── Root node (auto-unlocked at game start, not a pick) ──
   {
     id: 'CONSCRIPTION',
-    name: 'Conscription',
-    description: 'Basic military infrastructure',
     requires: [],
     effects: [
       { type: 'UNLOCK_BUILDING', buildingType: BuildingType.BARRACKS },
@@ -58,8 +55,6 @@ export const TECH_TREE: TechNodeDefinition[] = [
   // ── Branch 1: Nobility ──
   {
     id: 'A_NOBLE_STEAD',
-    name: 'A Noble Stead',
-    description: 'Attract the upper class and field swift cavalry',
     requires: ['CONSCRIPTION'],
     cost: 2,
     effects: [
@@ -72,20 +67,18 @@ export const TECH_TREE: TechNodeDefinition[] = [
     // Placed beside DEEP_VEINS - both require A_NOBLE_STEAD and both buff mines
     // with iron production, making them natural thematic siblings on the tree.
     id: 'CHARCOAL_KILN',
-    name: 'Charcoal Kiln',
-    description: `Unlocks the Charcoal Kiln, which grants +${RESOURCES.CHARCOAL_KILN_IRON_BONUS} iron per turn per in-range kiln to nearby mines and deep mines.`,
     requires: ['A_NOBLE_STEAD'],
     cost: 4,
     effects: [
       { type: 'UNLOCK_BUILDING', buildingType: BuildingType.CHARCOAL_KILN },
     ],
+  
+    textParams: { ironBonus: RESOURCES.CHARCOAL_KILN_IRON_BONUS },
   },
 
   // ── Branch 2: Ranged ──
   {
     id: 'FAR_REACH',
-    name: 'Far Reach',
-    description: 'Establish archery ranges and train bowmen',
     requires: ['CONSCRIPTION'],
     cost: 2,
     effects: [
@@ -95,8 +88,6 @@ export const TECH_TREE: TechNodeDefinition[] = [
   },
   {
     id: 'CROSSBOWMEN',
-    name: 'Crossbowmen',
-    description: 'Train armor-piercing crossbowmen at your archery ranges',
     requires: ['FAR_REACH'],
     cost: 2,
     effects: [
@@ -105,8 +96,6 @@ export const TECH_TREE: TechNodeDefinition[] = [
   },
   {
     id: 'SIEGE_WORKS',
-    name: 'Siege Works',
-    description: 'Build Siege Camps and field devastating siege engines',
     requires: ['FAR_REACH'],
     cost: 4,
     effects: [
@@ -116,30 +105,28 @@ export const TECH_TREE: TechNodeDefinition[] = [
   },
   {
     id: 'CLEAN_CUTS',
-    name: 'Clean Cuts',
-    description: `Woodcutters have a ${ABILITIES.CLEAN_CUTS_BONUS_CHANCE}% chance to produce ${ABILITIES.CLEAN_CUTS_BONUS_AMOUNT} extra wood per turn`,
     requires: ['FAR_REACH'],
     cost: 4,
     effects: [
       { type: 'BUILDING_PRODUCTION_MOD', buildingType: BuildingType.WOODCUTTER, resource: ResourceType.WOOD, chancePercent: ABILITIES.CLEAN_CUTS_BONUS_CHANCE, amount: ABILITIES.CLEAN_CUTS_BONUS_AMOUNT },
     ],
+  
+    textParams: { chance: ABILITIES.CLEAN_CUTS_BONUS_CHANCE, amount: ABILITIES.CLEAN_CUTS_BONUS_AMOUNT },
   },
   {
     id: 'TO_THE_FRONT',
-    name: 'To the Front',
-    description: `Units more than ${ABILITIES.TO_THE_FRONT_MIN_DISTANCE} tiles behind the front gain +${ABILITIES.TO_THE_FRONT_MOVE_BONUS} movement range`,
     requires: ['CLEAN_CUTS'],
     cost: 7,
     effects: [
       { type: 'FLAG', flag: TechFlag.TO_THE_FRONT },
     ],
+  
+    textParams: { distance: ABILITIES.TO_THE_FRONT_MIN_DISTANCE, moveBonus: ABILITIES.TO_THE_FRONT_MOVE_BONUS },
   },
 
   // ── Branch 3: Fortification ──
   {
     id: 'FIELD_DUTIES',
-    name: 'Field Duties',
-    description: 'Guards can now construct and capture like builders',
     requires: ['CONSCRIPTION'],
     cost: 2,
     effects: [
@@ -148,18 +135,16 @@ export const TECH_TREE: TechNodeDefinition[] = [
   },
   {
     id: 'HOLD_GROUND',
-    name: 'Hold Ground',
-    description: `Units on own buildings gain +${ABILITIES.HOLD_GROUND_DEFENSE_BONUS} defense`,
     requires: ['FIELD_DUTIES'],
     cost: 4,
     effects: [
       { type: 'FLAG', flag: TechFlag.HOLD_GROUND },
     ],
+  
+    textParams: { defenseBonus: ABILITIES.HOLD_GROUND_DEFENSE_BONUS },
   },
   {
     id: 'FIELDWORK',
-    name: 'Fieldwork',
-    description: `Spearmen and Swordsmen can sacrifice themselves to build an Outpost (${BUILDING_DEFINITIONS.OUTPOST.constructionCost.wood} wood; starting HP = unit HP × ${ABILITIES.FIELDWORK_HP_MULTIPLIER})`,
     requires: ['FIELD_DUTIES'],
     cost: 4,
     effects: [
@@ -168,93 +153,91 @@ export const TECH_TREE: TechNodeDefinition[] = [
       //{ type: 'UNIT_COST_MOD',  unitType: UnitType.SPEARMAN, resource: 'wood', amount: 1 },
       //{ type: 'UNIT_COST_MOD',  unitType: UnitType.SWORDSMAN, resource: 'wood', amount: 1 },
     ],
+  
+    textParams: { woodCost: BUILDING_DEFINITIONS.OUTPOST.constructionCost.wood, hpMultiplier: ABILITIES.FIELDWORK_HP_MULTIPLIER },
   },
   {
     id: 'UNLOCK_SWORDSMAN',
-    name: 'Swordsman Training',
-    description: 'Unlocks the Swordsman - elite heavy infantry with superior attack and defense - recruitable at the Barracks. Swordsman recruitment costs +2 iron.',
     requires: ['FIELD_DUTIES'],
     cost: 4,
     effects: [
       { type: 'UNLOCK_UNIT', unitType: UnitType.SWORDSMAN },
       //{ type: 'UNIT_COST_MOD', unitType: UnitType.SWORDSMAN, resource: 'iron', amount: 1 },
     ],
+  
+    textParams: { ironCost: ABILITIES.SWORDSMAN_RECRUIT_IRON_COST },
   },
   {
     id: 'SWORDSMAN_CLEAVE',
-    name: 'Cleaving Strike',
-    description: `Swordsmen learn to cleave through enemies: on hit, they deal ${ABILITIES.CLEAVE_DAMAGE_MULTIPLIER * 100}% damage to all enemy units adjacent to both attacker and defender (ignores Phalanx defense)`,
     requires: ['UNLOCK_SWORDSMAN'],
     cost: 3,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SWORDSMAN, tag: UnitTag.CLEAVE },
     ],
+  
+    textParams: { damagePercent: ABILITIES.CLEAVE_DAMAGE_MULTIPLIER * 100 },
   },
   {
     id: 'PHALANX_FORMATION',
-    name: 'Phalanx Formation',
-    description: `Guards in formation grant +${ABILITIES.PHALANX_DEFENSE_BONUS_PER_CARRIER} defense to each adjacent ally and gain +${ABILITIES.PHALANX_ATTACK_BONUS_PER_ALLY} attack per adjacent ally`,
     requires: ['HOLD_GROUND'],
     cost: 7,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.GUARD, tag: UnitTag.PHALANX },
       //{ type: 'UNIT_COST_MOD',  unitType: UnitType.GUARD, resource: 'iron', amount: 1 },
     ],
+  
+    textParams: { defenseBonus: ABILITIES.PHALANX_DEFENSE_BONUS_PER_CARRIER, attackBonus: ABILITIES.PHALANX_ATTACK_BONUS_PER_ALLY },
   },
 
   // ── Branch 4: Reconnaissance ──
   {
     id: 'BIG_EYES',
-    name: 'Big Eyes',
-    description: `Scouts gain +${ABILITIES.SCOUT_DISCOVER_BONUS} discover radius, seeing further into the fog`,
     requires: ['CONSCRIPTION'],
     cost: 2,
     effects: [
       { type: 'UNIT_STAT_MOD', unitType: UnitType.SCOUT, stat: 'discoverRadius', mode: 'add', value: ABILITIES.SCOUT_DISCOVER_BONUS },
       //{ type: 'UNIT_COST_MOD',  unitType: UnitType.SCOUT, resource: 'wood', amount: 1 },
     ],
+  
+    textParams: { discoverBonus: ABILITIES.SCOUT_DISCOVER_BONUS },
   },
   {
     id: 'ASSASSIN',
-    name: 'Assassin',
-    description: `Scouts deal ${ABILITIES.ASSASSIN_DAMAGE_MULTIPLIER}× damage and receive no retaliation when striking a full-HP enemy`,
     requires: ['BIG_EYES'],
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SCOUT, tag: UnitTag.ASSASSIN },
       //{ type: 'UNIT_COST_MOD',  unitType: UnitType.SCOUT, resource: 'iron', amount: 1 },
     ],
+  
+    textParams: { damageMultiplier: ABILITIES.ASSASSIN_DAMAGE_MULTIPLIER },
   },
   {
     id: 'PATCH_UP',
-    name: 'Patch Up',
-    description: `Scouts can spend their action to restore ${ABILITIES.PATCHUP_HEAL_AMOUNT} HP on one adjacent friendly unit`,
     requires: ['BIG_EYES'],
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SCOUT, tag: UnitTag.PATCHUP },
       //{ type: 'UNIT_COST_MOD',  unitType: UnitType.SCOUT, resource: 'wood', amount: 2 },
     ],
+  
+    textParams: { healAmount: ABILITIES.PATCHUP_HEAL_AMOUNT },
   },
   {
     id: 'BRIDGEBUILDER',
-    name: 'Bridgebuilder',
-    description:
-      `Scouts can build a Bridge (${BUILDING_DEFINITIONS.BRIDGE.constructionCost.wood} wood) ` +
-      `across a 1-tile canyon gap between two land tiles`,
     requires: ['BIG_EYES'],
     cost: 3,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SCOUT, tag: UnitTag.BRIDGE_BUILDER },
       { type: 'UNLOCK_BUILDING', buildingType: BuildingType.BRIDGE },
     ],
+  
+    textParams: { woodCost: BUILDING_DEFINITIONS.BRIDGE.constructionCost.wood, gapTiles: ABILITIES.BRIDGEBUILDER_GAP_TILES },
   },
 
   // ── Branch 5: Stronghold Development ──
   {
     id: 'WALLED_SETTLEMENT',
-    name: 'Walled Settlement',
-    description: `Strongholds gain +${ABILITIES.WALLED_SETTLEMENT_FARMER_BONUS} farmer capacity. Produces +${ABILITIES.WALLED_SETTLEMENT_IRON_AMOUNT} iron and +${ABILITIES.WALLED_SETTLEMENT_WOOD_AMOUNT} wood per turn (flat, once - requires at least one Stronghold)`,
     requires: ['CONSCRIPTION'],
     cost: 2,
     effects: [
@@ -262,23 +245,23 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'FLAT_INCOME_MOD', resource: ResourceType.WOOD, amount: ABILITIES.WALLED_SETTLEMENT_WOOD_AMOUNT, requiresBuilding: BuildingType.STRONGHOLD },
       { type: 'FLAT_INCOME_MOD', resource: ResourceType.IRON, amount: ABILITIES.WALLED_SETTLEMENT_IRON_AMOUNT, requiresBuilding: BuildingType.STRONGHOLD },
     ],
+  
+    textParams: { farmerBonus: ABILITIES.WALLED_SETTLEMENT_FARMER_BONUS, ironAmount: ABILITIES.WALLED_SETTLEMENT_IRON_AMOUNT, woodAmount: ABILITIES.WALLED_SETTLEMENT_WOOD_AMOUNT },
   },
   {
     // Placed after WALLED_SETTLEMENT - an advanced mining technique that
     // unlocks the Deep Mine, a more productive alternative to the standard Mine on mountains.
     id: 'DEEP_MINING',
-    name: 'Deep Mining',
-    description: `Unlocks the Deep Mine, which produces ${RESOURCES.DEEP_MINE_IRON_PER_TURN} iron per turn (vs ${RESOURCES.MINE_IRON_PER_TURN} for a standard Mine) - delving deeper into mountains for richer ore veins.`,
     requires: ['WALLED_SETTLEMENT'],
     cost: 4,
     effects: [
       { type: 'UNLOCK_BUILDING', buildingType: BuildingType.DEEP_MINE },
     ],
+  
+    textParams: { deepMineIron: RESOURCES.DEEP_MINE_IRON_PER_TURN, mineIron: RESOURCES.MINE_IRON_PER_TURN },
   },
   {
     id: 'CITADEL',
-    name: 'Citadel',
-    description: `Grants +${ABILITIES.CITADEL_NOBLE_BONUS} noble capacity to Strongholds and boosts Scout and Guard max HP by +${ABILITIES.CITADEL_HP_BOOST}`,
     requires: ['WALLED_SETTLEMENT'],
     cost: 4,
     effects: [
@@ -286,11 +269,11 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'UNIT_STAT_MOD', unitType: UnitType.SCOUT, stat: 'maxHp', mode: 'add', value: ABILITIES.CITADEL_HP_BOOST },
       { type: 'UNIT_STAT_MOD', unitType: UnitType.GUARD, stat: 'maxHp', mode: 'add', value: ABILITIES.CITADEL_HP_BOOST },
     ],
+  
+    textParams: { nobleBonus: ABILITIES.CITADEL_NOBLE_BONUS, hpBoost: ABILITIES.CITADEL_HP_BOOST },
   },
   {
     id: 'NOBLE_HERITAGE',
-    name: 'Noble Heritage',
-    description: `Grants the ELITE tag to Riders, Guards, and Siege engines - each gaining +${ABILITIES.ELITE_MAX_HP_BONUS} max HP`,
     requires: ['CITADEL'],
     cost: 7,
     effects: [
@@ -298,23 +281,23 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.GUARD,  tag: UnitTag.ELITE },
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SIEGE,  tag: UnitTag.ELITE },
     ],
+  
+    textParams: { hpBonus: ABILITIES.ELITE_MAX_HP_BONUS },
   },
   {
     id: 'MASTER_RECRUITER',
-    name: 'Master Recruiter',
-    description: 'Unlocks a third specialist slot.',
     requires: ['NOBLE_HERITAGE'],
     cost: 6,
     effects: [
       { type: 'SPECIALIST_SLOT_MOD', value: 1 },
     ],
+  
+    textParams: { slotCount: ABILITIES.MASTER_RECRUITER_SLOT_COUNT },
   },
 
   // ── Branch 1 (Cavalry) deep upgrades ──────────────────────────────────────
   {
     id: 'LANCE_CHARGE',
-    name: 'Lance Charge',
-    description: `Riders gain +${ABILITIES.LANCE_CHARGE_ATTACK_BONUS} attack when striking without having moved this turn`,
     requires: ['A_NOBLE_STEAD'],
     cost: 4,
     effects: [
@@ -322,46 +305,46 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'REMOVE_UNIT_TAG', unitType: UnitType.RIDER, tag: UnitTag.BUILDANDCAPTURE },
       //{ type: 'UNIT_COST_MOD',  unitType: UnitType.RIDER, resource: 'iron', amount: 2 },
     ],
+  
+    textParams: { attackBonus: ABILITIES.LANCE_CHARGE_ATTACK_BONUS },
   },
   {
     id: 'KNIGHTS',
-    name: 'Knights',
-    description: `Heavily armoured cavalry with +${ABILITIES.KNIGHT_MAX_HP_BONUS} max HP`,
     requires: ['A_NOBLE_STEAD'],
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.RIDER, tag: UnitTag.KNIGHT },
       //{ type: 'UNIT_COST_MOD',  unitType: UnitType.RIDER, resource: 'iron', amount: 1 },
     ],
+  
+    textParams: { maxHpBonus: ABILITIES.KNIGHT_MAX_HP_BONUS },
   },
   {
     id: 'HIT_AND_RUN',
-    name: 'Hit and Run',
-    description: `Riders can move twice: once before attacking and once after (max ${ABILITIES.HIT_AND_RUN_POST_ATTACK_MOVE_RANGE} tile post-attack); DEF is reduced by ${Math.abs(ABILITIES.HIT_AND_RUN_DEFENSE_MOD)} as a trade-off`,
     requires: ['LANCE_CHARGE'],
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG',  unitType: UnitType.RIDER, tag: UnitTag.HIT_AND_RUN },
       //{ type: 'UNIT_COST_MOD',   unitType: UnitType.RIDER, resource: 'wood', amount: 1 },
     ],
+  
+    textParams: { moveCount: ABILITIES.HIT_AND_RUN_MOVE_COUNT, postAttackMoveRange: ABILITIES.HIT_AND_RUN_POST_ATTACK_MOVE_RANGE, defensePenalty: Math.abs(ABILITIES.HIT_AND_RUN_DEFENSE_MOD) },
   },
   {
     id: 'OUTRIDERS',
-    name: 'Outriders',
-    description: `Fast raiding cavalry with +${ABILITIES.OUTRIDER_MOVE_BONUS} movement range`,
     requires: ['KNIGHTS'],
     cost: 7,
     effects: [
       { type: 'GRANT_UNIT_TAG',  unitType: UnitType.RIDER, tag: UnitTag.OUTRIDER },
       //{ type: 'UNIT_COST_MOD',   unitType: UnitType.RIDER, resource: 'wood', amount: 1 },
     ],
+  
+    textParams: { moveBonus: ABILITIES.OUTRIDER_MOVE_BONUS },
   },
 
   // ── Branch 2 (Ranged) deep upgrades ───────────────────────────────────────
   {
     id: 'COVER',
-    name: 'Cover',
-    description: 'Ranged enemy units cannot counter-attack.',
     requires: ['FAR_REACH'],
     cost: 4,
     effects: [
@@ -371,54 +354,52 @@ export const TECH_TREE: TechNodeDefinition[] = [
   },
   {
     id: 'SKIRMISHER',
-    name: 'Skirmisher',
-    description: `Archers gain +${ABILITIES.SKIRMISHER_MOVE_BONUS} movement range`,
     requires: ['COVER'],
     cost: 7,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.ARCHER, tag: UnitTag.SKIRMISHER },
     ],
+  
+    textParams: { moveBonus: ABILITIES.SKIRMISHER_MOVE_BONUS },
   },
   {
     id: 'PIN_DOWN',
-    name: 'Pin Down',
-    description: `Archer hits have a ${Math.round(ABILITIES.PIN_DOWN_STUN_CHANCE * 100)}% chance to stun the target for one turn - it cannot move or attack`,
     requires: ['FAR_REACH'],
     cost: 4,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.ARCHER, tag: UnitTag.PIN_DOWN },
       //{ type: 'UNIT_COST_MOD',  unitType: UnitType.ARCHER, resource: 'iron', amount: 2 },
     ],
+  
+    textParams: { stunChancePct: Math.round(ABILITIES.PIN_DOWN_STUN_CHANCE * 100), stunTurns: ABILITIES.PIN_DOWN_STUN_TURNS },
   },
   {
     id: 'DISTRACTION',
-    name: 'Distraction',
-    description: `Each archer hit permanently reduces the target's DEF by ${ABILITIES.DISTRACTION_DEF_REDUCTION}. Archers carrying this tag have their own ATK reduced by ${Math.abs(ABILITIES.DISTRACTION_ATTACK_MOD)}`,
     requires: ['PIN_DOWN'],
     cost: 7,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.ARCHER, tag: UnitTag.DISTRACTION },
     ],
+  
+    textParams: { defenseReduction: ABILITIES.DISTRACTION_DEF_REDUCTION, attackReduction: Math.abs(ABILITIES.DISTRACTION_ATTACK_MOD) },
   },
 
   // ── Branch 3 (Fortification) deep upgrade ─────────────────────────────────
   {
     id: 'PREVENTIVE_STRIKE',
-    name: 'Preventive Strike',
-    description: `Siege engines automatically fire once per enemy turn at the first enemy unit that moves from outside into their attack range, dealing ${ABILITIES.PREVENTIVE_STRIKE_DAMAGE_PERCENT}% of their normal attack damage`,
     requires: ['SIEGE_WORKS'],
     cost: 7,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SIEGE, tag: UnitTag.PREVENTIVE_STRIKE },
       //{ type: 'UNIT_COST_MOD',  unitType: UnitType.SIEGE, resource: 'wood', amount: 2 },
     ],
+  
+    textParams: { shotsPerTurn: ABILITIES.PREVENTIVE_STRIKE_SHOTS_PER_TURN, damagePercent: ABILITIES.PREVENTIVE_STRIKE_DAMAGE_PERCENT },
   },
 
   // ── Branch 6: Magic - root and 3 specialization paths ────────────────────
   {
     id: 'ARCANE_AWAKENING',
-    name: 'Arcane Awakening',
-    description: `Unlocks the Mage unit (recruited from active Crystal Chambers), the Transpose spell, and the Frostcraft spell.`,
     requires: ['CONSCRIPTION'],
     cost: 2,
     effects: [
@@ -431,8 +412,6 @@ export const TECH_TREE: TechNodeDefinition[] = [
   // ── Summoner path ────────────────────────────────────────────────────────
   {
     id: 'EMBERBIND',
-    name: 'Emberbind',
-    description: `Unlocks the Emberbind spell.`,
     requires: ['BRANDMARK_HEAL'],
     cost: 4,
     effects: [
@@ -441,8 +420,6 @@ export const TECH_TREE: TechNodeDefinition[] = [
   },
   {
     id: 'BRANDMARK_HEAL',
-    name: 'Brandmark Heal',
-    description: `Unlocks the Brandmark Heal spell.`,
     requires: ['ARCANE_AWAKENING'],
     cost: 4,
     effects: [
@@ -451,8 +428,6 @@ export const TECH_TREE: TechNodeDefinition[] = [
   },
   {
     id: 'CRYSTAL_TOWER',
-    name: 'Crystal Tower',
-    description: 'Unlocks the Crystal Tower spell and Crystal Tower building.',
     requires: ['EMBERBIND'],
     cost: 7,
     effects: [
@@ -468,8 +443,6 @@ export const TECH_TREE: TechNodeDefinition[] = [
   // Drake during a resonance window.
   {
     id: 'CRYSTAL_CAVE',
-    name: 'Crystal Cave',
-    description: `Unlocks the Crystal Cave spell and the Crystal Drake unit.`,
     requires: ['ARCANE_AWAKENING'],
     cost: 4,
     effects: [
@@ -481,8 +454,6 @@ export const TECH_TREE: TechNodeDefinition[] = [
   // ── Necromancer path ─────────────────────────────────────────────────────
   {
     id: 'RAISE_SKELETON',
-    name: 'Raise Skeleton',
-    description: `Unlocks the Raise Skeleton spell and the Skeleton unit. Spearmen, Scouts, and Guards now leave Gravestones on death.`,
     requires: ['ARCANE_AWAKENING'],
     cost: 4,
     effects: [
@@ -496,8 +467,6 @@ export const TECH_TREE: TechNodeDefinition[] = [
   // ── Necromancer path branch a: utility ──────────────────────────────────
   {
     id: 'GRAVE_TRAP',
-    name: 'Grave Trap',
-    description: `Unlocks the Grave Trap spell.`,
     requires: ['RAISE_SKELETON'],
     cost: 4,
     effects: [
@@ -506,19 +475,17 @@ export const TECH_TREE: TechNodeDefinition[] = [
   },
   {
     id: 'GRAVE_HARVEST',
-    name: 'Grave Harvest',
-    description: `Each player-owned Gravestone has a ${MAGE.GRAVE_HARVEST_CRYSTAL_CHANCE}% chance per turn to grant 1 arcane crystal.`,
     requires: ['GRAVE_TRAP'],
     cost: 7,
     effects: [
       { type: 'FLAG', flag: TechFlag.GRAVE_HARVEST },
     ],
+  
+    textParams: { chancePercent: MAGE.GRAVE_HARVEST_CRYSTAL_CHANCE, crystalAmount: ABILITIES.GRAVE_HARVEST_CRYSTAL_AMOUNT },
   },
   // ── Necromancer path branch b: gravestone expansion ──────────────────────
   {
     id: 'GRAVE_WARRIORS',
-    name: 'Grave Warriors',
-    description: `Riders, Swordsmen, Archers, and Crossbowmen now leave Gravestones on death.`,
     requires: ['RAISE_SKELETON'],
     cost: 4,
     effects: [
@@ -530,8 +497,6 @@ export const TECH_TREE: TechNodeDefinition[] = [
   },
   {
     id: 'GRAVE_ENGINES',
-    name: 'Grave Engines',
-    description: `Siege engines and Mages now leave Gravestones on death.`,
     requires: ['GRAVE_WARRIORS'],
     cost: 7,
     effects: [
@@ -543,8 +508,6 @@ export const TECH_TREE: TechNodeDefinition[] = [
   // ── Elementalist path ────────────────────────────────────────────────────
   {
     id: 'EXPLODE',
-    name: 'Explode',
-    description: `Unlocks the Explode spell.`,
     requires: ['ARCANE_AWAKENING'],
     cost: 4,
     effects: [
@@ -553,13 +516,13 @@ export const TECH_TREE: TechNodeDefinition[] = [
   },
   {
     id: 'SPELL_REACH',
-    name: 'Spell Reach',
-    description: `Increases the Mage's attack range by +${MAGE.SPELL_RANGE_BONUS} (to ${UNIT_DEFINITIONS.MAGE.attackRange + MAGE.SPELL_RANGE_BONUS} tiles).`,
     requires: ['EXPLODE'],
     cost: 7,
     effects: [
       { type: 'UNIT_STAT_MOD', unitType: UnitType.MAGE, stat: 'attackRange', mode: 'add', value: MAGE.SPELL_RANGE_BONUS },
     ],
+  
+    textParams: { rangeBonus: MAGE.SPELL_RANGE_BONUS, totalRange: UNIT_DEFINITIONS.MAGE.attackRange + MAGE.SPELL_RANGE_BONUS },
   },
 
 ];

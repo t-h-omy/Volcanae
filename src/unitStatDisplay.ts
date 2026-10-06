@@ -1,12 +1,13 @@
 import { ABILITIES } from './gameConfig';
 import { getBerserkDisplayBonus } from './combatSystem';
 import { UnitTag, type Unit } from './types';
+import type { TextRef } from './i18n/i18n';
 
 export type AttackDisplayRow = {
   stat: 'ATK';
   value: number;
   kind: 'active' | 'applied';
-  source: string;
+  source: TextRef;
 };
 
 export type AttackDisplayEffect = {
@@ -14,8 +15,8 @@ export type AttackDisplayEffect = {
   value: number;
   displayValue: string;
   kind: 'active';
-  source: string;
-  condition?: string;
+  source: TextRef;
+  condition?: TextRef;
 };
 
 export type AttackDisplayContext = {
@@ -58,7 +59,7 @@ export function getAttackDisplayModifiers(
       stat: 'ATK',
       value: ABILITIES.CINDERBORN_ATTACK_BONUS,
       kind: 'applied',
-      source: 'Cinderborn (tag)',
+      source: { key: 'statDisplay.cinderborn' },
     });
   }
 
@@ -68,7 +69,7 @@ export function getAttackDisplayModifiers(
       stat: 'ATK',
       value: context.phalanxAttack,
       kind: 'active',
-      source: 'Phalanx Formation (adjacent guard)',
+      source: { key: 'statDisplay.phalanx' },
     });
   }
 
@@ -78,7 +79,10 @@ export function getAttackDisplayModifiers(
       stat: 'ATK',
       value: context.rageBonus,
       kind: 'active',
-      source: `Rage (+${ABILITIES.RAGE_ATK_PER_ADJACENT} ATK per adjacent enemy, ${context.rageAdjacentCount} nearby)`,
+      source: {
+        key: 'statDisplay.rage',
+        params: { amount: ABILITIES.RAGE_ATK_PER_ADJACENT, count: context.rageAdjacentCount },
+      },
     });
   }
 
@@ -88,7 +92,7 @@ export function getAttackDisplayModifiers(
       stat: 'ATK',
       value: context.batteryBonus,
       kind: 'active',
-      source: `Battery (+${ABILITIES.SIEGE_BATTERY_ATK_PER_ADJACENT} ATK per adjacent friendly unit)`,
+      source: { key: 'statDisplay.battery', params: { amount: ABILITIES.SIEGE_BATTERY_ATK_PER_ADJACENT } },
     });
   }
 
@@ -98,7 +102,7 @@ export function getAttackDisplayModifiers(
       stat: 'ATK',
       value: context.lanceChargeBonus,
       kind: 'active',
-      source: 'Lance Charge (has not moved this turn)',
+      source: { key: 'statDisplay.lanceCharge' },
     });
   }
 
@@ -108,8 +112,8 @@ export function getAttackDisplayModifiers(
       value: 1,
       displayValue: `×${ABILITIES.ASSASSIN_DAMAGE_MULTIPLIER}`,
       kind: 'active',
-      source: 'Assassin',
-      condition: 'Only against full-health targets',
+      source: { key: 'statDisplay.assassin' },
+      condition: { key: 'statDisplay.assassinCondition' },
     });
   }
 
@@ -119,7 +123,7 @@ export function getAttackDisplayModifiers(
       value: -1,
       displayValue: '×0.5',
       kind: 'active',
-      source: 'Bloodlust second strike (base attack halved)',
+      source: { key: 'statDisplay.bloodlust' },
     });
   }
 
@@ -131,7 +135,10 @@ export function getAttackDisplayModifiers(
       stat: 'ATK',
       value: berserkDisplayBonus,
       kind: 'active',
-      source: `Berserk (+${ABILITIES.BERSERK_ATTACK_PCT}% ATK, HP below ${ABILITIES.BERSERK_HP_THRESHOLD_PCT}%)`,
+      source: {
+        key: 'statDisplay.berserk',
+        params: { attackPct: ABILITIES.BERSERK_ATTACK_PCT, hpThresholdPct: ABILITIES.BERSERK_HP_THRESHOLD_PCT },
+      },
     });
   }
 

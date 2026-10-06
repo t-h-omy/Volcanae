@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { TraceExportMode } from '../aiTraceExport';
 import { exportAiTrace, formatAiTraceBytes } from '../aiTraceExportClient';

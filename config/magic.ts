@@ -6,6 +6,10 @@ import { SpellId } from '../src/types';
 
 
 export const MAGE = {
+  /** Structural tile adjacency used by Grave Trap's blast radius. */
+  GRAVE_TRAP_ADJACENCY_RANGE: 1,
+  /** Minimum HP retained by a target after Rupture. */
+  RUPTURE_MINIMUM_REMAINING_HP: 1,
   // ── Mage unit ────────────────────────────────────────────────────────
   /** Default number of spells a Mage can cast each turn */
   SPELLS_PER_TURN: 1,
@@ -61,86 +65,61 @@ export const MAGE = {
 
 export interface SpellDefinition {
   id: SpellId;
-  name: string;
   emoji: string;
-  description: string;
-  /** Hint shown in the cast-mode focused HUD before the first target pick */
-  targetHint: string;
-  /** Optional second-pick hint (only Transpose uses this) */
-  targetHintSecondPick?: string;
+  textParams?: { [name: string]: number };
 }
 
 export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
   [SpellId.TRANSPOSE]: {
     id: SpellId.TRANSPOSE,
-    name: 'Transpose',
     emoji: '🔄',
-    description: `Swap the positions of two units of the same faction within range of the Mage.`,
-    targetHint: 'Select the first unit to swap.',
-    targetHintSecondPick: 'Select the second unit (same faction as the first).',
   },
   [SpellId.EMBERBIND]: {
     id: SpellId.EMBERBIND,
-    name: 'Emberbind',
     emoji: '🔥',
-    description: `Target an Ember Nest within range. The nest is destroyed (forest restored) and a friendly Ember Demon appears, leashed within the Mage's attack range.`,
-    targetHint: 'Select an Ember Nest within range.',
   },
   [SpellId.BRANDMARK_HEAL]: {
     id: SpellId.BRANDMARK_HEAL,
-    name: 'Brandmark Heal',
     emoji: '🩸',
-    description: `Fully heal one player unit, multiply its max HP by ${MAGE.BRANDMARK_HP_MULTIPLIER}×, grant +${MAGE.BRANDMARK_ATTACK_BONUS} ATK, and mark it with the brand. The marked unit loses ${MAGE.BRANDMARK_HP_LOSS_PER_TURN} HP at the end of each turn and cannot be healed by Patch Up. On death, a hostile Ember Demon rises in its place.`,
-    targetHint: 'Select one of your own units within range (not another Mage).',
+  
+    textParams: { hpMultiplier: MAGE.BRANDMARK_HP_MULTIPLIER, attackBonus: MAGE.BRANDMARK_ATTACK_BONUS, hpLoss: MAGE.BRANDMARK_HP_LOSS_PER_TURN },
   },
   [SpellId.RAISE_SKELETON]: {
     id: SpellId.RAISE_SKELETON,
-    name: 'Raise Skeleton',
     emoji: '💀',
-    description: `Target a Gravestone within range to raise a Skeleton. The gravestone is consumed.`,
-    targetHint: 'Select a player Gravestone within range.',
   },
   [SpellId.FROSTCRAFT]: {
     id: SpellId.FROSTCRAFT,
-    name: 'Frostcraft',
     emoji: '❄️',
-    description: `Freeze a Water tile within range. Player units may walk on the ice; enemies cannot. The ice persists until consumed by lava.`,
-    targetHint: 'Select a water tile within range.',
   },
   [SpellId.GRAVE_TRAP]: {
     id: SpellId.GRAVE_TRAP,
-    name: 'Grave Trap',
     emoji: '☠️',
-    description: `Convert an empty Gravestone within range into a magical trap. The next enemy unit to step onto it is stunned for ${MAGE.GRAVE_TRAP_STUN_TURNS} turns, and all enemies within 1 tile are stunned as well.`,
-    targetHint: 'Select a player Gravestone within range.',
+  
+    textParams: { stunTurns: MAGE.GRAVE_TRAP_STUN_TURNS, adjacencyRange: MAGE.GRAVE_TRAP_ADJACENCY_RANGE },
   },
   [SpellId.EXPLODE]: {
     id: SpellId.EXPLODE,
-    name: 'Explode',
     emoji: '💥',
-    description: `Sacrifice a player unit within range. It deals ${MAGE.EXPLODE_DAMAGE_PERCENT}% of its current HP to each adjacent enemy. The unit is fully consumed - no gravestone is left.`,
-    targetHint: 'Select one of your own units within range to sacrifice.',
+  
+    textParams: { damagePercent: MAGE.EXPLODE_DAMAGE_PERCENT },
   },
   [SpellId.CRYSTAL_TOWER]: {
     id: SpellId.CRYSTAL_TOWER,
-    name: 'Crystal Tower',
     emoji: '💎',
-    description: `Sacrifice the Mage to erect a permanent Crystal Tower on its tile. Each enemy unit the tower kills generates ${MAGE.CRYSTAL_TOWER_KILL_CRYSTAL_REWARD} crystal.`,
-    targetHint: "The Mage will be consumed where it stands. Confirm by selecting the Mage's tile.",
+  
+    textParams: { crystalReward: MAGE.CRYSTAL_TOWER_KILL_CRYSTAL_REWARD },
   },
   [SpellId.CRYSTAL_CAVE]: {
     id: SpellId.CRYSTAL_CAVE,
-    name: 'Crystal Cave',
     emoji: '🕳️',
-    description: `Conjure a Crystal Cave on a free mountain tile within range. While any of your Crystal Chambers resonate, the cave may recruit a single Crystal Drake - recruiting does not shorten the resonance window. If the cave is lost (lava, capture, conversion, destruction) the drake dies with it.`,
-    targetHint: 'Select a free mountain tile within range.',
+  
+    textParams: {  },
   },
   [SpellId.RUPTURE]: {
     id: SpellId.RUPTURE,
-    name: 'Rupture',
     emoji: '💢',
-    description: `Deal ${Math.round(MAGE.RUPTURE_PERCENT * 100)}% of the target's current HP as damage (never kills - target retains at least 1 HP). Costs ${MAGE.RUPTURE_CRYSTAL_COST} crystal. Unlocked by the Sundered specialist.`,
-    targetHint: 'Select an enemy unit within range.',
+  
+    textParams: { damagePercent: Math.round(MAGE.RUPTURE_PERCENT * 100), minimumHp: MAGE.RUPTURE_MINIMUM_REMAINING_HP, crystalCost: MAGE.RUPTURE_CRYSTAL_COST },
   },
 };
-

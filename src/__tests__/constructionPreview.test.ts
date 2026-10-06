@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { produce } from 'immer';
 import {
   canConstructAt, constructBuilding, getConstructionMenuOptionsForTile,
@@ -15,6 +15,12 @@ import {
 import { BUILDING_DEFINITIONS, TECH_TREE, UNIT_DEFINITIONS } from '../gameConfig';
 import { BuildingType, Faction, TileType, UnitTag, UnitType } from '../types';
 import type { GameState, Tile, Unit } from '../types';
+import { buildingName } from '../i18n/entityText';
+import { useLocaleStore } from '../i18n/localeStore';
+
+beforeAll(async () => {
+  await useLocaleStore.getState().setLocale('en');
+});
 
 const position = { x: 0, y: 0 };
 
@@ -98,7 +104,7 @@ describe('construction preview tile rules', () => {
       }, position));
     for (const option of options) {
       expect(option.cost).toEqual(BUILDING_DEFINITIONS[option.buildingType].constructionCost);
-      expect(option.label.length).toBeGreaterThan(0);
+      expect(buildingName(option.buildingType).length).toBeGreaterThan(0);
       expect(option.emoji.length).toBeGreaterThan(0);
       expect(option.buildingUnlockTechId).toBe(getBuildingUnlockTechId(option.buildingType));
       expect(option.buildingUnlocked).toBe(option.buildingUnlockTechId === null);

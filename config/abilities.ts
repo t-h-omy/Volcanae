@@ -2,8 +2,8 @@
  * Balance-tunable constants for tag/flag-based unit and building abilities,
  * upgrade tradeoff tags, conditional active tags, and tag stat effects.
  *
- * All description strings in UNIT_DEFINITIONS, BUILDING_DEFINITIONS, TECH_TREE, and
- * TAG_INFO must reference named constants from this module (never raw numbers).
+ * Numeric values in localized entity text must come from named constants and
+ * reach catalog messages through config textParams.
  */
 
 import { UnitTag } from '../src/types';
@@ -14,22 +14,31 @@ import { POPULATION, TRAINING } from './economy';
 // ============================================================================
 // ABILITIES - Balance-tunable constants for tag/flag-based abilities
 //
-// ── DESCRIPTION AUTHORING RULE (applies to ALL description fields) ──────────
-// Every numeric balancing value that appears in any description string
-// (TECH_TREE, TAG_INFO, UNIT_DEFINITIONS, BUILDING_DEFINITIONS) MUST be
-// injected via a template-literal reference to a named constant - never write
-// raw numbers directly into description text.
-//
-// ✓  `Gain +${ABILITIES.HOLD_GROUND_DEFENSE_BONUS} defense`
-// ✗  `Gain +20 defense`
-//
-// If a value does not yet have a named constant, add it here (or to the
-// relevant config object) first, then reference it in the description.
-// This keeps every visible number in sync with the actual gameplay logic
-// whenever a constant is tuned.
+// ── DESCRIPTION AUTHORING RULE ──────────────────────────────────────────────
+// Numbers reach localized text only through textParams on config definitions.
+// Catalog messages consume those values as ICU parameters. Never author
+// player-facing descriptions as strings in config modules.
 // ============================================================================
 
 export const ABILITIES = {
+  /** Structural edge distance for tile adjacency; exposed to entity text. */
+  ADJACENCY_RANGE: 1,
+  /** Iron cost surcharge for Swordsman recruitment. */
+  SWORDSMAN_RECRUIT_IRON_COST: 2,
+  /** Canyon width bridged by the Bridgebuilder research. */
+  BRIDGEBUILDER_GAP_TILES: 1,
+  /** Specialist slots opened by the Master Recruiter research. */
+  MASTER_RECRUITER_SLOT_COUNT: 3,
+  /** Total movement actions available to a Hit and Run Rider. */
+  HIT_AND_RUN_MOVE_COUNT: 2,
+  /** Number of turns Pin Down stuns a target. */
+  PIN_DOWN_STUN_TURNS: 1,
+  /** Preventive Strike shots per siege unit and enemy turn. */
+  PREVENTIVE_STRIKE_SHOTS_PER_TURN: 1,
+  /** Arcane crystals granted by Grave Harvest when its chance succeeds. */
+  GRAVE_HARVEST_CRYSTAL_AMOUNT: 1,
+  /** Ember gained when an Emberling reaches lava; exposed to its description. */
+  EMBERLING_EMBER_GAIN: 1,
   /** Damage multiplier applied when ASSASSIN tag attacks a full-HP target */
   ASSASSIN_DAMAGE_MULTIPLIER: 4,
   /** Flat defense bonus applied when HOLD_GROUND flag is active and unit stands on own building */

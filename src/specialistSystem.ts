@@ -30,8 +30,6 @@ export function createInitialSpecialists(): Record<string, Specialist> {
   for (const [id, def] of Object.entries(SPECIALIST_DEFINITIONS)) {
     result[id] = {
       id,
-      name: def.name,
-      description: def.description,
       effects: def.effects,
       assignedBuildingId: null,
       upkeepIron: def.upkeepIron ?? 0,

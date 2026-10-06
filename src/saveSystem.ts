@@ -10,6 +10,7 @@
 import type { GameState } from './types';
 import { UnitType, UnitTag, BuildingType, TileStatus } from './types';
 import { TECH_TREE, POPULATION, SPECIALIST_DEFINITIONS, SAVE, ABILITIES } from './gameConfig';
+import { t } from './i18n/i18n';
 import { ALL_HINT_IDS } from '../config/hints';
 import type { Difficulty } from './types';
 
@@ -18,7 +19,7 @@ import type { Difficulty } from './types';
 // ============================================================================
 
 /** Increment this whenever the serialized shape changes incompatibly. */
-export const SAVE_VERSION = 20;
+export const SAVE_VERSION = 21;
 
 // ============================================================================
 // TYPES
@@ -35,7 +36,9 @@ export type SaveSlotMeta = {
 
 /** Compute the next default campaign name using the lowest unused integer suffix. */
 export function getNextDefaultSlotName(slots: Array<Pick<SaveSlotMeta, 'name'>>): string {
-  const prefixRe = new RegExp(`^${SAVE.DEFAULT_NAME_PREFIX} (\\d+)$`);
+  const prefix = t('save.defaultNamePrefix');
+  const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const prefixRe = new RegExp(`^${escapedPrefix} (\\d+)$`);
   const usedNumbers = new Set<number>();
   for (const slot of slots) {
     const match = slot.name.match(prefixRe);
@@ -43,7 +46,7 @@ export function getNextDefaultSlotName(slots: Array<Pick<SaveSlotMeta, 'name'>>)
   }
   let next = 1;
   while (usedNumbers.has(next)) next++;
-  return `${SAVE.DEFAULT_NAME_PREFIX} ${next}`;
+  return `${prefix} ${next}`;
 }
 
 // ============================================================================
@@ -456,6 +459,16 @@ function migrateState(parsed: { version: number; state: GameState }): GameState 
       if (anyState.lastSpawnBudget === undefined) anyState.lastSpawnBudget = null;
     }
 
+    // Migration v20 -> v21: specialist display text is resolved from locale catalogs.
+    if (parsed.version < 21 && s.specialists && typeof s.specialists === 'object') {
+      for (const specialist of Object.values(s.specialists) as Array<unknown>) {
+        const entry = specialist as Record<string, unknown>;
+        if (!entry || typeof entry !== 'object') continue;
+        delete entry.name;
+        delete entry.description;
+      }
+    }
+
     return s as GameState;
   } catch {
     return null;
@@ -700,7 +713,7 @@ export async function importSlotFromFile(file: File): Promise<SaveSlotMeta | nul
     const migrated = migrateState({ version: parsed.version, state: parsed.state });
     if (!migrated) return null;
     const id = `import-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
-    const name = typeof parsed.name === 'string' && parsed.name.trim() ? parsed.name.trim() : 'Imported save';
+    const name = typeof parsed.name === 'string' && parsed.name.trim() ? parsed.name.trim() : t('save.importedName');
     await saveSlot({ id, name, state: migrated });
     const meta: SaveSlotMeta = {
       id,
@@ -733,7 +746,7 @@ export async function migrateLegacyIfPresent(): Promise<void> {
     const migrated = migrateState(parsed);
     if (!migrated) return;
     const id = `legacy-${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
-    await saveSlot({ id, name: 'Imported save', state: migrated });
+    await saveSlot({ id, name: t('save.importedName'), state: migrated });
     localStorage.setItem(LEGACY_IMPORTED_KEY, '1');
   } catch {
     // fail silently

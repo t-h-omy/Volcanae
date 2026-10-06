@@ -6,6 +6,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useGameStore } from '../gameStore';
 import { useFloaterStore } from '../floaterStore';
+import type { TextRef } from '../i18n/i18n';
+import { useText } from '../i18n/useText';
 import { useAnimationStore } from '../animationStore';
 import { useCombatAnimationStore } from '../combatAnimationStore';
 import type { Projectile, SlideKillGhost, CleaveVfx, TileVfx, LineVfx } from '../combatAnimationStore';
@@ -122,6 +124,7 @@ function getBuildingAttackableTileKeys(
 // ============================================================================
 
 export default function GridRenderer() {
+  const { t } = useText();
   // ── Store selectors ──
   const grid = useGameStore((s) => s.grid);
   const units = useGameStore((s) => s.units);
@@ -735,16 +738,16 @@ export default function GridRenderer() {
     });
   }, []);
 
-  const showInvalidReasonFloater = useCallback((x: number, y: number, reason: string) => {
+  const showInvalidReasonFloater = useCallback((x: number, y: number, reason: TextRef) => {
     useFloaterStore.getState().addFloater({
       value: 0,
-      label: `🚫 ${reason}`,
+      label: `🚫 ${t(reason)}`,
       x,
       y,
       isEnemy: false,
       floaterType: 'damage',
     });
-  }, []);
+  }, [t]);
 
   const handleTileClick = useCallback(
     (x: number, y: number) => {
@@ -1489,6 +1492,7 @@ const TileCell = React.memo(TileCellInner);
 // ============================================================================
 
 function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
+  const { formatNumber, t } = useText();
   const hpPct = (unit.stats.currentHp / unit.stats.maxHp) * 100;
   const unitEmojiSize = tileSize;
 
@@ -1613,7 +1617,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
         </>
       )}
       {UNIT_DEFINITIONS[unit.type]?.levelUp?.length > 0 && (
-        <span className="unit-xp-text">{unit.xp} xp</span>
+        <span className="unit-xp-text">{t('grid.unitXp', { xp: formatNumber(unit.xp) })}</span>
       )}
       {showUnitImg ? (
         <img

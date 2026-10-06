@@ -1,7 +1,6 @@
 /**
  * Unit type interface, unit cost interface, and unit definitions.
- * Includes post-declaration description-mutation blocks that interpolate
- * live stat values and ABILITIES constants into description strings.
+ * Unit definitions and text parameters consumed by localized catalog entries.
  */
 
 import { UnitTag, UnitType } from '../src/types';
@@ -11,7 +10,7 @@ import { ABILITIES } from './abilities';
 import { MAGE } from './magic';
 
 
-/** All data for a single unit type, combining stats, tags, costs and UI descriptions. */
+/** All data for a single unit type, combining stats, tags, costs, and localized text parameters. */
 export interface UnitDefinition {
   // ── Stats ────────────────────────────────────────────────────────────────
   maxHp: number;
@@ -48,8 +47,7 @@ export interface UnitDefinition {
   /** Maximum number of this unit type alive in the same zone simultaneously (default: Infinity) */
   maxAlivePerZone?: number;
 
-  // ── UI ───────────────────────────────────────────────────────────────────
-  description: string;
+  textParams?: { [name: string]: number };
 }
 
 
@@ -65,11 +63,7 @@ export interface UnitCost {
  * Single source of truth for all per-unit data.
  * Replaces UNITS, UNIT_COSTS, UNIT_POPULATION_COSTS, UNIT_LEVEL_UP, and ENEMY_UNIT_UNLOCK.
  *
- * Description authoring: see the DESCRIPTION AUTHORING RULE above the ABILITIES
- * constant. Descriptions that must reference the unit's own stats (attackRange,
- * moveRange, etc.) or config constants are set in the "Compute descriptions for
- * UNIT_DEFINITIONS" block below - use placeholder text here that contains NO
- * hardcoded balancing numbers (mark with `// overwritten below`).
+ * Text parameter values are sourced here from unit stats or named config constants.
  */
 export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   SPEARMAN: {
@@ -83,7 +77,6 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
-    description: 'Versatile foot soldier that can move, fight, build structures, and capture enemy buildings.',
   },
 
   SWORDSMAN: {
@@ -97,7 +90,6 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
-    description: 'Heavy infantry with superior combat strength. Unlocked by the Swordsman Training tech. Cleave can be researched separately.',
   },
 
   ARCHER: {
@@ -111,7 +103,6 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
-    description: 'Ranged attacker that strikes from range without stepping into melee.', // overwritten below
   },
 
   CROSSBOWMAN: {
@@ -125,7 +116,6 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
-    description: 'Armor-piercing ranged attacker.', // overwritten below
   },
 
   RIDER: {
@@ -139,7 +129,6 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
-    description: 'Swift cavalry that outflanks and pressures the enemy.', // overwritten below
   },
 
   SIEGE: {
@@ -153,7 +142,6 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
-    description: 'Long-range bombard; cannot fire in the same turn it moves.', // overwritten below
   },
 
   SCOUT: {
@@ -167,7 +155,6 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_SCOUT }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_SCOUT }] },
     ],
-    description: 'Light and fast explorer. Can gain special abilities through technology upgrades.',
   },
 
   GUARD: {
@@ -181,7 +168,6 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
-    description: 'Heavily armored defender with high defense; cannot attack in the same turn it moves.',
   },
 
   LAVA_GRUNT: {
@@ -196,7 +182,6 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
     enemyUnlockEmber: 0,
-    description: 'Standard enemy foot soldier. Can corrupt terrain to create hostile buildings.',
   },
 
   LAVA_ARCHER: {
@@ -211,7 +196,6 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
     enemyUnlockEmber: 2,
-    description: 'Enemy ranged unit that attacks from range.', // overwritten below
   },
 
   LAVA_RIDER: {
@@ -226,7 +210,6 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
     enemyUnlockEmber: 4,
-    description: 'Enemy fast cavalry.', // overwritten below
   },
 
   LAVA_SIEGE: {
@@ -241,7 +224,6 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
     enemyUnlockEmber: 7,
-    description: 'Enemy long-range bombard.', // overwritten below
   },
 
   REAPER: {
@@ -256,7 +238,6 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
     enemyUnlockEmber: 6,
-    description: 'Brutal cluster-breaker. Cleaves into adjacent enemies and grows stronger when surrounded.',
   },
 
   LANCER: {
@@ -271,7 +252,6 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
     enemyUnlockEmber: 4,
-    description: 'Fast lancer that pierces through front lines, dealing full damage to units behind the target. Immune to stun.',
   },
 
   BULLWARK: {
@@ -286,7 +266,6 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
     enemyUnlockEmber: 5,
-    description: 'Heavily armored brute that ignores defensive bonuses and stuns heavily armored targets. Resistant to melee damage.',
   },
 
   KINDLER: {
@@ -301,7 +280,6 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
     enemyUnlockEmber: 5,
-    description: 'Ranged firestarter that scorches the target\'s tile.',
   },
 
   GRIMBEAK: {
@@ -316,7 +294,6 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
     enemyUnlockEmber: 6,
-    description: 'Resilient lava beast that resists damage from summoned units, deals extra damage to them, and prioritises attacking summoned units. Grows enraged in dense clusters.', // description interpolated below once GRIMBEAK_SUMMONED_DAMAGE_MULTIPLIER is defined
   },
 
   RIFTWORM: {
@@ -331,7 +308,6 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
     enemyUnlockEmber: 5,
-    description: 'Tunneling enemy unit.', // overwritten below
   },
 
   RIFT_LORD: {
@@ -348,7 +324,6 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     enemyUnlockEmber: 7,
     maxThemePercent: 15,
     maxAlivePerZone: 1,
-    description: 'Glass-cannon caster that opens portals behind the player line, allowing enemy units to teleport into the backline.',
   },
 
   EMBERLING: {
@@ -365,7 +340,6 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     ],
     enemyUnlockEmber: 1,
     themeEligible: false,
-    description: 'Sacrificial fire spirit that seeks lava and can explode when blocked.', // overwritten below
   },
 
   CAVE_MONSTER: {
@@ -380,7 +354,6 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
     themeEligible: false,
-    description: 'A monstrous creature that emerged from deep within a mountain cave.',
   },
 
   MAGE: {
@@ -394,7 +367,6 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_SCOUT }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_SCOUT }] },
     ],
-    description: 'Arcane caster that casts spells instead of attacking. Recruited from active Crystal Chambers.', // overwritten below
   },
 
   EMBER_DEMON: {
@@ -408,7 +380,6 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
     ],
-    description: 'Powerful demonic unit..', // overwritten below
   },
 
   SKELETON: {
@@ -422,7 +393,6 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
-    description: 'Undead warrior raised from a gravestone.', // overwritten below
   },
 
   GARGOYLE: {
@@ -437,7 +407,6 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
     ],
-    description: 'Flying skeletal gargoyle raised from a gravestone.', // overwritten below
   },
 
   CRYSTAL_DRAKE: {
@@ -457,37 +426,35 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
     ],
-    description: 'Flying summon bound to its Crystal Cave.', // overwritten below
   },
 };
 
-
-// Compute descriptions for UNIT_DEFINITIONS entries that reference their own stats.
-// All numeric values here are read from the unit definition or ABILITIES - never
-// hardcoded literals. See the DESCRIPTION AUTHORING RULE above ABILITIES.
+// Text parameter values mirror the gameplay definitions and named config constants.
 {
   const u = UNIT_DEFINITIONS;
-  u.ARCHER.description      = `Ranged attacker that strikes from ${u.ARCHER.attackRange} tiles away without stepping into melee range.`;
-  u.CROSSBOWMAN.description =
-    `Armor-piercing ranged attacker with ${u.CROSSBOWMAN.attackRange}-tile reach: ignores the target's defensive bonuses and stuns heavily-armored foes. ` +
-    `After firing, its own DEF drops ${ABILITIES.RELOAD_DEF_PENALTY_PCT}% until its next turn.`;
-  u.RIDER.description       = `Swift cavalry that covers ${u.RIDER.moveRange} tiles per move to outflank and pressure the enemy.`;
-  u.SIEGE.description       = `Long-range bombard with ${u.SIEGE.attackRange}-tile reach; cannot fire in the same turn it moves.`;
-  u.LAVA_ARCHER.description = `Enemy ranged unit that attacks from ${u.LAVA_ARCHER.attackRange} tiles away.`;
-  u.LAVA_RIDER.description  = `Enemy fast cavalry that covers ${u.LAVA_RIDER.moveRange} tiles per move.`;
-  u.LAVA_SIEGE.description  = `Enemy long-range bombard with ${u.LAVA_SIEGE.attackRange}-tile reach.`;
-  u.EMBERLING.description   =
-    `Sacrificial fire spirit that seeks lava. Reaching lava destroys it and raises Ember by 1. ` +
-    `Its EXPLODE action is available when it is blocked from reaching lava and next to player units; it deals ${u.EMBERLING.explosionDamage} damage to all player units within 1 tile and destroys itself.`;
-  u.MAGE.description        = `Arcane caster that casts spells instead of attacking, with ${u.MAGE.attackRange}-tile range and ${MAGE.SPELLS_PER_TURN} spell cast${MAGE.SPELLS_PER_TURN !== 1 ? 's' : ''} per turn. Recruited from active Crystal Chambers.`;
-  u.EMBER_DEMON.description = `Powerful demonic unit.`;
-  u.SKELETON.description    = `Undead warrior raised from a gravestone.`;
-  u.GARGOYLE.description    = `Flying skeletal gargoyle raised from a Gravestone. Melee attacker that flies ${u.GARGOYLE.moveRange} tiles over canyons and water.`;
-  u.CRYSTAL_DRAKE.description = `A flying Drake summoned at a Crystal Cave. If its Crystal Cave is lost, the drake dies.`;
+  u.ARCHER.textParams = { attackRange: u.ARCHER.attackRange };
+  u.CROSSBOWMAN.textParams = {
+    attackRange: u.CROSSBOWMAN.attackRange,
+    reloadPenalty: ABILITIES.RELOAD_DEF_PENALTY_PCT,
+  };
+  u.RIDER.textParams = { moveRange: u.RIDER.moveRange };
+  u.SIEGE.textParams = { attackRange: u.SIEGE.attackRange };
+  u.LAVA_ARCHER.textParams = { attackRange: u.LAVA_ARCHER.attackRange };
+  u.LAVA_RIDER.textParams = { moveRange: u.LAVA_RIDER.moveRange };
+  u.LAVA_SIEGE.textParams = { attackRange: u.LAVA_SIEGE.attackRange };
+  u.EMBERLING.textParams = {
+    emberGain: ABILITIES.EMBERLING_EMBER_GAIN,
+    explosionDamage: u.EMBERLING.explosionDamage!,
+    adjacencyRange: ABILITIES.ADJACENCY_RANGE,
+  };
+  u.MAGE.textParams = { attackRange: u.MAGE.attackRange, spellsPerTurn: MAGE.SPELLS_PER_TURN };
+  u.GARGOYLE.textParams = { moveRange: u.GARGOYLE.moveRange };
+  u.RIFTWORM.textParams = {
+    tunnelRangeMin: ABILITIES.TUNNEL_RANGE_MIN,
+    tunnelRangeMax: ABILITIES.TUNNEL_RANGE_MAX,
+    emergenceDamage: ABILITIES.TUNNEL_EMERGE_DAMAGE,
+  };
+  u.GRIMBEAK.textParams = { summonedDamageMultiplier: ABILITIES.GRIMBEAK_SUMMONED_DAMAGE_MULTIPLIER };
 }
 
-// Compute descriptions for UNIT_DEFINITIONS entries that reference TUNNEL constants.
-UNIT_DEFINITIONS.RIFTWORM.description = `Digs underground and re-emerges ${ABILITIES.TUNNEL_RANGE_MIN}–${ABILITIES.TUNNEL_RANGE_MAX} tiles south in the same column, avoiding resource terrain and other riftworms' planned exits. Digging in requires open ground (no buildings, ruins, forest or mountain). On emergence, deals ${ABILITIES.TUNNEL_EMERGE_DAMAGE} damage to all adjacent player units and corrupts the tile.`;
-// Compute Grimbeak description referencing the summoned-damage multiplier.
-UNIT_DEFINITIONS.GRIMBEAK.description = `Resilient lava beast that resists damage from summoned units, deals ${ABILITIES.GRIMBEAK_SUMMONED_DAMAGE_MULTIPLIER}× damage to them, and prioritises attacking summoned units. Grows enraged in dense clusters.`;
 // ============================================================================

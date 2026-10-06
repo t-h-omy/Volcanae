@@ -23,4 +23,30 @@ export default defineConfig([
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     },
   },
+  {
+    files: ['src/components/**/*.tsx'],
+    rules: {
+      'no-restricted-syntax': ['error',
+        {
+          selector: 'JSXText[value=/[A-Za-z]{2,}/]',
+          message: 'Player-facing text must come from useText()',
+        },
+        {
+          selector: 'JSXAttribute[name.name=/^(title|aria-label|placeholder|alt)$/] > Literal[value=/[A-Za-z]{2,}/]',
+          message: 'Player-facing text must come from useText()',
+        },
+        {
+          selector: 'JSXAttribute[name.name=/^(title|aria-label|placeholder|alt)$/] TemplateElement[value.raw=/[A-Za-z]{2,}/]',
+          message: 'Player-facing text must come from useText()',
+        },
+      ],
+      'no-restricted-imports': ['error', {
+        patterns: [{
+          group: ['**/i18n/i18n', '**/i18n/i18n.ts', '**/i18n/entityText', '**/i18n/entityText.ts'],
+          message: 'Components use useText()',
+          allowTypeImports: true,
+        }],
+      }],
+    },
+  },
 ])

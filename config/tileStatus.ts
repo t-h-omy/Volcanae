@@ -1,6 +1,6 @@
 /**
  * Tile status whitelist, burning-tile damage, corruption-suppressed tags,
- * and terrain-tag tooltip definitions.
+ * and parameters for localized terrain-tag tooltips.
  */
 
 import { TileType, TileStatus, TerrainTag, UnitTag } from '../src/types';
@@ -61,29 +61,10 @@ export const CORRUPTED_SUPPRESSED_TAGS = new Set<UnitTag>([
 
 
 /**
- * Tooltip definitions for terrain tags (shown in the tile-info panel).
- * Mirrors the structure of TAG_INFO for unit tags.
+ * Text parameters for localized terrain-tag tooltips in the tile-info panel.
  */
-export const TERRAIN_TAG_INFO: Record<TerrainTag, { label: string; desc: string }> = {
-  [TerrainTag.CORRUPTED]: {
-    label: 'Corrupted',
-    desc:
-      'Player units on this tile are isolated from ally tag interactions. ' +
-      'No Phalanx bonuses, no Patchup healing, no Pin Down / Distraction / Splash effects on attack, ' +
-      'and no tag-based attack bonuses (Knight, Lance Charge, Assassin, Bloodlust). ' +
-      'Preventive Strike overwatch is also suppressed. ' +
-      'Base stats, movement, ranged capability, and persistent effects (Brandmarked) remain unchanged.',
-  },
-  [TerrainTag.FROZEN]: {
-    label: 'Frozen',
-    desc:
-      'Units that end movement on this tile slide one additional tile in their movement direction. ' +
-      'Sliding into water, canyon, or lava is fatal. ' +
-      'Spawning directly onto a frozen tile triggers no slide. ' +
-      'Flying units do not slide.',
-  },
-  [TerrainTag.BURNING]: {
-    label: 'Burning',
-    desc:     `Non-LAVA, non-FLYING, non-CINDERBORN units on this tile take ${BURNING_TILE_DAMAGE} damage at the end of each turn.`,
-  },
+export const TERRAIN_TAG_INFO: Record<TerrainTag, { textParams?: { [name: string]: number } }> = {
+  [TerrainTag.CORRUPTED]: {},
+  [TerrainTag.FROZEN]: {},
+  [TerrainTag.BURNING]: { textParams: { damage: BURNING_TILE_DAMAGE } },
 };

@@ -4,6 +4,7 @@ import { RESOURCES, ABILITIES, SPECIALIST_DEFINITIONS } from '../gameConfig';
 import { collectResources, computeResourceIncome, computeResourceIncomeBreakdown, getMineKilnBonusCount } from '../resourceSystem';
 import { BuildingType, DestroyBehavior, Faction, TileType } from '../types';
 import type { Building, GameState, GameStats, Specialist, Tile } from '../types';
+import { t } from '../i18n/i18n';
 
 let _id = 0;
 function nextId(prefix: string) { return `${prefix}_${++_id}`; }
@@ -129,8 +130,6 @@ function makeStateWithKilnBonus(buildings: Building[]): GameState {
   const specDef = SPECIALIST_DEFINITIONS.spec_07;
   const specialist: Specialist = {
     id: 'spec_07',
-    name: specDef.name,
-    description: specDef.description,
     effects: specDef.effects as Specialist['effects'],
     assignedBuildingId: null,
     upkeepIron: specDef.upkeepIron,
@@ -179,7 +178,7 @@ describe('Charcoal Kiln additive stacking', () => {
     );
 
     const breakdown = computeResourceIncomeBreakdown(state);
-    const kilnEntry = breakdown.find((entry) => entry.label === 'Charcoal Kiln bonus ×2');
+    const kilnEntry = breakdown.find((entry) => t(entry.label) === 'Charcoal Kiln bonus ×2');
     expect(kilnEntry).toBeDefined();
     expect(kilnEntry?.iron).toBe(RESOURCES.CHARCOAL_KILN_IRON_BONUS * 2);
   });
@@ -234,7 +233,7 @@ describe('KILN_BONUS specialist (Ashwright)', () => {
     const state = makeStateWithKilnBonus([mine, edgeKiln]);
 
     const breakdown = computeResourceIncomeBreakdown(state);
-    const kilnEntry = breakdown.find((entry) => entry.label === 'Charcoal Kiln bonus ×1');
+    const kilnEntry = breakdown.find((entry) => t(entry.label) === 'Charcoal Kiln bonus ×1');
     expect(kilnEntry).toBeDefined();
     const expectedIronPerKiln = RESOURCES.CHARCOAL_KILN_IRON_BONUS + ABILITIES.KILN_IRON_BONUS;
     expect(kilnEntry?.iron).toBe(expectedIronPerKiln);
@@ -286,7 +285,7 @@ describe('Charcoal Kiln buffs Deep Mines', () => {
 
     const breakdown = computeResourceIncomeBreakdown(state);
     // Both mine and deep mine are each in range of one kiln: total increments = 2.
-    const kilnEntry = breakdown.find((entry) => entry.label === 'Charcoal Kiln bonus ×2');
+    const kilnEntry = breakdown.find((entry) => t(entry.label) === 'Charcoal Kiln bonus ×2');
     expect(kilnEntry).toBeDefined();
     expect(kilnEntry?.iron).toBe(RESOURCES.CHARCOAL_KILN_IRON_BONUS * 2);
   });

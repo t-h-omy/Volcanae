@@ -6,7 +6,9 @@
  * React components.
  */
 
-import type { UnitPopulationCost } from './types';
+import { BuildingType, type UnitPopulationCost } from './types';
+import { buildingNameRef } from './i18n/entityText';
+import type { TextRef } from './i18n/i18n';
 
 export interface RecruitCost {
   iron: number;
@@ -30,11 +32,11 @@ export interface PopCapacity {
 
 export interface RecruitBlockMessages {
   /** Non-null when the unit's resource cost cannot be met. */
-  resourceWarningMsg: string | null;
+  resourceWarningMsg: TextRef | null;
   /** Non-null when there is insufficient population for this unit. */
-  popWarningMsg: string | null;
+  popWarningMsg: TextRef | null;
   /** Non-null when the recruitment cap blocks this unit. */
-  capWarningMsg: string | null;
+  capWarningMsg: TextRef | null;
 }
 
 /**
@@ -58,7 +60,7 @@ export interface RecruitBlockMessages {
  * @param isCrystalCave     True when the building is a CRYSTAL_CAVE.
  * @param recruitedUnits    Current unit count toward the cap.
  * @param unitLimit         Maximum unit count for this building.
- * @param buildingTypeName  Human-readable building type name (e.g. "Barracks").
+ * @param buildingType      Building type used for the unit-limit warning.
  */
 export function buildRecruitBlockMessages(
   isCrystalCost: boolean,
@@ -75,35 +77,36 @@ export function buildRecruitBlockMessages(
   isCrystalCave: boolean,
   recruitedUnits: number,
   unitLimit: number,
-  buildingTypeName: string,
+  buildingType: BuildingType,
 ): RecruitBlockMessages {
   // --- Resource warning ---
-  let resourceWarningMsg: string | null = null;
+  let resourceWarningMsg: TextRef | null = null;
   if (!canAffordUnit) {
     if (isCrystalCost) {
       const missing = crystalCost - arcaneCrystals;
-      resourceWarningMsg = `Not enough crystals (need ${crystalCost}, have ${arcaneCrystals}, missing ${missing})`;
+      resourceWarningMsg = { key: 'recruit.notEnoughCrystals', params: { need: crystalCost, have: arcaneCrystals, missing } };
     } else if (cost) {
-      const parts: string[] = [];
-      if (resources.iron < cost.iron) {
-        parts.push(`iron (need ${cost.iron}, have ${resources.iron})`);
-      }
-      if (resources.wood < cost.wood) {
-        parts.push(`wood (need ${cost.wood}, have ${resources.wood})`);
-      }
-      if (parts.length > 0) {
-        resourceWarningMsg = `Not enough ${parts.join(' and ')}`;
+      const lacksIron = resources.iron < cost.iron;
+      const lacksWood = resources.wood < cost.wood;
+      if (lacksIron && lacksWood) {
+        resourceWarningMsg = {
+          key: 'recruit.notEnoughIronAndWood',
+          params: { ironNeed: cost.iron, ironHave: resources.iron, woodNeed: cost.wood, woodHave: resources.wood },
+        };
+      } else if (lacksIron) {
+        resourceWarningMsg = { key: 'recruit.notEnoughIron', params: { need: cost.iron, have: resources.iron } };
+      } else if (lacksWood) {
+        resourceWarningMsg = { key: 'recruit.notEnoughWood', params: { need: cost.wood, have: resources.wood } };
       } else {
-        // Fallback – cost object exists but nothing is individually short
-        resourceWarningMsg = 'Not enough resources';
+        resourceWarningMsg = { key: 'recruit.notEnoughResources' };
       }
     } else {
-      resourceWarningMsg = 'Not enough resources';
+      resourceWarningMsg = { key: 'recruit.notEnoughResources' };
     }
   }
 
   // --- Population warning ---
-  let popWarningMsg: string | null = null;
+  let popWarningMsg: TextRef | null = null;
   if (!hasPopulation && canAffordUnit && popCost) {
     const needFarmers =
       popCost.farmers > 0 &&
@@ -111,19 +114,21 @@ export function buildRecruitBlockMessages(
     const needNobles =
       popCost.nobles > 0 &&
       popUsage.noblesUsed + popCost.nobles > popCapacity.nobleCapacity;
-    const parts: string[] = [];
-    if (needFarmers) parts.push('farmers — build more Farms');
-    if (needNobles) parts.push('nobles — build more Patrician Houses');
-    if (parts.length > 0) popWarningMsg = `Not enough ${parts.join(' and ')}`;
+    if (needFarmers && needNobles) popWarningMsg = { key: 'recruit.notEnoughFarmersAndNobles' };
+    else if (needFarmers) popWarningMsg = { key: 'recruit.notEnoughFarmers' };
+    else if (needNobles) popWarningMsg = { key: 'recruit.notEnoughNobles' };
   }
 
   // --- Cap warning ---
-  let capWarningMsg: string | null = null;
+  let capWarningMsg: TextRef | null = null;
   if (atUnitLimit && canAffordUnit && hasPopulation) {
     if (isCrystalCave) {
-      capWarningMsg = 'This cave already hosts a Crystal Drake';
+      capWarningMsg = { key: 'recruit.caveHostsDrake' };
     } else {
-      capWarningMsg = `Unit limit reached (${recruitedUnits}/${unitLimit}), build another ${buildingTypeName}`;
+      capWarningMsg = {
+        key: 'recruit.unitLimitReached',
+        params: { count: recruitedUnits, max: unitLimit, building: buildingNameRef(buildingType) },
+      };
     }
   }
 

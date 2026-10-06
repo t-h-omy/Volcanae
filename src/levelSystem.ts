@@ -9,6 +9,7 @@ import { Faction, GamePhase, UnitType } from './types';
 import { UNIT_DEFINITIONS, XP } from './gameConfig';
 import { ANIMATION } from '../config/animation';
 import { useFloaterStore } from './floaterStore';
+import { t } from './i18n/i18n';
 import { useCombatAnimationStore } from './combatAnimationStore';
 
 /**
@@ -123,7 +124,7 @@ export function applyLevelUps(
     // Level-up floater
     useFloaterStore.getState().addFloater({
       value: 0,
-      label: `⬆️ Lv.${unit.level}`,
+      label: `⬆️ ${t('floater.levelUp', { level: unit.level })}`,
       x,
       y,
       isEnemy: false,

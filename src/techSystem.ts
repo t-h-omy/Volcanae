@@ -1,13 +1,13 @@
 /**
  * Tech tree system for Volcanae.
- * Provides pick-grant, unlock, availability, and effect-rendering logic.
+ * Provides pick-grant, unlock, and availability logic.
  * All node definitions live in gameConfig.ts (TECH_TREE).
  */
 
 import type { Draft } from 'immer';
 import type { GameState, TechId, TechEffect, UnitStats, StatModifier, Unit } from './types';
-import { Faction, TechFlag, BuildingType, UnitTag } from './types';
-import { TECH_TREE, ABILITIES, TAG_STAT_EFFECTS, computeResearchCost, POPULATION, MAGE, SPELL_DEFINITIONS } from './gameConfig';
+import { Faction, BuildingType, UnitTag } from './types';
+import { TECH_TREE, TAG_STAT_EFFECTS, computeResearchCost, POPULATION } from './gameConfig';
 
 // ============================================================================
 // PICK GRANTS
@@ -407,87 +407,4 @@ export function getStrongholdEffectiveCap(
   const farmerCap = POPULATION.STRONGHOLD_FARMER_CAP + farmerMod;
   const nobleCap = POPULATION.STRONGHOLD_NOBLE_CAP + nobleMod;
   return { farmerCap, nobleCap, totalCap: farmerCap + nobleCap };
-}
-
-// ============================================================================
-// EFFECT RENDERING (for UI)
-// ============================================================================
-
-/** Human-readable descriptions for FLAG effects */
-const flagDescriptions: Record<TechFlag, string> = {
-  [TechFlag.TO_THE_FRONT]:  `Units >${ABILITIES.TO_THE_FRONT_MIN_DISTANCE} tiles south of the northmost player unit: +${ABILITIES.TO_THE_FRONT_MOVE_BONUS} movement`,
-  [TechFlag.HOLD_GROUND]:   'Units on own buildings: defense bonus',
-  [TechFlag.GRAVE_HARVEST]: `Each player-owned Gravestone has a ${MAGE.GRAVE_HARVEST_CRYSTAL_CHANCE}% chance per turn to grant 1 crystal`,
-};
-
-const buildingDisplayNames: Record<BuildingType, string> = {
-  [BuildingType.STRONGHOLD]: 'Stronghold',
-  [BuildingType.MINE]: 'Mine',
-  [BuildingType.DEEP_MINE]: 'Deep Mine',
-  [BuildingType.WOODCUTTER]: 'Woodcutter',
-  [BuildingType.CHARCOAL_KILN]: 'Charcoal Kiln',
-  [BuildingType.BARRACKS]: 'Barracks',
-  [BuildingType.ARCHER_CAMP]: 'Archer Camp',
-  [BuildingType.RIDER_CAMP]: 'Rider Camp',
-  [BuildingType.SIEGE_CAMP]: 'Siege Camp',
-  [BuildingType.WATCHTOWER]: 'Watchtower',
-  [BuildingType.OUTPOST]: 'Outpost',
-  [BuildingType.LAVALAIR]: 'Lava Lair',
-  [BuildingType.INFERNALSANCTUM]: 'Infernal Sanctum',
-  [BuildingType.FARM]: 'Farm',
-  [BuildingType.PATRICIANHOUSE]: 'Patrician House',
-  [BuildingType.MAGMASPYR]: 'Magma Spyr',
-  [BuildingType.EMBERNEST]: 'Ember Nest',
-  [BuildingType.CRYSTAL_CHAMBER]: 'Crystal Chamber',
-  [BuildingType.CRYSTAL_TOWER]: 'Crystal Tower',
-  [BuildingType.CRYSTAL_CAVE]: 'Crystal Cave',
-  [BuildingType.GRAVESTONE]: 'Gravestone',
-  [BuildingType.GRAVE_TRAP]: 'Grave Trap',
-  [BuildingType.MARKET]: 'Market',
-  [BuildingType.BRIDGE]: 'Bridge',
-  [BuildingType.SCOUT_TRAP]: 'Scout Trap',
-};
-
-function renderUnlockedBuilding(buildingType: BuildingType): string {
-  const name = buildingDisplayNames[buildingType] ?? buildingType;
-  if (buildingType === BuildingType.CRYSTAL_TOWER) {
-    return `Unlocks ${name} erection via spell`;
-  }
-  return `Unlocks ${name} construction`;
-}
-
-/**
- * Translate a TechEffect into a human-readable string for display.
- */
-export function renderEffect(effect: TechEffect): string {
-  switch (effect.type) {
-    case 'UNLOCK_BUILDING':
-      return renderUnlockedBuilding(effect.buildingType);
-    case 'UNLOCK_UNIT':
-      return `Unlocks ${effect.unitType} recruitment`;
-    case 'GRANT_UNIT_TAG':
-      return `${effect.unitType} gains ${effect.tag} ability`;
-    case 'REMOVE_UNIT_TAG':
-      return `${effect.unitType} loses ${effect.tag} ability`;
-    case 'UNIT_STAT_MOD':
-      return `${effect.unitType} ${effect.stat} ${effect.mode === 'add' ? (effect.value >= 0 ? '+' : '') : ''}${effect.value}${effect.mode === 'percent' ? '%' : ''}`;
-    case 'UNIT_COST_MOD':
-      return `${effect.unitType} cost ${effect.resource} ${effect.amount >= 0 ? '+' : ''}${effect.amount}`;
-    case 'BUILDING_PRODUCTION_MOD':
-      return `${effect.buildingType} ${effect.chancePercent}% chance +${effect.amount} ${effect.resource}/turn`;
-    case 'FLAT_INCOME_MOD':
-      return `+${effect.amount} ${effect.resource}/turn (flat, requires ${effect.requiresBuilding})`;
-    case 'FLAG':
-      return flagDescriptions[effect.flag] ?? effect.flag;
-    case 'STRONGHOLD_CAP_MOD':
-      return `Stronghold +${effect.amount} ${effect.capType} cap`;
-    case 'SPECIALIST_SLOT_MOD':
-      return `+${effect.value} specialist slot${effect.value !== 1 ? 's' : ''}`;
-    case 'UNLOCK_SPELL': {
-      const def = SPELL_DEFINITIONS[effect.spellId];
-      return `Unlocks ${def?.name ?? effect.spellId}`;
-    }
-    default:
-      return '';
-  }
 }

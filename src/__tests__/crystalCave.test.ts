@@ -40,6 +40,7 @@ import {
   SpellId,
 } from '../types';
 import type { GameState, Unit, Building, Tile, Position } from '../types';
+import { spellDesc } from '../i18n/entityText';
 import type { GameEvent } from '../gameEvents';
 import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, TECH_TREE, SPELL_DEFINITIONS, CRYSTAL_CAVE_CONFIG, MAP } from '../gameConfig';
 import { cleanupRoostedUnits } from '../buildingRemoval';
@@ -517,8 +518,8 @@ describe('SPELL_DEFINITIONS[CRYSTAL_CAVE]', () => {
   it('exists with a description mentioning the Crystal Cave and Crystal Drake', () => {
     const def = SPELL_DEFINITIONS[SpellId.CRYSTAL_CAVE];
     expect(def).toBeDefined();
-    expect(def.description).toContain('Crystal Cave');
-    expect(def.description).toContain('Crystal Drake');
+    expect(spellDesc(SpellId.CRYSTAL_CAVE)).toContain('Crystal Cave');
+    expect(spellDesc(SpellId.CRYSTAL_CAVE)).toContain('Crystal Drake');
   });
 });
 

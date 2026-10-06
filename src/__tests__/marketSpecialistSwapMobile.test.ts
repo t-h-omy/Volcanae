@@ -34,7 +34,7 @@ function declarations(body: string, property: string): string[] {
 function swapMarkup(): string {
   const start = HUD_TSX.indexOf('market-panel-card market-panel-card--swap');
   expect(start, 'swap card markup not found').toBeGreaterThan(-1);
-  const end = HUD_TSX.indexOf('market-panel-title">🪙 Market', start);
+  const end = HUD_TSX.indexOf('{/* Resource slots */}', start);
   expect(end).toBeGreaterThan(start);
   return HUD_TSX.slice(start, end);
 }
@@ -105,7 +105,7 @@ describe('Market specialist swap popup on a portrait mobile viewport', () => {
 
     // Cancel is unconditional (no surrounding conditional render) and labelled.
     const footerRegion = markup.slice(footerStart);
-    expect(footerRegion).toContain('Cancel');
+    expect(footerRegion).toContain("t('common.cancel')");
     expect(footerRegion).toContain('onClick={cancelSpecialistSwap}');
     expect(footerRegion).not.toContain('&&');
   });
@@ -115,9 +115,9 @@ describe('Market specialist swap popup on a portrait mobile viewport', () => {
     const header = markup.slice(0, markup.indexOf('market-panel-swap-list'));
     expect(header).toContain('market-panel-close');
     expect(header).toContain('onClick={cancelSpecialistSwap}');
-    expect(header).toMatch(/aria-label="[^"]*[Cc]ancel[^"]*"/);
+    expect(header).toContain("aria-label={t('hud.market.cancelSpecialistReplacement')}");
     // Title and incoming specialist summary remain in the non-scrolling head.
-    expect(header).toContain('🔄 Replace a Specialist');
+    expect(header).toContain("t('hud.market.replaceSpecialist')");
     expect(header).toContain('market-panel-specialist-incoming');
   });
 

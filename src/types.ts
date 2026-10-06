@@ -396,12 +396,11 @@ export type TechEffect =
 /** Static definition of a tech-tree node (lives in gameConfig) */
 export interface TechNodeDefinition {
   id: TechId;
-  name: string;
-  description: string;
   requires: TechId[];
   /** Crystal cost to unlock this node. Defaults to 1 if omitted. */
   cost?: number;
   effects: TechEffect[];
+  textParams?: { [name: string]: number };
 }
 
 /** Runtime state for a single tech node */
@@ -538,8 +537,6 @@ export interface SpecialistEffect {
 /** A specialist that can be assigned to buildings */
 export interface Specialist {
   id: string;
-  name: string;
-  description: string;
   effects: SpecialistEffect[];
   assignedBuildingId: string | null;
   /** Iron cost per turn; default 0 */

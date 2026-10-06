@@ -9,6 +9,7 @@ import { BuildingType, Faction, TechFlag, TileType, TileStatus, UnitTag } from '
 import { MAP, ABILITIES } from './gameConfig';
 import { getTilesWithinEdgeCircleRange } from './rangeUtils';
 import { useFloaterStore } from './floaterStore';
+import { t } from './i18n/i18n';
 import { cleanupRoostedUnits } from './buildingRemoval';
 import { getBridgeAt, canTraverseEdge } from './bridgeSystem';
 import type { GameEvent } from './gameEvents';
@@ -286,7 +287,7 @@ export function checkGraveTrapTrigger(
     } else {
       useFloaterStore.getState().addFloater({
         value: 0,
-        label: '💫 Stunned',
+        label: `💫 ${t('floater.stunned')}`,
         x: trapPos.x,
         y: trapPos.y,
         isEnemy: true,
@@ -312,7 +313,7 @@ export function checkGraveTrapTrigger(
     } else {
       useFloaterStore.getState().addFloater({
         value: 0,
-        label: '💫 Stunned',
+        label: `💫 ${t('floater.stunned')}`,
         x: nx,
         y: ny,
         isEnemy: true,
@@ -404,7 +405,7 @@ export function checkScoutTrapTrigger(
     } else {
       useFloaterStore.getState().addFloater({
         value: 0,
-        label: '💫 Stunned',
+        label: `💫 ${t('floater.stunned')}`,
         x: trapPos.x,
         y: trapPos.y,
         isEnemy: true,

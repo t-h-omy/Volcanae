@@ -1,5 +1,41 @@
 # Changelog
 
+### v0.115.0 - German language
+
+German is now selectable in Options and is auto-detected on first launch; English remains the default for other browser languages.
+
+### v0.114.16 - Translation review tooling
+
+Added locale review sheet export and validated import, plus an advisory terminology and catalog report.
+
+### v0.114.15 - Localized main menu and remaining UI
+
+Localized the main menu, app loading states, and unit XP labels for all supported locales. Added locale-aware relative time and storage sizes, prepared the language option in main-menu Options, and enforced the hardcoded-text lint rule.
+
+### v0.114.14 - Localized HUD panels, market, cave rewards and tech tree
+
+Localized HUD panels, market, cave rewards and tech tree for all supported locales.
+
+### v0.114.13 - Localized HUD menus, top bar and info popups
+
+Localized HUD menus, top bar and info popups for all supported locales, added locale-aware number formatting, and prepared the language selector in in-game Options.
+
+### v0.114.12 - Localize gameplay messages
+
+Localized recruit warnings, invalid-target reasons, floaters, popups, income and population breakdowns, and save names for all supported locales.
+
+### v0.114.11 - Localize tech, spell, specialist and hint text
+
+Localized technology, spell, specialist and hint catalogs for all supported locales. Specialist names and descriptions are no longer stored in saves; SAVE_VERSION now migrates version 20 saves.
+
+### v0.114.10 - Localize unit, building and tag text
+
+Moved unit, building, tag, terrain-tag, resource, population, difficulty, and stat text into catalogs translated for all supported locales. Added display names for seven previously unnamed enemy units.
+
+### v0.114.9 - Localization infrastructure
+
+Added the i18n layer, six locale catalogs, catalog QA tests, and a Dev Options language picker. No player-facing text changes.
+
 ### v0.114.8 - Clarify target-dependent combat effects
 
 Added a separate Target-dependent section to unit stat details so effects that vary by enemy are not presented as general bonuses or penalties. Assassin's ×4 damage is labeled as applying only against full-health targets. Other active combat modifiers retain their existing display.

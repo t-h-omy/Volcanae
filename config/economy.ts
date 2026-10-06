@@ -56,6 +56,10 @@ export interface MarketOfferPoolEntry {
 }
 
 export const MARKET = {
+  /** Maximum trades a unit can make at the market in one turn. */
+  TRADES_PER_UNIT_PER_TURN: 1,
+  /** Free restocks provided per market restock interval. */
+  FREE_RESTOCKS_PER_INTERVAL: 1,
   // ── Placement (mapGenerator.ts) ──────────────────────────────────────────
   MIN_PER_GAME: 3,
   MAX_PER_GAME: 3,
@@ -137,4 +141,3 @@ export const TRAINING = {
   /** ATK penalty applied while a unit has the UNTRAINED tag */
   UNTRAINED_ATK_PENALTY: 15,
 } as const;
-

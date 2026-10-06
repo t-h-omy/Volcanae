@@ -47,6 +47,7 @@ import { canUnitCast, getMageCastBudget } from './spellSystem';
 import { isUnitOnCorruptedTile } from './tileStatusSystem';
 import { getBridgeAt } from './bridgeSystem';
 import { getActiveEffectParams, isSpecialistEffectActive } from './specialistSystem';
+import type { TextRef } from './i18n/i18n';
 export { canUnitCast, getMageCastBudget } from './spellSystem';
 
 // ── HELPER ───────────────────────────────────────────────────────────────────
@@ -544,16 +545,16 @@ export function isHealSuppressedByCorruption(
   return isUnitOnCorruptedTile(state, unitId) && unit.tags.includes(UnitTag.PATCHUP);
 }
 
-const ABILITY_TARGET_REASONS = {
-  HEAL_BRANDMARKED: 'Brandmarked units cannot be healed',
-  HEAL_SUMMONED: 'Summoned units cannot be healed',
-  BRIDGE_ENDPOINTS: 'Bridge needs accessible entry and exit tile',
-  TRAP_OUT_OF_RANGE: 'Tile out of range',
-  TRAP_UNIT_ON_TILE: 'Another unit is on this tile',
-  TRAP_BUILDING_ON_TILE: 'A building already occupies this tile',
-  TRAP_RUIN: 'Cannot place trap on a ruin',
-  TRAP_TERRAIN: 'Cannot place trap on this terrain',
-  TRAP_LAVA: 'Cannot place trap on lava',
+const ABILITY_TARGET_REASONS: Record<string, TextRef> = {
+  HEAL_BRANDMARKED: { key: 'reason.heal.brandmarked' },
+  HEAL_SUMMONED: { key: 'reason.heal.summoned' },
+  BRIDGE_ENDPOINTS: { key: 'reason.bridge.endpoints' },
+  TRAP_OUT_OF_RANGE: { key: 'reason.trap.outOfRange' },
+  TRAP_UNIT_ON_TILE: { key: 'reason.trap.unitOnTile' },
+  TRAP_BUILDING_ON_TILE: { key: 'reason.trap.buildingOnTile' },
+  TRAP_RUIN: { key: 'reason.trap.ruin' },
+  TRAP_TERRAIN: { key: 'reason.trap.terrain' },
+  TRAP_LAVA: { key: 'reason.trap.lava' },
 } as const;
 
 /**
@@ -594,7 +595,7 @@ export function explainInvalidHealTarget(
   state: GameState | Draft<GameState>,
   healerId: string,
   pos: { x: number; y: number },
-): string | null {
+): TextRef | null {
   const healer = state.units[healerId];
   if (!healer) return null;
   if (!isTileWithinEdgeCircleRange(healer.position.x, healer.position.y, pos.x, pos.y, 1)) {
@@ -746,7 +747,7 @@ export function explainInvalidBridgeTarget(
   state: GameState | Draft<GameState>,
   builderId: string,
   pos: { x: number; y: number },
-): string | null {
+): TextRef | null {
   if (!state.units[builderId]) return null;
   const tile = state.grid[pos.y]?.[pos.x];
   if (!tile) return null;
@@ -877,7 +878,7 @@ export function explainInvalidTrapTarget(
   state: GameState | Draft<GameState>,
   setterId: string,
   pos: { x: number; y: number },
-): string | null {
+): TextRef | null {
   const setter = state.units[setterId];
   if (!setter) return null;
   const { x, y } = pos;
