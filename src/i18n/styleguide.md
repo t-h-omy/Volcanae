@@ -12,6 +12,14 @@
 - Entity names (units, buildings, tags, terrain tags, resources, population, techs, spells, specialists, difficulty) are defined by their catalog keys, not in the glossary.
 - Translate coined names such as Ashwright, Grimbeak, Riftworm, and Bullwark as coined names that keep their imagery, and fix each translation once by its key.
 
+## Localization review loop
+
+- Review translations in-game with the language picker in Dev Options.
+- Export a locale review sheet with `npm run i18n:export -- <code>`.
+- Edit only the `reviewed_<code>` column in `i18n-review/<code>.csv`.
+- Import the reviewed values with `npm run i18n:import -- <code> i18n-review/<code>.csv`.
+- Run `npm test` to validate the catalogs and review changes.
+
 ## de
 
 - Address the player as "du".
