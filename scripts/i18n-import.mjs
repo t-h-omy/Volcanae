@@ -1,4 +1,4 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, readdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { applyReviewedRows, parseCsv } from './lib/reviewCsv.mjs';
@@ -7,7 +7,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const localeDirectory = resolve(root, 'src/i18n/locales');
 const code = process.argv[2];
 const csvPath = process.argv[3];
-const localeFiles = (await (await import('node:fs/promises')).readdir(localeDirectory))
+const localeFiles = (await readdir(localeDirectory))
   .filter((file) => file.endsWith('.json') && file !== 'en.json')
   .map((file) => file.slice(0, -5));
 

@@ -27,7 +27,8 @@ export function parseCsv(input) {
     if (afterQuote && char !== ',' && char !== '\r' && char !== '\n') {
       throw new Error(`Unexpected character after closing quote at position ${index}`);
     }
-    if (char === '"' && field === '' && !afterQuote) {
+    if (char === '"') {
+      if (field !== '' || afterQuote) throw new Error(`Unexpected quote in unquoted field at position ${index}`);
       quoted = true;
     } else if (char === ',') {
       row.push(field);
@@ -82,13 +83,24 @@ export function applyReviewedRows({ rows, code, catalog, source, en, context }) 
     };
   }
 
+  const seenKeys = new Set();
   for (const [index, values] of rows.slice(1).entries()) {
+    if (values.every((value) => value === '')) continue;
     const record = Object.fromEntries(header.map((name, column) => [name, values[column] ?? '']));
     const key = record.key || `row ${index + 2}`;
+    if (values.length !== header.length) {
+      errors.push({ key, reason: `expected ${header.length} columns, found ${values.length}` });
+      continue;
+    }
     if (!record.key || !Object.hasOwn(en, record.key)) {
       errors.push({ key, reason: 'unknown catalog key' });
       continue;
     }
+    if (seenKeys.has(record.key)) {
+      errors.push({ key, reason: 'duplicate review row' });
+      continue;
+    }
+    seenKeys.add(record.key);
     const reviewed = record[`reviewed_${code}`];
     if (!reviewed || reviewed === catalog[record.key]) continue;
     const validationErrors = validateReviewedMessage({

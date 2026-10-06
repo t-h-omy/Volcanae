@@ -98,16 +98,8 @@ export function validateCatalogs({ catalogs, sources, context, locales }) {
     }
   }
 
-  for (const locale of targets) {
+  for (const locale of locales) {
     const catalog = catalogs[locale];
-    const source = sources[locale];
-    if (JSON.stringify(Object.keys(catalog).sort()) !== JSON.stringify(Object.keys(en).sort())) {
-      add('b', locale, '*', 'catalog does not have the English key set');
-    }
-    if (JSON.stringify(Object.keys(source ?? {}).sort()) !== JSON.stringify(Object.keys(en).sort())) {
-      add('i', locale, '*', 'source catalog does not have the English key set');
-    }
-
     for (const [key, enMessage] of Object.entries(en)) {
       const message = catalog[key];
       if (typeof message === 'string') {
@@ -123,7 +115,7 @@ export function validateCatalogs({ catalogs, sources, context, locales }) {
           }
           const issue = pluralError(targetAst, locale);
           if (issue) add('c', locale, key, issue);
-          if (catalog[key] === enMessage && /[A-Za-z]/.test(collectLiteralText(sourceAst))) {
+          if (locale !== 'en' && catalog[key] === enMessage && /[A-Za-z]/.test(collectLiteralText(sourceAst))) {
             const approvals = context[key]?.sameAsSource ?? [];
             if (!approvals.includes(locale)) add('j', locale, key, 'unchanged English text is not approved');
           }
@@ -132,6 +124,20 @@ export function validateCatalogs({ catalogs, sources, context, locales }) {
           // Rule a reports parse failures for each catalog value.
         }
       }
+    }
+  }
+
+  for (const locale of targets) {
+    const catalog = catalogs[locale];
+    const source = sources[locale];
+    if (JSON.stringify(Object.keys(catalog).sort()) !== JSON.stringify(Object.keys(en).sort())) {
+      add('b', locale, '*', 'catalog does not have the English key set');
+    }
+    if (JSON.stringify(Object.keys(source ?? {}).sort()) !== JSON.stringify(Object.keys(en).sort())) {
+      add('i', locale, '*', 'source catalog does not have the English key set');
+    }
+
+    for (const [key, enMessage] of Object.entries(en)) {
       if (source?.[key] !== enMessage) add('i', locale, key, 'source text differs from current English');
     }
   }

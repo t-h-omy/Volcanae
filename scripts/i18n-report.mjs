@@ -62,7 +62,6 @@ for (const locale of locales) {
     const translatedName = target[entity.key];
     if (!translatedName) continue;
     for (const [key, sourceMessage] of Object.entries(en)) {
-      if (key === entity.key) continue;
       if (hasWord(sourceMessage, entity.source) && !target[key]?.toLocaleLowerCase(locale).includes(translatedName.toLocaleLowerCase(locale))) {
         console.log(`${key}: expected entity name “${translatedName}” from ${entity.key}`);
         mismatchCount += 1;
