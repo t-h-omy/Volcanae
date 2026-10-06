@@ -124,7 +124,7 @@ function getBuildingAttackableTileKeys(
 // ============================================================================
 
 export default function GridRenderer() {
-  const { formatNumber, t } = useText();
+  const { t } = useText();
   // ── Store selectors ──
   const grid = useGameStore((s) => s.grid);
   const units = useGameStore((s) => s.units);
@@ -1492,6 +1492,7 @@ const TileCell = React.memo(TileCellInner);
 // ============================================================================
 
 function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
+  const { formatNumber, t } = useText();
   const hpPct = (unit.stats.currentHp / unit.stats.maxHp) * 100;
   const unitEmojiSize = tileSize;
 

@@ -737,7 +737,6 @@ function OptionsPanel({
     estimateUsage().then(setUsage);
   }, []);
 
-  const pct = Math.round(volume * 100);
   const handleVolumeChange = useCallback((value: number) => {
     setVolume(value);
     if (muted) setMuted(false);
@@ -757,7 +756,7 @@ function OptionsPanel({
           <div>
             <div className="mm-slider-row-label">
               <span>{t('menu.options.music')}</span>
-              <span className="mm-slider-row-pct">{pct}%</span>
+              <span className="mm-slider-row-pct">{t('menu.options.volumePct', { volume })}</span>
             </div>
             <input
               type="range"
@@ -776,7 +775,7 @@ function OptionsPanel({
           <div>
             <div className="mm-slider-row-label">
               <span>{t('menu.options.soundFx')}</span>
-              <span className="mm-slider-row-pct">{pct}%</span>
+              <span className="mm-slider-row-pct">{t('menu.options.volumePct', { volume })}</span>
             </div>
             <input
               type="range"
