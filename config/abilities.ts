@@ -49,6 +49,8 @@ export const ABILITIES = {
   TO_THE_FRONT_MIN_DISTANCE: 6,
   /** HP restored per PATCHUP heal action */
   PATCHUP_HEAL_AMOUNT: 50,
+  /** HP a unit carrying RESONANCE recovers at the start of each turn while resonating */
+  RESONANCE_HEAL_AMOUNT: 20,
   /** Multiplier applied to the building unit's currentHp to determine the Outpost's starting HP */
   FIELDWORK_HP_MULTIPLIER: 3,
   /** Defense bonus granted to each adjacent friendly unit by a PHALANX tag carrier */

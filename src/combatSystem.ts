@@ -12,6 +12,7 @@ import type { GameEvent } from './gameEvents';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { UNIT_DEFINITIONS, XP, ABILITIES, MAP, BUILDING_DEFINITIONS, MAGE } from './gameConfig';
 import { grantXp } from './levelSystem';
+import { recordKhyronKill, applyPendingAssimilations } from './khyronSystem';
 import { generateId } from './mapGenerator';
 import { isUnitOnCorruptedTile, applyTileStatus } from './tileStatusSystem';
 import { cleanupRoostedUnits } from './buildingRemoval';
@@ -676,6 +677,7 @@ function resolveKnockback(
   const attacker = state.units[attackerId];
   const defender = state.units[defenderId];
   if (!defender) return;
+  const victimTags = [...defender.tags];
 
   // Use live attacker data when available; fall back to pre-captured values.
   const attackerPos = attacker?.position ?? attackerPositionOverride;
@@ -725,6 +727,7 @@ function resolveKnockback(
     else state.gameStats.unitsLost += 1;
     if (attackerFaction === Faction.PLAYER && defenderFaction === Faction.ENEMY)
       state.gameStats.unitsKilled += 1;
+    recordKhyronKill(state, attackerId, defenderFaction, victimTags);
     grantXp(state, attackerId, XP.KILL_UNIT, true);
     delete state.units[defenderId];
     outEvents?.push({
@@ -750,6 +753,7 @@ function resolveKnockback(
       if (fromTile.unitId === defenderId) fromTile.unitId = null;
       if (defenderFaction === Faction.PLAYER) state.gameStats.unitsLost += 1;
       else if (attackerFaction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
+      recordKhyronKill(state, attackerId, defenderFaction, victimTags);
       grantXp(state, attackerId, XP.KILL_UNIT, true);
       delete state.units[defenderId];
       outEvents?.push({
@@ -780,6 +784,7 @@ function resolveKnockback(
     if (fromTile.unitId === defenderId) fromTile.unitId = null;
     if (defenderFaction === Faction.PLAYER) state.gameStats.unitsLost += 1;
     else if (attackerFaction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
+    recordKhyronKill(state, attackerId, defenderFaction, victimTags);
     grantXp(state, attackerId, XP.KILL_UNIT, true);
     delete state.units[defenderId];
     outEvents?.push({
@@ -818,6 +823,7 @@ function resolveKnockback(
       // resolveSlide already updated unitsLost / ember; add kill credit here.
       if (attackerFaction === Faction.PLAYER && defenderFaction === Faction.ENEMY)
         state.gameStats.unitsKilled += 1;
+      recordKhyronKill(state, attackerId, defenderFaction, victimTags);
       grantXp(state, attackerId, XP.KILL_UNIT, true);
       const slidedInBounds =
         slideDest.x >= 0 && slideDest.x < MAP.GRID_WIDTH &&
@@ -876,7 +882,22 @@ function resolveKnockback(
  */
 // Action availability rules (which flags or tags block attacking) live in
 // unitActions.ts → canUnitAttack. Do not add tag checks or flag logic here.
+/**
+ * Resolves a unit-vs-unit attack. Any Resonant Assimilation earned during the
+ * attack (Crystal Khyron) is applied only after the whole attack has resolved.
+ */
 export function resolveAttack(
+  state: Draft<GameState>,
+  attackerId: string,
+  defenderId: string,
+  suppressFloaters?: boolean,
+  outEvents?: GameEvent[],
+): void {
+  resolveAttackInner(state, attackerId, defenderId, suppressFloaters, outEvents);
+  applyPendingAssimilations(state);
+}
+
+function resolveAttackInner(
   state: Draft<GameState>,
   attackerId: string,
   defenderId: string,
@@ -1090,6 +1111,8 @@ export function resolveAttack(
     const attackerTags = [...attacker.tags];
     const attackerType = attacker.type;
     const attackerPos = { x: attacker.position.x, y: attacker.position.y };
+    // A resonating Khyron defender killing its attacker (counterattack) counts as a credited kill.
+    recordKhyronKill(state, defenderId, attackerFaction, attackerTags);
     if (attackerTags.includes(UnitTag.BRANDMARKED)) {
       // BRANDMARKED: immediately complete the transform so the resolved state is clean.
       completeBrandmarkTransformInPlace(state, attackerId, attackerPos);
@@ -1163,6 +1186,7 @@ export function resolveAttack(
 
     // Grant XP to attacker for killing the defender (regardless of BRANDMARKED)
     if (!attackerDead) {
+      recordKhyronKill(state, attackerId, defenderFaction, defenderTags);
       grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
     }
 
@@ -1392,6 +1416,7 @@ export function resolveAttack(
         });
         if (newSplashHp <= 0) {
           splashTile.unitId = null;
+          recordKhyronKill(state, attackerId, splashTarget.faction, splashTarget.tags);
           delete state.units[splashTargetId];
           grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
           state.gameStats.unitsKilled += 1;
@@ -1449,6 +1474,7 @@ export function resolveAttack(
           });
           if (newCleaveHp <= 0) {
             cleaveTile.unitId = null;
+            recordKhyronKill(state, attackerId, cleaveTarget.faction, cleaveTarget.tags);
             delete state.units[cleaveTargetId];
             if (cleaveTarget.faction === Faction.PLAYER) state.gameStats.unitsLost += 1;
             else if (attacker.faction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
@@ -1516,6 +1542,7 @@ export function resolveAttack(
               primaryDefenderPosition: { ...defenderPosition },
             });
             if (newRearHp <= 0) {
+              recordKhyronKill(state, attackerId, rearUnit.faction, rearUnit.tags);
               if (rearUnit.tags.includes(UnitTag.BRANDMARKED)) {
                 // BRANDMARKED: complete the transform so an Ember Demon spawns in the
                 // resolved state. completeBrandmarkTransformInPlace handles tile clear,
@@ -1897,6 +1924,17 @@ export function resolveAttackOnBuilding(
   suppressFloaters?: boolean,
   outEvents?: GameEvent[],
 ): void {
+  resolveAttackOnBuildingInner(state, attackerId, buildingId, suppressFloaters, outEvents);
+  applyPendingAssimilations(state);
+}
+
+function resolveAttackOnBuildingInner(
+  state: Draft<GameState>,
+  attackerId: string,
+  buildingId: string,
+  suppressFloaters?: boolean,
+  outEvents?: GameEvent[],
+): void {
   const attacker = state.units[attackerId];
   const building = state.buildings[buildingId];
 
@@ -2235,6 +2273,7 @@ export function resolveAttackOnBuilding(
         });
         if (newSplashHp <= 0) {
           splashTile.unitId = null;
+          recordKhyronKill(state, attackerId, splashTarget.faction, splashTarget.tags);
           delete state.units[splashTargetId];
           grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
           state.gameStats.unitsKilled += 1;
@@ -2289,6 +2328,7 @@ export function resolveAttackOnBuilding(
           });
           if (newCleaveHp <= 0) {
             cleaveTile.unitId = null;
+            recordKhyronKill(state, attackerId, cleaveTarget.faction, cleaveTarget.tags);
             delete state.units[cleaveTargetId];
             if (cleaveTarget.faction === Faction.PLAYER) state.gameStats.unitsLost += 1;
             else if (attacker.faction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
@@ -2353,6 +2393,7 @@ export function resolveAttackOnBuilding(
               primaryDefenderPosition: { ...buildingPosition },
             });
             if (newRearHp <= 0) {
+              recordKhyronKill(state, attackerId, rearUnit.faction, rearUnit.tags);
               if (rearUnit.tags.includes(UnitTag.BRANDMARKED)) {
                 // BRANDMARKED: complete the transform so an Ember Demon spawns in the
                 // resolved state. completeBrandmarkTransformInPlace handles tile clear,

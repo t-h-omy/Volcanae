@@ -49,6 +49,7 @@ import { ANIMATION } from '../config/animation';
 import { CAVE_SPECIALIST_ROB_REWARD_CRYSTALS } from '../config/specialists';
 import { saveSlot, loadSlot, listSlots, deleteSlot, getSlotMeta, saveSeenHintsForSlot } from './saveSystem';
 import { useMenuStore } from './menuStore';
+import { grantKhyronResonance } from './khyronSystem';
 import { computeLevelFromXp, applyLevelUps, canGrantXp } from './levelSystem';
 import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLogic, getGrantedTags, getRemovedTags, getStatMods, applyTagStatEffects, revokeTagStatEffects } from './techSystem';
 import { canUnitHeal, getHealTargets, canUnitFieldwork, isHealSuppressedByCorruption } from './unitActions';
@@ -3537,6 +3538,7 @@ export const useGameStore = create<GameStore>()(
             chamber.resonanceTurnsRemaining,
             CRYSTAL_CHAMBER_CONFIG.RESONANCE_DURATION,
           );
+          grantKhyronResonance(state);
         }
       });
     },
