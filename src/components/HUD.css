@@ -2365,6 +2365,8 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
+  min-width: 0;
+  max-width: 100%;
   padding: 12px 14px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -2966,6 +2968,8 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  min-width: 0;
+  max-width: 100%;
   background: rgba(60, 90, 200, 0.55);
   border: 1px solid rgba(100, 140, 255, 0.7);
   border-radius: 5px;
