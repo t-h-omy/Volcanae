@@ -64,8 +64,13 @@ export const UNIT_SPRITE: Partial<Record<UnitType, string>> = withBase({
   EMBERLING:    '/sprites/units/Emberling_100px.png',
   CAVE_MONSTER: '/sprites/units/Cave_Monster_100px.png',
   CRYSTAL_DRAKE: '/sprites/units/Crystal_Dragon_100px.png',
-  CRYSTAL_KHYRON: '/sprites/units/crystal_khyron_100px.png',
+  CRYSTAL_KHYRON: '/sprites/units/Crystal_Khyron_100px.png',
 });
+
+/** Sprite path for a Crystal Khyron while it has RESONANCE. */
+export const CRYSTAL_KHYRON_ACTIVE_SPRITE = withBase({
+  active: '/sprites/units/Crystal_Khyron_Active_100px.png',
+}).active ?? '';
 
 /**
  * Player-faction overrides for unit sprites.
