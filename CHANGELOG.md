@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.115.4 - Crystal Khyron sprites
+
+Registered and preloaded the active and inactive Crystal Khyron sprites, and show the resonating sprite while RESONANCE is active.
+
 ### v0.115.3 - Resonance healing
 
 The Resonance tag now also heals its bearer 20 HP at the start of each turn while resonating, and Level 3 Crystal Khyrons now resonate too (without further transformation).
