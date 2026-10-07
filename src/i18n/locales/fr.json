@@ -225,7 +225,7 @@
   "tag.BATTERY.label": "Batterie",
   "tag.BATTERY.desc": "Gagne +{attackPerAdjacent} ATQ par allié adjacent, jusqu'à {stackCap} cumuls.",
   "tag.RESONANCE.label": "Résonance",
-  "tag.RESONANCE.desc": "Le premier ennemi que cette unité tue tant que la résonance est active la fait passer au niveau suivant et lui fait hériter définitivement des tags transférables de l'unité tuée. La transformation met fin à la résonance. Tags transférables : Fauchage, Percer, Rage, Alerte, Sang de fer, Parade, Perforation, Brûlé.",
+  "tag.RESONANCE.desc": "Le premier ennemi que cette unité tue tant que la résonance est active la fait passer au niveau suivant et lui fait hériter définitivement des tags transférables de l'unité tuée. La transformation met fin à la résonance. Tags transférables : Fauchage, Percer, Rage, Alerte, Sang de fer, Parade, Perforation, Brûlé. Tant que la résonance est active, l'unité récupère {healAmount} PV au début de chaque tour.",
   "terrainTag.CORRUPTED.label": "Corrompu",
   "terrainTag.CORRUPTED.desc": "Les unités alliées sur cette case sont isolées des interactions de tags. Aucun bonus de Phalange, soin, effet de Tirailleur ou bonus d'attaque lié aux tags (Chevalier, Charge de lance, Assassin, Soif de sang). La Frappe préventive est également neutralisée. Les stats de base, le déplacement, la portée et les effets persistants (Marqué) ne changent pas.",
   "terrainTag.FROZEN.label": "Gelé",

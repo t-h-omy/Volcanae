@@ -11,7 +11,7 @@
 import type { Draft } from 'immer';
 import type { GameState, Unit } from './types';
 import { BuildingType, Faction, UnitTag, UnitType } from './types';
-import { CRYSTAL_KHYRON } from './gameConfig';
+import { ABILITIES, CRYSTAL_KHYRON } from './gameConfig';
 
 type KhyronState = GameState | Draft<GameState>;
 
@@ -24,13 +24,22 @@ export function isCrystalKhyron(unit: Pick<Unit, 'type'> | undefined | null): bo
   return !!unit && unit.type === UnitType.CRYSTAL_KHYRON;
 }
 
-/** Whether the Khyron may hold RESONANCE (below max level). */
-export function canKhyronResonate(unit: Pick<Unit, 'type' | 'faction' | 'level'>): boolean {
-  return (
-    unit.type === UnitType.CRYSTAL_KHYRON &&
-    unit.faction === Faction.PLAYER &&
-    unit.level < CRYSTAL_KHYRON.MAX_LEVEL
-  );
+/** Whether the Khyron may hold RESONANCE (any level; Lv.3 only gains the heal). */
+export function canKhyronResonate(unit: Pick<Unit, 'type' | 'faction'>): boolean {
+  return unit.type === UnitType.CRYSTAL_KHYRON && unit.faction === Faction.PLAYER;
+}
+
+/** Whether the Khyron can still transform (below max level). */
+export function canKhyronTransform(unit: Pick<Unit, 'type' | 'faction' | 'level'>): boolean {
+  return canKhyronResonate(unit) && unit.level < CRYSTAL_KHYRON.MAX_LEVEL;
+}
+
+/** Heals every resonating player Khyron at the start of the turn (capped at max HP). */
+export function healResonatingKhyrons(state: Draft<GameState>): void {
+  for (const unit of Object.values(state.units)) {
+    if (!canKhyronResonate(unit) || !unit.tags.includes(UnitTag.RESONANCE)) continue;
+    unit.stats.currentHp = Math.min(unit.stats.maxHp, unit.stats.currentHp + ABILITIES.RESONANCE_HEAL_AMOUNT);
+  }
 }
 
 /** Returns the whitelisted tags from the given tag list (order of the whitelist). */
@@ -48,7 +57,7 @@ export function isAnyChamberResonating(state: KhyronState): boolean {
   );
 }
 
-/** Grants RESONANCE to every eligible player Khyron (Lv.1 and Lv.2). */
+/** Grants RESONANCE to every player Khyron (all levels). */
 export function grantKhyronResonance(state: Draft<GameState>): void {
   for (const unit of Object.values(state.units)) {
     if (canKhyronResonate(unit) && !unit.tags.includes(UnitTag.RESONANCE)) {
@@ -81,7 +90,7 @@ export function recordKhyronKill(
   victimTags: readonly UnitTag[],
 ): void {
   const killer = state.units[killerId];
-  if (!killer || !canKhyronResonate(killer)) return;
+  if (!killer || !canKhyronTransform(killer)) return;
   if (victimFaction !== Faction.ENEMY) return;
   if (!killer.tags.includes(UnitTag.RESONANCE)) return;
   if (killer.pendingAssimilationTags) return;

@@ -225,7 +225,7 @@
   "tag.BATTERY.label": "Battery",
   "tag.BATTERY.desc": "Gains +{attackPerAdjacent} ATK per adjacent friendly unit, up to {stackCap} stacks.",
   "tag.RESONANCE.label": "Resonance",
-  "tag.RESONANCE.desc": "The first enemy this unit kills while Resonance is active transforms it to the next level and permanently inherits the killed unit's transferable tags. The transformation ends Resonance. Transferable tags: Cleave, Pierce, Rage, Alert, Ironblood, Block, Puncture, Burn.",
+  "tag.RESONANCE.desc": "The first enemy this unit kills while Resonance is active transforms it to the next level and permanently inherits the killed unit's transferable tags. The transformation ends Resonance. Transferable tags: Cleave, Pierce, Rage, Alert, Ironblood, Block, Puncture, Burn. While Resonance is active, the unit recovers {healAmount} HP at the start of each turn.",
   "terrainTag.CORRUPTED.label": "Corrupted",
   "terrainTag.CORRUPTED.desc": "Player units on this tile are isolated from ally tag interactions. No Phalanx bonuses, no Patch Up healing, no Pin Down / Distraction / Splash effects on attack, and no tag-based attack bonuses (Knight, Lance Charge, Assassin, Bloodlust). Preventive Strike overwatch is also suppressed. Base stats, movement, ranged capability, and persistent effects (Brandmarked) remain unchanged.",
   "terrainTag.FROZEN.label": "Frozen",

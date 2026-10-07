@@ -225,7 +225,7 @@
   "tag.BATTERY.label": "Batería",
   "tag.BATTERY.desc": "Gana +{attackPerAdjacent} ATQ por aliado adyacente, hasta {stackCap} acumulaciones.",
   "tag.RESONANCE.label": "Resonancia",
-  "tag.RESONANCE.desc": "El primer enemigo que esta unidad mata mientras la resonancia está activa la transforma al siguiente nivel y hereda de forma permanente las etiquetas transferibles de la unidad abatida. La transformación termina la resonancia. Etiquetas transferibles: Hender, Perforar, Furia, Alerta, Sangre férrea, Bloqueo, Punción, Quemar.",
+  "tag.RESONANCE.desc": "El primer enemigo que esta unidad mata mientras la resonancia está activa la transforma al siguiente nivel y hereda de forma permanente las etiquetas transferibles de la unidad abatida. La transformación termina la resonancia. Etiquetas transferibles: Hender, Perforar, Furia, Alerta, Sangre férrea, Bloqueo, Punción, Quemar. Mientras la resonancia está activa, la unidad recupera {healAmount} PV al inicio de cada turno.",
   "terrainTag.CORRUPTED.label": "Corrompido",
   "terrainTag.CORRUPTED.desc": "Las unidades aliadas en esta casilla quedan aisladas de las interacciones de etiquetas. Sin bonificaciones de Falange, curación, efectos de Inmovilizar, Distracción o daño de área, ni bonificaciones de ataque por etiquetas (Caballero, Carga de lanza, Asesino, Sed de sangre). También se suprime el Golpe preventivo. Las estadísticas básicas, el movimiento, el alcance y los efectos persistentes (Marcado) no cambian.",
   "terrainTag.FROZEN.label": "Congelado",

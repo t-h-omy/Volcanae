@@ -12,7 +12,7 @@ import type { UnitCost } from './gameConfig';
 import { getGrantedTags, getStatMods, getBuildingProductionMods, getFlatIncomeMods, grantArcaneCrystals, getStrongholdEffectiveCap, getRemovedTags, getCostMods } from './techSystem';
 import { getTagsFromActiveSpecialists, isSpecialistEffectActive, getTagsFromActiveSpecialistsForSourceTag, getActiveEffectParams } from './specialistSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
-import { expireKhyronResonance } from './khyronSystem';
+import { expireKhyronResonance, healResonatingKhyrons } from './khyronSystem';
 import { buildingNameRef, specialistNameRef, techNameRef } from './i18n/entityText';
 
 // ============================================================================
@@ -460,6 +460,7 @@ export function collectResources(state: Draft<GameState>): void {
   }
 
   // Crystal Khyron RESONANCE ends with the last resonating Crystal Chamber.
+  healResonatingKhyrons(state);
   expireKhyronResonance(state);
 }
 

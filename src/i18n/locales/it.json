@@ -225,7 +225,7 @@
   "tag.BATTERY.label": "Batteria",
   "tag.BATTERY.desc": "Ottiene +{attackPerAdjacent} ATT per ogni alleato adiacente, fino a {stackCap} accumuli.",
   "tag.RESONANCE.label": "Risonanza",
-  "tag.RESONANCE.desc": "Il primo nemico che questa unità uccide mentre la risonanza è attiva la trasforma al livello successivo e le fa ereditare in modo permanente i tag trasferibili dell'unità uccisa. La trasformazione pone fine alla risonanza. Tag trasferibili: Fendere, Perforare, Furia, Allerta, Sangueferro, Parata, Pungere, Brucia.",
+  "tag.RESONANCE.desc": "Il primo nemico che questa unità uccide mentre la risonanza è attiva la trasforma al livello successivo e le fa ereditare in modo permanente i tag trasferibili dell'unità uccisa. La trasformazione pone fine alla risonanza. Tag trasferibili: Fendere, Perforare, Furia, Allerta, Sangueferro, Parata, Pungere, Brucia. Finché la risonanza è attiva, l'unità recupera {healAmount} PF all'inizio di ogni turno.",
   "terrainTag.CORRUPTED.label": "Corrotto",
   "terrainTag.CORRUPTED.desc": "Le unità alleate su questa casella sono isolate dalle interazioni dei tag. Niente bonus di Falange, cure, effetti di Immobilizzare o Distrazione, danni ad area o bonus d'attacco dei tag (Cavaliere, Carica di lancia, Assassino, Sete di sangue). Anche l'Attacco preventivo è soppresso. Statistiche base, movimento, gittata ed effetti persistenti (Marchiato) restano invariati.",
   "terrainTag.FROZEN.label": "Congelato",

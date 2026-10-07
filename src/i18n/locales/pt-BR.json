@@ -225,7 +225,7 @@
   "tag.BATTERY.label": "Bateria",
   "tag.BATTERY.desc": "Recebe +{attackPerAdjacent} ATQ por aliado adjacente, até {stackCap} acúmulos.",
   "tag.RESONANCE.label": "Ressonância",
-  "tag.RESONANCE.desc": "O primeiro inimigo que esta unidade abate enquanto a ressonância está ativa a transforma no próximo nível e a faz herdar permanentemente as tags transferíveis da unidade abatida. A transformação encerra a ressonância. Tags transferíveis: Talhar, Perfurar, Fúria, Alerta, Sangueferro, Bloq., Perfuração, Queima.",
+  "tag.RESONANCE.desc": "O primeiro inimigo que esta unidade abate enquanto a ressonância está ativa a transforma no próximo nível e a faz herdar permanentemente as tags transferíveis da unidade abatida. A transformação encerra a ressonância. Tags transferíveis: Talhar, Perfurar, Fúria, Alerta, Sangueferro, Bloq., Perfuração, Queima. Enquanto a ressonância está ativa, a unidade recupera {healAmount} PV no início de cada turno.",
   "terrainTag.CORRUPTED.label": "Corrompido",
   "terrainTag.CORRUPTED.desc": "Unidades aliadas nesta casa ficam isoladas das interações de tags. Sem bônus de Falange, cura, efeitos de Imobilizar ou Distração, dano em área ou bônus de ataque de tags (Cavaleiro, Investida de lança, Assassino, Sede de sangue). Ataque preventivo também é suprimido. Atributos básicos, movimento, alcance e efeitos persistentes (Marcado) não mudam.",
   "terrainTag.FROZEN.label": "Congelado",

@@ -225,7 +225,7 @@
   "tag.BATTERY.label": "Batterie",
   "tag.BATTERY.desc": "Erhält +{attackPerAdjacent} ATK pro benachbarter verbündeter Einheit, bis zu {stackCap} Stapeln.",
   "tag.RESONANCE.label": "Resonanz",
-  "tag.RESONANCE.desc": "Der erste Feind, den diese Einheit tötet, während Resonanz aktiv ist, verwandelt sie in die nächste Stufe und sie erbt dauerhaft die übertragbaren Merkmale der getöteten Einheit. Die Verwandlung beendet die Resonanz. Übertragbare Merkmale: Spalten, Durchstoß, Rage, Wachsam, Eisenblut, Blocken, Durchstich, Brand.",
+  "tag.RESONANCE.desc": "Der erste Feind, den diese Einheit tötet, während Resonanz aktiv ist, verwandelt sie in die nächste Stufe und sie erbt dauerhaft die übertragbaren Merkmale der getöteten Einheit. Die Verwandlung beendet die Resonanz. Übertragbare Merkmale: Spalten, Durchstoß, Rage, Wachsam, Eisenblut, Blocken, Durchstich, Brand. Solange Resonanz aktiv ist, erholt die Einheit zu Beginn jeder Runde {healAmount} LP.",
   "terrainTag.CORRUPTED.label": "Verdorben",
   "terrainTag.CORRUPTED.desc": "Spielereinheiten auf diesem Feld sind von Merkmal-Interaktionen mit Verbündeten isoliert. Keine Phalanx-Boni, keine Heilung, keine Festnageln-, Ablenkungs- oder Flächenschaden-Effekte beim Angriff und keine merkmalbasierten Angriffsboni (Ritter, Lanzenangriff, Assassine, Blutrausch). Auch der Präventivschlag wird unterdrückt. Grundwerte, Bewegung, Fernkampffähigkeit und anhaltende Effekte (Gebrandmarkt) bleiben unverändert.",
   "terrainTag.FROZEN.label": "Gefroren",

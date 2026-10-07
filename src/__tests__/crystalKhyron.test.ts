@@ -14,7 +14,7 @@ import {
   SpellId,
 } from '../types';
 import type { GameState, Unit, Building, Tile, Position } from '../types';
-import { UNIT_DEFINITIONS, TECH_TREE, MAP, CRYSTAL_KHYRON, CRYSTAL_CHAMBER_CONFIG, XP } from '../gameConfig';
+import { UNIT_DEFINITIONS, TECH_TREE, MAP, CRYSTAL_KHYRON, CRYSTAL_CHAMBER_CONFIG, XP, ABILITIES } from '../gameConfig';
 import {
   recruitUnit,
   getRecruitableUnitTypes,
@@ -24,7 +24,7 @@ import {
 } from '../resourceSystem';
 import { resolveAttack, resolveAttackOnBuilding } from '../combatSystem';
 import { grantXp, canGrantXp, applyLevelUps } from '../levelSystem';
-import { grantKhyronResonance } from '../khyronSystem';
+import { grantKhyronResonance, applyPendingAssimilations } from '../khyronSystem';
 import { createInitialSpecialists } from '../specialistSystem';
 import { calculateCombat } from '../combatSystem';
 import { t } from '../i18n/i18n';
@@ -208,7 +208,7 @@ describe('Crystal Khyron unit definition', () => {
     expect(t('unit.CRYSTAL_KHYRON.name')).toBe('Crystal Khyron');
     expect(t('tag.RESONANCE.label')).toBe('Resonance');
     expect(t('unit.CRYSTAL_KHYRON.desc')).toContain('Transferable tags: Cleave, Pierce, Rage, Alert, Ironblood, Block, Puncture, Burn.');
-    expect(t('tag.RESONANCE.desc')).toContain('Transferable tags: Cleave, Pierce, Rage, Alert, Ironblood, Block, Puncture, Burn.');
+    expect(t('tag.RESONANCE.desc', { healAmount: ABILITIES.RESONANCE_HEAL_AMOUNT })).toContain('Transferable tags: Cleave, Pierce, Rage, Alert, Ironblood, Block, Puncture, Burn.');
     expect(t('tech.CRYSTAL_KHYRON.desc', { crystalCost: 2 })).toContain('2 Arcane Crystals');
   });
 });
@@ -341,7 +341,7 @@ describe('Crystal Khyron XP and levels', () => {
 });
 
 describe('Crystal Khyron Resonance lifecycle', () => {
-  it('grants RESONANCE to Lv1 and Lv2 but not Lv3', () => {
+  it('grants RESONANCE to Khyrons of every level (including Lv3) but not other units', () => {
     const a = khyron(1, 1, [], 1);
     const b = khyron(2, 1, [], 2);
     const c = khyron(3, 1, [], 3);
@@ -350,7 +350,7 @@ describe('Crystal Khyron Resonance lifecycle', () => {
     grantKhyronResonance(state);
     expect(state.units[a.id].tags).toContain(UnitTag.RESONANCE);
     expect(state.units[b.id].tags).toContain(UnitTag.RESONANCE);
-    expect(state.units[c.id].tags).not.toContain(UnitTag.RESONANCE);
+    expect(state.units[c.id].tags).toContain(UnitTag.RESONANCE);
     expect(state.units[mage.id].tags).not.toContain(UnitTag.RESONANCE);
   });
 
@@ -382,6 +382,29 @@ describe('Crystal Khyron Resonance lifecycle', () => {
     const state = makeState([k], [chamber(2, 2, 1), chamber(8, 2, 3)]);
     collectResources(state);
     expect(state.units[k.id].tags).toContain(UnitTag.RESONANCE);
+  });
+});
+
+describe('Resonance healing', () => {
+  it('heals 20 HP at the start of the turn while resonating, capped at max HP', () => {
+    const a = khyron(4, 4, [UnitTag.RESONANCE]);
+    a.stats.currentHp = 50;
+    const b = khyron(5, 4, [UnitTag.RESONANCE], 3);
+    b.stats.currentHp = 95;
+    const c = khyron(6, 4, []);
+    c.stats.currentHp = 50;
+    const state = makeState([a, b, c], [chamber(2, 2, 3)]);
+    collectResources(state);
+    expect(state.units[a.id].stats.currentHp).toBe(50 + ABILITIES.RESONANCE_HEAL_AMOUNT);
+    expect(state.units[b.id].stats.currentHp).toBe(100);
+    expect(state.units[c.id].stats.currentHp).toBe(50);
+  });
+
+  it('Lv3 Khyron keeps RESONANCE and does not level past 3', () => {
+    const k = khyron(4, 4, [UnitTag.RESONANCE], 3);
+    const state = makeState([k]);
+    applyPendingAssimilations(state);
+    expect(state.units[k.id].level).toBe(3);
   });
 });
 
@@ -452,6 +475,7 @@ describe('Resonant Assimilation', () => {
     resolveAttack(s2, max.id, e2.id, true);
     expect(s2.units[max.id].level).toBe(3);
     expect(s2.units[max.id].tags).not.toContain(UnitTag.CLEAVE);
+    expect(s2.units[max.id].tags).toContain(UnitTag.RESONANCE);
   });
 
   it('survived attacks do not transform', () => {

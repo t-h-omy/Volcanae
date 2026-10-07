@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.115.3 - Resonance healing
+
+The Resonance tag now also heals its bearer 20 HP at the start of each turn while resonating, and Level 3 Crystal Khyrons now resonate too (without further transformation).
+
 ### v0.115.2 - Crystal Khyron
 
 Added the Crystal Khyron tech and unit, recruited from resonating Crystal Chambers for 2 Arcane Crystals; its first Resonance kill transforms it and permanently inherits eight transferable enemy tags.
