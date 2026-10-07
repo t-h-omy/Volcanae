@@ -15,6 +15,7 @@ import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH
 import type { SpecialistDefinition } from '../gameConfig';
 import { UI } from '../../config/ui';
 import { CAVE_SPECIALIST_ROB_REWARD_CRYSTALS } from '../../config/specialists';
+import { FitText } from './FitText';
 import type { UnitPopulationCost, TechId } from '../types';
 import { useHintStore } from '../hintStore';
 import { useHintOptionsStore } from '../hintOptionsStore';
@@ -579,7 +580,7 @@ function DevSpecPickerOverlay({
                 className="hud-modal-assign-btn"
                 onClick={() => { onSelect(id); onClose(); }}
               >
-                Give
+                <FitText text="Give" />
               </button>
             </li>
           ))}
@@ -632,7 +633,7 @@ function DifficultyOverlay({
               className={`hud-difficulty-btn${currentDifficulty === d ? ' hud-difficulty-btn--active' : ''}`}
               onClick={() => onSelect(d)}
             >
-              <span className="hud-difficulty-btn-label">{DIFFICULTY_EMOJI[d]} {difficultyLabel(d)}</span>
+              <FitText className="hud-difficulty-btn-label" text={`${DIFFICULTY_EMOJI[d]} ${difficultyLabel(d)}`} />
               <span className="hud-difficulty-btn-desc">
                 {t(DIFFICULTY_DESC[d] as 'hud.difficulty.easyDescription' | 'hud.difficulty.standardDescription' | 'hud.difficulty.hardDescription', {
                   multiplier: DIFFICULTY_MULTIPLIER[d],
@@ -750,7 +751,7 @@ function OptionsOverlay({ onClose }: { onClose: () => void }) {
                       aria-pressed={locale === code}
                       onClick={() => void useLocaleStore.getState().setLocale(code)}
                     >
-                      {LOCALE_ENDONYMS[code]}
+                      <FitText text={LOCALE_ENDONYMS[code]} />
                     </button>
                   ))}
                 </div>
@@ -777,7 +778,7 @@ function OptionsOverlay({ onClose }: { onClose: () => void }) {
               onClick={handleResetHints}
               aria-label={t('hud.options.resetHintCounters')}
             >
-              {t(resetDone ? 'common.done' : 'common.reset')}
+              <FitText text={t(resetDone ? 'common.done' : 'common.reset')} />
             </button>
           </div>
           <hr className="hud-options-separator" />
@@ -786,7 +787,7 @@ function OptionsOverlay({ onClose }: { onClose: () => void }) {
             onClick={handleReturnToMenu}
             title={t('hud.options.saveReturnToMenu')}
           >
-            🏠 {t('hud.options.mainMenu')}
+            <FitText text={`🏠 ${t('hud.options.mainMenu')}`} />
           </button>
         </div>
       </div>
@@ -905,39 +906,39 @@ function GameMenu() {
           />
           <div className="hud-menu-dropdown" role="menu">
             <button className="hud-menu-item" role="menuitem" onClick={handleSaveGame}>
-              💾 {t('hud.gameMenu.saveGame')}
+              <FitText text={`💾 ${t('hud.gameMenu.saveGame')}`} />
             </button>
             {saveExists && (
               <button className="hud-menu-item" role="menuitem" onClick={handleClearSave}>
-                🗑️ {t('hud.gameMenu.clearSave')}
+                <FitText text={`🗑️ ${t('hud.gameMenu.clearSave')}`} />
               </button>
             )}
             <button className="hud-menu-item" role="menuitem" onClick={handleNewGame}>
-              🔄 {t('hud.gameMenu.newGame')}
+              <FitText text={`🔄 ${t('hud.gameMenu.newGame')}`} />
             </button>
             <button
               className="hud-menu-item"
               role="menuitem"
               onClick={() => { setOpen(false); setDifficultyOverlayOpen(true); }}
             >
-              ⚔️ {t('hud.gameMenu.difficulty', { difficulty: `${DIFFICULTY_EMOJI[currentDifficulty]} ${difficultyLabel(currentDifficulty)}` })}
+              <FitText text={`⚔️ ${t('hud.gameMenu.difficulty', { difficulty: `${DIFFICULTY_EMOJI[currentDifficulty]} ${difficultyLabel(currentDifficulty)}` })}`} />
             </button>
             <button className="hud-menu-item" role="menuitem" onClick={handleResetCache}>
-              🗑️ {t('hud.gameMenu.resetCacheReload')}
+              <FitText text={`🗑️ ${t('hud.gameMenu.resetCacheReload')}`} />
             </button>
             <button
               className="hud-menu-item"
               role="menuitem"
               onClick={() => { setOpen(false); setOptionsOverlayOpen(true); }}
             >
-              ⚙️ {t('hud.options.title')}
+              <FitText text={`⚙️ ${t('hud.options.title')}`} />
             </button>
             <button
               className="hud-menu-item"
               role="menuitem"
               onClick={() => { setOpen(false); setDevOptionsOverlayOpen(true); }}
             >
-              🛠️ {t('hud.gameMenu.devOptions')}
+              <FitText text={`🛠️ ${t('hud.gameMenu.devOptions')}`} />
             </button>
             <div className="hud-menu-version">v{displayVersion}</div>
           </div>
@@ -1086,7 +1087,7 @@ function TopBar({
       </button>
       {showTechButton && (
         <button className={`hud-tech-tree-btn${showTechBadge ? ' hud-tech-tree-btn--notify' : ''}`} onClick={onOpenTechTree}>
-          🔬 {t('hud.topBar.techTree')}
+          <FitText text={`🔬 ${t('hud.topBar.techTree')}`} />
           {showTechBadge && <span className="hud-tech-tree-badge">!</span>}
         </button>
       )}
@@ -1102,7 +1103,7 @@ function TopBar({
                 onClick={() => setOpenSpecialistInfo(spec.id)}
                 title={t('hud.specialistSlot.title', { name: specialistName(spec.id) })}
               >
-                <span className="hud-specialist-slot-name">🧙 {specialistName(spec.id)}</span>
+                <FitText className="hud-specialist-slot-name" text={`🧙 ${specialistName(spec.id)}`} title={specialistName(spec.id)} />
               </button>
             );
           }
@@ -1186,7 +1187,7 @@ function TagPopup({ tag, disabledByCorruption, onClose }: { tag: UnitTag; disabl
         <p className="info-popup-corruption-notice">{t('hud.tagPopup.disabledByCorruption')}</p>
       )}
       <p className="info-popup-desc" style={{ marginBottom: 16 }}>{tagDesc(tag)}</p>
-      <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>{t('common.ok')}</button>
+      <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}><FitText text={t('common.ok')} /></button>
     </Popup>
   );
 }
@@ -1206,7 +1207,7 @@ function SpellInfoPopup({ spellId, onClose }: { spellId: SpellId; onClose: () =>
         </div>
       </div>
       <p className="info-popup-desc" style={{ marginBottom: 16 }}>{spellDesc(spellId)}</p>
-      <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>{t('common.ok')}</button>
+      <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}><FitText text={t('common.ok')} /></button>
     </Popup>
   );
 }
@@ -1299,7 +1300,7 @@ function ResourceInfoPopup({
         <p className="info-popup-desc" style={{ marginTop: 10, marginBottom: 8, fontSize: '0.82em', opacity: 0.8 }}>
           {t('hud.resourceInfo.crystalDescription')}
         </p>
-        <button className="info-popup-btn info-popup-btn--secondary" style={{ marginTop: 6 }} onClick={onClose}>{t('common.close')}</button>
+        <button className="info-popup-btn info-popup-btn--secondary" style={{ marginTop: 6 }} onClick={onClose}><FitText text={t('common.close')} /></button>
       </Popup>
     );
   }
@@ -1342,7 +1343,7 @@ function ResourceInfoPopup({
           {fmt(totalIncome)}
         </span>
       </div>
-      <button className="info-popup-btn info-popup-btn--secondary" style={{ marginTop: 14 }} onClick={onClose}>{t('common.close')}</button>
+      <button className="info-popup-btn info-popup-btn--secondary" style={{ marginTop: 14 }} onClick={onClose}><FitText text={t('common.close')} /></button>
     </Popup>
   );
 }
@@ -1423,7 +1424,7 @@ function PopulationInfoPopup({
           {used}
         </span>
       </div>
-      <button className="info-popup-btn info-popup-btn--secondary" style={{ marginTop: 14 }} onClick={onClose}>{t('common.close')}</button>
+      <button className="info-popup-btn info-popup-btn--secondary" style={{ marginTop: 14 }} onClick={onClose}><FitText text={t('common.close')} /></button>
     </Popup>
   );
 }
@@ -1455,7 +1456,7 @@ function TerrainTagPopup({ tag, onClose }: { tag: TerrainTag; onClose: () => voi
     <Popup onClose={onClose}>
       <div className="info-popup-header-name" style={{ marginBottom: 10 }}>{terrainTagLabel(tag)}</div>
       <p className="info-popup-desc" style={{ marginBottom: 16 }}>{terrainTagDesc(tag)}</p>
-      <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>{t('common.ok')}</button>
+      <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}><FitText text={t('common.ok')} /></button>
     </Popup>
   );
 }
@@ -1502,7 +1503,7 @@ function EmberInfoPopup({ onClose }: { onClose: () => void }) {
         <span>{t('hud.emberInfo.total')}</span>
         <span>{ember}</span>
       </div>
-      <button className="info-popup-btn info-popup-btn--secondary" style={{ marginTop: 14 }} onClick={onClose}>{t('common.close')}</button>
+      <button className="info-popup-btn info-popup-btn--secondary" style={{ marginTop: 14 }} onClick={onClose}><FitText text={t('common.close')} /></button>
     </Popup>
   );
 }
@@ -1592,12 +1593,12 @@ function UnitInfoPopup({
         {/* Action buttons */}
         {!isReadOnly && onAction ? (
           <div className="info-popup-actions">
-            <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>{t('common.back')}</button>
-            <button className="info-popup-btn info-popup-btn--primary" onClick={onAction}>{actionLabel ?? t('common.ok')}</button>
+            <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}><FitText text={t('common.back')} /></button>
+            <button className="info-popup-btn info-popup-btn--primary" onClick={onAction}><FitText text={actionLabel ?? t('common.ok')} /></button>
           </div>
         ) : (
           <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>
-            {t(isReadOnly ? 'common.ok' : 'common.back')}
+            <FitText text={t(isReadOnly ? 'common.ok' : 'common.back')} />
           </button>
         )}
       </Popup>
@@ -1658,12 +1659,12 @@ function BuildingInfoPopup({
 
       {!isReadOnly && onAction ? (
         <div className="info-popup-actions">
-          <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>{t('common.back')}</button>
-          <button className="info-popup-btn info-popup-btn--primary" onClick={onAction}>{actionLabel ?? t('common.construct')}</button>
+          <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}><FitText text={t('common.back')} /></button>
+          <button className="info-popup-btn info-popup-btn--primary" onClick={onAction}><FitText text={actionLabel ?? t('common.construct')} /></button>
         </div>
       ) : (
         <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>
-          {t(isReadOnly ? 'common.ok' : 'common.back')}
+          <FitText text={t(isReadOnly ? 'common.ok' : 'common.back')} />
         </button>
       )}
     </Popup>
@@ -1842,7 +1843,7 @@ function BuildingStatDetailModal({ building, onClose }: { building: Building; on
         </div>
       )}
 
-      <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>{t('common.ok')}</button>
+      <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}><FitText text={t('common.ok')} /></button>
     </Popup>
   );
 }
@@ -2113,7 +2114,7 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
           </div>
         )}
 
-        <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>{t('common.ok')}</button>
+        <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}><FitText text={t('common.ok')} /></button>
       </Popup>
 
       {tagPopup && <TagPopup tag={tagPopup} onClose={() => setTagPopup(null)} />}
@@ -2593,7 +2594,7 @@ function SelectedUnitPanel({
               onClick={handleHealClick}
               title={healSuppressedByCorruption ? t('hud.unitPanel.healInactiveCorruption') : undefined}
             >
-              <span className="hud-spell-btn-label">{isInHealMode ? `💊 ${t('hud.unitPanel.chooseHealTarget')}` : `💊 ${t('hud.unitPanel.heal')}`}</span>
+              <FitText className="hud-spell-btn-label" text={isInHealMode ? `💊 ${t('hud.unitPanel.chooseHealTarget')}` : `💊 ${t('hud.unitPanel.heal')}`} />
             </button>
           )}
           {isMage && isPlayer && unlockedSpells.length > 0 && (
@@ -2624,7 +2625,7 @@ function SelectedUnitPanel({
                         onClick={() => startSpellCast(unit.id, spellId)}
                         title={t('hud.unitPanel.spellCostTitle', { description: spellDesc(spellId), cost: MAGE.SPELL_CAST_CRYSTAL_COST })}
                       >
-                        <span className="hud-spell-btn-label">{def ? `${def.emoji} ${spellName(spellId)}` : spellId}</span>
+                        <FitText className="hud-spell-btn-label" text={def ? `${def.emoji} ${spellName(spellId)}` : spellId} />
                         <span className="hud-spell-btn-cost">💎{MAGE.SPELL_CAST_CRYSTAL_COST}</span>
                       </button>
                     );
@@ -2638,7 +2639,7 @@ function SelectedUnitPanel({
                           onClick={() => setConfirmCrystalTower(true)}
                           title={t('hud.unitPanel.spellCostTitle', { description: spellDesc(SpellId.CRYSTAL_TOWER), cost: MAGE.SPELL_CAST_CRYSTAL_COST })}
                         >
-                          <span className="hud-spell-btn-label">{SPELL_DEFINITIONS[SpellId.CRYSTAL_TOWER] ? `${SPELL_DEFINITIONS[SpellId.CRYSTAL_TOWER].emoji} ${spellName(SpellId.CRYSTAL_TOWER)}` : SpellId.CRYSTAL_TOWER}</span>
+                          <FitText className="hud-spell-btn-label" text={SPELL_DEFINITIONS[SpellId.CRYSTAL_TOWER] ? `${SPELL_DEFINITIONS[SpellId.CRYSTAL_TOWER].emoji} ${spellName(SpellId.CRYSTAL_TOWER)}` : SpellId.CRYSTAL_TOWER} />
                           <span className="hud-spell-btn-cost">💎{MAGE.SPELL_CAST_CRYSTAL_COST}</span>
                         </button>
                       ) : (
@@ -2680,7 +2681,7 @@ function SelectedUnitPanel({
                     disabled={fieldworkBlocked || !fieldworkAffordable}
                     onClick={() => setConfirmFieldwork(true)}
                   >
-                    <span className="hud-spell-btn-label">🏗️ {t('hud.unitPanel.buildOutpost')}</span>
+                    <FitText className="hud-spell-btn-label" text={`🏗️ ${t('hud.unitPanel.buildOutpost')}`} />
                     <span className="hud-spell-btn-cost">🪵{BUILDING_DEFINITIONS.OUTPOST.constructionCost.wood}</span>
                   </button>
                   {!fieldworkAffordable && (
@@ -2724,9 +2725,7 @@ function SelectedUnitPanel({
                   }
                 }}
               >
-                <span className="hud-spell-btn-label">
-                  {isInBridgeBuildMode ? `🌉 ${t('hud.unitPanel.chooseCanyon')}` : `🌉 ${t('hud.unitPanel.buildBridge')}`}
-                </span>
+                <FitText className="hud-spell-btn-label" text={isInBridgeBuildMode ? `🌉 ${t('hud.unitPanel.chooseCanyon')}` : `🌉 ${t('hud.unitPanel.buildBridge')}`} />
                 <span className="hud-spell-btn-cost">🪵{BUILDING_DEFINITIONS.BRIDGE.constructionCost.wood}</span>
               </button>
               {confirmBridgeTarget && (
@@ -2758,9 +2757,7 @@ function SelectedUnitPanel({
                 }
               }}
             >
-              <span className="hud-spell-btn-label">
-                {isInTrapSetMode ? `🪤 ${t('hud.unitPanel.chooseTrapTile')}` : `🪤 ${t('hud.unitPanel.setTrap')}`}
-              </span>
+              <FitText className="hud-spell-btn-label" text={isInTrapSetMode ? `🪤 ${t('hud.unitPanel.chooseTrapTile')}` : `🪤 ${t('hud.unitPanel.setTrap')}`} />
               {ABILITIES.SCOUT_TRAP_WOOD_COST > 0 && (
                 <span className="hud-spell-btn-cost">🪵{ABILITIES.SCOUT_TRAP_WOOD_COST}</span>
               )}
@@ -2774,7 +2771,7 @@ function SelectedUnitPanel({
               className="hud-spell-btn"
               onClick={() => scoutExtinguish(unit.id)}
             >
-              <span className="hud-spell-btn-label">🔥 {t('hud.unitPanel.extinguish')}</span>
+              <FitText className="hud-spell-btn-label" text={`🔥 ${t('hud.unitPanel.extinguish')}`} />
             </button>
           )}
         </>
@@ -3845,10 +3842,10 @@ function GameOverOverlay() {
           </>
         )}
         <button className="hud-play-again-btn" onClick={handleNewGame}>
-          🔄 {t('hud.gameMenu.newGame')}
+          <FitText text={`🔄 ${t('hud.gameMenu.newGame')}`} />
         </button>
         <button className="hud-play-again-btn" onClick={handleMainMenu}>
-          🏠 {t('hud.options.mainMenu')}
+          <FitText text={`🏠 ${t('hud.options.mainMenu')}`} />
         </button>
       </div>
     </div>
@@ -3893,10 +3890,10 @@ function VictoryOverlay() {
           </>
         )}
         <button className="hud-play-again-btn" onClick={handleNewGame}>
-          🔄 {t('hud.gameMenu.newGame')}
+          <FitText text={`🔄 ${t('hud.gameMenu.newGame')}`} />
         </button>
         <button className="hud-play-again-btn" onClick={handleMainMenu}>
-          🏠 {t('hud.options.mainMenu')}
+          <FitText text={`🏠 ${t('hud.options.mainMenu')}`} />
         </button>
       </div>
     </div>
@@ -4036,15 +4033,15 @@ function SpecialistInfoPopup({ specialist, onClose, onDismiss }: { specialist: S
             {t('hud.specialistInfo.dismissConfirm', { name })}
           </p>
           <div className="specialist-dismiss-confirm-actions">
-            <button className="info-popup-btn info-popup-btn--danger" onClick={onDismiss}>{t('hud.specialistInfo.confirmDismiss')}</button>
-            <button className="info-popup-btn info-popup-btn--secondary" onClick={() => setConfirmingDismiss(false)}>{t('common.cancel')}</button>
+            <button className="info-popup-btn info-popup-btn--danger" onClick={onDismiss}><FitText text={t('hud.specialistInfo.confirmDismiss')} /></button>
+            <button className="info-popup-btn info-popup-btn--secondary" onClick={() => setConfirmingDismiss(false)}><FitText text={t('common.cancel')} /></button>
           </div>
         </div>
       ) : (
         <div className="specialist-info-actions">
-          <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}>{t('common.close')}</button>
+          <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}><FitText text={t('common.close')} /></button>
           {onDismiss && (
-            <button className="info-popup-btn info-popup-btn--dismiss" onClick={() => setConfirmingDismiss(true)}>{t('hud.specialistInfo.dismiss')}</button>
+            <button className="info-popup-btn info-popup-btn--dismiss" onClick={() => setConfirmingDismiss(true)}><FitText text={t('hud.specialistInfo.dismiss')} /></button>
           )}
         </div>
       )}
@@ -4149,7 +4146,7 @@ function MarketPanel() {
                       buyMarketSpecialist(marketId, pendingSpecialistSlot, specId);
                     }}
                   >
-                    {t('hud.market.replaceForCrystals', { cost: MARKET.SPECIALIST_PRICE_CRYSTAL })}
+                    <FitText text={t('hud.market.replaceForCrystals', { cost: MARKET.SPECIALIST_PRICE_CRYSTAL })} />
                   </button>
                 </div>
               );
@@ -4157,7 +4154,7 @@ function MarketPanel() {
           </div>
           <div className="market-panel-swap-footer">
             <button className="market-panel-btn market-panel-btn--close" onClick={cancelSpecialistSwap}>
-              {t('common.cancel')}
+              <FitText text={t('common.cancel')} />
             </button>
           </div>
         </div>
@@ -4186,7 +4183,7 @@ function MarketPanel() {
                 disabled={hasTradedThisTurn || !canAffordOffer(slot.give)}
                 onClick={() => buyMarketOffer(marketId, i)}
               >
-                {t('hud.market.buy')}
+                <FitText text={t('hud.market.buy')} />
               </button>
             </div>
           ) : (
@@ -4217,7 +4214,7 @@ function MarketPanel() {
                   }
                 }}
               >
-                {t('hud.market.buyForCrystals', { cost: MARKET.SPECIALIST_PRICE_CRYSTAL })}
+                <FitText text={t('hud.market.buyForCrystals', { cost: MARKET.SPECIALIST_PRICE_CRYSTAL })} />
               </button>
             </div>
           ) : (
@@ -4241,14 +4238,14 @@ function MarketPanel() {
             disabled={hasTradedThisTurn || !canAffordRestock}
             onClick={() => restockMarket(marketId)}
           >
-            {t('hud.market.restock')}
+            <FitText text={t('hud.market.restock')} />
           </button>
           <button
             className="market-panel-btn market-panel-btn--restock"
             disabled={hasTradedThisTurn || freeRestockOnCooldown}
             onClick={() => freeRestockMarket(marketId)}
           >
-            {freeRestockLabel}
+            <FitText text={freeRestockLabel} />
           </button>
         </div>
       </div>
@@ -4691,7 +4688,7 @@ function TechTreeOverlay({ onClose, focusId }: { onClose: () => void; focusId: T
                   setSelectedId(def.id);
                 }}
               >
-                <span className="tech-node-name">{techName(def.id)}</span>
+                <FitText className="tech-node-name" text={techName(def.id)} maxLines={UI.TECH_NODE_NAME_MAX_LINES} />
                 {isAvailable && <span className="tech-node-cost">💎 {computeResearchCost(def.cost ?? 1, ember)}</span>}
               </div>
             );
@@ -4773,9 +4770,9 @@ function TechTreeOverlay({ onClose, focusId }: { onClose: () => void; focusId: T
                     disabled={!canAfford}
                     title={!canAfford ? t('hud.techTree.needCrystals', { needed: techCost, have: arcaneCrystals }) : undefined}
                   >
-                    {canAfford
+                    <FitText text={canAfford
                       ? t('hud.techTree.research', { cost: techCost })
-                      : t('hud.techTree.researchNeed', { cost: techCost })}
+                      : t('hud.techTree.researchNeed', { cost: techCost })} />
                   </button>
                 );
               })()}
@@ -4783,7 +4780,7 @@ function TechTreeOverlay({ onClose, focusId }: { onClose: () => void; focusId: T
                 className="tech-detail-btn tech-detail-btn--secondary"
                 onClick={() => setSelectedId(null)}
               >
-                {toLocaleUpper(t('common.back'))}
+                <FitText text={toLocaleUpper(t('common.back'))} />
               </button>
             </div>
           </>

@@ -50,8 +50,11 @@
 
 .hud-specialist-slots {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
   align-items: center;
+  min-width: 0;
+  max-width: 100%;
   pointer-events: none;
 }
 
@@ -60,6 +63,7 @@
   align-items: center;
   justify-content: center;
   min-width: 72px;
+  max-width: 100%;
   height: 22px;
   border-radius: 3px;
   font-size: 11px;
@@ -71,6 +75,9 @@
 }
 
 .hud-specialist-slot--filled {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
   background: rgba(255, 255, 255, 0.1);
   color: #e8d9a0;
   cursor: pointer;
@@ -78,14 +85,14 @@
 }
 
 .hud-specialist-slot--empty {
+  min-width: 72px;
   background: rgba(0, 0, 0, 0.25);
   color: rgba(255, 255, 255, 0.25);
 }
 
 .hud-specialist-slot-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .hud-specialist-slot-placeholder {
@@ -108,6 +115,8 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
+  max-width: 100%;
   padding: 6px 10px;
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 999px;
@@ -145,6 +154,8 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .ai-trace-export-controls--compact {
@@ -181,6 +192,8 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .hud-dev-trace-archive-row {
@@ -253,6 +266,8 @@
   cursor: pointer;
   touch-action: manipulation;
   transition: background 0.15s;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .hud-end-turn-btn:hover {
@@ -648,6 +663,7 @@
 
 .hud-modal-item-info {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -671,6 +687,8 @@
 }
 
 .hud-modal-assign-btn {
+  min-width: 0;
+  max-width: 100%;
   padding: 6px 14px;
   min-height: 44px;
   border: 1px solid rgba(46, 204, 113, 0.4);
@@ -859,6 +877,8 @@
   grid-template-columns: 1fr auto;
   gap: 4px 16px;
   text-align: left;
+  min-width: 0;
+  max-width: 100%;
   font-size: 13px;
 }
 
@@ -873,6 +893,8 @@
 }
 
 .hud-play-again-btn {
+  min-width: 0;
+  max-width: 100%;
   padding: 14px 32px;
   min-height: 48px;
   border: none;
@@ -938,10 +960,14 @@
   border-radius: 8px;
   overflow: hidden;
   min-width: 200px;
+  max-width: 100vw;
+  box-sizing: border-box;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
 }
 
 .hud-menu-item {
+  min-width: 0;
+  max-width: 100%;
   padding: 12px 16px;
   min-height: 44px;
   background: none;
@@ -1580,6 +1606,8 @@
 /* ── Tech Tree Button in TopBar ── */
 
 .hud-tech-tree-btn {
+  min-width: 0;
+  max-width: 100%;
   position: relative;
   background: none;
   border: 1px solid rgba(52, 152, 219, 0.5);
@@ -1769,9 +1797,6 @@
   font-size: 11px;
   font-weight: 600;
   line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   max-width: 100%;
 }
 
@@ -1852,10 +1877,14 @@
 
 .tech-detail-actions {
   display: flex;
+  min-width: 0;
+  max-width: 100%;
   gap: 8px;
 }
 
 .tech-detail-btn {
+  min-width: 0;
+  max-width: 100%;
   padding: 8px 18px;
   min-height: 36px;
   border: none;
@@ -2098,6 +2127,8 @@
 
 .info-popup-btn {
   flex: 1;
+  min-width: 0;
+  max-width: 100%;
   padding: 9px 0;
   border-radius: 8px;
   cursor: pointer;
@@ -2949,6 +2980,9 @@
 }
 
 .hud-spell-btn-label {
+  flex: 1;
+  min-width: 0;
+  max-width: 100%;
   font-size: 13px;
 }
 
@@ -3021,6 +3055,8 @@
 .hud-spell-options {
   display: flex;
   flex-wrap: wrap;
+  min-width: 0;
+  max-width: 100%;
   gap: 4px;
   margin-top: 4px;
 }
@@ -3145,6 +3181,7 @@
 
 .market-panel-specialist-info {
   flex: 1;
+  min-width: 0;
 }
 
 .market-panel-specialist-name {
@@ -3198,6 +3235,8 @@
 }
 
 .market-panel-btn {
+  min-width: 0;
+  max-width: 100%;
   padding: 5px 12px;
   border-radius: 4px;
   border: none;
@@ -3397,6 +3436,8 @@
 }
 
 .hud-options-language-btn {
+  min-width: 0;
+  max-width: 100%;
   min-height: 32px;
   padding: 4px 9px;
   border: 1px solid rgba(255, 255, 255, 0.2);
@@ -3443,7 +3484,8 @@
 }
 
 .hud-options-hints-reset {
-  min-width: 56px;
+  min-width: 0;
+  max-width: 100%;
   padding: 3px 10px;
   border-radius: 4px;
   border: 1px solid rgba(255, 255, 255, 0.2);

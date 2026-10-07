@@ -1,0 +1,2 @@
+.fit-text { display: block; min-width: 0; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.fit-text--multiline { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: var(--fit-text-max-lines); line-clamp: var(--fit-text-max-lines); white-space: normal; hyphens: auto; overflow-wrap: anywhere; }

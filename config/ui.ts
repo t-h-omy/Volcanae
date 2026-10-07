@@ -5,6 +5,20 @@
  */
 
 export const UI = {
+  /** Absolute minimum font size used by FitText (px) */
+  FIT_TEXT_MIN_FONT_SIZE_PX: 9,
+  /** Minimum FitText font size as a proportion of its CSS font size */
+  FIT_TEXT_MIN_SCALE: 0.75,
+  /** Font-size decrement between FitText measurement candidates (px) */
+  FIT_TEXT_STEP_PX: 0.5,
+  /** FitText measurement tolerance and resize threshold (px) */
+  FIT_TEXT_TOLERANCE_PX: 0.5,
+  /** Line-height multiplier used when the computed value is normal */
+  FIT_TEXT_FALLBACK_LINE_HEIGHT: 1.2,
+  /** Default maximum number of lines for FitText */
+  FIT_TEXT_DEFAULT_MAX_LINES: 1,
+  /** Maximum number of lines for tech tree node names */
+  TECH_NODE_NAME_MAX_LINES: 2,
   /** Total lifetime of a damage number before removal */
   DAMAGE_FLOAT_DURATION_MS: 2500,
   /** How far upward the number floats (half a tile height) */

@@ -51,6 +51,11 @@
       "pt-BR"
     ]
   },
+  "building.INFERNALSANCTUM.name": {
+    "sameAsSource": [
+      "de"
+    ]
+  },
   "building.MINE.name": {
     "sameAsSource": [
       "de",
@@ -256,7 +261,7 @@
     "maxLen": 6
   },
   "common.close": {
-    "maxLen": 7
+    "maxLen": 9
   },
   "common.construct": {
     "maxLen": 13
@@ -450,7 +455,7 @@
     "maxLen": 9
   },
   "tag.REVIVABLE.label": {
-    "maxLen": 13
+    "maxLen": 14
   },
   "tag.SKIRMISHER.label": {
     "maxLen": 14

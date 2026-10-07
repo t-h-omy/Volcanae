@@ -25,6 +25,13 @@
 - Address the player as "du".
 - Use German quotation marks „…“.
 - Capitalize nouns according to German rules.
+- Game turn is „Runde“ (pro Runde, Rundenende, Spielerrunde, gegnerische Runde). Use „Zug“ only for one unit's own action („Ein Angriff beendet den Zug einer Einheit“).
+- In prose, stat abbreviations match the UI labels: LP, ATK, DEF, BEW, RW, SIC, AUS, AKT. Level and XP are „St.“ and „EP“.
+- Unit tags are „Merkmal“ / „Merkmale“, never „Tag“. Name a tag with its exact label in „…“ (das Merkmal „Elite“).
+- Siege units are „Katapult“ / „Katapulte“.
+- „Infernal Sanctum“ is a proper name and stays English.
+- Units raised from a Gravestone are „erweckt“ (Skelett erwecken, Gargoyle erwecken). „Gargoyle“ is masculine.
+- Patch Up is „Heilen“ (tag, tech and every reference). Retaliation is „Gegenschlag“.
 
 ## fr
 

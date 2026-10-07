@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.115.1 - German catalog and FitText
+
+Reviewed German localization terminology and catalog values, and added responsive text fitting for constrained HUD and menu labels.
+
 ### v0.115.0 - German language
 
 German is now selectable in Options and is auto-detected on first launch; English remains the default for other browser languages.
