@@ -12,6 +12,7 @@ import type { UnitCost } from './gameConfig';
 import { getGrantedTags, getStatMods, getBuildingProductionMods, getFlatIncomeMods, grantArcaneCrystals, getStrongholdEffectiveCap, getRemovedTags, getCostMods } from './techSystem';
 import { getTagsFromActiveSpecialists, isSpecialistEffectActive, getTagsFromActiveSpecialistsForSourceTag, getActiveEffectParams } from './specialistSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
+import { expireKhyronResonance } from './khyronSystem';
 import { buildingNameRef, specialistNameRef, techNameRef } from './i18n/entityText';
 
 // ============================================================================
@@ -107,8 +108,8 @@ export function isRecruitmentBuildingType(type: BuildingType): boolean {
 /**
  * Permissive recruit check used by the map-layer badge: returns true for
  * any building whose TYPE can recruit, ignoring conditional state like
- * resonance. For CRYSTAL_CHAMBER this still requires that MAGE has been
- * unlocked by tech, so the badge doesn't appear before research.
+ * resonance. For CRYSTAL_CHAMBER this still requires that at least one of its
+ * recruitable units (Mage, Crystal Khyron) has been unlocked by tech, so the badge doesn't appear before research.
  *
  * CRYSTAL_CAVE has no separate unlock — the cave only exists if the spell
  * is unlocked and was cast — so any existing cave can recruit.
@@ -119,7 +120,7 @@ export function canBuildingEverRecruit(
 ): boolean {
   if (!isRecruitmentBuildingType(building.type)) return false;
   if (building.type === BuildingType.CRYSTAL_CHAMBER) {
-    return state.unlockedUnits.includes(UnitType.MAGE);
+    return getRecruitableUnitTypes(building.type).some((ut) => state.unlockedUnits.includes(ut));
   }
   return true;
 }
@@ -140,6 +141,14 @@ function isRecruitmentBuilding(building: Building): boolean {
 }
 
 /**
+ * True when the unit is paid for in Arcane Crystals (configured cost.crystals > 0)
+ * instead of iron/wood.
+ */
+export function isCrystalCostUnit(unitType: UnitType): boolean {
+  return (UNIT_DEFINITIONS[unitType]?.cost.crystals ?? 0) > 0;
+}
+
+/**
  * Gets an array of unit types that can be recruited from a building type.
  */
 export function getRecruitableUnitTypes(buildingType: BuildingType): UnitType[] {
@@ -155,7 +164,7 @@ export function getRecruitableUnitTypes(buildingType: BuildingType): UnitType[] 
     case BuildingType.STRONGHOLD:
       return [UnitType.SCOUT, UnitType.GUARD];
     case BuildingType.CRYSTAL_CHAMBER:
-      return [UnitType.MAGE];
+      return [UnitType.MAGE, UnitType.CRYSTAL_KHYRON];
     case BuildingType.CRYSTAL_CAVE:
       return [UnitType.CRYSTAL_DRAKE];
     default:
@@ -449,6 +458,9 @@ export function collectResources(state: Draft<GameState>): void {
       building.resonanceCrystalBonus = false;
     }
   }
+
+  // Crystal Khyron RESONANCE ends with the last resonating Crystal Chamber.
+  expireKhyronResonance(state);
 }
 
 // ============================================================================
@@ -1230,14 +1242,15 @@ export function recruitUnit(
   }
 
   // ── Cost validation ────────────────────────────────────────────────────────
-  // Crystal Drake (Crystal Cave) is special: it costs arcane crystals rather
+  // Crystal-cost units (Crystal Drake, Crystal Khyron) cost arcane crystals rather
   // than iron/wood, and recruiting it does NOT consume a resonance tick (the
   // resonance window decays on its own end-of-turn schedule). All other units
   // use the standard iron/wood cost path.
   const isCrystalDrake = unitType === UnitType.CRYSTAL_DRAKE;
+  const isCrystalCost = isCrystalCostUnit(unitType);
   let cost = { iron: 0, wood: 0 };
-  if (isCrystalDrake) {
-    const crystalCost = UNIT_DEFINITIONS[UnitType.CRYSTAL_DRAKE].cost.crystals ?? 0;
+  if (isCrystalCost) {
+    const crystalCost = UNIT_DEFINITIONS[unitType].cost.crystals ?? 0;
     if (state.arcaneCrystals < crystalCost) {
       return;
     }
@@ -1282,8 +1295,8 @@ export function recruitUnit(
   }
 
   // Deduct resources
-  if (isCrystalDrake) {
-    state.arcaneCrystals -= UNIT_DEFINITIONS[UnitType.CRYSTAL_DRAKE].cost.crystals ?? 0;
+  if (isCrystalCost) {
+    state.arcaneCrystals -= UNIT_DEFINITIONS[unitType].cost.crystals ?? 0;
   } else {
     state.resources.iron -= cost.iron;
     state.resources.wood -= cost.wood;
@@ -1362,6 +1375,15 @@ export function recruitUnit(
     roostBuildingId: isCrystalDrake ? buildingId : undefined,
   };
   const unit = state.units[unitId];
+  // A Khyron recruited from an actively resonating Chamber starts with RESONANCE.
+  if (
+    unitType === UnitType.CRYSTAL_KHYRON &&
+    building.type === BuildingType.CRYSTAL_CHAMBER &&
+    building.resonanceTurnsRemaining > 0 &&
+    !unit.tags.includes(UnitTag.RESONANCE)
+  ) {
+    unit.tags.push(UnitTag.RESONANCE);
+  }
   for (const mod of getStatMods(state, unitType)) {
     if (mod.mode === 'add') {
       (unit.stats[mod.stat] as number) += mod.value;

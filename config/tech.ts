@@ -408,6 +408,17 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'UNLOCK_SPELL', spellId: SpellId.FROSTCRAFT },
     ],
   },
+  // Direct child of ARCANE_AWAKENING: Khyrons are recruited from resonating
+  // Crystal Chambers and transform through Resonance kills.
+  {
+    id: 'CRYSTAL_KHYRON',
+    requires: ['ARCANE_AWAKENING'],
+    cost: 4,
+    effects: [
+      { type: 'UNLOCK_UNIT', unitType: UnitType.CRYSTAL_KHYRON },
+    ],
+    textParams: { crystalCost: UNIT_DEFINITIONS.CRYSTAL_KHYRON.cost.crystals ?? 0 },
+  },
 
   // ── Summoner path ────────────────────────────────────────────────────────
   {

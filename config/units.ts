@@ -427,7 +427,38 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
     ],
   },
+
+  CRYSTAL_KHYRON: {
+    // Recruited (not summoned) from a resonating Crystal Chamber for Arcane Crystals.
+    // Progresses only through Resonant Assimilation, never through XP, so levelUp is empty.
+    maxHp: 100, attack: 45, defense: 45,
+    movementActions: 1, moveRange: 1, attackRange: 1,
+    discoverRadius: 1, triggerRange: 0,
+    tags: [],
+    cost: { iron: 0, wood: 0, crystals: 2 },
+    populationCost: { farmers: 0, nobles: 0 },
+    levelUp: [],
+  },
 };
+
+/**
+ * Crystal Khyron progression tunables.
+ * TRANSFERABLE_TAGS is the single source of truth for which enemy tags a
+ * resonating Khyron permanently inherits on its first kill.
+ */
+export const CRYSTAL_KHYRON = {
+  MAX_LEVEL: 3,
+  TRANSFERABLE_TAGS: [
+    UnitTag.CLEAVE,
+    UnitTag.PIERCE,
+    UnitTag.RAGE,
+    UnitTag.ALERT,
+    UnitTag.IRONBLOOD,
+    UnitTag.BLOCK,
+    UnitTag.PUNCTURE,
+    UnitTag.BURN,
+  ] as readonly UnitTag[],
+} as const;
 
 // Text parameter values mirror the gameplay definitions and named config constants.
 {

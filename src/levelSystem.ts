@@ -11,6 +11,7 @@ import { ANIMATION } from '../config/animation';
 import { useFloaterStore } from './floaterStore';
 import { t } from './i18n/i18n';
 import { useCombatAnimationStore } from './combatAnimationStore';
+import { usesAssimilationProgression } from './khyronSystem';
 
 /**
  * Returns the target level for a unit based on its current XP.
@@ -37,6 +38,7 @@ export function computeLevelFromXp(unitType: string, xp: number): number {
  * defenderXpGained on events when grantXp would have silently refused the XP.
  */
 export function canGrantXp(unitType: string, currentXp: number): boolean {
+  if (usesAssimilationProgression(unitType)) return false;
   return computeLevelFromXp(unitType, currentXp) < XP.MAX_LEVEL;
 }
 
@@ -58,6 +60,7 @@ export function applyLevelUps(
 ): void {
   const unit = state.units[unitId];
   if (!unit) return;
+  if (usesAssimilationProgression(unit.type)) return;
 
   const levelDefs = UNIT_DEFINITIONS[unit.type as UnitType]?.levelUp;
   if (!levelDefs) return;
@@ -156,6 +159,9 @@ export function grantXp(
 ): void {
   const unit = state.units[unitId];
   if (!unit) return;
+
+  // Crystal Khyron progresses only through Resonant Assimilation, never XP
+  if (usesAssimilationProgression(unit.type)) return;
 
   // Do not grant XP when the unit already qualifies for MAX_LEVEL
   if (computeLevelFromXp(unit.type, unit.xp) >= XP.MAX_LEVEL) return;

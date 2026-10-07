@@ -11,6 +11,7 @@ import { useMenuStore } from '../menuStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
 import { useSoundOptionsStore } from '../soundOptionsStore';
+import { usesAssimilationProgression } from '../khyronSystem';
 import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, computeResearchCost, SPELL_DEFINITIONS, MAGE, CORRUPTED_SUPPRESSED_TAGS, CRYSTAL_CAVE_CONFIG, CRYSTAL_CHAMBER_CONFIG, MARKET, SPECIALIST_DEFINITIONS, CONDITIONAL_ACTIVE_TAGS } from '../gameConfig';
 import type { SpecialistDefinition } from '../gameConfig';
 import { UI } from '../../config/ui';
@@ -37,6 +38,7 @@ import {
   getEffectiveHousingPopulationCap,
   getStrongholdEffectiveCapWithDoctrines,
   getEffectiveRecruitCost,
+  isCrystalCostUnit,
 } from '../resourceSystem';
 import {
   getConstructionMenuOptionsForTile,
@@ -117,6 +119,7 @@ const UNIT_EMOJI: Record<string, string> = {
   [UnitType.SKELETON]: '💀',
   [UnitType.GARGOYLE]: '🗿',
   [UnitType.CRYSTAL_DRAKE]: '🐲',
+  [UnitType.CRYSTAL_KHYRON]: '💠',
 };
 
 const DIFFICULTY_EMOJI: Record<Difficulty, string> = {
@@ -178,7 +181,7 @@ const BUILDING_RECRUITS: Partial<Record<string, UnitType[]>> = {
   [BuildingType.RIDER_CAMP]: [UnitType.RIDER],
   [BuildingType.SIEGE_CAMP]: [UnitType.SIEGE],
   [BuildingType.STRONGHOLD]: [UnitType.SCOUT, UnitType.GUARD],
-  [BuildingType.CRYSTAL_CHAMBER]: [UnitType.MAGE],
+  [BuildingType.CRYSTAL_CHAMBER]: [UnitType.MAGE, UnitType.CRYSTAL_KHYRON],
   [BuildingType.CRYSTAL_CAVE]: [UnitType.CRYSTAL_DRAKE],
 };
 
@@ -2475,7 +2478,12 @@ function SelectedUnitPanel({
           {unit.stats.currentHp}/{unit.stats.maxHp}
         </span>
       </div>
-      {isPlayer && (
+      {isPlayer && usesAssimilationProgression(unit.type) && (
+        <div className="hud-xp-row">
+          <span className="hud-xp-label">{t('hud.unitPanel.level', { level: unit.level })}</span>
+        </div>
+      )}
+      {isPlayer && !usesAssimilationProgression(unit.type) && (
         <div className="hud-xp-row">
           <span className="hud-xp-label">
             {isMaxLevel
@@ -3466,8 +3474,8 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
           ) : (
             <div className="hud-recruit-options">
               {recruitableTypes.map((unitType) => {
-                // Crystal Drake is paid in arcane crystals, not iron/wood.
-                const isCrystalCost = unitType === UnitType.CRYSTAL_DRAKE;
+                // Units with a configured crystal cost are paid in arcane crystals, not iron/wood.
+                const isCrystalCost = isCrystalCostUnit(unitType);
                 const baseCost = UNIT_DEFINITIONS[unitType]?.cost;
                 const cost = isCrystalCost
                   ? undefined
@@ -3564,7 +3572,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
         </div>
       )}
       {confirmRecruitUnit && (() => {
-        const isCrystalCost = confirmRecruitUnit === UnitType.CRYSTAL_DRAKE;
+        const isCrystalCost = isCrystalCostUnit(confirmRecruitUnit);
         const baseCost = UNIT_DEFINITIONS[confirmRecruitUnit]?.cost;
         const cost = isCrystalCost
           ? undefined

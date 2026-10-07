@@ -50,6 +50,8 @@ export const UnitType = {
   CAVE_MONSTER: 'CAVE_MONSTER',
   /** Conjurer-summoned flying drake bound to the life of its Crystal Cave */
   CRYSTAL_DRAKE: 'CRYSTAL_DRAKE',
+  /** Player-recruited mechanical crystal creature recruited from a resonating Crystal Chamber */
+  CRYSTAL_KHYRON: 'CRYSTAL_KHYRON',
 } as const;
 export type UnitType = (typeof UnitType)[keyof typeof UnitType];
 
@@ -364,6 +366,8 @@ export const UnitTag = {
   BERSERK: 'BERSERK',
   /** Siege unit gains +SIEGE_BATTERY_ATK_PER_ADJACENT ATK for each adjacent friendly unit, up to SIEGE_BATTERY_CAP. */
   BATTERY: 'BATTERY',
+  /** Crystal Khyron: temporary tag while Crystal Chamber resonance is active; the first enemy kill transforms the unit. */
+  RESONANCE: 'RESONANCE',
 } as const;
 export type UnitTag = (typeof UnitTag)[keyof typeof UnitTag];
 
@@ -512,6 +516,13 @@ export interface Unit {
    * spell. Null/undefined means the unit's life is not bound to a building.
    */
   roostBuildingId?: string | null;
+
+  /**
+   * Transient: transferable tags snapshotted from the first enemy killed by a
+   * resonating Crystal Khyron during the current action. Applied (and cleared)
+   * once the action finishes. Never persists across actions.
+   */
+  pendingAssimilationTags?: UnitTag[];
 
  }
 

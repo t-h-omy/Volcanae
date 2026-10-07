@@ -367,6 +367,9 @@
   "tag.BURN.label": {
     "maxLen": 6
   },
+  "tag.RESONANCE.label": {
+    "maxLen": 12
+  },
   "tag.CINDERBORN.label": {
     "maxLen": 14
   },

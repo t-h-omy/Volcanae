@@ -72,6 +72,8 @@ Spells are unlocked individually through the tech tree. The eight available spel
 | 💥 Explode | Deal area damage around a target tile |
 | 💎 Crystal Tower | Sacrifice the Mage to erect a permanent Crystal Tower on its tile |
 
+The **Crystal Khyron** tech (child of Arcane Awakening) unlocks a Khyron recruitable from a resonating Crystal Chamber for 2 Arcane Crystals, sharing the Chamber's recruitment limit with Mages. While a Chamber resonates it carries the **Resonance** tag; its first enemy kill transforms it one level (max Lv.3) and permanently inherits that enemy's Cleave, Pierce, Rage, Alert, Ironblood, Block, Puncture and Burn tags. Khyrons never gain XP.
+
 A summoned Ember Demon is **leashed** to its controller Mage — if the Mage moves more than `MAGE.EMBER_DEMON_LEASH_RANGE` tiles away (see `src/gameConfig.ts` for all balance numbers), the demon defects to the enemy at the end of the player turn. The UI highlights both tiles with a purple glow and switches to a red warning glow when the leash is about to break.
 
 ## Changelog

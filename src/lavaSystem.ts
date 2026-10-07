@@ -22,6 +22,7 @@ import type { Draft } from 'immer';
 import { produce } from 'immer';
 import { Faction, BuildingType } from './types';
 import { ABILITIES, MAP, TECH, CRYSTAL_CHAMBER_CONFIG, getLavaAdvanceInterval } from './gameConfig';
+import { grantKhyronResonance } from './khyronSystem';
 import type { GameEvent } from './gameEvents';
 import { grantArcaneCrystals } from './techSystem';
 import { removePortalsOnLava } from './portalSystem';
@@ -388,6 +389,10 @@ export function advanceLavaWithEvents(state: GameState): { newState: GameState; 
               CRYSTAL_CHAMBER_CONFIG.RESONANCE_DURATION,
             );
           }
+        }
+        // Crystal Khyron RESONANCE belongs to Chamber resonance only (not Cave-only).
+        if (survivingChamberIds.length > 0) {
+          grantKhyronResonance(draft);
         }
         if (resonanceCrystalBonusActive) {
           for (const triggerPosition of resonanceTriggerPositions) {

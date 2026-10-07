@@ -64,6 +64,7 @@ export const UNIT_SPRITE: Partial<Record<UnitType, string>> = withBase({
   EMBERLING:    '/sprites/units/Emberling_100px.png',
   CAVE_MONSTER: '/sprites/units/Cave_Monster_100px.png',
   CRYSTAL_DRAKE: '/sprites/units/Crystal_Dragon_100px.png',
+  CRYSTAL_KHYRON: '/sprites/units/crystal_khyron_100px.png',
 });
 
 /**
