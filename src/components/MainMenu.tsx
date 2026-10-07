@@ -30,6 +30,7 @@ import { useText } from '../i18n/useText';
 import { useLocaleStore } from '../i18n/localeStore';
 import { LOCALE_ENDONYMS, RELEASE_LOCALES } from '../../config/i18n';
 import { MENU_TRACK } from '../musicSystem';
+import { FitText } from './FitText';
 import './MainMenu.css';
 
 // ============================================================================
@@ -315,7 +316,7 @@ function RootPanel({ hasSave, newestSlot }: { hasSave: boolean; newestSlot: Save
           <span className="mm-icon-tile-secondary">
             <IconNew />
           </span>
-          <span className="mm-btn-secondary-label">{t('menu.root.newGame')}</span>
+          <FitText className="mm-btn-secondary-label" text={t('menu.root.newGame')} />
           <span className="mm-chevron-secondary">
             <IconChevronRight size={17} />
           </span>
@@ -325,7 +326,7 @@ function RootPanel({ hasSave, newestSlot }: { hasSave: boolean; newestSlot: Save
           <span className="mm-icon-tile-secondary">
             <IconFolder />
           </span>
-          <span className="mm-btn-secondary-label">{t('menu.root.loadGame')}</span>
+          <FitText className="mm-btn-secondary-label" text={t('menu.root.loadGame')} />
           <span className="mm-chevron-secondary">
             <IconChevronRight size={17} />
           </span>
@@ -335,7 +336,7 @@ function RootPanel({ hasSave, newestSlot }: { hasSave: boolean; newestSlot: Save
           <span className="mm-icon-tile-secondary">
             <IconGear />
           </span>
-          <span className="mm-btn-secondary-label">{t('menu.root.options')}</span>
+          <FitText className="mm-btn-secondary-label" text={t('menu.root.options')} />
           <span className="mm-chevron-secondary">
             <IconChevronRight size={17} />
           </span>
@@ -645,7 +646,7 @@ function LoadPanel() {
                       disabled={!compatible}
                       onClick={() => loadIntoGame(meta.id)}
                     >
-                      {t('menu.load.load')}
+                      <FitText text={t('menu.load.load')} />
                     </button>
                     <button
                       className="mm-action-btn mm-action-btn--export"
