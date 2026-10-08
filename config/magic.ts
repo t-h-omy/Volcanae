@@ -12,6 +12,8 @@ export const MAGE = {
   RUPTURE_MINIMUM_REMAINING_HP: 1,
   /** Separate temporary HP pool granted by Stone Skin. */
   STONE_SKIN_HP: 50,
+  /** Attack power used for each Crystal Lightning hit. */
+  CRYSTAL_LIGHTNING_ATTACK_POWER: 20,
   // ── Mage unit ────────────────────────────────────────────────────────
   /** Default number of spells a Mage can cast each turn */
   SPELLS_PER_TURN: 1,
@@ -132,5 +134,10 @@ export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
     id: SpellId.STONE_SKIN,
     emoji: '🪨',
     textParams: { stoneHp: MAGE.STONE_SKIN_HP },
+  },
+  [SpellId.CRYSTAL_LIGHTNING]: {
+    id: SpellId.CRYSTAL_LIGHTNING,
+    emoji: '⚡',
+    textParams: { attackPower: MAGE.CRYSTAL_LIGHTNING_ATTACK_POWER },
   },
 };

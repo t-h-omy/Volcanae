@@ -20,6 +20,8 @@ export const TECH = {
   CRYSTALS_ON_ZONE_STRONGHOLD: 0,
 } as const;
 
+export const CRYSTAL_LIGHTNING_RESEARCH_COST = 7;
+
 /**
  * Compute the actual crystal cost to research a tech node at the current ember level.
  * Actual cost = baseCost + ember.
@@ -418,6 +420,14 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'UNLOCK_UNIT', unitType: UnitType.CRYSTAL_KHYRON },
     ],
     textParams: { crystalCost: UNIT_DEFINITIONS.CRYSTAL_KHYRON.cost.crystals ?? 0 },
+  },
+  {
+    id: 'CRYSTAL_LIGHTNING',
+    requires: ['CRYSTAL_KHYRON'],
+    cost: CRYSTAL_LIGHTNING_RESEARCH_COST,
+    effects: [
+      { type: 'UNLOCK_SPELL', spellId: SpellId.CRYSTAL_LIGHTNING },
+    ],
   },
   {
     id: 'TAUNT',

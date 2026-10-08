@@ -195,6 +195,7 @@ export const SpellId = {
   RUPTURE:        'RUPTURE',
   TAUNT:          'TAUNT',
   STONE_SKIN:     'STONE_SKIN',
+  CRYSTAL_LIGHTNING: 'CRYSTAL_LIGHTNING',
 } as const;
 export type SpellId = (typeof SpellId)[keyof typeof SpellId];
 
