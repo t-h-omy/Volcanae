@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.115.7 - Taunt spell
+
+Added the Taunt tech and spell, permanent unit tag, localized status badge and invalid-target feedback, and shared player and enemy-AI attack targeting rules.
+
 ### v0.115.6 - Khyron resonance triggers
 
 Crystal Khyron Resonance is now only active after a new resonance triggers (a Crystal Chamber destroyed by lava or a specialist effect); a Khyron recruited during a running resonance missed the trigger and starts inactive, and the Resonance tag pill shows its active or inactive state.

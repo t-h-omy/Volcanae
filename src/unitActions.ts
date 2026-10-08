@@ -276,8 +276,9 @@ export function getAttackableUnitTargets(
 /** Apply the shared, faction-agnostic Taunt restriction to legal unit targets. */
 export function getTauntRestrictedAttackTargets<T extends Pick<Unit, 'tags'>>(
   legalTargets: T[],
+  fallbackTargets: T[] = legalTargets,
 ): T[] {
-  if (!legalTargets.some((target) => target.tags.includes(UnitTag.TAUNT))) return legalTargets;
+  if (!legalTargets.some((target) => target.tags.includes(UnitTag.TAUNT))) return fallbackTargets;
   return legalTargets.filter((target) => target.tags.includes(UnitTag.TAUNT));
 }
 
@@ -370,6 +371,7 @@ export function getAttackTargets(
 ): Set<string> {
   const keys = new Set<string>();
   if (!canUnitAttack(unit, state)) return keys;
+  const attackRange = getUnitAttackRange(unit, state);
 
   const legalUnitTargets = getAttackableUnitTargets(unit, units, grid, state);
   const allLegalUnitTargetKeys = new Set(legalUnitTargets.map((other) => `${other.position.x},${other.position.y}`));

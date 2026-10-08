@@ -2037,15 +2037,17 @@ function scoreActionsForUnit(
       playerUnitsInAttackRange.push(u);
     }
   }
-  const attackablePlayerUnitsInRange = getTauntRestrictedAttackTargets(
-    Object.values(state.units).filter((target) =>
+  const legallyAttackablePlayerUnitsInRange = Object.values(state.units).filter((target) =>
       target.stats.currentHp > 0
       && isAttackableEnemyUnit(target, unit.faction, state.grid)
       && isTileWithinEdgeCircleRange(
         unit.position.x, unit.position.y,
         target.position.x, target.position.y,
         attackRange,
-      )),
+      ));
+  const attackablePlayerUnitsInRange = getTauntRestrictedAttackTargets(
+    legallyAttackablePlayerUnitsInRange,
+    playerUnitsInAttackRange,
   );
 
   // Gather all buildings
@@ -3918,17 +3920,18 @@ function runCaveMonsterAi(
     );
 
     // ── Priority 1: Attack a player unit already in attack range ─────────
-    let directTarget: Unit | null = null;
-    for (const playerUnit of playerUnits) {
-      if (isTileWithinEdgeCircleRange(
+    const playerUnitsInAttackRange = playerUnits.filter((playerUnit) =>
+      isTileWithinEdgeCircleRange(
         unit.position.x, unit.position.y,
         playerUnit.position.x, playerUnit.position.y,
         unit.stats.attackRange,
-      )) {
-        directTarget = playerUnit;
-        break;
-      }
-    }
+      ));
+    const legallyAttackablePlayerUnits = playerUnitsInAttackRange.filter((playerUnit) =>
+      isAttackableEnemyUnit(playerUnit, unit.faction, state.grid));
+    const directTarget = getTauntRestrictedAttackTargets(
+      legallyAttackablePlayerUnits,
+      playerUnitsInAttackRange,
+    )[0] ?? null;
 
     if (directTarget) {
       const from = { x: unit.position.x, y: unit.position.y };
