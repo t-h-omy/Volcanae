@@ -123,6 +123,7 @@ const SPELL_TARGET_REASONS: Record<string, TextRef> = {
   TRANSPOSE_TERRAIN: { key: 'reason.spell.transposeTerrain' },
   BRANDMARK_ALREADY_BRANDMARKED: { key: 'reason.spell.brandmarkAlreadyBrandmarked' },
   TAUNT_ALREADY_TAUNTED: { key: 'reason.spell.tauntAlreadyTaunted' },
+  STONE_SKIN_ALREADY_ACTIVE: { key: 'reason.spell.stoneSkinAlreadyActive' },
   BRANDMARK_SUMMONED: { key: 'reason.spell.brandmarkSummoned' },
   BRANDMARK_SELF: { key: 'reason.spell.brandmarkSelf' },
   EXPLODE_MAGE: { key: 'reason.spell.explodeMage' },
@@ -382,6 +383,17 @@ export function explainInvalidSpellTarget(
       return null;
     }
 
+    case 'STONE_SKIN': {
+      if (!tile.unitId) return null;
+      const tappedUnit = state.units[tile.unitId];
+      if (!tappedUnit || tappedUnit.faction !== Faction.PLAYER) return null;
+      if (!isTileInSpellRange(mage, tappedUnit.position, range)) return null;
+      if (tappedUnit.tags.includes(UnitTag.STONE_SKIN)) {
+        return SPELL_TARGET_REASONS.STONE_SKIN_ALREADY_ACTIVE;
+      }
+      return null;
+    }
+
     case 'BRANDMARK_HEAL': {
       if (!tile.unitId) return null;
       const tappedUnit = state.units[tile.unitId];
@@ -561,6 +573,15 @@ function handleEmberbind(
       const t = state.grid[pos.y]?.[pos.x];
       if (t && !t.unitId && !t.isLava) {
         spawnPos = pos;
+        break;
+      }
+      case 'STONE_SKIN': {
+        const targetId = state.grid[targetPosition.y]?.[targetPosition.x]?.unitId;
+        const target = targetId ? state.units[targetId] : undefined;
+        if (!target || target.faction !== Faction.PLAYER || target.tags.includes(UnitTag.STONE_SKIN)) return false;
+        target.tags.push(UnitTag.STONE_SKIN);
+        target.stoneSkinHp = MAGE.STONE_SKIN_HP;
+        success = true;
         break;
       }
     }

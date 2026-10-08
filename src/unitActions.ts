@@ -159,6 +159,7 @@ export function canUnitMove(
   unit: Unit,
   _state?: GameState | Draft<GameState>,
 ): boolean {
+  if (unit.tags.includes(UnitTag.STONE_SKIN)) return false;
   if (unit.pinnedUntilTurn > 0) return false;
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasConstructedThisTurn) return false;

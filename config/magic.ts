@@ -10,6 +10,8 @@ export const MAGE = {
   GRAVE_TRAP_ADJACENCY_RANGE: 1,
   /** Minimum HP retained by a target after Rupture. */
   RUPTURE_MINIMUM_REMAINING_HP: 1,
+  /** Separate temporary HP pool granted by Stone Skin. */
+  STONE_SKIN_HP: 50,
   // ── Mage unit ────────────────────────────────────────────────────────
   /** Default number of spells a Mage can cast each turn */
   SPELLS_PER_TURN: 1,
@@ -125,5 +127,10 @@ export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
   [SpellId.TAUNT]: {
     id: SpellId.TAUNT,
     emoji: '🎯',
+  },
+  [SpellId.STONE_SKIN]: {
+    id: SpellId.STONE_SKIN,
+    emoji: '🪨',
+    textParams: { stoneHp: MAGE.STONE_SKIN_HP },
   },
 };

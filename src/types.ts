@@ -194,6 +194,7 @@ export const SpellId = {
   /** Rupture — unlocked by the Sundered specialist; deals a percentage of the target's current HP */
   RUPTURE:        'RUPTURE',
   TAUNT:          'TAUNT',
+  STONE_SKIN:     'STONE_SKIN',
 } as const;
 export type SpellId = (typeof SpellId)[keyof typeof SpellId];
 
@@ -371,6 +372,8 @@ export const UnitTag = {
   RESONANCE: 'RESONANCE',
   /** Hostile units must target this unit when it is legally attackable. */
   TAUNT: 'TAUNT',
+  /** Incoming damage is absorbed by a separate Stone HP pool before normal HP. */
+  STONE_SKIN: 'STONE_SKIN',
 } as const;
 export type UnitTag = (typeof UnitTag)[keyof typeof UnitTag];
 
@@ -496,6 +499,8 @@ export interface Unit {
   recruitedOnTurn?: number;
   /** Crystal Khyron: true while its RESONANCE tag is active (set by a resonance trigger). */
   resonanceActive?: boolean;
+  /** Remaining temporary HP granted by Stone Skin. */
+  stoneSkinHp?: number;
   /**
    * Latches true the first time this BERSERK unit's HP ratio drops below the
    * activation threshold. Once true, it remains true for the unit's lifetime.

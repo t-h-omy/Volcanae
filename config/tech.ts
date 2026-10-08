@@ -427,6 +427,14 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'UNLOCK_SPELL', spellId: SpellId.TAUNT },
     ],
   },
+  {
+    id: 'STONE_SKIN',
+    requires: ['TAUNT'],
+    cost: 7,
+    effects: [
+      { type: 'UNLOCK_SPELL', spellId: SpellId.STONE_SKIN },
+    ],
+  },
 
   // ── Summoner path ────────────────────────────────────────────────────────
   {

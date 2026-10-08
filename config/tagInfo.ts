@@ -70,5 +70,6 @@ export const TAG_INFO: Record<UnitTag, { icon?: string; textParams?: { [name: st
   [UnitTag.BERSERK]: { textParams: { hpThresholdPct: ABILITIES.BERSERK_HP_THRESHOLD_PCT, attackPct: ABILITIES.BERSERK_ATTACK_PCT } },
   [UnitTag.RESONANCE]: { textParams: { healAmount: ABILITIES.RESONANCE_HEAL_AMOUNT } },
   [UnitTag.TAUNT]: { icon: '🎯' },
+  [UnitTag.STONE_SKIN]: { icon: '🪨', textParams: { stoneHp: MAGE.STONE_SKIN_HP } },
   [UnitTag.BATTERY]: { textParams: { attackPerAdjacent: ABILITIES.SIEGE_BATTERY_ATK_PER_ADJACENT, stackCap: ABILITIES.SIEGE_BATTERY_CAP } },
 };
