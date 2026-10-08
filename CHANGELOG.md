@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.115.5 - Bridge sprites
+
+Registered the horizontal and vertical bridge artwork and render each bridge using the sprite matching its orientation.
+
 ### v0.115.4 - Crystal Khyron sprites
 
 Registered and preloaded the active and inactive Crystal Khyron sprites, and show the resonating sprite while RESONANCE is active.

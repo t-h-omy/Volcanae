@@ -89,6 +89,15 @@ export const ENEMY_UNIT_SPRITE: Partial<Record<UnitType, string>> = withBase({
 });
 
 /** Maps every BuildingType value to a sprite path (empty = missing). */
+export const BRIDGE_SPRITE = withBase({
+  EW: '/sprites/buildings/bridge_horizonal_100px.png',
+  NS: '/sprites/buildings/bridge_vertical_100px.png',
+});
+
+export function getBridgeSprite(orientation: 'EW' | 'NS' | undefined): string {
+  return BRIDGE_SPRITE[orientation ?? 'EW'] ?? '';
+}
+
 export const BUILDING_SPRITE: Partial<Record<BuildingType, string>> = withBase({
   STRONGHOLD:      '/sprites/buildings/stronghold_100px.png',
   MINE:            '/sprites/buildings/mine_100px.png',
@@ -115,8 +124,7 @@ export const BUILDING_SPRITE: Partial<Record<BuildingType, string>> = withBase({
   CRYSTAL_CAVE:    '/sprites/buildings/crystal_cave_100px.png',
   CHARCOAL_KILN:   '/sprites/buildings/charcoal_kiln_100px.png',
   MARKET:          '/sprites/buildings/marketplace_100px.png',
-  // TODO: replace BRIDGE with real art when available
-  BRIDGE:          '/sprites/buildings/bridge_100px.png',
+  BRIDGE:          BRIDGE_SPRITE.EW ?? '',
 });
 
 /**
