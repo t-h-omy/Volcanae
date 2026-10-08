@@ -322,8 +322,9 @@ describe('Crystal Lightning volleys and chaining', () => {
       event.type === 'CRYSTAL_LIGHTNING_CHAMBER_VOLLEY' ? event.links : []);
 
     expect(volleys).toHaveLength(4);
-    expect(new Set(volleys.flatMap((event) => event.type === 'CRYSTAL_LIGHTNING_ENEMY_VOLLEY' ? event.chamberId : [])))
-      .toHaveProperty('size', 4);
+    expect(new Set(volleys.flatMap((event) =>
+      event.type === 'CRYSTAL_LIGHTNING_ENEMY_VOLLEY' ? [event.chamberId] : []),
+    ).size).toBe(4);
     expect(links).toHaveLength(3);
     expect(new Set(links.map((link) => link.toChamberId)).size).toBe(3);
   });

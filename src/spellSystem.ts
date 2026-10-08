@@ -36,7 +36,7 @@ import { t } from './i18n/i18n';
 import { spellName } from './i18n/entityText';
 import { applyUnitDamage } from './unitDamage';
 import { getUnitDamageOutcome } from './unitDamage';
-import { canGrantXp, grantXp } from './levelSystem';
+import { grantXp } from './levelSystem';
 import type { GameEvent } from './gameEvents';
 
 /** Returns the effective spell range for a mage (its attack range). */
@@ -1238,7 +1238,7 @@ function handleCrystalLightning(
       });
       events.push(...deathEvents);
 
-      if (chamber.resonanceTurnsRemaining <= 0) continue;
+      if (!(chamber.resonanceTurnsRemaining > 0)) continue;
       const discovered = Object.values(state.buildings)
         .filter((candidate) =>
           candidate.type === BuildingType.CRYSTAL_CHAMBER
