@@ -234,9 +234,10 @@ describe('Stone Skin tech and spell', () => {
     expect(getValidSpellTargets(state, mage.id, SpellId.STONE_SKIN)).not.toContainEqual(target.position);
     expect(reason?.key).toBe('reason.spell.stoneSkinAlreadyActive');
     expect(t(reason!)).toBe('Already has Stone Skin');
-    expect(produce(state, (draft) =>
-      castSpell(draft, mage.id, SpellId.STONE_SKIN, target.position),
-    ).units[target.id].stoneSkinHp).toBe(50);
+    const afterRecast = produce(state, (draft) => {
+      castSpell(draft, mage.id, SpellId.STONE_SKIN, target.position);
+    });
+    expect(afterRecast.units[target.id].stoneSkinHp).toBe(50);
   });
 });
 
@@ -246,7 +247,9 @@ describe('Stone Skin damage', () => {
     const defender = stoneSkinUnit(UnitType.SPEARMAN, { x: 6, y: 5 });
     const expectedDamage = calculateCombat(attacker, defender).defenderHpLost;
     const state = makeState([attacker, defender]);
-    const afterAttack = produce(state, (draft) => resolveAttack(draft, attacker.id, defender.id, true));
+    const afterAttack = produce(state, (draft) => {
+      resolveAttack(draft, attacker.id, defender.id, true);
+    });
 
     expect(afterAttack.units[defender.id].stoneSkinHp).toBe(MAGE.STONE_SKIN_HP - expectedDamage);
     expect(afterAttack.units[defender.id].stats.currentHp).toBe(defender.stats.maxHp);
@@ -278,15 +281,13 @@ describe('Stone Skin damage', () => {
     const tower = makeBuilding({ x: 5, y: 5 }, Faction.ENEMY);
     const target = stoneSkinUnit(UnitType.SPEARMAN, { x: 6, y: 5 });
     const buildingState = makeState([target], [tower]);
-    const buildingDamage = resolveBuildingAttack(
-      produce(buildingState, (draft) => {}),
-      tower.id,
-      target.id,
-      true,
-    );
-    expect(buildingDamage?.defenderDamage).toBeGreaterThan(0);
-    expect(target.stoneSkinHp).toBeLessThan(MAGE.STONE_SKIN_HP);
-    expect(target.stats.currentHp).toBe(target.stats.maxHp);
+    let buildingDamage = 0;
+    const afterBuildingAttack = produce(buildingState, (draft) => {
+      buildingDamage = resolveBuildingAttack(draft, tower.id, target.id, true)?.defenderDamage ?? 0;
+    });
+    expect(buildingDamage).toBeGreaterThan(0);
+    expect(afterBuildingAttack.units[target.id].stoneSkinHp).toBeLessThan(MAGE.STONE_SKIN_HP);
+    expect(afterBuildingAttack.units[target.id].stats.currentHp).toBe(target.stats.maxHp);
 
     const burningTarget = stoneSkinUnit(UnitType.SPEARMAN, { x: 7, y: 7 });
     const burningState = makeState([burningTarget]);
@@ -317,7 +318,9 @@ describe('Stone Skin movement and saves', () => {
     const defender = makeUnit(UnitType.LAVA_GRUNT, { x: 6, y: 5 }, Faction.ENEMY);
     defender.stats.currentHp = 1;
     const state = makeState([attacker, defender]);
-    const afterAttack = produce(state, (draft) => resolveAttack(draft, attacker.id, defender.id, true));
+    const afterAttack = produce(state, (draft) => {
+      resolveAttack(draft, attacker.id, defender.id, true);
+    });
 
     expect(afterAttack.units[attacker.id].position).toEqual(attacker.position);
     expect(afterAttack.grid[5][5].unitId).toBe(attacker.id);
@@ -337,9 +340,9 @@ describe('Stone Skin movement and saves', () => {
     const knockbackSource = makeUnit(UnitType.LAVA_GRUNT, { x: 4, y: 5 }, Faction.ENEMY, [UnitTag.KNOCKBACK]);
     const knockbackTarget = stoneSkinUnit(UnitType.SPEARMAN, { x: 5, y: 5 });
     const knockbackState = makeState([knockbackSource, knockbackTarget]);
-    const afterKnockback = produce(knockbackState, (draft) =>
-      resolveAttack(draft, knockbackSource.id, knockbackTarget.id, true),
-    );
+    const afterKnockback = produce(knockbackState, (draft) => {
+      resolveAttack(draft, knockbackSource.id, knockbackTarget.id, true);
+    });
     expect(afterKnockback.units[knockbackTarget.id].position).toEqual({ x: 6, y: 5 });
   });
 
