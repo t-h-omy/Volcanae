@@ -157,6 +157,7 @@ function makeState(units: Unit[] = [], buildings: Building[] = []): GameState {
 const khyron = (x = 4, y = 4, tags: UnitTag[] = [UnitTag.RESONANCE], level = 1) => {
   const u = makeUnit(UnitType.CRYSTAL_KHYRON, { x, y }, Faction.PLAYER, tags);
   u.level = level;
+  u.resonanceActive = tags.includes(UnitTag.RESONANCE);
   return u;
 };
 const weakEnemy = (type: UnitType, x: number, y: number, extra: UnitTag[] = []) => {
@@ -243,8 +244,9 @@ describe('Crystal Khyron recruitment', () => {
     // Normal recruited-unit exhaustion
     expect(units[0].hasMovedThisTurn).toBe(true);
     expect(units[0].hasAttackedThisTurn).toBe(true);
-    // Recruited during active resonance: starts with RESONANCE; resonance not shortened
+    // Recruited during active resonance: has RESONANCE but inactive (missed the trigger); resonance not shortened
     expect(units[0].tags).toContain(UnitTag.RESONANCE);
+    expect(units[0].resonanceActive).toBe(false);
     expect(c.resonanceTurnsRemaining).toBe(3);
   });
 
@@ -360,9 +362,9 @@ describe('Crystal Khyron Resonance lifecycle', () => {
     const state = makeState([k], [ch]);
     collectResources(state);
     expect(ch.resonanceTurnsRemaining).toBe(0);
-    expect(state.units[k.id].tags).not.toContain(UnitTag.RESONANCE);
+    expect(state.units[k.id].resonanceActive).toBe(false);
     expect(state.units[k.id].level).toBe(1);
-    expect(state.units[k.id].tags).toEqual([]);
+    expect(state.units[k.id].tags).toEqual([UnitTag.RESONANCE]);
     ch.resonanceTurnsRemaining = CRYSTAL_CHAMBER_CONFIG.RESONANCE_DURATION;
     grantKhyronResonance(state);
     expect(state.units[k.id].tags).toContain(UnitTag.RESONANCE);
@@ -374,7 +376,7 @@ describe('Crystal Khyron Resonance lifecycle', () => {
     const state = makeState([k], [chamber(2, 2, 1)]);
     collectResources(state);
     expect(state.units[k.id].pendingAssimilationTags).toBeUndefined();
-    expect(state.units[k.id].tags).toEqual([]);
+    expect(state.units[k.id].tags).toEqual([UnitTag.RESONANCE]);
   });
 
   it('keeps RESONANCE while another chamber still resonates', () => {
@@ -422,7 +424,7 @@ describe('Resonant Assimilation', () => {
     expect(u.tags).toContain(UnitTag.RAGE);
     expect(u.tags).not.toContain(UnitTag.CORRUPT);
     expect(u.tags).not.toContain(UnitTag.LAVA);
-    expect(u.tags).not.toContain(UnitTag.RESONANCE);
+    expect(u.resonanceActive).toBe(false);
     expect(JSON.stringify(u.stats)).toBe(before);
     expect(u.pendingAssimilationTags).toBeUndefined();
   });
@@ -436,7 +438,7 @@ describe('Resonant Assimilation', () => {
     expect(u.level).toBe(3);
     expect(u.tags).toEqual(expect.arrayContaining([UnitTag.CLEAVE, UnitTag.RAGE, UnitTag.PUNCTURE, UnitTag.BLOCK]));
     expect(u.tags).not.toContain(UnitTag.LAVA);
-    expect(u.tags).not.toContain(UnitTag.RESONANCE);
+    expect(u.resonanceActive).toBe(false);
   });
 
   it('a kill with no transferable tags still transforms and consumes Resonance', () => {
@@ -446,7 +448,7 @@ describe('Resonant Assimilation', () => {
     resolveAttack(state, k.id, enemy.id, true);
     const u = state.units[k.id];
     expect(u.level).toBe(2);
-    expect(u.tags).toEqual([]);
+    expect(u.tags).toEqual([UnitTag.RESONANCE]);
   });
 
   it('a kill with only already-owned tags still transforms without duplicating tags', () => {
@@ -458,7 +460,7 @@ describe('Resonant Assimilation', () => {
     expect(u.level).toBe(2);
     expect(u.tags.filter((x) => x === UnitTag.CLEAVE)).toHaveLength(1);
     expect(u.tags.filter((x) => x === UnitTag.RAGE)).toHaveLength(1);
-    expect(u.tags).not.toContain(UnitTag.RESONANCE);
+    expect(u.resonanceActive).toBe(false);
   });
 
   it('does not transform without RESONANCE or at Lv3', () => {

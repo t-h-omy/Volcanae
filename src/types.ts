@@ -491,6 +491,8 @@ export interface Unit {
    * Used to apply the exhausted visual filter to freshly recruited units.
    */
   recruitedOnTurn?: number;
+  /** Crystal Khyron: true while its RESONANCE tag is active (set by a resonance trigger). */
+  resonanceActive?: boolean;
   /**
    * Latches true the first time this BERSERK unit's HP ratio drops below the
    * activation threshold. Once true, it remains true for the unit's lifetime.

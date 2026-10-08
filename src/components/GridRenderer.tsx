@@ -24,6 +24,7 @@ import { INPUT } from '../../config/input';
 import { computeLevelFromXp } from '../levelSystem';
 import { useZoomStore } from '../zoomStore';
 import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE, TILE_STATUS_SPRITE, RESOURCE_SPRITE, ENEMY_BUILDING_SPRITE, PLAYER_BUILDING_SPRITE, TERRAIN_RESOURCE_SPRITE, CRYSTAL_CHAMBER_ACTIVE_SPRITE, CRYSTAL_CAVE_ACTIVE_SPRITE, CRYSTAL_KHYRON_ACTIVE_SPRITE, ENEMY_UNIT_SPRITE, PLAYER_UNIT_SPRITE, TUNNEL_HOLE_SPRITE, TUNNEL_EARTHQUAKE_SPRITE, PORTAL_ENTRANCE_SPRITE, PORTAL_EXIT_SPRITE, getBridgeSprite } from '../assetRegistry';
+import { isKhyronResonanceActive } from '../khyronSystem';
 import MissingSprite from './MissingSprite';
 import {
   Faction,
@@ -1498,7 +1499,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
 
   // Unit sprite selection — faction-specific overrides take priority over UNIT_SPRITE.
   const unitSpritePath =
-    unit.type === UnitType.CRYSTAL_KHYRON && unit.tags.includes(UnitTag.RESONANCE)
+    unit.type === UnitType.CRYSTAL_KHYRON && isKhyronResonanceActive(unit)
       ? CRYSTAL_KHYRON_ACTIVE_SPRITE
       : unit.faction === Faction.ENEMY && ENEMY_UNIT_SPRITE[unit.type]
       ? ENEMY_UNIT_SPRITE[unit.type]

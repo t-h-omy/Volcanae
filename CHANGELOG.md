@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.115.6 - Khyron resonance triggers
+
+Crystal Khyron Resonance is now only active after a new resonance triggers (a Crystal Chamber destroyed by lava or a specialist effect); a Khyron recruited during a running resonance missed the trigger and starts inactive, and the Resonance tag pill shows its active or inactive state.
+
 ### v0.115.5 - Bridge sprites
 
 Registered the horizontal and vertical bridge artwork and render each bridge using the sprite matching its orientation.

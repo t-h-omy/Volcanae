@@ -34,10 +34,15 @@ export function canKhyronTransform(unit: Pick<Unit, 'type' | 'faction' | 'level'
   return canKhyronResonate(unit) && unit.level < CRYSTAL_KHYRON.MAX_LEVEL;
 }
 
+/** Whether the Khyron holds RESONANCE and it is currently active (a trigger occurred since it was recruited or last spent it). */
+export function isKhyronResonanceActive(unit: Pick<Unit, 'tags' | 'resonanceActive'>): boolean {
+  return unit.tags.includes(UnitTag.RESONANCE) && !!unit.resonanceActive;
+}
+
 /** Heals every resonating player Khyron at the start of the turn (capped at max HP). */
 export function healResonatingKhyrons(state: Draft<GameState>): void {
   for (const unit of Object.values(state.units)) {
-    if (!canKhyronResonate(unit) || !unit.tags.includes(UnitTag.RESONANCE)) continue;
+    if (!canKhyronResonate(unit) || !isKhyronResonanceActive(unit)) continue;
     unit.stats.currentHp = Math.min(unit.stats.maxHp, unit.stats.currentHp + ABILITIES.RESONANCE_HEAL_AMOUNT);
   }
 }
@@ -57,23 +62,21 @@ export function isAnyChamberResonating(state: KhyronState): boolean {
   );
 }
 
-/** Grants RESONANCE to every player Khyron (all levels). */
+/** Activates RESONANCE on every player Khyron (all levels) when a new resonance triggers. */
 export function grantKhyronResonance(state: Draft<GameState>): void {
   for (const unit of Object.values(state.units)) {
-    if (canKhyronResonate(unit) && !unit.tags.includes(UnitTag.RESONANCE)) {
-      unit.tags.push(UnitTag.RESONANCE);
-    }
+    if (!canKhyronResonate(unit)) continue;
+    if (!unit.tags.includes(UnitTag.RESONANCE)) unit.tags.push(UnitTag.RESONANCE);
+    unit.resonanceActive = true;
   }
 }
 
-/** Removes RESONANCE from Khyrons when no player Crystal Chamber is resonating. */
+/** Deactivates RESONANCE on Khyrons when no player Crystal Chamber is resonating. */
 export function expireKhyronResonance(state: Draft<GameState>): void {
   if (isAnyChamberResonating(state)) return;
   for (const unit of Object.values(state.units)) {
     if (unit.type !== UnitType.CRYSTAL_KHYRON) continue;
-    if (unit.tags.includes(UnitTag.RESONANCE)) {
-      unit.tags = unit.tags.filter((tag) => tag !== UnitTag.RESONANCE);
-    }
+    unit.resonanceActive = false;
     delete unit.pendingAssimilationTags;
   }
 }
@@ -92,7 +95,7 @@ export function recordKhyronKill(
   const killer = state.units[killerId];
   if (!killer || !canKhyronTransform(killer)) return;
   if (victimFaction !== Faction.ENEMY) return;
-  if (!killer.tags.includes(UnitTag.RESONANCE)) return;
+  if (!isKhyronResonanceActive(killer)) return;
   if (killer.pendingAssimilationTags) return;
   killer.pendingAssimilationTags = filterTransferableTags(victimTags);
 }
@@ -108,6 +111,6 @@ export function applyPendingAssimilations(state: Draft<GameState>): void {
     for (const tag of pending) {
       if (!unit.tags.includes(tag)) unit.tags.push(tag);
     }
-    unit.tags = unit.tags.filter((tag) => tag !== UnitTag.RESONANCE);
+    unit.resonanceActive = false;
   }
 }
