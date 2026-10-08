@@ -862,5 +862,10 @@
   "app.install": "Install App",
   "app.loadingTitle": "Volcanae - Loading...",
   "grid.unitXp": "{xp} xp",
-  "menu.options.volumePct": "{volume, number, percent}"
+  "menu.options.volumePct": "{volume, number, percent}",
+  "tech.CRYSTAL_LIGHTNING.name": "Crystal Lightning",
+  "tech.CRYSTAL_LIGHTNING.desc": "Unlocks the Crystal Lightning spell.",
+  "spell.CRYSTAL_LIGHTNING.name": "Crystal Lightning",
+  "spell.CRYSTAL_LIGHTNING.desc": "A Crystal Chamber strikes every enemy unit within its sight radius with {attackPower} attack power. Resonating Chambers chain the lightning to nearby active Chambers.",
+  "spell.CRYSTAL_LIGHTNING.targetHint": "Select a player-owned Crystal Chamber within range."
 }

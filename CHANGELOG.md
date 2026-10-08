@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.115.9 - Crystal Lightning
+
+Added Crystal Lightning, a Crystal Khyron specialization that fires combat-formula lightning volleys from Crystal Chambers and chains through resonating Chambers.
+
 ### v0.115.8 - Stone Skin spell
 
 Added the Stone Skin tech and spell with a separate 50 HP pool, damage absorption across combat and environmental sources, voluntary movement lock, and a separate grid HP bar.

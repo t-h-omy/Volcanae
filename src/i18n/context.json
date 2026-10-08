@@ -858,5 +858,20 @@
   },
   "reason.spell.stoneSkinAlreadyActive": {
     "note": "Short invalid-target feedback when the selected unit already has Stone Skin."
+  },
+  "tech.CRYSTAL_LIGHTNING.name": {
+    "note": "Technology name for the Crystal Lightning Mage spell."
+  },
+  "tech.CRYSTAL_LIGHTNING.desc": {
+    "note": "Short technology description."
+  },
+  "spell.CRYSTAL_LIGHTNING.name": {
+    "note": "Mage spell that fires lightning from Crystal Chambers."
+  },
+  "spell.CRYSTAL_LIGHTNING.desc": {
+    "note": "Spell description. Keep the attackPower ICU parameter."
+  },
+  "spell.CRYSTAL_LIGHTNING.targetHint": {
+    "note": "Targeting instruction for Crystal Lightning."
   }
 }
