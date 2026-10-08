@@ -1376,14 +1376,10 @@ export function recruitUnit(
     roostBuildingId: isCrystalDrake ? buildingId : undefined,
   };
   const unit = state.units[unitId];
-  // A Khyron recruited from an actively resonating Chamber starts with RESONANCE.
-  if (
-    unitType === UnitType.CRYSTAL_KHYRON &&
-    building.type === BuildingType.CRYSTAL_CHAMBER &&
-    building.resonanceTurnsRemaining > 0 &&
-    !unit.tags.includes(UnitTag.RESONANCE)
-  ) {
-    unit.tags.push(UnitTag.RESONANCE);
+  // A Khyron always carries RESONANCE but starts inactive: it missed any running trigger.
+  if (unitType === UnitType.CRYSTAL_KHYRON) {
+    if (!unit.tags.includes(UnitTag.RESONANCE)) unit.tags.push(UnitTag.RESONANCE);
+    unit.resonanceActive = false;
   }
   for (const mod of getStatMods(state, unitType)) {
     if (mod.mode === 'add') {

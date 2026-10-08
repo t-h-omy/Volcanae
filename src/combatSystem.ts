@@ -555,6 +555,8 @@ export function isTagConditionActive(
       return hasAssassinDamageBonusTarget(state, unit);
     case UnitTag.BLOODLUST:
       return unit.bloodlustAttackAvailable;
+    case UnitTag.RESONANCE:
+      return unit.type === UnitType.CRYSTAL_KHYRON && !!unit.resonanceActive;
     default:
       return false;
   }

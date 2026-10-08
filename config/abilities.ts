@@ -240,6 +240,7 @@ export const CONDITIONAL_ACTIVE_TAGS: ReadonlySet<UnitTag> = new Set([
   UnitTag.BLOODLUST,
   UnitTag.RAGE,
   UnitTag.LANCE_CHARGE,
+  UnitTag.RESONANCE,
 ]);
 
 /**
