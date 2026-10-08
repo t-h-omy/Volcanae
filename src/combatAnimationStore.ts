@@ -112,7 +112,8 @@ export interface TileVfx {
 export type LineVfxVariant =
   | 'FIRE_SPIT'
   | 'SPELL_CAST'
-  | 'PIERCE_LINE';
+  | 'PIERCE_LINE'
+  | 'CRYSTAL_LIGHTNING';
 
 export interface LineVfx {
   id: string;

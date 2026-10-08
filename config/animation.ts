@@ -104,6 +104,12 @@ export const ANIMATION = {
   STUN_BLOCKED_SHIELD_MS: 600,
   /** Duration of the cracked-shield VFX shown when PUNCTURE bypasses defense (ms) */
   DEFENSE_IGNORED_MS: 500,
+  /** Duration of one Crystal Lightning bolt in an enemy volley. */
+  CRYSTAL_LIGHTNING_BOLT_MS: 260,
+  /** Duration of one quick Crystal Chamber chain bolt. */
+  CRYSTAL_LIGHTNING_LINK_MS: 180,
+  /** Short pause after Crystal Lightning volleys and links. */
+  CRYSTAL_LIGHTNING_POST_MS: 70,
   /** Duration of the mage spell-cast line from caster to target tile (ms) */
   SPELL_CAST_MS: 650,
   /** Duration of the mage spell impact ring on the target tile (ms) */

@@ -448,4 +448,27 @@ export type GameEvent =
       buildingId: string;
       /** Tile position of the trap */
       position: Position;
+    }
+  | {
+      type: 'CRYSTAL_LIGHTNING_ENEMY_VOLLEY';
+      mageId: string;
+      magePosition: Position;
+      chamberId: string;
+      chamberPosition: Position;
+      hits: {
+        unitId: string;
+        position: Position;
+        damage: number;
+        mageXpGained: number;
+        killed: boolean;
+      }[];
+    }
+  | {
+      type: 'CRYSTAL_LIGHTNING_CHAMBER_VOLLEY';
+      links: {
+        fromChamberId: string;
+        fromPosition: Position;
+        toChamberId: string;
+        toPosition: Position;
+      }[];
     };

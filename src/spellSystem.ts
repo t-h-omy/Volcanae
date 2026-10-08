@@ -15,13 +15,18 @@ import type { Draft } from 'immer';
 import type { GameState, Position, Unit } from './types';
 import type { SpellId } from './types';
 import { Faction, UnitTag, BuildingType, TileType, TileStatus, UnitType } from './types';
-import { MAGE, BUILDING_DEFINITIONS, ABILITIES, MAP, UNIT_DEFINITIONS } from './gameConfig';
+import { MAGE, BUILDING_DEFINITIONS, ABILITIES, MAP, UNIT_DEFINITIONS, XP } from './gameConfig';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { generateId } from './mapGenerator';
 import { useFloaterStore } from './floaterStore';
 import { useCombatAnimationStore } from './combatAnimationStore';
 import { isStatusAllowedOnTerrain, applyTileStatus } from './tileStatusSystem';
-import { shouldLeaveGravestone, createGravestoneAt, updateBerserkLatch } from './combatSystem';
+import {
+  shouldLeaveGravestone,
+  createGravestoneAt,
+  updateBerserkLatch,
+  calculateCrystalLightningDamage,
+} from './combatSystem';
 import { applyTagStatEffects } from './techSystem';
 import { cleanupRoostedUnits } from './buildingRemoval';
 import { getTagsFromActiveSpecialistsForSourceTag } from './specialistSystem';
@@ -30,6 +35,9 @@ import type { TextRef } from './i18n/i18n';
 import { t } from './i18n/i18n';
 import { spellName } from './i18n/entityText';
 import { applyUnitDamage } from './unitDamage';
+import { getUnitDamageOutcome } from './unitDamage';
+import { canGrantXp, grantXp } from './levelSystem';
+import type { GameEvent } from './gameEvents';
 
 /** Returns the effective spell range for a mage (its attack range). */
 export function getMageSpellRange(
@@ -265,6 +273,15 @@ export function getValidSpellTargets(
         .map((unit) => ({ ...unit.position }));
     }
 
+    case 'CRYSTAL_LIGHTNING': {
+      return Object.values(state.buildings)
+        .filter((building) =>
+          building.type === BuildingType.CRYSTAL_CHAMBER
+          && building.faction === Faction.PLAYER
+          && isTileInSpellRange(mage, building.position, range))
+        .map((building) => ({ ...building.position }));
+    }
+
     case 'CRYSTAL_TOWER': {
       // Single valid tile: the mage's own tile, no existing building, no ruin, no forest/mountain
       const tile = state.grid[mage.position.y]?.[mage.position.x];
@@ -403,6 +420,9 @@ export function explainInvalidSpellTarget(
       }
       return null;
     }
+
+    case 'CRYSTAL_LIGHTNING':
+      return null;
 
     case 'BRANDMARK_HEAL': {
       if (!tile.unitId) return null;
@@ -1116,12 +1136,151 @@ function handleRupture(
   return true;
 }
 
+function handleCrystalLightning(
+  state: Draft<GameState>,
+  mage: Unit,
+  targetPosition: Position,
+  outEvents?: GameEvent[],
+): boolean {
+  const chamberId = state.grid[targetPosition.y]?.[targetPosition.x]?.buildingId;
+  const initialChamber = chamberId ? state.buildings[chamberId] : undefined;
+  if (
+    !initialChamber
+    || initialChamber.type !== BuildingType.CRYSTAL_CHAMBER
+    || initialChamber.faction !== Faction.PLAYER
+  ) return false;
+
+  const events = outEvents ?? [];
+  const visited = new Set([initialChamber.id]);
+  let wave = [initialChamber];
+  const radius = BUILDING_DEFINITIONS[BuildingType.CRYSTAL_CHAMBER].discoverRadius;
+
+  while (wave.length > 0) {
+    wave.sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+    const nextWave: typeof wave = [];
+    const links: Extract<GameEvent, { type: 'CRYSTAL_LIGHTNING_CHAMBER_VOLLEY' }>['links'] = [];
+
+    for (const chamber of wave) {
+      const hits: Extract<GameEvent, { type: 'CRYSTAL_LIGHTNING_ENEMY_VOLLEY' }>['hits'] = [];
+      const deathEvents: GameEvent[] = [];
+      const targets = Object.values(state.units)
+        .filter((unit) =>
+          unit.faction === Faction.ENEMY
+          && isTileWithinEdgeCircleRange(
+            chamber.position.x,
+            chamber.position.y,
+            unit.position.x,
+            unit.position.y,
+            radius,
+          ))
+        .sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
+      for (const target of targets) {
+        const targetPositionSnapshot = { ...target.position };
+        const damage = calculateCrystalLightningDamage(
+          state,
+          target,
+          MAGE.CRYSTAL_LIGHTNING_ATTACK_POWER,
+        );
+        const outcome = getUnitDamageOutcome(target, damage);
+        let mageXpGained = 0;
+
+        if (outcome.died) {
+          const xpBefore = state.units[mage.id]?.xp ?? 0;
+          grantXp(state, mage.id, XP.KILL_UNIT, true);
+          mageXpGained = (state.units[mage.id]?.xp ?? xpBefore) - xpBefore;
+        }
+
+        applyUnitDamage(target, damage);
+        updateBerserkLatch(target);
+        state.gameStats.damageDealt += damage;
+
+        if (outcome.died) {
+          const targetTile = state.grid[targetPositionSnapshot.y]?.[targetPositionSnapshot.x];
+          if (targetTile?.unitId === target.id) targetTile.unitId = null;
+          delete state.units[target.id];
+          state.gameStats.unitsKilled += 1;
+          if (target.type === UnitType.EMBER_DEMON) {
+            state.arcaneCrystals += MAGE.EMBER_DEMON_KILL_CRYSTAL_REWARD;
+          }
+          if (target.type === UnitType.CAVE_MONSTER) {
+            state.activeCaveEncounters = state.activeCaveEncounters.filter(
+              (encounter) => encounter.monsterId !== target.id,
+            );
+          }
+          deathEvents.push({
+            type: 'UNIT_DEATH',
+            unitId: target.id,
+            position: targetPositionSnapshot,
+            faction: target.faction,
+          });
+          if (target.type === UnitType.CAVE_MONSTER) {
+            deathEvents.push({ type: 'CAVE_MONSTER_KILLED', monsterId: target.id });
+          }
+        }
+
+        hits.push({
+          unitId: target.id,
+          position: targetPositionSnapshot,
+          damage,
+          mageXpGained,
+          killed: outcome.died,
+        });
+      }
+
+      events.push({
+        type: 'CRYSTAL_LIGHTNING_ENEMY_VOLLEY',
+        mageId: mage.id,
+        magePosition: { ...mage.position },
+        chamberId: chamber.id,
+        chamberPosition: { ...chamber.position },
+        hits,
+      });
+      events.push(...deathEvents);
+
+      if (chamber.resonanceTurnsRemaining <= 0) continue;
+      const discovered = Object.values(state.buildings)
+        .filter((candidate) =>
+          candidate.type === BuildingType.CRYSTAL_CHAMBER
+          && candidate.faction === Faction.PLAYER
+          && candidate.resonanceTurnsRemaining > 0
+          && !visited.has(candidate.id)
+          && isTileWithinEdgeCircleRange(
+            chamber.position.x,
+            chamber.position.y,
+            candidate.position.x,
+            candidate.position.y,
+            radius,
+          ))
+        .sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+      for (const candidate of discovered) {
+        visited.add(candidate.id);
+        nextWave.push(candidate);
+        links.push({
+          fromChamberId: chamber.id,
+          fromPosition: { ...chamber.position },
+          toChamberId: candidate.id,
+          toPosition: { ...candidate.position },
+        });
+      }
+    }
+
+    if (links.length > 0) {
+      events.push({ type: 'CRYSTAL_LIGHTNING_CHAMBER_VOLLEY', links });
+    }
+    wave = nextWave;
+  }
+
+  return true;
+}
+
 /** Validates and applies a spell. Returns true on success. */
 export function castSpell(
   state: Draft<GameState>,
   mageId: string,
   spellId: SpellId,
   targetPosition: Position,
+  outEvents?: GameEvent[],
 ): boolean {
   const mage = state.units[mageId];
   if (!mage) return false;
@@ -1171,6 +1330,9 @@ export function castSpell(
       success = true;
       break;
     }
+    case 'CRYSTAL_LIGHTNING':
+      success = handleCrystalLightning(state, mage, targetPosition, outEvents);
+      break;
     case 'CRYSTAL_TOWER':
       success = handleCrystalTower(state, mage); break;
     case 'CRYSTAL_CAVE':

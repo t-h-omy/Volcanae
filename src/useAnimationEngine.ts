@@ -142,6 +142,10 @@ function eventPosition(event: GameEvent): Position {
       return event.toPosition;
     case 'TRAP_TRIGGERED':
       return event.position;
+    case 'CRYSTAL_LIGHTNING_ENEMY_VOLLEY':
+      return event.chamberPosition;
+    case 'CRYSTAL_LIGHTNING_CHAMBER_VOLLEY':
+      return event.links[0]?.fromPosition ?? { x: 0, y: 0 };
   }
 }
 function isTileRevealed(pos: Position): boolean {
@@ -256,6 +260,12 @@ function isEventVisible(event: GameEvent): boolean {
       return isTileRevealed(event.fromPosition) || isTileRevealed(event.toPosition);
     case 'TRAP_TRIGGERED':
       return isTileRevealed(event.position);
+    case 'CRYSTAL_LIGHTNING_ENEMY_VOLLEY':
+      return isTileRevealed(event.chamberPosition)
+        || event.hits.some((hit) => isTileRevealed(hit.position));
+    case 'CRYSTAL_LIGHTNING_CHAMBER_VOLLEY':
+      return event.links.some((link) =>
+        isTileRevealed(link.fromPosition) || isTileRevealed(link.toPosition));
   }
 }
 
@@ -265,6 +275,9 @@ function isEventVisible(event: GameEvent): boolean {
 function postActionDuration(event: GameEvent): number {
   if (event.type === 'LAVA_ADVANCE') return ANIMATION.LAVA_ADVANCE_PAUSE_MS;
   if (event.type === 'ENEMY_SPAWN') return ANIMATION.SPAWN_PAUSE_MS;
+  if (event.type === 'CRYSTAL_LIGHTNING_ENEMY_VOLLEY' || event.type === 'CRYSTAL_LIGHTNING_CHAMBER_VOLLEY') {
+    return ANIMATION.CRYSTAL_LIGHTNING_POST_MS;
+  }
   return ANIMATION.POST_ACTION_IDLE_MS;
 }
 
@@ -946,6 +959,56 @@ export function useAnimationEngine(): void {
 
           // 2. Pre-action idle
           await wait(ANIMATION.PRE_ACTION_IDLE_MS);
+        }
+
+        if (event.type === 'CRYSTAL_LIGHTNING_ENEMY_VOLLEY') {
+          if (visible && event.hits.length > 0) {
+            const tileSize = getTileSize();
+            for (const hit of event.hits) {
+              useCombatAnimationStore.getState().addLineVfx({
+                id: crypto.randomUUID(),
+                fromPx: {
+                  x: event.chamberPosition.x * tileSize + tileSize / 2,
+                  y: event.chamberPosition.y * tileSize + tileSize / 2,
+                },
+                toPx: {
+                  x: hit.position.x * tileSize + tileSize / 2,
+                  y: hit.position.y * tileSize + tileSize / 2,
+                },
+                variant: 'CRYSTAL_LIGHTNING',
+                durationMs: ANIMATION.CRYSTAL_LIGHTNING_BOLT_MS,
+              });
+            }
+            await wait(ANIMATION.CRYSTAL_LIGHTNING_BOLT_MS);
+          }
+          useGameStore.getState().applyEvent(event);
+          if (visible) await wait(postActionDuration(event));
+          continue;
+        }
+
+        if (event.type === 'CRYSTAL_LIGHTNING_CHAMBER_VOLLEY') {
+          if (visible && event.links.length > 0) {
+            const tileSize = getTileSize();
+            for (const link of event.links) {
+              useCombatAnimationStore.getState().addLineVfx({
+                id: crypto.randomUUID(),
+                fromPx: {
+                  x: link.fromPosition.x * tileSize + tileSize / 2,
+                  y: link.fromPosition.y * tileSize + tileSize / 2,
+                },
+                toPx: {
+                  x: link.toPosition.x * tileSize + tileSize / 2,
+                  y: link.toPosition.y * tileSize + tileSize / 2,
+                },
+                variant: 'CRYSTAL_LIGHTNING',
+                durationMs: ANIMATION.CRYSTAL_LIGHTNING_LINK_MS,
+              });
+            }
+            await wait(ANIMATION.CRYSTAL_LIGHTNING_LINK_MS);
+          }
+          useGameStore.getState().applyEvent(event);
+          if (visible) await wait(postActionDuration(event));
+          continue;
         }
 
         // ── Special handling for ENEMY_ATTACK or PLAYER_ATTACK with combat animations ──

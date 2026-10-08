@@ -631,6 +631,35 @@ export function calculateCombatFromStats(attacker: Combatant, defender: Combatan
   };
 }
 
+/** Calculates ranged spell damage using the combat formula and defender bonuses. */
+export function calculateCrystalLightningDamage(
+  state: GameState | Draft<GameState>,
+  defender: Unit,
+  attackPower: number,
+): number {
+  const attacker: Combatant = {
+    currentHp: 1,
+    maxHp: 1,
+    baseMaxHp: 1,
+    attack: attackPower,
+    defense: 0,
+    attackRange: 2,
+    positionX: defender.position.x,
+    positionY: defender.position.y,
+    faction: Faction.PLAYER,
+    tags: [UnitTag.RANGED],
+  };
+  const defenderCombatant = unitToCombatant(defender);
+  defenderCombatant.defense += getPhalanxDefenseBonus(state, defender);
+  defenderCombatant.defense = applyReloadPenalty(defender, defenderCombatant.defense);
+
+  const damage = calculateCombatFromStats(attacker, defenderCombatant).defenderHpLost;
+  if (defender.tags.includes(UnitTag.FLYING)) {
+    return Math.round(damage * ABILITIES.FLYING_RANGED_DAMAGE_TAKEN_MULTIPLIER);
+  }
+  return damage;
+}
+
 // ============================================================================
 // ATTACK RESOLUTION
 // ============================================================================

@@ -1472,6 +1472,28 @@
   100% { opacity: 0;    stroke-width: 5; }
 }
 
+/* ── CRYSTAL_LIGHTNING — bright branching arcane beam ──────────────────── */
+
+.line-vfx--crystal-lightning {
+  fill: none;
+  stroke: #8df8ff;
+  stroke-width: 9;
+  stroke-linecap: round;
+  opacity: 0;
+  animation: crystalLightningLayer var(--line-vfx-duration, 260ms) ease-out forwards;
+  filter:
+    drop-shadow(0 0 3px rgba(255, 255, 255, 0.95))
+    drop-shadow(0 0 9px rgba(58, 190, 255, 0.95))
+    drop-shadow(0 0 16px rgba(93, 69, 255, 0.75));
+}
+
+@keyframes crystalLightningLayer {
+  0%   { opacity: 0; stroke-width: 3; }
+  18%  { opacity: 1; stroke-width: 10; }
+  75%  { opacity: 0.95; stroke-width: 8; }
+  100% { opacity: 0; stroke-width: 4; }
+}
+
 /* ── SPELL_IMPACT base — shared by all SPELL_IMPACT_* modifier variants ── */
 
 [class*="tile-vfx--spell-impact"] {

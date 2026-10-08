@@ -1843,9 +1843,43 @@ export const useGameStore = create<GameStore>()(
       let castSpellId: import('./types').SpellId | null = null;
       let magePosition: Position | null = null;
       const killedCaveMonsterIds: string[] = [];
+      let crystalLightningEvents: GameEvent[] | null = null;
+      let crystalLightningResolvedState: GameState | null = null;
       set((state) => {
         if (!state.pendingSpellCast) return;
         const { mageId, spellId } = state.pendingSpellCast;
+
+        if (spellId === 'CRYSTAL_LIGHTNING') {
+          const snapshot: GameState = current(state);
+          const events: GameEvent[] = [];
+          let committed = false;
+          const resolvedState = produce(snapshot, (draft) => {
+            committed = castSpellLogic(draft, mageId, spellId, targetPosition, events);
+            if (!committed) return;
+            const mage = draft.units[mageId];
+            if (mage) mage.spellsCastThisTurn = (mage.spellsCastThisTurn ?? 0) + 1;
+            draft.pendingSpellCast = null;
+            draft.pendingTransposeFirstUnitId = null;
+            updateDiscovery(draft);
+            checkGameConditions(draft);
+          });
+          if (!committed) return;
+
+          state.arcaneCrystals = resolvedState.arcaneCrystals;
+          const mage = state.units[mageId];
+          if (mage) mage.spellsCastThisTurn = resolvedState.units[mageId]?.spellsCastThisTurn ?? mage.spellsCastThisTurn;
+          state.pendingSpellCast = null;
+          state.pendingTransposeFirstUnitId = null;
+          state.phase = GamePhase.ENEMY_TURN;
+          state.selectedUnitId = null;
+          state.selectedBuildingId = null;
+          state.selectedTilePos = null;
+          castSpellId = spellId;
+          magePosition = mage ? { ...mage.position } : null;
+          crystalLightningEvents = events;
+          crystalLightningResolvedState = resolvedState;
+          return;
+        }
 
         // Snapshot enemy cave monster IDs before the spell to detect kills.
         const caveMonstersBefore = new Set(
@@ -1889,6 +1923,9 @@ export const useGameStore = create<GameStore>()(
         updateDiscovery(state);
         checkGameConditions(state);
       });
+      if (crystalLightningEvents !== null && crystalLightningResolvedState !== null) {
+        useAnimationStore.getState().enqueue(crystalLightningEvents, crystalLightningResolvedState);
+      }
       // Enqueue CAVE_MONSTER_KILLED events for any cave monsters killed by the spell.
       // This triggers the specialist-draw modal via the animation engine, mirroring
       // the same flow used when a cave monster is killed by a normal attack.
@@ -1933,7 +1970,7 @@ export const useGameStore = create<GameStore>()(
         // magePosition is captured from inside the immer callback — cast to silence
         // TypeScript's closure-assignment narrowing.
         const capturedMagePosition = magePosition as Position | null;
-        if (capturedMagePosition !== null) {
+        if (capturedMagePosition !== null && castSpellId !== 'CRYSTAL_LIGHTNING') {
           const tileSize = typeof window !== 'undefined' && window.innerWidth <= RENDER.MOBILE_BREAKPOINT
             ? RENDER.TILE_SIZE_MOBILE
             : RENDER.TILE_SIZE_DESKTOP;
@@ -3231,6 +3268,43 @@ export const useGameStore = create<GameStore>()(
             });
             break;
           }
+
+          case 'CRYSTAL_LIGHTNING_ENEMY_VOLLEY': {
+            const mage = state.units[event.mageId];
+            for (const hit of event.hits) {
+              const target = state.units[hit.unitId];
+              if (target) {
+                applyUnitDamage(target, hit.damage);
+                updateBerserkLatch(target);
+              }
+              state.gameStats.damageDealt += hit.damage;
+              if (hit.killed) state.gameStats.unitsKilled += 1;
+              if (hit.damage > 0) {
+                useFloaterStore.getState().addFloater({
+                  value: hit.damage,
+                  x: hit.position.x,
+                  y: hit.position.y,
+                  isEnemy: true,
+                  floaterType: 'damage',
+                });
+              }
+              if (hit.mageXpGained > 0) {
+                if (mage) mage.xp += hit.mageXpGained;
+                useFloaterStore.getState().addFloater({
+                  value: hit.mageXpGained,
+                  label: `⭐ +${hit.mageXpGained}`,
+                  x: event.magePosition.x,
+                  y: event.magePosition.y,
+                  isEnemy: false,
+                  floaterType: 'xp',
+                });
+              }
+            }
+            break;
+          }
+
+          case 'CRYSTAL_LIGHTNING_CHAMBER_VOLLEY':
+            break;
 
           case 'UNIT_HEAL': {
             const healedUnit = state.units[event.unitId];
