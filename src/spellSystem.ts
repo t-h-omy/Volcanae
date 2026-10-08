@@ -29,6 +29,7 @@ import { canUnitOccupyTerrain } from './movementSystem';
 import type { TextRef } from './i18n/i18n';
 import { t } from './i18n/i18n';
 import { spellName } from './i18n/entityText';
+import { applyUnitDamage } from './unitDamage';
 
 /** Returns the effective spell range for a mage (its attack range). */
 export function getMageSpellRange(
@@ -251,6 +252,15 @@ export function getValidSpellTargets(
         .filter((unit) =>
           unit.faction === Faction.PLAYER
           && !unit.tags.includes(UnitTag.TAUNT)
+          && isTileInSpellRange(mage, unit.position, range))
+        .map((unit) => ({ ...unit.position }));
+    }
+
+    case 'STONE_SKIN': {
+      return Object.values(state.units)
+        .filter((unit) =>
+          unit.faction === Faction.PLAYER
+          && !unit.tags.includes(UnitTag.STONE_SKIN)
           && isTileInSpellRange(mage, unit.position, range))
         .map((unit) => ({ ...unit.position }));
     }
@@ -573,15 +583,6 @@ function handleEmberbind(
       const t = state.grid[pos.y]?.[pos.x];
       if (t && !t.unitId && !t.isLava) {
         spawnPos = pos;
-        break;
-      }
-      case 'STONE_SKIN': {
-        const targetId = state.grid[targetPosition.y]?.[targetPosition.x]?.unitId;
-        const target = targetId ? state.units[targetId] : undefined;
-        if (!target || target.faction !== Faction.PLAYER || target.tags.includes(UnitTag.STONE_SKIN)) return false;
-        target.tags.push(UnitTag.STONE_SKIN);
-        target.stoneSkinHp = MAGE.STONE_SKIN_HP;
-        success = true;
         break;
       }
     }
@@ -1047,7 +1048,7 @@ function handleExplode(
     const adjUnit = state.units[adjTile.unitId];
     if (!adjUnit || adjUnit.faction !== Faction.ENEMY) continue;
 
-    adjUnit.stats.currentHp -= dmg;
+    const damageOutcome = applyUnitDamage(adjUnit, dmg);
     updateBerserkLatch(adjUnit);
     // Damage floater for each hit enemy
     useFloaterStore.getState().addFloater({
@@ -1056,7 +1057,7 @@ function handleExplode(
       y: ny,
       isEnemy: true,
     });
-    if (adjUnit.stats.currentHp <= 0) {
+    if (damageOutcome.died) {
       adjTile.unitId = null;
       delete state.units[adjUnit.id];
       state.gameStats.unitsKilled += 1;
@@ -1101,7 +1102,8 @@ function handleRupture(
   if (target.faction !== Faction.ENEMY) return false;
 
   const dmg = Math.floor(target.stats.currentHp * MAGE.RUPTURE_PERCENT);
-  target.stats.currentHp = Math.max(1, target.stats.currentHp - dmg);
+  applyUnitDamage(target, dmg);
+  target.stats.currentHp = Math.max(1, target.stats.currentHp);
   updateBerserkLatch(target);
 
   useFloaterStore.getState().addFloater({
@@ -1157,6 +1159,15 @@ export function castSpell(
       const target = targetId ? state.units[targetId] : undefined;
       if (!target || target.faction !== Faction.PLAYER || target.tags.includes(UnitTag.TAUNT)) return false;
       target.tags.push(UnitTag.TAUNT);
+      success = true;
+      break;
+    }
+    case 'STONE_SKIN': {
+      const targetId = state.grid[targetPosition.y]?.[targetPosition.x]?.unitId;
+      const target = targetId ? state.units[targetId] : undefined;
+      if (!target || target.faction !== Faction.PLAYER || target.tags.includes(UnitTag.STONE_SKIN)) return false;
+      target.tags.push(UnitTag.STONE_SKIN);
+      target.stoneSkinHp = MAGE.STONE_SKIN_HP;
       success = true;
       break;
     }

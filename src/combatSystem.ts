@@ -20,11 +20,22 @@ import { getBridgeAt } from './bridgeSystem';
 import { resolveSlide } from './movementSystem';
 import { isSpecialistEffectActive } from './specialistSystem';
 import { anyAttackableEnemyTargetInRange, applySpawnActionFlags, getAttackTargets } from './unitActions';
+import { applyUnitDamage, getUnitDamageOutcome } from './unitDamage';
 
 // Counter for generating unique gravestone building IDs within this module
 let combatSystemIdCounter = 0;
 function generateCombatBuildingId(): string {
   return `building_grave_${Date.now()}_${++combatSystemIdCounter}`;
+}
+
+export interface UnitAttackDamage {
+  attackerDamage: number;
+  defenderDamage: number;
+}
+
+export interface UnitBuildingAttackDamage {
+  attackerDamage: number;
+  buildingDamage: number;
 }
 
 /**
@@ -894,9 +905,10 @@ export function resolveAttack(
   defenderId: string,
   suppressFloaters?: boolean,
   outEvents?: GameEvent[],
-): void {
-  resolveAttackInner(state, attackerId, defenderId, suppressFloaters, outEvents);
+): UnitAttackDamage | undefined {
+  const damage = resolveAttackInner(state, attackerId, defenderId, suppressFloaters, outEvents);
   applyPendingAssimilations(state);
+  return damage;
 }
 
 function resolveAttackInner(
@@ -905,13 +917,13 @@ function resolveAttackInner(
   defenderId: string,
   suppressFloaters?: boolean,
   outEvents?: GameEvent[],
-): void {
+): UnitAttackDamage | undefined {
   const attacker = state.units[attackerId];
   const defender = state.units[defenderId];
 
   // Validate units exist
   if (!attacker || !defender) {
-    return;
+    return undefined;
   }
 
   // Capture factions before mutations
@@ -1050,8 +1062,8 @@ function resolveAttackInner(
   }
 
   // Apply damage to defender
-  const newDefenderHp = defender.stats.currentHp - combatResult.defenderHpLost;
-  const defenderDead = newDefenderHp <= 0;
+  const defenderDamageOutcome = getUnitDamageOutcome(defender, combatResult.defenderHpLost);
+  const defenderDead = defenderDamageOutcome.died;
 
   // If defender survives AND attacker is within defender's attack range, apply counter-damage
   const defenderCanCounterAttack = isTileWithinEdgeCircleRange(
@@ -1060,13 +1072,14 @@ function resolveAttackInner(
     defender.stats.attackRange,
   );
   const attackerTakesCounterDamage = !defenderDead && defenderCanCounterAttack;
-  const newAttackerHp = attackerTakesCounterDamage
-    ? attacker.stats.currentHp - combatResult.attackerHpLost
-    : attacker.stats.currentHp;
-  const attackerDead = newAttackerHp <= 0;
+  const attackerDamageOutcome = attackerTakesCounterDamage
+    ? getUnitDamageOutcome(attacker, combatResult.attackerHpLost)
+    : getUnitDamageOutcome(attacker, 0);
+  const attackerDead = attackerDamageOutcome.died;
   const attackerWillAdvanceToDefenderTile =
     defenderDead &&
     !attackerDead &&
+    !attacker.tags.includes(UnitTag.STONE_SKIN) &&
     !attacker.tags.includes(UnitTag.RANGED) &&
     (state.grid[defender.position.y][defender.position.x].terrainType !== TileType.CANYON ||
       !!getBridgeAt(state, defender.position.x, defender.position.y)) &&
@@ -1109,6 +1122,9 @@ function resolveAttackInner(
 
   // Update attacker
   if (attackerDead) {
+    if (attackerTakesCounterDamage) {
+      applyUnitDamage(attacker, combatResult.attackerHpLost);
+    }
     // Capture tags and position before removal (for BRANDMARKED and GRAVESTONE checks)
     const attackerTags = [...attacker.tags];
     const attackerType = attacker.type;
@@ -1141,8 +1157,8 @@ function resolveAttackInner(
     // Grant XP to defender for killing the attacker (regardless of BRANDMARKED)
     grantXp(state, defenderId, XP.KILL_UNIT, suppressFloaters);
   } else {
-    // Update attacker HP and mark as acted
-    attacker.stats.currentHp = newAttackerHp;
+    // Apply post-mitigation damage and mark as acted.
+    applyUnitDamage(attacker, attackerTakesCounterDamage ? combatResult.attackerHpLost : 0);
     updateBerserkLatch(attacker);
     attacker.hasAttackedThisTurn = true;
 
@@ -1161,6 +1177,7 @@ function resolveAttackInner(
 
   // Update defender
   if (defenderDead) {
+    applyUnitDamage(defender, combatResult.defenderHpLost);
     // Capture the defender's type and tags before removal for BLOODLUST, REVIVABLE, and BRANDMARKED checks
     const defenderType = defender.type;
     const defenderTags = [...defender.tags];
@@ -1300,8 +1317,8 @@ function resolveAttackInner(
       }
     }
   } else {
-    // Update defender HP
-    defender.stats.currentHp = newDefenderHp;
+    // Apply post-mitigation damage.
+    applyUnitDamage(defender, combatResult.defenderHpLost);
     updateBerserkLatch(defender);
 
     // DISTRACTION: permanently reduce defender's DEF on each hit.
@@ -1404,7 +1421,7 @@ function resolveAttackInner(
         const splashTarget = state.units[splashTile.unitId];
         if (!splashTarget || splashTarget.faction !== Faction.ENEMY) continue;
         const splashTargetId = splashTile.unitId;
-        const newSplashHp = splashTarget.stats.currentHp - splashDamage;
+        const splashDamageOutcome = getUnitDamageOutcome(splashTarget, splashDamage);
         if (!suppressFloaters && splashTile.isRevealed) {
           const { addFloater } = useFloaterStore.getState();
           addFloater({ value: splashDamage, x: nx, y: ny, isEnemy: true });
@@ -1416,7 +1433,8 @@ function resolveAttackInner(
           amount: splashDamage,
           isEnemy: true,
         });
-        if (newSplashHp <= 0) {
+        if (splashDamageOutcome.died) {
+          applyUnitDamage(splashTarget, splashDamage);
           splashTile.unitId = null;
           recordKhyronKill(state, attackerId, splashTarget.faction, splashTarget.tags);
           delete state.units[splashTargetId];
@@ -1429,7 +1447,7 @@ function resolveAttackInner(
             faction: splashTarget.faction,
           });
         } else {
-          splashTarget.stats.currentHp = newSplashHp;
+          applyUnitDamage(splashTarget, splashDamage);
           updateBerserkLatch(splashTarget);
         }
       }
@@ -1461,7 +1479,7 @@ function resolveAttackInner(
           // CLEAVE deals 50% of the damage dealt to the primary defender directly — no
           // second defense reduction. Minimum 1 ensures the tag is always meaningful.
           const finalCleaveDamage = Math.max(1, cleaveDamage);
-          const newCleaveHp = cleaveTarget.stats.currentHp - finalCleaveDamage;
+          const cleaveDamageOutcome = getUnitDamageOutcome(cleaveTarget, finalCleaveDamage);
           if (!suppressFloaters) {
             const { addFloater } = useFloaterStore.getState();
             addFloater({ value: finalCleaveDamage, x: cx, y: cy, isEnemy: cleaveTarget.faction === Faction.ENEMY });
@@ -1474,7 +1492,8 @@ function resolveAttackInner(
             isEnemy: cleaveTarget.faction === Faction.ENEMY,
             attackerPosition: { ...attackerPosition },
           });
-          if (newCleaveHp <= 0) {
+          if (cleaveDamageOutcome.died) {
+            applyUnitDamage(cleaveTarget, finalCleaveDamage);
             cleaveTile.unitId = null;
             recordKhyronKill(state, attackerId, cleaveTarget.faction, cleaveTarget.tags);
             delete state.units[cleaveTargetId];
@@ -1488,7 +1507,7 @@ function resolveAttackInner(
               faction: cleaveTarget.faction,
             });
           } else {
-            cleaveTarget.stats.currentHp = newCleaveHp;
+            applyUnitDamage(cleaveTarget, finalCleaveDamage);
             updateBerserkLatch(cleaveTarget);
           }
         }
@@ -1528,7 +1547,7 @@ function resolveAttackInner(
           const isHostileRear = rearUnit.faction !== attackerFaction;
           if (isHostileRear) {
             const finalPierceDamage = Math.max(1, Math.round(fullPrimaryDamage * ABILITIES.PIERCE_SECONDARY_DAMAGE_MULTIPLIER));
-            const newRearHp = rearUnit.stats.currentHp - finalPierceDamage;
+            const pierceDamageOutcome = getUnitDamageOutcome(rearUnit, finalPierceDamage);
             if (!suppressFloaters) {
               const { addFloater } = useFloaterStore.getState();
               addFloater({ value: finalPierceDamage, x: behindPos.x, y: behindPos.y, isEnemy: rearUnit.faction === Faction.ENEMY });
@@ -1543,7 +1562,8 @@ function resolveAttackInner(
               attackerPosition: { ...attackerPosition },
               primaryDefenderPosition: { ...defenderPosition },
             });
-            if (newRearHp <= 0) {
+            if (pierceDamageOutcome.died) {
+              applyUnitDamage(rearUnit, finalPierceDamage);
               recordKhyronKill(state, attackerId, rearUnit.faction, rearUnit.tags);
               if (rearUnit.tags.includes(UnitTag.BRANDMARKED)) {
                 // BRANDMARKED: complete the transform so an Ember Demon spawns in the
@@ -1564,7 +1584,7 @@ function resolveAttackInner(
                 faction: rearUnit.faction,
               });
             } else {
-              rearUnit.stats.currentHp = newRearHp;
+              applyUnitDamage(rearUnit, finalPierceDamage);
               updateBerserkLatch(rearUnit);
             }
           } else {
@@ -1658,6 +1678,10 @@ function resolveAttackInner(
   if (!attackerDead && attacker.tags.includes(UnitTag.BURN) && !attackerOnCorrupted) {
     applyTileStatus(state, defenderPosition, TileStatus.BURNING);
   }
+  return {
+    attackerDamage: attackerTakesCounterDamage ? combatResult.attackerHpLost : 0,
+    defenderDamage: combatResult.defenderHpLost,
+  };
 }
 
 // ============================================================================
@@ -1706,11 +1730,11 @@ export function resolveBuildingAttack(
   buildingId: string,
   defenderId: string,
   suppressFloaters?: boolean,
-): void {
+): { defenderDamage: number } | undefined {
   const building = state.buildings[buildingId];
   const defender = state.units[defenderId];
 
-  if (!building || !building.combatStats || !building.faction || !defender) return;
+  if (!building || !building.combatStats || !building.faction || !defender) return undefined;
 
   const buildingFaction = building.faction;
   const defenderFaction = defender.faction;
@@ -1744,9 +1768,10 @@ export function resolveBuildingAttack(
   defenderCombatant.defense = applyReloadPenalty(defender, defenderCombatant.defense);
 
   const combatResult = calculateCombatFromStats(buildingCombatant, defenderCombatant);
+  const defenderDamage = combatResult.defenderHpLost;
 
-  const newDefenderHp = defender.stats.currentHp - combatResult.defenderHpLost;
-  const defenderDead = newDefenderHp <= 0;
+  const defenderDamageOutcome = getUnitDamageOutcome(defender, combatResult.defenderHpLost);
+  const defenderDead = defenderDamageOutcome.died;
 
   // Defender can counter-attack if it survives and building is within its attack range
   const defenderCanCounter = isTileWithinEdgeCircleRange(
@@ -1759,6 +1784,7 @@ export function resolveBuildingAttack(
     ? building.hp - combatResult.attackerHpLost
     : building.hp;
   const buildingDead = newBuildingHp <= 0;
+  applyUnitDamage(defender, combatResult.defenderHpLost);
 
   // Update game stats
   if (buildingFaction === Faction.ENEMY && defenderFaction === Faction.PLAYER) {
@@ -1887,9 +1913,9 @@ export function resolveBuildingAttack(
       }
     }
   } else {
-    defender.stats.currentHp = newDefenderHp;
     updateBerserkLatch(defender);
   }
+  return { defenderDamage };
 }
 
 /**
@@ -1925,9 +1951,10 @@ export function resolveAttackOnBuilding(
   buildingId: string,
   suppressFloaters?: boolean,
   outEvents?: GameEvent[],
-): void {
-  resolveAttackOnBuildingInner(state, attackerId, buildingId, suppressFloaters, outEvents);
+): UnitBuildingAttackDamage | undefined {
+  const damage = resolveAttackOnBuildingInner(state, attackerId, buildingId, suppressFloaters, outEvents);
   applyPendingAssimilations(state);
+  return damage;
 }
 
 function resolveAttackOnBuildingInner(
@@ -1936,11 +1963,11 @@ function resolveAttackOnBuildingInner(
   buildingId: string,
   suppressFloaters?: boolean,
   outEvents?: GameEvent[],
-): void {
+): UnitBuildingAttackDamage | undefined {
   const attacker = state.units[attackerId];
   const building = state.buildings[buildingId];
 
-  if (!attacker || !building) return;
+  if (!attacker || !building) return undefined;
 
   // Capture factions before any mutations
   const attackerFaction = attacker.faction;
@@ -2057,10 +2084,10 @@ function resolveAttackOnBuildingInner(
   ));
   const canCounter = canCounterBase &&
     !(attacker.tags.includes(UnitTag.COVER) && buildingCombatant!.attackRange > 1);
-  const newAttackerHp = canCounter
-    ? attacker.stats.currentHp - combatResult.attackerHpLost
-    : attacker.stats.currentHp;
-  const attackerDead = newAttackerHp <= 0;
+  const attackerDamageOutcome = canCounter
+    ? getUnitDamageOutcome(attacker, combatResult.attackerHpLost)
+    : getUnitDamageOutcome(attacker, 0);
+  const attackerDead = attackerDamageOutcome.died;
 
   // Update game stats
   if (attackerFaction === Faction.PLAYER) {
@@ -2093,6 +2120,7 @@ function resolveAttackOnBuildingInner(
 
   // Update attacker
   if (attackerDead) {
+    if (canCounter) applyUnitDamage(attacker, combatResult.attackerHpLost);
     const attackerTags = [...attacker.tags];
     const attackerType = attacker.type;
     const attackerPos = { x: attacker.position.x, y: attacker.position.y };
@@ -2120,7 +2148,7 @@ function resolveAttackOnBuildingInner(
       }
     }
   } else {
-    attacker.stats.currentHp = newAttackerHp;
+    if (canCounter) applyUnitDamage(attacker, combatResult.attackerHpLost);
     updateBerserkLatch(attacker);
     attacker.hasAttackedThisTurn = true;
     // BLOODLUST: clear the pending second-attack flag after it is used.
@@ -2170,6 +2198,7 @@ function resolveAttackOnBuildingInner(
     // Fix (21): when the kill triggers a melee advance onto the building tile, use the
     // DESTINATION tile status — not the attacker's current (pre-advance) tile.
     const willMeleeAdvanceOnBuilding =
+      !attacker.tags.includes(UnitTag.STONE_SKIN) &&
       !attacker.tags.includes(UnitTag.RANGED) &&
       (state.grid[buildingPosition.y][buildingPosition.x].terrainType !== TileType.CANYON ||
         !!getBridgeAt(state, buildingPosition.x, buildingPosition.y)) &&
@@ -2219,6 +2248,7 @@ function resolveAttackOnBuildingInner(
     const targetTerrain = state.grid[buildingPosition.y][buildingPosition.x].terrainType;
     if (
       attackerUnit &&
+      !attackerUnit.tags.includes(UnitTag.STONE_SKIN) &&
       !attackerUnit.tags.includes(UnitTag.RANGED) &&
       (targetTerrain !== TileType.CANYON || !!getBridgeAt(state, buildingPosition.x, buildingPosition.y)) &&
       targetTerrain !== TileType.WATER
@@ -2261,7 +2291,7 @@ function resolveAttackOnBuildingInner(
         const splashTarget = state.units[splashTile.unitId];
         if (!splashTarget || splashTarget.faction !== Faction.ENEMY) continue;
         const splashTargetId = splashTile.unitId;
-        const newSplashHp = splashTarget.stats.currentHp - splashDamage;
+        const splashDamageOutcome = getUnitDamageOutcome(splashTarget, splashDamage);
         if (!suppressFloaters && splashTile.isRevealed) {
           const { addFloater } = useFloaterStore.getState();
           addFloater({ value: splashDamage, x: nx, y: ny, isEnemy: true });
@@ -2273,7 +2303,8 @@ function resolveAttackOnBuildingInner(
           amount: splashDamage,
           isEnemy: true,
         });
-        if (newSplashHp <= 0) {
+        if (splashDamageOutcome.died) {
+          applyUnitDamage(splashTarget, splashDamage);
           splashTile.unitId = null;
           recordKhyronKill(state, attackerId, splashTarget.faction, splashTarget.tags);
           delete state.units[splashTargetId];
@@ -2286,7 +2317,7 @@ function resolveAttackOnBuildingInner(
             faction: splashTarget.faction,
           });
         } else {
-          splashTarget.stats.currentHp = newSplashHp;
+          applyUnitDamage(splashTarget, splashDamage);
           updateBerserkLatch(splashTarget);
         }
       }
@@ -2315,7 +2346,7 @@ function resolveAttackOnBuildingInner(
           const cleaveTarget = state.units[cleaveTargetId];
           if (!cleaveTarget || cleaveTarget.faction === attacker.faction) continue;
           const finalCleaveDamage = Math.max(1, cleaveDamage);
-          const newCleaveHp = cleaveTarget.stats.currentHp - finalCleaveDamage;
+          const cleaveDamageOutcome = getUnitDamageOutcome(cleaveTarget, finalCleaveDamage);
           if (!suppressFloaters) {
             const { addFloater } = useFloaterStore.getState();
             addFloater({ value: finalCleaveDamage, x: cx, y: cy, isEnemy: cleaveTarget.faction === Faction.ENEMY });
@@ -2328,7 +2359,8 @@ function resolveAttackOnBuildingInner(
             isEnemy: cleaveTarget.faction === Faction.ENEMY,
             attackerPosition: { ...attackerPosition },
           });
-          if (newCleaveHp <= 0) {
+          if (cleaveDamageOutcome.died) {
+            applyUnitDamage(cleaveTarget, finalCleaveDamage);
             cleaveTile.unitId = null;
             recordKhyronKill(state, attackerId, cleaveTarget.faction, cleaveTarget.tags);
             delete state.units[cleaveTargetId];
@@ -2342,7 +2374,7 @@ function resolveAttackOnBuildingInner(
               faction: cleaveTarget.faction,
             });
           } else {
-            cleaveTarget.stats.currentHp = newCleaveHp;
+            applyUnitDamage(cleaveTarget, finalCleaveDamage);
             updateBerserkLatch(cleaveTarget);
           }
         }
@@ -2379,7 +2411,7 @@ function resolveAttackOnBuildingInner(
           const isHostileRear = rearUnit.faction !== attackerFaction;
           if (isHostileRear) {
             const finalPierceDamage = Math.max(1, Math.round(fullPrimaryDamage * ABILITIES.PIERCE_SECONDARY_DAMAGE_MULTIPLIER));
-            const newRearHp = rearUnit.stats.currentHp - finalPierceDamage;
+            const pierceDamageOutcome = getUnitDamageOutcome(rearUnit, finalPierceDamage);
             if (!suppressFloaters) {
               const { addFloater } = useFloaterStore.getState();
               addFloater({ value: finalPierceDamage, x: behindPos.x, y: behindPos.y, isEnemy: rearUnit.faction === Faction.ENEMY });
@@ -2394,7 +2426,8 @@ function resolveAttackOnBuildingInner(
               attackerPosition: { ...attackerPosition },
               primaryDefenderPosition: { ...buildingPosition },
             });
-            if (newRearHp <= 0) {
+            if (pierceDamageOutcome.died) {
+              applyUnitDamage(rearUnit, finalPierceDamage);
               recordKhyronKill(state, attackerId, rearUnit.faction, rearUnit.tags);
               if (rearUnit.tags.includes(UnitTag.BRANDMARKED)) {
                 // BRANDMARKED: complete the transform so an Ember Demon spawns in the
@@ -2415,7 +2448,7 @@ function resolveAttackOnBuildingInner(
                 faction: rearUnit.faction,
               });
             } else {
-              rearUnit.stats.currentHp = newRearHp;
+              applyUnitDamage(rearUnit, finalPierceDamage);
               updateBerserkLatch(rearUnit);
             }
           } else {
@@ -2497,6 +2530,10 @@ function resolveAttackOnBuildingInner(
       });
     }
   }
+  return {
+    attackerDamage: canCounter ? combatResult.attackerHpLost : 0,
+    buildingDamage: combatResult.defenderHpLost,
+  };
 }
 
 /**

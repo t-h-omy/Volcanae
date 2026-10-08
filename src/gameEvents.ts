@@ -184,6 +184,8 @@ export type GameEvent =
       position: Position;
       /** Amount of damage dealt */
       amount: number;
+      /** Actual pre-mitigation amount applied to Stone Skin and normal HP pools. */
+      damageAmount?: number;
       /** High-level source of the damage event. */
       damageSource?: 'BURNING' | 'TAG' | 'TRAP';
     }

@@ -834,5 +834,29 @@
       "it",
       "pt-BR"
     ]
+  },
+  "tag.STONE_SKIN.label": {
+    "note": "Name of the persistent Mage tag and separate temporary HP pool."
+  },
+  "tag.STONE_SKIN.desc": {
+    "note": "Stone HP absorbs post-mitigation damage before normal HP and blocks voluntary movement while active."
+  },
+  "tech.STONE_SKIN.name": {
+    "note": "Arcane technology that unlocks the Stone Skin spell."
+  },
+  "tech.STONE_SKIN.desc": {
+    "note": "Short technology description."
+  },
+  "spell.STONE_SKIN.name": {
+    "note": "Mage spell that grants a separate Stone HP pool."
+  },
+  "spell.STONE_SKIN.desc": {
+    "note": "Stone HP absorbs incoming damage before normal HP. Keep the stoneHp ICU parameter."
+  },
+  "spell.STONE_SKIN.targetHint": {
+    "note": "Targeting instruction for the Stone Skin spell."
+  },
+  "reason.spell.stoneSkinAlreadyActive": {
+    "note": "Short invalid-target feedback when the selected unit already has Stone Skin."
   }
 }

@@ -24,6 +24,7 @@ import { applyTileStatus } from './tileStatusSystem';
 import { TileStatus } from './types';
 import type { GameEvent } from './gameEvents';
 import { updateBerserkLatch } from './combatSystem';
+import { applyUnitDamage } from './unitDamage';
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -393,11 +394,11 @@ function _applyEmergenceDamage(
     // even if the unit dies below.
     affected.push({ x: target.position.x, y: target.position.y });
 
-    target.stats.currentHp -= ABILITIES.TUNNEL_EMERGE_DAMAGE;
+    const damageOutcome = applyUnitDamage(target, ABILITIES.TUNNEL_EMERGE_DAMAGE);
     updateBerserkLatch(target);
     state.gameStats.damageReceived += ABILITIES.TUNNEL_EMERGE_DAMAGE;
 
-    if (target.stats.currentHp <= 0) {
+    if (damageOutcome.died) {
       const deathPos = { x: target.position.x, y: target.position.y };
       const tile = state.grid[deathPos.y][deathPos.x];
       if (tile.unitId === target.id) tile.unitId = null;

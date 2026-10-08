@@ -14,6 +14,7 @@ import { cleanupRoostedUnits } from './buildingRemoval';
 import { getBridgeAt, canTraverseEdge } from './bridgeSystem';
 import type { GameEvent } from './gameEvents';
 import { updateBerserkLatch } from './combatSystem';
+import { applyUnitDamage } from './unitDamage';
 
 // ============================================================================
 // MOVEMENT CALCULATIONS
@@ -364,7 +365,7 @@ export function checkScoutTrapTrigger(
   const damage = building.trapDamage ?? ABILITIES.SCOUT_TRAP_DAMAGE;
 
   // Deal damage to the triggering unit.
-  unit.stats.currentHp -= damage;
+  const damageOutcome = applyUnitDamage(unit, damage);
   updateBerserkLatch(unit);
 
   if (events) {
@@ -387,7 +388,7 @@ export function checkScoutTrapTrigger(
   }
 
   // If the unit is killed by the trap damage, remove it and the building.
-  if (unit.stats.currentHp <= 0) {
+  if (damageOutcome.died) {
     tile.unitId = null;
     state.gameStats.unitsKilled += 1;
     delete state.units[unitId];

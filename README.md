@@ -72,6 +72,7 @@ Spells are unlocked individually through the tech tree. Available spells include
 | 💥 Explode | Deal area damage around a target tile |
 | 💎 Crystal Tower | Sacrifice the Mage to erect a permanent Crystal Tower on its tile |
 | 🎯 Taunt | Mark a friendly unit so hostile units must attack it whenever it is a legal target in range |
+| 🪨 Stone Skin | Grant a friendly unit a separate 50 HP pool that absorbs damage before normal HP and prevents voluntary movement while it remains |
 
 The **Crystal Khyron** tech (child of Arcane Awakening) unlocks a Khyron recruitable from a resonating Crystal Chamber for 2 Arcane Crystals, sharing the Chamber's recruitment limit with Mages. While a Chamber resonates it carries the **Resonance** tag; its first enemy kill transforms it one level (max Lv.3) and permanently inherits that enemy's Cleave, Pierce, Rage, Alert, Ironblood, Block, Puncture and Burn tags. Khyrons never gain XP.
 

@@ -15,6 +15,7 @@ import type { GameState, Position } from './types';
 import type { GameEvent } from './gameEvents';
 import { TILE_STATUS_WHITELIST, BURNING_TILE_DAMAGE } from './gameConfig';
 import { updateBerserkLatch } from './combatSystem';
+import { applyUnitDamage } from './unitDamage';
 
 // ============================================================================
 // QUERY HELPERS
@@ -173,7 +174,7 @@ export function processTileStatusEndOfTurn(
       ) continue;
 
       const damage = Math.min(BURNING_TILE_DAMAGE, unit.stats.currentHp);
-      unit.stats.currentHp -= damage;
+      const damageOutcome = applyUnitDamage(unit, BURNING_TILE_DAMAGE);
       updateBerserkLatch(unit);
 
       if (events) {
@@ -182,11 +183,12 @@ export function processTileStatusEndOfTurn(
           unitId: unit.id,
           position: { x: unit.position.x, y: unit.position.y },
           amount: damage,
+          damageAmount: BURNING_TILE_DAMAGE,
           damageSource: 'BURNING',
         });
       }
 
-      if (unit.stats.currentHp <= 0) {
+      if (damageOutcome.died) {
         burnDying.push({
           unitId: unit.id,
           position: { x: unit.position.x, y: unit.position.y },

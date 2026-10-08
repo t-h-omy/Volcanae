@@ -280,10 +280,9 @@ export function processMagmaSpyrAttacks(
       const buildingPos = { x: building.position.x, y: building.position.y };
       const defenderPos = { x: targetUnit.position.x, y: targetUnit.position.y };
       const buildingHpBefore = building.hp;
-      const defenderHpBefore = targetUnit.stats.currentHp;
       const defenderId = target.unit.id;
 
-      resolveBuildingAttack(state, building.id, defenderId, suppressFloaters);
+      const attackDamage = resolveBuildingAttack(state, building.id, defenderId, suppressFloaters);
 
       // MAGMA_SPYR: corrupt the tile of the hit player unit.
       // applyTileStatus respects the whitelist; silently no-ops for terrain
@@ -300,7 +299,7 @@ export function processMagmaSpyrAttacks(
         buildingPosition: buildingPos,
         defenderPosition: defenderPos,
         buildingHpLost: buildingAfter ? buildingHpBefore - buildingAfter.hp : buildingHpBefore,
-        defenderHpLost: defenderAfter ? defenderHpBefore - defenderAfter.stats.currentHp : defenderHpBefore,
+        defenderHpLost: attackDamage?.defenderDamage ?? 0,
         tileCorruptedPosition: tileCorrupted ? { ...defenderPos } : undefined,
       });
 
@@ -421,4 +420,3 @@ export function processEmberNestSpawns(
     });
   }
 }
-

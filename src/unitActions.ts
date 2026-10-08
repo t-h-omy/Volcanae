@@ -152,7 +152,7 @@ export function getNorthermostPlayerY(
  *   - any non-move action flag: non-move actions end the unit's turn entirely
  *     EXCEPTION: HIT_AND_RUN — a unit with HIT_AND_RUN may move before AND after attacking
  *
- * Tag rules: none currently.
+ * Tag rules: STONE_SKIN prevents voluntary movement.
  * To add a tag that restricts movement, add it here and only here.
  */
 export function canUnitMove(

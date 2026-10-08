@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.115.8 - Stone Skin spell
+
+Added the Stone Skin tech and spell with a separate 50 HP pool, damage absorption across combat and environmental sources, voluntary movement lock, and a separate grid HP bar.
+
 ### v0.115.7 - Taunt spell
 
 Added the Taunt tech and spell, permanent unit tag, localized status badge and invalid-target feedback, and shared player and enemy-AI attack targeting rules.

@@ -75,6 +75,7 @@ import { useDevOptionsStore } from './devOptionsStore';
 import { t } from './i18n/i18n';
 import { resourceName } from './i18n/entityText';
 import { appendChunk, deleteTurnsAfter, getTraceIndexSeed, readMeta as readAiTraceMeta, sealRun } from './aiTraceStore';
+import { applyUnitDamage } from './unitDamage';
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
@@ -690,6 +691,7 @@ export const useGameStore = create<GameStore>()(
       let pendingEvents: GameEvent[] | null = null;
       let pendingResolvedState: GameState | null = null;
       let attackerFactionCapture: string | null = null;
+      let attackDamage: ReturnType<typeof resolveAttack>;
 
       set((state) => {
         const attacker = state.units[attackerId];
@@ -698,8 +700,6 @@ export const useGameStore = create<GameStore>()(
 
         const attackerPosition = { x: attacker.position.x, y: attacker.position.y };
         const defenderPosition = { x: defender.position.x, y: defender.position.y };
-        const attackerHpBefore = attacker.stats.currentHp;
-        const defenderHpBefore = defender.stats.currentHp;
         const defenderFaction = defender.faction;
         const attackerFaction = attacker.faction;
         attackerFactionCapture = attackerFaction;
@@ -717,7 +717,7 @@ export const useGameStore = create<GameStore>()(
 
         // Compute the resolved state (post-attack) on the snapshot
         const resolvedState = produce(snapshot, (draft) => {
-          resolveAttack(draft, attackerId, targetId, true, secondaryEvents);
+          attackDamage = resolveAttack(draft, attackerId, targetId, true, secondaryEvents);
           // If the primary target is a cave monster that was killed, remove its encounter entry
           if (
             snapshot.units[targetId]?.type === UnitType.CAVE_MONSTER &&
@@ -781,12 +781,8 @@ export const useGameStore = create<GameStore>()(
           defenderId: targetId,
           attackerPosition,
           defenderPosition,
-          attackerHpLost: attackerAfter
-            ? attackerHpBefore - attackerAfter.stats.currentHp
-            : attackerHpBefore,
-          defenderHpLost: defenderAfter
-            ? defenderHpBefore - defenderAfter.stats.currentHp
-            : defenderHpBefore,
+          attackerHpLost: attackDamage?.attackerDamage ?? 0,
+          defenderHpLost: attackDamage?.defenderDamage ?? 0,
           advancedToPosition,
           attackerXpGained,
           defenderXpGained,
@@ -868,6 +864,7 @@ export const useGameStore = create<GameStore>()(
     attackBuilding: (attackerId: string, buildingId: string) => {
       let pendingEvents: GameEvent[] | null = null;
       let pendingResolvedState: GameState | null = null;
+      let attackDamage: ReturnType<typeof resolveAttackOnBuilding>;
 
       set((state) => {
         const attacker = state.units[attackerId];
@@ -876,7 +873,6 @@ export const useGameStore = create<GameStore>()(
 
         const attackerPosition = { x: attacker.position.x, y: attacker.position.y };
         const buildingPosition = { x: building.position.x, y: building.position.y };
-        const attackerHpBefore = attacker.stats.currentHp;
         const buildingHpBefore = building.hp;
         const attackerFaction = attacker.faction;
 
@@ -886,7 +882,7 @@ export const useGameStore = create<GameStore>()(
         const secondaryEvents: GameEvent[] = [];
 
         const resolvedState = produce(snapshot, (draft) => {
-          resolveAttackOnBuilding(draft, attackerId, buildingId, true, secondaryEvents);
+          attackDamage = resolveAttackOnBuilding(draft, attackerId, buildingId, true, secondaryEvents);
           updateDiscovery(draft);
           checkGameConditions(draft);
         });
@@ -908,9 +904,7 @@ export const useGameStore = create<GameStore>()(
           buildingId,
           attackerPosition,
           buildingPosition,
-          attackerHpLost: attackerAfter
-            ? attackerHpBefore - attackerAfter.stats.currentHp
-            : attackerHpBefore,
+          attackerHpLost: attackDamage?.attackerDamage ?? 0,
           buildingHpLost: buildingAfter
             ? buildingHpBefore - buildingAfter.hp
             : buildingHpBefore,
@@ -939,6 +933,7 @@ export const useGameStore = create<GameStore>()(
     buildingAttackUnit: (buildingId: string, targetId: string) => {
       let pendingEvents: GameEvent[] | null = null;
       let pendingResolvedState: GameState | null = null;
+      let attackDamage: ReturnType<typeof resolveBuildingAttack>;
 
       set((state) => {
         const building = state.buildings[buildingId];
@@ -948,7 +943,6 @@ export const useGameStore = create<GameStore>()(
         const buildingPosition = { x: building.position.x, y: building.position.y };
         const defenderPosition = { x: defender.position.x, y: defender.position.y };
         const buildingHpBefore = building.hp;
-        const defenderHpBefore = defender.stats.currentHp;
         const defenderFaction = defender.faction;
 
         // Take a plain snapshot of the current state
@@ -956,7 +950,7 @@ export const useGameStore = create<GameStore>()(
 
         // Compute the resolved state
         const resolvedState = produce(snapshot, (draft) => {
-          resolveBuildingAttack(draft, buildingId, targetId, true);
+          attackDamage = resolveBuildingAttack(draft, buildingId, targetId, true);
           // If the snapshot defender is a cave monster that was killed, remove its encounter entry
           if (
             snapshot.units[targetId]?.type === UnitType.CAVE_MONSTER &&
@@ -993,9 +987,7 @@ export const useGameStore = create<GameStore>()(
           buildingHpLost: buildingAfter
             ? buildingHpBefore - buildingAfter.hp
             : buildingHpBefore,
-          defenderHpLost: defenderAfter
-            ? defenderHpBefore - defenderAfter.stats.currentHp
-            : defenderHpBefore,
+          defenderHpLost: attackDamage?.defenderDamage ?? 0,
           defenderXpGained,
         };
 
@@ -2235,7 +2227,7 @@ export const useGameStore = create<GameStore>()(
 
               if (shouldBeHomeless) {
                 const damage = Math.min(POPULATION.HOMELESS_HP_LOSS_PER_TURN, unit.stats.currentHp);
-                unit.stats.currentHp -= damage;
+                const damageOutcome = applyUnitDamage(unit, POPULATION.HOMELESS_HP_LOSS_PER_TURN);
                 updateBerserkLatch(unit);
                 if (damage > 0) {
                   tagDamageEvents.push({
@@ -2243,10 +2235,11 @@ export const useGameStore = create<GameStore>()(
                     unitId: unit.id,
                     position: { x: unit.position.x, y: unit.position.y },
                     amount: damage,
+                    damageAmount: POPULATION.HOMELESS_HP_LOSS_PER_TURN,
                     damageSource: 'TAG',
                   });
                 }
-                if (unit.stats.currentHp <= 0) {
+                if (damageOutcome.died) {
                   homelessDying.push(unit.id);
                 }
               }
@@ -2303,7 +2296,7 @@ export const useGameStore = create<GameStore>()(
             if (unit.faction !== Faction.PLAYER) continue;
             if (!unit.tags.includes(UnitTag.BRANDMARKED)) continue;
             const damage = Math.min(MAGE.BRANDMARK_HP_LOSS_PER_TURN, unit.stats.currentHp);
-            unit.stats.currentHp -= damage;
+            const damageOutcome = applyUnitDamage(unit, MAGE.BRANDMARK_HP_LOSS_PER_TURN);
             updateBerserkLatch(unit);
             if (damage > 0) {
               tagDamageEvents.push({
@@ -2311,10 +2304,11 @@ export const useGameStore = create<GameStore>()(
                 unitId: unit.id,
                 position: { x: unit.position.x, y: unit.position.y },
                 amount: damage,
+                damageAmount: MAGE.BRANDMARK_HP_LOSS_PER_TURN,
                 damageSource: 'TAG',
               });
             }
-            if (unit.stats.currentHp <= 0) {
+            if (damageOutcome.died) {
               brandmarkDying.push(unit.id);
             }
           }
@@ -2588,11 +2582,11 @@ export const useGameStore = create<GameStore>()(
             const defender = state.units[event.defenderId];
 
             if (defender && event.defenderHpLost > 0) {
-              defender.stats.currentHp -= event.defenderHpLost;
+              applyUnitDamage(defender, event.defenderHpLost);
               updateBerserkLatch(defender);
             }
             if (attacker && event.attackerHpLost > 0) {
-              attacker.stats.currentHp -= event.attackerHpLost;
+              applyUnitDamage(attacker, event.attackerHpLost);
               updateBerserkLatch(attacker);
             }
 
@@ -2665,11 +2659,11 @@ export const useGameStore = create<GameStore>()(
             const defender = state.units[event.defenderId];
 
             if (defender && event.defenderHpLost > 0) {
-              defender.stats.currentHp -= event.defenderHpLost;
+              applyUnitDamage(defender, event.defenderHpLost);
               updateBerserkLatch(defender);
             }
             if (attacker && event.attackerHpLost > 0) {
-              attacker.stats.currentHp -= event.attackerHpLost;
+              applyUnitDamage(attacker, event.attackerHpLost);
               updateBerserkLatch(attacker);
             }
 
@@ -2822,7 +2816,7 @@ export const useGameStore = create<GameStore>()(
             const buildingFactionBefore = building?.faction ?? null;
 
             if (defender && event.defenderHpLost > 0) {
-              defender.stats.currentHp -= event.defenderHpLost;
+              applyUnitDamage(defender, event.defenderHpLost);
               updateBerserkLatch(defender);
             }
             if (building && event.buildingHpLost > 0) {
@@ -2911,7 +2905,7 @@ export const useGameStore = create<GameStore>()(
             const building = state.buildings[event.buildingId];
 
             if (attacker && event.attackerHpLost > 0) {
-              attacker.stats.currentHp -= event.attackerHpLost;
+              applyUnitDamage(attacker, event.attackerHpLost);
               updateBerserkLatch(attacker);
             }
             if (building && event.buildingHpLost > 0) {
@@ -3124,7 +3118,7 @@ export const useGameStore = create<GameStore>()(
             for (const targetId of event.damagedUnitIds) {
               const target = state.units[targetId];
               if (target) {
-                target.stats.currentHp -= event.damagePerUnit;
+                applyUnitDamage(target, event.damagePerUnit);
                 updateBerserkLatch(target);
                 // If unit dies, it will be handled by the subsequent UNIT_DEATH event
               }
@@ -3224,6 +3218,10 @@ export const useGameStore = create<GameStore>()(
             // Emit a damage floater at the affected tile.
             // Use the unit's faction to determine floater colour (isEnemy = true → orange for enemies).
             const damagedUnit = state.units[event.unitId];
+            if (damagedUnit) {
+              applyUnitDamage(damagedUnit, event.damageAmount ?? event.amount);
+              updateBerserkLatch(damagedUnit);
+            }
             useFloaterStore.getState().addFloater({
               value: event.amount,
               x: event.position.x,
@@ -3291,7 +3289,7 @@ export const useGameStore = create<GameStore>()(
           case 'SPLASH_DAMAGE': {
             const splashTarget = state.units[event.unitId];
             if (splashTarget) {
-              splashTarget.stats.currentHp = Math.max(0, splashTarget.stats.currentHp - event.amount);
+              applyUnitDamage(splashTarget, event.amount);
               updateBerserkLatch(splashTarget);
             }
             useFloaterStore.getState().addFloater({
@@ -3306,7 +3304,7 @@ export const useGameStore = create<GameStore>()(
           case 'CLEAVE_DAMAGE': {
             const cleaveTarget = state.units[event.unitId];
             if (cleaveTarget) {
-              cleaveTarget.stats.currentHp = Math.max(0, cleaveTarget.stats.currentHp - event.amount);
+              applyUnitDamage(cleaveTarget, event.amount);
               updateBerserkLatch(cleaveTarget);
             }
             useFloaterStore.getState().addFloater({
@@ -3322,7 +3320,7 @@ export const useGameStore = create<GameStore>()(
             if (event.unitId) {
               const pierceTarget = state.units[event.unitId];
               if (pierceTarget) {
-                pierceTarget.stats.currentHp = Math.max(0, pierceTarget.stats.currentHp - event.amount);
+                applyUnitDamage(pierceTarget, event.amount);
                 updateBerserkLatch(pierceTarget);
               }
             } else if (event.buildingId) {
@@ -3391,7 +3389,7 @@ export const useGameStore = create<GameStore>()(
                 if (!aoeTargetTile?.unitId) continue;
                 const aoeTarget = state.units[aoeTargetTile.unitId];
                 if (aoeTarget && aoeTarget.faction === Faction.PLAYER) {
-                  aoeTarget.stats.currentHp = Math.max(0, aoeTarget.stats.currentHp - ABILITIES.TUNNEL_EMERGE_DAMAGE);
+                  applyUnitDamage(aoeTarget, ABILITIES.TUNNEL_EMERGE_DAMAGE);
                   updateBerserkLatch(aoeTarget);
                   addFloater({
                     value: ABILITIES.TUNNEL_EMERGE_DAMAGE,

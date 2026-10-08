@@ -14,7 +14,7 @@ import type { Projectile, SlideKillGhost, CleaveVfx, TileVfx, LineVfx } from '..
 import { useShockwaveStore } from '../shockwaveStore';
 import { canCapture } from '../captureSystem';
 import { getConstructionOptionsForTile } from '../constructionSystem';
-import { MAP, UNIT_DEFINITIONS, BUILDING_DEFINITIONS, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, CORRUPTED_SUPPRESSED_TAGS, RESOURCES } from '../gameConfig';
+import { MAP, MAGE, UNIT_DEFINITIONS, BUILDING_DEFINITIONS, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, CORRUPTED_SUPPRESSED_TAGS, RESOURCES } from '../gameConfig';
 import { getStrongholdEffectiveCap } from '../techSystem';
 import { computeRecruitmentBuildingUsage, canBuildingEverRecruit, getEffectiveHousingPopulationCap } from '../resourceSystem';
 import { ANIMATION } from '../../config/animation';
@@ -1593,6 +1593,9 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
 
   const isEmberling = unit.type === UnitType.EMBERLING;
   const isTaunted = unit.tags.includes(UnitTag.TAUNT);
+  const stoneSkinHp = unit.stoneSkinHp ?? 0;
+  const hasStoneSkin = unit.tags.includes(UnitTag.STONE_SKIN) && stoneSkinHp > 0;
+  const stoneSkinHpPct = Math.min(100, (stoneSkinHp / MAGE.STONE_SKIN_HP) * 100);
   const tauntIcon = TAG_INFO[UnitTag.TAUNT]?.icon;
 
   const tagIcons = unit.tags
@@ -1602,7 +1605,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
 
   return (
     <div
-      className={['tile-unit', animClass, isEmberling && 'emberling-unit'].filter(Boolean).join(' ')}
+      className={['tile-unit', animClass, isEmberling && 'emberling-unit', hasStoneSkin && 'unit--stone-skin'].filter(Boolean).join(' ')}
       style={
         {
           ...animStyle,
@@ -1627,8 +1630,17 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
         } as React.CSSProperties
       }
     >
-      {(unit.stats.currentHp < unit.stats.maxHp || hasDebuff || isTaunted) && (
+      {(unit.stats.currentHp < unit.stats.maxHp || hasDebuff || isTaunted || hasStoneSkin) && (
         <>
+          {hasStoneSkin && (
+            <div
+              className="stone-skin-hp-bar-wrapper"
+              title={t('tag.STONE_SKIN.label')}
+              style={{ '--color-stone-skin': RENDER.COLORS.STONE_SKIN } as React.CSSProperties}
+            >
+              <div className="stone-skin-hp-bar-fill" style={{ width: `${stoneSkinHpPct}%` }} />
+            </div>
+          )}
           <div
             className="hp-bar-wrapper"
             style={

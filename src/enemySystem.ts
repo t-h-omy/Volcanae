@@ -28,6 +28,7 @@ import { tryBeginTunnel, processTunnelTurn } from './tunnelSystem';
 import { cleanupPortals, cleanupExpiredPortalsEndOfTurn, tryPlanPortalCast, castPortal, getUsablePortalAtEntrance, tryTeleportThroughPortal, processPendingPortalTeleports, getPlayerFrontlineRow } from './portalSystem';
 import { cleanupRoostedUnits, getRoostedUnits } from './buildingRemoval';
 import { isUnitOnCorruptedTile } from './tileStatusSystem';
+import { applyUnitDamage, getUnitDamageOutcome } from './unitDamage';
 import { isCounterThemeUnitType, pickUnitFromTheme, scoreCountersForPlayer } from './waveThemeSystem';
 import { isSpecialistEffectActive } from './specialistSystem';
 import {
@@ -1299,8 +1300,6 @@ function triggerPreventiveStrike(
     const defenderId = enemyUnitId;
     const attackerPos = { x: unit.position.x, y: unit.position.y };
     const defenderPos = { x: enemyUnit.position.x, y: enemyUnit.position.y };
-    const attackerHpBefore = unit.stats.currentHp;
-    const defenderHpBefore = enemyUnit.stats.currentHp;
     const defenderType = enemyUnit.type;
     // Capture pre-attack XP qualification so the event reflects what grantXp actually granted.
     const attackerCanReceiveXp = canGrantXp(unit.type, unit.xp);
@@ -1314,8 +1313,9 @@ function triggerPreventiveStrike(
     const strikeRaw = normalCombat.defenderHpLost * (ABILITIES.PREVENTIVE_STRIKE_DAMAGE_PERCENT / 100);
     const strikeDamage = Math.max(1, Math.round(strikeRaw));
 
-    const newDefenderHp = enemyUnit.stats.currentHp - strikeDamage;
-    const defenderDead = newDefenderHp <= 0;
+    const defenderDamageOutcome = getUnitDamageOutcome(enemyUnit, strikeDamage);
+    const defenderDead = defenderDamageOutcome.died;
+    applyUnitDamage(enemyUnit, strikeDamage);
 
     // Update game stats
     state.gameStats.damageDealt += strikeDamage;
@@ -1337,7 +1337,6 @@ function triggerPreventiveStrike(
         );
       }
     } else {
-      enemyUnit.stats.currentHp = newDefenderHp;
       updateBerserkLatch(enemyUnit);
     }
 
@@ -1356,8 +1355,8 @@ function triggerPreventiveStrike(
         defenderId,
         attackerPosition: attackerPos,
         defenderPosition: defenderPos,
-        attackerHpLost: attackerAfter ? attackerHpBefore - attackerAfter.stats.currentHp : attackerHpBefore,
-        defenderHpLost: defenderAfter ? defenderHpBefore - defenderAfter.stats.currentHp : defenderHpBefore,
+        attackerHpLost: 0,
+        defenderHpLost: strikeDamage,
         advancedToPosition: null,
         attackerXpGained: !defenderAfter && attackerAfter && attackerCanReceiveXp ? XP.KILL_UNIT : null,
         defenderXpGained: null,
@@ -1441,11 +1440,11 @@ function triggerGarrisonOverwatch(
     const defenderId = enemyUnitId;
     const buildingPos = { x: building.position.x, y: building.position.y };
     const defenderPos = { x: enemyUnit.position.x, y: enemyUnit.position.y };
-    const defenderHpBefore = enemyUnit.stats.currentHp;
     const defenderType = enemyUnit.type;
 
-    const newDefenderHp = enemyUnit.stats.currentHp - strikeDamage;
-    const defenderDead = newDefenderHp <= 0;
+    const defenderDamageOutcome = getUnitDamageOutcome(enemyUnit, strikeDamage);
+    const defenderDead = defenderDamageOutcome.died;
+    applyUnitDamage(enemyUnit, strikeDamage);
 
     state.gameStats.damageDealt += strikeDamage;
 
@@ -1464,7 +1463,6 @@ function triggerGarrisonOverwatch(
         );
       }
     } else {
-      enemyUnit.stats.currentHp = newDefenderHp;
       updateBerserkLatch(enemyUnit);
     }
 
@@ -1480,9 +1478,7 @@ function triggerGarrisonOverwatch(
         buildingPosition: buildingPos,
         defenderPosition: defenderPos,
         buildingHpLost: 0,
-        defenderHpLost: defenderAfter
-          ? defenderHpBefore - defenderAfter.stats.currentHp
-          : defenderHpBefore,
+        defenderHpLost: strikeDamage,
         defenderXpGained: null,
       });
       if (!defenderAfter) {
@@ -1503,7 +1499,7 @@ function triggerGarrisonOverwatch(
 
 function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: Position, events?: GameEvent[]): void {
   const unit = state.units[unitId];
-  if (!unit) return;
+  if (!unit || unit.tags.includes(UnitTag.STONE_SKIN)) return;
 
   const from = { x: unit.position.x, y: unit.position.y };
   const oldTile = state.grid[unit.position.y][unit.position.x];
@@ -1939,13 +1935,13 @@ export function resolveExplosion(
     const target = state.units[targetId];
     if (!target) continue;
 
-    target.stats.currentHp -= explosionDamage;
+    const damageOutcome = applyUnitDamage(target, explosionDamage);
     updateBerserkLatch(target);
     damagedUnitIds.push(targetId);
     // Track damage received by player
     state.gameStats.damageReceived += explosionDamage;
 
-    if (target.stats.currentHp <= 0) {
+    if (damageOutcome.died) {
       const deathPos = { x: target.position.x, y: target.position.y };
       const deathFaction = target.faction;
       // Remove unit
@@ -3069,15 +3065,13 @@ function executeAction(
         if (inAttackRange) {
           const attackerPos = { x: currentUnit.position.x, y: currentUnit.position.y };
           const defenderPos = { x: targetUnit.position.x, y: targetUnit.position.y };
-          const attackerHpBefore = currentUnit.stats.currentHp;
-          const defenderHpBefore = targetUnit.stats.currentHp;
           const attackerId = currentUnit.id;
           const defenderId = action.targetUnitId;
           const stateBeforeAction = current(state);
           const defenderTileStatusBefore = state.grid[defenderPos.y]?.[defenderPos.x]?.status;
 
           const secondaryEvents: GameEvent[] = [];
-          resolveAttack(state, attackerId, defenderId, suppressFloaters, secondaryEvents);
+          const attackDamage = resolveAttack(state, attackerId, defenderId, suppressFloaters, secondaryEvents);
 
           if (events) {
             const attackerAfter = state.units[attackerId];
@@ -3111,8 +3105,8 @@ function executeAction(
               defenderId,
               attackerPosition: attackerPos,
               defenderPosition: defenderPos,
-              attackerHpLost: attackerAfter ? attackerHpBefore - attackerAfter.stats.currentHp : attackerHpBefore,
-              defenderHpLost: defenderAfter ? defenderHpBefore - defenderAfter.stats.currentHp : defenderHpBefore,
+              attackerHpLost: attackDamage?.attackerDamage ?? 0,
+              defenderHpLost: attackDamage?.defenderDamage ?? 0,
               advancedToPosition,
               attackerXpGained,
               defenderXpGained,
@@ -3160,15 +3154,13 @@ function executeAction(
         const targetUnit = state.units[action.targetUnitId];
         const attackerPos = { x: currentUnit.position.x, y: currentUnit.position.y };
         const defenderPos = { x: targetUnit.position.x, y: targetUnit.position.y };
-        const attackerHpBefore = currentUnit.stats.currentHp;
-        const defenderHpBefore = targetUnit.stats.currentHp;
         const attackerId = currentUnit.id;
         const defenderId = action.targetUnitId;
         const stateBeforeAction = current(state);
         const defenderTileStatusBefore = state.grid[defenderPos.y]?.[defenderPos.x]?.status;
 
         const secondaryEvents: GameEvent[] = [];
-        resolveAttack(state, attackerId, defenderId, suppressFloaters, secondaryEvents);
+        const attackDamage = resolveAttack(state, attackerId, defenderId, suppressFloaters, secondaryEvents);
 
         if (events) {
           const attackerAfter = state.units[attackerId];
@@ -3196,8 +3188,8 @@ function executeAction(
             defenderId,
             attackerPosition: attackerPos,
             defenderPosition: defenderPos,
-            attackerHpLost: attackerAfter ? attackerHpBefore - attackerAfter.stats.currentHp : attackerHpBefore,
-            defenderHpLost: defenderAfter ? defenderHpBefore - defenderAfter.stats.currentHp : defenderHpBefore,
+            attackerHpLost: attackDamage?.attackerDamage ?? 0,
+            defenderHpLost: attackDamage?.defenderDamage ?? 0,
             advancedToPosition: null,
             attackerXpGained,
             defenderXpGained,
@@ -3250,7 +3242,6 @@ function executeAction(
           if (inAttackRange) {
             const attackerPos = { x: currentUnit.position.x, y: currentUnit.position.y };
             const buildingPos = { x: building.position.x, y: building.position.y };
-            const attackerHpBefore = currentUnit.stats.currentHp;
             const buildingHpBefore = building.hp;
             const attackerId = currentUnit.id;
             const buildingId = action.targetBuildingId;
@@ -3259,7 +3250,7 @@ function executeAction(
             // so we can emit UNIT_DEATH events if the building is destroyed.
             const roosted = events ? getRoostedUnits(state, buildingId) : [];
             const secondaryEvents: GameEvent[] = [];
-            resolveAttackOnBuilding(state, attackerId, buildingId, suppressFloaters, secondaryEvents);
+            const attackDamage = resolveAttackOnBuilding(state, attackerId, buildingId, suppressFloaters, secondaryEvents);
 
             if (events) {
               const attackerAfter = state.units[attackerId];
@@ -3277,7 +3268,7 @@ function executeAction(
                 buildingId,
                 attackerPosition: attackerPos,
                 buildingPosition: buildingPos,
-                attackerHpLost: attackerAfter ? attackerHpBefore - attackerAfter.stats.currentHp : attackerHpBefore,
+                attackerHpLost: attackDamage?.attackerDamage ?? 0,
                 buildingHpLost: buildingAfter ? buildingHpBefore - buildingAfter.hp : buildingHpBefore,
                 advancedToPosition,
               });
@@ -3727,10 +3718,9 @@ function executeBuildingAttacks(state: Draft<GameState>, events?: GameEvent[]): 
     const buildingPos = { x: building.position.x, y: building.position.y };
     const defenderPos = { x: targetUnit.position.x, y: targetUnit.position.y };
     const buildingHpBefore = building.hp;
-    const defenderHpBefore = targetUnit.stats.currentHp;
     const defenderId = bestTarget.id;
 
-    resolveBuildingAttack(state, building.id, defenderId, suppressFloaters);
+    const attackDamage = resolveBuildingAttack(state, building.id, defenderId, suppressFloaters);
 
     // Mark building wasAttackedLastEnemyTurn for player UI feedback on their buildings
     // (this flag is used for buildings attacked BY enemy, not for buildings that attack)
@@ -3746,7 +3736,7 @@ function executeBuildingAttacks(state: Draft<GameState>, events?: GameEvent[]): 
         buildingPosition: buildingPos,
         defenderPosition: defenderPos,
         buildingHpLost: buildingAfter ? buildingHpBefore - buildingAfter.hp : buildingHpBefore,
-        defenderHpLost: defenderAfter ? defenderHpBefore - defenderAfter.stats.currentHp : defenderHpBefore,
+        defenderHpLost: attackDamage?.defenderDamage ?? 0,
         // Defender is a player unit defending against an enemy building attack —
         // player units do not earn XP for counter-killing buildings.
         defenderXpGained: null,
@@ -3807,14 +3797,12 @@ function resolveCaveMonsterAttack(
   const attackerPos = { x: attacker.position.x, y: attacker.position.y };
   const defenderPos = { x: defender.position.x, y: defender.position.y };
   const defenderTileStatusBefore = state.grid[defenderPos.y]?.[defenderPos.x]?.status;
-  const attackerHpBefore = attacker.stats.currentHp;
-  const defenderHpBefore = defender.stats.currentHp;
   const defenderFaction = defender.faction;
   // Capture pre-attack XP qualification to mirror the grantXp early-return for MAX_LEVEL units.
   const attackerCanReceiveXp = canGrantXp(attacker.type, attacker.xp);
   const defenderCanReceiveXp = canGrantXp(defender.type, defender.xp);
 
-  resolveAttack(state, attackerId, defenderId, !!events);
+  const attackDamage = resolveAttack(state, attackerId, defenderId, !!events);
 
   // If the cave monster was killed by the counter-attack, clean up its encounter
   // entry from the state so the resolved state is consistent.
@@ -3842,12 +3830,8 @@ function resolveCaveMonsterAttack(
       defenderId,
       attackerPosition: attackerPos,
       defenderPosition: defenderPos,
-      attackerHpLost: attackerAfter
-        ? attackerHpBefore - attackerAfter.stats.currentHp
-        : attackerHpBefore,
-      defenderHpLost: defenderAfter
-        ? defenderHpBefore - defenderAfter.stats.currentHp
-        : defenderHpBefore,
+      attackerHpLost: attackDamage?.attackerDamage ?? 0,
+      defenderHpLost: attackDamage?.defenderDamage ?? 0,
       advancedToPosition,
       attackerXpGained: !defenderAfter && attackerAfter && attackerCanReceiveXp ? XP.KILL_UNIT : null,
       defenderXpGained: !attackerAfter && defenderCanReceiveXp ? XP.KILL_UNIT : null,
