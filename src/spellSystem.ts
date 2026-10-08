@@ -122,6 +122,7 @@ const SPELL_TARGET_REASONS: Record<string, TextRef> = {
   TRANSPOSE_SECOND_PICK_FACTION: { key: 'reason.spell.transposeSecondPickFaction' },
   TRANSPOSE_TERRAIN: { key: 'reason.spell.transposeTerrain' },
   BRANDMARK_ALREADY_BRANDMARKED: { key: 'reason.spell.brandmarkAlreadyBrandmarked' },
+  TAUNT_ALREADY_TAUNTED: { key: 'reason.spell.tauntAlreadyTaunted' },
   BRANDMARK_SUMMONED: { key: 'reason.spell.brandmarkSummoned' },
   BRANDMARK_SELF: { key: 'reason.spell.brandmarkSelf' },
   EXPLODE_MAGE: { key: 'reason.spell.explodeMage' },
@@ -242,6 +243,15 @@ export function getValidSpellTargets(
         targets.push({ ...unit.position });
       }
       return targets;
+    }
+
+    case 'TAUNT': {
+      return Object.values(state.units)
+        .filter((unit) =>
+          unit.faction === Faction.PLAYER
+          && !unit.tags.includes(UnitTag.TAUNT)
+          && isTileInSpellRange(mage, unit.position, range))
+        .map((unit) => ({ ...unit.position }));
     }
 
     case 'CRYSTAL_TOWER': {
@@ -386,6 +396,17 @@ export function explainInvalidSpellTarget(
       }
       if (tappedUnit.id === mageId) {
         return SPELL_TARGET_REASONS.BRANDMARK_SELF;
+      }
+      return null;
+    }
+
+    case 'TAUNT': {
+      if (!tile.unitId) return null;
+      const tappedUnit = state.units[tile.unitId];
+      if (!tappedUnit || tappedUnit.faction !== Faction.PLAYER) return null;
+      if (!isTileInSpellRange(mage, tappedUnit.position, range)) return null;
+      if (tappedUnit.tags.includes(UnitTag.TAUNT)) {
+        return SPELL_TARGET_REASONS.TAUNT_ALREADY_TAUNTED;
       }
       return null;
     }
@@ -1110,6 +1131,14 @@ export function castSpell(
       success = handleEmberbind(state, mage, targetPosition); break;
     case 'BRANDMARK_HEAL':
       success = handleBrandmarkHeal(state, mage, targetPosition); break;
+    case 'TAUNT': {
+      const targetId = state.grid[targetPosition.y]?.[targetPosition.x]?.unitId;
+      const target = targetId ? state.units[targetId] : undefined;
+      if (!target || target.faction !== Faction.PLAYER || target.tags.includes(UnitTag.TAUNT)) return false;
+      target.tags.push(UnitTag.TAUNT);
+      success = true;
+      break;
+    }
     case 'CRYSTAL_TOWER':
       success = handleCrystalTower(state, mage); break;
     case 'CRYSTAL_CAVE':

@@ -193,6 +193,7 @@ export const SpellId = {
   CRYSTAL_CAVE:   'CRYSTAL_CAVE',
   /** Rupture — unlocked by the Sundered specialist; deals a percentage of the target's current HP */
   RUPTURE:        'RUPTURE',
+  TAUNT:          'TAUNT',
 } as const;
 export type SpellId = (typeof SpellId)[keyof typeof SpellId];
 
@@ -368,6 +369,8 @@ export const UnitTag = {
   BATTERY: 'BATTERY',
   /** Crystal Khyron: temporary tag while Crystal Chamber resonance is active; the first enemy kill transforms the unit. */
   RESONANCE: 'RESONANCE',
+  /** Hostile units must target this unit when it is legally attackable. */
+  TAUNT: 'TAUNT',
 } as const;
 export type UnitTag = (typeof UnitTag)[keyof typeof UnitTag];
 

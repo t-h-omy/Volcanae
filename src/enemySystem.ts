@@ -16,7 +16,12 @@ import { enemyConstructBuilding } from './constructionSystem';
 import { getBridgeAt, canTraverseEdge } from './bridgeSystem';
 import { processEnemyLevelUps, grantXp, canGrantXp } from './levelSystem';
 import type { GameEvent } from './gameEvents';
-import { hasUnitActed, applySpawnActionFlags } from './unitActions';
+import {
+  hasUnitActed,
+  applySpawnActionFlags,
+  isAttackableEnemyUnit,
+  getTauntRestrictedAttackTargets,
+} from './unitActions';
 import { sweepLeashes } from './spellSystem';
 import { checkGraveTrapTrigger, checkScoutTrapTrigger, resolveSlide } from './movementSystem';
 import { tryBeginTunnel, processTunnelTurn } from './tunnelSystem';
@@ -2032,6 +2037,16 @@ function scoreActionsForUnit(
       playerUnitsInAttackRange.push(u);
     }
   }
+  const attackablePlayerUnitsInRange = getTauntRestrictedAttackTargets(
+    Object.values(state.units).filter((target) =>
+      target.stats.currentHp > 0
+      && isAttackableEnemyUnit(target, unit.faction, state.grid)
+      && isTileWithinEdgeCircleRange(
+        unit.position.x, unit.position.y,
+        target.position.x, target.position.y,
+        attackRange,
+      )),
+  );
 
   // Gather all buildings
   const allBuildings = Object.values(state.buildings);
@@ -2174,10 +2189,10 @@ function scoreActionsForUnit(
   }
 
   // ── ATTACK_UNIT ──
-  if (canAttackThisTurn && playerUnitsInAttackRange.length > 0) {
+  if (canAttackThisTurn && attackablePlayerUnitsInRange.length > 0) {
     let bestTarget: Unit | null = null;
     let bestCombatScore = -Infinity;
-    for (const target of playerUnitsInAttackRange) {
+    for (const target of attackablePlayerUnitsInRange) {
       const cs = projectCombatScore(unit, target);
       if (cs > bestCombatScore) {
         bestCombatScore = cs;
@@ -2208,7 +2223,7 @@ function scoreActionsForUnit(
 
   // ── RANGED_ATTACK_UNIT ──
   if (canAttackThisTurn && unit.tags.includes(UnitTag.RANGED)) {
-    const rangedTargets = playerUnitsInAttackRange.filter(u => edgeCircleDistance(unit.position.x, unit.position.y, u.position.x, u.position.y) > 1);
+    const rangedTargets = attackablePlayerUnitsInRange.filter(u => edgeCircleDistance(unit.position.x, unit.position.y, u.position.x, u.position.y) > 1);
     if (rangedTargets.length > 0) {
       // PREP units that haven't moved yet: score each target individually and prefer uncounterable ones
       if (unit.tags.includes(UnitTag.PREP) && !unit.hasMovedThisTurn) {

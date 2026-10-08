@@ -255,6 +255,69 @@ export function isAttackableEnemyUnit(
   return true;
 }
 
+/** Return the legally attackable hostile unit candidates before Taunt filtering. */
+export function getAttackableUnitTargets(
+  unit: Unit,
+  units: Record<string, Unit>,
+  grid: Tile[][],
+  state?: GameState | Draft<GameState>,
+): Unit[] {
+  if (!canUnitAttack(unit, state)) return [];
+  const attackRange = getUnitAttackRange(unit, state);
+  return Object.values(units).filter((other) =>
+    isAttackableEnemyUnit(other, unit.faction, grid)
+    && isTileWithinEdgeCircleRange(
+      unit.position.x, unit.position.y,
+      other.position.x, other.position.y,
+      attackRange,
+    ));
+}
+
+/** Apply the shared, faction-agnostic Taunt restriction to legal unit targets. */
+export function getTauntRestrictedAttackTargets<T extends Pick<Unit, 'tags'>>(
+  legalTargets: T[],
+): T[] {
+  if (!legalTargets.some((target) => target.tags.includes(UnitTag.TAUNT))) return legalTargets;
+  return legalTargets.filter((target) => target.tags.includes(UnitTag.TAUNT));
+}
+
+/** Tile keys for legal hostile unit targets excluded only by another legal Taunt target. */
+export function getTauntBlockedAttackTargetKeys(
+  attacker: Unit,
+  units: Record<string, Unit>,
+  grid: Tile[][],
+  state?: GameState | Draft<GameState>,
+): Set<string> {
+  const legalTargets = getAttackableUnitTargets(attacker, units, grid, state);
+  const restrictedTargets = new Set(getTauntRestrictedAttackTargets(legalTargets));
+  return new Set(
+    legalTargets
+      .filter((target) => !restrictedTargets.has(target))
+      .map((target) => `${target.position.x},${target.position.y}`),
+  );
+}
+
+const ATTACK_TARGET_REASONS = {
+  TAUNT_REQUIRED: { key: 'reason.attack.tauntRequired' },
+} satisfies Record<string, TextRef>;
+
+/** Explain why an otherwise legal unit target is blocked by another legal Taunt target. */
+export function explainInvalidAttackTarget(
+  attacker: Unit,
+  units: Record<string, Unit>,
+  grid: Tile[][],
+  state: GameState | Draft<GameState>,
+  position: { x: number; y: number },
+): TextRef | null {
+  const legalTargets = getAttackableUnitTargets(attacker, units, grid, state);
+  const target = legalTargets.find((candidate) =>
+    candidate.position.x === position.x && candidate.position.y === position.y);
+  if (!target || target.tags.includes(UnitTag.TAUNT)) return null;
+  return getTauntRestrictedAttackTargets(legalTargets).length < legalTargets.length
+    ? ATTACK_TARGET_REASONS.TAUNT_REQUIRED
+    : null;
+}
+
 export function isAttackableEnemyBuilding(
   target: Building,
   attackerFaction: Faction,
@@ -307,19 +370,11 @@ export function getAttackTargets(
 ): Set<string> {
   const keys = new Set<string>();
   if (!canUnitAttack(unit, state)) return keys;
-  const attackRange = getUnitAttackRange(unit, state);
 
-  // Enemy units
-  for (const other of Object.values(units)) {
-    if (!isAttackableEnemyUnit(other, unit.faction, grid)) continue;
-    const inRange = isTileWithinEdgeCircleRange(
-      unit.position.x, unit.position.y,
-      other.position.x, other.position.y,
-      attackRange,
-    );
-    if (inRange) {
-      keys.add(`${other.position.x},${other.position.y}`);
-    }
+  const legalUnitTargets = getAttackableUnitTargets(unit, units, grid, state);
+  const allLegalUnitTargetKeys = new Set(legalUnitTargets.map((other) => `${other.position.x},${other.position.y}`));
+  for (const other of getTauntRestrictedAttackTargets(legalUnitTargets)) {
+    keys.add(`${other.position.x},${other.position.y}`);
   }
 
   // Enemy buildings with combat stats on revealed tiles (skip tiles already
@@ -328,7 +383,7 @@ export function getAttackTargets(
   for (const b of Object.values(buildings)) {
     if (!isAttackableEnemyBuilding(b, unit.faction, grid)) continue;
     const key = `${b.position.x},${b.position.y}`;
-    if (keys.has(key)) continue;
+    if (allLegalUnitTargetKeys.has(key) || keys.has(key)) continue;
     const inRange = isTileWithinEdgeCircleRange(
       unit.position.x, unit.position.y,
       b.position.x, b.position.y,

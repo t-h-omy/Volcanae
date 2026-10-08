@@ -39,7 +39,7 @@ import {
 } from '../types';
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
 import { nextTileCycleTarget, tileSelectionState } from '../tileCycleHelper';
-import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, canUnitConstruct, canUnitCapture, getHealTargets, getBridgeBuildTargets, explainInvalidHealTarget, explainInvalidBridgeTarget, getTrapPlacementTargets, explainInvalidTrapTarget, isUnitDisplayExhausted } from '../unitActions';
+import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, getTauntBlockedAttackTargetKeys, explainInvalidAttackTarget, canUnitConstruct, canUnitCapture, getHealTargets, getBridgeBuildTargets, explainInvalidHealTarget, explainInvalidBridgeTarget, getTrapPlacementTargets, explainInvalidTrapTarget, isUnitDisplayExhausted } from '../unitActions';
 import { getValidSpellTargets, explainInvalidSpellTarget, getTransposeTerrainBlockedTargets } from '../spellSystem';
 import './GridRenderer.css';
 
@@ -533,6 +533,11 @@ export default function GridRenderer() {
     return new Set();
   }, [selectedUnit, selectedBuilding, units, buildings, grid]);
 
+  const tauntBlockedAttackSet = useMemo<Set<string>>(() => {
+    if (!selectedUnit || selectedUnit.faction !== Faction.PLAYER) return new Set();
+    return getTauntBlockedAttackTargetKeys(selectedUnit, units, grid, useGameStore.getState());
+  }, [selectedUnit, units, grid]);
+
   // Heal target highlighting: when a healer is in heal-mode, show healable tiles
   const healableSet = useMemo<Set<string>>(() => {
     if (!pendingHealerId) return new Set();
@@ -874,6 +879,20 @@ export default function GridRenderer() {
             buildingAttackUnit(selectedBuilding.id, tile.unitId);
             return;
           }
+          if (selectedUnit && selectedUnit.faction === Faction.PLAYER) {
+            const reason = explainInvalidAttackTarget(
+              selectedUnit,
+              units,
+              grid,
+              useGameStore.getState(),
+              { x, y },
+            );
+            if (reason) {
+              triggerInvalidActionVfx(x, y);
+              showInvalidReasonFloater(x, y, reason);
+              return;
+            }
+          }
           const sel = tileSelectionState(tile.unitId, tile.buildingId, selectedUnitId, selectedBuildingId);
           const target = nextTileCycleTarget(sel, true, !!tile.buildingId, tile.isRevealed && !tile.isLava);
           if (target === 'building') selectBuilding(tile.buildingId!);
@@ -1028,6 +1047,7 @@ export default function GridRenderer() {
                 tileSize={tileSize}
                 isReachable={isReachable}
                 isAttackable={isAttackable}
+                isTauntAttackBlocked={tauntBlockedAttackSet.has(key)}
                 isHealable={isHealable}
                 isSpellTarget={isSpellTarget}
                 isSpellBlocked={isSpellBlocked}
@@ -1080,6 +1100,7 @@ interface TileCellProps {
   tileSize: number;
   isReachable: boolean;
   isAttackable: boolean;
+  isTauntAttackBlocked: boolean;
   isHealable: boolean;
   isSpellTarget: boolean;
   /** True when this tile holds a spell target blocked only by terrain legality (Transpose second pick). */
@@ -1113,6 +1134,7 @@ function TileCellInner({
   tileSize,
   isReachable,
   isAttackable,
+  isTauntAttackBlocked,
   isHealable,
   isSpellTarget,
   isSpellBlocked,
@@ -1361,6 +1383,8 @@ function TileCellInner({
       {/* blocked spell target overlay — Transpose swap that fails terrain legality */}
       {isSpellBlocked && <div className="tile-overlay tile--spell-blocked" />}
 
+      {isTauntAttackBlocked && <div className="tile-overlay tile--attack-taunt-blocked" />}
+
       {/* slide-preview overlay — secondary destination when moving onto a FROZEN tile */}
       {isSlidePreview && <div className="tile-overlay tile--slide-preview" />}
 
@@ -1568,8 +1592,11 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
         : undefined;
 
   const isEmberling = unit.type === UnitType.EMBERLING;
+  const isTaunted = unit.tags.includes(UnitTag.TAUNT);
+  const tauntIcon = TAG_INFO[UnitTag.TAUNT]?.icon;
 
   const tagIcons = unit.tags
+    .filter((tag) => tag !== UnitTag.TAUNT)
     .map((tag) => TAG_INFO[tag]?.icon)
     .filter((icon): icon is string => !!icon);
 
@@ -1600,7 +1627,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
         } as React.CSSProperties
       }
     >
-      {(unit.stats.currentHp < unit.stats.maxHp || hasDebuff) && (
+      {(unit.stats.currentHp < unit.stats.maxHp || hasDebuff || isTaunted) && (
         <>
           <div
             className="hp-bar-wrapper"
@@ -1614,6 +1641,9 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
           >
             <div className="hp-bar-fill" style={{ width: `${hpPct}%` }} />
           </div>
+          {isTaunted && tauntIcon && (
+            <span className="unit-taunt-badge" title={t('tag.TAUNT.label')}>{tauntIcon}</span>
+          )}
           {unit.stats.currentHp < unit.stats.maxHp && (
             <span className="unit-hp-text">{unit.stats.currentHp}</span>
           )}

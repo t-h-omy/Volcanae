@@ -419,6 +419,14 @@ export const TECH_TREE: TechNodeDefinition[] = [
     ],
     textParams: { crystalCost: UNIT_DEFINITIONS.CRYSTAL_KHYRON.cost.crystals ?? 0 },
   },
+  {
+    id: 'TAUNT',
+    requires: ['ARCANE_AWAKENING'],
+    cost: 4,
+    effects: [
+      { type: 'UNLOCK_SPELL', spellId: SpellId.TAUNT },
+    ],
+  },
 
   // ── Summoner path ────────────────────────────────────────────────────────
   {

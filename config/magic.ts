@@ -122,4 +122,8 @@ export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
   
     textParams: { damagePercent: Math.round(MAGE.RUPTURE_PERCENT * 100), minimumHp: MAGE.RUPTURE_MINIMUM_REMAINING_HP, crystalCost: MAGE.RUPTURE_CRYSTAL_COST },
   },
+  [SpellId.TAUNT]: {
+    id: SpellId.TAUNT,
+    emoji: '🎯',
+  },
 };
