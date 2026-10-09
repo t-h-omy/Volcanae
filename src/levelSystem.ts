@@ -13,6 +13,14 @@ import { t } from './i18n/i18n';
 import { useCombatAnimationStore } from './combatAnimationStore';
 import { usesAssimilationProgression } from './khyronSystem';
 
+export function usesGravestoneProgression(unitType: string): boolean {
+  return unitType === UnitType.GHOUL;
+}
+
+export function usesNonXpProgression(unitType: string): boolean {
+  return usesAssimilationProgression(unitType) || usesGravestoneProgression(unitType);
+}
+
 /**
  * Returns the target level for a unit based on its current XP.
  * Never exceeds XP.MAX_LEVEL.
@@ -38,7 +46,7 @@ export function computeLevelFromXp(unitType: string, xp: number): number {
  * defenderXpGained on events when grantXp would have silently refused the XP.
  */
 export function canGrantXp(unitType: string, currentXp: number): boolean {
-  if (usesAssimilationProgression(unitType)) return false;
+  if (usesNonXpProgression(unitType)) return false;
   return computeLevelFromXp(unitType, currentXp) < XP.MAX_LEVEL;
 }
 
@@ -161,7 +169,7 @@ export function grantXp(
   if (!unit) return;
 
   // Crystal Khyron progresses only through Resonant Assimilation, never XP
-  if (usesAssimilationProgression(unit.type)) return;
+  if (usesNonXpProgression(unit.type)) return;
 
   // Do not grant XP when the unit already qualifies for MAX_LEVEL
   if (computeLevelFromXp(unit.type, unit.xp) >= XP.MAX_LEVEL) return;
@@ -217,6 +225,7 @@ export function grantXp(
 export function processEnemyLevelUps(state: Draft<GameState>): void {
   for (const unit of Object.values(state.units)) {
     if (unit.faction !== Faction.ENEMY) continue;
+    if (usesNonXpProgression(unit.type)) continue;
     const targetLevel = computeLevelFromXp(unit.type, unit.xp);
     if (targetLevel > unit.level) {
       // Suppress visual effects: processEnemyLevelUps runs inside runEnemyTurn's

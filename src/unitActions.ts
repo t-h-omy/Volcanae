@@ -81,6 +81,7 @@ export function hasUnitActed(
     unit.hasTradedThisTurn ||
     unit.hasConstructedThisTurn ||
     unit.hasDestroyedThisTurn ||
+    unit.hasConsumedGravestoneThisTurn ||
     hasSpentMageCastBudget(unit, state)
   );
 }
@@ -120,7 +121,22 @@ export function applySpawnActionFlags(unit: Unit): Unit {
   unit.hasTradedThisTurn = spent;
   unit.hasConstructedThisTurn = spent;
   unit.hasDestroyedThisTurn = spent;
+  unit.hasConsumedGravestoneThisTurn = spent;
   return unit;
+}
+
+/** Whether this Ghoul may consume the Gravestone on its current tile this turn. */
+export function canUnitConsumeGravestone(
+  unit: Unit,
+  state: GameState | Draft<GameState>,
+): boolean {
+  if (unit.type !== UnitType.GHOUL || unit.faction !== Faction.PLAYER) return false;
+  if (unit.pinnedUntilTurn > 0 || unit.hasMovedThisTurn || unit.bloodlustAttackAvailable) return false;
+  if (unit.hasConsumedGravestoneThisTurn || hasUnitActed(unit, state)) return false;
+  const tile = state.grid[unit.position.y]?.[unit.position.x];
+  if (!tile?.buildingId) return false;
+  const building = state.buildings[tile.buildingId];
+  return building?.type === BuildingType.GRAVESTONE && building.faction === Faction.PLAYER;
 }
 
 /**
@@ -164,6 +180,7 @@ export function canUnitMove(
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasConstructedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
+  if (unit.hasConsumedGravestoneThisTurn) return false;
   if (unit.hasTradedThisTurn) return false;
   // HIT_AND_RUN: can move before attacking (if not yet moved) OR after attacking (post-attack move, once per turn)
   if (unit.tags.includes(UnitTag.HIT_AND_RUN)) {
@@ -225,6 +242,7 @@ export function canUnitAttack(
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasConstructedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
+  if (unit.hasConsumedGravestoneThisTurn) return false;
   if (unit.hasTradedThisTurn) return false;
   if (unit.hasMovedThisTurn && unit.tags.includes(UnitTag.PREP)) return false;
   if (unit.tags.includes(UnitTag.PASSIVE)) return false;
@@ -423,6 +441,7 @@ export function canUnitCapture(unit: Unit): boolean {
   if (unit.hasAttackedThisTurn) return false;
   if (unit.hasConstructedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
+  if (unit.hasConsumedGravestoneThisTurn) return false;
   if (unit.hasTradedThisTurn) return false;
   if (!unit.tags.includes(UnitTag.BUILDANDCAPTURE)) return false;
   return true;
@@ -465,6 +484,7 @@ export function canUnitTrade(unit: Unit): boolean {
   if (unit.tags.includes(UnitTag.SUMMONED)) return false;
   if (unit.hasMovedThisTurn) return false;
   if (unit.hasTradedThisTurn) return false;
+  if (unit.hasConsumedGravestoneThisTurn) return false;
   return true;
 }
 
@@ -506,6 +526,7 @@ export function canUnitConstruct(unit: Unit): boolean {
   if (unit.hasAttackedThisTurn) return false;
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
+  if (unit.hasConsumedGravestoneThisTurn) return false;
   if (unit.hasTradedThisTurn) return false;
   if (!unit.tags.includes(UnitTag.BUILDANDCAPTURE)) return false;
   return true;
@@ -590,6 +611,7 @@ export function canUnitHeal(unit: Unit): boolean {
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasConstructedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
+  if (unit.hasConsumedGravestoneThisTurn) return false;
   if (unit.hasTradedThisTurn) return false;
   return true;
 }
@@ -695,6 +717,7 @@ export function canUnitFieldwork(unit: Unit): boolean {
   if (unit.hasConstructedThisTurn) return false;
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
+  if (unit.hasConsumedGravestoneThisTurn) return false;
   if (unit.hasTradedThisTurn) return false;
   return true;
 }
@@ -730,6 +753,7 @@ export function canUnitBuildBridge(
   if (unit.hasConstructedThisTurn) return false;
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
+  if (unit.hasConsumedGravestoneThisTurn) return false;
   if (unit.hasTradedThisTurn) return false;
   return true;
 }
@@ -842,6 +866,7 @@ export function canUnitSetTrap(
   if (unit.hasConstructedThisTurn) return false;
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
+  if (unit.hasConsumedGravestoneThisTurn) return false;
   if (unit.hasTradedThisTurn) return false;
   return true;
 }
@@ -870,6 +895,7 @@ export function canUnitExtinguish(
   if (unit.hasConstructedThisTurn) return false;
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
+  if (unit.hasConsumedGravestoneThisTurn) return false;
   if (unit.hasTradedThisTurn) return false;
   return true;
 }

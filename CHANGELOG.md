@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.115.10 - Summon Ghoul
+
+Added the Summon Ghoul spell and a Ghoul that levels up and heals by consuming Gravestones, without gaining XP.
+
 ### v0.115.9 - Crystal Lightning
 
 Added Crystal Lightning, a Crystal Khyron specialization that fires combat-formula lightning volleys from Crystal Chambers and chains through resonating Chambers.

@@ -43,16 +43,16 @@ import { triggerSpellSfx } from './soundOptionsStore';
 import { Faction, GamePhase, BuildingType, TileType, TileStatus, Difficulty, DestroyBehavior, UnitType, UnitTag, TechFlag } from './types';
 import type { Building, GameState, Position, TechId, SpellId } from './types';
 import type { GameEvent } from './gameEvents';
-import { MAP, TERRAIN, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval, UNIT_DEFINITIONS, MAGE } from './gameConfig';
+import { MAP, TERRAIN, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval, UNIT_DEFINITIONS, MAGE, GHOUL } from './gameConfig';
 import { RENDER } from '../config/render';
 import { ANIMATION } from '../config/animation';
 import { CAVE_SPECIALIST_ROB_REWARD_CRYSTALS } from '../config/specialists';
 import { saveSlot, loadSlot, listSlots, deleteSlot, getSlotMeta, saveSeenHintsForSlot } from './saveSystem';
 import { useMenuStore } from './menuStore';
 import { grantKhyronResonance } from './khyronSystem';
-import { computeLevelFromXp, applyLevelUps, canGrantXp } from './levelSystem';
+import { computeLevelFromXp, applyLevelUps, canGrantXp, usesNonXpProgression } from './levelSystem';
 import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLogic, getGrantedTags, getRemovedTags, getStatMods, applyTagStatEffects, revokeTagStatEffects } from './techSystem';
-import { canUnitHeal, getHealTargets, canUnitFieldwork, isHealSuppressedByCorruption } from './unitActions';
+import { canUnitHeal, getHealTargets, canUnitFieldwork, isHealSuppressedByCorruption, canUnitConsumeGravestone } from './unitActions';
 import { createFieldworkOutpost } from './constructionSystem';
 import { getTagsFromActiveSpecialists, isSpecialistEffectActive, getTagsFromActiveSpecialistsForSourceTag } from './specialistSystem';
 import { castSpell as castSpellLogic } from './spellSystem';
@@ -215,6 +215,8 @@ interface GameActions {
   reviveUnit: (buildingId: string) => void;
   /** Raise a flying Gargoyle from any player Gravestone (Deathmender specialist; costs arcane crystals) */
   raiseGargoyle: (buildingId: string) => void;
+  /** Consume a Gravestone under a player Ghoul for a level-up or full heal. */
+  consumeGravestone: (unitId: string) => void;
   /** Permanently dismiss a recruited specialist, removing them from globalSpecialistStorage */
   dismissSpecialist: (specialistId: string) => void;
   /** Finalize pending Brandmark transforms: remove queued units and spawn hostile Ember Demons */
@@ -1303,6 +1305,7 @@ export const useGameStore = create<GameStore>()(
           hasAttackedThisTurn: false,
           hasConstructedThisTurn: false,
           hasDestroyedThisTurn: false,
+          hasConsumedGravestoneThisTurn: false,
           hasCapturedThisTurn: false,
           hasTradedThisTurn: false,
           hasUsedPostAttackMoveThisTurn: false,
@@ -1494,6 +1497,7 @@ export const useGameStore = create<GameStore>()(
           hasTradedThisTurn: false,
           hasConstructedThisTurn: false,
           hasDestroyedThisTurn: false,
+          hasConsumedGravestoneThisTurn: false,
           hasUsedPostAttackMoveThisTurn: false,
           bloodlustAttackAvailable: false,
           xp: 0,
@@ -1527,6 +1531,59 @@ export const useGameStore = create<GameStore>()(
 
         updateDiscovery(state);
       });
+    },
+
+    consumeGravestone: (unitId: string) => {
+      let result: { x: number; y: number; healed: number; level: number | null } | null = null;
+      set((state) => {
+        const unit = state.units[unitId];
+        if (!unit || !canUnitConsumeGravestone(unit, state)) return;
+        const tile = state.grid[unit.position.y]?.[unit.position.x];
+        if (!tile?.buildingId) return;
+        const graveId = tile.buildingId;
+        const grave = state.buildings[graveId];
+        if (!grave || grave.type !== BuildingType.GRAVESTONE || grave.faction !== Faction.PLAYER) return;
+
+        const { x, y } = unit.position;
+        const previousHp = unit.stats.currentHp;
+        cleanupRoostedUnits(state, graveId);
+        delete state.buildings[graveId];
+        tile.buildingId = null;
+        unit.hasConsumedGravestoneThisTurn = true;
+
+        let gainedLevel: number | null = null;
+        if (unit.level < GHOUL.MAX_LEVEL) {
+          gainedLevel = unit.level + 1;
+          applyLevelUps(state, unitId, gainedLevel, true);
+        } else {
+          unit.stats.currentHp = unit.stats.maxHp;
+        }
+        result = { x, y, healed: unit.stats.currentHp - previousHp, level: gainedLevel };
+      });
+
+      if (!result) return;
+      const { x, y, healed, level } = result;
+      if (healed > 0) {
+        useFloaterStore.getState().addFloater({
+          value: healed,
+          x,
+          y,
+          isEnemy: false,
+          floaterType: 'heal',
+        });
+      }
+      if (level !== null) {
+        useFloaterStore.getState().addFloater({
+          value: 0,
+          label: `⬆️ ${t('floater.levelUp', { level })}`,
+          x,
+          y,
+          isEnemy: false,
+          floaterType: 'levelup',
+        });
+        useCombatAnimationStore.getState().setUnitAnimation(unitId, { type: 'LEVEL_UP' });
+        setTimeout(() => useCombatAnimationStore.getState().setUnitAnimation(unitId, null), ANIMATION.LEVEL_UP_ANIM_DURATION_MS);
+      }
     },
 
     dismissSpecialist: (specialistId: string) => {
@@ -2412,6 +2469,7 @@ export const useGameStore = create<GameStore>()(
               unit.hasTradedThisTurn = false;
               unit.hasConstructedThisTurn = false;
               unit.hasDestroyedThisTurn = false;
+              unit.hasConsumedGravestoneThisTurn = false;
               unit.hasUsedPostAttackMoveThisTurn = false;
               unit.bloodlustAttackAvailable = false;
               // Only clear multi-turn stuns that have already expired so that
@@ -3858,6 +3916,7 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         const unit = state.units[unitId];
         if (!unit || unit.faction !== Faction.PLAYER) return;
+        if (usesNonXpProgression(unit.type)) return;
         const targetLevel = computeLevelFromXp(unit.type, unit.xp);
         if (targetLevel <= unit.level) return;
         applyLevelUps(state, unitId, targetLevel);

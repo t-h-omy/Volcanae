@@ -21,7 +21,7 @@ import { ANIMATION } from '../../config/animation';
 import { UI } from '../../config/ui';
 import { RENDER } from '../../config/render';
 import { INPUT } from '../../config/input';
-import { computeLevelFromXp } from '../levelSystem';
+import { computeLevelFromXp, usesNonXpProgression } from '../levelSystem';
 import { useZoomStore } from '../zoomStore';
 import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE, TILE_STATUS_SPRITE, RESOURCE_SPRITE, ENEMY_BUILDING_SPRITE, PLAYER_BUILDING_SPRITE, TERRAIN_RESOURCE_SPRITE, CRYSTAL_CHAMBER_ACTIVE_SPRITE, CRYSTAL_CAVE_ACTIVE_SPRITE, CRYSTAL_KHYRON_ACTIVE_SPRITE, ENEMY_UNIT_SPRITE, PLAYER_UNIT_SPRITE, TUNNEL_HOLE_SPRITE, TUNNEL_EARTHQUAKE_SPRITE, PORTAL_ENTRANCE_SPRITE, PORTAL_EXIT_SPRITE, getBridgeSprite } from '../assetRegistry';
 import { isKhyronResonanceActive } from '../khyronSystem';
@@ -1661,7 +1661,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
           )}
         </>
       )}
-      {UNIT_DEFINITIONS[unit.type]?.levelUp?.length > 0 && (
+      {!usesNonXpProgression(unit.type) && UNIT_DEFINITIONS[unit.type]?.levelUp?.length > 0 && (
         <span className="unit-xp-text">{t('grid.unitXp', { xp: formatNumber(unit.xp) })}</span>
       )}
       {showUnitImg ? (
@@ -1713,6 +1713,7 @@ function CaptureIndicatorLayer({ tileSize }: { tileSize: number }) {
     const result: Array<{ key: string; x: number; y: number }> = [];
     for (const unit of Object.values(units)) {
       if (unit.faction !== Faction.PLAYER) continue;
+      if (usesNonXpProgression(unit.type)) continue;
       for (const building of Object.values(buildings)) {
         if (
           building.position.x === unit.position.x &&

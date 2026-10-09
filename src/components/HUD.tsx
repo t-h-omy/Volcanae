@@ -11,7 +11,7 @@ import { useMenuStore } from '../menuStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
 import { useSoundOptionsStore } from '../soundOptionsStore';
-import { usesAssimilationProgression } from '../khyronSystem';
+import { usesNonXpProgression } from '../levelSystem';
 import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, computeResearchCost, SPELL_DEFINITIONS, MAGE, CORRUPTED_SUPPRESSED_TAGS, CRYSTAL_CAVE_CONFIG, CRYSTAL_CHAMBER_CONFIG, MARKET, SPECIALIST_DEFINITIONS, CONDITIONAL_ACTIVE_TAGS } from '../gameConfig';
 import type { SpecialistDefinition } from '../gameConfig';
 import { UI } from '../../config/ui';
@@ -70,7 +70,7 @@ import {
   type GameStats,
   type GameState,
 } from '../types';
-import { canUnitMove, canUnitAttack, canUnitCapture, canUnitPreviewConstruction, getConstructionMenuUnlockTechId, sortConstructionMenuOptions, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast, getMageCastBudget, getUnitAttackRange, isHealSuppressedByCorruption, canUnitTrade, getTradeMarket, getCaptureTarget, canUnitBuildBridge, getBridgeBuildTargets, canUnitSetTrap, getTrapPlacementTargets, canUnitExtinguish } from '../unitActions';
+import { canUnitMove, canUnitAttack, canUnitCapture, canUnitPreviewConstruction, getConstructionMenuUnlockTechId, sortConstructionMenuOptions, canUnitHeal, getHealTargets, canUnitFieldwork, getNorthermostPlayerY, canUnitCast, getMageCastBudget, getUnitAttackRange, isHealSuppressedByCorruption, canUnitTrade, getTradeMarket, getCaptureTarget, canUnitBuildBridge, getBridgeBuildTargets, canUnitSetTrap, getTrapPlacementTargets, canUnitExtinguish, canUnitConsumeGravestone } from '../unitActions';
 import { getBatteryAttackBonus, getLanceChargeAttackBonus, getPhalanxAttackBonus, getPhalanxDefenseBonus, getCrystalTowerChamberBonus, getRageAttackContext, hasAssassinDamageBonusTarget, isTagConditionActive } from '../combatSystem';
 import { isSpecialistEffectActive } from '../specialistSystem';
 import { RENDER } from '../../config/render';
@@ -117,6 +117,7 @@ const UNIT_EMOJI: Record<string, string> = {
   [UnitType.MAGE]: '🧙',
   [UnitType.EMBER_DEMON]: '😈',
   [UnitType.SKELETON]: '💀',
+  [UnitType.GHOUL]: '🧟',
   [UnitType.GARGOYLE]: '🗿',
   [UnitType.CRYSTAL_DRAKE]: '🐲',
   [UnitType.CRYSTAL_KHYRON]: '💠',
@@ -2177,6 +2178,7 @@ function SelectedUnitPanel({
   const canBuildBridge = isPlayer && canUnitBuildBridge(unit, gameState);
   const canSetTrap = isPlayer && canUnitSetTrap(unit, gameState);
   const canExtinguish = isPlayer && canUnitExtinguish(unit, gameState);
+  const canConsumeGravestone = isPlayer && canUnitConsumeGravestone(unit, gameState);
 
   const visibleTags = unit.tags.filter((t) => !HIDDEN_UNIT_TAGS.has(t));
 
@@ -2209,6 +2211,7 @@ function SelectedUnitPanel({
   const [tagPopup, setTagPopup] = useState<UnitTag | null>(null);
   const [highlightCorrupted, setHighlightCorrupted] = useState(false);
   const levelUpUnit = useGameStore((s) => s.levelUpUnit);
+  const consumeGravestone = useGameStore((s) => s.consumeGravestone);
   const startHealMode = useGameStore((s) => s.startHealMode);
   const cancelHealMode = useGameStore((s) => s.cancelHealMode);
   const pendingHealerId = useGameStore((s) => s.pendingHealerId);
@@ -2296,7 +2299,7 @@ function SelectedUnitPanel({
   };
 
   const targetLevel = computeLevelFromXp(unit.type, unit.xp);
-  const canLevelUp = isPlayer && targetLevel > unit.level;
+  const canLevelUp = isPlayer && !usesNonXpProgression(unit.type) && targetLevel > unit.level;
   const isMaxLevel = unit.level >= XP.MAX_LEVEL;
   const nextLevelDef = !isMaxLevel ? UNIT_DEFINITIONS[unit.type]?.levelUp?.[unit.level - 1] : null;
   const nextLevelXpRequired = nextLevelDef?.xpRequired ?? null;
@@ -2478,12 +2481,12 @@ function SelectedUnitPanel({
           {unit.stats.currentHp}/{unit.stats.maxHp}
         </span>
       </div>
-      {isPlayer && usesAssimilationProgression(unit.type) && (
+      {isPlayer && usesNonXpProgression(unit.type) && (
         <div className="hud-xp-row">
           <span className="hud-xp-label">{t('hud.unitPanel.level', { level: unit.level })}</span>
         </div>
       )}
-      {isPlayer && !usesAssimilationProgression(unit.type) && (
+      {isPlayer && !usesNonXpProgression(unit.type) && (
         <div className="hud-xp-row">
           <span className="hud-xp-label">
             {isMaxLevel
@@ -2563,6 +2566,11 @@ function SelectedUnitPanel({
               <span className={`hud-action-tag ${canTrade ? '' : 'hud-action-used'}`}>{t('hud.unitPanel.trade')}</span>
             )}
           </div>
+          {canConsumeGravestone && (
+            <button className="hud-capture-btn" onClick={() => consumeGravestone(unit.id)}>
+              🪦 {t('hud.unitPanel.consumeGravestone')}
+            </button>
+          )}
           {captureTarget && (
             <>
               {captureTarget.consumesUnitOnCapture && canCapture && (

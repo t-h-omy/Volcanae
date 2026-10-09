@@ -501,6 +501,14 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.GUARD,    tag: UnitTag.LEAVES_GRAVESTONE },
     ],
   },
+  {
+    id: 'SUMMON_GHOUL',
+    requires: ['RAISE_SKELETON'],
+    cost: 7,
+    effects: [
+      { type: 'UNLOCK_SPELL', spellId: SpellId.SUMMON_GHOUL },
+    ],
+  },
   // ── Necromancer path branch a: utility ──────────────────────────────────
   {
     id: 'GRAVE_TRAP',

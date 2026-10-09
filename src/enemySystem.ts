@@ -622,6 +622,7 @@ function createEnemyUnit(
     hasTradedThisTurn: false,
     hasConstructedThisTurn: false,
     hasDestroyedThisTurn: false,
+    hasConsumedGravestoneThisTurn: false,
     hasUsedPostAttackMoveThisTurn: false,
     bloodlustAttackAvailable: false,
     xp: 0,
@@ -4445,6 +4446,7 @@ export function runEnemyTurn(
         unit.hasTradedThisTurn = false;
         unit.hasConstructedThisTurn = false;
         unit.hasDestroyedThisTurn = false;
+        unit.hasConsumedGravestoneThisTurn = false;
         unit.hasUsedPostAttackMoveThisTurn = false;
       }
     }

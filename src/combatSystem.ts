@@ -248,6 +248,7 @@ export function spawnEnemyEmberDemon(
     hasTradedThisTurn: false,
     hasConstructedThisTurn: false,
     hasDestroyedThisTurn: false,
+    hasConsumedGravestoneThisTurn: false,
     hasUsedPostAttackMoveThisTurn: false,
     spellsCastThisTurn: 0,
     bloodlustAttackAvailable: false,

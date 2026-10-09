@@ -30,6 +30,8 @@ export const UnitType = {
   EMBER_DEMON: 'EMBER_DEMON',
   /** Undead unit raised from a gravestone */
   SKELETON: 'SKELETON',
+  /** Undead unit that gains levels by consuming Gravestones */
+  GHOUL: 'GHOUL',
   /** Flying skeletal gargoyle raised from any Gravestone via the Deathmender specialist */
   GARGOYLE: 'GARGOYLE',
   /** Armor-piercing ranged attacker recruited from Archer Camp */
@@ -196,6 +198,7 @@ export const SpellId = {
   TAUNT:          'TAUNT',
   STONE_SKIN:     'STONE_SKIN',
   CRYSTAL_LIGHTNING: 'CRYSTAL_LIGHTNING',
+  SUMMON_GHOUL: 'SUMMON_GHOUL',
 } as const;
 export type SpellId = (typeof SpellId)[keyof typeof SpellId];
 
@@ -458,6 +461,8 @@ export interface Unit {
   hasCapturedThisTurn: boolean;
   /** True after this unit has completed a trade (resource buy or specialist acquisition) this turn. */
   hasTradedThisTurn: boolean;
+  /** True after a Ghoul consumes a Gravestone this turn. */
+  hasConsumedGravestoneThisTurn?: boolean;
   /** True after a HIT_AND_RUN unit has used its post-attack move this turn. */
   hasUsedPostAttackMoveThisTurn: boolean;
   /**

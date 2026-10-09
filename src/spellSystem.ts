@@ -103,6 +103,7 @@ export function canUnitCast(
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasConstructedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
+  if (unit.hasConsumedGravestoneThisTurn) return false;
   // PREP semantics extended to spell-casting: cannot cast after moving.
   // Mages carry PREP by default (UNIT_DEFINITIONS.MAGE.tags), so for a
   // standard mage the move-then-cast path is closed. A non-PREP mage
@@ -324,6 +325,16 @@ export function getValidSpellTargets(
       return targets;
     }
 
+    case 'SUMMON_GHOUL': {
+      return Object.values(state.buildings)
+        .filter((building) => {
+          if (building.type !== BuildingType.GRAVESTONE || building.faction !== Faction.PLAYER) return false;
+          const tile = state.grid[building.position.y]?.[building.position.x];
+          return !!tile && tile.unitId === null && isTileInSpellRange(mage, building.position, range);
+        })
+        .map((building) => ({ ...building.position }));
+    }
+
     case 'GRAVE_TRAP': {
       const targets: Position[] = [];
       for (const building of Object.values(state.buildings)) {
@@ -490,6 +501,16 @@ export function explainInvalidSpellTarget(
       if (!isTileInSpellRange(mage, pos, range)) return null;
       const building = state.buildings[tile.buildingId];
       if (building?.type === BuildingType.GRAVESTONE) {
+        return SPELL_TARGET_REASONS.OCCUPIED;
+      }
+      return null;
+    }
+
+    case 'SUMMON_GHOUL': {
+      if (!tile.buildingId || tile.unitId !== null) return null;
+      if (!isTileInSpellRange(mage, pos, range)) return null;
+      const building = state.buildings[tile.buildingId];
+      if (building?.type === BuildingType.GRAVESTONE && building.faction === Faction.PLAYER) {
         return SPELL_TARGET_REASONS.OCCUPIED;
       }
       return null;
@@ -900,6 +921,7 @@ function handleRaiseSkeleton(
   for (const t of getTagsFromActiveSpecialistsForSourceTag(state, UnitTag.SUMMONED)) {
     if (!skeletonTags.includes(t)) skeletonTags.push(t);
   }
+
   state.units[skeletonId] = {
     id: skeletonId,
     type: UnitType.SKELETON,
@@ -923,6 +945,7 @@ function handleRaiseSkeleton(
     hasTradedThisTurn: false,
     hasConstructedThisTurn: false,
     hasDestroyedThisTurn: false,
+    hasConsumedGravestoneThisTurn: false,
     hasUsedPostAttackMoveThisTurn: false,
     bloodlustAttackAvailable: false,
     xp: 0,
@@ -942,6 +965,71 @@ function handleRaiseSkeleton(
     floaterType: 'revive',
   });
 
+  return true;
+}
+
+/** Consumes a player Gravestone and raises a Level 1 Ghoul. */
+function handleSummonGhoul(
+  state: Draft<GameState>,
+  targetPosition: Position,
+): boolean {
+  const tile = state.grid[targetPosition.y]?.[targetPosition.x];
+  if (!tile || tile.unitId !== null || !tile.buildingId) return false;
+  const grave = state.buildings[tile.buildingId];
+  if (!grave || grave.type !== BuildingType.GRAVESTONE || grave.faction !== Faction.PLAYER) return false;
+
+  const graveId = grave.id;
+  cleanupRoostedUnits(state, graveId);
+  delete state.buildings[graveId];
+  tile.buildingId = null;
+
+  const ghoulId = generateId('unit_ghoul');
+  const ghoulTags: UnitTag[] = [UnitTag.SUMMONED, UnitTag.READY];
+  for (const tag of getTagsFromActiveSpecialistsForSourceTag(state, UnitTag.SUMMONED)) {
+    if (!ghoulTags.includes(tag)) ghoulTags.push(tag);
+  }
+  const definition = UNIT_DEFINITIONS.GHOUL;
+  state.units[ghoulId] = {
+    id: ghoulId,
+    type: UnitType.GHOUL,
+    faction: Faction.PLAYER,
+    position: { ...targetPosition },
+    stats: {
+      maxHp: definition.maxHp,
+      currentHp: definition.maxHp,
+      attack: definition.attack,
+      defense: definition.defense,
+      moveRange: definition.moveRange,
+      attackRange: definition.attackRange,
+      discoverRadius: definition.discoverRadius,
+      triggerRange: definition.triggerRange,
+      movementActions: definition.movementActions,
+    },
+    tags: ghoulTags,
+    hasMovedThisTurn: false,
+    hasAttackedThisTurn: false,
+    hasCapturedThisTurn: false,
+    hasTradedThisTurn: false,
+    hasConstructedThisTurn: false,
+    hasDestroyedThisTurn: false,
+    hasConsumedGravestoneThisTurn: false,
+    hasUsedPostAttackMoveThisTurn: false,
+    bloodlustAttackAvailable: false,
+    xp: 0,
+    level: 1,
+    lastMovedTurn: 0,
+    pinnedUntilTurn: 0,
+    distractionDefPenalty: 0,
+  };
+  tile.unitId = ghoulId;
+  useFloaterStore.getState().addFloater({
+    value: 0,
+    label: `🧟 ${t('floater.raised')}`,
+    x: targetPosition.x,
+    y: targetPosition.y,
+    isEnemy: false,
+    floaterType: 'revive',
+  });
   return true;
 }
 
@@ -1339,6 +1427,8 @@ export function castSpell(
       success = handleCrystalCave(state, mage, targetPosition); break;
     case 'RAISE_SKELETON':
       success = handleRaiseSkeleton(state, targetPosition); break;
+    case 'SUMMON_GHOUL':
+      success = handleSummonGhoul(state, targetPosition); break;
     case 'GRAVE_TRAP':
       success = handleGraveTrap(state, targetPosition); break;
     case 'FROSTCRAFT':

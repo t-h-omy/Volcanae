@@ -92,6 +92,10 @@ export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
     id: SpellId.RAISE_SKELETON,
     emoji: '💀',
   },
+  [SpellId.SUMMON_GHOUL]: {
+    id: SpellId.SUMMON_GHOUL,
+    emoji: '🧟',
+  },
   [SpellId.FROSTCRAFT]: {
     id: SpellId.FROSTCRAFT,
     emoji: '❄️',
