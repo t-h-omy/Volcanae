@@ -486,15 +486,17 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   CRYSTAL_KHYRON: {
-    // Recruited (not summoned) from a resonating Crystal Chamber for Arcane Crystals.
-    // Progresses only through Resonant Assimilation, never through XP, so levelUp is empty.
+    // Recruited from a resonating Crystal Chamber; assimilation unlocks manual level-ups.
     maxHp: 100, attack: 45, defense: 45,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
-    tags: [],
+    tags: [UnitTag.SUMMONED],
     cost: { iron: 0, wood: 0, crystals: 2 },
     populationCost: { farmers: 0, nobles: 0 },
-    levelUp: [],
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
   },
 };
 
@@ -514,6 +516,7 @@ export const CRYSTAL_KHYRON = {
     UnitTag.BLOCK,
     UnitTag.PUNCTURE,
     UnitTag.BURN,
+    UnitTag.BUILDANDCAPTURE,
   ] as readonly UnitTag[],
 } as const;
 

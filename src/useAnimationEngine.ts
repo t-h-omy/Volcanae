@@ -23,6 +23,7 @@ import type { GameState, Position } from './types';
 import { tryTriggerHint } from './hintSystem';
 import { selectPortalUsedCameraEndpoint } from './portalAnimation';
 import { useEmberDisplayStore } from './emberDisplayStore';
+import { canKhyronResonate } from './khyronSystem';
 
 export function applyCaveSpecialistReward(drawn: string, outcome: CaveSpecialistRewardOutcome): void {
   const game = useGameStore.getState();
@@ -761,6 +762,7 @@ export function useAnimationEngine(): void {
       const caveRewards: { drawn: string; outcome: CaveSpecialistRewardOutcome }[] = [];
       // Resolve Scout Trap effects as one arrival sequence without extra camera pauses.
       let resolvingScoutTrap = false;
+      const presentedKhyronIds = new Set<string>();
 
       while (true) {
         if (!alive) break;
@@ -772,7 +774,7 @@ export function useAnimationEngine(): void {
           resolvingScoutTrap = true;
         }
 
-        // ── Special handling for RESONANCE_TRIGGERED (pan to each surviving chamber, then activate it) ──
+        // Activate Chambers, Caves, then each Khyron after its camera arrival.
         // Handled before the main camera-pan block so we never pan to the destroyed chamber.
         if (event.type === 'RESONANCE_TRIGGERED') {
           if (visible) {
@@ -793,7 +795,7 @@ export function useAnimationEngine(): void {
                 await wait(ANIMATION.POST_ACTION_IDLE_MS);
               }
             }
-            // Crystal Caves share the same resonance window and animation —
+            // Crystal Caves share the same resonance window and animation.
             // pan to each, activate, and play the same VFX so the player
             // sees them "wake up" alongside the chambers.
             for (const caveId of event.survivingCaveIds ?? []) {
@@ -808,6 +810,35 @@ export function useAnimationEngine(): void {
                 await wait(ANIMATION.CRYSTAL_ACTIVATE_VFX_DURATION_MS);
                 useCombatAnimationStore.getState().setBuildingAnimation(caveId, null);
 
+                await wait(ANIMATION.POST_ACTION_IDLE_MS);
+              }
+            }
+          } else {
+            for (const chamberId of event.survivingChamberIds) {
+              useGameStore.getState().activateCrystalChamber(chamberId);
+            }
+            for (const caveId of event.survivingCaveIds ?? []) {
+              useGameStore.getState().activateCrystalCave(caveId);
+            }
+          }
+          if (event.survivingChamberIds.length > 0) {
+            for (const unitId of event.survivingKhyronIds ?? []) {
+              if (presentedKhyronIds.has(unitId)) continue;
+              const unit = useGameStore.getState().units[unitId];
+              if (!unit || !canKhyronResonate(unit) || unit.stats.currentHp <= 0) continue;
+              if (visible) {
+                useAnimationStore.getState().setCameraTarget(unit.position);
+                await wait(ANIMATION.CAMERA_MOVE_DURATION_MS + ANIMATION.PRE_ACTION_IDLE_MS);
+                if (!alive) return;
+              }
+              const liveUnit = useGameStore.getState().units[unitId];
+              if (!liveUnit || !canKhyronResonate(liveUnit) || liveUnit.stats.currentHp <= 0) continue;
+              presentedKhyronIds.add(unitId);
+              useGameStore.getState().activateCrystalKhyron(unitId);
+              if (visible) {
+                useCombatAnimationStore.getState().setUnitAnimation(unitId, { type: 'CRYSTAL_ACTIVATE' });
+                await wait(ANIMATION.CRYSTAL_ACTIVATE_VFX_DURATION_MS);
+                useCombatAnimationStore.getState().setUnitAnimation(unitId, null);
                 await wait(ANIMATION.POST_ACTION_IDLE_MS);
               }
             }

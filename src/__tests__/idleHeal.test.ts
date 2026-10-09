@@ -11,6 +11,7 @@ import {
   GamePhase,
   TileType,
   UnitType,
+  UnitTag,
 } from '../types';
 import type { Building, GameState, Position, Tile, Unit } from '../types';
 
@@ -193,6 +194,26 @@ function makeState(units: Unit[]): GameState {
 describe('SP-24 Field Chirurgeon idle heal', () => {
   beforeEach(() => {
     useAnimationStore.getState().clear();
+  });
+
+  it('does not regularly heal summoned Khyrons or other summoned units', () => {
+    const khyron = makeUnit('khyron', UnitType.CRYSTAL_KHYRON, { x: 2, y: 8 }, {
+      tags: [UnitTag.SUMMONED, UnitTag.RESONANCE],
+      resonanceActive: false,
+      earnedAssimilationTags: [UnitTag.BUILDANDCAPTURE],
+    });
+    const skeleton = makeUnit('skeleton', UnitType.SKELETON, { x: 3, y: 8 });
+    for (const unit of [khyron, skeleton]) unit.stats.currentHp -= ABILITIES.IDLE_HEAL_AMOUNT;
+    const beforeKhyronHp = khyron.stats.currentHp;
+    const beforeSkeletonHp = skeleton.stats.currentHp;
+    useGameStore.setState(makeState([khyron, skeleton]));
+    useGameStore.getState().endPlayerTurn();
+    const resolved = useAnimationStore.getState().resolvedState ?? useGameStore.getState();
+    expect(resolved.units[khyron.id].stats.currentHp).toBe(beforeKhyronHp);
+    expect(resolved.units[khyron.id].earnedAssimilationTags).toEqual([UnitTag.BUILDANDCAPTURE]);
+    expect(resolved.units[khyron.id].level).toBe(1);
+    expect(resolved.units[skeleton.id].stats.currentHp).toBe(beforeSkeletonHp);
+    expect(useAnimationStore.getState().eventQueue.some((event) => event.type === 'UNIT_HEAL')).toBe(false);
   });
 
   it('heals only player units that took no action and emits one heal event per healed unit', () => {

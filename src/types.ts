@@ -545,10 +545,13 @@ export interface Unit {
 
   /**
    * Transient: transferable tags snapshotted from the first enemy killed by a
-   * resonating Crystal Khyron during the current action. Applied (and cleared)
-   * once the action finishes. Never persists across actions.
+   * resonating Crystal Khyron during the current action. Converted to earned
+   * readiness once the action finishes. Never persists across actions.
    */
   pendingAssimilationTags?: UnitTag[];
+
+  /** Persistent assimilation snapshot awaiting manual level-up; an empty array is ready too. */
+  earnedAssimilationTags?: UnitTag[];
 
  }
 

@@ -120,6 +120,8 @@ export type GameEvent =
        * `activateCrystalCave` for VFX consistency.
        */
       survivingCaveIds?: string[];
+      /** Surviving player Khyrons, included only when Chambers resonate. */
+      survivingKhyronIds?: string[];
       resonanceDuration: number;
     }
   | {

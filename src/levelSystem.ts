@@ -4,14 +4,14 @@
  */
 
 import type { Draft } from 'immer';
-import type { GameState } from './types';
+import type { GameState, Unit } from './types';
 import { Faction, GamePhase, UnitType } from './types';
 import { UNIT_DEFINITIONS, XP } from './gameConfig';
 import { ANIMATION } from '../config/animation';
 import { useFloaterStore } from './floaterStore';
 import { t } from './i18n/i18n';
 import { useCombatAnimationStore } from './combatAnimationStore';
-import { usesAssimilationProgression } from './khyronSystem';
+import { canKhyronTransform, filterTransferableTags, usesAssimilationProgression } from './khyronSystem';
 
 export function usesGravestoneProgression(unitType: string): boolean {
   return unitType === UnitType.GHOUL;
@@ -26,6 +26,7 @@ export function usesNonXpProgression(unitType: string): boolean {
  * Never exceeds XP.MAX_LEVEL.
  */
 export function computeLevelFromXp(unitType: string, xp: number): number {
+  if (usesNonXpProgression(unitType)) return 1;
   const levelDefs = UNIT_DEFINITIONS[unitType as UnitType]?.levelUp;
   if (!levelDefs || levelDefs.length === 0) return 1;
 
@@ -37,6 +38,44 @@ export function computeLevelFromXp(unitType: string, xp: number): number {
   }
 
   return Math.min(targetLevel, XP.MAX_LEVEL);
+}
+
+/** Shared readiness calculation for the level-up action, unit panel and map indicator. */
+export function getUnitTargetLevel(
+  unit: Pick<Unit, 'type' | 'faction' | 'level' | 'xp' | 'earnedAssimilationTags'>,
+): number {
+  if (usesAssimilationProgression(unit.type)) {
+    return canKhyronTransform(unit) && unit.earnedAssimilationTags !== undefined
+      ? unit.level + 1
+      : unit.level;
+  }
+  return computeLevelFromXp(unit.type, unit.xp);
+}
+
+/** Emits level-up effects after the updated unit has been committed to the store. */
+export function emitLevelUpEffects(unit: Unit, totalHeal: number): void {
+  const { x, y } = unit.position;
+  if (totalHeal > 0) {
+    useFloaterStore.getState().addFloater({
+      value: totalHeal,
+      x,
+      y,
+      isEnemy: unit.faction === Faction.ENEMY,
+      floaterType: 'heal',
+    });
+  }
+  useFloaterStore.getState().addFloater({
+    value: 0,
+    label: `⬆️ ${t('floater.levelUp', { level: unit.level })}`,
+    x,
+    y,
+    isEnemy: false,
+    floaterType: 'levelup',
+  });
+  useCombatAnimationStore.getState().setUnitAnimation(unit.id, { type: 'LEVEL_UP' });
+  setTimeout(() => {
+    useCombatAnimationStore.getState().setUnitAnimation(unit.id, null);
+  }, ANIMATION.LEVEL_UP_ANIM_DURATION_MS);
 }
 
 /**
@@ -68,7 +107,11 @@ export function applyLevelUps(
 ): void {
   const unit = state.units[unitId];
   if (!unit) return;
-  if (usesAssimilationProgression(unit.type)) return;
+  const isAssimilation = usesAssimilationProgression(unit.type);
+  if (isAssimilation) {
+    const readyLevel = getUnitTargetLevel(unit);
+    if (readyLevel <= unit.level || targetLevel !== readyLevel) return;
+  }
 
   const levelDefs = UNIT_DEFINITIONS[unit.type as UnitType]?.levelUp;
   if (!levelDefs) return;
@@ -105,6 +148,14 @@ export function applyLevelUps(
     unit.level = newLevel;
   }
 
+  if (isAssimilation && unit.level > startLevel) {
+    for (const tag of filterTransferableTags(unit.earnedAssimilationTags!)) {
+      if (!unit.tags.includes(tag)) unit.tags.push(tag);
+    }
+    delete unit.earnedAssimilationTags;
+    delete unit.pendingAssimilationTags;
+  }
+
   // Restore bloodlust charge if it was active before the level-up so the
   // second attack survives clicking Level Up after a bloodlust kill.
   if (hadBloodlustCharge) {
@@ -118,35 +169,7 @@ export function applyLevelUps(
   // live stores before the draft is committed, causing UnitBadge to re-render with
   // the LEVEL_UP animation while the HP bar still reflects the pre-level-up HP.
   if (unit.level > startLevel && !suppressEffects) {
-    const { x, y } = unit.position;
-    const isEnemy = unit.faction === Faction.ENEMY;
-
-    // Heal floater: show total HP restored
-    if (totalHeal > 0) {
-      useFloaterStore.getState().addFloater({
-        value: totalHeal,
-        x,
-        y,
-        isEnemy,
-        floaterType: 'heal',
-      });
-    }
-
-    // Level-up floater
-    useFloaterStore.getState().addFloater({
-      value: 0,
-      label: `⬆️ ${t('floater.levelUp', { level: unit.level })}`,
-      x,
-      y,
-      isEnemy: false,
-      floaterType: 'levelup',
-    });
-
-    // Level-up glow animation on the unit — auto-clears after the CSS animation completes
-    useCombatAnimationStore.getState().setUnitAnimation(unitId, { type: 'LEVEL_UP' });
-    setTimeout(() => {
-      useCombatAnimationStore.getState().setUnitAnimation(unitId, null);
-    }, ANIMATION.LEVEL_UP_ANIM_DURATION_MS);
+    emitLevelUpEffects(unit, totalHeal);
   }
 }
 

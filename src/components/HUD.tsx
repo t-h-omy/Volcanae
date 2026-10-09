@@ -45,7 +45,7 @@ import {
   getConversionTargetsForTile,
   canUnitConvertBuilding,
 } from '../constructionSystem';
-import { computeLevelFromXp } from '../levelSystem';
+import { getUnitTargetLevel } from '../levelSystem';
 import { computeUnitAiScores, computeRecruitmentScores, type ScoredAction } from '../enemySystem';
 import { getAvailableTechs as getAvailableTechsLogic } from '../techSystem';
 import { buildRecruitBlockMessages } from '../recruitMessages';
@@ -2299,8 +2299,8 @@ function SelectedUnitPanel({
     }
   };
 
-  const targetLevel = computeLevelFromXp(unit.type, unit.xp);
-  const canLevelUp = isPlayer && !usesNonXpProgression(unit.type) && targetLevel > unit.level;
+  const targetLevel = getUnitTargetLevel(unit);
+  const canLevelUp = isPlayer && targetLevel > unit.level;
   const isMaxLevel = unit.level >= XP.MAX_LEVEL;
   const nextLevelDef = !isMaxLevel ? UNIT_DEFINITIONS[unit.type]?.levelUp?.[unit.level - 1] : null;
   const nextLevelXpRequired = nextLevelDef?.xpRequired ?? null;

@@ -3,7 +3,7 @@
  * XP exclusion, Resonance lifecycle and Resonant Assimilation.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import {
   UnitType,
   BuildingType,
@@ -23,8 +23,14 @@ import {
   collectResources,
 } from '../resourceSystem';
 import { resolveAttack, resolveAttackOnBuilding } from '../combatSystem';
-import { grantXp, canGrantXp, applyLevelUps } from '../levelSystem';
-import { grantKhyronResonance, applyPendingAssimilations } from '../khyronSystem';
+import { grantXp, canGrantXp, applyLevelUps, computeLevelFromXp, getUnitTargetLevel } from '../levelSystem';
+import { grantKhyronResonance, applyPendingAssimilations, recordKhyronKill, filterTransferableTags } from '../khyronSystem';
+import { LEVEL_UP_VALUES } from '../../config/progression';
+import { useGameStore } from '../gameStore';
+import { useFloaterStore } from '../floaterStore';
+import { useCombatAnimationStore } from '../combatAnimationStore';
+import HUD_SOURCE from '../components/HUD.tsx?raw';
+import GRID_SOURCE from '../components/GridRenderer.tsx?raw';
 import { createInitialSpecialists } from '../specialistSystem';
 import { calculateCombat } from '../combatSystem';
 import { t } from '../i18n/i18n';
@@ -194,22 +200,25 @@ describe('Crystal Khyron unit definition', () => {
     expect(def.cost).toEqual({ iron: 0, wood: 0, crystals: 2 });
     expect(def.populationCost).toEqual({ farmers: 0, nobles: 0 });
   });
-  it('is not SUMMONED or READY and has no base tags or level-ups', () => {
-    expect(def.tags).not.toContain(UnitTag.SUMMONED);
+  it('is SUMMONED without READY and has HP-only level-ups', () => {
+    expect(def.tags).toContain(UnitTag.SUMMONED);
     expect(def.tags).not.toContain(UnitTag.READY);
-    expect(def.tags).toEqual([]);
-    expect(def.levelUp).toEqual([]);
+    expect(def.tags).toEqual([UnitTag.SUMMONED]);
+    expect(def.levelUp.map((level) => level.boosts)).toEqual([
+      [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }],
+      [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }],
+    ]);
   });
-  it('whitelist is exactly the eight transferable tags', () => {
+  it('whitelist is exactly the nine transferable tags', () => {
     expect([...CRYSTAL_KHYRON.TRANSFERABLE_TAGS].sort()).toEqual(
-      ['ALERT', 'BLOCK', 'BURN', 'CLEAVE', 'IRONBLOOD', 'PIERCE', 'PUNCTURE', 'RAGE'],
+      ['ALERT', 'BLOCK', 'BUILDANDCAPTURE', 'BURN', 'CLEAVE', 'IRONBLOOD', 'PIERCE', 'PUNCTURE', 'RAGE'],
     );
   });
   it('has English text without em dashes', () => {
     expect(t('unit.CRYSTAL_KHYRON.name')).toBe('Crystal Khyron');
     expect(t('tag.RESONANCE.label')).toBe('Resonance');
-    expect(t('unit.CRYSTAL_KHYRON.desc')).toContain('Transferable tags: Cleave, Pierce, Rage, Alert, Ironblood, Block, Puncture, Burn.');
-    expect(t('tag.RESONANCE.desc', { healAmount: ABILITIES.RESONANCE_HEAL_AMOUNT })).toContain('Transferable tags: Cleave, Pierce, Rage, Alert, Ironblood, Block, Puncture, Burn.');
+    expect(t('unit.CRYSTAL_KHYRON.desc')).toContain('Transferable tags: Cleave, Pierce, Rage, Alert, Ironblood, Block, Puncture, Burn, Build & Capture.');
+    expect(t('tag.RESONANCE.desc', { healAmount: ABILITIES.RESONANCE_HEAL_AMOUNT })).toContain('Transferable tags: Cleave, Pierce, Rage, Alert, Ironblood, Block, Puncture, Burn, Build & Capture.');
     expect(t('tech.CRYSTAL_KHYRON.desc', { crystalCost: 2 })).toContain('2 Arcane Crystals');
   });
 });
@@ -239,7 +248,7 @@ describe('Crystal Khyron recruitment', () => {
     expect(state.resources).toEqual({ iron: 7, wood: 9 });
     expect(units[0].level).toBe(1);
     expect(units[0].xp).toBe(0);
-    expect(units[0].tags).not.toContain(UnitTag.SUMMONED);
+    expect(units[0].tags).toContain(UnitTag.SUMMONED);
     expect(units[0].roostBuildingId).toBeUndefined();
     // Normal recruited-unit exhaustion
     expect(units[0].hasMovedThisTurn).toBe(true);
@@ -340,6 +349,113 @@ describe('Crystal Khyron XP and levels', () => {
     resolveAttack(state, k.id, enemy.id, true);
     expect(state.units[k.id].xp).toBe(0);
   });
+
+  it('ignores banked XP for both non-XP progression types', () => {
+    expect(computeLevelFromXp(UnitType.CRYSTAL_KHYRON, 9999)).toBe(1);
+    expect(computeLevelFromXp(UnitType.GHOUL, 9999)).toBe(1);
+    const k = khyron();
+    k.xp = 9999;
+    expect(getUnitTargetLevel(k)).toBe(1);
+  });
+
+  it('allows only one earned increment within the cap and filters the snapshot on confirmation', () => {
+    const k = khyron();
+    k.stats.currentHp = 10;
+    k.earnedAssimilationTags = [UnitTag.CLEAVE, UnitTag.READY, UnitTag.LAVA, UnitTag.SUMMONED];
+    const state = makeState([k]);
+    applyLevelUps(state, k.id, 3, true);
+    expect(k.level).toBe(1);
+    applyLevelUps(state, k.id, 2, true);
+    expect(k.level).toBe(2);
+    expect(k.tags).toEqual([UnitTag.SUMMONED, UnitTag.RESONANCE, UnitTag.CLEAVE]);
+    expect(k.stats.currentHp).toBe(k.stats.maxHp);
+    expect(k.stats.attack).toBe(UNIT_DEFINITIONS[UnitType.CRYSTAL_KHYRON].attack);
+    expect(k.stats.defense).toBe(UNIT_DEFINITIONS[UnitType.CRYSTAL_KHYRON].defense);
+    applyLevelUps(state, k.id, 3, true);
+    expect(k.level).toBe(2);
+    k.earnedAssimilationTags = [];
+    applyLevelUps(state, k.id, 3, true);
+    expect(k.stats.maxHp).toBe(
+      UNIT_DEFINITIONS[UnitType.CRYSTAL_KHYRON].maxHp
+      + LEVEL_UP_VALUES.HP_BOOST_DEFAULT + LEVEL_UP_VALUES.HP_BOOST_DEFAULT2,
+    );
+    k.earnedAssimilationTags = [UnitTag.BLOCK];
+    applyLevelUps(state, k.id, 4, true);
+    expect(k.level).toBe(CRYSTAL_KHYRON.MAX_LEVEL);
+    expect(getUnitTargetLevel(k)).toBe(CRYSTAL_KHYRON.MAX_LEVEL);
+    expect(k.tags).not.toContain(UnitTag.BLOCK);
+  });
+});
+
+describe('Crystal Khyron manual level-up store and UI', () => {
+  it('uses shared readiness in the HUD button and existing map indicator', () => {
+    expect(HUD_SOURCE).toContain('const targetLevel = getUnitTargetLevel(unit)');
+    expect(HUD_SOURCE).toContain('const canLevelUp = isPlayer && targetLevel > unit.level');
+    expect(HUD_SOURCE).toContain('onClick={() => levelUpUnit(unit.id)}');
+    expect(GRID_SOURCE).toContain('if (getUnitTargetLevel(unit) > unit.level)');
+  });
+
+  it('confirms earned readiness once and emits effects only after committed HP and tags', () => {
+    vi.useFakeTimers();
+    const original = useGameStore.getState();
+    const k = khyron();
+    k.earnedAssimilationTags = [];
+    k.stats.currentHp = 10;
+    k.pendingAssimilationTags = [UnitTag.BLOCK];
+    const observed: Unit[] = [];
+    const animation = vi.spyOn(useCombatAnimationStore.getState(), 'setUnitAnimation')
+      .mockImplementation(() => { observed.push(useGameStore.getState().units[k.id]); });
+    const floater = vi.spyOn(useFloaterStore.getState(), 'addFloater').mockImplementation(() => {});
+    try {
+      useGameStore.setState({ units: { [k.id]: k } });
+      useGameStore.getState().levelUpUnit(k.id);
+      const updated = useGameStore.getState().units[k.id];
+      expect(updated.level).toBe(2);
+      expect(updated.stats.currentHp).toBe(updated.stats.maxHp);
+      expect(updated.earnedAssimilationTags).toBeUndefined();
+      expect(updated.pendingAssimilationTags).toBeUndefined();
+      expect(updated.tags).toContain(UnitTag.SUMMONED);
+      expect(observed).toEqual([updated]);
+      expect(floater).toHaveBeenCalledTimes(2);
+      useGameStore.getState().levelUpUnit(k.id);
+      expect(useGameStore.getState().units[k.id].level).toBe(2);
+      expect(floater).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.clearAllTimers();
+      vi.useRealTimers();
+      animation.mockRestore();
+      floater.mockRestore();
+      useGameStore.setState(original);
+    }
+  });
+
+  it('preserves ordinary multi-level XP progression and bloodlust through the store action', () => {
+    vi.useFakeTimers();
+    const original = useGameStore.getState();
+    const unit = makeUnit(UnitType.SPEARMAN, { x: 4, y: 4 });
+    unit.xp = LEVEL_UP_VALUES.XP_TO_LEVEL_3;
+    unit.stats.currentHp = 10;
+    unit.bloodlustAttackAvailable = true;
+    unit.hasAttackedThisTurn = true;
+    const animation = vi.spyOn(useCombatAnimationStore.getState(), 'setUnitAnimation').mockImplementation(() => {});
+    const floater = vi.spyOn(useFloaterStore.getState(), 'addFloater').mockImplementation(() => {});
+    try {
+      useGameStore.setState({ units: { [unit.id]: unit } });
+      useGameStore.getState().levelUpUnit(unit.id);
+      const updated = useGameStore.getState().units[unit.id];
+      expect(updated.level).toBe(3);
+      expect(updated.stats.currentHp).toBe(updated.stats.maxHp);
+      expect(updated.bloodlustAttackAvailable).toBe(true);
+      expect(updated.hasAttackedThisTurn).toBe(true);
+      expect(floater).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.clearAllTimers();
+      vi.useRealTimers();
+      animation.mockRestore();
+      floater.mockRestore();
+      useGameStore.setState(original);
+    }
+  });
 });
 
 describe('Crystal Khyron Resonance lifecycle', () => {
@@ -364,7 +480,7 @@ describe('Crystal Khyron Resonance lifecycle', () => {
     expect(ch.resonanceTurnsRemaining).toBe(0);
     expect(state.units[k.id].resonanceActive).toBe(false);
     expect(state.units[k.id].level).toBe(1);
-    expect(state.units[k.id].tags).toEqual([UnitTag.RESONANCE]);
+    expect(state.units[k.id].tags).toEqual([UnitTag.SUMMONED, UnitTag.RESONANCE]);
     ch.resonanceTurnsRemaining = CRYSTAL_CHAMBER_CONFIG.RESONANCE_DURATION;
     grantKhyronResonance(state);
     expect(state.units[k.id].tags).toContain(UnitTag.RESONANCE);
@@ -376,7 +492,7 @@ describe('Crystal Khyron Resonance lifecycle', () => {
     const state = makeState([k], [chamber(2, 2, 1)]);
     collectResources(state);
     expect(state.units[k.id].pendingAssimilationTags).toBeUndefined();
-    expect(state.units[k.id].tags).toEqual([UnitTag.RESONANCE]);
+    expect(state.units[k.id].tags).toEqual([UnitTag.SUMMONED, UnitTag.RESONANCE]);
   });
 
   it('keeps RESONANCE while another chamber still resonates', () => {
@@ -411,7 +527,46 @@ describe('Resonance healing', () => {
 });
 
 describe('Resonant Assimilation', () => {
-  it('Lv1 kills Reaper: Lv2, inherits CLEAVE and RAGE only, loses RESONANCE, stats unchanged', () => {
+  it('keeps only the first kill snapshot and cannot stack readiness after renewed resonance', () => {
+    const k = khyron();
+    const state = makeState([k]);
+    recordKhyronKill(state, k.id, Faction.ENEMY, [UnitTag.CLEAVE]);
+    recordKhyronKill(state, k.id, Faction.ENEMY, [UnitTag.BLOCK]);
+    expect(k.pendingAssimilationTags).toEqual([UnitTag.CLEAVE]);
+    expect(k.earnedAssimilationTags).toBeUndefined();
+    expect(k.resonanceActive).toBe(true);
+    applyPendingAssimilations(state);
+    grantKhyronResonance(state);
+    recordKhyronKill(state, k.id, Faction.ENEMY, [UnitTag.BLOCK]);
+    applyPendingAssimilations(state);
+    expect(k.earnedAssimilationTags).toEqual([UnitTag.CLEAVE]);
+    expect(k.pendingAssimilationTags).toBeUndefined();
+    expect(k.level).toBe(1);
+    expect(k.tags).not.toContain(UnitTag.BLOCK);
+  });
+
+  it('does not queue friendly kills or overwrite an earned empty snapshot', () => {
+    const k = khyron();
+    const state = makeState([k]);
+    recordKhyronKill(state, k.id, Faction.PLAYER, [UnitTag.CLEAVE]);
+    expect(k.pendingAssimilationTags).toBeUndefined();
+    k.earnedAssimilationTags = [];
+    recordKhyronKill(state, k.id, Faction.ENEMY, [UnitTag.CLEAVE]);
+    expect(k.pendingAssimilationTags).toBeUndefined();
+    expect(k.earnedAssimilationTags).toEqual([]);
+    expect(filterTransferableTags([UnitTag.SUMMONED, UnitTag.READY, UnitTag.LAVA])).toEqual([]);
+  });
+
+  it('keeps earned readiness after the resonance window expires', () => {
+    const k = khyron();
+    k.earnedAssimilationTags = [];
+    const state = makeState([k], [chamber(2, 2, 1)]);
+    collectResources(state);
+    expect(k.resonanceActive).toBe(false);
+    expect(k.earnedAssimilationTags).toEqual([]);
+    expect(getUnitTargetLevel(k)).toBe(2);
+  });
+  it('Lv1 kills Reaper: earns readiness without leveling, healing or inheriting tags', () => {
     const k = khyron();
     const enemy = weakEnemy(UnitType.REAPER, 5, 4);
     const state = makeState([k, enemy]);
@@ -419,14 +574,21 @@ describe('Resonant Assimilation', () => {
     resolveAttack(state, k.id, enemy.id, true);
     const u = state.units[k.id];
     expect(state.units[enemy.id]).toBeUndefined();
-    expect(u.level).toBe(2);
-    expect(u.tags).toContain(UnitTag.CLEAVE);
-    expect(u.tags).toContain(UnitTag.RAGE);
+    expect(u.level).toBe(1);
+    expect(u.tags).not.toContain(UnitTag.CLEAVE);
+    expect(u.tags).not.toContain(UnitTag.RAGE);
+    expect(u.earnedAssimilationTags).toEqual([UnitTag.CLEAVE, UnitTag.RAGE]);
     expect(u.tags).not.toContain(UnitTag.CORRUPT);
     expect(u.tags).not.toContain(UnitTag.LAVA);
     expect(u.resonanceActive).toBe(false);
     expect(JSON.stringify(u.stats)).toBe(before);
     expect(u.pendingAssimilationTags).toBeUndefined();
+    applyLevelUps(state, k.id, getUnitTargetLevel(u), true);
+    expect(u.level).toBe(2);
+    expect(u.tags).toEqual(expect.arrayContaining([UnitTag.SUMMONED, UnitTag.CLEAVE, UnitTag.RAGE]));
+    expect(u.stats.maxHp).toBe(UNIT_DEFINITIONS[UnitType.CRYSTAL_KHYRON].maxHp + LEVEL_UP_VALUES.HP_BOOST_DEFAULT);
+    expect(u.stats.currentHp).toBe(u.stats.maxHp);
+    expect(u.earnedAssimilationTags).toBeUndefined();
   });
 
   it('later resonance: kills Bullwark to reach Lv3, keeping earlier tags', () => {
@@ -435,20 +597,27 @@ describe('Resonant Assimilation', () => {
     const state = makeState([k, enemy]);
     resolveAttack(state, k.id, enemy.id, true);
     const u = state.units[k.id];
+    expect(u.level).toBe(2);
+    applyLevelUps(state, k.id, getUnitTargetLevel(u), true);
     expect(u.level).toBe(3);
     expect(u.tags).toEqual(expect.arrayContaining([UnitTag.CLEAVE, UnitTag.RAGE, UnitTag.PUNCTURE, UnitTag.BLOCK]));
     expect(u.tags).not.toContain(UnitTag.LAVA);
     expect(u.resonanceActive).toBe(false);
   });
 
-  it('a kill with no transferable tags still transforms and consumes Resonance', () => {
+  it('a kill with no transferable tags earns readiness and consumes Resonance', () => {
     const k = khyron();
     const enemy = weakEnemy(UnitType.SKELETON, 5, 4);
     const state = makeState([k, enemy]);
     resolveAttack(state, k.id, enemy.id, true);
     const u = state.units[k.id];
+    expect(u.level).toBe(1);
+    expect(u.earnedAssimilationTags).toEqual([]);
+    expect(u.resonanceActive).toBe(false);
+    expect(getUnitTargetLevel(u)).toBe(2);
+    applyLevelUps(state, k.id, 2, true);
     expect(u.level).toBe(2);
-    expect(u.tags).toEqual([UnitTag.RESONANCE]);
+    expect(u.tags).toEqual([UnitTag.SUMMONED, UnitTag.RESONANCE]);
   });
 
   it('a kill with only already-owned tags still transforms without duplicating tags', () => {
@@ -457,6 +626,7 @@ describe('Resonant Assimilation', () => {
     const state = makeState([k, enemy]);
     resolveAttack(state, k.id, enemy.id, true);
     const u = state.units[k.id];
+    applyLevelUps(state, k.id, getUnitTargetLevel(u), true);
     expect(u.level).toBe(2);
     expect(u.tags.filter((x) => x === UnitTag.CLEAVE)).toHaveLength(1);
     expect(u.tags.filter((x) => x === UnitTag.RAGE)).toHaveLength(1);
@@ -469,7 +639,7 @@ describe('Resonant Assimilation', () => {
     const s1 = makeState([plain, e1]);
     resolveAttack(s1, plain.id, e1.id, true);
     expect(s1.units[plain.id].level).toBe(1);
-    expect(s1.units[plain.id].tags).toEqual([]);
+    expect(s1.units[plain.id].tags).toEqual([UnitTag.SUMMONED]);
 
     const max = khyron(4, 4, [UnitTag.RESONANCE], 3);
     const e2 = weakEnemy(UnitType.REAPER, 5, 4);
@@ -490,7 +660,7 @@ describe('Resonant Assimilation', () => {
     expect(state.units[k.id].tags).toContain(UnitTag.RESONANCE);
   });
 
-  it('a counterattack kill transforms the defending Khyron', () => {
+  it('a counterattack kill earns readiness for the defending Khyron', () => {
     const k = khyron();
     const enemy = weakEnemy(UnitType.REAPER, 5, 4);
     enemy.stats.attack = 1;
@@ -498,8 +668,8 @@ describe('Resonant Assimilation', () => {
     resolveAttack(state, enemy.id, k.id, true);
     expect(state.units[enemy.id]).toBeUndefined();
     expect(state.units[k.id]).toBeDefined();
-    expect(state.units[k.id].level).toBe(2);
-    expect(state.units[k.id].tags).toEqual(expect.arrayContaining([UnitTag.CLEAVE, UnitTag.RAGE]));
+    expect(state.units[k.id].level).toBe(1);
+    expect(state.units[k.id].earnedAssimilationTags).toEqual([UnitTag.CLEAVE, UnitTag.RAGE]);
   });
 
   it('multi-kill uses only the first credited death and the pre-transformation tags', () => {
@@ -511,9 +681,10 @@ describe('Resonant Assimilation', () => {
     expect(state.units[primary.id]).toBeUndefined();
     expect(state.units[side.id]).toBeUndefined();
     const u = state.units[k.id];
-    expect(u.level).toBe(2);
+    expect(u.level).toBe(1);
+    expect(u.earnedAssimilationTags).toEqual([UnitTag.CLEAVE, UnitTag.RAGE]);
     // Only the primary victim's tags (Reaper) are inherited, never the cleave victim's.
-    expect(u.tags).toContain(UnitTag.RAGE);
+    expect(u.tags).not.toContain(UnitTag.RAGE);
     expect(u.tags).not.toContain(UnitTag.PUNCTURE);
     expect(u.tags).not.toContain(UnitTag.BLOCK);
   });
@@ -524,8 +695,10 @@ describe('Resonant Assimilation', () => {
     const side = weakEnemy(UnitType.SKELETON, 5, 3);
     const state = makeState([k, primary, side]);
     resolveAttack(state, k.id, primary.id, true);
+    expect(state.units[k.id].tags).not.toContain(UnitTag.CLEAVE);
+    applyLevelUps(state, k.id, 2, true);
     expect(state.units[k.id].tags).toContain(UnitTag.CLEAVE);
-    // Cleave was inherited by this attack but did not retroactively kill the neighbour.
+    // Confirming Cleave does not retroactively kill the neighbour.
     expect(state.units[side.id]).toBeDefined();
   });
 

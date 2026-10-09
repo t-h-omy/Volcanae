@@ -17,6 +17,7 @@ export type UnitAnimationState =
   | { type: 'DYING' }
   | { type: 'LEVEL_UP' }
   | { type: 'XP_GAIN' }
+  | { type: 'CRYSTAL_ACTIVATE' }
   | { type: 'TRANSFORM_TO_DEMON'; durationMs: number }
   | { type: 'DEFECT_TO_ENEMY'; durationMs: number }
   /**

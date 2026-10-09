@@ -21,7 +21,7 @@ import { ANIMATION } from '../../config/animation';
 import { UI } from '../../config/ui';
 import { RENDER } from '../../config/render';
 import { INPUT } from '../../config/input';
-import { computeLevelFromXp, usesNonXpProgression } from '../levelSystem';
+import { getUnitTargetLevel, usesNonXpProgression } from '../levelSystem';
 import { useZoomStore } from '../zoomStore';
 import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE, TILE_STATUS_SPRITE, RESOURCE_SPRITE, ENEMY_BUILDING_SPRITE, PLAYER_BUILDING_SPRITE, TERRAIN_RESOURCE_SPRITE, CRYSTAL_CHAMBER_ACTIVE_SPRITE, CRYSTAL_CAVE_ACTIVE_SPRITE, CRYSTAL_KHYRON_ACTIVE_SPRITE, ENEMY_UNIT_SPRITE, PLAYER_UNIT_SPRITE, TUNNEL_HOLE_SPRITE, TUNNEL_EARTHQUAKE_SPRITE, PORTAL_ENTRANCE_SPRITE, PORTAL_EXIT_SPRITE, getBridgeSprite } from '../assetRegistry';
 import { isKhyronResonanceActive } from '../khyronSystem';
@@ -1596,6 +1596,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
     DYING: 'anim-dying',
     LEVEL_UP: 'anim-levelup',
     XP_GAIN: 'anim-xpgain',
+    CRYSTAL_ACTIVATE: 'unit--crystal-activating',
     TRANSFORM_TO_DEMON: 'unit--transforming',
     DEFECT_TO_ENEMY: 'unit--defecting',
   };
@@ -1651,6 +1652,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
           '--levelup-glow-mid2': `${ANIMATION.LEVEL_UP_GLOW_MID2_PX}px`,
           '--levelup-glow-color': RENDER.COLORS.LEVEL_UP_GLOW,
           '--xpgain-anim-duration': `${ANIMATION.XP_GAIN_ANIM_DURATION_MS}ms`,
+          '--crystal-activate-duration': `${ANIMATION.CRYSTAL_ACTIVATE_VFX_DURATION_MS}ms`,
           '--defect-flash-color': RENDER.COLORS.LAVA,
           '--unit-hp-text-font-size': `${UI.UNIT_HP_TEXT_FONT_SIZE_PX}px`,
         } as React.CSSProperties
@@ -1715,6 +1717,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
           💀
         </span>
       )}
+      {anim?.type === 'CRYSTAL_ACTIVATE' && <div className="tile-crystal-activate-overlay" />}
       {isStunned && (
         <span className="unit-stun-symbol">💫</span>
       )}
@@ -1834,7 +1837,7 @@ function LevelUpIndicatorLayer({ tileSize }: { tileSize: number }) {
     const result: Array<{ key: string; x: number; y: number }> = [];
     for (const unit of Object.values(units)) {
       if (unit.faction !== Faction.PLAYER) continue;
-      if (computeLevelFromXp(unit.type, unit.xp) > unit.level) {
+      if (getUnitTargetLevel(unit) > unit.level) {
         result.push({ key: unit.id, x: unit.position.x, y: unit.position.y });
       }
     }
