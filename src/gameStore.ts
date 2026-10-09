@@ -2723,7 +2723,7 @@ export const useGameStore = create<GameStore>()(
             // XP floaters — shown here (after the kill animation) rather than during computation.
             // Also update unit.xp immediately so the xp text on the sprite reflects the gain
             // right away instead of waiting for setGameState(resolvedState) at turn end.
-            if (event.attackerXpGained) {
+            if (event.attackerXpGained && canGrantXp(attacker?.type ?? '', attacker?.xp ?? 0)) {
               if (attacker) attacker.xp += event.attackerXpGained;
               addFloater({
                 value: event.attackerXpGained,
@@ -2734,7 +2734,7 @@ export const useGameStore = create<GameStore>()(
                 floaterType: 'xp',
               });
             }
-            if (event.defenderXpGained) {
+            if (event.defenderXpGained && canGrantXp(defender?.type ?? '', defender?.xp ?? 0)) {
               if (defender) defender.xp += event.defenderXpGained;
               addFloater({
                 value: event.defenderXpGained,
@@ -2805,7 +2805,7 @@ export const useGameStore = create<GameStore>()(
             // XP floaters — shown here rather than during computation.
             // Also update unit.xp immediately so the xp text on the sprite reflects the gain
             // right away instead of waiting for setGameState(resolvedState) at turn end.
-            if (event.attackerXpGained) {
+            if (event.attackerXpGained && canGrantXp(attacker?.type ?? '', attacker?.xp ?? 0)) {
               if (attacker) attacker.xp += event.attackerXpGained;
               addFloater({
                 value: event.attackerXpGained,
@@ -2816,7 +2816,7 @@ export const useGameStore = create<GameStore>()(
                 floaterType: 'xp',
               });
             }
-            if (event.defenderXpGained) {
+            if (event.defenderXpGained && canGrantXp(defender?.type ?? '', defender?.xp ?? 0)) {
               if (defender) defender.xp += event.defenderXpGained;
               addFloater({
                 value: event.defenderXpGained,

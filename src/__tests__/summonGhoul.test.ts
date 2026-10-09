@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { produce } from 'immer';
 import 'fake-indexeddb/auto';
 import { IDBFactory } from 'fake-indexeddb';
-import { GHOUL, MAP, MAGE, TECH_TREE, UNIT_DEFINITIONS } from '../gameConfig';
+import { GHOUL, MAGE, TECH_TREE, UNIT_DEFINITIONS } from '../gameConfig';
 import { generateInitialGameState } from '../mapGenerator';
 import { useGameStore } from '../gameStore';
 import { canGrantXp, grantXp, usesGravestoneProgression, usesNonXpProgression } from '../levelSystem';
@@ -28,7 +28,7 @@ let nextId = 0;
 function makeUnit(
   type: UnitType,
   position: Position,
-  faction = Faction.PLAYER,
+  faction: Faction = Faction.PLAYER,
   tags: UnitTag[] = [],
   overrides: Partial<Unit> = {},
 ): Unit {
@@ -69,7 +69,7 @@ function makeUnit(
   };
 }
 
-function makeGravestone(position: Position, faction = Faction.PLAYER): Building {
+function makeGravestone(position: Position, faction: Faction = Faction.PLAYER): Building {
   return {
     id: `ghoul-grave-${++nextId}`,
     type: BuildingType.GRAVESTONE,
@@ -239,7 +239,22 @@ describe('Summon Ghoul', () => {
     expect(after.units[ghoul.id].xp).toBe(0);
     expect(after.units[ghoul.id].level).toBe(1);
 
-    useGameStore.setState({ ...after, units: { ...after.units, [ghoul.id]: { ...after.units[ghoul.id], xp: 99 } } });
+    const enemy = makeUnit(UnitType.LAVA_GRUNT, { x: 4, y: 4 }, Faction.ENEMY);
+    useGameStore.setState(makeState([ghoul, enemy]));
+    useGameStore.getState().applyEvent({
+      type: 'PLAYER_ATTACK',
+      attackerId: ghoul.id,
+      defenderId: enemy.id,
+      attackerPosition: ghoul.position,
+      defenderPosition: enemy.position,
+      attackerHpLost: 0,
+      defenderHpLost: 0,
+      advancedToPosition: null,
+      attackerXpGained: 1,
+    });
+    expect(useGameStore.getState().units[ghoul.id].xp).toBe(0);
+
+    useGameStore.setState({ units: { ...useGameStore.getState().units, [ghoul.id]: { ...ghoul, xp: 99 } } });
     useGameStore.getState().levelUpUnit(ghoul.id);
     expect(useGameStore.getState().units[ghoul.id].level).toBe(1);
     expect(UNIT_DEFINITIONS.GHOUL.levelUp).toHaveLength(GHOUL.MAX_LEVEL - 1);

@@ -24,7 +24,7 @@
  *
  * Current action flags: hasMovedThisTurn, hasAttackedThisTurn,
  *   hasCapturedThisTurn, hasConstructedThisTurn, hasDestroyedThisTurn,
- *   spellsCastThisTurn.
+ *   hasConsumedGravestoneThisTurn, spellsCastThisTurn.
  *
  * ── CROSS-BLOCKING RULES ────────────────────────────────────────────────────
  * Move does not block attack (move → attack is the normal sequence).
@@ -34,7 +34,7 @@
 
 import type { GameState } from './types';
 import type { Draft } from 'immer';
-import { Faction, UnitTag, BuildingType, UnitType, TileType, TileStatus } from './types';
+import { Faction, GamePhase, UnitTag, BuildingType, UnitType, TileType, TileStatus } from './types';
 import type { Unit, Building, Tile, TechId } from './types';
 import { getReachableTiles } from './movementSystem';
 import { getConstructionOptionsForTile, getConstructionMenuOptionsForTile } from './constructionSystem';
@@ -130,6 +130,7 @@ export function canUnitConsumeGravestone(
   unit: Unit,
   state: GameState | Draft<GameState>,
 ): boolean {
+  if (state.phase !== GamePhase.PLAYER_TURN) return false;
   if (unit.type !== UnitType.GHOUL || unit.faction !== Faction.PLAYER) return false;
   if (unit.pinnedUntilTurn > 0 || unit.hasMovedThisTurn || unit.bloodlustAttackAvailable) return false;
   if (unit.hasConsumedGravestoneThisTurn || hasUnitActed(unit, state)) return false;
