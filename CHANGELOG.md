@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.115.15 - Scout trap sequencing
+
+Scouts with Set Trap can now move before placing a trap, but placement spends their action and blocks further movement. Trap mode highlights legal placement tiles in gold, including the Scout's own tile, hides movement previews, and restores them on cancellation. Scout Trap damage, stun, death, and consumption now replay together at enemy arrival before the next action, including immediate removal of traps that deal lethal damage.
+
 ### v0.115.14 - Final integration audit
 
 Fixed Mage leash visuals to include all leashed summoned units, including Corrupted Qorks. Added regression coverage confirming Infested damage is absorbed by Stone Skin before normal HP.

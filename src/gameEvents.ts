@@ -296,6 +296,8 @@ export type GameEvent =
       unitId: string;
       /** Position of the stunned unit */
       position: Position;
+      /** Scout Trap stun state to apply during replay rather than at turn finalization. */
+      pinnedUntilTurn?: number;
     }
   | {
       /**

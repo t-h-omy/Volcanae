@@ -759,6 +759,8 @@ export function useAnimationEngine(): void {
       // Reapply rewards after setGameState(resolvedState) so the final snapshot
       // does not overwrite decisions made during the blocking modal.
       const caveRewards: { drawn: string; outcome: CaveSpecialistRewardOutcome }[] = [];
+      // Resolve Scout Trap effects as one arrival sequence without extra camera pauses.
+      let resolvingScoutTrap = false;
 
       while (true) {
         if (!alive) break;
@@ -766,6 +768,9 @@ export function useAnimationEngine(): void {
         if (!event) break;
 
         const visible = isEventVisible(event);
+        if (event.type === 'TILE_DAMAGE' && event.damageSource === 'TRAP') {
+          resolvingScoutTrap = true;
+        }
 
         // ── Special handling for RESONANCE_TRIGGERED (pan to each surviving chamber, then activate it) ──
         // Handled before the main camera-pan block so we never pan to the destroyed chamber.
@@ -960,7 +965,7 @@ export function useAnimationEngine(): void {
           continue;
         }
 
-        if (visible) {
+        if (visible && !resolvingScoutTrap) {
           // 1. Move camera to event position
           useAnimationStore.getState().setCameraTarget(eventPosition(event));
           await wait(ANIMATION.CAMERA_MOVE_DURATION_MS);
@@ -1662,7 +1667,7 @@ export function useAnimationEngine(): void {
           // applyEvent emits the damage floater. The VFX is short enough that the
           // floater rises through it visibly.
           useGameStore.getState().applyEvent(event);
-          if (visible) await wait(ANIMATION.POST_ACTION_IDLE_MS);
+          if (visible && !resolvingScoutTrap) await wait(ANIMATION.POST_ACTION_IDLE_MS);
           continue;
         }
 
@@ -1872,8 +1877,10 @@ export function useAnimationEngine(): void {
         if (event.type === 'TRAP_TRIGGERED') {
           // applyEvent removes the building from the live display state so the
           // trap sprite disappears at the correct moment in the sequence.
-          // Non-blocking: the stun indicators already provide sufficient visual feedback.
+          // Pause only after the entire Scout Trap sequence has resolved.
           useGameStore.getState().applyEvent(event);
+          if (resolvingScoutTrap && visible) await wait(ANIMATION.POST_ACTION_IDLE_MS);
+          resolvingScoutTrap = false;
           continue;
         }
 
@@ -1910,7 +1917,10 @@ export function useAnimationEngine(): void {
         // 3. Apply event to live game state
         useGameStore.getState().applyEvent(event);
 
-        if (visible) {
+        const nextEvent = useAnimationStore.getState().eventQueue[0];
+        const trapDamageFollows = event.type === 'ENEMY_MOVE' &&
+          nextEvent?.type === 'TILE_DAMAGE' && nextEvent.damageSource === 'TRAP';
+        if (visible && !resolvingScoutTrap && !trapDamageFollows) {
           // 4. Post-action idle (duration varies by event type)
           await wait(postActionDuration(event));
         }

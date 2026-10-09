@@ -13,10 +13,10 @@
 
 import { describe, expect, it } from 'vitest';
 import { produce } from 'immer';
-import { BuildingType, DestroyBehavior, Faction, TileType, UnitTag, UnitType } from '../types';
+import { BuildingType, DestroyBehavior, Faction, GamePhase, TileType, UnitTag, UnitType } from '../types';
 import type { Building, GameState, Tile, Unit } from '../types';
 import { ABILITIES, MAP, UNIT_DEFINITIONS } from '../gameConfig';
-import { canUnitSetTrap, isTrapTileClear, getTrapPlacementTargets } from '../unitActions';
+import { canUnitSetTrap, canUnitMove, isUnitDisplayExhausted, isTrapTileClear, getTrapPlacementTargets } from '../unitActions';
 import { checkScoutTrapTrigger } from '../movementSystem';
 import { createInitialSpecialists } from '../specialistSystem';
 
@@ -197,10 +197,27 @@ describe('canUnitSetTrap', () => {
     expect(canUnitSetTrap(enemy, state)).toBe(false);
   });
 
-  it('returns false when hasMovedThisTurn', () => {
+  it('allows trap placement after movement', () => {
     const scout = makeUnit({ hasMovedThisTurn: true });
     const state = makeState({ units: [scout], globalSpecialistStorage: ['spec_08'] });
-    expect(canUnitSetTrap(scout, state)).toBe(false);
+    expect(canUnitSetTrap(scout, state)).toBe(true);
+  });
+
+  it.each(['hasTradedThisTurn', 'hasConsumedGravestoneThisTurn'] as const)(
+    'returns false when %s',
+    (flag) => {
+      const scout = makeUnit({ [flag]: true, hasMovedThisTurn: true });
+      const state = makeState({ units: [scout], globalSpecialistStorage: ['spec_08'] });
+      expect(canUnitSetTrap(scout, state)).toBe(false);
+    },
+  );
+
+  it('keeps a moved Scout visibly active when it can still set a trap', () => {
+    const scout = makeUnit({ hasMovedThisTurn: true });
+    const state = makeState({ units: [scout], globalSpecialistStorage: ['spec_08'] });
+    expect(isUnitDisplayExhausted(scout, state)).toBe(false);
+    state.resources.wood = 0;
+    expect(isUnitDisplayExhausted(scout, state)).toBe(true);
   });
 
   it('returns false when hasAttackedThisTurn', () => {
@@ -538,6 +555,9 @@ describe('trap placement pending mode', () => {
     // Attach fields expected by the store that makeState doesn't set
     return {
       ...gs,
+      phase: GamePhase.PLAYER_TURN,
+      techFlags: [],
+      portals: {},
       pendingTrapSetterId: null,
       pendingBridgeBuilderId: null,
       pendingHealerId: null,
@@ -556,6 +576,18 @@ describe('trap placement pending mode', () => {
     const scoutId = 'test-scout-pending';
     useGameStore.getState().startTrapSetMode(scoutId);
     expect(useGameStore.getState().pendingTrapSetterId).toBe(scoutId);
+  });
+
+  it('blocks movement during trap mode and allows it again after cancellation', () => {
+    const scoutId = 'test-scout-pending';
+    const target = { x: SCOUT_X + 1, y: SCOUT_Y };
+    useGameStore.getState().startTrapSetMode(scoutId);
+    useGameStore.getState().moveUnit(scoutId, target);
+    expect(useGameStore.getState().units[scoutId].position).toEqual({ x: SCOUT_X, y: SCOUT_Y });
+    expect(useGameStore.getState().units[scoutId].hasMovedThisTurn).toBe(false);
+    useGameStore.getState().cancelTrapSetMode();
+    useGameStore.getState().moveUnit(scoutId, target);
+    expect(useGameStore.getState().units[scoutId].position).toEqual(target);
   });
 
   it('pendingTrapSetterId is cleared on selectUnit', () => {
@@ -584,6 +616,49 @@ describe('trap placement pending mode', () => {
     expect(s.resources.wood).toBe(woodBefore - ABILITIES.SCOUT_TRAP_WOOD_COST);
     expect(s.grid[SCOUT_Y][SCOUT_X + 1].buildingId).toBeTruthy();
     expect(s.units[scoutId]?.hasConstructedThisTurn).toBe(true);
+    expect(canUnitMove(s.units[scoutId], s)).toBe(false);
+    useGameStore.getState().moveUnit(scoutId, { x: SCOUT_X, y: SCOUT_Y + 1 });
+    expect(useGameStore.getState().units[scoutId].position).toEqual({ x: SCOUT_X, y: SCOUT_Y });
+  });
+
+  it('moves then places a trap using the new position and cannot move again', () => {
+    const scoutId = 'test-scout-pending';
+    useGameStore.getState().moveUnit(scoutId, { x: SCOUT_X + 1, y: SCOUT_Y });
+    expect(useGameStore.getState().units[scoutId].hasMovedThisTurn).toBe(true);
+    expect(useGameStore.getState().units[scoutId].position).toEqual({ x: SCOUT_X + 1, y: SCOUT_Y });
+    useGameStore.getState().startTrapSetMode(scoutId);
+    expect(useGameStore.getState().pendingTrapSetterId).toBe(scoutId);
+    useGameStore.getState().placeTrapAt(SCOUT_X + 2, SCOUT_Y);
+    const state = useGameStore.getState();
+    expect(state.grid[SCOUT_Y][SCOUT_X + 2].buildingId).toBeTruthy();
+    expect(state.units[scoutId].hasConstructedThisTurn).toBe(true);
+    expect(canUnitMove(state.units[scoutId], state)).toBe(false);
+  });
+
+  it.each([
+    ['wood', ABILITIES.SCOUT_TRAP_WOOD_COST],
+    ['iron', ABILITIES.SCOUT_TRAP_IRON_COST],
+  ] as const)('rejects placement without enough %s', (resource, cost) => {
+    const scoutId = 'test-scout-pending';
+    useGameStore.setState({ resources: { ...useGameStore.getState().resources, [resource]: cost - 1 } });
+    const before = useGameStore.getState().resources;
+    useGameStore.getState().startTrapSetMode(scoutId);
+    useGameStore.getState().placeTrapAt(SCOUT_X, SCOUT_Y);
+    const state = useGameStore.getState();
+    expect(state.resources).toEqual(before);
+    expect(state.grid[SCOUT_Y][SCOUT_X].buildingId).toBeNull();
+    expect(state.units[scoutId].hasConstructedThisTurn).toBe(false);
+  });
+
+  it('revalidates exclusive actions when placing a trap', () => {
+    const scoutId = 'test-scout-pending';
+    useGameStore.getState().startTrapSetMode(scoutId);
+    useGameStore.setState({
+      units: { [scoutId]: { ...useGameStore.getState().units[scoutId], hasAttackedThisTurn: true } },
+    });
+    useGameStore.getState().placeTrapAt(SCOUT_X, SCOUT_Y);
+    expect(useGameStore.getState().grid[SCOUT_Y][SCOUT_X].buildingId).toBeNull();
+    expect(useGameStore.getState().resources.wood).toBe(20);
   });
 
   it('placeTrapAt on own tile succeeds (Scout itself does not block)', () => {

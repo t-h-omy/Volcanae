@@ -66,7 +66,7 @@ import { canUnitTrade } from './unitActions';
 import { createMarket, restockAllSlots } from './marketSystem';
 import { MARKET } from './gameConfig';
 import { canUnitBuildBridge, getBridgeBuildTargets } from './unitActions';
-import { canUnitSetTrap, isTrapTileClear, canUnitExtinguish } from './unitActions';
+import { canUnitSetTrap, isTrapTileClear, canUnitExtinguish, canUnitMove } from './unitActions';
 import { useHintStore } from './hintStore';
 import { flushDeferredHints, tryTriggerHint } from './hintSystem';
 import { triggerEmberLevelUpVfx } from './emberLevelVfx';
@@ -561,6 +561,9 @@ export const useGameStore = create<GameStore>()(
     },
 
     moveUnit: (unitId: string, targetPosition: Position) => {
+      const current = useGameStore.getState();
+      const movingUnit = current.units[unitId];
+      if (!movingUnit || current.pendingTrapSetterId || !canUnitMove(movingUnit, current)) return;
       // Capture unit info before the mutation in case the unit is slide-killed
       let slideKillGhostData: {
         unitType: UnitType;
@@ -1804,6 +1807,7 @@ export const useGameStore = create<GameStore>()(
     },
 
     placeTrapAt: (x: number, y: number) => {
+      let placed = false;
       set((state) => {
         const unitId = state.pendingTrapSetterId;
         if (!unitId) return;
@@ -1859,7 +1863,9 @@ export const useGameStore = create<GameStore>()(
         state.grid[y][x].buildingId = trapId;
         unit.hasConstructedThisTurn = true;
         state.pendingTrapSetterId = null;
-
+        placed = true;
+      });
+      if (placed) {
         useFloaterStore.getState().addFloater({
           value: 0,
           label: `🪤 ${t('floater.trapSet')}`,
@@ -1868,7 +1874,7 @@ export const useGameStore = create<GameStore>()(
           isEnemy: false,
           floaterType: 'revive',
         });
-      });
+      }
     },
 
     cancelTrapSetMode: () => {
@@ -3640,6 +3646,9 @@ export const useGameStore = create<GameStore>()(
           }
 
           case 'STUN_APPLIED':
+            if (event.pinnedUntilTurn !== undefined && state.units[event.unitId]) {
+              state.units[event.unitId].pinnedUntilTurn = event.pinnedUntilTurn;
+            }
             // Emit a stun floater at the affected tile.
             useFloaterStore.getState().addFloater({
               value: 0,

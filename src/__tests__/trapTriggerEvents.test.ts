@@ -12,7 +12,7 @@
  *      (state changes identical, no events emitted).
  */
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { produce } from 'immer';
 import { BuildingType, DestroyBehavior, Faction, TileType, UnitTag, UnitType } from '../types';
 import type { Building, GameState, Tile, Unit } from '../types';
@@ -20,6 +20,18 @@ import type { GameEvent } from '../gameEvents';
 import { ABILITIES, MAP, UNIT_DEFINITIONS } from '../gameConfig';
 import { checkGraveTrapTrigger, checkScoutTrapTrigger } from '../movementSystem';
 import { createInitialSpecialists } from '../specialistSystem';
+import { useGameStore } from '../gameStore';
+import { useAnimationStore } from '../animationStore';
+import { useFloaterStore } from '../floaterStore';
+import { useAnimationEngine } from '../useAnimationEngine';
+import { runEnemyTurn } from '../enemySystem';
+import { ANIMATION } from '../../config/animation';
+
+const effects = vi.hoisted(() => ({ cleanup: undefined as (() => void) | undefined }));
+vi.mock('react', async (importOriginal) => ({
+  ...await importOriginal<typeof import('react')>(),
+  useEffect: (effect: () => (() => void)) => { effects.cleanup = effect(); },
+}));
 
 // ============================================================================
 // Helpers
@@ -386,7 +398,7 @@ describe('checkScoutTrapTrigger (enemy path, events array)', () => {
     expect(events).toHaveLength(0);
   });
 
-  it('emits only TILE_DAMAGE when unit is killed by trap (no STUN or TRAP_TRIGGERED)', () => {
+  it('emits damage, death, and trap consumption in order for a lethal trigger', () => {
     const baseStats = UNIT_DEFINITIONS[UnitType.LAVA_GRUNT];
     const enemy = makeEnemyUnit({ stats: { ...baseStats, currentHp: 1 } } as Partial<Unit>);
     const trap = makeScoutTrap(5, 5);
@@ -398,10 +410,11 @@ describe('checkScoutTrapTrigger (enemy path, events array)', () => {
     });
 
     expect(next.units[enemy.id]).toBeUndefined();
-    // Unit killed: damage and death events are emitted, but no stun or trap-triggered event.
-    expect(events).toHaveLength(2);
+    expect(events).toHaveLength(3);
     expect(events[0].type).toBe('TILE_DAMAGE');
     expect(events[1]).toMatchObject({ type: 'UNIT_DEATH', unitId: enemy.id });
+    expect(events[2]).toMatchObject({ type: 'TRAP_TRIGGERED', buildingId: trap.id });
+    expect(next.buildings[trap.id]).toBeUndefined();
   });
 });
 
@@ -427,5 +440,141 @@ describe('checkScoutTrapTrigger (player path, no events)', () => {
     );
     expect(next.buildings[trap.id]).toBeUndefined();
     expect(next.grid[5][5].buildingId).toBeNull();
+  });
+});
+
+describe('Scout Trap animation replay', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    useAnimationStore.getState().clear();
+    useFloaterStore.setState({ floaters: [] });
+  });
+
+  afterEach(() => {
+    effects.cleanup?.();
+    effects.cleanup = undefined;
+    vi.restoreAllMocks();
+    vi.clearAllTimers();
+    vi.useRealTimers();
+    useAnimationStore.getState().clear();
+  });
+
+  function enqueueTrapTrigger(lethal: boolean, tags: UnitTag[] = []) {
+    const enemy = makeEnemyUnit({
+      id: 'trigger',
+      position: { x: 5, y: 4 },
+      tags,
+      stats: {
+        ...makeEnemyUnit().stats,
+        currentHp: lethal ? ABILITIES.SCOUT_TRAP_DAMAGE : ABILITIES.SCOUT_TRAP_DAMAGE * 3,
+        maxHp: ABILITIES.SCOUT_TRAP_DAMAGE * 3,
+      },
+    });
+    const observer = makeEnemyUnit({ id: 'next-enemy', position: { x: 8, y: 4 } });
+    const trap = makeScoutTrap(5, 5);
+    const live = {
+      ...useGameStore.getInitialState(),
+      ...makeState({ units: [enemy, observer], buildings: [trap] }),
+      pendingBrandmarkTransforms: [],
+    };
+    const events: GameEvent[] = [
+      { type: 'ENEMY_MOVE', unitId: enemy.id, from: { x: 5, y: 4 }, to: { x: 5, y: 5 } },
+    ];
+    const resolved = produce(live, (draft) => {
+      draft.grid[4][5].unitId = null;
+      draft.grid[5][5].unitId = enemy.id;
+      draft.units[enemy.id].position = { x: 5, y: 5 };
+      checkScoutTrapTrigger(draft, enemy.id, events);
+      draft.grid[4][8].unitId = null;
+      draft.grid[5][8].unitId = observer.id;
+      draft.units[observer.id].position = { x: 8, y: 5 };
+    });
+    events.push({ type: 'ENEMY_MOVE', unitId: observer.id, from: { x: 8, y: 4 }, to: { x: 8, y: 5 } });
+    useGameStore.setState(live);
+    const replay = vi.spyOn(useGameStore.getState(), 'applyEvent');
+    const floaters = vi.spyOn(useFloaterStore.getState(), 'addFloater');
+    useAnimationEngine();
+    useAnimationStore.getState().enqueue(events, resolved);
+    return { enemy, observer, trap, replay, floaters };
+  }
+
+  it('updates HP, stun, removal, and floaters at arrival before the next enemy moves', async () => {
+    const { enemy, observer, trap, replay, floaters } = enqueueTrapTrigger(false);
+    expect(useGameStore.getState().units[enemy.id].stats.currentHp).toBe(enemy.stats.currentHp);
+    await vi.advanceTimersByTimeAsync(ANIMATION.CAMERA_MOVE_DURATION_MS + ANIMATION.PRE_ACTION_IDLE_MS);
+    const state = useGameStore.getState();
+    expect(state.units[enemy.id].position).toEqual({ x: 5, y: 5 });
+    expect(state.units[enemy.id].stats.currentHp).toBe(enemy.stats.currentHp - ABILITIES.SCOUT_TRAP_DAMAGE);
+    expect(state.units[enemy.id].pinnedUntilTurn).toBe(state.turn + ABILITIES.SCOUT_TRAP_STUN_TURNS - 1);
+    expect(state.buildings[trap.id]).toBeUndefined();
+    expect(state.grid[5][5].buildingId).toBeNull();
+    expect(state.units[observer.id].position).toEqual(observer.position);
+    expect(floaters).toHaveBeenCalledWith(expect.objectContaining({
+      value: ABILITIES.SCOUT_TRAP_DAMAGE, x: 5, y: 5, isEnemy: true, floaterType: 'damage',
+    }));
+    await vi.runAllTimersAsync();
+    expect(useGameStore.getState().units[enemy.id].stats.currentHp).toBe(enemy.stats.currentHp - ABILITIES.SCOUT_TRAP_DAMAGE);
+    expect(replay.mock.calls.filter(([event]) => event.type === 'TILE_DAMAGE')).toHaveLength(1);
+    expect(useAnimationStore.getState().isAnimating).toBe(false);
+  });
+
+  it('plays lethal damage and death at arrival and consumes the trap before another action', async () => {
+    const { enemy, observer, trap, replay } = enqueueTrapTrigger(true);
+    await vi.advanceTimersByTimeAsync(ANIMATION.CAMERA_MOVE_DURATION_MS + ANIMATION.PRE_ACTION_IDLE_MS);
+    expect(useGameStore.getState().units[enemy.id].stats.currentHp).toBe(0);
+    expect(useGameStore.getState().units[observer.id].position).toEqual(observer.position);
+    await vi.advanceTimersByTimeAsync(ANIMATION.DIE_FLASH_DURATION_MS + ANIMATION.DIE_FADE_DURATION_MS);
+    expect(useGameStore.getState().units[enemy.id]).toBeUndefined();
+    expect(useGameStore.getState().grid[5][5].unitId).toBeNull();
+    expect(useGameStore.getState().buildings[trap.id]).toBeUndefined();
+    expect(useGameStore.getState().units[observer.id].position).toEqual(observer.position);
+    await vi.runAllTimersAsync();
+    expect(useGameStore.getState().units[enemy.id]).toBeUndefined();
+    expect(replay.mock.calls.map(([event]) => event.type)).toEqual([
+      'ENEMY_MOVE', 'TILE_DAMAGE', 'UNIT_DEATH', 'TRAP_TRIGGERED', 'ENEMY_MOVE',
+    ]);
+  });
+
+  it('retains ALERT immunity while replaying damage and consumption at arrival', async () => {
+    const { enemy, trap } = enqueueTrapTrigger(false, [UnitTag.ALERT]);
+    await vi.advanceTimersByTimeAsync(ANIMATION.CAMERA_MOVE_DURATION_MS + ANIMATION.PRE_ACTION_IDLE_MS);
+    expect(useGameStore.getState().units[enemy.id].stats.currentHp).toBe(enemy.stats.currentHp - ABILITIES.SCOUT_TRAP_DAMAGE);
+    expect(useGameStore.getState().units[enemy.id].pinnedUntilTurn).toBe(0);
+    expect(useGameStore.getState().buildings[trap.id]).toBeUndefined();
+    await vi.runAllTimersAsync();
+  });
+});
+
+describe('Scout Trap enemy simulation', () => {
+  it('emits arrival, damage, death, and consumption without any subsequent action by the victim', () => {
+    const enemy = makeEnemyUnit({
+      id: 'doomed',
+      position: { x: 4, y: 28 },
+      stats: { ...makeEnemyUnit().stats, currentHp: 1, moveRange: 1, movementActions: 2 },
+    });
+    const trap = makeScoutTrap(4, 29);
+    const stronghold = { ...makeGraveTrap(4, 70), type: BuildingType.STRONGHOLD, hp: 500, maxHp: 500 };
+    const state = {
+      ...useGameStore.getInitialState(),
+      ...makeState({ units: [enemy], buildings: [trap, stronghold] }),
+      turn: 3,
+      techFlags: [],
+      portals: {},
+      activeCaveEncounters: [],
+      pendingBrandmarkTransforms: [],
+    };
+    state.grid[29][3].terrainType = TileType.CANYON;
+    state.grid[29][5].terrainType = TileType.CANYON;
+    const { finalState: resolved, events } = runEnemyTurn(state);
+    expect(resolved.units[enemy.id]).toBeUndefined();
+    const arrival = events.findIndex((event) => event.type === 'ENEMY_MOVE' && event.unitId === enemy.id);
+    expect(arrival).toBeGreaterThanOrEqual(0);
+    expect(events.slice(arrival, arrival + 4).map((event) => event.type)).toEqual([
+      'ENEMY_MOVE', 'TILE_DAMAGE', 'UNIT_DEATH', 'TRAP_TRIGGERED',
+    ]);
+    expect(events.slice(arrival + 4).some((event) =>
+      ('unitId' in event && event.unitId === enemy.id) ||
+      ('attackerId' in event && event.attackerId === enemy.id),
+    )).toBe(false);
   });
 });

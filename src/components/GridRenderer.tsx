@@ -39,7 +39,7 @@ import {
 } from '../types';
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
 import { nextTileCycleTarget, tileSelectionState } from '../tileCycleHelper';
-import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, getTauntBlockedAttackTargetKeys, explainInvalidAttackTarget, canUnitConstruct, canUnitCapture, getHealTargets, getBridgeBuildTargets, explainInvalidHealTarget, explainInvalidBridgeTarget, getTrapPlacementTargets, explainInvalidTrapTarget, isUnitDisplayExhausted } from '../unitActions';
+import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, getTauntBlockedAttackTargetKeys, explainInvalidAttackTarget, canUnitConstruct, canUnitCapture, getHealTargets, getBridgeBuildTargets, explainInvalidHealTarget, explainInvalidBridgeTarget, canUnitSetTrap, getTrapPlacementTargets, explainInvalidTrapTarget, isUnitDisplayExhausted } from '../unitActions';
 import { getValidSpellTargets, explainInvalidSpellTarget, getTransposeTerrainBlockedTargets, getLeashedUnitsForMage } from '../spellSystem';
 import { explainBlockedMagePortalEntry } from '../portalSystem';
 import './GridRenderer.css';
@@ -155,6 +155,10 @@ export default function GridRenderer() {
   const cancelBridgeBuildMode = useGameStore((s) => s.cancelBridgeBuildMode);
   const buildBridge = useGameStore((s) => s.buildBridge);
   const pendingTrapSetterId = useGameStore((s) => s.pendingTrapSetterId);
+  const trapSetterCanSetTrap = useGameStore((s) => {
+    const setter = s.pendingTrapSetterId ? s.units[s.pendingTrapSetterId] : undefined;
+    return !!setter && canUnitSetTrap(setter, s);
+  });
   const cancelTrapSetMode = useGameStore((s) => s.cancelTrapSetMode);
   const placeTrapAt = useGameStore((s) => s.placeTrapAt);
   const strongholdTotalCap = useGameStore((s) => getStrongholdEffectiveCap(s).totalCap);
@@ -519,9 +523,9 @@ export default function GridRenderer() {
   const selectedBuilding = selectedBuildingId ? buildings[selectedBuildingId] : undefined;
 
   const reachableSet = useMemo<Set<string>>(() => {
-    if (!selectedUnit || selectedUnit.faction !== Faction.PLAYER) return new Set();
+    if (pendingTrapSetterId || !selectedUnit || selectedUnit.faction !== Faction.PLAYER) return new Set();
     return getMovableTiles(selectedUnit, useGameStore.getState());
-  }, [selectedUnit]);
+  }, [selectedUnit, pendingTrapSetterId]);
 
   const attackableSet = useMemo<Set<string>>(() => {
     // Unit attack range (enemy units and enemy buildings)
@@ -568,17 +572,16 @@ export default function GridRenderer() {
 
   // Trap placement target highlighting: when a trap setter is in trap-set mode
   const trapPlacementTargetSet = useMemo<Set<string>>(() => {
-    if (!pendingTrapSetterId) return new Set();
-    const state = useGameStore.getState();
-    const setterUnit = state.units[pendingTrapSetterId];
+    if (!pendingTrapSetterId || !trapSetterCanSetTrap) return new Set();
+    const setterUnit = units[pendingTrapSetterId];
     if (!setterUnit) return new Set();
-    const targets = getTrapPlacementTargets(setterUnit, state);
+    const targets = getTrapPlacementTargets(setterUnit, { ...useGameStore.getState(), grid });
     const set = new Set<string>();
     for (const t of targets) {
       set.add(posKey(t.x, t.y));
     }
     return set;
-  }, [pendingTrapSetterId, units]);
+  }, [pendingTrapSetterId, trapSetterCanSetTrap, units, grid]);
 
   // Spell target highlighting: when a spell cast is pending, show valid target tiles
   const spellTargetSet = useMemo<Set<string>>(() => {
@@ -1066,6 +1069,7 @@ export default function GridRenderer() {
                 isPortalFirstEndpoint={pendingPortalFirstSet.has(key)}
                 isSpellBlocked={isSpellBlocked}
                 isBridgeBuildTarget={isBridgeBuildTarget}
+                isTrapPlacementTarget={trapPlacementTargetSet.has(key)}
                 isLeashed={isLeashed}
                 isLeashWarn={isLeashWarn}
                 isSlidePreview={isSlidePreview}
@@ -1122,6 +1126,7 @@ interface TileCellProps {
   isSpellBlocked: boolean;
   /** True when this canyon tile is a valid bridge-build target for the pending builder. */
   isBridgeBuildTarget: boolean;
+  isTrapPlacementTarget: boolean;
   isLeashed: boolean;
   isLeashWarn: boolean;
   /** Whether this tile is the predicted slide destination from an adjacent FROZEN tile. */
@@ -1155,6 +1160,7 @@ function TileCellInner({
   isPortalFirstEndpoint,
   isSpellBlocked,
   isBridgeBuildTarget,
+  isTrapPlacementTarget,
   isLeashed,
   isLeashWarn,
   isSlidePreview,
@@ -1206,7 +1212,8 @@ function TileCellInner({
 
   // Highlight overlays
   let highlightOverlay: string | null = null;
-  if (isHealable) highlightOverlay = RENDER.COLORS.HEALABLE_OVERLAY;
+  if (isTrapPlacementTarget) highlightOverlay = RENDER.COLORS.TRAP_PLACEMENT_OVERLAY;
+  else if (isHealable) highlightOverlay = RENDER.COLORS.HEALABLE_OVERLAY;
   else if (isBridgeBuildTarget) highlightOverlay = RENDER.COLORS.REACHABLE_OVERLAY;
   else if (isAttackable) highlightOverlay = RENDER.COLORS.ATTACKABLE_OVERLAY;
   else if (isReachable) highlightOverlay = RENDER.COLORS.REACHABLE_OVERLAY;
