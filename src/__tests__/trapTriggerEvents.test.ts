@@ -14,6 +14,8 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { produce } from 'immer';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { BuildingType, DestroyBehavior, Faction, TileType, UnitTag, UnitType } from '../types';
 import type { Building, GameState, Tile, Unit } from '../types';
 import type { GameEvent } from '../gameEvents';
@@ -36,6 +38,11 @@ vi.mock('react', async (importOriginal) => ({
 // ============================================================================
 // Helpers
 // ============================================================================
+
+function AnimationEngineHarness() {
+  useAnimationEngine();
+  return null;
+}
 
 let _id = 0;
 function nextId(prefix = 'x'): string {
@@ -493,7 +500,7 @@ describe('Scout Trap animation replay', () => {
     useGameStore.setState(live);
     const replay = vi.spyOn(useGameStore.getState(), 'applyEvent');
     const floaters = vi.spyOn(useFloaterStore.getState(), 'addFloater');
-    useAnimationEngine();
+    renderToStaticMarkup(createElement(AnimationEngineHarness));
     useAnimationStore.getState().enqueue(events, resolved);
     return { enemy, observer, trap, replay, floaters };
   }
