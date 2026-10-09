@@ -2170,26 +2170,24 @@ function LeashLineLayer({ tileSize }: { tileSize: number }) {
     const result: LeashPair[] = [];
 
     let mage: typeof selectedUnit | undefined;
-    let demons: (typeof selectedUnit)[] = [];
+    let leashedUnits: (typeof selectedUnit)[] = [];
 
     if (selectedUnit.type === UnitType.MAGE) {
       mage = selectedUnit;
-      demons = Object.values(units).filter(
-        (u) => u.type === UnitType.EMBER_DEMON && u.controllerMageId === selectedUnit.id,
-      );
-    } else if (selectedUnit.type === UnitType.EMBER_DEMON && selectedUnit.controllerMageId) {
+      leashedUnits = getLeashedUnitsForMage(units, selectedUnit.id);
+    } else if (selectedUnit.tags.includes(UnitTag.LEASHED) && selectedUnit.controllerMageId) {
       mage = units[selectedUnit.controllerMageId];
-      demons = [selectedUnit];
+      leashedUnits = [selectedUnit];
     }
 
     if (!mage) return result;
-    for (const demon of demons) {
+    for (const leashedUnit of leashedUnits) {
       const inRange = isTileWithinEdgeCircleRange(
         mage.position.x, mage.position.y,
-        demon.position.x, demon.position.y,
+        leashedUnit.position.x, leashedUnit.position.y,
         mage.stats.attackRange,
       );
-      result.push({ magePos: mage.position, demonPos: demon.position, warn: !inRange });
+      result.push({ magePos: mage.position, demonPos: leashedUnit.position, warn: !inRange });
     }
     return result;
   }, [selectedUnit, units]);
