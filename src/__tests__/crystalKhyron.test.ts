@@ -32,7 +32,7 @@ import { useCombatAnimationStore } from '../combatAnimationStore';
 import HUD_SOURCE from '../components/HUD.tsx?raw';
 import GRID_SOURCE from '../components/GridRenderer.tsx?raw';
 import { getHealTargets } from '../unitActions';
-import { createInitialSpecialists } from '../specialistSystem';
+import { createInitialSpecialists, applyEffectsForSpecialist, revokeEffectsForSpecialist } from '../specialistSystem';
 import { calculateCombat } from '../combatSystem';
 import { t } from '../i18n/i18n';
 
@@ -374,6 +374,30 @@ describe('Crystal Khyron permanent SUMMONED behavior', () => {
 });
 
 describe('Crystal Khyron XP and levels', () => {
+  it('owns captured CLEAVE and RAGE permanently even when Hellbinder already supplies them', () => {
+    const k = khyron();
+    const other = makeUnit(UnitType.SKELETON, { x: 3, y: 4 }, Faction.PLAYER, [UnitTag.SUMMONED]);
+    const state = makeState([k, other]);
+    const hellbinder = state.specialists.spec_13;
+    state.globalSpecialistStorage = [hellbinder.id];
+    applyEffectsForSpecialist(state, hellbinder);
+    expect(k.tags).toEqual(expect.arrayContaining([UnitTag.CLEAVE, UnitTag.RAGE]));
+    k.earnedAssimilationTags = [UnitTag.CLEAVE, UnitTag.RAGE, UnitTag.CLEAVE];
+    applyLevelUps(state, k.id, 2, true);
+    expect(k.assimilatedTags).toEqual([UnitTag.CLEAVE, UnitTag.RAGE]);
+    expect(k.earnedAssimilationTags).toBeUndefined();
+    k.earnedAssimilationTags = [UnitTag.RAGE];
+    applyLevelUps(state, k.id, 3, true);
+    expect(k.assimilatedTags).toEqual([UnitTag.CLEAVE, UnitTag.RAGE]);
+    state.globalSpecialistStorage = [];
+    revokeEffectsForSpecialist(state, hellbinder);
+    expect(k.tags).toEqual(expect.arrayContaining([UnitTag.SUMMONED, UnitTag.CLEAVE, UnitTag.RAGE]));
+    expect(k.tags.filter((tag) => tag === UnitTag.CLEAVE)).toHaveLength(1);
+    expect(k.tags.filter((tag) => tag === UnitTag.RAGE)).toHaveLength(1);
+    expect(other.tags).not.toContain(UnitTag.CLEAVE);
+    expect(other.tags).not.toContain(UnitTag.RAGE);
+  });
+
   it('never gains XP and cannot normally level up', () => {
     const k = khyron(4, 4, []);
     const state = makeState([k]);
