@@ -2969,7 +2969,11 @@ function scoreActionsForUnit(
         ? [[portal.entrancePos, portal.exitPos], [portal.exitPos, portal.entrancePos]]
         : [[portal.entrancePos, portal.exitPos]];
       for (const [entry, destination] of directions) {
-        if (destination.y <= entry.y) continue;
+        if (!isMagePortal && destination.y <= entry.y) continue;
+        if (isMagePortal && !Object.values(state.units).some((target) =>
+          target.faction === Faction.PLAYER
+          && edgeCircleDistance(destination.x, destination.y, target.position.x, target.position.y)
+            < edgeCircleDistance(entry.x, entry.y, target.position.x, target.position.y))) continue;
         const entryTile = state.grid[entry.y]?.[entry.x];
         if (!entryTile || (entryTile.unitId !== null && entryTile.unitId !== unit.id)) continue;
         if (isMagePortal) {

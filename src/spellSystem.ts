@@ -39,7 +39,7 @@ import { getUnitDamageOutcome } from './unitDamage';
 import { grantXp } from './levelSystem';
 import { clearInfestedOnCreditedKill, resolveInfestedDeath } from './infestedSystem';
 import type { GameEvent } from './gameEvents';
-import { castMagePortalPair, cleanupPortals, isPortalEndpoint } from './portalSystem';
+import { castMagePortalPair, cleanupPortals, isPortalEndpoint, resolvePortalEntry } from './portalSystem';
 
 /** Returns the effective spell range for a mage (its attack range). */
 export function getMageSpellRange(
@@ -609,6 +609,7 @@ function handleTranspose(
   state: Draft<GameState>,
   mage: Unit,
   targetPosition: Position,
+  outEvents?: GameEvent[],
 ): boolean {
   const firstId = state.pendingTransposeFirstUnitId;
   const range = getMageSpellRange(mage);
@@ -654,6 +655,8 @@ function handleTranspose(
   state.grid[posA.y][posA.x].unitId = secondId;
   state.grid[posB.y][posB.x].unitId = firstId;
 
+  resolvePortalEntry(state, firstUnit.id, posB, outEvents);
+  resolvePortalEntry(state, secondUnit.id, posA, outEvents);
   state.pendingTransposeFirstUnitId = null;
 
   const { addFloater } = useFloaterStore.getState();
@@ -1462,7 +1465,7 @@ export function castSpell(
   // TRANSPOSE is special: first click selects the first unit (no cast yet),
   // second click performs the swap. Deduct crystal only on the actual swap.
   if (spellId === 'TRANSPOSE') {
-    const result = handleTranspose(state, mage, targetPosition);
+    const result = handleTranspose(state, mage, targetPosition, outEvents);
     if (result) state.arcaneCrystals -= MAGE.SPELL_CAST_CRYSTAL_COST;
     return result;
   }
@@ -1477,7 +1480,10 @@ export function castSpell(
     if (targetPosition.y !== first.y || !isValidMagePortalEndpoint(state, mage, first)
       || !isValidMagePortalEndpoint(state, mage, targetPosition)) return false;
     const created = castMagePortalPair(state, mageId, first, targetPosition, outEvents);
-    if (created) state.pendingMagePortalFirstPos = null;
+    if (created) {
+      state.arcaneCrystals -= MAGE.SPELL_CAST_CRYSTAL_COST;
+      state.pendingMagePortalFirstPos = null;
+    }
     return created;
   }
 

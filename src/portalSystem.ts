@@ -29,6 +29,7 @@ import { applyTileStatus } from './tileStatusSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import type { GameEvent } from './gameEvents';
 import { canUnitOccupyTerrain } from './movementSystem';
+import type { TextRef } from './i18n/i18n';
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -58,7 +59,7 @@ function isValidExitTile(state: Draft<GameState>, x: number, y: number): boolean
   if (tile.isStrongholdRuin || tile.isRuin) return false;
   if (tile.unitId !== null) return false;
   // No other portal entrance or exit at this tile.
-  for (const portal of Object.values(state.portals)) {
+  for (const portal of Object.values(state.portals ?? {})) {
     if (portal.entrancePos.x === x && portal.entrancePos.y === y) return false;
     if (portal.exitPos.x === x && portal.exitPos.y === y) return false;
   }
@@ -89,7 +90,7 @@ function isValidEntranceTile(state: Draft<GameState>, x: number, y: number): boo
     // Enemy occupant — allowed.
   }
   // No other portal entrance or exit at this tile.
-  for (const portal of Object.values(state.portals)) {
+  for (const portal of Object.values(state.portals ?? {})) {
     if (portal.entrancePos.x === x && portal.entrancePos.y === y) return false;
     if (portal.exitPos.x === x && portal.exitPos.y === y) return false;
   }
@@ -153,7 +154,7 @@ export function tryPlanPortalCast(
   if (!caster) return null;
 
   // Constraint: one pair per Rift Lord at a time.
-  const hasActivePair = Object.values(state.portals).some(p => p.casterId === casterId);
+  const hasActivePair = Object.values(state.portals ?? {}).some(p => p.casterId === casterId);
   if (hasActivePair) return null;
 
   // Find the player's actual frontline (northernmost player unit).
@@ -279,7 +280,7 @@ export function castMagePortalPair(
     portalKind: 'MAGE',
   });
 
-  for (const [oldId, portal] of Object.entries(state.portals)) {
+  for (const [oldId, portal] of Object.entries(state.portals ?? {})) {
     if (oldId !== id && portal.kind === 'MAGE' && portal.casterId === casterId) {
       removePortalPair(state, oldId, events);
     }
@@ -289,7 +290,7 @@ export function castMagePortalPair(
 
 /** True when a position is covered by any active portal pair. */
 export function isPortalEndpoint(state: GameState | Draft<GameState>, pos: Position): boolean {
-  return Object.values(state.portals).some((portal) =>
+  return Object.values(state.portals ?? {}).some((portal) =>
     (portal.entrancePos.x === pos.x && portal.entrancePos.y === pos.y)
     || (portal.exitPos.x === pos.x && portal.exitPos.y === pos.y));
 }
@@ -299,7 +300,7 @@ export function getMagePortalAtPosition(
   state: GameState | Draft<GameState>,
   pos: Position,
 ): { portal: Portal; destination: Position } | null {
-  for (const portal of Object.values(state.portals)) {
+  for (const portal of Object.values(state.portals ?? {})) {
     if (portal.kind !== 'MAGE') continue;
     if (portal.entrancePos.x === pos.x && portal.entrancePos.y === pos.y) {
       return { portal, destination: portal.exitPos };
@@ -325,6 +326,17 @@ export function isMagePortalExitAvailable(
     && tile.buildingId === null
     && !tile.isLava
     && (!unit || canUnitOccupyTerrain(state, unit, pair.destination.x, pair.destination.y));
+}
+
+/** Returns the curated reason a Mage portal endpoint cannot be entered voluntarily. */
+export function explainBlockedMagePortalEntry(
+  state: GameState | Draft<GameState>,
+  pos: Position,
+  unit: Pick<Unit, 'faction' | 'tags'>,
+): TextRef | null {
+  const pair = getMagePortalAtPosition(state, pos);
+  if (!pair || isMagePortalExitAvailable(state, pos, unit)) return null;
+  return { key: 'reason.movement.portalExitBlocked' };
 }
 
 /** Resolves portal entry after voluntary or forced movement, without chained bounce. */
@@ -461,7 +473,7 @@ export function processPendingPortalTeleports(
   let progressed = true;
   while (progressed) {
     progressed = false;
-    for (const portal of Object.values(state.portals)) {
+    for (const portal of Object.values(state.portals ?? {})) {
       if (!portal.pendingTeleportUnitId) continue;
       const waiterId = portal.pendingTeleportUnitId;
       const waiter = state.units[waiterId];
@@ -490,7 +502,7 @@ export function processPendingPortalTeleports(
  * A portal is usable if state.turn >= portal.createdTurn and <= portal.lastUsableTurn.
  */
 export function getUsablePortalAtEntrance(state: GameState, pos: Position): Portal | null {
-  for (const portal of Object.values(state.portals)) {
+  for (const portal of Object.values(state.portals ?? {})) {
     if (portal.kind === 'MAGE') continue;
     if (portal.entrancePos.x === pos.x && portal.entrancePos.y === pos.y) {
       // Usable on createdTurn through lastUsableTurn inclusive.
@@ -509,7 +521,7 @@ export function getUsablePortalAtEntrance(state: GameState, pos: Position): Port
  */
 export function cleanupPortals(state: Draft<GameState>, events?: GameEvent[]): void {
   // Remove pairs whose caster died. (Expiry is handled by cleanupExpiredPortalsEndOfTurn.)
-  for (const [id, portal] of Object.entries(state.portals)) {
+  for (const [id, portal] of Object.entries(state.portals ?? {})) {
     if (!state.units[portal.casterId]) {
       removePortalPair(state, id, events);
     }
@@ -523,7 +535,7 @@ export function cleanupPortals(state: Draft<GameState>, events?: GameEvent[]): v
  * and are removed at the end of their last usable turn (T + L - 1).
  */
 export function cleanupExpiredPortalsEndOfTurn(state: Draft<GameState>, events?: GameEvent[]): void {
-  for (const [id, portal] of Object.entries(state.portals)) {
+  for (const [id, portal] of Object.entries(state.portals ?? {})) {
     if (portal.kind === 'MAGE') continue;
     if (state.turn >= portal.lastUsableTurn) {
       removePortalPair(state, id, events);
@@ -537,7 +549,7 @@ export function cleanupExpiredPortalsEndOfTurn(state: Draft<GameState>, events?:
  * in a half-broken state.
  */
 export function removePortalsOnLava(state: Draft<GameState>, events?: GameEvent[]): void {
-  for (const [id, portal] of Object.entries(state.portals)) {
+  for (const [id, portal] of Object.entries(state.portals ?? {})) {
     const entranceLava = state.grid[portal.entrancePos.y]?.[portal.entrancePos.x]?.isLava;
     const exitLava = state.grid[portal.exitPos.y]?.[portal.exitPos.x]?.isLava;
     if (entranceLava || exitLava || !state.units[portal.casterId]) {

@@ -41,7 +41,7 @@ import { isTileWithinEdgeCircleRange } from '../rangeUtils';
 import { nextTileCycleTarget, tileSelectionState } from '../tileCycleHelper';
 import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, getTauntBlockedAttackTargetKeys, explainInvalidAttackTarget, canUnitConstruct, canUnitCapture, getHealTargets, getBridgeBuildTargets, explainInvalidHealTarget, explainInvalidBridgeTarget, getTrapPlacementTargets, explainInvalidTrapTarget, isUnitDisplayExhausted } from '../unitActions';
 import { getValidSpellTargets, explainInvalidSpellTarget, getTransposeTerrainBlockedTargets } from '../spellSystem';
-import { getMagePortalAtPosition, isMagePortalExitAvailable } from '../portalSystem';
+import { explainBlockedMagePortalEntry } from '../portalSystem';
 import './GridRenderer.css';
 
 // ============================================================================
@@ -591,7 +591,7 @@ export default function GridRenderer() {
     const set = new Set<string>();
     for (const p of targets) set.add(posKey(p.x, p.y));
     return set;
-  }, [pendingSpellCast, pendingTransposeFirstUnitId, pendingMagePortalFirstPos, units, buildings, grid]);
+  }, [pendingSpellCast, pendingTransposeFirstUnitId, units, buildings, grid]);
 
   // Transpose second pick: same-faction in-range units whose swap fails only
   // the destination-terrain check get a blocked marker before clicking.
@@ -921,12 +921,13 @@ export default function GridRenderer() {
       if (
         selectedUnit?.faction === Faction.PLAYER
         && canUnitMove(selectedUnit, useGameStore.getState())
-        && getMagePortalAtPosition(useGameStore.getState(), { x, y })
-        && !isMagePortalExitAvailable(useGameStore.getState(), { x, y })
       ) {
-        triggerInvalidActionVfx(x, y);
-        showInvalidReasonFloater(x, y, { key: 'reason.movement.portalExitBlocked' });
-        return;
+        const reason = explainBlockedMagePortalEntry(useGameStore.getState(), { x, y }, selectedUnit);
+        if (reason) {
+          triggerInvalidActionVfx(x, y);
+          showInvalidReasonFloater(x, y, reason);
+          return;
+        }
       }
 
       // Priority 5a — Enemy building on tile (no enemy unit), player unit or player building can attack it

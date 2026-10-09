@@ -649,10 +649,12 @@ export const useGameStore = create<GameStore>()(
         checkGameConditions(state);
       });
 
-      for (const event of movementEvents) {
-        if (event.type === 'PORTAL_BLOCKED') {
-          useGameStore.getState().applyEvent(event);
-        }
+      const portalMovementEvents = movementEvents.filter((event) =>
+        event.type === 'PORTAL_USED'
+        || event.type === 'PORTAL_BLOCKED'
+        || event.type === 'PORTAL_CLOSED');
+      if (portalMovementEvents.length > 0) {
+        useAnimationStore.getState().enqueue(portalMovementEvents, useGameStore.getState());
       }
 
       // ── Slide-kill ghost animation ───────────────────────────────────────

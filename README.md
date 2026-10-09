@@ -73,6 +73,7 @@ Spells are unlocked individually through the tech tree. Available spells include
 | ☠️ Grave Trap | Place a trap that stuns the next unit to enter |
 | 💥 Explode | Deal area damage around a target tile |
 | 💎 Crystal Tower | Sacrifice the Mage to erect a permanent Crystal Tower on its tile |
+| 🌀 Portal | Create a permanent bidirectional portal pair on the same row; units of any faction can enter either endpoint |
 | 🎯 Taunt | Mark a friendly unit so hostile units must attack it whenever it is a legal target in range |
 | 🪨 Stone Skin | Grant a friendly unit a separate 50 HP pool that absorbs damage before normal HP and prevents voluntary movement while it remains |
 | ⚡ Crystal Lightning | Fire a 20-power lightning volley from a Crystal Chamber; resonating Chambers chain the spell to nearby active Chambers |

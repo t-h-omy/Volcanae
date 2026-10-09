@@ -873,5 +873,21 @@
   },
   "spell.CRYSTAL_LIGHTNING.targetHint": {
     "note": "Targeting instruction for Crystal Lightning."
+  },
+  "tech.PORTAL.name": {
+    "note": "Technology name for the Mage spell Portal.",
+    "sameAsSource": [
+      "de",
+      "es",
+      "pt-BR"
+    ]
+  },
+  "spell.PORTAL.name": {
+    "note": "Name of the Mage spell that creates a bidirectional portal pair.",
+    "sameAsSource": [
+      "de",
+      "es",
+      "pt-BR"
+    ]
   }
 }

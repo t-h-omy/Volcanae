@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.115.12 - Mage Portal
+
+Added the Portal tech and spell, which creates persistent bidirectional portal pairs that all factions can use, with two-endpoint targeting, movement and AI routing, and Mage death or lava cleanup.
+
 ### v0.115.11 - Lava Mold
 
 Added the Lava Mold spell, which infests enemy units, deals damage at the end of each faction turn, and spreads to adjacent units when an Infested unit dies.

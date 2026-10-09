@@ -450,6 +450,7 @@ export function resolveSlide(
   dx: number,
   dy: number,
   events?: GameEvent[],
+  portalEvents?: GameEvent[],
 ): void {
   const unit = state.units[unitId];
   if (!unit) return;
@@ -540,7 +541,7 @@ export function resolveSlide(
   slideTile.unitId = unitId;
   unit.position.x = slideX;
   unit.position.y = slideY;
-  resolvePortalEntry(state, unitId, { x: slideX, y: slideY }, events);
+  resolvePortalEntry(state, unitId, { x: slideX, y: slideY }, portalEvents ?? events);
 }
 
 /**
@@ -619,7 +620,7 @@ export function moveUnit(
 
   // GRAVE_TRAP / SCOUT_TRAP: check if the unit landed on a trap
   checkGraveTrapTrigger(state, unitId);
-  checkScoutTrapTrigger(state, unitId, events);
+  checkScoutTrapTrigger(state, unitId);
 
   if (state.units[unitId]) {
     resolvePortalEntry(state, unitId, { ...state.units[unitId].position }, events);
@@ -637,7 +638,7 @@ export function moveUnit(
   ) {
     const slidUnit = state.units[unitId];
     if (!slidUnit.tags.includes(UnitTag.FLYING)) {
-      resolveSlide(state, unitId, moveDx, moveDy);
+      resolveSlide(state, unitId, moveDx, moveDy, undefined, events);
     }
   }
   cleanupPortals(state, events);
