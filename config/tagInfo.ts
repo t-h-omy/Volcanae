@@ -71,5 +71,6 @@ export const TAG_INFO: Record<UnitTag, { icon?: string; textParams?: { [name: st
   [UnitTag.RESONANCE]: { textParams: { healAmount: ABILITIES.RESONANCE_HEAL_AMOUNT } },
   [UnitTag.TAUNT]: { icon: '🎯' },
   [UnitTag.STONE_SKIN]: { icon: '🪨', textParams: { stoneHp: MAGE.STONE_SKIN_HP } },
+  [UnitTag.INFESTED]: { icon: '🦠', textParams: { hpLossPerTurn: MAGE.INFESTED_HP_LOSS_PER_TURN } },
   [UnitTag.BATTERY]: { textParams: { attackPerAdjacent: ABILITIES.SIEGE_BATTERY_ATK_PER_ADJACENT, stackCap: ABILITIES.SIEGE_BATTERY_CAP } },
 };

@@ -199,6 +199,7 @@ export const SpellId = {
   STONE_SKIN:     'STONE_SKIN',
   CRYSTAL_LIGHTNING: 'CRYSTAL_LIGHTNING',
   SUMMON_GHOUL: 'SUMMON_GHOUL',
+  LAVA_MOLD: 'LAVA_MOLD',
 } as const;
 export type SpellId = (typeof SpellId)[keyof typeof SpellId];
 
@@ -378,6 +379,7 @@ export const UnitTag = {
   TAUNT: 'TAUNT',
   /** Incoming damage is absorbed by a separate Stone HP pool before normal HP. */
   STONE_SKIN: 'STONE_SKIN',
+  INFESTED: 'INFESTED',
 } as const;
 export type UnitTag = (typeof UnitTag)[keyof typeof UnitTag];
 
@@ -495,6 +497,8 @@ export interface Unit {
    * `null` or `undefined` means no controller. Cleared on defection.
    */
   controllerMageId?: string | null;
+  /** Original Mage who started an Infested infection chain. */
+  infestedByMageId?: string | null;
   /** Set on Mage units; number of spells cast this turn. Reset each turn. */
   spellsCastThisTurn?: number;
   /**

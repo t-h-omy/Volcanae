@@ -31,6 +31,10 @@ export const MAGE = {
   // ── Spell parameters ─────────────────────────────────────────────────
   /** HP lost by a BRANDMARKED unit at the end of every player turn */
   BRANDMARK_HP_LOSS_PER_TURN: 10,
+  /** HP lost by an INFESTED unit at the end of its faction's turn. */
+  INFESTED_HP_LOSS_PER_TURN: 10,
+  /** Defense-ignoring damage dealt to adjacent units when an INFESTED unit dies. */
+  INFESTED_DEATH_BURST_DAMAGE: 0,
   /** Flat ATK bonus while the BRANDMARKED tag is on a unit */
   BRANDMARK_ATTACK_BONUS: 20,
   /** Max HP multiplier applied when a unit is branded (e.g. 2 = double max HP) */
@@ -95,6 +99,11 @@ export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
   [SpellId.SUMMON_GHOUL]: {
     id: SpellId.SUMMON_GHOUL,
     emoji: '🧟',
+  },
+  [SpellId.LAVA_MOLD]: {
+    id: SpellId.LAVA_MOLD,
+    emoji: '🦠',
+    textParams: { damage: MAGE.INFESTED_HP_LOSS_PER_TURN },
   },
   [SpellId.FROSTCRAFT]: {
     id: SpellId.FROSTCRAFT,
