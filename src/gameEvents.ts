@@ -415,6 +415,11 @@ export type GameEvent =
       position: Position;
     }
   | {
+      /** Purely visual feedback when a death corruption attempt is illegal on its terrain. */
+      type: 'CORRUPTION_FIZZLE';
+      position: Position;
+    }
+  | {
       /**
        * Emitted when a cave monster returns to its home mountain tile and
        * burrows back in. The unit is removed from the game — it does not die

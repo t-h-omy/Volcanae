@@ -20,7 +20,7 @@ import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { generateId } from './mapGenerator';
 import { useFloaterStore } from './floaterStore';
 import { useCombatAnimationStore } from './combatAnimationStore';
-import { isStatusAllowedOnTerrain, applyTileStatus } from './tileStatusSystem';
+import { isStatusAllowedOnTerrain, applyTileStatus, clearTileStatus } from './tileStatusSystem';
 import {
   shouldLeaveGravestone,
   createGravestoneAt,
@@ -144,7 +144,29 @@ const SPELL_TARGET_REASONS: Record<string, TextRef> = {
   OCCUPIED: { key: 'reason.spell.occupied' },
   PORTAL_BLOCKED: { key: 'reason.spell.portalBlocked' },
   PORTAL_WRONG_ROW: { key: 'reason.spell.portalWrongRow' },
+  CORRUPTED_QORK_SPAWN: { key: 'reason.spell.corruptedQorkSpawn' },
 } as const;
+
+function isValidCorruptedQorkSpawnTile(
+  state: GameState | Draft<GameState>,
+  mage: Unit | Draft<Unit>,
+  pos: Position,
+): boolean {
+  const tile = state.grid[pos.y]?.[pos.x];
+  return !!tile
+    && tile.status === TileStatus.CORRUPTED
+    && tile.unitId === null
+    && tile.buildingId === null
+    && !tile.isLava
+    && !tile.isRuin
+    && !tile.isStrongholdRuin
+    && !isPortalEndpoint(state, pos)
+    && isTileInSpellRange(mage, pos, getMageSpellRange(mage))
+    && canUnitOccupyTerrain(state, {
+      faction: Faction.PLAYER,
+      tags: UNIT_DEFINITIONS.CORRUPTED_QORK.tags,
+    }, pos.x, pos.y);
+}
 
 function isValidMagePortalEndpoint(
   state: GameState | Draft<GameState>,
@@ -296,6 +318,17 @@ export function getValidSpellTargets(
           const pos = { x, y };
           if (first && first.x === x && first.y === y) continue;
           if (isValidMagePortalEndpoint(state, mage, pos)) targets.push(pos);
+        }
+      }
+      return targets;
+    }
+
+    case 'CORRUPTED_QORK': {
+      const targets: Position[] = [];
+      for (let y = 0; y < state.grid.length; y++) {
+        for (let x = 0; x < state.grid[y].length; x++) {
+          const pos = { x, y };
+          if (isValidCorruptedQorkSpawnTile(state, mage, pos)) targets.push(pos);
         }
       }
       return targets;
@@ -523,6 +556,12 @@ export function explainInvalidSpellTarget(
       }
       return null;
     }
+
+    case 'CORRUPTED_QORK':
+      if (tile.status !== TileStatus.CORRUPTED || !isTileInSpellRange(mage, pos, range)) return null;
+      return isValidCorruptedQorkSpawnTile(state, mage, pos)
+        ? null
+        : SPELL_TARGET_REASONS.CORRUPTED_QORK_SPAWN;
 
     case 'LAVA_MOLD': {
       if (!tile.unitId) return null;
@@ -759,6 +798,67 @@ function handleEmberbind(
     floaterType: 'revive',
   });
 
+  return true;
+}
+
+function handleCorruptedQork(
+  state: Draft<GameState>,
+  mage: Unit,
+  targetPosition: Position,
+  outEvents?: GameEvent[],
+): boolean {
+  if (!isValidCorruptedQorkSpawnTile(state, mage, targetPosition)) return false;
+  const tile = state.grid[targetPosition.y][targetPosition.x];
+  clearTileStatus(state, targetPosition, outEvents);
+
+  const unitId = generateId('unit_corrupted_qork');
+  const tags: UnitTag[] = [UnitTag.SUMMONED, UnitTag.LEASHED, ...UNIT_DEFINITIONS.CORRUPTED_QORK.tags];
+  for (const tag of getTagsFromActiveSpecialistsForSourceTag(state, UnitTag.SUMMONED)) {
+    if (!tags.includes(tag)) tags.push(tag);
+  }
+  const definition = UNIT_DEFINITIONS.CORRUPTED_QORK;
+  state.units[unitId] = {
+    id: unitId,
+    type: UnitType.CORRUPTED_QORK,
+    faction: Faction.PLAYER,
+    position: { ...targetPosition },
+    stats: {
+      maxHp: definition.maxHp,
+      currentHp: definition.maxHp,
+      attack: definition.attack,
+      defense: definition.defense,
+      moveRange: definition.moveRange,
+      attackRange: definition.attackRange,
+      discoverRadius: definition.discoverRadius,
+      triggerRange: definition.triggerRange,
+      movementActions: definition.movementActions,
+    },
+    tags,
+    controllerMageId: mage.id,
+    hasMovedThisTurn: true,
+    hasAttackedThisTurn: true,
+    hasCapturedThisTurn: true,
+    hasTradedThisTurn: false,
+    hasConstructedThisTurn: true,
+    hasDestroyedThisTurn: true,
+    hasConsumedGravestoneThisTurn: false,
+    hasUsedPostAttackMoveThisTurn: false,
+    bloodlustAttackAvailable: false,
+    xp: 0,
+    level: 1,
+    lastMovedTurn: 0,
+    pinnedUntilTurn: 0,
+    distractionDefPenalty: 0,
+  };
+  tile.unitId = unitId;
+  useFloaterStore.getState().addFloater({
+    value: 0,
+    label: `🐗 ${t('floater.bound')}`,
+    x: targetPosition.x,
+    y: targetPosition.y,
+    isEnemy: false,
+    floaterType: 'revive',
+  });
   return true;
 }
 
@@ -1498,6 +1598,8 @@ export function castSpell(
   switch (spellId) {
     case 'EMBERBIND':
       success = handleEmberbind(state, mage, targetPosition); break;
+    case 'CORRUPTED_QORK':
+      success = handleCorruptedQork(state, mage, targetPosition, outEvents); break;
     case 'BRANDMARK_HEAL':
       success = handleBrandmarkHeal(state, mage, targetPosition); break;
     case 'TAUNT': {

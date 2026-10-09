@@ -136,6 +136,8 @@ function eventPosition(event: GameEvent): Position {
       return event.defenderPosition;
     case 'CORRUPTION_APPLIED':
       return event.position;
+    case 'CORRUPTION_FIZZLE':
+      return event.position;
     case 'CAVE_MONSTER_RETREAT':
       return event.position;
     case 'LEASH_DEFECT':
@@ -255,6 +257,8 @@ function isEventVisible(event: GameEvent): boolean {
     case 'DEFENSE_BONUS_IGNORED':
       return isTileRevealed(event.defenderPosition);
     case 'CORRUPTION_APPLIED':
+      return isTileRevealed(event.position);
+    case 'CORRUPTION_FIZZLE':
       return isTileRevealed(event.position);
     case 'CAVE_MONSTER_RETREAT':
       return isTileRevealed(event.position);
@@ -1690,6 +1694,21 @@ export function useAnimationEngine(): void {
             });
           }
           // No state effect; applyEvent will silently no-op.
+          useGameStore.getState().applyEvent(event);
+          if (visible) await wait(ANIMATION.POST_ACTION_IDLE_MS);
+          continue;
+        }
+
+        if (event.type === 'CORRUPTION_FIZZLE') {
+          if (visible) {
+            useCombatAnimationStore.getState().addTileVfx({
+              id: crypto.randomUUID(),
+              x: event.position.x,
+              y: event.position.y,
+              variant: 'CORRUPTION_FIZZLE',
+              durationMs: ANIMATION.CORRUPTION_FIZZLE_VFX_MS,
+            });
+          }
           useGameStore.getState().applyEvent(event);
           if (visible) await wait(ANIMATION.POST_ACTION_IDLE_MS);
           continue;

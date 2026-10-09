@@ -456,6 +456,14 @@ export const TECH_TREE: TechNodeDefinition[] = [
     ],
   },
   {
+    id: 'CORRUPTED_QORK',
+    requires: ['EMBERBIND'],
+    cost: 7,
+    effects: [
+      { type: 'UNLOCK_SPELL', spellId: SpellId.CORRUPTED_QORK },
+    ],
+  },
+  {
     id: 'BRANDMARK_HEAL',
     requires: ['ARCANE_AWAKENING'],
     cost: 4,

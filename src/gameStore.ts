@@ -3697,6 +3697,7 @@ export const useGameStore = create<GameStore>()(
           case 'STUN_BLOCKED':
           case 'DEFENSE_BONUS_IGNORED':
           case 'CORRUPTION_APPLIED':
+          case 'CORRUPTION_FIZZLE':
             // Presentation-only: no state mutation required.
             break;
 

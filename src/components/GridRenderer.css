@@ -1687,6 +1687,26 @@
   100% { opacity: 0;    transform: scale(1.05); }
 }
 
+/* ── CORRUPTION_FIZZLE — sharp violet pulse that collapses without applying status ── */
+
+.tile-vfx--corruption-fizzle {
+  background:
+    radial-gradient(circle at 50% 50%,
+      rgba(125, 45, 155, 0.8) 0%,
+      rgba(75, 25, 95, 0.45) 35%,
+      rgba(40, 20, 30, 0) 70%);
+  border: 2px solid rgba(190, 115, 225, 0.8);
+  border-radius: 50%;
+  opacity: 0;
+  animation: corruptionFizzle var(--tile-vfx-duration, 450ms) ease-out forwards;
+}
+
+@keyframes corruptionFizzle {
+  0% { opacity: 0; transform: scale(0.5) rotate(0deg); }
+  35% { opacity: 0.95; transform: scale(1.05) rotate(20deg); }
+  100% { opacity: 0; transform: scale(0.7) rotate(-25deg); }
+}
+
 /* ── HEAL — soft green pulse with a brief upward shimmer ─────────────── */
 
 .tile-vfx--heal {

@@ -30,6 +30,8 @@ export const UnitType = {
   EMBER_DEMON: 'EMBER_DEMON',
   /** Undead unit raised from a gravestone */
   SKELETON: 'SKELETON',
+  /** Ranged creature summoned from a corrupted tile */
+  CORRUPTED_QORK: 'CORRUPTED_QORK',
   /** Undead unit that gains levels by consuming Gravestones */
   GHOUL: 'GHOUL',
   /** Flying skeletal gargoyle raised from any Gravestone via the Deathmender specialist */
@@ -201,6 +203,7 @@ export const SpellId = {
   SUMMON_GHOUL: 'SUMMON_GHOUL',
   LAVA_MOLD: 'LAVA_MOLD',
   PORTAL: 'PORTAL',
+  CORRUPTED_QORK: 'CORRUPTED_QORK',
 } as const;
 export type SpellId = (typeof SpellId)[keyof typeof SpellId];
 

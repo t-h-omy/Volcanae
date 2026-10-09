@@ -1,11 +1,12 @@
 import type { Draft } from 'immer';
 import type { GameState, Position, Unit } from './types';
-import { Faction, UnitTag, UnitType } from './types';
+import { Faction, TileStatus, UnitTag, UnitType } from './types';
 import { MAGE, XP } from './gameConfig';
 import type { GameEvent } from './gameEvents';
 import { applyUnitDamage, getUnitDamageOutcome } from './unitDamage';
 import { canGrantXp, grantXp } from './levelSystem';
 import { recordKhyronKill } from './khyronSystem';
+import { applyTileStatus, isStatusAllowedOnTerrain } from './tileStatusSystem';
 
 type InfestedDeathSnapshot = Pick<Unit, 'id' | 'faction' | 'type' | 'position' | 'tags' | 'infestedByMageId' | 'infestedDeathEffectResolved'>;
 
@@ -155,6 +156,17 @@ export function resolveInfestedDeath(
   events?: GameEvent[],
 ): void {
   const snapshot = snapshotUnit(deceased);
+  if (snapshot.type === UnitType.CORRUPTED_QORK) {
+    const tile = state.grid[snapshot.position.y]?.[snapshot.position.x];
+    if (tile && isStatusAllowedOnTerrain(tile.terrainType, TileStatus.CORRUPTED)) {
+      applyTileStatus(state, snapshot.position, TileStatus.CORRUPTED, events);
+    } else if (tile) {
+      events?.push({
+        type: 'CORRUPTION_FIZZLE',
+        position: { ...snapshot.position },
+      });
+    }
+  }
   deceased.infestedDeathEffectResolved = true;
   resolveDeath(state, snapshot, events, new Set());
 }

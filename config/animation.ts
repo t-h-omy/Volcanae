@@ -124,6 +124,8 @@ export const ANIMATION = {
   HEAL_VFX_MS: 450,
   /** Duration of the corruption-applied dark-purple pulse (ms) */
   CORRUPTION_APPLIED_VFX_MS: 500,
+  /** Duration of the canceled corruption pulse on terrain that rejects CORRUPTED. */
+  CORRUPTION_FIZZLE_VFX_MS: 450,
   /** Duration of the portal entrance/exit pop (ms) */
   PORTAL_VFX_MS: 500,
   /** Duration of the unit-spawn pop (ms) */

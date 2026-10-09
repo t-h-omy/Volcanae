@@ -78,6 +78,13 @@ export const GHOUL = {
   MAX_LEVEL: 3,
 } as const;
 
+export const CORRUPTED_QORK = {
+  BASE_MAX_HP: 80,
+  BASE_ATTACK: 35,
+  BASE_DEFENSE: 25,
+  ATTACK_RANGE: 2,
+} as const;
+
 export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   SPEARMAN: {
     maxHp: 100, attack: 45, defense: 45,
@@ -400,6 +407,21 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
     tags: [],
+    cost: { iron: 0, wood: 0 },
+    populationCost: { farmers: 0, nobles: 0 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }] },
+    ],
+  },
+
+  CORRUPTED_QORK: {
+    maxHp: CORRUPTED_QORK.BASE_MAX_HP,
+    attack: CORRUPTED_QORK.BASE_ATTACK,
+    defense: CORRUPTED_QORK.BASE_DEFENSE,
+    movementActions: 1, moveRange: 1, attackRange: CORRUPTED_QORK.ATTACK_RANGE,
+    discoverRadius: 1, triggerRange: 0,
+    tags: [UnitTag.RANGED],
     cost: { iron: 0, wood: 0 },
     populationCost: { farmers: 0, nobles: 0 },
     levelUp: [

@@ -117,6 +117,7 @@ const UNIT_EMOJI: Record<string, string> = {
   [UnitType.MAGE]: '🧙',
   [UnitType.EMBER_DEMON]: '😈',
   [UnitType.SKELETON]: '💀',
+  [UnitType.CORRUPTED_QORK]: '🐗',
   [UnitType.GHOUL]: '🧟',
   [UnitType.GARGOYLE]: '🗿',
   [UnitType.CRYSTAL_DRAKE]: '🐲',

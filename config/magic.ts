@@ -157,4 +157,8 @@ export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
     id: SpellId.PORTAL,
     emoji: '🌀',
   },
+  [SpellId.CORRUPTED_QORK]: {
+    id: SpellId.CORRUPTED_QORK,
+    emoji: '🐗',
+  },
 };
