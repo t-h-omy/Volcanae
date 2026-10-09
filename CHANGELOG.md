@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.115.17 - New sprite artwork
+
+Integrated the new Ghoul, Corrupted Qork, and player Mage Portal sprites into the game.
+
 ### v0.115.16 - Crystal Khyron earned upgrades
 
 Crystal Khyrons now earn a persistent Level Up opportunity from their first qualifying resonance kill instead of transforming automatically. Confirmation applies captured transferable tags, now including Build & Capture, increases maximum HP with the standard level bonuses, and restores HP. Khyrons permanently carry Summoned while retaining their special resonance self-heal. Earned upgrades survive resonance expiration, turn changes, and saves. Resonance presentation now visits each surviving player Khyron after the Chambers and Caves, activating its appearance and crystal-blue effect only after the camera arrives.

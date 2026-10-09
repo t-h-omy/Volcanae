@@ -48,8 +48,8 @@ export const UNIT_SPRITE: Partial<Record<UnitType, string>> = withBase({
   MAGE:        '/sprites/units/Mage_100px.png',
   EMBER_DEMON: '/sprites/units/Ember_Demon_Player_100px.png',
   SKELETON:    '/sprites/units/Skeleton_100px.png',
-  CORRUPTED_QORK: '/sprites/units/corrupted_qork_100px.png',
-  GHOUL:       '/sprites/units/ghoul_100px.png',
+  CORRUPTED_QORK: '/sprites/units/qork_100px.png',
+  GHOUL:       '/sprites/units/ghoul-100px.png',
   GARGOYLE:    '/sprites/units/gargoyle_100px.png',
   // Enemy units
   LAVA_GRUNT:   '/sprites/units/Grunt_100px.png',
@@ -261,3 +261,10 @@ export const PORTAL_ENTRANCE_SPRITE = withBase({ portal_entrance: '/sprites/buil
  * Empty string = pink MissingSprite placeholder until real art is ready.
  */
 export const PORTAL_EXIT_SPRITE = withBase({ portal_exit: '/sprites/buildings/portal_exit_100px.png' }).portal_exit ?? '';
+
+/**
+ * Sprite path for the player's Mage Portal endpoints.
+ */
+export const MAGE_PORTAL_SPRITE = withBase({
+  mage_portal: '/sprites/units/portal_player_100px.png',
+}).mage_portal ?? '';
