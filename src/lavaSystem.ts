@@ -28,6 +28,7 @@ import { grantArcaneCrystals } from './techSystem';
 import { removePortalsOnLava } from './portalSystem';
 import { cleanupRoostedUnits, getRoostedUnits } from './buildingRemoval';
 import { isSpecialistEffectActive } from './specialistSystem';
+import { resolveInfestedDeath } from './infestedSystem';
 
 // ============================================================================
 // LAVA STATE QUERIES
@@ -170,6 +171,7 @@ export function advanceLava(state: Draft<GameState>, outEvents?: GameEvent[], sk
         }
         // Remove unit from state
         delete state.units[unitId];
+        if (unit) resolveInfestedDeath(state, unit, outEvents);
         // Clear unit from tile
         tile.unitId = null;
       }

@@ -1,5 +1,37 @@
 # Changelog
 
+### v0.115.14 - Final integration audit
+
+Fixed Mage leash visuals to include all leashed summoned units, including Corrupted Qorks. Added regression coverage confirming Infested damage is absorbed by Stone Skin before normal HP.
+
+### v0.115.13 - Corrupted Qork
+
+Added the Corrupted Qork tech and spell, a ranged summoned creature bound to its Mage that defects under the existing leash rules and corrupts its death tile when the terrain permits.
+
+### v0.115.12 - Mage Portal
+
+Added the Portal tech and spell, which creates persistent bidirectional portal pairs that all factions can use, with two-endpoint targeting, movement and AI routing, and Mage death or lava cleanup.
+
+### v0.115.11 - Lava Mold
+
+Added the Lava Mold spell, which infests enemy units, deals damage at the end of each faction turn, and spreads to adjacent units when an Infested unit dies.
+
+### v0.115.10 - Summon Ghoul
+
+Added the Summon Ghoul spell and a Ghoul that levels up and heals by consuming Gravestones, without gaining XP.
+
+### v0.115.9 - Crystal Lightning
+
+Added Crystal Lightning, a Crystal Khyron specialization that fires combat-formula lightning volleys from Crystal Chambers and chains through resonating Chambers.
+
+### v0.115.8 - Stone Skin spell
+
+Added the Stone Skin tech and spell with a separate 50 HP pool, damage absorption across combat and environmental sources, voluntary movement lock, and a separate grid HP bar.
+
+### v0.115.7 - Taunt spell
+
+Added the Taunt tech and spell, permanent unit tag, localized status badge and invalid-target feedback, and shared player and enemy-AI attack targeting rules.
+
 ### v0.115.6 - Khyron resonance triggers
 
 Crystal Khyron Resonance is now only active after a new resonance triggers (a Crystal Chamber destroyed by lava or a specialist effect); a Khyron recruited during a running resonance missed the trigger and starts inactive, and the Resonance tag pill shows its active or inactive state.

@@ -14,6 +14,9 @@ import { cleanupRoostedUnits } from './buildingRemoval';
 import { getBridgeAt, canTraverseEdge } from './bridgeSystem';
 import type { GameEvent } from './gameEvents';
 import { updateBerserkLatch } from './combatSystem';
+import { applyUnitDamage } from './unitDamage';
+import { resolveInfestedDeath } from './infestedSystem';
+import { cleanupPortals, getMagePortalAtPosition, isMagePortalExitAvailable, resolvePortalEntry } from './portalSystem';
 
 // ============================================================================
 // MOVEMENT CALCULATIONS
@@ -175,6 +178,9 @@ export function getReachableTiles(
   while (head < queue.length) {
     const { x, y, steps } = queue[head++];
     if (steps >= moveRange) continue;
+    if ((x !== unitPosition.x || y !== unitPosition.y) && getMagePortalAtPosition(state, { x, y })) {
+      continue;
+    }
 
     for (const [dx, dy] of MOVE_DIRECTIONS) {
       const nx = x + dx;
@@ -222,19 +228,12 @@ export function getReachableTiles(
         }
       }
 
-      // Player units cannot enter portal entrance or exit tiles.
-      if (unit.faction === Faction.PLAYER) {
-        let blockedByPortal = false;
-        for (const portal of Object.values(state.portals)) {
-          if (
-            (portal.entrancePos.x === nx && portal.entrancePos.y === ny) ||
-            (portal.exitPos.x === nx && portal.exitPos.y === ny)
-          ) {
-            blockedByPortal = true;
-            break;
-          }
-        }
-        if (blockedByPortal) continue;
+      const portalAtDestination = Object.values(state.portals).find((portal) =>
+        (portal.entrancePos.x === nx && portal.entrancePos.y === ny)
+        || (portal.exitPos.x === nx && portal.exitPos.y === ny));
+      if (portalAtDestination) {
+        if (portalAtDestination.kind !== 'MAGE') continue;
+        if (!isMagePortalExitAvailable(state, { x: nx, y: ny }, unit)) continue;
       }
 
       bfsReachable.push({ x: nx, y: ny });
@@ -364,7 +363,7 @@ export function checkScoutTrapTrigger(
   const damage = building.trapDamage ?? ABILITIES.SCOUT_TRAP_DAMAGE;
 
   // Deal damage to the triggering unit.
-  unit.stats.currentHp -= damage;
+  const damageOutcome = applyUnitDamage(unit, damage);
   updateBerserkLatch(unit);
 
   if (events) {
@@ -387,10 +386,12 @@ export function checkScoutTrapTrigger(
   }
 
   // If the unit is killed by the trap damage, remove it and the building.
-  if (unit.stats.currentHp <= 0) {
+  if (damageOutcome.died) {
     tile.unitId = null;
     state.gameStats.unitsKilled += 1;
     delete state.units[unitId];
+    events?.push({ type: 'UNIT_DEATH', unitId, position: { ...trapPos }, faction: unit.faction });
+    resolveInfestedDeath(state, unit, events);
     cleanupRoostedUnits(state, trapBuildingId);
     delete state.buildings[trapBuildingId];
     tile.buildingId = null;
@@ -448,6 +449,8 @@ export function resolveSlide(
   unitId: string,
   dx: number,
   dy: number,
+  events?: GameEvent[],
+  portalEvents?: GameEvent[],
 ): void {
   const unit = state.units[unitId];
   if (!unit) return;
@@ -490,6 +493,7 @@ export function resolveSlide(
       state.gameStats.unitsLost += 1;
     }
     delete state.units[unitId];
+    if (!events) resolveInfestedDeath(state, unit);
     return;
   }
 
@@ -505,6 +509,7 @@ export function resolveSlide(
         state.gameStats.unitsLost += 1;
       }
       delete state.units[unitId];
+      if (!events) resolveInfestedDeath(state, unit);
       return;
     }
   }
@@ -524,6 +529,7 @@ export function resolveSlide(
       state.gameStats.unitsLost += 1;
     }
     delete state.units[unitId];
+    if (!events) resolveInfestedDeath(state, unit);
     return;
   }
 
@@ -535,6 +541,7 @@ export function resolveSlide(
   slideTile.unitId = unitId;
   unit.position.x = slideX;
   unit.position.y = slideY;
+  resolvePortalEntry(state, unitId, { x: slideX, y: slideY }, portalEvents ?? events);
 }
 
 /**
@@ -551,7 +558,8 @@ export function resolveSlide(
 export function moveUnit(
   state: Draft<GameState>,
   unitId: string,
-  targetPosition: Position
+  targetPosition: Position,
+  events?: GameEvent[],
 ): void {
   const unit = state.units[unitId];
 
@@ -595,6 +603,7 @@ export function moveUnit(
   if (newTile.isLava && unit.faction === Faction.ENEMY) {
     newTile.unitId = null;
     delete state.units[unitId];
+    resolveInfestedDeath(state, unit);
     state.ember += 1;
     return;
   }
@@ -613,14 +622,24 @@ export function moveUnit(
   checkGraveTrapTrigger(state, unitId);
   checkScoutTrapTrigger(state, unitId);
 
+  if (state.units[unitId]) {
+    resolvePortalEntry(state, unitId, { ...state.units[unitId].position }, events);
+  }
+
   // FROZEN tile: trigger the slippery slide mechanic.
   // Re-fetch the unit — it must still be alive (not killed by a trap or other effect).
   // FLYING units treat FROZEN tiles as solid ground (they are not standing on
   // the ice), so they do NOT ice-slide.
-  if (newTile.status === TileStatus.FROZEN && state.units[unitId]) {
+  if (
+    newTile.status === TileStatus.FROZEN
+    && state.units[unitId]
+    && state.units[unitId].position.x === targetPosition.x
+    && state.units[unitId].position.y === targetPosition.y
+  ) {
     const slidUnit = state.units[unitId];
     if (!slidUnit.tags.includes(UnitTag.FLYING)) {
-      resolveSlide(state, unitId, moveDx, moveDy);
+      resolveSlide(state, unitId, moveDx, moveDy, undefined, events);
     }
   }
+  cleanupPortals(state, events);
 }

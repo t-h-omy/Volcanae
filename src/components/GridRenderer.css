@@ -94,6 +94,10 @@
   flex-shrink: 0;
 }
 
+.unit--stone-skin .unit-main-img {
+  filter: grayscale(0.85);
+}
+
 /* ── Tile ── */
 
 .grid-tile {
@@ -165,6 +169,36 @@
   height: 100%;
   border-radius: 2px;
   background: var(--color-hp-green, #2ecc71);
+}
+
+.stone-skin-hp-bar-wrapper {
+  width: 80%;
+  height: 4px;
+  background: rgba(25, 25, 25, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 1px;
+}
+
+.stone-skin-hp-bar-fill {
+  height: 100%;
+  border-radius: 1px;
+  background: var(--color-stone-skin, #aaa);
+}
+
+.unit-taunt-badge {
+  font-size: 9px;
+  line-height: 1;
+  filter: drop-shadow(0 0 2px #000);
+  pointer-events: none;
+}
+
+.unit-infested-badge {
+  font-size: 9px;
+  line-height: 1;
+  filter: drop-shadow(0 0 3px #42e86f);
+  pointer-events: none;
 }
 
 /* ── Unit stun symbol ── */
@@ -959,6 +993,12 @@
   pointer-events: none;
 }
 
+.tile--portal-first {
+  box-shadow: inset 0 0 0 3px rgba(187, 120, 255, 0.95);
+  z-index: 4;
+  pointer-events: none;
+}
+
 @keyframes spell-target-pulse {
   0%, 100% { box-shadow: inset 0 0 6px rgba(80, 180, 255, 0.5); }
   50%       { box-shadow: inset 0 0 16px rgba(80, 180, 255, 0.85); }
@@ -967,7 +1007,8 @@
 /* ── Blocked spell target (Transpose terrain-illegal swap) ──
    Static variant of the INVALID_ACTION red edge. */
 
-.tile--spell-blocked {
+.tile--spell-blocked,
+.tile--attack-taunt-blocked {
   box-shadow:
     inset 0 0 0 3px rgba(255, 60, 60, 0.85),
     inset 0 0 12px rgba(255, 60, 60, 0.5);
@@ -1444,6 +1485,28 @@
   100% { opacity: 0;    stroke-width: 5; }
 }
 
+/* ── CRYSTAL_LIGHTNING - bright branching arcane beam ──────────────────── */
+
+.line-vfx--crystal-lightning {
+  fill: none;
+  stroke: #8df8ff;
+  stroke-width: 9;
+  stroke-linecap: round;
+  opacity: 0;
+  animation: crystalLightningLayer var(--line-vfx-duration, 260ms) ease-out forwards;
+  filter:
+    drop-shadow(0 0 3px rgba(255, 255, 255, 0.95))
+    drop-shadow(0 0 9px rgba(58, 190, 255, 0.95))
+    drop-shadow(0 0 16px rgba(93, 69, 255, 0.75));
+}
+
+@keyframes crystalLightningLayer {
+  0%   { opacity: 0; stroke-width: 3; }
+  18%  { opacity: 1; stroke-width: 10; }
+  75%  { opacity: 0.95; stroke-width: 8; }
+  100% { opacity: 0; stroke-width: 4; }
+}
+
 /* ── SPELL_IMPACT base — shared by all SPELL_IMPACT_* modifier variants ── */
 
 [class*="tile-vfx--spell-impact"] {
@@ -1584,6 +1647,26 @@
   100% { opacity: 0;    transform: translateY(-25%) scale(0.9, 1.1); }
 }
 
+/* ── INFESTED_DEATH_BURST — bright green slime eruption ──────────────── */
+
+.tile-vfx--infested-death-burst {
+  background:
+    radial-gradient(circle at 50% 50%,
+      rgba(180, 255, 100, 0.95) 0%,
+      rgba(52, 224, 83, 0.82) 24%,
+      rgba(14, 115, 48, 0.56) 48%,
+      rgba(5, 55, 28, 0) 72%);
+  border-radius: 50%;
+  opacity: 0;
+  animation: infestedSlimeBurst var(--tile-vfx-duration, 650ms) ease-out forwards;
+}
+
+@keyframes infestedSlimeBurst {
+  0% { opacity: 0; transform: scale(0.2); }
+  24% { opacity: 1; transform: scale(1.2); }
+  100% { opacity: 0; transform: scale(1.65); }
+}
+
 /* ── CORRUPTION_APPLIED — dark-purple crack pulse, low/background ────── */
 
 .tile-vfx--corruption-applied {
@@ -1602,6 +1685,26 @@
   0%   { opacity: 0;    transform: scale(0.6); }
   35%  { opacity: 0.9;  transform: scale(1.0); }
   100% { opacity: 0;    transform: scale(1.05); }
+}
+
+/* ── CORRUPTION_FIZZLE — sharp violet pulse that collapses without applying status ── */
+
+.tile-vfx--corruption-fizzle {
+  background:
+    radial-gradient(circle at 50% 50%,
+      rgba(125, 45, 155, 0.8) 0%,
+      rgba(75, 25, 95, 0.45) 35%,
+      rgba(40, 20, 30, 0) 70%);
+  border: 2px solid rgba(190, 115, 225, 0.8);
+  border-radius: 50%;
+  opacity: 0;
+  animation: corruptionFizzle var(--tile-vfx-duration, 450ms) ease-out forwards;
+}
+
+@keyframes corruptionFizzle {
+  0% { opacity: 0; transform: scale(0.5) rotate(0deg); }
+  35% { opacity: 0.95; transform: scale(1.05) rotate(20deg); }
+  100% { opacity: 0; transform: scale(0.7) rotate(-25deg); }
 }
 
 /* ── HEAL — soft green pulse with a brief upward shimmer ─────────────── */

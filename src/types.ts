@@ -30,6 +30,10 @@ export const UnitType = {
   EMBER_DEMON: 'EMBER_DEMON',
   /** Undead unit raised from a gravestone */
   SKELETON: 'SKELETON',
+  /** Ranged creature summoned from a corrupted tile */
+  CORRUPTED_QORK: 'CORRUPTED_QORK',
+  /** Undead unit that gains levels by consuming Gravestones */
+  GHOUL: 'GHOUL',
   /** Flying skeletal gargoyle raised from any Gravestone via the Deathmender specialist */
   GARGOYLE: 'GARGOYLE',
   /** Armor-piercing ranged attacker recruited from Archer Camp */
@@ -193,6 +197,13 @@ export const SpellId = {
   CRYSTAL_CAVE:   'CRYSTAL_CAVE',
   /** Rupture — unlocked by the Sundered specialist; deals a percentage of the target's current HP */
   RUPTURE:        'RUPTURE',
+  TAUNT:          'TAUNT',
+  STONE_SKIN:     'STONE_SKIN',
+  CRYSTAL_LIGHTNING: 'CRYSTAL_LIGHTNING',
+  SUMMON_GHOUL: 'SUMMON_GHOUL',
+  LAVA_MOLD: 'LAVA_MOLD',
+  PORTAL: 'PORTAL',
+  CORRUPTED_QORK: 'CORRUPTED_QORK',
 } as const;
 export type SpellId = (typeof SpellId)[keyof typeof SpellId];
 
@@ -368,6 +379,11 @@ export const UnitTag = {
   BATTERY: 'BATTERY',
   /** Crystal Khyron: temporary tag while Crystal Chamber resonance is active; the first enemy kill transforms the unit. */
   RESONANCE: 'RESONANCE',
+  /** Hostile units must target this unit when it is legally attackable. */
+  TAUNT: 'TAUNT',
+  /** Incoming damage is absorbed by a separate Stone HP pool before normal HP. */
+  STONE_SKIN: 'STONE_SKIN',
+  INFESTED: 'INFESTED',
 } as const;
 export type UnitTag = (typeof UnitTag)[keyof typeof UnitTag];
 
@@ -451,6 +467,8 @@ export interface Unit {
   hasCapturedThisTurn: boolean;
   /** True after this unit has completed a trade (resource buy or specialist acquisition) this turn. */
   hasTradedThisTurn: boolean;
+  /** True after a Ghoul consumes a Gravestone this turn. */
+  hasConsumedGravestoneThisTurn?: boolean;
   /** True after a HIT_AND_RUN unit has used its post-attack move this turn. */
   hasUsedPostAttackMoveThisTurn: boolean;
   /**
@@ -483,6 +501,10 @@ export interface Unit {
    * `null` or `undefined` means no controller. Cleared on defection.
    */
   controllerMageId?: string | null;
+  /** Original Mage who started an Infested infection chain. */
+  infestedByMageId?: string | null;
+  /** Prevents deferred death/transform resolution from replaying an Infested burst. */
+  infestedDeathEffectResolved?: boolean;
   /** Set on Mage units; number of spells cast this turn. Reset each turn. */
   spellsCastThisTurn?: number;
   /**
@@ -493,6 +515,8 @@ export interface Unit {
   recruitedOnTurn?: number;
   /** Crystal Khyron: true while its RESONANCE tag is active (set by a resonance trigger). */
   resonanceActive?: boolean;
+  /** Remaining temporary HP granted by Stone Skin. */
+  stoneSkinHp?: number;
   /**
    * Latches true the first time this BERSERK unit's HP ratio drops below the
    * activation threshold. Once true, it remains true for the unit's lifetime.
@@ -750,6 +774,8 @@ export interface CaveEncounter {
  */
 export interface Portal {
   id: string;
+  /** Missing kind means the legacy Rift Lord portal behavior. */
+  kind?: 'RIFT_LORD' | 'MAGE';
   /** ID of the hexcaster that created this portal pair */
   casterId: string;
   /** Tile position where allied units enter the portal */
@@ -895,6 +921,8 @@ export interface GameState {
    * second click completes the swap. Cleared when the spell is confirmed or cancelled.
    */
   pendingTransposeFirstUnitId: string | null;
+  /** First endpoint selected while casting the two-step Mage Portal spell. */
+  pendingMagePortalFirstPos?: Position | null;
   /**
    * Units pending the two-stage Brandmark transform. Each entry is a player
    * unit whose HP has reached 0 but has not yet been replaced by an Ember Demon.

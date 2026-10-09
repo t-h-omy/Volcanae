@@ -3,7 +3,7 @@
  * Implements building capture logic with zone unlock mechanics.
  */
 
-import type { GameState, Position } from './types';
+import type { GameState, Position, Unit } from './types';
 import type { Draft } from 'immer';
 import { BuildingType, UnitTag, UnitType, Faction, DestroyBehavior } from './types';
 import type { GameEvent } from './gameEvents';
@@ -12,6 +12,7 @@ import { increaseEmberOnStrongholdCapture } from './enemySystem';
 import { grantXp } from './levelSystem';
 import { grantArcaneCrystals } from './techSystem';
 import { cleanupRoostedUnits } from './buildingRemoval';
+import { resolveInfestedDeath } from './infestedSystem';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -246,6 +247,7 @@ export function initiateCapture(
         tile.unitId = null;
       }
       delete state.units[unitId];
+      resolveInfestedDeath(state, unit);
     }
 
     return;
@@ -329,12 +331,14 @@ export function triggerSanctumCollapse(
   // Purge all enemy units in this zone, but preserve CAVE_MONSTER units —
   // they belong to fixed encounter tiles and are not part of the zone army.
   const purgedUnitIds: string[] = [];
+  const purgedInfestedUnits: Unit[] = [];
   const clearedUnitPositions: Position[] = [];
   for (const unit of Object.values(state.units)) {
     if (unit.faction !== Faction.ENEMY) continue;
     if (unit.type === UnitType.CAVE_MONSTER) continue;
     if (unit.position.y >= startRow && unit.position.y <= endRow) {
       purgedUnitIds.push(unit.id);
+      if (unit.tags.includes(UnitTag.INFESTED)) purgedInfestedUnits.push(unit);
       clearedUnitPositions.push({ x: unit.position.x, y: unit.position.y });
 
       // Clear tile
@@ -411,6 +415,9 @@ export function triggerSanctumCollapse(
     spawnFreezeUntilTurn: state.spawnFreezeUntilTurn,
     lavaAdvanceBonus: SANCTUM_COLLAPSE.LAVA_ADVANCE_BONUS_TURNS,
   });
+  for (const unit of purgedInfestedUnits) {
+    resolveInfestedDeath(state, unit, events);
+  }
 }
 
 // ============================================================================
@@ -480,6 +487,7 @@ export function resolveCaptures(state: Draft<GameState>, events?: GameEvent[]): 
           tile.unitId = null;
         }
         delete state.units[capturingUnit.id];
+        resolveInfestedDeath(state, capturingUnit);
       }
 
       continue;

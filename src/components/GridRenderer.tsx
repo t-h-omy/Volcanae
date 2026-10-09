@@ -14,14 +14,14 @@ import type { Projectile, SlideKillGhost, CleaveVfx, TileVfx, LineVfx } from '..
 import { useShockwaveStore } from '../shockwaveStore';
 import { canCapture } from '../captureSystem';
 import { getConstructionOptionsForTile } from '../constructionSystem';
-import { MAP, UNIT_DEFINITIONS, BUILDING_DEFINITIONS, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, CORRUPTED_SUPPRESSED_TAGS, RESOURCES } from '../gameConfig';
+import { MAP, MAGE, UNIT_DEFINITIONS, BUILDING_DEFINITIONS, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, CORRUPTED_SUPPRESSED_TAGS, RESOURCES } from '../gameConfig';
 import { getStrongholdEffectiveCap } from '../techSystem';
 import { computeRecruitmentBuildingUsage, canBuildingEverRecruit, getEffectiveHousingPopulationCap } from '../resourceSystem';
 import { ANIMATION } from '../../config/animation';
 import { UI } from '../../config/ui';
 import { RENDER } from '../../config/render';
 import { INPUT } from '../../config/input';
-import { computeLevelFromXp } from '../levelSystem';
+import { computeLevelFromXp, usesNonXpProgression } from '../levelSystem';
 import { useZoomStore } from '../zoomStore';
 import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE, TILE_STATUS_SPRITE, RESOURCE_SPRITE, ENEMY_BUILDING_SPRITE, PLAYER_BUILDING_SPRITE, TERRAIN_RESOURCE_SPRITE, CRYSTAL_CHAMBER_ACTIVE_SPRITE, CRYSTAL_CAVE_ACTIVE_SPRITE, CRYSTAL_KHYRON_ACTIVE_SPRITE, ENEMY_UNIT_SPRITE, PLAYER_UNIT_SPRITE, TUNNEL_HOLE_SPRITE, TUNNEL_EARTHQUAKE_SPRITE, PORTAL_ENTRANCE_SPRITE, PORTAL_EXIT_SPRITE, getBridgeSprite } from '../assetRegistry';
 import { isKhyronResonanceActive } from '../khyronSystem';
@@ -39,8 +39,9 @@ import {
 } from '../types';
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
 import { nextTileCycleTarget, tileSelectionState } from '../tileCycleHelper';
-import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, canUnitConstruct, canUnitCapture, getHealTargets, getBridgeBuildTargets, explainInvalidHealTarget, explainInvalidBridgeTarget, getTrapPlacementTargets, explainInvalidTrapTarget, isUnitDisplayExhausted } from '../unitActions';
-import { getValidSpellTargets, explainInvalidSpellTarget, getTransposeTerrainBlockedTargets } from '../spellSystem';
+import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, getTauntBlockedAttackTargetKeys, explainInvalidAttackTarget, canUnitConstruct, canUnitCapture, getHealTargets, getBridgeBuildTargets, explainInvalidHealTarget, explainInvalidBridgeTarget, getTrapPlacementTargets, explainInvalidTrapTarget, isUnitDisplayExhausted } from '../unitActions';
+import { getValidSpellTargets, explainInvalidSpellTarget, getTransposeTerrainBlockedTargets, getLeashedUnitsForMage } from '../spellSystem';
+import { explainBlockedMagePortalEntry } from '../portalSystem';
 import './GridRenderer.css';
 
 // ============================================================================
@@ -147,6 +148,7 @@ export default function GridRenderer() {
   const cancelHealMode = useGameStore((s) => s.cancelHealMode);
   const pendingSpellCast = useGameStore((s) => s.pendingSpellCast);
   const pendingTransposeFirstUnitId = useGameStore((s) => s.pendingTransposeFirstUnitId);
+  const pendingMagePortalFirstPos = useGameStore((s) => s.pendingMagePortalFirstPos);
   const cancelSpellCast = useGameStore((s) => s.cancelSpellCast);
   const castSpell = useGameStore((s) => s.castSpell);
   const pendingBridgeBuilderId = useGameStore((s) => s.pendingBridgeBuilderId);
@@ -533,6 +535,11 @@ export default function GridRenderer() {
     return new Set();
   }, [selectedUnit, selectedBuilding, units, buildings, grid]);
 
+  const tauntBlockedAttackSet = useMemo<Set<string>>(() => {
+    if (!selectedUnit || selectedUnit.faction !== Faction.PLAYER) return new Set();
+    return getTauntBlockedAttackTargetKeys(selectedUnit, units, grid, useGameStore.getState());
+  }, [selectedUnit, units, grid]);
+
   // Heal target highlighting: when a healer is in heal-mode, show healable tiles
   const healableSet = useMemo<Set<string>>(() => {
     if (!pendingHealerId) return new Set();
@@ -604,14 +611,11 @@ export default function GridRenderer() {
     const set = new Set<string>();
     if (!selectedUnit) return set;
     if (selectedUnit.type === UnitType.MAGE) {
-      // Find all leashed demons controlled by this mage
-      for (const u of Object.values(units)) {
-        if (u.type === UnitType.EMBER_DEMON && u.controllerMageId === selectedUnit.id) {
-          set.add(posKey(u.position.x, u.position.y));
+      for (const leashedUnit of getLeashedUnitsForMage(units, selectedUnit.id)) {
+        set.add(posKey(leashedUnit.position.x, leashedUnit.position.y));
           set.add(posKey(selectedUnit.position.x, selectedUnit.position.y));
-        }
       }
-    } else if (selectedUnit.type === UnitType.EMBER_DEMON && selectedUnit.controllerMageId) {
+    } else if (selectedUnit.tags.includes(UnitTag.LEASHED) && selectedUnit.controllerMageId) {
       const mage = units[selectedUnit.controllerMageId];
       if (mage) {
         set.add(posKey(selectedUnit.position.x, selectedUnit.position.y));
@@ -621,30 +625,28 @@ export default function GridRenderer() {
     return set;
   }, [selectedUnit, units]);
 
-  // Leash-warn set: tiles that are at risk (mage is out of leash range of demon)
+  // Leash-warn set: tiles at risk because a leashed unit is out of Mage range.
   const leashWarnSet = useMemo<Set<string>>(() => {
     const set = new Set<string>();
     if (!selectedUnit) return set;
     let mage: typeof selectedUnit | undefined;
-    let demons: (typeof selectedUnit)[] = [];
+    let leashedUnits: Unit[] = [];
     if (selectedUnit.type === UnitType.MAGE) {
       mage = selectedUnit;
-      demons = Object.values(units).filter(
-        (u) => u.type === UnitType.EMBER_DEMON && u.controllerMageId === selectedUnit.id,
-      );
-    } else if (selectedUnit.type === UnitType.EMBER_DEMON && selectedUnit.controllerMageId) {
+      leashedUnits = getLeashedUnitsForMage(units, selectedUnit.id);
+    } else if (selectedUnit.tags.includes(UnitTag.LEASHED) && selectedUnit.controllerMageId) {
       mage = units[selectedUnit.controllerMageId];
-      demons = [selectedUnit];
+      leashedUnits = [selectedUnit];
     }
     if (!mage) return set;
-    for (const demon of demons) {
+    for (const leashedUnit of leashedUnits) {
       const inRange = isTileWithinEdgeCircleRange(
         mage.position.x, mage.position.y,
-        demon.position.x, demon.position.y,
+        leashedUnit.position.x, leashedUnit.position.y,
         mage.stats.attackRange,
       );
       if (!inRange) {
-        set.add(posKey(demon.position.x, demon.position.y));
+        set.add(posKey(leashedUnit.position.x, leashedUnit.position.y));
         set.add(posKey(mage.position.x, mage.position.y));
       }
     }
@@ -716,6 +718,7 @@ export default function GridRenderer() {
     const set = new Set<string>();
     for (const portal of Object.values(portals)) {
       set.add(`${portal.entrancePos.x},${portal.entrancePos.y}`);
+      if (portal.kind === 'MAGE') set.add(`${portal.exitPos.x},${portal.exitPos.y}`);
     }
     return set;
   }, [portals]);
@@ -723,10 +726,14 @@ export default function GridRenderer() {
   const portalExitSet = useMemo<Set<string>>(() => {
     const set = new Set<string>();
     for (const portal of Object.values(portals)) {
-      set.add(`${portal.exitPos.x},${portal.exitPos.y}`);
+      if (portal.kind !== 'MAGE') set.add(`${portal.exitPos.x},${portal.exitPos.y}`);
     }
     return set;
   }, [portals]);
+  const pendingPortalFirstSet = useMemo(
+    () => new Set(pendingMagePortalFirstPos ? [posKey(pendingMagePortalFirstPos.x, pendingMagePortalFirstPos.y)] : []),
+    [pendingMagePortalFirstPos],
+  );
 
   // ── Tile click ──
   const triggerInvalidActionVfx = useCallback((x: number, y: number) => {
@@ -874,6 +881,20 @@ export default function GridRenderer() {
             buildingAttackUnit(selectedBuilding.id, tile.unitId);
             return;
           }
+          if (selectedUnit && selectedUnit.faction === Faction.PLAYER) {
+            const reason = explainInvalidAttackTarget(
+              selectedUnit,
+              units,
+              grid,
+              useGameStore.getState(),
+              { x, y },
+            );
+            if (reason) {
+              triggerInvalidActionVfx(x, y);
+              showInvalidReasonFloater(x, y, reason);
+              return;
+            }
+          }
           const sel = tileSelectionState(tile.unitId, tile.buildingId, selectedUnitId, selectedBuildingId);
           const target = nextTileCycleTarget(sel, true, !!tile.buildingId, tile.isRevealed && !tile.isLava);
           if (target === 'building') selectBuilding(tile.buildingId!);
@@ -891,6 +912,17 @@ export default function GridRenderer() {
       ) {
         moveUnit(selectedUnit.id, { x, y });
         return;
+      }
+      if (
+        selectedUnit?.faction === Faction.PLAYER
+        && canUnitMove(selectedUnit, useGameStore.getState())
+      ) {
+        const reason = explainBlockedMagePortalEntry(useGameStore.getState(), { x, y }, selectedUnit);
+        if (reason) {
+          triggerInvalidActionVfx(x, y);
+          showInvalidReasonFloater(x, y, reason);
+          return;
+        }
       }
 
       // Priority 5a — Enemy building on tile (no enemy unit), player unit or player building can attack it
@@ -1028,8 +1060,10 @@ export default function GridRenderer() {
                 tileSize={tileSize}
                 isReachable={isReachable}
                 isAttackable={isAttackable}
+                isTauntAttackBlocked={tauntBlockedAttackSet.has(key)}
                 isHealable={isHealable}
                 isSpellTarget={isSpellTarget}
+                isPortalFirstEndpoint={pendingPortalFirstSet.has(key)}
                 isSpellBlocked={isSpellBlocked}
                 isBridgeBuildTarget={isBridgeBuildTarget}
                 isLeashed={isLeashed}
@@ -1080,8 +1114,10 @@ interface TileCellProps {
   tileSize: number;
   isReachable: boolean;
   isAttackable: boolean;
+  isTauntAttackBlocked: boolean;
   isHealable: boolean;
   isSpellTarget: boolean;
+  isPortalFirstEndpoint: boolean;
   /** True when this tile holds a spell target blocked only by terrain legality (Transpose second pick). */
   isSpellBlocked: boolean;
   /** True when this canyon tile is a valid bridge-build target for the pending builder. */
@@ -1113,8 +1149,10 @@ function TileCellInner({
   tileSize,
   isReachable,
   isAttackable,
+  isTauntAttackBlocked,
   isHealable,
   isSpellTarget,
+  isPortalFirstEndpoint,
   isSpellBlocked,
   isBridgeBuildTarget,
   isLeashed,
@@ -1357,9 +1395,12 @@ function TileCellInner({
 
       {/* spell target overlay */}
       {isSpellTarget && <div className="tile-overlay tile--spell-target" />}
+      {isPortalFirstEndpoint && <div className="tile-overlay tile--portal-first" />}
 
       {/* blocked spell target overlay — Transpose swap that fails terrain legality */}
       {isSpellBlocked && <div className="tile-overlay tile--spell-blocked" />}
+
+      {isTauntAttackBlocked && <div className="tile-overlay tile--attack-taunt-blocked" />}
 
       {/* slide-preview overlay — secondary destination when moving onto a FROZEN tile */}
       {isSlidePreview && <div className="tile-overlay tile--slide-preview" />}
@@ -1568,14 +1609,22 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
         : undefined;
 
   const isEmberling = unit.type === UnitType.EMBERLING;
+  const isTaunted = unit.tags.includes(UnitTag.TAUNT);
+  const isInfested = unit.tags.includes(UnitTag.INFESTED);
+  const stoneSkinHp = unit.stoneSkinHp ?? 0;
+  const hasStoneSkin = unit.tags.includes(UnitTag.STONE_SKIN) && stoneSkinHp > 0;
+  const stoneSkinHpPct = Math.min(100, (stoneSkinHp / MAGE.STONE_SKIN_HP) * 100);
+  const tauntIcon = TAG_INFO[UnitTag.TAUNT]?.icon;
+  const infestedIcon = TAG_INFO[UnitTag.INFESTED]?.icon;
 
   const tagIcons = unit.tags
+    .filter((tag) => tag !== UnitTag.TAUNT)
     .map((tag) => TAG_INFO[tag]?.icon)
     .filter((icon): icon is string => !!icon);
 
   return (
     <div
-      className={['tile-unit', animClass, isEmberling && 'emberling-unit'].filter(Boolean).join(' ')}
+      className={['tile-unit', animClass, isEmberling && 'emberling-unit', hasStoneSkin && 'unit--stone-skin'].filter(Boolean).join(' ')}
       style={
         {
           ...animStyle,
@@ -1600,8 +1649,17 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
         } as React.CSSProperties
       }
     >
-      {(unit.stats.currentHp < unit.stats.maxHp || hasDebuff) && (
+      {(unit.stats.currentHp < unit.stats.maxHp || hasDebuff || isTaunted || isInfested || hasStoneSkin) && (
         <>
+          {hasStoneSkin && (
+            <div
+              className="stone-skin-hp-bar-wrapper"
+              title={t('tag.STONE_SKIN.label')}
+              style={{ '--color-stone-skin': RENDER.COLORS.STONE_SKIN } as React.CSSProperties}
+            >
+              <div className="stone-skin-hp-bar-fill" style={{ width: `${stoneSkinHpPct}%` }} />
+            </div>
+          )}
           <div
             className="hp-bar-wrapper"
             style={
@@ -1614,12 +1672,18 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
           >
             <div className="hp-bar-fill" style={{ width: `${hpPct}%` }} />
           </div>
+          {isTaunted && tauntIcon && (
+            <span className="unit-taunt-badge" title={t('tag.TAUNT.label')}>{tauntIcon}</span>
+          )}
+          {isInfested && infestedIcon && (
+            <span className="unit-infested-badge" title={t('tag.INFESTED.label')}>{infestedIcon}</span>
+          )}
           {unit.stats.currentHp < unit.stats.maxHp && (
             <span className="unit-hp-text">{unit.stats.currentHp}</span>
           )}
         </>
       )}
-      {UNIT_DEFINITIONS[unit.type]?.levelUp?.length > 0 && (
+      {!usesNonXpProgression(unit.type) && UNIT_DEFINITIONS[unit.type]?.levelUp?.length > 0 && (
         <span className="unit-xp-text">{t('grid.unitXp', { xp: formatNumber(unit.xp) })}</span>
       )}
       {showUnitImg ? (
@@ -1671,6 +1735,7 @@ function CaptureIndicatorLayer({ tileSize }: { tileSize: number }) {
     const result: Array<{ key: string; x: number; y: number }> = [];
     for (const unit of Object.values(units)) {
       if (unit.faction !== Faction.PLAYER) continue;
+      if (usesNonXpProgression(unit.type)) continue;
       for (const building of Object.values(buildings)) {
         if (
           building.position.x === unit.position.x &&
@@ -2105,26 +2170,24 @@ function LeashLineLayer({ tileSize }: { tileSize: number }) {
     const result: LeashPair[] = [];
 
     let mage: typeof selectedUnit | undefined;
-    let demons: (typeof selectedUnit)[] = [];
+    let leashedUnits: (typeof selectedUnit)[] = [];
 
     if (selectedUnit.type === UnitType.MAGE) {
       mage = selectedUnit;
-      demons = Object.values(units).filter(
-        (u) => u.type === UnitType.EMBER_DEMON && u.controllerMageId === selectedUnit.id,
-      );
-    } else if (selectedUnit.type === UnitType.EMBER_DEMON && selectedUnit.controllerMageId) {
+      leashedUnits = getLeashedUnitsForMage(units, selectedUnit.id);
+    } else if (selectedUnit.tags.includes(UnitTag.LEASHED) && selectedUnit.controllerMageId) {
       mage = units[selectedUnit.controllerMageId];
-      demons = [selectedUnit];
+      leashedUnits = [selectedUnit];
     }
 
     if (!mage) return result;
-    for (const demon of demons) {
+    for (const leashedUnit of leashedUnits) {
       const inRange = isTileWithinEdgeCircleRange(
         mage.position.x, mage.position.y,
-        demon.position.x, demon.position.y,
+        leashedUnit.position.x, leashedUnit.position.y,
         mage.stats.attackRange,
       );
-      result.push({ magePos: mage.position, demonPos: demon.position, warn: !inRange });
+      result.push({ magePos: mage.position, demonPos: leashedUnit.position, warn: !inRange });
     }
     return result;
   }, [selectedUnit, units]);

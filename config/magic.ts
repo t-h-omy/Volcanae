@@ -10,6 +10,10 @@ export const MAGE = {
   GRAVE_TRAP_ADJACENCY_RANGE: 1,
   /** Minimum HP retained by a target after Rupture. */
   RUPTURE_MINIMUM_REMAINING_HP: 1,
+  /** Separate temporary HP pool granted by Stone Skin. */
+  STONE_SKIN_HP: 50,
+  /** Attack power used for each Crystal Lightning hit. */
+  CRYSTAL_LIGHTNING_ATTACK_POWER: 20,
   // ── Mage unit ────────────────────────────────────────────────────────
   /** Default number of spells a Mage can cast each turn */
   SPELLS_PER_TURN: 1,
@@ -27,6 +31,10 @@ export const MAGE = {
   // ── Spell parameters ─────────────────────────────────────────────────
   /** HP lost by a BRANDMARKED unit at the end of every player turn */
   BRANDMARK_HP_LOSS_PER_TURN: 10,
+  /** HP lost by an INFESTED unit at the end of its faction's turn. */
+  INFESTED_HP_LOSS_PER_TURN: 10,
+  /** Defense-ignoring damage dealt to adjacent units when an INFESTED unit dies. */
+  INFESTED_DEATH_BURST_DAMAGE: 0,
   /** Flat ATK bonus while the BRANDMARKED tag is on a unit */
   BRANDMARK_ATTACK_BONUS: 20,
   /** Max HP multiplier applied when a unit is branded (e.g. 2 = double max HP) */
@@ -88,6 +96,15 @@ export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
     id: SpellId.RAISE_SKELETON,
     emoji: '💀',
   },
+  [SpellId.SUMMON_GHOUL]: {
+    id: SpellId.SUMMON_GHOUL,
+    emoji: '🧟',
+  },
+  [SpellId.LAVA_MOLD]: {
+    id: SpellId.LAVA_MOLD,
+    emoji: '🦠',
+    textParams: { damage: MAGE.INFESTED_HP_LOSS_PER_TURN },
+  },
   [SpellId.FROSTCRAFT]: {
     id: SpellId.FROSTCRAFT,
     emoji: '❄️',
@@ -121,5 +138,27 @@ export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
     emoji: '💢',
   
     textParams: { damagePercent: Math.round(MAGE.RUPTURE_PERCENT * 100), minimumHp: MAGE.RUPTURE_MINIMUM_REMAINING_HP, crystalCost: MAGE.RUPTURE_CRYSTAL_COST },
+  },
+  [SpellId.TAUNT]: {
+    id: SpellId.TAUNT,
+    emoji: '🎯',
+  },
+  [SpellId.STONE_SKIN]: {
+    id: SpellId.STONE_SKIN,
+    emoji: '🪨',
+    textParams: { stoneHp: MAGE.STONE_SKIN_HP },
+  },
+  [SpellId.CRYSTAL_LIGHTNING]: {
+    id: SpellId.CRYSTAL_LIGHTNING,
+    emoji: '⚡',
+    textParams: { attackPower: MAGE.CRYSTAL_LIGHTNING_ATTACK_POWER },
+  },
+  [SpellId.PORTAL]: {
+    id: SpellId.PORTAL,
+    emoji: '🌀',
+  },
+  [SpellId.CORRUPTED_QORK]: {
+    id: SpellId.CORRUPTED_QORK,
+    emoji: '🐗',
   },
 };

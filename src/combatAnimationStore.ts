@@ -97,6 +97,8 @@ export type TileVfxVariant =
   | 'SPELL_IMPACT_CAPTURE_ENEMY'
   | 'BURNING_DAMAGE'
   | 'CORRUPTION_APPLIED'
+  | 'CORRUPTION_FIZZLE'
+  | 'INFESTED_DEATH_BURST'
   | 'INVALID_ACTION';
 
 export interface TileVfx {
@@ -112,7 +114,8 @@ export interface TileVfx {
 export type LineVfxVariant =
   | 'FIRE_SPIT'
   | 'SPELL_CAST'
-  | 'PIERCE_LINE';
+  | 'PIERCE_LINE'
+  | 'CRYSTAL_LIGHTNING';
 
 export interface LineVfx {
   id: string;

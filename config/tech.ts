@@ -20,6 +20,8 @@ export const TECH = {
   CRYSTALS_ON_ZONE_STRONGHOLD: 0,
 } as const;
 
+export const CRYSTAL_LIGHTNING_RESEARCH_COST = 7;
+
 /**
  * Compute the actual crystal cost to research a tech node at the current ember level.
  * Actual cost = baseCost + ember.
@@ -419,6 +421,30 @@ export const TECH_TREE: TechNodeDefinition[] = [
     ],
     textParams: { crystalCost: UNIT_DEFINITIONS.CRYSTAL_KHYRON.cost.crystals ?? 0 },
   },
+  {
+    id: 'CRYSTAL_LIGHTNING',
+    requires: ['CRYSTAL_KHYRON'],
+    cost: CRYSTAL_LIGHTNING_RESEARCH_COST,
+    effects: [
+      { type: 'UNLOCK_SPELL', spellId: SpellId.CRYSTAL_LIGHTNING },
+    ],
+  },
+  {
+    id: 'TAUNT',
+    requires: ['ARCANE_AWAKENING'],
+    cost: 4,
+    effects: [
+      { type: 'UNLOCK_SPELL', spellId: SpellId.TAUNT },
+    ],
+  },
+  {
+    id: 'STONE_SKIN',
+    requires: ['TAUNT'],
+    cost: 7,
+    effects: [
+      { type: 'UNLOCK_SPELL', spellId: SpellId.STONE_SKIN },
+    ],
+  },
 
   // ── Summoner path ────────────────────────────────────────────────────────
   {
@@ -427,6 +453,14 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 4,
     effects: [
       { type: 'UNLOCK_SPELL', spellId: SpellId.EMBERBIND },
+    ],
+  },
+  {
+    id: 'CORRUPTED_QORK',
+    requires: ['EMBERBIND'],
+    cost: 7,
+    effects: [
+      { type: 'UNLOCK_SPELL', spellId: SpellId.CORRUPTED_QORK },
     ],
   },
   {
@@ -461,6 +495,14 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'UNLOCK_UNIT',  unitType: UnitType.CRYSTAL_DRAKE },
     ],
   },
+  {
+    id: 'PORTAL',
+    requires: ['CRYSTAL_CAVE'],
+    cost: 7,
+    effects: [
+      { type: 'UNLOCK_SPELL', spellId: SpellId.PORTAL },
+    ],
+  },
 
   // ── Necromancer path ─────────────────────────────────────────────────────
   {
@@ -473,6 +515,14 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SPEARMAN, tag: UnitTag.LEAVES_GRAVESTONE },
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SCOUT,    tag: UnitTag.LEAVES_GRAVESTONE },
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.GUARD,    tag: UnitTag.LEAVES_GRAVESTONE },
+    ],
+  },
+  {
+    id: 'SUMMON_GHOUL',
+    requires: ['RAISE_SKELETON'],
+    cost: 7,
+    effects: [
+      { type: 'UNLOCK_SPELL', spellId: SpellId.SUMMON_GHOUL },
     ],
   },
   // ── Necromancer path branch a: utility ──────────────────────────────────
@@ -523,6 +573,14 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 4,
     effects: [
       { type: 'UNLOCK_SPELL', spellId: SpellId.EXPLODE },
+    ],
+  },
+  {
+    id: 'LAVA_MOLD',
+    requires: ['EXPLODE'],
+    cost: 7,
+    effects: [
+      { type: 'UNLOCK_SPELL', spellId: SpellId.LAVA_MOLD },
     ],
   },
   {

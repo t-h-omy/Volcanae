@@ -184,8 +184,10 @@ export type GameEvent =
       position: Position;
       /** Amount of damage dealt */
       amount: number;
+      /** Actual pre-mitigation amount applied to Stone Skin and normal HP pools. */
+      damageAmount?: number;
       /** High-level source of the damage event. */
-      damageSource?: 'BURNING' | 'TAG' | 'TRAP';
+      damageSource?: 'BURNING' | 'TAG' | 'TRAP' | 'INFESTED';
     }
   | {
       /**
@@ -346,6 +348,7 @@ export type GameEvent =
       entrancePos: Position;
       /** Tile where allied units exit the portal. */
       exitPos: Position;
+      portalKind?: 'RIFT_LORD' | 'MAGE';
     }
   | {
       /**
@@ -357,6 +360,12 @@ export type GameEvent =
       fromPos: Position;
       /** Portal exit tile. */
       toPos: Position;
+      portalKind?: 'RIFT_LORD' | 'MAGE';
+    }
+  | {
+      type: 'PORTAL_BLOCKED';
+      unitId: string;
+      position: Position;
     }
   | {
       /**
@@ -406,6 +415,11 @@ export type GameEvent =
       position: Position;
     }
   | {
+      /** Purely visual feedback when a death corruption attempt is illegal on its terrain. */
+      type: 'CORRUPTION_FIZZLE';
+      position: Position;
+    }
+  | {
       /**
        * Emitted when a cave monster returns to its home mountain tile and
        * burrows back in. The unit is removed from the game — it does not die
@@ -446,4 +460,27 @@ export type GameEvent =
       buildingId: string;
       /** Tile position of the trap */
       position: Position;
+    }
+  | {
+      type: 'CRYSTAL_LIGHTNING_ENEMY_VOLLEY';
+      mageId: string;
+      magePosition: Position;
+      chamberId: string;
+      chamberPosition: Position;
+      hits: {
+        unitId: string;
+        position: Position;
+        damage: number;
+        mageXpGained: number;
+        killed: boolean;
+      }[];
+    }
+  | {
+      type: 'CRYSTAL_LIGHTNING_CHAMBER_VOLLEY';
+      links: {
+        fromChamberId: string;
+        fromPosition: Position;
+        toChamberId: string;
+        toPosition: Position;
+      }[];
     };

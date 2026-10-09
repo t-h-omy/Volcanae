@@ -16,13 +16,20 @@ import { enemyConstructBuilding } from './constructionSystem';
 import { getBridgeAt, canTraverseEdge } from './bridgeSystem';
 import { processEnemyLevelUps, grantXp, canGrantXp } from './levelSystem';
 import type { GameEvent } from './gameEvents';
-import { hasUnitActed, applySpawnActionFlags } from './unitActions';
+import {
+  hasUnitActed,
+  applySpawnActionFlags,
+  isAttackableEnemyUnit,
+  getTauntRestrictedAttackTargets,
+} from './unitActions';
 import { sweepLeashes } from './spellSystem';
 import { checkGraveTrapTrigger, checkScoutTrapTrigger, resolveSlide } from './movementSystem';
 import { tryBeginTunnel, processTunnelTurn } from './tunnelSystem';
-import { cleanupPortals, cleanupExpiredPortalsEndOfTurn, tryPlanPortalCast, castPortal, getUsablePortalAtEntrance, tryTeleportThroughPortal, processPendingPortalTeleports, getPlayerFrontlineRow } from './portalSystem';
+import { cleanupPortals, cleanupExpiredPortalsEndOfTurn, tryPlanPortalCast, castPortal, resolvePortalEntry, processPendingPortalTeleports, getPlayerFrontlineRow } from './portalSystem';
 import { cleanupRoostedUnits, getRoostedUnits } from './buildingRemoval';
 import { isUnitOnCorruptedTile } from './tileStatusSystem';
+import { applyUnitDamage, getUnitDamageOutcome } from './unitDamage';
+import { clearInfestedOnCreditedKill, processInfestedFactionTurn, resolveInfestedDeath } from './infestedSystem';
 import { isCounterThemeUnitType, pickUnitFromTheme, scoreCountersForPlayer } from './waveThemeSystem';
 import { isSpecialistEffectActive } from './specialistSystem';
 import {
@@ -616,6 +623,7 @@ function createEnemyUnit(
     hasTradedThisTurn: false,
     hasConstructedThisTurn: false,
     hasDestroyedThisTurn: false,
+    hasConsumedGravestoneThisTurn: false,
     hasUsedPostAttackMoveThisTurn: false,
     bloodlustAttackAvailable: false,
     xp: 0,
@@ -1294,8 +1302,6 @@ function triggerPreventiveStrike(
     const defenderId = enemyUnitId;
     const attackerPos = { x: unit.position.x, y: unit.position.y };
     const defenderPos = { x: enemyUnit.position.x, y: enemyUnit.position.y };
-    const attackerHpBefore = unit.stats.currentHp;
-    const defenderHpBefore = enemyUnit.stats.currentHp;
     const defenderType = enemyUnit.type;
     // Capture pre-attack XP qualification so the event reflects what grantXp actually granted.
     const attackerCanReceiveXp = canGrantXp(unit.type, unit.xp);
@@ -1309,8 +1315,9 @@ function triggerPreventiveStrike(
     const strikeRaw = normalCombat.defenderHpLost * (ABILITIES.PREVENTIVE_STRIKE_DAMAGE_PERCENT / 100);
     const strikeDamage = Math.max(1, Math.round(strikeRaw));
 
-    const newDefenderHp = enemyUnit.stats.currentHp - strikeDamage;
-    const defenderDead = newDefenderHp <= 0;
+    const defenderDamageOutcome = getUnitDamageOutcome(enemyUnit, strikeDamage);
+    const defenderDead = defenderDamageOutcome.died;
+    applyUnitDamage(enemyUnit, strikeDamage);
 
     // Update game stats
     state.gameStats.damageDealt += strikeDamage;
@@ -1332,7 +1339,6 @@ function triggerPreventiveStrike(
         );
       }
     } else {
-      enemyUnit.stats.currentHp = newDefenderHp;
       updateBerserkLatch(enemyUnit);
     }
 
@@ -1351,19 +1357,21 @@ function triggerPreventiveStrike(
         defenderId,
         attackerPosition: attackerPos,
         defenderPosition: defenderPos,
-        attackerHpLost: attackerAfter ? attackerHpBefore - attackerAfter.stats.currentHp : attackerHpBefore,
-        defenderHpLost: defenderAfter ? defenderHpBefore - defenderAfter.stats.currentHp : defenderHpBefore,
+        attackerHpLost: 0,
+        defenderHpLost: strikeDamage,
         advancedToPosition: null,
         attackerXpGained: !defenderAfter && attackerAfter && attackerCanReceiveXp ? XP.KILL_UNIT : null,
         defenderXpGained: null,
       });
       if (!defenderAfter) {
         events.push({ type: 'UNIT_DEATH', unitId: defenderId, position: defenderPos, faction: Faction.ENEMY });
+        clearInfestedOnCreditedKill(state, attackerId);
         // If the killed unit was a cave monster, trigger the specialist-draw event
         if (defenderType === UnitType.CAVE_MONSTER) {
           events.push({ type: 'CAVE_MONSTER_KILLED', monsterId: defenderId });
         }
       }
+      if (defenderDead) resolveInfestedDeath(state, enemyUnit, events);
     }
   }
 }
@@ -1436,11 +1444,11 @@ function triggerGarrisonOverwatch(
     const defenderId = enemyUnitId;
     const buildingPos = { x: building.position.x, y: building.position.y };
     const defenderPos = { x: enemyUnit.position.x, y: enemyUnit.position.y };
-    const defenderHpBefore = enemyUnit.stats.currentHp;
     const defenderType = enemyUnit.type;
 
-    const newDefenderHp = enemyUnit.stats.currentHp - strikeDamage;
-    const defenderDead = newDefenderHp <= 0;
+    const defenderDamageOutcome = getUnitDamageOutcome(enemyUnit, strikeDamage);
+    const defenderDead = defenderDamageOutcome.died;
+    applyUnitDamage(enemyUnit, strikeDamage);
 
     state.gameStats.damageDealt += strikeDamage;
 
@@ -1459,7 +1467,6 @@ function triggerGarrisonOverwatch(
         );
       }
     } else {
-      enemyUnit.stats.currentHp = newDefenderHp;
       updateBerserkLatch(enemyUnit);
     }
 
@@ -1475,9 +1482,7 @@ function triggerGarrisonOverwatch(
         buildingPosition: buildingPos,
         defenderPosition: defenderPos,
         buildingHpLost: 0,
-        defenderHpLost: defenderAfter
-          ? defenderHpBefore - defenderAfter.stats.currentHp
-          : defenderHpBefore,
+        defenderHpLost: strikeDamage,
         defenderXpGained: null,
       });
       if (!defenderAfter) {
@@ -1492,13 +1497,14 @@ function triggerGarrisonOverwatch(
           events.push({ type: 'CAVE_MONSTER_KILLED', monsterId: defenderId });
         }
       }
+      if (defenderDead) resolveInfestedDeath(state, enemyUnit, events);
     }
   }
 }
 
 function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: Position, events?: GameEvent[]): void {
   const unit = state.units[unitId];
-  if (!unit) return;
+  if (!unit || unit.tags.includes(UnitTag.STONE_SKIN)) return;
 
   const from = { x: unit.position.x, y: unit.position.y };
   const oldTile = state.grid[unit.position.y][unit.position.x];
@@ -1567,16 +1573,10 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
   checkGraveTrapTrigger(state, unitId, events);
   checkScoutTrapTrigger(state, unitId, events);
 
-  // PORTAL: check if the unit stepped onto a portal entrance.
+  // PORTAL: resolve either Mage endpoint or the legacy Rift Lord entrance.
   if (state.units[unitId]) {
     const movedUnit = state.units[unitId];
-    const portal = getUsablePortalAtEntrance(state, movedUnit.position);
-    if (portal && portal.casterId !== movedUnit.id) {
-      // Sacrificial units are NOW allowed to use portals (Decision rework).
-      tryTeleportThroughPortal(state, movedUnit.id, portal.id, events);
-      // If exit was blocked, the unit is now waiting (pendingTeleportUnitId set).
-      // The waiter will teleport automatically when the exit clears.
-    }
+    resolvePortalEntry(state, movedUnit.id, movedUnit.position, events);
   }
 
   // After this unit's movement, give other waiting units a chance to teleport
@@ -1602,7 +1602,7 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
     const factionBeforeSlide = state.units[unitId]?.faction;
     // Normalise to a unit-step: enemy can move multiple tiles per step via moveEnemyUnitToward,
     // but the slide should always cover exactly one tile in the movement direction.
-    resolveSlide(state, unitId, slideDirX, slideDirY);
+    resolveSlide(state, unitId, slideDirX, slideDirY, events);
 
     const unitAfterSlide = state.units[unitId];
     if (
@@ -1643,6 +1643,7 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
           position: { x: deathTileX, y: deathTileY },
           faction: factionBeforeSlide,
         });
+        resolveInfestedDeath(state, unitAfterEffects, events);
       }
     }
   }
@@ -1930,17 +1931,18 @@ export function resolveExplosion(
   // exist — the unit should not self-destruct for nothing.
   if (targets.length === 0) return;
   const deathEvents: GameEvent[] = [];
+  const infestedDeaths: Unit[] = [];
   for (const targetId of targets) {
     const target = state.units[targetId];
     if (!target) continue;
 
-    target.stats.currentHp -= explosionDamage;
+    const damageOutcome = applyUnitDamage(target, explosionDamage);
     updateBerserkLatch(target);
     damagedUnitIds.push(targetId);
     // Track damage received by player
     state.gameStats.damageReceived += explosionDamage;
 
-    if (target.stats.currentHp <= 0) {
+    if (damageOutcome.died) {
       const deathPos = { x: target.position.x, y: target.position.y };
       const deathFaction = target.faction;
       // Remove unit
@@ -1958,6 +1960,7 @@ export function resolveExplosion(
         position: deathPos,
         faction: deathFaction,
       });
+      infestedDeaths.push(target);
     }
   }
 
@@ -1974,6 +1977,9 @@ export function resolveExplosion(
   for (const e of deathEvents) {
     events.push(e);
   }
+  for (const deadUnit of infestedDeaths) {
+    resolveInfestedDeath(state, deadUnit, events);
+  }
 
   // Remove the exploding unit
   const unitTile = state.grid[unit.position.y][unit.position.x];
@@ -1989,6 +1995,7 @@ export function resolveExplosion(
     position: unitPos,
     faction: Faction.ENEMY,
   });
+  resolveInfestedDeath(state, unit, events);
 
   // Explosion may have freed portal exit tiles; resolve any waiting teleports.
   processPendingPortalTeleports(state, events);
@@ -2032,6 +2039,18 @@ function scoreActionsForUnit(
       playerUnitsInAttackRange.push(u);
     }
   }
+  const legallyAttackablePlayerUnitsInRange = Object.values(state.units).filter((target) =>
+      target.stats.currentHp > 0
+      && isAttackableEnemyUnit(target, unit.faction, state.grid)
+      && isTileWithinEdgeCircleRange(
+        unit.position.x, unit.position.y,
+        target.position.x, target.position.y,
+        attackRange,
+      ));
+  const attackablePlayerUnitsInRange = getTauntRestrictedAttackTargets(
+    legallyAttackablePlayerUnitsInRange,
+    playerUnitsInAttackRange,
+  );
 
   // Gather all buildings
   const allBuildings = Object.values(state.buildings);
@@ -2174,10 +2193,10 @@ function scoreActionsForUnit(
   }
 
   // ── ATTACK_UNIT ──
-  if (canAttackThisTurn && playerUnitsInAttackRange.length > 0) {
+  if (canAttackThisTurn && attackablePlayerUnitsInRange.length > 0) {
     let bestTarget: Unit | null = null;
     let bestCombatScore = -Infinity;
-    for (const target of playerUnitsInAttackRange) {
+    for (const target of attackablePlayerUnitsInRange) {
       const cs = projectCombatScore(unit, target);
       if (cs > bestCombatScore) {
         bestCombatScore = cs;
@@ -2208,7 +2227,7 @@ function scoreActionsForUnit(
 
   // ── RANGED_ATTACK_UNIT ──
   if (canAttackThisTurn && unit.tags.includes(UnitTag.RANGED)) {
-    const rangedTargets = playerUnitsInAttackRange.filter(u => edgeCircleDistance(unit.position.x, unit.position.y, u.position.x, u.position.y) > 1);
+    const rangedTargets = attackablePlayerUnitsInRange.filter(u => edgeCircleDistance(unit.position.x, unit.position.y, u.position.x, u.position.y) > 1);
     if (rangedTargets.length > 0) {
       // PREP units that haven't moved yet: score each target individually and prefer uncounterable ones
       if (unit.tags.includes(UnitTag.PREP) && !unit.hasMovedThisTurn) {
@@ -2937,45 +2956,53 @@ function scoreActionsForUnit(
   // this unit southward (toward the player) and the per-turn limit is not yet hit.
   if (!unit.hasMovedThisTurn) {
     for (const portal of Object.values(state.portals)) {
-      // Caster never uses own portal.
-      if (portal.casterId === unit.id) continue;
-      // Skip if portal is no longer usable.
-      if (state.turn < portal.createdTurn || state.turn > portal.lastUsableTurn) continue;
-      // Skip if the portal exit is not south of the entrance (no advance value).
-      if (portal.exitPos.y <= portal.entrancePos.y) continue;
-      // Skip if usage limit for this turn is already hit.
-      const usersThisTurn = portalUsageIntents.get(portal.id) ?? 0;
-      if (usersThisTurn >= ABILITIES.EMBER_PORTAL_MAX_USERS_PER_TURN) continue;
-      // Skip while another unit is already waiting on the entrance for the exit to clear.
-      if (portal.pendingTeleportUnitId !== null && portal.pendingTeleportUnitId !== unit.id) continue;
-      // Skip if the entrance tile is currently occupied by another unit.
-      const entranceTile = state.grid[portal.entrancePos.y]?.[portal.entrancePos.x];
-      if (!entranceTile) continue;
-      if (entranceTile.unitId !== null && entranceTile.unitId !== unit.id) continue;
+      const isMagePortal = portal.kind === 'MAGE';
+      if (!isMagePortal && portal.casterId === unit.id) continue;
+      if (!isMagePortal && (state.turn < portal.createdTurn || state.turn > portal.lastUsableTurn)) continue;
+      if (!isMagePortal) {
+        const usersThisTurn = portalUsageIntents.get(portal.id) ?? 0;
+        if (usersThisTurn >= ABILITIES.EMBER_PORTAL_MAX_USERS_PER_TURN) continue;
+        if (portal.pendingTeleportUnitId !== null && portal.pendingTeleportUnitId !== unit.id) continue;
+      }
 
-      // Check reachability using BFS path existence.
-      const path = findBfsPath(unit.position, portal.entrancePos, state);
-      if (path.length === 0 && (unit.position.x !== portal.entrancePos.x || unit.position.y !== portal.entrancePos.y)) continue;
+      const directions = isMagePortal
+        ? [[portal.entrancePos, portal.exitPos], [portal.exitPos, portal.entrancePos]]
+        : [[portal.entrancePos, portal.exitPos]];
+      for (const [entry, destination] of directions) {
+        if (!isMagePortal && destination.y <= entry.y) continue;
+        if (isMagePortal && !Object.values(state.units).some((target) =>
+          target.faction === Faction.PLAYER
+          && edgeCircleDistance(destination.x, destination.y, target.position.x, target.position.y)
+            < edgeCircleDistance(entry.x, entry.y, target.position.x, target.position.y))) continue;
+        const entryTile = state.grid[entry.y]?.[entry.x];
+        if (!entryTile || (entryTile.unitId !== null && entryTile.unitId !== unit.id)) continue;
+        if (isMagePortal) {
+          const destinationTile = state.grid[destination.y]?.[destination.x];
+          if (!destinationTile || destinationTile.unitId !== null || destinationTile.buildingId !== null || destinationTile.isLava) continue;
+        }
 
-      const distance = edgeCircleDistance(unit.position.x, unit.position.y, portal.entrancePos.x, portal.entrancePos.y);
-      const score = ABILITIES.EMBER_PORTAL_BASE_USE_SCORE - (distance * ABILITIES.EMBER_PORTAL_DISTANCE_PENALTY);
-      if (score <= 0) continue;
+        const path = findBfsPath(unit.position, entry, state);
+        if (path.length === 0 && (unit.position.x !== entry.x || unit.position.y !== entry.y)) continue;
+        const distance = edgeCircleDistance(unit.position.x, unit.position.y, entry.x, entry.y);
+        const score = ABILITIES.EMBER_PORTAL_BASE_USE_SCORE - (distance * ABILITIES.EMBER_PORTAL_DISTANCE_PENALTY);
+        if (score <= 0) continue;
 
-      if (tracing) {
-        pushCandidate(candidates, 'MOVE_TO_PORTAL', [
-          [T.PORTAL, ABILITIES.EMBER_PORTAL_BASE_USE_SCORE],
-          [T.DISTANCE, -(distance * ABILITIES.EMBER_PORTAL_DISTANCE_PENALTY)],
-        ], {
-          targetPosition: portal.entrancePos,
-          portalIntentId: portal.id,
-        }, true);
-      } else {
-        candidates.push({
-          type: 'MOVE_TO_PORTAL',
-          score,
-          targetPosition: portal.entrancePos,
-          portalIntentId: portal.id,
-        });
+        if (tracing) {
+          pushCandidate(candidates, 'MOVE_TO_PORTAL', [
+            [T.PORTAL, ABILITIES.EMBER_PORTAL_BASE_USE_SCORE],
+            [T.DISTANCE, -(distance * ABILITIES.EMBER_PORTAL_DISTANCE_PENALTY)],
+          ], {
+            targetPosition: entry,
+            portalIntentId: portal.id,
+          }, true);
+        } else {
+          candidates.push({
+            type: 'MOVE_TO_PORTAL',
+            score,
+            targetPosition: entry,
+            portalIntentId: portal.id,
+          });
+        }
       }
     }
   }
@@ -3025,6 +3052,7 @@ function destroyUnit(state: Draft<GameState>, unitId: string, events?: GameEvent
     tile.unitId = null;
   }
   delete state.units[unitId];
+  resolveInfestedDeath(state, unit, events);
 }
 
 function executeAction(
@@ -3052,15 +3080,13 @@ function executeAction(
         if (inAttackRange) {
           const attackerPos = { x: currentUnit.position.x, y: currentUnit.position.y };
           const defenderPos = { x: targetUnit.position.x, y: targetUnit.position.y };
-          const attackerHpBefore = currentUnit.stats.currentHp;
-          const defenderHpBefore = targetUnit.stats.currentHp;
           const attackerId = currentUnit.id;
           const defenderId = action.targetUnitId;
           const stateBeforeAction = current(state);
           const defenderTileStatusBefore = state.grid[defenderPos.y]?.[defenderPos.x]?.status;
 
           const secondaryEvents: GameEvent[] = [];
-          resolveAttack(state, attackerId, defenderId, suppressFloaters, secondaryEvents);
+          const attackDamage = resolveAttack(state, attackerId, defenderId, suppressFloaters, secondaryEvents);
 
           if (events) {
             const attackerAfter = state.units[attackerId];
@@ -3094,8 +3120,8 @@ function executeAction(
               defenderId,
               attackerPosition: attackerPos,
               defenderPosition: defenderPos,
-              attackerHpLost: attackerAfter ? attackerHpBefore - attackerAfter.stats.currentHp : attackerHpBefore,
-              defenderHpLost: defenderAfter ? defenderHpBefore - defenderAfter.stats.currentHp : defenderHpBefore,
+              attackerHpLost: attackDamage?.attackerDamage ?? 0,
+              defenderHpLost: attackDamage?.defenderDamage ?? 0,
               advancedToPosition,
               attackerXpGained,
               defenderXpGained,
@@ -3143,15 +3169,13 @@ function executeAction(
         const targetUnit = state.units[action.targetUnitId];
         const attackerPos = { x: currentUnit.position.x, y: currentUnit.position.y };
         const defenderPos = { x: targetUnit.position.x, y: targetUnit.position.y };
-        const attackerHpBefore = currentUnit.stats.currentHp;
-        const defenderHpBefore = targetUnit.stats.currentHp;
         const attackerId = currentUnit.id;
         const defenderId = action.targetUnitId;
         const stateBeforeAction = current(state);
         const defenderTileStatusBefore = state.grid[defenderPos.y]?.[defenderPos.x]?.status;
 
         const secondaryEvents: GameEvent[] = [];
-        resolveAttack(state, attackerId, defenderId, suppressFloaters, secondaryEvents);
+        const attackDamage = resolveAttack(state, attackerId, defenderId, suppressFloaters, secondaryEvents);
 
         if (events) {
           const attackerAfter = state.units[attackerId];
@@ -3179,8 +3203,8 @@ function executeAction(
             defenderId,
             attackerPosition: attackerPos,
             defenderPosition: defenderPos,
-            attackerHpLost: attackerAfter ? attackerHpBefore - attackerAfter.stats.currentHp : attackerHpBefore,
-            defenderHpLost: defenderAfter ? defenderHpBefore - defenderAfter.stats.currentHp : defenderHpBefore,
+            attackerHpLost: attackDamage?.attackerDamage ?? 0,
+            defenderHpLost: attackDamage?.defenderDamage ?? 0,
             advancedToPosition: null,
             attackerXpGained,
             defenderXpGained,
@@ -3233,7 +3257,6 @@ function executeAction(
           if (inAttackRange) {
             const attackerPos = { x: currentUnit.position.x, y: currentUnit.position.y };
             const buildingPos = { x: building.position.x, y: building.position.y };
-            const attackerHpBefore = currentUnit.stats.currentHp;
             const buildingHpBefore = building.hp;
             const attackerId = currentUnit.id;
             const buildingId = action.targetBuildingId;
@@ -3242,7 +3265,7 @@ function executeAction(
             // so we can emit UNIT_DEATH events if the building is destroyed.
             const roosted = events ? getRoostedUnits(state, buildingId) : [];
             const secondaryEvents: GameEvent[] = [];
-            resolveAttackOnBuilding(state, attackerId, buildingId, suppressFloaters, secondaryEvents);
+            const attackDamage = resolveAttackOnBuilding(state, attackerId, buildingId, suppressFloaters, secondaryEvents);
 
             if (events) {
               const attackerAfter = state.units[attackerId];
@@ -3260,7 +3283,7 @@ function executeAction(
                 buildingId,
                 attackerPosition: attackerPos,
                 buildingPosition: buildingPos,
-                attackerHpLost: attackerAfter ? attackerHpBefore - attackerAfter.stats.currentHp : attackerHpBefore,
+                attackerHpLost: attackDamage?.attackerDamage ?? 0,
                 buildingHpLost: buildingAfter ? buildingHpBefore - buildingAfter.hp : buildingHpBefore,
                 advancedToPosition,
               });
@@ -3710,10 +3733,9 @@ function executeBuildingAttacks(state: Draft<GameState>, events?: GameEvent[]): 
     const buildingPos = { x: building.position.x, y: building.position.y };
     const defenderPos = { x: targetUnit.position.x, y: targetUnit.position.y };
     const buildingHpBefore = building.hp;
-    const defenderHpBefore = targetUnit.stats.currentHp;
     const defenderId = bestTarget.id;
 
-    resolveBuildingAttack(state, building.id, defenderId, suppressFloaters);
+    const attackDamage = resolveBuildingAttack(state, building.id, defenderId, suppressFloaters);
 
     // Mark building wasAttackedLastEnemyTurn for player UI feedback on their buildings
     // (this flag is used for buildings attacked BY enemy, not for buildings that attack)
@@ -3729,7 +3751,7 @@ function executeBuildingAttacks(state: Draft<GameState>, events?: GameEvent[]): 
         buildingPosition: buildingPos,
         defenderPosition: defenderPos,
         buildingHpLost: buildingAfter ? buildingHpBefore - buildingAfter.hp : buildingHpBefore,
-        defenderHpLost: defenderAfter ? defenderHpBefore - defenderAfter.stats.currentHp : defenderHpBefore,
+        defenderHpLost: attackDamage?.defenderDamage ?? 0,
         // Defender is a player unit defending against an enemy building attack —
         // player units do not earn XP for counter-killing buildings.
         defenderXpGained: null,
@@ -3790,14 +3812,12 @@ function resolveCaveMonsterAttack(
   const attackerPos = { x: attacker.position.x, y: attacker.position.y };
   const defenderPos = { x: defender.position.x, y: defender.position.y };
   const defenderTileStatusBefore = state.grid[defenderPos.y]?.[defenderPos.x]?.status;
-  const attackerHpBefore = attacker.stats.currentHp;
-  const defenderHpBefore = defender.stats.currentHp;
   const defenderFaction = defender.faction;
   // Capture pre-attack XP qualification to mirror the grantXp early-return for MAX_LEVEL units.
   const attackerCanReceiveXp = canGrantXp(attacker.type, attacker.xp);
   const defenderCanReceiveXp = canGrantXp(defender.type, defender.xp);
 
-  resolveAttack(state, attackerId, defenderId, !!events);
+  const attackDamage = resolveAttack(state, attackerId, defenderId, !!events);
 
   // If the cave monster was killed by the counter-attack, clean up its encounter
   // entry from the state so the resolved state is consistent.
@@ -3825,12 +3845,8 @@ function resolveCaveMonsterAttack(
       defenderId,
       attackerPosition: attackerPos,
       defenderPosition: defenderPos,
-      attackerHpLost: attackerAfter
-        ? attackerHpBefore - attackerAfter.stats.currentHp
-        : attackerHpBefore,
-      defenderHpLost: defenderAfter
-        ? defenderHpBefore - defenderAfter.stats.currentHp
-        : defenderHpBefore,
+      attackerHpLost: attackDamage?.attackerDamage ?? 0,
+      defenderHpLost: attackDamage?.defenderDamage ?? 0,
       advancedToPosition,
       attackerXpGained: !defenderAfter && attackerAfter && attackerCanReceiveXp ? XP.KILL_UNIT : null,
       defenderXpGained: !attackerAfter && defenderCanReceiveXp ? XP.KILL_UNIT : null,
@@ -3903,17 +3919,18 @@ function runCaveMonsterAi(
     );
 
     // ── Priority 1: Attack a player unit already in attack range ─────────
-    let directTarget: Unit | null = null;
-    for (const playerUnit of playerUnits) {
-      if (isTileWithinEdgeCircleRange(
+    const playerUnitsInAttackRange = playerUnits.filter((playerUnit) =>
+      isTileWithinEdgeCircleRange(
         unit.position.x, unit.position.y,
         playerUnit.position.x, playerUnit.position.y,
         unit.stats.attackRange,
-      )) {
-        directTarget = playerUnit;
-        break;
-      }
-    }
+      ));
+    const legallyAttackablePlayerUnits = playerUnitsInAttackRange.filter((playerUnit) =>
+      isAttackableEnemyUnit(playerUnit, unit.faction, state.grid));
+    const directTarget = getTauntRestrictedAttackTargets(
+      legallyAttackablePlayerUnits,
+      playerUnitsInAttackRange,
+    )[0] ?? null;
 
     if (directTarget) {
       const from = { x: unit.position.x, y: unit.position.y };
@@ -4430,6 +4447,8 @@ export function runEnemyTurn(
     //     (recruitment is scored fresh per-building inside spawnEnemyUnits)
     spawnEnemyUnits(draft, events);
 
+    processInfestedFactionTurn(draft, Faction.ENEMY, events);
+
     // 4. Reset enemy unit action flags for next turn
     for (const unit of Object.values(draft.units)) {
       updateBerserkLatch(unit);
@@ -4443,6 +4462,7 @@ export function runEnemyTurn(
         unit.hasTradedThisTurn = false;
         unit.hasConstructedThisTurn = false;
         unit.hasDestroyedThisTurn = false;
+        unit.hasConsumedGravestoneThisTurn = false;
         unit.hasUsedPostAttackMoveThisTurn = false;
       }
     }

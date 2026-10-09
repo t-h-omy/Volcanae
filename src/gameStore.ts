@@ -43,16 +43,16 @@ import { triggerSpellSfx } from './soundOptionsStore';
 import { Faction, GamePhase, BuildingType, TileType, TileStatus, Difficulty, DestroyBehavior, UnitType, UnitTag, TechFlag } from './types';
 import type { Building, GameState, Position, TechId, SpellId } from './types';
 import type { GameEvent } from './gameEvents';
-import { MAP, TERRAIN, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval, UNIT_DEFINITIONS, MAGE } from './gameConfig';
+import { MAP, TERRAIN, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval, UNIT_DEFINITIONS, MAGE, GHOUL } from './gameConfig';
 import { RENDER } from '../config/render';
 import { ANIMATION } from '../config/animation';
 import { CAVE_SPECIALIST_ROB_REWARD_CRYSTALS } from '../config/specialists';
 import { saveSlot, loadSlot, listSlots, deleteSlot, getSlotMeta, saveSeenHintsForSlot } from './saveSystem';
 import { useMenuStore } from './menuStore';
 import { grantKhyronResonance } from './khyronSystem';
-import { computeLevelFromXp, applyLevelUps, canGrantXp } from './levelSystem';
+import { computeLevelFromXp, applyLevelUps, canGrantXp, usesNonXpProgression } from './levelSystem';
 import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLogic, getGrantedTags, getRemovedTags, getStatMods, applyTagStatEffects, revokeTagStatEffects } from './techSystem';
-import { canUnitHeal, getHealTargets, canUnitFieldwork, isHealSuppressedByCorruption } from './unitActions';
+import { canUnitHeal, getHealTargets, canUnitFieldwork, isHealSuppressedByCorruption, canUnitConsumeGravestone } from './unitActions';
 import { createFieldworkOutpost } from './constructionSystem';
 import { getTagsFromActiveSpecialists, isSpecialistEffectActive, getTagsFromActiveSpecialistsForSourceTag } from './specialistSystem';
 import { castSpell as castSpellLogic } from './spellSystem';
@@ -75,6 +75,8 @@ import { useDevOptionsStore } from './devOptionsStore';
 import { t } from './i18n/i18n';
 import { resourceName } from './i18n/entityText';
 import { appendChunk, deleteTurnsAfter, getTraceIndexSeed, readMeta as readAiTraceMeta, sealRun } from './aiTraceStore';
+import { applyUnitDamage } from './unitDamage';
+import { processInfestedFactionTurn, resolveInfestedDeath } from './infestedSystem';
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
@@ -214,6 +216,8 @@ interface GameActions {
   reviveUnit: (buildingId: string) => void;
   /** Raise a flying Gargoyle from any player Gravestone (Deathmender specialist; costs arcane crystals) */
   raiseGargoyle: (buildingId: string) => void;
+  /** Consume a Gravestone under a player Ghoul for a level-up or full heal. */
+  consumeGravestone: (unitId: string) => void;
   /** Permanently dismiss a recruited specialist, removing them from globalSpecialistStorage */
   dismissSpecialist: (specialistId: string) => void;
   /** Finalize pending Brandmark transforms: remove queued units and spawn hostile Ember Demons */
@@ -565,7 +569,9 @@ export const useGameStore = create<GameStore>()(
         deathTileY: number;
         slideDx: number;
         slideDy: number;
+        infested: boolean;
       } | null = null;
+      const movementEvents: GameEvent[] = [];
 
       set((state) => {
         // Snapshot the unit before moveUnitLogic so we can detect a slide-kill
@@ -574,8 +580,9 @@ export const useGameStore = create<GameStore>()(
         const posBeforeY = unitBefore?.position.y ?? 0;
         const unitTypeBefore = unitBefore?.type;
         const factionBefore = unitBefore?.faction;
+        const infestedBefore = !!unitBefore?.tags.includes(UnitTag.INFESTED);
 
-        moveUnitLogic(state, unitId, targetPosition);
+        moveUnitLogic(state, unitId, targetPosition, movementEvents);
         // Player movement may have freed a portal exit tile; resolve waiting teleports.
         processPendingPortalTeleports(state);
         // Update tile discovery after player action
@@ -629,6 +636,7 @@ export const useGameStore = create<GameStore>()(
             deathTileY,
             slideDx: -slideDirX * tileSize,
             slideDy: -slideDirY * tileSize,
+            infested: infestedBefore,
           };
         }
         // ── End ice-slide animation ──────────────────────────────────────────
@@ -641,6 +649,14 @@ export const useGameStore = create<GameStore>()(
         checkGameConditions(state);
       });
 
+      const portalMovementEvents = movementEvents.filter((event) =>
+        event.type === 'PORTAL_USED'
+        || event.type === 'PORTAL_BLOCKED'
+        || event.type === 'PORTAL_CLOSED');
+      if (portalMovementEvents.length > 0) {
+        useAnimationStore.getState().enqueue(portalMovementEvents, useGameStore.getState());
+      }
+
       // ── Slide-kill ghost animation ───────────────────────────────────────
       // Fire AFTER the immer set() completes so the game state is already updated.
       // The unit was deleted synchronously; a ghost overlay handles the visuals.
@@ -651,6 +667,7 @@ export const useGameStore = create<GameStore>()(
           unitType: UnitType; faction: Faction;
           deathTileX: number; deathTileY: number;
           slideDx: number; slideDy: number;
+          infested: boolean;
         };
         const ghostId = `slide-kill-${unitId}-${Date.now()}`;
         const ghost = {
@@ -665,6 +682,15 @@ export const useGameStore = create<GameStore>()(
         };
         const store = useCombatAnimationStore.getState();
         store.addSlideKillGhost(ghost);
+        if (d.infested) {
+          store.addTileVfx({
+            id: crypto.randomUUID(),
+            x: d.deathTileX,
+            y: d.deathTileY,
+            variant: 'INFESTED_DEATH_BURST',
+            durationMs: ANIMATION.INFESTED_DEATH_BURST_MS,
+          });
+        }
 
         // Phase 1 — slide in
         const slideTotalMs = ANIMATION.SLIDE_PAUSE_MS + ANIMATION.SLIDE_DURATION_MS;
@@ -690,6 +716,7 @@ export const useGameStore = create<GameStore>()(
       let pendingEvents: GameEvent[] | null = null;
       let pendingResolvedState: GameState | null = null;
       let attackerFactionCapture: string | null = null;
+      let attackDamage: ReturnType<typeof resolveAttack>;
 
       set((state) => {
         const attacker = state.units[attackerId];
@@ -698,8 +725,6 @@ export const useGameStore = create<GameStore>()(
 
         const attackerPosition = { x: attacker.position.x, y: attacker.position.y };
         const defenderPosition = { x: defender.position.x, y: defender.position.y };
-        const attackerHpBefore = attacker.stats.currentHp;
-        const defenderHpBefore = defender.stats.currentHp;
         const defenderFaction = defender.faction;
         const attackerFaction = attacker.faction;
         attackerFactionCapture = attackerFaction;
@@ -717,7 +742,7 @@ export const useGameStore = create<GameStore>()(
 
         // Compute the resolved state (post-attack) on the snapshot
         const resolvedState = produce(snapshot, (draft) => {
-          resolveAttack(draft, attackerId, targetId, true, secondaryEvents);
+          attackDamage = resolveAttack(draft, attackerId, targetId, true, secondaryEvents);
           // If the primary target is a cave monster that was killed, remove its encounter entry
           if (
             snapshot.units[targetId]?.type === UnitType.CAVE_MONSTER &&
@@ -781,12 +806,8 @@ export const useGameStore = create<GameStore>()(
           defenderId: targetId,
           attackerPosition,
           defenderPosition,
-          attackerHpLost: attackerAfter
-            ? attackerHpBefore - attackerAfter.stats.currentHp
-            : attackerHpBefore,
-          defenderHpLost: defenderAfter
-            ? defenderHpBefore - defenderAfter.stats.currentHp
-            : defenderHpBefore,
+          attackerHpLost: attackDamage?.attackerDamage ?? 0,
+          defenderHpLost: attackDamage?.defenderDamage ?? 0,
           advancedToPosition,
           attackerXpGained,
           defenderXpGained,
@@ -868,6 +889,7 @@ export const useGameStore = create<GameStore>()(
     attackBuilding: (attackerId: string, buildingId: string) => {
       let pendingEvents: GameEvent[] | null = null;
       let pendingResolvedState: GameState | null = null;
+      let attackDamage: ReturnType<typeof resolveAttackOnBuilding>;
 
       set((state) => {
         const attacker = state.units[attackerId];
@@ -876,7 +898,6 @@ export const useGameStore = create<GameStore>()(
 
         const attackerPosition = { x: attacker.position.x, y: attacker.position.y };
         const buildingPosition = { x: building.position.x, y: building.position.y };
-        const attackerHpBefore = attacker.stats.currentHp;
         const buildingHpBefore = building.hp;
         const attackerFaction = attacker.faction;
 
@@ -886,7 +907,7 @@ export const useGameStore = create<GameStore>()(
         const secondaryEvents: GameEvent[] = [];
 
         const resolvedState = produce(snapshot, (draft) => {
-          resolveAttackOnBuilding(draft, attackerId, buildingId, true, secondaryEvents);
+          attackDamage = resolveAttackOnBuilding(draft, attackerId, buildingId, true, secondaryEvents);
           updateDiscovery(draft);
           checkGameConditions(draft);
         });
@@ -908,9 +929,7 @@ export const useGameStore = create<GameStore>()(
           buildingId,
           attackerPosition,
           buildingPosition,
-          attackerHpLost: attackerAfter
-            ? attackerHpBefore - attackerAfter.stats.currentHp
-            : attackerHpBefore,
+          attackerHpLost: attackDamage?.attackerDamage ?? 0,
           buildingHpLost: buildingAfter
             ? buildingHpBefore - buildingAfter.hp
             : buildingHpBefore,
@@ -939,6 +958,7 @@ export const useGameStore = create<GameStore>()(
     buildingAttackUnit: (buildingId: string, targetId: string) => {
       let pendingEvents: GameEvent[] | null = null;
       let pendingResolvedState: GameState | null = null;
+      let attackDamage: ReturnType<typeof resolveBuildingAttack>;
 
       set((state) => {
         const building = state.buildings[buildingId];
@@ -948,7 +968,6 @@ export const useGameStore = create<GameStore>()(
         const buildingPosition = { x: building.position.x, y: building.position.y };
         const defenderPosition = { x: defender.position.x, y: defender.position.y };
         const buildingHpBefore = building.hp;
-        const defenderHpBefore = defender.stats.currentHp;
         const defenderFaction = defender.faction;
 
         // Take a plain snapshot of the current state
@@ -956,7 +975,7 @@ export const useGameStore = create<GameStore>()(
 
         // Compute the resolved state
         const resolvedState = produce(snapshot, (draft) => {
-          resolveBuildingAttack(draft, buildingId, targetId, true);
+          attackDamage = resolveBuildingAttack(draft, buildingId, targetId, true);
           // If the snapshot defender is a cave monster that was killed, remove its encounter entry
           if (
             snapshot.units[targetId]?.type === UnitType.CAVE_MONSTER &&
@@ -993,9 +1012,7 @@ export const useGameStore = create<GameStore>()(
           buildingHpLost: buildingAfter
             ? buildingHpBefore - buildingAfter.hp
             : buildingHpBefore,
-          defenderHpLost: defenderAfter
-            ? defenderHpBefore - defenderAfter.stats.currentHp
-            : defenderHpBefore,
+          defenderHpLost: attackDamage?.defenderDamage ?? 0,
           defenderXpGained,
         };
 
@@ -1311,6 +1328,7 @@ export const useGameStore = create<GameStore>()(
           hasAttackedThisTurn: false,
           hasConstructedThisTurn: false,
           hasDestroyedThisTurn: false,
+          hasConsumedGravestoneThisTurn: false,
           hasCapturedThisTurn: false,
           hasTradedThisTurn: false,
           hasUsedPostAttackMoveThisTurn: false,
@@ -1502,6 +1520,7 @@ export const useGameStore = create<GameStore>()(
           hasTradedThisTurn: false,
           hasConstructedThisTurn: false,
           hasDestroyedThisTurn: false,
+          hasConsumedGravestoneThisTurn: false,
           hasUsedPostAttackMoveThisTurn: false,
           bloodlustAttackAvailable: false,
           xp: 0,
@@ -1537,6 +1556,59 @@ export const useGameStore = create<GameStore>()(
       });
     },
 
+    consumeGravestone: (unitId: string) => {
+      let result: { x: number; y: number; healed: number; level: number | null } | null = null;
+      set((state) => {
+        const unit = state.units[unitId];
+        if (!unit || !canUnitConsumeGravestone(unit, state)) return;
+        const tile = state.grid[unit.position.y]?.[unit.position.x];
+        if (!tile?.buildingId) return;
+        const graveId = tile.buildingId;
+        const grave = state.buildings[graveId];
+        if (!grave || grave.type !== BuildingType.GRAVESTONE || grave.faction !== Faction.PLAYER) return;
+
+        const { x, y } = unit.position;
+        const previousHp = unit.stats.currentHp;
+        cleanupRoostedUnits(state, graveId);
+        delete state.buildings[graveId];
+        tile.buildingId = null;
+        unit.hasConsumedGravestoneThisTurn = true;
+
+        let gainedLevel: number | null = null;
+        if (unit.level < GHOUL.MAX_LEVEL) {
+          gainedLevel = unit.level + 1;
+          applyLevelUps(state, unitId, gainedLevel, true);
+        } else {
+          unit.stats.currentHp = unit.stats.maxHp;
+        }
+        result = { x, y, healed: unit.stats.currentHp - previousHp, level: gainedLevel };
+      });
+
+      if (!result) return;
+      const { x, y, healed, level } = result;
+      if (healed > 0) {
+        useFloaterStore.getState().addFloater({
+          value: healed,
+          x,
+          y,
+          isEnemy: false,
+          floaterType: 'heal',
+        });
+      }
+      if (level !== null) {
+        useFloaterStore.getState().addFloater({
+          value: 0,
+          label: `⬆️ ${t('floater.levelUp', { level })}`,
+          x,
+          y,
+          isEnemy: false,
+          floaterType: 'levelup',
+        });
+        useCombatAnimationStore.getState().setUnitAnimation(unitId, { type: 'LEVEL_UP' });
+        setTimeout(() => useCombatAnimationStore.getState().setUnitAnimation(unitId, null), ANIMATION.LEVEL_UP_ANIM_DURATION_MS);
+      }
+    },
+
     dismissSpecialist: (specialistId: string) => {
       set((state) => {
         const idx = state.globalSpecialistStorage.indexOf(specialistId);
@@ -1559,6 +1631,17 @@ export const useGameStore = create<GameStore>()(
         for (const { unitId, position } of pending) {
           const original = state.units[unitId];
           if (!original) continue;
+          const wasInfested = original.tags.includes(UnitTag.INFESTED);
+          resolveInfestedDeath(state, original);
+          if (wasInfested) {
+            useCombatAnimationStore.getState().addTileVfx({
+              id: crypto.randomUUID(),
+              x: position.x,
+              y: position.y,
+              variant: 'INFESTED_DEATH_BURST',
+              durationMs: ANIMATION.INFESTED_DEATH_BURST_MS,
+            });
+          }
           // Remove the original unit from its tile and from the units map
           const tile = state.grid[position.y]?.[position.x];
           if (tile && tile.unitId === unitId) tile.unitId = null;
@@ -1836,6 +1919,7 @@ export const useGameStore = create<GameStore>()(
         state.pendingHealerId = null; // mutually exclusive with heal mode
         state.pendingBridgeBuilderId = null;
         state.pendingTrapSetterId = null;
+        state.pendingMagePortalFirstPos = null;
         state.pendingSpellCast = { mageId, spellId };
       });
     },
@@ -1844,6 +1928,7 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         state.pendingSpellCast = null;
         state.pendingTransposeFirstUnitId = null;
+        state.pendingMagePortalFirstPos = null;
       });
     },
 
@@ -1851,9 +1936,46 @@ export const useGameStore = create<GameStore>()(
       let castSpellId: import('./types').SpellId | null = null;
       let magePosition: Position | null = null;
       const killedCaveMonsterIds: string[] = [];
+      const portalEvents: GameEvent[] = [];
+      let crystalLightningEvents: GameEvent[] | null = null;
+      let crystalLightningResolvedState: GameState | null = null;
       set((state) => {
         if (!state.pendingSpellCast) return;
         const { mageId, spellId } = state.pendingSpellCast;
+
+        if (spellId === 'CRYSTAL_LIGHTNING') {
+          const snapshot: GameState = current(state);
+          const events: GameEvent[] = [];
+          let committed = false;
+          const resolvedState = produce(snapshot, (draft) => {
+            committed = castSpellLogic(draft, mageId, spellId, targetPosition, events);
+            if (!committed) return;
+            const mage = draft.units[mageId];
+            if (mage) mage.spellsCastThisTurn = (mage.spellsCastThisTurn ?? 0) + 1;
+            draft.pendingSpellCast = null;
+            draft.pendingTransposeFirstUnitId = null;
+            draft.pendingMagePortalFirstPos = null;
+            updateDiscovery(draft);
+            checkGameConditions(draft);
+          });
+          if (!committed) return;
+
+          state.arcaneCrystals = resolvedState.arcaneCrystals;
+          const mage = state.units[mageId];
+          if (mage) mage.spellsCastThisTurn = resolvedState.units[mageId]?.spellsCastThisTurn ?? mage.spellsCastThisTurn;
+          state.pendingSpellCast = null;
+          state.pendingTransposeFirstUnitId = null;
+          state.pendingMagePortalFirstPos = null;
+          state.phase = GamePhase.ENEMY_TURN;
+          state.selectedUnitId = null;
+          state.selectedBuildingId = null;
+          state.selectedTilePos = null;
+          castSpellId = spellId;
+          magePosition = mage ? { ...mage.position } : null;
+          crystalLightningEvents = events;
+          crystalLightningResolvedState = resolvedState;
+          return;
+        }
 
         // Snapshot enemy cave monster IDs before the spell to detect kills.
         const caveMonstersBefore = new Set(
@@ -1862,7 +1984,7 @@ export const useGameStore = create<GameStore>()(
             .map((u) => u.id),
         );
 
-        const ok = castSpellLogic(state, mageId, spellId, targetPosition);
+        const ok = castSpellLogic(state, mageId, spellId, targetPosition, portalEvents);
         if (!ok) return;
 
         // Detect cave monsters killed by the spell and clean up their encounters.
@@ -1894,9 +2016,17 @@ export const useGameStore = create<GameStore>()(
         }
         state.pendingSpellCast = null;
         state.pendingTransposeFirstUnitId = null;
+        state.pendingMagePortalFirstPos = null;
+        state.pendingMagePortalFirstPos = null;
         updateDiscovery(state);
         checkGameConditions(state);
       });
+      if (crystalLightningEvents !== null && crystalLightningResolvedState !== null) {
+        useAnimationStore.getState().enqueue(crystalLightningEvents, crystalLightningResolvedState);
+      }
+      if (portalEvents.length > 0) {
+        useAnimationStore.getState().enqueue(portalEvents, useGameStore.getState());
+      }
       // Enqueue CAVE_MONSTER_KILLED events for any cave monsters killed by the spell.
       // This triggers the specialist-draw modal via the animation engine, mirroring
       // the same flow used when a cave monster is killed by a normal attack.
@@ -1941,7 +2071,7 @@ export const useGameStore = create<GameStore>()(
         // magePosition is captured from inside the immer callback — cast to silence
         // TypeScript's closure-assignment narrowing.
         const capturedMagePosition = magePosition as Position | null;
-        if (capturedMagePosition !== null) {
+        if (capturedMagePosition !== null && castSpellId !== 'CRYSTAL_LIGHTNING') {
           const tileSize = typeof window !== 'undefined' && window.innerWidth <= RENDER.MOBILE_BREAKPOINT
             ? RENDER.TILE_SIZE_MOBILE
             : RENDER.TILE_SIZE_DESKTOP;
@@ -2089,6 +2219,10 @@ export const useGameStore = create<GameStore>()(
         // Get a plain (non-Proxy) snapshot of the current state so runEnemyTurn
         // can use produce() internally without nesting immer producers.
         let snapshot: GameState = current(state);
+        const playerInfestedEvents: GameEvent[] = [];
+        snapshot = produce(snapshot, (draft) => {
+          processInfestedFactionTurn(draft, Faction.PLAYER, playerInfestedEvents);
+        });
         if (isSpecialistEffectActive(snapshot, 'IDLE_HEAL')) {
           snapshot = produce(snapshot, (draft) => {
             for (const unit of Object.values(draft.units)) {
@@ -2162,7 +2296,7 @@ export const useGameStore = create<GameStore>()(
         );
 
         // Phase 4: Lava phase
-        const allEvents: GameEvent[] = [...resolveCaptureEvents, ...idleHealEvents, ...enemyEvents, ...tileStatusEvents];
+        const allEvents: GameEvent[] = [...resolveCaptureEvents, ...playerInfestedEvents, ...idleHealEvents, ...enemyEvents, ...tileStatusEvents];
         computedState = produce(computedState, (draft) => {
           draft.turnsUntilLavaAdvance -= 1;
         });
@@ -2235,7 +2369,7 @@ export const useGameStore = create<GameStore>()(
 
               if (shouldBeHomeless) {
                 const damage = Math.min(POPULATION.HOMELESS_HP_LOSS_PER_TURN, unit.stats.currentHp);
-                unit.stats.currentHp -= damage;
+                const damageOutcome = applyUnitDamage(unit, POPULATION.HOMELESS_HP_LOSS_PER_TURN);
                 updateBerserkLatch(unit);
                 if (damage > 0) {
                   tagDamageEvents.push({
@@ -2243,10 +2377,11 @@ export const useGameStore = create<GameStore>()(
                     unitId: unit.id,
                     position: { x: unit.position.x, y: unit.position.y },
                     amount: damage,
+                    damageAmount: POPULATION.HOMELESS_HP_LOSS_PER_TURN,
                     damageSource: 'TAG',
                   });
                 }
-                if (unit.stats.currentHp <= 0) {
+                if (damageOutcome.died) {
                   homelessDying.push(unit.id);
                 }
               }
@@ -2257,6 +2392,7 @@ export const useGameStore = create<GameStore>()(
               if (!unit) continue;
               if (unit.tags.includes(UnitTag.BRANDMARKED)) {
                 // BRANDMARKED units transform into Ember Demons on death
+                resolveInfestedDeath(draft, unit, tagDamageEvents);
                 handleBrandmarkedUnitDeath(draft, unit);
               } else {
                 // Non-brandmarked units are simply removed
@@ -2266,6 +2402,13 @@ export const useGameStore = create<GameStore>()(
                 const unitType = unit.type;
                 const unitTags = [...unit.tags];
                 delete draft.units[unitId];
+                tagDamageEvents.push({
+                  type: 'UNIT_DEATH',
+                  unitId,
+                  position: deathPos,
+                  faction: unit.faction,
+                });
+                resolveInfestedDeath(draft, unit, tagDamageEvents);
                 if (shouldLeaveGravestone({ faction: Faction.PLAYER, tags: unitTags }, { defaultOn: false })) {
                   createGravestoneAt(draft, deathPos, unitType);
                 }
@@ -2303,7 +2446,7 @@ export const useGameStore = create<GameStore>()(
             if (unit.faction !== Faction.PLAYER) continue;
             if (!unit.tags.includes(UnitTag.BRANDMARKED)) continue;
             const damage = Math.min(MAGE.BRANDMARK_HP_LOSS_PER_TURN, unit.stats.currentHp);
-            unit.stats.currentHp -= damage;
+            const damageOutcome = applyUnitDamage(unit, MAGE.BRANDMARK_HP_LOSS_PER_TURN);
             updateBerserkLatch(unit);
             if (damage > 0) {
               tagDamageEvents.push({
@@ -2311,16 +2454,20 @@ export const useGameStore = create<GameStore>()(
                 unitId: unit.id,
                 position: { x: unit.position.x, y: unit.position.y },
                 amount: damage,
+                damageAmount: MAGE.BRANDMARK_HP_LOSS_PER_TURN,
                 damageSource: 'TAG',
               });
             }
-            if (unit.stats.currentHp <= 0) {
+            if (damageOutcome.died) {
               brandmarkDying.push(unit.id);
             }
           }
           for (const unitId of brandmarkDying) {
             const unit = draft.units[unitId];
-            if (unit) handleBrandmarkedUnitDeath(draft, unit);
+            if (unit) {
+              resolveInfestedDeath(draft, unit, tagDamageEvents);
+              handleBrandmarkedUnitDeath(draft, unit);
+            }
           }
 
           // Leash defection: any player-faction LEASHED unit defects if its
@@ -2381,6 +2528,7 @@ export const useGameStore = create<GameStore>()(
               unit.hasTradedThisTurn = false;
               unit.hasConstructedThisTurn = false;
               unit.hasDestroyedThisTurn = false;
+              unit.hasConsumedGravestoneThisTurn = false;
               unit.hasUsedPostAttackMoveThisTurn = false;
               unit.bloodlustAttackAvailable = false;
               // Only clear multi-turn stuns that have already expired so that
@@ -2588,11 +2736,11 @@ export const useGameStore = create<GameStore>()(
             const defender = state.units[event.defenderId];
 
             if (defender && event.defenderHpLost > 0) {
-              defender.stats.currentHp -= event.defenderHpLost;
+              applyUnitDamage(defender, event.defenderHpLost);
               updateBerserkLatch(defender);
             }
             if (attacker && event.attackerHpLost > 0) {
-              attacker.stats.currentHp -= event.attackerHpLost;
+              applyUnitDamage(attacker, event.attackerHpLost);
               updateBerserkLatch(attacker);
             }
 
@@ -2634,7 +2782,7 @@ export const useGameStore = create<GameStore>()(
             // XP floaters — shown here (after the kill animation) rather than during computation.
             // Also update unit.xp immediately so the xp text on the sprite reflects the gain
             // right away instead of waiting for setGameState(resolvedState) at turn end.
-            if (event.attackerXpGained) {
+            if (event.attackerXpGained && canGrantXp(attacker?.type ?? '', attacker?.xp ?? 0)) {
               if (attacker) attacker.xp += event.attackerXpGained;
               addFloater({
                 value: event.attackerXpGained,
@@ -2645,7 +2793,7 @@ export const useGameStore = create<GameStore>()(
                 floaterType: 'xp',
               });
             }
-            if (event.defenderXpGained) {
+            if (event.defenderXpGained && canGrantXp(defender?.type ?? '', defender?.xp ?? 0)) {
               if (defender) defender.xp += event.defenderXpGained;
               addFloater({
                 value: event.defenderXpGained,
@@ -2665,11 +2813,11 @@ export const useGameStore = create<GameStore>()(
             const defender = state.units[event.defenderId];
 
             if (defender && event.defenderHpLost > 0) {
-              defender.stats.currentHp -= event.defenderHpLost;
+              applyUnitDamage(defender, event.defenderHpLost);
               updateBerserkLatch(defender);
             }
             if (attacker && event.attackerHpLost > 0) {
-              attacker.stats.currentHp -= event.attackerHpLost;
+              applyUnitDamage(attacker, event.attackerHpLost);
               updateBerserkLatch(attacker);
             }
 
@@ -2716,7 +2864,7 @@ export const useGameStore = create<GameStore>()(
             // XP floaters — shown here rather than during computation.
             // Also update unit.xp immediately so the xp text on the sprite reflects the gain
             // right away instead of waiting for setGameState(resolvedState) at turn end.
-            if (event.attackerXpGained) {
+            if (event.attackerXpGained && canGrantXp(attacker?.type ?? '', attacker?.xp ?? 0)) {
               if (attacker) attacker.xp += event.attackerXpGained;
               addFloater({
                 value: event.attackerXpGained,
@@ -2727,7 +2875,7 @@ export const useGameStore = create<GameStore>()(
                 floaterType: 'xp',
               });
             }
-            if (event.defenderXpGained) {
+            if (event.defenderXpGained && canGrantXp(defender?.type ?? '', defender?.xp ?? 0)) {
               if (defender) defender.xp += event.defenderXpGained;
               addFloater({
                 value: event.defenderXpGained,
@@ -2758,6 +2906,15 @@ export const useGameStore = create<GameStore>()(
                   y: unit.position.y,
                   isEnemy: true,
                   floaterType: 'damage',
+                });
+              }
+              if (unit.tags.includes(UnitTag.INFESTED)) {
+                useCombatAnimationStore.getState().addTileVfx({
+                  id: crypto.randomUUID(),
+                  x: event.position.x,
+                  y: event.position.y,
+                  variant: 'INFESTED_DEATH_BURST',
+                  durationMs: ANIMATION.INFESTED_DEATH_BURST_MS,
                 });
               }
               const tile = state.grid[unit.position.y][unit.position.x];
@@ -2822,7 +2979,7 @@ export const useGameStore = create<GameStore>()(
             const buildingFactionBefore = building?.faction ?? null;
 
             if (defender && event.defenderHpLost > 0) {
-              defender.stats.currentHp -= event.defenderHpLost;
+              applyUnitDamage(defender, event.defenderHpLost);
               updateBerserkLatch(defender);
             }
             if (building && event.buildingHpLost > 0) {
@@ -2911,7 +3068,7 @@ export const useGameStore = create<GameStore>()(
             const building = state.buildings[event.buildingId];
 
             if (attacker && event.attackerHpLost > 0) {
-              attacker.stats.currentHp -= event.attackerHpLost;
+              applyUnitDamage(attacker, event.attackerHpLost);
               updateBerserkLatch(attacker);
             }
             if (building && event.buildingHpLost > 0) {
@@ -3124,7 +3281,7 @@ export const useGameStore = create<GameStore>()(
             for (const targetId of event.damagedUnitIds) {
               const target = state.units[targetId];
               if (target) {
-                target.stats.currentHp -= event.damagePerUnit;
+                applyUnitDamage(target, event.damagePerUnit);
                 updateBerserkLatch(target);
                 // If unit dies, it will be handled by the subsequent UNIT_DEATH event
               }
@@ -3151,6 +3308,18 @@ export const useGameStore = create<GameStore>()(
           }
 
           case 'LAVA_ADVANCE': {
+            for (const unitId of event.destroyedUnitIds) {
+              const unit = state.units[unitId];
+              if (unit?.tunnelState === 'UNDERGROUND' || unit?.tunnelState === 'EMERGING') continue;
+              if (!unit?.tags.includes(UnitTag.INFESTED)) continue;
+              useCombatAnimationStore.getState().addTileVfx({
+                id: crypto.randomUUID(),
+                x: unit.position.x,
+                y: unit.position.y,
+                variant: 'INFESTED_DEATH_BURST',
+                durationMs: ANIMATION.INFESTED_DEATH_BURST_MS,
+              });
+            }
             // Pass skipRoostedCleanup=true so that life-bound units (e.g. Crystal
             // Drake) are NOT removed here. Their queued UNIT_DEATH events will
             // animate the death and let the auto-cam pan to them; applyEvent for
@@ -3164,6 +3333,15 @@ export const useGameStore = create<GameStore>()(
             for (const unitId of event.purgedUnitIds) {
               const unit = state.units[unitId];
               if (unit) {
+                if (unit.tags.includes(UnitTag.INFESTED)) {
+                  useCombatAnimationStore.getState().addTileVfx({
+                    id: crypto.randomUUID(),
+                    x: unit.position.x,
+                    y: unit.position.y,
+                    variant: 'INFESTED_DEATH_BURST',
+                    durationMs: ANIMATION.INFESTED_DEATH_BURST_MS,
+                  });
+                }
                 const tile = state.grid[unit.position.y][unit.position.x];
                 if (tile.unitId === unitId) tile.unitId = null;
                 delete state.units[unitId];
@@ -3224,6 +3402,10 @@ export const useGameStore = create<GameStore>()(
             // Emit a damage floater at the affected tile.
             // Use the unit's faction to determine floater colour (isEnemy = true → orange for enemies).
             const damagedUnit = state.units[event.unitId];
+            if (damagedUnit) {
+              applyUnitDamage(damagedUnit, event.damageAmount ?? event.amount);
+              updateBerserkLatch(damagedUnit);
+            }
             useFloaterStore.getState().addFloater({
               value: event.amount,
               x: event.position.x,
@@ -3233,6 +3415,43 @@ export const useGameStore = create<GameStore>()(
             });
             break;
           }
+
+          case 'CRYSTAL_LIGHTNING_ENEMY_VOLLEY': {
+            const mage = state.units[event.mageId];
+            for (const hit of event.hits) {
+              const target = state.units[hit.unitId];
+              if (target) {
+                applyUnitDamage(target, hit.damage);
+                updateBerserkLatch(target);
+              }
+              state.gameStats.damageDealt += hit.damage;
+              if (hit.killed) state.gameStats.unitsKilled += 1;
+              if (hit.damage > 0) {
+                useFloaterStore.getState().addFloater({
+                  value: hit.damage,
+                  x: hit.position.x,
+                  y: hit.position.y,
+                  isEnemy: true,
+                  floaterType: 'damage',
+                });
+              }
+              if (hit.mageXpGained > 0) {
+                if (mage) mage.xp += hit.mageXpGained;
+                useFloaterStore.getState().addFloater({
+                  value: hit.mageXpGained,
+                  label: `⭐ +${hit.mageXpGained}`,
+                  x: event.magePosition.x,
+                  y: event.magePosition.y,
+                  isEnemy: false,
+                  floaterType: 'xp',
+                });
+              }
+            }
+            break;
+          }
+
+          case 'CRYSTAL_LIGHTNING_CHAMBER_VOLLEY':
+            break;
 
           case 'UNIT_HEAL': {
             const healedUnit = state.units[event.unitId];
@@ -3291,7 +3510,7 @@ export const useGameStore = create<GameStore>()(
           case 'SPLASH_DAMAGE': {
             const splashTarget = state.units[event.unitId];
             if (splashTarget) {
-              splashTarget.stats.currentHp = Math.max(0, splashTarget.stats.currentHp - event.amount);
+              applyUnitDamage(splashTarget, event.amount);
               updateBerserkLatch(splashTarget);
             }
             useFloaterStore.getState().addFloater({
@@ -3306,7 +3525,7 @@ export const useGameStore = create<GameStore>()(
           case 'CLEAVE_DAMAGE': {
             const cleaveTarget = state.units[event.unitId];
             if (cleaveTarget) {
-              cleaveTarget.stats.currentHp = Math.max(0, cleaveTarget.stats.currentHp - event.amount);
+              applyUnitDamage(cleaveTarget, event.amount);
               updateBerserkLatch(cleaveTarget);
             }
             useFloaterStore.getState().addFloater({
@@ -3322,7 +3541,7 @@ export const useGameStore = create<GameStore>()(
             if (event.unitId) {
               const pierceTarget = state.units[event.unitId];
               if (pierceTarget) {
-                pierceTarget.stats.currentHp = Math.max(0, pierceTarget.stats.currentHp - event.amount);
+                applyUnitDamage(pierceTarget, event.amount);
                 updateBerserkLatch(pierceTarget);
               }
             } else if (event.buildingId) {
@@ -3391,7 +3610,7 @@ export const useGameStore = create<GameStore>()(
                 if (!aoeTargetTile?.unitId) continue;
                 const aoeTarget = state.units[aoeTargetTile.unitId];
                 if (aoeTarget && aoeTarget.faction === Faction.PLAYER) {
-                  aoeTarget.stats.currentHp = Math.max(0, aoeTarget.stats.currentHp - ABILITIES.TUNNEL_EMERGE_DAMAGE);
+                  applyUnitDamage(aoeTarget, ABILITIES.TUNNEL_EMERGE_DAMAGE);
                   updateBerserkLatch(aoeTarget);
                   addFloater({
                     value: ABILITIES.TUNNEL_EMERGE_DAMAGE,
@@ -3460,6 +3679,17 @@ export const useGameStore = create<GameStore>()(
             // Presentation-only: state mutation happens in the action producer (portalSystem.ts).
             break;
 
+          case 'PORTAL_BLOCKED':
+            useFloaterStore.getState().addFloater({
+              value: 0,
+              label: `🚫 ${t('reason.movement.portalExitBlocked')}`,
+              x: event.position.x,
+              y: event.position.y,
+              isEnemy: state.units[event.unitId]?.faction === Faction.ENEMY,
+              floaterType: 'damage',
+            });
+            break;
+
           case 'RESONANCE_TRIGGERED':
             // Presentation-only: mutation applied via resolvedState.
             break;
@@ -3467,6 +3697,7 @@ export const useGameStore = create<GameStore>()(
           case 'STUN_BLOCKED':
           case 'DEFENSE_BONUS_IGNORED':
           case 'CORRUPTION_APPLIED':
+          case 'CORRUPTION_FIZZLE':
             // Presentation-only: no state mutation required.
             break;
 
@@ -3786,6 +4017,7 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         const unit = state.units[unitId];
         if (!unit || unit.faction !== Faction.PLAYER) return;
+        if (usesNonXpProgression(unit.type)) return;
         const targetLevel = computeLevelFromXp(unit.type, unit.xp);
         if (targetLevel <= unit.level) return;
         applyLevelUps(state, unitId, targetLevel);

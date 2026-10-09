@@ -81,6 +81,8 @@ export const ANIMATION = {
   SLIDE_KILL_FALL_DURATION_MS: 400,
   /** Duration of the expanding cleave slash ring VFX (ms) */
   CLEAVE_VFX_DURATION_MS: 350,
+  /** Duration of the green slime burst on Infested unit death (ms). */
+  INFESTED_DEATH_BURST_MS: 650,
   /**
    * Radius of the cleave ring VFX in tile-widths, measured from the attacker centre.
    * Used by CleaveVfxLayer in GridRenderer.tsx to scale the ring element.
@@ -104,6 +106,12 @@ export const ANIMATION = {
   STUN_BLOCKED_SHIELD_MS: 600,
   /** Duration of the cracked-shield VFX shown when PUNCTURE bypasses defense (ms) */
   DEFENSE_IGNORED_MS: 500,
+  /** Duration of one Crystal Lightning bolt in an enemy volley. */
+  CRYSTAL_LIGHTNING_BOLT_MS: 260,
+  /** Duration of one quick Crystal Chamber chain bolt. */
+  CRYSTAL_LIGHTNING_LINK_MS: 180,
+  /** Short pause after Crystal Lightning volleys and links. */
+  CRYSTAL_LIGHTNING_POST_MS: 70,
   /** Duration of the mage spell-cast line from caster to target tile (ms) */
   SPELL_CAST_MS: 650,
   /** Duration of the mage spell impact ring on the target tile (ms) */
@@ -116,6 +124,8 @@ export const ANIMATION = {
   HEAL_VFX_MS: 450,
   /** Duration of the corruption-applied dark-purple pulse (ms) */
   CORRUPTION_APPLIED_VFX_MS: 500,
+  /** Duration of the canceled corruption pulse on terrain that rejects CORRUPTED. */
+  CORRUPTION_FIZZLE_VFX_MS: 450,
   /** Duration of the portal entrance/exit pop (ms) */
   PORTAL_VFX_MS: 500,
   /** Duration of the unit-spawn pop (ms) */

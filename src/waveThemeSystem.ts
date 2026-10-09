@@ -753,6 +753,7 @@ function createFreshEnemyUnit(type: UnitType, x: number, y: number): Unit {
     hasAttackedThisTurn: false,
     hasConstructedThisTurn: false,
     hasDestroyedThisTurn: false,
+    hasConsumedGravestoneThisTurn: false,
     hasCapturedThisTurn: false,
     hasTradedThisTurn: false,
     hasUsedPostAttackMoveThisTurn: false,

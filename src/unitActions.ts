@@ -24,7 +24,7 @@
  *
  * Current action flags: hasMovedThisTurn, hasAttackedThisTurn,
  *   hasCapturedThisTurn, hasConstructedThisTurn, hasDestroyedThisTurn,
- *   spellsCastThisTurn.
+ *   hasConsumedGravestoneThisTurn, spellsCastThisTurn.
  *
  * ── CROSS-BLOCKING RULES ────────────────────────────────────────────────────
  * Move does not block attack (move → attack is the normal sequence).
@@ -34,7 +34,7 @@
 
 import type { GameState } from './types';
 import type { Draft } from 'immer';
-import { Faction, UnitTag, BuildingType, UnitType, TileType, TileStatus } from './types';
+import { Faction, GamePhase, UnitTag, BuildingType, UnitType, TileType, TileStatus } from './types';
 import type { Unit, Building, Tile, TechId } from './types';
 import { getReachableTiles } from './movementSystem';
 import { getConstructionOptionsForTile, getConstructionMenuOptionsForTile } from './constructionSystem';
@@ -81,6 +81,7 @@ export function hasUnitActed(
     unit.hasTradedThisTurn ||
     unit.hasConstructedThisTurn ||
     unit.hasDestroyedThisTurn ||
+    unit.hasConsumedGravestoneThisTurn ||
     hasSpentMageCastBudget(unit, state)
   );
 }
@@ -120,7 +121,23 @@ export function applySpawnActionFlags(unit: Unit): Unit {
   unit.hasTradedThisTurn = spent;
   unit.hasConstructedThisTurn = spent;
   unit.hasDestroyedThisTurn = spent;
+  unit.hasConsumedGravestoneThisTurn = spent;
   return unit;
+}
+
+/** Whether this Ghoul may consume the Gravestone on its current tile this turn. */
+export function canUnitConsumeGravestone(
+  unit: Unit,
+  state: GameState | Draft<GameState>,
+): boolean {
+  if (state.phase !== GamePhase.PLAYER_TURN) return false;
+  if (unit.type !== UnitType.GHOUL || unit.faction !== Faction.PLAYER) return false;
+  if (unit.pinnedUntilTurn > 0 || unit.hasMovedThisTurn || unit.bloodlustAttackAvailable) return false;
+  if (unit.hasConsumedGravestoneThisTurn || hasUnitActed(unit, state)) return false;
+  const tile = state.grid[unit.position.y]?.[unit.position.x];
+  if (!tile?.buildingId) return false;
+  const building = state.buildings[tile.buildingId];
+  return building?.type === BuildingType.GRAVESTONE && building.faction === Faction.PLAYER;
 }
 
 /**
@@ -152,17 +169,19 @@ export function getNorthermostPlayerY(
  *   - any non-move action flag: non-move actions end the unit's turn entirely
  *     EXCEPTION: HIT_AND_RUN — a unit with HIT_AND_RUN may move before AND after attacking
  *
- * Tag rules: none currently.
+ * Tag rules: STONE_SKIN prevents voluntary movement.
  * To add a tag that restricts movement, add it here and only here.
  */
 export function canUnitMove(
   unit: Unit,
   _state?: GameState | Draft<GameState>,
 ): boolean {
+  if (unit.tags.includes(UnitTag.STONE_SKIN)) return false;
   if (unit.pinnedUntilTurn > 0) return false;
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasConstructedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
+  if (unit.hasConsumedGravestoneThisTurn) return false;
   if (unit.hasTradedThisTurn) return false;
   // HIT_AND_RUN: can move before attacking (if not yet moved) OR after attacking (post-attack move, once per turn)
   if (unit.tags.includes(UnitTag.HIT_AND_RUN)) {
@@ -224,6 +243,7 @@ export function canUnitAttack(
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasConstructedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
+  if (unit.hasConsumedGravestoneThisTurn) return false;
   if (unit.hasTradedThisTurn) return false;
   if (unit.hasMovedThisTurn && unit.tags.includes(UnitTag.PREP)) return false;
   if (unit.tags.includes(UnitTag.PASSIVE)) return false;
@@ -253,6 +273,70 @@ export function isAttackableEnemyUnit(
   if (ts === 'DIGGING_IN' || ts === 'UNDERGROUND' || ts === 'EMERGING') return false;
   if (!grid[target.position.y]?.[target.position.x]?.isRevealed) return false;
   return true;
+}
+
+/** Return the legally attackable hostile unit candidates before Taunt filtering. */
+export function getAttackableUnitTargets(
+  unit: Unit,
+  units: Record<string, Unit>,
+  grid: Tile[][],
+  state?: GameState | Draft<GameState>,
+): Unit[] {
+  if (!canUnitAttack(unit, state)) return [];
+  const attackRange = getUnitAttackRange(unit, state);
+  return Object.values(units).filter((other) =>
+    isAttackableEnemyUnit(other, unit.faction, grid)
+    && isTileWithinEdgeCircleRange(
+      unit.position.x, unit.position.y,
+      other.position.x, other.position.y,
+      attackRange,
+    ));
+}
+
+/** Apply the shared, faction-agnostic Taunt restriction to legal unit targets. */
+export function getTauntRestrictedAttackTargets<T extends Pick<Unit, 'tags'>>(
+  legalTargets: T[],
+  fallbackTargets: T[] = legalTargets,
+): T[] {
+  if (!legalTargets.some((target) => target.tags.includes(UnitTag.TAUNT))) return fallbackTargets;
+  return legalTargets.filter((target) => target.tags.includes(UnitTag.TAUNT));
+}
+
+/** Tile keys for legal hostile unit targets excluded only by another legal Taunt target. */
+export function getTauntBlockedAttackTargetKeys(
+  attacker: Unit,
+  units: Record<string, Unit>,
+  grid: Tile[][],
+  state?: GameState | Draft<GameState>,
+): Set<string> {
+  const legalTargets = getAttackableUnitTargets(attacker, units, grid, state);
+  const restrictedTargets = new Set(getTauntRestrictedAttackTargets(legalTargets));
+  return new Set(
+    legalTargets
+      .filter((target) => !restrictedTargets.has(target))
+      .map((target) => `${target.position.x},${target.position.y}`),
+  );
+}
+
+const ATTACK_TARGET_REASONS = {
+  TAUNT_REQUIRED: { key: 'reason.attack.tauntRequired' },
+} satisfies Record<string, TextRef>;
+
+/** Explain why an otherwise legal unit target is blocked by another legal Taunt target. */
+export function explainInvalidAttackTarget(
+  attacker: Unit,
+  units: Record<string, Unit>,
+  grid: Tile[][],
+  state: GameState | Draft<GameState>,
+  position: { x: number; y: number },
+): TextRef | null {
+  const legalTargets = getAttackableUnitTargets(attacker, units, grid, state);
+  const target = legalTargets.find((candidate) =>
+    candidate.position.x === position.x && candidate.position.y === position.y);
+  if (!target || target.tags.includes(UnitTag.TAUNT)) return null;
+  return getTauntRestrictedAttackTargets(legalTargets).length < legalTargets.length
+    ? ATTACK_TARGET_REASONS.TAUNT_REQUIRED
+    : null;
 }
 
 export function isAttackableEnemyBuilding(
@@ -309,17 +393,10 @@ export function getAttackTargets(
   if (!canUnitAttack(unit, state)) return keys;
   const attackRange = getUnitAttackRange(unit, state);
 
-  // Enemy units
-  for (const other of Object.values(units)) {
-    if (!isAttackableEnemyUnit(other, unit.faction, grid)) continue;
-    const inRange = isTileWithinEdgeCircleRange(
-      unit.position.x, unit.position.y,
-      other.position.x, other.position.y,
-      attackRange,
-    );
-    if (inRange) {
-      keys.add(`${other.position.x},${other.position.y}`);
-    }
+  const legalUnitTargets = getAttackableUnitTargets(unit, units, grid, state);
+  const allLegalUnitTargetKeys = new Set(legalUnitTargets.map((other) => `${other.position.x},${other.position.y}`));
+  for (const other of getTauntRestrictedAttackTargets(legalUnitTargets)) {
+    keys.add(`${other.position.x},${other.position.y}`);
   }
 
   // Enemy buildings with combat stats on revealed tiles (skip tiles already
@@ -328,7 +405,7 @@ export function getAttackTargets(
   for (const b of Object.values(buildings)) {
     if (!isAttackableEnemyBuilding(b, unit.faction, grid)) continue;
     const key = `${b.position.x},${b.position.y}`;
-    if (keys.has(key)) continue;
+    if (allLegalUnitTargetKeys.has(key) || keys.has(key)) continue;
     const inRange = isTileWithinEdgeCircleRange(
       unit.position.x, unit.position.y,
       b.position.x, b.position.y,
@@ -365,6 +442,7 @@ export function canUnitCapture(unit: Unit): boolean {
   if (unit.hasAttackedThisTurn) return false;
   if (unit.hasConstructedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
+  if (unit.hasConsumedGravestoneThisTurn) return false;
   if (unit.hasTradedThisTurn) return false;
   if (!unit.tags.includes(UnitTag.BUILDANDCAPTURE)) return false;
   return true;
@@ -407,6 +485,7 @@ export function canUnitTrade(unit: Unit): boolean {
   if (unit.tags.includes(UnitTag.SUMMONED)) return false;
   if (unit.hasMovedThisTurn) return false;
   if (unit.hasTradedThisTurn) return false;
+  if (unit.hasConsumedGravestoneThisTurn) return false;
   return true;
 }
 
@@ -448,6 +527,7 @@ export function canUnitConstruct(unit: Unit): boolean {
   if (unit.hasAttackedThisTurn) return false;
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
+  if (unit.hasConsumedGravestoneThisTurn) return false;
   if (unit.hasTradedThisTurn) return false;
   if (!unit.tags.includes(UnitTag.BUILDANDCAPTURE)) return false;
   return true;
@@ -532,6 +612,7 @@ export function canUnitHeal(unit: Unit): boolean {
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasConstructedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
+  if (unit.hasConsumedGravestoneThisTurn) return false;
   if (unit.hasTradedThisTurn) return false;
   return true;
 }
@@ -637,6 +718,7 @@ export function canUnitFieldwork(unit: Unit): boolean {
   if (unit.hasConstructedThisTurn) return false;
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
+  if (unit.hasConsumedGravestoneThisTurn) return false;
   if (unit.hasTradedThisTurn) return false;
   return true;
 }
@@ -672,6 +754,7 @@ export function canUnitBuildBridge(
   if (unit.hasConstructedThisTurn) return false;
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
+  if (unit.hasConsumedGravestoneThisTurn) return false;
   if (unit.hasTradedThisTurn) return false;
   return true;
 }
@@ -784,6 +867,7 @@ export function canUnitSetTrap(
   if (unit.hasConstructedThisTurn) return false;
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
+  if (unit.hasConsumedGravestoneThisTurn) return false;
   if (unit.hasTradedThisTurn) return false;
   return true;
 }
@@ -812,6 +896,7 @@ export function canUnitExtinguish(
   if (unit.hasConstructedThisTurn) return false;
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
+  if (unit.hasConsumedGravestoneThisTurn) return false;
   if (unit.hasTradedThisTurn) return false;
   return true;
 }

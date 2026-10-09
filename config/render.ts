@@ -32,6 +32,7 @@ export const RENDER = {
     /** Background colour for WATER terrain tiles */
     WATER: '#4AABDB',
     HP_GREEN: '#2ecc71',
+    STONE_SKIN: '#a8a8a8',
     HP_RED: '#e74c3c',
     /** Colour of the heal floater text */
     HEAL_FLOATER: '#2ecc71',

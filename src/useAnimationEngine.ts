@@ -128,11 +128,15 @@ function eventPosition(event: GameEvent): Position {
       );
     case 'PORTAL_CLOSED':
       return event.entrancePos;
+    case 'PORTAL_BLOCKED':
+      return event.position;
     case 'STUN_BLOCKED':
       return event.position;
     case 'DEFENSE_BONUS_IGNORED':
       return event.defenderPosition;
     case 'CORRUPTION_APPLIED':
+      return event.position;
+    case 'CORRUPTION_FIZZLE':
       return event.position;
     case 'CAVE_MONSTER_RETREAT':
       return event.position;
@@ -142,6 +146,10 @@ function eventPosition(event: GameEvent): Position {
       return event.toPosition;
     case 'TRAP_TRIGGERED':
       return event.position;
+    case 'CRYSTAL_LIGHTNING_ENEMY_VOLLEY':
+      return event.chamberPosition;
+    case 'CRYSTAL_LIGHTNING_CHAMBER_VOLLEY':
+      return event.links[0]?.fromPosition ?? { x: 0, y: 0 };
   }
 }
 function isTileRevealed(pos: Position): boolean {
@@ -242,11 +250,15 @@ function isEventVisible(event: GameEvent): boolean {
       return isTileRevealed(event.fromPos) || isTileRevealed(event.toPos);
     case 'PORTAL_CLOSED':
       return isTileRevealed(event.entrancePos) || isTileRevealed(event.exitPos);
+    case 'PORTAL_BLOCKED':
+      return isTileRevealed(event.position);
     case 'STUN_BLOCKED':
       return isTileRevealed(event.position);
     case 'DEFENSE_BONUS_IGNORED':
       return isTileRevealed(event.defenderPosition);
     case 'CORRUPTION_APPLIED':
+      return isTileRevealed(event.position);
+    case 'CORRUPTION_FIZZLE':
       return isTileRevealed(event.position);
     case 'CAVE_MONSTER_RETREAT':
       return isTileRevealed(event.position);
@@ -256,6 +268,12 @@ function isEventVisible(event: GameEvent): boolean {
       return isTileRevealed(event.fromPosition) || isTileRevealed(event.toPosition);
     case 'TRAP_TRIGGERED':
       return isTileRevealed(event.position);
+    case 'CRYSTAL_LIGHTNING_ENEMY_VOLLEY':
+      return isTileRevealed(event.chamberPosition)
+        || event.hits.some((hit) => isTileRevealed(hit.position));
+    case 'CRYSTAL_LIGHTNING_CHAMBER_VOLLEY':
+      return event.links.some((link) =>
+        isTileRevealed(link.fromPosition) || isTileRevealed(link.toPosition));
   }
 }
 
@@ -265,6 +283,9 @@ function isEventVisible(event: GameEvent): boolean {
 function postActionDuration(event: GameEvent): number {
   if (event.type === 'LAVA_ADVANCE') return ANIMATION.LAVA_ADVANCE_PAUSE_MS;
   if (event.type === 'ENEMY_SPAWN') return ANIMATION.SPAWN_PAUSE_MS;
+  if (event.type === 'CRYSTAL_LIGHTNING_ENEMY_VOLLEY' || event.type === 'CRYSTAL_LIGHTNING_CHAMBER_VOLLEY') {
+    return ANIMATION.CRYSTAL_LIGHTNING_POST_MS;
+  }
   return ANIMATION.POST_ACTION_IDLE_MS;
 }
 
@@ -948,6 +969,56 @@ export function useAnimationEngine(): void {
           await wait(ANIMATION.PRE_ACTION_IDLE_MS);
         }
 
+        if (event.type === 'CRYSTAL_LIGHTNING_ENEMY_VOLLEY') {
+          if (visible && event.hits.length > 0) {
+            const tileSize = getTileSize();
+            for (const hit of event.hits) {
+              useCombatAnimationStore.getState().addLineVfx({
+                id: crypto.randomUUID(),
+                fromPx: {
+                  x: event.chamberPosition.x * tileSize + tileSize / 2,
+                  y: event.chamberPosition.y * tileSize + tileSize / 2,
+                },
+                toPx: {
+                  x: hit.position.x * tileSize + tileSize / 2,
+                  y: hit.position.y * tileSize + tileSize / 2,
+                },
+                variant: 'CRYSTAL_LIGHTNING',
+                durationMs: ANIMATION.CRYSTAL_LIGHTNING_BOLT_MS,
+              });
+            }
+            await wait(ANIMATION.CRYSTAL_LIGHTNING_BOLT_MS);
+          }
+          useGameStore.getState().applyEvent(event);
+          if (visible) await wait(postActionDuration(event));
+          continue;
+        }
+
+        if (event.type === 'CRYSTAL_LIGHTNING_CHAMBER_VOLLEY') {
+          if (visible && event.links.length > 0) {
+            const tileSize = getTileSize();
+            for (const link of event.links) {
+              useCombatAnimationStore.getState().addLineVfx({
+                id: crypto.randomUUID(),
+                fromPx: {
+                  x: link.fromPosition.x * tileSize + tileSize / 2,
+                  y: link.fromPosition.y * tileSize + tileSize / 2,
+                },
+                toPx: {
+                  x: link.toPosition.x * tileSize + tileSize / 2,
+                  y: link.toPosition.y * tileSize + tileSize / 2,
+                },
+                variant: 'CRYSTAL_LIGHTNING',
+                durationMs: ANIMATION.CRYSTAL_LIGHTNING_LINK_MS,
+              });
+            }
+            await wait(ANIMATION.CRYSTAL_LIGHTNING_LINK_MS);
+          }
+          useGameStore.getState().applyEvent(event);
+          if (visible) await wait(postActionDuration(event));
+          continue;
+        }
+
         // ── Special handling for ENEMY_ATTACK or PLAYER_ATTACK with combat animations ──
         if (event.type === 'ENEMY_ATTACK' || event.type === 'PLAYER_ATTACK') {
           const dyingIds = await playAttackAnimation(event, visible);
@@ -1623,6 +1694,21 @@ export function useAnimationEngine(): void {
             });
           }
           // No state effect; applyEvent will silently no-op.
+          useGameStore.getState().applyEvent(event);
+          if (visible) await wait(ANIMATION.POST_ACTION_IDLE_MS);
+          continue;
+        }
+
+        if (event.type === 'CORRUPTION_FIZZLE') {
+          if (visible) {
+            useCombatAnimationStore.getState().addTileVfx({
+              id: crypto.randomUUID(),
+              x: event.position.x,
+              y: event.position.y,
+              variant: 'CORRUPTION_FIZZLE',
+              durationMs: ANIMATION.CORRUPTION_FIZZLE_VFX_MS,
+            });
+          }
           useGameStore.getState().applyEvent(event);
           if (visible) await wait(ANIMATION.POST_ACTION_IDLE_MS);
           continue;

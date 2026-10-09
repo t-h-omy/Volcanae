@@ -398,9 +398,10 @@ describe('checkScoutTrapTrigger (enemy path, events array)', () => {
     });
 
     expect(next.units[enemy.id]).toBeUndefined();
-    // Unit killed: only TILE_DAMAGE is emitted (no stun or trap-triggered)
-    expect(events).toHaveLength(1);
+    // Unit killed: damage and death events are emitted, but no stun or trap-triggered event.
+    expect(events).toHaveLength(2);
     expect(events[0].type).toBe('TILE_DAMAGE');
+    expect(events[1]).toMatchObject({ type: 'UNIT_DEATH', unitId: enemy.id });
   });
 });
 

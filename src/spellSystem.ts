@@ -15,13 +15,18 @@ import type { Draft } from 'immer';
 import type { GameState, Position, Unit } from './types';
 import type { SpellId } from './types';
 import { Faction, UnitTag, BuildingType, TileType, TileStatus, UnitType } from './types';
-import { MAGE, BUILDING_DEFINITIONS, ABILITIES, MAP, UNIT_DEFINITIONS } from './gameConfig';
+import { MAGE, BUILDING_DEFINITIONS, ABILITIES, MAP, UNIT_DEFINITIONS, XP } from './gameConfig';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { generateId } from './mapGenerator';
 import { useFloaterStore } from './floaterStore';
 import { useCombatAnimationStore } from './combatAnimationStore';
-import { isStatusAllowedOnTerrain, applyTileStatus } from './tileStatusSystem';
-import { shouldLeaveGravestone, createGravestoneAt, updateBerserkLatch } from './combatSystem';
+import { isStatusAllowedOnTerrain, applyTileStatus, clearTileStatus } from './tileStatusSystem';
+import {
+  shouldLeaveGravestone,
+  createGravestoneAt,
+  updateBerserkLatch,
+  calculateCrystalLightningDamage,
+} from './combatSystem';
 import { applyTagStatEffects } from './techSystem';
 import { cleanupRoostedUnits } from './buildingRemoval';
 import { getTagsFromActiveSpecialistsForSourceTag } from './specialistSystem';
@@ -29,6 +34,12 @@ import { canUnitOccupyTerrain } from './movementSystem';
 import type { TextRef } from './i18n/i18n';
 import { t } from './i18n/i18n';
 import { spellName } from './i18n/entityText';
+import { applyUnitDamage } from './unitDamage';
+import { getUnitDamageOutcome } from './unitDamage';
+import { grantXp } from './levelSystem';
+import { clearInfestedOnCreditedKill, resolveInfestedDeath } from './infestedSystem';
+import type { GameEvent } from './gameEvents';
+import { castMagePortalPair, cleanupPortals, isPortalEndpoint, resolvePortalEntry } from './portalSystem';
 
 /** Returns the effective spell range for a mage (its attack range). */
 export function getMageSpellRange(
@@ -94,6 +105,7 @@ export function canUnitCast(
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasConstructedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
+  if (unit.hasConsumedGravestoneThisTurn) return false;
   // PREP semantics extended to spell-casting: cannot cast after moving.
   // Mages carry PREP by default (UNIT_DEFINITIONS.MAGE.tags), so for a
   // standard mage the move-then-cast path is closed. A non-PREP mage
@@ -122,12 +134,56 @@ const SPELL_TARGET_REASONS: Record<string, TextRef> = {
   TRANSPOSE_SECOND_PICK_FACTION: { key: 'reason.spell.transposeSecondPickFaction' },
   TRANSPOSE_TERRAIN: { key: 'reason.spell.transposeTerrain' },
   BRANDMARK_ALREADY_BRANDMARKED: { key: 'reason.spell.brandmarkAlreadyBrandmarked' },
+  TAUNT_ALREADY_TAUNTED: { key: 'reason.spell.tauntAlreadyTaunted' },
+  INFESTED_ALREADY: { key: 'reason.spell.infestedAlready' },
+  STONE_SKIN_ALREADY_ACTIVE: { key: 'reason.spell.stoneSkinAlreadyActive' },
   BRANDMARK_SUMMONED: { key: 'reason.spell.brandmarkSummoned' },
   BRANDMARK_SELF: { key: 'reason.spell.brandmarkSelf' },
   EXPLODE_MAGE: { key: 'reason.spell.explodeMage' },
   FROSTCRAFT_TERRAIN: { key: 'reason.spell.frostcraftTerrain' },
   OCCUPIED: { key: 'reason.spell.occupied' },
+  PORTAL_BLOCKED: { key: 'reason.spell.portalBlocked' },
+  PORTAL_WRONG_ROW: { key: 'reason.spell.portalWrongRow' },
+  CORRUPTED_QORK_SPAWN: { key: 'reason.spell.corruptedQorkSpawn' },
 } as const;
+
+function isValidCorruptedQorkSpawnTile(
+  state: GameState | Draft<GameState>,
+  mage: Unit | Draft<Unit>,
+  pos: Position,
+): boolean {
+  const tile = state.grid[pos.y]?.[pos.x];
+  return !!tile
+    && tile.status === TileStatus.CORRUPTED
+    && tile.unitId === null
+    && tile.buildingId === null
+    && !tile.isLava
+    && !tile.isRuin
+    && !tile.isStrongholdRuin
+    && !isPortalEndpoint(state, pos)
+    && isTileInSpellRange(mage, pos, getMageSpellRange(mage))
+    && canUnitOccupyTerrain(state, {
+      faction: Faction.PLAYER,
+      tags: UNIT_DEFINITIONS.CORRUPTED_QORK.tags,
+    }, pos.x, pos.y);
+}
+
+function isValidMagePortalEndpoint(
+  state: GameState | Draft<GameState>,
+  mage: Unit | Draft<Unit>,
+  pos: Position,
+): boolean {
+  const tile = state.grid[pos.y]?.[pos.x];
+  return !!tile
+    && isTileInSpellRange(mage, pos, getMageSpellRange(mage))
+    && !tile.isLava
+    && tile.buildingId === null
+    && tile.unitId === null
+    && !tile.isRuin
+    && !tile.isStrongholdRuin
+    && !isPortalEndpoint(state, pos)
+    && canUnitOccupyTerrain(state, mage, pos.x, pos.y);
+}
 
 /**
  * True iff swapping units `a` and `b` leaves each on terrain it may legally
@@ -244,6 +300,58 @@ export function getValidSpellTargets(
       return targets;
     }
 
+    case 'TAUNT': {
+      return Object.values(state.units)
+        .filter((unit) =>
+          unit.faction === Faction.PLAYER
+          && !unit.tags.includes(UnitTag.TAUNT)
+          && isTileInSpellRange(mage, unit.position, range))
+        .map((unit) => ({ ...unit.position }));
+    }
+
+    case 'PORTAL': {
+      const first = state.pendingMagePortalFirstPos;
+      const targets: Position[] = [];
+      for (let y = 0; y < state.grid.length; y++) {
+        if (first && y !== first.y) continue;
+        for (let x = 0; x < state.grid[y].length; x++) {
+          const pos = { x, y };
+          if (first && first.x === x && first.y === y) continue;
+          if (isValidMagePortalEndpoint(state, mage, pos)) targets.push(pos);
+        }
+      }
+      return targets;
+    }
+
+    case 'CORRUPTED_QORK': {
+      const targets: Position[] = [];
+      for (let y = 0; y < state.grid.length; y++) {
+        for (let x = 0; x < state.grid[y].length; x++) {
+          const pos = { x, y };
+          if (isValidCorruptedQorkSpawnTile(state, mage, pos)) targets.push(pos);
+        }
+      }
+      return targets;
+    }
+
+    case 'STONE_SKIN': {
+      return Object.values(state.units)
+        .filter((unit) =>
+          unit.faction === Faction.PLAYER
+          && !unit.tags.includes(UnitTag.STONE_SKIN)
+          && isTileInSpellRange(mage, unit.position, range))
+        .map((unit) => ({ ...unit.position }));
+    }
+
+    case 'CRYSTAL_LIGHTNING': {
+      return Object.values(state.buildings)
+        .filter((building) =>
+          building.type === BuildingType.CRYSTAL_CHAMBER
+          && building.faction === Faction.PLAYER
+          && isTileInSpellRange(mage, building.position, range))
+        .map((building) => ({ ...building.position }));
+    }
+
     case 'CRYSTAL_TOWER': {
       // Single valid tile: the mage's own tile, no existing building, no ruin, no forest/mountain
       const tile = state.grid[mage.position.y]?.[mage.position.x];
@@ -274,6 +382,15 @@ export function getValidSpellTargets(
       return targets;
     }
 
+    case 'LAVA_MOLD': {
+      return Object.values(state.units)
+        .filter((unit) =>
+          unit.faction === Faction.ENEMY
+          && !unit.tags.includes(UnitTag.INFESTED)
+          && isTileInSpellRange(mage, unit.position, range))
+        .map((unit) => ({ ...unit.position }));
+    }
+
     case 'RAISE_SKELETON': {
       const targets: Position[] = [];
       for (const building of Object.values(state.buildings)) {
@@ -284,6 +401,16 @@ export function getValidSpellTargets(
         targets.push({ ...building.position });
       }
       return targets;
+    }
+
+    case 'SUMMON_GHOUL': {
+      return Object.values(state.buildings)
+        .filter((building) => {
+          if (building.type !== BuildingType.GRAVESTONE || building.faction !== Faction.PLAYER) return false;
+          const tile = state.grid[building.position.y]?.[building.position.x];
+          return !!tile && tile.unitId === null && isTileInSpellRange(mage, building.position, range);
+        })
+        .map((building) => ({ ...building.position }));
     }
 
     case 'GRAVE_TRAP': {
@@ -372,6 +499,20 @@ export function explainInvalidSpellTarget(
       return null;
     }
 
+    case 'STONE_SKIN': {
+      if (!tile.unitId) return null;
+      const tappedUnit = state.units[tile.unitId];
+      if (!tappedUnit || tappedUnit.faction !== Faction.PLAYER) return null;
+      if (!isTileInSpellRange(mage, tappedUnit.position, range)) return null;
+      if (tappedUnit.tags.includes(UnitTag.STONE_SKIN)) {
+        return SPELL_TARGET_REASONS.STONE_SKIN_ALREADY_ACTIVE;
+      }
+      return null;
+    }
+
+    case 'CRYSTAL_LIGHTNING':
+      return null;
+
     case 'BRANDMARK_HEAL': {
       if (!tile.unitId) return null;
       const tappedUnit = state.units[tile.unitId];
@@ -386,6 +527,49 @@ export function explainInvalidSpellTarget(
       }
       if (tappedUnit.id === mageId) {
         return SPELL_TARGET_REASONS.BRANDMARK_SELF;
+      }
+      return null;
+    }
+
+    case 'TAUNT': {
+      if (!tile.unitId) return null;
+      const tappedUnit = state.units[tile.unitId];
+      if (!tappedUnit || tappedUnit.faction !== Faction.PLAYER) return null;
+      if (!isTileInSpellRange(mage, tappedUnit.position, range)) return null;
+      if (tappedUnit.tags.includes(UnitTag.TAUNT)) {
+        return SPELL_TARGET_REASONS.TAUNT_ALREADY_TAUNTED;
+      }
+      return null;
+    }
+
+    case 'PORTAL': {
+      const first = state.pendingMagePortalFirstPos;
+      if (first && first.x === pos.x && first.y === pos.y) {
+        return SPELL_TARGET_REASONS.PORTAL_BLOCKED;
+      }
+      if (first && pos.y !== first.y
+        && isTileInSpellRange(mage, pos, range)) {
+        return SPELL_TARGET_REASONS.PORTAL_WRONG_ROW;
+      }
+      if (isTileInSpellRange(mage, pos, range) && !isValidMagePortalEndpoint(state, mage, pos)) {
+        return SPELL_TARGET_REASONS.PORTAL_BLOCKED;
+      }
+      return null;
+    }
+
+    case 'CORRUPTED_QORK':
+      if (tile.status !== TileStatus.CORRUPTED || !isTileInSpellRange(mage, pos, range)) return null;
+      return isValidCorruptedQorkSpawnTile(state, mage, pos)
+        ? null
+        : SPELL_TARGET_REASONS.CORRUPTED_QORK_SPAWN;
+
+    case 'LAVA_MOLD': {
+      if (!tile.unitId) return null;
+      const tappedUnit = state.units[tile.unitId];
+      if (!tappedUnit || tappedUnit.faction !== Faction.ENEMY) return null;
+      if (!isTileInSpellRange(mage, tappedUnit.position, range)) return null;
+      if (tappedUnit.tags.includes(UnitTag.INFESTED)) {
+        return SPELL_TARGET_REASONS.INFESTED_ALREADY;
       }
       return null;
     }
@@ -432,6 +616,16 @@ export function explainInvalidSpellTarget(
       return null;
     }
 
+    case 'SUMMON_GHOUL': {
+      if (!tile.buildingId || tile.unitId !== null) return null;
+      if (!isTileInSpellRange(mage, pos, range)) return null;
+      const building = state.buildings[tile.buildingId];
+      if (building?.type === BuildingType.GRAVESTONE && building.faction === Faction.PLAYER) {
+        return SPELL_TARGET_REASONS.OCCUPIED;
+      }
+      return null;
+    }
+
     case 'GRAVE_TRAP': {
       if (!tile.buildingId || !tile.unitId) return null;
       if (!isTileInSpellRange(mage, pos, range)) return null;
@@ -454,6 +648,7 @@ function handleTranspose(
   state: Draft<GameState>,
   mage: Unit,
   targetPosition: Position,
+  outEvents?: GameEvent[],
 ): boolean {
   const firstId = state.pendingTransposeFirstUnitId;
   const range = getMageSpellRange(mage);
@@ -499,6 +694,8 @@ function handleTranspose(
   state.grid[posA.y][posA.x].unitId = secondId;
   state.grid[posB.y][posB.x].unitId = firstId;
 
+  resolvePortalEntry(state, firstUnit.id, posB, outEvents);
+  resolvePortalEntry(state, secondUnit.id, posA, outEvents);
   state.pendingTransposeFirstUnitId = null;
 
   const { addFloater } = useFloaterStore.getState();
@@ -604,6 +801,67 @@ function handleEmberbind(
   return true;
 }
 
+function handleCorruptedQork(
+  state: Draft<GameState>,
+  mage: Unit,
+  targetPosition: Position,
+  outEvents?: GameEvent[],
+): boolean {
+  if (!isValidCorruptedQorkSpawnTile(state, mage, targetPosition)) return false;
+  const tile = state.grid[targetPosition.y][targetPosition.x];
+  clearTileStatus(state, targetPosition, outEvents);
+
+  const unitId = generateId('unit_corrupted_qork');
+  const tags: UnitTag[] = [UnitTag.SUMMONED, UnitTag.LEASHED, ...UNIT_DEFINITIONS.CORRUPTED_QORK.tags];
+  for (const tag of getTagsFromActiveSpecialistsForSourceTag(state, UnitTag.SUMMONED)) {
+    if (!tags.includes(tag)) tags.push(tag);
+  }
+  const definition = UNIT_DEFINITIONS.CORRUPTED_QORK;
+  state.units[unitId] = {
+    id: unitId,
+    type: UnitType.CORRUPTED_QORK,
+    faction: Faction.PLAYER,
+    position: { ...targetPosition },
+    stats: {
+      maxHp: definition.maxHp,
+      currentHp: definition.maxHp,
+      attack: definition.attack,
+      defense: definition.defense,
+      moveRange: definition.moveRange,
+      attackRange: definition.attackRange,
+      discoverRadius: definition.discoverRadius,
+      triggerRange: definition.triggerRange,
+      movementActions: definition.movementActions,
+    },
+    tags,
+    controllerMageId: mage.id,
+    hasMovedThisTurn: true,
+    hasAttackedThisTurn: true,
+    hasCapturedThisTurn: true,
+    hasTradedThisTurn: false,
+    hasConstructedThisTurn: true,
+    hasDestroyedThisTurn: true,
+    hasConsumedGravestoneThisTurn: false,
+    hasUsedPostAttackMoveThisTurn: false,
+    bloodlustAttackAvailable: false,
+    xp: 0,
+    level: 1,
+    lastMovedTurn: 0,
+    pinnedUntilTurn: 0,
+    distractionDefPenalty: 0,
+  };
+  tile.unitId = unitId;
+  useFloaterStore.getState().addFloater({
+    value: 0,
+    label: `🐗 ${t('floater.bound')}`,
+    x: targetPosition.x,
+    y: targetPosition.y,
+    isEnemy: false,
+    floaterType: 'revive',
+  });
+  return true;
+}
+
 /** Fully heals a player unit and adds the BRANDMARKED tag (Brandmark Heal). */
 function handleBrandmarkHeal(
   state: Draft<GameState>,
@@ -643,6 +901,7 @@ function handleBrandmarkHeal(
 function handleCrystalTower(
   state: Draft<GameState>,
   mage: Unit,
+  outEvents?: GameEvent[],
 ): boolean {
   const { x, y } = mage.position;
   const tile = state.grid[y]?.[x];
@@ -702,6 +961,8 @@ function handleCrystalTower(
   // Remove the mage
   tile.unitId = null;
   delete state.units[mage.id];
+  resolveInfestedDeath(state, mage);
+  cleanupPortals(state, outEvents);
   if (state.selectedUnitId === mage.id) {
     state.selectedUnitId = null;
   }
@@ -837,6 +1098,7 @@ function handleRaiseSkeleton(
   for (const t of getTagsFromActiveSpecialistsForSourceTag(state, UnitTag.SUMMONED)) {
     if (!skeletonTags.includes(t)) skeletonTags.push(t);
   }
+
   state.units[skeletonId] = {
     id: skeletonId,
     type: UnitType.SKELETON,
@@ -860,6 +1122,7 @@ function handleRaiseSkeleton(
     hasTradedThisTurn: false,
     hasConstructedThisTurn: false,
     hasDestroyedThisTurn: false,
+    hasConsumedGravestoneThisTurn: false,
     hasUsedPostAttackMoveThisTurn: false,
     bloodlustAttackAvailable: false,
     xp: 0,
@@ -879,6 +1142,71 @@ function handleRaiseSkeleton(
     floaterType: 'revive',
   });
 
+  return true;
+}
+
+/** Consumes a player Gravestone and raises a Level 1 Ghoul. */
+function handleSummonGhoul(
+  state: Draft<GameState>,
+  targetPosition: Position,
+): boolean {
+  const tile = state.grid[targetPosition.y]?.[targetPosition.x];
+  if (!tile || tile.unitId !== null || !tile.buildingId) return false;
+  const grave = state.buildings[tile.buildingId];
+  if (!grave || grave.type !== BuildingType.GRAVESTONE || grave.faction !== Faction.PLAYER) return false;
+
+  const graveId = grave.id;
+  cleanupRoostedUnits(state, graveId);
+  delete state.buildings[graveId];
+  tile.buildingId = null;
+
+  const ghoulId = generateId('unit_ghoul');
+  const ghoulTags: UnitTag[] = [UnitTag.SUMMONED, UnitTag.READY];
+  for (const tag of getTagsFromActiveSpecialistsForSourceTag(state, UnitTag.SUMMONED)) {
+    if (!ghoulTags.includes(tag)) ghoulTags.push(tag);
+  }
+  const definition = UNIT_DEFINITIONS.GHOUL;
+  state.units[ghoulId] = {
+    id: ghoulId,
+    type: UnitType.GHOUL,
+    faction: Faction.PLAYER,
+    position: { ...targetPosition },
+    stats: {
+      maxHp: definition.maxHp,
+      currentHp: definition.maxHp,
+      attack: definition.attack,
+      defense: definition.defense,
+      moveRange: definition.moveRange,
+      attackRange: definition.attackRange,
+      discoverRadius: definition.discoverRadius,
+      triggerRange: definition.triggerRange,
+      movementActions: definition.movementActions,
+    },
+    tags: ghoulTags,
+    hasMovedThisTurn: false,
+    hasAttackedThisTurn: false,
+    hasCapturedThisTurn: false,
+    hasTradedThisTurn: false,
+    hasConstructedThisTurn: false,
+    hasDestroyedThisTurn: false,
+    hasConsumedGravestoneThisTurn: false,
+    hasUsedPostAttackMoveThisTurn: false,
+    bloodlustAttackAvailable: false,
+    xp: 0,
+    level: 1,
+    lastMovedTurn: 0,
+    pinnedUntilTurn: 0,
+    distractionDefPenalty: 0,
+  };
+  tile.unitId = ghoulId;
+  useFloaterStore.getState().addFloater({
+    value: 0,
+    label: `🧟 ${t('floater.raised')}`,
+    x: targetPosition.x,
+    y: targetPosition.y,
+    isEnemy: false,
+    floaterType: 'revive',
+  });
   return true;
 }
 
@@ -1005,7 +1333,7 @@ function handleExplode(
     const adjUnit = state.units[adjTile.unitId];
     if (!adjUnit || adjUnit.faction !== Faction.ENEMY) continue;
 
-    adjUnit.stats.currentHp -= dmg;
+    const damageOutcome = applyUnitDamage(adjUnit, dmg);
     updateBerserkLatch(adjUnit);
     // Damage floater for each hit enemy
     useFloaterStore.getState().addFloater({
@@ -1014,10 +1342,12 @@ function handleExplode(
       y: ny,
       isEnemy: true,
     });
-    if (adjUnit.stats.currentHp <= 0) {
+    if (damageOutcome.died) {
       adjTile.unitId = null;
       delete state.units[adjUnit.id];
       state.gameStats.unitsKilled += 1;
+      clearInfestedOnCreditedKill(state, mage.id);
+      resolveInfestedDeath(state, adjUnit);
     }
   }
 
@@ -1028,6 +1358,7 @@ function handleExplode(
   tile.unitId = null;
   delete state.units[targetUnitId];
   state.gameStats.unitsLost += 1;
+  resolveInfestedDeath(state, target);
 
   // If the sacrificed unit qualifies, leave a Gravestone on their tile.
   if (shouldLeaveGravestone(
@@ -1059,7 +1390,8 @@ function handleRupture(
   if (target.faction !== Faction.ENEMY) return false;
 
   const dmg = Math.floor(target.stats.currentHp * MAGE.RUPTURE_PERCENT);
-  target.stats.currentHp = Math.max(1, target.stats.currentHp - dmg);
+  applyUnitDamage(target, dmg);
+  target.stats.currentHp = Math.max(1, target.stats.currentHp);
   updateBerserkLatch(target);
 
   useFloaterStore.getState().addFloater({
@@ -1072,12 +1404,153 @@ function handleRupture(
   return true;
 }
 
+function handleCrystalLightning(
+  state: Draft<GameState>,
+  mage: Unit,
+  targetPosition: Position,
+  outEvents?: GameEvent[],
+): boolean {
+  const chamberId = state.grid[targetPosition.y]?.[targetPosition.x]?.buildingId;
+  const initialChamber = chamberId ? state.buildings[chamberId] : undefined;
+  if (
+    !initialChamber
+    || initialChamber.type !== BuildingType.CRYSTAL_CHAMBER
+    || initialChamber.faction !== Faction.PLAYER
+  ) return false;
+
+  const events = outEvents ?? [];
+  const visited = new Set([initialChamber.id]);
+  let wave = [initialChamber];
+  const radius = BUILDING_DEFINITIONS[BuildingType.CRYSTAL_CHAMBER].discoverRadius;
+
+  while (wave.length > 0) {
+    wave.sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+    const nextWave: typeof wave = [];
+    const links: Extract<GameEvent, { type: 'CRYSTAL_LIGHTNING_CHAMBER_VOLLEY' }>['links'] = [];
+
+    for (const chamber of wave) {
+      const hits: Extract<GameEvent, { type: 'CRYSTAL_LIGHTNING_ENEMY_VOLLEY' }>['hits'] = [];
+      const deathEvents: GameEvent[] = [];
+      const targets = Object.values(state.units)
+        .filter((unit) =>
+          unit.faction === Faction.ENEMY
+          && isTileWithinEdgeCircleRange(
+            chamber.position.x,
+            chamber.position.y,
+            unit.position.x,
+            unit.position.y,
+            radius,
+          ))
+        .sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
+      for (const target of targets) {
+        const targetPositionSnapshot = { ...target.position };
+        const damage = calculateCrystalLightningDamage(
+          state,
+          target,
+          MAGE.CRYSTAL_LIGHTNING_ATTACK_POWER,
+        );
+        const outcome = getUnitDamageOutcome(target, damage);
+        let mageXpGained = 0;
+
+        if (outcome.died) {
+          const xpBefore = state.units[mage.id]?.xp ?? 0;
+          grantXp(state, mage.id, XP.KILL_UNIT, true);
+          mageXpGained = (state.units[mage.id]?.xp ?? xpBefore) - xpBefore;
+        }
+
+        applyUnitDamage(target, damage);
+        updateBerserkLatch(target);
+        state.gameStats.damageDealt += damage;
+
+        if (outcome.died) {
+          const targetTile = state.grid[targetPositionSnapshot.y]?.[targetPositionSnapshot.x];
+          if (targetTile?.unitId === target.id) targetTile.unitId = null;
+          delete state.units[target.id];
+          state.gameStats.unitsKilled += 1;
+          if (target.type === UnitType.EMBER_DEMON) {
+            state.arcaneCrystals += MAGE.EMBER_DEMON_KILL_CRYSTAL_REWARD;
+          }
+          if (target.type === UnitType.CAVE_MONSTER) {
+            state.activeCaveEncounters = state.activeCaveEncounters.filter(
+              (encounter) => encounter.monsterId !== target.id,
+            );
+          }
+          deathEvents.push({
+            type: 'UNIT_DEATH',
+            unitId: target.id,
+            position: targetPositionSnapshot,
+            faction: target.faction,
+          });
+          clearInfestedOnCreditedKill(state, mage.id);
+          resolveInfestedDeath(state, target, deathEvents);
+          if (target.type === UnitType.CAVE_MONSTER) {
+            deathEvents.push({ type: 'CAVE_MONSTER_KILLED', monsterId: target.id });
+          }
+        }
+
+        hits.push({
+          unitId: target.id,
+          position: targetPositionSnapshot,
+          damage,
+          mageXpGained,
+          killed: outcome.died,
+        });
+      }
+
+      events.push({
+        type: 'CRYSTAL_LIGHTNING_ENEMY_VOLLEY',
+        mageId: mage.id,
+        magePosition: { ...mage.position },
+        chamberId: chamber.id,
+        chamberPosition: { ...chamber.position },
+        hits,
+      });
+      events.push(...deathEvents);
+
+      if (!(chamber.resonanceTurnsRemaining > 0)) continue;
+      const discovered = Object.values(state.buildings)
+        .filter((candidate) =>
+          candidate.type === BuildingType.CRYSTAL_CHAMBER
+          && candidate.faction === Faction.PLAYER
+          && candidate.resonanceTurnsRemaining > 0
+          && !visited.has(candidate.id)
+          && isTileWithinEdgeCircleRange(
+            chamber.position.x,
+            chamber.position.y,
+            candidate.position.x,
+            candidate.position.y,
+            radius,
+          ))
+        .sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+      for (const candidate of discovered) {
+        visited.add(candidate.id);
+        nextWave.push(candidate);
+        links.push({
+          fromChamberId: chamber.id,
+          fromPosition: { ...chamber.position },
+          toChamberId: candidate.id,
+          toPosition: { ...candidate.position },
+        });
+      }
+    }
+
+    if (links.length > 0) {
+      events.push({ type: 'CRYSTAL_LIGHTNING_CHAMBER_VOLLEY', links });
+    }
+    wave = nextWave;
+  }
+
+  return true;
+}
+
 /** Validates and applies a spell. Returns true on success. */
 export function castSpell(
   state: Draft<GameState>,
   mageId: string,
   spellId: SpellId,
   targetPosition: Position,
+  outEvents?: GameEvent[],
 ): boolean {
   const mage = state.units[mageId];
   if (!mage) return false;
@@ -1092,9 +1565,26 @@ export function castSpell(
   // TRANSPOSE is special: first click selects the first unit (no cast yet),
   // second click performs the swap. Deduct crystal only on the actual swap.
   if (spellId === 'TRANSPOSE') {
-    const result = handleTranspose(state, mage, targetPosition);
+    const result = handleTranspose(state, mage, targetPosition, outEvents);
     if (result) state.arcaneCrystals -= MAGE.SPELL_CAST_CRYSTAL_COST;
     return result;
+  }
+
+  if (spellId === 'PORTAL') {
+    const first = state.pendingMagePortalFirstPos;
+    if (!first) {
+      if (!isValidMagePortalEndpoint(state, mage, targetPosition)) return false;
+      state.pendingMagePortalFirstPos = { ...targetPosition };
+      return false;
+    }
+    if (targetPosition.y !== first.y || !isValidMagePortalEndpoint(state, mage, first)
+      || !isValidMagePortalEndpoint(state, mage, targetPosition)) return false;
+    const created = castMagePortalPair(state, mageId, first, targetPosition, outEvents);
+    if (created) {
+      state.arcaneCrystals -= MAGE.SPELL_CAST_CRYSTAL_COST;
+      state.pendingMagePortalFirstPos = null;
+    }
+    return created;
   }
 
   // For all other spells, validate target is in getValidSpellTargets
@@ -1108,14 +1598,49 @@ export function castSpell(
   switch (spellId) {
     case 'EMBERBIND':
       success = handleEmberbind(state, mage, targetPosition); break;
+    case 'CORRUPTED_QORK':
+      success = handleCorruptedQork(state, mage, targetPosition, outEvents); break;
     case 'BRANDMARK_HEAL':
       success = handleBrandmarkHeal(state, mage, targetPosition); break;
+    case 'TAUNT': {
+      const targetId = state.grid[targetPosition.y]?.[targetPosition.x]?.unitId;
+      const target = targetId ? state.units[targetId] : undefined;
+      if (!target || target.faction !== Faction.PLAYER || target.tags.includes(UnitTag.TAUNT)) return false;
+      target.tags.push(UnitTag.TAUNT);
+      success = true;
+      break;
+    }
+
+    case 'STONE_SKIN': {
+      const targetId = state.grid[targetPosition.y]?.[targetPosition.x]?.unitId;
+      const target = targetId ? state.units[targetId] : undefined;
+      if (!target || target.faction !== Faction.PLAYER || target.tags.includes(UnitTag.STONE_SKIN)) return false;
+      target.tags.push(UnitTag.STONE_SKIN);
+      target.stoneSkinHp = MAGE.STONE_SKIN_HP;
+      success = true;
+      break;
+    }
+    case 'LAVA_MOLD': {
+      const targetId = state.grid[targetPosition.y]?.[targetPosition.x]?.unitId;
+      const target = targetId ? state.units[targetId] : undefined;
+      if (!target || target.faction !== Faction.ENEMY || target.tags.includes(UnitTag.INFESTED)) return false;
+      target.tags.push(UnitTag.INFESTED);
+      target.infestedByMageId = mage.id;
+      target.infestedDeathEffectResolved = false;
+      success = true;
+      break;
+    }
+    case 'CRYSTAL_LIGHTNING':
+      success = handleCrystalLightning(state, mage, targetPosition, outEvents);
+      break;
     case 'CRYSTAL_TOWER':
-      success = handleCrystalTower(state, mage); break;
+      success = handleCrystalTower(state, mage, outEvents); break;
     case 'CRYSTAL_CAVE':
       success = handleCrystalCave(state, mage, targetPosition); break;
     case 'RAISE_SKELETON':
       success = handleRaiseSkeleton(state, targetPosition); break;
+    case 'SUMMON_GHOUL':
+      success = handleSummonGhoul(state, targetPosition); break;
     case 'GRAVE_TRAP':
       success = handleGraveTrap(state, targetPosition); break;
     case 'FROSTCRAFT':
@@ -1178,4 +1703,11 @@ export function sweepLeashes(state: Draft<GameState>): string[] {
     }
   }
   return defectedIds;
+}
+
+/** Returns all summoned units visibly bound to a Mage through the shared LEASHED state. */
+export function getLeashedUnitsForMage(units: Record<string, Unit>, mageId: string): Unit[] {
+  return Object.values(units).filter(
+    (unit) => unit.tags.includes(UnitTag.LEASHED) && unit.controllerMageId === mageId,
+  );
 }

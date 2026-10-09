@@ -834,5 +834,84 @@
       "it",
       "pt-BR"
     ]
+  },
+  "tag.STONE_SKIN.label": {
+    "note": "Name of the persistent Mage tag and separate temporary HP pool."
+  },
+  "tag.STONE_SKIN.desc": {
+    "note": "Stone HP absorbs post-mitigation damage before normal HP and blocks voluntary movement while active."
+  },
+  "tech.STONE_SKIN.name": {
+    "note": "Arcane technology that unlocks the Stone Skin spell."
+  },
+  "tech.STONE_SKIN.desc": {
+    "note": "Short technology description."
+  },
+  "spell.STONE_SKIN.name": {
+    "note": "Mage spell that grants a separate Stone HP pool."
+  },
+  "spell.STONE_SKIN.desc": {
+    "note": "Stone HP absorbs incoming damage before normal HP. Keep the stoneHp ICU parameter."
+  },
+  "spell.STONE_SKIN.targetHint": {
+    "note": "Targeting instruction for the Stone Skin spell."
+  },
+  "reason.spell.stoneSkinAlreadyActive": {
+    "note": "Short invalid-target feedback when the selected unit already has Stone Skin."
+  },
+  "tech.CRYSTAL_LIGHTNING.name": {
+    "note": "Technology name for the Crystal Lightning Mage spell."
+  },
+  "tech.CRYSTAL_LIGHTNING.desc": {
+    "note": "Short technology description."
+  },
+  "spell.CRYSTAL_LIGHTNING.name": {
+    "note": "Mage spell that fires lightning from Crystal Chambers."
+  },
+  "spell.CRYSTAL_LIGHTNING.desc": {
+    "note": "Spell description. Keep the attackPower ICU parameter."
+  },
+  "spell.CRYSTAL_LIGHTNING.targetHint": {
+    "note": "Targeting instruction for Crystal Lightning."
+  },
+  "tech.PORTAL.name": {
+    "note": "Technology name for the Mage spell Portal.",
+    "sameAsSource": [
+      "de",
+      "es",
+      "pt-BR"
+    ]
+  },
+  "spell.PORTAL.name": {
+    "note": "Name of the Mage spell that creates a bidirectional portal pair.",
+    "sameAsSource": [
+      "de",
+      "es",
+      "pt-BR"
+    ]
+  },
+  "unit.CORRUPTED_QORK.name": {
+    "note": "Name of the ranged creature summoned by the Corrupted Qork spell."
+  },
+  "unit.CORRUPTED_QORK.desc": {
+    "note": "Description of the Qork's ranged attack and Mage leash."
+  },
+  "tech.CORRUPTED_QORK.name": {
+    "note": "Technology name that unlocks the Corrupted Qork spell."
+  },
+  "tech.CORRUPTED_QORK.desc": {
+    "note": "Short technology description."
+  },
+  "spell.CORRUPTED_QORK.name": {
+    "note": "Name of the Mage spell that summons a Corrupted Qork."
+  },
+  "spell.CORRUPTED_QORK.desc": {
+    "note": "Spell description for summoning on a corrupted tile."
+  },
+  "spell.CORRUPTED_QORK.targetHint": {
+    "note": "Targeting instruction for Corrupted Qork."
+  },
+  "reason.spell.corruptedQorkSpawn": {
+    "note": "Invalid-target feedback when a corrupted tile cannot host the Qork."
   }
 }

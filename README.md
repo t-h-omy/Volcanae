@@ -59,22 +59,37 @@ The app is configured as a Progressive Web App with:
 
 The game includes a Mage unit unlocked through the tech tree. Once the **Mage** tech is researched, Mages can be recruited from an active **Crystal Chamber** building. Each Mage can cast one spell per turn (before or after moving, but not after attacking), and the **Archmage** specialist raises that per-turn budget to two casts.
 
-Spells are unlocked individually through the tech tree. The eight available spells are:
+Spells are unlocked individually through the tech tree. Available spells include:
 
 | Spell | Effect |
 |-------|--------|
 | 🔄 Transpose | Swap the Mage with a friendly unit |
 | 🔥 Emberbind | Destroy a nearby Ember Nest, summoning a leashed Ember Demon |
+| 🐗 Corrupted Qork | Summon a ranged, leashed creature on an empty corrupted tile; it corrupts its tile when it dies |
 | 🩸 Brandmark | Fully heal a friendly unit; the healed unit gains the BRANDMARKED tag, cannot be healed by Patch Up, and loses HP each turn, spawning a hostile Ember Demon on death |
 | 💀 Raise Skeleton | Animate a Gravestone as a Skeleton unit |
+| 🧟 Summon Ghoul | Summon a Ghoul from an empty player Gravestone |
+| 🦠 Lava Mold | Infect an enemy unit; Infested units take damage at faction-turn end and spread infection when they die |
 | ❄️ Frostcraft | Freeze a water tile, making it passable |
 | ☠️ Grave Trap | Place a trap that stuns the next unit to enter |
 | 💥 Explode | Deal area damage around a target tile |
 | 💎 Crystal Tower | Sacrifice the Mage to erect a permanent Crystal Tower on its tile |
+| 🌀 Portal | Create a permanent bidirectional portal pair on the same row; units of any faction can enter either endpoint |
+| 🎯 Taunt | Mark a friendly unit so hostile units must attack it whenever it is a legal target in range |
+| 🪨 Stone Skin | Grant a friendly unit a separate 50 HP pool that absorbs damage before normal HP and prevents voluntary movement while it remains |
+| ⚡ Crystal Lightning | Fire a 20-power lightning volley from a Crystal Chamber; resonating Chambers chain the spell to nearby active Chambers |
 
 The **Crystal Khyron** tech (child of Arcane Awakening) unlocks a Khyron recruitable from a resonating Crystal Chamber for 2 Arcane Crystals, sharing the Chamber's recruitment limit with Mages. While a Chamber resonates it carries the **Resonance** tag; its first enemy kill transforms it one level (max Lv.3) and permanently inherits that enemy's Cleave, Pierce, Rage, Alert, Ironblood, Block, Puncture and Burn tags. Khyrons never gain XP.
 
-A summoned Ember Demon is **leashed** to its controller Mage — if the Mage moves more than `MAGE.EMBER_DEMON_LEASH_RANGE` tiles away (see `src/gameConfig.ts` for all balance numbers), the demon defects to the enemy at the end of the player turn. The UI highlights both tiles with a purple glow and switches to a red warning glow when the leash is about to break.
+The **Summon Ghoul** tech unlocks a Ghoul spell after Raise Skeleton. A Ghoul gains levels and heals by consuming the Gravestone beneath it, up to level 3, and never gains XP.
+
+The **Lava Mold** tech unlocks a spell after Explode. Infested units take damage at the end of their faction's turn; when they die, nearby surviving units of either faction become Infested.
+
+The **Crystal Lightning** tech is a child of Crystal Khyron. It unlocks the spell, which strikes every enemy unit within a player-owned Crystal Chamber's visibility radius. A resonating Chamber can chain to other active player Chambers, each of which fires its own volley.
+
+A summoned Ember Demon or Corrupted Qork is **leashed** to its controller Mage. If the Mage moves more than `MAGE.EMBER_DEMON_LEASH_RANGE` tiles away (see `src/gameConfig.ts` for all balance numbers), the unit defects to the enemy at the end of the player turn. The UI highlights both tiles with a purple glow and switches to a red warning glow when the leash is about to break.
+
+A Corrupted Qork follows the same leash and defection rules as an Ember Demon. It gains XP and levels normally, and its death corrupts the tile when the underlying terrain permits it.
 
 ## Changelog
 
