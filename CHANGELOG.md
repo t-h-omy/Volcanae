@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.115.14 - Final integration audit
+
+Fixed Mage leash visuals to include all leashed summoned units, including Corrupted Qorks. Added regression coverage confirming Infested damage is absorbed by Stone Skin before normal HP.
+
 ### v0.115.13 - Corrupted Qork
 
 Added the Corrupted Qork tech and spell, a ranged summoned creature bound to its Mage that defects under the existing leash rules and corrupts its death tile when the terrain permits.

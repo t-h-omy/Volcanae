@@ -87,7 +87,7 @@ The **Lava Mold** tech unlocks a spell after Explode. Infested units take damage
 
 The **Crystal Lightning** tech is a child of Crystal Khyron. It unlocks the spell, which strikes every enemy unit within a player-owned Crystal Chamber's visibility radius. A resonating Chamber can chain to other active player Chambers, each of which fires its own volley.
 
-A summoned Ember Demon is **leashed** to its controller Mage — if the Mage moves more than `MAGE.EMBER_DEMON_LEASH_RANGE` tiles away (see `src/gameConfig.ts` for all balance numbers), the demon defects to the enemy at the end of the player turn. The UI highlights both tiles with a purple glow and switches to a red warning glow when the leash is about to break.
+A summoned Ember Demon or Corrupted Qork is **leashed** to its controller Mage. If the Mage moves more than `MAGE.EMBER_DEMON_LEASH_RANGE` tiles away (see `src/gameConfig.ts` for all balance numbers), the unit defects to the enemy at the end of the player turn. The UI highlights both tiles with a purple glow and switches to a red warning glow when the leash is about to break.
 
 A Corrupted Qork follows the same leash and defection rules as an Ember Demon. It gains XP and levels normally, and its death corrupts the tile when the underlying terrain permits it.
 
