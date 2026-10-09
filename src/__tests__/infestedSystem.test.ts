@@ -3,7 +3,11 @@ import { produce } from 'immer';
 import { MAGE, MAP, TECH_TREE, UNIT_DEFINITIONS } from '../gameConfig';
 import { computeResearchCost } from '../../config/tech';
 import { castSpell, explainInvalidSpellTarget, getValidSpellTargets } from '../spellSystem';
-import { processInfestedFactionTurn, resolveInfestedDeath } from '../infestedSystem';
+import {
+  clearInfestedOnCreditedKill,
+  processInfestedFactionTurn,
+  resolveInfestedDeath,
+} from '../infestedSystem';
 import { t } from '../i18n/i18n';
 import { Faction, SpellId, TileType, UnitTag, UnitType } from '../types';
 import type { GameEvent } from '../gameEvents';
@@ -14,7 +18,7 @@ let idCounter = 0;
 function makeUnit(
   type: UnitType,
   position: Position,
-  faction = Faction.PLAYER,
+  faction: Faction = Faction.PLAYER,
   tags: UnitTag[] = [],
 ): Unit {
   const definition = UNIT_DEFINITIONS[type];
@@ -171,7 +175,7 @@ describe('Lava Mold', () => {
     expect(getValidSpellTargets(state, mage.id, SpellId.LAVA_MOLD)).not.toContainEqual(victim.position);
     const reason = explainInvalidSpellTarget(state, mage.id, SpellId.LAVA_MOLD, victim.position);
     expect(reason).toEqual({ key: 'reason.spell.infestedAlready' });
-    expect(t(reason!)).toBe('Already infested');
+    expect(t(reason!)).toBe('Already Infested');
   });
 
   it.each([Faction.PLAYER, Faction.ENEMY])('ticks Infested %s units at faction turn end', (faction) => {
@@ -206,7 +210,7 @@ describe('Lava Mold', () => {
   });
 
   it('bursts once, spreads across factions to all eight neighbors, and preserves source', () => {
-    const source = makeUnit(UnitType.MAGE, { x: 5, y: 5 });
+    const source = makeUnit(UnitType.MAGE, { x: 2, y: 2 });
     const deceased = makeUnit(UnitType.GUARD, { x: 6, y: 6 }, Faction.ENEMY, [UnitTag.INFESTED]);
     deceased.infestedByMageId = source.id;
     const neighbors = [
@@ -244,7 +248,8 @@ describe('Lava Mold', () => {
     const state = makeState([source, first, second]);
     removeUnit(state, first);
     const damage = MAGE.INFESTED_DEATH_BURST_DAMAGE;
-    MAGE.INFESTED_DEATH_BURST_DAMAGE = 2;
+    const configurableMage = MAGE as unknown as { INFESTED_DEATH_BURST_DAMAGE: number };
+    configurableMage.INFESTED_DEATH_BURST_DAMAGE = 2;
     const events: GameEvent[] = [];
 
     try {
@@ -253,7 +258,7 @@ describe('Lava Mold', () => {
       expect(events.filter((event) => event.type === 'UNIT_DEATH' && event.unitId === second.id)).toHaveLength(1);
       expect(events.some((event) => event.type === 'TILE_DAMAGE' && event.unitId === second.id)).toBe(true);
     } finally {
-      MAGE.INFESTED_DEATH_BURST_DAMAGE = damage;
+      configurableMage.INFESTED_DEATH_BURST_DAMAGE = damage;
     }
   });
 
@@ -263,9 +268,7 @@ describe('Lava Mold', () => {
     const state = makeState([victim]);
 
     const afterKill = produce(state, (draft) => {
-      const unit = draft.units[victim.id];
-      unit.tags = unit.tags.filter((tag) => tag !== UnitTag.INFESTED);
-      unit.infestedByMageId = null;
+      clearInfestedOnCreditedKill(draft, victim.id);
     });
 
     expect(afterKill.units[victim.id].tags).not.toContain(UnitTag.INFESTED);

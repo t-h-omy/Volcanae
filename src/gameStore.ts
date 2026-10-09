@@ -76,7 +76,7 @@ import { t } from './i18n/i18n';
 import { resourceName } from './i18n/entityText';
 import { appendChunk, deleteTurnsAfter, getTraceIndexSeed, readMeta as readAiTraceMeta, sealRun } from './aiTraceStore';
 import { applyUnitDamage } from './unitDamage';
-import { processInfestedFactionTurn } from './infestedSystem';
+import { processInfestedFactionTurn, resolveInfestedDeath } from './infestedSystem';
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
