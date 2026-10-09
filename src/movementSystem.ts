@@ -452,6 +452,7 @@ export function resolveSlide(
   unitId: string,
   dx: number,
   dy: number,
+  events?: GameEvent[],
 ): void {
   const unit = state.units[unitId];
   if (!unit) return;
@@ -494,7 +495,7 @@ export function resolveSlide(
       state.gameStats.unitsLost += 1;
     }
     delete state.units[unitId];
-    resolveInfestedDeath(state, unit);
+    if (!events) resolveInfestedDeath(state, unit);
     return;
   }
 
@@ -510,7 +511,7 @@ export function resolveSlide(
         state.gameStats.unitsLost += 1;
       }
       delete state.units[unitId];
-      resolveInfestedDeath(state, unit);
+      if (!events) resolveInfestedDeath(state, unit);
       return;
     }
   }
@@ -530,7 +531,7 @@ export function resolveSlide(
       state.gameStats.unitsLost += 1;
     }
     delete state.units[unitId];
-    resolveInfestedDeath(state, unit);
+    if (!events) resolveInfestedDeath(state, unit);
     return;
   }
 

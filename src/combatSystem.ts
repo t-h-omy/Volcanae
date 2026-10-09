@@ -865,7 +865,7 @@ function resolveKnockback(
   if (destTile.status === TileStatus.FROZEN && !isFlying) {
     // Pre-compute slide destination so we can emit correct events if the slide kills.
     const slideDest = { x: destX + dx, y: destY + dy };
-    resolveSlide(state, defenderId, dx, dy);
+    resolveSlide(state, defenderId, dx, dy, outEvents);
 
     const unitAfterSlide = state.units[defenderId];
     if (!unitAfterSlide) {
@@ -1195,7 +1195,6 @@ function resolveAttackInner(
     }
     clearInfestedOnCreditedKill(state, defenderId);
     resolveInfestedDeath(state, attacker, outEvents);
-    resolveInfestedDeath(state, attacker, outEvents);
     // Grant XP to defender for killing the attacker (regardless of BRANDMARKED)
     grantXp(state, defenderId, XP.KILL_UNIT, suppressFloaters);
   } else {
@@ -1252,8 +1251,6 @@ function resolveAttackInner(
       recordKhyronKill(state, attackerId, defenderFaction, defenderTags);
       grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
     }
-    resolveInfestedDeath(state, defender, outEvents);
-
     // EMBER_DEMON kill: grant crystal reward when player kills a hostile Ember Demon
     if (attackerFaction === Faction.PLAYER && defenderFaction === Faction.ENEMY && defenderType === UnitType.EMBER_DEMON) {
       state.arcaneCrystals += MAGE.EMBER_DEMON_KILL_CRYSTAL_REWARD;

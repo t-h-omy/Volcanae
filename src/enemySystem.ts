@@ -29,7 +29,7 @@ import { cleanupPortals, cleanupExpiredPortalsEndOfTurn, tryPlanPortalCast, cast
 import { cleanupRoostedUnits, getRoostedUnits } from './buildingRemoval';
 import { isUnitOnCorruptedTile } from './tileStatusSystem';
 import { applyUnitDamage, getUnitDamageOutcome } from './unitDamage';
-import { processInfestedFactionTurn } from './infestedSystem';
+import { clearInfestedOnCreditedKill, processInfestedFactionTurn, resolveInfestedDeath } from './infestedSystem';
 import { isCounterThemeUnitType, pickUnitFromTheme, scoreCountersForPlayer } from './waveThemeSystem';
 import { isSpecialistEffectActive } from './specialistSystem';
 import {
@@ -1365,11 +1365,13 @@ function triggerPreventiveStrike(
       });
       if (!defenderAfter) {
         events.push({ type: 'UNIT_DEATH', unitId: defenderId, position: defenderPos, faction: Faction.ENEMY });
+        clearInfestedOnCreditedKill(state, attackerId);
         // If the killed unit was a cave monster, trigger the specialist-draw event
         if (defenderType === UnitType.CAVE_MONSTER) {
           events.push({ type: 'CAVE_MONSTER_KILLED', monsterId: defenderId });
         }
       }
+      if (defenderDead) resolveInfestedDeath(state, enemyUnit, events);
     }
   }
 }
@@ -1495,6 +1497,7 @@ function triggerGarrisonOverwatch(
           events.push({ type: 'CAVE_MONSTER_KILLED', monsterId: defenderId });
         }
       }
+      if (defenderDead) resolveInfestedDeath(state, enemyUnit, events);
     }
   }
 }
@@ -1605,7 +1608,7 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
     const factionBeforeSlide = state.units[unitId]?.faction;
     // Normalise to a unit-step: enemy can move multiple tiles per step via moveEnemyUnitToward,
     // but the slide should always cover exactly one tile in the movement direction.
-    resolveSlide(state, unitId, slideDirX, slideDirY);
+    resolveSlide(state, unitId, slideDirX, slideDirY, events);
 
     const unitAfterSlide = state.units[unitId];
     if (
@@ -1646,6 +1649,7 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
           position: { x: deathTileX, y: deathTileY },
           faction: factionBeforeSlide,
         });
+        resolveInfestedDeath(state, unitAfterEffects, events);
       }
     }
   }
@@ -1933,6 +1937,7 @@ export function resolveExplosion(
   // exist — the unit should not self-destruct for nothing.
   if (targets.length === 0) return;
   const deathEvents: GameEvent[] = [];
+  const infestedDeaths: Unit[] = [];
   for (const targetId of targets) {
     const target = state.units[targetId];
     if (!target) continue;
@@ -1961,6 +1966,7 @@ export function resolveExplosion(
         position: deathPos,
         faction: deathFaction,
       });
+      infestedDeaths.push(target);
     }
   }
 
@@ -1977,6 +1983,9 @@ export function resolveExplosion(
   for (const e of deathEvents) {
     events.push(e);
   }
+  for (const deadUnit of infestedDeaths) {
+    resolveInfestedDeath(state, deadUnit, events);
+  }
 
   // Remove the exploding unit
   const unitTile = state.grid[unit.position.y][unit.position.x];
@@ -1992,6 +2001,7 @@ export function resolveExplosion(
     position: unitPos,
     faction: Faction.ENEMY,
   });
+  resolveInfestedDeath(state, unit, events);
 
   // Explosion may have freed portal exit tiles; resolve any waiting teleports.
   processPendingPortalTeleports(state, events);

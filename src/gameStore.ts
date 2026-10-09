@@ -569,6 +569,7 @@ export const useGameStore = create<GameStore>()(
         deathTileY: number;
         slideDx: number;
         slideDy: number;
+        infested: boolean;
       } | null = null;
 
       set((state) => {
@@ -578,6 +579,7 @@ export const useGameStore = create<GameStore>()(
         const posBeforeY = unitBefore?.position.y ?? 0;
         const unitTypeBefore = unitBefore?.type;
         const factionBefore = unitBefore?.faction;
+        const infestedBefore = !!unitBefore?.tags.includes(UnitTag.INFESTED);
 
         moveUnitLogic(state, unitId, targetPosition);
         // Player movement may have freed a portal exit tile; resolve waiting teleports.
@@ -633,6 +635,7 @@ export const useGameStore = create<GameStore>()(
             deathTileY,
             slideDx: -slideDirX * tileSize,
             slideDy: -slideDirY * tileSize,
+            infested: infestedBefore,
           };
         }
         // ── End ice-slide animation ──────────────────────────────────────────
@@ -655,6 +658,7 @@ export const useGameStore = create<GameStore>()(
           unitType: UnitType; faction: Faction;
           deathTileX: number; deathTileY: number;
           slideDx: number; slideDy: number;
+          infested: boolean;
         };
         const ghostId = `slide-kill-${unitId}-${Date.now()}`;
         const ghost = {
@@ -669,6 +673,15 @@ export const useGameStore = create<GameStore>()(
         };
         const store = useCombatAnimationStore.getState();
         store.addSlideKillGhost(ghost);
+        if (d.infested) {
+          store.addTileVfx({
+            id: crypto.randomUUID(),
+            x: d.deathTileX,
+            y: d.deathTileY,
+            variant: 'INFESTED_DEATH_BURST',
+            durationMs: ANIMATION.INFESTED_DEATH_BURST_MS,
+          });
+        }
 
         // Phase 1 — slide in
         const slideTotalMs = ANIMATION.SLIDE_PAUSE_MS + ANIMATION.SLIDE_DURATION_MS;
@@ -1609,6 +1622,17 @@ export const useGameStore = create<GameStore>()(
         for (const { unitId, position } of pending) {
           const original = state.units[unitId];
           if (!original) continue;
+          const wasInfested = original.tags.includes(UnitTag.INFESTED);
+          resolveInfestedDeath(state, original);
+          if (wasInfested) {
+            useCombatAnimationStore.getState().addTileVfx({
+              id: crypto.randomUUID(),
+              x: position.x,
+              y: position.y,
+              variant: 'INFESTED_DEATH_BURST',
+              durationMs: ANIMATION.INFESTED_DEATH_BURST_MS,
+            });
+          }
           // Remove the original unit from its tile and from the units map
           const tile = state.grid[position.y]?.[position.x];
           if (tile && tile.unitId === unitId) tile.unitId = null;
@@ -2349,6 +2373,7 @@ export const useGameStore = create<GameStore>()(
               if (!unit) continue;
               if (unit.tags.includes(UnitTag.BRANDMARKED)) {
                 // BRANDMARKED units transform into Ember Demons on death
+                resolveInfestedDeath(draft, unit, tagDamageEvents);
                 handleBrandmarkedUnitDeath(draft, unit);
               } else {
                 // Non-brandmarked units are simply removed
@@ -2358,6 +2383,13 @@ export const useGameStore = create<GameStore>()(
                 const unitType = unit.type;
                 const unitTags = [...unit.tags];
                 delete draft.units[unitId];
+                tagDamageEvents.push({
+                  type: 'UNIT_DEATH',
+                  unitId,
+                  position: deathPos,
+                  faction: unit.faction,
+                });
+                resolveInfestedDeath(draft, unit, tagDamageEvents);
                 if (shouldLeaveGravestone({ faction: Faction.PLAYER, tags: unitTags }, { defaultOn: false })) {
                   createGravestoneAt(draft, deathPos, unitType);
                 }
@@ -2413,7 +2445,10 @@ export const useGameStore = create<GameStore>()(
           }
           for (const unitId of brandmarkDying) {
             const unit = draft.units[unitId];
-            if (unit) handleBrandmarkedUnitDeath(draft, unit);
+            if (unit) {
+              resolveInfestedDeath(draft, unit, tagDamageEvents);
+              handleBrandmarkedUnitDeath(draft, unit);
+            }
           }
 
           // Leash defection: any player-faction LEASHED unit defects if its
@@ -3256,6 +3291,7 @@ export const useGameStore = create<GameStore>()(
           case 'LAVA_ADVANCE': {
             for (const unitId of event.destroyedUnitIds) {
               const unit = state.units[unitId];
+              if (unit?.tunnelState === 'UNDERGROUND' || unit?.tunnelState === 'EMERGING') continue;
               if (!unit?.tags.includes(UnitTag.INFESTED)) continue;
               useCombatAnimationStore.getState().addTileVfx({
                 id: crypto.randomUUID(),
@@ -3278,6 +3314,15 @@ export const useGameStore = create<GameStore>()(
             for (const unitId of event.purgedUnitIds) {
               const unit = state.units[unitId];
               if (unit) {
+                if (unit.tags.includes(UnitTag.INFESTED)) {
+                  useCombatAnimationStore.getState().addTileVfx({
+                    id: crypto.randomUUID(),
+                    x: unit.position.x,
+                    y: unit.position.y,
+                    variant: 'INFESTED_DEATH_BURST',
+                    durationMs: ANIMATION.INFESTED_DEATH_BURST_MS,
+                  });
+                }
                 const tile = state.grid[unit.position.y][unit.position.x];
                 if (tile.unitId === unitId) tile.unitId = null;
                 delete state.units[unitId];

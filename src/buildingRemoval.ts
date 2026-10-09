@@ -23,7 +23,9 @@
  */
 
 import type { GameState } from './types';
+import type { Draft } from 'immer';
 import { Faction } from './types';
+import { resolveInfestedDeath } from './infestedSystem';
 
 /** Minimal info needed to emit a UNIT_DEATH event for a removed roosted unit. */
 export interface RoostedUnitDeath {
@@ -73,6 +75,7 @@ export function cleanupRoostedUnits(
 ): RoostedUnitDeath[] {
   const deaths: RoostedUnitDeath[] = [];
   for (const unit of Object.values(state.units)) {
+    if (!state.units[unit.id]) continue;
     if (unit.roostBuildingId !== buildingId) continue;
 
     // Clear the tile reference if the unit is still on the map.
@@ -86,6 +89,7 @@ export function cleanupRoostedUnits(
     }
 
     deaths.push({ unitId: unit.id, position: { x: unit.position.x, y: unit.position.y }, faction: unit.faction });
+    resolveInfestedDeath(state as Draft<GameState>, unit);
     delete state.units[unit.id];
   }
   return deaths;

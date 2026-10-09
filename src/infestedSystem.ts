@@ -5,8 +5,9 @@ import { MAGE, XP } from './gameConfig';
 import type { GameEvent } from './gameEvents';
 import { applyUnitDamage, getUnitDamageOutcome } from './unitDamage';
 import { canGrantXp, grantXp } from './levelSystem';
+import { recordKhyronKill } from './khyronSystem';
 
-type InfestedDeathSnapshot = Pick<Unit, 'id' | 'faction' | 'type' | 'position' | 'tags' | 'infestedByMageId'>;
+type InfestedDeathSnapshot = Pick<Unit, 'id' | 'faction' | 'type' | 'position' | 'tags' | 'infestedByMageId' | 'infestedDeathEffectResolved'>;
 
 function snapshotUnit(unit: Unit | Draft<Unit>): InfestedDeathSnapshot {
   return {
@@ -16,6 +17,7 @@ function snapshotUnit(unit: Unit | Draft<Unit>): InfestedDeathSnapshot {
     position: { ...unit.position },
     tags: [...unit.tags],
     infestedByMageId: unit.infestedByMageId,
+    infestedDeathEffectResolved: unit.infestedDeathEffectResolved,
   };
 }
 
@@ -37,8 +39,16 @@ function creditBurstKill(
   }
 
   const mage = sourceMageId ? state.units[sourceMageId] : null;
+  if (mage) recordKhyronKill(state, mage.id, victim.faction, victim.tags);
   if (mage && canGrantXp(mage.type, mage.xp)) {
     grantXp(state, mage.id, XP.KILL_UNIT, true);
+  }
+  if (
+    mage?.faction === Faction.PLAYER
+    && victim.faction === Faction.ENEMY
+    && victim.type === UnitType.EMBER_DEMON
+  ) {
+    state.arcaneCrystals += MAGE.EMBER_DEMON_KILL_CRYSTAL_REWARD;
   }
 }
 
@@ -48,8 +58,13 @@ function resolveDeath(
   events: GameEvent[] | undefined,
   resolvedIds: Set<string>,
 ): void {
-  if (!deceased.tags.includes(UnitTag.INFESTED) || resolvedIds.has(deceased.id)) return;
+  if (
+    !deceased.tags.includes(UnitTag.INFESTED)
+    || deceased.infestedDeathEffectResolved
+    || resolvedIds.has(deceased.id)
+  ) return;
   resolvedIds.add(deceased.id);
+  deceased.infestedDeathEffectResolved = true;
 
   const sourceMageId = deceased.infestedByMageId ?? null;
   const deathsFromBurst: InfestedDeathSnapshot[] = [];
@@ -76,6 +91,7 @@ function resolveDeath(
       if (damage > 0) applyUnitDamage(target, damage);
       if (outcome.died) {
         const snapshot = snapshotUnit(target);
+        target.infestedDeathEffectResolved = true;
         tile.unitId = null;
         delete state.units[target.id];
         creditBurstKill(state, snapshot, sourceMageId);
@@ -93,6 +109,7 @@ function resolveDeath(
       if (!target.tags.includes(UnitTag.INFESTED)) {
         target.tags.push(UnitTag.INFESTED);
         target.infestedByMageId = sourceMageId;
+        target.infestedDeathEffectResolved = false;
       }
     }
   }
@@ -105,6 +122,9 @@ function resolveDeath(
         position: { ...burstDeath.position },
         faction: burstDeath.faction,
       });
+      if (burstDeath.type === UnitType.CAVE_MONSTER) {
+        events.push({ type: 'CAVE_MONSTER_KILLED', monsterId: burstDeath.id });
+      }
     }
     resolveDeath(state, burstDeath, events, resolvedIds);
   }
@@ -116,7 +136,9 @@ export function resolveInfestedDeath(
   deceased: Unit | Draft<Unit>,
   events?: GameEvent[],
 ): void {
-  resolveDeath(state, snapshotUnit(deceased), events, new Set());
+  const snapshot = snapshotUnit(deceased);
+  deceased.infestedDeathEffectResolved = true;
+  resolveDeath(state, snapshot, events, new Set());
 }
 
 /** Clears infection only when this unit itself receives kill credit. */
@@ -128,6 +150,7 @@ export function clearInfestedOnCreditedKill(
   if (!killer?.tags.includes(UnitTag.INFESTED)) return;
   killer.tags = killer.tags.filter((tag) => tag !== UnitTag.INFESTED);
   killer.infestedByMageId = null;
+  killer.infestedDeathEffectResolved = false;
 }
 
 export function processInfestedFactionTurn(
@@ -157,6 +180,7 @@ export function processInfestedFactionTurn(
     if (!outcome.died) continue;
 
     const deceased = snapshotUnit(unit);
+    unit.infestedDeathEffectResolved = true;
     const tile = state.grid[position.y]?.[position.x];
     if (tile?.unitId === unitId) tile.unitId = null;
     delete state.units[unitId];
@@ -167,6 +191,9 @@ export function processInfestedFactionTurn(
       position,
       faction: deceased.faction,
     });
+    if (deceased.type === UnitType.CAVE_MONSTER) {
+      events.push({ type: 'CAVE_MONSTER_KILLED', monsterId: unitId });
+    }
     resolveDeath(state, deceased, events, new Set());
   }
 }

@@ -25,6 +25,7 @@ import { TileStatus } from './types';
 import type { GameEvent } from './gameEvents';
 import { updateBerserkLatch } from './combatSystem';
 import { applyUnitDamage } from './unitDamage';
+import { resolveInfestedDeath } from './infestedSystem';
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -410,6 +411,7 @@ function _applyEmergenceDamage(
         position: deathPos,
         faction: target.faction,
       });
+      resolveInfestedDeath(state, target, events);
     }
   }
   return affected;

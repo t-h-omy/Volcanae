@@ -37,6 +37,7 @@ import { spellName } from './i18n/entityText';
 import { applyUnitDamage } from './unitDamage';
 import { getUnitDamageOutcome } from './unitDamage';
 import { grantXp } from './levelSystem';
+import { clearInfestedOnCreditedKill, resolveInfestedDeath } from './infestedSystem';
 import type { GameEvent } from './gameEvents';
 
 /** Returns the effective spell range for a mage (its attack range). */
@@ -197,15 +198,6 @@ export function getTransposeTerrainBlockedTargets(
     .map((unit) => ({ ...unit.position }));
 }
 
-case 'LAVA_MOLD': {
-  return Object.values(state.units)
-    .filter((unit) =>
-      unit.faction === Faction.ENEMY
-      && !unit.tags.includes(UnitTag.INFESTED)
-      && isTileInSpellRange(mage, unit.position, range))
-    .map((unit) => ({ ...unit.position }));
-}
-
 /** Returns the legal target tiles for a spell. Keep this rule set aligned with explainInvalidSpellTarget. */
 export function getValidSpellTargets(
   state: GameState | Draft<GameState>,
@@ -321,6 +313,15 @@ export function getValidSpellTargets(
         }
       }
       return targets;
+    }
+
+    case 'LAVA_MOLD': {
+      return Object.values(state.units)
+        .filter((unit) =>
+          unit.faction === Faction.ENEMY
+          && !unit.tags.includes(UnitTag.INFESTED)
+          && isTileInSpellRange(mage, unit.position, range))
+        .map((unit) => ({ ...unit.position }));
     }
 
     case 'RAISE_SKELETON': {
@@ -470,6 +471,17 @@ export function explainInvalidSpellTarget(
       if (!isTileInSpellRange(mage, tappedUnit.position, range)) return null;
       if (tappedUnit.tags.includes(UnitTag.TAUNT)) {
         return SPELL_TARGET_REASONS.TAUNT_ALREADY_TAUNTED;
+      }
+      return null;
+    }
+
+    case 'LAVA_MOLD': {
+      if (!tile.unitId) return null;
+      const tappedUnit = state.units[tile.unitId];
+      if (!tappedUnit || tappedUnit.faction !== Faction.ENEMY) return null;
+      if (!isTileInSpellRange(mage, tappedUnit.position, range)) return null;
+      if (tappedUnit.tags.includes(UnitTag.INFESTED)) {
+        return SPELL_TARGET_REASONS.INFESTED_ALREADY;
       }
       return null;
     }
@@ -796,6 +808,7 @@ function handleCrystalTower(
   // Remove the mage
   tile.unitId = null;
   delete state.units[mage.id];
+  resolveInfestedDeath(state, mage);
   if (state.selectedUnitId === mage.id) {
     state.selectedUnitId = null;
   }
@@ -1179,6 +1192,8 @@ function handleExplode(
       adjTile.unitId = null;
       delete state.units[adjUnit.id];
       state.gameStats.unitsKilled += 1;
+      clearInfestedOnCreditedKill(state, mage.id);
+      resolveInfestedDeath(state, adjUnit);
     }
   }
 
@@ -1189,6 +1204,7 @@ function handleExplode(
   tile.unitId = null;
   delete state.units[targetUnitId];
   state.gameStats.unitsLost += 1;
+  resolveInfestedDeath(state, target);
 
   // If the sacrificed unit qualifies, leave a Gravestone on their tile.
   if (shouldLeaveGravestone(
@@ -1312,6 +1328,8 @@ function handleCrystalLightning(
             position: targetPositionSnapshot,
             faction: target.faction,
           });
+          clearInfestedOnCreditedKill(state, mage.id);
+          resolveInfestedDeath(state, target, deathEvents);
           if (target.type === UnitType.CAVE_MONSTER) {
             deathEvents.push({ type: 'CAVE_MONSTER_KILLED', monsterId: target.id });
           }
@@ -1420,16 +1438,6 @@ export function castSpell(
       break;
     }
 
-    case 'LAVA_MOLD': {
-      if (!tile.unitId) return null;
-      const tappedUnit = state.units[tile.unitId];
-      if (!tappedUnit || tappedUnit.faction !== Faction.ENEMY) return null;
-      if (!isTileInSpellRange(mage, tappedUnit.position, range)) return null;
-      if (tappedUnit.tags.includes(UnitTag.INFESTED)) {
-        return SPELL_TARGET_REASONS.INFESTED_ALREADY;
-      }
-      return null;
-    }
     case 'STONE_SKIN': {
       const targetId = state.grid[targetPosition.y]?.[targetPosition.x]?.unitId;
       const target = targetId ? state.units[targetId] : undefined;
@@ -1445,6 +1453,7 @@ export function castSpell(
       if (!target || target.faction !== Faction.ENEMY || target.tags.includes(UnitTag.INFESTED)) return false;
       target.tags.push(UnitTag.INFESTED);
       target.infestedByMageId = mage.id;
+      target.infestedDeathEffectResolved = false;
       success = true;
       break;
     }

@@ -499,6 +499,8 @@ export interface Unit {
   controllerMageId?: string | null;
   /** Original Mage who started an Infested infection chain. */
   infestedByMageId?: string | null;
+  /** Prevents deferred death/transform resolution from replaying an Infested burst. */
+  infestedDeathEffectResolved?: boolean;
   /** Set on Mage units; number of spells cast this turn. Reset each turn. */
   spellsCastThisTurn?: number;
   /**
