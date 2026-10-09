@@ -233,7 +233,7 @@
   "tag.STONE_SKIN.label": "Peau de pierre",
   "tag.STONE_SKIN.desc": "Un pool distinct de {stoneHp} PV de pierre absorbe les dégâts reçus avant les PV normaux. Le déplacement volontaire est bloqué tant qu'il reste des PV de pierre.",
   "tag.INFESTED.label": "Infecté",
-  "tag.INFESTED.desc": "Perd {damage} PV à la fin du tour de sa faction. À sa mort, il éclate et infecte les unités voisines qui survivent.",
+  "tag.INFESTED.desc": "Perd {hpLossPerTurn} PV à la fin du tour de sa faction. À sa mort, il éclate et infecte les unités voisines qui survivent.",
   "terrainTag.CORRUPTED.label": "Corrompu",
   "terrainTag.CORRUPTED.desc": "Les unités alliées sur cette case sont isolées des interactions de tags. Aucun bonus de Phalange, soin, effet de Tirailleur ou bonus d'attaque lié aux tags (Chevalier, Charge de lance, Assassin, Soif de sang). La Frappe préventive est également neutralisée. Les stats de base, le déplacement, la portée et les effets persistants (Marqué) ne changent pas.",
   "terrainTag.FROZEN.label": "Gelé",

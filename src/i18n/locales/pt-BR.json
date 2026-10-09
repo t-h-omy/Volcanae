@@ -233,7 +233,7 @@
   "tag.STONE_SKIN.label": "Pele de pedra",
   "tag.STONE_SKIN.desc": "Uma reserva separada de {stoneHp} PV de pedra absorve o dano recebido antes dos PV normais. O movimento voluntário fica bloqueado enquanto restarem PV de pedra.",
   "tag.INFESTED.label": "Infectado",
-  "tag.INFESTED.desc": "Perde {damage} PV no fim do turno da própria facção. Ao morrer, explode e infecta as unidades próximas que sobreviverem.",
+  "tag.INFESTED.desc": "Perde {hpLossPerTurn} PV no fim do turno da própria facção. Ao morrer, explode e infecta as unidades próximas que sobreviverem.",
   "terrainTag.CORRUPTED.label": "Corrompido",
   "terrainTag.CORRUPTED.desc": "Unidades aliadas nesta casa ficam isoladas das interações de tags. Sem bônus de Falange, cura, efeitos de Imobilizar ou Distração, dano em área ou bônus de ataque de tags (Cavaleiro, Investida de lança, Assassino, Sede de sangue). Ataque preventivo também é suprimido. Atributos básicos, movimento, alcance e efeitos persistentes (Marcado) não mudam.",
   "terrainTag.FROZEN.label": "Congelado",

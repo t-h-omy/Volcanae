@@ -25,9 +25,10 @@ function creditBurstKill(
   state: Draft<GameState>,
   victim: InfestedDeathSnapshot,
   sourceMageId: string | null,
+  countPlayerLoss = true,
 ): void {
   if (victim.faction === Faction.PLAYER) {
-    state.gameStats.unitsLost += 1;
+    if (countPlayerLoss) state.gameStats.unitsLost += 1;
   } else if (sourceMageId && state.units[sourceMageId]?.faction === Faction.PLAYER) {
     state.gameStats.unitsKilled += 1;
   }
@@ -49,6 +50,18 @@ function creditBurstKill(
     && victim.type === UnitType.EMBER_DEMON
   ) {
     state.arcaneCrystals += MAGE.EMBER_DEMON_KILL_CRYSTAL_REWARD;
+  }
+}
+
+function queueBrandmarkTransform(
+  state: Draft<GameState>,
+  unit: Draft<Unit>,
+  position: Position,
+): void {
+  unit.stats.currentHp = 0;
+  unit.infestedDeathEffectResolved = true;
+  if (!state.pendingBrandmarkTransforms.some((pending) => pending.unitId === unit.id)) {
+    state.pendingBrandmarkTransforms.push({ unitId: unit.id, position: { ...position } });
   }
 }
 
@@ -92,9 +105,14 @@ function resolveDeath(
       if (outcome.died) {
         const snapshot = snapshotUnit(target);
         target.infestedDeathEffectResolved = true;
-        tile.unitId = null;
-        delete state.units[target.id];
-        creditBurstKill(state, snapshot, sourceMageId);
+        if (target.tags.includes(UnitTag.BRANDMARKED)) {
+          queueBrandmarkTransform(state, target, { x, y });
+          creditBurstKill(state, snapshot, sourceMageId, false);
+        } else {
+          tile.unitId = null;
+          delete state.units[target.id];
+          creditBurstKill(state, snapshot, sourceMageId);
+        }
         deathsFromBurst.push(snapshot);
       }
     }
@@ -181,6 +199,21 @@ export function processInfestedFactionTurn(
 
     const deceased = snapshotUnit(unit);
     unit.infestedDeathEffectResolved = true;
+    if (unit.tags.includes(UnitTag.BRANDMARKED)) {
+      queueBrandmarkTransform(state, unit, position);
+      creditBurstKill(state, deceased, deceased.infestedByMageId ?? null, false);
+      events.push({
+        type: 'UNIT_DEATH',
+        unitId,
+        position,
+        faction: deceased.faction,
+      });
+      if (deceased.type === UnitType.CAVE_MONSTER) {
+        events.push({ type: 'CAVE_MONSTER_KILLED', monsterId: unitId });
+      }
+      resolveDeath(state, deceased, events, new Set());
+      continue;
+    }
     const tile = state.grid[position.y]?.[position.x];
     if (tile?.unitId === unitId) tile.unitId = null;
     delete state.units[unitId];

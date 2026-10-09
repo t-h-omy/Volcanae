@@ -68,6 +68,7 @@ Spells are unlocked individually through the tech tree. Available spells include
 | 🩸 Brandmark | Fully heal a friendly unit; the healed unit gains the BRANDMARKED tag, cannot be healed by Patch Up, and loses HP each turn, spawning a hostile Ember Demon on death |
 | 💀 Raise Skeleton | Animate a Gravestone as a Skeleton unit |
 | 🧟 Summon Ghoul | Summon a Ghoul from an empty player Gravestone |
+| 🦠 Lava Mold | Infect an enemy unit; Infested units take damage at faction-turn end and spread infection when they die |
 | ❄️ Frostcraft | Freeze a water tile, making it passable |
 | ☠️ Grave Trap | Place a trap that stuns the next unit to enter |
 | 💥 Explode | Deal area damage around a target tile |
@@ -79,6 +80,8 @@ Spells are unlocked individually through the tech tree. Available spells include
 The **Crystal Khyron** tech (child of Arcane Awakening) unlocks a Khyron recruitable from a resonating Crystal Chamber for 2 Arcane Crystals, sharing the Chamber's recruitment limit with Mages. While a Chamber resonates it carries the **Resonance** tag; its first enemy kill transforms it one level (max Lv.3) and permanently inherits that enemy's Cleave, Pierce, Rage, Alert, Ironblood, Block, Puncture and Burn tags. Khyrons never gain XP.
 
 The **Summon Ghoul** tech unlocks a Ghoul spell after Raise Skeleton. A Ghoul gains levels and heals by consuming the Gravestone beneath it, up to level 3, and never gains XP.
+
+The **Lava Mold** tech unlocks a spell after Explode. Infested units take damage at the end of their faction's turn; when they die, nearby surviving units of either faction become Infested.
 
 The **Crystal Lightning** tech is a child of Crystal Khyron. It unlocks the spell, which strikes every enemy unit within a player-owned Crystal Chamber's visibility radius. A resonating Chamber can chain to other active player Chambers, each of which fires its own volley.
 

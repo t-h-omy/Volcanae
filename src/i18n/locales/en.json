@@ -233,7 +233,7 @@
   "tag.STONE_SKIN.label": "Stone Skin",
   "tag.STONE_SKIN.desc": "A separate pool of {stoneHp} Stone HP absorbs incoming damage before normal HP. Voluntary movement is blocked while it remains.",
   "tag.INFESTED.label": "Infested",
-  "tag.INFESTED.desc": "Loses {damage} HP at the end of its faction's turn. When it dies, it bursts and infects adjacent survivors.",
+  "tag.INFESTED.desc": "Loses {hpLossPerTurn} HP at the end of its faction's turn. When it dies, it bursts and infects adjacent survivors.",
   "terrainTag.CORRUPTED.label": "Corrupted",
   "terrainTag.CORRUPTED.desc": "Player units on this tile are isolated from ally tag interactions. No Phalanx bonuses, no Patch Up healing, no Pin Down / Distraction / Splash effects on attack, and no tag-based attack bonuses (Knight, Lance Charge, Assassin, Bloodlust). Preventive Strike overwatch is also suppressed. Base stats, movement, ranged capability, and persistent effects (Brandmarked) remain unchanged.",
   "terrainTag.FROZEN.label": "Frozen",

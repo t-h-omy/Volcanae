@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { produce } from 'immer';
-import { MAGE, MAP, TECH_TREE, UNIT_DEFINITIONS } from '../gameConfig';
+import { produce, type Draft } from 'immer';
+import { BURNING_TILE_DAMAGE, MAGE, MAP, TECH_TREE, UNIT_DEFINITIONS } from '../gameConfig';
 import { computeResearchCost } from '../../config/tech';
 import { castSpell, explainInvalidSpellTarget, getValidSpellTargets } from '../spellSystem';
 import {
@@ -8,8 +8,10 @@ import {
   processInfestedFactionTurn,
   resolveInfestedDeath,
 } from '../infestedSystem';
+import { resolveAttack } from '../combatSystem';
+import { processTileStatusEndOfTurn } from '../tileStatusSystem';
 import { t } from '../i18n/i18n';
-import { Faction, SpellId, TileType, UnitTag, UnitType } from '../types';
+import { Faction, SpellId, TileStatus, TileType, UnitTag, UnitType } from '../types';
 import type { GameEvent } from '../gameEvents';
 import type { GameState, Position, Tile, Unit } from '../types';
 
@@ -137,7 +139,7 @@ function makeState(units: Unit[]): GameState {
   } as unknown as GameState;
 }
 
-function removeUnit(state: GameState, unit: Unit): void {
+function removeUnit(state: Draft<GameState>, unit: Draft<Unit>): void {
   state.grid[unit.position.y][unit.position.x].unitId = null;
   delete state.units[unit.id];
 }
@@ -165,6 +167,7 @@ describe('Lava Mold', () => {
 
     expect(infectedState.units[victim.id].tags).toContain(UnitTag.INFESTED);
     expect(infectedState.units[victim.id].infestedByMageId).toBe(mage.id);
+    expect(infectedState.arcaneCrystals).toBe(9);
     expect(JSON.parse(JSON.stringify(infectedState.units[victim.id])).infestedByMageId).toBe(mage.id);
   });
 
@@ -209,6 +212,34 @@ describe('Lava Mold', () => {
     expect(events.some((event) => event.type === 'UNIT_DEATH' && event.unitId === victim.id)).toBe(true);
   });
 
+  it('does not invent a killer when the original Mage no longer exists', () => {
+    const victim = makeUnit(UnitType.GUARD, { x: 5, y: 5 }, Faction.ENEMY, [UnitTag.INFESTED]);
+    victim.infestedByMageId = 'missing-mage';
+    victim.stats.currentHp = 10;
+    const state = makeState([victim]);
+    const events: GameEvent[] = [];
+    const result = produce(state, (draft) => processInfestedFactionTurn(draft, Faction.ENEMY, events));
+
+    expect(result.gameStats.unitsKilled).toBe(0);
+    expect(result.units['missing-mage']).toBeUndefined();
+  });
+
+  it('resolves spread when a non-combat burning-tile death removes an Infested unit', () => {
+    const mage = makeUnit(UnitType.MAGE, { x: 2, y: 2 });
+    const victim = makeUnit(UnitType.GUARD, { x: 5, y: 5 }, Faction.ENEMY, [UnitTag.INFESTED]);
+    const survivor = makeUnit(UnitType.GUARD, { x: 6, y: 5 });
+    victim.infestedByMageId = mage.id;
+    victim.stats.currentHp = BURNING_TILE_DAMAGE;
+    const state = makeState([mage, victim, survivor]);
+    state.grid[victim.position.y][victim.position.x].status = TileStatus.BURNING;
+    const events: GameEvent[] = [];
+
+    const result = produce(state, (draft) => processTileStatusEndOfTurn(draft, events));
+    expect(result.units[victim.id]).toBeUndefined();
+    expect(result.units[survivor.id].tags).toContain(UnitTag.INFESTED);
+    expect(result.units[survivor.id].infestedByMageId).toBe(mage.id);
+  });
+
   it('bursts once, spreads across factions to all eight neighbors, and preserves source', () => {
     const source = makeUnit(UnitType.MAGE, { x: 2, y: 2 });
     const deceased = makeUnit(UnitType.GUARD, { x: 6, y: 6 }, Faction.ENEMY, [UnitTag.INFESTED]);
@@ -225,10 +256,13 @@ describe('Lava Mold', () => {
       makeUnit(UnitType.GUARD, { x: 8, y: 8 }),
     ];
     const state = makeState([source, deceased, ...neighbors]);
-    removeUnit(state, deceased);
     const events: GameEvent[] = [];
 
-    const result = produce(state, (draft) => resolveInfestedDeath(draft, deceased, events));
+    const result = produce(state, (draft) => {
+      const dyingUnit = draft.units[deceased.id];
+      removeUnit(draft, dyingUnit);
+      resolveInfestedDeath(draft, dyingUnit, events);
+    });
     for (const neighbor of neighbors.slice(0, 8)) {
       expect(result.units[neighbor.id].tags).toContain(UnitTag.INFESTED);
       expect(result.units[neighbor.id].infestedByMageId).toBe(source.id);
@@ -241,21 +275,36 @@ describe('Lava Mold', () => {
     const source = makeUnit(UnitType.MAGE, { x: 4, y: 4 });
     const first = makeUnit(UnitType.GUARD, { x: 5, y: 5 }, Faction.ENEMY, [UnitTag.INFESTED]);
     const second = makeUnit(UnitType.GUARD, { x: 6, y: 5 }, Faction.PLAYER, [UnitTag.INFESTED]);
+    const survivor = makeUnit(UnitType.GUARD, { x: 5, y: 6 }, Faction.PLAYER);
+    const burstVictim = makeUnit(UnitType.GUARD, { x: 4, y: 5 }, Faction.ENEMY);
     first.infestedByMageId = source.id;
     second.infestedByMageId = source.id;
     first.stats.currentHp = 1;
     second.stats.currentHp = 1;
-    const state = makeState([source, first, second]);
-    removeUnit(state, first);
+    burstVictim.stats.currentHp = 1;
+    survivor.stats.currentHp = 30;
+    survivor.stats.defense = 100;
+    const state = makeState([source, first, second, survivor, burstVictim]);
     const damage = MAGE.INFESTED_DEATH_BURST_DAMAGE;
     const configurableMage = MAGE as unknown as { INFESTED_DEATH_BURST_DAMAGE: number };
     configurableMage.INFESTED_DEATH_BURST_DAMAGE = 2;
     const events: GameEvent[] = [];
 
     try {
-      const result = produce(state, (draft) => resolveInfestedDeath(draft, first, events));
+      const result = produce(state, (draft) => {
+        const dyingUnit = draft.units[first.id];
+        removeUnit(draft, dyingUnit);
+        resolveInfestedDeath(draft, dyingUnit, events);
+        resolveInfestedDeath(draft, dyingUnit, events);
+      });
       expect(result.units[second.id]).toBeUndefined();
+      expect(result.units[burstVictim.id]).toBeUndefined();
+      expect(result.units[survivor.id].stats.currentHp).toBe(26);
+      expect(result.units[survivor.id].tags).toContain(UnitTag.INFESTED);
+      expect(result.gameStats.unitsKilled).toBe(1);
+      expect(result.units[source.id].xp).toBeGreaterThan(0);
       expect(events.filter((event) => event.type === 'UNIT_DEATH' && event.unitId === second.id)).toHaveLength(1);
+      expect(events.filter((event) => event.type === 'UNIT_DEATH' && event.unitId === burstVictim.id)).toHaveLength(1);
       expect(events.some((event) => event.type === 'TILE_DAMAGE' && event.unitId === second.id)).toBe(true);
     } finally {
       configurableMage.INFESTED_DEATH_BURST_DAMAGE = damage;
@@ -273,5 +322,83 @@ describe('Lava Mold', () => {
 
     expect(afterKill.units[victim.id].tags).not.toContain(UnitTag.INFESTED);
     expect(afterKill.units[victim.id].infestedByMageId).toBeNull();
+  });
+
+  it('clears Infested when a secondary Cleave kill is credited to that unit', () => {
+    const attacker = makeUnit(UnitType.LAVA_GRUNT, { x: 5, y: 5 }, Faction.ENEMY, [UnitTag.INFESTED, UnitTag.CLEAVE]);
+    attacker.infestedByMageId = 'original-mage';
+    const target = makeUnit(UnitType.GUARD, { x: 6, y: 5 });
+    const secondary = makeUnit(UnitType.GUARD, { x: 6, y: 6 });
+    secondary.stats.currentHp = 1;
+    const state = makeState([attacker, target, secondary]);
+    const events: GameEvent[] = [];
+
+    const result = produce(state, (draft) => {
+      resolveAttack(draft, attacker.id, target.id, true, events);
+    });
+    expect(result.units[secondary.id]).toBeUndefined();
+    expect(result.units[attacker.id].tags).not.toContain(UnitTag.INFESTED);
+    expect(result.units[attacker.id].infestedByMageId).toBeNull();
+  });
+
+  it('preserves normal primary kill credit without crediting the infection source Mage', () => {
+    const attacker = makeUnit(UnitType.GUARD, { x: 5, y: 5 });
+    const sourceMage = makeUnit(UnitType.MAGE, { x: 2, y: 2 });
+    const victim = makeUnit(UnitType.GUARD, { x: 6, y: 5 }, Faction.ENEMY, [UnitTag.INFESTED]);
+    victim.infestedByMageId = sourceMage.id;
+    victim.stats.currentHp = 1;
+    const state = makeState([attacker, sourceMage, victim]);
+
+    const result = produce(state, (draft) => {
+      resolveAttack(draft, attacker.id, victim.id, true, []);
+    });
+
+    expect(result.gameStats.unitsKilled).toBe(1);
+    expect(result.units[attacker.id].xp).toBeGreaterThan(0);
+    expect(result.units[sourceMage.id].xp).toBe(0);
+  });
+
+  it('retains the original Mage source through multiple spread generations', () => {
+    const mage = makeUnit(UnitType.MAGE, { x: 2, y: 2 });
+    const first = makeUnit(UnitType.GUARD, { x: 5, y: 5 }, Faction.ENEMY, [UnitTag.INFESTED]);
+    const second = makeUnit(UnitType.GUARD, { x: 6, y: 5 }, Faction.PLAYER);
+    const third = makeUnit(UnitType.GUARD, { x: 7, y: 5 }, Faction.ENEMY);
+    first.infestedByMageId = mage.id;
+    const state = makeState([mage, first, second, third]);
+    const afterFirstDeath = produce(state, (draft) => {
+      const dyingUnit = draft.units[first.id];
+      removeUnit(draft, dyingUnit);
+      resolveInfestedDeath(draft, dyingUnit);
+    });
+
+    const afterSecondDeath = produce(afterFirstDeath, (draft) => {
+      const infected = draft.units[second.id];
+      removeUnit(draft, infected);
+      resolveInfestedDeath(draft, infected);
+    });
+    expect(afterSecondDeath.units[third.id].infestedByMageId).toBe(mage.id);
+    expect(afterSecondDeath.units[third.id].tags).toContain(UnitTag.INFESTED);
+  });
+
+  it('defers Brandmarked Infested DoT deaths to the normal transform lifecycle', () => {
+    const mage = makeUnit(UnitType.MAGE, { x: 4, y: 4 });
+    const victim = makeUnit(
+      UnitType.GUARD,
+      { x: 5, y: 5 },
+      Faction.ENEMY,
+      [UnitTag.INFESTED, UnitTag.BRANDMARKED],
+    );
+    victim.infestedByMageId = mage.id;
+    victim.stats.currentHp = 10;
+    const state = makeState([mage, victim]);
+    const events: GameEvent[] = [];
+    const result = produce(state, (draft) => processInfestedFactionTurn(draft, Faction.ENEMY, events));
+
+    expect(result.units[victim.id].stats.currentHp).toBe(0);
+    expect(result.pendingBrandmarkTransforms).toContainEqual({
+      unitId: victim.id,
+      position: victim.position,
+    });
+    expect(events.some((event) => event.type === 'UNIT_DEATH' && event.unitId === victim.id)).toBe(true);
   });
 });

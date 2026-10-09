@@ -3050,6 +3050,7 @@ function destroyUnit(state: Draft<GameState>, unitId: string, events?: GameEvent
     tile.unitId = null;
   }
   delete state.units[unitId];
+  resolveInfestedDeath(state, unit, events);
 }
 
 function executeAction(

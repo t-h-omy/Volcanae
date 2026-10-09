@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.115.11 - Lava Mold
+
+Added the Lava Mold spell, which infests enemy units, deals damage at the end of each faction turn, and spreads to adjacent units when an Infested unit dies.
+
 ### v0.115.10 - Summon Ghoul
 
 Added the Summon Ghoul spell and a Ghoul that levels up and heals by consuming Gravestones, without gaining XP.
