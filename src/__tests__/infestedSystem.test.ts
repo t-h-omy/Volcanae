@@ -197,6 +197,44 @@ describe('Lava Mold', () => {
     }));
   });
 
+  it('absorbs Infested DoT and death burst with Stone Skin before normal HP', () => {
+    const dotted = makeUnit(UnitType.GUARD, { x: 5, y: 5 }, Faction.ENEMY, [
+      UnitTag.INFESTED,
+      UnitTag.STONE_SKIN,
+    ]);
+    dotted.stoneSkinHp = 20;
+    const dotEvents: GameEvent[] = [];
+    const afterDot = produce(makeState([dotted]), (draft) =>
+      processInfestedFactionTurn(draft, Faction.ENEMY, dotEvents));
+
+    expect(afterDot.units[dotted.id].stoneSkinHp).toBe(20 - MAGE.INFESTED_HP_LOSS_PER_TURN);
+    expect(afterDot.units[dotted.id].stats.currentHp).toBe(dotted.stats.maxHp);
+
+    const source = makeUnit(UnitType.MAGE, { x: 2, y: 2 });
+    const deceased = makeUnit(UnitType.GUARD, { x: 6, y: 6 }, Faction.ENEMY, [UnitTag.INFESTED]);
+    deceased.infestedByMageId = source.id;
+    const survivor = makeUnit(UnitType.GUARD, { x: 7, y: 6 }, Faction.PLAYER, [UnitTag.STONE_SKIN]);
+    survivor.stoneSkinHp = 20;
+    const burstState = makeState([source, deceased, survivor]);
+    const events: GameEvent[] = [];
+    const configurableMage = MAGE as unknown as { INFESTED_DEATH_BURST_DAMAGE: number };
+    const originalBurstDamage = MAGE.INFESTED_DEATH_BURST_DAMAGE;
+    configurableMage.INFESTED_DEATH_BURST_DAMAGE = 5;
+
+    try {
+      const afterBurst = produce(burstState, (draft) => {
+        const dying = draft.units[deceased.id]!;
+        draft.grid[deceased.position.y][deceased.position.x].unitId = null;
+        delete draft.units[deceased.id];
+        resolveInfestedDeath(draft, dying, events);
+      });
+      expect(afterBurst.units[survivor.id].stoneSkinHp).toBe(15);
+      expect(afterBurst.units[survivor.id].stats.currentHp).toBe(survivor.stats.maxHp);
+    } finally {
+      configurableMage.INFESTED_DEATH_BURST_DAMAGE = originalBurstDamage;
+    }
+  });
+
   it('kills from DoT and credits the original Mage', () => {
     const mage = makeUnit(UnitType.MAGE, { x: 5, y: 5 });
     const victim = makeUnit(UnitType.GUARD, { x: 6, y: 5 }, Faction.ENEMY, [UnitTag.INFESTED]);
