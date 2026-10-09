@@ -883,5 +883,13 @@
   "app.install": "Instalar aplicación",
   "app.loadingTitle": "Volcanae - Cargando...",
   "grid.unitXp": "{xp} PX",
-  "menu.options.volumePct": "{volume, number, percent}"
+  "menu.options.volumePct": "{volume, number, percent}",
+  "tech.PORTAL.name": "Portal",
+  "tech.PORTAL.desc": "Desbloquea el hechizo Portal.",
+  "spell.PORTAL.name": "Portal",
+  "spell.PORTAL.desc": "Crea un par de portales bidireccionales permanentes en la misma fila. Las unidades de cualquier facción pueden usar ambos extremos.",
+  "spell.PORTAL.targetHint": "Selecciona dos casillas vacías en la misma fila y dentro del alcance del Mago.",
+  "reason.spell.portalBlocked": "Casilla bloqueada",
+  "reason.spell.portalWrongRow": "Debe estar en la misma fila",
+  "reason.movement.portalExitBlocked": "Salida del portal bloqueada"
 }

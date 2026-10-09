@@ -16,6 +16,7 @@ import type { GameEvent } from './gameEvents';
 import { updateBerserkLatch } from './combatSystem';
 import { applyUnitDamage } from './unitDamage';
 import { resolveInfestedDeath } from './infestedSystem';
+import { cleanupPortals, getMagePortalAtPosition, isMagePortalExitAvailable, resolvePortalEntry } from './portalSystem';
 
 // ============================================================================
 // MOVEMENT CALCULATIONS
@@ -177,6 +178,9 @@ export function getReachableTiles(
   while (head < queue.length) {
     const { x, y, steps } = queue[head++];
     if (steps >= moveRange) continue;
+    if ((x !== unitPosition.x || y !== unitPosition.y) && getMagePortalAtPosition(state, { x, y })) {
+      continue;
+    }
 
     for (const [dx, dy] of MOVE_DIRECTIONS) {
       const nx = x + dx;
@@ -224,19 +228,12 @@ export function getReachableTiles(
         }
       }
 
-      // Player units cannot enter portal entrance or exit tiles.
-      if (unit.faction === Faction.PLAYER) {
-        let blockedByPortal = false;
-        for (const portal of Object.values(state.portals)) {
-          if (
-            (portal.entrancePos.x === nx && portal.entrancePos.y === ny) ||
-            (portal.exitPos.x === nx && portal.exitPos.y === ny)
-          ) {
-            blockedByPortal = true;
-            break;
-          }
-        }
-        if (blockedByPortal) continue;
+      const portalAtDestination = Object.values(state.portals).find((portal) =>
+        (portal.entrancePos.x === nx && portal.entrancePos.y === ny)
+        || (portal.exitPos.x === nx && portal.exitPos.y === ny));
+      if (portalAtDestination) {
+        if (portalAtDestination.kind !== 'MAGE') continue;
+        if (!isMagePortalExitAvailable(state, { x: nx, y: ny }, unit)) continue;
       }
 
       bfsReachable.push({ x: nx, y: ny });
@@ -543,6 +540,7 @@ export function resolveSlide(
   slideTile.unitId = unitId;
   unit.position.x = slideX;
   unit.position.y = slideY;
+  resolvePortalEntry(state, unitId, { x: slideX, y: slideY }, events);
 }
 
 /**
@@ -559,7 +557,8 @@ export function resolveSlide(
 export function moveUnit(
   state: Draft<GameState>,
   unitId: string,
-  targetPosition: Position
+  targetPosition: Position,
+  events?: GameEvent[],
 ): void {
   const unit = state.units[unitId];
 
@@ -620,16 +619,26 @@ export function moveUnit(
 
   // GRAVE_TRAP / SCOUT_TRAP: check if the unit landed on a trap
   checkGraveTrapTrigger(state, unitId);
-  checkScoutTrapTrigger(state, unitId);
+  checkScoutTrapTrigger(state, unitId, events);
+
+  if (state.units[unitId]) {
+    resolvePortalEntry(state, unitId, { ...state.units[unitId].position }, events);
+  }
 
   // FROZEN tile: trigger the slippery slide mechanic.
   // Re-fetch the unit — it must still be alive (not killed by a trap or other effect).
   // FLYING units treat FROZEN tiles as solid ground (they are not standing on
   // the ice), so they do NOT ice-slide.
-  if (newTile.status === TileStatus.FROZEN && state.units[unitId]) {
+  if (
+    newTile.status === TileStatus.FROZEN
+    && state.units[unitId]
+    && state.units[unitId].position.x === targetPosition.x
+    && state.units[unitId].position.y === targetPosition.y
+  ) {
     const slidUnit = state.units[unitId];
     if (!slidUnit.tags.includes(UnitTag.FLYING)) {
       resolveSlide(state, unitId, moveDx, moveDy);
     }
   }
+  cleanupPortals(state, events);
 }

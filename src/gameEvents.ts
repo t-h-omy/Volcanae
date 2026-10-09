@@ -348,6 +348,7 @@ export type GameEvent =
       entrancePos: Position;
       /** Tile where allied units exit the portal. */
       exitPos: Position;
+      portalKind?: 'RIFT_LORD' | 'MAGE';
     }
   | {
       /**
@@ -359,6 +360,12 @@ export type GameEvent =
       fromPos: Position;
       /** Portal exit tile. */
       toPos: Position;
+      portalKind?: 'RIFT_LORD' | 'MAGE';
+    }
+  | {
+      type: 'PORTAL_BLOCKED';
+      unitId: string;
+      position: Position;
     }
   | {
       /**

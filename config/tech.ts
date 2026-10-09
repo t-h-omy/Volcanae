@@ -487,6 +487,14 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'UNLOCK_UNIT',  unitType: UnitType.CRYSTAL_DRAKE },
     ],
   },
+  {
+    id: 'PORTAL',
+    requires: ['CRYSTAL_CAVE'],
+    cost: 7,
+    effects: [
+      { type: 'UNLOCK_SPELL', spellId: SpellId.PORTAL },
+    ],
+  },
 
   // ── Necromancer path ─────────────────────────────────────────────────────
   {

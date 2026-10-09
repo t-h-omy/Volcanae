@@ -883,5 +883,13 @@
   "app.install": "App installieren",
   "app.loadingTitle": "Volcanae - Wird geladen...",
   "grid.unitXp": "{xp} EP",
-  "menu.options.volumePct": "{volume, number, percent}"
+  "menu.options.volumePct": "{volume, number, percent}",
+  "tech.PORTAL.name": "Portal",
+  "tech.PORTAL.desc": "Schaltet den Zauber Portal frei.",
+  "spell.PORTAL.name": "Portal",
+  "spell.PORTAL.desc": "Erzeugt ein dauerhaftes, bidirektionales Portalpaar in derselben Reihe. Einheiten aller Fraktionen können beide Endpunkte benutzen.",
+  "spell.PORTAL.targetHint": "Wähle zwei freie Felder in derselben Reihe innerhalb der Reichweite des Magiers.",
+  "reason.spell.portalBlocked": "Blockiertes Feld",
+  "reason.spell.portalWrongRow": "Muss in derselben Reihe liegen",
+  "reason.movement.portalExitBlocked": "Portal-Ausgang blockiert"
 }

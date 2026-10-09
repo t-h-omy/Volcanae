@@ -17,6 +17,7 @@ import { TILE_STATUS_WHITELIST, BURNING_TILE_DAMAGE } from './gameConfig';
 import { updateBerserkLatch } from './combatSystem';
 import { applyUnitDamage } from './unitDamage';
 import { resolveInfestedDeath } from './infestedSystem';
+import { cleanupPortals } from './portalSystem';
 
 // ============================================================================
 // QUERY HELPERS
@@ -77,6 +78,7 @@ export function clearTileStatus(
       delete state.units[unitId];
       resolveInfestedDeath(state, unit, events);
     }
+    cleanupPortals(state, events);
   }
 }
 

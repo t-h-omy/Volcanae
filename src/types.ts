@@ -200,6 +200,7 @@ export const SpellId = {
   CRYSTAL_LIGHTNING: 'CRYSTAL_LIGHTNING',
   SUMMON_GHOUL: 'SUMMON_GHOUL',
   LAVA_MOLD: 'LAVA_MOLD',
+  PORTAL: 'PORTAL',
 } as const;
 export type SpellId = (typeof SpellId)[keyof typeof SpellId];
 
@@ -770,6 +771,8 @@ export interface CaveEncounter {
  */
 export interface Portal {
   id: string;
+  /** Missing kind means the legacy Rift Lord portal behavior. */
+  kind?: 'RIFT_LORD' | 'MAGE';
   /** ID of the hexcaster that created this portal pair */
   casterId: string;
   /** Tile position where allied units enter the portal */
@@ -915,6 +918,8 @@ export interface GameState {
    * second click completes the swap. Cleared when the spell is confirmed or cancelled.
    */
   pendingTransposeFirstUnitId: string | null;
+  /** First endpoint selected while casting the two-step Mage Portal spell. */
+  pendingMagePortalFirstPos?: Position | null;
   /**
    * Units pending the two-stage Brandmark transform. Each entry is a player
    * unit whose HP has reached 0 but has not yet been replaced by an Ember Demon.

@@ -214,6 +214,7 @@ function migrateState(parsed: { version: number; state: GameState }): GameState 
     if (!Array.isArray(gs.unlockedSpells)) gs.unlockedSpells = [];
     if (!('pendingSpellCast' in gs)) gs.pendingSpellCast = null;
     if (!('pendingTransposeFirstUnitId' in gs)) gs.pendingTransposeFirstUnitId = null;
+    if (!('pendingMagePortalFirstPos' in gs)) gs.pendingMagePortalFirstPos = null;
     if (!Array.isArray(gs.pendingBrandmarkTransforms)) gs.pendingBrandmarkTransforms = [];
     if (!('pendingBridgeBuilderId' in gs)) gs.pendingBridgeBuilderId = null;
     if (!('pendingTrapSetterId' in gs)) gs.pendingTrapSetterId = null;
@@ -382,6 +383,12 @@ function migrateState(parsed: { version: number; state: GameState }): GameState 
           const u = unit as Record<string, unknown>;
           if (u && typeof u.id === 'string') delete u.portalCastCooldownUntil;
         }
+      }
+    }
+    if (s.portals && typeof s.portals === 'object') {
+      for (const portal of Object.values(s.portals) as Array<unknown>) {
+        const p = portal as Record<string, unknown>;
+        if (p && p.kind === undefined) p.kind = 'RIFT_LORD';
       }
     }
 

@@ -883,5 +883,13 @@
   "app.install": "Installa app",
   "app.loadingTitle": "Volcanae - Caricamento...",
   "grid.unitXp": "{xp} PE",
-  "menu.options.volumePct": "{volume, number, percent}"
+  "menu.options.volumePct": "{volume, number, percent}",
+  "tech.PORTAL.name": "Portale",
+  "tech.PORTAL.desc": "Sblocca l’incantesimo Portale.",
+  "spell.PORTAL.name": "Portale",
+  "spell.PORTAL.desc": "Crea una coppia permanente di portali bidirezionali sulla stessa riga. Le unità di qualsiasi fazione possono usare entrambi gli estremi.",
+  "spell.PORTAL.targetHint": "Seleziona due caselle vuote sulla stessa riga e a portata del Mago.",
+  "reason.spell.portalBlocked": "Casella bloccata",
+  "reason.spell.portalWrongRow": "Deve trovarsi sulla stessa riga",
+  "reason.movement.portalExitBlocked": "Uscita del portale bloccata"
 }

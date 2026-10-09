@@ -153,4 +153,8 @@ export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
     emoji: '⚡',
     textParams: { attackPower: MAGE.CRYSTAL_LIGHTNING_ATTACK_POWER },
   },
+  [SpellId.PORTAL]: {
+    id: SpellId.PORTAL,
+    emoji: '🌀',
+  },
 };

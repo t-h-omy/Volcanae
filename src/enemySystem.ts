@@ -25,7 +25,7 @@ import {
 import { sweepLeashes } from './spellSystem';
 import { checkGraveTrapTrigger, checkScoutTrapTrigger, resolveSlide } from './movementSystem';
 import { tryBeginTunnel, processTunnelTurn } from './tunnelSystem';
-import { cleanupPortals, cleanupExpiredPortalsEndOfTurn, tryPlanPortalCast, castPortal, getUsablePortalAtEntrance, tryTeleportThroughPortal, processPendingPortalTeleports, getPlayerFrontlineRow } from './portalSystem';
+import { cleanupPortals, cleanupExpiredPortalsEndOfTurn, tryPlanPortalCast, castPortal, resolvePortalEntry, processPendingPortalTeleports, getPlayerFrontlineRow } from './portalSystem';
 import { cleanupRoostedUnits, getRoostedUnits } from './buildingRemoval';
 import { isUnitOnCorruptedTile } from './tileStatusSystem';
 import { applyUnitDamage, getUnitDamageOutcome } from './unitDamage';
@@ -1573,16 +1573,10 @@ function moveEnemyUnit(state: Draft<GameState>, unitId: string, targetPosition: 
   checkGraveTrapTrigger(state, unitId, events);
   checkScoutTrapTrigger(state, unitId, events);
 
-  // PORTAL: check if the unit stepped onto a portal entrance.
+  // PORTAL: resolve either Mage endpoint or the legacy Rift Lord entrance.
   if (state.units[unitId]) {
     const movedUnit = state.units[unitId];
-    const portal = getUsablePortalAtEntrance(state, movedUnit.position);
-    if (portal && portal.casterId !== movedUnit.id) {
-      // Sacrificial units are NOW allowed to use portals (Decision rework).
-      tryTeleportThroughPortal(state, movedUnit.id, portal.id, events);
-      // If exit was blocked, the unit is now waiting (pendingTeleportUnitId set).
-      // The waiter will teleport automatically when the exit clears.
-    }
+    resolvePortalEntry(state, movedUnit.id, movedUnit.position, events);
   }
 
   // After this unit's movement, give other waiting units a chance to teleport
@@ -2962,45 +2956,49 @@ function scoreActionsForUnit(
   // this unit southward (toward the player) and the per-turn limit is not yet hit.
   if (!unit.hasMovedThisTurn) {
     for (const portal of Object.values(state.portals)) {
-      // Caster never uses own portal.
-      if (portal.casterId === unit.id) continue;
-      // Skip if portal is no longer usable.
-      if (state.turn < portal.createdTurn || state.turn > portal.lastUsableTurn) continue;
-      // Skip if the portal exit is not south of the entrance (no advance value).
-      if (portal.exitPos.y <= portal.entrancePos.y) continue;
-      // Skip if usage limit for this turn is already hit.
-      const usersThisTurn = portalUsageIntents.get(portal.id) ?? 0;
-      if (usersThisTurn >= ABILITIES.EMBER_PORTAL_MAX_USERS_PER_TURN) continue;
-      // Skip while another unit is already waiting on the entrance for the exit to clear.
-      if (portal.pendingTeleportUnitId !== null && portal.pendingTeleportUnitId !== unit.id) continue;
-      // Skip if the entrance tile is currently occupied by another unit.
-      const entranceTile = state.grid[portal.entrancePos.y]?.[portal.entrancePos.x];
-      if (!entranceTile) continue;
-      if (entranceTile.unitId !== null && entranceTile.unitId !== unit.id) continue;
+      const isMagePortal = portal.kind === 'MAGE';
+      if (!isMagePortal && portal.casterId === unit.id) continue;
+      if (!isMagePortal && (state.turn < portal.createdTurn || state.turn > portal.lastUsableTurn)) continue;
+      if (!isMagePortal) {
+        const usersThisTurn = portalUsageIntents.get(portal.id) ?? 0;
+        if (usersThisTurn >= ABILITIES.EMBER_PORTAL_MAX_USERS_PER_TURN) continue;
+        if (portal.pendingTeleportUnitId !== null && portal.pendingTeleportUnitId !== unit.id) continue;
+      }
 
-      // Check reachability using BFS path existence.
-      const path = findBfsPath(unit.position, portal.entrancePos, state);
-      if (path.length === 0 && (unit.position.x !== portal.entrancePos.x || unit.position.y !== portal.entrancePos.y)) continue;
+      const directions = isMagePortal
+        ? [[portal.entrancePos, portal.exitPos], [portal.exitPos, portal.entrancePos]]
+        : [[portal.entrancePos, portal.exitPos]];
+      for (const [entry, destination] of directions) {
+        if (destination.y <= entry.y) continue;
+        const entryTile = state.grid[entry.y]?.[entry.x];
+        if (!entryTile || (entryTile.unitId !== null && entryTile.unitId !== unit.id)) continue;
+        if (isMagePortal) {
+          const destinationTile = state.grid[destination.y]?.[destination.x];
+          if (!destinationTile || destinationTile.unitId !== null || destinationTile.buildingId !== null || destinationTile.isLava) continue;
+        }
 
-      const distance = edgeCircleDistance(unit.position.x, unit.position.y, portal.entrancePos.x, portal.entrancePos.y);
-      const score = ABILITIES.EMBER_PORTAL_BASE_USE_SCORE - (distance * ABILITIES.EMBER_PORTAL_DISTANCE_PENALTY);
-      if (score <= 0) continue;
+        const path = findBfsPath(unit.position, entry, state);
+        if (path.length === 0 && (unit.position.x !== entry.x || unit.position.y !== entry.y)) continue;
+        const distance = edgeCircleDistance(unit.position.x, unit.position.y, entry.x, entry.y);
+        const score = ABILITIES.EMBER_PORTAL_BASE_USE_SCORE - (distance * ABILITIES.EMBER_PORTAL_DISTANCE_PENALTY);
+        if (score <= 0) continue;
 
-      if (tracing) {
-        pushCandidate(candidates, 'MOVE_TO_PORTAL', [
-          [T.PORTAL, ABILITIES.EMBER_PORTAL_BASE_USE_SCORE],
-          [T.DISTANCE, -(distance * ABILITIES.EMBER_PORTAL_DISTANCE_PENALTY)],
-        ], {
-          targetPosition: portal.entrancePos,
-          portalIntentId: portal.id,
-        }, true);
-      } else {
-        candidates.push({
-          type: 'MOVE_TO_PORTAL',
-          score,
-          targetPosition: portal.entrancePos,
-          portalIntentId: portal.id,
-        });
+        if (tracing) {
+          pushCandidate(candidates, 'MOVE_TO_PORTAL', [
+            [T.PORTAL, ABILITIES.EMBER_PORTAL_BASE_USE_SCORE],
+            [T.DISTANCE, -(distance * ABILITIES.EMBER_PORTAL_DISTANCE_PENALTY)],
+          ], {
+            targetPosition: entry,
+            portalIntentId: portal.id,
+          }, true);
+        } else {
+          candidates.push({
+            type: 'MOVE_TO_PORTAL',
+            score,
+            targetPosition: entry,
+            portalIntentId: portal.id,
+          });
+        }
       }
     }
   }

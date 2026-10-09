@@ -41,6 +41,7 @@ import { isTileWithinEdgeCircleRange } from '../rangeUtils';
 import { nextTileCycleTarget, tileSelectionState } from '../tileCycleHelper';
 import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, getTauntBlockedAttackTargetKeys, explainInvalidAttackTarget, canUnitConstruct, canUnitCapture, getHealTargets, getBridgeBuildTargets, explainInvalidHealTarget, explainInvalidBridgeTarget, getTrapPlacementTargets, explainInvalidTrapTarget, isUnitDisplayExhausted } from '../unitActions';
 import { getValidSpellTargets, explainInvalidSpellTarget, getTransposeTerrainBlockedTargets } from '../spellSystem';
+import { getMagePortalAtPosition, isMagePortalExitAvailable } from '../portalSystem';
 import './GridRenderer.css';
 
 // ============================================================================
@@ -147,6 +148,7 @@ export default function GridRenderer() {
   const cancelHealMode = useGameStore((s) => s.cancelHealMode);
   const pendingSpellCast = useGameStore((s) => s.pendingSpellCast);
   const pendingTransposeFirstUnitId = useGameStore((s) => s.pendingTransposeFirstUnitId);
+  const pendingMagePortalFirstPos = useGameStore((s) => s.pendingMagePortalFirstPos);
   const cancelSpellCast = useGameStore((s) => s.cancelSpellCast);
   const castSpell = useGameStore((s) => s.castSpell);
   const pendingBridgeBuilderId = useGameStore((s) => s.pendingBridgeBuilderId);
@@ -589,7 +591,7 @@ export default function GridRenderer() {
     const set = new Set<string>();
     for (const p of targets) set.add(posKey(p.x, p.y));
     return set;
-  }, [pendingSpellCast, pendingTransposeFirstUnitId, units, buildings, grid]);
+  }, [pendingSpellCast, pendingTransposeFirstUnitId, pendingMagePortalFirstPos, units, buildings, grid]);
 
   // Transpose second pick: same-faction in-range units whose swap fails only
   // the destination-terrain check get a blocked marker before clicking.
@@ -721,6 +723,7 @@ export default function GridRenderer() {
     const set = new Set<string>();
     for (const portal of Object.values(portals)) {
       set.add(`${portal.entrancePos.x},${portal.entrancePos.y}`);
+      if (portal.kind === 'MAGE') set.add(`${portal.exitPos.x},${portal.exitPos.y}`);
     }
     return set;
   }, [portals]);
@@ -728,10 +731,14 @@ export default function GridRenderer() {
   const portalExitSet = useMemo<Set<string>>(() => {
     const set = new Set<string>();
     for (const portal of Object.values(portals)) {
-      set.add(`${portal.exitPos.x},${portal.exitPos.y}`);
+      if (portal.kind !== 'MAGE') set.add(`${portal.exitPos.x},${portal.exitPos.y}`);
     }
     return set;
   }, [portals]);
+  const pendingPortalFirstSet = useMemo(
+    () => new Set(pendingMagePortalFirstPos ? [posKey(pendingMagePortalFirstPos.x, pendingMagePortalFirstPos.y)] : []),
+    [pendingMagePortalFirstPos],
+  );
 
   // ── Tile click ──
   const triggerInvalidActionVfx = useCallback((x: number, y: number) => {
@@ -911,6 +918,16 @@ export default function GridRenderer() {
         moveUnit(selectedUnit.id, { x, y });
         return;
       }
+      if (
+        selectedUnit?.faction === Faction.PLAYER
+        && canUnitMove(selectedUnit, useGameStore.getState())
+        && getMagePortalAtPosition(useGameStore.getState(), { x, y })
+        && !isMagePortalExitAvailable(useGameStore.getState(), { x, y })
+      ) {
+        triggerInvalidActionVfx(x, y);
+        showInvalidReasonFloater(x, y, { key: 'reason.movement.portalExitBlocked' });
+        return;
+      }
 
       // Priority 5a — Enemy building on tile (no enemy unit), player unit or player building can attack it
       if (tile.buildingId) {
@@ -1050,6 +1067,7 @@ export default function GridRenderer() {
                 isTauntAttackBlocked={tauntBlockedAttackSet.has(key)}
                 isHealable={isHealable}
                 isSpellTarget={isSpellTarget}
+                isPortalFirstEndpoint={pendingPortalFirstSet.has(key)}
                 isSpellBlocked={isSpellBlocked}
                 isBridgeBuildTarget={isBridgeBuildTarget}
                 isLeashed={isLeashed}
@@ -1103,6 +1121,7 @@ interface TileCellProps {
   isTauntAttackBlocked: boolean;
   isHealable: boolean;
   isSpellTarget: boolean;
+  isPortalFirstEndpoint: boolean;
   /** True when this tile holds a spell target blocked only by terrain legality (Transpose second pick). */
   isSpellBlocked: boolean;
   /** True when this canyon tile is a valid bridge-build target for the pending builder. */
@@ -1137,6 +1156,7 @@ function TileCellInner({
   isTauntAttackBlocked,
   isHealable,
   isSpellTarget,
+  isPortalFirstEndpoint,
   isSpellBlocked,
   isBridgeBuildTarget,
   isLeashed,
@@ -1379,6 +1399,7 @@ function TileCellInner({
 
       {/* spell target overlay */}
       {isSpellTarget && <div className="tile-overlay tile--spell-target" />}
+      {isPortalFirstEndpoint && <div className="tile-overlay tile--portal-first" />}
 
       {/* blocked spell target overlay — Transpose swap that fails terrain legality */}
       {isSpellBlocked && <div className="tile-overlay tile--spell-blocked" />}

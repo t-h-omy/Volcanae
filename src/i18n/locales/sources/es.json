@@ -883,5 +883,13 @@
   "tech.CRYSTAL_LIGHTNING.desc": "Unlocks the Crystal Lightning spell.",
   "spell.CRYSTAL_LIGHTNING.name": "Crystal Lightning",
   "spell.CRYSTAL_LIGHTNING.desc": "A Crystal Chamber strikes every enemy unit within its sight radius with {attackPower} attack power. Resonating Chambers chain the lightning to nearby active Chambers.",
-  "spell.CRYSTAL_LIGHTNING.targetHint": "Select a player-owned Crystal Chamber within range."
+  "spell.CRYSTAL_LIGHTNING.targetHint": "Select a player-owned Crystal Chamber within range.",
+  "tech.PORTAL.name": "Portal",
+  "tech.PORTAL.desc": "Unlocks the Portal spell.",
+  "spell.PORTAL.name": "Portal",
+  "spell.PORTAL.desc": "Create a persistent, bidirectional pair of portals on the same row. Units of any faction can use either endpoint.",
+  "spell.PORTAL.targetHint": "Select two empty tiles on the same row within Mage range.",
+  "reason.spell.portalBlocked": "Blocked tile",
+  "reason.spell.portalWrongRow": "Must be on the same row",
+  "reason.movement.portalExitBlocked": "Exit portal blocked"
 }

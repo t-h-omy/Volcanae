@@ -22,6 +22,7 @@ import { cleanupRoostedUnits } from './buildingRemoval';
 import { isSpecialistEffectActive } from './specialistSystem';
 import { getBuildingUnlockTechId } from './techSystem';
 import type { TechId } from './types';
+import { isPortalEndpoint } from './portalSystem';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -436,6 +437,7 @@ export function canConstructAt(
 
   // Must be on the exact same tile
   if (unit.position.x !== tilePos.x || unit.position.y !== tilePos.y) return false;
+  if (isPortalEndpoint(state, tilePos)) return false;
 
   // Must not have performed any action this turn
   if (unit.hasMovedThisTurn || unit.hasConstructedThisTurn || unit.hasCapturedThisTurn
@@ -472,6 +474,7 @@ export function canEnemyConstructAt(
 ): boolean {
   const unit = state.units[unitId];
   if (!unit) return false;
+  if (isPortalEndpoint(state, tilePos)) return false;
 
   // Must have BUILDANDCAPTURE tag
   if (!unit.tags.includes(UnitTag.BUILDANDCAPTURE)) return false;

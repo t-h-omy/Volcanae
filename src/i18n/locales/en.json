@@ -883,5 +883,13 @@
   "app.install": "Install App",
   "app.loadingTitle": "Volcanae - Loading...",
   "grid.unitXp": "{xp} xp",
-  "menu.options.volumePct": "{volume, number, percent}"
+  "menu.options.volumePct": "{volume, number, percent}",
+  "tech.PORTAL.name": "Portal",
+  "tech.PORTAL.desc": "Unlocks the Portal spell.",
+  "spell.PORTAL.name": "Portal",
+  "spell.PORTAL.desc": "Create a persistent, bidirectional pair of portals on the same row. Units of any faction can use either endpoint.",
+  "spell.PORTAL.targetHint": "Select two empty tiles on the same row within Mage range.",
+  "reason.spell.portalBlocked": "Blocked tile",
+  "reason.spell.portalWrongRow": "Must be on the same row",
+  "reason.movement.portalExitBlocked": "Exit portal blocked"
 }

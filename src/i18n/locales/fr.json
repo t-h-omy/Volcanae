@@ -883,5 +883,13 @@
   "app.install": "Installer l’application",
   "app.loadingTitle": "Volcanae - Chargement...",
   "grid.unitXp": "{xp} XP",
-  "menu.options.volumePct": "{volume, number, percent}"
+  "menu.options.volumePct": "{volume, number, percent}",
+  "tech.PORTAL.name": "Portail",
+  "tech.PORTAL.desc": "Débloque le sort Portail.",
+  "spell.PORTAL.name": "Portail",
+  "spell.PORTAL.desc": "Crée une paire permanente de portails bidirectionnels sur la même ligne. Les unités de toutes les factions peuvent utiliser les deux extrémités.",
+  "spell.PORTAL.targetHint": "Sélectionnez deux cases vides sur la même ligne et à portée du Mage.",
+  "reason.spell.portalBlocked": "Case bloquée",
+  "reason.spell.portalWrongRow": "Doit être sur la même ligne",
+  "reason.movement.portalExitBlocked": "Sortie du portail bloquée"
 }

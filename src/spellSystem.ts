@@ -39,6 +39,7 @@ import { getUnitDamageOutcome } from './unitDamage';
 import { grantXp } from './levelSystem';
 import { clearInfestedOnCreditedKill, resolveInfestedDeath } from './infestedSystem';
 import type { GameEvent } from './gameEvents';
+import { castMagePortalPair, cleanupPortals, isPortalEndpoint } from './portalSystem';
 
 /** Returns the effective spell range for a mage (its attack range). */
 export function getMageSpellRange(
@@ -141,7 +142,26 @@ const SPELL_TARGET_REASONS: Record<string, TextRef> = {
   EXPLODE_MAGE: { key: 'reason.spell.explodeMage' },
   FROSTCRAFT_TERRAIN: { key: 'reason.spell.frostcraftTerrain' },
   OCCUPIED: { key: 'reason.spell.occupied' },
+  PORTAL_BLOCKED: { key: 'reason.spell.portalBlocked' },
+  PORTAL_WRONG_ROW: { key: 'reason.spell.portalWrongRow' },
 } as const;
+
+function isValidMagePortalEndpoint(
+  state: GameState | Draft<GameState>,
+  mage: Unit | Draft<Unit>,
+  pos: Position,
+): boolean {
+  const tile = state.grid[pos.y]?.[pos.x];
+  return !!tile
+    && isTileInSpellRange(mage, pos, getMageSpellRange(mage))
+    && !tile.isLava
+    && tile.buildingId === null
+    && tile.unitId === null
+    && !tile.isRuin
+    && !tile.isStrongholdRuin
+    && !isPortalEndpoint(state, pos)
+    && canUnitOccupyTerrain(state, mage, pos.x, pos.y);
+}
 
 /**
  * True iff swapping units `a` and `b` leaves each on terrain it may legally
@@ -265,6 +285,20 @@ export function getValidSpellTargets(
           && !unit.tags.includes(UnitTag.TAUNT)
           && isTileInSpellRange(mage, unit.position, range))
         .map((unit) => ({ ...unit.position }));
+    }
+
+    case 'PORTAL': {
+      const first = state.pendingMagePortalFirstPos;
+      const targets: Position[] = [];
+      for (let y = 0; y < state.grid.length; y++) {
+        if (first && y !== first.y) continue;
+        for (let x = 0; x < state.grid[y].length; x++) {
+          const pos = { x, y };
+          if (first && first.x === x && first.y === y) continue;
+          if (isValidMagePortalEndpoint(state, mage, pos)) targets.push(pos);
+        }
+      }
+      return targets;
     }
 
     case 'STONE_SKIN': {
@@ -471,6 +505,21 @@ export function explainInvalidSpellTarget(
       if (!isTileInSpellRange(mage, tappedUnit.position, range)) return null;
       if (tappedUnit.tags.includes(UnitTag.TAUNT)) {
         return SPELL_TARGET_REASONS.TAUNT_ALREADY_TAUNTED;
+      }
+      return null;
+    }
+
+    case 'PORTAL': {
+      const first = state.pendingMagePortalFirstPos;
+      if (first && first.x === pos.x && first.y === pos.y) {
+        return SPELL_TARGET_REASONS.PORTAL_BLOCKED;
+      }
+      if (first && pos.y !== first.y
+        && isTileInSpellRange(mage, pos, range)) {
+        return SPELL_TARGET_REASONS.PORTAL_WRONG_ROW;
+      }
+      if (isTileInSpellRange(mage, pos, range) && !isValidMagePortalEndpoint(state, mage, pos)) {
+        return SPELL_TARGET_REASONS.PORTAL_BLOCKED;
       }
       return null;
     }
@@ -749,6 +798,7 @@ function handleBrandmarkHeal(
 function handleCrystalTower(
   state: Draft<GameState>,
   mage: Unit,
+  outEvents?: GameEvent[],
 ): boolean {
   const { x, y } = mage.position;
   const tile = state.grid[y]?.[x];
@@ -809,6 +859,7 @@ function handleCrystalTower(
   tile.unitId = null;
   delete state.units[mage.id];
   resolveInfestedDeath(state, mage);
+  cleanupPortals(state, outEvents);
   if (state.selectedUnitId === mage.id) {
     state.selectedUnitId = null;
   }
@@ -1416,6 +1467,20 @@ export function castSpell(
     return result;
   }
 
+  if (spellId === 'PORTAL') {
+    const first = state.pendingMagePortalFirstPos;
+    if (!first) {
+      if (!isValidMagePortalEndpoint(state, mage, targetPosition)) return false;
+      state.pendingMagePortalFirstPos = { ...targetPosition };
+      return false;
+    }
+    if (targetPosition.y !== first.y || !isValidMagePortalEndpoint(state, mage, first)
+      || !isValidMagePortalEndpoint(state, mage, targetPosition)) return false;
+    const created = castMagePortalPair(state, mageId, first, targetPosition, outEvents);
+    if (created) state.pendingMagePortalFirstPos = null;
+    return created;
+  }
+
   // For all other spells, validate target is in getValidSpellTargets
   const validTargets = getValidSpellTargets(state, mageId, spellId);
   const isValidTarget = validTargets.some(
@@ -1461,7 +1526,7 @@ export function castSpell(
       success = handleCrystalLightning(state, mage, targetPosition, outEvents);
       break;
     case 'CRYSTAL_TOWER':
-      success = handleCrystalTower(state, mage); break;
+      success = handleCrystalTower(state, mage, outEvents); break;
     case 'CRYSTAL_CAVE':
       success = handleCrystalCave(state, mage, targetPosition); break;
     case 'RAISE_SKELETON':

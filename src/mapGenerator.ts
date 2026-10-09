@@ -1674,6 +1674,7 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
     fortifiedGarrisonActive: false,
     pendingSpellCast: null,
     pendingTransposeFirstUnitId: null,
+    pendingMagePortalFirstPos: null,
     pendingBrandmarkTransforms: [],
     pendingBridgeBuilderId: null,
     pendingTrapSetterId: null,

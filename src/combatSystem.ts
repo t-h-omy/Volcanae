@@ -22,6 +22,7 @@ import { isSpecialistEffectActive } from './specialistSystem';
 import { anyAttackableEnemyTargetInRange, applySpawnActionFlags, getAttackTargets } from './unitActions';
 import { applyUnitDamage, getUnitDamageOutcome } from './unitDamage';
 import { clearInfestedOnCreditedKill, resolveInfestedDeath } from './infestedSystem';
+import { cleanupPortals, resolvePortalEntry } from './portalSystem';
 
 // Counter for generating unique gravestone building IDs within this module
 let combatSystemIdCounter = 0;
@@ -859,10 +860,11 @@ function resolveKnockback(
   destTile.unitId = defenderId;
   defender.position.x = destX;
   defender.position.y = destY;
+  const teleported = resolvePortalEntry(state, defenderId, { x: destX, y: destY }, outEvents);
 
   // FROZEN destination + non-FLYING → ice-slide (same axis, one more tile).
   // resolveSlide may move the unit further, keep it on the frozen tile, or kill it.
-  if (destTile.status === TileStatus.FROZEN && !isFlying) {
+  if (!teleported && destTile.status === TileStatus.FROZEN && !isFlying) {
     // Pre-compute slide destination so we can emit correct events if the slide kills.
     const slideDest = { x: destX + dx, y: destY + dy };
     resolveSlide(state, defenderId, dx, dy, outEvents);
@@ -914,7 +916,7 @@ function resolveKnockback(
     type: 'UNIT_KNOCKBACK',
     unitId: defenderId,
     fromPosition,
-    toPosition: { x: destX, y: destY },
+    toPosition: { ...defender.position },
     isEnemy: defenderFaction === Faction.ENEMY,
     faction: defenderFaction,
   });
@@ -947,6 +949,7 @@ export function resolveAttack(
 ): UnitAttackDamage | undefined {
   const damage = resolveAttackInner(state, attackerId, defenderId, suppressFloaters, outEvents);
   applyPendingAssimilations(state);
+  cleanupPortals(state, outEvents);
   return damage;
 }
 
@@ -1309,6 +1312,7 @@ function resolveAttackInner(
       )) {
         createGravestoneAt(state, defenderPosition, defenderType);
       }
+      cleanupPortals(state);
     }
 
     // If the defender was standing on an enemy building that the player attacker

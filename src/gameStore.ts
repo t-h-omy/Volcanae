@@ -571,6 +571,7 @@ export const useGameStore = create<GameStore>()(
         slideDy: number;
         infested: boolean;
       } | null = null;
+      const movementEvents: GameEvent[] = [];
 
       set((state) => {
         // Snapshot the unit before moveUnitLogic so we can detect a slide-kill
@@ -581,7 +582,7 @@ export const useGameStore = create<GameStore>()(
         const factionBefore = unitBefore?.faction;
         const infestedBefore = !!unitBefore?.tags.includes(UnitTag.INFESTED);
 
-        moveUnitLogic(state, unitId, targetPosition);
+        moveUnitLogic(state, unitId, targetPosition, movementEvents);
         // Player movement may have freed a portal exit tile; resolve waiting teleports.
         processPendingPortalTeleports(state);
         // Update tile discovery after player action
@@ -647,6 +648,12 @@ export const useGameStore = create<GameStore>()(
         // Check win/loss conditions after player action
         checkGameConditions(state);
       });
+
+      for (const event of movementEvents) {
+        if (event.type === 'PORTAL_BLOCKED') {
+          useGameStore.getState().applyEvent(event);
+        }
+      }
 
       // ── Slide-kill ghost animation ───────────────────────────────────────
       // Fire AFTER the immer set() completes so the game state is already updated.
@@ -1910,6 +1917,7 @@ export const useGameStore = create<GameStore>()(
         state.pendingHealerId = null; // mutually exclusive with heal mode
         state.pendingBridgeBuilderId = null;
         state.pendingTrapSetterId = null;
+        state.pendingMagePortalFirstPos = null;
         state.pendingSpellCast = { mageId, spellId };
       });
     },
@@ -1918,6 +1926,7 @@ export const useGameStore = create<GameStore>()(
       set((state) => {
         state.pendingSpellCast = null;
         state.pendingTransposeFirstUnitId = null;
+        state.pendingMagePortalFirstPos = null;
       });
     },
 
@@ -1925,6 +1934,7 @@ export const useGameStore = create<GameStore>()(
       let castSpellId: import('./types').SpellId | null = null;
       let magePosition: Position | null = null;
       const killedCaveMonsterIds: string[] = [];
+      const portalEvents: GameEvent[] = [];
       let crystalLightningEvents: GameEvent[] | null = null;
       let crystalLightningResolvedState: GameState | null = null;
       set((state) => {
@@ -1942,6 +1952,7 @@ export const useGameStore = create<GameStore>()(
             if (mage) mage.spellsCastThisTurn = (mage.spellsCastThisTurn ?? 0) + 1;
             draft.pendingSpellCast = null;
             draft.pendingTransposeFirstUnitId = null;
+            draft.pendingMagePortalFirstPos = null;
             updateDiscovery(draft);
             checkGameConditions(draft);
           });
@@ -1952,6 +1963,7 @@ export const useGameStore = create<GameStore>()(
           if (mage) mage.spellsCastThisTurn = resolvedState.units[mageId]?.spellsCastThisTurn ?? mage.spellsCastThisTurn;
           state.pendingSpellCast = null;
           state.pendingTransposeFirstUnitId = null;
+          state.pendingMagePortalFirstPos = null;
           state.phase = GamePhase.ENEMY_TURN;
           state.selectedUnitId = null;
           state.selectedBuildingId = null;
@@ -1970,7 +1982,7 @@ export const useGameStore = create<GameStore>()(
             .map((u) => u.id),
         );
 
-        const ok = castSpellLogic(state, mageId, spellId, targetPosition);
+        const ok = castSpellLogic(state, mageId, spellId, targetPosition, portalEvents);
         if (!ok) return;
 
         // Detect cave monsters killed by the spell and clean up their encounters.
@@ -2002,11 +2014,16 @@ export const useGameStore = create<GameStore>()(
         }
         state.pendingSpellCast = null;
         state.pendingTransposeFirstUnitId = null;
+        state.pendingMagePortalFirstPos = null;
+        state.pendingMagePortalFirstPos = null;
         updateDiscovery(state);
         checkGameConditions(state);
       });
       if (crystalLightningEvents !== null && crystalLightningResolvedState !== null) {
         useAnimationStore.getState().enqueue(crystalLightningEvents, crystalLightningResolvedState);
+      }
+      if (portalEvents.length > 0) {
+        useAnimationStore.getState().enqueue(portalEvents, useGameStore.getState());
       }
       // Enqueue CAVE_MONSTER_KILLED events for any cave monsters killed by the spell.
       // This triggers the specialist-draw modal via the animation engine, mirroring
@@ -3658,6 +3675,17 @@ export const useGameStore = create<GameStore>()(
 
           case 'PORTAL_CLOSED':
             // Presentation-only: state mutation happens in the action producer (portalSystem.ts).
+            break;
+
+          case 'PORTAL_BLOCKED':
+            useFloaterStore.getState().addFloater({
+              value: 0,
+              label: `🚫 ${t('reason.movement.portalExitBlocked')}`,
+              x: event.position.x,
+              y: event.position.y,
+              isEnemy: state.units[event.unitId]?.faction === Faction.ENEMY,
+              floaterType: 'damage',
+            });
             break;
 
           case 'RESONANCE_TRIGGERED':
