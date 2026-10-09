@@ -199,6 +199,7 @@ function revokeUnitTagFromAllUnits(
 
   for (const unit of Object.values(state.units)) {
     if (unit.faction === Faction.PLAYER && unit.type === unitType) {
+      if (unit.type === UnitType.CRYSTAL_KHYRON && unit.assimilatedTags?.includes(tag)) continue;
       const idx = unit.tags.indexOf(tag);
       if (idx !== -1) {
         unit.tags.splice(idx, 1);
@@ -256,6 +257,7 @@ function revokeTagFromUnitsWithTag(
     for (const unit of Object.values(state.units)) {
       if (unit.faction !== Faction.PLAYER) continue;
       if (!unit.tags.includes(sourceTag)) continue;
+      if (unit.type === UnitType.CRYSTAL_KHYRON && unit.assimilatedTags?.includes(tag)) continue;
       const idx = unit.tags.indexOf(tag);
       if (idx !== -1) {
         unit.tags.splice(idx, 1);

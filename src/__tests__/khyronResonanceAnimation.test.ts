@@ -183,6 +183,27 @@ describe('Khyron resonance event presentation', () => {
     expect(animation).not.toHaveBeenCalled();
   });
 
+  it('presents a revealed Khyron after camera arrival even when the trigger source is fogged', async () => {
+    const live = state(false);
+    live.grid[1][2].isRevealed = true;
+    useGameStore.setState(live);
+    const { activate, camera, animation } = replay([resonance()]);
+    expect(useGameStore.getState().buildings.chamber.resonanceTurnsRemaining).toBeGreaterThan(0);
+    expect(useGameStore.getState().buildings.cave.resonanceTurnsRemaining).toBeGreaterThan(0);
+    expect(camera).toHaveBeenLastCalledWith({ x: 2, y: 1 });
+    expect(activate).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(ANIMATION.CAMERA_MOVE_DURATION_MS - 1);
+    expect(activate).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(ANIMATION.PRE_ACTION_IDLE_MS + 1);
+    expect(activate.mock.calls).toEqual([['first']]);
+    expect(animation).toHaveBeenLastCalledWith('first', { type: 'CRYSTAL_ACTIVATE' });
+    expect(useGameStore.getState().units.second.resonanceActive).toBe(false);
+    await vi.runAllTimersAsync();
+    expect(activate.mock.calls).toEqual([['first'], ['second']]);
+    expect(camera.mock.calls).toEqual([[{ x: 2, y: 1 }]]);
+    expect(useGameStore.getState().units.second.resonanceActive).toBe(true);
+  });
+
   it('does not activate Khyrons for a cave-only event even with supplied IDs', async () => {
     const { activate } = replay([resonance({ survivingChamberIds: [] })]);
     await vi.runAllTimersAsync();

@@ -13,6 +13,7 @@ import type { GameState, Unit } from '../types';
 import { applyPendingAssimilations, expireKhyronResonance, grantKhyronResonance, recordKhyronKill } from '../khyronSystem';
 import { shouldLeaveGravestone } from '../combatSystem';
 import { getHealTargets } from '../unitActions';
+import { revokeEffectsForSpecialist } from '../specialistSystem';
 
 const khyronId = 'saved-khyron';
 
@@ -82,6 +83,7 @@ describe('Khyron persistent assimilation saves', () => {
     expect(upgraded.units[khyronId].tags).toContain(UnitTag.SUMMONED);
     expect(upgraded.units[khyronId].tags.filter((tag) => tag === UnitTag.BUILDANDCAPTURE)).toHaveLength(1);
     expect(upgraded.units[khyronId].earnedAssimilationTags).toBeUndefined();
+    expect(upgraded.units[khyronId].assimilatedTags).toEqual([UnitTag.CLEAVE, UnitTag.BUILDANDCAPTURE]);
     await saveSlotStrict({ id: 'khyron', name: 'Khyron', state: upgraded });
     const reloaded = (await loadSlot('khyron'))!;
     useGameStore.setState(reloaded);
@@ -90,6 +92,7 @@ describe('Khyron persistent assimilation saves', () => {
     expect(useGameStore.getState().units[khyronId].stats.maxHp).toBe(maxHp);
     expect(useGameStore.getState().units[khyronId].stats.currentHp).toBe(maxHp);
     expect(useGameStore.getState().units[khyronId].xp).toBe(0);
+    expect(useGameStore.getState().units[khyronId].assimilatedTags).toEqual([UnitTag.CLEAVE, UnitTag.BUILDANDCAPTURE]);
   });
 
   it('retains empty earned snapshots and renewed resonance without stacking upgrades', async () => {
@@ -138,5 +141,18 @@ describe('Khyron persistent assimilation saves', () => {
     const loaded = (await loadSlot('capped'))!;
     expect(loaded.units[khyronId].earnedAssimilationTags).toBeUndefined();
     expect(loaded.units[khyronId].pendingAssimilationTags).toBeUndefined();
+  });
+
+  it('preserves legacy assimilated traits when a summoned-tag specialist is removed after loading', async () => {
+    const state = makeState();
+    state.units[khyronId].level = 2;
+    state.units[khyronId].tags = [UnitTag.RESONANCE, UnitTag.CLEAVE, UnitTag.RAGE];
+    await saveSlotStrict({ id: 'inherited', name: 'Inherited', state });
+    const loaded = (await loadSlot('inherited'))!;
+    expect(loaded.units[khyronId].assimilatedTags).toEqual([UnitTag.CLEAVE, UnitTag.RAGE]);
+    const revoked = produce(loaded, (draft) => {
+      revokeEffectsForSpecialist(draft, draft.specialists.spec_13);
+    });
+    expect(revoked.units[khyronId].tags).toEqual(expect.arrayContaining([UnitTag.SUMMONED, UnitTag.CLEAVE, UnitTag.RAGE]));
   });
 });

@@ -826,7 +826,8 @@ export function useAnimationEngine(): void {
               if (presentedKhyronIds.has(unitId)) continue;
               const unit = useGameStore.getState().units[unitId];
               if (!unit || !canKhyronResonate(unit) || unit.stats.currentHp <= 0) continue;
-              if (visible) {
+              const presentKhyron = visible || isTileRevealed(unit.position);
+              if (presentKhyron) {
                 useAnimationStore.getState().setCameraTarget(unit.position);
                 await wait(ANIMATION.CAMERA_MOVE_DURATION_MS + ANIMATION.PRE_ACTION_IDLE_MS);
                 if (!alive) return;
@@ -835,7 +836,7 @@ export function useAnimationEngine(): void {
               if (!liveUnit || !canKhyronResonate(liveUnit) || liveUnit.stats.currentHp <= 0) continue;
               presentedKhyronIds.add(unitId);
               useGameStore.getState().activateCrystalKhyron(unitId);
-              if (visible) {
+              if (presentKhyron) {
                 useCombatAnimationStore.getState().setUnitAnimation(unitId, { type: 'CRYSTAL_ACTIVATE' });
                 await wait(ANIMATION.CRYSTAL_ACTIVATE_VFX_DURATION_MS);
                 useCombatAnimationStore.getState().setUnitAnimation(unitId, null);

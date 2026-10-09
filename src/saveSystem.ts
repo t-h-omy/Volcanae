@@ -247,6 +247,11 @@ function migrateState(parsed: { version: number; state: GameState }): GameState 
     for (const unit of Object.values(s.units)) {
       if (unit.type !== UnitType.CRYSTAL_KHYRON) continue;
       if (!unit.tags.includes(UnitTag.SUMMONED)) unit.tags.push(UnitTag.SUMMONED);
+      const assimilated = unit.assimilatedTags ?? (unit.level > 1 ? unit.tags : []);
+      unit.assimilatedTags = CRYSTAL_KHYRON.TRANSFERABLE_TAGS.filter((tag) => assimilated.includes(tag));
+      for (const tag of unit.assimilatedTags) {
+        if (!unit.tags.includes(tag)) unit.tags.push(tag);
+      }
       const earned = unit.earnedAssimilationTags ?? unit.pendingAssimilationTags;
       if (Array.isArray(earned) && unit.level < CRYSTAL_KHYRON.MAX_LEVEL) {
         if (!Array.isArray(unit.earnedAssimilationTags)) unit.resonanceActive = false;
