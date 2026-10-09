@@ -891,5 +891,13 @@
   "spell.PORTAL.targetHint": "Seleziona due caselle vuote sulla stessa riga e a portata del Mago.",
   "reason.spell.portalBlocked": "Casella bloccata",
   "reason.spell.portalWrongRow": "Deve trovarsi sulla stessa riga",
-  "reason.movement.portalExitBlocked": "Uscita del portale bloccata"
+  "reason.movement.portalExitBlocked": "Uscita del portale bloccata",
+  "unit.CORRUPTED_QORK.name": "Qork corrotto",
+  "unit.CORRUPTED_QORK.desc": "Creatura a distanza evocata su una casella corrotta. Rimane vincolata al suo mago finché non cambia fazione.",
+  "tech.CORRUPTED_QORK.name": "Qork corrotto",
+  "tech.CORRUPTED_QORK.desc": "Sblocca l'incantesimo Qork corrotto.",
+  "spell.CORRUPTED_QORK.name": "Qork corrotto",
+  "spell.CORRUPTED_QORK.desc": "Evoca un Qork corrotto su una casella corrotta vuota entro gittata. La corruzione della casella viene rimossa e il Qork resta vincolato al mago.",
+  "spell.CORRUPTED_QORK.targetHint": "Seleziona una casella corrotta vuota entro gittata.",
+  "reason.spell.corruptedQorkSpawn": "Il Qork corrotto ha bisogno di una casella vuota che possa occupare."
 }

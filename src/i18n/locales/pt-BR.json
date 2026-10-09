@@ -891,5 +891,13 @@
   "spell.PORTAL.targetHint": "Selecione dois espaços vazios na mesma linha e dentro do alcance do Mago.",
   "reason.spell.portalBlocked": "Espaço bloqueado",
   "reason.spell.portalWrongRow": "Deve estar na mesma linha",
-  "reason.movement.portalExitBlocked": "Saída do portal bloqueada"
+  "reason.movement.portalExitBlocked": "Saída do portal bloqueada",
+  "unit.CORRUPTED_QORK.name": "Qork corrompido",
+  "unit.CORRUPTED_QORK.desc": "Criatura de ataque à distância invocada em um terreno corrompido. Permanece ligada ao Mago até mudar de facção.",
+  "tech.CORRUPTED_QORK.name": "Qork corrompido",
+  "tech.CORRUPTED_QORK.desc": "Desbloqueia o feitiço Qork corrompido.",
+  "spell.CORRUPTED_QORK.name": "Qork corrompido",
+  "spell.CORRUPTED_QORK.desc": "Invoque um Qork corrompido em um terreno corrompido vazio ao alcance. A corrupção do terreno é removida e o Qork fica ligado ao Mago.",
+  "spell.CORRUPTED_QORK.targetHint": "Selecione um terreno corrompido vazio ao alcance.",
+  "reason.spell.corruptedQorkSpawn": "O Qork corrompido precisa de um terreno vazio que possa ocupar."
 }

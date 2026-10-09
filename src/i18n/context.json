@@ -889,5 +889,29 @@
       "es",
       "pt-BR"
     ]
+  },
+  "unit.CORRUPTED_QORK.name": {
+    "note": "Name of the ranged creature summoned by the Corrupted Qork spell."
+  },
+  "unit.CORRUPTED_QORK.desc": {
+    "note": "Description of the Qork's ranged attack and Mage leash."
+  },
+  "tech.CORRUPTED_QORK.name": {
+    "note": "Technology name that unlocks the Corrupted Qork spell."
+  },
+  "tech.CORRUPTED_QORK.desc": {
+    "note": "Short technology description."
+  },
+  "spell.CORRUPTED_QORK.name": {
+    "note": "Name of the Mage spell that summons a Corrupted Qork."
+  },
+  "spell.CORRUPTED_QORK.desc": {
+    "note": "Spell description for summoning on a corrupted tile."
+  },
+  "spell.CORRUPTED_QORK.targetHint": {
+    "note": "Targeting instruction for Corrupted Qork."
+  },
+  "reason.spell.corruptedQorkSpawn": {
+    "note": "Invalid-target feedback when a corrupted tile cannot host the Qork."
   }
 }

@@ -891,5 +891,13 @@
   "spell.PORTAL.targetHint": "Select two empty tiles on the same row within Mage range.",
   "reason.spell.portalBlocked": "Blocked tile",
   "reason.spell.portalWrongRow": "Must be on the same row",
-  "reason.movement.portalExitBlocked": "Exit portal blocked"
+  "reason.movement.portalExitBlocked": "Exit portal blocked",
+  "unit.CORRUPTED_QORK.name": "Corrupted Qork",
+  "unit.CORRUPTED_QORK.desc": "A ranged creature summoned from a corrupted tile. It remains leashed to its Mage until it defects.",
+  "tech.CORRUPTED_QORK.name": "Corrupted Qork",
+  "tech.CORRUPTED_QORK.desc": "Unlocks the Corrupted Qork spell.",
+  "spell.CORRUPTED_QORK.name": "Corrupted Qork",
+  "spell.CORRUPTED_QORK.desc": "Summon a Corrupted Qork on an empty corrupted tile within range. The tile's corruption is removed and the Qork is leashed to the Mage.",
+  "spell.CORRUPTED_QORK.targetHint": "Select an empty corrupted tile within range.",
+  "reason.spell.corruptedQorkSpawn": "The Corrupted Qork needs an empty tile it can occupy."
 }

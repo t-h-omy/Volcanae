@@ -891,5 +891,13 @@
   "spell.PORTAL.targetHint": "Selecciona dos casillas vacías en la misma fila y dentro del alcance del Mago.",
   "reason.spell.portalBlocked": "Casilla bloqueada",
   "reason.spell.portalWrongRow": "Debe estar en la misma fila",
-  "reason.movement.portalExitBlocked": "Salida del portal bloqueada"
+  "reason.movement.portalExitBlocked": "Salida del portal bloqueada",
+  "unit.CORRUPTED_QORK.name": "Qork corrupto",
+  "unit.CORRUPTED_QORK.desc": "Criatura a distancia invocada en una casilla corrupta. Permanece vinculada a su mago hasta que cambia de bando.",
+  "tech.CORRUPTED_QORK.name": "Qork corrupto",
+  "tech.CORRUPTED_QORK.desc": "Desbloquea el hechizo Qork corrupto.",
+  "spell.CORRUPTED_QORK.name": "Qork corrupto",
+  "spell.CORRUPTED_QORK.desc": "Invoca un Qork corrupto en una casilla corrupta vacía dentro del alcance. La corrupción de la casilla desaparece y el Qork queda vinculado al mago.",
+  "spell.CORRUPTED_QORK.targetHint": "Selecciona una casilla corrupta vacía dentro del alcance.",
+  "reason.spell.corruptedQorkSpawn": "El Qork corrupto necesita una casilla vacía que pueda ocupar."
 }

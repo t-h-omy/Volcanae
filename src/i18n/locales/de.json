@@ -891,5 +891,13 @@
   "spell.PORTAL.targetHint": "Wähle zwei freie Felder in derselben Reihe innerhalb der Reichweite des Magiers.",
   "reason.spell.portalBlocked": "Blockiertes Feld",
   "reason.spell.portalWrongRow": "Muss in derselben Reihe liegen",
-  "reason.movement.portalExitBlocked": "Portal-Ausgang blockiert"
+  "reason.movement.portalExitBlocked": "Portal-Ausgang blockiert",
+  "unit.CORRUPTED_QORK.name": "Verderbter Qork",
+  "unit.CORRUPTED_QORK.desc": "Eine Fernkampfkreatur, die auf einem verderbten Feld beschworen wird. Sie bleibt an ihren Magier gebunden, bis sie die Seiten wechselt.",
+  "tech.CORRUPTED_QORK.name": "Verderbter Qork",
+  "tech.CORRUPTED_QORK.desc": "Schaltet den Zauber Verderbter Qork frei.",
+  "spell.CORRUPTED_QORK.name": "Verderbter Qork",
+  "spell.CORRUPTED_QORK.desc": "Beschwöre einen Verderbten Qork auf einem leeren, verderbten Feld in Reichweite. Die Verderbnis verschwindet, und der Qork bleibt an den Magier gebunden.",
+  "spell.CORRUPTED_QORK.targetHint": "Wähle ein leeres, verderbtes Feld in Reichweite.",
+  "reason.spell.corruptedQorkSpawn": "Der Verderbte Qork benötigt ein leeres Feld, das er betreten kann."
 }

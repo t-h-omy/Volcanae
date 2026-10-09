@@ -891,5 +891,13 @@
   "spell.PORTAL.targetHint": "Sélectionnez deux cases vides sur la même ligne et à portée du Mage.",
   "reason.spell.portalBlocked": "Case bloquée",
   "reason.spell.portalWrongRow": "Doit être sur la même ligne",
-  "reason.movement.portalExitBlocked": "Sortie du portail bloquée"
+  "reason.movement.portalExitBlocked": "Sortie du portail bloquée",
+  "unit.CORRUPTED_QORK.name": "Qork corrompu",
+  "unit.CORRUPTED_QORK.desc": "Créature à distance invoquée sur une case corrompue. Elle reste liée à son mage jusqu'à sa défection.",
+  "tech.CORRUPTED_QORK.name": "Qork corrompu",
+  "tech.CORRUPTED_QORK.desc": "Débloque le sort Qork corrompu.",
+  "spell.CORRUPTED_QORK.name": "Qork corrompu",
+  "spell.CORRUPTED_QORK.desc": "Invoquez un Qork corrompu sur une case corrompue vide à portée. La corruption de la case disparaît et le Qork reste lié au mage.",
+  "spell.CORRUPTED_QORK.targetHint": "Sélectionnez une case corrompue vide à portée.",
+  "reason.spell.corruptedQorkSpawn": "Le Qork corrompu a besoin d'une case vide où il peut se déplacer."
 }
