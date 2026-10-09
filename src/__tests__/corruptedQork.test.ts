@@ -5,7 +5,7 @@ import { IDBFactory } from 'fake-indexeddb';
 import { CORRUPTED_QORK, LEVEL_UP_VALUES, MAP, TECH_TREE, UNIT_DEFINITIONS } from '../gameConfig';
 import { SPELL_DEFINITIONS } from '../../config/magic';
 import { computeResearchCost } from '../../config/tech';
-import { castSpell, explainInvalidSpellTarget, getValidSpellTargets, checkAndDefectLeash, sweepLeashes } from '../spellSystem';
+import { castSpell, explainInvalidSpellTarget, getValidSpellTargets, checkAndDefectLeash, getLeashedUnitsForMage, sweepLeashes } from '../spellSystem';
 import { shouldLeaveGravestone } from '../combatSystem';
 import { resolveInfestedDeath } from '../infestedSystem';
 import { applyLevelUps, canGrantXp, computeLevelFromXp, grantXp } from '../levelSystem';
@@ -336,6 +336,21 @@ describe('Corrupted Qork summoning and leash', () => {
     expect(defected).toContain(qork.id);
     expect(defected).toContain(demon.id);
     expect(state.units[qork.id].faction).toBe(Faction.PLAYER);
+  });
+
+  it('includes Qorks in the shared Mage leash visualization query', () => {
+    const mage = makeUnit(UnitType.MAGE, { x: 3, y: 10 });
+    const qork = makeUnit(UnitType.CORRUPTED_QORK, { x: 4, y: 10 }, Faction.PLAYER, [
+      UnitTag.SUMMONED,
+      UnitTag.LEASHED,
+    ], { controllerMageId: mage.id });
+    const demon = makeUnit(UnitType.EMBER_DEMON, { x: 4, y: 11 }, Faction.PLAYER, [
+      UnitTag.SUMMONED,
+      UnitTag.LEASHED,
+    ], { controllerMageId: mage.id });
+
+    expect(getLeashedUnitsForMage(makeState([mage, qork, demon]).units, mage.id).map((unit) => unit.id))
+      .toEqual(expect.arrayContaining([qork.id, demon.id]));
   });
 });
 

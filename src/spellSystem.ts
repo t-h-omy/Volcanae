@@ -1704,3 +1704,10 @@ export function sweepLeashes(state: Draft<GameState>): string[] {
   }
   return defectedIds;
 }
+
+/** Returns all summoned units visibly bound to a Mage through the shared LEASHED state. */
+export function getLeashedUnitsForMage(units: Record<string, Unit>, mageId: string): Unit[] {
+  return Object.values(units).filter(
+    (unit) => unit.tags.includes(UnitTag.LEASHED) && unit.controllerMageId === mageId,
+  );
+}

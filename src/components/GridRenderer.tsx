@@ -40,7 +40,7 @@ import {
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
 import { nextTileCycleTarget, tileSelectionState } from '../tileCycleHelper';
 import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, getTauntBlockedAttackTargetKeys, explainInvalidAttackTarget, canUnitConstruct, canUnitCapture, getHealTargets, getBridgeBuildTargets, explainInvalidHealTarget, explainInvalidBridgeTarget, getTrapPlacementTargets, explainInvalidTrapTarget, isUnitDisplayExhausted } from '../unitActions';
-import { getValidSpellTargets, explainInvalidSpellTarget, getTransposeTerrainBlockedTargets } from '../spellSystem';
+import { getValidSpellTargets, explainInvalidSpellTarget, getTransposeTerrainBlockedTargets, getLeashedUnitsForMage } from '../spellSystem';
 import { explainBlockedMagePortalEntry } from '../portalSystem';
 import './GridRenderer.css';
 
@@ -611,14 +611,11 @@ export default function GridRenderer() {
     const set = new Set<string>();
     if (!selectedUnit) return set;
     if (selectedUnit.type === UnitType.MAGE) {
-      // Find all leashed demons controlled by this mage
-      for (const u of Object.values(units)) {
-        if (u.type === UnitType.EMBER_DEMON && u.controllerMageId === selectedUnit.id) {
-          set.add(posKey(u.position.x, u.position.y));
+      for (const leashedUnit of getLeashedUnitsForMage(units, selectedUnit.id)) {
+        set.add(posKey(leashedUnit.position.x, leashedUnit.position.y));
           set.add(posKey(selectedUnit.position.x, selectedUnit.position.y));
-        }
       }
-    } else if (selectedUnit.type === UnitType.EMBER_DEMON && selectedUnit.controllerMageId) {
+    } else if (selectedUnit.tags.includes(UnitTag.LEASHED) && selectedUnit.controllerMageId) {
       const mage = units[selectedUnit.controllerMageId];
       if (mage) {
         set.add(posKey(selectedUnit.position.x, selectedUnit.position.y));
@@ -628,30 +625,28 @@ export default function GridRenderer() {
     return set;
   }, [selectedUnit, units]);
 
-  // Leash-warn set: tiles that are at risk (mage is out of leash range of demon)
+  // Leash-warn set: tiles at risk because a leashed unit is out of Mage range.
   const leashWarnSet = useMemo<Set<string>>(() => {
     const set = new Set<string>();
     if (!selectedUnit) return set;
     let mage: typeof selectedUnit | undefined;
-    let demons: (typeof selectedUnit)[] = [];
+    let leashedUnits: Unit[] = [];
     if (selectedUnit.type === UnitType.MAGE) {
       mage = selectedUnit;
-      demons = Object.values(units).filter(
-        (u) => u.type === UnitType.EMBER_DEMON && u.controllerMageId === selectedUnit.id,
-      );
-    } else if (selectedUnit.type === UnitType.EMBER_DEMON && selectedUnit.controllerMageId) {
+      leashedUnits = getLeashedUnitsForMage(units, selectedUnit.id);
+    } else if (selectedUnit.tags.includes(UnitTag.LEASHED) && selectedUnit.controllerMageId) {
       mage = units[selectedUnit.controllerMageId];
-      demons = [selectedUnit];
+      leashedUnits = [selectedUnit];
     }
     if (!mage) return set;
-    for (const demon of demons) {
+    for (const leashedUnit of leashedUnits) {
       const inRange = isTileWithinEdgeCircleRange(
         mage.position.x, mage.position.y,
-        demon.position.x, demon.position.y,
+        leashedUnit.position.x, leashedUnit.position.y,
         mage.stats.attackRange,
       );
       if (!inRange) {
-        set.add(posKey(demon.position.x, demon.position.y));
+        set.add(posKey(leashedUnit.position.x, leashedUnit.position.y));
         set.add(posKey(mage.position.x, mage.position.y));
       }
     }
