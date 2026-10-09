@@ -202,7 +202,7 @@ describe('SP-24 Field Chirurgeon idle heal', () => {
       resonanceActive: false,
       earnedAssimilationTags: [UnitTag.BUILDANDCAPTURE],
     });
-    const skeleton = makeUnit('skeleton', UnitType.SKELETON, { x: 3, y: 8 });
+    const skeleton = makeUnit('skeleton', UnitType.SKELETON, { x: 3, y: 8 }, { tags: [UnitTag.SUMMONED] });
     for (const unit of [khyron, skeleton]) unit.stats.currentHp -= ABILITIES.IDLE_HEAL_AMOUNT;
     const beforeKhyronHp = khyron.stats.currentHp;
     const beforeSkeletonHp = skeleton.stats.currentHp;

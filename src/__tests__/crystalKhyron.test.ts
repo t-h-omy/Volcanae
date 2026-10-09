@@ -22,7 +22,7 @@ import {
   canBuildingEverRecruit,
   collectResources,
 } from '../resourceSystem';
-import { resolveAttack, resolveAttackOnBuilding } from '../combatSystem';
+import { resolveAttack, resolveAttackOnBuilding, shouldLeaveGravestone } from '../combatSystem';
 import { grantXp, canGrantXp, applyLevelUps, computeLevelFromXp, getUnitTargetLevel } from '../levelSystem';
 import { grantKhyronResonance, applyPendingAssimilations, recordKhyronKill, filterTransferableTags } from '../khyronSystem';
 import { LEVEL_UP_VALUES } from '../../config/progression';
@@ -31,6 +31,7 @@ import { useFloaterStore } from '../floaterStore';
 import { useCombatAnimationStore } from '../combatAnimationStore';
 import HUD_SOURCE from '../components/HUD.tsx?raw';
 import GRID_SOURCE from '../components/GridRenderer.tsx?raw';
+import { getHealTargets } from '../unitActions';
 import { createInitialSpecialists } from '../specialistSystem';
 import { calculateCombat } from '../combatSystem';
 import { t } from '../i18n/i18n';
@@ -325,6 +326,50 @@ describe('Crystal Khyron recruitment', () => {
     expect(drake.type).toBe(UnitType.CRYSTAL_DRAKE);
     expect(drake.roostBuildingId).toBe(cave.id);
     expect(state.arcaneCrystals).toBe(10 - (UNIT_DEFINITIONS[UnitType.CRYSTAL_DRAKE].cost.crystals ?? 0));
+  });
+});
+
+describe('Crystal Khyron permanent SUMMONED behavior', () => {
+  it('cannot receive regular healing or leave a gravestone before or after confirmation', () => {
+    const k = khyron();
+    const healer = makeUnit(UnitType.SPEARMAN, { x: 3, y: 4 }, Faction.PLAYER, [UnitTag.PATCHUP]);
+    const state = makeState([k, healer]);
+    for (const targetLevel of [2, 3]) {
+      k.stats.currentHp = 10;
+      expect(getHealTargets(state, healer.id)).not.toContain(k.id);
+      expect(shouldLeaveGravestone(k, { defaultOn: true })).toBe(false);
+      k.earnedAssimilationTags = [];
+      applyLevelUps(state, k.id, targetLevel, true);
+      expect(k.tags).toContain(UnitTag.SUMMONED);
+    }
+    k.stats.currentHp = 10;
+    expect(getHealTargets(state, healer.id)).not.toContain(k.id);
+    expect(shouldLeaveGravestone(k, { defaultOn: true })).toBe(false);
+  });
+
+  it('deals reduced damage against IRONBLOOD as a summoned attacker', () => {
+    const k = khyron(4, 4, []);
+    const enemy = makeUnit(UnitType.SKELETON, { x: 5, y: 4 }, Faction.ENEMY, [UnitTag.IRONBLOOD]);
+    const expectedDamage = Math.floor(
+      calculateCombat(k, enemy).defenderHpLost * ABILITIES.IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER,
+    );
+    const initialHp = enemy.stats.currentHp;
+    const state = makeState([k, enemy]);
+    resolveAttack(state, k.id, enemy.id, true);
+    expect(state.units[enemy.id].stats.currentHp).toBe(initialHp - expectedDamage);
+  });
+
+  it('receives Grimbeak bonus damage as a summoned defender', () => {
+    const k = khyron(4, 4, []);
+    const grimbeak = makeUnit(UnitType.GRIMBEAK, { x: 5, y: 4 }, Faction.ENEMY);
+    grimbeak.tags = grimbeak.tags.filter((tag) => tag !== UnitTag.RAGE);
+    const expectedDamage = Math.floor(
+      calculateCombat(grimbeak, k).defenderHpLost * ABILITIES.GRIMBEAK_SUMMONED_DAMAGE_MULTIPLIER,
+    );
+    const initialHp = k.stats.currentHp;
+    const state = makeState([k, grimbeak]);
+    resolveAttack(state, grimbeak.id, k.id, true);
+    expect(state.units[k.id].stats.currentHp).toBe(initialHp - expectedDamage);
   });
 });
 

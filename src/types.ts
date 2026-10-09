@@ -553,6 +553,9 @@ export interface Unit {
   /** Persistent assimilation snapshot awaiting manual level-up; an empty array is ready too. */
   earnedAssimilationTags?: UnitTag[];
 
+  /** Permanent inherited traits, tracked separately from specialist-granted tags. */
+  assimilatedTags?: UnitTag[];
+
  }
 
 /** Defines a single stat boost applied when a unit reaches a new level */

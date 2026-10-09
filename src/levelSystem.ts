@@ -149,9 +149,12 @@ export function applyLevelUps(
   }
 
   if (isAssimilation && unit.level > startLevel) {
+    const inheritedTags = unit.assimilatedTags ?? [];
     for (const tag of filterTransferableTags(unit.earnedAssimilationTags!)) {
       if (!unit.tags.includes(tag)) unit.tags.push(tag);
+      if (!inheritedTags.includes(tag)) inheritedTags.push(tag);
     }
+    unit.assimilatedTags = inheritedTags;
     delete unit.earnedAssimilationTags;
     delete unit.pendingAssimilationTags;
   }
