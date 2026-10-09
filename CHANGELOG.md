@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.115.13 - Corrupted Qork
+
+Added the Corrupted Qork tech and spell, a ranged summoned creature bound to its Mage that defects under the existing leash rules and corrupts its death tile when the terrain permits.
+
 ### v0.115.12 - Mage Portal
 
 Added the Portal tech and spell, which creates persistent bidirectional portal pairs that all factions can use, with two-endpoint targeting, movement and AI routing, and Mage death or lava cleanup.
