@@ -55,6 +55,10 @@ The app is configured as a Progressive Web App with:
 - Background color: #000000 (black)
 - Service worker with generateSW strategy for offline support
 
+## Scout Traps
+
+Scouts granted **Set Trap** by the Trapsmith specialist may move and then place a trap in the same turn. Setting a trap spends their action and prevents further movement. Trap selection highlights legal placement tiles in gold, including the Scout's own tile when valid, instead of showing movement previews. Triggering enemies take damage immediately on arrival; surviving non-Alert ground units are stunned and the trap is consumed.
+
 ## Magic System
 
 The game includes a Mage unit unlocked through the tech tree. Once the **Mage** tech is researched, Mages can be recruited from an active **Crystal Chamber** building. Each Mage can cast one spell per turn (before or after moving, but not after attacking), and the **Archmage** specialist raises that per-turn budget to two casts.
@@ -79,7 +83,7 @@ Spells are unlocked individually through the tech tree. Available spells include
 | 🪨 Stone Skin | Grant a friendly unit a separate 50 HP pool that absorbs damage before normal HP and prevents voluntary movement while it remains |
 | ⚡ Crystal Lightning | Fire a 20-power lightning volley from a Crystal Chamber; resonating Chambers chain the spell to nearby active Chambers |
 
-The **Crystal Khyron** tech (child of Arcane Awakening) unlocks a Khyron recruitable from a resonating Crystal Chamber for 2 Arcane Crystals, sharing the Chamber's recruitment limit with Mages. While a Chamber resonates it carries the **Resonance** tag; its first enemy kill transforms it one level (max Lv.3) and permanently inherits that enemy's Cleave, Pierce, Rage, Alert, Ironblood, Block, Puncture and Burn tags. Khyrons never gain XP.
+The **Crystal Khyron** tech (child of Arcane Awakening) unlocks a population-free Khyron recruitable from a resonating Crystal Chamber for 2 Arcane Crystals, sharing the Chamber's recruitment limit with Mages. Its first qualifying kill during active **Resonance** spends that resonance and earns one persistent upgrade, shown by the normal map indicator and **Level Up** button. Confirmation raises its level (max Lv.3), adds the standard maximum-HP bonus, restores HP, and permanently inherits the victim's Cleave, Pierce, Rage, Alert, Ironblood, Block, Puncture, Burn, and Build & Capture tags. Earned upgrades survive resonance expiration, later turns, and saves; extra kills cannot stack upgrades. Khyrons never gain XP. Every Khyron carries **Summoned**, preventing regular healing and gravestones, while its explicit Resonance self-heal remains available. Resonance camera presentation visits the surviving Chambers and Caves first, then each surviving player Khyron; its active appearance and crystal-blue effect begin only after the camera arrives.
 
 The **Summon Ghoul** tech unlocks a Ghoul spell after Raise Skeleton. A Ghoul gains levels and heals by consuming the Gravestone beneath it, up to level 3, and never gains XP.
 

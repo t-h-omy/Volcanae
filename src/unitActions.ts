@@ -105,6 +105,12 @@ export function isUnitDisplayExhausted(unit: Unit, state: GameState): boolean {
     if (unit.faction !== Faction.PLAYER) return false;
     if (hasUnitActed(unit, state)) return false;
     if (unit.type === UnitType.MAGE && canUnitCast(unit, state) && state.arcaneCrystals >= 1) return false;
+    if (
+      canUnitSetTrap(unit, state) &&
+      state.resources.wood >= ABILITIES.SCOUT_TRAP_WOOD_COST &&
+      state.resources.iron >= ABILITIES.SCOUT_TRAP_IRON_COST &&
+      getTrapPlacementTargets(unit, state).length > 0
+    ) return false;
     if (!unit.hasMovedThisTurn && !unit.bloodlustAttackAvailable) return false;
     return getAttackTargets(unit, state.units, state.buildings, state.grid, state).size === 0;
   })();
@@ -849,8 +855,7 @@ export function explainInvalidBridgeTarget(
  *   - PLAYER faction required
  *   - SCOUT unit type required
  *   - SCOUT_SET_TRAP specialist effect must be active
- *   - hasMovedThisTurn, hasAttackedThisTurn, hasConstructedThisTurn,
- *     hasCapturedThisTurn, hasDestroyedThisTurn — all block the action
+ *   - Non-movement actions block trap placement; movement may precede it.
  *
  * Note: tile eligibility (no building, no ruin) is enforced in the action
  * handler and HUD, NOT here — consistent with how fieldworkBlocked works.
@@ -862,7 +867,6 @@ export function canUnitSetTrap(
   if (unit.faction !== Faction.PLAYER) return false;
   if (unit.type !== UnitType.SCOUT) return false;
   if (!isSpecialistEffectActive(state, 'SCOUT_SET_TRAP')) return false;
-  if (unit.hasMovedThisTurn) return false;
   if (unit.hasAttackedThisTurn) return false;
   if (unit.hasConstructedThisTurn) return false;
   if (unit.hasCapturedThisTurn) return false;

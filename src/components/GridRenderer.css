@@ -864,7 +864,8 @@
 }
 
 /* Crystal Chamber activation VFX overlay — crystal-blue radial burst */
-.tile--crystal-activating {
+.tile--crystal-activating,
+.unit--crystal-activating {
   overflow: visible;
 }
 
@@ -894,7 +895,8 @@
 }
 
 /* Building image glow when crystal chamber activates */
-.tile--crystal-activating .tile-building-img {
+.tile--crystal-activating .tile-building-img,
+.unit--crystal-activating .unit-main-img {
   animation: crystalActivateGlow var(--crystal-activate-duration, 1200ms) ease-out forwards;
 }
 

@@ -49,8 +49,8 @@ import { ANIMATION } from '../config/animation';
 import { CAVE_SPECIALIST_ROB_REWARD_CRYSTALS } from '../config/specialists';
 import { saveSlot, loadSlot, listSlots, deleteSlot, getSlotMeta, saveSeenHintsForSlot } from './saveSystem';
 import { useMenuStore } from './menuStore';
-import { grantKhyronResonance } from './khyronSystem';
-import { computeLevelFromXp, applyLevelUps, canGrantXp, usesNonXpProgression } from './levelSystem';
+import { canKhyronResonate } from './khyronSystem';
+import { getUnitTargetLevel, applyLevelUps, emitLevelUpEffects, canGrantXp } from './levelSystem';
 import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLogic, getGrantedTags, getRemovedTags, getStatMods, applyTagStatEffects, revokeTagStatEffects } from './techSystem';
 import { canUnitHeal, getHealTargets, canUnitFieldwork, isHealSuppressedByCorruption, canUnitConsumeGravestone } from './unitActions';
 import { createFieldworkOutpost } from './constructionSystem';
@@ -66,7 +66,7 @@ import { canUnitTrade } from './unitActions';
 import { createMarket, restockAllSlots } from './marketSystem';
 import { MARKET } from './gameConfig';
 import { canUnitBuildBridge, getBridgeBuildTargets } from './unitActions';
-import { canUnitSetTrap, isTrapTileClear, canUnitExtinguish } from './unitActions';
+import { canUnitSetTrap, isTrapTileClear, canUnitExtinguish, canUnitMove } from './unitActions';
 import { useHintStore } from './hintStore';
 import { flushDeferredHints, tryTriggerHint } from './hintSystem';
 import { triggerEmberLevelUpVfx } from './emberLevelVfx';
@@ -166,6 +166,7 @@ interface GameActions {
   activateCrystalChamber: (chamberId: string) => void;
   /** Activate a single Crystal Cave by setting its resonanceTurnsRemaining (used by animation engine) */
   activateCrystalCave: (caveId: string) => void;
+  activateCrystalKhyron: (unitId: string) => void;
   /** Replace the entire game state (used by animation engine to apply resolved state) */
   setGameState: (newState: GameState) => void;
   /** Manually save the current game state to the active IDB slot */
@@ -561,6 +562,9 @@ export const useGameStore = create<GameStore>()(
     },
 
     moveUnit: (unitId: string, targetPosition: Position) => {
+      const current = useGameStore.getState();
+      const movingUnit = current.units[unitId];
+      if (!movingUnit || current.pendingTrapSetterId || !canUnitMove(movingUnit, current)) return;
       // Capture unit info before the mutation in case the unit is slide-killed
       let slideKillGhostData: {
         unitType: UnitType;
@@ -1804,6 +1808,7 @@ export const useGameStore = create<GameStore>()(
     },
 
     placeTrapAt: (x: number, y: number) => {
+      let placed = false;
       set((state) => {
         const unitId = state.pendingTrapSetterId;
         if (!unitId) return;
@@ -1859,7 +1864,9 @@ export const useGameStore = create<GameStore>()(
         state.grid[y][x].buildingId = trapId;
         unit.hasConstructedThisTurn = true;
         state.pendingTrapSetterId = null;
-
+        placed = true;
+      });
+      if (placed) {
         useFloaterStore.getState().addFloater({
           value: 0,
           label: `🪤 ${t('floater.trapSet')}`,
@@ -1868,7 +1875,7 @@ export const useGameStore = create<GameStore>()(
           isEnemy: false,
           floaterType: 'revive',
         });
-      });
+      }
     },
 
     cancelTrapSetMode: () => {
@@ -2227,6 +2234,7 @@ export const useGameStore = create<GameStore>()(
           snapshot = produce(snapshot, (draft) => {
             for (const unit of Object.values(draft.units)) {
               if (unit.faction !== Faction.PLAYER) continue;
+              if (unit.tags.includes(UnitTag.SUMMONED)) continue;
               if (!tookNoActionThisTurn(unit)) continue;
               if (unit.stats.currentHp >= unit.stats.maxHp) continue;
               const healedAmount = Math.min(
@@ -3640,6 +3648,9 @@ export const useGameStore = create<GameStore>()(
           }
 
           case 'STUN_APPLIED':
+            if (event.pinnedUntilTurn !== undefined && state.units[event.unitId]) {
+              state.units[event.unitId].pinnedUntilTurn = event.pinnedUntilTurn;
+            }
             // Emit a stun floater at the affected tile.
             useFloaterStore.getState().addFloater({
               value: 0,
@@ -3769,7 +3780,6 @@ export const useGameStore = create<GameStore>()(
             chamber.resonanceTurnsRemaining,
             CRYSTAL_CHAMBER_CONFIG.RESONANCE_DURATION,
           );
-          grantKhyronResonance(state);
         }
       });
     },
@@ -3783,6 +3793,15 @@ export const useGameStore = create<GameStore>()(
             CRYSTAL_CHAMBER_CONFIG.RESONANCE_DURATION,
           );
         }
+      });
+    },
+
+    activateCrystalKhyron: (unitId: string) => {
+      set((state) => {
+        const unit = state.units[unitId];
+        if (!unit || !canKhyronResonate(unit) || unit.stats.currentHp <= 0) return;
+        if (!unit.tags.includes(UnitTag.RESONANCE)) unit.tags.push(UnitTag.RESONANCE);
+        unit.resonanceActive = true;
       });
     },
 
@@ -4014,14 +4033,18 @@ export const useGameStore = create<GameStore>()(
     },
 
     levelUpUnit: (unitId: string) => {
+      const before = useGameStore.getState().units[unitId];
       set((state) => {
         const unit = state.units[unitId];
         if (!unit || unit.faction !== Faction.PLAYER) return;
-        if (usesNonXpProgression(unit.type)) return;
-        const targetLevel = computeLevelFromXp(unit.type, unit.xp);
+        const targetLevel = getUnitTargetLevel(unit);
         if (targetLevel <= unit.level) return;
-        applyLevelUps(state, unitId, targetLevel);
+        applyLevelUps(state, unitId, targetLevel, true);
       });
+      const after = useGameStore.getState().units[unitId];
+      if (before && after && after.level > before.level) {
+        emitLevelUpEffects(after, after.stats.currentHp - before.stats.currentHp);
+      }
     },
 
     unlockTech: (techId: TechId) => {

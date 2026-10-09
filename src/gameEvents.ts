@@ -120,6 +120,8 @@ export type GameEvent =
        * `activateCrystalCave` for VFX consistency.
        */
       survivingCaveIds?: string[];
+      /** Surviving player Khyrons, included only when Chambers resonate. */
+      survivingKhyronIds?: string[];
       resonanceDuration: number;
     }
   | {
@@ -296,6 +298,8 @@ export type GameEvent =
       unitId: string;
       /** Position of the stunned unit */
       position: Position;
+      /** Scout Trap stun state to apply during replay rather than at turn finalization. */
+      pinnedUntilTurn?: number;
     }
   | {
       /**

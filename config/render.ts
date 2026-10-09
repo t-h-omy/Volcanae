@@ -25,6 +25,7 @@ export const RENDER = {
     REACHABLE_OVERLAY: 'rgba(58, 123, 213, 0.35)',
     ATTACKABLE_OVERLAY: 'rgba(192, 57, 43, 0.35)',
     HEALABLE_OVERLAY: 'rgba(46, 204, 113, 0.35)',
+    TRAP_PLACEMENT_OVERLAY: 'rgba(241, 196, 15, 0.45)',
     /** Secondary highlight for FROZEN-tile slide destinations when previewing a move */
     SLIDE_PREVIEW_OVERLAY: 'rgba(130, 220, 255, 0.45)',
     /** Background colour for CANYON terrain tiles */

@@ -22,7 +22,7 @@ import type { Draft } from 'immer';
 import { produce } from 'immer';
 import { Faction, BuildingType } from './types';
 import { ABILITIES, MAP, TECH, CRYSTAL_CHAMBER_CONFIG, getLavaAdvanceInterval } from './gameConfig';
-import { grantKhyronResonance } from './khyronSystem';
+import { canKhyronResonate, grantKhyronResonance } from './khyronSystem';
 import type { GameEvent } from './gameEvents';
 import { grantArcaneCrystals } from './techSystem';
 import { removePortalsOnLava } from './portalSystem';
@@ -366,6 +366,11 @@ export function advanceLavaWithEvents(state: GameState): { newState: GameState; 
       }
     }
     if (survivingChamberIds.length > 0 || survivingCaveIds.length > 0) {
+      const survivingKhyronIds = survivingChamberIds.length > 0
+        ? Object.values(newState.units)
+          .filter((unit) => canKhyronResonate(unit) && unit.stats.currentHp > 0)
+          .map((unit) => unit.id)
+        : undefined;
       const resonanceCrystalBonusActive = isSpecialistEffectActive(state, 'RESONANCE_CRYSTAL_BONUS');
       // Apply resonance to the resolvedState for surviving chambers AND caves.
       // advanceLava intentionally does NOT set resonanceTurnsRemaining so that the
@@ -415,6 +420,7 @@ export function advanceLavaWithEvents(state: GameState): { newState: GameState; 
           destroyedChamberPosition: triggerPosition,
           survivingChamberIds,
           survivingCaveIds,
+          ...(survivingKhyronIds ? { survivingKhyronIds } : {}),
           resonanceDuration: CRYSTAL_CHAMBER_CONFIG.RESONANCE_DURATION,
         });
       }

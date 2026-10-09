@@ -21,7 +21,7 @@ import { ANIMATION } from '../../config/animation';
 import { UI } from '../../config/ui';
 import { RENDER } from '../../config/render';
 import { INPUT } from '../../config/input';
-import { computeLevelFromXp, usesNonXpProgression } from '../levelSystem';
+import { getUnitTargetLevel, usesNonXpProgression } from '../levelSystem';
 import { useZoomStore } from '../zoomStore';
 import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE, TILE_STATUS_SPRITE, RESOURCE_SPRITE, ENEMY_BUILDING_SPRITE, PLAYER_BUILDING_SPRITE, TERRAIN_RESOURCE_SPRITE, CRYSTAL_CHAMBER_ACTIVE_SPRITE, CRYSTAL_CAVE_ACTIVE_SPRITE, CRYSTAL_KHYRON_ACTIVE_SPRITE, ENEMY_UNIT_SPRITE, PLAYER_UNIT_SPRITE, TUNNEL_HOLE_SPRITE, TUNNEL_EARTHQUAKE_SPRITE, PORTAL_ENTRANCE_SPRITE, PORTAL_EXIT_SPRITE, getBridgeSprite } from '../assetRegistry';
 import { isKhyronResonanceActive } from '../khyronSystem';
@@ -39,7 +39,7 @@ import {
 } from '../types';
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
 import { nextTileCycleTarget, tileSelectionState } from '../tileCycleHelper';
-import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, getTauntBlockedAttackTargetKeys, explainInvalidAttackTarget, canUnitConstruct, canUnitCapture, getHealTargets, getBridgeBuildTargets, explainInvalidHealTarget, explainInvalidBridgeTarget, getTrapPlacementTargets, explainInvalidTrapTarget, isUnitDisplayExhausted } from '../unitActions';
+import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, getTauntBlockedAttackTargetKeys, explainInvalidAttackTarget, canUnitConstruct, canUnitCapture, getHealTargets, getBridgeBuildTargets, explainInvalidHealTarget, explainInvalidBridgeTarget, canUnitSetTrap, getTrapPlacementTargets, explainInvalidTrapTarget, isUnitDisplayExhausted } from '../unitActions';
 import { getValidSpellTargets, explainInvalidSpellTarget, getTransposeTerrainBlockedTargets, getLeashedUnitsForMage } from '../spellSystem';
 import { explainBlockedMagePortalEntry } from '../portalSystem';
 import './GridRenderer.css';
@@ -155,6 +155,10 @@ export default function GridRenderer() {
   const cancelBridgeBuildMode = useGameStore((s) => s.cancelBridgeBuildMode);
   const buildBridge = useGameStore((s) => s.buildBridge);
   const pendingTrapSetterId = useGameStore((s) => s.pendingTrapSetterId);
+  const trapSetterCanSetTrap = useGameStore((s) => {
+    const setter = s.pendingTrapSetterId ? s.units[s.pendingTrapSetterId] : undefined;
+    return !!setter && canUnitSetTrap(setter, s);
+  });
   const cancelTrapSetMode = useGameStore((s) => s.cancelTrapSetMode);
   const placeTrapAt = useGameStore((s) => s.placeTrapAt);
   const strongholdTotalCap = useGameStore((s) => getStrongholdEffectiveCap(s).totalCap);
@@ -519,9 +523,9 @@ export default function GridRenderer() {
   const selectedBuilding = selectedBuildingId ? buildings[selectedBuildingId] : undefined;
 
   const reachableSet = useMemo<Set<string>>(() => {
-    if (!selectedUnit || selectedUnit.faction !== Faction.PLAYER) return new Set();
+    if (pendingTrapSetterId || !selectedUnit || selectedUnit.faction !== Faction.PLAYER) return new Set();
     return getMovableTiles(selectedUnit, useGameStore.getState());
-  }, [selectedUnit]);
+  }, [selectedUnit, pendingTrapSetterId]);
 
   const attackableSet = useMemo<Set<string>>(() => {
     // Unit attack range (enemy units and enemy buildings)
@@ -568,17 +572,16 @@ export default function GridRenderer() {
 
   // Trap placement target highlighting: when a trap setter is in trap-set mode
   const trapPlacementTargetSet = useMemo<Set<string>>(() => {
-    if (!pendingTrapSetterId) return new Set();
-    const state = useGameStore.getState();
-    const setterUnit = state.units[pendingTrapSetterId];
+    if (!pendingTrapSetterId || !trapSetterCanSetTrap) return new Set();
+    const setterUnit = units[pendingTrapSetterId];
     if (!setterUnit) return new Set();
-    const targets = getTrapPlacementTargets(setterUnit, state);
+    const targets = getTrapPlacementTargets(setterUnit, { ...useGameStore.getState(), grid });
     const set = new Set<string>();
     for (const t of targets) {
       set.add(posKey(t.x, t.y));
     }
     return set;
-  }, [pendingTrapSetterId, units]);
+  }, [pendingTrapSetterId, trapSetterCanSetTrap, units, grid]);
 
   // Spell target highlighting: when a spell cast is pending, show valid target tiles
   const spellTargetSet = useMemo<Set<string>>(() => {
@@ -1066,6 +1069,7 @@ export default function GridRenderer() {
                 isPortalFirstEndpoint={pendingPortalFirstSet.has(key)}
                 isSpellBlocked={isSpellBlocked}
                 isBridgeBuildTarget={isBridgeBuildTarget}
+                isTrapPlacementTarget={trapPlacementTargetSet.has(key)}
                 isLeashed={isLeashed}
                 isLeashWarn={isLeashWarn}
                 isSlidePreview={isSlidePreview}
@@ -1122,6 +1126,7 @@ interface TileCellProps {
   isSpellBlocked: boolean;
   /** True when this canyon tile is a valid bridge-build target for the pending builder. */
   isBridgeBuildTarget: boolean;
+  isTrapPlacementTarget: boolean;
   isLeashed: boolean;
   isLeashWarn: boolean;
   /** Whether this tile is the predicted slide destination from an adjacent FROZEN tile. */
@@ -1155,6 +1160,7 @@ function TileCellInner({
   isPortalFirstEndpoint,
   isSpellBlocked,
   isBridgeBuildTarget,
+  isTrapPlacementTarget,
   isLeashed,
   isLeashWarn,
   isSlidePreview,
@@ -1206,7 +1212,8 @@ function TileCellInner({
 
   // Highlight overlays
   let highlightOverlay: string | null = null;
-  if (isHealable) highlightOverlay = RENDER.COLORS.HEALABLE_OVERLAY;
+  if (isTrapPlacementTarget) highlightOverlay = RENDER.COLORS.TRAP_PLACEMENT_OVERLAY;
+  else if (isHealable) highlightOverlay = RENDER.COLORS.HEALABLE_OVERLAY;
   else if (isBridgeBuildTarget) highlightOverlay = RENDER.COLORS.REACHABLE_OVERLAY;
   else if (isAttackable) highlightOverlay = RENDER.COLORS.ATTACKABLE_OVERLAY;
   else if (isReachable) highlightOverlay = RENDER.COLORS.REACHABLE_OVERLAY;
@@ -1589,6 +1596,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
     DYING: 'anim-dying',
     LEVEL_UP: 'anim-levelup',
     XP_GAIN: 'anim-xpgain',
+    CRYSTAL_ACTIVATE: 'unit--crystal-activating',
     TRANSFORM_TO_DEMON: 'unit--transforming',
     DEFECT_TO_ENEMY: 'unit--defecting',
   };
@@ -1644,6 +1652,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
           '--levelup-glow-mid2': `${ANIMATION.LEVEL_UP_GLOW_MID2_PX}px`,
           '--levelup-glow-color': RENDER.COLORS.LEVEL_UP_GLOW,
           '--xpgain-anim-duration': `${ANIMATION.XP_GAIN_ANIM_DURATION_MS}ms`,
+          '--crystal-activate-duration': `${ANIMATION.CRYSTAL_ACTIVATE_VFX_DURATION_MS}ms`,
           '--defect-flash-color': RENDER.COLORS.LAVA,
           '--unit-hp-text-font-size': `${UI.UNIT_HP_TEXT_FONT_SIZE_PX}px`,
         } as React.CSSProperties
@@ -1708,6 +1717,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
           💀
         </span>
       )}
+      {anim?.type === 'CRYSTAL_ACTIVATE' && <div className="tile-crystal-activate-overlay" />}
       {isStunned && (
         <span className="unit-stun-symbol">💫</span>
       )}
@@ -1827,7 +1837,7 @@ function LevelUpIndicatorLayer({ tileSize }: { tileSize: number }) {
     const result: Array<{ key: string; x: number; y: number }> = [];
     for (const unit of Object.values(units)) {
       if (unit.faction !== Faction.PLAYER) continue;
-      if (computeLevelFromXp(unit.type, unit.xp) > unit.level) {
+      if (getUnitTargetLevel(unit) > unit.level) {
         result.push({ key: unit.id, x: unit.position.x, y: unit.position.y });
       }
     }

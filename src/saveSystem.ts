@@ -9,7 +9,7 @@
 
 import type { GameState } from './types';
 import { UnitType, UnitTag, BuildingType, TileStatus } from './types';
-import { TECH_TREE, POPULATION, SPECIALIST_DEFINITIONS, SAVE, ABILITIES } from './gameConfig';
+import { TECH_TREE, POPULATION, SPECIALIST_DEFINITIONS, SAVE, ABILITIES, CRYSTAL_KHYRON } from './gameConfig';
 import { t } from './i18n/i18n';
 import { ALL_HINT_IDS } from '../config/hints';
 import type { Difficulty } from './types';
@@ -241,6 +241,25 @@ function migrateState(parsed: { version: number; state: GameState }): GameState 
           if (!('controllerMageId' in u)) u.controllerMageId = null;
         }
       }
+    }
+
+    // Normalize Khyron base tags and preserve earned assimilation across reloads.
+    for (const unit of Object.values(s.units)) {
+      if (unit.type !== UnitType.CRYSTAL_KHYRON) continue;
+      if (!unit.tags.includes(UnitTag.SUMMONED)) unit.tags.push(UnitTag.SUMMONED);
+      const assimilated = unit.assimilatedTags ?? (unit.level > 1 ? unit.tags : []);
+      unit.assimilatedTags = CRYSTAL_KHYRON.TRANSFERABLE_TAGS.filter((tag) => assimilated.includes(tag));
+      for (const tag of unit.assimilatedTags) {
+        if (!unit.tags.includes(tag)) unit.tags.push(tag);
+      }
+      const earned = unit.earnedAssimilationTags ?? unit.pendingAssimilationTags;
+      if (Array.isArray(earned) && unit.level < CRYSTAL_KHYRON.MAX_LEVEL) {
+        if (!Array.isArray(unit.earnedAssimilationTags)) unit.resonanceActive = false;
+        unit.earnedAssimilationTags = CRYSTAL_KHYRON.TRANSFERABLE_TAGS.filter((tag) => earned.includes(tag));
+      } else {
+        delete unit.earnedAssimilationTags;
+      }
+      delete unit.pendingAssimilationTags;
     }
 
     // Migration: isIce → TileStatus.FROZEN.

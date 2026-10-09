@@ -4,8 +4,8 @@
  * - RESONANCE is granted while a Crystal Chamber resonates (never by caves alone).
  * - The first enemy kill credited to a resonating Khyron queues an assimilation
  *   (snapshot of the victim's transferable tags). The queue is applied once the
- *   current attack/action has fully resolved, so newly inherited tags never
- *   affect the attack that earned them.
+ *   current attack/action has fully resolved, earning a manual level-up. Tags
+ *   are inherited only when the player confirms that level-up.
  */
 
 import type { Draft } from 'immer';
@@ -96,21 +96,18 @@ export function recordKhyronKill(
   if (!killer || !canKhyronTransform(killer)) return;
   if (victimFaction !== Faction.ENEMY) return;
   if (!isKhyronResonanceActive(killer)) return;
-  if (killer.pendingAssimilationTags) return;
+  if (killer.pendingAssimilationTags !== undefined || killer.earnedAssimilationTags !== undefined) return;
   killer.pendingAssimilationTags = filterTransferableTags(victimTags);
 }
 
-/** Applies and clears every queued assimilation. Call after an attack fully resolves. */
+/** Converts queued assimilations to earned readiness after an attack fully resolves. */
 export function applyPendingAssimilations(state: Draft<GameState>): void {
   for (const unit of Object.values(state.units)) {
     const pending = unit.pendingAssimilationTags;
-    if (!pending) continue;
+    if (pending === undefined) continue;
     delete unit.pendingAssimilationTags;
-    if (unit.type !== UnitType.CRYSTAL_KHYRON || unit.level >= CRYSTAL_KHYRON.MAX_LEVEL) continue;
-    unit.level += 1;
-    for (const tag of pending) {
-      if (!unit.tags.includes(tag)) unit.tags.push(tag);
-    }
+    if (!canKhyronTransform(unit) || unit.earnedAssimilationTags !== undefined) continue;
+    unit.earnedAssimilationTags = filterTransferableTags(pending);
     unit.resonanceActive = false;
   }
 }

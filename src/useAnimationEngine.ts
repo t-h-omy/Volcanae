@@ -23,6 +23,7 @@ import type { GameState, Position } from './types';
 import { tryTriggerHint } from './hintSystem';
 import { selectPortalUsedCameraEndpoint } from './portalAnimation';
 import { useEmberDisplayStore } from './emberDisplayStore';
+import { canKhyronResonate } from './khyronSystem';
 
 export function applyCaveSpecialistReward(drawn: string, outcome: CaveSpecialistRewardOutcome): void {
   const game = useGameStore.getState();
@@ -759,6 +760,9 @@ export function useAnimationEngine(): void {
       // Reapply rewards after setGameState(resolvedState) so the final snapshot
       // does not overwrite decisions made during the blocking modal.
       const caveRewards: { drawn: string; outcome: CaveSpecialistRewardOutcome }[] = [];
+      // Resolve Scout Trap effects as one arrival sequence without extra camera pauses.
+      let resolvingScoutTrap = false;
+      const presentedKhyronIds = new Set<string>();
 
       while (true) {
         if (!alive) break;
@@ -766,8 +770,11 @@ export function useAnimationEngine(): void {
         if (!event) break;
 
         const visible = isEventVisible(event);
+        if (event.type === 'TILE_DAMAGE' && event.damageSource === 'TRAP') {
+          resolvingScoutTrap = true;
+        }
 
-        // ── Special handling for RESONANCE_TRIGGERED (pan to each surviving chamber, then activate it) ──
+        // Activate Chambers, Caves, then each Khyron after its camera arrival.
         // Handled before the main camera-pan block so we never pan to the destroyed chamber.
         if (event.type === 'RESONANCE_TRIGGERED') {
           if (visible) {
@@ -788,7 +795,7 @@ export function useAnimationEngine(): void {
                 await wait(ANIMATION.POST_ACTION_IDLE_MS);
               }
             }
-            // Crystal Caves share the same resonance window and animation —
+            // Crystal Caves share the same resonance window and animation.
             // pan to each, activate, and play the same VFX so the player
             // sees them "wake up" alongside the chambers.
             for (const caveId of event.survivingCaveIds ?? []) {
@@ -803,6 +810,36 @@ export function useAnimationEngine(): void {
                 await wait(ANIMATION.CRYSTAL_ACTIVATE_VFX_DURATION_MS);
                 useCombatAnimationStore.getState().setBuildingAnimation(caveId, null);
 
+                await wait(ANIMATION.POST_ACTION_IDLE_MS);
+              }
+            }
+          } else {
+            for (const chamberId of event.survivingChamberIds) {
+              useGameStore.getState().activateCrystalChamber(chamberId);
+            }
+            for (const caveId of event.survivingCaveIds ?? []) {
+              useGameStore.getState().activateCrystalCave(caveId);
+            }
+          }
+          if (event.survivingChamberIds.length > 0) {
+            for (const unitId of event.survivingKhyronIds ?? []) {
+              if (presentedKhyronIds.has(unitId)) continue;
+              const unit = useGameStore.getState().units[unitId];
+              if (!unit || !canKhyronResonate(unit) || unit.stats.currentHp <= 0) continue;
+              const presentKhyron = visible || isTileRevealed(unit.position);
+              if (presentKhyron) {
+                useAnimationStore.getState().setCameraTarget(unit.position);
+                await wait(ANIMATION.CAMERA_MOVE_DURATION_MS + ANIMATION.PRE_ACTION_IDLE_MS);
+                if (!alive) return;
+              }
+              const liveUnit = useGameStore.getState().units[unitId];
+              if (!liveUnit || !canKhyronResonate(liveUnit) || liveUnit.stats.currentHp <= 0) continue;
+              presentedKhyronIds.add(unitId);
+              useGameStore.getState().activateCrystalKhyron(unitId);
+              if (presentKhyron) {
+                useCombatAnimationStore.getState().setUnitAnimation(unitId, { type: 'CRYSTAL_ACTIVATE' });
+                await wait(ANIMATION.CRYSTAL_ACTIVATE_VFX_DURATION_MS);
+                useCombatAnimationStore.getState().setUnitAnimation(unitId, null);
                 await wait(ANIMATION.POST_ACTION_IDLE_MS);
               }
             }
@@ -960,7 +997,7 @@ export function useAnimationEngine(): void {
           continue;
         }
 
-        if (visible) {
+        if (visible && !resolvingScoutTrap) {
           // 1. Move camera to event position
           useAnimationStore.getState().setCameraTarget(eventPosition(event));
           await wait(ANIMATION.CAMERA_MOVE_DURATION_MS);
@@ -1662,7 +1699,7 @@ export function useAnimationEngine(): void {
           // applyEvent emits the damage floater. The VFX is short enough that the
           // floater rises through it visibly.
           useGameStore.getState().applyEvent(event);
-          if (visible) await wait(ANIMATION.POST_ACTION_IDLE_MS);
+          if (visible && !resolvingScoutTrap) await wait(ANIMATION.POST_ACTION_IDLE_MS);
           continue;
         }
 
@@ -1872,8 +1909,10 @@ export function useAnimationEngine(): void {
         if (event.type === 'TRAP_TRIGGERED') {
           // applyEvent removes the building from the live display state so the
           // trap sprite disappears at the correct moment in the sequence.
-          // Non-blocking: the stun indicators already provide sufficient visual feedback.
+          // Pause only after the entire Scout Trap sequence has resolved.
           useGameStore.getState().applyEvent(event);
+          if (resolvingScoutTrap && visible) await wait(ANIMATION.POST_ACTION_IDLE_MS);
+          resolvingScoutTrap = false;
           continue;
         }
 
@@ -1910,7 +1949,10 @@ export function useAnimationEngine(): void {
         // 3. Apply event to live game state
         useGameStore.getState().applyEvent(event);
 
-        if (visible) {
+        const nextEvent = useAnimationStore.getState().eventQueue[0];
+        const trapDamageFollows = event.type === 'ENEMY_MOVE' &&
+          nextEvent?.type === 'TILE_DAMAGE' && nextEvent.damageSource === 'TRAP';
+        if (visible && !resolvingScoutTrap && !trapDamageFollows) {
           // 4. Post-action idle (duration varies by event type)
           await wait(postActionDuration(event));
         }

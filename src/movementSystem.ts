@@ -395,6 +395,7 @@ export function checkScoutTrapTrigger(
     cleanupRoostedUnits(state, trapBuildingId);
     delete state.buildings[trapBuildingId];
     tile.buildingId = null;
+    events?.push({ type: 'TRAP_TRIGGERED', buildingId: trapBuildingId, position: { ...trapPos } });
     return;
   }
 
@@ -402,7 +403,7 @@ export function checkScoutTrapTrigger(
   if (!unit.tags.includes(UnitTag.ALERT)) {
     unit.pinnedUntilTurn = state.turn + stunTurns - 1;
     if (events) {
-      events.push({ type: 'STUN_APPLIED', unitId, position: { ...trapPos } });
+      events.push({ type: 'STUN_APPLIED', unitId, position: { ...trapPos }, pinnedUntilTurn: unit.pinnedUntilTurn });
     } else {
       useFloaterStore.getState().addFloater({
         value: 0,
