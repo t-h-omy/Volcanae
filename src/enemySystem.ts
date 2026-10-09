@@ -29,6 +29,7 @@ import { cleanupPortals, cleanupExpiredPortalsEndOfTurn, tryPlanPortalCast, cast
 import { cleanupRoostedUnits, getRoostedUnits } from './buildingRemoval';
 import { isUnitOnCorruptedTile } from './tileStatusSystem';
 import { applyUnitDamage, getUnitDamageOutcome } from './unitDamage';
+import { processInfestedFactionTurn } from './infestedSystem';
 import { isCounterThemeUnitType, pickUnitFromTheme, scoreCountersForPlayer } from './waveThemeSystem';
 import { isSpecialistEffectActive } from './specialistSystem';
 import {
@@ -4432,6 +4433,8 @@ export function runEnemyTurn(
     // 3c. Spawn enemy units after movement so that freed building tiles can be used
     //     (recruitment is scored fresh per-building inside spawnEnemyUnits)
     spawnEnemyUnits(draft, events);
+
+    processInfestedFactionTurn(draft, Faction.ENEMY, events);
 
     // 4. Reset enemy unit action flags for next turn
     for (const unit of Object.values(draft.units)) {

@@ -1,0 +1,172 @@
+import type { Draft } from 'immer';
+import type { GameState, Position, Unit } from './types';
+import { Faction, UnitTag, UnitType } from './types';
+import { MAGE, XP } from './gameConfig';
+import type { GameEvent } from './gameEvents';
+import { applyUnitDamage, getUnitDamageOutcome } from './unitDamage';
+import { canGrantXp, grantXp } from './levelSystem';
+
+type InfestedDeathSnapshot = Pick<Unit, 'id' | 'faction' | 'type' | 'position' | 'tags' | 'infestedByMageId'>;
+
+function snapshotUnit(unit: Unit | Draft<Unit>): InfestedDeathSnapshot {
+  return {
+    id: unit.id,
+    faction: unit.faction,
+    type: unit.type,
+    position: { ...unit.position },
+    tags: [...unit.tags],
+    infestedByMageId: unit.infestedByMageId,
+  };
+}
+
+function creditBurstKill(
+  state: Draft<GameState>,
+  victim: InfestedDeathSnapshot,
+  sourceMageId: string | null,
+): void {
+  if (victim.faction === Faction.PLAYER) {
+    state.gameStats.unitsLost += 1;
+  } else if (sourceMageId && state.units[sourceMageId]?.faction === Faction.PLAYER) {
+    state.gameStats.unitsKilled += 1;
+  }
+
+  if (victim.type === UnitType.CAVE_MONSTER) {
+    state.activeCaveEncounters = state.activeCaveEncounters.filter(
+      (encounter) => encounter.monsterId !== victim.id,
+    );
+  }
+
+  const mage = sourceMageId ? state.units[sourceMageId] : null;
+  if (mage && canGrantXp(mage.type, mage.xp)) {
+    grantXp(state, mage.id, XP.KILL_UNIT, true);
+  }
+}
+
+function resolveDeath(
+  state: Draft<GameState>,
+  deceased: InfestedDeathSnapshot,
+  events: GameEvent[] | undefined,
+  resolvedIds: Set<string>,
+): void {
+  if (!deceased.tags.includes(UnitTag.INFESTED) || resolvedIds.has(deceased.id)) return;
+  resolvedIds.add(deceased.id);
+
+  const sourceMageId = deceased.infestedByMageId ?? null;
+  const deathsFromBurst: InfestedDeathSnapshot[] = [];
+
+  for (let y = deceased.position.y - 1; y <= deceased.position.y + 1; y++) {
+    for (let x = deceased.position.x - 1; x <= deceased.position.x + 1; x++) {
+      if (x === deceased.position.x && y === deceased.position.y) continue;
+      const tile = state.grid[y]?.[x];
+      const target = tile?.unitId ? state.units[tile.unitId] : null;
+      if (!tile || !target) continue;
+
+      const damage = MAGE.INFESTED_DEATH_BURST_DAMAGE;
+      const outcome = getUnitDamageOutcome(target, damage);
+      if (events && damage > 0) {
+        events.push({
+          type: 'TILE_DAMAGE',
+          unitId: target.id,
+          position: { x, y },
+          amount: Math.min(damage, target.stats.currentHp),
+          damageAmount: damage,
+          damageSource: 'INFESTED',
+        });
+      }
+      if (damage > 0) applyUnitDamage(target, damage);
+      if (outcome.died) {
+        const snapshot = snapshotUnit(target);
+        tile.unitId = null;
+        delete state.units[target.id];
+        creditBurstKill(state, snapshot, sourceMageId);
+        deathsFromBurst.push(snapshot);
+      }
+    }
+  }
+
+  for (let y = deceased.position.y - 1; y <= deceased.position.y + 1; y++) {
+    for (let x = deceased.position.x - 1; x <= deceased.position.x + 1; x++) {
+      if (x === deceased.position.x && y === deceased.position.y) continue;
+      const tile = state.grid[y]?.[x];
+      const target = tile?.unitId ? state.units[tile.unitId] : null;
+      if (!target || target.stats.currentHp <= 0) continue;
+      if (!target.tags.includes(UnitTag.INFESTED)) {
+        target.tags.push(UnitTag.INFESTED);
+        target.infestedByMageId = sourceMageId;
+      }
+    }
+  }
+
+  for (const burstDeath of deathsFromBurst) {
+    if (events) {
+      events.push({
+        type: 'UNIT_DEATH',
+        unitId: burstDeath.id,
+        position: { ...burstDeath.position },
+        faction: burstDeath.faction,
+      });
+    }
+    resolveDeath(state, burstDeath, events, resolvedIds);
+  }
+}
+
+/** Resolves a true Infested death after the caller has removed it and emitted UNIT_DEATH. */
+export function resolveInfestedDeath(
+  state: Draft<GameState>,
+  deceased: Unit | Draft<Unit>,
+  events?: GameEvent[],
+): void {
+  resolveDeath(state, snapshotUnit(deceased), events, new Set());
+}
+
+/** Clears infection only when this unit itself receives kill credit. */
+export function clearInfestedOnCreditedKill(
+  state: Draft<GameState>,
+  killerId: string,
+): void {
+  const killer = state.units[killerId];
+  if (!killer?.tags.includes(UnitTag.INFESTED)) return;
+  killer.tags = killer.tags.filter((tag) => tag !== UnitTag.INFESTED);
+  killer.infestedByMageId = null;
+}
+
+export function processInfestedFactionTurn(
+  state: Draft<GameState>,
+  faction: Faction,
+  events: GameEvent[],
+): void {
+  const unitIds = Object.values(state.units)
+    .filter((unit) => unit.faction === faction && unit.tags.includes(UnitTag.INFESTED))
+    .map((unit) => unit.id)
+    .sort();
+
+  for (const unitId of unitIds) {
+    const unit = state.units[unitId];
+    if (!unit) continue;
+    const position: Position = { ...unit.position };
+    const damage = Math.min(MAGE.INFESTED_HP_LOSS_PER_TURN, unit.stats.currentHp);
+    const outcome = applyUnitDamage(unit, MAGE.INFESTED_HP_LOSS_PER_TURN);
+    events.push({
+      type: 'TILE_DAMAGE',
+      unitId,
+      position,
+      amount: damage,
+      damageAmount: MAGE.INFESTED_HP_LOSS_PER_TURN,
+      damageSource: 'INFESTED',
+    });
+    if (!outcome.died) continue;
+
+    const deceased = snapshotUnit(unit);
+    const tile = state.grid[position.y]?.[position.x];
+    if (tile?.unitId === unitId) tile.unitId = null;
+    delete state.units[unitId];
+    creditBurstKill(state, deceased, deceased.infestedByMageId ?? null);
+    events.push({
+      type: 'UNIT_DEATH',
+      unitId,
+      position,
+      faction: deceased.faction,
+    });
+    resolveDeath(state, deceased, events, new Set());
+  }
+}

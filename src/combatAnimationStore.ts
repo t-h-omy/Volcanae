@@ -97,6 +97,7 @@ export type TileVfxVariant =
   | 'SPELL_IMPACT_CAPTURE_ENEMY'
   | 'BURNING_DAMAGE'
   | 'CORRUPTION_APPLIED'
+  | 'INFESTED_DEATH_BURST'
   | 'INVALID_ACTION';
 
 export interface TileVfx {

@@ -21,6 +21,7 @@ import { resolveSlide } from './movementSystem';
 import { isSpecialistEffectActive } from './specialistSystem';
 import { anyAttackableEnemyTargetInRange, applySpawnActionFlags, getAttackTargets } from './unitActions';
 import { applyUnitDamage, getUnitDamageOutcome } from './unitDamage';
+import { clearInfestedOnCreditedKill, resolveInfestedDeath } from './infestedSystem';
 
 // Counter for generating unique gravestone building IDs within this module
 let combatSystemIdCounter = 0;
@@ -787,6 +788,8 @@ function resolveKnockback(
       position: { x: destX, y: destY },
       faction: defenderFaction,
     });
+    clearInfestedOnCreditedKill(state, attackerId);
+    resolveInfestedDeath(state, defender, outEvents);
     return;
   }
 
@@ -813,6 +816,8 @@ function resolveKnockback(
         position: { x: destX, y: destY },
         faction: defenderFaction,
       });
+      clearInfestedOnCreditedKill(state, attackerId);
+      resolveInfestedDeath(state, defender, outEvents);
       return;
     }
     // Has bridge → fall through to normal knockback below.
@@ -844,6 +849,8 @@ function resolveKnockback(
       position: { x: destX, y: destY },
       faction: defenderFaction,
     });
+    clearInfestedOnCreditedKill(state, attackerId);
+    resolveInfestedDeath(state, defender, outEvents);
     return;
   }
 
@@ -886,6 +893,8 @@ function resolveKnockback(
         position: deathPos,
         faction: defenderFaction,
       });
+      clearInfestedOnCreditedKill(state, attackerId);
+      resolveInfestedDeath(state, defender, outEvents);
       return;
     }
     // Slide moved or kept the unit; emit knockback to its final position.
@@ -1184,6 +1193,9 @@ function resolveAttackInner(
         createGravestoneAt(state, attackerPos, attackerType);
       }
     }
+    clearInfestedOnCreditedKill(state, defenderId);
+    resolveInfestedDeath(state, attacker, outEvents);
+    resolveInfestedDeath(state, attacker, outEvents);
     // Grant XP to defender for killing the attacker (regardless of BRANDMARKED)
     grantXp(state, defenderId, XP.KILL_UNIT, suppressFloaters);
   } else {
@@ -1232,12 +1244,15 @@ function resolveAttackInner(
       if (defenderFaction === Faction.PLAYER) state.gameStats.unitsLost += 1;
       else if (attackerFaction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
     }
+    resolveInfestedDeath(state, defender, outEvents);
 
     // Grant XP to attacker for killing the defender (regardless of BRANDMARKED)
     if (!attackerDead) {
+      clearInfestedOnCreditedKill(state, attackerId);
       recordKhyronKill(state, attackerId, defenderFaction, defenderTags);
       grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
     }
+    resolveInfestedDeath(state, defender, outEvents);
 
     // EMBER_DEMON kill: grant crystal reward when player kills a hostile Ember Demon
     if (attackerFaction === Faction.PLAYER && defenderFaction === Faction.ENEMY && defenderType === UnitType.EMBER_DEMON) {
@@ -1476,6 +1491,8 @@ function resolveAttackInner(
             position: { x: nx, y: ny },
             faction: splashTarget.faction,
           });
+          clearInfestedOnCreditedKill(state, attackerId);
+          resolveInfestedDeath(state, splashTarget, outEvents);
         } else {
           applyUnitDamage(splashTarget, splashDamage);
           updateBerserkLatch(splashTarget);
@@ -1527,6 +1544,8 @@ function resolveAttackInner(
             cleaveTile.unitId = null;
             recordKhyronKill(state, attackerId, cleaveTarget.faction, cleaveTarget.tags);
             delete state.units[cleaveTargetId];
+            clearInfestedOnCreditedKill(state, attackerId);
+            resolveInfestedDeath(state, cleaveTarget, outEvents);
             if (cleaveTarget.faction === Faction.PLAYER) state.gameStats.unitsLost += 1;
             else if (attacker.faction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
             grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
@@ -1613,6 +1632,8 @@ function resolveAttackInner(
                 position: { ...behindPos },
                 faction: rearUnit.faction,
               });
+              clearInfestedOnCreditedKill(state, attackerId);
+              resolveInfestedDeath(state, rearUnit, outEvents);
             } else {
               applyUnitDamage(rearUnit, finalPierceDamage);
               updateBerserkLatch(rearUnit);
@@ -1904,6 +1925,7 @@ export function resolveBuildingAttack(
       if (defenderFaction === Faction.PLAYER) state.gameStats.unitsLost += 1;
       else if (buildingFaction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
     }
+    resolveInfestedDeath(state, defender);
 
     // CRYSTAL_TOWER: grant crystals when a Crystal Tower kills an enemy unit
     if (
@@ -2177,6 +2199,7 @@ function resolveAttackOnBuildingInner(
         createGravestoneAt(state, attackerPos, attackerType);
       }
     }
+    resolveInfestedDeath(state, attacker);
   } else {
     if (canCounter) applyUnitDamage(attacker, combatResult.attackerHpLost);
     updateBerserkLatch(attacker);
@@ -2346,6 +2369,8 @@ function resolveAttackOnBuildingInner(
             position: { x: nx, y: ny },
             faction: splashTarget.faction,
           });
+          clearInfestedOnCreditedKill(state, attackerId);
+          resolveInfestedDeath(state, splashTarget, outEvents);
         } else {
           applyUnitDamage(splashTarget, splashDamage);
           updateBerserkLatch(splashTarget);
@@ -2403,6 +2428,8 @@ function resolveAttackOnBuildingInner(
               position: { x: cx, y: cy },
               faction: cleaveTarget.faction,
             });
+            clearInfestedOnCreditedKill(state, attackerId);
+            resolveInfestedDeath(state, cleaveTarget, outEvents);
           } else {
             applyUnitDamage(cleaveTarget, finalCleaveDamage);
             updateBerserkLatch(cleaveTarget);
@@ -2477,6 +2504,8 @@ function resolveAttackOnBuildingInner(
                 position: { ...behindPos },
                 faction: rearUnit.faction,
               });
+              clearInfestedOnCreditedKill(state, attackerId);
+              resolveInfestedDeath(state, rearUnit, outEvents);
             } else {
               applyUnitDamage(rearUnit, finalPierceDamage);
               updateBerserkLatch(rearUnit);

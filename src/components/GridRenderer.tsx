@@ -1593,10 +1593,12 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
 
   const isEmberling = unit.type === UnitType.EMBERLING;
   const isTaunted = unit.tags.includes(UnitTag.TAUNT);
+  const isInfested = unit.tags.includes(UnitTag.INFESTED);
   const stoneSkinHp = unit.stoneSkinHp ?? 0;
   const hasStoneSkin = unit.tags.includes(UnitTag.STONE_SKIN) && stoneSkinHp > 0;
   const stoneSkinHpPct = Math.min(100, (stoneSkinHp / MAGE.STONE_SKIN_HP) * 100);
   const tauntIcon = TAG_INFO[UnitTag.TAUNT]?.icon;
+  const infestedIcon = TAG_INFO[UnitTag.INFESTED]?.icon;
 
   const tagIcons = unit.tags
     .filter((tag) => tag !== UnitTag.TAUNT)
@@ -1630,7 +1632,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
         } as React.CSSProperties
       }
     >
-      {(unit.stats.currentHp < unit.stats.maxHp || hasDebuff || isTaunted || hasStoneSkin) && (
+      {(unit.stats.currentHp < unit.stats.maxHp || hasDebuff || isTaunted || isInfested || hasStoneSkin) && (
         <>
           {hasStoneSkin && (
             <div
@@ -1655,6 +1657,9 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
           </div>
           {isTaunted && tauntIcon && (
             <span className="unit-taunt-badge" title={t('tag.TAUNT.label')}>{tauntIcon}</span>
+          )}
+          {isInfested && infestedIcon && (
+            <span className="unit-infested-badge" title={t('tag.INFESTED.label')}>{infestedIcon}</span>
           )}
           {unit.stats.currentHp < unit.stats.maxHp && (
             <span className="unit-hp-text">{unit.stats.currentHp}</span>

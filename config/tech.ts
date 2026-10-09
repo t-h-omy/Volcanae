@@ -560,6 +560,14 @@ export const TECH_TREE: TechNodeDefinition[] = [
     ],
   },
   {
+    id: 'LAVA_MOLD',
+    requires: ['EXPLODE'],
+    cost: 7,
+    effects: [
+      { type: 'UNLOCK_SPELL', spellId: SpellId.LAVA_MOLD },
+    ],
+  },
+  {
     id: 'SPELL_REACH',
     requires: ['EXPLODE'],
     cost: 7,

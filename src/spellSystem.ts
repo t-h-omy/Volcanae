@@ -133,6 +133,7 @@ const SPELL_TARGET_REASONS: Record<string, TextRef> = {
   TRANSPOSE_TERRAIN: { key: 'reason.spell.transposeTerrain' },
   BRANDMARK_ALREADY_BRANDMARKED: { key: 'reason.spell.brandmarkAlreadyBrandmarked' },
   TAUNT_ALREADY_TAUNTED: { key: 'reason.spell.tauntAlreadyTaunted' },
+  INFESTED_ALREADY: { key: 'reason.spell.infestedAlready' },
   STONE_SKIN_ALREADY_ACTIVE: { key: 'reason.spell.stoneSkinAlreadyActive' },
   BRANDMARK_SUMMONED: { key: 'reason.spell.brandmarkSummoned' },
   BRANDMARK_SELF: { key: 'reason.spell.brandmarkSelf' },
@@ -193,6 +194,15 @@ export function getTransposeTerrainBlockedTargets(
   if (!result) return [];
   return result.candidates
     .filter((unit) => !isTransposeTerrainLegal(state, result.first, unit))
+    .map((unit) => ({ ...unit.position }));
+}
+
+case 'LAVA_MOLD': {
+  return Object.values(state.units)
+    .filter((unit) =>
+      unit.faction === Faction.ENEMY
+      && !unit.tags.includes(UnitTag.INFESTED)
+      && isTileInSpellRange(mage, unit.position, range))
     .map((unit) => ({ ...unit.position }));
 }
 
@@ -1409,12 +1419,32 @@ export function castSpell(
       success = true;
       break;
     }
+
+    case 'LAVA_MOLD': {
+      if (!tile.unitId) return null;
+      const tappedUnit = state.units[tile.unitId];
+      if (!tappedUnit || tappedUnit.faction !== Faction.ENEMY) return null;
+      if (!isTileInSpellRange(mage, tappedUnit.position, range)) return null;
+      if (tappedUnit.tags.includes(UnitTag.INFESTED)) {
+        return SPELL_TARGET_REASONS.INFESTED_ALREADY;
+      }
+      return null;
+    }
     case 'STONE_SKIN': {
       const targetId = state.grid[targetPosition.y]?.[targetPosition.x]?.unitId;
       const target = targetId ? state.units[targetId] : undefined;
       if (!target || target.faction !== Faction.PLAYER || target.tags.includes(UnitTag.STONE_SKIN)) return false;
       target.tags.push(UnitTag.STONE_SKIN);
       target.stoneSkinHp = MAGE.STONE_SKIN_HP;
+      success = true;
+      break;
+    }
+    case 'LAVA_MOLD': {
+      const targetId = state.grid[targetPosition.y]?.[targetPosition.x]?.unitId;
+      const target = targetId ? state.units[targetId] : undefined;
+      if (!target || target.faction !== Faction.ENEMY || target.tags.includes(UnitTag.INFESTED)) return false;
+      target.tags.push(UnitTag.INFESTED);
+      target.infestedByMageId = mage.id;
       success = true;
       break;
     }

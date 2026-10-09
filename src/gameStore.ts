@@ -76,6 +76,7 @@ import { t } from './i18n/i18n';
 import { resourceName } from './i18n/entityText';
 import { appendChunk, deleteTurnsAfter, getTraceIndexSeed, readMeta as readAiTraceMeta, sealRun } from './aiTraceStore';
 import { applyUnitDamage } from './unitDamage';
+import { processInfestedFactionTurn } from './infestedSystem';
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
@@ -2175,6 +2176,10 @@ export const useGameStore = create<GameStore>()(
         // Get a plain (non-Proxy) snapshot of the current state so runEnemyTurn
         // can use produce() internally without nesting immer producers.
         let snapshot: GameState = current(state);
+        const playerInfestedEvents: GameEvent[] = [];
+        snapshot = produce(snapshot, (draft) => {
+          processInfestedFactionTurn(draft, Faction.PLAYER, playerInfestedEvents);
+        });
         if (isSpecialistEffectActive(snapshot, 'IDLE_HEAL')) {
           snapshot = produce(snapshot, (draft) => {
             for (const unit of Object.values(draft.units)) {
@@ -2248,7 +2253,7 @@ export const useGameStore = create<GameStore>()(
         );
 
         // Phase 4: Lava phase
-        const allEvents: GameEvent[] = [...resolveCaptureEvents, ...idleHealEvents, ...enemyEvents, ...tileStatusEvents];
+        const allEvents: GameEvent[] = [...resolveCaptureEvents, ...playerInfestedEvents, ...idleHealEvents, ...enemyEvents, ...tileStatusEvents];
         computedState = produce(computedState, (draft) => {
           draft.turnsUntilLavaAdvance -= 1;
         });
@@ -2849,6 +2854,15 @@ export const useGameStore = create<GameStore>()(
                   floaterType: 'damage',
                 });
               }
+              if (unit.tags.includes(UnitTag.INFESTED)) {
+                useCombatAnimationStore.getState().addTileVfx({
+                  id: crypto.randomUUID(),
+                  x: event.position.x,
+                  y: event.position.y,
+                  variant: 'INFESTED_DEATH_BURST',
+                  durationMs: ANIMATION.INFESTED_DEATH_BURST_MS,
+                });
+              }
               const tile = state.grid[unit.position.y][unit.position.x];
               if (tile.unitId === event.unitId) {
                 tile.unitId = null;
@@ -3240,6 +3254,17 @@ export const useGameStore = create<GameStore>()(
           }
 
           case 'LAVA_ADVANCE': {
+            for (const unitId of event.destroyedUnitIds) {
+              const unit = state.units[unitId];
+              if (!unit?.tags.includes(UnitTag.INFESTED)) continue;
+              useCombatAnimationStore.getState().addTileVfx({
+                id: crypto.randomUUID(),
+                x: unit.position.x,
+                y: unit.position.y,
+                variant: 'INFESTED_DEATH_BURST',
+                durationMs: ANIMATION.INFESTED_DEATH_BURST_MS,
+              });
+            }
             // Pass skipRoostedCleanup=true so that life-bound units (e.g. Crystal
             // Drake) are NOT removed here. Their queued UNIT_DEATH events will
             // animate the death and let the auto-cam pan to them; applyEvent for

@@ -81,6 +81,8 @@ export const ANIMATION = {
   SLIDE_KILL_FALL_DURATION_MS: 400,
   /** Duration of the expanding cleave slash ring VFX (ms) */
   CLEAVE_VFX_DURATION_MS: 350,
+  /** Duration of the green slime burst on Infested unit death (ms). */
+  INFESTED_DEATH_BURST_MS: 650,
   /**
    * Radius of the cleave ring VFX in tile-widths, measured from the attacker centre.
    * Used by CleaveVfxLayer in GridRenderer.tsx to scale the ring element.

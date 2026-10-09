@@ -194,6 +194,13 @@
   pointer-events: none;
 }
 
+.unit-infested-badge {
+  font-size: 9px;
+  line-height: 1;
+  filter: drop-shadow(0 0 3px #42e86f);
+  pointer-events: none;
+}
+
 /* ── Unit stun symbol ── */
 
 .unit-stun-symbol {
@@ -1632,6 +1639,26 @@
   0%   { opacity: 0;    transform: translateY(15%) scale(0.7, 0.4); }
   30%  { opacity: 1;    transform: translateY(-5%) scale(1.0, 0.85); }
   100% { opacity: 0;    transform: translateY(-25%) scale(0.9, 1.1); }
+}
+
+/* ── INFESTED_DEATH_BURST — bright green slime eruption ──────────────── */
+
+.tile-vfx--infested-death-burst {
+  background:
+    radial-gradient(circle at 50% 50%,
+      rgba(180, 255, 100, 0.95) 0%,
+      rgba(52, 224, 83, 0.82) 24%,
+      rgba(14, 115, 48, 0.56) 48%,
+      rgba(5, 55, 28, 0) 72%);
+  border-radius: 50%;
+  opacity: 0;
+  animation: infestedSlimeBurst var(--tile-vfx-duration, 650ms) ease-out forwards;
+}
+
+@keyframes infestedSlimeBurst {
+  0% { opacity: 0; transform: scale(0.2); }
+  24% { opacity: 1; transform: scale(1.2); }
+  100% { opacity: 0; transform: scale(1.65); }
 }
 
 /* ── CORRUPTION_APPLIED — dark-purple crack pulse, low/background ────── */

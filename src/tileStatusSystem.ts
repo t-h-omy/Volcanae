@@ -11,11 +11,12 @@
 
 import type { Draft } from 'immer';
 import { TileType, TileStatus, Faction, UnitTag } from './types';
-import type { GameState, Position } from './types';
+import type { GameState, Position, Unit } from './types';
 import type { GameEvent } from './gameEvents';
 import { TILE_STATUS_WHITELIST, BURNING_TILE_DAMAGE } from './gameConfig';
 import { updateBerserkLatch } from './combatSystem';
 import { applyUnitDamage } from './unitDamage';
+import { resolveInfestedDeath } from './infestedSystem';
 
 // ============================================================================
 // QUERY HELPERS
@@ -74,6 +75,7 @@ export function clearTileStatus(
       }
       tile.unitId = null;
       delete state.units[unitId];
+      resolveInfestedDeath(state, unit, events);
     }
   }
 }
@@ -156,7 +158,7 @@ export function processTileStatusEndOfTurn(
 ): void {
   // Collect IDs of units that die from burn damage; process after the scan loop
   // to avoid mutating the grid while we iterate it.
-  const burnDying: Array<{ unitId: string; position: Position; faction: Faction }> = [];
+  const burnDying: Array<{ unitId: string; position: Position; faction: Faction; unit: Unit }> = [];
 
   for (let y = 0; y < state.grid.length; y++) {
     for (let x = 0; x < state.grid[y].length; x++) {
@@ -193,13 +195,14 @@ export function processTileStatusEndOfTurn(
           unitId: unit.id,
           position: { x: unit.position.x, y: unit.position.y },
           faction: unit.faction,
+          unit,
         });
       }
     }
   }
 
   // Process deaths: remove dead units and emit UNIT_DEATH events.
-  for (const { unitId, position, faction } of burnDying) {
+  for (const { unitId, position, faction, unit } of burnDying) {
     const tile = state.grid[position.y]?.[position.x];
     if (tile && tile.unitId === unitId) {
       tile.unitId = null;
@@ -217,5 +220,6 @@ export function processTileStatusEndOfTurn(
         faction,
       });
     }
+    resolveInfestedDeath(state, unit, events);
   }
 }

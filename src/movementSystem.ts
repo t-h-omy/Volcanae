@@ -15,6 +15,7 @@ import { getBridgeAt, canTraverseEdge } from './bridgeSystem';
 import type { GameEvent } from './gameEvents';
 import { updateBerserkLatch } from './combatSystem';
 import { applyUnitDamage } from './unitDamage';
+import { resolveInfestedDeath } from './infestedSystem';
 
 // ============================================================================
 // MOVEMENT CALCULATIONS
@@ -392,6 +393,8 @@ export function checkScoutTrapTrigger(
     tile.unitId = null;
     state.gameStats.unitsKilled += 1;
     delete state.units[unitId];
+    events?.push({ type: 'UNIT_DEATH', unitId, position: { ...trapPos }, faction: unit.faction });
+    resolveInfestedDeath(state, unit, events);
     cleanupRoostedUnits(state, trapBuildingId);
     delete state.buildings[trapBuildingId];
     tile.buildingId = null;
@@ -491,6 +494,7 @@ export function resolveSlide(
       state.gameStats.unitsLost += 1;
     }
     delete state.units[unitId];
+    resolveInfestedDeath(state, unit);
     return;
   }
 
@@ -506,6 +510,7 @@ export function resolveSlide(
         state.gameStats.unitsLost += 1;
       }
       delete state.units[unitId];
+      resolveInfestedDeath(state, unit);
       return;
     }
   }
@@ -525,6 +530,7 @@ export function resolveSlide(
       state.gameStats.unitsLost += 1;
     }
     delete state.units[unitId];
+    resolveInfestedDeath(state, unit);
     return;
   }
 
@@ -596,6 +602,7 @@ export function moveUnit(
   if (newTile.isLava && unit.faction === Faction.ENEMY) {
     newTile.unitId = null;
     delete state.units[unitId];
+    resolveInfestedDeath(state, unit);
     state.ember += 1;
     return;
   }
