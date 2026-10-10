@@ -176,7 +176,7 @@ describe('Corrupted Qork registration and targeting', () => {
     expect(qork.defense).toBeLessThan(skeleton.defense);
     expect(qork.levelUp).toHaveLength(2);
     expect(SPELL_DEFINITIONS[SpellId.CORRUPTED_QORK].emoji).toBe('🐗');
-    expect(UNIT_SPRITE[UnitType.CORRUPTED_QORK]).toContain('corrupted_qork_100px.png');
+    expect(UNIT_SPRITE[UnitType.CORRUPTED_QORK]).toContain('qork_100px.png');
     expect(ENEMY_UNIT_SPRITE[UnitType.CORRUPTED_QORK]).toBeUndefined();
   });
 

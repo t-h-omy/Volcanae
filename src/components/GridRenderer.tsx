@@ -23,7 +23,7 @@ import { RENDER } from '../../config/render';
 import { INPUT } from '../../config/input';
 import { getUnitTargetLevel, usesNonXpProgression } from '../levelSystem';
 import { useZoomStore } from '../zoomStore';
-import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE, TILE_STATUS_SPRITE, RESOURCE_SPRITE, ENEMY_BUILDING_SPRITE, PLAYER_BUILDING_SPRITE, TERRAIN_RESOURCE_SPRITE, CRYSTAL_CHAMBER_ACTIVE_SPRITE, CRYSTAL_CAVE_ACTIVE_SPRITE, CRYSTAL_KHYRON_ACTIVE_SPRITE, ENEMY_UNIT_SPRITE, PLAYER_UNIT_SPRITE, TUNNEL_HOLE_SPRITE, TUNNEL_EARTHQUAKE_SPRITE, PORTAL_ENTRANCE_SPRITE, PORTAL_EXIT_SPRITE, getBridgeSprite } from '../assetRegistry';
+import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE, TILE_STATUS_SPRITE, RESOURCE_SPRITE, ENEMY_BUILDING_SPRITE, PLAYER_BUILDING_SPRITE, TERRAIN_RESOURCE_SPRITE, CRYSTAL_CHAMBER_ACTIVE_SPRITE, CRYSTAL_CAVE_ACTIVE_SPRITE, CRYSTAL_KHYRON_ACTIVE_SPRITE, ENEMY_UNIT_SPRITE, PLAYER_UNIT_SPRITE, TUNNEL_HOLE_SPRITE, TUNNEL_EARTHQUAKE_SPRITE, PORTAL_ENTRANCE_SPRITE, PORTAL_EXIT_SPRITE, MAGE_PORTAL_SPRITE, getBridgeSprite } from '../assetRegistry';
 import { isKhyronResonanceActive } from '../khyronSystem';
 import MissingSprite from './MissingSprite';
 import {
@@ -726,6 +726,16 @@ export default function GridRenderer() {
     return set;
   }, [portals]);
 
+  const magePortalSet = useMemo<Set<string>>(() => {
+    const set = new Set<string>();
+    for (const portal of Object.values(portals)) {
+      if (portal.kind !== 'MAGE') continue;
+      set.add(`${portal.entrancePos.x},${portal.entrancePos.y}`);
+      set.add(`${portal.exitPos.x},${portal.exitPos.y}`);
+    }
+    return set;
+  }, [portals]);
+
   const portalExitSet = useMemo<Set<string>>(() => {
     const set = new Set<string>();
     for (const portal of Object.values(portals)) {
@@ -1050,6 +1060,7 @@ export default function GridRenderer() {
             const isEarthquakeIndicator = earthquakeSet.has(key);
             const isPortalEntrance = portalEntranceSet.has(key);
             const isPortalExit = portalExitSet.has(key);
+            const isMagePortal = magePortalSet.has(key);
             const isSelected =
               (tile.unitId != null && tile.unitId === selectedUnitId) ||
               (tile.buildingId != null && tile.buildingId === selectedBuildingId);
@@ -1081,6 +1092,7 @@ export default function GridRenderer() {
                 isEarthquakeIndicator={isEarthquakeIndicator}
                 isPortalEntrance={isPortalEntrance}
                 isPortalExit={isPortalExit}
+                isMagePortal={isMagePortal}
               />
             );
           }),
@@ -1145,6 +1157,8 @@ interface TileCellProps {
   isPortalEntrance: boolean;
   /** True when an active portal exit is on this tile. */
   isPortalExit: boolean;
+  /** True when this tile is an endpoint of a player-cast Mage Portal. */
+  isMagePortal: boolean;
 }
 
 function TileCellInner({
@@ -1172,6 +1186,7 @@ function TileCellInner({
   isEarthquakeIndicator,
   isPortalEntrance,
   isPortalExit,
+  isMagePortal,
 }: TileCellProps) {
   const buildingIconSize = tileSize;
 
@@ -1434,8 +1449,8 @@ function TileCellInner({
 
       {/* portal entrance overlay — shown while an active portal entrance is on this tile */}
       {isPortalEntrance && tile.isRevealed && (
-        PORTAL_ENTRANCE_SPRITE
-          ? <img src={PORTAL_ENTRANCE_SPRITE} alt="" className="tile-overlay" style={{ width: tileSize, height: tileSize, objectFit: 'cover' }} />
+        (isMagePortal ? MAGE_PORTAL_SPRITE : PORTAL_ENTRANCE_SPRITE)
+          ? <img src={isMagePortal ? MAGE_PORTAL_SPRITE : PORTAL_ENTRANCE_SPRITE} alt="" className="tile-overlay" style={{ width: tileSize, height: tileSize, objectFit: 'cover' }} />
           : <div className="tile-overlay tile--portal-entrance" />
       )}
 

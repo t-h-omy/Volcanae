@@ -25,6 +25,7 @@ import {
   TUNNEL_EARTHQUAKE_SPRITE,
   PORTAL_ENTRANCE_SPRITE,
   PORTAL_EXIT_SPRITE,
+  MAGE_PORTAL_SPRITE,
 } from './assetRegistry';
 
 export function preloadAssets(): Promise<void> {
@@ -46,6 +47,7 @@ export function preloadAssets(): Promise<void> {
     TUNNEL_EARTHQUAKE_SPRITE,
     PORTAL_ENTRANCE_SPRITE,
     PORTAL_EXIT_SPRITE,
+    MAGE_PORTAL_SPRITE,
   ].filter((p): p is string => typeof p === 'string' && p !== '');
 
   if (paths.length === 0) return Promise.resolve();
