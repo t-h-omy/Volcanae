@@ -248,6 +248,7 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
   const [currentTraceMeta, setCurrentTraceMeta] = useState<AiTraceMeta | null>(null);
   const [sealedTraceRuns, setSealedTraceRuns] = useState<AiTraceMeta[]>([]);
   const [traceBusyId, setTraceBusyId] = useState<string | null>(null);
+  const [traceMenuOpen, setTraceMenuOpen] = useState(false);
 
   // Specialists not yet in the player's roster
   const availableSpecialists = useMemo(
@@ -282,15 +283,18 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') {
+        if (traceMenuOpen) setTraceMenuOpen(false);
+        else onClose();
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [onClose, traceMenuOpen]);
 
   useEffect(() => {
-    void refreshTraceState();
-  }, [refreshTraceState, turn]);
+    if (traceMenuOpen) void refreshTraceState();
+  }, [refreshTraceState, turn, traceMenuOpen]);
 
   const handleClearCurrentTrace = useCallback(async () => {
     if (!activeSaveId) return;
@@ -329,10 +333,12 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
       <div className="hud-dev-overlay-backdrop" onClick={onClose}>
         <div className="hud-dev-overlay" onClick={(e) => e.stopPropagation()}>
           <div className="hud-dev-overlay-header">
-            <span>🛠️ Dev Options</span>
+            <span>{traceMenuOpen ? '📼 AI Trace' : '🛠️ Dev Options'}</span>
             <button className="hud-modal-close" onClick={onClose}>✕</button>
           </div>
           <div className="hud-dev-overlay-body">
+            {!traceMenuOpen && (
+              <>
             <div className="hud-dev-overlay-section-title">Toggles</div>
             <label className="hud-dev-option-row">
               <span className="hud-dev-option-label">Language (dev)</span>
@@ -373,6 +379,12 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
                 onChange={(e) => setRecordAiTrace(e.target.checked)}
               />
             </label>
+            <button className="hud-dev-action-btn" onClick={() => setTraceMenuOpen(true)}>📼 AI Trace</button>
+              </>
+            )}
+            {traceMenuOpen && (
+              <>
+            <button className="hud-dev-action-btn" onClick={() => setTraceMenuOpen(false)}>Back to Dev Options</button>
             <div className="hud-dev-overlay-section-title">AI Trace</div>
             {activeSaveId && recordAiTrace && currentTraceMeta && currentTraceMeta.rowCount > 0 ? (
               <>
@@ -415,6 +427,10 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
                 ))}
               </div>
             )}
+              </>
+            )}
+            {!traceMenuOpen && (
+              <>
             <div className="hud-dev-overlay-section-title">Stats</div>
             <button className="hud-dev-action-btn" onClick={() => setDevStatsOpen(true)}>📊 Dev Stats</button>
             <div className="hud-dev-overlay-section-title">Actions</div>
@@ -441,6 +457,8 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
             <button className="hud-dev-action-btn" disabled={!selectedTilePos} onClick={() => debugApplyTileStatus(TileStatus.FROZEN)}>❄️ Apply FROZEN</button>
             <button className="hud-dev-action-btn" disabled={!selectedTilePos} onClick={() => debugApplyTileStatus(TileStatus.BURNING)}>🔥 Apply BURNING</button>
             <button className="hud-dev-action-btn" disabled={!selectedTilePos} onClick={debugClearTileStatus}>🧹 Clear Status</button>
+              </>
+            )}
           </div>
         </div>
       </div>

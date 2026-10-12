@@ -22,6 +22,10 @@ To toggle hints on or off, use the "Show hints" option in the New Campaign panel
 - 🎨 Dark theme (black background, dark red accents)
 - 📏 Fullscreen responsive design
 
+## AI Trace Diagnostics
+
+Enable **Record AI decisions (diagnostics)** in Dev Options to capture AI traces. The **AI Trace** submenu contains trace statistics, export variants, and saved finished runs. Victory and defeat screens offer a single **Export AI Trace** button when a trace is available, downloading the full trace as a JSON file.
+
 ## Mobile Construction
 
 At widths up to 768 px, expanding **Construct Building** temporarily hides the selected-unit panel and **End Turn** while keeping the map visible. Tap the construction header again to restore the normal HUD. Changing units or tiles, losing construction eligibility, or opening a blocking hint or cave popup resets the menu.

@@ -1,4 +1,5 @@
 import { buildTraceExport, type TraceExportMode } from './aiTraceExport';
+import { UI } from '../config/ui';
 
 export function formatAiTraceBytes(bytes: number): string {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -6,23 +7,23 @@ export function formatAiTraceBytes(bytes: number): string {
   return `${bytes} B`;
 }
 
-export async function shareOrDownloadAiTrace(blob: Blob, filename: string): Promise<void> {
-  const file = new File([blob], filename, { type: 'application/json' });
-  if (navigator.canShare?.({ files: [file] })) {
-    await navigator.share({ files: [file] });
-    return;
-  }
+export function downloadAiTrace(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
   anchor.download = filename;
-  anchor.click();
-  URL.revokeObjectURL(url);
+  document.body.appendChild(anchor);
+  try {
+    anchor.click();
+  } finally {
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), UI.EXPORT_URL_REVOKE_DELAY_MS);
+  }
 }
 
 export async function exportAiTrace(slotId: string, mode: TraceExportMode): Promise<Blob | null> {
   const result = await buildTraceExport(slotId, mode);
   if (!result) return null;
-  await shareOrDownloadAiTrace(result.blob, result.filename);
+  downloadAiTrace(result.blob, result.filename);
   return result.blob;
 }

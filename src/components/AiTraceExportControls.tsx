@@ -38,31 +38,31 @@ export function AiTraceExportControls({ slotId, compact = false }: { slotId: str
 
   return (
     <div className={`ai-trace-export-controls${compact ? ' ai-trace-export-controls--compact' : ''}`}>
-      <div className="hud-dev-stat-row">
-        <span className="hud-dev-stat-label">Turns</span>
-        <span className="hud-dev-stat-value">{`${meta.firstTurn} to ${meta.lastTurn}`}</span>
-      </div>
-      <div className="hud-dev-stat-row">
-        <span className="hud-dev-stat-label">Rows</span>
-        <span className="hud-dev-stat-value">{meta.rowCount}</span>
-      </div>
-      <div className="hud-dev-stat-row">
-        <span className="hud-dev-stat-label">Size</span>
-        <span className="hud-dev-stat-value">{formatAiTraceBytes(meta.byteEstimate)}</span>
-      </div>
-      <div className="hud-dev-stat-row">
-        <span className="hud-dev-stat-label">Status</span>
-        <span className="hud-dev-stat-value ai-trace-panel-status">{statusText}</span>
-      </div>
+      {!compact && (
+        <>
+          <div className="hud-dev-stat-row">
+            <span className="hud-dev-stat-label">Turns</span>
+            <span className="hud-dev-stat-value">{`${meta.firstTurn} to ${meta.lastTurn}`}</span>
+          </div>
+          <div className="hud-dev-stat-row">
+            <span className="hud-dev-stat-label">Rows</span>
+            <span className="hud-dev-stat-value">{meta.rowCount}</span>
+          </div>
+          <div className="hud-dev-stat-row">
+            <span className="hud-dev-stat-label">Size</span>
+            <span className="hud-dev-stat-value">{formatAiTraceBytes(meta.byteEstimate)}</span>
+          </div>
+          <div className="hud-dev-stat-row">
+            <span className="hud-dev-stat-label">Status</span>
+            <span className="hud-dev-stat-value ai-trace-panel-status">{statusText}</span>
+          </div>
+        </>
+      )}
       <div className={`ai-trace-export-actions${compact ? ' ai-trace-export-actions--compact' : ''}`}>
         <button className="hud-dev-action-btn" onClick={() => void handleExport('full')} disabled={busyMode !== null}>
           {busyMode === 'full' ? 'Building export...' : compact ? '🧠 Export AI Trace' : 'Export'}
         </button>
-        {compact ? (
-          <button className="hud-dev-action-btn ai-trace-export-actions-compact-secondary" onClick={() => void handleExport('flaggedOnly')} disabled={busyMode !== null}>
-            {busyMode === 'flaggedOnly' ? 'Building export...' : 'Flagged only'}
-          </button>
-        ) : (
+        {!compact && (
           <>
             <button className="hud-dev-action-btn" onClick={() => void handleExport('noTerms')} disabled={busyMode !== null}>
               {busyMode === 'noTerms' ? 'Building export...' : 'Export without terms'}
