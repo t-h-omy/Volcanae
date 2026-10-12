@@ -5,6 +5,8 @@
  */
 
 export const UI = {
+  /** Keep export URLs alive until the browser has started the download. */
+  EXPORT_URL_REVOKE_DELAY_MS: 60_000,
   /** Absolute minimum font size used by FitText (px) */
   FIT_TEXT_MIN_FONT_SIZE_PX: 9,
   /** Minimum FitText font size as a proportion of its CSS font size */

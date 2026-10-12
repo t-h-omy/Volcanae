@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.115.18 - AI trace download and menus
+
+AI trace exports now download a JSON file directly instead of opening the share sheet, with download URLs kept alive long enough for the browser to start saving. End screens show a single full-trace export button without trace statistics. Dev Options now keeps current trace statistics, export variants, and finished traces in a dedicated AI Trace submenu.
+
 ### v0.115.17 - New sprite artwork
 
 Integrated the new Ghoul, Corrupted Qork, and player Mage Portal sprites into the game.
