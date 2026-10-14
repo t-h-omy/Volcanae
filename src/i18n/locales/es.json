@@ -207,7 +207,7 @@
   "tag.TUNNEL.label": "Excavar",
   "tag.TUNNEL.desc": "Excava bajo tierra y reaparece {rangeMin}–{rangeMax} casillas al sur en la misma columna. Necesita terreno despejado para excavar (sin edificios, ruinas, bosques ni montañas). Al emerger, inflige {emergenceDamage} de daño a los enemigos adyacentes y corrompe la casilla.",
   "tag.EMBER_PORTAL.label": "Portal de brasa",
-  "tag.EMBER_PORTAL.desc": "Crea un par de portales: una entrada junto al Señor de la grieta y una salida detrás de la línea aliada. Los enemigos que pisen la entrada se teletransportan si la salida está libre. Si está bloqueada, esperan hasta que se despeje. El Señor de la grieta no puede crear otro par mientras exista el actual. Las casillas de portal están corrompidas y bloquean el movimiento aliado.",
+  "tag.EMBER_PORTAL.desc": "Crea un par de portales: una entrada junto al Señor de la grieta y una salida detrás de la vanguardia del jugador. Cualquier unidad enemiga que pise la entrada se teletransporta a la salida si está libre. Si la salida está bloqueada, la unidad espera en la entrada y se teletransporta en cuanto se despeja. El Señor de la grieta no puede crear otro par hasta que se elimine el actual. La casilla de salida está corrompida. Las unidades aliadas pueden estar en las casillas de portal, pero nunca se teletransportan. Una unidad aliada en la salida la mantiene bloqueada.",
   "tag.HOMELESS.label": "Sin hogar",
   "tag.HOMELESS.desc": "La unidad carece de refugio y se supera el límite de población. -{defensePenalty} DEF. Pierde {hpLossPerTurn} PS al final de cada turno aliado.",
   "tag.UNTRAINED.label": "Sin entrenar",

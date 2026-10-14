@@ -207,7 +207,7 @@
   "tag.TUNNEL.label": "Tunnel",
   "tag.TUNNEL.desc": "Digs underground and re-emerges {rangeMin}–{rangeMax} tiles south in the same column. Digging in requires open ground (no buildings, ruins, forest or mountain). Deals {emergenceDamage} damage to enemies adjacent to the emergence tile. Sets the emergence tile to Corrupted.",
   "tag.EMBER_PORTAL.label": "Ember Portal",
-  "tag.EMBER_PORTAL.desc": "Casts a pair of portals: an entrance next to the Rift Lord and an exit behind the player's frontline. Any enemy unit stepping on the entrance teleports to the exit, if the exit is free. If the exit is blocked, the unit waits on the entrance and teleports the moment the exit clears. The Rift Lord cannot cast another pair until the current pair is removed. Portal tiles are Corrupted and block player movement.",
+  "tag.EMBER_PORTAL.desc": "Casts a pair of portals: an entrance next to the Rift Lord and an exit behind the player's frontline. Any enemy unit stepping on the entrance teleports to the exit, if the exit is free. If the exit is blocked, the unit waits on the entrance and teleports the moment the exit clears. The Rift Lord cannot cast another pair until the current pair is removed. The exit tile is Corrupted. Player units can stand on portal tiles but are never teleported, and a player unit on the exit keeps it blocked.",
   "tag.HOMELESS.label": "Homeless",
   "tag.HOMELESS.desc": "Unit has no shelter; population cap is exceeded. -{defensePenalty} DEF. Loses {hpLossPerTurn} HP at the end of every player turn.",
   "tag.UNTRAINED.label": "Untrained",

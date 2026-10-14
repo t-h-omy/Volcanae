@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.115.19 - Enemy portal fixes
+
+Rift Lord portals now appear during replay when cast, corrupt their exit tile immediately, and allow player units to walk across either endpoint without teleporting. Enemy teleports still wait when a player unit blocks the exit, and deaths on any portal endpoint no longer leave Gravestones.
+
 ### v0.115.18 - AI trace download and menus
 
 AI trace exports now download a JSON file directly instead of opening the share sheet, with download URLs kept alive long enough for the browser to start saving. End screens show a single full-trace export button without trace statistics. Dev Options now keeps current trace statistics, export variants, and finished traces in a dedicated AI Trace submenu.

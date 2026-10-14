@@ -207,7 +207,7 @@
   "tag.TUNNEL.label": "Tunnel",
   "tag.TUNNEL.desc": "Creuse sous terre et réapparaît {rangeMin}–{rangeMax} cases plus au sud dans la même colonne. L'entrée exige un terrain libre (sans bâtiment, ruine, forêt ni montagne). Inflige {emergenceDamage} dégâts aux ennemis adjacents à la sortie et corrompt la case.",
   "tag.EMBER_PORTAL.label": "Portail de braise",
-  "tag.EMBER_PORTAL.desc": "Crée deux portails : une entrée près du seigneur des failles et une sortie derrière la ligne alliée. Les ennemis qui entrent sont téléportés à la sortie si elle est libre. Sinon, ils attendent à l'entrée jusqu'à ce qu'elle se libère. Le seigneur des failles ne peut pas créer une autre paire avant la disparition de celle-ci. Les cases de portail sont corrompues et bloquent les alliés.",
+  "tag.EMBER_PORTAL.desc": "Crée une paire de portails : une entrée près du Seigneur des failles et une sortie derrière la ligne de front du joueur. Toute unité ennemie qui entre dans le portail est téléportée à la sortie si celle-ci est libre. Si la sortie est bloquée, l'unité attend à l'entrée et est téléportée dès que la sortie se libère. Le Seigneur des failles ne peut pas créer une autre paire tant que celle-ci n'a pas disparu. La case de sortie est corrompue. Les unités alliées peuvent se tenir sur les cases de portail sans jamais être téléportées. Une unité alliée sur la sortie la maintient bloquée.",
   "tag.HOMELESS.label": "Sans-abri",
   "tag.HOMELESS.desc": "L'unité n'a pas d'abri ; la limite de population est dépassée. -{defensePenalty} DEF. Perd {hpLossPerTurn} PV à la fin de chaque tour allié.",
   "tag.UNTRAINED.label": "Novice",

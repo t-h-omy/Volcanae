@@ -8,6 +8,7 @@ import { canConstructAt } from '../constructionSystem';
 import { computeUnitAiScores } from '../enemySystem';
 import { moveUnit, getReachableTiles } from '../movementSystem';
 import {
+  castPortal,
   castMagePortalPair,
   cleanupPortals,
   cleanupExpiredPortalsEndOfTurn,
@@ -230,6 +231,26 @@ function standUnit(state: GameState, unit: Unit, position: Position): GameState 
 }
 
 describe('Mage Portal tech and spell', () => {
+  it('emits the complete portal record when either portal kind is created', () => {
+    const rift = makeUnit('rift', UnitType.RIFT_LORD, Faction.ENEMY, { x: 5, y: 10 });
+    const riftEvents: GameEvent[] = [];
+    const riftState = produce(makeState([rift]), (draft) => {
+      castPortal(draft, rift.id, A, B, riftEvents);
+    });
+    const riftEvent = riftEvents.find((event) => event.type === 'PORTAL_CREATED');
+    expect(riftEvent?.type === 'PORTAL_CREATED' ? riftEvent.portal : null)
+      .toEqual(Object.values(riftState.portals)[0]);
+
+    const mageEvents: GameEvent[] = [];
+    const mage = makeUnit('mage', UnitType.MAGE, Faction.PLAYER, { x: 5, y: 10 });
+    const mageState = produce(makeState([mage]), (draft) => {
+      castMagePortalPair(draft, mage.id, A, B, mageEvents);
+    });
+    const mageEvent = mageEvents.find((event) => event.type === 'PORTAL_CREATED');
+    expect(mageEvent?.type === 'PORTAL_CREATED' ? mageEvent.portal : null)
+      .toEqual(Object.values(mageState.portals)[0]);
+  });
+
   it('is a 7-crystal child of Crystal Cave that unlocks Portal', () => {
     const node = TECH_TREE.find((tech) => tech.id === 'PORTAL');
     expect(node?.requires).toEqual(['CRYSTAL_CAVE']);
@@ -332,6 +353,48 @@ describe('Mage Portal tech and spell', () => {
 });
 
 describe('Mage portal movement and lifetime', () => {
+  it('applies portal creation, corruption, and closure events idempotently to live state', () => {
+    const base = makeState();
+    const portal = {
+      id: 'replay_portal',
+      kind: 'RIFT_LORD' as const,
+      casterId: 'rift',
+      entrancePos: A,
+      exitPos: B,
+      createdTurn: base.turn,
+      lastUsableTurn: base.turn,
+      pendingTeleportUnitId: null,
+    };
+    useGameStore.setState(base);
+    const applyEvent = useGameStore.getState().applyEvent;
+    const createdEvent: GameEvent = {
+      type: 'PORTAL_CREATED',
+      casterId: portal.casterId,
+      portalId: portal.id,
+      portal,
+      entrancePos: A,
+      exitPos: B,
+    };
+    applyEvent(createdEvent);
+    applyEvent(createdEvent);
+    expect(Object.keys(useGameStore.getState().portals)).toEqual([portal.id]);
+
+    const corruptionEvent: GameEvent = { type: 'CORRUPTION_APPLIED', position: B };
+    applyEvent(corruptionEvent);
+    applyEvent(corruptionEvent);
+    expect(useGameStore.getState().grid[B.y][B.x].status).toBe(TileStatus.CORRUPTED);
+
+    const closedEvent: GameEvent = {
+      type: 'PORTAL_CLOSED',
+      portalId: portal.id,
+      entrancePos: A,
+      exitPos: B,
+    };
+    applyEvent(closedEvent);
+    applyEvent(closedEvent);
+    expect(useGameStore.getState().portals[portal.id]).toBeUndefined();
+  });
+
   it('supports travel in both directions without bouncing on arrival', () => {
     const player = makeUnit('player', UnitType.GUARD, Faction.PLAYER, A);
     const enemy = makeUnit('enemy', UnitType.LAVA_GRUNT, Faction.ENEMY, { x: 8, y: 11 });

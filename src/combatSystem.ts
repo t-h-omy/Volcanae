@@ -22,7 +22,7 @@ import { isSpecialistEffectActive } from './specialistSystem';
 import { anyAttackableEnemyTargetInRange, applySpawnActionFlags, getAttackTargets } from './unitActions';
 import { applyUnitDamage, getUnitDamageOutcome } from './unitDamage';
 import { clearInfestedOnCreditedKill, resolveInfestedDeath } from './infestedSystem';
-import { cleanupPortals, resolvePortalEntry } from './portalSystem';
+import { cleanupPortals, isPortalEndpoint, resolvePortalEntry } from './portalSystem';
 
 // Counter for generating unique gravestone building IDs within this module
 let combatSystemIdCounter = 0;
@@ -89,6 +89,7 @@ export function createGravestoneAt(
   position: { x: number; y: number },
   gravesUnitType: UnitType | null,
 ): void {
+  if (isPortalEndpoint(state, position)) return;
   const tile = state.grid[position.y]?.[position.x];
   if (!tile || !isValidGravestoneTile(tile)) return;
   const graveId = generateCombatBuildingId();

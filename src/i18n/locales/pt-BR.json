@@ -207,7 +207,7 @@
   "tag.TUNNEL.label": "Escavar",
   "tag.TUNNEL.desc": "Escava no subsolo e reaparece {rangeMin}–{rangeMax} casas ao sul na mesma coluna. Precisa de terreno livre para escavar (sem edifícios, ruínas, florestas ou montanhas). Ao emergir, causa {emergenceDamage} de dano aos inimigos adjacentes e corrompe a casa.",
   "tag.EMBER_PORTAL.label": "Portal de brasa",
-  "tag.EMBER_PORTAL.desc": "Cria um par de portais: uma entrada perto do Senhor da Fenda e uma saída atrás da linha aliada. Inimigos que entrarem são teleportados se a saída estiver livre. Caso contrário, esperam até ela desocupar. O Senhor da Fenda não pode criar outro par enquanto o atual existir. Casas de portal são corrompidas e bloqueiam o movimento aliado.",
+  "tag.EMBER_PORTAL.desc": "Cria um par de portais: uma entrada perto do Senhor da Fenda e uma saída atrás da linha de frente do jogador. Qualquer unidade inimiga que entrar na entrada será teleportada para a saída, se ela estiver livre. Se a saída estiver bloqueada, a unidade aguardará na entrada e será teleportada assim que a saída ficar livre. O Senhor da Fenda não pode criar outro par até que o atual seja removido. O terreno da saída fica Corrompido. Unidades aliadas podem ficar nas casas dos portais, mas nunca são teleportadas. Uma unidade aliada na saída a mantém bloqueada.",
   "tag.HOMELESS.label": "Sem abrigo",
   "tag.HOMELESS.desc": "A unidade não tem abrigo; o limite populacional foi excedido. -{defensePenalty} DEF. Perde {hpLossPerTurn} PV no fim de cada turno aliado.",
   "tag.UNTRAINED.label": "Sem treino",

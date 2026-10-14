@@ -207,7 +207,7 @@
   "tag.TUNNEL.label": "Tunnel",
   "tag.TUNNEL.desc": "Gräbt sich unterirdisch ein und taucht in derselben Spalte {rangeMin}–{rangeMax} Felder weiter südlich wieder auf. Zum Eingraben ist freies Gelände erforderlich (keine Gebäude, Ruinen, Wälder oder Berge). Beim Auftauchen fügt es benachbarten Gegnern {emergenceDamage} Schaden zu und verdirbt das Feld.",
   "tag.EMBER_PORTAL.label": "Glutportal",
-  "tag.EMBER_PORTAL.desc": "Erschafft ein Portalpaar: Der Eingang erscheint neben dem Rissfürsten, der Ausgang hinter der Spielerfront. Betritt eine feindliche Einheit den Eingang, wird sie zum Ausgang teleportiert, sofern dieser frei ist. Ist der Ausgang blockiert, wartet die Einheit am Eingang und wird teleportiert, sobald der Ausgang frei wird. Der Rissfürst kann kein weiteres Paar erschaffen, solange das aktuelle besteht. Portalfelder sind verdorben und blockieren Spielerbewegungen.",
+  "tag.EMBER_PORTAL.desc": "Erschafft ein Portalpaar: Der Eingang erscheint neben dem Rissfürsten, der Ausgang hinter der Spielerfront. Betritt eine feindliche Einheit den Eingang, wird sie zum Ausgang teleportiert, sofern dieser frei ist. Ist der Ausgang blockiert, wartet die Einheit am Eingang und wird teleportiert, sobald der Ausgang frei wird. Der Rissfürst kann kein weiteres Paar erschaffen, solange das aktuelle besteht. Das Ausgangsfeld ist verdorben. Spielereinheiten können auf Portalfeldern stehen, werden aber nie teleportiert. Eine Spielereinheit auf dem Ausgang hält ihn blockiert.",
   "tag.HOMELESS.label": "Obdachlos",
   "tag.HOMELESS.desc": "Die Einheit hat keine Unterkunft; die Bevölkerungsgrenze ist überschritten. -{defensePenalty} DEF. Verliert am Ende jeder Spielerrunde {hpLossPerTurn} LP.",
   "tag.UNTRAINED.label": "Unausgebildet",

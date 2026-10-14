@@ -3,7 +3,7 @@
  * Each event describes a discrete observable action that happens outside the player turn.
  */
 
-import type { Faction, Position, BuildingType, Unit, Building } from './types';
+import type { Faction, Position, BuildingType, Unit, Building, Portal } from './types';
 
 export type GameEvent =
   | {
@@ -348,6 +348,7 @@ export type GameEvent =
       type: 'PORTAL_CREATED';
       casterId: string;
       portalId: string;
+      portal: Portal;
       /** Tile where allied units enter the portal. */
       entrancePos: Position;
       /** Tile where allied units exit the portal. */

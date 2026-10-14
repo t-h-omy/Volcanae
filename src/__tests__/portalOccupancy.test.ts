@@ -10,8 +10,12 @@ import { describe, expect, it } from 'vitest';
 import { produce } from 'immer';
 import { createInitialSpecialists } from '../specialistSystem';
 import { computeUnitAiScores } from '../enemySystem';
+import { getReachableTiles, moveUnit, resolveSlide } from '../movementSystem';
+import { createGravestoneAt, resolveAttack } from '../combatSystem';
 import {
   processPendingPortalTeleports,
+  isPortalEndpoint,
+  resolvePortalEntry,
   tryTeleportThroughPortal,
 } from '../portalSystem';
 import { MAP, UNIT_DEFINITIONS } from '../gameConfig';
@@ -21,7 +25,9 @@ import {
   BuildingType,
   Faction,
   GamePhase,
+  TileStatus,
   TileType,
+  UnitTag,
   UnitType,
   type Building,
   type GameState,
@@ -209,6 +215,7 @@ function withPortal(state: GameState, casterId: string, pendingTeleportUnitId: s
   return produce(state, (draft) => {
     draft.portals['portal_test'] = {
       id: 'portal_test',
+      kind: 'RIFT_LORD',
       casterId,
       entrancePos: { ...ENTRANCE },
       exitPos: { ...EXIT },
@@ -220,6 +227,152 @@ function withPortal(state: GameState, casterId: string, pendingTeleportUnitId: s
 }
 
 describe('portal occupancy invariants', () => {
+  it('lets player units reach and pass through both Rift Lord endpoints', () => {
+    nextId = 0;
+    const entranceMover = makeUnit(UnitType.EMBERLING, Faction.PLAYER, 4, 10);
+    entranceMover.stats.moveRange = 2;
+    const entranceState = withPortal(makeState([entranceMover]), 'caster');
+    expect(getReachableTiles(entranceState, entranceMover.id)).toContainEqual(ENTRANCE);
+    expect(getReachableTiles(entranceState, entranceMover.id)).toContainEqual({ x: 6, y: 10 });
+
+    const exitMover = makeUnit(UnitType.EMBERLING, Faction.PLAYER, 4, 14);
+    exitMover.stats.moveRange = 2;
+    const exitState = withPortal(makeState([exitMover]), 'caster');
+    expect(getReachableTiles(exitState, exitMover.id)).toContainEqual(EXIT);
+    expect(getReachableTiles(exitState, exitMover.id)).toContainEqual({ x: 6, y: 14 });
+  });
+
+  it('does not teleport player units entering Rift Lord portals by movement or ice slide', () => {
+    nextId = 0;
+    const mover = makeUnit(UnitType.EMBERLING, Faction.PLAYER, 4, 10);
+    const caster = makeUnit(UnitType.RIFT_LORD, Faction.ENEMY, 1, 10);
+    const base = withPortal(makeState([mover, caster]), caster.id);
+    const moved = produce(base, (draft) => moveUnit(draft, mover.id, ENTRANCE, []));
+    expect(moved.units[mover.id].position).toEqual(ENTRANCE);
+    expect(moved.portals.portal_test.pendingTeleportUnitId).toBeNull();
+    expect(moved.grid[EXIT.y][EXIT.x].unitId).toBeNull();
+    const afterDirectCheck = produce(moved, (draft) => {
+      expect(resolvePortalEntry(draft, mover.id, ENTRANCE, [])).toBe(false);
+    });
+    expect(afterDirectCheck.portals.portal_test.pendingTeleportUnitId).toBeNull();
+
+    const slider = makeUnit(UnitType.EMBERLING, Faction.PLAYER, 4, 10);
+    const slideCaster = makeUnit(UnitType.RIFT_LORD, Faction.ENEMY, 1, 10);
+    const slideState = withPortal(makeState([slider, slideCaster]), slideCaster.id);
+    const slid = produce(slideState, (draft) => {
+      draft.grid[10][4].status = TileStatus.FROZEN;
+      resolveSlide(draft, slider.id, 1, 0, []);
+    });
+    expect(slid.units[slider.id].position).toEqual(ENTRANCE);
+    expect(slid.portals.portal_test.pendingTeleportUnitId).toBeNull();
+    expect(slid.grid[EXIT.y][EXIT.x].unitId).toBeNull();
+  });
+
+  it('does not teleport a player unit knocked back onto a Rift Lord entrance', () => {
+    nextId = 0;
+    const attacker = makeUnit(UnitType.LAVA_GRUNT, Faction.ENEMY, 5, 8);
+    attacker.tags.push(UnitTag.KNOCKBACK);
+    attacker.stats.attack = 1;
+    const defender = makeUnit(UnitType.EMBERLING, Faction.PLAYER, 5, 9);
+    defender.stats.currentHp = 1000;
+    defender.stats.maxHp = 1000;
+    const caster = makeUnit(UnitType.RIFT_LORD, Faction.ENEMY, 4, 8);
+    const base = withPortal(makeState([attacker, defender, caster]), caster.id);
+    const next = produce(base, (draft) => {
+      resolveAttack(draft, attacker.id, defender.id, true, []);
+    });
+    expect(next.units[defender.id].position).toEqual(ENTRANCE);
+    expect(next.portals.portal_test.pendingTeleportUnitId).toBeNull();
+    expect(next.grid[EXIT.y][EXIT.x].unitId).toBeNull();
+  });
+
+  it('allows melee advance onto a Rift Lord entrance without teleporting the player', () => {
+    nextId = 0;
+    const attacker = makeUnit(UnitType.EMBERLING, Faction.PLAYER, 4, 10);
+    attacker.stats.attack = 1000;
+    const defender = makeUnit(UnitType.LAVA_GRUNT, Faction.ENEMY, ENTRANCE.x, ENTRANCE.y);
+    defender.stats.currentHp = 1;
+    const caster = makeUnit(UnitType.RIFT_LORD, Faction.ENEMY, 3, 10);
+    const base = withPortal(makeState([attacker, defender, caster]), caster.id);
+    const next = produce(base, (draft) => {
+      resolveAttack(draft, attacker.id, defender.id, true, []);
+    });
+    expect(next.units[attacker.id].position).toEqual(ENTRANCE);
+    expect(next.portals.portal_test.pendingTeleportUnitId).toBeNull();
+    expect(next.grid[EXIT.y][EXIT.x].unitId).toBeNull();
+  });
+
+  it('keeps enemy reachability blocked at both Rift Lord endpoints', () => {
+    nextId = 0;
+    const enemy = makeUnit(UnitType.LAVA_GRUNT, Faction.ENEMY, 4, 10);
+    enemy.stats.moveRange = 6;
+    const state = withPortal(makeState([enemy]), 'caster');
+    const reachable = getReachableTiles(state, enemy.id);
+    expect(reachable).not.toContainEqual(ENTRANCE);
+    expect(reachable).not.toContainEqual(EXIT);
+  });
+
+  it('waits at the entrance when a player unit holds the exit and teleports when it clears', () => {
+    nextId = 0;
+    const caster = makeUnit(UnitType.RIFT_LORD, Faction.ENEMY, ENTRANCE.x, ENTRANCE.y - 1);
+    const waiter = makeUnit(UnitType.EMBERLING, Faction.ENEMY, ENTRANCE.x, ENTRANCE.y);
+    const blocker = makeUnit(UnitType.EMBERLING, Faction.PLAYER, EXIT.x, EXIT.y);
+    const base = withPortal(makeState([caster, waiter, blocker]), caster.id);
+
+    const waiting = produce(base, (draft) => {
+      expect(tryTeleportThroughPortal(draft, waiter.id, 'portal_test', [])).toBe(false);
+    });
+    expect(waiting.portals.portal_test.pendingTeleportUnitId).toBe(waiter.id);
+    expect(waiting.grid[ENTRANCE.y][ENTRANCE.x].unitId).toBe(waiter.id);
+
+    const afterClear = produce(waiting, (draft) => {
+      draft.grid[EXIT.y][EXIT.x].unitId = null;
+      draft.units[blocker.id].position = { x: EXIT.x + 1, y: EXIT.y };
+      draft.grid[EXIT.y][EXIT.x + 1].unitId = blocker.id;
+      processPendingPortalTeleports(draft, []);
+    });
+    expect(afterClear.units[waiter.id].position).toEqual(EXIT);
+    expect(afterClear.portals.portal_test.pendingTeleportUnitId).toBeNull();
+  });
+
+  it('does not create Gravestones on Rift Lord or Mage portal endpoints', () => {
+    nextId = 0;
+    const caster = makeUnit(UnitType.RIFT_LORD, Faction.ENEMY, 1, 10);
+    const state = withPortal(makeState([caster]), caster.id);
+    const withMagePortal = produce(state, (draft) => {
+      draft.portals.mage_portal = {
+        id: 'mage_portal',
+        kind: 'MAGE',
+        casterId: 'mage',
+        entrancePos: { x: 8, y: 10 },
+        exitPos: { x: 8, y: 14 },
+        createdTurn: 12,
+        lastUsableTurn: 12,
+        pendingTeleportUnitId: null,
+      };
+    });
+    expect(isPortalEndpoint(withMagePortal, { x: 7, y: 10 })).toBe(false);
+    expect(withMagePortal.grid[10][7]).toMatchObject({
+      buildingId: null,
+      unitId: null,
+      terrainType: TileType.PLAINS,
+      isRuin: false,
+      isStrongholdRuin: false,
+      isLava: false,
+    });
+    const afterGravestones = produce(withMagePortal, (draft) => {
+      createGravestoneAt(draft, ENTRANCE, UnitType.EMBERLING);
+      createGravestoneAt(draft, EXIT, UnitType.EMBERLING);
+      createGravestoneAt(draft, { x: 8, y: 10 }, UnitType.EMBERLING);
+      createGravestoneAt(draft, { x: 8, y: 14 }, UnitType.EMBERLING);
+      createGravestoneAt(draft, { x: 7, y: 10 }, UnitType.EMBERLING);
+    });
+    const gravestones = Object.values(afterGravestones.buildings)
+      .filter((building) => building.type === BuildingType.GRAVESTONE);
+    expect(gravestones).toHaveLength(1);
+    expect(gravestones[0].position).toEqual({ x: 7, y: 10 });
+  });
+
   it('leaves a unit waiting on the entrance when the exit is occupied', () => {
     nextId = 0;
     const caster = makeUnit(UnitType.RIFT_LORD, Faction.ENEMY, ENTRANCE.x, ENTRANCE.y - 1);
@@ -373,5 +526,15 @@ describe('portal occupancy invariants', () => {
       draft.grid[ENTRANCE.y][ENTRANCE.x].unitId = null;
     });
     expect(computeUnitAiScores(free, mover.id).some((a) => a.type === 'MOVE_TO_PORTAL')).toBe(true);
+  });
+
+  it('does not offer MOVE_TO_PORTAL when a player unit occupies the entrance', () => {
+    nextId = 0;
+    const caster = makeUnit(UnitType.RIFT_LORD, Faction.ENEMY, ENTRANCE.x, ENTRANCE.y - 1);
+    const player = makeUnit(UnitType.EMBERLING, Faction.PLAYER, ENTRANCE.x, ENTRANCE.y);
+    const mover = makeUnit(UnitType.LAVA_GRUNT, Faction.ENEMY, ENTRANCE.x + 2, ENTRANCE.y);
+    const stronghold = makeStronghold(ENTRANCE.x, EXIT.y + 4);
+    const state = withPortal(makeState([caster, player, mover], [stronghold]), caster.id);
+    expect(computeUnitAiScores(state, mover.id).some((action) => action.type === 'MOVE_TO_PORTAL')).toBe(false);
   });
 });
