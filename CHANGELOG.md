@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.116.0 - Crystal Khyron Mech and Ranged assimilation
+
+Crystal Khyrons are now Mechs that count toward Crystal Chamber limits, inherit Ranged with its attack range, and can bank one additional level per Resonance up to level 3. Save migration upgrades existing Khyrons and preserves banked progress.
+
 ### v0.115.19 - Enemy portal fixes
 
 Rift Lord portals now appear during replay when cast, corrupt their exit tile immediately, and allow player units to walk across either endpoint without teleporting. Enemy teleports still wait when a player unit blocks the exit, and deaths on any portal endpoint no longer leave Gravestones.

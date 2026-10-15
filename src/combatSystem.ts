@@ -23,6 +23,7 @@ import { anyAttackableEnemyTargetInRange, applySpawnActionFlags, getAttackTarget
 import { applyUnitDamage, getUnitDamageOutcome } from './unitDamage';
 import { clearInfestedOnCreditedKill, resolveInfestedDeath } from './infestedSystem';
 import { cleanupPortals, isPortalEndpoint, resolvePortalEntry } from './portalSystem';
+import { cannotBeHealed } from './unitTraits';
 
 // Counter for generating unique gravestone building IDs within this module
 let combatSystemIdCounter = 0;
@@ -75,7 +76,7 @@ export function shouldLeaveGravestone(
   options: { defaultOn: boolean },
 ): boolean {
   if (unit.faction !== Faction.PLAYER) return false;
-  if (unit.tags.includes(UnitTag.SUMMONED)) return false;
+  if (cannotBeHealed(unit)) return false;
   if (unit.tags.includes(UnitTag.NO_GRAVESTONE)) return false;
   if (options.defaultOn) return true;
   return unit.tags.includes(UnitTag.LEAVES_GRAVESTONE) || unit.tags.includes(UnitTag.REVIVABLE);
@@ -773,7 +774,7 @@ function resolveKnockback(
     else state.gameStats.unitsLost += 1;
     if (attackerFaction === Faction.PLAYER && defenderFaction === Faction.ENEMY)
       state.gameStats.unitsKilled += 1;
-    recordKhyronKill(state, attackerId, defenderFaction, victimTags);
+    recordKhyronKill(state, attackerId, defenderFaction, victimTags, defender.stats.attackRange);
     grantXp(state, attackerId, XP.KILL_UNIT, true);
     delete state.units[defenderId];
     outEvents?.push({
@@ -801,7 +802,7 @@ function resolveKnockback(
       if (fromTile.unitId === defenderId) fromTile.unitId = null;
       if (defenderFaction === Faction.PLAYER) state.gameStats.unitsLost += 1;
       else if (attackerFaction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
-      recordKhyronKill(state, attackerId, defenderFaction, victimTags);
+      recordKhyronKill(state, attackerId, defenderFaction, victimTags, defender.stats.attackRange);
       grantXp(state, attackerId, XP.KILL_UNIT, true);
       delete state.units[defenderId];
       outEvents?.push({
@@ -834,7 +835,7 @@ function resolveKnockback(
     if (fromTile.unitId === defenderId) fromTile.unitId = null;
     if (defenderFaction === Faction.PLAYER) state.gameStats.unitsLost += 1;
     else if (attackerFaction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
-    recordKhyronKill(state, attackerId, defenderFaction, victimTags);
+    recordKhyronKill(state, attackerId, defenderFaction, victimTags, defender.stats.attackRange);
     grantXp(state, attackerId, XP.KILL_UNIT, true);
     delete state.units[defenderId];
     outEvents?.push({
@@ -876,7 +877,7 @@ function resolveKnockback(
       // resolveSlide already updated unitsLost / ember; add kill credit here.
       if (attackerFaction === Faction.PLAYER && defenderFaction === Faction.ENEMY)
         state.gameStats.unitsKilled += 1;
-      recordKhyronKill(state, attackerId, defenderFaction, victimTags);
+      recordKhyronKill(state, attackerId, defenderFaction, victimTags, defender.stats.attackRange);
       grantXp(state, attackerId, XP.KILL_UNIT, true);
       const slidedInBounds =
         slideDest.x >= 0 && slideDest.x < MAP.GRID_WIDTH &&
@@ -1173,7 +1174,7 @@ function resolveAttackInner(
     const attackerType = attacker.type;
     const attackerPos = { x: attacker.position.x, y: attacker.position.y };
     // A resonating Khyron defender killing its attacker (counterattack) counts as a credited kill.
-    recordKhyronKill(state, defenderId, attackerFaction, attackerTags);
+    recordKhyronKill(state, defenderId, attackerFaction, attackerTags, attacker.stats.attackRange);
     if (attackerTags.includes(UnitTag.BRANDMARKED)) {
       // BRANDMARKED: immediately complete the transform so the resolved state is clean.
       completeBrandmarkTransformInPlace(state, attackerId, attackerPos);
@@ -1252,7 +1253,7 @@ function resolveAttackInner(
     // Grant XP to attacker for killing the defender (regardless of BRANDMARKED)
     if (!attackerDead) {
       clearInfestedOnCreditedKill(state, attackerId);
-      recordKhyronKill(state, attackerId, defenderFaction, defenderTags);
+      recordKhyronKill(state, attackerId, defenderFaction, defenderTags, defender.stats.attackRange);
       grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
     }
     // EMBER_DEMON kill: grant crystal reward when player kills a hostile Ember Demon
@@ -1483,7 +1484,7 @@ function resolveAttackInner(
         if (splashDamageOutcome.died) {
           applyUnitDamage(splashTarget, splashDamage);
           splashTile.unitId = null;
-          recordKhyronKill(state, attackerId, splashTarget.faction, splashTarget.tags);
+          recordKhyronKill(state, attackerId, splashTarget.faction, splashTarget.tags, splashTarget.stats.attackRange);
           delete state.units[splashTargetId];
           grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
           state.gameStats.unitsKilled += 1;
@@ -1544,7 +1545,7 @@ function resolveAttackInner(
           if (cleaveDamageOutcome.died) {
             applyUnitDamage(cleaveTarget, finalCleaveDamage);
             cleaveTile.unitId = null;
-            recordKhyronKill(state, attackerId, cleaveTarget.faction, cleaveTarget.tags);
+            recordKhyronKill(state, attackerId, cleaveTarget.faction, cleaveTarget.tags, cleaveTarget.stats.attackRange);
             delete state.units[cleaveTargetId];
             clearInfestedOnCreditedKill(state, attackerId);
             resolveInfestedDeath(state, cleaveTarget, outEvents);
@@ -1615,7 +1616,7 @@ function resolveAttackInner(
             });
             if (pierceDamageOutcome.died) {
               applyUnitDamage(rearUnit, finalPierceDamage);
-              recordKhyronKill(state, attackerId, rearUnit.faction, rearUnit.tags);
+              recordKhyronKill(state, attackerId, rearUnit.faction, rearUnit.tags, rearUnit.stats.attackRange);
               if (rearUnit.tags.includes(UnitTag.BRANDMARKED)) {
                 // BRANDMARKED: complete the transform so an Ember Demon spawns in the
                 // resolved state. completeBrandmarkTransformInPlace handles tile clear,
@@ -2361,7 +2362,7 @@ function resolveAttackOnBuildingInner(
         if (splashDamageOutcome.died) {
           applyUnitDamage(splashTarget, splashDamage);
           splashTile.unitId = null;
-          recordKhyronKill(state, attackerId, splashTarget.faction, splashTarget.tags);
+          recordKhyronKill(state, attackerId, splashTarget.faction, splashTarget.tags, splashTarget.stats.attackRange);
           delete state.units[splashTargetId];
           grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
           state.gameStats.unitsKilled += 1;
@@ -2419,7 +2420,7 @@ function resolveAttackOnBuildingInner(
           if (cleaveDamageOutcome.died) {
             applyUnitDamage(cleaveTarget, finalCleaveDamage);
             cleaveTile.unitId = null;
-            recordKhyronKill(state, attackerId, cleaveTarget.faction, cleaveTarget.tags);
+            recordKhyronKill(state, attackerId, cleaveTarget.faction, cleaveTarget.tags, cleaveTarget.stats.attackRange);
             delete state.units[cleaveTargetId];
             if (cleaveTarget.faction === Faction.PLAYER) state.gameStats.unitsLost += 1;
             else if (attacker.faction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
@@ -2487,7 +2488,7 @@ function resolveAttackOnBuildingInner(
             });
             if (pierceDamageOutcome.died) {
               applyUnitDamage(rearUnit, finalPierceDamage);
-              recordKhyronKill(state, attackerId, rearUnit.faction, rearUnit.tags);
+              recordKhyronKill(state, attackerId, rearUnit.faction, rearUnit.tags, rearUnit.stats.attackRange);
               if (rearUnit.tags.includes(UnitTag.BRANDMARKED)) {
                 // BRANDMARKED: complete the transform so an Ember Demon spawns in the
                 // resolved state. completeBrandmarkTransformInPlace handles tile clear,

@@ -77,6 +77,7 @@ import { resourceName } from './i18n/entityText';
 import { appendChunk, deleteTurnsAfter, getTraceIndexSeed, readMeta as readAiTraceMeta, sealRun } from './aiTraceStore';
 import { applyUnitDamage } from './unitDamage';
 import { processInfestedFactionTurn, resolveInfestedDeath } from './infestedSystem';
+import { cannotBeHealed } from './unitTraits';
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
@@ -2234,7 +2235,7 @@ export const useGameStore = create<GameStore>()(
           snapshot = produce(snapshot, (draft) => {
             for (const unit of Object.values(draft.units)) {
               if (unit.faction !== Faction.PLAYER) continue;
-              if (unit.tags.includes(UnitTag.SUMMONED)) continue;
+              if (cannotBeHealed(unit)) continue;
               if (!tookNoActionThisTurn(unit)) continue;
               if (unit.stats.currentHp >= unit.stats.maxHp) continue;
               const healedAmount = Math.min(

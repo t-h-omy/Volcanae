@@ -13,13 +13,15 @@ import { TECH_TREE, POPULATION, SPECIALIST_DEFINITIONS, SAVE, ABILITIES, CRYSTAL
 import { t } from './i18n/i18n';
 import { ALL_HINT_IDS } from '../config/hints';
 import type { Difficulty } from './types';
+import { getGrantedTags, revokeTagStatEffects } from './techSystem';
+import { getTagsFromActiveSpecialists } from './specialistSystem';
 
 // ============================================================================
 // CONSTANTS
 // ============================================================================
 
 /** Increment this whenever the serialized shape changes incompatibly. */
-export const SAVE_VERSION = 21;
+export const SAVE_VERSION = 22;
 
 // ============================================================================
 // TYPES
@@ -246,20 +248,47 @@ function migrateState(parsed: { version: number; state: GameState }): GameState 
     // Normalize Khyron base tags and preserve earned assimilation across reloads.
     for (const unit of Object.values(s.units)) {
       if (unit.type !== UnitType.CRYSTAL_KHYRON) continue;
-      if (!unit.tags.includes(UnitTag.SUMMONED)) unit.tags.push(UnitTag.SUMMONED);
+      unit.tags = unit.tags.filter((tag) => tag !== UnitTag.SUMMONED);
+      if (!unit.tags.includes(UnitTag.MECH)) unit.tags.push(UnitTag.MECH);
       const assimilated = unit.assimilatedTags ?? (unit.level > 1 ? unit.tags : []);
       unit.assimilatedTags = CRYSTAL_KHYRON.TRANSFERABLE_TAGS.filter((tag) => assimilated.includes(tag));
       for (const tag of unit.assimilatedTags) {
         if (!unit.tags.includes(tag)) unit.tags.push(tag);
       }
+      const grantedTags = s.techNodes && s.globalSpecialistStorage && s.specialists
+        ? [
+          ...getGrantedTags(s, UnitType.CRYSTAL_KHYRON),
+          ...getTagsFromActiveSpecialists(s, UnitType.CRYSTAL_KHYRON),
+        ]
+        : [];
+      for (const tag of [UnitTag.RAGE, UnitTag.CLEAVE]) {
+        if (unit.assimilatedTags.includes(tag) || grantedTags.includes(tag)) continue;
+        if (unit.tags.includes(tag)) {
+          unit.tags = unit.tags.filter((unitTag) => unitTag !== tag);
+          revokeTagStatEffects(unit, tag);
+        }
+      }
       const earned = unit.earnedAssimilationTags ?? unit.pendingAssimilationTags;
       if (Array.isArray(earned) && unit.level < CRYSTAL_KHYRON.MAX_LEVEL) {
         if (!Array.isArray(unit.earnedAssimilationTags)) unit.resonanceActive = false;
         unit.earnedAssimilationTags = CRYSTAL_KHYRON.TRANSFERABLE_TAGS.filter((tag) => earned.includes(tag));
+        const earnedLevels = Number.isInteger(unit.earnedAssimilationLevels)
+          ? unit.earnedAssimilationLevels!
+          : 1;
+        unit.earnedAssimilationLevels = Math.max(
+          1,
+          Math.min(earnedLevels, CRYSTAL_KHYRON.MAX_LEVEL - unit.level),
+        );
+        if (!Number.isInteger(unit.earnedAssimilationAttackRange) || unit.earnedAssimilationAttackRange! <= 0) {
+          delete unit.earnedAssimilationAttackRange;
+        }
       } else {
         delete unit.earnedAssimilationTags;
+        delete unit.earnedAssimilationLevels;
+        delete unit.earnedAssimilationAttackRange;
       }
       delete unit.pendingAssimilationTags;
+      delete unit.pendingAssimilationAttackRange;
     }
 
     // Migration: isIce → TileStatus.FROZEN.

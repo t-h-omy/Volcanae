@@ -44,6 +44,7 @@ export const TAG_INFO: Record<UnitTag, { icon?: string; textParams?: { [name: st
   [UnitTag.READY]: {},
   [UnitTag.REVIVABLE]: { textParams: { reviveCrystalCost: ABILITIES.REVIVE_CRYSTAL_COST } },
   [UnitTag.SUMMONED]: {},
+  [UnitTag.MECH]: {},
   [UnitTag.BRANDMARKED]: { icon: '🩸', textParams: { attackBonus: MAGE.BRANDMARK_ATTACK_BONUS, hpLossPerTurn: MAGE.BRANDMARK_HP_LOSS_PER_TURN } },
   [UnitTag.LEASHED]: {},
   [UnitTag.NO_GRAVESTONE]: {},

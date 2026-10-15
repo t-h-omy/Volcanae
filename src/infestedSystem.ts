@@ -8,7 +8,7 @@ import { canGrantXp, grantXp } from './levelSystem';
 import { recordKhyronKill } from './khyronSystem';
 import { applyTileStatus, isStatusAllowedOnTerrain } from './tileStatusSystem';
 
-type InfestedDeathSnapshot = Pick<Unit, 'id' | 'faction' | 'type' | 'position' | 'tags' | 'infestedByMageId' | 'infestedDeathEffectResolved'>;
+type InfestedDeathSnapshot = Pick<Unit, 'id' | 'faction' | 'type' | 'position' | 'tags' | 'stats' | 'infestedByMageId' | 'infestedDeathEffectResolved'>;
 
 function snapshotUnit(unit: Unit | Draft<Unit>): InfestedDeathSnapshot {
   return {
@@ -17,6 +17,7 @@ function snapshotUnit(unit: Unit | Draft<Unit>): InfestedDeathSnapshot {
     type: unit.type,
     position: { ...unit.position },
     tags: [...unit.tags],
+    stats: { ...unit.stats },
     infestedByMageId: unit.infestedByMageId,
     infestedDeathEffectResolved: unit.infestedDeathEffectResolved,
   };
@@ -41,7 +42,7 @@ function creditBurstKill(
   }
 
   const mage = sourceMageId ? state.units[sourceMageId] : null;
-  if (mage) recordKhyronKill(state, mage.id, victim.faction, victim.tags);
+  if (mage) recordKhyronKill(state, mage.id, victim.faction, victim.tags, victim.stats.attackRange);
   if (mage && canGrantXp(mage.type, mage.xp)) {
     grantXp(state, mage.id, XP.KILL_UNIT, true);
   }

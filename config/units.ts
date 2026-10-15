@@ -486,11 +486,11 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   CRYSTAL_KHYRON: {
-    // Recruited from a resonating Crystal Chamber; assimilation unlocks manual level-ups.
+    // Mech recruited from a resonating Crystal Chamber; assimilation unlocks manual level-ups.
     maxHp: 100, attack: 45, defense: 45,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
-    tags: [UnitTag.SUMMONED],
+    tags: [UnitTag.MECH],
     cost: { iron: 0, wood: 0, crystals: 2 },
     populationCost: { farmers: 0, nobles: 0 },
     levelUp: [
@@ -503,7 +503,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
 /**
  * Crystal Khyron progression tunables.
  * TRANSFERABLE_TAGS is the single source of truth for which enemy tags a
- * resonating Khyron permanently inherits on its first kill.
+ * resonating Khyron permanently inherits on each eligible kill.
  */
 export const CRYSTAL_KHYRON = {
   MAX_LEVEL: 3,
@@ -517,6 +517,7 @@ export const CRYSTAL_KHYRON = {
     UnitTag.PUNCTURE,
     UnitTag.BURN,
     UnitTag.BUILDANDCAPTURE,
+    UnitTag.RANGED,
   ] as readonly UnitTag[],
 } as const;
 
