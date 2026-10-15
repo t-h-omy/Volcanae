@@ -1,14 +1,19 @@
 import type { Draft } from 'immer';
 import type { GameState, Position, Unit } from './types';
 import { Faction, TileStatus, UnitTag, UnitType } from './types';
-import { MAGE, XP } from './gameConfig';
+import { CORRUPTED_QORK, MAGE, XP } from './gameConfig';
 import type { GameEvent } from './gameEvents';
 import { applyUnitDamage, getUnitDamageOutcome } from './unitDamage';
 import { canGrantXp, grantXp } from './levelSystem';
 import { recordKhyronKill } from './khyronSystem';
 import { applyTileStatus, isStatusAllowedOnTerrain } from './tileStatusSystem';
+import { createGravestoneAt, shouldLeaveGravestone } from './combatSystem';
 
 type InfestedDeathSnapshot = Pick<Unit, 'id' | 'faction' | 'type' | 'position' | 'tags' | 'stats' | 'infestedByMageId' | 'infestedDeathEffectResolved'>;
+interface DeathResolutionContext {
+  resolvedInfestedIds: Set<string>;
+  resolvedQorkIds: Set<string>;
+}
 
 function snapshotUnit(unit: Unit | Draft<Unit>): InfestedDeathSnapshot {
   return {
@@ -71,14 +76,14 @@ function resolveDeath(
   state: Draft<GameState>,
   deceased: InfestedDeathSnapshot,
   events: GameEvent[] | undefined,
-  resolvedIds: Set<string>,
+  context: DeathResolutionContext,
 ): void {
   if (
     !deceased.tags.includes(UnitTag.INFESTED)
     || deceased.infestedDeathEffectResolved
-    || resolvedIds.has(deceased.id)
+    || context.resolvedInfestedIds.has(deceased.id)
   ) return;
-  resolvedIds.add(deceased.id);
+  context.resolvedInfestedIds.add(deceased.id);
   deceased.infestedDeathEffectResolved = true;
 
   const sourceMageId = deceased.infestedByMageId ?? null;
@@ -146,8 +151,111 @@ function resolveDeath(
         events.push({ type: 'CAVE_MONSTER_KILLED', monsterId: burstDeath.id });
       }
     }
-    resolveDeath(state, burstDeath, events, resolvedIds);
+    resolveUnitDeathEffects(state, burstDeath, events, context);
   }
+}
+
+function resolveQorkDeathBurst(
+  state: Draft<GameState>,
+  deceased: InfestedDeathSnapshot,
+  events: GameEvent[] | undefined,
+  context: DeathResolutionContext,
+): void {
+  if (context.resolvedQorkIds.has(deceased.id)) return;
+  context.resolvedQorkIds.add(deceased.id);
+  const tile = state.grid[deceased.position.y]?.[deceased.position.x];
+  const corruptionEvents: GameEvent[] = [];
+  if (tile && isStatusAllowedOnTerrain(tile.terrainType, TileStatus.CORRUPTED)) {
+    applyTileStatus(state, deceased.position, TileStatus.CORRUPTED, corruptionEvents);
+  } else if (tile) {
+    corruptionEvents.push({
+      type: 'CORRUPTION_FIZZLE',
+      position: { ...deceased.position },
+    });
+  }
+
+  const damagedUnitIds: string[] = [];
+  const damagedEvents: GameEvent[] = [];
+  const burstDeaths: InfestedDeathSnapshot[] = [];
+  for (let y = deceased.position.y - 1; y <= deceased.position.y + 1; y++) {
+    for (let x = deceased.position.x - 1; x <= deceased.position.x + 1; x++) {
+      if (x === deceased.position.x && y === deceased.position.y) continue;
+      const targetTile = state.grid[y]?.[x];
+      const target = targetTile?.unitId ? state.units[targetTile.unitId] : null;
+      if (!target || target.stats.currentHp <= 0 || target.tunnelState === 'UNDERGROUND') continue;
+
+      const outcome = getUnitDamageOutcome(target, CORRUPTED_QORK.DEATH_EXPLOSION_DAMAGE);
+      const amount = Math.min(CORRUPTED_QORK.DEATH_EXPLOSION_DAMAGE, target.stats.currentHp);
+      applyUnitDamage(target, CORRUPTED_QORK.DEATH_EXPLOSION_DAMAGE);
+      damagedUnitIds.push(target.id);
+      damagedEvents.push({
+        type: 'TILE_DAMAGE',
+        unitId: target.id,
+        position: { x, y },
+        amount,
+        damageAmount: CORRUPTED_QORK.DEATH_EXPLOSION_DAMAGE,
+        damageSource: 'QORK_EXPLOSION',
+      });
+      if (!outcome.died) continue;
+
+      const snapshot = snapshotUnit(target);
+      target.infestedDeathEffectResolved = true;
+      if (target.tags.includes(UnitTag.BRANDMARKED)) {
+        queueBrandmarkTransform(state, target, { x, y });
+      } else {
+        if (targetTile) targetTile.unitId = null;
+        delete state.units[target.id];
+        if (target.faction === Faction.PLAYER) {
+          if (shouldLeaveGravestone(target, { defaultOn: false })) {
+            createGravestoneAt(state, { x, y }, target.type);
+          }
+          state.gameStats.unitsLost += 1;
+        } else if (deceased.faction === Faction.PLAYER) {
+          state.gameStats.unitsKilled += 1;
+        }
+      }
+      if (target.type === UnitType.CAVE_MONSTER) {
+        state.activeCaveEncounters = state.activeCaveEncounters.filter(
+          (encounter) => encounter.monsterId !== target.id,
+        );
+      }
+      burstDeaths.push(snapshot);
+    }
+  }
+
+  events?.push({
+    type: 'QORK_DEATH_BURST',
+    position: { ...deceased.position },
+    faction: deceased.faction,
+    damagedUnitIds,
+  });
+  if (events) events.push(...corruptionEvents, ...damagedEvents);
+  for (const burstDeath of burstDeaths) {
+    if (events) {
+      events.push({
+        type: 'UNIT_DEATH',
+        unitId: burstDeath.id,
+        position: { ...burstDeath.position },
+        faction: burstDeath.faction,
+      });
+      if (burstDeath.type === UnitType.CAVE_MONSTER) {
+        events.push({ type: 'CAVE_MONSTER_KILLED', monsterId: burstDeath.id });
+      }
+    }
+    resolveUnitDeathEffects(state, burstDeath, events, context);
+  }
+}
+
+function resolveUnitDeathEffects(
+  state: Draft<GameState>,
+  deceased: InfestedDeathSnapshot,
+  events: GameEvent[] | undefined,
+  context: DeathResolutionContext,
+): void {
+  if (deceased.type === UnitType.CORRUPTED_QORK && !deceased.infestedDeathEffectResolved) {
+    resolveQorkDeathBurst(state, deceased, events, context);
+  }
+  resolveDeath(state, deceased, events, context);
 }
 
 /** Resolves a true Infested death after the caller has removed it and emitted UNIT_DEATH. */
@@ -157,19 +265,11 @@ export function resolveInfestedDeath(
   events?: GameEvent[],
 ): void {
   const snapshot = snapshotUnit(deceased);
-  if (snapshot.type === UnitType.CORRUPTED_QORK) {
-    const tile = state.grid[snapshot.position.y]?.[snapshot.position.x];
-    if (tile && isStatusAllowedOnTerrain(tile.terrainType, TileStatus.CORRUPTED)) {
-      applyTileStatus(state, snapshot.position, TileStatus.CORRUPTED, events);
-    } else if (tile) {
-      events?.push({
-        type: 'CORRUPTION_FIZZLE',
-        position: { ...snapshot.position },
-      });
-    }
-  }
   deceased.infestedDeathEffectResolved = true;
-  resolveDeath(state, snapshot, events, new Set());
+  resolveUnitDeathEffects(state, snapshot, events, {
+    resolvedInfestedIds: new Set(),
+    resolvedQorkIds: new Set(),
+  });
 }
 
 /** Clears infection only when this unit itself receives kill credit. */
@@ -224,7 +324,10 @@ export function processInfestedFactionTurn(
       if (deceased.type === UnitType.CAVE_MONSTER) {
         events.push({ type: 'CAVE_MONSTER_KILLED', monsterId: unitId });
       }
-      resolveDeath(state, deceased, events, new Set());
+      resolveUnitDeathEffects(state, deceased, events, {
+        resolvedInfestedIds: new Set(),
+        resolvedQorkIds: new Set(),
+      });
       continue;
     }
     const tile = state.grid[position.y]?.[position.x];
@@ -240,6 +343,9 @@ export function processInfestedFactionTurn(
     if (deceased.type === UnitType.CAVE_MONSTER) {
       events.push({ type: 'CAVE_MONSTER_KILLED', monsterId: unitId });
     }
-    resolveDeath(state, deceased, events, new Set());
+    resolveUnitDeathEffects(state, deceased, events, {
+      resolvedInfestedIds: new Set(),
+      resolvedQorkIds: new Set(),
+    });
   }
 }

@@ -334,6 +334,7 @@ export function triggerSanctumCollapse(
   const purgedInfestedUnits: Unit[] = [];
   const clearedUnitPositions: Position[] = [];
   for (const unit of Object.values(state.units)) {
+    if (!state.units[unit.id]) continue;
     if (unit.faction !== Faction.ENEMY) continue;
     if (unit.type === UnitType.CAVE_MONSTER) continue;
     if (unit.position.y >= startRow && unit.position.y <= endRow) {
@@ -341,6 +342,9 @@ export function triggerSanctumCollapse(
       if (unit.tags.includes(UnitTag.INFESTED)) purgedInfestedUnits.push(unit);
       clearedUnitPositions.push({ x: unit.position.x, y: unit.position.y });
 
+      if (unit.type === UnitType.CORRUPTED_QORK) {
+        resolveInfestedDeath(state, unit, events);
+      }
       // Clear tile
       const tile = state.grid[unit.position.y][unit.position.x];
       if (tile.unitId === unit.id) {
@@ -416,6 +420,7 @@ export function triggerSanctumCollapse(
     lavaAdvanceBonus: SANCTUM_COLLAPSE.LAVA_ADVANCE_BONUS_TURNS,
   });
   for (const unit of purgedInfestedUnits) {
+    if (unit.type === UnitType.CORRUPTED_QORK) continue;
     resolveInfestedDeath(state, unit, events);
   }
 }

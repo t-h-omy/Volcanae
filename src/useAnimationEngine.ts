@@ -139,6 +139,8 @@ function eventPosition(event: GameEvent): Position {
       return event.position;
     case 'CORRUPTION_FIZZLE':
       return event.position;
+    case 'QORK_DEATH_BURST':
+      return event.position;
     case 'CAVE_MONSTER_RETREAT':
       return event.position;
     case 'LEASH_DEFECT':
@@ -261,6 +263,10 @@ function isEventVisible(event: GameEvent): boolean {
       return isTileRevealed(event.position);
     case 'CORRUPTION_FIZZLE':
       return isTileRevealed(event.position);
+    case 'QORK_DEATH_BURST':
+      return isTileRevealed(event.position)
+        || event.damagedUnitIds.some((unitId) =>
+          useGameStore.getState().units[unitId]?.faction === Faction.PLAYER);
     case 'CAVE_MONSTER_RETREAT':
       return isTileRevealed(event.position);
     case 'LEASH_DEFECT':
@@ -1933,6 +1939,41 @@ export function useAnimationEngine(): void {
           } else {
             useGameStore.getState().applyEvent(event);
           }
+          continue;
+        }
+
+        if (event.type === 'QORK_DEATH_BURST') {
+          const nextEvent = useAnimationStore.getState().eventQueue[0];
+          const corruptionFollows = (nextEvent?.type === 'CORRUPTION_APPLIED'
+            || nextEvent?.type === 'CORRUPTION_FIZZLE')
+            && nextEvent.position.x === event.position.x
+            && nextEvent.position.y === event.position.y;
+          if (visible) {
+            useCombatAnimationStore.getState().addTileVfx({
+              id: crypto.randomUUID(),
+              x: event.position.x,
+              y: event.position.y,
+              variant: 'QORK_DEATH_BURST',
+              durationMs: ANIMATION.QORK_DEATH_BURST_MS,
+            });
+            if (corruptionFollows && nextEvent) {
+              useCombatAnimationStore.getState().addTileVfx({
+                id: crypto.randomUUID(),
+                x: nextEvent.position.x,
+                y: nextEvent.position.y,
+                variant: nextEvent.type,
+                durationMs: nextEvent.type === 'CORRUPTION_APPLIED'
+                  ? ANIMATION.CORRUPTION_APPLIED_VFX_MS
+                  : ANIMATION.CORRUPTION_FIZZLE_VFX_MS,
+              });
+            }
+          }
+          useGameStore.getState().applyEvent(event);
+          if (corruptionFollows) {
+            const corruptionEvent = useAnimationStore.getState().shiftEvent();
+            if (corruptionEvent) useGameStore.getState().applyEvent(corruptionEvent);
+          }
+          if (visible) await wait(ANIMATION.QORK_DEATH_BURST_MS);
           continue;
         }
 

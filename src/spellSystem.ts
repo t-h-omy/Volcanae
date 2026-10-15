@@ -817,7 +817,7 @@ function handleCorruptedQork(
   clearTileStatus(state, targetPosition, outEvents);
 
   const unitId = generateId('unit_corrupted_qork');
-  const tags: UnitTag[] = [UnitTag.SUMMONED, UnitTag.LEASHED, ...UNIT_DEFINITIONS.CORRUPTED_QORK.tags];
+  const tags: UnitTag[] = [UnitTag.SUMMONED, UnitTag.LEASHED, UnitTag.READY, ...UNIT_DEFINITIONS.CORRUPTED_QORK.tags];
   for (const tag of getTagsFromActiveSpecialistsForSourceTag(state, UnitTag.SUMMONED)) {
     if (!tags.includes(tag)) tags.push(tag);
   }
@@ -840,12 +840,12 @@ function handleCorruptedQork(
     },
     tags,
     controllerMageId: mage.id,
-    hasMovedThisTurn: true,
-    hasAttackedThisTurn: true,
-    hasCapturedThisTurn: true,
+    hasMovedThisTurn: false,
+    hasAttackedThisTurn: false,
+    hasCapturedThisTurn: false,
     hasTradedThisTurn: false,
-    hasConstructedThisTurn: true,
-    hasDestroyedThisTurn: true,
+    hasConstructedThisTurn: false,
+    hasDestroyedThisTurn: false,
     hasConsumedGravestoneThisTurn: false,
     hasUsedPostAttackMoveThisTurn: false,
     bloodlustAttackAvailable: false,

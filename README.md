@@ -73,7 +73,7 @@ Spells are unlocked individually through the tech tree. Available spells include
 |-------|--------|
 | 🔄 Transpose | Swap the Mage with a friendly unit |
 | 🔥 Emberbind | Destroy a nearby Ember Nest, summoning a leashed Ember Demon |
-| 🐗 Corrupted Qork | Summon a ranged, leashed creature on an empty corrupted tile; it corrupts its tile when it dies |
+| 🐗 Corrupted Qork | Summon a ready ranged, leashed creature on an empty corrupted tile; it loses HP off corruption and explodes on death |
 | 🩸 Brandmark | Fully heal a friendly unit; the healed unit gains the BRANDMARKED tag, cannot be healed by Patch Up, and loses HP each turn, spawning a hostile Ember Demon on death |
 | 💀 Raise Skeleton | Animate a Gravestone as a Skeleton unit |
 | 🧟 Summon Ghoul | Summon a Ghoul from an empty player Gravestone |
@@ -89,7 +89,7 @@ Spells are unlocked individually through the tech tree. Available spells include
 
 The **Crystal Khyron** tech (child of Arcane Awakening) unlocks a population-free Mech recruitable from a resonating Crystal Chamber for 2 Arcane Crystals, sharing the Chamber's recruitment limit with Mages. During active **Resonance**, its first eligible enemy kill banks one persistent level, and each later Resonance can bank one more up to level 3. Earned levels survive resonance expiration, later turns, and saves. One **Level Up** confirmation applies every banked level, the standard maximum-HP bonuses, a full HP restore, and the union of the victims' transferable tags: Cleave, Pierce, Rage, Alert, Ironblood, Block, Puncture, Burn, Build & Capture, and Ranged. Inheriting Ranged also raises attack range to the victim's range when higher. Khyrons never gain XP, cannot be healed or traded at a Market, and leave no Gravestone; their explicit Resonance self-heal remains available. Resonance camera presentation visits the surviving Chambers and Caves first, then each surviving player Khyron; its active appearance and crystal-blue effect begin only after the camera arrives.
 
-The **Summon Ghoul** tech unlocks a Ghoul spell after Raise Skeleton. A Ghoul gains levels and heals by consuming the Gravestone beneath it, up to level 3, and never gains XP.
+The **Summon Ghoul** tech unlocks a Ghoul spell after Raise Skeleton. A Ghoul has 30 base attack and can consume a Gravestone after moving. Each level adds one movement range, up to level 3, and each kill heals it for 50% of the defeated unit's remaining HP. It never gains XP.
 
 The **Lava Mold** tech unlocks a spell after Explode. Infested units take damage at the end of their faction's turn; when they die, nearby surviving units of either faction become Infested.
 
@@ -97,7 +97,7 @@ The **Crystal Lightning** tech is a child of Crystal Khyron. It unlocks the spel
 
 A summoned Ember Demon or Corrupted Qork is **leashed** to its controller Mage. If the Mage moves more than `MAGE.EMBER_DEMON_LEASH_RANGE` tiles away (see `src/gameConfig.ts` for all balance numbers), the unit defects to the enemy at the end of the player turn. The UI highlights both tiles with a purple glow and switches to a red warning glow when the leash is about to break.
 
-A Corrupted Qork follows the same leash and defection rules as an Ember Demon. It gains XP and levels normally, and its death corrupts the tile when the underlying terrain permits it.
+A Corrupted Qork follows the same leash and defection rules as an Ember Demon. It can move or attack on the turn it is summoned, gains XP and levels normally, loses HP at its faction's turn end when it is not on a corrupted tile, and explodes on death to damage adjacent units and corrupt its tile when the underlying terrain permits it.
 
 ## Changelog
 

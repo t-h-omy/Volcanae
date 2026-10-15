@@ -2530,20 +2530,25 @@ function TileVfxLayer({ tileSize }: { tileSize: number }) {
   const removeTileVfx = useCombatAnimationStore((s) => s.removeTileVfx);
   return (
     <div className="tile-vfx-layer">
-      {tileVfx.map((vfx: TileVfx) => (
-        <div
-          key={vfx.id}
-          className={`tile-vfx tile-vfx--${vfx.variant.toLowerCase().replace(/_/g, '-')}`}
-          style={{
-            left: vfx.x * tileSize,
-            top: vfx.y * tileSize,
-            width: tileSize,
-            height: tileSize,
-            '--tile-vfx-duration': `${vfx.durationMs}ms`,
-          } as React.CSSProperties}
-          onAnimationEnd={() => removeTileVfx(vfx.id)}
-        />
-      ))}
+      {tileVfx.map((vfx: TileVfx) => {
+        const isQorkDeathBurst = vfx.variant === 'QORK_DEATH_BURST';
+        const footprintSize = isQorkDeathBurst ? tileSize * 3 : tileSize;
+        const footprintOffset = isQorkDeathBurst ? tileSize : 0;
+        return (
+          <div
+            key={vfx.id}
+            className={`tile-vfx tile-vfx--${vfx.variant.toLowerCase().replace(/_/g, '-')}`}
+            style={{
+              left: vfx.x * tileSize - footprintOffset,
+              top: vfx.y * tileSize - footprintOffset,
+              width: footprintSize,
+              height: footprintSize,
+              '--tile-vfx-duration': `${vfx.durationMs}ms`,
+            } as React.CSSProperties}
+            onAnimationEnd={() => removeTileVfx(vfx.id)}
+          />
+        );
+      })}
     </div>
   );
 }

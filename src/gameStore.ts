@@ -77,7 +77,51 @@ import { resourceName } from './i18n/entityText';
 import { appendChunk, deleteTurnsAfter, getTraceIndexSeed, readMeta as readAiTraceMeta, sealRun } from './aiTraceStore';
 import { applyUnitDamage } from './unitDamage';
 import { processInfestedFactionTurn, resolveInfestedDeath } from './infestedSystem';
+import { processCorruptedQorkDrain } from './corruptedQorkSystem';
 import { cannotBeHealed } from './unitTraits';
+
+function hasQueuedQorkBurst(position: Position): boolean {
+  return useAnimationStore.getState().eventQueue.some((event) =>
+    event.type === 'QORK_DEATH_BURST'
+    && event.position.x === position.x
+    && event.position.y === position.y);
+}
+
+function hasActiveQorkBurstVfx(position: Position): boolean {
+  return useCombatAnimationStore.getState().tileVfx.some((vfx) =>
+    vfx.variant === 'QORK_DEATH_BURST'
+    && vfx.x === position.x
+    && vfx.y === position.y);
+}
+
+function addDirectQorkDeathVfx(
+  state: Pick<GameState, 'grid'>,
+  position: Position,
+  useResolvedState = false,
+): void {
+  if (hasActiveQorkBurstVfx(position)) return;
+  const resolvedTile = useResolvedState
+    ? useAnimationStore.getState().resolvedState?.grid[position.y]?.[position.x]
+    : undefined;
+  const tile = resolvedTile ?? state.grid[position.y]?.[position.x];
+  const store = useCombatAnimationStore.getState();
+  store.addTileVfx({
+    id: crypto.randomUUID(),
+    x: position.x,
+    y: position.y,
+    variant: 'QORK_DEATH_BURST',
+    durationMs: ANIMATION.QORK_DEATH_BURST_MS,
+  });
+  store.addTileVfx({
+    id: crypto.randomUUID(),
+    x: position.x,
+    y: position.y,
+    variant: tile?.status === TileStatus.CORRUPTED ? 'CORRUPTION_APPLIED' : 'CORRUPTION_FIZZLE',
+    durationMs: tile?.status === TileStatus.CORRUPTED
+      ? ANIMATION.CORRUPTION_APPLIED_VFX_MS
+      : ANIMATION.CORRUPTION_FIZZLE_VFX_MS,
+  });
+}
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
@@ -575,6 +619,7 @@ export const useGameStore = create<GameStore>()(
         slideDx: number;
         slideDy: number;
         infested: boolean;
+        qork: boolean;
       } | null = null;
       const movementEvents: GameEvent[] = [];
 
@@ -586,6 +631,7 @@ export const useGameStore = create<GameStore>()(
         const unitTypeBefore = unitBefore?.type;
         const factionBefore = unitBefore?.faction;
         const infestedBefore = !!unitBefore?.tags.includes(UnitTag.INFESTED);
+        const qorkBefore = unitBefore?.type === UnitType.CORRUPTED_QORK;
 
         moveUnitLogic(state, unitId, targetPosition, movementEvents);
         // Player movement may have freed a portal exit tile; resolve waiting teleports.
@@ -642,6 +688,7 @@ export const useGameStore = create<GameStore>()(
             slideDx: -slideDirX * tileSize,
             slideDy: -slideDirY * tileSize,
             infested: infestedBefore,
+            qork: qorkBefore,
           };
         }
         // ── End ice-slide animation ──────────────────────────────────────────
@@ -661,6 +708,11 @@ export const useGameStore = create<GameStore>()(
       if (portalMovementEvents.length > 0) {
         useAnimationStore.getState().enqueue(portalMovementEvents, useGameStore.getState());
       }
+      for (const event of movementEvents) {
+        if (event.type === 'QORK_DEATH_BURST' && !hasQueuedQorkBurst(event.position)) {
+          addDirectQorkDeathVfx(useGameStore.getState(), event.position);
+        }
+      }
 
       // ── Slide-kill ghost animation ───────────────────────────────────────
       // Fire AFTER the immer set() completes so the game state is already updated.
@@ -673,6 +725,7 @@ export const useGameStore = create<GameStore>()(
           deathTileX: number; deathTileY: number;
           slideDx: number; slideDy: number;
           infested: boolean;
+          qork: boolean;
         };
         const ghostId = `slide-kill-${unitId}-${Date.now()}`;
         const ghost = {
@@ -695,6 +748,9 @@ export const useGameStore = create<GameStore>()(
             variant: 'INFESTED_DEATH_BURST',
             durationMs: ANIMATION.INFESTED_DEATH_BURST_MS,
           });
+        }
+        if (d.qork && !hasQueuedQorkBurst({ x: d.deathTileX, y: d.deathTileY })) {
+          addDirectQorkDeathVfx(useGameStore.getState(), { x: d.deathTileX, y: d.deathTileY });
         }
 
         // Phase 1 — slide in
@@ -1637,7 +1693,13 @@ export const useGameStore = create<GameStore>()(
           const original = state.units[unitId];
           if (!original) continue;
           const wasInfested = original.tags.includes(UnitTag.INFESTED);
-          resolveInfestedDeath(state, original);
+          const needsDirectQorkVfx = original.type === UnitType.CORRUPTED_QORK
+            && !original.infestedDeathEffectResolved
+            && !hasQueuedQorkBurst(position);
+          if (original.type !== UnitType.CORRUPTED_QORK || !original.infestedDeathEffectResolved) {
+            resolveInfestedDeath(state, original);
+          }
+          if (needsDirectQorkVfx) addDirectQorkDeathVfx(state, position);
           if (wasInfested) {
             useCombatAnimationStore.getState().addTileVfx({
               id: crypto.randomUUID(),
@@ -2230,6 +2292,7 @@ export const useGameStore = create<GameStore>()(
         const playerInfestedEvents: GameEvent[] = [];
         snapshot = produce(snapshot, (draft) => {
           processInfestedFactionTurn(draft, Faction.PLAYER, playerInfestedEvents);
+          processCorruptedQorkDrain(draft, Faction.PLAYER, playerInfestedEvents);
         });
         if (isSpecialistEffectActive(snapshot, 'IDLE_HEAL')) {
           snapshot = produce(snapshot, (draft) => {
@@ -2926,6 +2989,11 @@ export const useGameStore = create<GameStore>()(
                   durationMs: ANIMATION.INFESTED_DEATH_BURST_MS,
                 });
               }
+              if (unit.type === UnitType.CORRUPTED_QORK
+                && !unit.infestedDeathEffectResolved
+                && !hasQueuedQorkBurst(event.position)) {
+                addDirectQorkDeathVfx(state, event.position, true);
+              }
               const tile = state.grid[unit.position.y][unit.position.x];
               if (tile.unitId === event.unitId) {
                 tile.unitId = null;
@@ -3320,6 +3388,11 @@ export const useGameStore = create<GameStore>()(
             for (const unitId of event.destroyedUnitIds) {
               const unit = state.units[unitId];
               if (unit?.tunnelState === 'UNDERGROUND' || unit?.tunnelState === 'EMERGING') continue;
+              if (unit?.type === UnitType.CORRUPTED_QORK
+                && !unit.infestedDeathEffectResolved
+                && !hasQueuedQorkBurst(unit.position)) {
+                addDirectQorkDeathVfx(state, unit.position, true);
+              }
               if (!unit?.tags.includes(UnitTag.INFESTED)) continue;
               useCombatAnimationStore.getState().addTileVfx({
                 id: crypto.randomUUID(),
@@ -3342,6 +3415,11 @@ export const useGameStore = create<GameStore>()(
             for (const unitId of event.purgedUnitIds) {
               const unit = state.units[unitId];
               if (unit) {
+                if (unit.type === UnitType.CORRUPTED_QORK
+                  && !unit.infestedDeathEffectResolved
+                  && !hasQueuedQorkBurst(unit.position)) {
+                  addDirectQorkDeathVfx(state, unit.position, true);
+                }
                 if (unit.tags.includes(UnitTag.INFESTED)) {
                   useCombatAnimationStore.getState().addTileVfx({
                     id: crypto.randomUUID(),
@@ -3712,6 +3790,15 @@ export const useGameStore = create<GameStore>()(
             const tile = state.grid[event.position.y]?.[event.position.x];
             if (tile && tile.status !== TileStatus.CORRUPTED) {
               tile.status = TileStatus.CORRUPTED;
+            }
+            break;
+          }
+
+          case 'QORK_DEATH_BURST': {
+            const unitId = state.grid[event.position.y]?.[event.position.x]?.unitId;
+            const qork = unitId ? state.units[unitId] : null;
+            if (qork?.type === UnitType.CORRUPTED_QORK) {
+              qork.infestedDeathEffectResolved = true;
             }
             break;
           }
