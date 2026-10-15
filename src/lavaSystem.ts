@@ -171,7 +171,7 @@ export function advanceLava(state: Draft<GameState>, outEvents?: GameEvent[], sk
         }
         // Remove unit from state
         delete state.units[unitId];
-        if (unit) resolveInfestedDeath(state, unit, outEvents);
+        if (unit && !skipRoostedCleanup) resolveInfestedDeath(state, unit, outEvents);
         // Clear unit from tile
         tile.unitId = null;
       }

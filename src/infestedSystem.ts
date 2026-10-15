@@ -182,7 +182,7 @@ function resolveQorkDeathBurst(
       if (x === deceased.position.x && y === deceased.position.y) continue;
       const targetTile = state.grid[y]?.[x];
       const target = targetTile?.unitId ? state.units[targetTile.unitId] : null;
-      if (!target || target.tunnelState === 'UNDERGROUND') continue;
+      if (!target || target.stats.currentHp <= 0 || target.tunnelState === 'UNDERGROUND') continue;
 
       const outcome = getUnitDamageOutcome(target, CORRUPTED_QORK.DEATH_EXPLOSION_DAMAGE);
       applyUnitDamage(target, CORRUPTED_QORK.DEATH_EXPLOSION_DAMAGE);
@@ -251,7 +251,7 @@ function resolveUnitDeathEffects(
   events: GameEvent[] | undefined,
   context: DeathResolutionContext,
 ): void {
-  if (deceased.type === UnitType.CORRUPTED_QORK && !deceased.infestedDeathEffectResolved) {
+  if (deceased.type === UnitType.CORRUPTED_QORK) {
     resolveQorkDeathBurst(state, deceased, events, context);
   }
   resolveDeath(state, deceased, events, context);
@@ -323,7 +323,10 @@ export function processInfestedFactionTurn(
       if (deceased.type === UnitType.CAVE_MONSTER) {
         events.push({ type: 'CAVE_MONSTER_KILLED', monsterId: unitId });
       }
-      resolveDeath(state, deceased, events, new Set());
+      resolveUnitDeathEffects(state, deceased, events, {
+        resolvedInfestedIds: new Set(),
+        resolvedQorkIds: new Set(),
+      });
       continue;
     }
     const tile = state.grid[position.y]?.[position.x];
@@ -339,6 +342,9 @@ export function processInfestedFactionTurn(
     if (deceased.type === UnitType.CAVE_MONSTER) {
       events.push({ type: 'CAVE_MONSTER_KILLED', monsterId: unitId });
     }
-    resolveDeath(state, deceased, events, new Set());
+    resolveUnitDeathEffects(state, deceased, events, {
+      resolvedInfestedIds: new Set(),
+      resolvedQorkIds: new Set(),
+    });
   }
 }

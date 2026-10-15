@@ -8,6 +8,8 @@ import { computeResearchCost } from '../../config/tech';
 import { castSpell, explainInvalidSpellTarget, getValidSpellTargets, checkAndDefectLeash, getLeashedUnitsForMage, sweepLeashes } from '../spellSystem';
 import { shouldLeaveGravestone } from '../combatSystem';
 import { resolveInfestedDeath } from '../infestedSystem';
+import { processCorruptedQorkDrain } from '../corruptedQorkSystem';
+import { canUnitAttack, canUnitMove } from '../unitActions';
 import { applyLevelUps, canGrantXp, computeLevelFromXp, grantXp } from '../levelSystem';
 import { generateInitialGameState } from '../mapGenerator';
 import { loadSlot, saveSlotStrict } from '../saveSystem';
@@ -258,12 +260,15 @@ describe('Corrupted Qork summoning and leash', () => {
     expect(qork.faction).toBe(Faction.PLAYER);
     expect(qork.tags).toEqual(expect.arrayContaining([UnitTag.SUMMONED, UnitTag.LEASHED, UnitTag.RANGED]));
     expect(qork.controllerMageId).toBe(mage.id);
-    expect(qork.hasMovedThisTurn).toBe(true);
-    expect(qork.hasAttackedThisTurn).toBe(true);
-    expect(qork.hasCapturedThisTurn).toBe(true);
-    expect(qork.hasConstructedThisTurn).toBe(true);
-    expect(qork.hasDestroyedThisTurn).toBe(true);
+    expect(qork.tags).toContain(UnitTag.READY);
+    expect(qork.hasMovedThisTurn).toBe(false);
+    expect(qork.hasAttackedThisTurn).toBe(false);
+    expect(qork.hasCapturedThisTurn).toBe(false);
+    expect(qork.hasConstructedThisTurn).toBe(false);
+    expect(qork.hasDestroyedThisTurn).toBe(false);
     expect(qork.hasTradedThisTurn).toBe(false);
+    expect(canUnitMove(qork, result)).toBe(true);
+    expect(canUnitAttack(qork, result)).toBe(true);
     expect(result.arcaneCrystals).toBe(state.arcaneCrystals - 1);
     expect(result.units[mage.id].spellsCastThisTurn).toBe(1);
   });
@@ -372,6 +377,136 @@ describe('Corrupted Qork progression, death, and saves', () => {
     expect(after.units[qork.id].stats.maxHp).toBeGreaterThan(qork.stats.maxHp);
     expect(canGrantXp(qork.type, after.units[qork.id].xp)).toBe(false);
   });
+});
+
+describe('Corrupted Qork drain and death burst', () => {
+      it.each([Faction.PLAYER, Faction.ENEMY])('drains only off-corruption for faction %s', (faction) => {
+        const offTileQork = makeUnit(UnitType.CORRUPTED_QORK, { x: 5, y: 10 }, faction);
+        const onTileQork = makeUnit(UnitType.CORRUPTED_QORK, { x: 7, y: 10 }, faction);
+        const state = makeState([offTileQork, onTileQork]);
+        setCorrupted(state, onTileQork.position);
+        const events: GameEvent[] = [];
+
+        const after = produce(state, (draft) => {
+          processCorruptedQorkDrain(draft, faction, events);
+        });
+
+        expect(after.units[offTileQork.id].stats.currentHp).toBe(offTileQork.stats.currentHp - 10);
+        expect(after.units[onTileQork.id].stats.currentHp).toBe(onTileQork.stats.currentHp);
+        expect(events).toContainEqual(expect.objectContaining({
+          type: 'TILE_DAMAGE',
+          unitId: offTileQork.id,
+          damageAmount: CORRUPTED_QORK.OFF_CORRUPTION_HP_LOSS,
+          damageSource: 'QORK_DRAIN',
+        }));
+      });
+
+      it('lets Stone Skin absorb the drain before Qork HP', () => {
+        const qork = makeUnit(UnitType.CORRUPTED_QORK, { x: 5, y: 10 }, Faction.ENEMY, [
+          UnitTag.STONE_SKIN,
+        ], { stoneSkinHp: 5 });
+        const events: GameEvent[] = [];
+        const after = produce(makeState([qork]), (draft) => {
+          processCorruptedQorkDrain(draft, Faction.ENEMY, events);
+        });
+
+        expect(after.units[qork.id].stats.currentHp).toBe(qork.stats.currentHp - 5);
+        expect(after.units[qork.id].tags).not.toContain(UnitTag.STONE_SKIN);
+      });
+
+      it('bursts for flat damage across all adjacent tiles, skipping underground units and buildings', () => {
+        const qork = makeUnit(UnitType.CORRUPTED_QORK, { x: 6, y: 10 });
+        const neighbors = [
+          { x: 5, y: 9 }, { x: 6, y: 9 }, { x: 7, y: 9 },
+          { x: 5, y: 10 }, { x: 7, y: 10 },
+          { x: 5, y: 11 }, { x: 6, y: 11 }, { x: 7, y: 11 },
+        ];
+        const victims = neighbors.map((position, index) => makeUnit(
+          UnitType.GUARD,
+          position,
+          index % 2 === 0 ? Faction.PLAYER : Faction.ENEMY,
+          [],
+          index === 0 ? { tunnelState: 'UNDERGROUND' } : {},
+        ));
+        const state = makeState([qork, ...victims]);
+        state.grid[9][6].buildingId = 'untouched-building';
+        const events: GameEvent[] = [];
+
+        const after = produce(state, (draft) => {
+          const deceased = draft.units[qork.id];
+          draft.grid[10][6].unitId = null;
+          delete draft.units[qork.id];
+          resolveInfestedDeath(draft, deceased, events);
+        });
+
+        expect(after.grid[9][6].buildingId).toBe('untouched-building');
+        expect(after.units[victims[0].id].stats.currentHp).toBe(victims[0].stats.currentHp);
+        for (const victim of victims.slice(1)) {
+          expect(after.units[victim.id].stats.currentHp).toBe(victim.stats.currentHp - CORRUPTED_QORK.DEATH_EXPLOSION_DAMAGE);
+        }
+        expect(events.map((event) => event.type).slice(0, 3)).toEqual([
+          'QORK_DEATH_BURST',
+          'CORRUPTION_APPLIED',
+          'TILE_DAMAGE',
+        ]);
+      });
+
+      it('chains Qork deaths, leaves eligible Gravestones, and emits deaths after damage', () => {
+        const qork = makeUnit(UnitType.CORRUPTED_QORK, { x: 6, y: 10 }, Faction.PLAYER);
+        const chainedQork = makeUnit(UnitType.CORRUPTED_QORK, { x: 7, y: 10 }, Faction.ENEMY);
+        chainedQork.stats.currentHp = 15;
+        const graveVictim = makeUnit(UnitType.GUARD, { x: 6, y: 9 }, Faction.PLAYER, [
+          UnitTag.LEAVES_GRAVESTONE,
+        ]);
+        graveVictim.stats.currentHp = 15;
+        const otherVictim = makeUnit(UnitType.GUARD, { x: 7, y: 9 }, Faction.ENEMY);
+        otherVictim.stats.currentHp = 15;
+        const ghoul = makeUnit(UnitType.GHOUL, { x: 5, y: 9 });
+        ghoul.stats.currentHp = 40;
+        const state = makeState([qork, chainedQork, graveVictim, otherVictim, ghoul]);
+        const events: GameEvent[] = [];
+
+        const after = produce(state, (draft) => {
+          const deceased = draft.units[qork.id];
+          draft.grid[10][6].unitId = null;
+          delete draft.units[qork.id];
+          resolveInfestedDeath(draft, deceased, events);
+        });
+
+        expect(after.units[chainedQork.id]).toBeUndefined();
+        expect(after.units[graveVictim.id]).toBeUndefined();
+        expect(after.grid[9][6].buildingId).not.toBeNull();
+        expect(after.units[ghoul.id].stats.currentHp).toBe(ghoul.stats.currentHp - CORRUPTED_QORK.DEATH_EXPLOSION_DAMAGE);
+        expect(after.gameStats.unitsLost).toBe(1);
+        expect(after.gameStats.unitsKilled).toBe(2);
+        expect(qork.xp).toBe(0);
+        expect(chainedQork.xp).toBe(0);
+        const qorkEventIndexes = events.flatMap((event, index) =>
+          event.type === 'QORK_DEATH_BURST' ? [index] : []);
+        expect(qorkEventIndexes).toHaveLength(2);
+        expect(events.findIndex((event) => event.type === 'UNIT_DEATH'))
+          .toBeGreaterThan(events.findIndex((event) => event.type === 'TILE_DAMAGE'));
+      });
+
+      it('drain deaths trigger the Qork burst and corruption events', () => {
+        const qork = makeUnit(UnitType.CORRUPTED_QORK, { x: 6, y: 10 }, Faction.ENEMY);
+        qork.stats.currentHp = 10;
+        const neighbor = makeUnit(UnitType.GUARD, { x: 7, y: 10 }, Faction.PLAYER);
+        const events: GameEvent[] = [];
+        const after = produce(makeState([qork, neighbor]), (draft) => {
+          processCorruptedQorkDrain(draft, Faction.ENEMY, events);
+        });
+
+        expect(after.units[qork.id]).toBeUndefined();
+        expect(after.units[neighbor.id].stats.currentHp).toBe(neighbor.stats.currentHp - CORRUPTED_QORK.DEATH_EXPLOSION_DAMAGE);
+        expect(events.map((event) => event.type)).toEqual([
+          'TILE_DAMAGE',
+          'UNIT_DEATH',
+          'QORK_DEATH_BURST',
+          'CORRUPTION_APPLIED',
+          'TILE_DAMAGE',
+        ]);
+      });
 
   it.each([Faction.PLAYER, Faction.ENEMY])('applies corruption on true death for faction %s', (faction) => {
     const qork = makeUnit(UnitType.CORRUPTED_QORK, { x: 5, y: 10 }, faction);

@@ -73,7 +73,7 @@ Spells are unlocked individually through the tech tree. Available spells include
 |-------|--------|
 | 🔄 Transpose | Swap the Mage with a friendly unit |
 | 🔥 Emberbind | Destroy a nearby Ember Nest, summoning a leashed Ember Demon |
-| 🐗 Corrupted Qork | Summon a ranged, leashed creature on an empty corrupted tile; it corrupts its tile when it dies |
+| 🐗 Corrupted Qork | Summon a ready ranged, leashed creature on an empty corrupted tile; it loses HP off corruption and explodes on death |
 | 🩸 Brandmark | Fully heal a friendly unit; the healed unit gains the BRANDMARKED tag, cannot be healed by Patch Up, and loses HP each turn, spawning a hostile Ember Demon on death |
 | 💀 Raise Skeleton | Animate a Gravestone as a Skeleton unit |
 | 🧟 Summon Ghoul | Summon a Ghoul from an empty player Gravestone |
@@ -97,7 +97,7 @@ The **Crystal Lightning** tech is a child of Crystal Khyron. It unlocks the spel
 
 A summoned Ember Demon or Corrupted Qork is **leashed** to its controller Mage. If the Mage moves more than `MAGE.EMBER_DEMON_LEASH_RANGE` tiles away (see `src/gameConfig.ts` for all balance numbers), the unit defects to the enemy at the end of the player turn. The UI highlights both tiles with a purple glow and switches to a red warning glow when the leash is about to break.
 
-A Corrupted Qork follows the same leash and defection rules as an Ember Demon. It gains XP and levels normally, and its death corrupts the tile when the underlying terrain permits it.
+A Corrupted Qork follows the same leash and defection rules as an Ember Demon. It can move or attack on the turn it is summoned, gains XP and levels normally, loses HP at its faction's turn end when it is not on a corrupted tile, and explodes on death to damage adjacent units and corrupt its tile when the underlying terrain permits it.
 
 ## Changelog
 

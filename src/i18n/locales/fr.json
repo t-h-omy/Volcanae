@@ -897,7 +897,7 @@
   "reason.spell.portalWrongRow": "Doit être sur la même ligne",
   "reason.movement.portalExitBlocked": "Sortie du portail bloquée",
   "unit.CORRUPTED_QORK.name": "Qork corrompu",
-  "unit.CORRUPTED_QORK.desc": "Créature à distance invoquée sur une case corrompue. Elle reste liée à son mage jusqu'à sa défection.",
+  "unit.CORRUPTED_QORK.desc": "Une créature à distance invoquée sur une case corrompue. Elle reste liée à son mage jusqu'à sa défection. Si elle ne se trouve pas sur une case corrompue, elle perd {hpLoss} PV à la fin de son tour. À sa mort, elle explose, inflige {explosionDamage} dégâts à toutes les unités adjacentes et corrompt sa case lorsque le terrain le permet.",
   "tech.CORRUPTED_QORK.name": "Qork corrompu",
   "tech.CORRUPTED_QORK.desc": "Débloque le sort Qork corrompu.",
   "spell.CORRUPTED_QORK.name": "Qork corrompu",

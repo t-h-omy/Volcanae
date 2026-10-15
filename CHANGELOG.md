@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.118.0 - Corrupted Qork drain and death burst
+
+Corrupted Qorks now spawn ready to act, lose HP at their faction's turn end when off corrupted tiles, and explode on death to damage adjacent units while corrupting their death tile when terrain permits.
+
 ### v0.117.0 - Ghoul iteration
 
 Ghouls now consume Gravestones after moving, gain movement range with each level, and heal for half of a defeated unit's remaining HP when they earn a kill. Their base attack is reduced to 30.
