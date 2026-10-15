@@ -1671,9 +1671,6 @@
 
 /* QORK_DEATH_BURST: corrupted mud matter across the surrounding tiles */
 .tile-vfx--qork-death-burst {
-  width: 300%;
-  height: 300%;
-  margin: -100% 0 0 -100%;
   border-radius: 43% 57% 64% 36% / 52% 41% 59% 48%;
   background:
     radial-gradient(ellipse at 52% 48%,
