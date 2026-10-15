@@ -2,7 +2,7 @@ import type { Draft } from 'immer';
 import { GHOUL } from './gameConfig';
 import type { GameEvent } from './gameEvents';
 import type { GameState } from './types';
-import { UnitType } from './types';
+import { Faction, UnitType } from './types';
 import { ANIMATION } from '../config/animation';
 import { useCombatAnimationStore } from './combatAnimationStore';
 import { useFloaterStore } from './floaterStore';
@@ -31,7 +31,7 @@ export function applyGhoulKillHeal(
       value: heal,
       x: position.x,
       y: position.y,
-      isEnemy: killer.faction !== 'PLAYER',
+      isEnemy: killer.faction === Faction.ENEMY,
       floaterType: 'heal',
     });
     useCombatAnimationStore.getState().addTileVfx({

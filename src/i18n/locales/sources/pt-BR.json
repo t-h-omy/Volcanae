@@ -22,7 +22,7 @@
   "unit.SKELETON.name": "Skeleton",
   "unit.SKELETON.desc": "Undead warrior raised from a gravestone.",
   "unit.GHOUL.name": "Ghoul",
-  "unit.GHOUL.desc": "Undead warrior raised from a Gravestone. Consumes Gravestones to reach level {maxLevel} and heal; gains no XP.",
+  "unit.GHOUL.desc": "Undead warrior raised from a Gravestone. Consumes Gravestones, even after moving, to reach level {maxLevel} and heal; gains no XP. Each level grants +{moveRangeBonus} movement range. Each kill heals it by {killHealPercent}% of the HP the defeated unit had left.",
   "unit.GARGOYLE.name": "Gargoyle",
   "unit.GARGOYLE.desc": "Flying skeletal gargoyle raised from a Gravestone. Melee attacker that flies {moveRange} tiles over canyons and water.",
   "unit.CROSSBOWMAN.name": "Crossbowman",

@@ -22,7 +22,7 @@
   "unit.EMBER_DEMON.desc": "Potente unità demoniaca.",
   "unit.SKELETON.name": "Scheletro",
   "unit.GHOUL.name": "Ghoul famelico",
-  "unit.GHOUL.desc": "Guerriero non morto che raggiunge il livello {maxLevel} e si cura consumando Lapidi. Non ottiene XP.",
+  "unit.GHOUL.desc": "Guerriero non morto risvegliato da una lapide. Consuma lapidi anche dopo essersi mosso per raggiungere il livello {maxLevel} e curarsi; non ottiene XP. Ogni livello aumenta il raggio di movimento di {moveRangeBonus}. Ogni uccisione lo cura del {killHealPercent}% dei PV rimasti all'unità sconfitta.",
   "unit.SKELETON.desc": "Guerriero non morto risorto da una lapide.",
   "unit.GARGOYLE.name": "Gargoyle",
   "unit.GARGOYLE.desc": "Gargoyle scheletrico volante risorto da una Lapide. Combattente da mischia che vola sopra {moveRange} caselle di canyon e acqua.",

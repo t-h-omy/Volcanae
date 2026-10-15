@@ -24,6 +24,7 @@ import { applyUnitDamage, getUnitDamageOutcome } from './unitDamage';
 import { clearInfestedOnCreditedKill, resolveInfestedDeath } from './infestedSystem';
 import { cleanupPortals, isPortalEndpoint, resolvePortalEntry } from './portalSystem';
 import { cannotBeHealed } from './unitTraits';
+import { applyGhoulKillHeal } from './ghoulSystem';
 
 // Counter for generating unique gravestone building IDs within this module
 let combatSystemIdCounter = 0;
@@ -725,6 +726,7 @@ function resolveKnockback(
   const defender = state.units[defenderId];
   if (!defender) return;
   const victimTags = [...defender.tags];
+  const victimHpBeforeHit = defender.stats.currentHp;
 
   // Use live attacker data when available; fall back to pre-captured values.
   const attackerPos = attacker?.position ?? attackerPositionOverride;
@@ -791,6 +793,7 @@ function resolveKnockback(
       position: { x: destX, y: destY },
       faction: defenderFaction,
     });
+    applyGhoulKillHeal(state, attackerId, victimHpBeforeHit, outEvents);
     clearInfestedOnCreditedKill(state, attackerId);
     resolveInfestedDeath(state, defender, outEvents);
     return;
@@ -819,6 +822,7 @@ function resolveKnockback(
         position: { x: destX, y: destY },
         faction: defenderFaction,
       });
+      applyGhoulKillHeal(state, attackerId, victimHpBeforeHit, outEvents);
       clearInfestedOnCreditedKill(state, attackerId);
       resolveInfestedDeath(state, defender, outEvents);
       return;
@@ -852,6 +856,7 @@ function resolveKnockback(
       position: { x: destX, y: destY },
       faction: defenderFaction,
     });
+    applyGhoulKillHeal(state, attackerId, victimHpBeforeHit, outEvents);
     clearInfestedOnCreditedKill(state, attackerId);
     resolveInfestedDeath(state, defender, outEvents);
     return;
@@ -897,6 +902,7 @@ function resolveKnockback(
         position: deathPos,
         faction: defenderFaction,
       });
+      applyGhoulKillHeal(state, attackerId, victimHpBeforeHit, outEvents);
       clearInfestedOnCreditedKill(state, attackerId);
       resolveInfestedDeath(state, defender, outEvents);
       return;
@@ -1106,6 +1112,8 @@ function resolveAttackInner(
   }
 
   // Apply damage to defender
+  const defenderHpBeforeHit = defender.stats.currentHp;
+  const attackerHpBeforeHit = attacker.stats.currentHp;
   const defenderDamageOutcome = getUnitDamageOutcome(defender, combatResult.defenderHpLost);
   const defenderDead = defenderDamageOutcome.died;
 
@@ -1175,6 +1183,7 @@ function resolveAttackInner(
     const attackerPos = { x: attacker.position.x, y: attacker.position.y };
     // A resonating Khyron defender killing its attacker (counterattack) counts as a credited kill.
     recordKhyronKill(state, defenderId, attackerFaction, attackerTags, attacker.stats.attackRange);
+    applyGhoulKillHeal(state, defenderId, attackerHpBeforeHit, outEvents);
     if (attackerTags.includes(UnitTag.BRANDMARKED)) {
       // BRANDMARKED: immediately complete the transform so the resolved state is clean.
       completeBrandmarkTransformInPlace(state, attackerId, attackerPos);
@@ -1254,6 +1263,7 @@ function resolveAttackInner(
     if (!attackerDead) {
       clearInfestedOnCreditedKill(state, attackerId);
       recordKhyronKill(state, attackerId, defenderFaction, defenderTags, defender.stats.attackRange);
+      applyGhoulKillHeal(state, attackerId, defenderHpBeforeHit, outEvents);
       grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
     }
     // EMBER_DEMON kill: grant crystal reward when player kills a hostile Ember Demon
@@ -1470,6 +1480,7 @@ function resolveAttackInner(
         if (!splashTarget || splashTarget.faction !== Faction.ENEMY) continue;
         const splashTargetId = splashTile.unitId;
         const splashDamageOutcome = getUnitDamageOutcome(splashTarget, splashDamage);
+        const splashTargetHpBeforeHit = splashTarget.stats.currentHp;
         if (!suppressFloaters && splashTile.isRevealed) {
           const { addFloater } = useFloaterStore.getState();
           addFloater({ value: splashDamage, x: nx, y: ny, isEnemy: true });
@@ -1494,6 +1505,7 @@ function resolveAttackInner(
             position: { x: nx, y: ny },
             faction: splashTarget.faction,
           });
+          applyGhoulKillHeal(state, attackerId, splashTargetHpBeforeHit, outEvents);
           clearInfestedOnCreditedKill(state, attackerId);
           resolveInfestedDeath(state, splashTarget, outEvents);
         } else {
@@ -1530,6 +1542,7 @@ function resolveAttackInner(
           // second defense reduction. Minimum 1 ensures the tag is always meaningful.
           const finalCleaveDamage = Math.max(1, cleaveDamage);
           const cleaveDamageOutcome = getUnitDamageOutcome(cleaveTarget, finalCleaveDamage);
+          const cleaveTargetHpBeforeHit = cleaveTarget.stats.currentHp;
           if (!suppressFloaters) {
             const { addFloater } = useFloaterStore.getState();
             addFloater({ value: finalCleaveDamage, x: cx, y: cy, isEnemy: cleaveTarget.faction === Faction.ENEMY });
@@ -1558,6 +1571,7 @@ function resolveAttackInner(
               position: { x: cx, y: cy },
               faction: cleaveTarget.faction,
             });
+            applyGhoulKillHeal(state, attackerId, cleaveTargetHpBeforeHit, outEvents);
           } else {
             applyUnitDamage(cleaveTarget, finalCleaveDamage);
             updateBerserkLatch(cleaveTarget);
@@ -1600,6 +1614,7 @@ function resolveAttackInner(
           if (isHostileRear) {
             const finalPierceDamage = Math.max(1, Math.round(fullPrimaryDamage * ABILITIES.PIERCE_SECONDARY_DAMAGE_MULTIPLIER));
             const pierceDamageOutcome = getUnitDamageOutcome(rearUnit, finalPierceDamage);
+            const rearUnitHpBeforeHit = rearUnit.stats.currentHp;
             if (!suppressFloaters) {
               const { addFloater } = useFloaterStore.getState();
               addFloater({ value: finalPierceDamage, x: behindPos.x, y: behindPos.y, isEnemy: rearUnit.faction === Faction.ENEMY });
@@ -1635,6 +1650,7 @@ function resolveAttackInner(
                 position: { ...behindPos },
                 faction: rearUnit.faction,
               });
+              applyGhoulKillHeal(state, attackerId, rearUnitHpBeforeHit, outEvents);
               clearInfestedOnCreditedKill(state, attackerId);
               resolveInfestedDeath(state, rearUnit, outEvents);
             } else {
@@ -2348,6 +2364,7 @@ function resolveAttackOnBuildingInner(
         if (!splashTarget || splashTarget.faction !== Faction.ENEMY) continue;
         const splashTargetId = splashTile.unitId;
         const splashDamageOutcome = getUnitDamageOutcome(splashTarget, splashDamage);
+        const splashTargetHpBeforeHit = splashTarget.stats.currentHp;
         if (!suppressFloaters && splashTile.isRevealed) {
           const { addFloater } = useFloaterStore.getState();
           addFloater({ value: splashDamage, x: nx, y: ny, isEnemy: true });
@@ -2372,6 +2389,7 @@ function resolveAttackOnBuildingInner(
             position: { x: nx, y: ny },
             faction: splashTarget.faction,
           });
+          applyGhoulKillHeal(state, attackerId, splashTargetHpBeforeHit, outEvents);
           clearInfestedOnCreditedKill(state, attackerId);
           resolveInfestedDeath(state, splashTarget, outEvents);
         } else {
@@ -2405,6 +2423,7 @@ function resolveAttackOnBuildingInner(
           if (!cleaveTarget || cleaveTarget.faction === attacker.faction) continue;
           const finalCleaveDamage = Math.max(1, cleaveDamage);
           const cleaveDamageOutcome = getUnitDamageOutcome(cleaveTarget, finalCleaveDamage);
+          const cleaveTargetHpBeforeHit = cleaveTarget.stats.currentHp;
           if (!suppressFloaters) {
             const { addFloater } = useFloaterStore.getState();
             addFloater({ value: finalCleaveDamage, x: cx, y: cy, isEnemy: cleaveTarget.faction === Faction.ENEMY });
@@ -2431,6 +2450,7 @@ function resolveAttackOnBuildingInner(
               position: { x: cx, y: cy },
               faction: cleaveTarget.faction,
             });
+            applyGhoulKillHeal(state, attackerId, cleaveTargetHpBeforeHit, outEvents);
             clearInfestedOnCreditedKill(state, attackerId);
             resolveInfestedDeath(state, cleaveTarget, outEvents);
           } else {
@@ -2472,6 +2492,7 @@ function resolveAttackOnBuildingInner(
           if (isHostileRear) {
             const finalPierceDamage = Math.max(1, Math.round(fullPrimaryDamage * ABILITIES.PIERCE_SECONDARY_DAMAGE_MULTIPLIER));
             const pierceDamageOutcome = getUnitDamageOutcome(rearUnit, finalPierceDamage);
+            const rearUnitHpBeforeHit = rearUnit.stats.currentHp;
             if (!suppressFloaters) {
               const { addFloater } = useFloaterStore.getState();
               addFloater({ value: finalPierceDamage, x: behindPos.x, y: behindPos.y, isEnemy: rearUnit.faction === Faction.ENEMY });
@@ -2507,6 +2528,7 @@ function resolveAttackOnBuildingInner(
                 position: { ...behindPos },
                 faction: rearUnit.faction,
               });
+              applyGhoulKillHeal(state, attackerId, rearUnitHpBeforeHit, outEvents);
               clearInfestedOnCreditedKill(state, attackerId);
               resolveInfestedDeath(state, rearUnit, outEvents);
             } else {

@@ -22,7 +22,7 @@
   "unit.EMBER_DEMON.desc": "Poderosa unidad demoníaca.",
   "unit.SKELETON.name": "Esqueleto",
   "unit.GHOUL.name": "Necrófago",
-  "unit.GHOUL.desc": "Guerrero no muerto que alcanza el nivel {maxLevel} y se cura al consumir lápidas. No obtiene XP.",
+  "unit.GHOUL.desc": "Guerrero no muerto resucitado de una lápida. Consume lápidas, incluso después de moverse, para alcanzar el nivel {maxLevel} y curarse; no obtiene XP. Cada nivel aumenta su alcance de movimiento en {moveRangeBonus}. Cada baja lo cura un {killHealPercent}% de los PV que le quedaban a la unidad derrotada.",
   "unit.SKELETON.desc": "Guerrero no muerto alzado de una lápida.",
   "unit.GARGOYLE.name": "Gárgola",
   "unit.GARGOYLE.desc": "Gárgola esquelética voladora alzada de una Lápida. Combatiente cuerpo a cuerpo que vuela sobre {moveRange} casillas de cañón y agua.",
