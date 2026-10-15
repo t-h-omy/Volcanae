@@ -90,6 +90,7 @@ export function hasUnitActed(
 export function isUnitDisplayExhausted(unit: Unit, state: GameState): boolean {
   const isRecruitedThisTurn = (unit.recruitedOnTurn ?? 0) === state.turn && state.turn > 0;
   if (isRecruitedThisTurn && !unit.tags.includes(UnitTag.READY)) return true;
+  if (canUnitConsumeGravestone(unit, state)) return false;
 
   // HIT_AND_RUN: after attacking, the unit still has its post-attack move.
   // Only show it as active if that move is allowed and has a legal destination.
@@ -139,7 +140,7 @@ export function canUnitConsumeGravestone(
 ): boolean {
   if (state.phase !== GamePhase.PLAYER_TURN) return false;
   if (unit.type !== UnitType.GHOUL || unit.faction !== Faction.PLAYER) return false;
-  if (unit.pinnedUntilTurn > 0 || unit.hasMovedThisTurn || unit.bloodlustAttackAvailable) return false;
+  if (unit.pinnedUntilTurn > 0 || unit.bloodlustAttackAvailable) return false;
   if (unit.hasConsumedGravestoneThisTurn || hasUnitActed(unit, state)) return false;
   const tile = state.grid[unit.position.y]?.[unit.position.x];
   if (!tile?.buildingId) return false;
