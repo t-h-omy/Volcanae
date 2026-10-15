@@ -5,13 +5,13 @@
 
 import type { Draft } from 'immer';
 import type { GameState, Unit } from './types';
-import { Faction, GamePhase, UnitType } from './types';
-import { UNIT_DEFINITIONS, XP } from './gameConfig';
+import { Faction, GamePhase, UnitTag, UnitType } from './types';
+import { CRYSTAL_KHYRON, UNIT_DEFINITIONS, XP } from './gameConfig';
 import { ANIMATION } from '../config/animation';
 import { useFloaterStore } from './floaterStore';
 import { t } from './i18n/i18n';
 import { useCombatAnimationStore } from './combatAnimationStore';
-import { canKhyronTransform, filterTransferableTags, usesAssimilationProgression } from './khyronSystem';
+import { filterTransferableTags, usesAssimilationProgression } from './khyronSystem';
 
 export function usesGravestoneProgression(unitType: string): boolean {
   return unitType === UnitType.GHOUL;
@@ -42,11 +42,11 @@ export function computeLevelFromXp(unitType: string, xp: number): number {
 
 /** Shared readiness calculation for the level-up action, unit panel and map indicator. */
 export function getUnitTargetLevel(
-  unit: Pick<Unit, 'type' | 'faction' | 'level' | 'xp' | 'earnedAssimilationTags'>,
+  unit: Pick<Unit, 'type' | 'faction' | 'level' | 'xp' | 'earnedAssimilationTags' | 'earnedAssimilationLevels'>,
 ): number {
   if (usesAssimilationProgression(unit.type)) {
-    return canKhyronTransform(unit) && unit.earnedAssimilationTags !== undefined
-      ? unit.level + 1
+    return unit.earnedAssimilationTags !== undefined
+      ? Math.min(CRYSTAL_KHYRON.MAX_LEVEL, unit.level + (unit.earnedAssimilationLevels ?? 1))
       : unit.level;
   }
   return computeLevelFromXp(unit.type, unit.xp);
@@ -155,8 +155,15 @@ export function applyLevelUps(
       if (!inheritedTags.includes(tag)) inheritedTags.push(tag);
     }
     unit.assimilatedTags = inheritedTags;
+    if (unit.earnedAssimilationTags?.includes(UnitTag.RANGED)
+      && unit.earnedAssimilationAttackRange !== undefined) {
+      unit.stats.attackRange = Math.max(unit.stats.attackRange, unit.earnedAssimilationAttackRange);
+    }
     delete unit.earnedAssimilationTags;
+    delete unit.earnedAssimilationLevels;
+    delete unit.earnedAssimilationAttackRange;
     delete unit.pendingAssimilationTags;
+    delete unit.pendingAssimilationAttackRange;
   }
 
   // Restore bloodlust charge if it was active before the level-up so the

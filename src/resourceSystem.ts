@@ -14,6 +14,7 @@ import { getTagsFromActiveSpecialists, isSpecialistEffectActive, getTagsFromActi
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { expireKhyronResonance, healResonatingKhyrons } from './khyronSystem';
 import { buildingNameRef, specialistNameRef, techNameRef } from './i18n/entityText';
+import { isExcludedFromUnitLimit, isPopulationFree } from './unitTraits';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -250,8 +251,7 @@ export function computeRecruitmentBuildingUsage(
   let current = 0;
   for (const unit of Object.values(state.units)) {
     if (unit.faction === Faction.PLAYER && recruitableTypes.has(unit.type as UnitType)) {
-      // Summoned units do not count toward building unit limits
-      if (unit.tags.includes(UnitTag.SUMMONED)) continue;
+      if (isExcludedFromUnitLimit(unit)) continue;
       current += 1;
     }
   }
@@ -880,8 +880,7 @@ export function computePopulationUsage(
 
   for (const unit of Object.values(state.units)) {
     if (unit.faction !== Faction.PLAYER) continue;
-    // Summoned units (EMBER_DEMON, SKELETON) do not consume population
-    if (unit.tags.includes(UnitTag.SUMMONED)) continue;
+    if (isPopulationFree(unit)) continue;
 
     const cost = UNIT_DEFINITIONS[unit.type as UnitType]?.populationCost as UnitPopulationCost | undefined;
     if (cost) {
@@ -1003,7 +1002,7 @@ export function computePopulationBreakdown(
 
   for (const unit of Object.values(state.units)) {
     if (unit.faction !== Faction.PLAYER) continue;
-    if (unit.tags.includes(UnitTag.SUMMONED)) continue;
+    if (isPopulationFree(unit)) continue;
     const cost = UNIT_DEFINITIONS[unit.type as UnitType]?.populationCost as UnitPopulationCost | undefined;
     if (!cost || (cost.farmers === 0 && cost.nobles === 0)) continue;
     unitTypeCounts.set(unit.type as UnitType, (unitTypeCounts.get(unit.type as UnitType) ?? 0) + 1);
@@ -1096,7 +1095,7 @@ export function computeUntrainedUnitIds(
     for (const unit of Object.values(state.units)) {
       if (unit.faction !== Faction.PLAYER) continue;
       if (!recruitableTypes.has(unit.type as UnitType)) continue;
-      if (unit.tags.includes(UnitTag.SUMMONED)) continue;
+      if (isExcludedFromUnitLimit(unit)) continue;
       untrainedIds.add(unit.id);
     }
   }

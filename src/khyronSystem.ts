@@ -2,10 +2,10 @@
  * Crystal Khyron: Resonance tag lifecycle and Resonant Assimilation.
  *
  * - RESONANCE is granted while a Crystal Chamber resonates (never by caves alone).
- * - The first enemy kill credited to a resonating Khyron queues an assimilation
- *   (snapshot of the victim's transferable tags). The queue is applied once the
- *   current attack/action has fully resolved, earning a manual level-up. Tags
- *   are inherited only when the player confirms that level-up.
+ * - The first eligible enemy kill credited in each active Resonance queues an
+ *   assimilation snapshot of the victim's transferable tags. The queue is
+ *   applied once the current action resolves, earning a manual level-up. Tags
+ *   are inherited only when the player confirms the banked level-ups.
  */
 
 import type { Draft } from 'immer';
@@ -29,9 +29,11 @@ export function canKhyronResonate(unit: Pick<Unit, 'type' | 'faction'>): boolean
   return unit.type === UnitType.CRYSTAL_KHYRON && unit.faction === Faction.PLAYER;
 }
 
-/** Whether the Khyron can still transform (below max level). */
-export function canKhyronTransform(unit: Pick<Unit, 'type' | 'faction' | 'level'>): boolean {
-  return canKhyronResonate(unit) && unit.level < CRYSTAL_KHYRON.MAX_LEVEL;
+/** Number of additional Resonance levels this Khyron can bank before leveling up. */
+export function getKhyronBankableLevels(
+  unit: Pick<Unit, 'level' | 'earnedAssimilationLevels'>,
+): number {
+  return Math.max(0, CRYSTAL_KHYRON.MAX_LEVEL - unit.level - (unit.earnedAssimilationLevels ?? 0));
 }
 
 /** Whether the Khyron holds RESONANCE and it is currently active (a trigger occurred since it was recruited or last spent it). */
@@ -78,6 +80,7 @@ export function expireKhyronResonance(state: Draft<GameState>): void {
     if (unit.type !== UnitType.CRYSTAL_KHYRON) continue;
     unit.resonanceActive = false;
     delete unit.pendingAssimilationTags;
+    delete unit.pendingAssimilationAttackRange;
   }
 }
 
@@ -91,13 +94,18 @@ export function recordKhyronKill(
   killerId: string,
   victimFaction: Faction,
   victimTags: readonly UnitTag[],
+  victimAttackRange: number,
 ): void {
   const killer = state.units[killerId];
-  if (!killer || !canKhyronTransform(killer)) return;
+  if (!killer || !canKhyronResonate(killer) || getKhyronBankableLevels(killer) <= 0) return;
   if (victimFaction !== Faction.ENEMY) return;
   if (!isKhyronResonanceActive(killer)) return;
-  if (killer.pendingAssimilationTags !== undefined || killer.earnedAssimilationTags !== undefined) return;
-  killer.pendingAssimilationTags = filterTransferableTags(victimTags);
+  if (killer.pendingAssimilationTags !== undefined) return;
+  const transferableTags = filterTransferableTags(victimTags);
+  killer.pendingAssimilationTags = transferableTags;
+  if (transferableTags.includes(UnitTag.RANGED)) {
+    killer.pendingAssimilationAttackRange = victimAttackRange;
+  }
 }
 
 /** Converts queued assimilations to earned readiness after an attack fully resolves. */
@@ -106,8 +114,20 @@ export function applyPendingAssimilations(state: Draft<GameState>): void {
     const pending = unit.pendingAssimilationTags;
     if (pending === undefined) continue;
     delete unit.pendingAssimilationTags;
-    if (!canKhyronTransform(unit) || unit.earnedAssimilationTags !== undefined) continue;
-    unit.earnedAssimilationTags = filterTransferableTags(pending);
+    const pendingRange = unit.pendingAssimilationAttackRange;
+    delete unit.pendingAssimilationAttackRange;
+    if (!canKhyronResonate(unit) || getKhyronBankableLevels(unit) <= 0) continue;
+    unit.earnedAssimilationTags = filterTransferableTags([
+      ...(unit.earnedAssimilationTags ?? []),
+      ...pending,
+    ]);
+    unit.earnedAssimilationLevels = (unit.earnedAssimilationLevels ?? 0) + 1;
+    if (pending.includes(UnitTag.RANGED) && pendingRange !== undefined) {
+      unit.earnedAssimilationAttackRange = Math.max(
+        unit.earnedAssimilationAttackRange ?? 0,
+        pendingRange,
+      );
+    }
     unit.resonanceActive = false;
   }
 }

@@ -238,6 +238,7 @@ export function castPortal(
     type: 'PORTAL_CREATED',
     casterId,
     portalId: id,
+    portal,
     entrancePos: { x: entrancePos.x, y: entrancePos.y },
     exitPos: { x: exitPos.x, y: exitPos.y },
   });
@@ -261,7 +262,7 @@ export function castMagePortalPair(
   if (!caster || caster.type !== UnitType.MAGE || caster.faction !== Faction.PLAYER) return false;
 
   const id = generatePortalId();
-  state.portals[id] = {
+  const portal: Portal = {
     id,
     kind: 'MAGE',
     casterId,
@@ -271,10 +272,12 @@ export function castMagePortalPair(
     lastUsableTurn: state.turn,
     pendingTeleportUnitId: null,
   };
+  state.portals[id] = portal;
   events?.push({
     type: 'PORTAL_CREATED',
     casterId,
     portalId: id,
+    portal,
     entrancePos: { ...endpointA },
     exitPos: { ...endpointB },
     portalKind: 'MAGE',
@@ -352,6 +355,7 @@ export function resolvePortalEntry(
   const magePair = getMagePortalAtPosition(state, enteredPosition);
   const portal = magePair?.portal ?? getUsablePortalAtEntrance(state, enteredPosition);
   if (!portal) return false;
+  if (portal.kind !== 'MAGE' && unit.faction === Faction.PLAYER) return false;
   if (portal.kind !== 'MAGE' && portal.casterId === unitId) return false;
 
   const destination = magePair?.destination ?? portal.exitPos;
@@ -415,6 +419,7 @@ export function tryTeleportThroughPortal(
   if (!portal) return false;
   const unit = state.units[unitId];
   if (!unit) return false;
+  if (portal.kind !== 'MAGE' && unit.faction === Faction.PLAYER) return false;
   // Caster never uses own portal (defensive).
   if (portal.casterId === unitId) return false;
   // Unit must be on the entrance tile.

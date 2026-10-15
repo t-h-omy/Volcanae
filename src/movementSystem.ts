@@ -232,8 +232,8 @@ export function getReachableTiles(
         (portal.entrancePos.x === nx && portal.entrancePos.y === ny)
         || (portal.exitPos.x === nx && portal.exitPos.y === ny));
       if (portalAtDestination) {
-        if (portalAtDestination.kind !== 'MAGE') continue;
-        if (!isMagePortalExitAvailable(state, { x: nx, y: ny }, unit)) continue;
+        if (portalAtDestination.kind !== 'MAGE' && unit.faction !== Faction.PLAYER) continue;
+        if (portalAtDestination.kind === 'MAGE' && !isMagePortalExitAvailable(state, { x: nx, y: ny }, unit)) continue;
       }
 
       bfsReachable.push({ x: nx, y: ny });

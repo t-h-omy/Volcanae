@@ -40,6 +40,7 @@ import { grantXp } from './levelSystem';
 import { clearInfestedOnCreditedKill, resolveInfestedDeath } from './infestedSystem';
 import type { GameEvent } from './gameEvents';
 import { castMagePortalPair, cleanupPortals, isPortalEndpoint, resolvePortalEntry } from './portalSystem';
+import { cannotBeHealed, isMech } from './unitTraits';
 
 /** Returns the effective spell range for a mage (its attack range). */
 export function getMageSpellRange(
@@ -138,6 +139,7 @@ const SPELL_TARGET_REASONS: Record<string, TextRef> = {
   INFESTED_ALREADY: { key: 'reason.spell.infestedAlready' },
   STONE_SKIN_ALREADY_ACTIVE: { key: 'reason.spell.stoneSkinAlreadyActive' },
   BRANDMARK_SUMMONED: { key: 'reason.spell.brandmarkSummoned' },
+  BRANDMARK_MECH: { key: 'reason.spell.brandmarkMech' },
   BRANDMARK_SELF: { key: 'reason.spell.brandmarkSelf' },
   EXPLODE_MAGE: { key: 'reason.spell.explodeMage' },
   FROSTCRAFT_TERRAIN: { key: 'reason.spell.frostcraftTerrain' },
@@ -292,7 +294,7 @@ export function getValidSpellTargets(
       for (const unit of Object.values(state.units)) {
         if (unit.faction !== Faction.PLAYER) continue;
         if (unit.id === mageId) continue;
-        if (unit.tags.includes(UnitTag.SUMMONED)) continue;
+        if (cannotBeHealed(unit)) continue;
         if (unit.tags.includes(UnitTag.BRANDMARKED)) continue; // already brandmarked
         if (!isTileInSpellRange(mage, unit.position, range)) continue;
         targets.push({ ...unit.position });
@@ -522,7 +524,10 @@ export function explainInvalidSpellTarget(
       if (tappedUnit.tags.includes(UnitTag.BRANDMARKED)) {
         return SPELL_TARGET_REASONS.BRANDMARK_ALREADY_BRANDMARKED;
       }
-      if (tappedUnit.tags.includes(UnitTag.SUMMONED)) {
+      if (isMech(tappedUnit)) {
+        return SPELL_TARGET_REASONS.BRANDMARK_MECH;
+      }
+      if (cannotBeHealed(tappedUnit)) {
         return SPELL_TARGET_REASONS.BRANDMARK_SUMMONED;
       }
       if (tappedUnit.id === mageId) {
@@ -876,7 +881,7 @@ function handleBrandmarkHeal(
   if (!target) return false;
   if (target.faction !== Faction.PLAYER) return false;
   if (target.id === mage.id) return false;
-  if (target.tags.includes(UnitTag.SUMMONED)) return false;
+  if (cannotBeHealed(target)) return false;
   if (target.tags.includes(UnitTag.BRANDMARKED)) return false; // only unbrandmarked units
 
   target.stats.maxHp *= MAGE.BRANDMARK_HP_MULTIPLIER;

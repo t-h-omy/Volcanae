@@ -43,6 +43,7 @@ import { getUnitConstructionUnlockTechId } from './techSystem';
 import { canCapture } from './captureSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { MAP, MAGE, ABILITIES } from './gameConfig';
+import { cannotBeHealed, cannotTrade, isMech } from './unitTraits';
 import { canUnitCast, getMageCastBudget } from './spellSystem';
 import { isUnitOnCorruptedTile } from './tileStatusSystem';
 import { getBridgeAt } from './bridgeSystem';
@@ -479,7 +480,7 @@ export function getCaptureTarget(
  *
  * Blocking rules (mirror capture):
  *   - ENEMY faction: only player units may trade
- *   - SUMMONED tag: summoned units may not trade
+ *   - SUMMONED and MECH tags: these units may not trade
  *   - hasMovedThisTurn: must not have moved this turn
  *   - hasTradedThisTurn: already completed a trade this turn
  *
@@ -488,7 +489,7 @@ export function getCaptureTarget(
  */
 export function canUnitTrade(unit: Unit): boolean {
   if (unit.faction !== Faction.PLAYER) return false;
-  if (unit.tags.includes(UnitTag.SUMMONED)) return false;
+  if (cannotTrade(unit)) return false;
   if (unit.hasMovedThisTurn) return false;
   if (unit.hasTradedThisTurn) return false;
   if (unit.hasConsumedGravestoneThisTurn) return false;
@@ -612,6 +613,7 @@ export function getConstructionTargets(
  *   PATCHUP — only units with this tag can heal.
  */
 export function canUnitHeal(unit: Unit): boolean {
+  if (cannotBeHealed(unit)) return false;
   if (!unit.tags.includes(UnitTag.PATCHUP)) return false;
   if (unit.hasMovedThisTurn) return false;
   if (unit.hasAttackedThisTurn) return false;
@@ -635,6 +637,7 @@ export function isHealSuppressedByCorruption(
 const ABILITY_TARGET_REASONS: Record<string, TextRef> = {
   HEAL_BRANDMARKED: { key: 'reason.heal.brandmarked' },
   HEAL_SUMMONED: { key: 'reason.heal.summoned' },
+  HEAL_MECH: { key: 'reason.heal.mech' },
   BRIDGE_ENDPOINTS: { key: 'reason.bridge.endpoints' },
   TRAP_OUT_OF_RANGE: { key: 'reason.trap.outOfRange' },
   TRAP_UNIT_ON_TILE: { key: 'reason.trap.unitOnTile' },
@@ -668,7 +671,7 @@ export function getHealTargets(
       const other = state.units[tile.unitId];
       if (!other) continue;
       if (other.faction !== unit.faction) continue;
-      if (other.tags.includes(UnitTag.SUMMONED)) continue;
+      if (cannotBeHealed(other)) continue;
       if (other.tags.includes(UnitTag.BRANDMARKED)) continue;
       if (other.stats.currentHp >= other.stats.maxHp) continue;
       targets.push(other.id);
@@ -696,7 +699,10 @@ export function explainInvalidHealTarget(
   if (target.tags.includes(UnitTag.BRANDMARKED)) {
     return ABILITY_TARGET_REASONS.HEAL_BRANDMARKED;
   }
-  if (target.tags.includes(UnitTag.SUMMONED)) {
+  if (isMech(target)) {
+    return ABILITY_TARGET_REASONS.HEAL_MECH;
+  }
+  if (cannotBeHealed(target)) {
     return ABILITY_TARGET_REASONS.HEAL_SUMMONED;
   }
   return null;

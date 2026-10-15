@@ -107,7 +107,7 @@ export const BuildingType = {
   DEEP_MINE: 'DEEP_MINE',
   /**
    * Neutral market placed at map-gen on a free PLAINS tile in the middle zones.
-   * A non-SUMMONED player unit standing on it may Trade once per turn (gated
+   * A player unit without SUMMONED or MECH standing on it may Trade once per turn (gated
    * like capture: must not have moved this turn). Offers one-shot resource swaps
    * and specialist acquisitions. Destroyed only by lava.
    */
@@ -318,6 +318,8 @@ export const UnitTag = {
   LAVA: 'LAVA',
   /** Unit was summoned, not recruited; modifies several systems */
   SUMMONED: 'SUMMONED',
+  /** Constructed unit; population-free, cannot be healed or trade, and leaves no Gravestone. */
+  MECH: 'MECH',
   /** Unit carries the Brandmark Heal mark; loses HP each turn; cannot be healed by Patch Up; on death becomes a hostile Ember Demon */
   BRANDMARKED: 'BRANDMARKED',
   /** Summoned unit that defects to the enemy faction if its controller mage is out of leash range or dead */
@@ -377,7 +379,7 @@ export const UnitTag = {
   BERSERK: 'BERSERK',
   /** Siege unit gains +SIEGE_BATTERY_ATK_PER_ADJACENT ATK for each adjacent friendly unit, up to SIEGE_BATTERY_CAP. */
   BATTERY: 'BATTERY',
-  /** Crystal Khyron: temporary tag while Crystal Chamber resonance is active; the first enemy kill transforms the unit. */
+  /** Crystal Khyron: tag granted while Crystal Chamber resonance is active. */
   RESONANCE: 'RESONANCE',
   /** Hostile units must target this unit when it is legally attackable. */
   TAUNT: 'TAUNT',
@@ -549,9 +551,15 @@ export interface Unit {
    * readiness once the action finishes. Never persists across actions.
    */
   pendingAssimilationTags?: UnitTag[];
+  /** Attack range captured when the pending victim had the RANGED tag. */
+  pendingAssimilationAttackRange?: number;
 
-  /** Persistent assimilation snapshot awaiting manual level-up; an empty array is ready too. */
+  /** Union of all banked transferable tags awaiting manual level-up; an empty array is ready too. */
   earnedAssimilationTags?: UnitTag[];
+  /** Number of banked level-ups represented by earnedAssimilationTags. */
+  earnedAssimilationLevels?: number;
+  /** Maximum attack range among banked RANGED victims. */
+  earnedAssimilationAttackRange?: number;
 
   /** Permanent inherited traits, tracked separately from specialist-granted tags. */
   assimilatedTags?: UnitTag[];

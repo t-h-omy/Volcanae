@@ -77,6 +77,7 @@ import { resourceName } from './i18n/entityText';
 import { appendChunk, deleteTurnsAfter, getTraceIndexSeed, readMeta as readAiTraceMeta, sealRun } from './aiTraceStore';
 import { applyUnitDamage } from './unitDamage';
 import { processInfestedFactionTurn, resolveInfestedDeath } from './infestedSystem';
+import { cannotBeHealed } from './unitTraits';
 
 // ============================================================================
 // STORE ACTIONS INTERFACE
@@ -2234,7 +2235,7 @@ export const useGameStore = create<GameStore>()(
           snapshot = produce(snapshot, (draft) => {
             for (const unit of Object.values(draft.units)) {
               if (unit.faction !== Faction.PLAYER) continue;
-              if (unit.tags.includes(UnitTag.SUMMONED)) continue;
+              if (cannotBeHealed(unit)) continue;
               if (!tookNoActionThisTurn(unit)) continue;
               if (unit.stats.currentHp >= unit.stats.maxHp) continue;
               const healedAmount = Math.min(
@@ -3663,7 +3664,9 @@ export const useGameStore = create<GameStore>()(
             break;
 
           case 'PORTAL_CREATED':
-            // Presentation-only: state mutation happens in the action producer (portalSystem.ts).
+            if (!state.portals[event.portal.id]) {
+              state.portals[event.portal.id] = event.portal;
+            }
             break;
 
           case 'PORTAL_USED': {
@@ -3687,7 +3690,7 @@ export const useGameStore = create<GameStore>()(
           }
 
           case 'PORTAL_CLOSED':
-            // Presentation-only: state mutation happens in the action producer (portalSystem.ts).
+            delete state.portals[event.portalId];
             break;
 
           case 'PORTAL_BLOCKED':
@@ -3705,9 +3708,16 @@ export const useGameStore = create<GameStore>()(
             // Presentation-only: mutation applied via resolvedState.
             break;
 
+          case 'CORRUPTION_APPLIED': {
+            const tile = state.grid[event.position.y]?.[event.position.x];
+            if (tile && tile.status !== TileStatus.CORRUPTED) {
+              tile.status = TileStatus.CORRUPTED;
+            }
+            break;
+          }
+
           case 'STUN_BLOCKED':
           case 'DEFENSE_BONUS_IGNORED':
-          case 'CORRUPTION_APPLIED':
           case 'CORRUPTION_FIZZLE':
             // Presentation-only: no state mutation required.
             break;
