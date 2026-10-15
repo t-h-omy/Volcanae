@@ -189,6 +189,29 @@ describe('Khyron persistent assimilation saves', () => {
     expect(migrated.earnedAssimilationTags).toEqual([UnitTag.RANGED]);
   });
 
+  it('does not infer legacy Hellbinder tags as assimilated and preserves a pending Ranged snapshot', async () => {
+    const state = makeState();
+    const unit = state.units[khyronId];
+    unit.level = 2;
+    unit.tags = [UnitTag.SUMMONED, UnitTag.RESONANCE, UnitTag.CLEAVE, UnitTag.RAGE];
+    delete unit.assimilatedTags;
+    unit.pendingAssimilationTags = [UnitTag.RANGED, UnitTag.BLOCK];
+    unit.pendingAssimilationAttackRange = 5;
+    await writeRawSave('legacy-pending-ranged', 21, state);
+
+    const migrated = (await loadSlot('legacy-pending-ranged'))!.units[khyronId];
+    expect(migrated.tags).toContain(UnitTag.MECH);
+    expect(migrated.tags).not.toContain(UnitTag.SUMMONED);
+    expect(migrated.tags).not.toContain(UnitTag.CLEAVE);
+    expect(migrated.tags).not.toContain(UnitTag.RAGE);
+    expect(migrated.assimilatedTags).toEqual([]);
+    expect(migrated.earnedAssimilationTags).toEqual([UnitTag.BLOCK, UnitTag.RANGED]);
+    expect(migrated.earnedAssimilationLevels).toBe(1);
+    expect(migrated.earnedAssimilationAttackRange).toBe(5);
+    expect(migrated.pendingAssimilationTags).toBeUndefined();
+    expect(migrated.pendingAssimilationAttackRange).toBeUndefined();
+  });
+
   it('never restores earned readiness above the normal level cap', async () => {
     const state = makeState();
     state.units[khyronId].level = 3;
@@ -204,6 +227,7 @@ describe('Khyron persistent assimilation saves', () => {
     const state = makeState();
     state.units[khyronId].level = 2;
     state.units[khyronId].tags = [UnitTag.RESONANCE, UnitTag.CLEAVE, UnitTag.RAGE];
+    state.units[khyronId].assimilatedTags = [UnitTag.CLEAVE, UnitTag.RAGE];
     await saveSlotStrict({ id: 'inherited', name: 'Inherited', state });
     const loaded = (await loadSlot('inherited'))!;
     expect(loaded.units[khyronId].assimilatedTags).toEqual([UnitTag.CLEAVE, UnitTag.RAGE]);

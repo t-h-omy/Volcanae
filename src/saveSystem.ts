@@ -250,7 +250,11 @@ function migrateState(parsed: { version: number; state: GameState }): GameState 
       if (unit.type !== UnitType.CRYSTAL_KHYRON) continue;
       unit.tags = unit.tags.filter((tag) => tag !== UnitTag.SUMMONED);
       if (!unit.tags.includes(UnitTag.MECH)) unit.tags.push(UnitTag.MECH);
-      const assimilated = unit.assimilatedTags ?? (unit.level > 1 ? unit.tags : []);
+      const assimilated = unit.assimilatedTags ?? (
+        unit.level > 1
+          ? unit.tags.filter((tag) => tag !== UnitTag.RAGE && tag !== UnitTag.CLEAVE)
+          : []
+      );
       unit.assimilatedTags = CRYSTAL_KHYRON.TRANSFERABLE_TAGS.filter((tag) => assimilated.includes(tag));
       for (const tag of unit.assimilatedTags) {
         if (!unit.tags.includes(tag)) unit.tags.push(tag);
@@ -268,9 +272,10 @@ function migrateState(parsed: { version: number; state: GameState }): GameState 
           revokeTagStatEffects(unit, tag);
         }
       }
-      const earned = unit.earnedAssimilationTags ?? unit.pendingAssimilationTags;
+      const hasEarnedTags = Array.isArray(unit.earnedAssimilationTags);
+      const earned = hasEarnedTags ? unit.earnedAssimilationTags : unit.pendingAssimilationTags;
       if (Array.isArray(earned) && unit.level < CRYSTAL_KHYRON.MAX_LEVEL) {
-        if (!Array.isArray(unit.earnedAssimilationTags)) unit.resonanceActive = false;
+        if (!hasEarnedTags) unit.resonanceActive = false;
         unit.earnedAssimilationTags = CRYSTAL_KHYRON.TRANSFERABLE_TAGS.filter((tag) => earned.includes(tag));
         const earnedLevels = Number.isInteger(unit.earnedAssimilationLevels)
           ? unit.earnedAssimilationLevels!
@@ -279,8 +284,13 @@ function migrateState(parsed: { version: number; state: GameState }): GameState 
           1,
           Math.min(earnedLevels, CRYSTAL_KHYRON.MAX_LEVEL - unit.level),
         );
-        if (!Number.isInteger(unit.earnedAssimilationAttackRange) || unit.earnedAssimilationAttackRange! <= 0) {
+        const earnedRange = hasEarnedTags
+          ? unit.earnedAssimilationAttackRange
+          : unit.pendingAssimilationAttackRange;
+        if (!Number.isInteger(earnedRange) || earnedRange! <= 0) {
           delete unit.earnedAssimilationAttackRange;
+        } else {
+          unit.earnedAssimilationAttackRange = earnedRange;
         }
       } else {
         delete unit.earnedAssimilationTags;

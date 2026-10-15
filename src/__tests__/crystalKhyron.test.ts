@@ -863,6 +863,7 @@ describe('Resonant Assimilation', () => {
     expect(state.units[side.id]).toBeUndefined();
     const u = state.units[k.id];
     expect(u.level).toBe(1);
+    expect(u.earnedAssimilationLevels).toBe(1);
     expect(u.earnedAssimilationTags).toEqual([UnitTag.CLEAVE, UnitTag.RAGE]);
     // Only the primary victim's tags (Reaper) are inherited, never the cleave victim's.
     expect(u.tags).not.toContain(UnitTag.RAGE);

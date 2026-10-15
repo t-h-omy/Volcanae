@@ -196,9 +196,9 @@ describe('SP-24 Field Chirurgeon idle heal', () => {
     useAnimationStore.getState().clear();
   });
 
-  it('does not regularly heal summoned Khyrons or other summoned units', () => {
+  it('does not regularly heal Mechs or other summoned units', () => {
     const khyron = makeUnit('khyron', UnitType.CRYSTAL_KHYRON, { x: 2, y: 8 }, {
-      tags: [UnitTag.SUMMONED, UnitTag.RESONANCE],
+      tags: [UnitTag.MECH, UnitTag.RESONANCE],
       resonanceActive: false,
       earnedAssimilationTags: [UnitTag.BUILDANDCAPTURE],
     });
