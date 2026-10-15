@@ -897,7 +897,7 @@
   "reason.spell.portalWrongRow": "Muss in derselben Reihe liegen",
   "reason.movement.portalExitBlocked": "Portal-Ausgang blockiert",
   "unit.CORRUPTED_QORK.name": "Verderbter Qork",
-  "unit.CORRUPTED_QORK.desc": "Eine Fernkampfkreatur, die auf einem verderbten Feld beschworen wird. Sie bleibt an ihren Magier gebunden, bis sie die Seiten wechselt. Wenn sie sich nicht auf einem verderbten Feld befindet, verliert sie am Ende ihrer Runde {hpLoss} LP. Bei ihrem Tod explodiert sie, fügt allen benachbarten Einheiten {explosionDamage} Schaden zu und verdirbt ihr Feld, sofern das Gelände es zulässt.",
+  "unit.CORRUPTED_QORK.desc": "Eine Kreatur mit den Merkmalen „Fernkampf“ und „Beschworen“, die auf einem Feld mit dem Merkmal „Verdorben“ und dem Geländemerkmal „Verdorben“ beschworen wird. Das Merkmal „Gebunden“ hält sie an ihrem Magier, bis sie die Seiten wechselt. Wenn sie sich nicht auf einem Feld mit dem Merkmal „Verdorben“ und dem Geländemerkmal „Verdorben“ befindet, verliert sie am Ende ihrer Runde {hpLoss} LP. Bei ihrem Tod explodiert sie, fügt allen benachbarten Einheiten {explosionDamage} Schaden zu und verdirbt ihr Feld, sofern das Gelände es zulässt.",
   "tech.CORRUPTED_QORK.name": "Verderbter Qork",
   "tech.CORRUPTED_QORK.desc": "Schaltet den Zauber Verderbter Qork frei.",
   "spell.CORRUPTED_QORK.name": "Verderbter Qork",

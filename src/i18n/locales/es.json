@@ -897,7 +897,7 @@
   "reason.spell.portalWrongRow": "Debe estar en la misma fila",
   "reason.movement.portalExitBlocked": "Salida del portal bloqueada",
   "unit.CORRUPTED_QORK.name": "Qork corrupto",
-  "unit.CORRUPTED_QORK.desc": "Una criatura a distancia invocada en una casilla corrupta. Permanece vinculada a su mago hasta que cambia de bando. Si no está en una casilla corrupta, pierde {hpLoss} HP al final de su turno. Al morir, explota e inflige {explosionDamage} de daño a todas las unidades adyacentes, y corrompe su casilla si el terreno lo permite.",
+  "unit.CORRUPTED_QORK.desc": "Una criatura con los rasgos «Rango» e «Invocado», invocada en una casilla con el rasgo «Corrompido» y el rasgo de terreno «Corrompido». El rasgo «Vinculado» la mantiene ligada a su mago hasta que cambia de bando. Si no está en una casilla con el rasgo «Corrompido» y el rasgo de terreno «Corrompido», pierde {hpLoss} HP al final de su turno. Al morir, explota e inflige {explosionDamage} de daño a todas las unidades adyacentes, y corrompe su casilla si el terreno lo permite.",
   "tech.CORRUPTED_QORK.name": "Qork corrupto",
   "tech.CORRUPTED_QORK.desc": "Desbloquea el hechizo Qork corrupto.",
   "spell.CORRUPTED_QORK.name": "Qork corrupto",
