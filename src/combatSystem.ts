@@ -1264,7 +1264,6 @@ function resolveAttackInner(
     if (!attackerDead) {
       clearInfestedOnCreditedKill(state, attackerId);
       recordKhyronKill(state, attackerId, defenderFaction, defenderTags, defender.stats.attackRange);
-      applyGhoulKillHeal(state, attackerId, defenderHpBeforeHit, outEvents);
       grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
     }
     // EMBER_DEMON kill: grant crystal reward when player kills a hostile Ember Demon
@@ -1461,6 +1460,10 @@ function resolveAttackInner(
         attackerUnit.lastMovedTurn = state.turn;
       }
     }
+  }
+
+  if (defenderDead && !attackerDead) {
+    applyGhoulKillHeal(state, attackerId, defenderHpBeforeHit, outEvents);
   }
 
   // SPLASH: player siege unit deals 25% of dealt damage to all surrounding enemy units.

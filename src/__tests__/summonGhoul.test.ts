@@ -382,10 +382,11 @@ describe('Summon Ghoul', () => {
 
     expect(result.units[enemy.id]).toBeUndefined();
     expect(result.units[ghoul.id].stats.currentHp).toBe(55);
+    expect(result.units[ghoul.id].position).toEqual(enemy.position);
     expect(events).toContainEqual({
       type: 'UNIT_HEAL',
       unitId: ghoul.id,
-      position: ghoul.position,
+      position: enemy.position,
       amount: 5,
     });
   });
