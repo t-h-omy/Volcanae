@@ -94,9 +94,15 @@ function hasActiveQorkBurstVfx(position: Position): boolean {
     && vfx.y === position.y);
 }
 
-function addDirectQorkDeathVfx(state: Pick<GameState, 'grid'>, position: Position): void {
+function addDirectQorkDeathVfx(
+  state: Pick<GameState, 'grid'>,
+  position: Position,
+  useResolvedState = false,
+): void {
   if (hasActiveQorkBurstVfx(position)) return;
-  const resolvedTile = useAnimationStore.getState().resolvedState?.grid[position.y]?.[position.x];
+  const resolvedTile = useResolvedState
+    ? useAnimationStore.getState().resolvedState?.grid[position.y]?.[position.x]
+    : undefined;
   const tile = resolvedTile ?? state.grid[position.y]?.[position.x];
   const store = useCombatAnimationStore.getState();
   store.addTileVfx({
@@ -2986,7 +2992,7 @@ export const useGameStore = create<GameStore>()(
               if (unit.type === UnitType.CORRUPTED_QORK
                 && !unit.infestedDeathEffectResolved
                 && !hasQueuedQorkBurst(event.position)) {
-                addDirectQorkDeathVfx(state, event.position);
+                addDirectQorkDeathVfx(state, event.position, true);
               }
               const tile = state.grid[unit.position.y][unit.position.x];
               if (tile.unitId === event.unitId) {
@@ -3385,7 +3391,7 @@ export const useGameStore = create<GameStore>()(
               if (unit?.type === UnitType.CORRUPTED_QORK
                 && !unit.infestedDeathEffectResolved
                 && !hasQueuedQorkBurst(unit.position)) {
-                addDirectQorkDeathVfx(state, unit.position);
+                addDirectQorkDeathVfx(state, unit.position, true);
               }
               if (!unit?.tags.includes(UnitTag.INFESTED)) continue;
               useCombatAnimationStore.getState().addTileVfx({
@@ -3412,7 +3418,7 @@ export const useGameStore = create<GameStore>()(
                 if (unit.type === UnitType.CORRUPTED_QORK
                   && !unit.infestedDeathEffectResolved
                   && !hasQueuedQorkBurst(unit.position)) {
-                  addDirectQorkDeathVfx(state, unit.position);
+                  addDirectQorkDeathVfx(state, unit.position, true);
                 }
                 if (unit.tags.includes(UnitTag.INFESTED)) {
                   useCombatAnimationStore.getState().addTileVfx({

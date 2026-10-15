@@ -185,13 +185,14 @@ function resolveQorkDeathBurst(
       if (!target || target.stats.currentHp <= 0 || target.tunnelState === 'UNDERGROUND') continue;
 
       const outcome = getUnitDamageOutcome(target, CORRUPTED_QORK.DEATH_EXPLOSION_DAMAGE);
+      const amount = Math.min(CORRUPTED_QORK.DEATH_EXPLOSION_DAMAGE, target.stats.currentHp);
       applyUnitDamage(target, CORRUPTED_QORK.DEATH_EXPLOSION_DAMAGE);
       damagedUnitIds.push(target.id);
       damagedEvents.push({
         type: 'TILE_DAMAGE',
         unitId: target.id,
         position: { x, y },
-        amount: CORRUPTED_QORK.DEATH_EXPLOSION_DAMAGE,
+        amount,
         damageAmount: CORRUPTED_QORK.DEATH_EXPLOSION_DAMAGE,
         damageSource: 'QORK_EXPLOSION',
       });
@@ -251,7 +252,7 @@ function resolveUnitDeathEffects(
   events: GameEvent[] | undefined,
   context: DeathResolutionContext,
 ): void {
-  if (deceased.type === UnitType.CORRUPTED_QORK) {
+  if (deceased.type === UnitType.CORRUPTED_QORK && !deceased.infestedDeathEffectResolved) {
     resolveQorkDeathBurst(state, deceased, events, context);
   }
   resolveDeath(state, deceased, events, context);

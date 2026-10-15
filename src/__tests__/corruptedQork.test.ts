@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { produce } from 'immer';
 import 'fake-indexeddb/auto';
 import { IDBFactory } from 'fake-indexeddb';
-import { CORRUPTED_QORK, LEVEL_UP_VALUES, MAP, TECH_TREE, UNIT_DEFINITIONS } from '../gameConfig';
+import { CORRUPTED_QORK, LEVEL_UP_VALUES, MAP, MAGE, TECH_TREE, UNIT_DEFINITIONS } from '../gameConfig';
 import { SPELL_DEFINITIONS } from '../../config/magic';
 import { computeResearchCost } from '../../config/tech';
 import { castSpell, explainInvalidSpellTarget, getValidSpellTargets, checkAndDefectLeash, getLeashedUnitsForMage, sweepLeashes } from '../spellSystem';
@@ -486,6 +486,32 @@ describe('Corrupted Qork drain and death burst', () => {
         expect(qorkEventIndexes).toHaveLength(2);
         expect(events.findIndex((event) => event.type === 'UNIT_DEATH'))
           .toBeGreaterThan(events.findIndex((event) => event.type === 'TILE_DAMAGE'));
+      });
+
+      it('resolves the Infested burst of a Qork-burst victim', () => {
+        const qork = makeUnit(UnitType.CORRUPTED_QORK, { x: 6, y: 10 });
+        const infested = makeUnit(UnitType.GUARD, { x: 7, y: 10 }, Faction.ENEMY, [UnitTag.INFESTED]);
+        infested.stats.currentHp = CORRUPTED_QORK.DEATH_EXPLOSION_DAMAGE;
+        const outsideQorkBurst = makeUnit(UnitType.GUARD, { x: 8, y: 10 }, Faction.PLAYER);
+        const state = makeState([qork, infested, outsideQorkBurst]);
+        const configurableMage = MAGE as unknown as { INFESTED_DEATH_BURST_DAMAGE: number };
+        const originalBurstDamage = MAGE.INFESTED_DEATH_BURST_DAMAGE;
+        configurableMage.INFESTED_DEATH_BURST_DAMAGE = 5;
+
+        try {
+        const after = produce(state, (draft) => {
+          const deceased = draft.units[qork.id];
+          draft.grid[10][6].unitId = null;
+          delete draft.units[qork.id];
+          resolveInfestedDeath(draft, deceased);
+        });
+
+        expect(after.units[infested.id]).toBeUndefined();
+        expect(after.units[outsideQorkBurst.id].stats.currentHp).toBe(outsideQorkBurst.stats.currentHp - 5);
+        expect(after.units[outsideQorkBurst.id].tags).toContain(UnitTag.INFESTED);
+        } finally {
+        configurableMage.INFESTED_DEATH_BURST_DAMAGE = originalBurstDamage;
+        }
       });
 
       it('drain deaths trigger the Qork burst and corruption events', () => {
