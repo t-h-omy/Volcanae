@@ -30,6 +30,7 @@ import { cleanupRoostedUnits, getRoostedUnits } from './buildingRemoval';
 import { isUnitOnCorruptedTile } from './tileStatusSystem';
 import { applyUnitDamage, getUnitDamageOutcome } from './unitDamage';
 import { clearInfestedOnCreditedKill, processInfestedFactionTurn, resolveInfestedDeath } from './infestedSystem';
+import { processCorruptedQorkDrain } from './corruptedQorkSystem';
 import { isCounterThemeUnitType, pickUnitFromTheme, scoreCountersForPlayer } from './waveThemeSystem';
 import { isSpecialistEffectActive } from './specialistSystem';
 import {
@@ -4448,6 +4449,7 @@ export function runEnemyTurn(
     spawnEnemyUnits(draft, events);
 
     processInfestedFactionTurn(draft, Faction.ENEMY, events);
+    processCorruptedQorkDrain(draft, Faction.ENEMY, events);
 
     // 4. Reset enemy unit action flags for next turn
     for (const unit of Object.values(draft.units)) {

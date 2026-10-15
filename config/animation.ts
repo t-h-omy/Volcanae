@@ -126,6 +126,8 @@ export const ANIMATION = {
   CORRUPTION_APPLIED_VFX_MS: 500,
   /** Duration of the canceled corruption pulse on terrain that rejects CORRUPTED. */
   CORRUPTION_FIZZLE_VFX_MS: 450,
+  /** Duration of the expanding corrupted-mud death burst (ms) */
+  QORK_DEATH_BURST_MS: 700,
   /** Duration of the portal entrance/exit pop (ms) */
   PORTAL_VFX_MS: 500,
   /** Duration of the unit-spawn pop (ms) */

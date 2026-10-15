@@ -77,6 +77,7 @@ import { resourceName } from './i18n/entityText';
 import { appendChunk, deleteTurnsAfter, getTraceIndexSeed, readMeta as readAiTraceMeta, sealRun } from './aiTraceStore';
 import { applyUnitDamage } from './unitDamage';
 import { processInfestedFactionTurn, resolveInfestedDeath } from './infestedSystem';
+import { processCorruptedQorkDrain } from './corruptedQorkSystem';
 import { cannotBeHealed } from './unitTraits';
 
 // ============================================================================
@@ -2230,6 +2231,7 @@ export const useGameStore = create<GameStore>()(
         const playerInfestedEvents: GameEvent[] = [];
         snapshot = produce(snapshot, (draft) => {
           processInfestedFactionTurn(draft, Faction.PLAYER, playerInfestedEvents);
+          processCorruptedQorkDrain(draft, Faction.PLAYER, playerInfestedEvents);
         });
         if (isSpecialistEffectActive(snapshot, 'IDLE_HEAL')) {
           snapshot = produce(snapshot, (draft) => {

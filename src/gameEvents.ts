@@ -189,7 +189,13 @@ export type GameEvent =
       /** Actual pre-mitigation amount applied to Stone Skin and normal HP pools. */
       damageAmount?: number;
       /** High-level source of the damage event. */
-      damageSource?: 'BURNING' | 'TAG' | 'TRAP' | 'INFESTED';
+      damageSource?: 'BURNING' | 'TAG' | 'TRAP' | 'INFESTED' | 'QORK_DRAIN' | 'QORK_EXPLOSION';
+    }
+  | {
+      type: 'QORK_DEATH_BURST';
+      position: Position;
+      faction: Faction;
+      damagedUnitIds: string[];
     }
   | {
       /**

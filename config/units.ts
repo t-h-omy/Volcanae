@@ -85,6 +85,8 @@ export const CORRUPTED_QORK = {
   BASE_ATTACK: 35,
   BASE_DEFENSE: 25,
   ATTACK_RANGE: 2,
+  OFF_CORRUPTION_HP_LOSS: 10,
+  DEATH_EXPLOSION_DAMAGE: 15,
 } as const;
 
 export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
@@ -418,6 +420,10 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   CORRUPTED_QORK: {
+    textParams: {
+      hpLoss: CORRUPTED_QORK.OFF_CORRUPTION_HP_LOSS,
+      explosionDamage: CORRUPTED_QORK.DEATH_EXPLOSION_DAMAGE,
+    },
     maxHp: CORRUPTED_QORK.BASE_MAX_HP,
     attack: CORRUPTED_QORK.BASE_ATTACK,
     defense: CORRUPTED_QORK.BASE_DEFENSE,
