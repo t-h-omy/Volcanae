@@ -3817,7 +3817,8 @@ function resolveCaveMonsterAttack(
   const attackerCanReceiveXp = canGrantXp(attacker.type, attacker.xp);
   const defenderCanReceiveXp = canGrantXp(defender.type, defender.xp);
 
-  const attackDamage = resolveAttack(state, attackerId, defenderId, !!events);
+  const secondaryEvents: GameEvent[] = [];
+  const attackDamage = resolveAttack(state, attackerId, defenderId, !!events, secondaryEvents);
 
   // If the cave monster was killed by the counter-attack, clean up its encounter
   // entry from the state so the resolved state is consistent.
@@ -3867,6 +3868,9 @@ function resolveCaveMonsterAttack(
         position: attackerPos,
         faction: Faction.ENEMY,
       });
+    }
+    events.push(...secondaryEvents);
+    if (!attackerAfter) {
       // Cave monster was counter-killed → trigger specialist draw
       events.push({ type: 'CAVE_MONSTER_KILLED', monsterId: attackerId });
     }

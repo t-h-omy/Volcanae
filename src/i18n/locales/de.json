@@ -22,7 +22,7 @@
   "unit.EMBER_DEMON.desc": "Mächtige dämonische Einheit.",
   "unit.SKELETON.name": "Skelett",
   "unit.GHOUL.name": "Ghul",
-  "unit.GHOUL.desc": "Untoter Krieger, der durch das Verzehren von Grabsteinen Stufe {maxLevel} erreicht und geheilt wird. Er erhält keine EP.",
+  "unit.GHOUL.desc": "Untoter Krieger, der aus einem Grabstein erweckt wird. Verzehrt Grabsteine, auch nach dem Bewegen, um Stufe {maxLevel} zu erreichen und sich zu heilen; erhält keine EP. Jede Stufe erhöht die Bewegungsreichweite um {moveRangeBonus}. Jeder Kill heilt ihn um {killHealPercent} % der verbleibenden LP der besiegten Einheit.",
   "unit.SKELETON.desc": "Untoter Krieger, der aus einem Grabstein erweckt wurde.",
   "unit.GARGOYLE.name": "Gargoyle",
   "unit.GARGOYLE.desc": "Fliegender Skelett-Gargoyle, der aus einem Grabstein erweckt wurde. Nahkämpfer, der {moveRange} Felder über Schluchten und Wasser fliegt.",

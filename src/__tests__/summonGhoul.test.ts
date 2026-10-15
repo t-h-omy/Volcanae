@@ -6,10 +6,13 @@ import { GHOUL, MAGE, TECH_TREE, UNIT_DEFINITIONS } from '../gameConfig';
 import { generateInitialGameState } from '../mapGenerator';
 import { useGameStore } from '../gameStore';
 import { canGrantXp, grantXp, usesGravestoneProgression, usesNonXpProgression } from '../levelSystem';
-import { canUnitAttack, canUnitConsumeGravestone, canUnitMove, explainInvalidHealTarget, getHealTargets } from '../unitActions';
-import { shouldLeaveGravestone } from '../combatSystem';
+import { canUnitAttack, canUnitConsumeGravestone, canUnitMove, explainInvalidHealTarget, getHealTargets, isUnitDisplayExhausted } from '../unitActions';
+import { resolveAttack, shouldLeaveGravestone } from '../combatSystem';
 import { castSpell, getValidSpellTargets } from '../spellSystem';
 import { createInitialSpecialists } from '../specialistSystem';
+import { moveUnit } from '../movementSystem';
+import { runEnemyTurn } from '../enemySystem';
+import { applyGhoulKillHeal } from '../ghoulSystem';
 import { loadSlot, saveSlotStrict } from '../saveSystem';
 import {
   BuildingType,
@@ -125,9 +128,9 @@ function makeState(units: Unit[] = [], buildings: Building[] = []): GameState {
 function gravestoneState(level = 1, hp?: number): { state: GameState; ghoul: Unit; grave: Building } {
   const position = { x: 5, y: 5 };
   const stats = [
-    { maxHp: 70, attack: 35, defense: 30 },
-    { maxHp: 140, attack: 60, defense: 45 },
-    { maxHp: 200, attack: 80, defense: 55 },
+    { maxHp: 70, attack: 30, defense: 30, moveRange: 1 },
+    { maxHp: 140, attack: 55, defense: 45, moveRange: 2 },
+    { maxHp: 200, attack: 75, defense: 55, moveRange: 3 },
   ][level - 1];
   const ghoul = makeUnit(UnitType.GHOUL, position, Faction.PLAYER, [UnitTag.SUMMONED], {
     level,
@@ -135,7 +138,7 @@ function gravestoneState(level = 1, hp?: number): { state: GameState; ghoul: Uni
       ...UNIT_DEFINITIONS.GHOUL,
       currentHp: hp ?? stats.maxHp,
       ...stats,
-      moveRange: 1,
+      moveRange: stats.moveRange,
       attackRange: 1,
       discoverRadius: 1,
       triggerRange: 0,
@@ -185,7 +188,7 @@ describe('Summon Ghoul', () => {
     expect(ghoul?.position).toEqual(grave.position);
     expect(ghoul?.level).toBe(1);
     expect(ghoul?.stats).toMatchObject({
-      maxHp: 70, currentHp: 70, attack: 35, defense: 30,
+      maxHp: 70, currentHp: 70, attack: 30, defense: 30,
       moveRange: 1, attackRange: 1,
     });
     expect(ghoul?.tags).toContain(UnitTag.SUMMONED);
@@ -260,10 +263,11 @@ describe('Summon Ghoul', () => {
     expect(UNIT_DEFINITIONS.GHOUL.levelUp).toHaveLength(GHOUL.MAX_LEVEL - 1);
   });
 
-  it('offers Gravestone consumption only to an unspent player Ghoul on a player Gravestone', () => {
+  it('offers Gravestone consumption to a player Ghoul that has moved but not otherwise acted', () => {
     const { state, ghoul } = gravestoneState();
     expect(canUnitConsumeGravestone(ghoul, state)).toBe(true);
-    expect(canUnitConsumeGravestone({ ...ghoul, hasMovedThisTurn: true }, state)).toBe(false);
+    expect(canUnitConsumeGravestone({ ...ghoul, hasMovedThisTurn: true }, state)).toBe(true);
+    expect(isUnitDisplayExhausted({ ...ghoul, hasMovedThisTurn: true }, state)).toBe(false);
     expect(canUnitConsumeGravestone({ ...ghoul, hasAttackedThisTurn: true }, state)).toBe(false);
     expect(canUnitConsumeGravestone({ ...ghoul, faction: Faction.ENEMY }, state)).toBe(false);
     expect(canUnitConsumeGravestone({ ...ghoul, type: UnitType.SKELETON }, state)).toBe(false);
@@ -285,7 +289,7 @@ describe('Summon Ghoul', () => {
     expect(updated).toMatchObject({
       level: 2,
       hasConsumedGravestoneThisTurn: true,
-      stats: { maxHp: 140, currentHp: 140, attack: 60, defense: 45 },
+      stats: { maxHp: 140, currentHp: 140, attack: 55, defense: 45, moveRange: 2 },
     });
     expect(canUnitConsumeGravestone(updated, next)).toBe(false);
     expect(canUnitMove(updated, next)).toBe(false);
@@ -298,8 +302,155 @@ describe('Summon Ghoul', () => {
     useGameStore.getState().consumeGravestone(ghoul.id);
     expect(useGameStore.getState().units[ghoul.id]).toMatchObject({
       level: 3,
-      stats: { maxHp: 200, currentHp: 200, attack: 80, defense: 55 },
+      stats: { maxHp: 200, currentHp: 200, attack: 75, defense: 55, moveRange: 3 },
     });
+  });
+
+  it('allows a Ghoul to move onto a Gravestone and consume it afterward', () => {
+    const ghoul = makeUnit(UnitType.GHOUL, { x: 5, y: 5 }, Faction.PLAYER, [UnitTag.SUMMONED]);
+    const grave = makeGravestone({ x: 6, y: 5 });
+    const state = makeState([ghoul], [grave]);
+    const moved = produce(state, (draft) => moveUnit(draft, ghoul.id, grave.position));
+
+    expect(moved.units[ghoul.id].hasMovedThisTurn).toBe(true);
+    expect(moved.units[ghoul.id].position).toEqual(grave.position);
+    expect(canUnitConsumeGravestone(moved.units[ghoul.id], moved)).toBe(true);
+
+    useGameStore.setState(moved);
+    useGameStore.getState().consumeGravestone(ghoul.id);
+    const consumed = useGameStore.getState();
+    expect(consumed.buildings[grave.id]).toBeUndefined();
+    expect(consumed.units[ghoul.id]).toMatchObject({
+      level: 2,
+      hasMovedThisTurn: true,
+      hasConsumedGravestoneThisTurn: true,
+      stats: { moveRange: 2 },
+    });
+    expect(canUnitMove(consumed.units[ghoul.id], consumed)).toBe(false);
+    expect(canUnitAttack(consumed.units[ghoul.id], consumed)).toBe(false);
+  });
+
+  it('heals a living Ghoul for half the victim HP before its lethal hit, rounded down and capped', () => {
+    const ghoul = makeUnit(UnitType.GHOUL, { x: 5, y: 5 }, Faction.PLAYER, [], {
+      stats: { ...UNIT_DEFINITIONS.GHOUL, currentHp: 66 },
+    });
+    const state = makeState([ghoul]);
+    const events: import('../gameEvents').GameEvent[] = [];
+
+    const result = produce(state, (draft) => {
+      expect(applyGhoulKillHeal(draft, ghoul.id, 11, events)).toBe(4);
+    });
+    expect(result.units[ghoul.id].stats.currentHp).toBe(70);
+    expect(events).toEqual([{
+      type: 'UNIT_HEAL',
+      unitId: ghoul.id,
+      position: ghoul.position,
+      amount: 4,
+    }]);
+    expect(produce(result, (draft) => {
+      expect(applyGhoulKillHeal(draft, ghoul.id, 1, events)).toBe(0);
+    }).units[ghoul.id].stats.currentHp).toBe(70);
+
+    const deadGhoul = { ...ghoul, stats: { ...ghoul.stats, currentHp: 0 } };
+    const deadState = makeState([deadGhoul]);
+    const stillDead = produce(deadState, (draft) => {
+      applyGhoulKillHeal(draft, ghoul.id, 100, events);
+    });
+    expect(stillDead.units[ghoul.id].stats.currentHp).toBe(0);
+
+    const nonGhoul = makeUnit(UnitType.GUARD, { x: 4, y: 5 }, Faction.PLAYER, [], {
+      stats: { ...UNIT_DEFINITIONS.GUARD, currentHp: 20 },
+    });
+    const nonGhoulState = makeState([nonGhoul]);
+    const unchanged = produce(nonGhoulState, (draft) => {
+      expect(applyGhoulKillHeal(draft, nonGhoul.id, 100, events)).toBe(0);
+    });
+    expect(unchanged.units[nonGhoul.id].stats.currentHp).toBe(20);
+  });
+
+  it('heals for a primary attack kill using the victim HP before the hit', () => {
+    const ghoul = makeUnit(UnitType.GHOUL, { x: 5, y: 5 }, Faction.PLAYER, [], {
+      stats: { ...UNIT_DEFINITIONS.GHOUL, currentHp: 50 },
+    });
+    const enemy = makeUnit(UnitType.LAVA_GRUNT, { x: 6, y: 5 }, Faction.ENEMY, [], {
+      stats: { ...UNIT_DEFINITIONS.LAVA_GRUNT, currentHp: 11, defense: 0 },
+    });
+    const events: import('../gameEvents').GameEvent[] = [];
+    const result = produce(makeState([ghoul, enemy]), (draft) => {
+      resolveAttack(draft, ghoul.id, enemy.id, true, events);
+    });
+
+    expect(result.units[enemy.id]).toBeUndefined();
+    expect(result.units[ghoul.id].stats.currentHp).toBe(55);
+    expect(events).toContainEqual({
+      type: 'UNIT_HEAL',
+      unitId: ghoul.id,
+      position: ghoul.position,
+      amount: 5,
+    });
+  });
+
+  it('heals for each Cleave secondary kill using that victim HP before the hit', () => {
+    const ghoul = makeUnit(UnitType.GHOUL, { x: 5, y: 5 }, Faction.PLAYER, [UnitTag.CLEAVE], {
+      stats: { ...UNIT_DEFINITIONS.GHOUL, currentHp: 30 },
+    });
+    const primary = makeUnit(UnitType.LAVA_GRUNT, { x: 6, y: 5 }, Faction.ENEMY, [], {
+      stats: { ...UNIT_DEFINITIONS.LAVA_GRUNT, currentHp: 1, defense: 0 },
+    });
+    const secondary = makeUnit(UnitType.LAVA_GRUNT, { x: 6, y: 6 }, Faction.ENEMY, [], {
+      stats: { ...UNIT_DEFINITIONS.LAVA_GRUNT, currentHp: 9, defense: 0 },
+    });
+    const state = makeState([ghoul, primary, secondary]);
+    const events: import('../gameEvents').GameEvent[] = [];
+
+    const result = produce(state, (draft) => {
+      resolveAttack(draft, ghoul.id, primary.id, true, events);
+    });
+
+    expect(result.units[ghoul.id].stats.currentHp).toBe(34);
+    expect(result.units[primary.id]).toBeUndefined();
+    expect(result.units[secondary.id]).toBeUndefined();
+    const deathIndex = events.findIndex((event) => event.type === 'UNIT_DEATH' && event.unitId === secondary.id);
+    const healIndex = events.findIndex((event) => event.type === 'UNIT_HEAL' && event.unitId === ghoul.id);
+    expect(healIndex).toBeGreaterThan(deathIndex);
+    expect(events[healIndex]).toMatchObject({ amount: 4 });
+  });
+
+  it('does not heal a Ghoul for enemy kills caused by Explode', () => {
+    const mage = makeUnit(UnitType.MAGE, { x: 4, y: 5 });
+    const ghoul = makeUnit(UnitType.GHOUL, { x: 5, y: 6 }, Faction.PLAYER, [UnitTag.SUMMONED], {
+      stats: { ...UNIT_DEFINITIONS.GHOUL, currentHp: 30 },
+    });
+    const sacrifice = makeUnit(UnitType.GUARD, { x: 5, y: 5 });
+    const enemy = makeUnit(UnitType.LAVA_GRUNT, { x: 6, y: 5 }, Faction.ENEMY, [], {
+      stats: { ...UNIT_DEFINITIONS.LAVA_GRUNT, currentHp: 1 },
+    });
+    const state = makeState([mage, ghoul, sacrifice, enemy]);
+    state.unlockedSpells.push(SpellId.EXPLODE);
+
+    const exploded = produce(state, (draft) => {
+      castSpell(draft, mage.id, SpellId.EXPLODE, sacrifice.position);
+    });
+    expect(exploded.units[enemy.id]).toBeUndefined();
+    expect(exploded.units[ghoul.id].stats.currentHp).toBe(30);
+  });
+
+  it('heals after a Ghoul counter-kills an attacker during enemy-turn replay', () => {
+    const ghoul = makeUnit(UnitType.GHOUL, { x: 5, y: 5 }, Faction.PLAYER, [UnitTag.SUMMONED], {
+      stats: { ...UNIT_DEFINITIONS.GHOUL, currentHp: 40 },
+    });
+    const enemy = makeUnit(UnitType.LAVA_GRUNT, { x: 6, y: 5 }, Faction.ENEMY, [], {
+      stats: { ...UNIT_DEFINITIONS.LAVA_GRUNT, currentHp: 10, attack: 1, defense: 0 },
+      hasMovedThisTurn: true,
+    });
+    const { finalState, events } = runEnemyTurn(makeState([ghoul, enemy]));
+
+    expect(finalState.units[enemy.id]).toBeUndefined();
+    expect(finalState.units[ghoul.id].stats.currentHp).toBeGreaterThan(40);
+    const deathIndex = events.findIndex((event) => event.type === 'UNIT_DEATH' && event.unitId === enemy.id);
+    const healIndex = events.findIndex((event) => event.type === 'UNIT_HEAL' && event.unitId === ghoul.id);
+    expect(healIndex).toBeGreaterThan(deathIndex);
+    expect(events[healIndex]).toMatchObject({ amount: 5 });
   });
 
   it('consumes a Gravestone at level 3 for a full heal without changing stats or level', () => {

@@ -67,8 +67,10 @@ export interface UnitCost {
  */
 export const GHOUL = {
   BASE_MAX_HP: 70,
-  BASE_ATTACK: 35,
+  BASE_ATTACK: 30,
   BASE_DEFENSE: 30,
+  MOVE_RANGE_BOOST_PER_LEVEL: 1,
+  KILL_HEAL_PERCENT: 50,
   LEVEL_2_MAX_HP_BOOST: 70,
   LEVEL_2_ATTACK_BOOST: 25,
   LEVEL_2_DEFENSE_BOOST: 15,
@@ -431,7 +433,11 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   GHOUL: {
-    textParams: { maxLevel: GHOUL.MAX_LEVEL },
+    textParams: {
+      maxLevel: GHOUL.MAX_LEVEL,
+      moveRangeBonus: GHOUL.MOVE_RANGE_BOOST_PER_LEVEL,
+      killHealPercent: GHOUL.KILL_HEAL_PERCENT,
+    },
     maxHp: GHOUL.BASE_MAX_HP, attack: GHOUL.BASE_ATTACK, defense: GHOUL.BASE_DEFENSE,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
@@ -443,11 +449,13 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
         { stat: 'maxHp', mode: 'add', value: GHOUL.LEVEL_2_MAX_HP_BOOST },
         { stat: 'attack', mode: 'add', value: GHOUL.LEVEL_2_ATTACK_BOOST },
         { stat: 'defense', mode: 'add', value: GHOUL.LEVEL_2_DEFENSE_BOOST },
+        { stat: 'moveRange', mode: 'add', value: GHOUL.MOVE_RANGE_BOOST_PER_LEVEL },
       ] },
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [
         { stat: 'maxHp', mode: 'add', value: GHOUL.LEVEL_3_MAX_HP_BOOST },
         { stat: 'attack', mode: 'add', value: GHOUL.LEVEL_3_ATTACK_BOOST },
         { stat: 'defense', mode: 'add', value: GHOUL.LEVEL_3_DEFENSE_BOOST },
+        { stat: 'moveRange', mode: 'add', value: GHOUL.MOVE_RANGE_BOOST_PER_LEVEL },
       ] },
     ],
   },

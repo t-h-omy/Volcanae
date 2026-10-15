@@ -22,7 +22,7 @@
   "unit.EMBER_DEMON.desc": "Puissante unité démoniaque.",
   "unit.SKELETON.name": "Squelette",
   "unit.GHOUL.name": "Goule",
-  "unit.GHOUL.desc": "Guerrier mort-vivant qui atteint le niveau {maxLevel} et se soigne en consommant des pierres tombales. Ne gagne pas d'XP.",
+  "unit.GHOUL.desc": "Guerrier mort-vivant relevé d’une pierre tombale. Consomme des pierres tombales, même après s’être déplacé, pour atteindre le niveau {maxLevel} et se soigner ; ne gagne pas d’XP. Chaque niveau augmente sa portée de déplacement de {moveRangeBonus}. Chaque élimination le soigne de {killHealPercent} % des PV restants de l’unité vaincue.",
   "unit.SKELETON.desc": "Guerrier mort-vivant relevé d'une pierre tombale.",
   "unit.GARGOYLE.name": "Gargouille",
   "unit.GARGOYLE.desc": "Gargouille squelettique volante relevée d'une pierre tombale. Combattant au corps à corps qui survole {moveRange} cases de canyon et d'eau.",

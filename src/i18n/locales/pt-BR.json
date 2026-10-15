@@ -22,7 +22,7 @@
   "unit.EMBER_DEMON.desc": "Unidade demoníaca poderosa.",
   "unit.SKELETON.name": "Esqueleto",
   "unit.GHOUL.name": "Carniçal",
-  "unit.GHOUL.desc": "Guerreiro morto-vivo que alcança o nível {maxLevel} e se cura ao consumir lápides. Não recebe XP.",
+  "unit.GHOUL.desc": "Guerreiro morto-vivo erguido de uma lápide. Consome lápides, mesmo depois de se mover, para alcançar o nível {maxLevel} e se curar; não recebe XP. Cada nível aumenta seu alcance de movimento em {moveRangeBonus}. Cada abate o cura em {killHealPercent}% do HP restante da unidade derrotada.",
   "unit.SKELETON.desc": "Guerreiro morto-vivo erguido de uma lápide.",
   "unit.GARGOYLE.name": "Gárgula",
   "unit.GARGOYLE.desc": "Gárgula esquelética voadora erguida de uma Lápide. Combatente corpo a corpo que voa sobre {moveRange} casas de cânion e água.",

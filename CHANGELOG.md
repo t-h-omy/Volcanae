@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.117.0 - Ghoul iteration
+
+Ghouls can now consume Gravestones after moving, gain movement range with each level, and heal for half of a defeated unit's remaining HP when they earn a kill. Their base attack is reduced, and the Ghoul description and summon guidance now explain these rules.
+
 ### v0.116.0 - Crystal Khyron Mech and Ranged assimilation
 
 Crystal Khyrons are now Mechs that count toward Crystal Chamber limits, inherit Ranged with its attack range, and can bank one additional level per Resonance up to level 3. Save migration upgrades existing Khyrons and preserves banked progress.
