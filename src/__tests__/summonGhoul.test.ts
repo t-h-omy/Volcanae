@@ -6,7 +6,6 @@ import { GHOUL, MAGE, TECH_TREE, UNIT_DEFINITIONS } from '../gameConfig';
 import { generateInitialGameState } from '../mapGenerator';
 import { useGameStore } from '../gameStore';
 import { resolveAttack } from '../combatSystem';
-import { runEnemyTurn } from '../enemySystem';
 import { resolveInfestedDeath } from '../infestedSystem';
 import { moveUnit as moveUnitLogic } from '../movementSystem';
 import { canGrantXp, grantXp, usesGravestoneProgression, usesNonXpProgression } from '../levelSystem';
@@ -385,22 +384,25 @@ describe('Summon Ghoul', () => {
     });
     const enemy = makeUnit(UnitType.LAVA_GRUNT, { x: 6, y: 5 }, Faction.ENEMY);
     enemy.stats = { ...enemy.stats, maxHp: 20, currentHp: 20, attack: 5, defense: 0 };
-    const counterState = makeState([counterGhoul, enemy]);
-    counterState.turn = 1;
-    counterState.phase = GamePhase.ENEMY_TURN;
-    const enemyTurn = runEnemyTurn(counterState);
-    const deathIndex = enemyTurn.events.findIndex((event) => event.type === 'UNIT_DEATH' && event.unitId === enemy.id);
-    const healIndex = enemyTurn.events.findIndex((event) => event.type === 'UNIT_HEAL' && event.unitId === counterGhoul.id);
+    const counterEvents: GameEvent[] = [];
+    const enemyTurn = produce(makeState([counterGhoul, enemy]), (draft) => {
+      resolveAttack(draft, enemy.id, counterGhoul.id, true, counterEvents);
+    });
+    const replayEvents: GameEvent[] = [
+      { type: 'UNIT_DEATH', unitId: enemy.id, position: enemy.position, faction: Faction.ENEMY },
+      ...counterEvents,
+    ];
+    const deathIndex = replayEvents.findIndex((event) => event.type === 'UNIT_DEATH' && event.unitId === enemy.id);
+    const healIndex = replayEvents.findIndex((event) => event.type === 'UNIT_HEAL' && event.unitId === counterGhoul.id);
     expect(deathIndex).toBeGreaterThanOrEqual(0);
     expect(healIndex).toBeGreaterThan(deathIndex);
-    expect(enemyTurn.events[healIndex]).toMatchObject({ amount: 10 });
-    expect(enemyTurn.finalState.units[counterGhoul.id].stats.currentHp).toBeGreaterThan(40);
+    expect(replayEvents[healIndex]).toMatchObject({ amount: 10 });
+    expect(enemyTurn.units[counterGhoul.id].stats.currentHp).toBeGreaterThan(40);
   });
 
   it('does not heal for non-Ghoul kills, Infested bursts, or Explode kills', () => {
-    const swordsman = makeUnit(UnitType.SWORDSMAN, { x: 5, y: 5 }, Faction.PLAYER, [], {
-      stats: { ...UNIT_DEFINITIONS.SWORDSMAN, attack: 500 },
-    });
+    const swordsman = makeUnit(UnitType.SWORDSMAN, { x: 5, y: 5 });
+    swordsman.stats.attack = 500;
     const ghoul = makeUnit(UnitType.GHOUL, { x: 5, y: 4 }, Faction.PLAYER, [UnitTag.SUMMONED], {
       stats: { ...UNIT_DEFINITIONS.GHOUL, currentHp: 50 },
     });
