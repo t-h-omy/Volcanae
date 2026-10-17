@@ -11,6 +11,7 @@ import { ABILITIES } from './abilities';
 import { MAGE } from './magic';
 import { BUILDING_DEFINITIONS } from './buildings';
 import { POPULATION, TRAINING } from './economy';
+import { CORRUPTED_QORK } from './units';
 
 
 /**
@@ -73,5 +74,6 @@ export const TAG_INFO: Record<UnitTag, { icon?: string; textParams?: { [name: st
   [UnitTag.TAUNT]: { icon: '🎯' },
   [UnitTag.STONE_SKIN]: { icon: '🪨', textParams: { stoneHp: MAGE.STONE_SKIN_HP } },
   [UnitTag.INFESTED]: { icon: '🦠', textParams: { hpLossPerTurn: MAGE.INFESTED_HP_LOSS_PER_TURN } },
+  [UnitTag.CORRUPTION_BOUND]: { icon: '🥀', textParams: { hpLoss: CORRUPTED_QORK.OFF_CORRUPTION_HP_LOSS } },
   [UnitTag.BATTERY]: { textParams: { attackPerAdjacent: ABILITIES.SIEGE_BATTERY_ATK_PER_ADJACENT, stackCap: ABILITIES.SIEGE_BATTERY_CAP } },
 };

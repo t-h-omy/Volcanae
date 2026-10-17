@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.118.3 - Corruption-Bound Qorks and active debuff indicators
+
+Corrupted Qorks now carry Corruption-Bound, the tag that drives their off-corruption HP loss. Player units show the active drain as a withered-flower icon, HP-bar debuff outline, and red tag pill. Existing Qorks gain the tag when older saves load, and all supported languages include the new tag and updated Qork description.
+
 ### v0.118.2 - Synchronized Qork bursts and combat impacts
 
 Corrupted Qork deaths now play as a single burst beat with simultaneous damage feedback, grouped victim deaths, and sequential chained explosions. Melee attackers advance onto the burst tile as the Qork fades, while Pierce and Cleave damage and effects now coincide with the primary attack impact.

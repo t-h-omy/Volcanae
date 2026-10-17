@@ -153,7 +153,7 @@ describe('Khyron persistent assimilation saves', () => {
     state.units[khyronId].pendingAssimilationTags = [UnitTag.BUILDANDCAPTURE, UnitTag.FLYING, UnitTag.BUILDANDCAPTURE];
     await writeRawSave('legacy-khyron', 21, state);
     const loaded = (await loadSlot('legacy-khyron'))!;
-    expect(SAVE_VERSION).toBe(22);
+    expect(SAVE_VERSION).toBe(23);
     expect(loaded.units[khyronId].tags).toContain(UnitTag.MECH);
     expect(loaded.units[khyronId].tags).not.toContain(UnitTag.SUMMONED);
     expect(loaded.units[khyronId].earnedAssimilationTags).toEqual([UnitTag.BUILDANDCAPTURE]);

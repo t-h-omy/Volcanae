@@ -25,6 +25,7 @@ import { getUnitTargetLevel, usesNonXpProgression } from '../levelSystem';
 import { useZoomStore } from '../zoomStore';
 import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE, TILE_STATUS_SPRITE, RESOURCE_SPRITE, ENEMY_BUILDING_SPRITE, PLAYER_BUILDING_SPRITE, TERRAIN_RESOURCE_SPRITE, CRYSTAL_CHAMBER_ACTIVE_SPRITE, CRYSTAL_CAVE_ACTIVE_SPRITE, CRYSTAL_KHYRON_ACTIVE_SPRITE, ENEMY_UNIT_SPRITE, PLAYER_UNIT_SPRITE, TUNNEL_HOLE_SPRITE, TUNNEL_EARTHQUAKE_SPRITE, PORTAL_ENTRANCE_SPRITE, PORTAL_EXIT_SPRITE, MAGE_PORTAL_SPRITE, getBridgeSprite } from '../assetRegistry';
 import { isKhyronResonanceActive } from '../khyronSystem';
+import { isCorruptionBoundDrainActive } from '../corruptedQorkSystem';
 import MissingSprite from './MissingSprite';
 import {
   Faction,
@@ -1585,6 +1586,9 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
   const isOnCorruptedTile = useGameStore(
     (s) => s.grid[unit.position.y]?.[unit.position.x]?.status === TileStatus.CORRUPTED
   );
+  const hasCorruptionBoundDebuff = useGameStore(
+    (s) => unit.faction === Faction.PLAYER && isCorruptionBoundDrainActive(s, unit)
+  );
 
   // Show debuff border (and hp bar) for player units with an active debuff.
   // Corrupted tile only counts as a debuff if the unit actually has tags that corruption suppresses.
@@ -1593,6 +1597,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
   const hasDebuff =
     unit.faction === Faction.PLAYER &&
     (corruptionAffectsUnit ||
+      hasCorruptionBoundDebuff ||
       isStunned ||
       unit.tags.some((tag) => {
         if (UPGRADE_TRADEOFF_TAGS.has(tag)) return false;
@@ -1645,6 +1650,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
 
   const tagIcons = unit.tags
     .filter((tag) => tag !== UnitTag.TAUNT)
+    .filter((tag) => tag !== UnitTag.CORRUPTION_BOUND || hasCorruptionBoundDebuff)
     .map((tag) => TAG_INFO[tag]?.icon)
     .filter((icon): icon is string => !!icon);
 

@@ -4,7 +4,7 @@
  * and game-over/victory overlay screens.
  */
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { useGameStore } from '../gameStore';
 import { useMenuStore } from '../menuStore';
@@ -22,6 +22,7 @@ import { useHintStore } from '../hintStore';
 import { useHintOptionsStore } from '../hintOptionsStore';
 import { tryTriggerHint } from '../hintSystem';
 import { isUnitOnCorruptedTile } from '../tileStatusSystem';
+import { isCorruptionBoundDrainActive } from '../corruptedQorkSystem';
 import {
   hasSpawnSpaceAt,
   computePopulationUsage,
@@ -1453,10 +1454,11 @@ function PopulationInfoPopup({
 }
 
 /** Shared base for tappable tag pills — renders a labelled button with an "i" badge */
-function TagPillBase({ label, onClick, inactive, active, highlight, onHighlightEnd }: { label: string; onClick: () => void; inactive?: boolean; active?: boolean; highlight?: boolean; onHighlightEnd?: () => void }) {
+function TagPillBase({ label, onClick, inactive, active, debuff, highlight, onHighlightEnd }: { label: string; onClick: () => void; inactive?: boolean; active?: boolean; debuff?: boolean; highlight?: boolean; onHighlightEnd?: () => void }) {
   return (
     <button
-      className={`info-popup-tag-pill${inactive ? ' info-popup-tag-pill--inactive' : ''}${active ? ' info-popup-tag-pill--active' : ''}${highlight ? ' info-popup-tag-pill--highlight' : ''}`}
+      className={`info-popup-tag-pill${inactive ? ' info-popup-tag-pill--inactive' : ''}${active ? ' info-popup-tag-pill--active' : ''}${debuff ? ' info-popup-tag-pill--debuff' : ''}${highlight ? ' info-popup-tag-pill--highlight' : ''}`}
+      style={debuff ? { '--info-popup-debuff-color': RENDER.COLORS.DEBUFF_BORDER } as CSSProperties : undefined}
       onClick={onClick}
       onAnimationEnd={highlight ? onHighlightEnd : undefined}
     >
@@ -1467,9 +1469,9 @@ function TagPillBase({ label, onClick, inactive, active, highlight, onHighlightE
 }
 
 /** Tappable tag pill used in panels and popups */
-function InfoTagPill({ tag, onClick, inactive, active, highlight, onHighlightEnd }: { tag: UnitTag; onClick: () => void; inactive?: boolean; active?: boolean; highlight?: boolean; onHighlightEnd?: () => void }) {
+function InfoTagPill({ tag, onClick, inactive, active, debuff, highlight, onHighlightEnd }: { tag: UnitTag; onClick: () => void; inactive?: boolean; active?: boolean; debuff?: boolean; highlight?: boolean; onHighlightEnd?: () => void }) {
   const { tagLabel } = useText();
-  return <TagPillBase label={tagLabel(tag)} onClick={onClick} inactive={inactive} active={active} highlight={highlight} onHighlightEnd={onHighlightEnd} />;
+  return <TagPillBase label={tagLabel(tag)} onClick={onClick} inactive={inactive} active={active} debuff={debuff} highlight={highlight} onHighlightEnd={onHighlightEnd} />;
 }
 
 /** Tag info popup for terrain tags (tile status) */
@@ -1894,6 +1896,7 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
   const { unitName, unitDesc, statAbbr, tagLabel, techName, formatNumber, t } = useText();
   const [tagPopup, setTagPopup] = useState<UnitTag | null>(null);
   const gameState = useGameStore((s) => s);
+  const hasCorruptionBoundDebuff = unit.faction === Faction.PLAYER && isCorruptionBoundDrainActive(gameState, unit);
 
   const desc = unitDesc(unit.type);
   const visibleTags = unit.tags.filter((t) => !HIDDEN_UNIT_TAGS.has(t));
@@ -2132,7 +2135,13 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
         {visibleTags.length > 0 && (
           <div className="info-popup-tags">
             {visibleTags.map((tag) => (
-              <InfoTagPill key={tag} tag={tag} onClick={() => setTagPopup(tag)} active={isConditionalTagActive(tag)} />
+              <InfoTagPill
+                key={tag}
+                tag={tag}
+                onClick={() => setTagPopup(tag)}
+                active={isConditionalTagActive(tag)}
+                debuff={tag === UnitTag.CORRUPTION_BOUND && hasCorruptionBoundDebuff}
+              />
             ))}
           </div>
         )}
@@ -2150,7 +2159,8 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
 // ============================================================================
 
 /** Returns true if the unit currently has any active debuff worth flagging. */
-function unitHasDebuff(unit: Unit, isOnCorruptedTile: boolean): boolean {
+function unitHasDebuff(unit: Unit, isOnCorruptedTile: boolean, state: GameState): boolean {
+  if (isCorruptionBoundDrainActive(state, unit)) return true;
   // Active RELOAD is a temporary DEF debuff after attacking.
   if (unit.tags.includes(UnitTag.RELOAD) && unit.hasAttackedThisTurn) return true;
 
@@ -2209,7 +2219,8 @@ function SelectedUnitPanel({
   const showCorruptedTag = isOnCorruptedTile && unit.tags.some((t) => CORRUPTED_SUPPRESSED_TAGS.has(t));
   const displayedTags: UnitTag[] = showCorruptedTag ? [UnitTag.CORRUPTED, ...visibleTags] : visibleTags;
   const healSuppressedByCorruption = isHealSuppressedByCorruption(gameState, unit.id);
-  const hasDebuff = isPlayer && unitHasDebuff(unit, isOnCorruptedTile);
+  const hasDebuff = isPlayer && unitHasDebuff(unit, isOnCorruptedTile, gameState);
+  const hasCorruptionBoundDebuff = isPlayer && isCorruptionBoundDrainActive(gameState, unit);
   const fieldworkBlocked = canFieldwork && (() => {
     const tile = gameState.grid[unit.position.y]?.[unit.position.x];
     if (!tile) return true;
@@ -2568,6 +2579,7 @@ function SelectedUnitPanel({
               onClick={() => setTagPopup(tag)}
               inactive={inactive}
               active={!inactive && isConditionalTagActive(tag)}
+              debuff={tag === UnitTag.CORRUPTION_BOUND && hasCorruptionBoundDebuff}
               highlight={tag === UnitTag.CORRUPTED && highlightCorrupted}
               onHighlightEnd={tag === UnitTag.CORRUPTED ? () => setHighlightCorrupted(false) : undefined}
             />
