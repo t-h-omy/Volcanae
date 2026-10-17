@@ -712,7 +712,7 @@ describe('Khyron Resonance countdown', () => {
 });
 
 describe('Resonant building assimilation', () => {
-  const enemyBuilding = (type = BuildingType.BARRACKS, tags = [UnitTag.BLOCK, UnitTag.READY]) =>
+  const enemyBuilding = (type: BuildingType = BuildingType.BARRACKS, tags: UnitTag[] = [UnitTag.BLOCK, UnitTag.READY]) =>
     makeBuilding(type, { x: 5, y: 4 }, {
       faction: Faction.ENEMY, hp: 1, tags,
       combatStats: { attack: 1, defense: 0, attackRange: 4 },
