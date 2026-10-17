@@ -6,6 +6,7 @@
 import type { GameState, Building, Position, Tile, UnitPopulationCost, TechId } from './types';
 import type { TextRef } from './i18n/i18n';
 import type { Draft } from 'immer';
+import type { GameEvent } from './gameEvents';
 import { Faction, BuildingType, UnitType, UnitTag, ResourceType, TechFlag } from './types';
 import { RESOURCES, ABILITIES, UNIT_DEFINITIONS, POPULATION, CRYSTAL_CHAMBER_CONFIG, BUILDING_DEFINITIONS, TECH_TREE, MAGE } from './gameConfig';
 import type { UnitCost } from './gameConfig';
@@ -370,7 +371,7 @@ function getActivePlayerBuildingTypes(
   );
 }
 
-export function collectResources(state: Draft<GameState>): void {
+export function collectResources(state: Draft<GameState>, events?: GameEvent[]): void {
   for (const building of Object.values(state.buildings)) {
     // Only player-owned buildings produce resources
     if (building.faction !== Faction.PLAYER) {
@@ -460,7 +461,7 @@ export function collectResources(state: Draft<GameState>): void {
   }
 
   // Crystal Khyron RESONANCE ends with the last resonating Crystal Chamber.
-  healResonatingKhyrons(state);
+  healResonatingKhyrons(state, events);
   expireKhyronResonance(state);
 }
 

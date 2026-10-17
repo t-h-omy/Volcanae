@@ -382,6 +382,12 @@
   "tag.CORRUPTED.label": {
     "maxLen": 13
   },
+  "tag.CORRUPTION_BOUND.label": {
+    "note": "Unit tag for creatures sustained by corrupted terrain. Keep distinct from Leashed, which binds a creature to its Mage."
+  },
+  "tag.CORRUPTION_BOUND.desc": {
+    "note": "Health loss occurs at the end of the unit's own turn only when its tile lacks the Corrupted terrain tag."
+  },
   "tag.COVER.label": {
     "maxLen": 7
   },
@@ -894,7 +900,7 @@
     "note": "Name of the ranged creature summoned by the Corrupted Qork spell."
   },
   "unit.CORRUPTED_QORK.desc": {
-    "note": "Description of the Qork's ranged attack and Mage leash."
+    "note": "Description of the Qork's ranged attack, Mage leash, Corruption-Bound tag, and death explosion. Numeric health loss belongs to the Corruption-Bound tag description."
   },
   "tech.CORRUPTED_QORK.name": {
     "note": "Technology name that unlocks the Corrupted Qork spell."

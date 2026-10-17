@@ -380,19 +380,19 @@ describe('SP-16 The Sundered (spec_22) — RUPTURE spell', () => {
     });
 
     it('keeps RUPTURE unlocked if a second active RUPTURE_UNLOCK specialist still owns it', () => {
-      // Simulate two specialists with RUPTURE_UNLOCK; only one is revoked.
-      // Since spec_22 is the only RUPTURE_UNLOCK specialist defined, we'll
-      // manually set globalSpecialistStorage to confirm the guard holds.
       const state = makeState({ ruptureUnlocked: true });
       const spec = state.specialists['spec_22']!;
-      // Keep spec_22 in globalSpecialistStorage so the "still active" check fires
-      state.globalSpecialistStorage = ['spec_22'];
+      state.specialists.other_sundered = {
+        ...spec,
+        id: 'other_sundered',
+        dormant: false,
+      };
+      state.globalSpecialistStorage = ['spec_22', 'other_sundered'];
 
       const nextState = produce(state, (draft) => {
         revokeEffectsForSpecialist(draft, spec);
       });
 
-      // isSpecialistEffectActive returns true because spec_22 is still in storage
       expect(nextState.unlockedSpells).toContain(SpellId.RUPTURE);
     });
   });

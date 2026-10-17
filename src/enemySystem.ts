@@ -2066,7 +2066,13 @@ function scoreActionsForUnit(
 
   // ── INTERCEPT_CAPTOR ──
   {
-    const captors = playerUnitsInTriggerRange.filter(u => u.hasCapturedThisTurn);
+    const captors = playerUnitsInTriggerRange.filter(u =>
+      u.hasCapturedThisTurn
+      && (!isTileWithinEdgeCircleRange(
+        unit.position.x, unit.position.y,
+        u.position.x, u.position.y,
+        attackRange,
+      ) || attackablePlayerUnitsInRange.some(target => target.id === u.id)));
     if (canAttackThisTurn && captors.length > 0) {
       captors.sort((a, b) => edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y) - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
       const target = captors[0];
@@ -3056,6 +3062,32 @@ function destroyUnit(state: Draft<GameState>, unitId: string, events?: GameEvent
   resolveInfestedDeath(state, unit, events);
 }
 
+function revalidateUnitAttackTarget(unit: Unit, action: ScoredAction, state: Draft<GameState>): void {
+  if (action.type !== 'ATTACK_UNIT' && action.type !== 'INTERCEPT_CAPTOR') return;
+  const target = action.targetUnitId ? state.units[action.targetUnitId] : null;
+  if (!target || !isTileWithinEdgeCircleRange(
+    unit.position.x, unit.position.y,
+    target.position.x, target.position.y,
+    unit.stats.attackRange,
+  )) return;
+
+  const legalTargets = Object.values(state.units).filter(candidate =>
+    candidate.stats.currentHp > 0
+    && isAttackableEnemyUnit(candidate, unit.faction, state.grid)
+    && isTileWithinEdgeCircleRange(
+      unit.position.x, unit.position.y,
+      candidate.position.x, candidate.position.y,
+      unit.stats.attackRange,
+    ));
+  const allowedTargets = getTauntRestrictedAttackTargets(legalTargets);
+  if (allowedTargets.some(candidate => candidate.id === target.id)) return;
+  allowedTargets.sort((a, b) =>
+    edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y)
+    - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
+  action.targetUnitId = allowedTargets[0]?.id;
+  action.targetPosition = allowedTargets[0]?.position;
+}
+
 function executeAction(
   unit: Unit,
   action: ScoredAction,
@@ -3071,6 +3103,7 @@ function executeAction(
   switch (action.type) {
     case 'ATTACK_UNIT':
     case 'INTERCEPT_CAPTOR': {
+      revalidateUnitAttackTarget(currentUnit, action, state);
       if (action.targetUnitId && state.units[action.targetUnitId]) {
         const targetUnit = state.units[action.targetUnitId];
         const inAttackRange = isTileWithinEdgeCircleRange(
@@ -3092,17 +3125,13 @@ function executeAction(
           if (events) {
             const attackerAfter = state.units[attackerId];
             const defenderAfter = state.units[defenderId];
-            const advancedToPosition = (
-              !defenderAfter &&
-              attackerAfter &&
-              (attackerAfter.position.x !== attackerPos.x || attackerAfter.position.y !== attackerPos.y)
-            ) ? { x: attackerAfter.position.x, y: attackerAfter.position.y } : null;
+            const advancedToPosition = attackDamage?.advancedTo ?? null;
             // Attacker earns XP for killing the defender; defender earns XP for a counter-kill.
             // Use pre-attack XP to mirror the grantXp early-return for MAX_LEVEL units.
             const attackerCanReceiveXp = canGrantXp(stateBeforeAction.units[attackerId]?.type ?? '', stateBeforeAction.units[attackerId]?.xp ?? 0);
             const defenderCanReceiveXp = canGrantXp(stateBeforeAction.units[defenderId]?.type ?? '', stateBeforeAction.units[defenderId]?.xp ?? 0);
             const attackerXpGained = !defenderAfter && attackerAfter && attackerCanReceiveXp ? XP.KILL_UNIT : null;
-            const defenderXpGained = !attackerAfter && defenderCanReceiveXp ? XP.KILL_UNIT : null;
+            const defenderXpGained = !attackerAfter && defenderAfter && defenderCanReceiveXp ? XP.KILL_UNIT : null;
             const defenderSpawnBrandmarkReplacement = targetUnit.tags.includes(UnitTag.BRANDMARKED);
             const attackerSpawnBrandmarkReplacement = currentUnit.tags.includes(UnitTag.BRANDMARKED);
             const defenderBrandmarkSpawnPosition = defenderSpawnBrandmarkReplacement
@@ -3138,16 +3167,16 @@ function executeAction(
               (e) => !(e.type === 'UNIT_KNOCKBACK' && (e as Extract<GameEvent, { type: 'UNIT_KNOCKBACK' }>).unitId === defenderId),
             );
             if (knockbackDefEvt) events.push(knockbackDefEvt);
-            if (!defenderAfter) {
+            if (attackDamage?.defenderDied) {
               events.push({
                 type: 'UNIT_DEATH',
                 unitId: defenderId,
-                position: knockbackDefEvt ? knockbackDefEvt.toPosition : defenderPos,
+                position: defenderPos,
                 faction: targetUnit.faction,
                 brandmarkSpawnPosition: defenderBrandmarkSpawnPosition,
               });
             }
-            if (!attackerAfter) {
+            if (attackDamage?.attackerDied) {
               events.push({
                 type: 'UNIT_DEATH',
                 unitId: attackerId,
@@ -3185,7 +3214,7 @@ function executeAction(
           const attackerCanReceiveXp = canGrantXp(stateBeforeAction.units[attackerId]?.type ?? '', stateBeforeAction.units[attackerId]?.xp ?? 0);
           const defenderCanReceiveXp = canGrantXp(stateBeforeAction.units[defenderId]?.type ?? '', stateBeforeAction.units[defenderId]?.xp ?? 0);
           const attackerXpGained = !defenderAfter && attackerAfter && attackerCanReceiveXp ? XP.KILL_UNIT : null;
-          const defenderXpGained = !attackerAfter && defenderCanReceiveXp ? XP.KILL_UNIT : null;
+          const defenderXpGained = !attackerAfter && defenderAfter && defenderCanReceiveXp ? XP.KILL_UNIT : null;
           const defenderSpawnBrandmarkReplacement = targetUnit.tags.includes(UnitTag.BRANDMARKED);
           const attackerSpawnBrandmarkReplacement = currentUnit.tags.includes(UnitTag.BRANDMARKED);
           const defenderBrandmarkSpawnPosition = defenderSpawnBrandmarkReplacement
@@ -3206,7 +3235,7 @@ function executeAction(
             defenderPosition: defenderPos,
             attackerHpLost: attackDamage?.attackerDamage ?? 0,
             defenderHpLost: attackDamage?.defenderDamage ?? 0,
-            advancedToPosition: null,
+            advancedToPosition: attackDamage?.advancedTo ?? null,
             attackerXpGained,
             defenderXpGained,
             tileBurningPosition,
@@ -3221,16 +3250,16 @@ function executeAction(
             (e) => !(e.type === 'UNIT_KNOCKBACK' && (e as Extract<GameEvent, { type: 'UNIT_KNOCKBACK' }>).unitId === defenderId),
           );
           if (knockbackDefEvt2) events.push(knockbackDefEvt2);
-          if (!defenderAfter) {
+          if (attackDamage?.defenderDied) {
             events.push({
               type: 'UNIT_DEATH',
               unitId: defenderId,
-              position: knockbackDefEvt2 ? knockbackDefEvt2.toPosition : defenderPos,
+              position: defenderPos,
               faction: targetUnit.faction,
               brandmarkSpawnPosition: defenderBrandmarkSpawnPosition,
             });
           }
-          if (!attackerAfter) {
+          if (attackDamage?.attackerDied) {
             events.push({
               type: 'UNIT_DEATH',
               unitId: attackerId,
@@ -3259,6 +3288,7 @@ function executeAction(
             const attackerPos = { x: currentUnit.position.x, y: currentUnit.position.y };
             const buildingPos = { x: building.position.x, y: building.position.y };
             const buildingHpBefore = building.hp;
+            const removedBuildingType = building.type;
             const attackerId = currentUnit.id;
             const buildingId = action.targetBuildingId;
 
@@ -3300,6 +3330,7 @@ function executeAction(
                     unitId: death.unitId,
                     position: death.position,
                     faction: death.faction,
+                    lostRoostBuildingType: removedBuildingType,
                   });
                 }
               }
@@ -3340,6 +3371,7 @@ function executeAction(
                 unitId: death.unitId,
                 position: death.position,
                 faction: death.faction,
+                lostRoostBuildingType: capturedType,
               });
             }
           }
@@ -3503,6 +3535,8 @@ function decideAndExecute(
 
   const chosen = candidates[0];
   if (!chosen) return;
+
+  revalidateUnitAttackTarget(unit, chosen, state);
 
   // Register intent for saturation tracking
   const intentKey = chosen.targetUnitId ?? chosen.targetBuildingId ?? null;
@@ -3818,7 +3852,8 @@ function resolveCaveMonsterAttack(
   const attackerCanReceiveXp = canGrantXp(attacker.type, attacker.xp);
   const defenderCanReceiveXp = canGrantXp(defender.type, defender.xp);
 
-  const attackDamage = resolveAttack(state, attackerId, defenderId, !!events);
+  const secondaryEvents: GameEvent[] = [];
+  const attackDamage = resolveAttack(state, attackerId, defenderId, !!events, secondaryEvents);
 
   // If the cave monster was killed by the counter-attack, clean up its encounter
   // entry from the state so the resolved state is consistent.
@@ -3831,11 +3866,7 @@ function resolveCaveMonsterAttack(
   if (events) {
     const attackerAfter = state.units[attackerId];
     const defenderAfter = state.units[defenderId];
-    const advancedToPosition = (
-      !defenderAfter &&
-      attackerAfter &&
-      (attackerAfter.position.x !== attackerPos.x || attackerAfter.position.y !== attackerPos.y)
-    ) ? { x: attackerAfter.position.x, y: attackerAfter.position.y } : null;
+    const advancedToPosition = attackDamage?.advancedTo ?? null;
     const tileBurningPosition = (
       defenderTileStatusBefore !== TileStatus.BURNING &&
       state.grid[defenderPos.y]?.[defenderPos.x]?.status === TileStatus.BURNING
@@ -3850,10 +3881,15 @@ function resolveCaveMonsterAttack(
       defenderHpLost: attackDamage?.defenderDamage ?? 0,
       advancedToPosition,
       attackerXpGained: !defenderAfter && attackerAfter && attackerCanReceiveXp ? XP.KILL_UNIT : null,
-      defenderXpGained: !attackerAfter && defenderCanReceiveXp ? XP.KILL_UNIT : null,
+      defenderXpGained: !attackerAfter && defenderAfter && defenderCanReceiveXp ? XP.KILL_UNIT : null,
       tileBurningPosition,
     });
-    if (!defenderAfter) {
+    const knockbackDefenderEvent = secondaryEvents.find(
+      (event): event is Extract<GameEvent, { type: 'UNIT_KNOCKBACK' }> =>
+        event.type === 'UNIT_KNOCKBACK' && event.unitId === defenderId,
+    );
+    if (knockbackDefenderEvent) events.push(knockbackDefenderEvent);
+    if (attackDamage?.defenderDied) {
       events.push({
         type: 'UNIT_DEATH',
         unitId: defenderId,
@@ -3861,14 +3897,18 @@ function resolveCaveMonsterAttack(
         faction: defenderFaction,
       });
     }
-    if (!attackerAfter) {
+    if (attackDamage?.attackerDied) {
       events.push({
         type: 'UNIT_DEATH',
         unitId: attackerId,
         position: attackerPos,
         faction: Faction.ENEMY,
       });
-      // Cave monster was counter-killed → trigger specialist draw
+    }
+    events.push(...secondaryEvents.filter((event) => event !== knockbackDefenderEvent));
+    if (!attackerAfter && !secondaryEvents.some(
+      (event) => event.type === 'CAVE_MONSTER_KILLED' && event.monsterId === attackerId,
+    )) {
       events.push({ type: 'CAVE_MONSTER_KILLED', monsterId: attackerId });
     }
   }
@@ -4006,7 +4046,6 @@ function runCaveMonsterAi(
     if (aggroTarget) {
       const from = { x: unit.position.x, y: unit.position.y };
       const ownHpBefore = unit.stats.currentHp;
-      const targetHpBefore = aggroTarget.stats.currentHp;
       const context = trace ? buildTraceContext(unit, state, trace, threats) : null;
       const eventStart = events?.length ?? 0;
       const moveOutcome = moveEnemyUnitToward(state, unit.id, aggroTarget.position, events, !!trace);
@@ -4048,16 +4087,24 @@ function runCaveMonsterAi(
         );
         continue;
       }
-      // If the target is now in attack range after moving, attack in the same turn
-      if (
-        state.units[aggroTarget.id] &&
-        isTileWithinEdgeCircleRange(
+      const targetsInRange = Object.values(state.units).filter(target =>
+        target.faction === Faction.PLAYER
+        && target.stats.currentHp > 0
+        && isTileWithinEdgeCircleRange(
           movedUnit.position.x, movedUnit.position.y,
-          aggroTarget.position.x, aggroTarget.position.y,
+          target.position.x, target.position.y,
           movedUnit.stats.attackRange,
-        )
-      ) {
-        resolveCaveMonsterAttack(state, movedUnit.id, aggroTarget.id, events);
+        ));
+      const attackTarget = getTauntRestrictedAttackTargets(
+        targetsInRange.filter(target => isAttackableEnemyUnit(target, movedUnit.faction, state.grid)),
+        targetsInRange,
+      )[0] ?? null;
+      const traceTarget = attackTarget ?? aggroTarget;
+      const targetIndex = trace?.unitIndex(traceTarget) ?? -1;
+      const targetHpBefore = traceTarget.stats.currentHp;
+      const targetPosition = { ...traceTarget.position };
+      if (attackTarget) {
+        resolveCaveMonsterAttack(state, movedUnit.id, attackTarget.id, events);
       }
       if (trace && context) {
         const recentEvents = events ? events.slice(eventStart) : [];
@@ -4067,8 +4114,8 @@ function runCaveMonsterAi(
         } else {
           trace.unitIndex(monsterAfter);
         }
-        if (!state.units[aggroTarget.id]) {
-          trace.markDeath(aggroTarget.id, 'KILLED');
+        if (attackTarget && !state.units[attackTarget.id]) {
+          trace.markDeath(attackTarget.id, 'KILLED');
         }
         trace.pushDecision({
           slot: 1,
@@ -4081,17 +4128,17 @@ function runCaveMonsterAi(
           to: monsterAfter ? { x: monsterAfter.position.x, y: monsterAfter.position.y } : from,
           hp: ownHpBefore,
           targetKind: 1,
-          targetIndex: trace.unitIndex(aggroTarget),
-          targetPosition: { x: aggroTarget.position.x, y: aggroTarget.position.y },
-          targetDistance: edgeCircleDistance(from.x, from.y, aggroTarget.position.x, aggroTarget.position.y),
+          targetIndex,
+          targetPosition,
+          targetDistance: edgeCircleDistance(from.x, from.y, targetPosition.x, targetPosition.y),
           moveTiles: moveOutcome.steps,
           stopReason: getStopCode(moveOutcome.stop),
           pathLength: moveOutcome.pathLen,
           terrain: moveOutcome.terr,
-          damage: Math.max(0, targetHpBefore - (state.units[aggroTarget.id]?.stats.currentHp ?? 0)),
+          damage: attackTarget ? Math.max(0, targetHpBefore - (state.units[attackTarget.id]?.stats.currentHp ?? 0)) : 0,
           received: Math.max(0, ownHpBefore - (monsterAfter?.stats.currentHp ?? 0)),
           flags: getOutcomeBitMask([
-            ...(!state.units[aggroTarget.id] ? ['KILL' as const] : []),
+            ...(attackTarget && !state.units[attackTarget.id] ? ['KILL' as const] : []),
             ...(!monsterAfter ? ['DIED' as const] : []),
             ...(recentEvents.some((event) => event.type === 'PORTAL_USED' && event.unitId === unit.id) ? ['TELEPORTED' as const] : []),
             ...(moveOutcome.slid ? ['SLID' as const] : []),
@@ -4166,6 +4213,7 @@ function runCaveMonsterAi(
           tile.buildingId = null;
           // Collect any life-bound units BEFORE cleanup so we can emit UNIT_DEATH events.
           const roosted = events ? getRoostedUnits(state, building.id) : [];
+          const removedBuildingType = building.type;
           cleanupRoostedUnits(state, building.id);
           delete state.buildings[building.id];
           // Emit UNIT_DEATH before CAVE_MONSTER_RETREAT so the auto-cam pans to
@@ -4177,6 +4225,7 @@ function runCaveMonsterAi(
                 unitId: death.unitId,
                 position: death.position,
                 faction: death.faction,
+                lostRoostBuildingType: removedBuildingType,
               });
             }
           }

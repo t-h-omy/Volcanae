@@ -80,11 +80,10 @@ import { processInfestedFactionTurn, resolveInfestedDeath } from './infestedSyst
 import { processCorruptedQorkDrain } from './corruptedQorkSystem';
 import { cannotBeHealed } from './unitTraits';
 
-function hasQueuedQorkBurst(position: Position): boolean {
+export function hasQueuedQorkBurst(unitId: string): boolean {
   return useAnimationStore.getState().eventQueue.some((event) =>
     event.type === 'QORK_DEATH_BURST'
-    && event.position.x === position.x
-    && event.position.y === position.y);
+    && event.unitId === unitId);
 }
 
 function hasActiveQorkBurstVfx(position: Position): boolean {
@@ -94,7 +93,7 @@ function hasActiveQorkBurstVfx(position: Position): boolean {
     && vfx.y === position.y);
 }
 
-function addDirectQorkDeathVfx(
+export function addDirectQorkDeathVfx(
   state: Pick<GameState, 'grid'>,
   position: Position,
   useResolvedState = false,
@@ -126,6 +125,11 @@ function addDirectQorkDeathVfx(
 // ============================================================================
 // STORE ACTIONS INTERFACE
 // ============================================================================
+
+interface ApplyEventPresentationOptions {
+  suppressQorkDeathVfx?: boolean;
+  silent?: boolean;
+}
 
 interface GameActions {
   /** Initialize a new game by generating initial state (legacy no-op; use newGameInSlot) */
@@ -204,7 +208,7 @@ interface GameActions {
   /** End the player turn - triggers enemy turn, lava phase, then next player turn */
   endPlayerTurn: () => void;
   /** Apply a single game event from the animation queue */
-  applyEvent: (event: GameEvent) => void;
+  applyEvent: (event: GameEvent, options?: ApplyEventPresentationOptions) => void;
   /** Apply a melee advance after the die animation (deferred from attack event) */
   applyMeleeAdvance: (attackerId: string, toPosition: Position) => void;
   /** Activate a single Crystal Chamber by setting its resonanceTurnsRemaining (used by animation engine) */
@@ -709,7 +713,7 @@ export const useGameStore = create<GameStore>()(
         useAnimationStore.getState().enqueue(portalMovementEvents, useGameStore.getState());
       }
       for (const event of movementEvents) {
-        if (event.type === 'QORK_DEATH_BURST' && !hasQueuedQorkBurst(event.position)) {
+        if (event.type === 'QORK_DEATH_BURST' && !hasQueuedQorkBurst(event.unitId)) {
           addDirectQorkDeathVfx(useGameStore.getState(), event.position);
         }
       }
@@ -749,7 +753,7 @@ export const useGameStore = create<GameStore>()(
             durationMs: ANIMATION.INFESTED_DEATH_BURST_MS,
           });
         }
-        if (d.qork && !hasQueuedQorkBurst({ x: d.deathTileX, y: d.deathTileY })) {
+        if (d.qork && !hasQueuedQorkBurst(unitId)) {
           addDirectQorkDeathVfx(useGameStore.getState(), { x: d.deathTileX, y: d.deathTileY });
         }
 
@@ -794,8 +798,7 @@ export const useGameStore = create<GameStore>()(
         // without nesting immer producers (same pattern as endPlayerTurn).
         const snapshot: GameState = current(state);
 
-        // Collect IDs of any cave monsters killed by SPLASH (not the primary target).
-        // Populated inside the produce callback and used to push CAVE_MONSTER_KILLED events.
+        // Collect cave deaths, including targets killed by secondary effects.
         const splashKilledCaveMonsterIds: string[] = [];
 
         // Collect secondary events (SPLASH/CLEAVE/PIERCE damage and kills) emitted by resolveAttack
@@ -804,19 +807,8 @@ export const useGameStore = create<GameStore>()(
         // Compute the resolved state (post-attack) on the snapshot
         const resolvedState = produce(snapshot, (draft) => {
           attackDamage = resolveAttack(draft, attackerId, targetId, true, secondaryEvents);
-          // If the primary target is a cave monster that was killed, remove its encounter entry
-          if (
-            snapshot.units[targetId]?.type === UnitType.CAVE_MONSTER &&
-            !draft.units[targetId]
-          ) {
-            draft.activeCaveEncounters = draft.activeCaveEncounters.filter(
-              (e) => e.monsterId !== targetId,
-            );
-          }
-          // Any other CAVE_MONSTER unit that died during this attack (e.g. SPLASH AoE) also
-          // needs its encounter entry removed and a CAVE_MONSTER_KILLED reward event.
+          // All cave deaths need encounter cleanup and one specialist reward.
           for (const unitId of Object.keys(snapshot.units)) {
-            if (unitId === targetId) continue; // primary target handled above
             if (
               snapshot.units[unitId].type === UnitType.CAVE_MONSTER &&
               !draft.units[unitId]
@@ -834,11 +826,7 @@ export const useGameStore = create<GameStore>()(
         // Compute event fields from the resolved state
         const attackerAfter = resolvedState.units[attackerId];
         const defenderAfter = resolvedState.units[targetId];
-        const advancedToPosition = (
-          !defenderAfter &&
-          attackerAfter &&
-          (attackerAfter.position.x !== attackerPosition.x || attackerAfter.position.y !== attackerPosition.y)
-        ) ? { x: attackerAfter.position.x, y: attackerAfter.position.y } : null;
+        const advancedToPosition = attackDamage?.advancedTo ?? null;
         // Attacker earns XP for killing the defender; defender earns XP for a counter-kill.
         // Guard against the grantXp early-return: if the unit already qualifies for MAX_LEVEL,
         // grantXp silently refuses the XP, so the event must carry 0 (null) to avoid a
@@ -847,7 +835,7 @@ export const useGameStore = create<GameStore>()(
         const attackerCanReceiveXp = canGrantXp(snapshot.units[attackerId]?.type ?? '', snapshot.units[attackerId]?.xp ?? 0);
         const defenderCanReceiveXp = canGrantXp(snapshot.units[targetId]?.type ?? '', snapshot.units[targetId]?.xp ?? 0);
         const attackerXpGained = !defenderAfter && attackerAfter && attackerCanReceiveXp ? XP.KILL_UNIT : null;
-        const defenderXpGained = !attackerAfter && defenderCanReceiveXp ? XP.KILL_UNIT : null;
+        const defenderXpGained = !attackerAfter && defenderAfter && defenderCanReceiveXp ? XP.KILL_UNIT : null;
         const defenderSpawnBrandmarkReplacement = !!snapshot.units[targetId]?.tags.includes(UnitTag.BRANDMARKED);
         const attackerSpawnBrandmarkReplacement = !!snapshot.units[attackerId]?.tags.includes(UnitTag.BRANDMARKED);
         const defenderBrandmarkSpawnPosition = defenderSpawnBrandmarkReplacement
@@ -894,16 +882,11 @@ export const useGameStore = create<GameStore>()(
         }
 
         // Add UNIT_DEATH events for killed units (consumed after the attack animation)
-        if (!defenderAfter) {
-          // Use the knockback destination as the death position when knockback killed the
-          // defender (defender survived primary attack but was displaced into a lethal tile).
-          const defenderDeathPosition = knockbackDefenderEvent
-            ? knockbackDefenderEvent.toPosition
-            : defenderPosition;
+        if (attackDamage?.defenderDied) {
           events.push({
             type: 'UNIT_DEATH',
             unitId: targetId,
-            position: defenderDeathPosition,
+            position: defenderPosition,
             faction: defenderFaction,
             brandmarkSpawnPosition: defenderBrandmarkSpawnPosition,
           });
@@ -912,7 +895,7 @@ export const useGameStore = create<GameStore>()(
             events.push({ type: 'CAVE_MONSTER_KILLED', monsterId: targetId });
           }
         }
-        if (!attackerAfter) {
+        if (attackDamage?.attackerDied) {
           events.push({
             type: 'UNIT_DEATH',
             unitId: attackerId,
@@ -923,9 +906,15 @@ export const useGameStore = create<GameStore>()(
         }
         // Push remaining secondary damage/death events (SPLASH/CLEAVE/PIERCE)
         events.push(...remainingSecondaryEvents);
-        // Push CAVE_MONSTER_KILLED events for any cave monsters killed by SPLASH AoE
+        // Secondary death effects may already have emitted a cave reward.
+        const rewardedMonsterIds = new Set(events.flatMap((event) =>
+          event.type === 'CAVE_MONSTER_KILLED' ? [event.monsterId] : [],
+        ));
         for (const monsterId of splashKilledCaveMonsterIds) {
-          events.push({ type: 'CAVE_MONSTER_KILLED', monsterId });
+          if (!rewardedMonsterIds.has(monsterId)) {
+            events.push({ type: 'CAVE_MONSTER_KILLED', monsterId });
+            rewardedMonsterIds.add(monsterId);
+          }
         }
 
         pendingEvents = events;
@@ -1695,7 +1684,7 @@ export const useGameStore = create<GameStore>()(
           const wasInfested = original.tags.includes(UnitTag.INFESTED);
           const needsDirectQorkVfx = original.type === UnitType.CORRUPTED_QORK
             && !original.infestedDeathEffectResolved
-            && !hasQueuedQorkBurst(position);
+            && !hasQueuedQorkBurst(unitId);
           if (original.type !== UnitType.CORRUPTED_QORK || !original.infestedDeathEffectResolved) {
             resolveInfestedDeath(state, original);
           }
@@ -2009,6 +1998,8 @@ export const useGameStore = create<GameStore>()(
       const portalEvents: GameEvent[] = [];
       let crystalLightningEvents: GameEvent[] | null = null;
       let crystalLightningResolvedState: GameState | null = null;
+      let createdLeashedUnit = false;
+      let createdMagePortal = false;
       set((state) => {
         if (!state.pendingSpellCast) return;
         const { mageId, spellId } = state.pendingSpellCast;
@@ -2054,9 +2045,27 @@ export const useGameStore = create<GameStore>()(
             .map((u) => u.id),
         );
 
+        const unitsBefore = current(state.units);
+        const leashedUnitIdsBefore = new Set(
+          Object.values(unitsBefore)
+            .filter((unit) => unit.tags.includes(UnitTag.LEASHED))
+            .map((unit) => unit.id),
+        );
+        const portalIdsBefore = new Set(Object.keys(state.portals));
         const ok = castSpellLogic(state, mageId, spellId, targetPosition, portalEvents);
         if (!ok) return;
 
+        const leashedUnitIdsAfter = new Set(
+          Object.values(state.units)
+            .filter((unit) => unit.tags.includes(UnitTag.LEASHED))
+            .map((unit) => unit.id),
+        );
+        createdLeashedUnit = [...leashedUnitIdsAfter].some(
+          (id) => !leashedUnitIdsBefore.has(id) && !unitsBefore[id],
+        );
+        createdMagePortal = Object.values(state.portals).some(
+          (portal) => !portalIdsBefore.has(portal.id) && portal.kind === 'MAGE',
+        );
         // Detect cave monsters killed by the spell and clean up their encounters.
         for (const id of caveMonstersBefore) {
           if (!state.units[id]) {
@@ -2119,8 +2128,14 @@ export const useGameStore = create<GameStore>()(
         } else {
           triggerSpellSfx('spell_cast');
         }
-        if (castSpellId === 'EMBERBIND') {
+        if (createdLeashedUnit) {
           tryTriggerHint('H19_EMBERBIND_LEASH');
+        }
+        if (createdMagePortal) {
+          tryTriggerHint('H24_MAGE_PORTAL');
+        }
+        if (castSpellId === 'SUMMON_GHOUL') {
+          tryTriggerHint('H26_GHOUL_GRAVESTONES');
         }
         // EXPLODE: add shockwave ring to match emberling explosion VFX
         if (castSpellId === 'EXPLODE') {
@@ -2263,6 +2278,7 @@ export const useGameStore = create<GameStore>()(
       let pendingStateForSave: GameState | null = null;
       let homelessHintPos: { x: number; y: number } | null = null;
       let untrainedHintPos: { x: number; y: number } | null = null;
+      let infestedHintPos: Position | null = null;
       let hasBurningPlayerDamage = false;
       const resolveCaptureEvents: GameEvent[] = [];
       let pendingTraceChunk: ReturnType<typeof runEnemyTurn>['trace'] = null;
@@ -2400,10 +2416,11 @@ export const useGameStore = create<GameStore>()(
 
         // Phase 6: New turn bookkeeping on computedState
         const leashDefectEvents: GameEvent[] = [];
+        const resourceEvents: GameEvent[] = [];
         const tagDamageEvents: GameEvent[] = [];
         computedState = produce(computedState, (draft) => {
           // Collect resources
-          collectResources(draft);
+          collectResources(draft, resourceEvents);
 
           // Deduct specialist upkeep and update dormant status
           deductSpecialistUpkeep(draft);
@@ -2677,11 +2694,21 @@ export const useGameStore = create<GameStore>()(
           draft.phase = GamePhase.PLAYER_TURN;
         });
 
+        const firstInfestedPlayer = Object.values(computedState.units)
+          .filter((unit) => unit.faction === Faction.PLAYER && unit.tags.includes(UnitTag.INFESTED))
+          .sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0)[0];
+        if (firstInfestedPlayer) {
+          infestedHintPos = { ...firstInfestedPlayer.position };
+        }
+
         // Phase 7: Stage events for animation (enqueued after this set commits)
         // Leash defect events play at the START of the queue so the demon visually
         // defects before the enemy-turn action events that follow them.
         if (leashDefectEvents.length > 0) {
           allEvents.unshift(...leashDefectEvents);
+        }
+        if (resourceEvents.length > 0) {
+          allEvents.push(...resourceEvents);
         }
         if (tagDamageEvents.length > 0) {
           allEvents.push(...tagDamageEvents);
@@ -2705,6 +2732,9 @@ export const useGameStore = create<GameStore>()(
       }
       if (untrainedHintPos !== null) {
         useHintStore.getState().defer({ hintId: 'H11_UNTRAINED', cameraTarget: untrainedHintPos });
+      }
+      if (infestedHintPos !== null) {
+        useHintStore.getState().defer({ hintId: 'H23_INFESTED_SPREAD', cameraTarget: infestedHintPos });
       }
       if (pendingTraceChunk !== null) {
         const activeSaveId = useMenuStore.getState().activeSaveId;
@@ -2765,13 +2795,14 @@ export const useGameStore = create<GameStore>()(
       }
     },
 
-    applyEvent: (event: GameEvent) => {
+    applyEvent: (event: GameEvent, options: ApplyEventPresentationOptions = {}) => {
       const { processingRevision, queueRevision } = useAnimationStore.getState();
       // Ignore stale in-flight animation events from a superseded queue batch.
       if (processingRevision !== null && processingRevision !== queueRevision) {
         return;
       }
       let emberLevelUpFired = false;
+      const directQorkDeathPositions: Position[] = [];
       set((state) => {
         switch (event.type) {
           case 'ENEMY_SPAWN': {
@@ -2834,7 +2865,7 @@ export const useGameStore = create<GameStore>()(
             }
 
             // Trigger floaters for visual feedback
-            const { addFloater } = useFloaterStore.getState();
+            const addFloater = options.silent ? () => undefined : useFloaterStore.getState().addFloater;
             if (event.defenderHpLost > 0) {
               addFloater({
                 value: event.defenderHpLost,
@@ -2916,7 +2947,7 @@ export const useGameStore = create<GameStore>()(
             }
 
             // Trigger floaters for visual feedback (isEnemy derived from faction)
-            const { addFloater } = useFloaterStore.getState();
+            const addFloater = options.silent ? () => undefined : useFloaterStore.getState().addFloater;
             if (event.defenderHpLost > 0) {
               addFloater({
                 value: event.defenderHpLost,
@@ -2970,7 +3001,7 @@ export const useGameStore = create<GameStore>()(
               // Show "Risen" floater for BRANDMARKED units — the deferred animation
               // was removed from handleBrandmarkedUnitDeath, so we show it here at
               // the correct point in the animation timeline.
-              if (isBrandmarked) {
+              if (isBrandmarked && !options.silent) {
                 useFloaterStore.getState().addFloater({
                   value: 0,
                   label: `😈 ${t('floater.risen')}`,
@@ -2980,7 +3011,7 @@ export const useGameStore = create<GameStore>()(
                   floaterType: 'damage',
                 });
               }
-              if (unit.tags.includes(UnitTag.INFESTED)) {
+              if (unit.tags.includes(UnitTag.INFESTED) && !options.silent) {
                 useCombatAnimationStore.getState().addTileVfx({
                   id: crypto.randomUUID(),
                   x: event.position.x,
@@ -2990,9 +3021,11 @@ export const useGameStore = create<GameStore>()(
                 });
               }
               if (unit.type === UnitType.CORRUPTED_QORK
+                && !options.silent
+                && !options.suppressQorkDeathVfx
                 && !unit.infestedDeathEffectResolved
-                && !hasQueuedQorkBurst(event.position)) {
-                addDirectQorkDeathVfx(state, event.position, true);
+                && !hasQueuedQorkBurst(event.unitId)) {
+                directQorkDeathPositions.push(event.position);
               }
               const tile = state.grid[unit.position.y][unit.position.x];
               if (tile.unitId === event.unitId) {
@@ -3096,7 +3129,7 @@ export const useGameStore = create<GameStore>()(
             }
 
             // Trigger floaters
-            const { addFloater } = useFloaterStore.getState();
+            const addFloater = options.silent ? () => undefined : useFloaterStore.getState().addFloater;
             if (event.defenderHpLost > 0) {
               addFloater({
                 value: event.defenderHpLost,
@@ -3205,7 +3238,7 @@ export const useGameStore = create<GameStore>()(
             }
 
             // Trigger floaters
-            const { addFloater } = useFloaterStore.getState();
+            const addFloater = options.silent ? () => undefined : useFloaterStore.getState().addFloater;
             if (event.buildingHpLost > 0) {
               addFloater({
                 value: event.buildingHpLost,
@@ -3389,11 +3422,13 @@ export const useGameStore = create<GameStore>()(
               const unit = state.units[unitId];
               if (unit?.tunnelState === 'UNDERGROUND' || unit?.tunnelState === 'EMERGING') continue;
               if (unit?.type === UnitType.CORRUPTED_QORK
+                && !options.silent
+                && !options.suppressQorkDeathVfx
                 && !unit.infestedDeathEffectResolved
-                && !hasQueuedQorkBurst(unit.position)) {
-                addDirectQorkDeathVfx(state, unit.position, true);
+                && !hasQueuedQorkBurst(unitId)) {
+                directQorkDeathPositions.push({ ...unit.position });
               }
-              if (!unit?.tags.includes(UnitTag.INFESTED)) continue;
+              if (!unit?.tags.includes(UnitTag.INFESTED) || options.silent) continue;
               useCombatAnimationStore.getState().addTileVfx({
                 id: crypto.randomUUID(),
                 x: unit.position.x,
@@ -3416,11 +3451,13 @@ export const useGameStore = create<GameStore>()(
               const unit = state.units[unitId];
               if (unit) {
                 if (unit.type === UnitType.CORRUPTED_QORK
+                  && !options.silent
+                  && !options.suppressQorkDeathVfx
                   && !unit.infestedDeathEffectResolved
-                  && !hasQueuedQorkBurst(unit.position)) {
-                  addDirectQorkDeathVfx(state, unit.position, true);
+                  && !hasQueuedQorkBurst(unitId)) {
+                  directQorkDeathPositions.push({ ...unit.position });
                 }
-                if (unit.tags.includes(UnitTag.INFESTED)) {
+                if (unit.tags.includes(UnitTag.INFESTED) && !options.silent) {
                   useCombatAnimationStore.getState().addTileVfx({
                     id: crypto.randomUUID(),
                     x: unit.position.x,
@@ -3470,14 +3507,16 @@ export const useGameStore = create<GameStore>()(
                 ? `🌋 ${t('popup.zonePurgedSpawnsFrozen', { zone: event.zone, turns: event.spawnFreezeUntilTurn - state.turn })}`
                 : `🌋 ${t('popup.zonePurged', { zone: event.zone })}`;
             }
-            useFloaterStore.getState().addFloater({
-              label,
-              value: 0,
-              x: event.sanctumPosition.x,
-              y: event.sanctumPosition.y,
-              isEnemy: false,
-              floaterType: 'xp',
-            });
+            if (!options.silent) {
+              useFloaterStore.getState().addFloater({
+                label,
+                value: 0,
+                x: event.sanctumPosition.x,
+                y: event.sanctumPosition.y,
+                isEnemy: false,
+                floaterType: 'xp',
+              });
+            }
             break;
           }
 
@@ -3493,13 +3532,15 @@ export const useGameStore = create<GameStore>()(
               applyUnitDamage(damagedUnit, event.damageAmount ?? event.amount);
               updateBerserkLatch(damagedUnit);
             }
-            useFloaterStore.getState().addFloater({
-              value: event.amount,
-              x: event.position.x,
-              y: event.position.y,
-              isEnemy: damagedUnit?.faction !== Faction.PLAYER,
-              floaterType: 'damage',
-            });
+            if (!options.silent) {
+              useFloaterStore.getState().addFloater({
+                value: event.amount,
+                x: event.position.x,
+                y: event.position.y,
+                isEnemy: damagedUnit?.faction !== Faction.PLAYER,
+                floaterType: 'damage',
+              });
+            }
             break;
           }
 
@@ -3600,12 +3641,14 @@ export const useGameStore = create<GameStore>()(
               applyUnitDamage(splashTarget, event.amount);
               updateBerserkLatch(splashTarget);
             }
-            useFloaterStore.getState().addFloater({
-              value: event.amount,
-              x: event.position.x,
-              y: event.position.y,
-              isEnemy: event.isEnemy,
-            });
+            if (!options.silent) {
+              useFloaterStore.getState().addFloater({
+                value: event.amount,
+                x: event.position.x,
+                y: event.position.y,
+                isEnemy: event.isEnemy,
+              });
+            }
             break;
           }
 
@@ -3615,12 +3658,14 @@ export const useGameStore = create<GameStore>()(
               applyUnitDamage(cleaveTarget, event.amount);
               updateBerserkLatch(cleaveTarget);
             }
-            useFloaterStore.getState().addFloater({
-              value: event.amount,
-              x: event.position.x,
-              y: event.position.y,
-              isEnemy: event.isEnemy,
-            });
+            if (!options.silent) {
+              useFloaterStore.getState().addFloater({
+                value: event.amount,
+                x: event.position.x,
+                y: event.position.y,
+                isEnemy: event.isEnemy,
+              });
+            }
             break;
           }
 
@@ -3638,7 +3683,7 @@ export const useGameStore = create<GameStore>()(
               }
             }
             // Skip floater for VFX-only events (amount === 0, no unit/building target).
-            if (event.amount > 0) {
+            if (event.amount > 0 && !options.silent) {
               useFloaterStore.getState().addFloater({
                 value: event.amount,
                 x: event.position.x,
@@ -3795,8 +3840,7 @@ export const useGameStore = create<GameStore>()(
           }
 
           case 'QORK_DEATH_BURST': {
-            const unitId = state.grid[event.position.y]?.[event.position.x]?.unitId;
-            const qork = unitId ? state.units[unitId] : null;
+            const qork = state.units[event.unitId];
             if (qork?.type === UnitType.CORRUPTED_QORK) {
               qork.infestedDeathEffectResolved = true;
             }
@@ -3843,6 +3887,9 @@ export const useGameStore = create<GameStore>()(
             assertNever(event);
         }
       });
+      for (const position of directQorkDeathPositions) {
+        addDirectQorkDeathVfx(useGameStore.getState(), position, true);
+      }
       if (emberLevelUpFired) {
         tryTriggerHint('H18_EMBER_LEVEL');
       }
@@ -4263,19 +4310,16 @@ export const useGameStore = create<GameStore>()(
           state.arcaneCrystals -= MARKET.SPECIALIST_PRICE_CRYSTAL;
 
           // Revoke outgoing effects and un-assign
+          const outIdx = state.globalSpecialistStorage.indexOf(outgoingSpecialistId);
+          state.globalSpecialistStorage.splice(outIdx, 1);
           const outgoingSpec = state.specialists[outgoingSpecialistId];
           if (outgoingSpec) {
             revokeEffectsForSpecialist(state, outgoingSpec);
             outgoingSpec.assignedBuildingId = null;
           }
-          const outIdx = state.globalSpecialistStorage.indexOf(outgoingSpecialistId);
           const incomingSpec = state.specialists[specialistId];
-          if (outIdx !== -1) {
-            if (incomingSpec && !state.globalSpecialistStorage.includes(specialistId)) {
-              state.globalSpecialistStorage.splice(outIdx, 1, specialistId);
-            } else {
-              state.globalSpecialistStorage.splice(outIdx, 1);
-            }
+          if (incomingSpec && !state.globalSpecialistStorage.includes(specialistId)) {
+            state.globalSpecialistStorage.splice(outIdx, 0, specialistId);
           }
           if (incomingSpec) applyEffectsForSpecialist(state, incomingSpec);
           (market.marketSpecialistSlots as (string | null)[])[slotIndex] = null;

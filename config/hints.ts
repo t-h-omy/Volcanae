@@ -6,6 +6,9 @@
 import { POPULATION, TRAINING } from './economy';
 import { BURNING_TILE_DAMAGE } from './tileStatus';
 import { CRYSTAL_CHAMBER_CONFIG } from './buildings';
+import { ABILITIES } from './abilities';
+import { CORRUPTED_QORK, CRYSTAL_KHYRON, GHOUL } from './units';
+import { MAGE } from './magic';
 
 // ============================================================================
 // CONSTANTS
@@ -43,7 +46,14 @@ export type HintId =
   | 'H17_CAVE_NOT_RESONATING'
   | 'H18_EMBER_LEVEL'
   | 'H19_EMBERBIND_LEASH'
-  | 'H20_BUILD_NO_RESOURCES';
+  | 'H20_BUILD_NO_RESOURCES'
+  | 'H21_KHYRON_RESONANCE'
+  | 'H22_QORK_CORRUPTION'
+  | 'H23_INFESTED_SPREAD'
+  | 'H24_MAGE_PORTAL'
+  | 'H25_KHYRON_LEVEL_UP'
+  | 'H26_GHOUL_GRAVESTONES'
+  | 'H27_STONE_SKIN_ROOTED';
 
 export const ALL_HINT_IDS: HintId[] = [
   'H01_BUILD_WOODCUTTER',
@@ -67,6 +77,13 @@ export const ALL_HINT_IDS: HintId[] = [
   'H18_EMBER_LEVEL',
   'H19_EMBERBIND_LEASH',
   'H20_BUILD_NO_RESOURCES',
+  'H21_KHYRON_RESONANCE',
+  'H22_QORK_CORRUPTION',
+  'H23_INFESTED_SPREAD',
+  'H24_MAGE_PORTAL',
+  'H25_KHYRON_LEVEL_UP',
+  'H26_GHOUL_GRAVESTONES',
+  'H27_STONE_SKIN_ROOTED',
 ];
 
 // ============================================================================
@@ -123,5 +140,24 @@ export const HINT_DEFINITIONS: Record<HintId, HintDefinition> = {
   H19_EMBERBIND_LEASH: {
   },
   H20_BUILD_NO_RESOURCES: {
+  },
+  H21_KHYRON_RESONANCE: {
+    textParams: { healAmount: ABILITIES.RESONANCE_HEAL_AMOUNT, maxLevel: CRYSTAL_KHYRON.MAX_LEVEL },
+  },
+  H22_QORK_CORRUPTION: {
+    textParams: { hpLoss: CORRUPTED_QORK.OFF_CORRUPTION_HP_LOSS, explosionDamage: CORRUPTED_QORK.DEATH_EXPLOSION_DAMAGE },
+  },
+  H23_INFESTED_SPREAD: {
+    textParams: { hpLoss: MAGE.INFESTED_HP_LOSS_PER_TURN },
+  },
+  H24_MAGE_PORTAL: {
+  },
+  H25_KHYRON_LEVEL_UP: {
+  },
+  H26_GHOUL_GRAVESTONES: {
+    textParams: { maxLevel: GHOUL.MAX_LEVEL, killHealPercent: GHOUL.KILL_HEAL_PERCENT },
+  },
+  H27_STONE_SKIN_ROOTED: {
+    textParams: { stoneHp: MAGE.STONE_SKIN_HP },
   },
 };

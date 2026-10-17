@@ -25,6 +25,7 @@ import { getUnitTargetLevel, usesNonXpProgression } from '../levelSystem';
 import { useZoomStore } from '../zoomStore';
 import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE, TILE_STATUS_SPRITE, RESOURCE_SPRITE, ENEMY_BUILDING_SPRITE, PLAYER_BUILDING_SPRITE, TERRAIN_RESOURCE_SPRITE, CRYSTAL_CHAMBER_ACTIVE_SPRITE, CRYSTAL_CAVE_ACTIVE_SPRITE, CRYSTAL_KHYRON_ACTIVE_SPRITE, ENEMY_UNIT_SPRITE, PLAYER_UNIT_SPRITE, TUNNEL_HOLE_SPRITE, TUNNEL_EARTHQUAKE_SPRITE, PORTAL_ENTRANCE_SPRITE, PORTAL_EXIT_SPRITE, MAGE_PORTAL_SPRITE, getBridgeSprite } from '../assetRegistry';
 import { isKhyronResonanceActive } from '../khyronSystem';
+import { isCorruptionBoundDrainActive } from '../corruptedQorkSystem';
 import MissingSprite from './MissingSprite';
 import {
   Faction,
@@ -131,6 +132,7 @@ export default function GridRenderer() {
   const grid = useGameStore((s) => s.grid);
   const units = useGameStore((s) => s.units);
   const buildings = useGameStore((s) => s.buildings);
+  const deathGhosts = useCombatAnimationStore((s) => s.slideKillGhosts);
   const selectedUnitId = useGameStore((s) => s.selectedUnitId);
   const selectedBuildingId = useGameStore((s) => s.selectedBuildingId);
 
@@ -523,11 +525,12 @@ export default function GridRenderer() {
   const selectedBuilding = selectedBuildingId ? buildings[selectedBuildingId] : undefined;
 
   const reachableSet = useMemo<Set<string>>(() => {
-    if (pendingTrapSetterId || !selectedUnit || selectedUnit.faction !== Faction.PLAYER) return new Set();
+    if (pendingSpellCast || pendingTrapSetterId || !selectedUnit || selectedUnit.faction !== Faction.PLAYER) return new Set();
     return getMovableTiles(selectedUnit, useGameStore.getState());
-  }, [selectedUnit, pendingTrapSetterId]);
+  }, [selectedUnit, pendingTrapSetterId, pendingSpellCast]);
 
   const attackableSet = useMemo<Set<string>>(() => {
+    if (pendingSpellCast) return new Set();
     // Unit attack range (enemy units and enemy buildings)
     if (selectedUnit && selectedUnit.faction === Faction.PLAYER) {
       return getAttackTargets(selectedUnit, units, buildings, grid, useGameStore.getState());
@@ -537,12 +540,12 @@ export default function GridRenderer() {
       return getBuildingAttackableTileKeys(selectedBuilding, units, buildings);
     }
     return new Set();
-  }, [selectedUnit, selectedBuilding, units, buildings, grid]);
+  }, [selectedUnit, selectedBuilding, units, buildings, grid, pendingSpellCast]);
 
   const tauntBlockedAttackSet = useMemo<Set<string>>(() => {
-    if (!selectedUnit || selectedUnit.faction !== Faction.PLAYER) return new Set();
+    if (pendingSpellCast || !selectedUnit || selectedUnit.faction !== Faction.PLAYER) return new Set();
     return getTauntBlockedAttackTargetKeys(selectedUnit, units, grid, useGameStore.getState());
-  }, [selectedUnit, units, grid]);
+  }, [selectedUnit, units, grid, pendingSpellCast]);
 
   // Heal target highlighting: when a healer is in heal-mode, show healable tiles
   const healableSet = useMemo<Set<string>>(() => {
@@ -1045,7 +1048,9 @@ export default function GridRenderer() {
         {grid.map((row, y) =>
           row.map((tile, x) => {
             const building = tile.buildingId ? buildings[tile.buildingId] : undefined;
-            const unit = tile.unitId ? units[tile.unitId] : undefined;
+            const unit = tile.unitId && deathGhosts.get(tile.unitId)?.variant !== 'dying-in-place'
+              ? units[tile.unitId]
+              : undefined;
             const key = posKey(x, y);
             const isReachable = reachableSet.has(key);
             const isAttackable = attackableSet.has(key);
@@ -1582,6 +1587,9 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
   const isOnCorruptedTile = useGameStore(
     (s) => s.grid[unit.position.y]?.[unit.position.x]?.status === TileStatus.CORRUPTED
   );
+  const hasCorruptionBoundDebuff = useGameStore(
+    (s) => unit.faction === Faction.PLAYER && isCorruptionBoundDrainActive(s, unit)
+  );
 
   // Show debuff border (and hp bar) for player units with an active debuff.
   // Corrupted tile only counts as a debuff if the unit actually has tags that corruption suppresses.
@@ -1590,6 +1598,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
   const hasDebuff =
     unit.faction === Faction.PLAYER &&
     (corruptionAffectsUnit ||
+      hasCorruptionBoundDebuff ||
       isStunned ||
       unit.tags.some((tag) => {
         if (UPGRADE_TRADEOFF_TAGS.has(tag)) return false;
@@ -1632,16 +1641,12 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
         : undefined;
 
   const isEmberling = unit.type === UnitType.EMBERLING;
-  const isTaunted = unit.tags.includes(UnitTag.TAUNT);
-  const isInfested = unit.tags.includes(UnitTag.INFESTED);
   const stoneSkinHp = unit.stoneSkinHp ?? 0;
   const hasStoneSkin = unit.tags.includes(UnitTag.STONE_SKIN) && stoneSkinHp > 0;
   const stoneSkinHpPct = Math.min(100, (stoneSkinHp / MAGE.STONE_SKIN_HP) * 100);
-  const tauntIcon = TAG_INFO[UnitTag.TAUNT]?.icon;
-  const infestedIcon = TAG_INFO[UnitTag.INFESTED]?.icon;
 
   const tagIcons = unit.tags
-    .filter((tag) => tag !== UnitTag.TAUNT)
+    .filter((tag) => tag !== UnitTag.CORRUPTION_BOUND || hasCorruptionBoundDebuff)
     .map((tag) => TAG_INFO[tag]?.icon)
     .filter((icon): icon is string => !!icon);
 
@@ -1673,7 +1678,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
         } as React.CSSProperties
       }
     >
-      {(unit.stats.currentHp < unit.stats.maxHp || hasDebuff || isTaunted || isInfested || hasStoneSkin) && (
+      {(unit.stats.currentHp < unit.stats.maxHp || hasDebuff || hasStoneSkin) && (
         <>
           {hasStoneSkin && (
             <div
@@ -1696,12 +1701,6 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
           >
             <div className="hp-bar-fill" style={{ width: `${hpPct}%` }} />
           </div>
-          {isTaunted && tauntIcon && (
-            <span className="unit-taunt-badge" title={t('tag.TAUNT.label')}>{tauntIcon}</span>
-          )}
-          {isInfested && infestedIcon && (
-            <span className="unit-infested-badge" title={t('tag.INFESTED.label')}>{infestedIcon}</span>
-          )}
           {unit.stats.currentHp < unit.stats.maxHp && (
             <span className="unit-hp-text">{unit.stats.currentHp}</span>
           )}
@@ -1760,7 +1759,6 @@ function CaptureIndicatorLayer({ tileSize }: { tileSize: number }) {
     const result: Array<{ key: string; x: number; y: number }> = [];
     for (const unit of Object.values(units)) {
       if (unit.faction !== Faction.PLAYER) continue;
-      if (usesNonXpProgression(unit.type)) continue;
       for (const building of Object.values(buildings)) {
         if (
           building.position.x === unit.position.x &&
@@ -2015,8 +2013,8 @@ function ProjectileSprite({
 
 /**
  * Renders ghost visuals for units that have been deleted from game state
- * while they were sliding into a lethal tile (LAVA / CANYON / WATER).
- * The sequence is: slide → skull-flash (DYING) → fall/shrink to nothing.
+ * while sliding into lethal terrain or dying beneath an advancing attacker.
+ * In-place ghosts share the skull flash/fade but never slide or fall.
  */
 function SlideKillGhostLayer({ tileSize }: { tileSize: number }) {
   const ghosts = useCombatAnimationStore((s) => s.slideKillGhosts);
@@ -2050,8 +2048,8 @@ function SlideKillGhostSprite({ ghost, tileSize }: { ghost: SlideKillGhost; tile
           width: tileSize,
           height: tileSize,
           transform: `translate(${tilePixelX}px, ${tilePixelY}px)`,
-          '--slide-start-x': `${ghost.slideDx}px`,
-          '--slide-start-y': `${ghost.slideDy}px`,
+          '--slide-start-x': `${ghost.variant === 'dying-in-place' ? 0 : ghost.slideDx}px`,
+          '--slide-start-y': `${ghost.variant === 'dying-in-place' ? 0 : ghost.slideDy}px`,
           '--slide-kill-slide-duration': `${ANIMATION.SLIDE_DURATION_MS}ms`,
           '--slide-kill-slide-pause': `${ANIMATION.SLIDE_PAUSE_MS}ms`,
           '--die-flash-duration': `${ANIMATION.DIE_FLASH_DURATION_MS}ms`,
@@ -2074,7 +2072,7 @@ function SlideKillGhostSprite({ ghost, tileSize }: { ghost: SlideKillGhost; tile
           <MissingSprite size={tileSize} />
         </div>
       )}
-      {/* skull emoji — visible only during 'dying' phase */}
+      {/* skull emoji, visible only during the dying phase */}
       {ghost.phase === 'dying' && (
         <span
           className="slide-kill-ghost__skull"

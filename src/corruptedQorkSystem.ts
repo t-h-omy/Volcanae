@@ -1,7 +1,7 @@
 import type { Draft } from 'immer';
 import type { GameState, Position, Unit } from './types';
 import { CORRUPTED_QORK } from './gameConfig';
-import { Faction, TileStatus, UnitTag, UnitType } from './types';
+import { Faction, TileStatus, UnitTag } from './types';
 import type { GameEvent } from './gameEvents';
 import { applyUnitDamage } from './unitDamage';
 import { createGravestoneAt, shouldLeaveGravestone } from './combatSystem';
@@ -16,19 +16,25 @@ function snapshotUnit(unit: Unit | Draft<Unit>): Unit {
   } as Unit;
 }
 
+export function isCorruptionBoundDrainActive(state: GameState, unit: Unit): boolean {
+  return unit.tags.includes(UnitTag.CORRUPTION_BOUND)
+    && unit.stats.currentHp > 0
+    && state.grid[unit.position.y]?.[unit.position.x]?.status !== TileStatus.CORRUPTED;
+}
+
 export function processCorruptedQorkDrain(
   state: Draft<GameState>,
   faction: Faction,
   events: GameEvent[],
 ): void {
-  const qorkIds = Object.values(state.units)
-    .filter((unit) => unit.type === UnitType.CORRUPTED_QORK && unit.faction === faction)
+  const unitIds = Object.values(state.units)
+    .filter((unit) => unit.faction === faction && isCorruptionBoundDrainActive(state, unit))
     .map((unit) => unit.id)
     .sort();
 
-  for (const unitId of qorkIds) {
+  for (const unitId of unitIds) {
     const unit = state.units[unitId];
-    if (!unit || state.grid[unit.position.y]?.[unit.position.x]?.status === TileStatus.CORRUPTED) continue;
+    if (!unit || !isCorruptionBoundDrainActive(state, unit)) continue;
 
     const position: Position = { ...unit.position };
     const damage = CORRUPTED_QORK.OFF_CORRUPTION_HP_LOSS;

@@ -6,7 +6,7 @@
 
 import { useEffect } from 'react';
 import { useAnimationStore } from './animationStore';
-import { useGameStore } from './gameStore';
+import { hasQueuedQorkBurst, useGameStore } from './gameStore';
 import { useCombatAnimationStore } from './combatAnimationStore';
 import { useShockwaveStore } from './shockwaveStore';
 import { useZoneClearedStore } from './zoneClearedStore';
@@ -14,12 +14,13 @@ import { useSpecialistHireStore } from './specialistHireStore';
 import type { CaveSpecialistRewardOutcome } from './specialistHireStore';
 import { useFloaterStore } from './floaterStore';
 import { t } from './i18n/i18n';
+import { buildingName } from './i18n/entityText';
 import { ANIMATION } from '../config/animation';
 import { MAP, MAGE } from './gameConfig';
 import { RENDER } from '../config/render';
 import { BuildingType, Faction, UnitTag, UnitType } from './types';
 import type { GameEvent } from './gameEvents';
-import type { GameState, Position } from './types';
+import type { GameState, Position, Unit } from './types';
 import { tryTriggerHint } from './hintSystem';
 import { selectPortalUsedCameraEndpoint } from './portalAnimation';
 import { useEmberDisplayStore } from './emberDisplayStore';
@@ -45,6 +46,16 @@ export function applyCaveSpecialistReward(drawn: string, outcome: CaveSpecialist
 // ============================================================================
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+type DeathEvent = Extract<GameEvent, { type: 'UNIT_DEATH' }>;
+
+function addDyingUnitGhost(unit: Unit): void {
+  useCombatAnimationStore.getState().addSlideKillGhost({
+    id: unit.id, unitType: unit.type, faction: unit.faction,
+    deathTileX: unit.position.x, deathTileY: unit.position.y,
+    variant: 'dying-in-place', phase: 'dying',
+  });
+}
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -374,6 +385,8 @@ function usesFireSpitVfx(attacker: { tags: UnitTag[] } | undefined): boolean {
 async function playAttackAnimation(
   event: Extract<GameEvent, { type: 'ENEMY_ATTACK' | 'PLAYER_ATTACK' }>,
   visible: boolean,
+  resolveDeaths: (events: DeathEvent[], visible: boolean) => Promise<void>,
+  deferAdvance: (unitId: string, attackerId: string, position: Position) => void,
 ): Promise<Set<string>> {
   const store = useCombatAnimationStore.getState();
   const gameState = useGameStore.getState();
@@ -456,8 +469,78 @@ async function playAttackAnimation(
   // before the skull animation can render.
   const savedAdvance = event.advancedToPosition;
   (event as Record<string, unknown>).advancedToPosition = null;
-  useGameStore.getState().applyEvent(event);
+  useGameStore.getState().applyEvent(event, { silent: !visible });
   (event as Record<string, unknown>).advancedToPosition = savedAdvance;
+
+  // Extract only impact-linked secondaries, leaving splash and knockback on their own beats.
+  const secondaries: Extract<GameEvent, { type: 'PIERCE_DAMAGE' | 'CLEAVE_DAMAGE' }>[] = [];
+  const impactDeaths: DeathEvent[] = [];
+  const impactIds = new Set([event.attackerId, event.defenderId]);
+  const removed = new Set<GameEvent>();
+  const queue = useAnimationStore.getState().eventQueue;
+  const knockedIds = new Set<string>();
+  const isAttachedPresentation = (queued: GameEvent) =>
+    (queued.type === 'CAVE_MONSTER_KILLED' && impactIds.has(queued.monsterId))
+    || (queued.type === 'UNIT_HEAL'
+      && (queued.unitId === event.attackerId || queued.unitId === event.defenderId))
+    || (queued.type === 'DEFENSE_BONUS_IGNORED'
+      && queued.attackerId === event.attackerId && queued.defenderId === event.defenderId)
+    || (queued.type === 'STUN_BLOCKED' && queued.unitId === event.defenderId);
+  for (const queued of queue) {
+    if (queued.type === 'UNIT_KNOCKBACK') {
+      knockedIds.add(queued.unitId);
+    } else if (queued.type === 'PIERCE_DAMAGE' || queued.type === 'CLEAVE_DAMAGE') {
+      secondaries.push(queued);
+      if (queued.unitId) impactIds.add(queued.unitId);
+      removed.add(queued);
+    } else if (queued.type !== 'UNIT_DEATH' && queued.type !== 'SPLASH_DAMAGE'
+      && !isAttachedPresentation(queued)) {
+      break;
+    }
+  }
+  for (const queued of queue) {
+    if (!['UNIT_DEATH', 'UNIT_KNOCKBACK', 'SPLASH_DAMAGE', 'PIERCE_DAMAGE', 'CLEAVE_DAMAGE']
+      .includes(queued.type) && !isAttachedPresentation(queued)) break;
+    if (queued.type === 'UNIT_DEATH' && impactIds.has(queued.unitId) && !knockedIds.has(queued.unitId)) {
+      impactDeaths.push(queued);
+      removed.add(queued);
+    }
+  }
+  useAnimationStore.setState({ eventQueue: queue.filter((queued) => !removed.has(queued)) });
+  let impactDuration: number = ANIMATION.HIT_SHAKE_DURATION_MS;
+  let cleaveStarted = false;
+  for (const secondary of secondaries) {
+    useGameStore.getState().applyEvent(secondary, { silent: !visible });
+    if (!visible) continue;
+    if (secondary.unitId) store.setUnitAnimation(secondary.unitId, { type: 'HIT' });
+    if (secondary.type === 'PIERCE_DAMAGE') {
+      store.addLineVfx({
+        id: crypto.randomUUID(),
+        fromPx: {
+          x: secondary.attackerPosition.x * tileSize + tileSize / 2,
+          y: secondary.attackerPosition.y * tileSize + tileSize / 2,
+        },
+        toPx: {
+          x: secondary.position.x * tileSize + tileSize / 2,
+          y: secondary.position.y * tileSize + tileSize / 2,
+        },
+        variant: 'PIERCE_LINE',
+        durationMs: ANIMATION.PIERCE_LINE_MS,
+      });
+      impactDuration = Math.max(impactDuration, ANIMATION.PIERCE_LINE_MS);
+    } else {
+      if (!cleaveStarted) {
+        const id = crypto.randomUUID();
+        store.addCleaveVfx({
+          id, cx: secondary.attackerPosition.x, cy: secondary.attackerPosition.y,
+          durationMs: ANIMATION.CLEAVE_VFX_DURATION_MS,
+        });
+        setTimeout(() => useCombatAnimationStore.getState().removeCleaveVfx(id), ANIMATION.CLEAVE_VFX_DURATION_MS);
+        cleaveStarted = true;
+      }
+      impactDuration = Math.max(impactDuration, ANIMATION.CLEAVE_VFX_DURATION_MS);
+    }
+  }
 
   if (visible) {
     // ── Shake hit units ──
@@ -470,16 +553,20 @@ async function playAttackAnimation(
 
     // For melee: snap back (unless advancing)
     if (!isRanged && !event.advancedToPosition) {
-      await wait(ANIMATION.MELEE_LUNGE_DURATION_MS / 2);
-      useCombatAnimationStore.getState().setUnitAnimation(event.attackerId, null);
+      setTimeout(() => useCombatAnimationStore.getState().setUnitAnimation(event.attackerId, null),
+        ANIMATION.MELEE_LUNGE_DURATION_MS / 2);
+      impactDuration = Math.max(impactDuration, ANIMATION.MELEE_LUNGE_DURATION_MS / 2);
     } else if (!isRanged && event.advancedToPosition) {
       // Melee kill-advance: clear lunge immediately
       useCombatAnimationStore.getState().setUnitAnimation(event.attackerId, null);
     }
 
-    await wait(ANIMATION.HIT_SHAKE_DURATION_MS);
+    await wait(impactDuration);
     useCombatAnimationStore.getState().setUnitAnimation(event.defenderId, null);
     useCombatAnimationStore.getState().setUnitAnimation(event.attackerId, null);
+    for (const secondary of secondaries) {
+      if (secondary.unitId) useCombatAnimationStore.getState().setUnitAnimation(secondary.unitId, null);
+    }
   }
 
   // ── Determine dying units ──
@@ -496,24 +583,15 @@ async function playAttackAnimation(
     dyingIds.add(event.attackerId);
   }
 
-  // ── Die animations ──
-  if (visible && dyingIds.size > 0) {
-    for (const id of dyingIds) {
-      if (updatedState.units[id]) {
-        useCombatAnimationStore.getState().setUnitAnimation(id, { type: 'DYING' });
-      }
-    }
-
-    await wait(ANIMATION.DIE_FLASH_DURATION_MS + ANIMATION.DIE_FADE_DURATION_MS);
-
-    for (const id of dyingIds) {
-      useCombatAnimationStore.getState().setUnitAnimation(id, null);
-    }
-  }
+  await resolveDeaths(impactDeaths, visible);
 
   // ── Apply melee advance after die animation so the dying defender was visible ──
   if (savedAdvance) {
-    useGameStore.getState().applyMeleeAdvance(event.attackerId, savedAdvance);
+    if (hasQueuedQorkBurst(event.defenderId)) {
+      deferAdvance(event.defenderId, event.attackerId, savedAdvance);
+    } else {
+      useGameStore.getState().applyMeleeAdvance(event.attackerId, savedAdvance);
+    }
   }
 
   return dyingIds;
@@ -530,6 +608,7 @@ async function playAttackAnimation(
 async function playBuildingAttackAnimation(
   event: Extract<GameEvent, { type: 'BUILDING_ATTACK' }>,
   visible: boolean,
+  resolveDeaths: (events: DeathEvent[], visible: boolean) => Promise<void>,
 ): Promise<Set<string>> {
   const store = useCombatAnimationStore.getState();
   const gameState = useGameStore.getState();
@@ -568,7 +647,7 @@ async function playBuildingAttackAnimation(
   }
 
   // Apply damage to display state
-  useGameStore.getState().applyEvent(event);
+  useGameStore.getState().applyEvent(event, { silent: !visible });
 
   if (visible) {
     // Shake hit units
@@ -587,18 +666,14 @@ async function playBuildingAttackAnimation(
     dyingIds.add(event.defenderId);
   }
 
-  // Die animations
-  if (visible && dyingIds.size > 0) {
-    for (const id of dyingIds) {
-      if (updatedState.units[id]) {
-        useCombatAnimationStore.getState().setUnitAnimation(id, { type: 'DYING' });
-      }
-    }
-    await wait(ANIMATION.DIE_FLASH_DURATION_MS + ANIMATION.DIE_FADE_DURATION_MS);
-    for (const id of dyingIds) {
-      useCombatAnimationStore.getState().setUnitAnimation(id, null);
-    }
+  const deaths: DeathEvent[] = [];
+  while (true) {
+    const next = useAnimationStore.getState().eventQueue[0];
+    if (next?.type !== 'UNIT_DEATH' || !dyingIds.has(next.unitId)) break;
+    useAnimationStore.getState().shiftEvent();
+    deaths.push(next);
   }
+  await resolveDeaths(deaths, visible);
 
   // Crystal Tower: show crystal gain floater AFTER death animation
   if (visible && dyingIds.size > 0) {
@@ -630,6 +705,7 @@ async function playBuildingAttackAnimation(
 async function playUnitAttackBuildingAnimation(
   event: Extract<GameEvent, { type: 'UNIT_ATTACK_BUILDING' }>,
   visible: boolean,
+  resolveDeaths: (events: DeathEvent[], visible: boolean) => Promise<void>,
 ): Promise<Set<string>> {
   const store = useCombatAnimationStore.getState();
   const gameState = useGameStore.getState();
@@ -704,7 +780,7 @@ async function playUnitAttackBuildingAnimation(
   }
 
   // Apply damage to display state
-  useGameStore.getState().applyEvent(event);
+  useGameStore.getState().applyEvent(event, { silent: !visible });
 
   if (visible) {
     // Shake attacker if it took counter-attack damage
@@ -729,18 +805,14 @@ async function playUnitAttackBuildingAnimation(
     dyingIds.add(event.attackerId);
   }
 
-  // Die animation for attacker
-  if (visible && dyingIds.size > 0) {
-    for (const id of dyingIds) {
-      if (updatedState.units[id]) {
-        useCombatAnimationStore.getState().setUnitAnimation(id, { type: 'DYING' });
-      }
-    }
-    await wait(ANIMATION.DIE_FLASH_DURATION_MS + ANIMATION.DIE_FADE_DURATION_MS);
-    for (const id of dyingIds) {
-      useCombatAnimationStore.getState().setUnitAnimation(id, null);
-    }
+  const deaths: DeathEvent[] = [];
+  while (true) {
+    const next = useAnimationStore.getState().eventQueue[0];
+    if (next?.type !== 'UNIT_DEATH' || !dyingIds.has(next.unitId)) break;
+    useAnimationStore.getState().shiftEvent();
+    deaths.push(next);
   }
+  await resolveDeaths(deaths, visible);
 
   return dyingIds;
 }
@@ -769,11 +841,72 @@ export function useAnimationEngine(): void {
       // Resolve Scout Trap effects as one arrival sequence without extra camera pauses.
       let resolvingScoutTrap = false;
       const presentedKhyronIds = new Set<string>();
+      const deferredDeaths = new Map<string, DeathEvent>();
+      const deferredAdvances = new Map<string, { attackerId: string; position: Position }>();
+      const applyDeath = (event: DeathEvent, visible: boolean) => {
+        if (hasQueuedQorkBurst(event.unitId)) {
+          deferredDeaths.set(event.unitId, event);
+        } else {
+          useGameStore.getState().applyEvent(event, { silent: !visible });
+        }
+      };
+      const resolveDeaths = async (events: DeathEvent[], visible: boolean) => {
+        const presented = events.filter((death) =>
+          !hasQueuedQorkBurst(death.unitId) && useGameStore.getState().units[death.unitId]);
+        const appliedAtStart = new Set<string>();
+        let duration = ANIMATION.DIE_FLASH_DURATION_MS + ANIMATION.DIE_FADE_DURATION_MS;
+        for (const death of events) {
+          if (hasQueuedQorkBurst(death.unitId)) {
+            deferredDeaths.set(death.unitId, death);
+          }
+        }
+        for (const death of presented) {
+          const unit = useGameStore.getState().units[death.unitId];
+          if (visible) {
+            useCombatAnimationStore.getState().setUnitAnimation(death.unitId, { type: 'DYING' });
+            if (death.lostRoostBuildingType !== undefined) {
+              useFloaterStore.getState().addFloater({
+                value: 0,
+                label: `🏔️ ${t('floater.roostLost', { building: buildingName(death.lostRoostBuildingType) })}`,
+                x: death.position.x,
+                y: death.position.y,
+                isEnemy: death.faction === Faction.ENEMY,
+                floaterType: 'damage',
+              });
+              duration = Math.max(duration, ANIMATION.ROOST_LOST_FLOATER_HOLD_MS);
+            }
+          }
+          if (unit.type === UnitType.CORRUPTED_QORK && !unit.infestedDeathEffectResolved) {
+            if (visible) addDyingUnitGhost(unit);
+            // The direct fallback is presentation-only and must start with the skull.
+            useGameStore.getState().applyEvent(death, { silent: !visible });
+            appliedAtStart.add(death.unitId);
+            duration = Math.max(duration, ANIMATION.QORK_DEATH_BURST_MS);
+          }
+        }
+        if (visible && presented.length > 0) await wait(duration);
+        for (const death of presented) {
+          if (visible) {
+            useCombatAnimationStore.getState().setUnitAnimation(death.unitId, null);
+            useCombatAnimationStore.getState().removeSlideKillGhost(death.unitId);
+          }
+        }
+        for (const death of events) {
+          if (!hasQueuedQorkBurst(death.unitId) && !appliedAtStart.has(death.unitId)) {
+            useGameStore.getState().applyEvent(death, { silent: !visible });
+          }
+        }
+      };
 
       while (true) {
         if (!alive) break;
         const event = useAnimationStore.getState().shiftEvent();
         if (!event) break;
+
+        if (event.type === 'UNIT_DEATH' && hasQueuedQorkBurst(event.unitId)) {
+          deferredDeaths.set(event.unitId, event);
+          continue;
+        }
 
         const visible = isEventVisible(event);
         if (event.type === 'TILE_DAMAGE' && event.damageSource === 'TRAP') {
@@ -783,6 +916,7 @@ export function useAnimationEngine(): void {
         // Activate Chambers, Caves, then each Khyron after its camera arrival.
         // Handled before the main camera-pan block so we never pan to the destroyed chamber.
         if (event.type === 'RESONANCE_TRIGGERED') {
+          let attemptedKhyronHint = false;
           if (visible) {
             for (const chamberId of event.survivingChamberIds) {
               const chamber = useGameStore.getState().buildings[chamberId];
@@ -847,6 +981,10 @@ export function useAnimationEngine(): void {
                 await wait(ANIMATION.CRYSTAL_ACTIVATE_VFX_DURATION_MS);
                 useCombatAnimationStore.getState().setUnitAnimation(unitId, null);
                 await wait(ANIMATION.POST_ACTION_IDLE_MS);
+              }
+              if (!attemptedKhyronHint) {
+                attemptedKhyronHint = true;
+                tryTriggerHint('H21_KHYRON_RESONANCE');
               }
             }
           }
@@ -1064,7 +1202,8 @@ export function useAnimationEngine(): void {
 
         // ── Special handling for ENEMY_ATTACK or PLAYER_ATTACK with combat animations ──
         if (event.type === 'ENEMY_ATTACK' || event.type === 'PLAYER_ATTACK') {
-          const dyingIds = await playAttackAnimation(event, visible);
+          const dyingIds = await playAttackAnimation(event, visible, resolveDeaths,
+            (unitId, attackerId, position) => deferredAdvances.set(unitId, { attackerId, position }));
 
 
           // Consume following UNIT_DEATH events that were already animated
@@ -1076,7 +1215,7 @@ export function useAnimationEngine(): void {
             const next = eventQueue[0];
             if (next.type === 'UNIT_DEATH' && dyingIds.has(next.unitId)) {
               useAnimationStore.getState().shiftEvent();
-              useGameStore.getState().applyEvent(next);
+              applyDeath(next, visible);
             } else {
               break;
             }
@@ -1121,14 +1260,7 @@ export function useAnimationEngine(): void {
                     GameEvent,
                     { type: 'UNIT_DEATH' }
                   >;
-                  if (visible) {
-                    useCombatAnimationStore
-                      .getState()
-                      .setUnitAnimation(deathEvt.unitId, { type: 'DYING' });
-                    await wait(ANIMATION.DIE_FLASH_DURATION_MS + ANIMATION.DIE_FADE_DURATION_MS);
-                    useCombatAnimationStore.getState().setUnitAnimation(deathEvt.unitId, null);
-                  }
-                  useGameStore.getState().applyEvent(deathEvt);
+                  await resolveDeaths([deathEvt], visible);
                   dyingIds.add(deathEvt.unitId);
                 }
               }
@@ -1177,19 +1309,14 @@ export function useAnimationEngine(): void {
                 ) {
                   const deathEvt = eq[0] as Extract<GameEvent, { type: 'UNIT_DEATH' }>;
                   useAnimationStore.getState().shiftEvent();
-                  useCombatAnimationStore
-                    .getState()
-                    .setUnitAnimation(deathEvt.unitId, { type: 'DYING' });
-                  await wait(ANIMATION.DIE_FLASH_DURATION_MS + ANIMATION.DIE_FADE_DURATION_MS);
-                  useCombatAnimationStore.getState().setUnitAnimation(deathEvt.unitId, null);
-                  useGameStore.getState().applyEvent(deathEvt);
+                  await resolveDeaths([deathEvt], visible);
                   dyingIds.add(deathEvt.unitId);
                 }
               }
             } else if (splashEvents.length > 0) {
               // Not visible — apply silently and consume splash-kill UNIT_DEATH events
               for (const se of splashEvents) {
-                useGameStore.getState().applyEvent(se);
+                useGameStore.getState().applyEvent(se, { silent: true });
               }
               for (const se of splashEvents) {
                 const { eventQueue: eq } = useAnimationStore.getState();
@@ -1200,7 +1327,7 @@ export function useAnimationEngine(): void {
                 ) {
                   const deathEvt = eq[0] as Extract<GameEvent, { type: 'UNIT_DEATH' }>;
                   useAnimationStore.getState().shiftEvent();
-                  useGameStore.getState().applyEvent(deathEvt);
+                  applyDeath(deathEvt, visible);
                   dyingIds.add(deathEvt.unitId);
                 }
               }
@@ -1214,145 +1341,9 @@ export function useAnimationEngine(): void {
             const next = eventQueue[0];
             if (next.type === 'UNIT_DEATH' && dyingIds.has(next.unitId)) {
               useAnimationStore.getState().shiftEvent();
-              useGameStore.getState().applyEvent(next);
+              applyDeath(next, visible);
             } else {
               break;
-            }
-          }
-
-          // ── Inline PIERCE_DAMAGE consumption (Change 2) ──────────────────────────────────────
-          // At most one PIERCE event per attack (the tile directly behind the primary defender).
-          // Consuming it inline avoids an extra camera pan and PRE_ACTION_IDLE pause.
-          // The pierce lance VFX starts simultaneously with the HIT shake so the
-          // combined wait ≈ max(PIERCE_LINE_MS, HIT_SHAKE_DURATION_MS).
-          {
-            const { eventQueue: eqPierce } = useAnimationStore.getState();
-            if (eqPierce.length > 0 && eqPierce[0].type === 'PIERCE_DAMAGE') {
-              const pierceEvent = useAnimationStore.getState().shiftEvent() as Extract<
-                GameEvent,
-                { type: 'PIERCE_DAMAGE' }
-              >;
-              if (visible) {
-                const tileSize = getTileSize();
-                // Lance stretches from the attacker all the way to the tile behind the defender.
-                const fromPx = {
-                  x: pierceEvent.attackerPosition.x * tileSize + tileSize / 2,
-                  y: pierceEvent.attackerPosition.y * tileSize + tileSize / 2,
-                };
-                const toPx = {
-                  x: pierceEvent.position.x * tileSize + tileSize / 2,
-                  y: pierceEvent.position.y * tileSize + tileSize / 2,
-                };
-                // Fire lance line VFX (no projectile) concurrently with HIT shake
-                useCombatAnimationStore.getState().addLineVfx({
-                  id: crypto.randomUUID(),
-                  fromPx,
-                  toPx,
-                  variant: 'PIERCE_LINE',
-                  durationMs: ANIMATION.PIERCE_LINE_MS,
-                });
-                // Apply damage + HIT shake concurrently with the lance VFX
-                useGameStore.getState().applyEvent(pierceEvent);
-                if (pierceEvent.unitId) {
-                  useCombatAnimationStore
-                    .getState()
-                    .setUnitAnimation(pierceEvent.unitId, { type: 'HIT' });
-                }
-                // Single combined wait = max(lance VFX, HIT shake)
-                await wait(
-                  Math.max(ANIMATION.PIERCE_LINE_MS, ANIMATION.HIT_SHAKE_DURATION_MS),
-                );
-                if (pierceEvent.unitId) {
-                  useCombatAnimationStore.getState().setUnitAnimation(pierceEvent.unitId, null);
-                }
-              } else {
-                useGameStore.getState().applyEvent(pierceEvent);
-              }
-              // Consume any following UNIT_DEATH for the pierce target (units only; buildings don't die)
-              if (pierceEvent.unitId) {
-                const { eventQueue: eq2 } = useAnimationStore.getState();
-                if (
-                  eq2.length > 0 &&
-                  eq2[0].type === 'UNIT_DEATH' &&
-                  eq2[0].unitId === pierceEvent.unitId
-                ) {
-                  const deathEvt = eq2[0] as Extract<GameEvent, { type: 'UNIT_DEATH' }>;
-                  useAnimationStore.getState().shiftEvent();
-                  if (visible) {
-                    useCombatAnimationStore
-                      .getState()
-                      .setUnitAnimation(deathEvt.unitId, { type: 'DYING' });
-                    await wait(ANIMATION.DIE_FLASH_DURATION_MS + ANIMATION.DIE_FADE_DURATION_MS);
-                    useCombatAnimationStore.getState().setUnitAnimation(deathEvt.unitId, null);
-                  }
-                  useGameStore.getState().applyEvent(deathEvt);
-                  dyingIds.add(deathEvt.unitId);
-                }
-              }
-            }
-          }
-
-          // ── Inline CLEAVE_DAMAGE consumption ─────────────────────────────────────────────────
-          // CLEAVE events are interleaved with UNIT_DEATH events:
-          //   [CD(v1), UD(v1)?, CD(v2), UD(v2)?]
-          // We collect ALL of them here, then fire a SINGLE VFX ring on the attacker.
-          {
-            const cleaveEvents: Extract<GameEvent, { type: 'CLEAVE_DAMAGE' }>[] = [];
-            const cleaveDeathMap = new Map<string, Extract<GameEvent, { type: 'UNIT_DEATH' }>>();
-            const cleaveVictimIds = new Set<string>();
-            while (true) {
-              const { eventQueue: eq } = useAnimationStore.getState();
-              if (eq.length === 0) break;
-              if (eq[0].type === 'CLEAVE_DAMAGE') {
-                const ce = useAnimationStore.getState().shiftEvent() as Extract<GameEvent, { type: 'CLEAVE_DAMAGE' }>;
-                cleaveEvents.push(ce);
-                cleaveVictimIds.add(ce.unitId);
-              } else if (eq[0].type === 'UNIT_DEATH' && cleaveVictimIds.has(eq[0].unitId)) {
-                const de = useAnimationStore.getState().shiftEvent() as Extract<GameEvent, { type: 'UNIT_DEATH' }>;
-                cleaveDeathMap.set(de.unitId, de);
-              } else {
-                break;
-              }
-            }
-            if (cleaveEvents.length > 0) {
-              if (visible) {
-                const { addCleaveVfx, removeCleaveVfx, setUnitAnimation } = useCombatAnimationStore.getState();
-                const vfxId = crypto.randomUUID();
-                addCleaveVfx({
-                  id: vfxId,
-                  cx: cleaveEvents[0].attackerPosition.x,
-                  cy: cleaveEvents[0].attackerPosition.y,
-                  durationMs: ANIMATION.CLEAVE_VFX_DURATION_MS,
-                });
-                setTimeout(() => removeCleaveVfx(vfxId), ANIMATION.CLEAVE_VFX_DURATION_MS);
-                for (const ce of cleaveEvents) {
-                  useGameStore.getState().applyEvent(ce);
-                  setUnitAnimation(ce.unitId, { type: 'HIT' });
-                }
-                await wait(ANIMATION.HIT_SHAKE_DURATION_MS);
-                for (const ce of cleaveEvents) {
-                  useCombatAnimationStore.getState().setUnitAnimation(ce.unitId, null);
-                }
-                for (const ce of cleaveEvents) {
-                  const deathEvt = cleaveDeathMap.get(ce.unitId);
-                  if (deathEvt) {
-                    useCombatAnimationStore.getState().setUnitAnimation(deathEvt.unitId, { type: 'DYING' });
-                    await wait(ANIMATION.DIE_FLASH_DURATION_MS + ANIMATION.DIE_FADE_DURATION_MS);
-                    useCombatAnimationStore.getState().setUnitAnimation(deathEvt.unitId, null);
-                    useGameStore.getState().applyEvent(deathEvt);
-                    dyingIds.add(deathEvt.unitId);
-                  }
-                }
-              } else {
-                for (const ce of cleaveEvents) {
-                  useGameStore.getState().applyEvent(ce);
-                  const deathEvt = cleaveDeathMap.get(ce.unitId);
-                  if (deathEvt) {
-                    useGameStore.getState().applyEvent(deathEvt);
-                    dyingIds.add(deathEvt.unitId);
-                  }
-                }
-              }
             }
           }
 
@@ -1407,7 +1398,7 @@ export function useAnimationEngine(): void {
 
         // ── Special handling for BUILDING_ATTACK (building fires projectile at unit) ──
         if (event.type === 'BUILDING_ATTACK') {
-          const dyingIds = await playBuildingAttackAnimation(event, visible);
+          const dyingIds = await playBuildingAttackAnimation(event, visible, resolveDeaths);
 
           // Consume following UNIT_DEATH events that were already animated
           while (true) {
@@ -1416,7 +1407,7 @@ export function useAnimationEngine(): void {
             const next = eventQueue[0];
             if (next.type === 'UNIT_DEATH' && dyingIds.has(next.unitId)) {
               useAnimationStore.getState().shiftEvent();
-              useGameStore.getState().applyEvent(next);
+              applyDeath(next, visible);
             } else {
               break;
             }
@@ -1431,7 +1422,7 @@ export function useAnimationEngine(): void {
 
         // ── Special handling for UNIT_ATTACK_BUILDING (unit attacks a building, e.g. watchtower) ──
         if (event.type === 'UNIT_ATTACK_BUILDING') {
-          const dyingIds = await playUnitAttackBuildingAnimation(event, visible);
+          const dyingIds = await playUnitAttackBuildingAnimation(event, visible, resolveDeaths);
 
           // Consume following UNIT_DEATH events that were already animated (attacker killed by counter)
           while (true) {
@@ -1440,7 +1431,7 @@ export function useAnimationEngine(): void {
             const next = eventQueue[0];
             if (next.type === 'UNIT_DEATH' && dyingIds.has(next.unitId)) {
               useAnimationStore.getState().shiftEvent();
-              useGameStore.getState().applyEvent(next);
+              applyDeath(next, visible);
             } else {
               break;
             }
@@ -1548,7 +1539,7 @@ export function useAnimationEngine(): void {
               useCombatAnimationStore.getState().setUnitAnimation(event.unitId, null);
             }
           } else {
-            useGameStore.getState().applyEvent(event);
+            useGameStore.getState().applyEvent(event, { silent: true });
           }
           // Consume any following UNIT_DEATH for this target unit
           if (event.unitId) {
@@ -1557,12 +1548,7 @@ export function useAnimationEngine(): void {
               const next = eventQueue[0];
               if (next.type === 'UNIT_DEATH' && next.unitId === event.unitId) {
                 useAnimationStore.getState().shiftEvent();
-                if (visible) {
-                  useCombatAnimationStore.getState().setUnitAnimation(next.unitId, { type: 'DYING' });
-                  await wait(ANIMATION.DIE_FLASH_DURATION_MS + ANIMATION.DIE_FADE_DURATION_MS);
-                  useCombatAnimationStore.getState().setUnitAnimation(next.unitId, null);
-                }
-                useGameStore.getState().applyEvent(next);
+                await resolveDeaths([next], visible);
               }
             }
           }
@@ -1572,7 +1558,7 @@ export function useAnimationEngine(): void {
 
         // ── Special handling for SPLASH_DAMAGE ──
         if (event.type === 'SPLASH_DAMAGE') {
-          useGameStore.getState().applyEvent(event);
+          useGameStore.getState().applyEvent(event, { silent: !visible });
           if (visible) {
             useCombatAnimationStore.getState().setUnitAnimation(event.unitId, { type: 'HIT' });
             await wait(ANIMATION.HIT_SHAKE_DURATION_MS);
@@ -1585,12 +1571,7 @@ export function useAnimationEngine(): void {
               const next = eventQueue[0];
               if (next.type === 'UNIT_DEATH' && next.unitId === event.unitId) {
                 useAnimationStore.getState().shiftEvent();
-                if (visible) {
-                  useCombatAnimationStore.getState().setUnitAnimation(next.unitId, { type: 'DYING' });
-                  await wait(ANIMATION.DIE_FLASH_DURATION_MS + ANIMATION.DIE_FADE_DURATION_MS);
-                  useCombatAnimationStore.getState().setUnitAnimation(next.unitId, null);
-                }
-                useGameStore.getState().applyEvent(next);
+                await resolveDeaths([next], visible);
               }
             }
           }
@@ -1625,12 +1606,7 @@ export function useAnimationEngine(): void {
                 GameEvent,
                 { type: 'UNIT_DEATH' }
               >;
-              if (visible) {
-                useCombatAnimationStore.getState().setUnitAnimation(deathEvt.unitId, { type: 'DYING' });
-                await wait(ANIMATION.DIE_FLASH_DURATION_MS + ANIMATION.DIE_FADE_DURATION_MS);
-                useCombatAnimationStore.getState().setUnitAnimation(deathEvt.unitId, null);
-              }
-              useGameStore.getState().applyEvent(deathEvt);
+              await resolveDeaths([deathEvt], visible);
             }
           }
           if (visible) await wait(ANIMATION.POST_ACTION_IDLE_MS);
@@ -1691,6 +1667,9 @@ export function useAnimationEngine(): void {
 
         // ── Special handling for TILE_DAMAGE ──
         if (event.type === 'TILE_DAMAGE') {
+          const isPlayerQorkDrain = event.damageSource === 'QORK_DRAIN'
+            && event.amount > 0
+            && useGameStore.getState().units[event.unitId]?.faction === Faction.PLAYER;
           if (visible) {
             if (event.damageSource !== 'TAG' && event.damageSource !== 'TRAP') {
               useCombatAnimationStore.getState().addTileVfx({
@@ -1704,7 +1683,8 @@ export function useAnimationEngine(): void {
           }
           // applyEvent emits the damage floater. The VFX is short enough that the
           // floater rises through it visibly.
-          useGameStore.getState().applyEvent(event);
+          useGameStore.getState().applyEvent(event, { silent: !visible });
+          if (isPlayerQorkDrain) tryTriggerHint('H22_QORK_CORRUPTION');
           if (visible && !resolvingScoutTrap) await wait(ANIMATION.POST_ACTION_IDLE_MS);
           continue;
         }
@@ -1943,6 +1923,18 @@ export function useAnimationEngine(): void {
         }
 
         if (event.type === 'QORK_DEATH_BURST') {
+          const source = useGameStore.getState().units[event.unitId];
+          const sourceDeath = deferredDeaths.get(event.unitId);
+          const lava = useGameStore.getState().grid[event.position.y]?.[event.position.x]?.isLava;
+          const advance = deferredAdvances.get(event.unitId);
+          if (visible && source && !lava) {
+            useCombatAnimationStore.getState().setUnitAnimation(event.unitId, { type: 'DYING' });
+            if (advance) addDyingUnitGhost(source);
+          }
+          if (advance) {
+            useGameStore.getState().applyMeleeAdvance(advance.attackerId, advance.position);
+            deferredAdvances.delete(event.unitId);
+          }
           const nextEvent = useAnimationStore.getState().eventQueue[0];
           const corruptionFollows = (nextEvent?.type === 'CORRUPTION_APPLIED'
             || nextEvent?.type === 'CORRUPTION_FIZZLE')
@@ -1968,27 +1960,62 @@ export function useAnimationEngine(): void {
               });
             }
           }
-          useGameStore.getState().applyEvent(event);
+          useGameStore.getState().applyEvent(event, { silent: !visible });
           if (corruptionFollows) {
             const corruptionEvent = useAnimationStore.getState().shiftEvent();
             if (corruptionEvent) useGameStore.getState().applyEvent(corruptionEvent);
           }
-          if (visible) await wait(ANIMATION.QORK_DEATH_BURST_MS);
+          const hitIds = new Set<string>();
+          const burstVictimIds = new Set(event.damagedUnitIds);
+          while (true) {
+            const next = useAnimationStore.getState().eventQueue[0];
+            if (next?.type !== 'TILE_DAMAGE' || next.damageSource !== 'QORK_EXPLOSION'
+              || !burstVictimIds.has(next.unitId)) break;
+            useAnimationStore.getState().shiftEvent();
+            useGameStore.getState().applyEvent(next, { silent: !visible });
+            hitIds.add(next.unitId);
+            if (visible) useCombatAnimationStore.getState().setUnitAnimation(next.unitId, { type: 'HIT' });
+          }
+          if (visible) {
+            await wait(Math.max(ANIMATION.QORK_DEATH_BURST_MS,
+              source && !lava ? ANIMATION.DIE_FLASH_DURATION_MS + ANIMATION.DIE_FADE_DURATION_MS : 0));
+            useCombatAnimationStore.getState().setUnitAnimation(event.unitId, null);
+            useCombatAnimationStore.getState().removeSlideKillGhost(event.unitId);
+            for (const id of hitIds) useCombatAnimationStore.getState().setUnitAnimation(id, null);
+          }
+          if (sourceDeath) {
+            useGameStore.getState().applyEvent(sourceDeath, {
+              silent: !visible, suppressQorkDeathVfx: true,
+            });
+            deferredDeaths.delete(event.unitId);
+          }
+          const victims: DeathEvent[] = [];
+          const victimEvents = new Set<GameEvent>();
+          const remaining = useAnimationStore.getState().eventQueue;
+          for (const next of remaining) {
+            if (next.type === 'UNIT_DEATH' && hitIds.has(next.unitId)) {
+              victims.push(next);
+              victimEvents.add(next);
+            } else if (next.type !== 'UNIT_HEAL'
+              && (next.type !== 'CAVE_MONSTER_KILLED' || !hitIds.has(next.monsterId))) {
+              break;
+            }
+          }
+          useAnimationStore.setState({ eventQueue: remaining.filter((next) => !victimEvents.has(next)) });
+          await resolveDeaths(victims, visible);
           continue;
         }
 
         // ── Special handling for standalone UNIT_DEATH (e.g. from lava) ──
-        if (event.type === 'UNIT_DEATH' && visible) {
-          const unitStillExists = useGameStore.getState().units[event.unitId];
-          if (unitStillExists) {
-            useCombatAnimationStore.getState().setUnitAnimation(event.unitId, { type: 'DYING' });
-            await wait(ANIMATION.DIE_FLASH_DURATION_MS + ANIMATION.DIE_FADE_DURATION_MS);
-            useCombatAnimationStore.getState().setUnitAnimation(event.unitId, null);
-          }
+        if (event.type === 'UNIT_DEATH') {
+          const lava = useGameStore.getState().grid[event.position.y]?.[event.position.x]?.isLava;
+          await resolveDeaths([event], visible && !lava);
+          if (visible && !resolvingScoutTrap) await wait(postActionDuration(event));
+          continue;
         }
 
         // 3. Apply event to live game state
-        useGameStore.getState().applyEvent(event);
+        useGameStore.getState().applyEvent(event, { silent: !visible });
 
         const nextEvent = useAnimationStore.getState().eventQueue[0];
         const trapDamageFollows = event.type === 'ENEMY_MOVE' &&

@@ -451,6 +451,69 @@ describe('Corrupted Qork drain and death burst', () => {
         ]);
       });
 
+      it('hits a replacement occupant on the death tile but excludes the deceased', () => {
+        const qork = makeUnit(UnitType.CORRUPTED_QORK, { x: 6, y: 10 });
+        const replacement = makeUnit(UnitType.LANCER, { x: 6, y: 11 }, Faction.ENEMY);
+        const events: GameEvent[] = [];
+        const after = produce(makeState([qork, replacement]), (draft) => {
+          const deceased = draft.units[qork.id];
+          draft.grid[11][6].unitId = null;
+          draft.units[replacement.id].position = { ...qork.position };
+          draft.grid[10][6].unitId = replacement.id;
+          delete draft.units[qork.id];
+          resolveInfestedDeath(draft, deceased, events);
+        });
+
+        expect(after.units[replacement.id].stats.currentHp)
+          .toBe(replacement.stats.currentHp - CORRUPTED_QORK.DEATH_EXPLOSION_DAMAGE);
+        expect(events[0]).toMatchObject({
+          type: 'QORK_DEATH_BURST',
+          unitId: qork.id,
+          damagedUnitIds: [replacement.id],
+        });
+        expect(events.find((event) => event.type === 'TILE_DAMAGE')).toMatchObject({
+          unitId: replacement.id,
+          position: qork.position,
+        });
+
+        const selfEvents: GameEvent[] = [];
+        produce(makeState([qork]), (draft) => {
+          resolveInfestedDeath(draft, draft.units[qork.id], selfEvents);
+        });
+        expect(selfEvents[0]).toMatchObject({
+          type: 'QORK_DEATH_BURST',
+          unitId: qork.id,
+          damagedUnitIds: [],
+        });
+      });
+
+      it('emits the complete victim group before a chained burst, including cave deaths', () => {
+        const qork = makeUnit(UnitType.CORRUPTED_QORK, { x: 6, y: 10 });
+        const chained = makeUnit(UnitType.CORRUPTED_QORK, { x: 5, y: 9 }, Faction.ENEMY);
+        const monster = makeUnit(UnitType.CAVE_MONSTER, { x: 6, y: 9 }, Faction.ENEMY);
+        const last = makeUnit(UnitType.GUARD, { x: 7, y: 11 }, Faction.ENEMY);
+        for (const victim of [chained, monster, last]) {
+          victim.stats.currentHp = CORRUPTED_QORK.DEATH_EXPLOSION_DAMAGE;
+        }
+        const events: GameEvent[] = [];
+        produce(makeState([qork, chained, monster, last]), (draft) => {
+          const deceased = draft.units[qork.id];
+          draft.grid[10][6].unitId = null;
+          delete draft.units[qork.id];
+          resolveInfestedDeath(draft, deceased, events);
+        });
+
+        expect(events.map((event) => event.type)).toEqual([
+          'QORK_DEATH_BURST', 'CORRUPTION_APPLIED',
+          'TILE_DAMAGE', 'TILE_DAMAGE', 'TILE_DAMAGE',
+          'UNIT_DEATH', 'UNIT_DEATH', 'CAVE_MONSTER_KILLED', 'UNIT_DEATH',
+          'QORK_DEATH_BURST', 'CORRUPTION_APPLIED',
+        ]);
+        expect(events.filter((event) => event.type === 'UNIT_DEATH')
+          .map((event) => event.unitId)).toEqual([chained.id, monster.id, last.id]);
+        expect(events[9]).toMatchObject({ unitId: chained.id });
+      });
+
       it('chains Qork deaths, leaves eligible Gravestones, and emits deaths after damage', () => {
         const qork = makeUnit(UnitType.CORRUPTED_QORK, { x: 6, y: 10 }, Faction.PLAYER);
         const chainedQork = makeUnit(UnitType.CORRUPTED_QORK, { x: 7, y: 10 }, Faction.ENEMY);
