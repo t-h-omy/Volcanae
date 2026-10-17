@@ -15,7 +15,7 @@ import type { Building, GameState, Specialist, SpecialistEffect, Unit } from '..
 
 const initialStore = useGameStore.getState();
 
-function makeUnit(type = UnitType.SCOUT, extraTags: UnitTag[] = []): Unit {
+function makeUnit(type: UnitType = UnitType.SCOUT, extraTags: UnitTag[] = []): Unit {
   const def = UNIT_DEFINITIONS[type];
   return {
     id: 'unit',

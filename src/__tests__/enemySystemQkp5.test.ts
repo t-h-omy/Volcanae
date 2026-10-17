@@ -10,7 +10,7 @@ import * as unitActions from '../unitActions';
 
 let nextId = 0;
 
-function makeUnit(type: UnitType, position: Position, faction = Faction.PLAYER): Unit {
+function makeUnit(type: UnitType, position: Position, faction: Faction = Faction.PLAYER): Unit {
   const definition = UNIT_DEFINITIONS[type];
   return {
     id: `qkp5-unit-${++nextId}`,

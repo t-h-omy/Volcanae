@@ -57,7 +57,7 @@ beforeEach(() => {
   const base = Object.values(initial.units).find((unit) => unit.faction === Faction.PLAYER)!;
   const makeUnit = (
     id: string, type: UnitType, x: number, y: number,
-    faction = Faction.PLAYER, tags: UnitTag[] = [],
+    faction: Faction = Faction.PLAYER, tags: UnitTag[] = [],
   ): Unit => {
     const definition = UNIT_DEFINITIONS[type];
     return {
