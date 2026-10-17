@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { produce } from 'immer';
 import { resolveAttack, type UnitAttackResult } from '../combatSystem';
 import { CORRUPTED_QORK, MAP, UNIT_DEFINITIONS } from '../gameConfig';
 import type { GameEvent } from '../gameEvents';
 import { Faction, TileStatus, TileType, UnitTag, UnitType } from '../types';
 import type { GameState, Position, Tile, Unit } from '../types';
+import * as infestedSystem from '../infestedSystem';
 
 let nextId = 0;
 
@@ -107,6 +108,55 @@ function qorkAt(x: number, y: number, hp = 1): Unit {
 }
 
 describe('combat resolution order', () => {
+  it('resolves a real three-HP player Qork attacking a real Lancer at every defender HP without the safety net', () => {
+    const qorkDefinition = UNIT_DEFINITIONS.CORRUPTED_QORK;
+    const lancerDefinition = UNIT_DEFINITIONS.LANCER;
+    const deathEffects = vi.spyOn(infestedSystem, 'resolveInfestedDeath');
+    try {
+      for (let defenderHp = 1; defenderHp <= lancerDefinition.maxHp; defenderHp++) {
+        const attacker = unit(
+          { x: 3, y: 5 }, Faction.PLAYER, [...qorkDefinition.tags], UnitType.CORRUPTED_QORK,
+        );
+        attacker.stats.currentHp = 3;
+        attacker.stats.defense = qorkDefinition.defense;
+        const defender = unit(
+          { x: 4, y: 5 }, Faction.ENEMY, [...lancerDefinition.tags], UnitType.LANCER,
+        );
+        defender.stats.currentHp = defenderHp;
+        defender.stats.defense = lancerDefinition.defense;
+        const { state, events, result } = attack(stateWith([attacker, defender]), attacker, defender);
+
+        expect(result, `Lancer HP ${defenderHp}`).toBeDefined();
+        const deaths = events.filter((event) => event.type === 'UNIT_DEATH');
+        if (result!.attackerDied) {
+          expect(deaths.map((event) => event.unitId)).not.toContain(attacker.id);
+          deaths.push({
+            type: 'UNIT_DEATH', unitId: attacker.id, position: attacker.position, faction: attacker.faction,
+          });
+        }
+        if (result!.defenderDied) {
+          expect(deaths.map((event) => event.unitId)).not.toContain(defender.id);
+          deaths.push({
+            type: 'UNIT_DEATH', unitId: defender.id, position: defender.position, faction: defender.faction,
+          });
+        }
+        const removedIds = [attacker.id, defender.id].filter((id) => !state.units[id]).sort();
+        expect(deaths.map((event) => event.unitId).sort(), `Lancer HP ${defenderHp}`)
+          .toEqual(removedIds);
+        for (const survivor of Object.values(state.units)) {
+          if (state.pendingBrandmarkTransforms.some((pending) => pending.unitId === survivor.id)) continue;
+          expect(survivor.stats.currentHp, `Lancer HP ${defenderHp}`).toBeGreaterThan(0);
+        }
+        // Normal combat resolves only its primary death through this entry point.
+        // A residual sweep would invoke it again and duplicate caller-owned deaths.
+        expect(deathEffects, `Lancer HP ${defenderHp}`).toHaveBeenCalledTimes(1);
+        deathEffects.mockClear();
+      }
+    } finally {
+      deathEffects.mockRestore();
+    }
+  });
+
   it('keeps primary impact deaths caller-owned and does not sweep them twice', () => {
     const attacker = attackerWith();
     const defender = qorkAt(4, 5);
@@ -251,11 +301,17 @@ describe('combat resolution order', () => {
     defender.stats.currentHp = 1;
     const splashed = unit({ x: 4, y: 4 }, Faction.ENEMY, [UnitTag.INFESTED]);
     splashed.stats.currentHp = 1;
-    const { state } = attack(stateWith([attacker, defender, splashed]), attacker, defender);
+    const clearCredit = vi.spyOn(infestedSystem, 'clearInfestedOnCreditedKill');
+    try {
+      const { state } = attack(stateWith([attacker, defender, splashed]), attacker, defender);
 
-    expect(state.gameStats.unitsKilled).toBe(2);
-    expect(state.units[attacker.id].tags).not.toContain(UnitTag.INFESTED);
-    expect(state.units[attacker.id].infestedByMageId).toBeNull();
+      expect(state.gameStats.unitsKilled).toBe(2);
+      expect(state.units[attacker.id].tags).not.toContain(UnitTag.INFESTED);
+      expect(state.units[attacker.id].infestedByMageId).toBeNull();
+      expect(clearCredit).toHaveBeenCalledTimes(1);
+    } finally {
+      clearCredit.mockRestore();
+    }
   });
 
   it('checks Bloodlust suppression after a death burst corrupts the advance tile', () => {
@@ -388,4 +444,38 @@ describe('combat resolution order', () => {
     expect(events.filter((event) => event.type === 'UNIT_DEATH').map((event) => event.unitId))
       .toEqual([deadPlayer.id, deadQork.id, monster.id]);
   });
+
+  it.each([Faction.PLAYER, Faction.ENEMY])(
+    'attributes new residual hostile deaths to a %s source without crediting stale deaths',
+    (sourceFaction) => {
+      const attacker = attackerWith();
+      attacker.faction = sourceFaction;
+      const defender = qorkAt(4, 5);
+      defender.faction = sourceFaction === Faction.PLAYER ? Faction.ENEMY : Faction.PLAYER;
+      const residual = unit({ x: 7, y: 8 });
+      const stale = unit({ x: 0, y: 1 });
+      stale.stats.currentHp = 0;
+      const resolveDeath = infestedSystem.resolveInfestedDeath;
+      const deathEffect = vi.spyOn(infestedSystem, 'resolveInfestedDeath').mockImplementation(
+        (draft, deceased, events) => {
+          // Inject a missed removal to exercise the wrapper fallback, not normal combat.
+          if (deceased.id === defender.id) draft.units[residual.id].stats.currentHp = 0;
+          resolveDeath(draft, deceased, events);
+        },
+      );
+      try {
+        const { state, events } = attack(
+          stateWith([attacker, defender, residual, stale]), attacker, defender,
+        );
+
+        expect(state.units[residual.id]).toBeUndefined();
+        expect(state.units[stale.id]).toBeUndefined();
+        expect(state.gameStats.unitsKilled).toBe(sourceFaction === Faction.PLAYER ? 2 : 0);
+        expect(events.filter((event) => event.type === 'UNIT_DEATH').map((event) => event.unitId))
+          .toEqual([residual.id, stale.id]);
+      } finally {
+        deathEffect.mockRestore();
+      }
+    },
+  );
 });

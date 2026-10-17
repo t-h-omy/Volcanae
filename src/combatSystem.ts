@@ -1570,8 +1570,6 @@ function resolveAttackInner(
     }
   }
 
-  for (const killerId of creditedKillIds) clearInfestedOnCreditedKill(state, killerId);
-
   function resolveCleaveImpact(): void {
     // CLEAVE uses primary damage directly on tiles adjacent to both combatants.
     if (
@@ -1802,6 +1800,7 @@ function resolveAttackInner(
   if (!attackerDead && attacker.tags.includes(UnitTag.BURN) && !attackerOnCorrupted) {
     applyTileStatus(state, defenderPosition, TileStatus.BURNING);
   }
+  for (const killerId of creditedKillIds) clearInfestedOnCreditedKill(state, killerId);
   return {
     attackerDamage: attackerTakesCounterDamage ? combatResult.attackerHpLost : 0,
     defenderDamage: combatResult.defenderHpLost,
