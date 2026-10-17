@@ -80,11 +80,10 @@ import { processInfestedFactionTurn, resolveInfestedDeath } from './infestedSyst
 import { processCorruptedQorkDrain } from './corruptedQorkSystem';
 import { cannotBeHealed } from './unitTraits';
 
-function hasQueuedQorkBurst(position: Position): boolean {
+export function hasQueuedQorkBurst(unitId: string): boolean {
   return useAnimationStore.getState().eventQueue.some((event) =>
     event.type === 'QORK_DEATH_BURST'
-    && event.position.x === position.x
-    && event.position.y === position.y);
+    && event.unitId === unitId);
 }
 
 function hasActiveQorkBurstVfx(position: Position): boolean {
@@ -94,7 +93,7 @@ function hasActiveQorkBurstVfx(position: Position): boolean {
     && vfx.y === position.y);
 }
 
-function addDirectQorkDeathVfx(
+export function addDirectQorkDeathVfx(
   state: Pick<GameState, 'grid'>,
   position: Position,
   useResolvedState = false,
@@ -126,6 +125,11 @@ function addDirectQorkDeathVfx(
 // ============================================================================
 // STORE ACTIONS INTERFACE
 // ============================================================================
+
+interface ApplyEventPresentationOptions {
+  suppressQorkDeathVfx?: boolean;
+  silent?: boolean;
+}
 
 interface GameActions {
   /** Initialize a new game by generating initial state (legacy no-op; use newGameInSlot) */
@@ -204,7 +208,7 @@ interface GameActions {
   /** End the player turn - triggers enemy turn, lava phase, then next player turn */
   endPlayerTurn: () => void;
   /** Apply a single game event from the animation queue */
-  applyEvent: (event: GameEvent) => void;
+  applyEvent: (event: GameEvent, options?: ApplyEventPresentationOptions) => void;
   /** Apply a melee advance after the die animation (deferred from attack event) */
   applyMeleeAdvance: (attackerId: string, toPosition: Position) => void;
   /** Activate a single Crystal Chamber by setting its resonanceTurnsRemaining (used by animation engine) */
@@ -709,7 +713,7 @@ export const useGameStore = create<GameStore>()(
         useAnimationStore.getState().enqueue(portalMovementEvents, useGameStore.getState());
       }
       for (const event of movementEvents) {
-        if (event.type === 'QORK_DEATH_BURST' && !hasQueuedQorkBurst(event.position)) {
+        if (event.type === 'QORK_DEATH_BURST' && !hasQueuedQorkBurst(event.unitId)) {
           addDirectQorkDeathVfx(useGameStore.getState(), event.position);
         }
       }
@@ -749,7 +753,7 @@ export const useGameStore = create<GameStore>()(
             durationMs: ANIMATION.INFESTED_DEATH_BURST_MS,
           });
         }
-        if (d.qork && !hasQueuedQorkBurst({ x: d.deathTileX, y: d.deathTileY })) {
+        if (d.qork && !hasQueuedQorkBurst(unitId)) {
           addDirectQorkDeathVfx(useGameStore.getState(), { x: d.deathTileX, y: d.deathTileY });
         }
 
@@ -1680,7 +1684,7 @@ export const useGameStore = create<GameStore>()(
           const wasInfested = original.tags.includes(UnitTag.INFESTED);
           const needsDirectQorkVfx = original.type === UnitType.CORRUPTED_QORK
             && !original.infestedDeathEffectResolved
-            && !hasQueuedQorkBurst(position);
+            && !hasQueuedQorkBurst(unitId);
           if (original.type !== UnitType.CORRUPTED_QORK || !original.infestedDeathEffectResolved) {
             resolveInfestedDeath(state, original);
           }
@@ -2750,13 +2754,14 @@ export const useGameStore = create<GameStore>()(
       }
     },
 
-    applyEvent: (event: GameEvent) => {
+    applyEvent: (event: GameEvent, options: ApplyEventPresentationOptions = {}) => {
       const { processingRevision, queueRevision } = useAnimationStore.getState();
       // Ignore stale in-flight animation events from a superseded queue batch.
       if (processingRevision !== null && processingRevision !== queueRevision) {
         return;
       }
       let emberLevelUpFired = false;
+      const directQorkDeathPositions: Position[] = [];
       set((state) => {
         switch (event.type) {
           case 'ENEMY_SPAWN': {
@@ -2819,7 +2824,7 @@ export const useGameStore = create<GameStore>()(
             }
 
             // Trigger floaters for visual feedback
-            const { addFloater } = useFloaterStore.getState();
+            const addFloater = options.silent ? () => undefined : useFloaterStore.getState().addFloater;
             if (event.defenderHpLost > 0) {
               addFloater({
                 value: event.defenderHpLost,
@@ -2901,7 +2906,7 @@ export const useGameStore = create<GameStore>()(
             }
 
             // Trigger floaters for visual feedback (isEnemy derived from faction)
-            const { addFloater } = useFloaterStore.getState();
+            const addFloater = options.silent ? () => undefined : useFloaterStore.getState().addFloater;
             if (event.defenderHpLost > 0) {
               addFloater({
                 value: event.defenderHpLost,
@@ -2955,7 +2960,7 @@ export const useGameStore = create<GameStore>()(
               // Show "Risen" floater for BRANDMARKED units — the deferred animation
               // was removed from handleBrandmarkedUnitDeath, so we show it here at
               // the correct point in the animation timeline.
-              if (isBrandmarked) {
+              if (isBrandmarked && !options.silent) {
                 useFloaterStore.getState().addFloater({
                   value: 0,
                   label: `😈 ${t('floater.risen')}`,
@@ -2965,7 +2970,7 @@ export const useGameStore = create<GameStore>()(
                   floaterType: 'damage',
                 });
               }
-              if (unit.tags.includes(UnitTag.INFESTED)) {
+              if (unit.tags.includes(UnitTag.INFESTED) && !options.silent) {
                 useCombatAnimationStore.getState().addTileVfx({
                   id: crypto.randomUUID(),
                   x: event.position.x,
@@ -2975,9 +2980,11 @@ export const useGameStore = create<GameStore>()(
                 });
               }
               if (unit.type === UnitType.CORRUPTED_QORK
+                && !options.silent
+                && !options.suppressQorkDeathVfx
                 && !unit.infestedDeathEffectResolved
-                && !hasQueuedQorkBurst(event.position)) {
-                addDirectQorkDeathVfx(state, event.position, true);
+                && !hasQueuedQorkBurst(event.unitId)) {
+                directQorkDeathPositions.push(event.position);
               }
               const tile = state.grid[unit.position.y][unit.position.x];
               if (tile.unitId === event.unitId) {
@@ -3081,7 +3088,7 @@ export const useGameStore = create<GameStore>()(
             }
 
             // Trigger floaters
-            const { addFloater } = useFloaterStore.getState();
+            const addFloater = options.silent ? () => undefined : useFloaterStore.getState().addFloater;
             if (event.defenderHpLost > 0) {
               addFloater({
                 value: event.defenderHpLost,
@@ -3190,7 +3197,7 @@ export const useGameStore = create<GameStore>()(
             }
 
             // Trigger floaters
-            const { addFloater } = useFloaterStore.getState();
+            const addFloater = options.silent ? () => undefined : useFloaterStore.getState().addFloater;
             if (event.buildingHpLost > 0) {
               addFloater({
                 value: event.buildingHpLost,
@@ -3374,11 +3381,13 @@ export const useGameStore = create<GameStore>()(
               const unit = state.units[unitId];
               if (unit?.tunnelState === 'UNDERGROUND' || unit?.tunnelState === 'EMERGING') continue;
               if (unit?.type === UnitType.CORRUPTED_QORK
+                && !options.silent
+                && !options.suppressQorkDeathVfx
                 && !unit.infestedDeathEffectResolved
-                && !hasQueuedQorkBurst(unit.position)) {
-                addDirectQorkDeathVfx(state, unit.position, true);
+                && !hasQueuedQorkBurst(unitId)) {
+                directQorkDeathPositions.push({ ...unit.position });
               }
-              if (!unit?.tags.includes(UnitTag.INFESTED)) continue;
+              if (!unit?.tags.includes(UnitTag.INFESTED) || options.silent) continue;
               useCombatAnimationStore.getState().addTileVfx({
                 id: crypto.randomUUID(),
                 x: unit.position.x,
@@ -3401,11 +3410,13 @@ export const useGameStore = create<GameStore>()(
               const unit = state.units[unitId];
               if (unit) {
                 if (unit.type === UnitType.CORRUPTED_QORK
+                  && !options.silent
+                  && !options.suppressQorkDeathVfx
                   && !unit.infestedDeathEffectResolved
-                  && !hasQueuedQorkBurst(unit.position)) {
-                  addDirectQorkDeathVfx(state, unit.position, true);
+                  && !hasQueuedQorkBurst(unitId)) {
+                  directQorkDeathPositions.push({ ...unit.position });
                 }
-                if (unit.tags.includes(UnitTag.INFESTED)) {
+                if (unit.tags.includes(UnitTag.INFESTED) && !options.silent) {
                   useCombatAnimationStore.getState().addTileVfx({
                     id: crypto.randomUUID(),
                     x: unit.position.x,
@@ -3455,14 +3466,16 @@ export const useGameStore = create<GameStore>()(
                 ? `🌋 ${t('popup.zonePurgedSpawnsFrozen', { zone: event.zone, turns: event.spawnFreezeUntilTurn - state.turn })}`
                 : `🌋 ${t('popup.zonePurged', { zone: event.zone })}`;
             }
-            useFloaterStore.getState().addFloater({
-              label,
-              value: 0,
-              x: event.sanctumPosition.x,
-              y: event.sanctumPosition.y,
-              isEnemy: false,
-              floaterType: 'xp',
-            });
+            if (!options.silent) {
+              useFloaterStore.getState().addFloater({
+                label,
+                value: 0,
+                x: event.sanctumPosition.x,
+                y: event.sanctumPosition.y,
+                isEnemy: false,
+                floaterType: 'xp',
+              });
+            }
             break;
           }
 
@@ -3478,13 +3491,15 @@ export const useGameStore = create<GameStore>()(
               applyUnitDamage(damagedUnit, event.damageAmount ?? event.amount);
               updateBerserkLatch(damagedUnit);
             }
-            useFloaterStore.getState().addFloater({
-              value: event.amount,
-              x: event.position.x,
-              y: event.position.y,
-              isEnemy: damagedUnit?.faction !== Faction.PLAYER,
-              floaterType: 'damage',
-            });
+            if (!options.silent) {
+              useFloaterStore.getState().addFloater({
+                value: event.amount,
+                x: event.position.x,
+                y: event.position.y,
+                isEnemy: damagedUnit?.faction !== Faction.PLAYER,
+                floaterType: 'damage',
+              });
+            }
             break;
           }
 
@@ -3600,12 +3615,14 @@ export const useGameStore = create<GameStore>()(
               applyUnitDamage(cleaveTarget, event.amount);
               updateBerserkLatch(cleaveTarget);
             }
-            useFloaterStore.getState().addFloater({
-              value: event.amount,
-              x: event.position.x,
-              y: event.position.y,
-              isEnemy: event.isEnemy,
-            });
+            if (!options.silent) {
+              useFloaterStore.getState().addFloater({
+                value: event.amount,
+                x: event.position.x,
+                y: event.position.y,
+                isEnemy: event.isEnemy,
+              });
+            }
             break;
           }
 
@@ -3623,7 +3640,7 @@ export const useGameStore = create<GameStore>()(
               }
             }
             // Skip floater for VFX-only events (amount === 0, no unit/building target).
-            if (event.amount > 0) {
+            if (event.amount > 0 && !options.silent) {
               useFloaterStore.getState().addFloater({
                 value: event.amount,
                 x: event.position.x,
@@ -3780,8 +3797,7 @@ export const useGameStore = create<GameStore>()(
           }
 
           case 'QORK_DEATH_BURST': {
-            const unitId = state.grid[event.position.y]?.[event.position.x]?.unitId;
-            const qork = unitId ? state.units[unitId] : null;
+            const qork = state.units[event.unitId];
             if (qork?.type === UnitType.CORRUPTED_QORK) {
               qork.infestedDeathEffectResolved = true;
             }
@@ -3828,6 +3844,9 @@ export const useGameStore = create<GameStore>()(
             assertNever(event);
         }
       });
+      for (const position of directQorkDeathPositions) {
+        addDirectQorkDeathVfx(useGameStore.getState(), position, true);
+      }
       if (emberLevelUpFired) {
         tryTriggerHint('H18_EMBER_LEVEL');
       }

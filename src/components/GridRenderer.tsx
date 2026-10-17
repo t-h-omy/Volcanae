@@ -131,6 +131,7 @@ export default function GridRenderer() {
   const grid = useGameStore((s) => s.grid);
   const units = useGameStore((s) => s.units);
   const buildings = useGameStore((s) => s.buildings);
+  const deathGhosts = useCombatAnimationStore((s) => s.slideKillGhosts);
   const selectedUnitId = useGameStore((s) => s.selectedUnitId);
   const selectedBuildingId = useGameStore((s) => s.selectedBuildingId);
 
@@ -1045,7 +1046,9 @@ export default function GridRenderer() {
         {grid.map((row, y) =>
           row.map((tile, x) => {
             const building = tile.buildingId ? buildings[tile.buildingId] : undefined;
-            const unit = tile.unitId ? units[tile.unitId] : undefined;
+            const unit = tile.unitId && deathGhosts.get(tile.unitId)?.variant !== 'dying-in-place'
+              ? units[tile.unitId]
+              : undefined;
             const key = posKey(x, y);
             const isReachable = reachableSet.has(key);
             const isAttackable = attackableSet.has(key);
@@ -2015,8 +2018,8 @@ function ProjectileSprite({
 
 /**
  * Renders ghost visuals for units that have been deleted from game state
- * while they were sliding into a lethal tile (LAVA / CANYON / WATER).
- * The sequence is: slide → skull-flash (DYING) → fall/shrink to nothing.
+ * while sliding into lethal terrain or dying beneath an advancing attacker.
+ * In-place ghosts share the skull flash/fade but never slide or fall.
  */
 function SlideKillGhostLayer({ tileSize }: { tileSize: number }) {
   const ghosts = useCombatAnimationStore((s) => s.slideKillGhosts);
@@ -2050,8 +2053,8 @@ function SlideKillGhostSprite({ ghost, tileSize }: { ghost: SlideKillGhost; tile
           width: tileSize,
           height: tileSize,
           transform: `translate(${tilePixelX}px, ${tilePixelY}px)`,
-          '--slide-start-x': `${ghost.slideDx}px`,
-          '--slide-start-y': `${ghost.slideDy}px`,
+          '--slide-start-x': `${ghost.variant === 'dying-in-place' ? 0 : ghost.slideDx}px`,
+          '--slide-start-y': `${ghost.variant === 'dying-in-place' ? 0 : ghost.slideDy}px`,
           '--slide-kill-slide-duration': `${ANIMATION.SLIDE_DURATION_MS}ms`,
           '--slide-kill-slide-pause': `${ANIMATION.SLIDE_PAUSE_MS}ms`,
           '--die-flash-duration': `${ANIMATION.DIE_FLASH_DURATION_MS}ms`,
@@ -2074,7 +2077,7 @@ function SlideKillGhostSprite({ ghost, tileSize }: { ghost: SlideKillGhost; tile
           <MissingSprite size={tileSize} />
         </div>
       )}
-      {/* skull emoji — visible only during 'dying' phase */}
+      {/* skull emoji, visible only during the dying phase */}
       {ghost.phase === 'dying' && (
         <span
           className="slide-kill-ghost__skull"

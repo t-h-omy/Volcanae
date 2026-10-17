@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.118.2 - Synchronized Qork bursts and combat impacts
+
+Corrupted Qork deaths now play as a single burst beat with simultaneous damage feedback, grouped victim deaths, and sequential chained explosions. Melee attackers advance onto the burst tile as the Qork fades, while Pierce and Cleave damage and effects now coincide with the primary attack impact.
+
 ### v0.118.1 - Simultaneous combat impact and ordered death effects
 
 Unit attacks now apply direct damage together, resolve impact deaths, and advance surviving melee attackers before death effects. Corrupted Qork bursts hit units on their death tile, chain after complete victim death groups, and no longer leave zero-HP survivors or duplicate death events.
