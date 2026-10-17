@@ -6,7 +6,7 @@
 
 import { useEffect } from 'react';
 import { useAnimationStore } from './animationStore';
-import { useGameStore } from './gameStore';
+import { hasQueuedQorkBurst, useGameStore } from './gameStore';
 import { useCombatAnimationStore } from './combatAnimationStore';
 import { useShockwaveStore } from './shockwaveStore';
 import { useZoneClearedStore } from './zoneClearedStore';
@@ -47,12 +47,6 @@ export function applyCaveSpecialistReward(drawn: string, outcome: CaveSpecialist
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 type DeathEvent = Extract<GameEvent, { type: 'UNIT_DEATH' }>;
-
-function hasQueuedQorkBurst(unitId: string): boolean {
-  return useAnimationStore.getState().eventQueue.some(
-    (event) => event.type === 'QORK_DEATH_BURST' && event.unitId === unitId,
-  );
-}
 
 function addDyingUnitGhost(unit: Unit): void {
   useCombatAnimationStore.getState().addSlideKillGhost({
@@ -484,6 +478,10 @@ async function playAttackAnimation(
   const removed = new Set<GameEvent>();
   const queue = useAnimationStore.getState().eventQueue;
   const knockedIds = new Set<string>();
+  const isAttachedPresentation = (queued: GameEvent) =>
+    (queued.type === 'CAVE_MONSTER_KILLED' && impactIds.has(queued.monsterId))
+    || (queued.type === 'UNIT_HEAL'
+      && (queued.unitId === event.attackerId || queued.unitId === event.defenderId));
   for (const queued of queue) {
     if (queued.type === 'UNIT_KNOCKBACK') {
       knockedIds.add(queued.unitId);
@@ -491,12 +489,14 @@ async function playAttackAnimation(
       secondaries.push(queued);
       if (queued.unitId) impactIds.add(queued.unitId);
       removed.add(queued);
-    } else if (queued.type !== 'UNIT_DEATH' && queued.type !== 'SPLASH_DAMAGE') {
+    } else if (queued.type !== 'UNIT_DEATH' && queued.type !== 'SPLASH_DAMAGE'
+      && !isAttachedPresentation(queued)) {
       break;
     }
   }
   for (const queued of queue) {
-    if (!['UNIT_DEATH', 'UNIT_KNOCKBACK', 'SPLASH_DAMAGE', 'PIERCE_DAMAGE', 'CLEAVE_DAMAGE'].includes(queued.type)) break;
+    if (!['UNIT_DEATH', 'UNIT_KNOCKBACK', 'SPLASH_DAMAGE', 'PIERCE_DAMAGE', 'CLEAVE_DAMAGE']
+      .includes(queued.type) && !isAttachedPresentation(queued)) break;
     if (queued.type === 'UNIT_DEATH' && impactIds.has(queued.unitId) && !knockedIds.has(queued.unitId)) {
       impactDeaths.push(queued);
       removed.add(queued);
@@ -643,7 +643,7 @@ async function playBuildingAttackAnimation(
   }
 
   // Apply damage to display state
-  useGameStore.getState().applyEvent(event);
+  useGameStore.getState().applyEvent(event, { silent: !visible });
 
   if (visible) {
     // Shake hit units
@@ -776,7 +776,7 @@ async function playUnitAttackBuildingAnimation(
   }
 
   // Apply damage to display state
-  useGameStore.getState().applyEvent(event);
+  useGameStore.getState().applyEvent(event, { silent: !visible });
 
   if (visible) {
     // Shake attacker if it took counter-attack damage
@@ -839,11 +839,11 @@ export function useAnimationEngine(): void {
       const presentedKhyronIds = new Set<string>();
       const deferredDeaths = new Map<string, DeathEvent>();
       const deferredAdvances = new Map<string, { attackerId: string; position: Position }>();
-      const applyDeath = (event: DeathEvent) => {
+      const applyDeath = (event: DeathEvent, visible: boolean) => {
         if (hasQueuedQorkBurst(event.unitId)) {
           deferredDeaths.set(event.unitId, event);
         } else {
-          useGameStore.getState().applyEvent(event);
+          useGameStore.getState().applyEvent(event, { silent: !visible });
         }
       };
       const resolveDeaths = async (events: DeathEvent[], visible: boolean) => {
@@ -1195,7 +1195,7 @@ export function useAnimationEngine(): void {
             const next = eventQueue[0];
             if (next.type === 'UNIT_DEATH' && dyingIds.has(next.unitId)) {
               useAnimationStore.getState().shiftEvent();
-              applyDeath(next);
+              applyDeath(next, visible);
             } else {
               break;
             }
@@ -1296,7 +1296,7 @@ export function useAnimationEngine(): void {
             } else if (splashEvents.length > 0) {
               // Not visible — apply silently and consume splash-kill UNIT_DEATH events
               for (const se of splashEvents) {
-                useGameStore.getState().applyEvent(se);
+                useGameStore.getState().applyEvent(se, { silent: true });
               }
               for (const se of splashEvents) {
                 const { eventQueue: eq } = useAnimationStore.getState();
@@ -1307,7 +1307,7 @@ export function useAnimationEngine(): void {
                 ) {
                   const deathEvt = eq[0] as Extract<GameEvent, { type: 'UNIT_DEATH' }>;
                   useAnimationStore.getState().shiftEvent();
-                  applyDeath(deathEvt);
+                  applyDeath(deathEvt, visible);
                   dyingIds.add(deathEvt.unitId);
                 }
               }
@@ -1321,7 +1321,7 @@ export function useAnimationEngine(): void {
             const next = eventQueue[0];
             if (next.type === 'UNIT_DEATH' && dyingIds.has(next.unitId)) {
               useAnimationStore.getState().shiftEvent();
-              applyDeath(next);
+              applyDeath(next, visible);
             } else {
               break;
             }
@@ -1387,7 +1387,7 @@ export function useAnimationEngine(): void {
             const next = eventQueue[0];
             if (next.type === 'UNIT_DEATH' && dyingIds.has(next.unitId)) {
               useAnimationStore.getState().shiftEvent();
-              applyDeath(next);
+              applyDeath(next, visible);
             } else {
               break;
             }
@@ -1411,7 +1411,7 @@ export function useAnimationEngine(): void {
             const next = eventQueue[0];
             if (next.type === 'UNIT_DEATH' && dyingIds.has(next.unitId)) {
               useAnimationStore.getState().shiftEvent();
-              applyDeath(next);
+              applyDeath(next, visible);
             } else {
               break;
             }
@@ -1519,7 +1519,7 @@ export function useAnimationEngine(): void {
               useCombatAnimationStore.getState().setUnitAnimation(event.unitId, null);
             }
           } else {
-            useGameStore.getState().applyEvent(event);
+            useGameStore.getState().applyEvent(event, { silent: true });
           }
           // Consume any following UNIT_DEATH for this target unit
           if (event.unitId) {
@@ -1538,7 +1538,7 @@ export function useAnimationEngine(): void {
 
         // ── Special handling for SPLASH_DAMAGE ──
         if (event.type === 'SPLASH_DAMAGE') {
-          useGameStore.getState().applyEvent(event);
+          useGameStore.getState().applyEvent(event, { silent: !visible });
           if (visible) {
             useCombatAnimationStore.getState().setUnitAnimation(event.unitId, { type: 'HIT' });
             await wait(ANIMATION.HIT_SHAKE_DURATION_MS);
@@ -1660,7 +1660,7 @@ export function useAnimationEngine(): void {
           }
           // applyEvent emits the damage floater. The VFX is short enough that the
           // floater rises through it visibly.
-          useGameStore.getState().applyEvent(event);
+          useGameStore.getState().applyEvent(event, { silent: !visible });
           if (visible && !resolvingScoutTrap) await wait(ANIMATION.POST_ACTION_IDLE_MS);
           continue;
         }
@@ -1936,7 +1936,7 @@ export function useAnimationEngine(): void {
               });
             }
           }
-          useGameStore.getState().applyEvent(event);
+          useGameStore.getState().applyEvent(event, { silent: !visible });
           if (corruptionFollows) {
             const corruptionEvent = useAnimationStore.getState().shiftEvent();
             if (corruptionEvent) useGameStore.getState().applyEvent(corruptionEvent);
@@ -1964,12 +1964,18 @@ export function useAnimationEngine(): void {
             deferredDeaths.delete(event.unitId);
           }
           const victims: DeathEvent[] = [];
-          while (true) {
-            const next = useAnimationStore.getState().eventQueue[0];
-            if (next?.type !== 'UNIT_DEATH' || !hitIds.has(next.unitId)) break;
-            useAnimationStore.getState().shiftEvent();
-            victims.push(next);
+          const victimEvents = new Set<GameEvent>();
+          const remaining = useAnimationStore.getState().eventQueue;
+          for (const next of remaining) {
+            if (next.type === 'UNIT_DEATH' && hitIds.has(next.unitId)) {
+              victims.push(next);
+              victimEvents.add(next);
+            } else if (next.type !== 'UNIT_HEAL'
+              && (next.type !== 'CAVE_MONSTER_KILLED' || !hitIds.has(next.monsterId))) {
+              break;
+            }
           }
+          useAnimationStore.setState({ eventQueue: remaining.filter((next) => !victimEvents.has(next)) });
           await resolveDeaths(victims, visible);
           continue;
         }
@@ -1978,12 +1984,12 @@ export function useAnimationEngine(): void {
         if (event.type === 'UNIT_DEATH') {
           const lava = useGameStore.getState().grid[event.position.y]?.[event.position.x]?.isLava;
           await resolveDeaths([event], visible && !lava);
-          if (visible) await wait(postActionDuration(event));
+          if (visible && !resolvingScoutTrap) await wait(postActionDuration(event));
           continue;
         }
 
         // 3. Apply event to live game state
-        useGameStore.getState().applyEvent(event);
+        useGameStore.getState().applyEvent(event, { silent: !visible });
 
         const nextEvent = useAnimationStore.getState().eventQueue[0];
         const trapDamageFollows = event.type === 'ENEMY_MOVE' &&

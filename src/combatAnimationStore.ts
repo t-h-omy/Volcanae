@@ -4,7 +4,7 @@
  */
 
 import { create } from 'zustand';
-import type { Faction, Unit, UnitType } from './types';
+import type { Faction, UnitType } from './types';
 
 // ============================================================================
 // TYPES
@@ -163,8 +163,6 @@ interface CombatAnimationActions {
   addSlideKillGhost: (ghost: SlideKillGhost) => void;
   setSlideKillGhostPhase: (id: string, phase: SlideKillGhost['phase']) => void;
   removeSlideKillGhost: (id: string) => void;
-  addDyingUnitGhost: (unit: Unit) => void;
-  removeDyingUnitGhost: (unitId: string) => void;
   addLeashBurstPair: (pair: LeashBurstPair) => void;
   removeLeashBurstPair: (demonId: string) => void;
   addCleaveVfx: (vfx: CleaveVfx) => void;
@@ -266,22 +264,6 @@ export const useCombatAnimationStore = create<CombatAnimationStore>((set) => ({
       next.delete(id);
       return { slideKillGhosts: next };
     });
-  },
-
-  addDyingUnitGhost: (unit) => {
-    useCombatAnimationStore.getState().addSlideKillGhost({
-      id: unit.id,
-      unitType: unit.type,
-      faction: unit.faction,
-      deathTileX: unit.position.x,
-      deathTileY: unit.position.y,
-      variant: 'dying-in-place',
-      phase: 'dying',
-    });
-  },
-
-  removeDyingUnitGhost: (unitId) => {
-    useCombatAnimationStore.getState().removeSlideKillGhost(unitId);
   },
 
   addLeashBurstPair: (pair) => {

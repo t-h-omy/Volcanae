@@ -255,6 +255,13 @@ describe('Qork presentation identity and direct fallback', () => {
 
   const hiddenDamageEvents: GameEvent[] = [
     {
+      type: 'SPLASH_DAMAGE',
+      unitId: qorkId,
+      position: origin,
+      amount: 1,
+      isEnemy: true,
+    },
+    {
       type: 'BUILDING_ATTACK',
       buildingId: 'hidden-building',
       buildingPosition: origin,
@@ -344,13 +351,13 @@ describe('Qork dying-in-place ghost', () => {
   it('hides a retained body while its in-place ghost owns the death animation', () => {
     const store = useCombatAnimationStore.getState();
     expect(renderToStaticMarkup(createElement(GridRenderer)).includes('class="unit-main-img"')).toBe(true);
-    store.addDyingUnitGhost(useGameStore.getState().units[qorkId]);
+    store.addSlideKillGhost(ghost);
     expect(useCombatAnimationStore.getState().slideKillGhosts.get(qorkId)).toEqual(ghost);
     const markup = renderToStaticMarkup(createElement(GridRenderer));
     expect(markup.includes('class="unit-main-img"')).toBe(false);
     expect(markup.includes('slide-kill-ghost slide-kill-ghost--dying')).toBe(true);
     expect(useGameStore.getState().units[qorkId]).toBeDefined();
-    store.removeDyingUnitGhost(qorkId);
+    store.removeSlideKillGhost(qorkId);
     expect(renderToStaticMarkup(createElement(GridRenderer)).includes('class="unit-main-img"')).toBe(true);
   });
 

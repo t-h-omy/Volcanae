@@ -3600,12 +3600,14 @@ export const useGameStore = create<GameStore>()(
               applyUnitDamage(splashTarget, event.amount);
               updateBerserkLatch(splashTarget);
             }
-            useFloaterStore.getState().addFloater({
-              value: event.amount,
-              x: event.position.x,
-              y: event.position.y,
-              isEnemy: event.isEnemy,
-            });
+            if (!options.silent) {
+              useFloaterStore.getState().addFloater({
+                value: event.amount,
+                x: event.position.x,
+                y: event.position.y,
+                isEnemy: event.isEnemy,
+              });
+            }
             break;
           }
 

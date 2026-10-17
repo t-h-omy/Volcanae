@@ -7,6 +7,7 @@ import { useAnimationStore } from '../animationStore';
 import { useCombatAnimationStore } from '../combatAnimationStore';
 import { useFloaterStore } from '../floaterStore';
 import { useGameStore } from '../gameStore';
+import { useSpecialistHireStore } from '../specialistHireStore';
 import { useAnimationEngine } from '../useAnimationEngine';
 import { Faction, TileType, UnitType } from '../types';
 import type { GameState, Unit } from '../types';
@@ -190,6 +191,58 @@ describe('Qork burst presentation', () => {
     expect(useAnimationStore.getState().isAnimating).toBe(false);
   });
 
+  it('groups burst deaths across cave rewards without dropping or bypassing their modal', async () => {
+    useGameStore.setState({ specialists: {}, activeCaveEncounters: [] });
+    let dismiss: (() => void) | undefined;
+    const reward = vi.spyOn(useSpecialistHireStore.getState(), 'showExhausted').mockImplementation((resolve) => {
+      dismiss = resolve;
+    });
+    const { calls, camera } = replay([
+      death('qork'), burst('qork', ['first', 'second']), damage('first'), damage('second'),
+      death('first'), { type: 'CAVE_MONSTER_KILLED', monsterId: 'first' }, death('second'),
+    ]);
+    await vi.advanceTimersByTimeAsync(arrival + burstBeat);
+    expect(useCombatAnimationStore.getState().unitAnimations.get('first')?.type).toBe('DYING');
+    expect(useCombatAnimationStore.getState().unitAnimations.get('second')?.type).toBe('DYING');
+    expect(reward).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(dying);
+    expect(useGameStore.getState().units.first).toBeUndefined();
+    expect(useGameStore.getState().units.second).toBeUndefined();
+    expect(reward).toHaveBeenCalledTimes(1);
+    expect(camera).toHaveBeenCalledTimes(1);
+    expect(useAnimationStore.getState().isAnimating).toBe(true);
+    const deaths = calls.filter(({ event }) => event.type === 'UNIT_DEATH' && event.unitId !== 'qork');
+    expect(deaths[0].time).toBe(deaths[1].time);
+    expect(calls.filter(({ event }) => event.type === 'CAVE_MONSTER_KILLED')).toHaveLength(1);
+    dismiss?.();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(useAnimationStore.getState().isAnimating).toBe(false);
+  });
+
+  it('keeps an interleaved heal queued while ordinary burst victims share their death beat', async () => {
+    const live = useGameStore.getState();
+    const attacker = { ...live.units.attacker, stats: { ...live.units.attacker.stats } };
+    attacker.stats.currentHp -= 1;
+    useGameStore.setState({ units: { ...live.units, attacker } });
+    const heal: GameEvent = { type: 'UNIT_HEAL', unitId: 'attacker', position: { x: 1, y: 1 }, amount: 1 };
+    const { calls } = replay([
+      death('qork'), burst('qork', ['first', 'second']), damage('first'), damage('second'),
+      death('first'), heal, death('second'),
+    ]);
+    await vi.advanceTimersByTimeAsync(arrival + burstBeat);
+    expect(useCombatAnimationStore.getState().unitAnimations.get('first')?.type).toBe('DYING');
+    expect(useCombatAnimationStore.getState().unitAnimations.get('second')?.type).toBe('DYING');
+    expect(calls.some(({ event }) => event.type === 'UNIT_HEAL')).toBe(false);
+    await vi.advanceTimersByTimeAsync(dying);
+    expect(useGameStore.getState().units.first).toBeUndefined();
+    expect(useGameStore.getState().units.second).toBeUndefined();
+    expect(useGameStore.getState().units.attacker.stats.currentHp).toBe(attacker.stats.currentHp);
+    await vi.advanceTimersByTimeAsync(arrival);
+    expect(calls.filter(({ event }) => event.type === 'UNIT_HEAL').map(({ event }) => event)).toEqual([heal]);
+    expect(useGameStore.getState().units.attacker.stats.currentHp).toBe(attacker.stats.maxHp);
+    await vi.runAllTimersAsync();
+  });
+
   it('preserves depth-first chained Qork queue order, with one separate camera and beat each', async () => {
     const { camera, vfx } = replay([
       death('qork'), burst('qork', ['chain', 'sibling']), damage('chain'), damage('sibling'),
@@ -257,6 +310,69 @@ describe('Qork burst presentation', () => {
     expect(deaths[1].time).toBe(deaths[2].time);
     expect(camera).toHaveBeenCalledTimes(1);
     await vi.runAllTimersAsync();
+  });
+
+  it('retains an interleaved cave reward while grouping attack-linked impact and death beats', async () => {
+    const live = useGameStore.getState();
+    useGameStore.setState({
+      specialists: {}, activeCaveEncounters: [],
+      units: { ...live.units, first: { ...live.units.first, type: UnitType.CAVE_MONSTER } },
+    });
+    const reward = vi.spyOn(useSpecialistHireStore.getState(), 'showExhausted').mockImplementation((resolve) => resolve());
+    const { calls } = replay([
+      attack('first'), death('first'), { type: 'CAVE_MONSTER_KILLED', monsterId: 'first' },
+      secondary('PIERCE_DAMAGE', 'second'), death('second'),
+      secondary('CLEAVE_DAMAGE', 'cleave'), death('cleave'),
+    ]);
+    await vi.advanceTimersByTimeAsync(arrival + impact);
+    const hits = calls.filter(({ event }) => ['PLAYER_ATTACK', 'PIERCE_DAMAGE', 'CLEAVE_DAMAGE'].includes(event.type));
+    expect(hits).toHaveLength(3);
+    expect(new Set(hits.map(({ time }) => time)).size).toBe(1);
+    expect(reward).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(Math.max(
+      ANIMATION.HIT_SHAKE_DURATION_MS, ANIMATION.PIERCE_LINE_MS, ANIMATION.CLEAVE_VFX_DURATION_MS,
+    ));
+    for (const id of ['first', 'second', 'cleave']) {
+      expect(useCombatAnimationStore.getState().unitAnimations.get(id)?.type).toBe('DYING');
+    }
+    await vi.runAllTimersAsync();
+    expect(reward).toHaveBeenCalledTimes(1);
+    expect(calls.filter(({ event }) => event.type === 'CAVE_MONSTER_KILLED')).toHaveLength(1);
+  });
+
+  it('groups impacts across Ghoul heals but retains each heal and stops at a burst boundary', async () => {
+    const live = useGameStore.getState();
+    const attacker = { ...live.units.attacker, type: UnitType.GHOUL };
+    attacker.stats = { ...attacker.stats, currentHp: attacker.stats.maxHp - 4 };
+    useGameStore.setState({ units: { ...live.units, attacker } });
+    const heals: GameEvent[] = [
+      { type: 'UNIT_HEAL', unitId: 'attacker', position: { x: 1, y: 1 }, amount: 1 },
+      { type: 'UNIT_HEAL', unitId: 'attacker', position: { x: 1, y: 1 }, amount: 2 },
+    ];
+    const { calls } = replay([
+      attack('first'), death('first'), heals[0], secondary('PIERCE_DAMAGE', 'second'),
+      death('second'), heals[1], secondary('CLEAVE_DAMAGE', 'cleave'), death('cleave'),
+      death('qork'), burst('qork'), secondary('CLEAVE_DAMAGE', 'chain'), death('chain'), burst('chain'),
+    ]);
+    await vi.advanceTimersByTimeAsync(arrival + impact);
+    const hits = calls.filter(({ event }) => ['PLAYER_ATTACK', 'PIERCE_DAMAGE', 'CLEAVE_DAMAGE'].includes(event.type));
+    expect(hits).toHaveLength(3);
+    expect(new Set(hits.map(({ time }) => time)).size).toBe(1);
+    expect(calls.some(({ event }) => event.type === 'UNIT_HEAL')).toBe(false);
+    expect(useGameStore.getState().units.attacker.stats.currentHp).toBe(attacker.stats.currentHp);
+    await vi.advanceTimersByTimeAsync(Math.max(
+      ANIMATION.HIT_SHAKE_DURATION_MS, ANIMATION.PIERCE_LINE_MS, ANIMATION.CLEAVE_VFX_DURATION_MS,
+    ));
+    for (const id of ['first', 'second', 'cleave']) {
+      expect(useCombatAnimationStore.getState().unitAnimations.get(id)?.type).toBe('DYING');
+    }
+    expect(useGameStore.getState().units.chain.stats.currentHp).toBeGreaterThan(0);
+    await vi.runAllTimersAsync();
+    expect(calls.filter(({ event }) => event.type === 'UNIT_HEAL').map(({ event }) => event)).toEqual(heals);
+    expect(useGameStore.getState().units.attacker.stats.currentHp).toBe(attacker.stats.currentHp + 3);
+    const firstBurst = calls.findIndex(({ event }) => event.type === 'QORK_DEATH_BURST');
+    const laterCleave = calls.findIndex(({ event }) => event.type === 'CLEAVE_DAMAGE' && event.unitId === 'chain');
+    expect(laterCleave).toBeGreaterThan(firstBurst);
   });
 
   it.each(['PIERCE_DAMAGE', 'SPLASH_DAMAGE'] as const)(
@@ -367,6 +483,7 @@ describe('Qork burst presentation', () => {
 
   it('runs hidden chained bursts without cameras, animation calls or presentation waits', async () => {
     useGameStore.setState(state(false));
+    const floaters = vi.spyOn(useFloaterStore.getState(), 'addFloater');
     const { camera, animation, vfx, calls } = replay([
       death('qork'), burst('qork', ['chain']), damage('chain'), death('chain'), burst('chain'),
     ]);
@@ -374,11 +491,90 @@ describe('Qork burst presentation', () => {
     expect(camera).not.toHaveBeenCalled();
     expect(animation).not.toHaveBeenCalled();
     expect(vfx).not.toHaveBeenCalled();
+    expect(floaters).not.toHaveBeenCalled();
+    expect(useFloaterStore.getState().floaters).toHaveLength(0);
     expect(useGameStore.getState().units.qork).toBeUndefined();
     expect(useGameStore.getState().units.chain).toBeUndefined();
     expect(new Set(calls.map(({ time }) => time)).size).toBe(1);
     expect(useAnimationStore.getState().isAnimating).toBe(false);
   });
+
+  it('applies hidden attack-linked impacts and deaths in order without presentation waits', async () => {
+    useGameStore.setState(state(false));
+    const floaters = vi.spyOn(useFloaterStore.getState(), 'addFloater');
+    const { calls, camera, animation, vfx } = replay([
+      attack('first'), death('first'), secondary('PIERCE_DAMAGE', 'second'), death('second'),
+      secondary('CLEAVE_DAMAGE', 'qork'), death('qork'),
+      secondary('SPLASH_DAMAGE', 'chain'), death('chain'), burst('qork'), burst('chain'),
+    ]);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(calls.slice(0, 3).map(({ event }) => event.type)).toEqual([
+      'PLAYER_ATTACK', 'PIERCE_DAMAGE', 'CLEAVE_DAMAGE',
+    ]);
+    expect(new Set(calls.map(({ time }) => time)).size).toBe(1);
+    expect(camera).not.toHaveBeenCalled();
+    expect(animation).not.toHaveBeenCalled();
+    expect(vfx).not.toHaveBeenCalled();
+    expect(floaters).not.toHaveBeenCalled();
+    expect(useFloaterStore.getState().floaters).toHaveLength(0);
+    expect(useGameStore.getState().units.first).toBeUndefined();
+    expect(useGameStore.getState().units.second).toBeUndefined();
+    expect(useGameStore.getState().units.qork).toBeUndefined();
+    expect(useGameStore.getState().units.chain).toBeUndefined();
+    expect(useAnimationStore.getState().isAnimating).toBe(false);
+  });
+
+  it.each(['PIERCE_DAMAGE', 'CLEAVE_DAMAGE', 'SPLASH_DAMAGE', 'TILE_DAMAGE'] as const)(
+    'silently applies hidden standalone %s without floaters or visual waits', async (type) => {
+      useGameStore.setState(state(false));
+      const floaters = vi.spyOn(useFloaterStore.getState(), 'addFloater');
+      const hit = type === 'TILE_DAMAGE' ? damage('qork') : secondary(type, 'qork');
+      const { camera, animation, vfx } = replay([hit, death('qork'), burst('qork')]);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(floaters).not.toHaveBeenCalled();
+      expect(useFloaterStore.getState().floaters).toHaveLength(0);
+      expect(camera).not.toHaveBeenCalled();
+      expect(animation).not.toHaveBeenCalled();
+      expect(vfx).not.toHaveBeenCalled();
+      expect(useGameStore.getState().units.qork).toBeUndefined();
+      expect(useAnimationStore.getState().isAnimating).toBe(false);
+    },
+  );
+
+  it('silently applies a hidden direct fallback without its VFX or a death wait', async () => {
+    useGameStore.setState(state(false));
+    const { camera, animation, vfx } = replay([death('qork')]);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(camera).not.toHaveBeenCalled();
+    expect(animation).not.toHaveBeenCalled();
+    expect(vfx).not.toHaveBeenCalled();
+    expect(useGameStore.getState().units.qork).toBeUndefined();
+    expect(useAnimationStore.getState().isAnimating).toBe(false);
+  });
+
+  it.each(['BUILDING_ATTACK', 'UNIT_ATTACK_BUILDING'] as const)(
+    'preserves hidden %s timing while silently deferring its Qork death', async (type) => {
+      useGameStore.setState(state(false));
+      const floaters = vi.spyOn(useFloaterStore.getState(), 'addFloater');
+      const hit: GameEvent = type === 'BUILDING_ATTACK'
+        ? {
+          type, buildingId: 'tower', defenderId: 'qork', buildingPosition: { x: 0, y: 0 },
+          defenderPosition: { x: 2, y: 1 }, buildingHpLost: 0, defenderHpLost: 1000,
+        }
+        : {
+          type, attackerId: 'qork', buildingId: 'tower', attackerPosition: { x: 2, y: 1 },
+          buildingPosition: { x: 0, y: 0 }, attackerHpLost: 1000, buildingHpLost: 0,
+        };
+      const { camera, animation, vfx } = replay([hit, death('qork'), burst('qork')]);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(floaters).not.toHaveBeenCalled();
+      expect(camera).not.toHaveBeenCalled();
+      expect(animation).not.toHaveBeenCalled();
+      expect(vfx).not.toHaveBeenCalled();
+      expect(useGameStore.getState().units.qork).toBeUndefined();
+      expect(useAnimationStore.getState().isAnimating).toBe(false);
+    },
+  );
 
   it('reaches a lava Qork burst but never starts its DYING animation', async () => {
     useGameStore.setState({ lavaFrontRow: 2 });
