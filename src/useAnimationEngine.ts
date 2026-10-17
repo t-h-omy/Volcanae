@@ -481,7 +481,10 @@ async function playAttackAnimation(
   const isAttachedPresentation = (queued: GameEvent) =>
     (queued.type === 'CAVE_MONSTER_KILLED' && impactIds.has(queued.monsterId))
     || (queued.type === 'UNIT_HEAL'
-      && (queued.unitId === event.attackerId || queued.unitId === event.defenderId));
+      && (queued.unitId === event.attackerId || queued.unitId === event.defenderId))
+    || (queued.type === 'DEFENSE_BONUS_IGNORED'
+      && queued.attackerId === event.attackerId && queued.defenderId === event.defenderId)
+    || (queued.type === 'STUN_BLOCKED' && queued.unitId === event.defenderId);
   for (const queued of queue) {
     if (queued.type === 'UNIT_KNOCKBACK') {
       knockedIds.add(queued.unitId);
@@ -1942,9 +1945,11 @@ export function useAnimationEngine(): void {
             if (corruptionEvent) useGameStore.getState().applyEvent(corruptionEvent);
           }
           const hitIds = new Set<string>();
+          const burstVictimIds = new Set(event.damagedUnitIds);
           while (true) {
             const next = useAnimationStore.getState().eventQueue[0];
-            if (next?.type !== 'TILE_DAMAGE') break;
+            if (next?.type !== 'TILE_DAMAGE' || next.damageSource !== 'QORK_EXPLOSION'
+              || !burstVictimIds.has(next.unitId)) break;
             useAnimationStore.getState().shiftEvent();
             useGameStore.getState().applyEvent(next, { silent: !visible });
             hitIds.add(next.unitId);

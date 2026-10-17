@@ -9,7 +9,7 @@ import { useFloaterStore } from '../floaterStore';
 import { useGameStore } from '../gameStore';
 import { useSpecialistHireStore } from '../specialistHireStore';
 import { useAnimationEngine } from '../useAnimationEngine';
-import { Faction, TileType, UnitType } from '../types';
+import { Faction, TileType, UnitTag, UnitType } from '../types';
 import type { GameState, Unit } from '../types';
 import type { GameEvent } from '../gameEvents';
 
@@ -106,6 +106,19 @@ function secondary(type: 'PIERCE_DAMAGE' | 'CLEAVE_DAMAGE' | 'SPLASH_DAMAGE', id
   return { type, ...common };
 }
 
+function attackFeedback(type: 'DEFENSE_BONUS_IGNORED' | 'STUN_BLOCKED', attached = true): GameEvent {
+  if (type === 'DEFENSE_BONUS_IGNORED') {
+    return {
+      type, attackerId: attached ? 'attacker' : 'chain', defenderId: 'first',
+      defenderPosition: { x: 3, y: 1 },
+    };
+  }
+  return {
+    type, unitId: attached ? 'first' : 'second', position: { x: 3, y: 1 },
+    source: 'PUNCTURE', reason: 'ALERT',
+  };
+}
+
 function replay(events: GameEvent[]) {
   const calls: { time: number; event: GameEvent }[] = [];
   const apply = useGameStore.getState().applyEvent;
@@ -191,8 +204,46 @@ describe('Qork burst presentation', () => {
     expect(useAnimationStore.getState().isAnimating).toBe(false);
   });
 
+  it.each(['INFESTED', 'QORK_EXPLOSION'] as const)(
+    'does not absorb following %s damage outside the emitting burst victim list', async (damageSource) => {
+      if (damageSource === 'INFESTED') {
+        const live = useGameStore.getState();
+        useGameStore.setState({
+          units: { ...live.units, qork: { ...live.units.qork, tags: [UnitTag.INFESTED] } },
+        });
+      }
+      const ownHit: GameEvent = {
+        type: 'TILE_DAMAGE', unitId: 'first', position: { x: 3, y: 1 },
+        amount: 1, damageSource: 'QORK_EXPLOSION',
+      };
+      const otherHit: GameEvent = {
+        type: 'TILE_DAMAGE', unitId: 'second', position: { x: 4, y: 1 },
+        amount: 1, damageSource,
+      };
+      const secondHp = useGameStore.getState().units.second.stats.currentHp;
+      const { calls, camera } = replay([death('qork'), burst('qork', ['first']), ownHit, otherHit]);
+      await vi.advanceTimersByTimeAsync(arrival);
+      expect(calls.filter(({ event }) => event.type === 'TILE_DAMAGE').map(({ event }) => event)).toEqual([ownHit]);
+      expect(useGameStore.getState().units.second.stats.currentHp).toBe(secondHp);
+      expect(useCombatAnimationStore.getState().unitAnimations.get('second')).toBeUndefined();
+      await vi.advanceTimersByTimeAsync(burstBeat);
+      expect(camera).toHaveBeenCalledTimes(2);
+      expect(useGameStore.getState().units.second.stats.currentHp).toBe(secondHp);
+      await vi.advanceTimersByTimeAsync(arrival);
+      const hits = calls.filter(({ event }) => event.type === 'TILE_DAMAGE');
+      expect(hits.map(({ event }) => event)).toEqual([ownHit, otherHit]);
+      expect(hits[1].time - hits[0].time).toBe(burstBeat + arrival);
+      expect(useGameStore.getState().units.second.stats.currentHp).toBe(secondHp - 1);
+      await vi.runAllTimersAsync();
+    },
+  );
+
   it('groups burst deaths across cave rewards without dropping or bypassing their modal', async () => {
-    useGameStore.setState({ specialists: {}, activeCaveEncounters: [] });
+    const live = useGameStore.getState();
+    useGameStore.setState({
+      specialists: {}, activeCaveEncounters: [],
+      units: { ...live.units, first: { ...live.units.first, type: UnitType.CAVE_MONSTER } },
+    });
     let dismiss: (() => void) | undefined;
     const reward = vi.spyOn(useSpecialistHireStore.getState(), 'showExhausted').mockImplementation((resolve) => {
       dismiss = resolve;
@@ -263,8 +314,56 @@ describe('Qork burst presentation', () => {
     expect(camera.mock.calls.map(([position]) => position.x)).toEqual([2, 5, 6, 7]);
   });
 
+  it('shares one ordinary death beat while two Qork victims retain sequential individual bursts', async () => {
+    const { camera, vfx } = replay([
+      death('qork'), burst('qork', ['first', 'second', 'chain', 'sibling']),
+      damage('first'), damage('second'), damage('chain'), damage('sibling'),
+      death('first'), death('second'), death('chain'), death('sibling'),
+      burst('chain'), burst('sibling'),
+    ]);
+    await vi.advanceTimersByTimeAsync(arrival + burstBeat);
+    for (const id of ['first', 'second']) {
+      expect(useCombatAnimationStore.getState().unitAnimations.get(id)?.type).toBe('DYING');
+    }
+    for (const id of ['chain', 'sibling']) {
+      expect(useGameStore.getState().units[id]).toBeDefined();
+      expect(useCombatAnimationStore.getState().unitAnimations.get(id)).toBeUndefined();
+    }
+    expect(camera).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(dying);
+    expect(useGameStore.getState().units.first).toBeUndefined();
+    expect(useGameStore.getState().units.second).toBeUndefined();
+    expect(camera).toHaveBeenLastCalledWith({ x: 5, y: 1 });
+    await vi.advanceTimersByTimeAsync(arrival);
+    expect(useCombatAnimationStore.getState().unitAnimations.get('chain')?.type).toBe('DYING');
+    expect(useCombatAnimationStore.getState().unitAnimations.get('sibling')).toBeUndefined();
+    await vi.advanceTimersByTimeAsync(burstBeat);
+    expect(useGameStore.getState().units.chain).toBeUndefined();
+    expect(useGameStore.getState().units.sibling).toBeDefined();
+    expect(camera).toHaveBeenLastCalledWith({ x: 7, y: 1 });
+    await vi.advanceTimersByTimeAsync(arrival);
+    expect(useCombatAnimationStore.getState().unitAnimations.get('sibling')?.type).toBe('DYING');
+    await vi.advanceTimersByTimeAsync(burstBeat);
+    expect(useGameStore.getState().units.sibling).toBeUndefined();
+    expect(useAnimationStore.getState().isAnimating).toBe(false);
+    expect(vfx.mock.calls.filter(([value]) => value.variant === 'QORK_DEATH_BURST')
+      .map(([value]) => value.x)).toEqual([2, 5, 7]);
+  });
+
   it('advances melee only when the Qork burst starts and keeps its in-place ghost', async () => {
-    const { animation } = replay([attack('qork', true), death('qork'), burst('qork')]);
+    let advanceTime: number | undefined;
+    const advance = useGameStore.getState().applyMeleeAdvance;
+    vi.spyOn(useGameStore.getState(), 'applyMeleeAdvance').mockImplementation((id, position) => {
+      advanceTime = Date.now();
+      advance(id, position);
+    });
+    const destinationDamage: GameEvent = {
+      type: 'TILE_DAMAGE', unitId: 'attacker', position: { x: 2, y: 1 },
+      amount: 1, damageSource: 'QORK_EXPLOSION',
+    };
+    const { animation, calls } = replay([
+      attack('qork', true), death('qork'), burst('qork', ['attacker']), destinationDamage,
+    ]);
     await vi.advanceTimersByTimeAsync(arrival + impact + ANIMATION.HIT_SHAKE_DURATION_MS);
     expect(animation.mock.calls.filter(([id, value]) => id === 'qork' && value?.type === 'DYING')).toHaveLength(0);
     expect(useGameStore.getState().units.attacker.position).toEqual({ x: 1, y: 1 });
@@ -274,10 +373,43 @@ describe('Qork burst presentation', () => {
       deathTileX: 2, deathTileY: 1, variant: 'dying-in-place', phase: 'dying',
     });
     expect(useGameStore.getState().grid[1][2].unitId).toBe('attacker');
+    expect(advanceTime).toBeDefined();
+    expect(calls.find(({ event }) => event === destinationDamage)?.time).toBe(advanceTime);
+    expect(useCombatAnimationStore.getState().unitAnimations.get('attacker')?.type).toBe('HIT');
+    expect(useFloaterStore.getState().floaters.filter((floater) => floater.value === 1))
+      .toEqual([expect.objectContaining({ x: 2, y: 1, isEnemy: false })]);
     await vi.advanceTimersByTimeAsync(burstBeat);
     expect(useCombatAnimationStore.getState().slideKillGhosts.size).toBe(0);
     expect(useGameStore.getState().units.qork).toBeUndefined();
     expect(useGameStore.getState().grid[1][2].unitId).toBe('attacker');
+  });
+
+  it('shows lethal burst damage at the advanced attacker destination before its own death beat', async () => {
+    const destinationDamage: GameEvent = {
+      type: 'TILE_DAMAGE', unitId: 'attacker', position: { x: 2, y: 1 },
+      amount: 1000, damageSource: 'QORK_EXPLOSION',
+    };
+    const attackerDeath = death('attacker');
+    attackerDeath.position = { x: 2, y: 1 };
+    replay([attack('qork', true), death('qork'), burst('qork', ['attacker']), destinationDamage, attackerDeath]);
+    await vi.advanceTimersByTimeAsync(
+      arrival + impact + ANIMATION.HIT_SHAKE_DURATION_MS + ANIMATION.POST_ACTION_IDLE_MS + arrival,
+    );
+    expect(useGameStore.getState().units.attacker.position).toEqual({ x: 2, y: 1 });
+    expect(useGameStore.getState().units.attacker.stats.currentHp).toBeLessThanOrEqual(0);
+    expect(useCombatAnimationStore.getState().unitAnimations.get('attacker')?.type).toBe('HIT');
+    expect(useCombatAnimationStore.getState().slideKillGhosts.has('qork')).toBe(true);
+    expect(useFloaterStore.getState().floaters).toContainEqual(expect.objectContaining({
+      value: 1000, x: 2, y: 1, isEnemy: false,
+    }));
+    await vi.advanceTimersByTimeAsync(burstBeat);
+    expect(useGameStore.getState().units.qork).toBeUndefined();
+    expect(useGameStore.getState().grid[1][2].unitId).toBe('attacker');
+    expect(useCombatAnimationStore.getState().unitAnimations.get('attacker')?.type).toBe('DYING');
+    await vi.advanceTimersByTimeAsync(dying);
+    expect(useGameStore.getState().units.attacker).toBeUndefined();
+    expect(useGameStore.getState().grid[1][2].unitId).toBeNull();
+    expect(useAnimationStore.getState().isAnimating).toBe(false);
   });
 
   it('applies primary, pierce and every cleave on one impact and shares impact and death waits', async () => {
@@ -374,6 +506,53 @@ describe('Qork burst presentation', () => {
     const laterCleave = calls.findIndex(({ event }) => event.type === 'CLEAVE_DAMAGE' && event.unitId === 'chain');
     expect(laterCleave).toBeGreaterThan(firstBurst);
   });
+
+  it.each(['DEFENSE_BONUS_IGNORED', 'STUN_BLOCKED'] as const)(
+    'groups impacts across attached %s feedback without consuming its queued VFX', async (type) => {
+      const feedback = attackFeedback(type);
+      const { calls, vfx } = replay([
+        attack('first'), death('first'), feedback, secondary('PIERCE_DAMAGE', 'second'),
+        death('second'), secondary('CLEAVE_DAMAGE', 'cleave'), death('cleave'),
+      ]);
+      await vi.advanceTimersByTimeAsync(arrival + impact);
+      const hits = calls.filter(({ event }) => ['PLAYER_ATTACK', 'PIERCE_DAMAGE', 'CLEAVE_DAMAGE'].includes(event.type));
+      expect(hits).toHaveLength(3);
+      expect(new Set(hits.map(({ time }) => time)).size).toBe(1);
+      expect(calls.some(({ event }) => event === feedback)).toBe(false);
+      expect(useAnimationStore.getState().eventQueue).toContain(feedback);
+      expect(vfx).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(Math.max(
+        ANIMATION.HIT_SHAKE_DURATION_MS, ANIMATION.PIERCE_LINE_MS, ANIMATION.CLEAVE_VFX_DURATION_MS,
+      ));
+      for (const id of ['first', 'second', 'cleave']) {
+        expect(useCombatAnimationStore.getState().unitAnimations.get(id)?.type).toBe('DYING');
+      }
+      await vi.runAllTimersAsync();
+      expect(calls.filter(({ event }) => event === feedback)).toHaveLength(1);
+      expect(vfx.mock.calls.filter(([value]) => value.variant === (
+        type === 'DEFENSE_BONUS_IGNORED' ? 'DEFENSE_IGNORED' : 'STUN_BLOCKED_SHIELD'
+      ))).toHaveLength(1);
+    },
+  );
+
+  it.each(['DEFENSE_BONUS_IGNORED', 'STUN_BLOCKED'] as const)(
+    'does not cross unrelated %s feedback to collect later damage', async (type) => {
+      const feedback = attackFeedback(type, false);
+      const { calls } = replay([
+        attack('first'), death('first'), feedback, secondary('PIERCE_DAMAGE', 'second'),
+        death('second'), secondary('CLEAVE_DAMAGE', 'cleave'), death('cleave'),
+      ]);
+      await vi.advanceTimersByTimeAsync(arrival + impact);
+      expect(calls.filter(({ event }) => ['PLAYER_ATTACK', 'PIERCE_DAMAGE', 'CLEAVE_DAMAGE'].includes(event.type)))
+        .toHaveLength(1);
+      expect(useGameStore.getState().units.second.stats.currentHp).toBeGreaterThan(0);
+      expect(useGameStore.getState().units.cleave.stats.currentHp).toBeGreaterThan(0);
+      await vi.runAllTimersAsync();
+      const feedbackIndex = calls.findIndex(({ event }) => event === feedback);
+      expect(calls.findIndex(({ event }) => event.type === 'PIERCE_DAMAGE')).toBeGreaterThan(feedbackIndex);
+      expect(calls.findIndex(({ event }) => event.type === 'CLEAVE_DAMAGE')).toBeGreaterThan(feedbackIndex);
+    },
+  );
 
   it.each(['PIERCE_DAMAGE', 'SPLASH_DAMAGE'] as const)(
     'retains standalone %s timing and defers its Qork skull', async (type) => {
