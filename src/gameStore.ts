@@ -1998,6 +1998,8 @@ export const useGameStore = create<GameStore>()(
       const portalEvents: GameEvent[] = [];
       let crystalLightningEvents: GameEvent[] | null = null;
       let crystalLightningResolvedState: GameState | null = null;
+      let createdLeashedUnit = false;
+      let createdMagePortal = false;
       set((state) => {
         if (!state.pendingSpellCast) return;
         const { mageId, spellId } = state.pendingSpellCast;
@@ -2043,9 +2045,27 @@ export const useGameStore = create<GameStore>()(
             .map((u) => u.id),
         );
 
+        const unitsBefore = current(state.units);
+        const leashedUnitIdsBefore = new Set(
+          Object.values(unitsBefore)
+            .filter((unit) => unit.tags.includes(UnitTag.LEASHED))
+            .map((unit) => unit.id),
+        );
+        const portalIdsBefore = new Set(Object.keys(state.portals));
         const ok = castSpellLogic(state, mageId, spellId, targetPosition, portalEvents);
         if (!ok) return;
 
+        const leashedUnitIdsAfter = new Set(
+          Object.values(state.units)
+            .filter((unit) => unit.tags.includes(UnitTag.LEASHED))
+            .map((unit) => unit.id),
+        );
+        createdLeashedUnit = [...leashedUnitIdsAfter].some(
+          (id) => !leashedUnitIdsBefore.has(id) && !unitsBefore[id],
+        );
+        createdMagePortal = Object.values(state.portals).some(
+          (portal) => !portalIdsBefore.has(portal.id) && portal.kind === 'MAGE',
+        );
         // Detect cave monsters killed by the spell and clean up their encounters.
         for (const id of caveMonstersBefore) {
           if (!state.units[id]) {
@@ -2108,8 +2128,14 @@ export const useGameStore = create<GameStore>()(
         } else {
           triggerSpellSfx('spell_cast');
         }
-        if (castSpellId === 'EMBERBIND') {
+        if (createdLeashedUnit) {
           tryTriggerHint('H19_EMBERBIND_LEASH');
+        }
+        if (createdMagePortal) {
+          tryTriggerHint('H24_MAGE_PORTAL');
+        }
+        if (castSpellId === 'SUMMON_GHOUL') {
+          tryTriggerHint('H26_GHOUL_GRAVESTONES');
         }
         // EXPLODE: add shockwave ring to match emberling explosion VFX
         if (castSpellId === 'EXPLODE') {
@@ -2252,6 +2278,7 @@ export const useGameStore = create<GameStore>()(
       let pendingStateForSave: GameState | null = null;
       let homelessHintPos: { x: number; y: number } | null = null;
       let untrainedHintPos: { x: number; y: number } | null = null;
+      let infestedHintPos: Position | null = null;
       let hasBurningPlayerDamage = false;
       const resolveCaptureEvents: GameEvent[] = [];
       let pendingTraceChunk: ReturnType<typeof runEnemyTurn>['trace'] = null;
@@ -2667,6 +2694,13 @@ export const useGameStore = create<GameStore>()(
           draft.phase = GamePhase.PLAYER_TURN;
         });
 
+        const firstInfestedPlayer = Object.values(computedState.units)
+          .filter((unit) => unit.faction === Faction.PLAYER && unit.tags.includes(UnitTag.INFESTED))
+          .sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0)[0];
+        if (firstInfestedPlayer) {
+          infestedHintPos = { ...firstInfestedPlayer.position };
+        }
+
         // Phase 7: Stage events for animation (enqueued after this set commits)
         // Leash defect events play at the START of the queue so the demon visually
         // defects before the enemy-turn action events that follow them.
@@ -2698,6 +2732,9 @@ export const useGameStore = create<GameStore>()(
       }
       if (untrainedHintPos !== null) {
         useHintStore.getState().defer({ hintId: 'H11_UNTRAINED', cameraTarget: untrainedHintPos });
+      }
+      if (infestedHintPos !== null) {
+        useHintStore.getState().defer({ hintId: 'H23_INFESTED_SPREAD', cameraTarget: infestedHintPos });
       }
       if (pendingTraceChunk !== null) {
         const activeSaveId = useMenuStore.getState().activeSaveId;

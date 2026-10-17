@@ -916,6 +916,7 @@ export function useAnimationEngine(): void {
         // Activate Chambers, Caves, then each Khyron after its camera arrival.
         // Handled before the main camera-pan block so we never pan to the destroyed chamber.
         if (event.type === 'RESONANCE_TRIGGERED') {
+          let attemptedKhyronHint = false;
           if (visible) {
             for (const chamberId of event.survivingChamberIds) {
               const chamber = useGameStore.getState().buildings[chamberId];
@@ -980,6 +981,10 @@ export function useAnimationEngine(): void {
                 await wait(ANIMATION.CRYSTAL_ACTIVATE_VFX_DURATION_MS);
                 useCombatAnimationStore.getState().setUnitAnimation(unitId, null);
                 await wait(ANIMATION.POST_ACTION_IDLE_MS);
+              }
+              if (!attemptedKhyronHint) {
+                attemptedKhyronHint = true;
+                tryTriggerHint('H21_KHYRON_RESONANCE');
               }
             }
           }
@@ -1662,6 +1667,9 @@ export function useAnimationEngine(): void {
 
         // ── Special handling for TILE_DAMAGE ──
         if (event.type === 'TILE_DAMAGE') {
+          const isPlayerQorkDrain = event.damageSource === 'QORK_DRAIN'
+            && event.amount > 0
+            && useGameStore.getState().units[event.unitId]?.faction === Faction.PLAYER;
           if (visible) {
             if (event.damageSource !== 'TAG' && event.damageSource !== 'TRAP') {
               useCombatAnimationStore.getState().addTileVfx({
@@ -1676,6 +1684,7 @@ export function useAnimationEngine(): void {
           // applyEvent emits the damage floater. The VFX is short enough that the
           // floater rises through it visibly.
           useGameStore.getState().applyEvent(event, { silent: !visible });
+          if (isPlayerQorkDrain) tryTriggerHint('H22_QORK_CORRUPTION');
           if (visible && !resolvingScoutTrap) await wait(ANIMATION.POST_ACTION_IDLE_MS);
           continue;
         }

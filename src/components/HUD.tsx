@@ -2331,6 +2331,21 @@ function SelectedUnitPanel({
 
   const targetLevel = getUnitTargetLevel(unit);
   const canLevelUp = isPlayer && targetLevel > unit.level;
+  const isKhyron = unit.type === UnitType.CRYSTAL_KHYRON;
+  useEffect(() => {
+    if (isPlayer && isKhyron && canLevelUp) {
+      tryTriggerHint('H25_KHYRON_LEVEL_UP');
+    }
+  }, [unit.id, isPlayer, isKhyron, canLevelUp]);
+
+  const hasStoneSkin = unit.tags.includes(UnitTag.STONE_SKIN);
+  const stoneSkinHp = unit.stoneSkinHp ?? 0;
+  useEffect(() => {
+    if (isPlayer && hasStoneSkin && stoneSkinHp > 0) {
+      tryTriggerHint('H27_STONE_SKIN_ROOTED');
+    }
+  }, [unit.id, isPlayer, hasStoneSkin, stoneSkinHp]);
+
   const isMaxLevel = unit.level >= XP.MAX_LEVEL;
   const nextLevelDef = !isMaxLevel ? UNIT_DEFINITIONS[unit.type]?.levelUp?.[unit.level - 1] : null;
   const nextLevelXpRequired = nextLevelDef?.xpRequired ?? null;

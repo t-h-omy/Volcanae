@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.118.6 - Expanded situational tutorial hints
+
+Generalized the Mage leash hint to cover newly summoned leashed creatures, including Corrupted Qorks. Added seven localized hints for Khyron Resonance and banked Level Ups, Qork corruption and death bursts, Infested spread, shared Mage portals, Ghoul Gravestone progression, and Stone Skin's movement lock. Existing turn, per-save, and global hint limits remain unchanged.
+
 ### v0.118.5 - Spell targeting, Taunt and specialist cleanup
 
 Spell casting now hides movement and attack overlays, and Stone Skin cannot target Mechs. Enemy intercepts and cave-monster attacks respect Taunt without forcing movement. Taunt and Infested use the shared tag icon list. Specialist replacements correctly revoke outgoing effects while preserving tags from other sources. Crystal Drake deaths caused by cave loss now show a localized destruction floater and hold the camera long enough to read it.
