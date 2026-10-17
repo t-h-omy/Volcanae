@@ -191,6 +191,7 @@ export function advanceLava(state: Draft<GameState>, outEvents?: GameEvent[], sk
 
         // Collect life-bound units BEFORE removal so we can emit UNIT_DEATH events.
         const roosted = outEvents ? getRoostedUnits(state, buildingId) : [];
+        const lostRoostBuildingType = building.type;
 
         // Remove building from state. When skipRoostedCleanup is true (display-state
         // applyEvent path), leave roosted units alive so the queued UNIT_DEATH events
@@ -213,6 +214,7 @@ export function advanceLava(state: Draft<GameState>, outEvents?: GameEvent[], sk
               unitId: death.unitId,
               position: death.position,
               faction: death.faction,
+              lostRoostBuildingType,
             });
           }
         }

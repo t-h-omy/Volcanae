@@ -21,7 +21,7 @@ import { getTagsFromActiveSpecialists } from './specialistSystem';
 // ============================================================================
 
 /** Increment this whenever the serialized shape changes incompatibly. */
-export const SAVE_VERSION = 22;
+export const SAVE_VERSION = 23;
 
 // ============================================================================
 // TYPES
@@ -531,6 +531,14 @@ function migrateState(parsed: { version: number; state: GameState }): GameState 
         if (!entry || typeof entry !== 'object') continue;
         delete entry.name;
         delete entry.description;
+      }
+    }
+
+    if (parsed.version < 23) {
+      for (const unit of Object.values(s.units)) {
+        if (unit.type === UnitType.CORRUPTED_QORK && !unit.tags.includes(UnitTag.CORRUPTION_BOUND)) {
+          unit.tags.push(UnitTag.CORRUPTION_BOUND);
+        }
       }
     }
 

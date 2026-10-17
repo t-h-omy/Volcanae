@@ -1,5 +1,29 @@
 # Changelog
 
+### v0.118.6 - Expanded situational tutorial hints
+
+Generalized the Mage leash hint to cover newly summoned leashed creatures, including Corrupted Qorks. Added seven localized hints for Khyron Resonance and banked Level Ups, Qork corruption and death bursts, Infested spread, shared Mage portals, Ghoul Gravestone progression, and Stone Skin's movement lock. Existing turn, per-save, and global hint limits remain unchanged.
+
+### v0.118.5 - Spell targeting, Taunt and specialist cleanup
+
+Spell casting now hides movement and attack overlays, and Stone Skin cannot target Mechs. Enemy intercepts and cave-monster attacks respect Taunt without forcing movement. Taunt and Infested use the shared tag icon list. Specialist replacements correctly revoke outgoing effects while preserving tags from other sources. Crystal Drake deaths caused by cave loss now show a localized destruction floater and hold the camera long enough to read it.
+
+### v0.118.4 - Crystal Khyron building assimilation and Resonance feedback
+
+Crystal Khyrons now cost 3 Arcane Crystals and can earn their Resonance Level Up by destroying an enemy building or neutralizing an enemy Watchtower. Their Resonance healing triggers camera feedback, the unit panel shows remaining Resonance turns, and capture indicators now include eligible Khyrons and Ghouls. Updated descriptions explain healing, building assimilation, transferable Ranged, and the level cap in every supported language.
+
+### v0.118.3 - Corruption-Bound Qorks and active debuff indicators
+
+Corrupted Qorks now carry Corruption-Bound, the tag that drives their off-corruption HP loss. Player units show the active drain as a withered-flower icon, HP-bar debuff outline, and red tag pill. Existing Qorks gain the tag when older saves load, and all supported languages include the new tag and updated Qork description.
+
+### v0.118.2 - Synchronized Qork bursts and combat impacts
+
+Corrupted Qork deaths now play as a single burst beat with simultaneous damage feedback, grouped victim deaths, and sequential chained explosions. Melee attackers advance onto the burst tile as the Qork fades, while Pierce and Cleave damage and effects now coincide with the primary attack impact.
+
+### v0.118.1 - Simultaneous combat impact and ordered death effects
+
+Unit attacks now apply direct damage together, resolve impact deaths, and advance surviving melee attackers before death effects. Corrupted Qork bursts hit units on their death tile, chain after complete victim death groups, and no longer leave zero-HP survivors or duplicate death events.
+
 ### v0.118.0 - Corrupted Qork drain and death burst
 
 Corrupted Qorks now spawn ready to act, lose HP at their faction's turn end when off corrupted tiles, and explode on death to damage adjacent units while corrupting their death tile when terrain permits.

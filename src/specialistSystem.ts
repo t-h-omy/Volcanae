@@ -11,11 +11,11 @@
  * - Zero-upkeep specialists are never dormant.
  */
 
-import type { GameState, Specialist } from './types';
+import type { GameState, Specialist, Unit } from './types';
 import type { Draft } from 'immer';
 import { Faction, BuildingType, UnitTag, UnitType, SpellId } from './types';
-import { ABILITIES, SPECIALIST_DEFINITIONS } from './gameConfig';
-import { applyTagStatEffects, revokeTagStatEffects } from './techSystem';
+import { ABILITIES, SPECIALIST_DEFINITIONS, UNIT_DEFINITIONS } from './gameConfig';
+import { applyTagStatEffects, getGrantedTags, revokeTagStatEffects } from './techSystem';
 
 // ============================================================================
 // INITIAL SPECIALISTS
@@ -48,8 +48,10 @@ export function createInitialSpecialists(): Record<string, Specialist> {
 export function isSpecialistEffectActive(
   state: GameState | Draft<GameState>,
   effectType: string,
+  excludedSpecialistId?: string,
 ): boolean {
   for (const specId of state.globalSpecialistStorage) {
+    if (specId === excludedSpecialistId) continue;
     const spec = state.specialists[specId];
     if (spec && !spec.dormant && spec.effects.some((e) => e.type === effectType)) {
       return true;
@@ -171,35 +173,40 @@ function applyUnitTagToAllUnits(
   }
 }
 
-/**
- * Reverts GRANT_UNIT_TAG_ALL specialist effect: removes `tag` from all player
- * units of `unitType`.  Only removes if no other globally-owned, non-dormant
- * specialist also grants the same tag to the same unit type.
- */
+/** Checks independent tag sources without counting the specialist being revoked. */
+function isUnitTagStillGranted(
+  state: Draft<GameState>,
+  unit: Draft<Unit>,
+  tag: UnitTag,
+  excludedSpecialistId?: string,
+): boolean {
+  if (UNIT_DEFINITIONS[unit.type].tags.includes(tag)) return true;
+  if (getGrantedTags(state, unit.type).includes(tag)) return true;
+  if (unit.type === UnitType.CRYSTAL_KHYRON && unit.assimilatedTags?.includes(tag)) return true;
+  return state.globalSpecialistStorage.some((specId) => {
+    if (specId === excludedSpecialistId) return false;
+    const specialist = state.specialists[specId];
+    if (!specialist || specialist.dormant) return false;
+    return specialist.effects.some((effect) =>
+      (effect.type === 'GRANT_UNIT_TAG_ALL' &&
+        effect.params.unitType === unit.type && effect.params.tag === tag) ||
+      (effect.type === 'GRANT_TAG_TO_UNITS_WITH_TAG' &&
+        unit.tags.includes(effect.params.sourceTag as UnitTag) &&
+        String(effect.params.tags).split(',').includes(tag)),
+    );
+  });
+}
+
+/** Removes a specialist's unit-type tag only when no independent source retains it. */
 function revokeUnitTagFromAllUnits(
   state: Draft<GameState>,
   unitType: UnitType,
   tag: UnitTag,
+  excludedSpecialistId?: string,
 ): void {
-  // Check if another still-active (in globalStorage and non-dormant) specialist also grants this tag
-  const stillGranted = state.globalSpecialistStorage.some((specId) => {
-    const s = state.specialists[specId];
-    return (
-      s &&
-      !s.dormant &&
-      s.effects.some(
-        (e) =>
-          e.type === 'GRANT_UNIT_TAG_ALL' &&
-          e.params.unitType === unitType &&
-          e.params.tag === tag,
-      )
-    );
-  });
-  if (stillGranted) return;
-
   for (const unit of Object.values(state.units)) {
     if (unit.faction === Faction.PLAYER && unit.type === unitType) {
-      if (unit.type === UnitType.CRYSTAL_KHYRON && unit.assimilatedTags?.includes(tag)) continue;
+      if (isUnitTagStillGranted(state, unit, tag, excludedSpecialistId)) continue;
       const idx = unit.tags.indexOf(tag);
       if (idx !== -1) {
         unit.tags.splice(idx, 1);
@@ -239,25 +246,13 @@ function revokeTagFromUnitsWithTag(
   state: Draft<GameState>,
   sourceTag: UnitTag,
   grantTags: UnitTag[],
+  excludedSpecialistId?: string,
 ): void {
   for (const tag of grantTags) {
-    // Check if another active specialist still grants this tag to the same sourceTag group.
-    const stillGranted = state.globalSpecialistStorage.some((specId) => {
-      const s = state.specialists[specId];
-      if (!s || s.dormant) return false;
-      return s.effects.some((e) => {
-        if (e.type !== 'GRANT_TAG_TO_UNITS_WITH_TAG') return false;
-        if (e.params.sourceTag !== sourceTag) return false;
-        const tags = String(e.params.tags).split(',') as UnitTag[];
-        return tags.includes(tag);
-      });
-    });
-    if (stillGranted) continue;
-
     for (const unit of Object.values(state.units)) {
       if (unit.faction !== Faction.PLAYER) continue;
       if (!unit.tags.includes(sourceTag)) continue;
-      if (unit.type === UnitType.CRYSTAL_KHYRON && unit.assimilatedTags?.includes(tag)) continue;
+      if (isUnitTagStillGranted(state, unit, tag, excludedSpecialistId)) continue;
       const idx = unit.tags.indexOf(tag);
       if (idx !== -1) {
         unit.tags.splice(idx, 1);
@@ -325,7 +320,7 @@ export function applyEffectsForSpecialist(
 
 /**
  * Revokes the effects of a single specialist from the current game state.
- * Called immediately when a specialist is removed from globalSpecialistStorage.
+ * Ignores the outgoing specialist even if it is still in globalSpecialistStorage.
  */
 export function revokeEffectsForSpecialist(
   state: Draft<GameState>,
@@ -333,16 +328,16 @@ export function revokeEffectsForSpecialist(
 ): void {
   for (const effect of specialist.effects) {
     if (effect.type === 'FORTIFIED_GARRISON') {
-      if (!isSpecialistEffectActive(state, 'FORTIFIED_GARRISON')) {
+      if (!isSpecialistEffectActive(state, 'FORTIFIED_GARRISON', specialist.id)) {
         setFortifiedGarrisonState(state, false);
       }
     } else if (effect.type === 'GRANT_UNIT_TAG_ALL') {
-      revokeUnitTagFromAllUnits(state, effect.params.unitType as UnitType, effect.params.tag as UnitTag);
+      revokeUnitTagFromAllUnits(state, effect.params.unitType as UnitType, effect.params.tag as UnitTag, specialist.id);
     } else if (effect.type === 'GRANT_TAG_TO_UNITS_WITH_TAG') {
       const grantTags = (effect.params.tags as string).split(',') as UnitTag[];
-      revokeTagFromUnitsWithTag(state, effect.params.sourceTag as UnitTag, grantTags);
+      revokeTagFromUnitsWithTag(state, effect.params.sourceTag as UnitTag, grantTags, specialist.id);
     } else if (effect.type === 'RUPTURE_UNLOCK') {
-      if (!isSpecialistEffectActive(state, 'RUPTURE_UNLOCK')) {
+      if (!isSpecialistEffectActive(state, 'RUPTURE_UNLOCK', specialist.id)) {
         const idx = state.unlockedSpells.indexOf(SpellId.RUPTURE);
         if (idx !== -1) state.unlockedSpells.splice(idx, 1);
       }

@@ -11,6 +11,7 @@ import { ABILITIES } from './abilities';
 import { MAGE } from './magic';
 import { BUILDING_DEFINITIONS } from './buildings';
 import { POPULATION, TRAINING } from './economy';
+import { CORRUPTED_QORK, CRYSTAL_KHYRON } from './units';
 
 
 /**
@@ -69,9 +70,10 @@ export const TAG_INFO: Record<UnitTag, { icon?: string; textParams?: { [name: st
   [UnitTag.KNOCKBACK]: {},
   [UnitTag.CINDERBORN]: { textParams: { rows: ABILITIES.CINDERBORN_ROWS, attackBonus: ABILITIES.CINDERBORN_ATTACK_BONUS } },
   [UnitTag.BERSERK]: { textParams: { hpThresholdPct: ABILITIES.BERSERK_HP_THRESHOLD_PCT, attackPct: ABILITIES.BERSERK_ATTACK_PCT } },
-  [UnitTag.RESONANCE]: { textParams: { healAmount: ABILITIES.RESONANCE_HEAL_AMOUNT } },
+  [UnitTag.RESONANCE]: { textParams: { healAmount: ABILITIES.RESONANCE_HEAL_AMOUNT, maxLevel: CRYSTAL_KHYRON.MAX_LEVEL } },
   [UnitTag.TAUNT]: { icon: '🎯' },
   [UnitTag.STONE_SKIN]: { icon: '🪨', textParams: { stoneHp: MAGE.STONE_SKIN_HP } },
   [UnitTag.INFESTED]: { icon: '🦠', textParams: { hpLossPerTurn: MAGE.INFESTED_HP_LOSS_PER_TURN } },
+  [UnitTag.CORRUPTION_BOUND]: { icon: '🥀', textParams: { hpLoss: CORRUPTED_QORK.OFF_CORRUPTION_HP_LOSS } },
   [UnitTag.BATTERY]: { textParams: { attackPerAdjacent: ABILITIES.SIEGE_BATTERY_ATK_PER_ADJACENT, stackCap: ABILITIES.SIEGE_BATTERY_CAP } },
 };

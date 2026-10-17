@@ -209,7 +209,7 @@ describe('Stone Skin tech and spell', () => {
     expect(MAGE.STONE_SKIN_HP).toBe(50);
   });
 
-  it('allows self, summoned, flying, Khyron, and other player units, then grants 50 Stone HP', () => {
+  it('allows self, summoned, flying, and other non-Mech player units, then grants 50 Stone HP', () => {
     const mage = makeUnit(UnitType.MAGE, { x: 5, y: 5 });
     const summoned = makeUnit(UnitType.EMBER_DEMON, { x: 6, y: 5 }, Faction.PLAYER, [UnitTag.SUMMONED]);
     const flyer = makeUnit(UnitType.GARGOYLE, { x: 5, y: 6 });
@@ -217,7 +217,8 @@ describe('Stone Skin tech and spell', () => {
     const state = makeState([mage, summoned, flyer, khyron]);
     const targets = getValidSpellTargets(state, mage.id, SpellId.STONE_SKIN);
 
-    expect(targets).toEqual(expect.arrayContaining([mage.position, summoned.position, flyer.position, khyron.position]));
+    expect(targets).toEqual(expect.arrayContaining([mage.position, summoned.position, flyer.position]));
+    expect(targets).not.toContainEqual(khyron.position);
     const afterCast = produce(state, (draft) => {
       expect(castSpell(draft, mage.id, SpellId.STONE_SKIN, summoned.position)).toBe(true);
     });

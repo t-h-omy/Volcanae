@@ -138,6 +138,7 @@ const SPELL_TARGET_REASONS: Record<string, TextRef> = {
   TAUNT_ALREADY_TAUNTED: { key: 'reason.spell.tauntAlreadyTaunted' },
   INFESTED_ALREADY: { key: 'reason.spell.infestedAlready' },
   STONE_SKIN_ALREADY_ACTIVE: { key: 'reason.spell.stoneSkinAlreadyActive' },
+  STONE_SKIN_MECH: { key: 'reason.spell.stoneSkinMech' },
   BRANDMARK_SUMMONED: { key: 'reason.spell.brandmarkSummoned' },
   BRANDMARK_MECH: { key: 'reason.spell.brandmarkMech' },
   BRANDMARK_SELF: { key: 'reason.spell.brandmarkSelf' },
@@ -341,6 +342,7 @@ export function getValidSpellTargets(
         .filter((unit) =>
           unit.faction === Faction.PLAYER
           && !unit.tags.includes(UnitTag.STONE_SKIN)
+          && !isMech(unit)
           && isTileInSpellRange(mage, unit.position, range))
         .map((unit) => ({ ...unit.position }));
     }
@@ -508,6 +510,9 @@ export function explainInvalidSpellTarget(
       if (!isTileInSpellRange(mage, tappedUnit.position, range)) return null;
       if (tappedUnit.tags.includes(UnitTag.STONE_SKIN)) {
         return SPELL_TARGET_REASONS.STONE_SKIN_ALREADY_ACTIVE;
+      }
+      if (isMech(tappedUnit)) {
+        return SPELL_TARGET_REASONS.STONE_SKIN_MECH;
       }
       return null;
     }
@@ -1619,7 +1624,7 @@ export function castSpell(
     case 'STONE_SKIN': {
       const targetId = state.grid[targetPosition.y]?.[targetPosition.x]?.unitId;
       const target = targetId ? state.units[targetId] : undefined;
-      if (!target || target.faction !== Faction.PLAYER || target.tags.includes(UnitTag.STONE_SKIN)) return false;
+      if (!target || target.faction !== Faction.PLAYER || target.tags.includes(UnitTag.STONE_SKIN) || isMech(target)) return false;
       target.tags.push(UnitTag.STONE_SKIN);
       target.stoneSkinHp = MAGE.STONE_SKIN_HP;
       success = true;

@@ -386,6 +386,7 @@ export const UnitTag = {
   /** Incoming damage is absorbed by a separate Stone HP pool before normal HP. */
   STONE_SKIN: 'STONE_SKIN',
   INFESTED: 'INFESTED',
+  CORRUPTION_BOUND: 'CORRUPTION_BOUND',
 } as const;
 export type UnitTag = (typeof UnitTag)[keyof typeof UnitTag];
 

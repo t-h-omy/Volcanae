@@ -421,7 +421,6 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
 
   CORRUPTED_QORK: {
     textParams: {
-      hpLoss: CORRUPTED_QORK.OFF_CORRUPTION_HP_LOSS,
       explosionDamage: CORRUPTED_QORK.DEATH_EXPLOSION_DAMAGE,
     },
     maxHp: CORRUPTED_QORK.BASE_MAX_HP,
@@ -429,7 +428,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     defense: CORRUPTED_QORK.BASE_DEFENSE,
     movementActions: 1, moveRange: 1, attackRange: CORRUPTED_QORK.ATTACK_RANGE,
     discoverRadius: 1, triggerRange: 0,
-    tags: [UnitTag.RANGED],
+    tags: [UnitTag.RANGED, UnitTag.CORRUPTION_BOUND],
     cost: { iron: 0, wood: 0 },
     populationCost: { farmers: 0, nobles: 0 },
     levelUp: [
@@ -505,7 +504,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
     tags: [UnitTag.MECH],
-    cost: { iron: 0, wood: 0, crystals: 2 },
+    cost: { iron: 0, wood: 0, crystals: 3 },
     populationCost: { farmers: 0, nobles: 0 },
     levelUp: [
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
@@ -517,7 +516,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
 /**
  * Crystal Khyron progression tunables.
  * TRANSFERABLE_TAGS is the single source of truth for which enemy tags a
- * resonating Khyron permanently inherits on each eligible kill.
+ * resonating Khyron permanently inherits from each eligible defeated source.
  */
 export const CRYSTAL_KHYRON = {
   MAX_LEVEL: 3,
@@ -561,6 +560,10 @@ export const CRYSTAL_KHYRON = {
     emergenceDamage: ABILITIES.TUNNEL_EMERGE_DAMAGE,
   };
   u.GRIMBEAK.textParams = { summonedDamageMultiplier: ABILITIES.GRIMBEAK_SUMMONED_DAMAGE_MULTIPLIER };
+  u.CRYSTAL_KHYRON.textParams = {
+    healAmount: ABILITIES.RESONANCE_HEAL_AMOUNT,
+    maxLevel: CRYSTAL_KHYRON.MAX_LEVEL,
+  };
 }
 
 // ============================================================================

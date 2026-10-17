@@ -28,11 +28,10 @@ export type UnitAnimationState =
   | { type: 'SLIDE'; dx: number; dy: number };
 
 /**
- * A "ghost" unit animation played when a unit slides off an ice tile into a
- * lethal tile (LAVA, CANYON, WATER). The unit has already been removed from
- * game state, so this overlay renders its appearance purely for visual feedback.
+ * A removed unit rendered over its death tile independently of tile occupancy.
+ * Sliding deaths keep their slide/fall phases; in-place deaths only flash/fade.
  */
-export interface SlideKillGhost {
+interface DeathGhostAppearance {
   /** Unique ID for the ghost entry */
   id: string;
   /** Unit type, for sprite/emoji selection */
@@ -42,12 +41,21 @@ export interface SlideKillGhost {
   /** Grid position of the death tile */
   deathTileX: number;
   deathTileY: number;
-  /** Pixel offset from death tile back to frozen tile (same semantics as SLIDE dx/dy) */
-  slideDx: number;
-  slideDy: number;
-  /** Which phase of the animation this ghost is currently in */
-  phase: 'slide' | 'dying' | 'falling';
 }
+
+export type SlideKillGhost = DeathGhostAppearance & (
+  | {
+    variant?: 'slide';
+    /** Pixel offset from death tile back to frozen tile (same semantics as SLIDE dx/dy) */
+    slideDx: number;
+    slideDy: number;
+    phase: 'slide' | 'dying' | 'falling';
+  }
+  | {
+    variant: 'dying-in-place';
+    phase: 'dying';
+  }
+);
 
 export type BuildingAnimationState = 'CRYSTAL_ACTIVATE' | 'SANCTUM_SHATTER';
 
@@ -133,7 +141,7 @@ interface CombatAnimationState {
   projectiles: Projectile[];
   /** Active per-tile flash bursts, keyed by "x,y" */
   tileFlashes: Map<string, { durationMs: number; variant?: string }>;
-  /** Ghost units rendered during slide-into-lethal-tile death animations */
+  /** Ghost units rendered independently of live tile occupants */
   slideKillGhosts: Map<string, SlideKillGhost>;
   /** Leash pairs that are visually "bursting" — shown always, ignoring selection */
   leashBurstPairs: LeashBurstPair[];
@@ -243,7 +251,7 @@ export const useCombatAnimationStore = create<CombatAnimationStore>((set) => ({
   setSlideKillGhostPhase: (id, phase) => {
     set((state) => {
       const ghost = state.slideKillGhosts.get(id);
-      if (!ghost) return {};
+      if (!ghost || ghost.variant === 'dying-in-place') return {};
       const next = new Map(state.slideKillGhosts);
       next.set(id, { ...ghost, phase });
       return { slideKillGhosts: next };

@@ -2089,6 +2089,18 @@
   --info-popup-tag-pill-shadow: 0 0 12px rgba(255, 170, 40, 0.4);
 }
 
+.info-popup-tag-pill--debuff {
+  --info-popup-debuff-tint: color-mix(in srgb, var(--info-popup-debuff-color) 25%, #ff4444);
+  --info-popup-tag-pill-color: color-mix(in srgb, var(--info-popup-debuff-tint) 70%, white);
+  --info-popup-tag-pill-bg: color-mix(in srgb, var(--info-popup-debuff-tint) 15%, transparent);
+  --info-popup-tag-pill-border: var(--info-popup-debuff-tint);
+  --info-popup-tag-pill-shadow: none;
+}
+
+.info-popup-tag-pill--debuff .info-popup-tag-pill-i {
+  color: var(--info-popup-tag-pill-color);
+}
+
 .info-popup-tag-pill--highlight {
   animation: corrupt-tag-highlight 1.6s ease-out forwards;
 }

@@ -179,10 +179,9 @@ function resolveQorkDeathBurst(
   const burstDeaths: InfestedDeathSnapshot[] = [];
   for (let y = deceased.position.y - 1; y <= deceased.position.y + 1; y++) {
     for (let x = deceased.position.x - 1; x <= deceased.position.x + 1; x++) {
-      if (x === deceased.position.x && y === deceased.position.y) continue;
       const targetTile = state.grid[y]?.[x];
       const target = targetTile?.unitId ? state.units[targetTile.unitId] : null;
-      if (!target || target.stats.currentHp <= 0 || target.tunnelState === 'UNDERGROUND') continue;
+      if (!target || target.id === deceased.id || target.stats.currentHp <= 0 || target.tunnelState === 'UNDERGROUND') continue;
 
       const outcome = getUnitDamageOutcome(target, CORRUPTED_QORK.DEATH_EXPLOSION_DAMAGE);
       const amount = Math.min(CORRUPTED_QORK.DEATH_EXPLOSION_DAMAGE, target.stats.currentHp);
@@ -225,6 +224,7 @@ function resolveQorkDeathBurst(
 
   events?.push({
     type: 'QORK_DEATH_BURST',
+    unitId: deceased.id,
     position: { ...deceased.position },
     faction: deceased.faction,
     damagedUnitIds,
@@ -242,6 +242,8 @@ function resolveQorkDeathBurst(
         events.push({ type: 'CAVE_MONSTER_KILLED', monsterId: burstDeath.id });
       }
     }
+  }
+  for (const burstDeath of burstDeaths) {
     resolveUnitDeathEffects(state, burstDeath, events, context);
   }
 }
