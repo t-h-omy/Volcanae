@@ -193,6 +193,7 @@ export type GameEvent =
     }
   | {
       type: 'QORK_DEATH_BURST';
+      unitId: string;
       position: Position;
       faction: Faction;
       damagedUnitIds: string[];

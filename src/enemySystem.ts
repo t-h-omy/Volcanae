@@ -3092,17 +3092,13 @@ function executeAction(
           if (events) {
             const attackerAfter = state.units[attackerId];
             const defenderAfter = state.units[defenderId];
-            const advancedToPosition = (
-              !defenderAfter &&
-              attackerAfter &&
-              (attackerAfter.position.x !== attackerPos.x || attackerAfter.position.y !== attackerPos.y)
-            ) ? { x: attackerAfter.position.x, y: attackerAfter.position.y } : null;
+            const advancedToPosition = attackDamage?.advancedTo ?? null;
             // Attacker earns XP for killing the defender; defender earns XP for a counter-kill.
             // Use pre-attack XP to mirror the grantXp early-return for MAX_LEVEL units.
             const attackerCanReceiveXp = canGrantXp(stateBeforeAction.units[attackerId]?.type ?? '', stateBeforeAction.units[attackerId]?.xp ?? 0);
             const defenderCanReceiveXp = canGrantXp(stateBeforeAction.units[defenderId]?.type ?? '', stateBeforeAction.units[defenderId]?.xp ?? 0);
             const attackerXpGained = !defenderAfter && attackerAfter && attackerCanReceiveXp ? XP.KILL_UNIT : null;
-            const defenderXpGained = !attackerAfter && defenderCanReceiveXp ? XP.KILL_UNIT : null;
+            const defenderXpGained = !attackerAfter && defenderAfter && defenderCanReceiveXp ? XP.KILL_UNIT : null;
             const defenderSpawnBrandmarkReplacement = targetUnit.tags.includes(UnitTag.BRANDMARKED);
             const attackerSpawnBrandmarkReplacement = currentUnit.tags.includes(UnitTag.BRANDMARKED);
             const defenderBrandmarkSpawnPosition = defenderSpawnBrandmarkReplacement
@@ -3138,16 +3134,16 @@ function executeAction(
               (e) => !(e.type === 'UNIT_KNOCKBACK' && (e as Extract<GameEvent, { type: 'UNIT_KNOCKBACK' }>).unitId === defenderId),
             );
             if (knockbackDefEvt) events.push(knockbackDefEvt);
-            if (!defenderAfter) {
+            if (attackDamage?.defenderDied) {
               events.push({
                 type: 'UNIT_DEATH',
                 unitId: defenderId,
-                position: knockbackDefEvt ? knockbackDefEvt.toPosition : defenderPos,
+                position: defenderPos,
                 faction: targetUnit.faction,
                 brandmarkSpawnPosition: defenderBrandmarkSpawnPosition,
               });
             }
-            if (!attackerAfter) {
+            if (attackDamage?.attackerDied) {
               events.push({
                 type: 'UNIT_DEATH',
                 unitId: attackerId,
@@ -3185,7 +3181,7 @@ function executeAction(
           const attackerCanReceiveXp = canGrantXp(stateBeforeAction.units[attackerId]?.type ?? '', stateBeforeAction.units[attackerId]?.xp ?? 0);
           const defenderCanReceiveXp = canGrantXp(stateBeforeAction.units[defenderId]?.type ?? '', stateBeforeAction.units[defenderId]?.xp ?? 0);
           const attackerXpGained = !defenderAfter && attackerAfter && attackerCanReceiveXp ? XP.KILL_UNIT : null;
-          const defenderXpGained = !attackerAfter && defenderCanReceiveXp ? XP.KILL_UNIT : null;
+          const defenderXpGained = !attackerAfter && defenderAfter && defenderCanReceiveXp ? XP.KILL_UNIT : null;
           const defenderSpawnBrandmarkReplacement = targetUnit.tags.includes(UnitTag.BRANDMARKED);
           const attackerSpawnBrandmarkReplacement = currentUnit.tags.includes(UnitTag.BRANDMARKED);
           const defenderBrandmarkSpawnPosition = defenderSpawnBrandmarkReplacement
@@ -3206,7 +3202,7 @@ function executeAction(
             defenderPosition: defenderPos,
             attackerHpLost: attackDamage?.attackerDamage ?? 0,
             defenderHpLost: attackDamage?.defenderDamage ?? 0,
-            advancedToPosition: null,
+            advancedToPosition: attackDamage?.advancedTo ?? null,
             attackerXpGained,
             defenderXpGained,
             tileBurningPosition,
@@ -3221,16 +3217,16 @@ function executeAction(
             (e) => !(e.type === 'UNIT_KNOCKBACK' && (e as Extract<GameEvent, { type: 'UNIT_KNOCKBACK' }>).unitId === defenderId),
           );
           if (knockbackDefEvt2) events.push(knockbackDefEvt2);
-          if (!defenderAfter) {
+          if (attackDamage?.defenderDied) {
             events.push({
               type: 'UNIT_DEATH',
               unitId: defenderId,
-              position: knockbackDefEvt2 ? knockbackDefEvt2.toPosition : defenderPos,
+              position: defenderPos,
               faction: targetUnit.faction,
               brandmarkSpawnPosition: defenderBrandmarkSpawnPosition,
             });
           }
-          if (!attackerAfter) {
+          if (attackDamage?.attackerDied) {
             events.push({
               type: 'UNIT_DEATH',
               unitId: attackerId,
@@ -3818,7 +3814,8 @@ function resolveCaveMonsterAttack(
   const attackerCanReceiveXp = canGrantXp(attacker.type, attacker.xp);
   const defenderCanReceiveXp = canGrantXp(defender.type, defender.xp);
 
-  const attackDamage = resolveAttack(state, attackerId, defenderId, !!events);
+  const secondaryEvents: GameEvent[] = [];
+  const attackDamage = resolveAttack(state, attackerId, defenderId, !!events, secondaryEvents);
 
   // If the cave monster was killed by the counter-attack, clean up its encounter
   // entry from the state so the resolved state is consistent.
@@ -3831,11 +3828,7 @@ function resolveCaveMonsterAttack(
   if (events) {
     const attackerAfter = state.units[attackerId];
     const defenderAfter = state.units[defenderId];
-    const advancedToPosition = (
-      !defenderAfter &&
-      attackerAfter &&
-      (attackerAfter.position.x !== attackerPos.x || attackerAfter.position.y !== attackerPos.y)
-    ) ? { x: attackerAfter.position.x, y: attackerAfter.position.y } : null;
+    const advancedToPosition = attackDamage?.advancedTo ?? null;
     const tileBurningPosition = (
       defenderTileStatusBefore !== TileStatus.BURNING &&
       state.grid[defenderPos.y]?.[defenderPos.x]?.status === TileStatus.BURNING
@@ -3850,10 +3843,15 @@ function resolveCaveMonsterAttack(
       defenderHpLost: attackDamage?.defenderDamage ?? 0,
       advancedToPosition,
       attackerXpGained: !defenderAfter && attackerAfter && attackerCanReceiveXp ? XP.KILL_UNIT : null,
-      defenderXpGained: !attackerAfter && defenderCanReceiveXp ? XP.KILL_UNIT : null,
+      defenderXpGained: !attackerAfter && defenderAfter && defenderCanReceiveXp ? XP.KILL_UNIT : null,
       tileBurningPosition,
     });
-    if (!defenderAfter) {
+    const knockbackDefenderEvent = secondaryEvents.find(
+      (event): event is Extract<GameEvent, { type: 'UNIT_KNOCKBACK' }> =>
+        event.type === 'UNIT_KNOCKBACK' && event.unitId === defenderId,
+    );
+    if (knockbackDefenderEvent) events.push(knockbackDefenderEvent);
+    if (attackDamage?.defenderDied) {
       events.push({
         type: 'UNIT_DEATH',
         unitId: defenderId,
@@ -3861,14 +3859,18 @@ function resolveCaveMonsterAttack(
         faction: defenderFaction,
       });
     }
-    if (!attackerAfter) {
+    if (attackDamage?.attackerDied) {
       events.push({
         type: 'UNIT_DEATH',
         unitId: attackerId,
         position: attackerPos,
         faction: Faction.ENEMY,
       });
-      // Cave monster was counter-killed → trigger specialist draw
+    }
+    events.push(...secondaryEvents.filter((event) => event !== knockbackDefenderEvent));
+    if (!attackerAfter && !secondaryEvents.some(
+      (event) => event.type === 'CAVE_MONSTER_KILLED' && event.monsterId === attackerId,
+    )) {
       events.push({ type: 'CAVE_MONSTER_KILLED', monsterId: attackerId });
     }
   }

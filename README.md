@@ -97,7 +97,7 @@ The **Crystal Lightning** tech is a child of Crystal Khyron. It unlocks the spel
 
 A summoned Ember Demon or Corrupted Qork is **leashed** to its controller Mage. If the Mage moves more than `MAGE.EMBER_DEMON_LEASH_RANGE` tiles away (see `src/gameConfig.ts` for all balance numbers), the unit defects to the enemy at the end of the player turn. The UI highlights both tiles with a purple glow and switches to a red warning glow when the leash is about to break.
 
-A Corrupted Qork follows the same leash and defection rules as an Ember Demon. It can move or attack on the turn it is summoned, gains XP and levels normally, loses HP at its faction's turn end when it is not on a corrupted tile, and explodes on death to damage adjacent units and corrupt its tile when the underlying terrain permits it.
+A Corrupted Qork follows the same leash and defection rules as an Ember Demon. It can move or attack on the turn it is summoned, gains XP and levels normally, loses HP at its faction's turn end when it is not on a corrupted tile, and explodes on death to damage units on and adjacent to its tile and corrupt that tile when the underlying terrain permits it. Direct attack damage resolves before deaths, and surviving melee attackers advance before death effects, so the burst can hit an attacker on the Qork's former tile.
 
 ## Changelog
 

@@ -794,8 +794,7 @@ export const useGameStore = create<GameStore>()(
         // without nesting immer producers (same pattern as endPlayerTurn).
         const snapshot: GameState = current(state);
 
-        // Collect IDs of any cave monsters killed by SPLASH (not the primary target).
-        // Populated inside the produce callback and used to push CAVE_MONSTER_KILLED events.
+        // Collect cave deaths, including targets killed by secondary effects.
         const splashKilledCaveMonsterIds: string[] = [];
 
         // Collect secondary events (SPLASH/CLEAVE/PIERCE damage and kills) emitted by resolveAttack
@@ -804,19 +803,8 @@ export const useGameStore = create<GameStore>()(
         // Compute the resolved state (post-attack) on the snapshot
         const resolvedState = produce(snapshot, (draft) => {
           attackDamage = resolveAttack(draft, attackerId, targetId, true, secondaryEvents);
-          // If the primary target is a cave monster that was killed, remove its encounter entry
-          if (
-            snapshot.units[targetId]?.type === UnitType.CAVE_MONSTER &&
-            !draft.units[targetId]
-          ) {
-            draft.activeCaveEncounters = draft.activeCaveEncounters.filter(
-              (e) => e.monsterId !== targetId,
-            );
-          }
-          // Any other CAVE_MONSTER unit that died during this attack (e.g. SPLASH AoE) also
-          // needs its encounter entry removed and a CAVE_MONSTER_KILLED reward event.
+          // All cave deaths need encounter cleanup and one specialist reward.
           for (const unitId of Object.keys(snapshot.units)) {
-            if (unitId === targetId) continue; // primary target handled above
             if (
               snapshot.units[unitId].type === UnitType.CAVE_MONSTER &&
               !draft.units[unitId]
@@ -834,11 +822,7 @@ export const useGameStore = create<GameStore>()(
         // Compute event fields from the resolved state
         const attackerAfter = resolvedState.units[attackerId];
         const defenderAfter = resolvedState.units[targetId];
-        const advancedToPosition = (
-          !defenderAfter &&
-          attackerAfter &&
-          (attackerAfter.position.x !== attackerPosition.x || attackerAfter.position.y !== attackerPosition.y)
-        ) ? { x: attackerAfter.position.x, y: attackerAfter.position.y } : null;
+        const advancedToPosition = attackDamage?.advancedTo ?? null;
         // Attacker earns XP for killing the defender; defender earns XP for a counter-kill.
         // Guard against the grantXp early-return: if the unit already qualifies for MAX_LEVEL,
         // grantXp silently refuses the XP, so the event must carry 0 (null) to avoid a
@@ -847,7 +831,7 @@ export const useGameStore = create<GameStore>()(
         const attackerCanReceiveXp = canGrantXp(snapshot.units[attackerId]?.type ?? '', snapshot.units[attackerId]?.xp ?? 0);
         const defenderCanReceiveXp = canGrantXp(snapshot.units[targetId]?.type ?? '', snapshot.units[targetId]?.xp ?? 0);
         const attackerXpGained = !defenderAfter && attackerAfter && attackerCanReceiveXp ? XP.KILL_UNIT : null;
-        const defenderXpGained = !attackerAfter && defenderCanReceiveXp ? XP.KILL_UNIT : null;
+        const defenderXpGained = !attackerAfter && defenderAfter && defenderCanReceiveXp ? XP.KILL_UNIT : null;
         const defenderSpawnBrandmarkReplacement = !!snapshot.units[targetId]?.tags.includes(UnitTag.BRANDMARKED);
         const attackerSpawnBrandmarkReplacement = !!snapshot.units[attackerId]?.tags.includes(UnitTag.BRANDMARKED);
         const defenderBrandmarkSpawnPosition = defenderSpawnBrandmarkReplacement
@@ -894,16 +878,11 @@ export const useGameStore = create<GameStore>()(
         }
 
         // Add UNIT_DEATH events for killed units (consumed after the attack animation)
-        if (!defenderAfter) {
-          // Use the knockback destination as the death position when knockback killed the
-          // defender (defender survived primary attack but was displaced into a lethal tile).
-          const defenderDeathPosition = knockbackDefenderEvent
-            ? knockbackDefenderEvent.toPosition
-            : defenderPosition;
+        if (attackDamage?.defenderDied) {
           events.push({
             type: 'UNIT_DEATH',
             unitId: targetId,
-            position: defenderDeathPosition,
+            position: defenderPosition,
             faction: defenderFaction,
             brandmarkSpawnPosition: defenderBrandmarkSpawnPosition,
           });
@@ -912,7 +891,7 @@ export const useGameStore = create<GameStore>()(
             events.push({ type: 'CAVE_MONSTER_KILLED', monsterId: targetId });
           }
         }
-        if (!attackerAfter) {
+        if (attackDamage?.attackerDied) {
           events.push({
             type: 'UNIT_DEATH',
             unitId: attackerId,
@@ -923,9 +902,15 @@ export const useGameStore = create<GameStore>()(
         }
         // Push remaining secondary damage/death events (SPLASH/CLEAVE/PIERCE)
         events.push(...remainingSecondaryEvents);
-        // Push CAVE_MONSTER_KILLED events for any cave monsters killed by SPLASH AoE
+        // Secondary death effects may already have emitted a cave reward.
+        const rewardedMonsterIds = new Set(events.flatMap((event) =>
+          event.type === 'CAVE_MONSTER_KILLED' ? [event.monsterId] : [],
+        ));
         for (const monsterId of splashKilledCaveMonsterIds) {
-          events.push({ type: 'CAVE_MONSTER_KILLED', monsterId });
+          if (!rewardedMonsterIds.has(monsterId)) {
+            events.push({ type: 'CAVE_MONSTER_KILLED', monsterId });
+            rewardedMonsterIds.add(monsterId);
+          }
         }
 
         pendingEvents = events;

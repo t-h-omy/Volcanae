@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.118.1 - Simultaneous combat impact and ordered death effects
+
+Unit attacks now apply direct damage together, resolve impact deaths, and advance surviving melee attackers before death effects. Corrupted Qork bursts hit units on their death tile, chain after complete victim death groups, and no longer leave zero-HP survivors or duplicate death events.
+
 ### v0.118.0 - Corrupted Qork drain and death burst
 
 Corrupted Qorks now spawn ready to act, lose HP at their faction's turn end when off corrupted tiles, and explode on death to damage adjacent units while corrupting their death tile when terrain permits.
