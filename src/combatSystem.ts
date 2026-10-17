@@ -940,8 +940,13 @@ function resolveKnockback(
   });
 }
 
-/** Removes residual combat deaths before deferred assimilations can heal them. */
-function removeUnresolvedCombatDeaths(state: Draft<GameState>, outEvents?: GameEvent[]): void {
+/** Removes residual combat deaths before deferred assimilation bookkeeping. */
+function removeUnresolvedCombatDeaths(
+  state: Draft<GameState>,
+  preexistingDeadIds: Set<string>,
+  sourceFaction: Faction | undefined,
+  outEvents?: GameEvent[],
+): void {
   for (;;) {
     const deceased = Object.values(state.units).find((unit) =>
       unit.stats.currentHp <= 0
@@ -957,6 +962,8 @@ function removeUnresolvedCombatDeaths(state: Draft<GameState>, outEvents?: GameE
       if (shouldLeaveGravestone(deceased, { defaultOn: false })) {
         createGravestoneAt(state, position, deceased.type);
       }
+    } else if (sourceFaction === Faction.PLAYER && !preexistingDeadIds.has(deceased.id)) {
+      state.gameStats.unitsKilled += 1;
     }
     if (deceased.type === UnitType.CAVE_MONSTER) {
       state.activeCaveEncounters = state.activeCaveEncounters.filter(
@@ -987,8 +994,12 @@ export function resolveAttack(
   suppressFloaters?: boolean,
   outEvents?: GameEvent[],
 ): UnitAttackResult | undefined {
+  const sourceFaction = state.units[attackerId]?.faction;
+  const preexistingDeadIds = new Set(
+    Object.values(state.units).filter((unit) => unit.stats.currentHp <= 0).map((unit) => unit.id),
+  );
   const damage = resolveAttackInner(state, attackerId, defenderId, suppressFloaters, outEvents);
-  removeUnresolvedCombatDeaths(state, outEvents);
+  removeUnresolvedCombatDeaths(state, preexistingDeadIds, sourceFaction, outEvents);
   applyPendingAssimilations(state);
   cleanupPortals(state, outEvents);
   return damage;
@@ -1165,7 +1176,6 @@ function resolveAttackInner(
   const attackerWillAdvanceToDefenderTile =
     defenderDead &&
     !attackerDead &&
-    !defender.tags.includes(UnitTag.BRANDMARKED) &&
     !attacker.tags.includes(UnitTag.STONE_SKIN) &&
     !attacker.tags.includes(UnitTag.RANGED) &&
     (state.grid[defender.position.y][defender.position.x].terrainType !== TileType.CANYON ||
@@ -1178,6 +1188,7 @@ function resolveAttackInner(
   const knockbackDeathEffects: Unit[] = [];
   const creditedKillIds = new Set<string>();
   const secondaryDeathBookkeeping: (() => void)[] = [];
+  const secondaryImpactEventGroups: GameEvent[][] = [];
   let advancedTo: Position | null = null;
 
   // Every impact lands before any death bookkeeping, rewards, or death effects.
@@ -1427,6 +1438,7 @@ function resolveAttackInner(
   }
 
   for (const bookkeepDeath of secondaryDeathBookkeeping) bookkeepDeath();
+  for (const impactEvents of secondaryImpactEventGroups) outEvents?.push(...impactEvents);
 
   // KNOCKBACK: when attacker has KNOCKBACK tag and defender survived the primary attack,
   // push defender one tile along the attacker→defender axis.
@@ -1468,7 +1480,6 @@ function resolveAttackInner(
   ]) {
     resolveInfestedDeath(state, deceased, outEvents);
   }
-  for (const killerId of creditedKillIds) clearInfestedOnCreditedKill(state, killerId);
 
   // Death effects can kill the attacker or corrupt its actual post-advance tile.
   const survivingAttacker = state.units[attackerId];
@@ -1549,7 +1560,7 @@ function resolveAttackInner(
             faction: splashTarget.faction,
           });
           applyGhoulKillHeal(state, attackerId, splashTargetHpBeforeHit, outEvents);
-          clearInfestedOnCreditedKill(state, attackerId);
+          creditedKillIds.add(attackerId);
           resolveInfestedDeath(state, splashTarget, outEvents);
         } else {
           applyUnitDamage(splashTarget, splashDamage);
@@ -1558,6 +1569,8 @@ function resolveAttackInner(
       }
     }
   }
+
+  for (const killerId of creditedKillIds) clearInfestedOnCreditedKill(state, killerId);
 
   function resolveCleaveImpact(): void {
     // CLEAVE uses primary damage directly on tiles adjacent to both combatants.
@@ -1580,6 +1593,8 @@ function resolveAttackInner(
         const cleaveTargetId = cleaveTile.unitId;
         const cleaveTarget = state.units[cleaveTargetId];
         if (!cleaveTarget || cleaveTarget.faction === attacker.faction) continue;
+        const cleaveEvents: GameEvent[] | undefined = outEvents ? [] : undefined;
+        if (cleaveEvents) secondaryImpactEventGroups.push(cleaveEvents);
         const finalCleaveDamage = Math.max(1, cleaveDamage);
         const cleaveDamageOutcome = getUnitDamageOutcome(cleaveTarget, finalCleaveDamage);
         const cleaveTargetHpBeforeHit = cleaveTarget.stats.currentHp;
@@ -1588,7 +1603,7 @@ function resolveAttackInner(
           const { addFloater } = useFloaterStore.getState();
           addFloater({ value: finalCleaveDamage, x: cx, y: cy, isEnemy: cleaveTarget.faction === Faction.ENEMY });
         }
-        outEvents?.push({
+        cleaveEvents?.push({
           type: 'CLEAVE_DAMAGE',
           unitId: cleaveTargetId,
           position: { x: cx, y: cy },
@@ -1598,21 +1613,32 @@ function resolveAttackInner(
         });
         if (cleaveDamageOutcome.died) {
           secondaryDeathBookkeeping.push(() => {
-            cleaveTile.unitId = null;
             recordKhyronKill(state, attackerId, cleaveTarget.faction, cleaveTarget.tags, cleaveTarget.stats.attackRange);
-            delete state.units[cleaveTargetId];
+            if (cleaveTarget.tags.includes(UnitTag.BRANDMARKED)) {
+              completeBrandmarkTransformInPlace(
+                state, cleaveTargetId, { x: cx, y: cy },
+                attackerWillAdvanceToDefenderTile ? [{ ...defenderPosition }] : [],
+              );
+            } else {
+              cleaveTile.unitId = null;
+              delete state.units[cleaveTargetId];
+              if (cleaveTarget.faction === Faction.PLAYER) state.gameStats.unitsLost += 1;
+              else if (attacker.faction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
+              if (shouldLeaveGravestone(cleaveTarget, { defaultOn: false })) {
+                createGravestoneAt(state, { x: cx, y: cy }, cleaveTarget.type);
+              }
+              cleanupPortals(state);
+            }
             creditedKillIds.add(attackerId);
             cleaveDeathEffects.push(cleaveTarget);
-            if (cleaveTarget.faction === Faction.PLAYER) state.gameStats.unitsLost += 1;
-            else if (attacker.faction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
             grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
-            outEvents?.push({
+            cleaveEvents?.push({
               type: 'UNIT_DEATH',
               unitId: cleaveTargetId,
               position: { x: cx, y: cy },
               faction: cleaveTarget.faction,
             });
-            applyGhoulKillHeal(state, attackerId, cleaveTargetHpBeforeHit, outEvents);
+            applyGhoulKillHeal(state, attackerId, cleaveTargetHpBeforeHit, cleaveEvents);
           });
         } else {
           updateBerserkLatch(cleaveTarget);
@@ -1624,6 +1650,8 @@ function resolveAttackInner(
   function resolvePierceImpact(): void {
     // PIERCE uses pre-reduction primary damage, with no second defense reduction.
     if (attackerDead || attackerOnCorrupted || !attacker.tags.includes(UnitTag.PIERCE)) return;
+    const pierceEvents: GameEvent[] | undefined = outEvents ? [] : undefined;
+    if (pierceEvents) secondaryImpactEventGroups.push(pierceEvents);
     const dx = defenderPosition.x - attackerPosition.x;
     const dy = defenderPosition.y - attackerPosition.y;
     const behindPos = { x: defenderPosition.x + dx, y: defenderPosition.y + dy };
@@ -1647,7 +1675,7 @@ function resolveAttackInner(
               const { addFloater } = useFloaterStore.getState();
               addFloater({ value: finalPierceDamage, x: behindPos.x, y: behindPos.y, isEnemy: rearUnit.faction === Faction.ENEMY });
             }
-            outEvents?.push({
+            pierceEvents?.push({
               type: 'PIERCE_DAMAGE',
               unitId: rearUnitId,
               buildingId: null,
@@ -1661,21 +1689,28 @@ function resolveAttackInner(
               secondaryDeathBookkeeping.push(() => {
                 recordKhyronKill(state, attackerId, rearUnit.faction, rearUnit.tags, rearUnit.stats.attackRange);
                 if (rearUnit.tags.includes(UnitTag.BRANDMARKED)) {
-                  completeBrandmarkTransformInPlace(state, rearUnitId, behindPos);
+                  completeBrandmarkTransformInPlace(
+                    state, rearUnitId, behindPos,
+                    attackerWillAdvanceToDefenderTile ? [{ ...defenderPosition }] : [],
+                  );
                 } else {
                   behindTile.unitId = null;
                   delete state.units[rearUnitId];
                   if (rearUnit.faction === Faction.PLAYER) state.gameStats.unitsLost += 1;
                   else if (attacker.faction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
+                  if (shouldLeaveGravestone(rearUnit, { defaultOn: false })) {
+                    createGravestoneAt(state, behindPos, rearUnit.type);
+                  }
+                  cleanupPortals(state);
                 }
                 grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
-                outEvents?.push({
+                pierceEvents?.push({
                   type: 'UNIT_DEATH',
                   unitId: rearUnitId,
                   position: { ...behindPos },
                   faction: rearUnit.faction,
                 });
-                applyGhoulKillHeal(state, attackerId, rearUnitHpBeforeHit, outEvents);
+                applyGhoulKillHeal(state, attackerId, rearUnitHpBeforeHit, pierceEvents);
                 creditedKillIds.add(attackerId);
                 pierceDeathEffects.push(rearUnit);
               });
@@ -1684,7 +1719,7 @@ function resolveAttackInner(
             }
           } else {
             // Friendly rear unit: no damage, but emit VFX-only so the lance renders through.
-            outEvents?.push({
+            pierceEvents?.push({
               type: 'PIERCE_DAMAGE',
               unitId: rearUnitId,
               buildingId: null,
@@ -1707,7 +1742,7 @@ function resolveAttackInner(
               const { addFloater } = useFloaterStore.getState();
               addFloater({ value: finalPierceBuildingDamage, x: behindPos.x, y: behindPos.y, isEnemy: rearBuilding.faction === Faction.ENEMY });
             }
-            outEvents?.push({
+            pierceEvents?.push({
               type: 'PIERCE_DAMAGE',
               unitId: null,
               buildingId: rearBuilding.id,
@@ -1720,7 +1755,7 @@ function resolveAttackInner(
             rearBuilding.hp = Math.max(0, rearBuilding.hp - finalPierceBuildingDamage);
           } else {
             // Friendly rear building: no damage, but emit VFX-only so the lance renders through.
-            outEvents?.push({
+            pierceEvents?.push({
               type: 'PIERCE_DAMAGE',
               unitId: null,
               buildingId: rearBuilding.id,
@@ -1734,7 +1769,7 @@ function resolveAttackInner(
         }
       } else {
         // Empty tile behind the defender: emit VFX-only event (no damage).
-        outEvents?.push({
+        pierceEvents?.push({
           type: 'PIERCE_DAMAGE',
           unitId: null,
           buildingId: null,
@@ -1747,7 +1782,7 @@ function resolveAttackInner(
       }
     } else {
       // Behind tile is out of bounds: still emit VFX using the extrapolated position.
-      outEvents?.push({
+      pierceEvents?.push({
         type: 'PIERCE_DAMAGE',
         unitId: null,
         buildingId: null,

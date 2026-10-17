@@ -124,12 +124,16 @@ describe('combat resolution order', () => {
     const chained = qorkAt(5, 5, CORRUPTED_QORK.DEATH_EXPLOSION_DAMAGE);
     const { state, result, events } = attack(stateWith([attacker, defender, chained]), attacker, defender);
 
-    expect(result?.advancedTo).toEqual(defender.position);
+    expect(result).toMatchObject({
+      attackerDied: false, defenderDied: true, advancedTo: defender.position,
+    });
     expect(state.units[attacker.id].position).toEqual(defender.position);
     expect(state.units[attacker.id].stats.currentHp)
       .toBe(attacker.stats.currentHp - CORRUPTED_QORK.DEATH_EXPLOSION_DAMAGE * 2);
     expect(state.units[chained.id]).toBeUndefined();
     expect(events.filter((event) => event.type === 'QORK_DEATH_BURST')).toHaveLength(2);
+    expect(events.filter((event) => event.type === 'UNIT_DEATH').map((event) => event.unitId))
+      .toEqual([chained.id]);
   });
 
   it('reports a completed fatal advance without turning death-effect damage into an impact death', () => {
@@ -149,6 +153,8 @@ describe('combat resolution order', () => {
     expect(events).toContainEqual({
       type: 'UNIT_DEATH', unitId: attacker.id, position: defender.position, faction: Faction.PLAYER,
     });
+    expect(events.filter((event) => event.type === 'UNIT_DEATH').map((event) => event.unitId))
+      .toEqual([attacker.id, chained.id]);
   });
 
   it('bookkeeps primary, pierce, and grid-ordered cleave impact deaths before any bursts', () => {
@@ -157,11 +163,23 @@ describe('combat resolution order', () => {
     const rear = qorkAt(5, 5);
     const north = qorkAt(4, 4);
     const south = qorkAt(3, 6);
-    const { state, events } = attack(stateWith([attacker, defender, rear, south, north]), attacker, defender);
+    const { state, events, result } = attack(stateWith([attacker, defender, rear, south, north]), attacker, defender);
 
+    expect(result).toMatchObject({ attackerDied: false, defenderDied: true, advancedTo: defender.position });
     expect(state.gameStats.unitsKilled).toBe(4);
     const deaths = events.filter((event) => event.type === 'UNIT_DEATH');
     expect(deaths.map((event) => event.unitId)).toEqual([rear.id, north.id, south.id]);
+    const secondaryImpactEvents = events.filter((event) =>
+      event.type === 'PIERCE_DAMAGE' || event.type === 'CLEAVE_DAMAGE' || event.type === 'UNIT_DEATH',
+    );
+    expect(secondaryImpactEvents.map((event) => [event.type, event.unitId])).toEqual([
+      ['PIERCE_DAMAGE', rear.id],
+      ['UNIT_DEATH', rear.id],
+      ['CLEAVE_DAMAGE', north.id],
+      ['UNIT_DEATH', north.id],
+      ['CLEAVE_DAMAGE', south.id],
+      ['UNIT_DEATH', south.id],
+    ]);
     const bursts = events.filter((event) => event.type === 'QORK_DEATH_BURST');
     expect(bursts.map((event) => event.position))
       .toEqual([defender.position, rear.position, north.position, south.position]);
@@ -227,6 +245,19 @@ describe('combat resolution order', () => {
     expect(state.units[attacker.id].infestedByMageId).toBeNull();
   });
 
+  it('flushes primary and splash kill credit only after splash death effects', () => {
+    const attacker = attackerWith([UnitTag.SPLASH, UnitTag.RANGED]);
+    const defender = unit({ x: 4, y: 5 }, Faction.ENEMY, [UnitTag.INFESTED]);
+    defender.stats.currentHp = 1;
+    const splashed = unit({ x: 4, y: 4 }, Faction.ENEMY, [UnitTag.INFESTED]);
+    splashed.stats.currentHp = 1;
+    const { state } = attack(stateWith([attacker, defender, splashed]), attacker, defender);
+
+    expect(state.gameStats.unitsKilled).toBe(2);
+    expect(state.units[attacker.id].tags).not.toContain(UnitTag.INFESTED);
+    expect(state.units[attacker.id].infestedByMageId).toBeNull();
+  });
+
   it('checks Bloodlust suppression after a death burst corrupts the advance tile', () => {
     const attacker = attackerWith([UnitTag.BLOODLUST]);
     const defender = qorkAt(4, 5);
@@ -252,18 +283,79 @@ describe('combat resolution order', () => {
     expect(state.units[attacker.id].hasAttackedThisTurn).toBe(true);
   });
 
-  it('does not advance into a primary brandmark transformation', () => {
+  it('advances after a primary brandmark death while excluding the destination from demon spawning', () => {
     const attacker = attackerWith();
     attacker.faction = Faction.ENEMY;
     const defender = unit({ x: 4, y: 5 }, Faction.PLAYER, [UnitTag.BRANDMARKED]);
     defender.stats.currentHp = 1;
     const { state, result } = attack(stateWith([attacker, defender]), attacker, defender);
 
-    expect(result).toMatchObject({ defenderDied: true, advancedTo: null });
-    expect(state.units[attacker.id].position).toEqual(attacker.position);
-    const transformed = state.units[state.grid[5][4].unitId!];
-    expect(transformed.type).toBe(UnitType.EMBER_DEMON);
-    expect(transformed.faction).toBe(Faction.ENEMY);
+    expect(result).toMatchObject({ defenderDied: true, advancedTo: defender.position });
+    expect(state.units[attacker.id].position).toEqual(defender.position);
+    expect(state.grid[5][4].unitId).toBe(attacker.id);
+    const transformed = Object.values(state.units).find((entry) => entry.type === UnitType.EMBER_DEMON);
+    expect(transformed?.faction).toBe(Faction.ENEMY);
+    expect(transformed?.position).toEqual({ x: 5, y: 5 });
+  });
+
+  it('reserves the advance destination when a pierce death transforms off its lava tile', () => {
+    const attacker = attackerWith([UnitTag.PIERCE]);
+    attacker.faction = Faction.ENEMY;
+    const defender = unit({ x: 4, y: 5 }, Faction.PLAYER);
+    defender.stats.currentHp = 1;
+    const rear = unit({ x: 5, y: 5 }, Faction.PLAYER, [UnitTag.BRANDMARKED]);
+    rear.stats.currentHp = 1;
+    const initial = stateWith([attacker, defender, rear]);
+    initial.grid[5][5].isLava = true;
+    const { state, result } = attack(initial, attacker, defender);
+
+    expect(result?.advancedTo).toEqual(defender.position);
+    expect(state.grid[5][4].unitId).toBe(attacker.id);
+    expect(state.units[rear.id]).toBeUndefined();
+    const transformed = Object.values(state.units).find((entry) => entry.type === UnitType.EMBER_DEMON);
+    expect(transformed?.position).toEqual({ x: 6, y: 5 });
+    expect(state.gameStats.unitsLost).toBe(2);
+  });
+
+  it('does not spawn a cleave brandmark demon onto the reserved advance destination', () => {
+    const attacker = attackerWith([UnitTag.CLEAVE]);
+    attacker.faction = Faction.ENEMY;
+    const defender = unit({ x: 4, y: 5 }, Faction.PLAYER);
+    defender.stats.currentHp = 1;
+    const cleaved = unit({ x: 4, y: 4 }, Faction.PLAYER, [UnitTag.BRANDMARKED]);
+    cleaved.stats.currentHp = 1;
+    const blockers = [
+      unit({ x: 3, y: 4 }), unit({ x: 5, y: 4 }), unit({ x: 4, y: 3 }),
+    ];
+    const initial = stateWith([attacker, defender, cleaved, ...blockers]);
+    initial.grid[4][4].isLava = true;
+    const { state, result } = attack(initial, attacker, defender);
+
+    expect(result?.advancedTo).toEqual(defender.position);
+    expect(state.grid[5][4].unitId).toBe(attacker.id);
+    expect(state.units[cleaved.id]).toBeUndefined();
+    expect(Object.values(state.units).filter((entry) => entry.type === UnitType.EMBER_DEMON)).toEqual([]);
+    expect(state.gameStats.unitsLost).toBe(2);
+  });
+
+  it('leaves eligible gravestones for both pierce and cleave impact deaths', () => {
+    const attacker = attackerWith([UnitTag.PIERCE, UnitTag.CLEAVE]);
+    attacker.faction = Faction.ENEMY;
+    const defender = unit({ x: 4, y: 5 }, Faction.PLAYER);
+    defender.stats.currentHp = defender.stats.maxHp = 1000;
+    const rear = unit({ x: 5, y: 5 }, Faction.PLAYER, [UnitTag.REVIVABLE]);
+    rear.stats.currentHp = 1;
+    const cleaved = unit({ x: 4, y: 4 }, Faction.PLAYER, [UnitTag.REVIVABLE]);
+    cleaved.stats.currentHp = 1;
+    const { state } = attack(stateWith([attacker, defender, rear, cleaved]), attacker, defender);
+
+    expect(state.gameStats.unitsLost).toBe(2);
+    expect(state.units[rear.id]).toBeUndefined();
+    expect(state.units[cleaved.id]).toBeUndefined();
+    expect(state.grid[5][5].buildingId).not.toBeNull();
+    expect(state.grid[4][4].buildingId).not.toBeNull();
+    expect(Object.values(state.buildings).map((building) => building.gravesUnitType))
+      .toEqual([rear.type, cleaved.type]);
   });
 
   it('sweeps unresolved zero-HP units with graves, cave cleanup, and death effects but keeps pending brandmarks', () => {
