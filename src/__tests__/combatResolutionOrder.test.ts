@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { produce } from 'immer';
 import { resolveAttack, type UnitAttackResult } from '../combatSystem';
-import { CORRUPTED_QORK, MAP, UNIT_DEFINITIONS } from '../gameConfig';
+import { CORRUPTED_QORK, MAGE, MAP, UNIT_DEFINITIONS } from '../gameConfig';
 import type { GameEvent } from '../gameEvents';
 import { Faction, TileStatus, TileType, UnitTag, UnitType } from '../types';
 import type { GameState, Position, Tile, Unit } from '../types';
@@ -413,6 +413,33 @@ describe('combat resolution order', () => {
     expect(Object.values(state.buildings).map((building) => building.gravesUnitType))
       .toEqual([rear.type, cleaved.type]);
   });
+
+  it.each([Faction.PLAYER, Faction.ENEMY])(
+    'applies faction-gated Ember Demon crystal rewards to pierce and cleave kills by a %s source',
+    (sourceFaction) => {
+      const attacker = attackerWith([UnitTag.PIERCE, UnitTag.CLEAVE]);
+      attacker.faction = sourceFaction;
+      const victimFaction = sourceFaction === Faction.PLAYER ? Faction.ENEMY : Faction.PLAYER;
+      const defender = unit({ x: 4, y: 5 }, victimFaction);
+      defender.stats.currentHp = defender.stats.maxHp = 1000;
+      const rear = unit(
+        { x: 5, y: 5 }, victimFaction, [...UNIT_DEFINITIONS.EMBER_DEMON.tags], UnitType.EMBER_DEMON,
+      );
+      rear.stats.currentHp = 1;
+      const cleaved = unit(
+        { x: 4, y: 4 }, victimFaction, [...UNIT_DEFINITIONS.EMBER_DEMON.tags], UnitType.EMBER_DEMON,
+      );
+      cleaved.stats.currentHp = 1;
+      const { state } = attack(stateWith([attacker, defender, rear, cleaved]), attacker, defender);
+
+      expect(state.units[defender.id]).toBeDefined();
+      expect(state.units[rear.id]).toBeUndefined();
+      expect(state.units[cleaved.id]).toBeUndefined();
+      expect(state.arcaneCrystals).toBe(
+        sourceFaction === Faction.PLAYER ? MAGE.EMBER_DEMON_KILL_CRYSTAL_REWARD * 2 : 0,
+      );
+    },
+  );
 
   it('sweeps unresolved zero-HP units with graves, cave cleanup, and death effects but keeps pending brandmarks', () => {
     const attacker = attackerWith();

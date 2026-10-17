@@ -1630,6 +1630,13 @@ function resolveAttackInner(
             creditedKillIds.add(attackerId);
             cleaveDeathEffects.push(cleaveTarget);
             grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
+            if (
+              attackerFaction === Faction.PLAYER &&
+              cleaveTarget.faction === Faction.ENEMY &&
+              cleaveTarget.type === UnitType.EMBER_DEMON
+            ) {
+              state.arcaneCrystals += MAGE.EMBER_DEMON_KILL_CRYSTAL_REWARD;
+            }
             cleaveEvents?.push({
               type: 'UNIT_DEATH',
               unitId: cleaveTargetId,
@@ -1702,6 +1709,13 @@ function resolveAttackInner(
                   cleanupPortals(state);
                 }
                 grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
+                if (
+                  attackerFaction === Faction.PLAYER &&
+                  rearUnit.faction === Faction.ENEMY &&
+                  rearUnit.type === UnitType.EMBER_DEMON
+                ) {
+                  state.arcaneCrystals += MAGE.EMBER_DEMON_KILL_CRYSTAL_REWARD;
+                }
                 pierceEvents?.push({
                   type: 'UNIT_DEATH',
                   unitId: rearUnitId,
