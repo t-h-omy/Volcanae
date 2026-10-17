@@ -2,14 +2,15 @@
  * Crystal Khyron: Resonance tag lifecycle and Resonant Assimilation.
  *
  * - RESONANCE is granted while a Crystal Chamber resonates (never by caves alone).
- * - The first eligible enemy kill credited in each active Resonance queues an
- *   assimilation snapshot of the victim's transferable tags. The queue is
+ * - The first eligible enemy unit kill or building destruction in each active
+ *   Resonance queues a snapshot of the defeated source's transferable tags. The queue is
  *   applied once the current action resolves, earning a manual level-up. Tags
  *   are inherited only when the player confirms the banked level-ups.
  */
 
 import type { Draft } from 'immer';
-import type { GameState, Unit } from './types';
+import type { Building, GameState, Unit } from './types';
+import type { GameEvent } from './gameEvents';
 import { BuildingType, Faction, UnitTag, UnitType } from './types';
 import { ABILITIES, CRYSTAL_KHYRON } from './gameConfig';
 
@@ -24,7 +25,7 @@ export function isCrystalKhyron(unit: Pick<Unit, 'type'> | undefined | null): bo
   return !!unit && unit.type === UnitType.CRYSTAL_KHYRON;
 }
 
-/** Whether the Khyron may hold RESONANCE (any level; Lv.3 only gains the heal). */
+/** Whether the Khyron may hold RESONANCE at any level. */
 export function canKhyronResonate(unit: Pick<Unit, 'type' | 'faction'>): boolean {
   return unit.type === UnitType.CRYSTAL_KHYRON && unit.faction === Faction.PLAYER;
 }
@@ -42,10 +43,15 @@ export function isKhyronResonanceActive(unit: Pick<Unit, 'tags' | 'resonanceActi
 }
 
 /** Heals every resonating player Khyron at the start of the turn (capped at max HP). */
-export function healResonatingKhyrons(state: Draft<GameState>): void {
+export function healResonatingKhyrons(state: Draft<GameState>, events?: GameEvent[]): void {
   for (const unit of Object.values(state.units)) {
     if (!canKhyronResonate(unit) || !isKhyronResonanceActive(unit)) continue;
+    const previousHp = unit.stats.currentHp;
     unit.stats.currentHp = Math.min(unit.stats.maxHp, unit.stats.currentHp + ABILITIES.RESONANCE_HEAL_AMOUNT);
+    const amount = unit.stats.currentHp - previousHp;
+    if (amount > 0) {
+      events?.push({ type: 'UNIT_HEAL', unitId: unit.id, position: { ...unit.position }, amount });
+    }
   }
 }
 
@@ -56,12 +62,18 @@ export function filterTransferableTags(tags: readonly UnitTag[]): UnitTag[] {
 
 /** True when any player Crystal Chamber is currently resonating. */
 export function isAnyChamberResonating(state: KhyronState): boolean {
-  return Object.values(state.buildings).some(
-    (b) =>
-      b.faction === Faction.PLAYER &&
-      b.type === BuildingType.CRYSTAL_CHAMBER &&
-      b.resonanceTurnsRemaining > 0,
-  );
+  return getKhyronResonanceTurnsRemaining(state) > 0;
+}
+
+/** Highest remaining countdown among player Crystal Chambers. */
+export function getKhyronResonanceTurnsRemaining(state: KhyronState): number {
+  let remaining = 0;
+  for (const building of Object.values(state.buildings)) {
+    if (building.faction === Faction.PLAYER && building.type === BuildingType.CRYSTAL_CHAMBER) {
+      remaining = Math.max(remaining, building.resonanceTurnsRemaining);
+    }
+  }
+  return remaining;
 }
 
 /** Activates RESONANCE on every player Khyron (all levels) when a new resonance triggers. */
@@ -84,11 +96,42 @@ export function expireKhyronResonance(state: Draft<GameState>): void {
   }
 }
 
-/**
- * Queues a Resonant Assimilation for a resonating Khyron that has just killed an
- * enemy unit. Only the first credited kill of an action is recorded.
- * Call BEFORE the victim is deleted (or pass the victim's tag snapshot).
- */
+export interface KhyronAssimilationSource {
+  faction: Faction | null;
+  tags: readonly UnitTag[];
+  attackRange: number;
+}
+
+/** Snapshot a building before destruction or neutralization changes its ownership. */
+export function snapshotKhyronBuildingSource(
+  building: Pick<Building, 'faction' | 'tags' | 'combatStats'>,
+): KhyronAssimilationSource {
+  return {
+    faction: building.faction,
+    tags: [...building.tags],
+    attackRange: building.combatStats?.attackRange ?? 0,
+  };
+}
+
+/** Queues only the first credited enemy source in an active Resonance action. */
+export function recordKhyronAssimilationSource(
+  state: Draft<GameState>,
+  killerId: string,
+  source: KhyronAssimilationSource,
+): void {
+  const killer = state.units[killerId];
+  if (!killer || !canKhyronResonate(killer) || getKhyronBankableLevels(killer) <= 0) return;
+  if (source.faction !== Faction.ENEMY) return;
+  if (!isKhyronResonanceActive(killer)) return;
+  if (killer.pendingAssimilationTags !== undefined) return;
+  const transferableTags = filterTransferableTags(source.tags);
+  killer.pendingAssimilationTags = transferableTags;
+  if (transferableTags.includes(UnitTag.RANGED)) {
+    killer.pendingAssimilationAttackRange = source.attackRange;
+  }
+}
+
+/** Compatibility adapter for existing unit-kill credit callers. */
 export function recordKhyronKill(
   state: Draft<GameState>,
   killerId: string,
@@ -96,16 +139,11 @@ export function recordKhyronKill(
   victimTags: readonly UnitTag[],
   victimAttackRange: number,
 ): void {
-  const killer = state.units[killerId];
-  if (!killer || !canKhyronResonate(killer) || getKhyronBankableLevels(killer) <= 0) return;
-  if (victimFaction !== Faction.ENEMY) return;
-  if (!isKhyronResonanceActive(killer)) return;
-  if (killer.pendingAssimilationTags !== undefined) return;
-  const transferableTags = filterTransferableTags(victimTags);
-  killer.pendingAssimilationTags = transferableTags;
-  if (transferableTags.includes(UnitTag.RANGED)) {
-    killer.pendingAssimilationAttackRange = victimAttackRange;
-  }
+  recordKhyronAssimilationSource(state, killerId, {
+    faction: victimFaction,
+    tags: victimTags,
+    attackRange: victimAttackRange,
+  });
 }
 
 /** Converts queued assimilations to earned readiness after an attack fully resolves. */

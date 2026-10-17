@@ -2389,10 +2389,11 @@ export const useGameStore = create<GameStore>()(
 
         // Phase 6: New turn bookkeeping on computedState
         const leashDefectEvents: GameEvent[] = [];
+        const resourceEvents: GameEvent[] = [];
         const tagDamageEvents: GameEvent[] = [];
         computedState = produce(computedState, (draft) => {
           // Collect resources
-          collectResources(draft);
+          collectResources(draft, resourceEvents);
 
           // Deduct specialist upkeep and update dormant status
           deductSpecialistUpkeep(draft);
@@ -2671,6 +2672,9 @@ export const useGameStore = create<GameStore>()(
         // defects before the enemy-turn action events that follow them.
         if (leashDefectEvents.length > 0) {
           allEvents.unshift(...leashDefectEvents);
+        }
+        if (resourceEvents.length > 0) {
+          allEvents.push(...resourceEvents);
         }
         if (tagDamageEvents.length > 0) {
           allEvents.push(...tagDamageEvents);

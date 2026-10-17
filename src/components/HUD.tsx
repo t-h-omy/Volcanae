@@ -12,6 +12,7 @@ import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
 import { useSoundOptionsStore } from '../soundOptionsStore';
 import { usesNonXpProgression } from '../levelSystem';
+import { getKhyronResonanceTurnsRemaining, isKhyronResonanceActive } from '../khyronSystem';
 import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, computeResearchCost, SPELL_DEFINITIONS, MAGE, CORRUPTED_SUPPRESSED_TAGS, CRYSTAL_CAVE_CONFIG, CRYSTAL_CHAMBER_CONFIG, MARKET, SPECIALIST_DEFINITIONS, CONDITIONAL_ACTIVE_TAGS } from '../gameConfig';
 import type { SpecialistDefinition } from '../gameConfig';
 import { UI } from '../../config/ui';
@@ -2511,6 +2512,11 @@ function SelectedUnitPanel({
           {unit.stats.currentHp}/{unit.stats.maxHp}
         </span>
       </div>
+      {isPlayer && unit.type === UnitType.CRYSTAL_KHYRON && isKhyronResonanceActive(unit) && (
+        <div className="hud-production-row">
+          ✨ {t('hud.unitPanel.resonating', { turns: getKhyronResonanceTurnsRemaining(gameState) })}
+        </div>
+      )}
       {isPlayer && usesNonXpProgression(unit.type) && (
         <div className="hud-xp-row">
           <span className="hud-xp-label">{t('hud.unitPanel.level', { level: unit.level })}</span>

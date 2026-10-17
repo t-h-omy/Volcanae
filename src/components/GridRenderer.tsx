@@ -1769,7 +1769,6 @@ function CaptureIndicatorLayer({ tileSize }: { tileSize: number }) {
     const result: Array<{ key: string; x: number; y: number }> = [];
     for (const unit of Object.values(units)) {
       if (unit.faction !== Faction.PLAYER) continue;
-      if (usesNonXpProgression(unit.type)) continue;
       for (const building of Object.values(buildings)) {
         if (
           building.position.x === unit.position.x &&

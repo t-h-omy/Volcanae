@@ -12,7 +12,12 @@ import type { GameEvent } from './gameEvents';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { UNIT_DEFINITIONS, XP, ABILITIES, MAP, BUILDING_DEFINITIONS, MAGE } from './gameConfig';
 import { grantXp } from './levelSystem';
-import { recordKhyronKill, applyPendingAssimilations } from './khyronSystem';
+import {
+  recordKhyronKill,
+  recordKhyronAssimilationSource,
+  snapshotKhyronBuildingSource,
+  applyPendingAssimilations,
+} from './khyronSystem';
 import { generateId } from './mapGenerator';
 import { isUnitOnCorruptedTile, applyTileStatus } from './tileStatusSystem';
 import { cleanupRoostedUnits } from './buildingRemoval';
@@ -1348,6 +1353,7 @@ function resolveAttackInner(
       if (tileOfDead.buildingId) {
         const bld = state.buildings[tileOfDead.buildingId];
         if (bld && bld.faction === Faction.ENEMY) {
+          const assimilationSource = snapshotKhyronBuildingSource(bld);
           if (bld.type === BuildingType.WATCHTOWER) {
             // Watchtower goes neutral so it can be captured
             bld.hp = bld.maxHp;
@@ -1356,6 +1362,7 @@ function resolveAttackInner(
             bld.specialistSlot = null;
             bld.turnCapturedByPlayer = null;
             bld.wasEnemyOwnedBeforeCapture = false;
+            recordKhyronAssimilationSource(state, attackerId, assimilationSource);
             grantXp(state, attackerId, XP.DESTROY_BUILDING, suppressFloaters);
           } else if (
             bld.type !== BuildingType.LAVALAIR &&
@@ -1375,6 +1382,7 @@ function resolveAttackInner(
             }
             // DestroyBehavior.NONE / DestroyBehavior.RESOURCE: no ruin — terrain is restored naturally
             state.gameStats.enemyBuildingsDestroyed += 1;
+            recordKhyronAssimilationSource(state, attackerId, assimilationSource);
             grantXp(state, attackerId, XP.DESTROY_BUILDING, suppressFloaters);
           }
           // LAVALAIR / INFERNALSANCTUM / EMBERNEST: remain as enemy buildings.
@@ -2113,6 +2121,7 @@ function resolveAttackOnBuildingInner(
   // Capture factions before any mutations
   const attackerFaction = attacker.faction;
   const buildingFaction = building.faction;
+  const assimilationSource = snapshotKhyronBuildingSource(building);
 
   // Capture attacker and building positions before any mutations
   const attackerPosition = { x: attacker.position.x, y: attacker.position.y };
@@ -2317,6 +2326,7 @@ function resolveAttackOnBuildingInner(
       building.wasEnemyOwnedBeforeCapture = false;
       // Grant XP to player attacker when enemy watchtower goes neutral
       if (!attackerDead && attackerFaction === Faction.PLAYER && previousBuildingFaction === Faction.ENEMY) {
+        recordKhyronAssimilationSource(state, attackerId, assimilationSource);
         grantXp(state, attackerId, XP.DESTROY_BUILDING, suppressFloaters);
         state.gameStats.enemyBuildingsDestroyed += 1;
       }
@@ -2325,6 +2335,7 @@ function resolveAttackOnBuildingInner(
       applyBuildingDestroyEffect(state, buildingId, building.position, building.destroyBehavior);
       // Grant XP to player attacker for destroying enemy building
       if (!attackerDead) {
+        recordKhyronAssimilationSource(state, attackerId, assimilationSource);
         grantXp(state, attackerId, XP.DESTROY_BUILDING, suppressFloaters);
       }
       state.gameStats.enemyBuildingsDestroyed += 1;

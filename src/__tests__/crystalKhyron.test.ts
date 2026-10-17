@@ -26,7 +26,15 @@ import {
 } from '../resourceSystem';
 import { resolveAttack, resolveAttackOnBuilding, shouldLeaveGravestone } from '../combatSystem';
 import { grantXp, canGrantXp, applyLevelUps, computeLevelFromXp, getUnitTargetLevel } from '../levelSystem';
-import { grantKhyronResonance, applyPendingAssimilations, getKhyronBankableLevels, recordKhyronKill, filterTransferableTags } from '../khyronSystem';
+import {
+  grantKhyronResonance, applyPendingAssimilations, getKhyronBankableLevels,
+  recordKhyronKill, filterTransferableTags, healResonatingKhyrons,
+  getKhyronResonanceTurnsRemaining, snapshotKhyronBuildingSource,
+  recordKhyronAssimilationSource,
+} from '../khyronSystem';
+import type { GameEvent } from '../gameEvents';
+import { initiateCapture } from '../captureSystem';
+import { TAG_INFO } from '../../config/tagInfo';
 import { LEVEL_UP_VALUES } from '../../config/progression';
 import { useGameStore } from '../gameStore';
 import { useFloaterStore } from '../floaterStore';
@@ -200,9 +208,14 @@ describe('Crystal Khyron unit definition', () => {
       attackRange: 1, discoverRadius: 1, triggerRange: 0,
     });
   });
-  it('costs 2 crystals and no iron/wood or population', () => {
-    expect(def.cost).toEqual({ iron: 0, wood: 0, crystals: 2 });
+  it('costs 3 crystals and no iron/wood or population', () => {
+    expect(def.cost).toEqual({ iron: 0, wood: 0, crystals: 3 });
     expect(def.populationCost).toEqual({ farmers: 0, nobles: 0 });
+  });
+  it('exposes healing and maximum level as localized text parameters', () => {
+    const params = { healAmount: ABILITIES.RESONANCE_HEAL_AMOUNT, maxLevel: CRYSTAL_KHYRON.MAX_LEVEL };
+    expect(def.textParams).toEqual(params);
+    expect(TAG_INFO[UnitTag.RESONANCE].textParams).toEqual(params);
   });
   it('is a MECH without READY and has HP-only level-ups', () => {
     expect(def.tags).toContain(UnitTag.MECH);
@@ -222,10 +235,16 @@ describe('Crystal Khyron unit definition', () => {
   it('has English text without em dashes', () => {
     expect(t('unit.CRYSTAL_KHYRON.name')).toBe('Crystal Khyron');
     expect(t('tag.RESONANCE.label')).toBe('Resonance');
-    expect(t('unit.CRYSTAL_KHYRON.desc')).toContain('Inheriting Ranged also raises its attack range');
-    expect(t('unit.CRYSTAL_KHYRON.desc')).toContain('Transferable tags: Cleave, Pierce, Rage, Alert, Ironblood, Block, Puncture, Burn, Build & Capture, Ranged.');
-    expect(t('tag.RESONANCE.desc', { healAmount: ABILITIES.RESONANCE_HEAL_AMOUNT })).toContain('Transferable tags: Cleave, Pierce, Rage, Alert, Ironblood, Block, Puncture, Burn, Build & Capture.');
-    expect(t('tech.CRYSTAL_KHYRON.desc', { crystalCost: 2 })).toContain('2 Arcane Crystals');
+    for (const description of [
+      t('unit.CRYSTAL_KHYRON.desc', def.textParams),
+      t('tag.RESONANCE.desc', TAG_INFO[UnitTag.RESONANCE].textParams),
+    ]) {
+      expect(description).toContain(`${ABILITIES.RESONANCE_HEAL_AMOUNT} HP`);
+      expect(description).toContain(`level ${CRYSTAL_KHYRON.MAX_LEVEL}`);
+      expect(description).not.toContain('\u2014');
+    }
+    const crystalCost = def.cost.crystals!;
+    expect(t('tech.CRYSTAL_KHYRON.desc', { crystalCost })).toContain(`${crystalCost} Arcane Crystals`);
   });
 });
 
@@ -242,15 +261,16 @@ describe('Crystal Khyron recruitment', () => {
     expect(canBuildingEverRecruit({ unlockedUnits: [UnitType.CRYSTAL_KHYRON] }, c)).toBe(true);
   });
 
-  it('recruits during resonance, deducting exactly 2 crystals and no iron/wood', () => {
+  it('recruits during resonance, deducting configured crystals and no iron/wood', () => {
     const c = chamber(2, 2);
     const state = makeState([], [c]);
     state.resources = { iron: 7, wood: 9 };
+    const initialCrystals = state.arcaneCrystals;
     recruitUnit(state, c.id, UnitType.CRYSTAL_KHYRON);
     const units = Object.values(state.units);
     expect(units).toHaveLength(1);
     expect(units[0].type).toBe(UnitType.CRYSTAL_KHYRON);
-    expect(state.arcaneCrystals).toBe(8);
+    expect(state.arcaneCrystals).toBe(initialCrystals - UNIT_DEFINITIONS[UnitType.CRYSTAL_KHYRON].cost.crystals!);
     expect(state.resources).toEqual({ iron: 7, wood: 9 });
     expect(units[0].level).toBe(1);
     expect(units[0].xp).toBe(0);
@@ -273,13 +293,14 @@ describe('Crystal Khyron recruitment', () => {
     expect(state.arcaneCrystals).toBe(10);
   });
 
-  it('requires 2 crystals', () => {
+  it('requires the configured crystal cost', () => {
     const c = chamber(2, 2);
     const state = makeState([], [c]);
-    state.arcaneCrystals = 1;
+    const insufficientCrystals = UNIT_DEFINITIONS[UnitType.CRYSTAL_KHYRON].cost.crystals! - 1;
+    state.arcaneCrystals = insufficientCrystals;
     recruitUnit(state, c.id, UnitType.CRYSTAL_KHYRON);
     expect(Object.values(state.units)).toHaveLength(0);
-    expect(state.arcaneCrystals).toBe(1);
+    expect(state.arcaneCrystals).toBe(insufficientCrystals);
   });
 
   it('is rejected from a Crystal Cave', () => {
@@ -621,6 +642,36 @@ describe('Crystal Khyron Resonance lifecycle', () => {
 });
 
 describe('Resonance healing', () => {
+  it('emits actual positive healing only and snapshots event positions', () => {
+    const injured = khyron(4, 4);
+    injured.stats.currentHp -= 5;
+    const full = khyron(5, 4);
+    const inactive = khyron(6, 4);
+    inactive.resonanceActive = false;
+    inactive.stats.currentHp = 1;
+    const enemy = khyron(1, 4);
+    enemy.faction = Faction.ENEMY;
+    enemy.stats.currentHp = 1;
+    const untagged = khyron(2, 4, []);
+    untagged.resonanceActive = true;
+    untagged.stats.currentHp = 1;
+    const mage = makeUnit(UnitType.MAGE, { x: 3, y: 4 }, Faction.PLAYER, [UnitTag.RESONANCE]);
+    mage.resonanceActive = true;
+    mage.stats.currentHp = 1;
+    const state = makeState([injured, full, inactive, enemy, untagged, mage]);
+    const events: GameEvent[] = [];
+    healResonatingKhyrons(state, events);
+    expect(events).toEqual([{
+      type: 'UNIT_HEAL', unitId: injured.id, position: { x: 4, y: 4 }, amount: 5,
+    }]);
+    expect(injured.stats.currentHp).toBe(injured.stats.maxHp);
+    for (const unit of [inactive, enemy, untagged, mage]) {
+      expect(unit.stats.currentHp).toBe(1);
+    }
+    injured.position.x += 1;
+    expect(events[0]).toMatchObject({ position: { x: 4, y: 4 } });
+  });
+
   it('heals 20 HP at the start of the turn while resonating, capped at max HP', () => {
     const a = khyron(4, 4, [UnitTag.RESONANCE]);
     a.stats.currentHp = 50;
@@ -641,6 +692,195 @@ describe('Resonance healing', () => {
     applyPendingAssimilations(state);
     expect(state.units[k.id].level).toBe(3);
   });
+});
+
+describe('Khyron Resonance countdown', () => {
+  it('uses the highest player Chamber countdown, excluding caves and enemy Chambers', () => {
+    const short = chamber(1, 1, 1);
+    const long = chamber(2, 1, 3);
+    const enemy = chamber(3, 1, 8);
+    enemy.faction = Faction.ENEMY;
+    const cave = makeBuilding(BuildingType.CRYSTAL_CAVE, { x: 4, y: 1 }, { resonanceTurnsRemaining: 9 });
+    const state = makeState([], [short, long, enemy, cave]);
+    expect(getKhyronResonanceTurnsRemaining(state)).toBe(3);
+    long.resonanceTurnsRemaining = 0;
+    expect(getKhyronResonanceTurnsRemaining(state)).toBe(1);
+    short.resonanceTurnsRemaining = 0;
+    expect(getKhyronResonanceTurnsRemaining(state)).toBe(0);
+    expect(getKhyronResonanceTurnsRemaining(makeState())).toBe(0);
+  });
+});
+
+describe('Resonant building assimilation', () => {
+  const enemyBuilding = (type = BuildingType.BARRACKS, tags = [UnitTag.BLOCK, UnitTag.READY]) =>
+    makeBuilding(type, { x: 5, y: 4 }, {
+      faction: Faction.ENEMY, hp: 1, tags,
+      combatStats: { attack: 1, defense: 0, attackRange: 4 },
+    });
+
+  it.each([BuildingType.BARRACKS, BuildingType.WATCHTOWER])(
+    'banks filtered %s tags and range only on manual confirmation',
+    (type) => {
+      const k = khyron();
+      const target = enemyBuilding(type, [UnitTag.RANGED, UnitTag.BLOCK, UnitTag.READY]);
+      const state = makeState([k], [target]);
+      const initialRange = k.stats.attackRange;
+      resolveAttackOnBuilding(state, k.id, target.id, true);
+      if (type === BuildingType.WATCHTOWER) {
+        expect(target.faction).toBeNull();
+        expect(target.hp).toBe(target.maxHp);
+      } else {
+        expect(state.buildings[target.id]).toBeUndefined();
+      }
+      expect(k.earnedAssimilationLevels).toBe(1);
+      expect(k.earnedAssimilationTags).toEqual([UnitTag.BLOCK, UnitTag.RANGED]);
+      expect(k.earnedAssimilationAttackRange).toBe(4);
+      expect(k.pendingAssimilationTags).toBeUndefined();
+      expect(k.resonanceActive).toBe(false);
+      expect(k.level).toBe(1);
+      expect(k.tags).not.toContain(UnitTag.RANGED);
+      expect(k.stats.attackRange).toBe(initialRange);
+      applyLevelUps(state, k.id, getUnitTargetLevel(k), true);
+      expect(k.tags).toContain(UnitTag.RANGED);
+      expect(k.tags).toContain(UnitTag.BLOCK);
+      expect(k.tags).not.toContain(UnitTag.READY);
+      expect(k.stats.attackRange).toBe(4);
+    },
+  );
+
+  it.each([BuildingType.BARRACKS, BuildingType.WATCHTOWER])(
+    'keeps the defender kill as the first credited source when conquering %s',
+    (type) => {
+      const k = khyron();
+      const defender = weakEnemy(UnitType.SKELETON, 5, 4, [UnitTag.CLEAVE]);
+      const target = enemyBuilding(type, [UnitTag.RANGED, UnitTag.BLOCK]);
+      const state = makeState([k, defender], [target]);
+      resolveAttack(state, k.id, defender.id, true);
+      expect(state.units[defender.id]).toBeUndefined();
+      expect(k.position).toEqual(target.position);
+      if (type === BuildingType.WATCHTOWER) expect(target.faction).toBeNull();
+      else expect(state.buildings[target.id]).toBeUndefined();
+      expect(k.earnedAssimilationLevels).toBe(1);
+      expect(k.earnedAssimilationTags).toEqual([UnitTag.CLEAVE]);
+      expect(k.earnedAssimilationAttackRange).toBeUndefined();
+    },
+  );
+
+  it('keeps a tagless defender snapshot instead of inheriting the conquered building tags', () => {
+    const k = khyron();
+    const defender = weakEnemy(UnitType.SKELETON, 5, 4);
+    const target = enemyBuilding();
+    const state = makeState([k, defender], [target]);
+    resolveAttack(state, k.id, defender.id, true);
+    expect(state.buildings[target.id]).toBeUndefined();
+    expect(k.earnedAssimilationLevels).toBe(1);
+    expect(k.earnedAssimilationTags).toEqual([]);
+  });
+
+  it('shares a single Resonance slot between buildings and units', () => {
+    const k = khyron();
+    const target = enemyBuilding();
+    const defender = weakEnemy(UnitType.REAPER, 6, 4);
+    const state = makeState([k, defender], [target]);
+    resolveAttackOnBuilding(state, k.id, target.id, true);
+    resolveAttack(state, k.id, defender.id, true);
+    expect(k.earnedAssimilationLevels).toBe(1);
+    expect(k.earnedAssimilationTags).toEqual([UnitTag.BLOCK]);
+    grantKhyronResonance(state);
+    const second = enemyBuilding(BuildingType.WATCHTOWER, [UnitTag.RANGED]);
+    state.buildings[second.id] = second;
+    state.grid[second.position.y][second.position.x].buildingId = second.id;
+    resolveAttackOnBuilding(state, k.id, second.id, true);
+    expect(k.earnedAssimilationLevels).toBe(CRYSTAL_KHYRON.MAX_LEVEL - k.level);
+    grantKhyronResonance(state);
+    recordKhyronKill(state, k.id, Faction.ENEMY, [UnitTag.CLEAVE], 1);
+    applyPendingAssimilations(state);
+    expect(k.earnedAssimilationLevels).toBe(CRYSTAL_KHYRON.MAX_LEVEL - k.level);
+    expect(k.earnedAssimilationTags).not.toContain(UnitTag.CLEAVE);
+  });
+
+  it('keeps the building source ahead of secondary unit kills in the same action', () => {
+    const k = khyron(4, 4, [UnitTag.RESONANCE, UnitTag.CLEAVE]);
+    const target = enemyBuilding();
+    const side = weakEnemy(UnitType.REAPER, 5, 3);
+    const state = makeState([k, side], [target]);
+    resolveAttackOnBuilding(state, k.id, target.id, true);
+    expect(state.buildings[target.id]).toBeUndefined();
+    expect(state.units[side.id]).toBeUndefined();
+    expect(k.earnedAssimilationLevels).toBe(1);
+    expect(k.earnedAssimilationTags).toEqual([UnitTag.BLOCK]);
+  });
+
+  it('takes an immutable building snapshot and accepts only its first source', () => {
+    const k = khyron();
+    const target = enemyBuilding(BuildingType.WATCHTOWER, [UnitTag.RANGED, UnitTag.BLOCK]);
+    const state = makeState([k], [target]);
+    const source = snapshotKhyronBuildingSource(target);
+    target.faction = null;
+    target.tags.length = 0;
+    target.combatStats!.attackRange = 1;
+    recordKhyronAssimilationSource(state, k.id, source);
+    recordKhyronKill(state, k.id, Faction.ENEMY, [UnitTag.CLEAVE], 1);
+    applyPendingAssimilations(state);
+    expect(k.earnedAssimilationTags).toEqual([UnitTag.BLOCK, UnitTag.RANGED]);
+    expect(k.earnedAssimilationAttackRange).toBe(4);
+  });
+
+  it.each(['inactive', 'untagged', 'enemy', 'max-level', 'banked-cap', 'non-khyron'] as const)(
+    'does not credit building destruction for an ineligible %s attacker',
+    (condition) => {
+      const k = khyron();
+      if (condition === 'inactive') k.resonanceActive = false;
+      if (condition === 'untagged') k.tags = [UnitTag.MECH];
+      if (condition === 'enemy') k.faction = Faction.ENEMY;
+      if (condition === 'max-level') k.level = CRYSTAL_KHYRON.MAX_LEVEL;
+      if (condition === 'banked-cap') k.earnedAssimilationLevels = CRYSTAL_KHYRON.MAX_LEVEL - k.level;
+      if (condition === 'non-khyron') k.type = UnitType.SPEARMAN;
+      const target = enemyBuilding();
+      const state = makeState([k], [target]);
+      const banked = k.earnedAssimilationLevels;
+      resolveAttackOnBuilding(state, k.id, target.id, true);
+      expect(k.earnedAssimilationLevels).toBe(banked);
+      expect(k.earnedAssimilationTags).toBeUndefined();
+      expect(k.pendingAssimilationTags).toBeUndefined();
+    },
+  );
+
+  it.each([Faction.PLAYER, null])('does not credit a %s building', (faction) => {
+    const k = khyron();
+    const target = enemyBuilding(BuildingType.WATCHTOWER);
+    target.faction = faction;
+    const state = makeState([k], [target]);
+    resolveAttackOnBuilding(state, k.id, target.id, true);
+    expect(k.earnedAssimilationLevels).toBeUndefined();
+    expect(k.resonanceActive).toBe(true);
+  });
+
+  it('does not credit an enemy building that survives the attack', () => {
+    const k = khyron();
+    const target = enemyBuilding();
+    target.hp = target.maxHp;
+    const state = makeState([k], [target]);
+    resolveAttackOnBuilding(state, k.id, target.id, true);
+    expect(state.buildings[target.id].hp).toBeGreaterThan(0);
+    expect(k.earnedAssimilationLevels).toBeUndefined();
+    expect(k.resonanceActive).toBe(true);
+  });
+
+  it.each([BuildingType.BARRACKS, BuildingType.WATCHTOWER])(
+    'does not credit capture even when capturing %s destroys it',
+    (type) => {
+      const k = khyron(5, 4, [UnitTag.RESONANCE, UnitTag.BUILDANDCAPTURE]);
+      const target = enemyBuilding(type);
+      const state = makeState([k], [target]);
+      initiateCapture(state, k.id, target.id, true);
+      if (type === BuildingType.WATCHTOWER) expect(target.faction).toBe(Faction.PLAYER);
+      else expect(state.buildings[target.id]).toBeUndefined();
+      expect(k.earnedAssimilationLevels).toBeUndefined();
+      expect(k.earnedAssimilationTags).toBeUndefined();
+      expect(k.resonanceActive).toBe(true);
+    },
+  );
 });
 
 describe('Resonant Assimilation', () => {
@@ -893,13 +1133,16 @@ describe('Resonant Assimilation', () => {
     expect(state.units[side.id]).toBeUndefined();
   });
 
-  it('building destruction does not transform the Khyron', () => {
+  it('building destruction banks readiness without immediately transforming the Khyron', () => {
     const k = khyron();
     const target = makeBuilding(BuildingType.BARRACKS, { x: 5, y: 4 }, { faction: Faction.ENEMY, hp: 1 });
     const state = makeState([k], [target]);
     resolveAttackOnBuilding(state, k.id, target.id, true);
     expect(state.units[k.id].level).toBe(1);
     expect(state.units[k.id].tags).toContain(UnitTag.RESONANCE);
+    expect(state.units[k.id].earnedAssimilationLevels).toBe(1);
+    expect(state.units[k.id].earnedAssimilationTags).toEqual([]);
+    expect(state.units[k.id].resonanceActive).toBe(false);
   });
 
   it('does not alter normal combat math', () => {

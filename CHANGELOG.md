@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.118.4 - Crystal Khyron building assimilation and Resonance feedback
+
+Crystal Khyrons now cost 3 Arcane Crystals and can earn their Resonance Level Up by destroying an enemy building or neutralizing an enemy Watchtower. Their Resonance healing triggers camera feedback, the unit panel shows remaining Resonance turns, and capture indicators now include eligible Khyrons and Ghouls. Updated descriptions explain healing, building assimilation, transferable Ranged, and the level cap in every supported language.
+
 ### v0.118.3 - Corruption-Bound Qorks and active debuff indicators
 
 Corrupted Qorks now carry Corruption-Bound, the tag that drives their off-corruption HP loss. Player units show the active drain as a withered-flower icon, HP-bar debuff outline, and red tag pill. Existing Qorks gain the tag when older saves load, and all supported languages include the new tag and updated Qork description.
