@@ -51,6 +51,8 @@ export type GameEvent =
       unitId: string;
       position: Position;
       faction: Faction;
+      /** Building whose loss killed this life-bound unit. */
+      lostRoostBuildingType?: BuildingType;
       /** Exact tile where the live display state should immediately spawn the Brandmark replacement demon. */
       brandmarkSpawnPosition?: Position | null;
     }

@@ -187,20 +187,6 @@
   background: var(--color-stone-skin, #aaa);
 }
 
-.unit-taunt-badge {
-  font-size: 9px;
-  line-height: 1;
-  filter: drop-shadow(0 0 2px #000);
-  pointer-events: none;
-}
-
-.unit-infested-badge {
-  font-size: 9px;
-  line-height: 1;
-  filter: drop-shadow(0 0 3px #42e86f);
-  pointer-events: none;
-}
-
 /* ── Unit stun symbol ── */
 
 .unit-stun-symbol {

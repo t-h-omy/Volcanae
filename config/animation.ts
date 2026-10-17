@@ -35,6 +35,8 @@ export const ANIMATION = {
   DIE_FLASH_DURATION_MS: 450,
   /** Die fade-out duration (ms) */
   DIE_FADE_DURATION_MS: 200,
+  /** Minimum camera hold for the lost-roost death label (ms). */
+  ROOST_LOST_FLOATER_HOLD_MS: 1500,
   /** Level-up golden pulse animation duration (ms) */
   LEVEL_UP_ANIM_DURATION_MS: 1000,
   /** XP-gain sparkle animation duration (ms) — shorter/subtler than level-up */

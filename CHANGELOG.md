@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.118.5 - Spell targeting, Taunt and specialist cleanup
+
+Spell casting now hides movement and attack overlays, and Stone Skin cannot target Mechs. Enemy intercepts and cave-monster attacks respect Taunt without forcing movement. Taunt and Infested use the shared tag icon list. Specialist replacements correctly revoke outgoing effects while preserving tags from other sources. Crystal Drake deaths caused by cave loss now show a localized destruction floater and hold the camera long enough to read it.
+
 ### v0.118.4 - Crystal Khyron building assimilation and Resonance feedback
 
 Crystal Khyrons now cost 3 Arcane Crystals and can earn their Resonance Level Up by destroying an enemy building or neutralizing an enemy Watchtower. Their Resonance healing triggers camera feedback, the unit panel shows remaining Resonance turns, and capture indicators now include eligible Khyrons and Ghouls. Updated descriptions explain healing, building assimilation, transferable Ranged, and the level cap in every supported language.

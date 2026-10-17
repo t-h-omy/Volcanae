@@ -4273,19 +4273,16 @@ export const useGameStore = create<GameStore>()(
           state.arcaneCrystals -= MARKET.SPECIALIST_PRICE_CRYSTAL;
 
           // Revoke outgoing effects and un-assign
+          const outIdx = state.globalSpecialistStorage.indexOf(outgoingSpecialistId);
+          state.globalSpecialistStorage.splice(outIdx, 1);
           const outgoingSpec = state.specialists[outgoingSpecialistId];
           if (outgoingSpec) {
             revokeEffectsForSpecialist(state, outgoingSpec);
             outgoingSpec.assignedBuildingId = null;
           }
-          const outIdx = state.globalSpecialistStorage.indexOf(outgoingSpecialistId);
           const incomingSpec = state.specialists[specialistId];
-          if (outIdx !== -1) {
-            if (incomingSpec && !state.globalSpecialistStorage.includes(specialistId)) {
-              state.globalSpecialistStorage.splice(outIdx, 1, specialistId);
-            } else {
-              state.globalSpecialistStorage.splice(outIdx, 1);
-            }
+          if (incomingSpec && !state.globalSpecialistStorage.includes(specialistId)) {
+            state.globalSpecialistStorage.splice(outIdx, 0, specialistId);
           }
           if (incomingSpec) applyEffectsForSpecialist(state, incomingSpec);
           (market.marketSpecialistSlots as (string | null)[])[slotIndex] = null;

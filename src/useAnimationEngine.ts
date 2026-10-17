@@ -14,6 +14,7 @@ import { useSpecialistHireStore } from './specialistHireStore';
 import type { CaveSpecialistRewardOutcome } from './specialistHireStore';
 import { useFloaterStore } from './floaterStore';
 import { t } from './i18n/i18n';
+import { buildingName } from './i18n/entityText';
 import { ANIMATION } from '../config/animation';
 import { MAP, MAGE } from './gameConfig';
 import { RENDER } from '../config/render';
@@ -863,6 +864,17 @@ export function useAnimationEngine(): void {
           const unit = useGameStore.getState().units[death.unitId];
           if (visible) {
             useCombatAnimationStore.getState().setUnitAnimation(death.unitId, { type: 'DYING' });
+            if (death.lostRoostBuildingType !== undefined) {
+              useFloaterStore.getState().addFloater({
+                value: 0,
+                label: `🏔️ ${t('floater.roostLost', { building: buildingName(death.lostRoostBuildingType) })}`,
+                x: death.position.x,
+                y: death.position.y,
+                isEnemy: death.faction === Faction.ENEMY,
+                floaterType: 'damage',
+              });
+              duration = Math.max(duration, ANIMATION.ROOST_LOST_FLOATER_HOLD_MS);
+            }
           }
           if (unit.type === UnitType.CORRUPTED_QORK && !unit.infestedDeathEffectResolved) {
             if (visible) addDyingUnitGhost(unit);

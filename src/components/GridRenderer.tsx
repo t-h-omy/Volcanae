@@ -525,11 +525,12 @@ export default function GridRenderer() {
   const selectedBuilding = selectedBuildingId ? buildings[selectedBuildingId] : undefined;
 
   const reachableSet = useMemo<Set<string>>(() => {
-    if (pendingTrapSetterId || !selectedUnit || selectedUnit.faction !== Faction.PLAYER) return new Set();
+    if (pendingSpellCast || pendingTrapSetterId || !selectedUnit || selectedUnit.faction !== Faction.PLAYER) return new Set();
     return getMovableTiles(selectedUnit, useGameStore.getState());
-  }, [selectedUnit, pendingTrapSetterId]);
+  }, [selectedUnit, pendingTrapSetterId, pendingSpellCast]);
 
   const attackableSet = useMemo<Set<string>>(() => {
+    if (pendingSpellCast) return new Set();
     // Unit attack range (enemy units and enemy buildings)
     if (selectedUnit && selectedUnit.faction === Faction.PLAYER) {
       return getAttackTargets(selectedUnit, units, buildings, grid, useGameStore.getState());
@@ -539,12 +540,12 @@ export default function GridRenderer() {
       return getBuildingAttackableTileKeys(selectedBuilding, units, buildings);
     }
     return new Set();
-  }, [selectedUnit, selectedBuilding, units, buildings, grid]);
+  }, [selectedUnit, selectedBuilding, units, buildings, grid, pendingSpellCast]);
 
   const tauntBlockedAttackSet = useMemo<Set<string>>(() => {
-    if (!selectedUnit || selectedUnit.faction !== Faction.PLAYER) return new Set();
+    if (pendingSpellCast || !selectedUnit || selectedUnit.faction !== Faction.PLAYER) return new Set();
     return getTauntBlockedAttackTargetKeys(selectedUnit, units, grid, useGameStore.getState());
-  }, [selectedUnit, units, grid]);
+  }, [selectedUnit, units, grid, pendingSpellCast]);
 
   // Heal target highlighting: when a healer is in heal-mode, show healable tiles
   const healableSet = useMemo<Set<string>>(() => {
@@ -1640,16 +1641,11 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
         : undefined;
 
   const isEmberling = unit.type === UnitType.EMBERLING;
-  const isTaunted = unit.tags.includes(UnitTag.TAUNT);
-  const isInfested = unit.tags.includes(UnitTag.INFESTED);
   const stoneSkinHp = unit.stoneSkinHp ?? 0;
   const hasStoneSkin = unit.tags.includes(UnitTag.STONE_SKIN) && stoneSkinHp > 0;
   const stoneSkinHpPct = Math.min(100, (stoneSkinHp / MAGE.STONE_SKIN_HP) * 100);
-  const tauntIcon = TAG_INFO[UnitTag.TAUNT]?.icon;
-  const infestedIcon = TAG_INFO[UnitTag.INFESTED]?.icon;
 
   const tagIcons = unit.tags
-    .filter((tag) => tag !== UnitTag.TAUNT)
     .filter((tag) => tag !== UnitTag.CORRUPTION_BOUND || hasCorruptionBoundDebuff)
     .map((tag) => TAG_INFO[tag]?.icon)
     .filter((icon): icon is string => !!icon);
@@ -1682,7 +1678,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
         } as React.CSSProperties
       }
     >
-      {(unit.stats.currentHp < unit.stats.maxHp || hasDebuff || isTaunted || isInfested || hasStoneSkin) && (
+      {(unit.stats.currentHp < unit.stats.maxHp || hasDebuff || hasStoneSkin) && (
         <>
           {hasStoneSkin && (
             <div
@@ -1705,12 +1701,6 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
           >
             <div className="hp-bar-fill" style={{ width: `${hpPct}%` }} />
           </div>
-          {isTaunted && tauntIcon && (
-            <span className="unit-taunt-badge" title={t('tag.TAUNT.label')}>{tauntIcon}</span>
-          )}
-          {isInfested && infestedIcon && (
-            <span className="unit-infested-badge" title={t('tag.INFESTED.label')}>{infestedIcon}</span>
-          )}
           {unit.stats.currentHp < unit.stats.maxHp && (
             <span className="unit-hp-text">{unit.stats.currentHp}</span>
           )}

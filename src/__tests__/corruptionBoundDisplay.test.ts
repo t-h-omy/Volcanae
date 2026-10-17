@@ -73,7 +73,7 @@ describe('Corruption-Bound display predicate', () => {
     expect(badge).toContain('(corruptionAffectsUnit ||\n      hasCorruptionBoundDebuff ||');
     expect(badge).toContain('.filter((tag) => tag !== UnitTag.CORRUPTION_BOUND || hasCorruptionBoundDebuff)');
     expect(badge).toContain('.map((tag) => TAG_INFO[tag]?.icon)');
-    expect(badge).toContain('.filter((tag) => tag !== UnitTag.TAUNT)');
+    expect(badge).not.toContain('.filter((tag) => tag !== UnitTag.TAUNT)');
   });
 
   it('adds the shared predicate without removing existing HUD debuffs or the player gate', () => {
