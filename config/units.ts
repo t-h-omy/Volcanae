@@ -282,7 +282,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     maxHp: 130, attack: 55, defense: 45,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 3,
-    tags: [UnitTag.PUNCTURE, UnitTag.BLOCK, UnitTag.LAVA],
+    tags: [UnitTag.PUNCTURE, UnitTag.BLOCK, UnitTag.LAVA, UNITTAG.LANCE_CHARGE],
     cost: { iron: 0, wood: 0 },
     populationCost: { farmers: 0, nobles: 0 },
     levelUp: [
@@ -293,7 +293,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   KINDLER: {
-    maxHp: 150, attack: 30, defense: 20,
+    maxHp: 150, attack: 35, defense: 20,
     movementActions: 1, moveRange: 1, attackRange: 2,
     discoverRadius: 1, triggerRange: 4,
     tags: [UnitTag.BURN, UnitTag.RANGED, UnitTag.PREP, UnitTag.LAVA],
@@ -504,7 +504,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
     tags: [UnitTag.MECH],
-    cost: { iron: 0, wood: 0, crystals: 3 },
+    cost: { iron: 5, wood: 0, crystals: 3 },
     populationCost: { farmers: 0, nobles: 0 },
     levelUp: [
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
@@ -528,9 +528,10 @@ export const CRYSTAL_KHYRON = {
     UnitTag.IRONBLOOD,
     UnitTag.BLOCK,
     UnitTag.PUNCTURE,
-    UnitTag.BURN,
     UnitTag.BUILDANDCAPTURE,
     UnitTag.RANGED,
+    UnitTag.ELITE,
+    UnitTag.LANCE_CHARGE,
   ] as readonly UnitTag[],
 } as const;
 
