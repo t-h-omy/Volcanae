@@ -65,9 +65,9 @@ export const TERRAIN = {
    */
   MOUNTAINS_PER_ZONE_OVERRIDES: {} as Record<number, { min: number; max: number }>,
   /** Minimum number of ruin tiles placed per zone (used if no zone-specific override is set) */
-  RUINS_PER_ZONE_MIN: 8,
+  RUINS_PER_ZONE_MIN: 7,
   /** Maximum number of ruin tiles placed per zone (used if no zone-specific override is set) */
-  RUINS_PER_ZONE_MAX: 8,
+  RUINS_PER_ZONE_MAX: 7,
   /**
    * Optional per-zone ruin min/max overrides.
    * Keys are zone numbers (1–5). Missing keys fall back to RUINS_PER_ZONE_MIN/MAX.
