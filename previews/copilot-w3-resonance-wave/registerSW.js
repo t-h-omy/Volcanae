@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/Volcanae/previews/copilot-w3-resonance-wave/sw.js', { scope: '/Volcanae/previews/copilot-w3-resonance-wave/' })})}
