@@ -282,7 +282,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     maxHp: 130, attack: 55, defense: 45,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 3,
-    tags: [UnitTag.PUNCTURE, UnitTag.BLOCK, UnitTag.LAVA, UNITTAG.LANCE_CHARGE],
+    tags: [UnitTag.PUNCTURE, UnitTag.BLOCK, UnitTag.LAVA, UnitTag.LANCE_CHARGE],
     cost: { iron: 0, wood: 0 },
     populationCost: { farmers: 0, nobles: 0 },
     levelUp: [
