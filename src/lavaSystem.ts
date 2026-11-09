@@ -29,6 +29,7 @@ import { removePortalsOnLava } from './portalSystem';
 import { cleanupRoostedUnits, getRoostedUnits } from './buildingRemoval';
 import { isSpecialistEffectActive } from './specialistSystem';
 import { resolveInfestedDeath } from './infestedSystem';
+import { resolveResonanceNetwork } from './resonanceSystem';
 
 // ============================================================================
 // LAVA STATE QUERIES
@@ -293,6 +294,7 @@ export function advanceLavaWithEvents(state: GameState): { newState: GameState; 
   const destroyedUnitIds: string[] = [];
   const destroyedBuildingIds: string[] = [];
   const destroyedPlayerUnitPositions: { x: number; y: number }[] = [];
+  const destroyedPlayerUnitSources: { sourceId: string; position: { x: number; y: number } }[] = [];
 
   // Collect what will be destroyed before applying
   if (newLavaRow >= 0 && newLavaRow < MAP.GRID_HEIGHT) {
@@ -308,6 +310,10 @@ export function advanceLavaWithEvents(state: GameState): { newState: GameState; 
           unit.tunnelState !== 'EMERGING'
         ) {
           destroyedPlayerUnitPositions.push({ x, y: newLavaRow });
+          destroyedPlayerUnitSources.push({
+            sourceId: `martyr:${unit.id}`,
+            position: { x, y: newLavaRow },
+          });
         }
       }
       if (tile.buildingId) destroyedBuildingIds.push(tile.buildingId);
@@ -315,14 +321,17 @@ export function advanceLavaWithEvents(state: GameState): { newState: GameState; 
   }
 
   // Check if a player Crystal Chamber will be destroyed (triggers resonance)
-  let destroyedChamberPosition: { x: number; y: number } | null = null;
+  const destroyedChamberPositions: { sourceId: string; position: { x: number; y: number } }[] = [];
   for (const bId of destroyedBuildingIds) {
     const b = state.buildings[bId];
     if (b && b.faction === Faction.PLAYER && b.type === BuildingType.CRYSTAL_CHAMBER) {
-      destroyedChamberPosition = { x: b.position.x, y: b.position.y };
-      break;
+      destroyedChamberPositions.push({
+        sourceId: `chamber:${b.id}`,
+        position: { x: b.position.x, y: b.position.y },
+      });
     }
   }
+  const destroyedChamberPosition = destroyedChamberPositions[0]?.position ?? null;
 
   const portalEvents: GameEvent[] = [];
   let newState = produce(state, (draft) => {
@@ -336,97 +345,90 @@ export function advanceLavaWithEvents(state: GameState): { newState: GameState; 
       destroyedUnitIds,
       destroyedBuildingIds,
       ...(destroyedChamberPosition ? { destroyedChamberPosition } : {}),
+      ...(destroyedChamberPositions.length > 0
+        ? { destroyedChamberPositions: destroyedChamberPositions.map((source) => source.position) }
+        : {}),
     },
     ...portalEvents,
   ];
 
-  const resonanceTriggerPositions: { x: number; y: number }[] = [];
-  if (destroyedChamberPosition) {
-    resonanceTriggerPositions.push(destroyedChamberPosition);
-  }
+  const resonanceSources = [...destroyedChamberPositions];
   const martyrActive = Array.isArray(state.globalSpecialistStorage) &&
     state.globalSpecialistStorage.some((specId) => {
       const spec = state.specialists?.[specId];
       return !!(spec && !spec.dormant && spec.effects.some((e) => e.type === 'RESONANCE_ON_UNIT_LAVA_DEATH'));
     });
   if (martyrActive && destroyedPlayerUnitPositions.length > 0) {
-    resonanceTriggerPositions.push(...destroyedPlayerUnitPositions);
+    resonanceSources.push(...destroyedPlayerUnitSources);
   }
+  resonanceSources.sort((a, b) =>
+    a.position.y - b.position.y ||
+    a.position.x - b.position.x ||
+    a.sourceId.localeCompare(b.sourceId),
+  );
 
-  // For each trigger source (destroyed chamber and/or eligible player unit
-  // lava deaths under The Martyr), emit RESONANCE_TRIGGERED so the camera pans
-  // to each surviving chamber/cave that gets activated.
-  if (resonanceTriggerPositions.length > 0) {
-    const survivingChamberIds: string[] = [];
-    const survivingCaveIds: string[] = [];
-    for (const b of Object.values(newState.buildings)) {
-      if (b.faction !== Faction.PLAYER) continue;
-      if (b.type === BuildingType.CRYSTAL_CHAMBER) {
-        survivingChamberIds.push(b.id);
-      } else if (b.type === BuildingType.CRYSTAL_CAVE) {
-        survivingCaveIds.push(b.id);
-      }
-    }
-    if (survivingChamberIds.length > 0 || survivingCaveIds.length > 0) {
-      const survivingKhyronIds = survivingChamberIds.length > 0
+  if (resonanceSources.length > 0) {
+    const relayNodes = Object.values(newState.buildings)
+      .filter((building) =>
+        building.faction === Faction.PLAYER &&
+        (building.type === BuildingType.CRYSTAL_CHAMBER || building.type === BuildingType.CRYSTAL_CAVE),
+      )
+      .map((building) => ({ id: building.id, position: building.position }));
+    const resolvedNetwork = resolveResonanceNetwork(
+      resonanceSources.map(({ sourceId, position }) => ({ id: sourceId, position })),
+      relayNodes,
+    );
+    const reachedNodes = resolvedNetwork.map((reached) => {
+      const building = newState.buildings[reached.id];
+      return {
+        buildingId: reached.id,
+        buildingType: building.type,
+        position: reached.position,
+        sourceId: reached.sourceId,
+        parentBuildingId: reached.parentId,
+        parentPosition: reached.parentPosition,
+        hopDepth: reached.hopDepth,
+        wasResonating: building.resonanceTurnsRemaining > 0,
+      };
+    });
+    const reachedChamberIds = reachedNodes
+      .filter((node) => node.buildingType === BuildingType.CRYSTAL_CHAMBER)
+      .map((node) => node.buildingId);
+    const survivingKhyronIds = reachedChamberIds.length > 0
         ? Object.values(newState.units)
           .filter((unit) => canKhyronResonate(unit) && unit.stats.currentHp > 0)
           .map((unit) => unit.id)
+          .sort((a, b) => a.localeCompare(b))
         : undefined;
-      const resonanceCrystalBonusActive = isSpecialistEffectActive(state, 'RESONANCE_CRYSTAL_BONUS');
-      // Apply resonance to the resolvedState for surviving chambers AND caves.
-      // advanceLava intentionally does NOT set resonanceTurnsRemaining so that the
-      // live state only switches to the active sprite when the per-building VFX fires
-      // in the animation engine (via activateCrystalChamber / activateCrystalCave).
-      // The resolvedState (applied at the very end of the animation sequence) must
-      // still reflect the activated buildings so the final state is correct.
-      newState = produce(newState, (draft) => {
-        for (const bId of survivingChamberIds) {
-          const b = draft.buildings[bId];
-          if (b) {
-            b.resonanceTurnsRemaining = Math.max(
-              b.resonanceTurnsRemaining,
-              CRYSTAL_CHAMBER_CONFIG.RESONANCE_DURATION,
-            );
-          }
+    const resonanceCrystalBonusActive = isSpecialistEffectActive(state, 'RESONANCE_CRYSTAL_BONUS');
+    newState = produce(newState, (draft) => {
+      for (const node of reachedNodes) {
+        const building = draft.buildings[node.buildingId];
+        if (!building) continue;
+        building.resonanceTurnsRemaining = Math.max(
+          building.resonanceTurnsRemaining,
+          CRYSTAL_CHAMBER_CONFIG.RESONANCE_DURATION,
+        );
+        if (
+          resonanceCrystalBonusActive &&
+          node.buildingType === BuildingType.CRYSTAL_CHAMBER &&
+          resonanceSources.some(({ position }) => {
+            const northDelta = position.y - building.position.y;
+            return northDelta >= 0 && northDelta <= ABILITIES.RESONANCE_BONUS_ROWS;
+          })
+        ) {
+          building.resonanceCrystalBonus = true;
         }
-        for (const bId of survivingCaveIds) {
-          const b = draft.buildings[bId];
-          if (b) {
-            b.resonanceTurnsRemaining = Math.max(
-              b.resonanceTurnsRemaining,
-              CRYSTAL_CHAMBER_CONFIG.RESONANCE_DURATION,
-            );
-          }
-        }
-        // Crystal Khyron RESONANCE belongs to Chamber resonance only (not Cave-only).
-        if (survivingChamberIds.length > 0) {
-          grantKhyronResonance(draft);
-        }
-        if (resonanceCrystalBonusActive) {
-          for (const triggerPosition of resonanceTriggerPositions) {
-            for (const bId of survivingChamberIds) {
-              const b = draft.buildings[bId];
-              if (!b) continue;
-              const northDelta = triggerPosition.y - b.position.y;
-              if (northDelta >= 0 && northDelta <= ABILITIES.RESONANCE_BONUS_ROWS) {
-                b.resonanceCrystalBonus = true;
-              }
-            }
-          }
-        }
-      });
-      for (const triggerPosition of resonanceTriggerPositions) {
-        events.push({
-          type: 'RESONANCE_TRIGGERED',
-          destroyedChamberPosition: triggerPosition,
-          survivingChamberIds,
-          survivingCaveIds,
-          ...(survivingKhyronIds ? { survivingKhyronIds } : {}),
-          resonanceDuration: CRYSTAL_CHAMBER_CONFIG.RESONANCE_DURATION,
-        });
       }
-    }
+      if (reachedChamberIds.length > 0) grantKhyronResonance(draft);
+    });
+    events.push({
+      type: 'RESONANCE_TRIGGERED',
+      sources: resonanceSources.map(({ sourceId, position }) => ({ sourceId, position })),
+      reachedNodes,
+      ...(survivingKhyronIds ? { survivingKhyronIds } : {}),
+      resonanceDuration: CRYSTAL_CHAMBER_CONFIG.RESONANCE_DURATION,
+    });
   }
 
   return { newState, events };

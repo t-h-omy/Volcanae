@@ -11,7 +11,7 @@ import { LAVA_LAIR } from './enemyAi';
 
 
 export const CRYSTAL_CHAMBER_CONFIG = {
-  /** Number of turns all surviving chambers resonate after one is destroyed by lava */
+  /** Number of turns a reached Crystal Chamber or Crystal Cave resonates */
   RESONANCE_DURATION: 3,
   /** Arcane crystals granted per resonating chamber per player turn */
   CRYSTALS_PER_CHAMBER_PER_TURN: 1,
@@ -20,6 +20,9 @@ export const CRYSTAL_CHAMBER_CONFIG = {
   /** Per-building unit limit (max live Mages per Crystal Chamber) */
   CHAMBER_UNIT_LIMIT: 1,
 } as const;
+
+/** Maximum tile distance between consecutive resonance wave nodes. */
+export const RESONANCE_CHAIN_RANGE = 3;
 
 
 export const CRYSTAL_CAVE_CONFIG = {
@@ -235,9 +238,8 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     constructionCost: { iron: 0, wood: 0 },
     maxHp: CRYSTAL_CAVE_CONFIG.MAX_HP,
     unitLimit: CRYSTAL_CAVE_CONFIG.CAVE_UNIT_LIMIT,
-    // While any Crystal Chamber resonates, the cave's resonance flag is set
-    // via the shared lava-resonance trigger. Recruiting a drake never consumes
-    // a resonance tick - the window decays on its own end-of-turn schedule.
+    // The Cave's own resonance timer gates Drake recruitment and decays on
+    // the normal end-of-turn schedule.
   },
   CHARCOAL_KILN: {
     // Shares the same sight radius and destroy behaviour as the Woodcutter -

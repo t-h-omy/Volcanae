@@ -187,17 +187,20 @@ describe('Khyron ancillary resonance and capture presentation', () => {
     const banked = unit('banked', UnitType.CRYSTAL_KHYRON, {
       earnedAssimilationLevels: CRYSTAL_KHYRON.MAX_LEVEL - 1,
       earnedAssimilationTags: [UnitTag.BUILDANDCAPTURE],
+      position: { x: 2, y: safeRow - 2 },
     });
     const maxLevel = unit('max-level', UnitType.CRYSTAL_KHYRON, {
-      level: CRYSTAL_KHYRON.MAX_LEVEL, position: { x: 3, y: safeRow },
+      level: CRYSTAL_KHYRON.MAX_LEVEL, position: { x: 3, y: safeRow - 2 },
     });
     for (const u of [banked, maxLevel]) u.stats.currentHp -= ABILITIES.RESONANCE_HEAL_AMOUNT;
-    const buildings = [chamber('survivor', 0)];
+    const survivor = chamber('survivor', 0);
+    survivor.position = { x: 1, y: safeRow + 3 };
+    const buildings = [survivor];
     const units = [banked, maxLevel];
     if (trigger === 'chamber') {
-      buildings.push(building('doomed', BuildingType.CRYSTAL_CHAMBER, { x: 0, y: doomedRow }));
+      buildings.push(building('doomed', BuildingType.CRYSTAL_CHAMBER, { x: 1, y: doomedRow }));
     } else {
-      units.push(unit('sacrifice', UnitType.SWORDSMAN, { position: { x: 0, y: doomedRow } }));
+      units.push(unit('sacrifice', UnitType.SWORDSMAN, { position: { x: 1, y: doomedRow } }));
     }
     const initial = state(units, buildings);
     initial.globalSpecialistStorage = trigger === 'martyr' ? ['spec_16'] : [];
@@ -221,14 +224,16 @@ describe('Khyron ancillary resonance and capture presentation', () => {
   });
 
   it('queues Phase 6 healing after lava resonance presentation and before tag damage', () => {
-    const khyron = unit('khyron');
+    const khyron = unit('khyron', UnitType.CRYSTAL_KHYRON, { position: { x: 2, y: safeRow - 2 } });
     khyron.stats.currentHp -= ABILITIES.RESONANCE_HEAL_AMOUNT;
     const branded = unit('branded', UnitType.GHOUL, {
-      tags: [UnitTag.BRANDMARKED], position: { x: 4, y: safeRow },
+      tags: [UnitTag.BRANDMARKED], position: { x: 4, y: safeRow - 2 },
     });
+    const survivor = chamber('survivor', 0);
+    survivor.position = { x: 1, y: safeRow + 3 };
     const initial = state([khyron, branded], [
-      chamber('survivor', 0),
-      building('doomed', BuildingType.CRYSTAL_CHAMBER, { x: 0, y: doomedRow }),
+      survivor,
+      building('doomed', BuildingType.CRYSTAL_CHAMBER, { x: 1, y: doomedRow }),
     ]);
     initial.turnsUntilLavaAdvance = 1;
     useGameStore.setState(initial);

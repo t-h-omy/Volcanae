@@ -43,6 +43,28 @@ export const ANIMATION = {
   XP_GAIN_ANIM_DURATION_MS: 600,
   /** Crystal Chamber activation VFX duration (ms) */
   CRYSTAL_ACTIVATE_VFX_DURATION_MS: 1200,
+  /** Brief charge at a resonance source before the wave releases. */
+  RESONANCE_ORIGIN_CHARGE_MS: 180,
+  /** Travel time for each tile of a resonance link. */
+  RESONANCE_LINK_MS_PER_TILE: 65,
+  /** Minimum duration of a resonance link pulse. */
+  RESONANCE_LINK_MIN_MS: 160,
+  /** Duration of an individual resonance arrival impact. */
+  RESONANCE_NODE_IMPACT_MS: 420,
+  /** Minimum impact duration for deep resonance networks. */
+  RESONANCE_NODE_IMPACT_MIN_MS: 180,
+  /** Arrival-impact duration removed per network hop. */
+  RESONANCE_NODE_IMPACT_DEPTH_REDUCTION_MS: 10,
+  /** Stagger between same-depth resonance branches. */
+  RESONANCE_BRANCH_STAGGER_MS: 35,
+  /** Camera pan threshold for tracking the resonance wavefront, in tiles. */
+  RESONANCE_CAMERA_TRACK_DISTANCE_TILES: 3,
+  /** Shockwave scale for the resonance origin. */
+  RESONANCE_ORIGIN_SHOCKWAVE_SCALE: 7,
+  /** Shockwave scale for a Crystal Chamber arrival. */
+  RESONANCE_CHAMBER_SHOCKWAVE_SCALE: 3.5,
+  /** Shockwave scale for a Crystal Cave arrival. */
+  RESONANCE_CAVE_SHOCKWAVE_SCALE: 4.5,
   /** Level-up pulse: peak scale at 20% keyframe */
   LEVEL_UP_SCALE_PEAK: 1.35,
   /** Level-up pulse: mid scale at 50% keyframe */

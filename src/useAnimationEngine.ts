@@ -25,6 +25,7 @@ import { tryTriggerHint } from './hintSystem';
 import { selectPortalUsedCameraEndpoint } from './portalAnimation';
 import { useEmberDisplayStore } from './emberDisplayStore';
 import { canKhyronResonate } from './khyronSystem';
+import { edgeCircleDistance } from './rangeUtils';
 
 export function applyCaveSpecialistReward(drawn: string, outcome: CaveSpecialistRewardOutcome): void {
   const game = useGameStore.getState();
@@ -99,7 +100,7 @@ function eventPosition(event: GameEvent): Position {
     case 'LAVA_ADVANCE':
       return { x: Math.floor(MAP.GRID_WIDTH / 2), y: event.newLavaRow };
     case 'RESONANCE_TRIGGERED':
-      return event.destroyedChamberPosition;
+      return event.sources[0]?.position ?? { x: 0, y: 0 };
     case 'SANCTUM_COLLAPSE':
       return event.sanctumPosition;
     case 'ZONE_CLEARED':
@@ -225,7 +226,12 @@ function isEventVisible(event: GameEvent): boolean {
       // regardless of whether any tiles on the new row have been revealed yet.
       return true;
     case 'RESONANCE_TRIGGERED':
-      return isTileRevealed(event.destroyedChamberPosition);
+      return event.sources.some((source) => isTileRevealed(source.position)) ||
+        event.reachedNodes.some((node) => isTileRevealed(node.position)) ||
+        (event.survivingKhyronIds ?? []).some((id) => {
+          const unit = useGameStore.getState().units[id];
+          return unit !== undefined && isTileRevealed(unit.position);
+        });
     case 'SANCTUM_COLLAPSE':
       return isTileRevealed(event.sanctumPosition);
     case 'ZONE_CLEARED':
@@ -913,88 +919,196 @@ export function useAnimationEngine(): void {
           resolvingScoutTrap = true;
         }
 
-        // Activate Chambers, Caves, then each Khyron after its camera arrival.
-        // Handled before the main camera-pan block so we never pan to the destroyed chamber.
+        // Resolve resonance immediately, then present its selected graph edges by hop.
         if (event.type === 'RESONANCE_TRIGGERED') {
-          let attemptedKhyronHint = false;
+          const tileSize = getTileSize();
+          const addBurst = (position: Position, durationMs: number, variant: string, finalScale: number) => {
+            const key = `${position.x},${position.y}`;
+            useCombatAnimationStore.getState().addTileFlash(position.x, position.y, durationMs, 'crystal');
+            setTimeout(() => useCombatAnimationStore.getState().removeTileFlash(key), durationMs);
+            useShockwaveStore.getState().addShockwave({
+              id: crypto.randomUUID(),
+              cx: position.x * tileSize + tileSize / 2,
+              cy: position.y * tileSize + tileSize / 2,
+              durationMs,
+              finalScale,
+              variant,
+            });
+          };
+          const maxDepth = event.reachedNodes.reduce((depth, node) => Math.max(depth, node.hopDepth), 0);
+          const nodeImpactDurationMs = Math.max(
+            ANIMATION.RESONANCE_NODE_IMPACT_MIN_MS,
+            ANIMATION.RESONANCE_NODE_IMPACT_MS -
+              maxDepth * ANIMATION.RESONANCE_NODE_IMPACT_DEPTH_REDUCTION_MS,
+          );
+
           if (visible) {
-            for (const chamberId of event.survivingChamberIds) {
-              const chamber = useGameStore.getState().buildings[chamberId];
-              if (chamber) {
-                useAnimationStore.getState().setCameraTarget(chamber.position);
-                await wait(ANIMATION.CAMERA_MOVE_DURATION_MS + ANIMATION.PRE_ACTION_IDLE_MS);
+            const source = event.sources.find((entry) => isTileRevealed(entry.position));
+            const focusPosition = source?.position ??
+              event.reachedNodes.find((node) => isTileRevealed(node.position))?.position ??
+              (event.survivingKhyronIds ?? [])
+                .map((id) => useGameStore.getState().units[id])
+                .find((unit) => unit !== undefined && isTileRevealed(unit.position))?.position;
+            if (focusPosition) useAnimationStore.getState().setCameraTarget(focusPosition);
+            for (const source of event.sources) {
+              if (!isTileRevealed(source.position)) continue;
+              useCombatAnimationStore.getState().addTileVfx({
+                id: crypto.randomUUID(),
+                x: source.position.x,
+                y: source.position.y,
+                variant: 'RESONANCE_CHARGE',
+                durationMs: ANIMATION.RESONANCE_ORIGIN_CHARGE_MS,
+              });
+            }
+            await wait(Math.max(
+              ANIMATION.CAMERA_MOVE_DURATION_MS,
+              ANIMATION.RESONANCE_ORIGIN_CHARGE_MS,
+            ));
+            const origins = new Map(
+              event.sources
+                .filter((entry) => isTileRevealed(entry.position))
+                .map((entry) => [`${entry.position.x},${entry.position.y}`, entry.position]),
+            );
+            for (const position of origins.values()) {
+              addBurst(
+                position,
+                ANIMATION.RESONANCE_NODE_IMPACT_MS,
+                'crystal',
+                ANIMATION.RESONANCE_ORIGIN_SHOCKWAVE_SCALE,
+              );
+            }
+            await wait(ANIMATION.RESONANCE_NODE_IMPACT_MS);
+          }
 
-                // Activate this chamber in the live state so the sprite switches to active
-                useGameStore.getState().activateCrystalChamber(chamberId);
-
-                // Play crystal-blue activation VFX
-                useCombatAnimationStore.getState().setBuildingAnimation(chamberId, 'CRYSTAL_ACTIVATE');
-                await wait(ANIMATION.CRYSTAL_ACTIVATE_VFX_DURATION_MS);
-                useCombatAnimationStore.getState().setBuildingAnimation(chamberId, null);
-
-                await wait(ANIMATION.POST_ACTION_IDLE_MS);
+          for (let hopDepth = 1; hopDepth <= maxDepth; hopDepth++) {
+            const layer = event.reachedNodes.filter((node) => node.hopDepth === hopDepth);
+            if (layer.length === 0) continue;
+            const visibleLayer = layer.filter((node) => isTileRevealed(node.position));
+            let cameraWait = 0;
+            if (visible && visibleLayer.length > 0) {
+              const center = {
+                x: visibleLayer.reduce((sum, node) => sum + node.position.x, 0) / visibleLayer.length,
+                y: visibleLayer.reduce((sum, node) => sum + node.position.y, 0) / visibleLayer.length,
+              };
+              const cameraTarget = useAnimationStore.getState().cameraTarget;
+              if (
+                edgeCircleDistance(cameraTarget.x, cameraTarget.y, center.x, center.y) >
+                ANIMATION.RESONANCE_CAMERA_TRACK_DISTANCE_TILES
+              ) {
+                useAnimationStore.getState().setCameraTarget(center);
+                cameraWait = ANIMATION.CAMERA_MOVE_DURATION_MS;
               }
             }
-            // Crystal Caves share the same resonance window and animation.
-            // pan to each, activate, and play the same VFX so the player
-            // sees them "wake up" alongside the chambers.
-            for (const caveId of event.survivingCaveIds ?? []) {
-              const cave = useGameStore.getState().buildings[caveId];
-              if (cave) {
-                useAnimationStore.getState().setCameraTarget(cave.position);
-                await wait(ANIMATION.CAMERA_MOVE_DURATION_MS + ANIMATION.PRE_ACTION_IDLE_MS);
 
-                useGameStore.getState().activateCrystalCave(caveId);
+            const pulseDurations = layer.map((node) => {
+              const distance = edgeCircleDistance(
+                node.parentPosition.x,
+                node.parentPosition.y,
+                node.position.x,
+                node.position.y,
+              );
+              return Math.max(
+                ANIMATION.RESONANCE_LINK_MIN_MS,
+                distance * ANIMATION.RESONANCE_LINK_MS_PER_TILE,
+              );
+            });
+            const layerDuration = pulseDurations.reduce(
+              (longest, duration, index) =>
+                Math.max(longest, duration + index * ANIMATION.RESONANCE_BRANCH_STAGGER_MS),
+              0,
+            );
+            for (const [index, node] of layer.entries()) {
+              const durationMs = pulseDurations[index];
+              if (!visible || !isTileRevealed(node.position)) continue;
+              useCombatAnimationStore.getState().addLineVfx({
+                id: crypto.randomUUID(),
+                fromPx: {
+                  x: node.parentPosition.x * tileSize + tileSize / 2,
+                  y: node.parentPosition.y * tileSize + tileSize / 2,
+                },
+                toPx: {
+                  x: node.position.x * tileSize + tileSize / 2,
+                  y: node.position.y * tileSize + tileSize / 2,
+                },
+                variant: 'RESONANCE_WAVE',
+                durationMs,
+                delayMs: layerDuration - durationMs - index * ANIMATION.RESONANCE_BRANCH_STAGGER_MS,
+              });
+            }
+            if (visible) await wait(Math.max(layerDuration, cameraWait));
 
-                useCombatAnimationStore.getState().setBuildingAnimation(caveId, 'CRYSTAL_ACTIVATE');
-                await wait(ANIMATION.CRYSTAL_ACTIVATE_VFX_DURATION_MS);
-                useCombatAnimationStore.getState().setBuildingAnimation(caveId, null);
-
-                await wait(ANIMATION.POST_ACTION_IDLE_MS);
+            for (const node of layer) {
+              const current = useGameStore.getState().buildings[node.buildingId];
+              if (!current) continue;
+              if (node.buildingType === BuildingType.CRYSTAL_CHAMBER) {
+                useGameStore.getState().activateCrystalChamber(node.buildingId);
+              } else {
+                useGameStore.getState().activateCrystalCave(node.buildingId);
               }
+              if (!visible || !isTileRevealed(node.position)) continue;
+              useCombatAnimationStore.getState().setBuildingAnimation(
+                node.buildingId,
+                {
+                  type: node.wasResonating ? 'CRYSTAL_RECHARGE' : 'CRYSTAL_ACTIVATE',
+                  durationMs: nodeImpactDurationMs,
+                },
+              );
+              useCombatAnimationStore.getState().addTileVfx({
+                id: crypto.randomUUID(),
+                x: node.position.x,
+                y: node.position.y,
+                variant: 'SPELL_IMPACT',
+                durationMs: nodeImpactDurationMs,
+              });
+              addBurst(
+                node.position,
+                nodeImpactDurationMs,
+                node.buildingType === BuildingType.CRYSTAL_CAVE ? 'crystal-cave' : 'crystal',
+                node.buildingType === BuildingType.CRYSTAL_CAVE
+                  ? ANIMATION.RESONANCE_CAVE_SHOCKWAVE_SCALE
+                  : ANIMATION.RESONANCE_CHAMBER_SHOCKWAVE_SCALE,
+              );
             }
-          } else {
-            for (const chamberId of event.survivingChamberIds) {
-              useGameStore.getState().activateCrystalChamber(chamberId);
-            }
-            for (const caveId of event.survivingCaveIds ?? []) {
-              useGameStore.getState().activateCrystalCave(caveId);
+            if (visible) {
+              await wait(nodeImpactDurationMs);
+              for (const node of visibleLayer) {
+                useCombatAnimationStore.getState().setBuildingAnimation(node.buildingId, null);
+              }
             }
           }
-          if (event.survivingChamberIds.length > 0) {
+
+          if (event.reachedNodes.some((node) => node.buildingType === BuildingType.CRYSTAL_CHAMBER)) {
+            let attemptedKhyronHint = false;
+            const activatedKhyronIds: string[] = [];
             for (const unitId of event.survivingKhyronIds ?? []) {
               if (presentedKhyronIds.has(unitId)) continue;
               const unit = useGameStore.getState().units[unitId];
               if (!unit || !canKhyronResonate(unit) || unit.stats.currentHp <= 0) continue;
-              const presentKhyron = visible || isTileRevealed(unit.position);
-              if (presentKhyron) {
-                useAnimationStore.getState().setCameraTarget(unit.position);
-                await wait(ANIMATION.CAMERA_MOVE_DURATION_MS + ANIMATION.PRE_ACTION_IDLE_MS);
-                if (!alive) return;
-              }
-              const liveUnit = useGameStore.getState().units[unitId];
-              if (!liveUnit || !canKhyronResonate(liveUnit) || liveUnit.stats.currentHp <= 0) continue;
               presentedKhyronIds.add(unitId);
               useGameStore.getState().activateCrystalKhyron(unitId);
-              if (presentKhyron) {
+              if (isTileRevealed(unit.position)) {
                 useCombatAnimationStore.getState().setUnitAnimation(unitId, { type: 'CRYSTAL_ACTIVATE' });
-                await wait(ANIMATION.CRYSTAL_ACTIVATE_VFX_DURATION_MS);
-                useCombatAnimationStore.getState().setUnitAnimation(unitId, null);
-                await wait(ANIMATION.POST_ACTION_IDLE_MS);
+                activatedKhyronIds.push(unitId);
               }
-              if (!attemptedKhyronHint) {
-                attemptedKhyronHint = true;
-                tryTriggerHint('H21_KHYRON_RESONANCE');
+              attemptedKhyronHint = true;
+            }
+            if (activatedKhyronIds.length > 0) {
+              await wait(ANIMATION.CRYSTAL_ACTIVATE_VFX_DURATION_MS);
+              for (const unitId of activatedKhyronIds) {
+                useCombatAnimationStore.getState().setUnitAnimation(unitId, null);
               }
             }
+            if (attemptedKhyronHint) tryTriggerHint('H21_KHYRON_RESONANCE');
           }
           continue;
         }
 
         // ── Special handling for LAVA_ADVANCE (camera focus + optional crystal VFX) ──
         if (event.type === 'LAVA_ADVANCE') {
-          // Focus on the destroyed Crystal Chamber when present; otherwise centre on the new lava row.
-          const focusPos = event.destroyedChamberPosition
+          // Focus on a consumed Crystal Chamber when present; otherwise centre on the new lava row.
+          const destroyedChamberPositions = event.destroyedChamberPositions ??
+            (event.destroyedChamberPosition ? [event.destroyedChamberPosition] : []);
+          const focusPos = destroyedChamberPositions[0]
             ?? { x: Math.floor(MAP.GRID_WIDTH / 2), y: event.newLavaRow };
           tryTriggerHint('H06_LAVA_ADVANCE');
           useAnimationStore.getState().setCameraTarget(focusPos);
@@ -1004,29 +1118,25 @@ export function useAnimationEngine(): void {
           useGameStore.getState().applyEvent(event);
           await wait(ANIMATION.LAVA_ADVANCE_PAUSE_MS);
 
-          if (event.destroyedChamberPosition) {
-            const pos = event.destroyedChamberPosition;
-            const key = `${pos.x},${pos.y}`;
+          if (destroyedChamberPositions.length > 0) {
             const tileSize = getTileSize();
-
-            // Crystal-blue tile flash burst on the destroyed chamber
-            useCombatAnimationStore.getState().addTileFlash(
-              pos.x, pos.y, ANIMATION.ZONE_CLEARED_SANCTUM_SHATTER_MS, 'crystal',
-            );
-            setTimeout(
-              () => useCombatAnimationStore.getState().removeTileFlash(key),
-              ANIMATION.ZONE_CLEARED_SANCTUM_SHATTER_MS,
-            );
-
-            // Crystal-blue expanding shockwave ring from the chamber centre
-            useShockwaveStore.getState().addShockwave({
-              id: crypto.randomUUID(),
-              cx: pos.x * tileSize + tileSize / 2,
-              cy: pos.y * tileSize + tileSize / 2,
-              durationMs: ANIMATION.ZONE_CLEARED_SHOCKWAVE_MS,
-              variant: 'crystal',
-            });
-
+            for (const pos of destroyedChamberPositions) {
+              const key = `${pos.x},${pos.y}`;
+              useCombatAnimationStore.getState().addTileFlash(
+                pos.x, pos.y, ANIMATION.ZONE_CLEARED_SANCTUM_SHATTER_MS, 'crystal',
+              );
+              setTimeout(
+                () => useCombatAnimationStore.getState().removeTileFlash(key),
+                ANIMATION.ZONE_CLEARED_SANCTUM_SHATTER_MS,
+              );
+              useShockwaveStore.getState().addShockwave({
+                id: crypto.randomUUID(),
+                cx: pos.x * tileSize + tileSize / 2,
+                cy: pos.y * tileSize + tileSize / 2,
+                durationMs: ANIMATION.ZONE_CLEARED_SHOCKWAVE_MS,
+                variant: 'crystal',
+              });
+            }
             await wait(ANIMATION.ZONE_CLEARED_SANCTUM_SHATTER_MS);
           }
 

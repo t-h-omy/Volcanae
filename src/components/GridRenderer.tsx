@@ -1288,9 +1288,20 @@ function TileCellInner({
   const isResonating =
     (building?.type === BuildingType.CRYSTAL_CHAMBER || building?.type === BuildingType.CRYSTAL_CAVE) &&
     (building?.resonanceTurnsRemaining ?? 0) > 0;
-  const isCrystalActivating = useCombatAnimationStore(
-    (s) => building !== undefined && s.buildingAnimations.get(building.id) === 'CRYSTAL_ACTIVATE',
-  );
+  const isCrystalActivating = useCombatAnimationStore((s) => {
+    const animation = building ? s.buildingAnimations.get(building.id) : undefined;
+    return animation === 'CRYSTAL_ACTIVATE' || animation === 'CRYSTAL_RECHARGE' ||
+      (typeof animation === 'object' && animation !== null);
+  });
+  const isCrystalRecharging = useCombatAnimationStore((s) => {
+    const animation = building ? s.buildingAnimations.get(building.id) : undefined;
+    return animation === 'CRYSTAL_RECHARGE' ||
+      (typeof animation === 'object' && animation?.type === 'CRYSTAL_RECHARGE');
+  });
+  const crystalActivationDuration = useCombatAnimationStore((s) => {
+    const animation = building ? s.buildingAnimations.get(building.id) : undefined;
+    return typeof animation === 'object' ? animation.durationMs : ANIMATION.RESONANCE_NODE_IMPACT_MS;
+  });
 
   const tileFlashEntry = useCombatAnimationStore(
     (s) => s.tileFlashes.get(`${tile.position.x},${tile.position.y}`),
@@ -1336,12 +1347,14 @@ function TileCellInner({
         isSelected && 'tile-selected',
         isResonating && 'tile--resonating',
         isCrystalActivating && 'tile--crystal-activating',
+        isCrystalRecharging && 'tile--crystal-recharging',
+        isCrystalActivating && building?.type === BuildingType.CRYSTAL_CAVE && 'tile--crystal-cave',
         isLeashWarn ? 'tile--leash-warn' : isLeashed ? 'tile--leashed' : null,
       ].filter(Boolean).join(' ')}
       style={{
         width: tileSize,
         height: tileSize,
-        ...(isCrystalActivating && { '--crystal-activate-duration': `${ANIMATION.CRYSTAL_ACTIVATE_VFX_DURATION_MS}ms` }),
+        ...(isCrystalActivating && { '--crystal-activate-duration': `${crystalActivationDuration}ms` }),
       } as React.CSSProperties}
       onClick={onClick}
     >
@@ -1467,7 +1480,9 @@ function TileCellInner({
       )}
 
       {/* crystal chamber activation VFX overlay */}
-      {isCrystalActivating && <div className="tile-crystal-activate-overlay" />}
+      {isCrystalActivating && (
+        <div className="tile-crystal-activate-overlay" />
+      )}
 
       {/* zone cleared per-tile flash overlay */}
       {tileFlashEntry && (
@@ -2574,8 +2589,11 @@ function LineVfxLayer({ tileSize }: { tileSize: number }) {
           y1={vfx.fromPx.y}
           x2={vfx.toPx.x}
           y2={vfx.toPx.y}
-          pathLength={vfx.variant === 'FIRE_SPIT' ? 1 : undefined}
-          style={{ '--line-vfx-duration': `${vfx.durationMs}ms` } as React.CSSProperties}
+          pathLength={vfx.variant === 'FIRE_SPIT' || vfx.variant === 'RESONANCE_WAVE' ? 1 : undefined}
+          style={{
+            '--line-vfx-duration': `${vfx.durationMs}ms`,
+            '--line-vfx-delay': `${vfx.delayMs ?? 0}ms`,
+          } as React.CSSProperties}
           onAnimationEnd={() => removeLineVfx(vfx.id)}
         />
       ))}
