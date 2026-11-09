@@ -39,6 +39,7 @@ import {
   type Building,
 } from '../types';
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
+import { createResonanceLightningPaths } from '../resonanceVfx';
 import { nextTileCycleTarget, tileSelectionState } from '../tileCycleHelper';
 import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, getTauntBlockedAttackTargetKeys, explainInvalidAttackTarget, canUnitConstruct, canUnitCapture, getHealTargets, getBridgeBuildTargets, explainInvalidHealTarget, explainInvalidBridgeTarget, canUnitSetTrap, getTrapPlacementTargets, explainInvalidTrapTarget, isUnitDisplayExhausted } from '../unitActions';
 import { getValidSpellTargets, explainInvalidSpellTarget, getTransposeTerrainBlockedTargets, getLeashedUnitsForMage } from '../spellSystem';
@@ -197,6 +198,7 @@ export default function GridRenderer() {
   // ── Animation store selectors ──
   const isAnimating = useAnimationStore((s) => s.isAnimating);
   const cameraTarget = useAnimationStore((s) => s.cameraTarget);
+  const cameraMoveDurationMs = useAnimationStore((s) => s.cameraMoveDurationMs);
 
   // ── Zoom store ──
   // Subscribe to zoom for rendering; mutations go through getState() to avoid extra subscriptions.
@@ -288,12 +290,12 @@ export default function GridRenderer() {
     }
   }, [isAnimating]);
 
-  // Set the CSS custom property for camera transition duration once on mount
+  // Keep the CSS transition in sync with the current animation's camera pacing.
   useEffect(() => {
     if (containerRef.current) {
-      containerRef.current.style.setProperty('--camera-move-duration', `${ANIMATION.CAMERA_MOVE_DURATION_MS}ms`);
+      containerRef.current.style.setProperty('--camera-move-duration', `${cameraMoveDurationMs}ms`);
     }
-  }, []);
+  }, [cameraMoveDurationMs]);
 
   // When camera target changes, update offset to center viewport on target.
   // Zoom is intentionally NOT a dependency: we don't re-centre during pinch/wheel
@@ -2581,22 +2583,55 @@ function LineVfxLayer({ tileSize }: { tileSize: number }) {
       className="line-vfx-layer"
       style={{ width: MAP.GRID_WIDTH * tileSize, height: MAP.GRID_HEIGHT * tileSize }}
     >
-      {lineVfx.map((vfx: LineVfx) => (
-        <line
-          key={vfx.id}
-          className={`line-vfx line-vfx--${vfx.variant.toLowerCase().replace(/_/g, '-')}`}
-          x1={vfx.fromPx.x}
-          y1={vfx.fromPx.y}
-          x2={vfx.toPx.x}
-          y2={vfx.toPx.y}
-          pathLength={vfx.variant === 'FIRE_SPIT' || vfx.variant === 'RESONANCE_WAVE' ? 1 : undefined}
-          style={{
-            '--line-vfx-duration': `${vfx.durationMs}ms`,
-            '--line-vfx-delay': `${vfx.delayMs ?? 0}ms`,
-          } as React.CSSProperties}
-          onAnimationEnd={() => removeLineVfx(vfx.id)}
-        />
-      ))}
+      {lineVfx.map((vfx: LineVfx) => {
+        const style = {
+          '--line-vfx-duration': `${vfx.durationMs}ms`,
+          '--line-vfx-delay': `${vfx.delayMs ?? 0}ms`,
+        } as React.CSSProperties;
+        if (vfx.variant === 'RESONANCE_WAVE') {
+          const { mainPath, branchPaths } = createResonanceLightningPaths(
+            vfx.fromPx,
+            vfx.toPx,
+            tileSize,
+          );
+          return (
+            <g key={vfx.id} style={style}>
+              <path
+                className="line-vfx line-vfx--resonance-wave"
+                d={mainPath}
+                pathLength={1}
+                onAnimationEnd={() => removeLineVfx(vfx.id)}
+              />
+              <path
+                className="line-vfx line-vfx--resonance-core"
+                d={mainPath}
+                pathLength={1}
+              />
+              {branchPaths.map((path, index) => (
+                <path
+                  key={`${vfx.id}-fork-${index}`}
+                  className="line-vfx line-vfx--resonance-branch"
+                  d={path}
+                  pathLength={1}
+                />
+              ))}
+            </g>
+          );
+        }
+        return (
+          <line
+            key={vfx.id}
+            className={`line-vfx line-vfx--${vfx.variant.toLowerCase().replace(/_/g, '-')}`}
+            x1={vfx.fromPx.x}
+            y1={vfx.fromPx.y}
+            x2={vfx.toPx.x}
+            y2={vfx.toPx.y}
+            pathLength={vfx.variant === 'FIRE_SPIT' ? 1 : undefined}
+            style={style}
+            onAnimationEnd={() => removeLineVfx(vfx.id)}
+          />
+        );
+      })}
     </svg>
   );
 }

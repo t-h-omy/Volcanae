@@ -949,7 +949,12 @@ export function useAnimationEngine(): void {
               (event.survivingKhyronIds ?? [])
                 .map((id) => useGameStore.getState().units[id])
                 .find((unit) => unit !== undefined && isTileRevealed(unit.position))?.position;
-            if (focusPosition) useAnimationStore.getState().setCameraTarget(focusPosition);
+            if (focusPosition) {
+              useAnimationStore.getState().setCameraTarget(
+                focusPosition,
+                ANIMATION.RESONANCE_CAMERA_MOVE_DURATION_MS,
+              );
+            }
             for (const source of event.sources) {
               if (!isTileRevealed(source.position)) continue;
               useCombatAnimationStore.getState().addTileVfx({
@@ -961,7 +966,7 @@ export function useAnimationEngine(): void {
               });
             }
             await wait(Math.max(
-              ANIMATION.CAMERA_MOVE_DURATION_MS,
+              ANIMATION.RESONANCE_CAMERA_MOVE_DURATION_MS,
               ANIMATION.RESONANCE_ORIGIN_CHARGE_MS,
             ));
             const origins = new Map(
@@ -995,8 +1000,11 @@ export function useAnimationEngine(): void {
                 edgeCircleDistance(cameraTarget.x, cameraTarget.y, center.x, center.y) >
                 ANIMATION.RESONANCE_CAMERA_TRACK_DISTANCE_TILES
               ) {
-                useAnimationStore.getState().setCameraTarget(center);
-                cameraWait = ANIMATION.CAMERA_MOVE_DURATION_MS;
+                useAnimationStore.getState().setCameraTarget(
+                  center,
+                  ANIMATION.RESONANCE_CAMERA_MOVE_DURATION_MS,
+                );
+                cameraWait = ANIMATION.RESONANCE_CAMERA_MOVE_DURATION_MS;
               }
             }
 

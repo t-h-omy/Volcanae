@@ -1,7 +1,7 @@
 # Changelog
 
 ### v0.119.0 - W3 Resonance Wave
-Resonance now propagates from lava-consumed Chambers or Martyr deaths through connected Chambers and Caves, with per-Cave Drake recruitment and hop-synchronized wave presentation.
+Resonance now propagates from lava-consumed Chambers or Martyr deaths through connected Chambers and Caves, with per-Cave Drake recruitment, jagged lightning arcs, and a slower hop-tracked camera sequence.
 
 ### v0.118.6 - Expanded situational tutorial hints
 

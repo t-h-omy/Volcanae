@@ -44,21 +44,33 @@ export const ANIMATION = {
   /** Crystal Chamber activation VFX duration (ms) */
   CRYSTAL_ACTIVATE_VFX_DURATION_MS: 1200,
   /** Brief charge at a resonance source before the wave releases. */
-  RESONANCE_ORIGIN_CHARGE_MS: 180,
+  RESONANCE_ORIGIN_CHARGE_MS: 420,
   /** Travel time for each tile of a resonance link. */
-  RESONANCE_LINK_MS_PER_TILE: 65,
+  RESONANCE_LINK_MS_PER_TILE: 110,
   /** Minimum duration of a resonance link pulse. */
-  RESONANCE_LINK_MIN_MS: 160,
+  RESONANCE_LINK_MIN_MS: 320,
   /** Duration of an individual resonance arrival impact. */
-  RESONANCE_NODE_IMPACT_MS: 420,
+  RESONANCE_NODE_IMPACT_MS: 650,
   /** Minimum impact duration for deep resonance networks. */
-  RESONANCE_NODE_IMPACT_MIN_MS: 180,
+  RESONANCE_NODE_IMPACT_MIN_MS: 260,
   /** Arrival-impact duration removed per network hop. */
-  RESONANCE_NODE_IMPACT_DEPTH_REDUCTION_MS: 10,
+  RESONANCE_NODE_IMPACT_DEPTH_REDUCTION_MS: 15,
   /** Stagger between same-depth resonance branches. */
-  RESONANCE_BRANCH_STAGGER_MS: 35,
+  RESONANCE_BRANCH_STAGGER_MS: 55,
+  /** Camera pan duration while following a resonance wave. */
+  RESONANCE_CAMERA_MOVE_DURATION_MS: 520,
   /** Camera pan threshold for tracking the resonance wavefront, in tiles. */
-  RESONANCE_CAMERA_TRACK_DISTANCE_TILES: 3,
+  RESONANCE_CAMERA_TRACK_DISTANCE_TILES: 2,
+  /** Normalized perpendicular offsets for the jagged resonance bolt. */
+  RESONANCE_BOLT_JAG_PATTERN: [0, 0.72, -0.68, 0.56, -0.78, 0.48, 0] as const,
+  /** Maximum perpendicular bolt displacement, in tile widths. */
+  RESONANCE_BOLT_JAGGEDNESS_TILES: 0.16,
+  /** Lightning fork length, in tile widths. */
+  RESONANCE_BOLT_BRANCH_LENGTH_TILES: 0.24,
+  /** Forward reach of each lightning fork as a fraction of its side reach. */
+  RESONANCE_BOLT_BRANCH_FORWARD_RATIO: 0.45,
+  /** Positions of lightning forks along the bolt. */
+  RESONANCE_BOLT_BRANCH_POSITION_RATIOS: [0.33, 0.67] as const,
   /** Shockwave scale for the resonance origin. */
   RESONANCE_ORIGIN_SHOCKWAVE_SCALE: 7,
   /** Shockwave scale for a Crystal Chamber arrival. */

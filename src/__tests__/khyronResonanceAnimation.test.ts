@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { ANIMATION } from '../../config/animation';
 import { CRYSTAL_CHAMBER_CONFIG, MAP, UNIT_DEFINITIONS } from '../gameConfig';
 import { useAnimationStore } from '../animationStore';
 import { useCombatAnimationStore } from '../combatAnimationStore';
@@ -82,7 +83,7 @@ function resonance(overrides: Partial<Extract<GameEvent, { type: 'RESONANCE_TRIG
   Extract<GameEvent, { type: 'RESONANCE_TRIGGERED' }> {
   return {
     type: 'RESONANCE_TRIGGERED',
-    sources: [{ sourceId: 'lava-source', position: { x: 0, y: 4 } }],
+    sources: [{ sourceId: 'lava-source', position: { x: 0, y: 3 } }],
     reachedNodes: [
       {
         buildingId: 'chamber',
@@ -90,7 +91,7 @@ function resonance(overrides: Partial<Extract<GameEvent, { type: 'RESONANCE_TRIG
         position: { x: 0, y: 0 },
         sourceId: 'lava-source',
         parentBuildingId: null,
-        parentPosition: { x: 0, y: 4 },
+        parentPosition: { x: 0, y: 3 },
         hopDepth: 1,
         wasResonating: false,
       },
@@ -142,8 +143,8 @@ describe('Khyron resonance event presentation', () => {
     const { activate, camera, animation } = replay([resonance()]);
     await vi.runAllTimersAsync();
     expect(camera.mock.calls).toEqual([
-      [{ x: 0, y: 4 }],
-      [{ x: 0, y: 0 }],
+      [{ x: 0, y: 3 }, ANIMATION.RESONANCE_CAMERA_MOVE_DURATION_MS],
+      [{ x: 0, y: 0 }, ANIMATION.RESONANCE_CAMERA_MOVE_DURATION_MS],
     ]);
     expect(useGameStore.getState().buildings.chamber.resonanceTurnsRemaining).toBeGreaterThan(0);
     expect(useGameStore.getState().buildings.cave.resonanceTurnsRemaining).toBeGreaterThan(0);
@@ -176,7 +177,7 @@ describe('Khyron resonance event presentation', () => {
         position: { x: 0, y: 0 },
         sourceId: 'lava-source',
         parentBuildingId: null,
-        parentPosition: { x: 0, y: 4 },
+        parentPosition: { x: 0, y: 3 },
         hopDepth: 1,
         wasResonating: false,
       }],
@@ -205,7 +206,10 @@ describe('Khyron resonance event presentation', () => {
     const { activate, camera, animation } = replay([resonance()]);
     await vi.runAllTimersAsync();
     expect(activate.mock.calls).toEqual([['first'], ['second']]);
-    expect(camera.mock.calls).toEqual([[{ x: 2, y: 1 }]]);
+    expect(camera.mock.calls).toEqual([[
+      { x: 2, y: 1 },
+      ANIMATION.RESONANCE_CAMERA_MOVE_DURATION_MS,
+    ]]);
     expect(animation).toHaveBeenCalled();
     expect(useGameStore.getState().units.second.resonanceActive).toBe(true);
   });
@@ -225,8 +229,8 @@ describe('Khyron resonance event presentation', () => {
     const activateCave = vi.spyOn(useGameStore.getState(), 'activateCrystalCave');
     const event = resonance({
       sources: [
-        { sourceId: 'origin-left', position: { x: 0, y: 4 } },
-        { sourceId: 'origin-right', position: { x: 4, y: 4 } },
+        { sourceId: 'origin-left', position: { x: 0, y: 3 } },
+        { sourceId: 'origin-right', position: { x: 4, y: 3 } },
       ],
       reachedNodes: [
         {
@@ -252,9 +256,10 @@ describe('Khyron resonance event presentation', () => {
     expect(useGameStore.getState().buildings.isolated.resonanceTurnsRemaining).toBe(2);
     expect(animation).not.toHaveBeenCalled();
     expect(useCombatAnimationStore.getState().lineVfx.map(({ fromPx, toPx }) => [fromPx, toPx])).toEqual([
-      [{ x: 40, y: 360 }, { x: 40, y: 40 }],
+      [{ x: 40, y: 280 }, { x: 40, y: 40 }],
       [{ x: 40, y: 40 }, { x: 120, y: 40 }],
     ]);
+    expect(useCombatAnimationStore.getState().lineVfx.map(({ durationMs }) => durationMs)).toEqual([330, 320]);
   });
 
   it('does not activate Khyrons for a cave-only event even with supplied IDs', async () => {
@@ -265,7 +270,7 @@ describe('Khyron resonance event presentation', () => {
         position: { x: 1, y: 0 },
         sourceId: 'lava-source',
         parentBuildingId: null,
-        parentPosition: { x: 0, y: 4 },
+        parentPosition: { x: 0, y: 3 },
         hopDepth: 1,
         wasResonating: false,
       }],

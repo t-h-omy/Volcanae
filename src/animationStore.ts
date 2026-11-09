@@ -5,6 +5,7 @@
  */
 
 import { create } from 'zustand';
+import { ANIMATION } from '../config/animation';
 import type { GameEvent } from './gameEvents';
 import type { GameState, Position } from './types';
 import { MAP } from './gameConfig';
@@ -29,6 +30,9 @@ interface AnimationState {
   /** Camera target — the grid position the viewport should center on */
   cameraTarget: Position;
 
+  /** Duration for the next camera-target transition */
+  cameraMoveDurationMs: number;
+
   /** True while the animation engine is processing the queue */
   isAnimating: boolean;
 }
@@ -39,7 +43,7 @@ interface AnimationActions {
   /** Pop the first event from the queue */
   shiftEvent: () => GameEvent | undefined;
   /** Set the camera target position */
-  setCameraTarget: (pos: Position) => void;
+  setCameraTarget: (pos: Position, durationMs?: number) => void;
   /** Set animation active state */
   setIsAnimating: (v: boolean) => void;
   /** Marks the current queue revision as the active processing batch */
@@ -65,6 +69,7 @@ export const useAnimationStore = create<AnimationStore>((set, get) => ({
     x: Math.floor(MAP.GRID_WIDTH / 2),
     y: MAP.GRID_HEIGHT - MAP.LAVA_BUFFER_ROWS - 1 - Math.floor(MAP.ZONE_HEIGHT / 2),
   },
+  cameraMoveDurationMs: ANIMATION.CAMERA_MOVE_DURATION_MS,
   isAnimating: false,
 
   enqueue: (events, resolvedState) => {
@@ -84,8 +89,8 @@ export const useAnimationStore = create<AnimationStore>((set, get) => ({
     return first;
   },
 
-  setCameraTarget: (pos) => {
-    set({ cameraTarget: pos });
+  setCameraTarget: (pos, durationMs = ANIMATION.CAMERA_MOVE_DURATION_MS) => {
+    set({ cameraTarget: pos, cameraMoveDurationMs: durationMs });
   },
 
   setIsAnimating: (v) => {
@@ -106,6 +111,12 @@ export const useAnimationStore = create<AnimationStore>((set, get) => ({
 
   clear: () => {
     const nextRevision = get().queueRevision + 1;
-    set({ eventQueue: [], resolvedState: null, isAnimating: false, queueRevision: nextRevision });
+    set({
+      eventQueue: [],
+      resolvedState: null,
+      isAnimating: false,
+      cameraMoveDurationMs: ANIMATION.CAMERA_MOVE_DURATION_MS,
+      queueRevision: nextRevision,
+    });
   },
 }));
