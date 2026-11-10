@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.119.1 - Resonance camera overview
+
+The resonance camera smoothly zooms out to show every playfield column before following the wave, then restores the previous zoom. The temporary overview also clears when playback ends or is interrupted.
+
 ### v0.119.0 - W3 Resonance Wave
 Resonance now propagates from lava-consumed Chambers or Martyr deaths through connected Chambers and Caves, with per-Cave Drake recruitment, jagged lightning arcs, and a slower hop-tracked camera sequence.
 

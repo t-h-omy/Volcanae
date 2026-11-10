@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { ANIMATION } from '../../config/animation';
 import { CRYSTAL_CHAMBER_CONFIG, MAP, UNIT_DEFINITIONS } from '../gameConfig';
 import { useAnimationStore } from '../animationStore';
+import { useZoomStore } from '../zoomStore';
 import { useCombatAnimationStore } from '../combatAnimationStore';
 import { useGameStore } from '../gameStore';
 import { useAnimationEngine } from '../useAnimationEngine';
@@ -137,6 +138,35 @@ describe('Khyron resonance event presentation', () => {
     vi.useRealTimers();
     useAnimationStore.getState().clear();
     useCombatAnimationStore.setState(useCombatAnimationStore.getInitialState());
+    useZoomStore.setState(useZoomStore.getInitialState());
+  });
+
+  it('opens the full-width overview before the wave and restores zoom after playback', async () => {
+    useZoomStore.getState().setZoom(1.15);
+    replay([resonance()]);
+    expect(useAnimationStore.getState().resonanceOverview).toBe(true);
+    expect(useCombatAnimationStore.getState().lineVfx).toHaveLength(0);
+    await vi.advanceTimersByTimeAsync(ANIMATION.RESONANCE_CAMERA_MOVE_DURATION_MS - 1);
+    expect(useCombatAnimationStore.getState().lineVfx).toHaveLength(0);
+    expect(useGameStore.getState().buildings.chamber.resonanceTurnsRemaining).toBe(0);
+    await vi.runAllTimersAsync();
+    expect(useAnimationStore.getState().resonanceOverview).toBe(false);
+    expect(useZoomStore.getState().zoom).toBe(1.15);
+  });
+
+  it('clears the temporary overview when the animation engine unmounts', () => {
+    useZoomStore.getState().setZoom(0.75);
+    replay([resonance()]);
+    expect(useAnimationStore.getState().resonanceOverview).toBe(true);
+    effects.cleanup?.();
+    expect(useAnimationStore.getState().resonanceOverview).toBe(false);
+    expect(useZoomStore.getState().zoom).toBe(0.75);
+  });
+
+  it('clears the temporary overview when playback is cleared', () => {
+    replay([resonance()]);
+    useAnimationStore.getState().clear();
+    expect(useAnimationStore.getState().resonanceOverview).toBe(false);
   });
 
   it('presents the source and each graph hop before activating Khyrons', async () => {

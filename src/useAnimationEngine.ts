@@ -943,6 +943,7 @@ export function useAnimationEngine(): void {
           );
 
           if (visible) {
+            useAnimationStore.getState().setResonanceOverview(true);
             const source = event.sources.find((entry) => isTileRevealed(entry.position));
             const focusPosition = source?.position ??
               event.reachedNodes.find((node) => isTileRevealed(node.position))?.position ??
@@ -955,6 +956,8 @@ export function useAnimationEngine(): void {
                 ANIMATION.RESONANCE_CAMERA_MOVE_DURATION_MS,
               );
             }
+            await wait(ANIMATION.RESONANCE_CAMERA_MOVE_DURATION_MS);
+            if (!alive) return;
             for (const source of event.sources) {
               if (!isTileRevealed(source.position)) continue;
               useCombatAnimationStore.getState().addTileVfx({
@@ -1107,6 +1110,10 @@ export function useAnimationEngine(): void {
               }
             }
             if (attemptedKhyronHint) tryTriggerHint('H21_KHYRON_RESONANCE');
+          }
+          if (visible) {
+            useAnimationStore.getState().setResonanceOverview(false);
+            await wait(ANIMATION.RESONANCE_CAMERA_MOVE_DURATION_MS);
           }
           continue;
         }
@@ -2187,6 +2194,7 @@ export function useAnimationEngine(): void {
     return () => {
       alive = false;
       unsubscribe();
+      useAnimationStore.getState().setResonanceOverview(false);
     };
   }, []);
 }

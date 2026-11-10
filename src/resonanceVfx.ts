@@ -1,4 +1,9 @@
 import { ANIMATION } from '../config/animation';
+import { MAP } from '../config/map';
+
+export function getResonanceOverviewZoom(viewportWidth: number, tileSize: number, zoom: number): number {
+  return Math.min(zoom, viewportWidth / (MAP.GRID_WIDTH * tileSize));
+}
 
 interface Point {
   x: number;

@@ -33,6 +33,8 @@ interface AnimationState {
   /** Duration for the next camera-target transition */
   cameraMoveDurationMs: number;
 
+  resonanceOverview: boolean;
+
   /** True while the animation engine is processing the queue */
   isAnimating: boolean;
 }
@@ -46,6 +48,7 @@ interface AnimationActions {
   setCameraTarget: (pos: Position, durationMs?: number) => void;
   /** Set animation active state */
   setIsAnimating: (v: boolean) => void;
+  setResonanceOverview: (active: boolean) => void;
   /** Marks the current queue revision as the active processing batch */
   beginProcessingCurrentQueue: () => void;
   /** Clears the active processing marker */
@@ -70,6 +73,7 @@ export const useAnimationStore = create<AnimationStore>((set, get) => ({
     y: MAP.GRID_HEIGHT - MAP.LAVA_BUFFER_ROWS - 1 - Math.floor(MAP.ZONE_HEIGHT / 2),
   },
   cameraMoveDurationMs: ANIMATION.CAMERA_MOVE_DURATION_MS,
+  resonanceOverview: false,
   isAnimating: false,
 
   enqueue: (events, resolvedState) => {
@@ -94,8 +98,10 @@ export const useAnimationStore = create<AnimationStore>((set, get) => ({
   },
 
   setIsAnimating: (v) => {
-    set({ isAnimating: v });
+    set({ isAnimating: v, ...(!v ? { resonanceOverview: false } : {}) });
   },
+
+  setResonanceOverview: (active) => set({ resonanceOverview: active }),
 
   beginProcessingCurrentQueue: () => {
     set({ processingRevision: get().queueRevision });
@@ -115,6 +121,7 @@ export const useAnimationStore = create<AnimationStore>((set, get) => ({
       eventQueue: [],
       resolvedState: null,
       isAnimating: false,
+      resonanceOverview: false,
       cameraMoveDurationMs: ANIMATION.CAMERA_MOVE_DURATION_MS,
       queueRevision: nextRevision,
     });

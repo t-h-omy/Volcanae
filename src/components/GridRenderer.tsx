@@ -39,7 +39,7 @@ import {
   type Building,
 } from '../types';
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
-import { createResonanceLightningPaths } from '../resonanceVfx';
+import { createResonanceLightningPaths, getResonanceOverviewZoom } from '../resonanceVfx';
 import { nextTileCycleTarget, tileSelectionState } from '../tileCycleHelper';
 import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, getTauntBlockedAttackTargetKeys, explainInvalidAttackTarget, canUnitConstruct, canUnitCapture, getHealTargets, getBridgeBuildTargets, explainInvalidHealTarget, explainInvalidBridgeTarget, canUnitSetTrap, getTrapPlacementTargets, explainInvalidTrapTarget, isUnitDisplayExhausted } from '../unitActions';
 import { getValidSpellTargets, explainInvalidSpellTarget, getTransposeTerrainBlockedTargets, getLeashedUnitsForMage } from '../spellSystem';
@@ -199,14 +199,30 @@ export default function GridRenderer() {
   const isAnimating = useAnimationStore((s) => s.isAnimating);
   const cameraTarget = useAnimationStore((s) => s.cameraTarget);
   const cameraMoveDurationMs = useAnimationStore((s) => s.cameraMoveDurationMs);
+  const resonanceOverview = useAnimationStore((s) => s.resonanceOverview);
 
   // ── Zoom store ──
   // Subscribe to zoom for rendering; mutations go through getState() to avoid extra subscriptions.
-  const zoom = useZoomStore((s) => s.zoom);
+  const userZoom = useZoomStore((s) => s.zoom);
 
   const tileSize = useTileSize();
   const viewportRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [viewportWidth, setViewportWidth] = useState<number | null>(null);
+  const overviewZoom = resonanceOverview && viewportWidth !== null && viewportWidth > 0
+    ? getResonanceOverviewZoom(viewportWidth, tileSize, userZoom)
+    : null;
+  const zoom = overviewZoom ?? userZoom;
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const updateWidth = () => setViewportWidth(viewport.clientWidth);
+    updateWidth();
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, []);
 
   // ── Pinch-to-zoom state ──
   const pinchState = useRef<{
@@ -246,6 +262,7 @@ export default function GridRenderer() {
   // Helper: zoom to a new value and adjust offset so the given focal point (in viewport px)
   // stays fixed on screen. Call this for wheel and button zooming.
   const applyZoom = useCallback((newZoom: number, focalX: number, focalY: number) => {
+    if (useAnimationStore.getState().resonanceOverview) return;
     const clampedZoom = Math.min(RENDER.ZOOM_MAX, Math.max(RENDER.ZOOM_MIN, newZoom));
     const oldZoom = useZoomStore.getState().zoom;
     const ratio = clampedZoom / oldZoom;
@@ -298,19 +315,20 @@ export default function GridRenderer() {
   }, [cameraMoveDurationMs]);
 
   // When camera target changes, update offset to center viewport on target.
-  // Zoom is intentionally NOT a dependency: we don't re-centre during pinch/wheel
-  // zoom — those handlers adjust offset themselves to keep the focal point fixed.
+  // Manual zoom keeps its focal point; only the temporary overview re-centres.
   useEffect(() => {
     const viewportEl = viewportRef.current;
     if (!viewportEl) return;
     const viewportW = viewportEl.clientWidth;
     const viewportH = viewportEl.clientHeight;
-    const currentZoom = useZoomStore.getState().zoom;
+    const currentZoom = overviewZoom ?? useZoomStore.getState().zoom;
     setOffset({
-      x: viewportW / 2 - (cameraTarget.x * tileSize + tileSize / 2) * currentZoom,
+      x: viewportW / 2 - (overviewZoom !== null
+        ? MAP.GRID_WIDTH * tileSize / 2
+        : cameraTarget.x * tileSize + tileSize / 2) * currentZoom,
       y: viewportH / 2 - (cameraTarget.y * tileSize + tileSize / 2) * currentZoom,
     });
-  }, [cameraTarget, tileSize]);
+  }, [cameraTarget, tileSize, overviewZoom]);
 
   // ── Pan / Drag handlers ──
   // On desktop: drag is activated only while RMB is held.
@@ -1119,8 +1137,8 @@ export default function GridRenderer() {
         <LineVfxLayer tileSize={tileSize} />
       </div>
       <div className="zoom-controls">
-        <button onClick={() => handleZoomButton(-RENDER.ZOOM_STEP)}>−</button>
-        <button onClick={() => handleZoomButton(+RENDER.ZOOM_STEP)}>+</button>
+        <button disabled={resonanceOverview} onClick={() => handleZoomButton(-RENDER.ZOOM_STEP)}>−</button>
+        <button disabled={resonanceOverview} onClick={() => handleZoomButton(+RENDER.ZOOM_STEP)}>+</button>
       </div>
     </div>
   );
