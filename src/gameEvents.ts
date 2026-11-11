@@ -101,6 +101,8 @@ export type GameEvent =
       destroyedBuildingIds: string[];
       /** Position of the Crystal Chamber destroyed by this lava advance, if any */
       destroyedChamberPosition?: Position;
+      /** All player Crystal Chamber origins consumed in this advance. */
+      destroyedChamberPositions?: Position[];
     }
   | {
       type: 'BUILDING_ATTACK_BUILDING';
@@ -113,15 +115,20 @@ export type GameEvent =
     }
   | {
       type: 'RESONANCE_TRIGGERED';
-      destroyedChamberPosition: Position;
-      survivingChamberIds: string[];
-      /**
-       * IDs of player-owned Crystal Caves that also begin resonating from
-       * this lava-consumed chamber. The animation engine pans the camera
-       * to each cave and refreshes its `resonanceTurnsRemaining` via
-       * `activateCrystalCave` for VFX consistency.
-       */
-      survivingCaveIds?: string[];
+      sources: {
+        sourceId: string;
+        position: Position;
+      }[];
+      reachedNodes: {
+        buildingId: string;
+        buildingType: BuildingType;
+        position: Position;
+        sourceId: string;
+        parentBuildingId: string | null;
+        parentPosition: Position;
+        hopDepth: number;
+        wasResonating: boolean;
+      }[];
       /** Surviving player Khyrons, included only when Chambers resonate. */
       survivingKhyronIds?: string[];
       resonanceDuration: number;

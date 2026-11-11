@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { produce } from 'immer';
 import { ABILITIES, CRYSTAL_CHAMBER_CONFIG, MAP, UNIT_DEFINITIONS } from '../gameConfig';
 import { advanceLavaWithEvents } from '../lavaSystem';
-import { collectResources } from '../resourceSystem';
+import { collectResources, recruitUnit } from '../resourceSystem';
 import { createInitialSpecialists } from '../specialistSystem';
 import { useGameStore } from '../gameStore';
 import {
@@ -216,31 +216,26 @@ function makeState(opts: {
 }
 
 describe('SP-16m The Martyr (spec_16) — RESONANCE_ON_UNIT_LAVA_DEATH', () => {
-  it('triggers resonance for every player unit destroyed by lava advance', () => {
+  it('keeps distant structures dormant and preserves their previous timers', () => {
     const state = makeState({
       withMartyr: true,
       doomedPlayerUnitPositions: [{ x: 2, y: 4 }, { x: 5, y: 4 }],
       doomedEnemyUnitPositions: [{ x: 7, y: 4 }],
     });
+    state.buildings.surviving_chamber.resonanceTurnsRemaining = 2;
+    state.buildings.surviving_cave.resonanceTurnsRemaining = 1;
 
     const { newState, events } = advanceLavaWithEvents(state);
     const resonanceEvents = events.filter((e) => e.type === 'RESONANCE_TRIGGERED');
 
-    expect(resonanceEvents).toHaveLength(2);
-    expect(resonanceEvents.map((e) => e.destroyedChamberPosition)).toEqual(
-      expect.arrayContaining([{ x: 2, y: 4 }, { x: 5, y: 4 }]),
-    );
-    for (const event of resonanceEvents) {
-      expect(event.survivingChamberIds).toEqual(['surviving_chamber']);
-      expect(event.survivingCaveIds).toEqual(['surviving_cave']);
-      expect(event.resonanceDuration).toBe(CRYSTAL_CHAMBER_CONFIG.RESONANCE_DURATION);
-    }
-    expect(newState.buildings.surviving_chamber.resonanceTurnsRemaining).toBe(
-      CRYSTAL_CHAMBER_CONFIG.RESONANCE_DURATION,
-    );
-    expect(newState.buildings.surviving_cave.resonanceTurnsRemaining).toBe(
-      CRYSTAL_CHAMBER_CONFIG.RESONANCE_DURATION,
-    );
+    expect(resonanceEvents).toHaveLength(1);
+    const [event] = resonanceEvents;
+    expect(event?.type).toBe('RESONANCE_TRIGGERED');
+    if (event?.type !== 'RESONANCE_TRIGGERED') return;
+    expect(event.sources.map(({ position }) => position)).toEqual([{ x: 2, y: 4 }, { x: 5, y: 4 }]);
+    expect(event.reachedNodes).toEqual([]);
+    expect(newState.buildings.surviving_chamber.resonanceTurnsRemaining).toBe(2);
+    expect(newState.buildings.surviving_cave.resonanceTurnsRemaining).toBe(1);
   });
 
   it('does not trigger unit-death resonance when The Martyr is inactive', () => {
@@ -267,10 +262,11 @@ describe('SP-16m The Martyr (spec_16) — RESONANCE_ON_UNIT_LAVA_DEATH', () => {
     const { events } = advanceLavaWithEvents(state);
     const resonanceEvents = events.filter((e) => e.type === 'RESONANCE_TRIGGERED');
 
-    expect(resonanceEvents).toHaveLength(2);
-    expect(resonanceEvents.map((e) => e.destroyedChamberPosition)).toEqual(
-      expect.arrayContaining([{ x: 6, y: 4 }, { x: 2, y: 4 }]),
-    );
+    expect(resonanceEvents).toHaveLength(1);
+    const resonance = resonanceEvents[0];
+    expect(resonance?.type).toBe('RESONANCE_TRIGGERED');
+    if (resonance?.type !== 'RESONANCE_TRIGGERED') return;
+    expect(resonance.sources.map(({ position }) => position)).toEqual([{ x: 2, y: 4 }, { x: 6, y: 4 }]);
   });
 
   it('flags only surviving chambers within the configured north-row bonus window', () => {
@@ -285,7 +281,7 @@ describe('SP-16m The Martyr (spec_16) — RESONANCE_ON_UNIT_LAVA_DEATH', () => {
       'near_chamber',
       BuildingType.CRYSTAL_CHAMBER,
       Faction.PLAYER,
-      { x: 2, y: 2 },
+      { x: 3, y: 2 },
     );
     state.buildings[nearChamber.id] = nearChamber;
     state.grid[nearChamber.position.y][nearChamber.position.x].buildingId = nearChamber.id;
@@ -369,5 +365,118 @@ describe('SP-16m The Martyr (spec_16) — RESONANCE_ON_UNIT_LAVA_DEATH', () => {
     const next = useGameStore.getState();
 
     expect(next.arcaneCrystals).toBe(0);
+  });
+
+  it('activates only reached structures and relays through the reached Chamber to a Cave', () => {
+    const state = makeState({
+      withMartyr: false,
+      doomedPlayerUnitPositions: [],
+      doomedChamberPosition: { x: 0, y: 4 },
+    });
+    state.grid[0][0].buildingId = null;
+    state.grid[0][1].buildingId = null;
+    state.buildings.surviving_chamber.position = { x: 8, y: 20 };
+    state.buildings.surviving_cave.position = { x: 8, y: 24 };
+    state.grid[20][8].buildingId = 'surviving_chamber';
+    state.grid[24][8].buildingId = 'surviving_cave';
+    const relay = makeBuilding(
+      'relay_chamber',
+      BuildingType.CRYSTAL_CHAMBER,
+      Faction.PLAYER,
+      { x: 1, y: 1 },
+      { resonanceTurnsRemaining: 1 },
+    );
+    const linkedCave = makeBuilding(
+      'linked_cave',
+      BuildingType.CRYSTAL_CAVE,
+      Faction.PLAYER,
+      { x: 4, y: 1 },
+    );
+    const isolatedCave = makeBuilding(
+      'isolated_cave',
+      BuildingType.CRYSTAL_CAVE,
+      Faction.PLAYER,
+      { x: 8, y: 1 },
+      { resonanceTurnsRemaining: 2 },
+    );
+    for (const building of [relay, linkedCave, isolatedCave]) {
+      state.buildings[building.id] = building;
+      state.grid[building.position.y][building.position.x].buildingId = building.id;
+    }
+
+    const { newState, events } = advanceLavaWithEvents(state);
+    const resonanceEvent = events.find((event) => event.type === 'RESONANCE_TRIGGERED');
+
+    expect(resonanceEvent?.type).toBe('RESONANCE_TRIGGERED');
+    if (resonanceEvent?.type !== 'RESONANCE_TRIGGERED') return;
+    expect(resonanceEvent.reachedNodes.map(({ buildingId, hopDepth }) => [buildingId, hopDepth])).toEqual([
+      ['relay_chamber', 1],
+      ['linked_cave', 2],
+    ]);
+    expect(resonanceEvent.reachedNodes[0]?.wasResonating).toBe(true);
+    expect(newState.buildings.relay_chamber.resonanceTurnsRemaining).toBe(CRYSTAL_CHAMBER_CONFIG.RESONANCE_DURATION);
+    expect(newState.buildings.linked_cave.resonanceTurnsRemaining).toBe(CRYSTAL_CHAMBER_CONFIG.RESONANCE_DURATION);
+    expect(newState.buildings.isolated_cave.resonanceTurnsRemaining).toBe(2);
+    expect(newState.buildings.surviving_chamber.resonanceTurnsRemaining).toBe(0);
+    expect(newState.buildings.surviving_cave.resonanceTurnsRemaining).toBe(0);
+    expect(newState.buildings.doomed_chamber).toBeUndefined();
+    expect(resonanceEvent.reachedNodes.some(({ buildingId }) => buildingId === 'doomed_chamber')).toBe(false);
+  });
+
+  it('unions simultaneous Martyr deaths, deduplicating shared recipients with stable parents', () => {
+    const state = makeState({
+      withMartyr: true,
+      doomedPlayerUnitPositions: [{ x: 2, y: 4 }, { x: 8, y: 4 }],
+    });
+    delete state.buildings.surviving_chamber;
+    delete state.buildings.surviving_cave;
+    state.grid[0][0].buildingId = null;
+    state.grid[0][1].buildingId = null;
+    for (const building of [
+      makeBuilding('left_chamber', BuildingType.CRYSTAL_CHAMBER, Faction.PLAYER, { x: 2, y: 1 }),
+      makeBuilding('shared_cave', BuildingType.CRYSTAL_CAVE, Faction.PLAYER, { x: 5, y: 1 }),
+      makeBuilding('right_chamber', BuildingType.CRYSTAL_CHAMBER, Faction.PLAYER, { x: 8, y: 1 }),
+    ]) {
+      state.buildings[building.id] = building;
+      state.grid[building.position.y][building.position.x].buildingId = building.id;
+    }
+
+    const { newState, events } = advanceLavaWithEvents(state);
+    const resonanceEvent = events.find((event) => event.type === 'RESONANCE_TRIGGERED');
+
+    expect(resonanceEvent?.type).toBe('RESONANCE_TRIGGERED');
+    if (resonanceEvent?.type !== 'RESONANCE_TRIGGERED') return;
+    expect(resonanceEvent.sources.map(({ position }) => position)).toEqual([{ x: 2, y: 4 }, { x: 8, y: 4 }]);
+    expect(resonanceEvent.reachedNodes.map(({ buildingId }) => buildingId)).toEqual([
+      'left_chamber', 'shared_cave', 'right_chamber',
+    ]);
+    expect(resonanceEvent.reachedNodes.filter(({ buildingId }) => buildingId === 'shared_cave')).toHaveLength(1);
+    expect(resonanceEvent.reachedNodes.find(({ buildingId }) => buildingId === 'shared_cave')).toMatchObject({
+      sourceId: 'martyr:player_0',
+      parentBuildingId: null,
+      hopDepth: 1,
+    });
+    expect(newState.buildings.shared_cave.resonanceTurnsRemaining).toBe(CRYSTAL_CHAMBER_CONFIG.RESONANCE_DURATION);
+  });
+
+  it('requires each individual Crystal Cave to be resonating before Drake recruitment', () => {
+    const state = makeState({ withMartyr: false, doomedPlayerUnitPositions: [] });
+    state.arcaneCrystals = 10;
+    state.buildings.surviving_chamber.resonanceTurnsRemaining = CRYSTAL_CHAMBER_CONFIG.RESONANCE_DURATION;
+
+    const isolated = produce(state, (draft) => {
+      recruitUnit(draft, 'surviving_cave', UnitType.CRYSTAL_DRAKE);
+    });
+    expect(Object.values(isolated.units)).toHaveLength(0);
+    expect(isolated.arcaneCrystals).toBe(10);
+
+    const resonatingCave = produce(state, (draft) => {
+      draft.buildings.surviving_cave.resonanceTurnsRemaining = 1;
+    });
+    const active = produce(resonatingCave, (draft) => {
+      recruitUnit(draft, 'surviving_cave', UnitType.CRYSTAL_DRAKE);
+    });
+    expect(Object.values(active.units).some((unit) => unit.type === UnitType.CRYSTAL_DRAKE)).toBe(true);
+    expect(active.arcaneCrystals).toBeLessThan(10);
   });
 });

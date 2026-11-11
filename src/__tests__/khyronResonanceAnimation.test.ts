@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { ANIMATION } from '../../config/animation';
 import { CRYSTAL_CHAMBER_CONFIG, MAP, UNIT_DEFINITIONS } from '../gameConfig';
 import { useAnimationStore } from '../animationStore';
+import { useZoomStore } from '../zoomStore';
 import { useCombatAnimationStore } from '../combatAnimationStore';
 import { useGameStore } from '../gameStore';
 import { useAnimationEngine } from '../useAnimationEngine';
@@ -79,10 +80,33 @@ function state(revealed = true): GameState {
   };
 }
 
-function resonance(overrides: Partial<Extract<GameEvent, { type: 'RESONANCE_TRIGGERED' }>> = {}): GameEvent {
+function resonance(overrides: Partial<Extract<GameEvent, { type: 'RESONANCE_TRIGGERED' }>> = {}):
+  Extract<GameEvent, { type: 'RESONANCE_TRIGGERED' }> {
   return {
-    type: 'RESONANCE_TRIGGERED', destroyedChamberPosition: { x: 0, y: 4 },
-    survivingChamberIds: ['chamber'], survivingCaveIds: ['cave'],
+    type: 'RESONANCE_TRIGGERED',
+    sources: [{ sourceId: 'lava-source', position: { x: 0, y: 3 } }],
+    reachedNodes: [
+      {
+        buildingId: 'chamber',
+        buildingType: BuildingType.CRYSTAL_CHAMBER,
+        position: { x: 0, y: 0 },
+        sourceId: 'lava-source',
+        parentBuildingId: null,
+        parentPosition: { x: 0, y: 3 },
+        hopDepth: 1,
+        wasResonating: false,
+      },
+      {
+        buildingId: 'cave',
+        buildingType: BuildingType.CRYSTAL_CAVE,
+        position: { x: 1, y: 0 },
+        sourceId: 'lava-source',
+        parentBuildingId: 'chamber',
+        parentPosition: { x: 0, y: 0 },
+        hopDepth: 2,
+        wasResonating: false,
+      },
+    ],
     survivingKhyronIds: ['first', 'second'],
     resonanceDuration: CRYSTAL_CHAMBER_CONFIG.RESONANCE_DURATION, ...overrides,
   };
@@ -99,9 +123,6 @@ function replay(events: GameEvent[]) {
   return { activate, camera, animation };
 }
 
-const arrival = ANIMATION.CAMERA_MOVE_DURATION_MS + ANIMATION.PRE_ACTION_IDLE_MS;
-const presentation = ANIMATION.CRYSTAL_ACTIVATE_VFX_DURATION_MS + ANIMATION.POST_ACTION_IDLE_MS;
-
 describe('Khyron resonance event presentation', () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -117,34 +138,50 @@ describe('Khyron resonance event presentation', () => {
     vi.useRealTimers();
     useAnimationStore.getState().clear();
     useCombatAnimationStore.setState(useCombatAnimationStore.getInitialState());
+    useZoomStore.setState(useZoomStore.getInitialState());
   });
 
-  it('finishes each camera move before individual activation, after Chambers and Caves', async () => {
-    const { activate, camera, animation } = replay([resonance()]);
-    expect(camera).toHaveBeenLastCalledWith({ x: 0, y: 0 });
-    await vi.advanceTimersByTimeAsync(arrival);
-    expect(useGameStore.getState().buildings.chamber.resonanceTurnsRemaining).toBeGreaterThan(0);
-    expect(activate).not.toHaveBeenCalled();
-    expect(useGameStore.getState().units.first.resonanceActive).toBe(false);
-    expect(useGameStore.getState().units.second.resonanceActive).toBe(false);
-    await vi.advanceTimersByTimeAsync(presentation);
-    expect(camera).toHaveBeenLastCalledWith({ x: 1, y: 0 });
-    await vi.advanceTimersByTimeAsync(arrival + presentation);
-    expect(camera).toHaveBeenLastCalledWith({ x: 2, y: 1 });
-    await vi.advanceTimersByTimeAsync(ANIMATION.CAMERA_MOVE_DURATION_MS - 1);
-    expect(activate).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(ANIMATION.PRE_ACTION_IDLE_MS + 1);
-    expect(activate.mock.calls).toEqual([['first']]);
-    expect(useGameStore.getState().units.first.resonanceActive).toBe(true);
-    expect(useGameStore.getState().units.first.tags).toContain(UnitTag.RESONANCE);
-    expect(useGameStore.getState().units.second.resonanceActive).toBe(false);
-    expect(animation).toHaveBeenLastCalledWith('first', { type: 'CRYSTAL_ACTIVATE' });
-    await vi.advanceTimersByTimeAsync(presentation);
-    expect(camera).toHaveBeenLastCalledWith({ x: 3, y: 1 });
-    expect(activate).toHaveBeenCalledTimes(1);
-    await vi.advanceTimersByTimeAsync(arrival);
-    expect(activate.mock.calls).toEqual([['first'], ['second']]);
+  it('opens the full-width overview before the wave and restores zoom after playback', async () => {
+    useZoomStore.getState().setZoom(1.15);
+    replay([resonance()]);
+    expect(useAnimationStore.getState().resonanceOverview).toBe(true);
+    expect(useCombatAnimationStore.getState().lineVfx).toHaveLength(0);
+    await vi.advanceTimersByTimeAsync(ANIMATION.RESONANCE_CAMERA_MOVE_DURATION_MS - 1);
+    expect(useCombatAnimationStore.getState().lineVfx).toHaveLength(0);
+    expect(useGameStore.getState().buildings.chamber.resonanceTurnsRemaining).toBe(0);
     await vi.runAllTimersAsync();
+    expect(useAnimationStore.getState().resonanceOverview).toBe(false);
+    expect(useZoomStore.getState().zoom).toBe(1.15);
+  });
+
+  it('clears the temporary overview when the animation engine unmounts', () => {
+    useZoomStore.getState().setZoom(0.75);
+    replay([resonance()]);
+    expect(useAnimationStore.getState().resonanceOverview).toBe(true);
+    effects.cleanup?.();
+    expect(useAnimationStore.getState().resonanceOverview).toBe(false);
+    expect(useZoomStore.getState().zoom).toBe(0.75);
+  });
+
+  it('clears the temporary overview when playback is cleared', () => {
+    replay([resonance()]);
+    useAnimationStore.getState().clear();
+    expect(useAnimationStore.getState().resonanceOverview).toBe(false);
+  });
+
+  it('presents the source and each graph hop before activating Khyrons', async () => {
+    const { activate, camera, animation } = replay([resonance()]);
+    await vi.runAllTimersAsync();
+    expect(camera.mock.calls).toEqual([
+      [{ x: 0, y: 3 }, ANIMATION.RESONANCE_CAMERA_MOVE_DURATION_MS],
+      [{ x: 0, y: 0 }, ANIMATION.RESONANCE_CAMERA_MOVE_DURATION_MS],
+    ]);
+    expect(useGameStore.getState().buildings.chamber.resonanceTurnsRemaining).toBeGreaterThan(0);
+    expect(useGameStore.getState().buildings.cave.resonanceTurnsRemaining).toBeGreaterThan(0);
+    expect(activate.mock.calls).toEqual([['first'], ['second']]);
+    expect(useGameStore.getState().units.first.tags).toContain(UnitTag.RESONANCE);
+    expect(useGameStore.getState().units.second.resonanceActive).toBe(true);
+    expect(animation).toHaveBeenLastCalledWith('second', null);
     expect(useCombatAnimationStore.getState().unitAnimations.size).toBe(0);
   });
 
@@ -159,13 +196,22 @@ describe('Khyron resonance event presentation', () => {
     const { activate, camera } = replay([event, event]);
     await vi.runAllTimersAsync();
     expect(activate.mock.calls).toEqual([['first'], ['second']]);
-    expect(camera.mock.calls.filter(([pos]) => pos.y === 1)).toEqual([
-      [{ x: 2, y: 1 }], [{ x: 3, y: 1 }],
-    ]);
+    expect(camera.mock.calls.filter(([pos]) => pos.y === 1)).toEqual([]);
   });
 
   it('rechecks the live unit after camera arrival instead of activating a removed unit', async () => {
-    const { activate } = replay([resonance({ survivingChamberIds: ['missing'], survivingCaveIds: [] })]);
+    const { activate } = replay([resonance({
+      reachedNodes: [{
+        buildingId: 'missing-chamber',
+        buildingType: BuildingType.CRYSTAL_CHAMBER,
+        position: { x: 0, y: 0 },
+        sourceId: 'lava-source',
+        parentBuildingId: null,
+        parentPosition: { x: 0, y: 3 },
+        hopDepth: 1,
+        wasResonating: false,
+      }],
+    })]);
     useGameStore.setState((live) => ({
       units: Object.fromEntries(Object.entries(live.units).filter(([id]) => id !== 'first')),
     }));
@@ -183,29 +229,82 @@ describe('Khyron resonance event presentation', () => {
     expect(animation).not.toHaveBeenCalled();
   });
 
-  it('presents a revealed Khyron after camera arrival even when the trigger source is fogged', async () => {
+  it('presents a revealed Khyron even when the trigger source is fogged', async () => {
     const live = state(false);
     live.grid[1][2].isRevealed = true;
     useGameStore.setState(live);
     const { activate, camera, animation } = replay([resonance()]);
-    expect(useGameStore.getState().buildings.chamber.resonanceTurnsRemaining).toBeGreaterThan(0);
-    expect(useGameStore.getState().buildings.cave.resonanceTurnsRemaining).toBeGreaterThan(0);
-    expect(camera).toHaveBeenLastCalledWith({ x: 2, y: 1 });
-    expect(activate).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(ANIMATION.CAMERA_MOVE_DURATION_MS - 1);
-    expect(activate).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(ANIMATION.PRE_ACTION_IDLE_MS + 1);
-    expect(activate.mock.calls).toEqual([['first']]);
-    expect(animation).toHaveBeenLastCalledWith('first', { type: 'CRYSTAL_ACTIVATE' });
-    expect(useGameStore.getState().units.second.resonanceActive).toBe(false);
     await vi.runAllTimersAsync();
     expect(activate.mock.calls).toEqual([['first'], ['second']]);
-    expect(camera.mock.calls).toEqual([[{ x: 2, y: 1 }]]);
+    expect(camera.mock.calls).toEqual([[
+      { x: 2, y: 1 },
+      ANIMATION.RESONANCE_CAMERA_MOVE_DURATION_MS,
+    ]]);
+    expect(animation).toHaveBeenCalled();
     expect(useGameStore.getState().units.second.resonanceActive).toBe(true);
   });
 
+  it('deduplicates overlapping hidden sources and refreshes only reached nodes', async () => {
+    const live = state(false);
+    live.grid[0][0].isRevealed = true;
+    live.grid[0][1].isRevealed = true;
+    live.buildings.chamber.resonanceTurnsRemaining = 1;
+    live.buildings.cave.resonanceTurnsRemaining = 0;
+    const isolated = building('isolated', BuildingType.CRYSTAL_CAVE, { x: 5, y: 0 });
+    isolated.resonanceTurnsRemaining = 2;
+    live.buildings.isolated = isolated;
+    live.grid[0][5].buildingId = isolated.id;
+    useGameStore.setState(live);
+    const activateChamber = vi.spyOn(useGameStore.getState(), 'activateCrystalChamber');
+    const activateCave = vi.spyOn(useGameStore.getState(), 'activateCrystalCave');
+    const event = resonance({
+      sources: [
+        { sourceId: 'origin-left', position: { x: 0, y: 3 } },
+        { sourceId: 'origin-right', position: { x: 4, y: 3 } },
+      ],
+      reachedNodes: [
+        {
+          ...resonance().reachedNodes[0]!,
+          sourceId: 'origin-left',
+          wasResonating: true,
+        },
+        {
+          ...resonance().reachedNodes[1]!,
+          sourceId: 'origin-left',
+        },
+      ],
+    });
+    const { animation } = replay([event]);
+    await vi.runAllTimersAsync();
+
+    expect(activateChamber).toHaveBeenCalledTimes(1);
+    expect(activateCave).toHaveBeenCalledTimes(1);
+    expect(useGameStore.getState().buildings.chamber.resonanceTurnsRemaining)
+      .toBe(CRYSTAL_CHAMBER_CONFIG.RESONANCE_DURATION);
+    expect(useGameStore.getState().buildings.cave.resonanceTurnsRemaining)
+      .toBe(CRYSTAL_CHAMBER_CONFIG.RESONANCE_DURATION);
+    expect(useGameStore.getState().buildings.isolated.resonanceTurnsRemaining).toBe(2);
+    expect(animation).not.toHaveBeenCalled();
+    expect(useCombatAnimationStore.getState().lineVfx.map(({ fromPx, toPx }) => [fromPx, toPx])).toEqual([
+      [{ x: 40, y: 280 }, { x: 40, y: 40 }],
+      [{ x: 40, y: 40 }, { x: 120, y: 40 }],
+    ]);
+    expect(useCombatAnimationStore.getState().lineVfx.map(({ durationMs }) => durationMs)).toEqual([330, 320]);
+  });
+
   it('does not activate Khyrons for a cave-only event even with supplied IDs', async () => {
-    const { activate } = replay([resonance({ survivingChamberIds: [] })]);
+    const { activate } = replay([resonance({
+      reachedNodes: [{
+        buildingId: 'cave',
+        buildingType: BuildingType.CRYSTAL_CAVE,
+        position: { x: 1, y: 0 },
+        sourceId: 'lava-source',
+        parentBuildingId: null,
+        parentPosition: { x: 0, y: 3 },
+        hopDepth: 1,
+        wasResonating: false,
+      }],
+    })]);
     await vi.runAllTimersAsync();
     expect(activate).not.toHaveBeenCalled();
     expect(useGameStore.getState().units.first.resonanceActive).toBe(false);
@@ -231,6 +330,9 @@ describe('Khyron resonance event presentation', () => {
 
   it.each([true, false])('emits surviving Khyron IDs only with a surviving Chamber: %s', (hasChamber) => {
     const live = state();
+    live.buildings.chamber.position = { x: 0, y: 1 };
+    live.grid[0][0].buildingId = null;
+    live.grid[1][0].buildingId = 'chamber';
     const doomed = building('doomed', BuildingType.CRYSTAL_CHAMBER, { x: 0, y: 4 });
     live.buildings.doomed = doomed;
     live.grid[4][0].buildingId = doomed.id;

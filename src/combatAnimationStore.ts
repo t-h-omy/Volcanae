@@ -57,7 +57,11 @@ export type SlideKillGhost = DeathGhostAppearance & (
   }
 );
 
-export type BuildingAnimationState = 'CRYSTAL_ACTIVATE' | 'SANCTUM_SHATTER';
+export type BuildingAnimationState =
+  | 'CRYSTAL_ACTIVATE'
+  | 'CRYSTAL_RECHARGE'
+  | 'SANCTUM_SHATTER'
+  | { type: 'CRYSTAL_ACTIVATE' | 'CRYSTAL_RECHARGE'; durationMs: number };
 
 export interface Projectile {
   id: string;
@@ -109,7 +113,8 @@ export type TileVfxVariant =
   | 'CORRUPTION_FIZZLE'
   | 'QORK_DEATH_BURST'
   | 'INFESTED_DEATH_BURST'
-  | 'INVALID_ACTION';
+  | 'INVALID_ACTION'
+  | 'RESONANCE_CHARGE';
 
 export interface TileVfx {
   id: string;
@@ -125,7 +130,8 @@ export type LineVfxVariant =
   | 'FIRE_SPIT'
   | 'SPELL_CAST'
   | 'PIERCE_LINE'
-  | 'CRYSTAL_LIGHTNING';
+  | 'CRYSTAL_LIGHTNING'
+  | 'RESONANCE_WAVE';
 
 export interface LineVfx {
   id: string;
@@ -133,6 +139,7 @@ export interface LineVfx {
   toPx: { x: number; y: number };
   variant: LineVfxVariant;
   durationMs: number;
+  delayMs?: number;
 }
 
 interface CombatAnimationState {

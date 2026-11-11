@@ -117,10 +117,10 @@ describe('Khyron persistent assimilation saves', () => {
     expect(loaded.units[khyronId].earnedAssimilationTags).toEqual([]);
     expect(loaded.units[khyronId].resonanceActive).toBe(true);
     const next = produce(loaded, (draft) => {
-      recordKhyronKill(draft, khyronId, Faction.ENEMY, [UnitTag.BURN], 1);
+      recordKhyronKill(draft, khyronId, Faction.ENEMY, [UnitTag.BLOCK], 1);
       applyPendingAssimilations(draft);
     });
-    expect(next.units[khyronId].earnedAssimilationTags).toEqual([UnitTag.BURN]);
+    expect(next.units[khyronId].earnedAssimilationTags).toEqual([UnitTag.BLOCK]);
     expect(next.units[khyronId].earnedAssimilationLevels).toBe(2);
     expect(next.units[khyronId].pendingAssimilationTags).toBeUndefined();
   });

@@ -1,14 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { ANIMATION } from '../../config/animation';
 import { CRYSTAL_CHAMBER_CONFIG, UNIT_DEFINITIONS } from '../gameConfig';
 import { useAnimationStore } from '../animationStore';
 import { useCombatAnimationStore } from '../combatAnimationStore';
 import { useGameStore } from '../gameStore';
 import { useAnimationEngine } from '../useAnimationEngine';
 import { tryTriggerHint } from '../hintSystem';
-import { Faction, TileType, UnitType } from '../types';
+import { BuildingType, Faction, TileType, UnitType } from '../types';
 import type { Unit } from '../types';
 import type { GameEvent } from '../gameEvents';
 
@@ -61,10 +60,20 @@ function reset(revealed = true, units = [unit('first'), unit('second')]) {
   });
 }
 
-function resonance(ids = ['first', 'second']): GameEvent {
+function resonance(ids = ['first', 'second'], hasChamber = true): GameEvent {
   return {
-    type: 'RESONANCE_TRIGGERED', destroyedChamberPosition: { x: 0, y: 0 },
-    survivingChamberIds: ['missing-chamber'], survivingCaveIds: [],
+    type: 'RESONANCE_TRIGGERED',
+    sources: [{ sourceId: 'origin', position: { x: 0, y: 0 } }],
+    reachedNodes: hasChamber ? [{
+      buildingId: 'missing-chamber',
+      buildingType: BuildingType.CRYSTAL_CHAMBER,
+      position: { x: 1, y: 0 },
+      sourceId: 'origin',
+      parentBuildingId: null,
+      parentPosition: { x: 0, y: 0 },
+      hopDepth: 1,
+      wasResonating: false,
+    }] : [],
     survivingKhyronIds: ids,
     resonanceDuration: CRYSTAL_CHAMBER_CONFIG.RESONANCE_DURATION,
   };
@@ -78,8 +87,6 @@ function replay(events: GameEvent[]) {
   useAnimationStore.setState({ resolvedState: null });
   return activate;
 }
-
-const arrival = ANIMATION.CAMERA_MOVE_DURATION_MS + ANIMATION.PRE_ACTION_IDLE_MS;
 
 describe('QKP6 presentation hint triggers', () => {
   beforeEach(() => {
@@ -98,20 +105,12 @@ describe('QKP6 presentation hint triggers', () => {
     useCombatAnimationStore.setState(useCombatAnimationStore.getInitialState());
   });
 
-  it('attempts H21 after the first visible activation VFX and post-idle, only once per event', async () => {
+  it('attempts H21 after the visible wave and activation VFX, only once per event', async () => {
     const activate = replay([resonance()]);
     expect(tryTriggerHint).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(arrival);
-    expect(activate).toHaveBeenCalledWith('first');
-    expect(tryTriggerHint).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(ANIMATION.CRYSTAL_ACTIVATE_VFX_DURATION_MS);
-    expect(useCombatAnimationStore.getState().unitAnimations.size).toBe(0);
-    expect(tryTriggerHint).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(ANIMATION.POST_ACTION_IDLE_MS - 1);
-    expect(tryTriggerHint).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(1);
-    expect(tryTriggerHint).toHaveBeenCalledExactlyOnceWith('H21_KHYRON_RESONANCE');
     await vi.runAllTimersAsync();
+    expect(activate).toHaveBeenCalledWith('first');
+    expect(tryTriggerHint).toHaveBeenCalledExactlyOnceWith('H21_KHYRON_RESONANCE');
     expect(activate).toHaveBeenCalledTimes(2);
     expect(tryTriggerHint).toHaveBeenCalledTimes(1);
   });
@@ -147,7 +146,7 @@ describe('QKP6 presentation hint triggers', () => {
     ]);
     const activate = replay([
       resonance([]), resonance(['missing', 'dead', 'enemy', 'other']),
-      { ...resonance(['other']), survivingChamberIds: [] } as GameEvent,
+      resonance(['other'], false),
     ]);
     await vi.runAllTimersAsync();
     expect(activate).not.toHaveBeenCalled();
@@ -166,11 +165,8 @@ describe('QKP6 presentation hint triggers', () => {
     const tile = useGameStore.getState().grid[0][0];
     useGameStore.setState({ grid: [[tile, { ...tile, position: { x: 1, y: 0 }, isRevealed: true }]] });
     replay([resonance(['first'])]);
-    await vi.advanceTimersByTimeAsync(arrival + ANIMATION.CRYSTAL_ACTIVATE_VFX_DURATION_MS);
-    expect(tryTriggerHint).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(ANIMATION.POST_ACTION_IDLE_MS);
-    expect(tryTriggerHint).toHaveBeenCalledExactlyOnceWith('H21_KHYRON_RESONANCE');
     await vi.runAllTimersAsync();
+    expect(tryTriggerHint).toHaveBeenCalledExactlyOnceWith('H21_KHYRON_RESONANCE');
   });
 
   it.each([

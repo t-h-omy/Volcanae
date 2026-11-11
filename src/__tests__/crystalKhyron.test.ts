@@ -208,8 +208,8 @@ describe('Crystal Khyron unit definition', () => {
       attackRange: 1, discoverRadius: 1, triggerRange: 0,
     });
   });
-  it('costs 3 crystals and no iron/wood or population', () => {
-    expect(def.cost).toEqual({ iron: 0, wood: 0, crystals: 3 });
+  it('costs 3 crystals and 5 iron with no wood or population', () => {
+    expect(def.cost).toEqual({ iron: 5, wood: 0, crystals: 3 });
     expect(def.populationCost).toEqual({ farmers: 0, nobles: 0 });
   });
   it('exposes healing and maximum level as localized text parameters', () => {
@@ -227,9 +227,9 @@ describe('Crystal Khyron unit definition', () => {
       [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT2 }],
     ]);
   });
-  it('whitelist includes all ten transferable tags in configured order', () => {
+  it('whitelist includes all transferable tags in configured order', () => {
     expect([...CRYSTAL_KHYRON.TRANSFERABLE_TAGS].sort()).toEqual(
-      ['ALERT', 'BLOCK', 'BUILDANDCAPTURE', 'BURN', 'CLEAVE', 'IRONBLOOD', 'PIERCE', 'PUNCTURE', 'RAGE', 'RANGED'],
+      ['ALERT', 'BLOCK', 'BUILDANDCAPTURE', 'CLEAVE', 'ELITE', 'IRONBLOOD', 'LANCE_CHARGE', 'PIERCE', 'PUNCTURE', 'RAGE', 'RANGED'],
     );
   });
   it('has English text without em dashes', () => {

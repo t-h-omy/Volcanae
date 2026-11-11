@@ -1,5 +1,12 @@
 # Changelog
 
+### v0.119.1 - Resonance camera overview
+
+The resonance camera smoothly zooms out to show every playfield column before following the wave, then restores the previous zoom. The temporary overview also clears when playback ends or is interrupted.
+
+### v0.119.0 - W3 Resonance Wave
+Resonance now propagates from lava-consumed Chambers or Martyr deaths through connected Chambers and Caves, with per-Cave Drake recruitment, jagged lightning arcs, and a slower hop-tracked camera sequence.
+
 ### v0.118.6 - Expanded situational tutorial hints
 
 Generalized the Mage leash hint to cover newly summoned leashed creatures, including Corrupted Qorks. Added seven localized hints for Khyron Resonance and banked Level Ups, Qork corruption and death bursts, Infested spread, shared Mage portals, Ghoul Gravestone progression, and Stone Skin's movement lock. Existing turn, per-save, and global hint limits remain unchanged.
