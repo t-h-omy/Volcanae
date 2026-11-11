@@ -65,11 +65,11 @@ export const SPAWN_BUDGET = {
   /** ACCUMULATOR_CAP must always be be greater than MAX_BUDGET */
   MAX_BUDGET: 6.0,
   /** Frontmost-player-stronghold-to-lava margin (in rows) below which DDA relief starts; at or above it relief is 0 */
-  DDA_EXPECTED_MARGIN: 12,
+  DDA_EXPECTED_MARGIN: 14,
   /** Relief per row of missing margin (subtracted from the budget) */
   DDA_PER_ROW: 0.5,
   /** Maximum total relief (most negative value the DDA term can take) */
-  DDA_MIN: -3.0,
+  DDA_MIN: -30.0,
   /** DDA gate: relief only applies while any enemy entity (unit or building) is within this edge-circle range of any player entity; prevents permanent early-game relief from spawning close to the lava without any enemy contact */
   DDA_CONTACT_RANGE: 3,
   /** Max banked fractional/blocked spawn debt; must stay greater than MAX_BUDGET (see block comment) */
@@ -81,7 +81,7 @@ export const SPAWN_BUDGET = {
   /** Weight lost per tile of edge-circle distance to the nearest player unit */
   WEIGHT_DECAY_PER_TILE: 0.5,
   /** Extra multiplier on top of the distance weight for spawners with a player unit inside their discoverRadius */
-  WEIGHT_IN_RANGE_MULTIPLIER: 3,
+  WEIGHT_IN_RANGE_MULTIPLIER: 2,
 } as const;
 
 
