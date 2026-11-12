@@ -140,6 +140,27 @@ function makeState(units: Unit[], buildings: Building[] = []): GameState {
 
 afterEach(() => vi.restoreAllMocks());
 
+describe('enemy AI bridge capture exclusions', () => {
+  it.each(['same tile', 'nearby', 'outside trigger range'])('ignores a bridge %s as a capture objective', (location) => {
+    const enemy = makeUnit(UnitType.LAVA_GRUNT, { x: 5, y: 5 }, Faction.ENEMY);
+    enemy.tags.push(UnitTag.BUILDANDCAPTURE);
+    const offset = location === 'same tile' ? 0 : location === 'nearby' ? 1 : enemy.stats.triggerRange + 1;
+    const bridge: Building = {
+      ...makeCave({ x: 5, y: 5 + offset }),
+      type: BuildingType.BRIDGE,
+      faction: null,
+      destroyBehavior: DestroyBehavior.NONE,
+      bridgeOrientation: 'NS',
+    };
+    const state = makeState([enemy], [bridge]);
+    state.grid[bridge.position.y][bridge.position.x].terrainType = TileType.CANYON;
+
+    const scores = computeUnitAiScores(state, enemy.id);
+    expect(scores.some(action => action.targetBuildingId === bridge.id)).toBe(false);
+    expect(scores.some(action => action.type === 'PUSH_TO_ZONE_EDGE')).toBe(true);
+  });
+});
+
 describe('enemy AI Taunt execution', () => {
   it('excludes an in-range captor and actually attacks Taunt instead', () => {
     const attacker = makeUnit(UnitType.LAVA_GRUNT, { x: 5, y: 5 }, Faction.ENEMY);

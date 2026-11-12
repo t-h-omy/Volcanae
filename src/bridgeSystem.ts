@@ -73,7 +73,6 @@ export function isBridgeTraversalAllowed(
  * This is the main gate for voluntary movement:
  * - If the destination tile has a bridge, the entry direction must be allowed.
  * - If the source tile has a bridge, the exit direction must also be allowed.
- *   (Bridges cannot be adjacent so at most one endpoint is a bridge.)
  * - Plain canyon/water tiles are still blocked (caller must handle those).
  * - FLYING units bypass everything (pass isFlying=true to skip bridge checks).
  *

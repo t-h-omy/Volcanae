@@ -92,8 +92,8 @@ export const ENEMY_UNIT_SPRITE: Partial<Record<UnitType, string>> = withBase({
 
 /** Maps every BuildingType value to a sprite path (empty = missing). */
 export const BRIDGE_SPRITE = withBase({
-  EW: '/sprites/buildings/bridge_horizonal_100px.png',
-  NS: '/sprites/buildings/bridge_vertical_100px.png',
+  EW: '/sprites/buildings/bridge_vertical_100px.png',
+  NS: '/sprites/buildings/bridge_horizonal_100px.png',
 });
 
 export function getBridgeSprite(orientation: 'EW' | 'NS' | undefined): string {

@@ -10,7 +10,7 @@ import { Faction, UnitType, UnitTag, BuildingType, TileType, TileStatus } from '
 import { UNIT_DEFINITIONS, MAP, TERRAIN, AI_SCORING, AI_RECRUITMENT, XP, DIFFICULTY_MULTIPLIER, SANCTUM_COLLAPSE, ABILITIES, SPAWN_BUDGET, AI_TRACE } from './gameConfig';
 import { resolveAttack, calculateCombat, resolveBuildingAttack, buildingToCombatant, calculateCombatFromStats, unitToCombatant, resolveAttackOnBuilding, detectBrandmarkSpawnPos, updateBerserkLatch } from './combatSystem';
 import { isTileWithinEdgeCircleRange, edgeCircleDistance } from './rangeUtils';
-import { initiateCapture, canCapture } from './captureSystem';
+import { initiateCapture, canCapture, isBuildingCapturable } from './captureSystem';
 import { corruptTerrain, processMagmaSpyrAttacks, processEmberNestSpawns } from './corruptionSystem';
 import { enemyConstructBuilding } from './constructionSystem';
 import { getBridgeAt, canTraverseEdge } from './bridgeSystem';
@@ -2105,7 +2105,7 @@ function scoreActionsForUnit(
     if (tile.buildingId) {
       const building = state.buildings[tile.buildingId];
       // Exclude buildings that consume the capturing unit (e.g. watchtowers) — they must be attacked/destroyed instead
-      if (building && building.faction !== Faction.ENEMY && !building.consumesUnitOnCapture) {
+      if (building && canCapture(state, unit.id, building.id) && !building.consumesUnitOnCapture) {
         const baseScore = AI_SCORING.BASE_CAPTURE_BUILDING;
         const buildingValue = baseScore * buildingValueMultiplier(building.type);
         const buildingValueBonus = buildingValue - baseScore;
@@ -2670,7 +2670,7 @@ function scoreActionsForUnit(
 
   // ── MOVE_TO_NEUTRAL_BUILDING ──
   if (!unit.hasMovedThisTurn) {
-    const neutralBuildings = buildingsInTriggerRange.filter(b => b.faction === null && b.type !== BuildingType.MARKET);
+    const neutralBuildings = buildingsInTriggerRange.filter(b => b.faction === null && isBuildingCapturable(b));
     if (neutralBuildings.length > 0) {
       neutralBuildings.sort((a, b) => edgeCircleDistance(unit.position.x, unit.position.y, a.position.x, a.position.y) - edgeCircleDistance(unit.position.x, unit.position.y, b.position.x, b.position.y));
       const building = neutralBuildings[0];
@@ -2745,7 +2745,7 @@ function scoreActionsForUnit(
   // ── PUSH_TO_ZONE_EDGE ──
   if (!unit.hasMovedThisTurn) {
     const hasPlayerTargets = playerUnitsInTriggerRange.length > 0;
-    const hasCapturable = buildingsInTriggerRange.some(b => (b.faction === null || b.faction === Faction.PLAYER) && b.type !== BuildingType.MARKET);
+    const hasCapturable = buildingsInTriggerRange.some(b => (b.faction === null || b.faction === Faction.PLAYER) && isBuildingCapturable(b));
     if (!hasPlayerTargets && !hasCapturable) {
       if (tracing) {
         pushCandidate(candidates, 'PUSH_TO_ZONE_EDGE', [
@@ -2764,7 +2764,7 @@ function scoreActionsForUnit(
     const triggerRangeIds = new Set(buildingsInTriggerRange.map(b => b.id));
     const outOfRangeNeutrals = Object.values(state.buildings).filter(b => {
       if (b.faction !== null) return false;
-      if (b.type === BuildingType.MARKET) return false;
+      if (!isBuildingCapturable(b)) return false;
       return !triggerRangeIds.has(b.id);
     });
 
