@@ -105,19 +105,19 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'UNLOCK_UNIT',     unitType: UnitType.SIEGE },
     ],
   },
-  {
-    id: 'CLEAN_CUTS',
-    requires: ['FAR_REACH'],
-    cost: 4,
-    effects: [
-      { type: 'BUILDING_PRODUCTION_MOD', buildingType: BuildingType.WOODCUTTER, resource: ResourceType.WOOD, chancePercent: ABILITIES.CLEAN_CUTS_BONUS_CHANCE, amount: ABILITIES.CLEAN_CUTS_BONUS_AMOUNT },
-    ],
+  //{
+   // id: 'CLEAN_CUTS',
+  //  requires: ['FAR_REACH'],
+ //   cost: 4,
+ //   effects: [
+  //    { type: 'BUILDING_PRODUCTION_MOD', buildingType: BuildingType.WOODCUTTER, resource: ResourceType.WOOD, chancePercent: ABILITIES.CLEAN_CUTS_BONUS_CHANCE, amount: ABILITIES.CLEAN_CUTS_BONUS_AMOUNT },
+  //  ],
   
-    textParams: { chance: ABILITIES.CLEAN_CUTS_BONUS_CHANCE, amount: ABILITIES.CLEAN_CUTS_BONUS_AMOUNT },
-  },
+ //   textParams: { chance: ABILITIES.CLEAN_CUTS_BONUS_CHANCE, amount: ABILITIES.CLEAN_CUTS_BONUS_AMOUNT },
+ // },
   {
     id: 'TO_THE_FRONT',
-    requires: ['CLEAN_CUTS'],
+    requires: ['HOLD_GROUND'],
     cost: 7,
     effects: [
       { type: 'FLAG', flag: TechFlag.TO_THE_FRONT },
@@ -534,16 +534,17 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'UNLOCK_SPELL', spellId: SpellId.GRAVE_TRAP },
     ],
   },
-  {
-    id: 'GRAVE_HARVEST',
-    requires: ['GRAVE_TRAP'],
-    cost: 7,
-    effects: [
-      { type: 'FLAG', flag: TechFlag.GRAVE_HARVEST },
-    ],
+ // {
+  //  id: 'GRAVE_HARVEST',
+  //  requires: ['GRAVE_TRAP'],
+  //  cost: 7,
+   // effects: [
+ //     { type: 'FLAG', flag: TechFlag.GRAVE_HARVEST },
+ //   ],
   
-    textParams: { chancePercent: MAGE.GRAVE_HARVEST_CRYSTAL_CHANCE, crystalAmount: ABILITIES.GRAVE_HARVEST_CRYSTAL_AMOUNT },
-  },
+ //   textParams: { chancePercent: MAGE.GRAVE_HARVEST_CRYSTAL_CHANCE, crystalAmount: ABILITIES.GRAVE_HARVEST_CRYSTAL_AMOUNT },
+//  },
+      
   // ── Necromancer path branch b: gravestone expansion ──────────────────────
   {
     id: 'GRAVE_WARRIORS',
@@ -556,15 +557,15 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.CROSSBOWMAN, tag: UnitTag.LEAVES_GRAVESTONE },
     ],
   },
-  {
-    id: 'GRAVE_ENGINES',
-    requires: ['GRAVE_WARRIORS'],
-    cost: 7,
-    effects: [
-      { type: 'GRANT_UNIT_TAG', unitType: UnitType.SIEGE, tag: UnitTag.LEAVES_GRAVESTONE },
-      { type: 'GRANT_UNIT_TAG', unitType: UnitType.MAGE,  tag: UnitTag.LEAVES_GRAVESTONE },
-    ],
-  },
+//  {
+  //  id: 'GRAVE_ENGINES',
+  //  requires: ['GRAVE_WARRIORS'],
+  //  cost: 7,
+ //   effects: [
+  //    { type: 'GRANT_UNIT_TAG', unitType: UnitType.SIEGE, tag: UnitTag.LEAVES_GRAVESTONE },
+  //    { type: 'GRANT_UNIT_TAG', unitType: UnitType.MAGE,  tag: UnitTag.LEAVES_GRAVESTONE },
+  //  ],
+//  },
 
   // ── Elementalist path ────────────────────────────────────────────────────
   {
