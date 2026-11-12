@@ -3,7 +3,7 @@
  * Implements building capture logic with zone unlock mechanics.
  */
 
-import type { GameState, Position, Unit } from './types';
+import type { Building, GameState, Position, Unit } from './types';
 import type { Draft } from 'immer';
 import { BuildingType, UnitTag, UnitType, Faction, DestroyBehavior } from './types';
 import type { GameEvent } from './gameEvents';
@@ -91,6 +91,10 @@ function updateZonesUnlocked(state: Draft<GameState>): void {
 // CAPTURE VALIDATION
 // ============================================================================
 
+export function isBuildingCapturable(building: Building): boolean {
+  return building.type !== BuildingType.MARKET && building.type !== BuildingType.BRIDGE;
+}
+
 /**
  * Checks if a unit can initiate capture of a building.
  * A unit can capture if:
@@ -127,8 +131,8 @@ export function canCapture(
     return false;
   }
 
-  // Some neutral utility buildings are never capturable.
-  if (building.type === BuildingType.MARKET) {
+  // Neutral utility buildings are never capturable.
+  if (!isBuildingCapturable(building)) {
     return false;
   }
 

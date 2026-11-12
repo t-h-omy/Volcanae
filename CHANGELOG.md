@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.119.2 - Bridgebuilder iteration
+
+Bridgebuilders can extend spans from or to existing bridges when their orientations match. Corrected the displayed bridge artwork and made bridges uncapturable by all factions, with enemy AI ignoring them as capture objectives. Updated bridge descriptions in every supported language.
+
 ### v0.119.1 - Resonance camera overview
 
 The resonance camera smoothly zooms out to show every playfield column before following the wave, then restores the previous zoom. The temporary overview also clears when playback ends or is interrupted.

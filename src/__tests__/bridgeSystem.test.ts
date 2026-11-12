@@ -24,6 +24,7 @@ import {
 import type { Building, GameState, Tile, Unit } from '../types';
 import { MAP, UNIT_DEFINITIONS, BUILDING_DEFINITIONS, TAG_INFO } from '../gameConfig';
 import { getBridgeAt, isBridgeTraversalAllowed, canTraverseEdge } from '../bridgeSystem';
+import { canCapture, initiateCapture } from '../captureSystem';
 import { canUnitBuildBridge, getBridgeBuildTargets } from '../unitActions';
 import { getReachableTiles, resolveSlide } from '../movementSystem';
 import { advanceLavaWithEvents } from '../lavaSystem';
@@ -345,8 +346,65 @@ describe('getBridgeBuildTargets', () => {
       },
       unlockedBuildings: [BuildingType.BRIDGE],
     });
+
     const targets = getBridgeBuildTargets(scout, state);
     expect(targets.filter((t) => t.pos.x === 5 && t.pos.y === 5)).toHaveLength(0);
+  });
+
+  it.each([
+    ['EW', 1, 0],
+    ['EW', -1, 0],
+    ['NS', 0, 1],
+    ['NS', 0, -1],
+  ] as const)('builds a connected %s span in direction (%i, %i)', (orientation, dx, dy) => {
+    const scout = makeUnit({
+      position: { x: 5 - dx, y: 5 - dy },
+      tags: [UnitTag.BRIDGE_BUILDER],
+    });
+    const start = makeBridge(scout.position.x, scout.position.y, orientation);
+    const end = makeBridge(5 + dx, 5 + dy, orientation);
+    const state = makeState({
+      units: [scout],
+      buildings: [start, end],
+      tileOverrides: {
+        [`${start.position.x},${start.position.y}`]: { terrainType: TileType.CANYON },
+        '5,5': { terrainType: TileType.CANYON },
+        [`${end.position.x},${end.position.y}`]: { terrainType: TileType.CANYON },
+      },
+      unlockedBuildings: [BuildingType.BRIDGE],
+    });
+
+    expect(getBridgeBuildTargets(scout, state)).toContainEqual({ pos: { x: 5, y: 5 }, orientation });
+    useGameStore.setState(state);
+    useGameStore.getState().buildBridge(scout.id, { x: 5, y: 5 });
+    const built = useGameStore.getState();
+    expect(getBridgeAt(built, 5, 5)?.bridgeOrientation).toBe(orientation);
+    expect(built.units[scout.id].hasConstructedThisTurn).toBe(true);
+    expect(canTraverseEdge(built, start.position.x, start.position.y, 5, 5, false)).toBe(true);
+    expect(canTraverseEdge(built, 5, 5, end.position.x, end.position.y, false)).toBe(true);
+  });
+
+  it.each([
+    ['start', 'EW'],
+    ['end', 'EW'],
+    ['start', 'NS'],
+    ['end', 'NS'],
+  ] as const)('rejects a perpendicular %s bridge for a %s span', (endpoint, orientation) => {
+    const dx = orientation === 'EW' ? 1 : 0;
+    const dy = orientation === 'NS' ? 1 : 0;
+    const scout = makeUnit({ position: { x: 5 - dx, y: 5 - dy } });
+    const sign = endpoint === 'start' ? -1 : 1;
+    const bridge = makeBridge(5 + sign * dx, 5 + sign * dy, orientation === 'EW' ? 'NS' : 'EW');
+    const state = makeState({
+      units: [scout],
+      buildings: [bridge],
+      tileOverrides: {
+        '5,5': { terrainType: TileType.CANYON },
+        [`${bridge.position.x},${bridge.position.y}`]: { terrainType: TileType.CANYON },
+      },
+    });
+
+    expect(getBridgeBuildTargets(scout, state).some((t) => t.pos.x === 5 && t.pos.y === 5)).toBe(false);
   });
 
   it('rejects when far tile is water', () => {
@@ -413,21 +471,38 @@ describe('getBridgeBuildTargets', () => {
     expect(getBridgeBuildTargets(scout, state).filter((t) => t.pos.x === 5 && t.pos.y === 5)).toHaveLength(0);
   });
 
-  it('rejects when a bridge exists in the 8-neighbourhood of the canyon tile', () => {
+  it('rejects when a bridge exists diagonally adjacent to the canyon tile', () => {
     const scout = makeUnit({ position: { x: 4, y: 5 }, tags: [UnitTag.BRIDGE_BUILDER] });
-    // Adjacent bridge at (6,5) — directly east of canyon tile (5,5)
-    const neighbourBridge = makeBridge(6, 5, 'EW');
+    // Diagonal bridge at (6,6) is adjacent but not a valid endpoint.
+    const neighbourBridge = makeBridge(6, 6, 'EW');
     const state = makeState({
       units: [scout],
       buildings: [neighbourBridge],
       tileOverrides: {
         '5,5': { terrainType: TileType.CANYON },
-        '6,5': { terrainType: TileType.CANYON },
-        '7,5': { terrainType: TileType.PLAINS },
+        '6,5': { terrainType: TileType.PLAINS },
+        '6,6': { terrainType: TileType.CANYON },
       },
       unlockedBuildings: [BuildingType.BRIDGE],
     });
+
     expect(getBridgeBuildTargets(scout, state).filter((t) => t.pos.x === 5 && t.pos.y === 5)).toHaveLength(0);
+  });
+
+  it.each([Faction.PLAYER, Faction.ENEMY])('prevents %s units from capturing bridges', (faction) => {
+    const unit = makeUnit({ faction, position: { x: 5, y: 5 }, tags: [UnitTag.BUILDANDCAPTURE] });
+    const bridge = makeBridge(5, 5, 'EW');
+    const state = makeState({
+      units: [unit],
+      buildings: [bridge],
+      tileOverrides: { '5,5': { terrainType: TileType.CANYON } },
+    });
+
+    expect(canCapture(state, unit.id, bridge.id)).toBe(false);
+    initiateCapture(state, unit.id, bridge.id);
+    expect(state.buildings[bridge.id]?.faction).toBeNull();
+    expect(state.grid[5][5].buildingId).toBe(bridge.id);
+    expect(unit.hasCapturedThisTurn).toBe(false);
   });
 
   it('does not return targets without BRIDGE_BUILDER tag', () => {

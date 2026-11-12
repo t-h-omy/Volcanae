@@ -782,9 +782,9 @@ export function canUnitBuildBridge(
  *     2. C.terrainType === CANYON
  *     3. C is not lava
  *     4. No bridge already on C
- *     5. No bridge on any of C's 8 neighbours (no adjacent bridges)
- *     6. The far tile (C + D) is in bounds and is not CANYON; WATER is allowed
- *        only while frozen
+ *     5. Existing bridges directly before or beyond C may be endpoints if
+ *        their orientation matches; all other adjacent bridges are disallowed
+ *     6. The far tile (C + D) is in bounds and is walkable or a matching bridge
  * - orientation: (D is horizontal) → 'EW', else 'NS'
  * Keep this rule set aligned with explainInvalidBridgeTarget.
  */
@@ -813,7 +813,7 @@ export function getBridgeBuildTargets(
     if (cTile.isLava) continue;
     // No bridge already on C
     if (getBridgeAt(state, cx, cy)) continue;
-    // No bridge on any of C's 8 neighbours
+    // Bridges can only connect through aligned endpoints on either side.
     let hasAdjacentBridge = false;
     for (let ndx = -1; ndx <= 1; ndx++) {
       for (let ndy = -1; ndy <= 1 && !hasAdjacentBridge; ndy++) {
@@ -821,7 +821,13 @@ export function getBridgeBuildTargets(
         const nx2 = cx + ndx;
         const ny2 = cy + ndy;
         if (nx2 < 0 || nx2 >= MAP.GRID_WIDTH || ny2 < 0 || ny2 >= MAP.GRID_HEIGHT) continue;
-        if (getBridgeAt(state, nx2, ny2)) hasAdjacentBridge = true;
+        const adjacentBridge = getBridgeAt(state, nx2, ny2);
+        if (!adjacentBridge) continue;
+        const isEndpoint = ndx === dx && ndy === dy;
+        const isStart = ndx === -dx && ndy === -dy;
+        if ((!isEndpoint && !isStart) || (adjacentBridge.bridgeOrientation ?? 'EW') !== orientation) {
+          hasAdjacentBridge = true;
+        }
       }
       if (hasAdjacentBridge) break;
     }
@@ -831,8 +837,13 @@ export function getBridgeBuildTargets(
     const fy = cy + dy;
     if (fx < 0 || fx >= MAP.GRID_WIDTH || fy < 0 || fy >= MAP.GRID_HEIGHT) continue;
     const farTile = state.grid[fy][fx];
-    if (farTile.terrainType === TileType.CANYON) continue;
-    if (farTile.terrainType === TileType.WATER && farTile.status !== TileStatus.FROZEN) continue;
+    const farBridge = getBridgeAt(state, fx, fy);
+    if (farBridge) {
+      if ((farBridge.bridgeOrientation ?? 'EW') !== orientation) continue;
+    } else {
+      if (farTile.terrainType === TileType.CANYON) continue;
+      if (farTile.terrainType === TileType.WATER && farTile.status !== TileStatus.FROZEN) continue;
+    }
     targets.push({ pos: { x: cx, y: cy }, orientation });
   }
   return targets;
