@@ -104,7 +104,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   SWORDSMAN: {
-    maxHp: 120, attack: 60, defense: 55,
+    maxHp: 110, attack: 60, defense: 50,
     movementActions: 1, moveRange: 1, attackRange: 1,
     discoverRadius: 1, triggerRange: 0,
     tags: [UnitTag.BUILDANDCAPTURE],
@@ -130,7 +130,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
   },
 
   CROSSBOWMAN: {
-    maxHp: 100, attack: 65, defense: 35,
+    maxHp: 90, attack: 65, defense: 35,
     movementActions: 1, moveRange: 1, attackRange: 2,
     discoverRadius: 1, triggerRange: 0,
     tags: [UnitTag.RANGED, UnitTag.RELOAD, UnitTag.PUNCTURE, UnitTag.BUILDANDCAPTURE],
@@ -490,7 +490,7 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     // HIT_AND_RUN → can re-position after striking (mirrors Knight Rider).
     // FLYING → traverses canyon/water and shrugs off knockback over them.
     tags: [UnitTag.SUMMONED, UnitTag.HIT_AND_RUN, UnitTag.FLYING, UnitTag.READY, UnitTag.RANGED],
-    cost: { iron: 0, wood: 0, crystals: 3 },
+    cost: { iron: 0, wood: 0, crystals: 5 },
     populationCost: { farmers: 0, nobles: 0 },
     levelUp: [
       { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_DEFAULT }] },
