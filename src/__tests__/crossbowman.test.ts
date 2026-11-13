@@ -547,7 +547,7 @@ describe('Crossbowman — Grave Warriors tech sharing', () => {
       techNodes[node.id] = { unlocked: false };
     }
     techNodes['CONSCRIPTION'] = { unlocked: true };
-    techNodes['ARCANE_AWAKENING'] = { unlocked: true };
+    techNodes['NECROMANCER'] = { unlocked: true };
     techNodes['RAISE_SKELETON'] = { unlocked: true };
 
     const state = {

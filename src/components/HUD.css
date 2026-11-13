@@ -1658,6 +1658,14 @@
 /* ── Tech Tree Overlay ── */
 
 .tech-overlay {
+  --tech-tab-enter-ms: 360ms;
+  --tech-research-pop-ms: 560ms;
+  --tech-ring-expand-ms: 650ms;
+  --tech-edge-sweep-ms: 700ms;
+  --tech-reveal-pulse-ms: 480ms;
+  --tech-reveal-stagger-ms: 90ms;
+  --tech-path-flash-ms: 420ms;
+  --tech-backdrop-shimmer-ms: 18s;
   position: fixed;
   inset: 0;
   z-index: 400;
@@ -1665,6 +1673,32 @@
   flex-direction: column;
   background: rgba(10, 10, 15, 0.96);
   color: #eee;
+}
+
+.tech-overlay--arcane {
+  isolation: isolate;
+  background:
+    radial-gradient(ellipse at 18% 24%, var(--path-crystal-deep), transparent 58%),
+    radial-gradient(ellipse at 82% 76%, var(--path-ember-deep), transparent 54%),
+    linear-gradient(135deg, var(--path-necro-deep), var(--path-arcane-deep));
+}
+
+.tech-overlay--arcane::before {
+  content: '';
+  position: absolute;
+  inset: -35%;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 34% 48%, var(--path-crystal-glow), transparent 30%),
+    radial-gradient(ellipse at 68% 52%, var(--path-arcane-glow), transparent 32%);
+  opacity: 0.07;
+  animation: tech-backdrop-shimmer var(--tech-backdrop-shimmer-ms) ease-in-out infinite alternate;
+}
+
+@keyframes tech-backdrop-shimmer {
+  from { opacity: 0.035; transform: translateX(-2%); }
+  to { opacity: 0.09; transform: translateX(2%); }
 }
 
 .tech-overlay-header {
@@ -1676,6 +1710,41 @@
   font-size: 16px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   flex-shrink: 0;
+}
+
+.tech-tree-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tech-tree-tab {
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 6px;
+  padding: 5px 10px;
+  background: rgba(0, 0, 0, 0.22);
+  color: #aaa;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.tech-tree-tab--active {
+  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.tech-tree-tab-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: #7ec8ff;
+  vertical-align: middle;
+  box-shadow: 0 0 7px currentColor;
 }
 
 .tech-overlay-picks {
@@ -1716,6 +1785,45 @@
   margin: auto;
 }
 
+.tech-canvas--enter-left {
+  animation: tech-canvas-enter-left var(--tech-tab-enter-ms) ease-out both;
+}
+
+.tech-canvas--enter-right {
+  animation: tech-canvas-enter-right var(--tech-tab-enter-ms) ease-out both;
+}
+
+@keyframes tech-canvas-enter-left {
+  from { opacity: 0; transform: translateX(-22px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes tech-canvas-enter-right {
+  from { opacity: 0; transform: translateX(22px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.tech-path-flash {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, var(--tech-path-glow), transparent 68%);
+  opacity: 0;
+  animation: tech-path-flash var(--tech-path-flash-ms) ease-out both;
+}
+
+.tech-path-flash[data-path='CRYSTAL'] { --tech-path-glow: var(--path-crystal-glow); }
+.tech-path-flash[data-path='NECRO'] { --tech-path-glow: var(--path-necro-glow); }
+.tech-path-flash[data-path='EMBER'] { --tech-path-glow: var(--path-ember-glow); }
+.tech-path-flash[data-path='ARCANE'] { --tech-path-glow: var(--path-arcane-glow); }
+
+@keyframes tech-path-flash {
+  0% { opacity: 0; }
+  28% { opacity: 0.38; }
+  100% { opacity: 0; }
+}
+
 /* Leave scroll room to center even nodes at the edges of the focused tree. */
 .tech-overlay--focused .tech-canvas {
   margin: 50vh 50vw;
@@ -1726,12 +1834,56 @@
   position: absolute;
   top: 0;
   left: 0;
+  z-index: 1;
   pointer-events: none;
 }
 
 .tech-edge {
   stroke: rgba(255, 255, 255, 0.18);
   stroke-width: 2;
+}
+
+.tech-edge[data-path='CRYSTAL'],
+.tech-node[data-path='CRYSTAL'] {
+  --tech-path-primary: var(--path-crystal-primary);
+  --tech-path-glow: var(--path-crystal-glow);
+  --tech-path-deep: var(--path-crystal-deep);
+}
+
+.tech-edge[data-path='NECRO'],
+.tech-node[data-path='NECRO'] {
+  --tech-path-primary: var(--path-necro-primary);
+  --tech-path-glow: var(--path-necro-glow);
+  --tech-path-deep: var(--path-necro-deep);
+}
+
+.tech-edge[data-path='EMBER'],
+.tech-node[data-path='EMBER'] {
+  --tech-path-primary: var(--path-ember-primary);
+  --tech-path-glow: var(--path-ember-glow);
+  --tech-path-deep: var(--path-ember-deep);
+}
+
+.tech-edge[data-path='ARCANE'],
+.tech-node[data-path='ARCANE'] {
+  --tech-path-primary: var(--path-arcane-primary);
+  --tech-path-glow: var(--path-arcane-glow);
+  --tech-path-deep: var(--path-arcane-deep);
+}
+
+.tech-edge--unlocked {
+  stroke: var(--tech-path-primary, rgba(255, 255, 255, 0.45));
+  filter: drop-shadow(0 0 3px var(--tech-path-glow, transparent));
+}
+
+.tech-edge--researching {
+  stroke-dasharray: 1000;
+  stroke-dashoffset: 1000;
+  animation: tech-edge-sweep var(--tech-edge-sweep-ms) ease-out both;
+}
+
+@keyframes tech-edge-sweep {
+  to { stroke-dashoffset: 0; }
 }
 
 /* ── Tech Nodes ── */
@@ -1746,6 +1898,7 @@
   border: 2px solid rgba(255, 255, 255, 0.15);
   background: rgba(30, 30, 40, 0.9);
   cursor: pointer;
+  z-index: 2;
   transition: border-color 0.15s, box-shadow 0.15s;
   text-align: center;
   padding: 4px;
@@ -1766,6 +1919,17 @@
   background: rgba(46, 204, 113, 0.12);
 }
 
+.tech-overlay--arcane .tech-node--unlocked,
+.tech-overlay--arcane .tech-node--available {
+  border-color: var(--tech-path-primary, rgba(255, 255, 255, 0.4));
+  box-shadow: 0 0 12px color-mix(in srgb, var(--tech-path-glow) 34%, transparent);
+  background: color-mix(in srgb, var(--tech-path-primary) 12%, rgba(30, 30, 40, 0.9));
+}
+
+.tech-overlay--arcane .tech-node--available {
+  border-style: solid;
+}
+
 .tech-node--available {
   border-color: rgba(52, 152, 219, 0.7);
   background: rgba(52, 152, 219, 0.12);
@@ -1773,6 +1937,45 @@
 
 .tech-node--locked {
   opacity: 0.45;
+}
+
+.tech-overlay--arcane .tech-node--locked {
+  filter: saturate(0.35);
+}
+
+.tech-node--researching {
+  position: absolute;
+  animation: tech-research-pop var(--tech-research-pop-ms) ease-out;
+}
+
+.tech-node--researching::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border: 2px solid var(--tech-path-primary, #3498db);
+  border-radius: inherit;
+  pointer-events: none;
+  animation: tech-research-ring var(--tech-ring-expand-ms) ease-out both;
+}
+
+@keyframes tech-research-pop {
+  0%, 100% { transform: scale(1); }
+  36% { transform: scale(1.13); }
+}
+
+@keyframes tech-research-ring {
+  from { opacity: 0.9; transform: scale(0.82); }
+  to { opacity: 0; transform: scale(1.42); }
+}
+
+.tech-node--revealed {
+  animation: tech-reveal-pulse var(--tech-reveal-pulse-ms) ease-out both;
+  animation-delay: calc(var(--reveal-index) * var(--tech-reveal-stagger-ms));
+}
+
+@keyframes tech-reveal-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  45% { opacity: 0.72; transform: scale(1.06); }
 }
 
 .tech-node--focus-highlight {
@@ -1931,6 +2134,71 @@
   color: rgba(255, 255, 255, 0.35);
   border-top: 1px solid rgba(255, 255, 255, 0.06);
   text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tech-overlay--arcane::before {
+    animation: none;
+    opacity: 0.05;
+  }
+
+  .tech-canvas--enter-left,
+  .tech-canvas--enter-right {
+    animation: tech-canvas-fade var(--tech-tab-enter-ms) ease-out both;
+  }
+
+  .tech-node--researching {
+    animation: tech-research-fade var(--tech-research-pop-ms) ease-out;
+  }
+
+  .tech-node--researching::after {
+    animation: tech-ring-fade var(--tech-ring-expand-ms) ease-out both;
+  }
+
+  .tech-edge--researching {
+    animation: none;
+    stroke-dasharray: none;
+    stroke-dashoffset: 0;
+  }
+
+  .tech-node--revealed {
+    animation: tech-reveal-fade var(--tech-reveal-pulse-ms) ease-out both;
+    animation-delay: calc(var(--reveal-index) * var(--tech-reveal-stagger-ms));
+  }
+
+  .tech-node--focus-highlight {
+    animation: tech-reveal-fade 1s ease-in-out 3;
+  }
+
+  .tech-path-flash {
+    animation: tech-flash-fade var(--tech-path-flash-ms) ease-out both;
+  }
+}
+
+@keyframes tech-canvas-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes tech-research-fade {
+  0%, 100% { opacity: 1; }
+  36% { opacity: 0.72; }
+}
+
+@keyframes tech-ring-fade {
+  from { opacity: 0.9; }
+  to { opacity: 0; }
+}
+
+@keyframes tech-reveal-fade {
+  0%, 100% { opacity: 1; }
+  45% { opacity: 0.72; }
+}
+
+@keyframes tech-flash-fade {
+  0% { opacity: 0; }
+  28% { opacity: 0.38; }
+  100% { opacity: 0; }
 }
 
 /* ── Tech Toast ── */

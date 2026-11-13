@@ -175,11 +175,11 @@ function makeState(units: Unit[], buildings: Building[] = []): GameState {
 }
 
 describe('Taunt registration and spell', () => {
-  it('is a direct Arcane Awakening child costing four crystals and unlocks Taunt', () => {
+  it('is a direct Crystal Mage child costing four crystals and unlocks Taunt', () => {
     const node = TECH_TREE.find((tech) => tech.id === 'TAUNT');
 
     expect(node).toMatchObject({
-      requires: ['ARCANE_AWAKENING'],
+      requires: ['CRYSTAL_MAGE'],
       cost: 4,
       effects: [{ type: 'UNLOCK_SPELL', spellId: SpellId.TAUNT }],
     });

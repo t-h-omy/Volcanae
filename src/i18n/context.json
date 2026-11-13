@@ -853,6 +853,36 @@
   "tech.STONE_SKIN.desc": {
     "note": "Short technology description."
   },
+  "tech.CRYSTAL_MAGE.name": {
+    "note": "Entry technology for the Crystal Mage specialization path."
+  },
+  "tech.CRYSTAL_MAGE.desc": {
+    "note": "Explains the shared Mage unlocks and opens the Crystal specialization path."
+  },
+  "tech.NECROMANCER.name": {
+    "note": "Entry technology for the Necromancer specialization path."
+  },
+  "tech.NECROMANCER.desc": {
+    "note": "Explains the shared Mage unlocks and opens the Necromancer specialization path."
+  },
+  "tech.EMBER_CULTIST.name": {
+    "note": "Entry technology for the Ember specialization path."
+  },
+  "tech.EMBER_CULTIST.desc": {
+    "note": "Explains the shared Mage unlocks and opens the Ember specialization path."
+  },
+  "tech.ARCANE_STUDIES.name": {
+    "note": "Entry technology for the Arcane Studies specialization path."
+  },
+  "tech.ARCANE_STUDIES.desc": {
+    "note": "Opens later research that improves all Mages."
+  },
+  "hud.techTree.tab.SECULAR": {
+    "note": "Tab label for the non-magic technology tree."
+  },
+  "hud.techTree.tab.ARCANE": {
+    "note": "Tab label for the magic technology tree."
+  },
   "spell.STONE_SKIN.name": {
     "note": "Mage spell that grants a separate Stone HP pool."
   },

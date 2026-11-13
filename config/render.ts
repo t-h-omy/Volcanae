@@ -4,6 +4,15 @@
  * Pure presentation values - no gameplay logic depends on these.
  */
 
+import type { MagicPath } from '../src/types';
+
+export const MAGIC_PATH_COLORS: Record<MagicPath, { primary: string; glow: string; deep: string }> = {
+  CRYSTAL: { primary: '#7FC1FF', glow: '#8DF8FF', deep: '#2F6FCC' },
+  NECRO: { primary: '#B46CFF', glow: '#D9B3FF', deep: '#1A1024' },
+  EMBER: { primary: '#FF6A2A', glow: '#FFD27A', deep: '#B83A14' },
+  ARCANE: { primary: '#FFD166', glow: '#FFE29A', deep: '#2F6FCC' },
+};
+
 export const RENDER = {
   /** Tile size on desktop in pixels */
   TILE_SIZE_DESKTOP: 80,

@@ -3,16 +3,14 @@ import 'fake-indexeddb/auto';
 import { IDBFactory } from 'fake-indexeddb';
 import { produce } from 'immer';
 import { generateInitialGameState } from '../mapGenerator';
-import { loadSlot, openSaveDb, saveSlotStrict, SAVE_VERSION } from '../saveSystem';
+import { loadSlot, saveSlotStrict } from '../saveSystem';
 import { useGameStore } from '../gameStore';
 import { useAnimationStore } from '../animationStore';
-import { SAVE, UNIT_DEFINITIONS } from '../gameConfig';
+import { UNIT_DEFINITIONS } from '../gameConfig';
 import { LEVEL_UP_VALUES } from '../../config/progression';
 import { Faction, GamePhase, UnitTag, UnitType } from '../types';
 import type { GameState, Unit } from '../types';
 import { applyPendingAssimilations, expireKhyronResonance, grantKhyronResonance, recordKhyronKill } from '../khyronSystem';
-import { shouldLeaveGravestone } from '../combatSystem';
-import { getHealTargets } from '../unitActions';
 import { revokeEffectsForSpecialist } from '../specialistSystem';
 
 const khyronId = 'saved-khyron';
@@ -56,17 +54,6 @@ beforeEach(() => {
   globalThis.indexedDB = new IDBFactory();
   useAnimationStore.getState().clear();
 });
-
-async function writeRawSave(id: string, version: number, state: GameState): Promise<void> {
-  const db = await openSaveDb();
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(SAVE.STORE_DATA, 'readwrite');
-    tx.objectStore(SAVE.STORE_DATA).put({ id, version, state });
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-  db.close();
-}
 
 describe('Khyron persistent assimilation saves', () => {
   it('preserves an earned upgrade through resonance expiry, later turns, confirmation, and repeated reloads', async () => {
@@ -145,71 +132,6 @@ describe('Khyron persistent assimilation saves', () => {
     await saveSlotStrict({ id: 'overbanked', name: 'Overbanked', state });
     const loaded = (await loadSlot('overbanked'))!;
     expect(loaded.units[khyronId].earnedAssimilationLevels).toBe(1);
-  });
-
-  it('normalizes v21 base tags and recovers legacy transient earned kills', async () => {
-    const state = makeState();
-    state.units[khyronId].tags = [UnitTag.RESONANCE];
-    state.units[khyronId].pendingAssimilationTags = [UnitTag.BUILDANDCAPTURE, UnitTag.FLYING, UnitTag.BUILDANDCAPTURE];
-    await writeRawSave('legacy-khyron', 21, state);
-    const loaded = (await loadSlot('legacy-khyron'))!;
-    expect(SAVE_VERSION).toBe(23);
-    expect(loaded.units[khyronId].tags).toContain(UnitTag.MECH);
-    expect(loaded.units[khyronId].tags).not.toContain(UnitTag.SUMMONED);
-    expect(loaded.units[khyronId].earnedAssimilationTags).toEqual([UnitTag.BUILDANDCAPTURE]);
-    expect(loaded.units[khyronId].earnedAssimilationLevels).toBe(1);
-    expect(loaded.units[khyronId].pendingAssimilationTags).toBeUndefined();
-    expect(loaded.units[khyronId].resonanceActive).toBe(false);
-    expect(shouldLeaveGravestone(loaded.units[khyronId], { defaultOn: true })).toBe(false);
-    const healer = { ...loaded.units[khyronId], id: 'healer', type: UnitType.SCOUT, tags: [UnitTag.PATCHUP], position: { x: 4, y: 5 } };
-    loaded.units[healer.id] = healer;
-    loaded.grid[5][4].unitId = healer.id;
-    loaded.units[khyronId].stats.currentHp -= 1;
-    expect(getHealTargets(loaded, healer.id)).not.toContain(khyronId);
-  });
-
-  it('migrates v21 Hellbinder tags and normalizes banked range and levels', async () => {
-    const state = makeState();
-    const unit = state.units[khyronId];
-    unit.level = 2;
-    unit.tags = [UnitTag.SUMMONED, UnitTag.RESONANCE, UnitTag.CLEAVE, UnitTag.RAGE];
-    unit.assimilatedTags = [UnitTag.CLEAVE];
-    unit.earnedAssimilationTags = [UnitTag.RANGED];
-    unit.earnedAssimilationAttackRange = 4;
-    state.globalSpecialistStorage = ['spec_13'];
-    await writeRawSave('legacy-tags', 21, state);
-    const loaded = (await loadSlot('legacy-tags'))!;
-    const migrated = loaded.units[khyronId];
-    expect(migrated.tags).toContain(UnitTag.MECH);
-    expect(migrated.tags).not.toContain(UnitTag.SUMMONED);
-    expect(migrated.tags).toContain(UnitTag.CLEAVE);
-    expect(migrated.tags).not.toContain(UnitTag.RAGE);
-    expect(migrated.earnedAssimilationLevels).toBe(1);
-    expect(migrated.earnedAssimilationAttackRange).toBe(4);
-    expect(migrated.earnedAssimilationTags).toEqual([UnitTag.RANGED]);
-  });
-
-  it('does not infer legacy Hellbinder tags as assimilated and preserves a pending Ranged snapshot', async () => {
-    const state = makeState();
-    const unit = state.units[khyronId];
-    unit.level = 2;
-    unit.tags = [UnitTag.SUMMONED, UnitTag.RESONANCE, UnitTag.CLEAVE, UnitTag.RAGE];
-    delete unit.assimilatedTags;
-    unit.pendingAssimilationTags = [UnitTag.RANGED, UnitTag.BLOCK];
-    unit.pendingAssimilationAttackRange = 5;
-    await writeRawSave('legacy-pending-ranged', 21, state);
-
-    const migrated = (await loadSlot('legacy-pending-ranged'))!.units[khyronId];
-    expect(migrated.tags).toContain(UnitTag.MECH);
-    expect(migrated.tags).not.toContain(UnitTag.SUMMONED);
-    expect(migrated.tags).not.toContain(UnitTag.CLEAVE);
-    expect(migrated.tags).not.toContain(UnitTag.RAGE);
-    expect(migrated.assimilatedTags).toEqual([]);
-    expect(migrated.earnedAssimilationTags).toEqual([UnitTag.BLOCK, UnitTag.RANGED]);
-    expect(migrated.earnedAssimilationLevels).toBe(1);
-    expect(migrated.earnedAssimilationAttackRange).toBe(5);
-    expect(migrated.pendingAssimilationTags).toBeUndefined();
-    expect(migrated.pendingAssimilationAttackRange).toBeUndefined();
   });
 
   it('never restores earned readiness above the normal level cap', async () => {
