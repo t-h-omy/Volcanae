@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/Volcanae/previews/feat-split-tech-trees/sw.js', { scope: '/Volcanae/previews/feat-split-tech-trees/' })})}
