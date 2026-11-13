@@ -188,14 +188,14 @@ const chamber = (x: number, y: number, resonance = 3) =>
 
 describe('Crystal Khyron tech', () => {
   const node = TECH_TREE.find((n) => n.id === 'CRYSTAL_KHYRON');
-  it('is a direct child of ARCANE_AWAKENING costing 4 that unlocks the unit', () => {
+  it('is a direct child of Crystal Mage costing 4 that unlocks the unit', () => {
     expect(node).toBeDefined();
-    expect(node!.requires).toEqual(['ARCANE_AWAKENING']);
+    expect(node!.requires).toEqual(['CRYSTAL_MAGE']);
     expect(node!.cost).toBe(4);
     expect(node!.effects).toEqual([{ type: 'UNLOCK_UNIT', unitType: UnitType.CRYSTAL_KHYRON }]);
   });
-  it('is placed directly after ARCANE_AWAKENING', () => {
-    const i = TECH_TREE.findIndex((n) => n.id === 'ARCANE_AWAKENING');
+  it('is placed after the four Arcane entry nodes', () => {
+    const i = TECH_TREE.findIndex((n) => n.id === 'ARCANE_STUDIES');
     expect(TECH_TREE[i + 1].id).toBe('CRYSTAL_KHYRON');
   });
 });

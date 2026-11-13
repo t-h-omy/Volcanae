@@ -21,6 +21,18 @@ export const UI = {
   FIT_TEXT_DEFAULT_MAX_LINES: 1,
   /** Maximum number of lines for tech tree node names */
   TECH_NODE_NAME_MAX_LINES: 2,
+  /** Width of tech tree nodes (px). */
+  TECH_TREE_NODE_WIDTH_PX: 130,
+  /** Height of tech tree nodes (px). */
+  TECH_TREE_NODE_HEIGHT_PX: 52,
+  /** Horizontal space between tech tree siblings (px). */
+  TECH_TREE_H_GAP_PX: 24,
+  /** Vertical space between tech tree depth columns (px). */
+  TECH_TREE_V_GAP_PX: 80,
+  /** Padding around the tech tree layout (px). */
+  TECH_TREE_LAYOUT_PADDING_PX: 40,
+  /** Extra space below the tech tree for the detail sheet (px). */
+  TECH_TREE_LAYOUT_BOTTOM_PAD_PX: 300,
   /** Total lifetime of a damage number before removal */
   DAMAGE_FLOAT_DURATION_MS: 2500,
   /** How far upward the number floats (half a tile height) */

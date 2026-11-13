@@ -183,6 +183,22 @@ export type DestroyBehavior = (typeof DestroyBehavior)[keyof typeof DestroyBehav
 /** Tech node identifier — deliberately open so nodes are defined in config, not hardcoded */
 export type TechId = string;
 
+/** Separate roots displayed as independent technology trees. */
+export const TechTreeId = {
+  SECULAR: 'SECULAR',
+  ARCANE: 'ARCANE',
+} as const;
+export type TechTreeId = (typeof TechTreeId)[keyof typeof TechTreeId];
+
+/** Arcane specialization path introduced by an entry tech node. */
+export const MagicPath = {
+  CRYSTAL: 'CRYSTAL',
+  NECRO: 'NECRO',
+  EMBER: 'EMBER',
+  ARCANE: 'ARCANE',
+} as const;
+export type MagicPath = (typeof MagicPath)[keyof typeof MagicPath];
+
 /** Spell identifiers for the Mage spell system */
 export const SpellId = {
   TRANSPOSE:      'TRANSPOSE',
@@ -420,6 +436,8 @@ export type TechEffect =
 export interface TechNodeDefinition {
   id: TechId;
   requires: TechId[];
+  /** Set on root nodes (requires: []) only. */
+  tree?: TechTreeId;
   /** Crystal cost to unlock this node. Defaults to 1 if omitted. */
   cost?: number;
   effects: TechEffect[];

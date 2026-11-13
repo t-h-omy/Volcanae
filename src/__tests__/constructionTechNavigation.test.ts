@@ -79,7 +79,7 @@ describe('construction research navigation UI contract', () => {
   it('clears stale focus for normal opens and retains default root positioning', () => {
     expect(HUD_TSX).toMatch(/onOpenTechTree=\{\(\) => \{\s*setTechTreeFocusId\(null\);\s*setShowTechTree\(true\);/);
     expect(HUD_TSX).toMatch(/const handleCloseTechTree = useCallback\(\(\) => \{\s*setShowTechTree\(false\);\s*setTechTreeFocusId\(null\);/);
-    expect(overlay).toContain('el.scrollLeft = rootCenter.x - NODE_W');
+    expect(overlay).toContain('el.scrollLeft = rootCenter.x - UI.TECH_TREE_NODE_WIDTH_PX');
     expect(overlay).toContain('el.scrollTop = rootCenter.y - el.clientHeight / 2');
   });
 });

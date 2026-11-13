@@ -9,9 +9,8 @@
 
 import type { GameState } from './types';
 import { UnitType, UnitTag, BuildingType, TileStatus } from './types';
-import { TECH_TREE, POPULATION, SPECIALIST_DEFINITIONS, SAVE, ABILITIES, CRYSTAL_KHYRON } from './gameConfig';
+import { TECH_TREE, POPULATION, SPECIALIST_DEFINITIONS, SAVE, CRYSTAL_KHYRON } from './gameConfig';
 import { t } from './i18n/i18n';
-import { ALL_HINT_IDS } from '../config/hints';
 import type { Difficulty } from './types';
 import { getGrantedTags, revokeTagStatEffects } from './techSystem';
 import { getTagsFromActiveSpecialists } from './specialistSystem';
@@ -21,7 +20,7 @@ import { getTagsFromActiveSpecialists } from './specialistSystem';
 // ============================================================================
 
 /** Increment this whenever the serialized shape changes incompatibly. */
-export const SAVE_VERSION = 23;
+export const SAVE_VERSION = 24;
 
 // ============================================================================
 // TYPES
@@ -95,7 +94,7 @@ const openDb = openSaveDb;
  */
 function migrateState(parsed: { version: number; state: GameState }): GameState | null {
   try {
-    if (parsed.version > SAVE_VERSION || parsed.version < 8) return null;
+    if (parsed.version > SAVE_VERSION || parsed.version < SAVE.MIN_LOADABLE_VERSION) return null;
     if (!parsed.state || typeof parsed.state !== 'object') return null;
 
     const s = parsed.state;
@@ -108,33 +107,6 @@ function migrateState(parsed: { version: number; state: GameState }): GameState 
       typeof s.resources !== 'object'
     ) {
       return null;
-    }
-
-    // Migration v8 → v9: UnitType INFANTRY renamed to SPEARMAN.
-    if (parsed.version < 9 && s.units && typeof s.units === 'object') {
-      for (const unit of Object.values(s.units) as Array<unknown>) {
-        const u = unit as Record<string, unknown>;
-        if (u && u.type === 'INFANTRY') u.type = 'SPEARMAN';
-      }
-    }
-
-    // Migration v10 → v11: enemy UnitType renames.
-    if (parsed.version < 11 && s.units && typeof s.units === 'object') {
-      const unitTypeRenames: Record<string, string> = {
-        LAVA_REAPER:    'REAPER',
-        LAVA_LANCER:    'LANCER',
-        LAVA_BREAKER:   'BULLWARK',
-        LAVA_PYROCLAST: 'KINDLER',
-        LAVA_BEAST:     'GRIMBEAK',
-        LAVA_BURROWER:  'RIFTWORM',
-        LAVA_HEXCASTER: 'RIFT_LORD',
-      };
-      for (const unit of Object.values(s.units) as Array<unknown>) {
-        const u = unit as Record<string, unknown>;
-        if (u && typeof u.type === 'string' && u.type in unitTypeRenames) {
-          u.type = unitTypeRenames[u.type];
-        }
-      }
     }
 
     // Migration: add PASSIVE tag to Emberlings if missing.
@@ -150,15 +122,6 @@ function migrateState(parsed: { version: number; state: GameState }): GameState 
         if (!(def.id in s.techNodes)) {
           (s.techNodes as Record<string, { id: string; unlocked: boolean }>)[def.id] = { id: def.id, unlocked: false };
         }
-      }
-    }
-
-    // Migration: Frostcraft backfill.
-    {
-      const tn = s.techNodes as Record<string, { id: string; unlocked: boolean }> | undefined;
-      const us = s.unlockedSpells as string[] | undefined;
-      if (tn?.['ARCANE_AWAKENING']?.unlocked && Array.isArray(us) && !us.includes('FROSTCRAFT')) {
-        us.push('FROSTCRAFT');
       }
     }
 
@@ -410,39 +373,6 @@ function migrateState(parsed: { version: number; state: GameState }): GameState 
       }
     }
 
-    // Migration v11 → v12: remove unused farmers/nobles from resources and type from tiles.
-    if (parsed.version < 12) {
-      const res = s.resources as unknown as Record<string, unknown>;
-      delete res.farmers;
-      delete res.nobles;
-      if (s.grid && Array.isArray(s.grid)) {
-        for (const row of s.grid as Array<unknown>) {
-          if (!Array.isArray(row)) continue;
-          for (const tile of row as Array<unknown>) delete (tile as Record<string, unknown>).type;
-        }
-      }
-    }
-
-    // Migration v12 → v13: EMBER_PORTAL rework.
-    if (parsed.version < 13) {
-      if (s.portals && typeof s.portals === 'object') {
-        for (const portal of Object.values(s.portals) as Array<unknown>) {
-          const p = portal as Record<string, unknown>;
-          if (p && typeof p.id === 'string') {
-            if (typeof p.expiresTurn === 'number') p.lastUsableTurn = p.expiresTurn - 1;
-            if (!('pendingTeleportUnitId' in p)) p.pendingTeleportUnitId = null;
-            delete p.expiresTurn;
-            delete p.usableFromTurn;
-          }
-        }
-      }
-      if (s.units && typeof s.units === 'object') {
-        for (const unit of Object.values(s.units) as Array<unknown>) {
-          const u = unit as Record<string, unknown>;
-          if (u && typeof u.id === 'string') delete u.portalCastCooldownUntil;
-        }
-      }
-    }
     if (s.portals && typeof s.portals === 'object') {
       for (const portal of Object.values(s.portals) as Array<unknown>) {
         const p = portal as Record<string, unknown>;
@@ -450,96 +380,8 @@ function migrateState(parsed: { version: number; state: GameState }): GameState 
       }
     }
 
-    // Migration v13 → v14: hasTradedThisTurn.
-    if (parsed.version < 14) {
-      if (s.units && typeof s.units === 'object') {
-        for (const unit of Object.values(s.units) as Array<unknown>) {
-          const u = unit as Record<string, unknown>;
-          if (u && typeof u.id === 'string' && !('hasTradedThisTurn' in u)) {
-            u.hasTradedThisTurn = false;
-          }
-        }
-      }
-    }
-
-    // Migration v15 → v16: seenHints field.
-    // Saves created before the hint system was added mark all hints as seen so
-    // they never show hints regardless of the global toggle.
-    if (parsed.version < 16) {
-      gs.seenHints = [...ALL_HINT_IDS];
-    }
-    // Safety net: backfill seenHints for any v16+ state where the field is missing.
     if (!Array.isArray(gs.seenHints)) {
       gs.seenHints = [];
-    }
-
-    // Migration v16 → v17: lastFreeRestockTurn on MARKET buildings.
-    // Leave the field undefined — undefined means the free restock is immediately
-    // available (i.e. never used), which is the correct default for old saves.
-
-    // Migration v17 → v18: hide market offers on unrevealed tiles.
-    if (parsed.version < 18 && s.buildings && typeof s.buildings === 'object') {
-      for (const building of Object.values(s.buildings) as Array<unknown>) {
-        const b = building as Record<string, unknown>;
-        if (!b || b.type !== BuildingType.MARKET) continue;
-        const pos = b.position as { x?: number; y?: number } | undefined;
-        if (typeof pos?.x !== 'number' || typeof pos?.y !== 'number') continue;
-        const tile = s.grid?.[pos.y]?.[pos.x];
-        const isRevealed = tile?.isRevealed === true;
-        if (!isRevealed) {
-          if (Array.isArray(b.marketResourceSlots)) {
-            b.marketResourceSlots = (b.marketResourceSlots as unknown[]).map(() => null);
-          }
-          if (Array.isArray(b.marketSpecialistSlots)) {
-            b.marketSpecialistSlots = (b.marketSpecialistSlots as unknown[]).map(() => null);
-          }
-          b.marketOffersInitialized = false;
-          continue;
-        }
-        b.marketOffersInitialized = true;
-      }
-    }
-
-    // Migration v18 → v19: backfill BERSERK latch state.
-    if (parsed.version < 19 && s.units && typeof s.units === 'object') {
-      const threshold = ABILITIES.BERSERK_HP_THRESHOLD_PCT / 100;
-      for (const unit of Object.values(s.units) as Array<unknown>) {
-        const u = unit as Record<string, unknown>;
-        if (!u || !Array.isArray(u.tags) || typeof u.stats !== 'object' || u.stats === null) continue;
-        if ((u.tags as string[]).includes(UnitTag.BERSERK)) {
-          const stats = u.stats as Record<string, unknown>;
-          const currentHp = typeof stats.currentHp === 'number' ? stats.currentHp : 0;
-          const maxHp = typeof stats.maxHp === 'number' ? stats.maxHp : 0;
-          u.berserkActivated = maxHp > 0 ? (currentHp / maxHp) < threshold : false;
-        } else {
-          u.berserkActivated = false;
-        }
-      }
-    }
-
-    // Migration v19 -> v20: spawn budget system state.
-    if (parsed.version < 20) {
-      const anyState = s as unknown as Record<string, unknown>;
-      if (typeof anyState.spawnAccumulator !== 'number') anyState.spawnAccumulator = 0;
-      if (anyState.lastSpawnBudget === undefined) anyState.lastSpawnBudget = null;
-    }
-
-    // Migration v20 -> v21: specialist display text is resolved from locale catalogs.
-    if (parsed.version < 21 && s.specialists && typeof s.specialists === 'object') {
-      for (const specialist of Object.values(s.specialists) as Array<unknown>) {
-        const entry = specialist as Record<string, unknown>;
-        if (!entry || typeof entry !== 'object') continue;
-        delete entry.name;
-        delete entry.description;
-      }
-    }
-
-    if (parsed.version < 23) {
-      for (const unit of Object.values(s.units)) {
-        if (unit.type === UnitType.CORRUPTED_QORK && !unit.tags.includes(UnitTag.CORRUPTION_BOUND)) {
-          unit.tags.push(UnitTag.CORRUPTION_BOUND);
-        }
-      }
     }
 
     return s as GameState;
@@ -554,7 +396,7 @@ function migrateState(parsed: { version: number; state: GameState }): GameState 
 
 /** Return true if a saved game is compatible with the current save version. */
 export function isSlotCompatible(meta: SaveSlotMeta): boolean {
-  return meta.version <= SAVE_VERSION && meta.version >= 8;
+  return meta.version <= SAVE_VERSION && meta.version >= SAVE.MIN_LOADABLE_VERSION;
 }
 
 // ============================================================================

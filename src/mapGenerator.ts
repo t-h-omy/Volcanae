@@ -1637,7 +1637,7 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
     emberLevelSources: { turns: 0, emberlingSacrifices: 0, other: 0 },
     zonesUnlocked: [1, 2],
     techNodes: TECH_TREE.reduce<Record<string, TechNodeState>>((acc, def) => {
-      acc[def.id] = { id: def.id, unlocked: def.id === 'CONSCRIPTION' };
+      acc[def.id] = { id: def.id, unlocked: def.requires.length === 0 };
       return acc;
     }, {}),
     techFlags: [],
@@ -1684,10 +1684,9 @@ export function generateInitialGameState(difficulty: Difficulty = Difficulty.STA
     lastThemeSignature: null,
   };
 
-  // Auto-apply CONSCRIPTION effects (unlocked at game start, not a pick)
-  const conscription = TECH_TREE.find((d) => d.id === 'CONSCRIPTION');
-  if (conscription) {
-    for (const effect of conscription.effects) {
+  // Auto-apply every root's effects at game start.
+  for (const root of TECH_TREE.filter((def) => def.requires.length === 0)) {
+    for (const effect of root.effects) {
       if (effect.type === 'UNLOCK_BUILDING' && !gameState.unlockedBuildings.includes(effect.buildingType)) {
         gameState.unlockedBuildings.push(effect.buildingType);
       }

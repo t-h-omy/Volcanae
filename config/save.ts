@@ -4,6 +4,8 @@
 
 
 export const SAVE = {
+  /** Oldest save version accepted by load and import. */
+  MIN_LOADABLE_VERSION: 24,
   /** Maximum number of manual save slots; New Game is blocked when this cap is reached. */
   SLOT_CAP: 100,
   /** Number of save slots displayed per page in the Load list. */

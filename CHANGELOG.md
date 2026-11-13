@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.120.0 - Secular and Arcane tech trees
+
+Split research into Secular and Arcane trees with four magic paths, auto-unlocked Arcane Awakening and Crystal Chamber, path-colored research effects, and localized tree tabs. Arcane base costs now follow depth: Spell Reach 7 to 4, Emberbind 4 to 7, Grave Trap 4 to 7, Grave Warriors 4 to 7, and Corrupted Qork 7 to 10 crystals. Saves below version 24 are no longer loadable.
+
 ### v0.119.2 - Bridgebuilder iteration
 
 Bridgebuilders can extend spans from or to existing bridges when their orientations match. Corrected the displayed bridge artwork and made bridges uncapturable by all factions, with enemy AI ignoring them as capture objectives. Updated bridge descriptions in every supported language.

@@ -158,14 +158,14 @@ beforeEach(() => {
 });
 
 describe('Corrupted Qork registration and targeting', () => {
-  it('unlocks the spell through a 7-crystal Emberbind child tech', () => {
+  it('unlocks the spell through a 10-crystal Emberbind child tech', () => {
     const tech = TECH_TREE.find((entry) => entry.id === 'CORRUPTED_QORK');
     expect(tech).toMatchObject({
       requires: ['EMBERBIND'],
-      cost: 7,
+      cost: 10,
       effects: [{ type: 'UNLOCK_SPELL', spellId: SpellId.CORRUPTED_QORK }],
     });
-    expect(computeResearchCost(tech!.cost!, 0)).toBe(7);
+    expect(computeResearchCost(tech!.cost!, 0)).toBe(10);
   });
 
   it('uses Skeleton-like movement and progression with range 2 and lower defense', () => {

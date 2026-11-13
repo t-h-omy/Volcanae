@@ -221,7 +221,7 @@ describe('effect-derived construction unlocks', () => {
   it.each([
     [BuildingType.BARRACKS, 'CONSCRIPTION'],
     [BuildingType.FARM, 'CONSCRIPTION'],
-    [BuildingType.CRYSTAL_CHAMBER, 'CONSCRIPTION'],
+    [BuildingType.CRYSTAL_CHAMBER, 'ARCANE_AWAKENING'],
     [BuildingType.ARCHER_CAMP, 'FAR_REACH'],
     [BuildingType.RIDER_CAMP, 'A_NOBLE_STEAD'],
     [BuildingType.PATRICIANHOUSE, 'A_NOBLE_STEAD'],
@@ -323,7 +323,7 @@ describe('lock precedence and live research state', () => {
     const unlockedOptions = getConstructionMenuOptionsForTile(state, position)
       .filter((option) => option.buildingUnlocked);
     expect(unlockedOptions.map((option) => option.buildingType))
-      .toEqual([BuildingType.BARRACKS, BuildingType.FARM, BuildingType.CRYSTAL_CHAMBER]);
+      .toEqual([BuildingType.BARRACKS, BuildingType.FARM]);
     for (const option of unlockedOptions) {
       expect(getConstructionMenuUnlockTechId(state, state.units.unit, option)).toBeNull();
       expect(canConstructAt(state, 'unit', position, option.buildingType)).toBe(false);
@@ -354,7 +354,7 @@ describe('lock precedence and live research state', () => {
     expect(canUnitPreviewConstruction(state.units.unit, state)).toBe(true);
     const liveOptions = getConstructionMenuOptionsForTile(state, position);
     expect(liveOptions.filter((option) => option.buildingUnlocked).map((option) => option.buildingType))
-      .toEqual([BuildingType.BARRACKS, BuildingType.FARM, BuildingType.CRYSTAL_CHAMBER]);
+      .toEqual([BuildingType.BARRACKS, BuildingType.FARM]);
     expect(getConstructionMenuUnlockTechId(state, state.units.unit, liveOptions[0])).toBeNull();
     expect(getConstructionMenuUnlockTechId(state, state.units.unit, liveOptions[1])).toBe('FAR_REACH');
     expect(canConstructAt(state, 'unit', position, BuildingType.BARRACKS)).toBe(true);

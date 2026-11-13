@@ -2,8 +2,8 @@
  * Tech tree crystal income constants, research cost function, and tech tree definitions.
  */
 
-import { BuildingType, ResourceType, SpellId, TechFlag, UnitTag, UnitType } from '../src/types';
-import type { TechNodeDefinition } from '../src/types';
+import { BuildingType, MagicPath, ResourceType, SpellId, TechFlag, TechTreeId, UnitTag, UnitType } from '../src/types';
+import type { TechId, TechNodeDefinition } from '../src/types';
 import { ABILITIES } from './abilities';
 import { MAGE } from './magic';
 import { RESOURCES } from './economy';
@@ -21,6 +21,9 @@ export const TECH = {
 } as const;
 
 export const CRYSTAL_LIGHTNING_RESEARCH_COST = 7;
+
+/** Arcane research cost by depth below the root (index 0 is depth 1). */
+export const ARCANE_RESEARCH_COST_BY_DEPTH = [2, 4, 7, 10] as const;
 
 /**
  * Compute the actual crystal cost to research a tech node at the current ember level.
@@ -40,14 +43,14 @@ export function computeResearchCost(baseCost: number, ember: number): number {
  * by textParams backed by named config constants.
  */
 export const TECH_TREE: TechNodeDefinition[] = [
-  // ── Root node (auto-unlocked at game start, not a pick) ──
+  // ── Secular tree root (auto-unlocked at game start) ────────────────────────
   {
     id: 'CONSCRIPTION',
     requires: [],
+    tree: TechTreeId.SECULAR,
     effects: [
       { type: 'UNLOCK_BUILDING', buildingType: BuildingType.BARRACKS },
       { type: 'UNLOCK_BUILDING', buildingType: BuildingType.FARM },
-      { type: 'UNLOCK_BUILDING', buildingType: BuildingType.CRYSTAL_CHAMBER },
       { type: 'UNLOCK_UNIT',     unitType: UnitType.SPEARMAN },
       { type: 'UNLOCK_UNIT',     unitType: UnitType.SCOUT },
       { type: 'UNLOCK_UNIT',     unitType: UnitType.GUARD },
@@ -399,22 +402,55 @@ export const TECH_TREE: TechNodeDefinition[] = [
     textParams: { shotsPerTurn: ABILITIES.PREVENTIVE_STRIKE_SHOTS_PER_TURN, damagePercent: ABILITIES.PREVENTIVE_STRIKE_DAMAGE_PERCENT },
   },
 
-  // ── Branch 6: Magic - root and 3 specialization paths ────────────────────
+  // ── Arcane tree root and four specialization paths ─────────────────────────
   {
     id: 'ARCANE_AWAKENING',
-    requires: ['CONSCRIPTION'],
+    requires: [],
+    tree: TechTreeId.ARCANE,
+    effects: [
+      { type: 'UNLOCK_BUILDING', buildingType: BuildingType.CRYSTAL_CHAMBER },
+    ],
+  },
+  {
+    id: 'CRYSTAL_MAGE',
+    requires: ['ARCANE_AWAKENING'],
     cost: 2,
     effects: [
-      { type: 'UNLOCK_UNIT',  unitType: UnitType.MAGE },
+      { type: 'UNLOCK_UNIT', unitType: UnitType.MAGE },
       { type: 'UNLOCK_SPELL', spellId: SpellId.TRANSPOSE },
       { type: 'UNLOCK_SPELL', spellId: SpellId.FROSTCRAFT },
     ],
   },
-  // Direct child of ARCANE_AWAKENING: Khyrons are recruited from resonating
-  // Crystal Chambers and transform through Resonance kills.
+  {
+    id: 'NECROMANCER',
+    requires: ['ARCANE_AWAKENING'],
+    cost: 2,
+    effects: [
+      { type: 'UNLOCK_UNIT', unitType: UnitType.MAGE },
+      { type: 'UNLOCK_SPELL', spellId: SpellId.TRANSPOSE },
+      { type: 'UNLOCK_SPELL', spellId: SpellId.FROSTCRAFT },
+    ],
+  },
+  {
+    id: 'EMBER_CULTIST',
+    requires: ['ARCANE_AWAKENING'],
+    cost: 2,
+    effects: [
+      { type: 'UNLOCK_UNIT', unitType: UnitType.MAGE },
+      { type: 'UNLOCK_SPELL', spellId: SpellId.TRANSPOSE },
+      { type: 'UNLOCK_SPELL', spellId: SpellId.FROSTCRAFT },
+    ],
+  },
+  {
+    id: 'ARCANE_STUDIES',
+    requires: ['ARCANE_AWAKENING'],
+    cost: 2,
+    effects: [],
+  },
+  // Crystal path: Khyrons are recruited from resonating Chambers.
   {
     id: 'CRYSTAL_KHYRON',
-    requires: ['ARCANE_AWAKENING'],
+    requires: ['CRYSTAL_MAGE'],
     cost: 4,
     effects: [
       { type: 'UNLOCK_UNIT', unitType: UnitType.CRYSTAL_KHYRON },
@@ -431,7 +467,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   },
   {
     id: 'TAUNT',
-    requires: ['ARCANE_AWAKENING'],
+    requires: ['CRYSTAL_MAGE'],
     cost: 4,
     effects: [
       { type: 'UNLOCK_SPELL', spellId: SpellId.TAUNT },
@@ -446,11 +482,11 @@ export const TECH_TREE: TechNodeDefinition[] = [
     ],
   },
 
-  // ── Summoner path ────────────────────────────────────────────────────────
+  // ── Ember path ────────────────────────────────────────────────────────────
   {
     id: 'EMBERBIND',
     requires: ['BRANDMARK_HEAL'],
-    cost: 4,
+    cost: 7,
     effects: [
       { type: 'UNLOCK_SPELL', spellId: SpellId.EMBERBIND },
     ],
@@ -458,14 +494,14 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'CORRUPTED_QORK',
     requires: ['EMBERBIND'],
-    cost: 7,
+    cost: 10,
     effects: [
       { type: 'UNLOCK_SPELL', spellId: SpellId.CORRUPTED_QORK },
     ],
   },
   {
     id: 'BRANDMARK_HEAL',
-    requires: ['ARCANE_AWAKENING'],
+    requires: ['EMBER_CULTIST'],
     cost: 4,
     effects: [
       { type: 'UNLOCK_SPELL', spellId: SpellId.BRANDMARK_HEAL },
@@ -473,22 +509,21 @@ export const TECH_TREE: TechNodeDefinition[] = [
   },
   {
     id: 'CRYSTAL_TOWER',
-    requires: ['EMBERBIND'],
+    requires: ['CRYSTAL_KHYRON'],
     cost: 7,
     effects: [
       { type: 'UNLOCK_SPELL', spellId: SpellId.CRYSTAL_TOWER },
       { type: 'UNLOCK_BUILDING', buildingType: BuildingType.CRYSTAL_TOWER },
     ],
   },
-  // ── Conjurer path branch: Crystal Cave ───────────────────────────────────
-  // Hangs directly off ARCANE_AWAKENING (parallel to BRANDMARK_HEAL and
-  // RAISE_SKELETON, not gated behind EMBERBIND/CRYSTAL_TOWER). Unlocks
+  // Crystal Cave is on the Crystal path, parallel to Crystal Khyron.
+  // Unlocks
   // the Crystal Cave spell which conjures the cave building on a mountain
   // tile in range; the cave can then recruit a single life-bound Crystal
   // Drake during a resonance window.
   {
     id: 'CRYSTAL_CAVE',
-    requires: ['ARCANE_AWAKENING'],
+    requires: ['CRYSTAL_MAGE'],
     cost: 4,
     effects: [
       { type: 'UNLOCK_SPELL', spellId: SpellId.CRYSTAL_CAVE },
@@ -507,7 +542,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   // ── Necromancer path ─────────────────────────────────────────────────────
   {
     id: 'RAISE_SKELETON',
-    requires: ['ARCANE_AWAKENING'],
+    requires: ['NECROMANCER'],
     cost: 4,
     effects: [
       { type: 'UNLOCK_UNIT',  unitType: UnitType.SKELETON },
@@ -529,7 +564,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'GRAVE_TRAP',
     requires: ['RAISE_SKELETON'],
-    cost: 4,
+    cost: 7,
     effects: [
       { type: 'UNLOCK_SPELL', spellId: SpellId.GRAVE_TRAP },
     ],
@@ -549,7 +584,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'GRAVE_WARRIORS',
     requires: ['RAISE_SKELETON'],
-    cost: 4,
+    cost: 7,
     effects: [
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.RIDER,    tag: UnitTag.LEAVES_GRAVESTONE },
       { type: 'GRANT_UNIT_TAG', unitType: UnitType.SWORDSMAN, tag: UnitTag.LEAVES_GRAVESTONE },
@@ -567,10 +602,10 @@ export const TECH_TREE: TechNodeDefinition[] = [
   //  ],
 //  },
 
-  // ── Elementalist path ────────────────────────────────────────────────────
+  // ── Arcane Studies path ───────────────────────────────────────────────────
   {
     id: 'EXPLODE',
-    requires: ['ARCANE_AWAKENING'],
+    requires: ['EMBER_CULTIST'],
     cost: 4,
     effects: [
       { type: 'UNLOCK_SPELL', spellId: SpellId.EXPLODE },
@@ -586,8 +621,8 @@ export const TECH_TREE: TechNodeDefinition[] = [
   },
   {
     id: 'SPELL_REACH',
-    requires: ['EXPLODE'],
-    cost: 7,
+    requires: ['ARCANE_STUDIES'],
+    cost: 4,
     effects: [
       { type: 'UNIT_STAT_MOD', unitType: UnitType.MAGE, stat: 'attackRange', mode: 'add', value: MAGE.SPELL_RANGE_BONUS },
     ],
@@ -596,3 +631,49 @@ export const TECH_TREE: TechNodeDefinition[] = [
   },
 
 ];
+
+const TECH_NODE_BY_ID = new Map(TECH_TREE.map((node) => [node.id, node]));
+
+export function getTechRootId(id: TechId): TechId {
+  let node = TECH_NODE_BY_ID.get(id);
+  while (node?.requires.length) {
+    const parent = TECH_NODE_BY_ID.get(node.requires[0]);
+    if (!parent || parent === node) break;
+    node = parent;
+  }
+  return node?.id ?? id;
+}
+
+export function getTechTreeId(id: TechId): TechTreeId {
+  return TECH_NODE_BY_ID.get(getTechRootId(id))?.tree ?? TechTreeId.SECULAR;
+}
+
+export function getTechDepth(id: TechId): number {
+  let node = TECH_NODE_BY_ID.get(id);
+  let depth = 0;
+  while (node?.requires.length) {
+    const parent = TECH_NODE_BY_ID.get(node.requires[0]);
+    if (!parent || parent === node) break;
+    depth++;
+    node = parent;
+  }
+  return depth;
+}
+
+export const TECH_PATH_BY_ENTRY_NODE: Record<string, MagicPath> = {
+  CRYSTAL_MAGE: MagicPath.CRYSTAL,
+  NECROMANCER: MagicPath.NECRO,
+  EMBER_CULTIST: MagicPath.EMBER,
+  ARCANE_STUDIES: MagicPath.ARCANE,
+};
+
+export function getTechMagicPath(id: TechId): MagicPath | null {
+  let node = TECH_NODE_BY_ID.get(id);
+  while (node?.requires.length) {
+    if (node.id in TECH_PATH_BY_ENTRY_NODE) return TECH_PATH_BY_ENTRY_NODE[node.id];
+    const parent = TECH_NODE_BY_ID.get(node.requires[0]);
+    if (!parent || parent === node) break;
+    node = parent;
+  }
+  return null;
+}

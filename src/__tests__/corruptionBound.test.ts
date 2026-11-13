@@ -2,11 +2,11 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { produce } from 'immer';
 import 'fake-indexeddb/auto';
 import { IDBFactory } from 'fake-indexeddb';
-import { CORRUPTED_QORK, SAVE, TAG_INFO, UNIT_DEFINITIONS } from '../gameConfig';
+import { CORRUPTED_QORK, TAG_INFO, UNIT_DEFINITIONS } from '../gameConfig';
 import { isCorruptionBoundDrainActive, processCorruptedQorkDrain } from '../corruptedQorkSystem';
 import type { GameEvent } from '../gameEvents';
 import { generateInitialGameState } from '../mapGenerator';
-import { loadSlot, openSaveDb, saveSlotStrict, SAVE_VERSION } from '../saveSystem';
+import { loadSlot, saveSlotStrict } from '../saveSystem';
 import { Faction, TileStatus, UnitTag, UnitType } from '../types';
 import type { GameState, Unit } from '../types';
 
@@ -41,17 +41,6 @@ function addUnit(
   state.units[id] = unit;
   state.grid[unit.position.y][unit.position.x].unitId = id;
   return unit;
-}
-
-async function writeRawSave(id: string, version: number, savedState: GameState): Promise<void> {
-  const db = await openSaveDb();
-  await new Promise<void>((resolve, reject) => {
-    const transaction = db.transaction(SAVE.STORE_DATA, 'readwrite');
-    transaction.objectStore(SAVE.STORE_DATA).put({ id, version, state: savedState });
-    transaction.oncomplete = () => resolve();
-    transaction.onerror = () => reject(transaction.error);
-  });
-  db.close();
 }
 
 beforeEach(() => {
@@ -174,35 +163,7 @@ describe('Corruption-Bound', () => {
   });
 });
 
-describe('Corruption-Bound save migration', () => {
-  it('loads v22 saves through the public API and backfills every Qork exactly once', async () => {
-    expect(SAVE_VERSION).toBe(23);
-    const playerQork = addUnit('player-qork', UnitType.CORRUPTED_QORK, Faction.PLAYER, [UnitTag.RANGED]);
-    const enemyQork = addUnit('enemy-qork', UnitType.CORRUPTED_QORK, Faction.ENEMY, []);
-    enemyQork.stats.currentHp = 0;
-    const alreadyBound = addUnit('bound-qork', UnitType.CORRUPTED_QORK);
-    const other = addUnit('other', UnitType.SPEARMAN, Faction.PLAYER, [UnitTag.BUILDANDCAPTURE]);
-    const taggedOther = addUnit('tagged-other');
-    await writeRawSave('v22', 22, state);
-
-    const loaded = await loadSlot('v22');
-    expect(loaded).not.toBeNull();
-    for (const qork of [playerQork, enemyQork, alreadyBound]) {
-      expect(loaded!.units[qork.id].tags).toEqual(
-        qork.tags.includes(UnitTag.CORRUPTION_BOUND) ? qork.tags : [...qork.tags, UnitTag.CORRUPTION_BOUND],
-      );
-      expect(loaded!.units[qork.id].tags.filter((tag) => tag === UnitTag.CORRUPTION_BOUND)).toHaveLength(1);
-    }
-    expect(loaded!.units[other.id]).toEqual(other);
-    expect(loaded!.units[taggedOther.id]).toEqual(taggedOther);
-
-    await writeRawSave('v22-again', 22, loaded!);
-    const remigrated = await loadSlot('v22-again');
-    expect(remigrated!.units).toEqual(loaded!.units);
-    await saveSlotStrict({ id: 'v23-roundtrip', name: 'Bound', state: loaded! });
-    expect((await loadSlot('v23-roundtrip'))!.units).toEqual(loaded!.units);
-  });
-
+describe('Corruption-Bound save round-trip', () => {
   it('does not re-add a deliberately stripped tag in current-version saves', async () => {
     const stripped = addUnit('stripped', UnitType.CORRUPTED_QORK, Faction.PLAYER, [UnitTag.RANGED]);
     await saveSlotStrict({ id: 'v23-stripped', name: 'Stripped', state });
