@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.121.1 - Spell text corrections
+
+Corrected Explode and Frostcraft descriptions in every supported language to match their targeting and effects. Clarified Transpose, Grave Trap, Frostcraft, and Explode in the README spell table.
+
 ### v0.121.0 - Mage path spellbooks
 
 Replaced the generic Mage with Crystal Mage, Necromancer, and Ember Cultist units, each with its own spellbook, path-colored VFX, and HUD identity. All three share Transpose, Frostcraft, Rupture, recruitment costs, stats, and Crystal Chamber limits.

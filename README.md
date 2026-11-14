@@ -85,16 +85,16 @@ Spells are unlocked individually through the tech tree. The selected Mage's spel
 
 | Spell | Effect |
 |-------|--------|
-| 🔄 Transpose | Swap the Mage with a friendly unit |
+| 🔄 Transpose | Swap two units of the same faction within range of the Mage |
 | 🔥 Emberbind | Destroy a nearby Ember Nest, summoning a leashed Ember Demon |
 | 🐗 Corrupted Qork | Summon a ready ranged, leashed creature on an empty corrupted tile; it loses HP off corruption and explodes on death |
 | 🩸 Brandmark | Fully heal a friendly unit; the healed unit gains the BRANDMARKED tag, cannot be healed by Patch Up, and loses HP each turn, spawning a hostile Ember Demon on death |
 | 💀 Raise Skeleton | Animate a Gravestone as a Skeleton unit |
 | 🧟 Summon Ghoul | Summon a Ghoul from an empty player Gravestone |
 | 🦠 Lava Mold | Infect an enemy unit; Infested units take damage at faction-turn end and spread infection when they die |
-| ❄️ Frostcraft | Freeze a water tile, making it passable |
-| ☠️ Grave Trap | Place a trap that stuns the next unit to enter |
-| 💥 Explode | Deal area damage around a target tile |
+| ❄️ Frostcraft | Freeze a Plains, Forest, Mountain or Water tile. Units that end movement on Frozen slide one more tile; sliding into water, a canyon or lava is fatal. Frozen Water carries your units, enemies cannot enter it, and the ice lasts until lava or another tile status replaces it. |
+| ☠️ Grave Trap | Turn an empty Gravestone into a trap that stuns the next enemy to enter and nearby enemies in its area. |
+| 💥 Explode | Sacrifice a player unit to deal damage based on its current HP to each adjacent enemy. Units that leave a Gravestone on death still leave one. |
 | 💎 Crystal Tower | Sacrifice the Mage to erect a permanent Crystal Tower on its tile |
 | 🌀 Portal | Create a permanent bidirectional portal pair on the same row; units of any faction can enter either endpoint |
 | 🎯 Taunt | Mark a friendly unit so hostile units must attack it whenever it is a legal target in range |
