@@ -69,13 +69,19 @@ Bridgebuilders can build across a canyon tile from or to an existing bridge when
 
 ## Tech Trees
 
-The tech overlay has separate **Secular** and **Arcane** trees. **Conscription** roots the Secular tree; **Arcane Awakening** roots the Arcane tree and provides the Crystal Chamber, which can be built from the start. The Arcane tree has four entry paths: **Crystal Mage**, **Necromancer**, and **Ember Cultist** each unlock the Mage, Transpose, and Frostcraft; **Arcane Studies** opens research that improves every Mage. Arcane base research costs depend on depth below Arcane Awakening: 2 crystals at depth one, 4 at depth two, 7 at depth three, and 10 at depth four. Ember is added to these base costs.
+The tech overlay has separate **Secular** and **Arcane** trees. **Conscription** roots the Secular tree; **Arcane Awakening** roots the Arcane tree and provides the Crystal Chamber, which can be built from the start. The Arcane tree has four entry paths: **Crystal Mage**, **Necromancer**, and **Ember Cultist** each unlock their own Mage, Transpose, and Frostcraft; **Arcane Studies** opens research that improves every Mage. Arcane base research costs depend on depth below Arcane Awakening: 2 crystals at depth one, 4 at depth two, 7 at depth three, and 10 at depth four. Ember is added to these base costs.
 
 ## Magic System
 
-Mages can be recruited from an active **Crystal Chamber** building after researching any of the three Mage paths. Each Mage can cast one spell per turn (before or after moving, but not after attacking), and the **Archmage** specialist raises that per-turn budget to two casts.
+Mages can be recruited from an active **Crystal Chamber** building after researching their path. The three Mage units share stats and recruitment limits, but each can cast only the spells of its path plus the common spells. Each Mage can cast one spell per turn (before or after moving, but not after attacking), and the **Archmage** specialist raises that per-turn budget to two casts.
 
-Spells are unlocked individually through the tech tree. Available spells include:
+| Mage | Common spells | Path spells |
+|------|---------------|-------------|
+| Crystal Mage | Transpose, Frostcraft, Rupture | Taunt, Stone Skin, Crystal Lightning, Crystal Cave, Portal, Crystal Tower |
+| Necromancer | Transpose, Frostcraft, Rupture | Raise Skeleton, Summon Ghoul, Grave Trap |
+| Ember Cultist | Transpose, Frostcraft, Rupture | Brandmark Heal, Emberbind, Corrupted Qork, Explode, Lava Mold |
+
+Spells are unlocked individually through the tech tree. The selected Mage's spell panel lists only spells it owns and has unlocked. Available spells include:
 
 | Spell | Effect |
 |-------|--------|

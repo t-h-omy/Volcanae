@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.121.0 - Mage path spellbooks
+
+Replaced the generic Mage with Crystal Mage, Necromancer, and Ember Cultist units, each with its own spellbook, path-colored VFX, and HUD identity. All three share Transpose, Frostcraft, Rupture, recruitment costs, stats, and Crystal Chamber limits.
+
 ### v0.120.0 - Secular and Arcane tech trees
 
 Split research into Secular and Arcane trees with four magic paths, auto-unlocked Arcane Awakening and Crystal Chamber, path-colored research effects, and localized tree tabs. Arcane base costs now follow depth: Spell Reach 7 to 4, Emberbind 4 to 7, Grave Trap 4 to 7, Grave Warriors 4 to 7, and Corrupted Qork 7 to 10 crystals. Saves below version 24 are no longer loadable.
