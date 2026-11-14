@@ -160,7 +160,7 @@ function makeState(units: Unit[] = [], buildings: Building[] = []): GameState {
     techFlags: [],
     arcaneCrystals: 5,
     unlockedBuildings: [BuildingType.WOODCUTTER],
-    unlockedUnits: [UnitType.MAGE],
+    unlockedUnits: [UnitType.CRYSTAL_MAGE],
     unlockedSpells: [SpellId.PORTAL],
     gameStats: {
       unitsKilled: 0,
@@ -203,7 +203,7 @@ function makeState(units: Unit[] = [], buildings: Building[] = []): GameState {
 }
 
 function mageState(position: Position = { x: 5, y: 10 }): GameState {
-  return makeState([makeUnit('mage', UnitType.MAGE, Faction.PLAYER, position)]);
+  return makeState([makeUnit('mage', UnitType.CRYSTAL_MAGE, Faction.PLAYER, position)]);
 }
 
 function addPair(state: GameState, id: string, a: Position, b: Position, casterId = 'mage'): GameState {
@@ -242,7 +242,7 @@ describe('Mage Portal tech and spell', () => {
       .toEqual(Object.values(riftState.portals)[0]);
 
     const mageEvents: GameEvent[] = [];
-    const mage = makeUnit('mage', UnitType.MAGE, Faction.PLAYER, { x: 5, y: 10 });
+    const mage = makeUnit('mage', UnitType.CRYSTAL_MAGE, Faction.PLAYER, { x: 5, y: 10 });
     const mageState = produce(makeState([mage]), (draft) => {
       castMagePortalPair(draft, mage.id, A, B, mageEvents);
     });
@@ -481,7 +481,7 @@ describe('Mage portal movement and lifetime', () => {
   });
 
   it('keeps one pair per Mage, permits pairs from separate Mages, and cleans up death or lava', () => {
-    const mage2 = makeUnit('mage2', UnitType.MAGE, Faction.PLAYER, { x: 7, y: 10 });
+    const mage2 = makeUnit('mage2', UnitType.CRYSTAL_MAGE, Faction.PLAYER, { x: 7, y: 10 });
     let state = produce(mageState(), (draft) => {
       draft.units.mage.spellsCastThisTurn = 0;
     });
@@ -539,7 +539,7 @@ describe('Mage Portal save compatibility', () => {
   });
 
   it('round-trips Mage pairs and migrates a kind-less saved portal as a Rift Lord portal', async () => {
-    const mage = makeUnit('mage', UnitType.MAGE, Faction.PLAYER, { x: 5, y: 10 });
+    const mage = makeUnit('mage', UnitType.CRYSTAL_MAGE, Faction.PLAYER, { x: 5, y: 10 });
     const state = makeState([mage]);
     state.portals = {
       legacy: {

@@ -187,7 +187,7 @@ describe('Taunt registration and spell', () => {
   });
 
   it('targets any untaunted player unit in Mage range, including the Mage and special units', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 5 });
+    const mage = makeUnit(UnitType.CRYSTAL_MAGE, { x: 5, y: 5 });
     const summon = makeUnit(UnitType.EMBER_DEMON, { x: 5, y: 6 }, Faction.PLAYER, [UnitTag.SUMMONED]);
     const flying = makeUnit(UnitType.GARGOYLE, { x: 6, y: 5 }, Faction.PLAYER, [UnitTag.FLYING]);
     const khyron = makeUnit(UnitType.CRYSTAL_KHYRON, { x: 4, y: 5 });
@@ -202,7 +202,7 @@ describe('Taunt registration and spell', () => {
   });
 
   it('applies Taunt permanently and rejects a recast on the same unit with a curated reason', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 5 });
+    const mage = makeUnit(UnitType.CRYSTAL_MAGE, { x: 5, y: 5 });
     const target = makeUnit(UnitType.GUARD, { x: 6, y: 5 });
     const state = makeState([mage, target]);
 

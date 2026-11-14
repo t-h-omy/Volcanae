@@ -71,7 +71,7 @@ describe('computePopulationUsage — live counting', () => {
   it('counts nobles correctly for 5 Guards + 3 Mages + 1 Siege + 1 Rider without an end-turn tick', () => {
     const units: Unit[] = [
       ...Array.from({ length: 5 }, () => makePlayerUnit(UnitType.GUARD)),
-      ...Array.from({ length: 3 }, () => makePlayerUnit(UnitType.MAGE)),
+      ...Array.from({ length: 3 }, () => makePlayerUnit(UnitType.CRYSTAL_MAGE)),
       makePlayerUnit(UnitType.SIEGE),
       makePlayerUnit(UnitType.RIDER),
     ];

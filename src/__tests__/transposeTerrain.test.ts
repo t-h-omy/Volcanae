@@ -238,7 +238,7 @@ function makeScenario({
   firstTerrain?: TileType;
   buildings?: Building[];
 }): Scenario {
-  const mage = makeUnit(UnitType.MAGE, { x: 5, y: 5 });
+  const mage = makeUnit(UnitType.CRYSTAL_MAGE, { x: 5, y: 5 });
   const first = makeUnit(firstType, { x: 6, y: 5 }, faction);
   const second = makeUnit(secondType, { x: 5, y: 6 }, faction);
   const state = makeState({

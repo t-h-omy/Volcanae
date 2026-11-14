@@ -201,7 +201,7 @@ function makeState(opts: {
     arcaneCrystals: 99,
     techFlags: [],
     unlockedSpells: [SpellId.CRYSTAL_CAVE],
-    unlockedUnits: [UnitType.MAGE, UnitType.CRYSTAL_DRAKE],
+    unlockedUnits: [UnitType.CRYSTAL_MAGE, UnitType.CRYSTAL_DRAKE],
     techNodes: {},
   } as unknown as GameState;
 }
@@ -390,7 +390,7 @@ describe('Crystal Cave — recruitment plumbing', () => {
 
 describe('Crystal Cave spell — targeting', () => {
   it('only free in-range MOUNTAIN tiles are valid targets', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 4, y: 4 });
+    const mage = makeUnit(UnitType.CRYSTAL_MAGE, { x: 4, y: 4 });
     const state = makeState({ units: [mage] });
     // Sprinkle terrain near the mage:
     state.grid[4][5].terrainType = TileType.MOUNTAIN;       // valid
@@ -413,7 +413,7 @@ describe('Crystal Cave spell — targeting', () => {
   });
 
   it('excludes mountain tiles occupied by a unit or a building', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 4, y: 4 });
+    const mage = makeUnit(UnitType.CRYSTAL_MAGE, { x: 4, y: 4 });
     const other = makeUnit(UnitType.SPEARMAN, { x: 5, y: 4 });
     const state = makeState({ units: [mage, other] });
     state.grid[4][5].terrainType = TileType.MOUNTAIN;
@@ -432,7 +432,7 @@ describe('Crystal Cave spell — targeting', () => {
 
 describe('Crystal Cave spell — cave-monster handling on construction', () => {
   it('clears hasCaveMonster for a dormant cave (no active encounter) when a crystal cave is built', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 4, y: 4 });
+    const mage = makeUnit(UnitType.CRYSTAL_MAGE, { x: 4, y: 4 });
     const state = makeState({ units: [mage] });
     state.grid[4][5].terrainType = TileType.MOUNTAIN;
     state.grid[4][5].hasCaveMonster = true;
@@ -450,7 +450,7 @@ describe('Crystal Cave spell — cave-monster handling on construction', () => {
   });
 
   it('preserves an active cave-monster encounter when a crystal cave is built on its mountain', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 4, y: 4 });
+    const mage = makeUnit(UnitType.CRYSTAL_MAGE, { x: 4, y: 4 });
     // The monster is out on the map (active encounter), not on the target tile
     const monster = makeUnit(UnitType.CAVE_MONSTER, { x: 7, y: 7 }, Faction.ENEMY);
     const state = makeState({

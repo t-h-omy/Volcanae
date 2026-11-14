@@ -24,10 +24,10 @@ function makeTile(x: number, y: number, terrainType: TileType = TileType.PLAINS)
 }
 
 function makeMage(): Unit {
-  const def = UNIT_DEFINITIONS[UnitType.MAGE];
+  const def = UNIT_DEFINITIONS[UnitType.CRYSTAL_MAGE];
   return {
     id: 'mage_1',
-    type: UnitType.MAGE,
+    type: UnitType.CRYSTAL_MAGE,
     faction: Faction.PLAYER,
     position: { x: 2, y: 2 },
     stats: {
@@ -83,7 +83,7 @@ function makeState(activeSpecialists: string[] = []): GameState {
     ember: 0,
     techFlags: [],
     unlockedSpells: [SpellId.FROSTCRAFT],
-    unlockedUnits: [UnitType.MAGE],
+    unlockedUnits: [UnitType.CRYSTAL_MAGE],
     techNodes: {},
     specialists: createInitialSpecialists(),
     globalSpecialistStorage: activeSpecialists,

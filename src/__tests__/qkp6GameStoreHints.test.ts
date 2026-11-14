@@ -50,7 +50,7 @@ function makeState(spellId: SpellId = SpellId.EMBERBIND): GameState {
   )!;
   stronghold.position = { x: 4, y: 65 };
   state.buildings = { [stronghold.id]: stronghold };
-  const mage = makeUnit('mage', UnitType.MAGE, MAGE_POSITION);
+  const mage = makeUnit('mage', UnitType.EMBER_CULTIST, MAGE_POSITION);
   state.units = { mage };
   for (const row of state.grid) {
     for (const tile of row) {

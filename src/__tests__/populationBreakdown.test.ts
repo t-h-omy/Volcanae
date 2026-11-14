@@ -258,7 +258,7 @@ describe('computePopulationBreakdown — usage sums match computePopulationUsage
   it('mixed unit types', () => {
     const units = [
       ...Array.from({ length: 5 }, () => makePlayerUnit(UnitType.GUARD)),
-      ...Array.from({ length: 3 }, () => makePlayerUnit(UnitType.MAGE)),
+      ...Array.from({ length: 3 }, () => makePlayerUnit(UnitType.CRYSTAL_MAGE)),
       makePlayerUnit(UnitType.SIEGE),
       makePlayerUnit(UnitType.RIDER),
     ];

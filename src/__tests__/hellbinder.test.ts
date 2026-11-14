@@ -293,7 +293,7 @@ describe('SP-13 Hellbinder — newly recruited Crystal Drake', () => {
 describe('SP-13 Hellbinder — RAISE_SKELETON spell', () => {
   it('Skeleton raised while Hellbinder is active gets RAGE and CLEAVE', () => {
     // Place a Mage at (4,4) and a Gravestone at (5,4) within attack range 2
-    const mage = makeUnit(UnitType.MAGE, 4, 4);
+    const mage = makeUnit(UnitType.NECROMANCER, 4, 4);
     // MAGE needs no action flags spent so it can cast
     mage.spellsCastThisTurn = 0;
     const grave = makeBuilding(BuildingType.GRAVESTONE, 5, 4, {
@@ -322,7 +322,7 @@ describe('SP-13 Hellbinder — RAISE_SKELETON spell', () => {
   });
 
   it('Skeleton raised WITHOUT Hellbinder does not get RAGE or CLEAVE', () => {
-    const mage = makeUnit(UnitType.MAGE, 4, 4);
+    const mage = makeUnit(UnitType.NECROMANCER, 4, 4);
     mage.spellsCastThisTurn = 0;
     const grave = makeBuilding(BuildingType.GRAVESTONE, 5, 4, {
       faction: Faction.PLAYER,
@@ -352,7 +352,7 @@ describe('SP-13 Hellbinder — RAISE_SKELETON spell', () => {
 describe('SP-13 Hellbinder — EMBERBIND spell (converted Ember Demon)', () => {
   it('player-controlled Ember Demon bound while Hellbinder active gets RAGE and CLEAVE', () => {
     // Place a Mage at (4,4) and an EMBERNEST at (5,4) within attack range 2
-    const mage = makeUnit(UnitType.MAGE, 4, 4);
+    const mage = makeUnit(UnitType.EMBER_CULTIST, 4, 4);
     mage.spellsCastThisTurn = 0;
     const nest = makeBuilding(BuildingType.EMBERNEST, 5, 4, { faction: null } as Partial<Building>);
 
@@ -378,7 +378,7 @@ describe('SP-13 Hellbinder — EMBERBIND spell (converted Ember Demon)', () => {
   });
 
   it('player-controlled Ember Demon bound WITHOUT Hellbinder does not get RAGE or CLEAVE', () => {
-    const mage = makeUnit(UnitType.MAGE, 4, 4);
+    const mage = makeUnit(UnitType.EMBER_CULTIST, 4, 4);
     mage.spellsCastThisTurn = 0;
     const nest = makeBuilding(BuildingType.EMBERNEST, 5, 4, { faction: null } as Partial<Building>);
 

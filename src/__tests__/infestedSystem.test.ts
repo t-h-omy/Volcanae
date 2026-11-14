@@ -156,7 +156,7 @@ describe('Lava Mold', () => {
   });
 
   it('infects an enemy and persists its original Mage source', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 5 });
+    const mage = makeUnit(UnitType.EMBER_CULTIST, { x: 5, y: 5 });
     const victim = makeUnit(UnitType.GUARD, { x: 6, y: 5 }, Faction.ENEMY);
     const state = makeState([mage, victim]);
 
@@ -172,7 +172,7 @@ describe('Lava Mold', () => {
   });
 
   it('rejects recasting on an Infested unit with localized feedback', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 5 });
+    const mage = makeUnit(UnitType.EMBER_CULTIST, { x: 5, y: 5 });
     const victim = makeUnit(UnitType.GUARD, { x: 6, y: 5 }, Faction.ENEMY, [UnitTag.INFESTED]);
     const state = makeState([mage, victim]);
     expect(getValidSpellTargets(state, mage.id, SpellId.LAVA_MOLD)).not.toContainEqual(victim.position);
@@ -210,7 +210,7 @@ describe('Lava Mold', () => {
     expect(afterDot.units[dotted.id].stoneSkinHp).toBe(20 - MAGE.INFESTED_HP_LOSS_PER_TURN);
     expect(afterDot.units[dotted.id].stats.currentHp).toBe(dotted.stats.maxHp);
 
-    const source = makeUnit(UnitType.MAGE, { x: 2, y: 2 });
+    const source = makeUnit(UnitType.EMBER_CULTIST, { x: 2, y: 2 });
     const deceased = makeUnit(UnitType.GUARD, { x: 6, y: 6 }, Faction.ENEMY, [UnitTag.INFESTED]);
     deceased.infestedByMageId = source.id;
     const survivor = makeUnit(UnitType.GUARD, { x: 7, y: 6 }, Faction.PLAYER, [UnitTag.STONE_SKIN]);
@@ -236,7 +236,7 @@ describe('Lava Mold', () => {
   });
 
   it('kills from DoT and credits the original Mage', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 5 });
+    const mage = makeUnit(UnitType.EMBER_CULTIST, { x: 5, y: 5 });
     const victim = makeUnit(UnitType.GUARD, { x: 6, y: 5 }, Faction.ENEMY, [UnitTag.INFESTED]);
     victim.infestedByMageId = mage.id;
     victim.stats.currentHp = 10;
@@ -263,7 +263,7 @@ describe('Lava Mold', () => {
   });
 
   it('resolves spread when a non-combat burning-tile death removes an Infested unit', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 2, y: 2 });
+    const mage = makeUnit(UnitType.EMBER_CULTIST, { x: 2, y: 2 });
     const victim = makeUnit(UnitType.GUARD, { x: 5, y: 5 }, Faction.ENEMY, [UnitTag.INFESTED]);
     const survivor = makeUnit(UnitType.GUARD, { x: 6, y: 5 });
     victim.infestedByMageId = mage.id;
@@ -279,7 +279,7 @@ describe('Lava Mold', () => {
   });
 
   it('bursts once, spreads across factions to all eight neighbors, and preserves source', () => {
-    const source = makeUnit(UnitType.MAGE, { x: 2, y: 2 });
+    const source = makeUnit(UnitType.EMBER_CULTIST, { x: 2, y: 2 });
     const deceased = makeUnit(UnitType.GUARD, { x: 6, y: 6 }, Faction.ENEMY, [UnitTag.INFESTED]);
     deceased.infestedByMageId = source.id;
     const neighbors = [
@@ -310,7 +310,7 @@ describe('Lava Mold', () => {
   });
 
   it('ignores Defense for burst damage and resolves an already-infected chain death once', () => {
-    const source = makeUnit(UnitType.MAGE, { x: 4, y: 4 });
+    const source = makeUnit(UnitType.EMBER_CULTIST, { x: 4, y: 4 });
     const first = makeUnit(UnitType.GUARD, { x: 5, y: 5 }, Faction.ENEMY, [UnitTag.INFESTED]);
     const second = makeUnit(UnitType.GUARD, { x: 6, y: 5 }, Faction.PLAYER, [UnitTag.INFESTED]);
     const survivor = makeUnit(UnitType.GUARD, { x: 5, y: 6 }, Faction.PLAYER);
@@ -381,7 +381,7 @@ describe('Lava Mold', () => {
 
   it('preserves normal primary kill credit without crediting the infection source Mage', () => {
     const attacker = makeUnit(UnitType.GUARD, { x: 5, y: 5 });
-    const sourceMage = makeUnit(UnitType.MAGE, { x: 2, y: 2 });
+    const sourceMage = makeUnit(UnitType.EMBER_CULTIST, { x: 2, y: 2 });
     const victim = makeUnit(UnitType.GUARD, { x: 6, y: 5 }, Faction.ENEMY, [UnitTag.INFESTED]);
     victim.infestedByMageId = sourceMage.id;
     victim.stats.currentHp = 1;
@@ -397,7 +397,7 @@ describe('Lava Mold', () => {
   });
 
   it('retains the original Mage source through multiple spread generations', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 2, y: 2 });
+    const mage = makeUnit(UnitType.EMBER_CULTIST, { x: 2, y: 2 });
     const first = makeUnit(UnitType.GUARD, { x: 5, y: 5 }, Faction.ENEMY, [UnitTag.INFESTED]);
     const second = makeUnit(UnitType.GUARD, { x: 6, y: 5 }, Faction.PLAYER);
     const third = makeUnit(UnitType.GUARD, { x: 7, y: 5 }, Faction.ENEMY);
@@ -419,7 +419,7 @@ describe('Lava Mold', () => {
   });
 
   it('defers Brandmarked Infested DoT deaths to the normal transform lifecycle', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 4, y: 4 });
+    const mage = makeUnit(UnitType.EMBER_CULTIST, { x: 4, y: 4 });
     const victim = makeUnit(
       UnitType.GUARD,
       { x: 5, y: 5 },

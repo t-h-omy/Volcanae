@@ -126,8 +126,8 @@ export function canUnitCast(
   if (unit.hasDestroyedThisTurn) return false;
   if (unit.hasConsumedGravestoneThisTurn) return false;
   // PREP semantics extended to spell-casting: cannot cast after moving.
-  // Mages carry PREP by default (UNIT_DEFINITIONS.MAGE.tags), so for a
-  // standard mage the move-then-cast path is closed. A non-PREP mage
+  // Mages carry PREP by default in each mage unit definition, so for a
+  // standard Mage the move-then-cast path is closed. A non-PREP Mage
   // (e.g. via a future tech) would be allowed to move and then cast.
   if (unit.hasMovedThisTurn && unit.tags.includes(UnitTag.PREP)) return false;
   return true;

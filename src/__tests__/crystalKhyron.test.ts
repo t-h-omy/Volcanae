@@ -157,7 +157,7 @@ function makeState(units: Unit[] = [], buildings: Building[] = []): GameState {
       buildingsConstructed: 0, buildingsConverted: 0, techsUnlocked: 0,
       enemyBuildingsDestroyed: 0, enemyBuildingsCaptured: 0,
     },
-    unlockedUnits: [UnitType.MAGE, UnitType.CRYSTAL_KHYRON, UnitType.CRYSTAL_DRAKE],
+    unlockedUnits: [UnitType.CRYSTAL_MAGE, UnitType.NECROMANCER, UnitType.EMBER_CULTIST, UnitType.CRYSTAL_KHYRON, UnitType.CRYSTAL_DRAKE],
     unlockedSpells: [SpellId.CRYSTAL_CAVE],
     activeCaveEncounters: [],
   } as unknown as GameState;
@@ -250,7 +250,7 @@ describe('Crystal Khyron unit definition', () => {
 
 describe('Crystal Khyron recruitment', () => {
   it('Crystal Chamber recruits Mage and Khyron; others do not', () => {
-    expect(getRecruitableUnitTypes(BuildingType.CRYSTAL_CHAMBER)).toEqual([UnitType.MAGE, UnitType.CRYSTAL_KHYRON]);
+    expect(getRecruitableUnitTypes(BuildingType.CRYSTAL_CHAMBER)).toEqual([UnitType.CRYSTAL_MAGE, UnitType.NECROMANCER, UnitType.EMBER_CULTIST, UnitType.CRYSTAL_KHYRON]);
     expect(getRecruitableUnitTypes(BuildingType.CRYSTAL_CAVE)).not.toContain(UnitType.CRYSTAL_KHYRON);
     expect(getRecruitableUnitTypes(BuildingType.BARRACKS)).not.toContain(UnitType.CRYSTAL_KHYRON);
   });
@@ -312,7 +312,7 @@ describe('Crystal Khyron recruitment', () => {
 
   it('shares the Chamber recruitment limit with Mage', () => {
     const c = chamber(2, 2);
-    const state = makeState([makeUnit(UnitType.MAGE, { x: 0, y: 0 })], [c]);
+    const state = makeState([makeUnit(UnitType.CRYSTAL_MAGE, { x: 0, y: 0 })], [c]);
     expect(Object.values(state.units)).toHaveLength(1);
     recruitUnit(state, c.id, UnitType.CRYSTAL_KHYRON);
     expect(Object.values(state.units)).toHaveLength(1);
@@ -324,7 +324,7 @@ describe('Crystal Khyron recruitment', () => {
 
   it('counts a Khyron toward the shared Mage pool and untrains surplus recruits', () => {
     const c = chamber(2, 2);
-    const mage = makeUnit(UnitType.MAGE, { x: 0, y: 0 });
+    const mage = makeUnit(UnitType.CRYSTAL_MAGE, { x: 0, y: 0 });
     const k = khyron(1, 0, []);
     const state = makeState([mage, k], [c]);
     expect(computeRecruitmentBuildingUsage(state, BuildingType.CRYSTAL_CHAMBER)).toEqual({
@@ -339,7 +339,7 @@ describe('Crystal Khyron recruitment', () => {
   it('scales the shared limit with the number of chambers', () => {
     const c1 = chamber(2, 2);
     const c2 = chamber(8, 2);
-    const state = makeState([makeUnit(UnitType.MAGE, { x: 0, y: 0 })], [c1, c2]);
+    const state = makeState([makeUnit(UnitType.CRYSTAL_MAGE, { x: 0, y: 0 })], [c1, c2]);
     recruitUnit(state, c1.id, UnitType.CRYSTAL_KHYRON);
     expect(Object.values(state.units)).toHaveLength(2);
     c1.lastRecruitmentTurn = 0;
@@ -392,7 +392,7 @@ describe('Crystal Khyron MECH behavior', () => {
 
   it('returns the specific Brandmark Heal refusal for a Mech target', () => {
     const k = khyron(4, 4, []);
-    const mage = makeUnit(UnitType.MAGE, { x: 3, y: 4 });
+    const mage = makeUnit(UnitType.CRYSTAL_MAGE, { x: 3, y: 4 });
     const state = makeState([k, mage]);
     expect(explainInvalidSpellTarget(state, mage.id, SpellId.BRANDMARK_HEAL, k.position)?.key)
       .toBe('reason.spell.brandmarkMech');
@@ -599,7 +599,7 @@ describe('Crystal Khyron Resonance lifecycle', () => {
     const a = khyron(1, 1, [], 1);
     const b = khyron(2, 1, [], 2);
     const c = khyron(3, 1, [], 3);
-    const mage = makeUnit(UnitType.MAGE, { x: 4, y: 1 });
+    const mage = makeUnit(UnitType.CRYSTAL_MAGE, { x: 4, y: 1 });
     const state = makeState([a, b, c, mage]);
     grantKhyronResonance(state);
     expect(state.units[a.id].tags).toContain(UnitTag.RESONANCE);
@@ -655,7 +655,7 @@ describe('Resonance healing', () => {
     const untagged = khyron(2, 4, []);
     untagged.resonanceActive = true;
     untagged.stats.currentHp = 1;
-    const mage = makeUnit(UnitType.MAGE, { x: 3, y: 4 }, Faction.PLAYER, [UnitTag.RESONANCE]);
+    const mage = makeUnit(UnitType.CRYSTAL_MAGE, { x: 3, y: 4 }, Faction.PLAYER, [UnitTag.RESONANCE]);
     mage.resonanceActive = true;
     mage.stats.currentHp = 1;
     const state = makeState([injured, full, inactive, enemy, untagged, mage]);
