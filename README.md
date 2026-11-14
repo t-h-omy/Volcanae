@@ -75,6 +75,8 @@ The tech overlay has separate **Secular** and **Arcane** trees. **Conscription**
 
 Mages can be recruited from an active **Crystal Chamber** building after researching their path. The three Mage units share stats and recruitment limits, but each can cast only the spells of its path plus the common spells. Each Mage can cast one spell per turn (before or after moving, but not after attacking), and the **Archmage** specialist raises that per-turn budget to two casts.
 
+**Arcane Studies** gives every Mage an **Arcane Shield** of 20 points. It absorbs damage before Stone Skin and HP, and regenerates 10 points at the start of your turn while any Crystal Chamber resonates. Heals never restore it, and lava, drowning and sacrifice still kill a shielded Mage.
+
 | Mage | Common spells | Path spells |
 |------|---------------|-------------|
 | Crystal Mage | Transpose, Frostcraft, Rupture | Taunt, Stone Skin, Crystal Lightning, Crystal Cave, Portal, Crystal Tower |

@@ -13,8 +13,9 @@ import type { UnitCost } from './gameConfig';
 import { getGrantedTags, getStatMods, getBuildingProductionMods, getFlatIncomeMods, grantArcaneCrystals, getStrongholdEffectiveCap, getRemovedTags, getCostMods } from './techSystem';
 import { getTagsFromActiveSpecialists, isSpecialistEffectActive, getTagsFromActiveSpecialistsForSourceTag, getActiveEffectParams } from './specialistSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
-import { expireKhyronResonance, healResonatingKhyrons } from './khyronSystem';
+import { expireKhyronResonance, healResonatingKhyrons, isAnyChamberResonating } from './khyronSystem';
 import { buildingNameRef, specialistNameRef, techNameRef } from './i18n/entityText';
+import { grantArcaneShield, regenerateArcaneShields } from './arcaneShieldSystem';
 import { isExcludedFromUnitLimit, isPopulationFree } from './unitTraits';
 
 // ============================================================================
@@ -441,6 +442,9 @@ export function collectResources(state: Draft<GameState>, events?: GameEvent[]):
     state.resources.wood = Math.max(0, state.resources.wood - wood);
   }
 
+  // Read before the tick loop decrements counters so an N-turn Resonance yields N shield ticks.
+  const chamberResonatedAtTickStart = isAnyChamberResonating(state);
+
   // Tick resonance for Crystal Chambers (grant crystals) and Crystal Caves (no crystals).
   for (const building of Object.values(state.buildings)) {
     if (
@@ -462,6 +466,7 @@ export function collectResources(state: Draft<GameState>, events?: GameEvent[]):
 
   // Crystal Khyron RESONANCE ends with the last resonating Crystal Chamber.
   healResonatingKhyrons(state, events);
+  if (chamberResonatedAtTickStart) regenerateArcaneShields(state);
   expireKhyronResonance(state);
 }
 
@@ -1377,6 +1382,7 @@ export function recruitUnit(
     roostBuildingId: isCrystalDrake ? buildingId : undefined,
   };
   const unit = state.units[unitId];
+  grantArcaneShield(state, unit);
   // A Khyron always carries RESONANCE but starts inactive: it missed any running trigger.
   if (unitType === UnitType.CRYSTAL_KHYRON) {
     if (!unit.tags.includes(UnitTag.RESONANCE)) unit.tags.push(UnitTag.RESONANCE);

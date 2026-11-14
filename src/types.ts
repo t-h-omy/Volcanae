@@ -249,6 +249,8 @@ export const TechFlag = {
   TO_THE_FRONT:  'TO_THE_FRONT',
   HOLD_GROUND:   'HOLD_GROUND',
   GRAVE_HARVEST: 'GRAVE_HARVEST',
+  /** Arcane Studies: every player Mage carries an Arcane Shield pool. */
+  ARCANE_SHIELD: 'ARCANE_SHIELD',
 } as const;
 export type TechFlag = (typeof TechFlag)[keyof typeof TechFlag];
 
@@ -542,6 +544,8 @@ export interface Unit {
   resonanceActive?: boolean;
   /** Remaining temporary HP granted by Stone Skin. */
   stoneSkinHp?: number;
+  /** Remaining Arcane Shield pool (player Mages with the ARCANE_SHIELD tech flag). Absorbs before Stone Skin and HP. */
+  arcaneShieldHp?: number;
   /**
    * Latches true the first time this BERSERK unit's HP ratio drops below the
    * activation threshold. Once true, it remains true for the unit's lifetime.

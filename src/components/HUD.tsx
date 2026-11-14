@@ -2542,6 +2542,11 @@ function SelectedUnitPanel({
           {unit.stats.currentHp}/{unit.stats.maxHp}
         </span>
       </div>
+      {isPlayer && (unit.arcaneShieldHp ?? 0) > 0 && (
+        <div className="hud-production-row" style={{ color: MAGIC_PATH_COLORS.ARCANE.primary }}>
+          🛡️ {t('hud.unitPanel.arcaneShield', { current: unit.arcaneShieldHp ?? 0, max: MAGE.ARCANE_SHIELD_MAX_HP })}
+        </div>
+      )}
       {isPlayer && unit.type === UnitType.CRYSTAL_KHYRON && isKhyronResonanceActive(unit) && (
         <div className="hud-production-row">
           ✨ {t('hud.unitPanel.resonating', { turns: getKhyronResonanceTurnsRemaining(gameState) })}

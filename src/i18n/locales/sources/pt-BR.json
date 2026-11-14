@@ -335,7 +335,7 @@
   "tech.EMBER_CULTIST.name": "Ember Cultist",
   "tech.EMBER_CULTIST.desc": "Unlocks the Ember Cultist (recruited from active Crystal Chambers), the Transpose spell and the Frostcraft spell. Opens the Ember path.",
   "tech.ARCANE_STUDIES.name": "Arcane Studies",
-  "tech.ARCANE_STUDIES.desc": "Opens research that improves every Mage.",
+  "tech.ARCANE_STUDIES.desc": "Every Mage gains an Arcane Shield of {shieldHp} that absorbs damage before HP. While any Crystal Chamber resonates, it regenerates {regen} at the start of your turn. Opens research that improves every Mage.",
   "tech.TAUNT.name": "Taunt",
   "tech.TAUNT.desc": "Unlocks the Taunt spell.",
   "tech.STONE_SKIN.name": "Stone Skin",
@@ -521,6 +521,7 @@
   "techFlag.TO_THE_FRONT.desc": "Units more than {distance} tiles south of the northmost player unit gain +{moveBonus} movement.",
   "techFlag.HOLD_GROUND.desc": "Units on own buildings gain a defense bonus.",
   "techFlag.GRAVE_HARVEST.desc": "Each player-owned Gravestone has a {chancePercent}% chance per turn to grant {crystalAmount} crystal.",
+  "techFlag.ARCANE_SHIELD.desc": "Arcane Shield of {shieldHp} absorbs damage before HP and regenerates {regen} per turn while a Crystal Chamber resonates.",
   "recruit.notEnoughCrystals": "Not enough crystals (need {need}, have {have}, missing {missing})",
   "recruit.notEnoughIron": "Not enough iron (need {need}, have {have})",
   "recruit.notEnoughWood": "Not enough wood (need {need}, have {have})",
@@ -828,6 +829,7 @@
   "hud.buildingPanel.nobleCost": "{count, plural, one {🎖️ # noble} other {🎖️ # nobles}}",
   "hud.market.empty": "Empty",
   "hud.unitPanel.cancelCast": "Cancel cast",
+  "hud.unitPanel.arcaneShield": "Arcane Shield {current}/{max}",
   "hud.specialistInfo.viewDetails": "View details",
   "hud.constructionPanel.title": "Construct Building",
   "hud.buildingPanel.woodPerTurn": "🪵 +{amount} wood per turn",
@@ -936,5 +938,6 @@
   "spell.CORRUPTED_QORK.name": "Corrupted Qork",
   "spell.CORRUPTED_QORK.desc": "Summon a Corrupted Qork on an empty corrupted tile within range. The tile's corruption is removed and the Qork is leashed to the Mage.",
   "spell.CORRUPTED_QORK.targetHint": "Select an empty corrupted tile within range.",
-  "reason.spell.corruptedQorkSpawn": "The Corrupted Qork needs an empty tile it can occupy."
+  "reason.spell.corruptedQorkSpawn": "The Corrupted Qork needs an empty tile it can occupy.",
+  "floater.arcaneShieldGain": "+{amount} Shield"
 }

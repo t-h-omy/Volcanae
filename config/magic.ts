@@ -10,6 +10,10 @@ export const MAGE = {
   GRAVE_TRAP_ADJACENCY_RANGE: 1,
   /** Minimum HP retained by a target after Rupture. */
   RUPTURE_MINIMUM_REMAINING_HP: 1,
+  /** Pool size of the Arcane Shield granted to every player Mage by Arcane Studies. */
+  ARCANE_SHIELD_MAX_HP: 20,
+  /** Arcane Shield regained at the start of the player turn while a Crystal Chamber resonates. */
+  ARCANE_SHIELD_REGEN: 10,
   /** Separate temporary HP pool granted by Stone Skin. */
   STONE_SKIN_HP: 50,
   /** Attack power used for each Crystal Lightning hit. */

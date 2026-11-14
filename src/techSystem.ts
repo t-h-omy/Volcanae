@@ -6,7 +6,8 @@
 
 import type { Draft } from 'immer';
 import type { GameState, TechId, TechEffect, UnitStats, StatModifier, Unit } from './types';
-import { Faction, BuildingType, UnitTag } from './types';
+import { Faction, BuildingType, UnitTag, TechFlag } from './types';
+import { grantArcaneShieldToAllMages } from './arcaneShieldSystem';
 import { TECH_TREE, TAG_STAT_EFFECTS, computeResearchCost, POPULATION } from './gameConfig';
 
 // ============================================================================
@@ -98,6 +99,7 @@ function applyTechEffect(state: Draft<GameState>, effect: TechEffect): void {
       if (!state.techFlags.includes(effect.flag)) {
         state.techFlags.push(effect.flag);
       }
+      if (effect.flag === TechFlag.ARCANE_SHIELD) grantArcaneShieldToAllMages(state);
       break;
     case 'GRANT_UNIT_TAG':
       // Retroactively add the tag to all existing player units of that type

@@ -335,7 +335,7 @@
   "tech.EMBER_CULTIST.name": "Cultista de brasas",
   "tech.EMBER_CULTIST.desc": "Desbloquea al Cultista de brasas (reclutado en Cámaras de cristal activas), el hechizo Transposición y el hechizo Arte de escarcha. Abre la senda de las brasas.",
   "tech.ARCANE_STUDIES.name": "Estudios arcanos",
-  "tech.ARCANE_STUDIES.desc": "Abre investigaciones que mejoran a todos los magos.",
+  "tech.ARCANE_STUDIES.desc": "Cada mago obtiene un escudo arcano de {shieldHp} que absorbe daño antes que los PV. Mientras alguna cámara de cristal resuene, regenera {regen} al inicio de tu turno. Abre investigaciones que mejoran a todos los magos.",
   "tech.TAUNT.name": "Provocación",
   "tech.TAUNT.desc": "Desbloquea el hechizo Provocación.",
   "tech.STONE_SKIN.name": "Piel de piedra",
@@ -526,6 +526,7 @@
   "techFlag.TO_THE_FRONT.desc": "Las unidades a más de {distance} casillas al sur de tu unidad más septentrional obtienen +{moveBonus} de movimiento.",
   "techFlag.HOLD_GROUND.desc": "Las unidades en edificios propios obtienen una bonificación de defensa.",
   "techFlag.GRAVE_HARVEST.desc": "Cada lápida propia tiene un {chancePercent}% de probabilidad por turno de conceder {crystalAmount} de cristal.",
+  "techFlag.ARCANE_SHIELD.desc": "Un escudo arcano de {shieldHp} absorbe daño antes que los PV y regenera {regen} por turno mientras una cámara de cristal resuene.",
   "recruit.notEnoughCrystals": "No hay suficientes cristales (se necesitan {need}, hay {have}, faltan {missing})",
   "recruit.notEnoughIron": "No hay suficiente hierro (se necesitan {need}, hay {have})",
   "recruit.notEnoughWood": "No hay suficiente madera (se necesitan {need}, hay {have})",
@@ -697,6 +698,7 @@
   "hud.unitPanel.viewSpellInfo": "Ver información del hechizo",
   "hud.unitPanel.castingSpell": "Lanzando {spell}",
   "hud.unitPanel.cancelCast": "Cancelar lanzamiento",
+  "hud.unitPanel.arcaneShield": "Escudo arcano {current}/{max}",
   "hud.unitPanel.viewUnitInfo": "Ver información de {unit}",
   "hud.unitPanel.enemy": "Enemigo",
   "hud.unitPanel.xpMax": "⭐ XP: {xp} Nv.{level} (MÁX.)",
@@ -936,5 +938,6 @@
   "spell.CORRUPTED_QORK.name": "Qork corrupto",
   "spell.CORRUPTED_QORK.desc": "Invoca un Qork corrupto en una casilla corrupta vacía dentro del alcance. La corrupción de la casilla desaparece y el Qork queda vinculado al mago.",
   "spell.CORRUPTED_QORK.targetHint": "Selecciona una casilla corrupta vacía dentro del alcance.",
-  "reason.spell.corruptedQorkSpawn": "El Qork corrupto necesita una casilla vacía que pueda ocupar."
+  "reason.spell.corruptedQorkSpawn": "El Qork corrupto necesita una casilla vacía que pueda ocupar.",
+  "floater.arcaneShieldGain": "+{amount} escudo"
 }

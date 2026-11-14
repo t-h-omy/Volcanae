@@ -8,7 +8,8 @@
  */
 
 import type { GameState } from './types';
-import { UnitType, UnitTag, BuildingType, TileStatus } from './types';
+import { UnitType, UnitTag, BuildingType, TileStatus, TechFlag } from './types';
+import { grantArcaneShieldToAllMages } from './arcaneShieldSystem';
 import { TECH_TREE, POPULATION, SPECIALIST_DEFINITIONS, SAVE, CRYSTAL_KHYRON } from './gameConfig';
 import { t } from './i18n/i18n';
 import type { Difficulty } from './types';
@@ -20,7 +21,7 @@ import { getTagsFromActiveSpecialists } from './specialistSystem';
 // ============================================================================
 
 /** Increment this whenever the serialized shape changes incompatibly. */
-export const SAVE_VERSION = 24;
+export const SAVE_VERSION = 25;
 
 // ============================================================================
 // TYPES
@@ -92,7 +93,7 @@ const openDb = openSaveDb;
  * import route through this function.
  * Returns the migrated GameState or null if incompatible/corrupt.
  */
-function migrateState(parsed: { version: number; state: GameState }): GameState | null {
+export function migrateState(parsed: { version: number; state: GameState }): GameState | null {
   try {
     if (parsed.version > SAVE_VERSION || parsed.version < SAVE.MIN_LOADABLE_VERSION) return null;
     if (!parsed.state || typeof parsed.state !== 'object') return null;
@@ -205,6 +206,16 @@ function migrateState(parsed: { version: number; state: GameState }): GameState 
           delete u.hasCastThisTurn;
           if (!('controllerMageId' in u)) u.controllerMageId = null;
         }
+      }
+    }
+
+    // Migration 24 -> 25: Arcane Studies grants the Arcane Shield flag and full pools.
+    if (parsed.version < 25) {
+      const studies = s.techNodes?.ARCANE_STUDIES;
+      if (studies?.unlocked) {
+        if (!s.techFlags) s.techFlags = [];
+        if (!s.techFlags.includes(TechFlag.ARCANE_SHIELD)) s.techFlags.push(TechFlag.ARCANE_SHIELD);
+        grantArcaneShieldToAllMages(s);
       }
     }
 

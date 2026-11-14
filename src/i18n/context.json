@@ -888,7 +888,7 @@
     "note": "Entry technology for the Arcane Studies specialization path."
   },
   "tech.ARCANE_STUDIES.desc": {
-    "note": "Opens later research that improves all Mages."
+    "note": "Describes the Arcane Shield pool, its regeneration while a Crystal Chamber resonates, and that later research improves all Mages."
   },
   "tech.SPELL_REACH.desc": {
     "note": "Increases the attack range of every Mage."

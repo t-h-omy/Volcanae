@@ -335,7 +335,7 @@
   "tech.EMBER_CULTIST.name": "Glutkultist",
   "tech.EMBER_CULTIST.desc": "Schaltet den Glutkultisten (rekrutierbar in aktiven Kristallkammern), den Zauber Transposition und den Zauber Frostkunst frei. Eröffnet den Glutpfad.",
   "tech.ARCANE_STUDIES.name": "Arkane Studien",
-  "tech.ARCANE_STUDIES.desc": "Eröffnet Forschungen, die jeden Magier verbessern.",
+  "tech.ARCANE_STUDIES.desc": "Jeder Magier erhält einen Arkanschild mit {shieldHp} Punkten, der Schaden vor den LP absorbiert. Solange eine Kristallkammer resoniert, regeneriert er zu Beginn deiner Runde {regen} Punkte. Eröffnet Forschungen, die jeden Magier verbessern.",
   "tech.TAUNT.name": "Spott",
   "tech.TAUNT.desc": "Schaltet den Zauber Spott frei.",
   "tech.STONE_SKIN.name": "Steinhaut",
@@ -526,6 +526,7 @@
   "techFlag.TO_THE_FRONT.desc": "Einheiten, die mehr als {distance} Felder südlich der nördlichsten eigenen Einheit stehen, erhalten +{moveBonus} Bewegung.",
   "techFlag.HOLD_GROUND.desc": "Einheiten auf eigenen Gebäuden erhalten einen Verteidigungsbonus.",
   "techFlag.GRAVE_HARVEST.desc": "Jeder Grabstein im Besitz des Spielers hat pro Runde eine Chance von {chancePercent}%, {crystalAmount} Kristall zu gewähren.",
+  "techFlag.ARCANE_SHIELD.desc": "Der Arkanschild mit {shieldHp} Punkten absorbiert Schaden vor den LP und regeneriert {regen} pro Runde, solange eine Kristallkammer resoniert.",
   "recruit.notEnoughCrystals": "Nicht genug Kristalle (benötigt {need}, vorhanden {have}, fehlend {missing})",
   "recruit.notEnoughIron": "Nicht genug Eisen (benötigt {need}, vorhanden {have})",
   "recruit.notEnoughWood": "Nicht genug Holz (benötigt {need}, vorhanden {have})",
@@ -697,6 +698,7 @@
   "hud.unitPanel.viewSpellInfo": "Zauberinfo anzeigen",
   "hud.unitPanel.castingSpell": "Wirkt {spell}",
   "hud.unitPanel.cancelCast": "Wirken abbrechen",
+  "hud.unitPanel.arcaneShield": "Arkanschild {current}/{max}",
   "hud.unitPanel.viewUnitInfo": "Info zu {unit} anzeigen",
   "hud.unitPanel.enemy": "Feind",
   "hud.unitPanel.xpMax": "⭐ EP: {xp} St.{level} (MAX)",
@@ -936,5 +938,6 @@
   "spell.CORRUPTED_QORK.name": "Verderbter Qork",
   "spell.CORRUPTED_QORK.desc": "Beschwöre einen Verderbten Qork auf einem leeren, verderbten Feld in Reichweite. Die Verderbnis verschwindet, und der Qork bleibt an den Magier gebunden.",
   "spell.CORRUPTED_QORK.targetHint": "Wähle ein leeres, verderbtes Feld in Reichweite.",
-  "reason.spell.corruptedQorkSpawn": "Der Verderbte Qork benötigt ein leeres Feld, das er betreten kann."
+  "reason.spell.corruptedQorkSpawn": "Der Verderbte Qork benötigt ein leeres Feld, das er betreten kann.",
+  "floater.arcaneShieldGain": "+{amount} Schild"
 }

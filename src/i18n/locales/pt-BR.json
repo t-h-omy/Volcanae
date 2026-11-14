@@ -335,7 +335,7 @@
   "tech.EMBER_CULTIST.name": "Cultista das brasas",
   "tech.EMBER_CULTIST.desc": "Desbloqueia o Cultista das brasas (recrutado em Câmaras de cristal ativas), o feitiço Transposição e o feitiço Arte do gelo. Abre o caminho das brasas.",
   "tech.ARCANE_STUDIES.name": "Estudos arcanos",
-  "tech.ARCANE_STUDIES.desc": "Abre pesquisas que aprimoram todos os Magos.",
+  "tech.ARCANE_STUDIES.desc": "Todo Mago recebe um Escudo Arcano de {shieldHp} que absorve dano antes dos PV. Enquanto qualquer Câmara de Cristal ressoar, ele regenera {regen} no início do seu turno. Abre pesquisas que aprimoram todos os Magos.",
   "tech.TAUNT.name": "Provocação",
   "tech.TAUNT.desc": "Desbloqueia o feitiço Provocação.",
   "tech.STONE_SKIN.name": "Pele de pedra",
@@ -526,6 +526,7 @@
   "techFlag.TO_THE_FRONT.desc": "Unidades a mais de {distance} quadrículas ao sul da sua unidade mais ao norte ganham +{moveBonus} de movimento.",
   "techFlag.HOLD_GROUND.desc": "Unidades em edifícios próprios ganham bônus de defesa.",
   "techFlag.GRAVE_HARVEST.desc": "Cada lápide do jogador tem {chancePercent}% de chance por turno de conceder {crystalAmount} de cristal.",
+  "techFlag.ARCANE_SHIELD.desc": "Um Escudo Arcano de {shieldHp} absorve dano antes dos PV e regenera {regen} por turno enquanto uma Câmara de Cristal ressoar.",
   "recruit.notEnoughCrystals": "Cristais insuficientes (necessários {need}, disponíveis {have}, faltam {missing})",
   "recruit.notEnoughIron": "Ferro insuficiente (necessário {need}, disponível {have})",
   "recruit.notEnoughWood": "Madeira insuficiente (necessária {need}, disponível {have})",
@@ -697,6 +698,7 @@
   "hud.unitPanel.viewSpellInfo": "Ver informações do feitiço",
   "hud.unitPanel.castingSpell": "Lançando {spell}",
   "hud.unitPanel.cancelCast": "Cancelar lançamento",
+  "hud.unitPanel.arcaneShield": "Escudo Arcano {current}/{max}",
   "hud.unitPanel.viewUnitInfo": "Ver informações de {unit}",
   "hud.unitPanel.enemy": "Inimigo",
   "hud.unitPanel.xpMax": "⭐ XP: {xp} Nv.{level} (MÁX.)",
@@ -936,5 +938,6 @@
   "spell.CORRUPTED_QORK.name": "Qork corrompido",
   "spell.CORRUPTED_QORK.desc": "Invoque um Qork corrompido em um terreno corrompido vazio ao alcance. A corrupção do terreno é removida e o Qork fica ligado ao Mago.",
   "spell.CORRUPTED_QORK.targetHint": "Selecione um terreno corrompido vazio ao alcance.",
-  "reason.spell.corruptedQorkSpawn": "O Qork corrompido precisa de um terreno vazio que possa ocupar."
+  "reason.spell.corruptedQorkSpawn": "O Qork corrompido precisa de um terreno vazio que possa ocupar.",
+  "floater.arcaneShieldGain": "+{amount} escudo"
 }
