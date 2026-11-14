@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { ENEMY_WAVE_THEME, MAP, UNIT_DEFINITIONS } from '../gameConfig';
+import { AI_RECRUITMENT, ENEMY_WAVE_THEME, MAP, UNIT_DEFINITIONS } from '../gameConfig';
 import { BuildingType, DestroyBehavior, Faction, TileType, UnitType } from '../types';
 import type { Building, GameState, Tile, Unit } from '../types';
 import {
@@ -8,6 +8,7 @@ import {
   generateReadPlayerTheme,
   generateRandomTheme,
   pickUnitFromTheme,
+  scoreCountersForPlayer,
   rollNextWaveTheme,
   setWaveThemeRandomSource,
   signature,
@@ -240,6 +241,27 @@ describe('waveThemeSystem', () => {
       const unlock = UNIT_DEFINITIONS[entry.type].enemyUnlockEmber;
       return unlock !== undefined && unlock <= state.ember;
     })).toBe(true);
+  });
+
+  it('counts every Mage path in AI counter scoring', () => {
+    const ember = 100;
+    const baseline = makeState(ember);
+    const spearman = makeEnemyUnit('player-spearman', UnitType.SPEARMAN, 4, 4);
+    spearman.faction = Faction.PLAYER;
+    baseline.units[spearman.id] = spearman;
+    const baselineLancerScore = scoreCountersForPlayer(baseline)
+      .find((entry) => entry.type === UnitType.LANCER)!.score;
+
+    for (const mageType of [UnitType.CRYSTAL_MAGE, UnitType.NECROMANCER, UnitType.EMBER_CULTIST]) {
+      const state = makeState(ember);
+      const mage = makeEnemyUnit(`player-${mageType}`, mageType, 4, 4);
+      mage.faction = Faction.PLAYER;
+      state.units[spearman.id] = spearman;
+      state.units[mage.id] = mage;
+
+      expect(scoreCountersForPlayer(state).find((entry) => entry.type === UnitType.LANCER)!.score)
+        .toBe(baselineLancerScore + AI_RECRUITMENT.LANCER_BONUS_MAGE_PRESENT);
+    }
   });
 
   it('respects RIFT_LORD maxThemePercent and maxAlivePerZone cap', () => {

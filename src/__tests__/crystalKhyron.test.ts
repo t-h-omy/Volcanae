@@ -310,16 +310,18 @@ describe('Crystal Khyron recruitment', () => {
     expect(Object.values(state.units)).toHaveLength(0);
   });
 
-  it('shares the Chamber recruitment limit with Mage', () => {
-    const c = chamber(2, 2);
-    const state = makeState([makeUnit(UnitType.CRYSTAL_MAGE, { x: 0, y: 0 })], [c]);
-    expect(Object.values(state.units)).toHaveLength(1);
-    recruitUnit(state, c.id, UnitType.CRYSTAL_KHYRON);
-    expect(Object.values(state.units)).toHaveLength(1);
-    expect(computeRecruitmentBuildingUsage(state, BuildingType.CRYSTAL_CHAMBER)).toEqual({
-      current: 1,
-      limit: CRYSTAL_CHAMBER_CONFIG.CHAMBER_UNIT_LIMIT,
-    });
+  it('shares the Chamber recruitment limit across all Mage paths and Khyron', () => {
+    for (const mageType of [UnitType.CRYSTAL_MAGE, UnitType.NECROMANCER, UnitType.EMBER_CULTIST]) {
+      const c = chamber(2, 2);
+      const state = makeState([makeUnit(mageType, { x: 0, y: 0 })], [c]);
+      expect(Object.values(state.units)).toHaveLength(1);
+      recruitUnit(state, c.id, UnitType.CRYSTAL_KHYRON);
+      expect(Object.values(state.units)).toHaveLength(1);
+      expect(computeRecruitmentBuildingUsage(state, BuildingType.CRYSTAL_CHAMBER)).toEqual({
+        current: 1,
+        limit: CRYSTAL_CHAMBER_CONFIG.CHAMBER_UNIT_LIMIT,
+      });
+    }
   });
 
   it('counts a Khyron toward the shared Mage pool and untrains surplus recruits', () => {
