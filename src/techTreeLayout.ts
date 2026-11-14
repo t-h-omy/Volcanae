@@ -1,10 +1,53 @@
 import { UI } from '../config/ui';
-import type { TechId, TechNodeDefinition } from './types';
+import type { MagicPath, TechId, TechNodeDefinition } from './types';
 
 export interface TechTreeLayout {
   positions: Record<TechId, { x: number; y: number }>;
   canvasW: number;
   canvasH: number;
+}
+
+export interface TechPathAura {
+  path: MagicPath;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+export function computeTechPathAuras(
+  layout: TechTreeLayout,
+  tree: readonly Pick<TechNodeDefinition, 'id'>[],
+  pathOf: (id: TechId) => MagicPath | null,
+): TechPathAura[] {
+  const bounds = new Map<MagicPath, { minX: number; minY: number; maxX: number; maxY: number }>();
+  for (const node of tree) {
+    const path = pathOf(node.id);
+    const position = layout.positions[node.id];
+    if (!path || !position) continue;
+    const current = bounds.get(path);
+    if (current) {
+      current.minX = Math.min(current.minX, position.x);
+      current.minY = Math.min(current.minY, position.y);
+      current.maxX = Math.max(current.maxX, position.x + UI.TECH_TREE_NODE_WIDTH_PX);
+      current.maxY = Math.max(current.maxY, position.y + UI.TECH_TREE_NODE_HEIGHT_PX);
+    } else {
+      bounds.set(path, {
+        minX: position.x,
+        minY: position.y,
+        maxX: position.x + UI.TECH_TREE_NODE_WIDTH_PX,
+        maxY: position.y + UI.TECH_TREE_NODE_HEIGHT_PX,
+      });
+    }
+  }
+  const padding = UI.TECH_TREE_PATH_AURA_PAD_PX;
+  return [...bounds].map(([path, box]) => ({
+    path,
+    x: box.minX - padding,
+    y: box.minY - padding,
+    w: box.maxX - box.minX + padding * 2,
+    h: box.maxY - box.minY + padding * 2,
+  }));
 }
 
 /** Compute node positions for one single-root tech tree. */

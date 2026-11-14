@@ -71,6 +71,8 @@ Bridgebuilders can build across a canyon tile from or to an existing bridge when
 
 The tech overlay has separate **Secular** and **Arcane** trees. **Conscription** roots the Secular tree; **Arcane Awakening** roots the Arcane tree and provides the Crystal Chamber, which can be built from the start. The Arcane tree has four entry paths: **Crystal Mage**, **Necromancer**, and **Ember Cultist** each unlock their own Mage, Transpose, and Frostcraft; **Arcane Studies** opens research that improves every Mage. Arcane base research costs depend on depth below Arcane Awakening: 2 crystals at depth one, 4 at depth two, 7 at depth three, and 10 at depth four. Ember is added to these base costs.
 
+The tree tabs and close button sit in a dock at the bottom of the screen.
+
 ## Magic System
 
 Mages can be recruited from an active **Crystal Chamber** building after researching their path. The three Mage units share stats and recruitment limits, but each can cast only the spells of its path plus the common spells. Each Mage can cast one spell per turn (before or after moving, but not after attacking), and the **Archmage** specialist raises that per-turn budget to two casts.

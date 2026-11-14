@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.122.1 - Tech tree redesign
+
+Redesigned the tech tree with an opaque basalt background and lava glow, main-menu-style glass controls, a bottom dock with large tabs and a close button, polished nodes and curved edges, and subtle ambient effects.
+
 ### v0.122.0 - Arcane Shield
 
 Researching Arcane Studies gives every Mage an Arcane Shield that absorbs damage before Stone Skin and HP and regenerates at the start of your turn while a Crystal Chamber resonates. Adds a shield bar, a unit panel row, and dome, absorb, break and recharge effects. Save version 25.

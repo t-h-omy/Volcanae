@@ -192,4 +192,14 @@ export const ANIMATION = {
   ARCANE_SHIELD_WAVE_STAGGER_MS: 120,
   /** Number of shards in the Arcane Shield break burst */
   ARCANE_SHIELD_SHARD_COUNT: 6,
+  /** Duration of the tech tree overlay entrance (ms). */
+  TECH_TREE_ENTER_MS: 240,
+  /** Duration of the tech tree overlay exit (ms). */
+  TECH_TREE_EXIT_MS: 180,
+  /** Extra wait before the tech tree exit fallback closes the overlay (ms). */
+  TECH_TREE_EXIT_FALLBACK_SLACK_MS: 80,
+  /** Duration of the tech tree tab indicator slide (ms). */
+  TECH_TREE_TAB_SLIDE_MS: 260,
+  /** Media query used to detect reduced-motion preferences. */
+  REDUCED_MOTION_MEDIA_QUERY: '(prefers-reduced-motion: reduce)',
 } as const;
