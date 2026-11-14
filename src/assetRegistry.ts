@@ -45,7 +45,9 @@ export const UNIT_SPRITE: Partial<Record<UnitType, string>> = withBase({
   SIEGE:       '/sprites/units/Catapult_100px.png',
   SCOUT:       '/sprites/units/Scout_100px.png',
   GUARD:       '/sprites/units/Guard_100px.png',
-  MAGE:        '/sprites/units/Mage_100px.png',
+  CRYSTAL_MAGE: '', // Target art: CrystalMage_100px.png
+  NECROMANCER: '', // Target art: Necromancer_100px.png
+  EMBER_CULTIST: '', // Target art: EmberCultist_100px.png
   EMBER_DEMON: '/sprites/units/Ember_Demon_Player_100px.png',
   SKELETON:    '/sprites/units/Skeleton_100px.png',
   CORRUPTED_QORK: '/sprites/units/qork_100px.png',

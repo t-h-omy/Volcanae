@@ -8,7 +8,7 @@ import type { TextRef } from './i18n/i18n';
 import type { Draft } from 'immer';
 import type { GameEvent } from './gameEvents';
 import { Faction, BuildingType, UnitType, UnitTag, ResourceType, TechFlag } from './types';
-import { RESOURCES, ABILITIES, UNIT_DEFINITIONS, POPULATION, CRYSTAL_CHAMBER_CONFIG, BUILDING_DEFINITIONS, TECH_TREE, MAGE } from './gameConfig';
+import { RESOURCES, ABILITIES, UNIT_DEFINITIONS, POPULATION, CRYSTAL_CHAMBER_CONFIG, BUILDING_DEFINITIONS, TECH_TREE, MAGE, MAGE_UNIT_TYPES } from './gameConfig';
 import type { UnitCost } from './gameConfig';
 import { getGrantedTags, getStatMods, getBuildingProductionMods, getFlatIncomeMods, grantArcaneCrystals, getStrongholdEffectiveCap, getRemovedTags, getCostMods } from './techSystem';
 import { getTagsFromActiveSpecialists, isSpecialistEffectActive, getTagsFromActiveSpecialistsForSourceTag, getActiveEffectParams } from './specialistSystem';
@@ -166,7 +166,7 @@ export function getRecruitableUnitTypes(buildingType: BuildingType): UnitType[] 
     case BuildingType.STRONGHOLD:
       return [UnitType.SCOUT, UnitType.GUARD];
     case BuildingType.CRYSTAL_CHAMBER:
-      return [UnitType.MAGE, UnitType.CRYSTAL_KHYRON];
+      return [...MAGE_UNIT_TYPES, UnitType.CRYSTAL_KHYRON];
     case BuildingType.CRYSTAL_CAVE:
       return [UnitType.CRYSTAL_DRAKE];
     default:

@@ -598,7 +598,6 @@ export const TECH_TREE: TechNodeDefinition[] = [
   //  cost: 7,
  //   effects: [
   //    { type: 'GRANT_UNIT_TAG', unitType: UnitType.SIEGE, tag: UnitTag.LEAVES_GRAVESTONE },
-  //    { type: 'GRANT_UNIT_TAG', unitType: UnitType.MAGE,  tag: UnitTag.LEAVES_GRAVESTONE },
   //  ],
 //  },
 

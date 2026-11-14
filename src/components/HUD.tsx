@@ -26,6 +26,8 @@ import { useHintOptionsStore } from '../hintOptionsStore';
 import { tryTriggerHint } from '../hintSystem';
 import { isUnitOnCorruptedTile } from '../tileStatusSystem';
 import { isCorruptionBoundDrainActive } from '../corruptedQorkSystem';
+import { getMagePath, isMageUnit } from '../unitTraits';
+import { getCastableSpellIds } from '../spellSystem';
 import {
   hasSpawnSpaceAt,
   computePopulationUsage,
@@ -101,6 +103,12 @@ import { AiTraceExportControls } from './AiTraceExportControls';
 import { useText } from '../i18n/useText';
 import './HUD.css';
 
+const MAGIC_PATH_CSS_VARS = Object.fromEntries(
+  Object.entries(MAGIC_PATH_COLORS).flatMap(([path, colors]) =>
+    Object.entries(colors).map(([shade, value]) => [`--path-${path.toLowerCase()}-${shade}`, value]),
+  ),
+) as CSSProperties;
+
 // ============================================================================
 // EMOJI LOOKUP TABLES
 // ============================================================================
@@ -120,7 +128,9 @@ const UNIT_EMOJI: Record<string, string> = {
   [UnitType.LAVA_SIEGE]: '🐦‍🔥',
   [UnitType.EMBERLING]: '🔥',
   [UnitType.CAVE_MONSTER]: '🐉',
-  [UnitType.MAGE]: '🧙',
+  [UnitType.CRYSTAL_MAGE]: '🧙',
+  [UnitType.NECROMANCER]: '🦴',
+  [UnitType.EMBER_CULTIST]: '🌋',
   [UnitType.EMBER_DEMON]: '😈',
   [UnitType.SKELETON]: '💀',
   [UnitType.CORRUPTED_QORK]: '🐗',
@@ -189,7 +199,7 @@ const BUILDING_RECRUITS: Partial<Record<string, UnitType[]>> = {
   [BuildingType.RIDER_CAMP]: [UnitType.RIDER],
   [BuildingType.SIEGE_CAMP]: [UnitType.SIEGE],
   [BuildingType.STRONGHOLD]: [UnitType.SCOUT, UnitType.GUARD],
-  [BuildingType.CRYSTAL_CHAMBER]: [UnitType.MAGE, UnitType.CRYSTAL_KHYRON],
+  [BuildingType.CRYSTAL_CHAMBER]: [UnitType.CRYSTAL_MAGE, UnitType.NECROMANCER, UnitType.EMBER_CULTIST, UnitType.CRYSTAL_KHYRON],
   [BuildingType.CRYSTAL_CAVE]: [UnitType.CRYSTAL_DRAKE],
 };
 
@@ -2291,8 +2301,9 @@ function SelectedUnitPanel({
   const tradeMarket = isPlayer ? getTradeMarket(unit, gameState) : null;
 
   // Spell casting (Mage only)
-  const isMage = unit.type === UnitType.MAGE;
-  const unlockedSpells = useGameStore((s) => s.unlockedSpells);
+  const isMage = isMageUnit(unit);
+  const magePath = getMagePath(unit);
+  const castableSpellIds = getCastableSpellIds(gameState, unit);
   const startSpellCast = useGameStore((s) => s.startSpellCast);
   const cancelSpellCast = useGameStore((s) => s.cancelSpellCast);
   const pendingSpellCast = useGameStore((s) => s.pendingSpellCast);
@@ -2669,8 +2680,8 @@ function SelectedUnitPanel({
               <FitText className="hud-spell-btn-label" text={isInHealMode ? `💊 ${t('hud.unitPanel.chooseHealTarget')}` : `💊 ${t('hud.unitPanel.heal')}`} />
             </button>
           )}
-          {isMage && isPlayer && unlockedSpells.length > 0 && (
-            <div className="hud-info-panel hud-spell-panel">
+          {isMage && isPlayer && castableSpellIds.length > 0 && (
+            <div className={`hud-info-panel hud-spell-panel${magePath ? ` hud-spell-panel--${magePath.toLowerCase()}` : ''}`}>
               <div className="hud-panel-header">
                 <span className="hud-panel-emoji">✨</span>
                 <span className="hud-panel-name">{t('hud.unitPanel.spells')}</span>
@@ -2687,7 +2698,7 @@ function SelectedUnitPanel({
               </div>
               {!spellsCollapsed && (
                 <div className="hud-spell-options">
-                  {unlockedSpells.filter((id) => id !== SpellId.CRYSTAL_TOWER).map((spellId) => {
+                  {castableSpellIds.filter((id) => id !== SpellId.CRYSTAL_TOWER).map((spellId) => {
                     const def = SPELL_DEFINITIONS[spellId];
                     return (
                       <button
@@ -2702,7 +2713,7 @@ function SelectedUnitPanel({
                       </button>
                     );
                   })}
-                  {unlockedSpells.includes(SpellId.CRYSTAL_TOWER) && (
+                  {castableSpellIds.includes(SpellId.CRYSTAL_TOWER) && (
                     <>
                       {!confirmCrystalTower ? (
                         <button
@@ -3595,7 +3606,7 @@ function SelectedBuildingPanel({ building }: { building: Building }) {
                 return (
                   <div key={unitType} className="hud-recruit-option-wrapper">
                     <button
-                      className={`info-row-btn${canRecruitThisUnit ? '' : ' info-row-btn--disabled'}`}
+                      className={`info-row-btn${canRecruitThisUnit ? '' : ' info-row-btn--disabled'}${getMagePath({ type: unitType }) ? ` info-row-btn--mage-${getMagePath({ type: unitType })!.toLowerCase()}` : ''}`}
                       aria-disabled={!canRecruitThisUnit}
                       onClick={handleRecruitSelection}
                     >
@@ -5048,7 +5059,7 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
   const showTechBadge = isPlayerTurn && hasAffordableTech && arcaneCrystals > crystalsAtLastTechTreeClose;
 
   return (
-    <>
+    <div className="hud-root" style={MAGIC_PATH_CSS_VARS}>
       {!hasSeenIntro && <GameIntroPopup onDismiss={handleIntroDismiss} />}
       <ZoneClearedPopup />
       <CaveScreamsPopup />
@@ -5076,6 +5087,6 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
       {phase === GamePhase.GAME_OVER && <GameOverOverlay />}
       {phase === GamePhase.VICTORY && <VictoryOverlay />}
       {showTurnPopup && <TurnAnnouncementPopup turn={turn} emberRose={emberRose} />}
-    </>
+    </div>
   );
 }

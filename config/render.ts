@@ -58,6 +58,8 @@ export const RENDER = {
     LEVEL_UP_GLOW: 'gold',
     /** HP bar outline colour when the selected player unit has an active debuff */
     DEBUFF_BORDER: '#B04CFF',
+    /** Warn and burst color for mage leash connections */
+    LEASH_WARN: '#ff3333',
   },
   /** Camera smooth animation duration in ms */
   CAMERA_ANIMATION_MS: 400,

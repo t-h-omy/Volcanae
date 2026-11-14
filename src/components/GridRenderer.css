@@ -150,6 +150,33 @@
   line-height: 1;
 }
 
+.unit--mage-crystal { --mage-path-primary: var(--path-crystal-primary); --mage-path-glow: var(--path-crystal-glow); }
+.unit--mage-necro { --mage-path-primary: var(--path-necro-primary); --mage-path-glow: var(--path-necro-glow); }
+.unit--mage-ember { --mage-path-primary: var(--path-ember-primary); --mage-path-glow: var(--path-ember-glow); }
+
+.tile-unit[class*="unit--mage-"]::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: var(--mage-aura-bottom, -4%);
+  width: var(--mage-aura-width, 150%);
+  height: var(--mage-aura-height, 42%);
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, color-mix(in srgb, var(--mage-path-glow) 68%, transparent), transparent 70%);
+  opacity: 0.62;
+  pointer-events: none;
+  animation: mageAuraBreath var(--mage-aura-pulse-duration, 2.8s) ease-in-out infinite;
+}
+
+.tile-unit[class*="unit--mage-"].unit--mage-cast-ready::before { opacity: 0.96; }
+.tile-unit[class*="unit--mage-"].unit--mage-cast-spent::before { opacity: 0.28; }
+
+@keyframes mageAuraBreath {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.82; }
+}
+
 .unit-emoji {
   line-height: 1;
 }
@@ -1029,8 +1056,9 @@
 /* ── Spell target highlight ── */
 
 .tile--spell-target {
-  background: rgba(80, 180, 255, 0.45);
-  animation: spell-target-pulse 1.1s ease-in-out infinite;
+  --spell-target-duration: 1.1s;
+  background: color-mix(in srgb, var(--spell-target-color, #50b4ff) 45%, transparent);
+  animation: spell-target-pulse var(--spell-target-duration) ease-in-out infinite;
   z-index: 3;
   pointer-events: none;
 }
@@ -1470,6 +1498,33 @@
   animation: spellImpact var(--tile-vfx-duration, 650ms) ease-out forwards;
 }
 
+.tile-vfx--tone-crystal { --vfx-tone-primary: var(--path-crystal-primary); --vfx-tone-glow: var(--path-crystal-glow); --vfx-tone-deep: var(--path-crystal-deep); }
+.tile-vfx--tone-necro { --vfx-tone-primary: var(--path-necro-primary); --vfx-tone-glow: var(--path-necro-glow); --vfx-tone-deep: var(--path-necro-deep); }
+.tile-vfx--tone-ember { --vfx-tone-primary: var(--path-ember-primary); --vfx-tone-glow: var(--path-ember-glow); --vfx-tone-deep: var(--path-ember-deep); }
+.tile-vfx--spell-impact[class*="tile-vfx--tone-"] {
+  background: radial-gradient(circle at 50% 50%,
+    transparent 0%,
+    color-mix(in srgb, var(--vfx-tone-glow) 85%, transparent) 14%,
+    transparent 22%,
+    color-mix(in srgb, var(--vfx-tone-primary) 85%, transparent) 38%,
+    color-mix(in srgb, var(--vfx-tone-deep) 45%, transparent) 50%,
+    transparent 60%);
+}
+
+.tile-vfx--spell-caster-pulse {
+  border-radius: 50%;
+  background: radial-gradient(circle, transparent 34%, color-mix(in srgb, var(--vfx-tone-glow, #8df8ff) 88%, transparent) 42%, transparent 62%);
+  opacity: 0;
+  animation: spellCasterPulse var(--tile-vfx-duration, 500ms) ease-out forwards;
+}
+
+@keyframes spellCasterPulse {
+  0% { opacity: 0.9; transform: scale(1.25); }
+  62% { opacity: 0.85; transform: scale(0.35); }
+  78% { opacity: 1; transform: scale(1.08); }
+  100% { opacity: 0; transform: scale(1.28); }
+}
+
 .tile-vfx--resonance-charge {
   border-radius: 50%;
   background: radial-gradient(circle, rgba(255, 255, 255, 0.9), rgba(90, 210, 255, 0.5) 32%, transparent 68%);
@@ -1522,21 +1577,48 @@
 
 .line-vfx--spell-cast {
   fill: none;
-  stroke: #2F6FCC;
+  stroke: var(--vfx-tone-primary, #2F6FCC);
   stroke-width: 7;
   stroke-linecap: round;
   opacity: 0;
   animation: spellCastLayer var(--line-vfx-duration, 650ms) ease-out forwards;
   filter:
-    drop-shadow(0 0 2px rgba(224, 184, 74, 0.9))
-    drop-shadow(0 0 6px rgba(30, 76, 153, 0.55));
+    drop-shadow(0 0 2px var(--vfx-tone-glow, rgba(224, 184, 74, 0.9)))
+    drop-shadow(0 0 6px var(--vfx-tone-deep, rgba(30, 76, 153, 0.55)));
 }
+
+.line-vfx--tone-crystal { --vfx-tone-primary: var(--path-crystal-primary); --vfx-tone-glow: var(--path-crystal-glow); --vfx-tone-deep: var(--path-crystal-deep); }
+.line-vfx--tone-necro { --vfx-tone-primary: var(--path-necro-primary); --vfx-tone-glow: var(--path-necro-glow); --vfx-tone-deep: var(--path-necro-deep); }
+.line-vfx--tone-ember { --vfx-tone-primary: var(--path-ember-primary); --vfx-tone-glow: var(--path-ember-glow); --vfx-tone-deep: var(--path-ember-deep); }
 
 @keyframes spellCastLayer {
   0%   { opacity: 0;    stroke-width: 3; }
   15%  { opacity: 1;    stroke-width: 7; }
   85%  { opacity: 0.9;  stroke-width: 6; }
   100% { opacity: 0;    stroke-width: 5; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile-unit[class*="unit--mage-"]::before { animation: none; }
+  .tile--spell-target { animation: spellTargetReducedMotion var(--spell-target-duration, 1.1s) ease-in-out infinite; }
+  .tile-vfx--spell-impact,
+  .tile-vfx--spell-caster-pulse { animation-name: spellVfxReducedMotion; }
+  .line-vfx--spell-cast { animation-name: spellCastReducedMotion; }
+
+  @keyframes spellTargetReducedMotion {
+    0%, 100% { opacity: 0.72; }
+    50% { opacity: 1; }
+  }
+  @keyframes spellVfxReducedMotion {
+    0% { opacity: 0; }
+    25% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+  @keyframes spellCastReducedMotion {
+    0% { opacity: 0; }
+    15% { opacity: 1; }
+    100% { opacity: 0; }
+  }
 }
 
 /* ── CRYSTAL_LIGHTNING - bright branching arcane beam ──────────────────── */
