@@ -380,7 +380,34 @@ export const UNIT_DEFINITIONS: Record<UnitType, UnitDefinition> = {
     themeEligible: false,
   },
 
-  MAGE: {
+  // These definitions are intentionally separate so each mage path can diverge.
+  CRYSTAL_MAGE: {
+    maxHp: 80, attack: 0, defense: 0,
+    movementActions: 1, moveRange: 1, attackRange: 2,
+    discoverRadius: 1, triggerRange: 0,
+    tags: [UnitTag.PASSIVE, UnitTag.PREP],
+    cost: { iron: 4, wood: 12 },
+    populationCost: { farmers: 0, nobles: 1 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_SCOUT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_SCOUT }] },
+    ],
+  },
+
+  NECROMANCER: {
+    maxHp: 80, attack: 0, defense: 0,
+    movementActions: 1, moveRange: 1, attackRange: 2,
+    discoverRadius: 1, triggerRange: 0,
+    tags: [UnitTag.PASSIVE, UnitTag.PREP],
+    cost: { iron: 4, wood: 12 },
+    populationCost: { farmers: 0, nobles: 1 },
+    levelUp: [
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_2, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_SCOUT }] },
+      { xpRequired: LEVEL_UP_VALUES.XP_TO_LEVEL_3, boosts: [{ stat: 'maxHp', mode: 'add', value: LEVEL_UP_VALUES.HP_BOOST_SCOUT }] },
+    ],
+  },
+
+  EMBER_CULTIST: {
     maxHp: 80, attack: 0, defense: 0,
     movementActions: 1, moveRange: 1, attackRange: 2,
     discoverRadius: 1, triggerRange: 0,
@@ -553,7 +580,9 @@ export const CRYSTAL_KHYRON = {
     explosionDamage: u.EMBERLING.explosionDamage!,
     adjacencyRange: ABILITIES.ADJACENCY_RANGE,
   };
-  u.MAGE.textParams = { attackRange: u.MAGE.attackRange, spellsPerTurn: MAGE.SPELLS_PER_TURN };
+  u.CRYSTAL_MAGE.textParams = { attackRange: u.CRYSTAL_MAGE.attackRange, spellsPerTurn: MAGE.SPELLS_PER_TURN };
+  u.NECROMANCER.textParams = { attackRange: u.NECROMANCER.attackRange, spellsPerTurn: MAGE.SPELLS_PER_TURN };
+  u.EMBER_CULTIST.textParams = { attackRange: u.EMBER_CULTIST.attackRange, spellsPerTurn: MAGE.SPELLS_PER_TURN };
   u.GARGOYLE.textParams = { moveRange: u.GARGOYLE.moveRange };
   u.RIFTWORM.textParams = {
     tunnelRangeMin: ABILITIES.TUNNEL_RANGE_MIN,

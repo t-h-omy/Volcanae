@@ -24,8 +24,12 @@ export const UnitType = {
   SIEGE: 'SIEGE',
   SCOUT: 'SCOUT',
   GUARD: 'GUARD',
-  /** Player magical caster, recruited from active Crystal Chambers */
-  MAGE: 'MAGE',
+  /** Crystal-path magical caster, recruited from active Crystal Chambers */
+  CRYSTAL_MAGE: 'CRYSTAL_MAGE',
+  /** Necromancy-path magical caster, recruited from active Crystal Chambers */
+  NECROMANCER: 'NECROMANCER',
+  /** Ember-path magical caster, recruited from active Crystal Chambers */
+  EMBER_CULTIST: 'EMBER_CULTIST',
   /** Strong demonic unit; can be summoned by player or spawned hostile */
   EMBER_DEMON: 'EMBER_DEMON',
   /** Undead unit raised from a gravestone */

@@ -2,7 +2,7 @@
  * Mage system parameters and spell definitions.
  */
 
-import { SpellId } from '../src/types';
+import { MagicPath, SpellId, UnitType } from '../src/types';
 
 
 export const MAGE = {
@@ -70,10 +70,22 @@ export const MAGE = {
   SPELL_CAST_CRYSTAL_COST: 1,
 } as const;
 
+export const MAGE_UNIT_TYPES: readonly UnitType[] = [
+  UnitType.CRYSTAL_MAGE,
+  UnitType.NECROMANCER,
+  UnitType.EMBER_CULTIST,
+];
+
+export const MAGE_PATH_BY_UNIT_TYPE: Partial<Record<UnitType, MagicPath>> = {
+  [UnitType.CRYSTAL_MAGE]: MagicPath.CRYSTAL,
+  [UnitType.NECROMANCER]: MagicPath.NECRO,
+  [UnitType.EMBER_CULTIST]: MagicPath.EMBER,
+};
 
 export interface SpellDefinition {
   id: SpellId;
   emoji: string;
+  casters: readonly UnitType[];
   textParams?: { [name: string]: number };
 }
 
@@ -81,84 +93,101 @@ export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
   [SpellId.TRANSPOSE]: {
     id: SpellId.TRANSPOSE,
     emoji: '🔄',
+    casters: MAGE_UNIT_TYPES,
   },
   [SpellId.EMBERBIND]: {
     id: SpellId.EMBERBIND,
     emoji: '🔥',
+    casters: [UnitType.EMBER_CULTIST],
   },
   [SpellId.BRANDMARK_HEAL]: {
     id: SpellId.BRANDMARK_HEAL,
     emoji: '🩸',
+    casters: [UnitType.EMBER_CULTIST],
   
     textParams: { hpMultiplier: MAGE.BRANDMARK_HP_MULTIPLIER, attackBonus: MAGE.BRANDMARK_ATTACK_BONUS, hpLoss: MAGE.BRANDMARK_HP_LOSS_PER_TURN },
   },
   [SpellId.RAISE_SKELETON]: {
     id: SpellId.RAISE_SKELETON,
     emoji: '💀',
+    casters: [UnitType.NECROMANCER],
   },
   [SpellId.SUMMON_GHOUL]: {
     id: SpellId.SUMMON_GHOUL,
     emoji: '🧟',
+    casters: [UnitType.NECROMANCER],
   },
   [SpellId.LAVA_MOLD]: {
     id: SpellId.LAVA_MOLD,
     emoji: '🦠',
+    casters: [UnitType.EMBER_CULTIST],
     textParams: { damage: MAGE.INFESTED_HP_LOSS_PER_TURN },
   },
   [SpellId.FROSTCRAFT]: {
     id: SpellId.FROSTCRAFT,
     emoji: '❄️',
+    casters: MAGE_UNIT_TYPES,
   },
   [SpellId.GRAVE_TRAP]: {
     id: SpellId.GRAVE_TRAP,
     emoji: '☠️',
+    casters: [UnitType.NECROMANCER],
   
     textParams: { stunTurns: MAGE.GRAVE_TRAP_STUN_TURNS, adjacencyRange: MAGE.GRAVE_TRAP_ADJACENCY_RANGE },
   },
   [SpellId.EXPLODE]: {
     id: SpellId.EXPLODE,
     emoji: '💥',
+    casters: [UnitType.EMBER_CULTIST],
   
     textParams: { damagePercent: MAGE.EXPLODE_DAMAGE_PERCENT },
   },
   [SpellId.CRYSTAL_TOWER]: {
     id: SpellId.CRYSTAL_TOWER,
     emoji: '💎',
+    casters: [UnitType.CRYSTAL_MAGE],
   
     textParams: { crystalReward: MAGE.CRYSTAL_TOWER_KILL_CRYSTAL_REWARD },
   },
   [SpellId.CRYSTAL_CAVE]: {
     id: SpellId.CRYSTAL_CAVE,
     emoji: '🕳️',
+    casters: [UnitType.CRYSTAL_MAGE],
   
     textParams: {  },
   },
   [SpellId.RUPTURE]: {
     id: SpellId.RUPTURE,
     emoji: '💢',
+    casters: MAGE_UNIT_TYPES,
   
     textParams: { damagePercent: Math.round(MAGE.RUPTURE_PERCENT * 100), minimumHp: MAGE.RUPTURE_MINIMUM_REMAINING_HP, crystalCost: MAGE.RUPTURE_CRYSTAL_COST },
   },
   [SpellId.TAUNT]: {
     id: SpellId.TAUNT,
     emoji: '🎯',
+    casters: [UnitType.CRYSTAL_MAGE],
   },
   [SpellId.STONE_SKIN]: {
     id: SpellId.STONE_SKIN,
     emoji: '🪨',
+    casters: [UnitType.CRYSTAL_MAGE],
     textParams: { stoneHp: MAGE.STONE_SKIN_HP },
   },
   [SpellId.CRYSTAL_LIGHTNING]: {
     id: SpellId.CRYSTAL_LIGHTNING,
     emoji: '⚡',
+    casters: [UnitType.CRYSTAL_MAGE],
     textParams: { attackPower: MAGE.CRYSTAL_LIGHTNING_ATTACK_POWER },
   },
   [SpellId.PORTAL]: {
     id: SpellId.PORTAL,
     emoji: '🌀',
+    casters: [UnitType.CRYSTAL_MAGE],
   },
   [SpellId.CORRUPTED_QORK]: {
     id: SpellId.CORRUPTED_QORK,
     emoji: '🐗',
+    casters: [UnitType.EMBER_CULTIST],
   },
 };
