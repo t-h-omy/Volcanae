@@ -4,7 +4,7 @@
  * and game-over/victory overlay screens.
  */
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { useGameStore } from '../gameStore';
 import { useMenuStore } from '../menuStore';
@@ -14,8 +14,9 @@ import { useSoundOptionsStore } from '../soundOptionsStore';
 import { usesNonXpProgression } from '../levelSystem';
 import { getKhyronResonanceTurnsRemaining, isKhyronResonanceActive } from '../khyronSystem';
 import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, computeResearchCost, SPELL_DEFINITIONS, MAGE, CORRUPTED_SUPPRESSED_TAGS, CRYSTAL_CAVE_CONFIG, CRYSTAL_CHAMBER_CONFIG, MARKET, SPECIALIST_DEFINITIONS, CONDITIONAL_ACTIVE_TAGS, getTechTreeId, getTechMagicPath, TECH_PATH_BY_ENTRY_NODE } from '../gameConfig';
-import { computeTechTreeLayout, type TechTreeLayout } from '../techTreeLayout';
+import { computeTechPathAuras, computeTechTreeLayout, type TechPathAura, type TechTreeLayout } from '../techTreeLayout';
 import type { SpecialistDefinition } from '../gameConfig';
+import { ANIMATION } from '../../config/animation';
 import { UI } from '../../config/ui';
 import { MAGIC_PATH_COLORS } from '../../config/render';
 import { CAVE_SPECIALIST_ROB_REWARD_CRYSTALS } from '../../config/specialists';
@@ -4490,9 +4491,32 @@ function TurnAnnouncementPopup({ turn, emberRose }: { turn: number; emberRose: b
 // TECH TREE DYNAMIC LAYOUT
 // ============================================================================
 
+const TECH_NODES_BY_TREE = {
+  [TechTreeId.SECULAR]: TECH_TREE.filter((def) => getTechTreeId(def.id) === TechTreeId.SECULAR),
+  [TechTreeId.ARCANE]: TECH_TREE.filter((def) => getTechTreeId(def.id) === TechTreeId.ARCANE),
+};
+
 const TECH_LAYOUTS: Record<TechTreeId, TechTreeLayout> = {
-  [TechTreeId.SECULAR]: computeTechTreeLayout(TECH_TREE.filter((def) => getTechTreeId(def.id) === TechTreeId.SECULAR)),
-  [TechTreeId.ARCANE]: computeTechTreeLayout(TECH_TREE.filter((def) => getTechTreeId(def.id) === TechTreeId.ARCANE)),
+  [TechTreeId.SECULAR]: computeTechTreeLayout(TECH_NODES_BY_TREE[TechTreeId.SECULAR]),
+  [TechTreeId.ARCANE]: computeTechTreeLayout(TECH_NODES_BY_TREE[TechTreeId.ARCANE]),
+};
+
+const TECH_PATH_AURAS: Record<TechTreeId, TechPathAura[]> = {
+  [TechTreeId.SECULAR]: computeTechPathAuras(
+    TECH_LAYOUTS[TechTreeId.SECULAR],
+    TECH_NODES_BY_TREE[TechTreeId.SECULAR],
+    getTechMagicPath,
+  ),
+  [TechTreeId.ARCANE]: computeTechPathAuras(
+    TECH_LAYOUTS[TechTreeId.ARCANE],
+    TECH_NODES_BY_TREE[TechTreeId.ARCANE],
+    getTechMagicPath,
+  ),
+};
+
+const TECH_TREE_TAB_ICON: Record<TechTreeId, string> = {
+  [TechTreeId.SECULAR]: '⚒️',
+  [TechTreeId.ARCANE]: '✨',
 };
 
 function nodeCentre(id: TechId): { x: number; y: number } {
@@ -4503,6 +4527,22 @@ function nodeCentre(id: TechId): { x: number; y: number } {
     x: pos.x + UI.TECH_TREE_NODE_WIDTH_PX / 2,
     y: pos.y + UI.TECH_TREE_NODE_HEIGHT_PX / 2,
   };
+}
+
+function nodeEdgeAnchor(id: TechId, side: 'out' | 'in'): { x: number; y: number } {
+  const layout = TECH_LAYOUTS[getTechTreeId(id)];
+  const pos = layout.positions[id];
+  if (!pos) return { x: 0, y: 0 };
+  return {
+    x: pos.x + (side === 'out' ? UI.TECH_TREE_NODE_WIDTH_PX : 0),
+    y: pos.y + UI.TECH_TREE_NODE_HEIGHT_PX / 2,
+  };
+}
+
+function techEdgePath(from: { x: number; y: number }, to: { x: number; y: number }): string {
+  const dx = to.x - from.x;
+  const controlOffset = dx * UI.TECH_TREE_EDGE_CURVE_FACTOR;
+  return `M ${from.x} ${from.y} C ${from.x + controlOffset} ${from.y}, ${to.x - controlOffset} ${to.y}, ${to.x} ${to.y}`;
 }
 
 // ============================================================================
@@ -4534,7 +4574,9 @@ function TechTreeOverlay({
   const [researchEdgeIds, setResearchEdgeIds] = useState<Set<TechId>>(() => new Set());
   const [revealedIds, setRevealedIds] = useState<Set<TechId>>(() => new Set());
   const [pathFlash, setPathFlash] = useState<MagicPath | null>(null);
+  const [closing, setClosing] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const closingRef = useRef(false);
   const previousUnlockedRef = useRef<Set<TechId>>(new Set(
     Object.values(techNodes).filter((node) => node.unlocked).map((node) => node.id),
   ));
@@ -4569,11 +4611,35 @@ function TechTreeOverlay({
     () => TECH_TREE.filter((def) => getTechTreeId(def.id) === activeTree),
     [activeTree],
   );
-  const pathStyle = useMemo(() => Object.fromEntries(
-    Object.entries(MAGIC_PATH_COLORS).flatMap(([path, colors]) =>
-      Object.entries(colors).map(([shade, value]) => [`--path-${path.toLowerCase()}-${shade}`, value]),
+  const pathStyle = useMemo(() => ({
+    ...Object.fromEntries(
+      Object.entries(MAGIC_PATH_COLORS).flatMap(([path, colors]) =>
+        Object.entries(colors).map(([shade, value]) => [`--path-${path.toLowerCase()}-${shade}`, value]),
+      ),
     ),
-  ) as CSSProperties, []);
+    '--tt-enter-ms': `${ANIMATION.TECH_TREE_ENTER_MS}ms`,
+    '--tt-exit-ms': `${ANIMATION.TECH_TREE_EXIT_MS}ms`,
+    '--tt-tab-slide-ms': `${ANIMATION.TECH_TREE_TAB_SLIDE_MS}ms`,
+  }) as CSSProperties, []);
+
+  const requestClose = useCallback(() => {
+    if (closingRef.current) return;
+    closingRef.current = true;
+    if (window.matchMedia(ANIMATION.REDUCED_MOTION_MEDIA_QUERY).matches) {
+      onClose();
+      return;
+    }
+    setClosing(true);
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!closing) return;
+    const timeout = window.setTimeout(
+      onClose,
+      ANIMATION.TECH_TREE_EXIT_MS + ANIMATION.TECH_TREE_EXIT_FALLBACK_SLACK_MS,
+    );
+    return () => window.clearTimeout(timeout);
+  }, [closing, onClose]);
 
   useEffect(() => {
     setActiveTree(initialTree);
@@ -4650,11 +4716,11 @@ function TechTreeOverlay({
   // Close on Escape
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') requestClose();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, [requestClose]);
 
   useEffect(() => {
     if (!focusId) return;
@@ -4707,112 +4773,128 @@ function TechTreeOverlay({
 
   return (
     <div
-      className={`tech-overlay tech-overlay--${activeTree.toLowerCase()}${focusId ? ' tech-overlay--focused' : ''}`}
+      className={`tech-overlay tech-overlay--${activeTree.toLowerCase()}${focusId ? ' tech-overlay--focused' : ''}${closing ? ' tech-overlay--closing' : ''}`}
       style={pathStyle}
+      onAnimationEnd={(e) => {
+        if (e.target === e.currentTarget && e.animationName === 'tech-overlay-exit') onClose();
+      }}
     >
+      <div className="tech-ambient" aria-hidden="true">
+        {Array.from({ length: UI.TECH_TREE_MOTE_COUNT }, (_, i) => <span className="tech-mote" key={i} />)}
+      </div>
       {/* Header */}
       <div className="tech-overlay-header">
-        <span>🔬 {t('hud.techTree.title')}</span>
-        <div className="tech-tree-tabs" role="tablist">
-          {[TechTreeId.SECULAR, TechTreeId.ARCANE].map((tree) => (
-            <button
-              key={tree}
-              type="button"
-              role="tab"
-              aria-selected={activeTree === tree}
-              className={`tech-tree-tab${activeTree === tree ? ' tech-tree-tab--active' : ''}`}
-              onClick={() => handleTreeChange(tree)}
-            >
-              {t(`hud.techTree.tab.${tree}`)}
-              {affordableByTree[tree] && <span className="tech-tree-tab-dot" aria-hidden="true" />}
-            </button>
-          ))}
+        <div className="tech-overlay-title">
+          <span className="tech-overlay-title-icon" aria-hidden="true">🔬</span>
+          <FitText className="tech-overlay-title-text" text={t('hud.techTree.title')} />
         </div>
-        {arcaneCrystals > 0 && (
-          <span className="tech-overlay-picks">💎 {t('hud.techTree.crystalsAvailable', { count: arcaneCrystals })}{ember > 0 ? ` · 🔥 ${t('hud.techTree.emberLevel', { ember })}` : ''}</span>
-        )}
-        <button className="tech-overlay-close" onClick={onClose}>✕</button>
+        <div className="tech-resource-chip">
+          <span>💎 {t('hud.techTree.crystalsAvailable', { count: arcaneCrystals })}</span>
+          {ember > 0 && <span className="tech-resource-chip-item--ember">🔥 {t('hud.techTree.emberLevel', { ember })}</span>}
+        </div>
       </div>
 
-      {/* Canvas area */}
-      <div className="tech-canvas-scroll" ref={scrollRef} onClick={() => setSelectedId(null)}>
-        <div
-          key={activeTree}
-          className={`tech-canvas tech-canvas--enter-${activeTree === TechTreeId.ARCANE ? 'right' : 'left'}`}
-          style={{ width: canvasW, height: canvasH }}
-        >
-          {pathFlash && (
-            <div
-              className="tech-path-flash"
-              data-path={pathFlash}
-              onAnimationEnd={() => setPathFlash(null)}
-            />
-          )}
-          {/* Edges (SVG behind nodes) */}
-          <svg className="tech-edges" width={canvasW} height={canvasH}>
-            {activeNodes.flatMap((def) =>
-              def.requires.map((reqId) => {
-                const from = nodeCentre(reqId);
-                const to = nodeCentre(def.id);
-                const isUnlocked = techNodes[def.id]?.unlocked ?? false;
-                return (
-                  <line
-                    key={`${reqId}-${def.id}`}
-                    x1={from.x} y1={from.y}
-                    x2={to.x}   y2={to.y}
-                    className={`tech-edge${isUnlocked ? ' tech-edge--unlocked' : ''}${researchEdgeIds.has(def.id) ? ' tech-edge--researching' : ''}`}
-                    data-path={getTechMagicPath(def.id) ?? undefined}
-                    onAnimationEnd={() => clearMarker(def.id, 'edge')}
-                  />
-                );
-              })
-            )}
-          </svg>
-
-          {/* Nodes */}
-          {activeNodes.map((def, revealIndex) => {
-            const pos = activeLayout.positions[def.id];
-            if (!pos) return null;
-            const isUnlocked = techNodes[def.id]?.unlocked ?? false;
-            const isAvailable = availableSet.has(def.id);
-            const path = getTechMagicPath(def.id);
-            const stateClass = isUnlocked
-              ? 'tech-node--unlocked'
-              : isAvailable
-                ? 'tech-node--available'
-                : 'tech-node--locked';
-
-            return (
+      <div className="tech-body">
+        {/* Canvas area */}
+        <div className="tech-canvas-scroll" ref={scrollRef} onClick={() => setSelectedId(null)}>
+          <div
+            key={activeTree}
+            className={`tech-canvas tech-canvas--enter-${activeTree === TechTreeId.ARCANE ? 'right' : 'left'}`}
+            style={{ width: canvasW, height: canvasH }}
+          >
+            {pathFlash && (
               <div
-                key={def.id}
-                className={`tech-node ${stateClass} ${selectedId === def.id ? 'tech-node--selected' : ''} ${highlightId === def.id ? 'tech-node--focus-highlight' : ''}${researchBurstIds.has(def.id) ? ' tech-node--researching' : ''}${revealedIds.has(def.id) ? ' tech-node--revealed' : ''}`}
-                data-path={path ?? undefined}
-                style={{
-                  left: pos.x,
-                  top: pos.y,
-                  width: UI.TECH_TREE_NODE_WIDTH_PX,
-                  height: UI.TECH_TREE_NODE_HEIGHT_PX,
-                  '--reveal-index': revealIndex,
-                } as CSSProperties}
-                onAnimationEnd={(event) => {
-                  if (event.animationName === 'tech-research-pop') clearMarker(def.id, 'burst');
-                  if (event.animationName === 'tech-reveal-pulse') clearMarker(def.id, 'reveal');
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedId(def.id);
-                }}
-              >
-                <FitText className="tech-node-name" text={techName(def.id)} maxLines={UI.TECH_NODE_NAME_MAX_LINES} />
-                {isAvailable && <span className="tech-node-cost">💎 {computeResearchCost(def.cost ?? 1, ember)}</span>}
-              </div>
-            );
-          })}
+                className="tech-path-flash"
+                data-path={pathFlash}
+                onAnimationEnd={() => setPathFlash(null)}
+              />
+            )}
+            {TECH_PATH_AURAS[activeTree].map((aura) => (
+              <div
+                key={aura.path}
+                className="tech-path-aura"
+                data-path={aura.path}
+                style={{ left: aura.x, top: aura.y, width: aura.w, height: aura.h }}
+              />
+            ))}
+            {/* Edges (SVG behind nodes) */}
+            <svg className="tech-edges" width={canvasW} height={canvasH}>
+              {activeNodes.flatMap((def) =>
+                def.requires.map((reqId) => {
+                  const d = techEdgePath(nodeEdgeAnchor(reqId, 'out'), nodeEdgeAnchor(def.id, 'in'));
+                  const isUnlocked = techNodes[def.id]?.unlocked ?? false;
+                  const isNext = availableSet.has(def.id) && !isUnlocked;
+                  return (
+                    <Fragment key={`${reqId}-${def.id}`}>
+                      <path
+                        d={d}
+                        className={`tech-edge${isUnlocked ? ' tech-edge--unlocked' : ''}${isNext ? ' tech-edge--next' : ''}${researchEdgeIds.has(def.id) ? ' tech-edge--researching' : ''}`}
+                        data-path={getTechMagicPath(def.id) ?? undefined}
+                        onAnimationEnd={() => clearMarker(def.id, 'edge')}
+                      />
+                      {isNext && (
+                        <path
+                          d={d}
+                          className="tech-edge-flow"
+                          data-path={getTechMagicPath(def.id) ?? undefined}
+                          key={`${reqId}-${def.id}-flow`}
+                        />
+                      )}
+                    </Fragment>
+                  );
+                })
+              )}
+            </svg>
+
+            {/* Nodes */}
+            {activeNodes.map((def, revealIndex) => {
+              const pos = activeLayout.positions[def.id];
+              if (!pos) return null;
+              const isUnlocked = techNodes[def.id]?.unlocked ?? false;
+              const isAvailable = availableSet.has(def.id);
+              const isAffordable = isAvailable && arcaneCrystals >= computeResearchCost(def.cost ?? 1, ember);
+              const path = getTechMagicPath(def.id);
+              const stateClass = isUnlocked
+                ? 'tech-node--unlocked'
+                : isAvailable
+                  ? 'tech-node--available'
+                  : 'tech-node--locked';
+
+              return (
+                <div
+                  key={def.id}
+                  className={`tech-node ${stateClass}${isAffordable ? ' tech-node--affordable' : ''} ${selectedId === def.id ? 'tech-node--selected' : ''} ${highlightId === def.id ? 'tech-node--focus-highlight' : ''}${researchBurstIds.has(def.id) ? ' tech-node--researching' : ''}${revealedIds.has(def.id) ? ' tech-node--revealed' : ''}`}
+                  data-path={path ?? undefined}
+                  style={{
+                    left: pos.x,
+                    top: pos.y,
+                    width: UI.TECH_TREE_NODE_WIDTH_PX,
+                    height: UI.TECH_TREE_NODE_HEIGHT_PX,
+                    '--reveal-index': revealIndex,
+                  } as CSSProperties}
+                  onAnimationEnd={(event) => {
+                    if (event.animationName === 'tech-research-pop') clearMarker(def.id, 'burst');
+                    if (event.animationName === 'tech-reveal-pulse') clearMarker(def.id, 'reveal');
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedId(def.id);
+                  }}
+                >
+                  <FitText className="tech-node-name" text={techName(def.id)} maxLines={UI.TECH_NODE_NAME_MAX_LINES} />
+                  {isUnlocked && <span className="tech-node-check" aria-hidden="true">✓</span>}
+                  {isAvailable && <span className={`tech-node-cost${isAffordable ? '' : ' tech-node-cost--short'}`}>💎 {computeResearchCost(def.cost ?? 1, ember)}</span>}
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
 
       {/* Detail sheet */}
-      <div className={`tech-detail-sheet ${selectedDef ? 'tech-detail-sheet--open' : ''}`}>
+      <div
+        className={`tech-detail-sheet ${selectedDef ? 'tech-detail-sheet--open' : ''}`}
+        data-path={selectedDef ? getTechMagicPath(selectedDef.id) ?? undefined : undefined}
+      >
         {selectedDef && (
           <>
             <div className="tech-detail-title">
@@ -4901,9 +4983,45 @@ function TechTreeOverlay({
           </>
         )}
       </div>
+      </div>
       {/* Footer caption */}
       <div className="tech-overlay-footer">
         🔥 {t('hud.techTree.costsIncrease')}
+      </div>
+
+      <div className="tech-dock">
+        <div className="tech-dock-inner">
+          <div
+            className="tech-tree-tabs"
+            role="tablist"
+            style={{ '--tt-tab-index': activeTree === TechTreeId.ARCANE ? 1 : 0 } as CSSProperties}
+          >
+            <div className="tech-tree-tab-indicator" aria-hidden="true" />
+            {[TechTreeId.SECULAR, TechTreeId.ARCANE].map((tree) => (
+              <button
+                key={tree}
+                type="button"
+                role="tab"
+                aria-selected={activeTree === tree}
+                className={`tech-tree-tab${activeTree === tree ? ' tech-tree-tab--active' : ''}`}
+                data-tree={tree.toLowerCase()}
+                onClick={() => handleTreeChange(tree)}
+              >
+                <span className="tech-tree-tab-icon" aria-hidden="true">{TECH_TREE_TAB_ICON[tree]}</span>
+                <FitText className="tech-tree-tab-label" text={t(`hud.techTree.tab.${tree}`)} />
+                {affordableByTree[tree] && <span className="tech-tree-tab-dot" aria-hidden="true" />}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="tech-dock-close"
+            aria-label={t('common.close')}
+            onClick={requestClose}
+          >
+            ✕
+          </button>
+        </div>
       </div>
 
       {infoUnitType && (
