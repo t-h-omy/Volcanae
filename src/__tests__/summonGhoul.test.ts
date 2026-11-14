@@ -434,7 +434,7 @@ describe('Summon Ghoul', () => {
     );
     expect(afterBurst.units[burstVictim.id]).toBeUndefined();
 
-    const mage = makeUnit(UnitType.NECROMANCER, { x: 3, y: 5 });
+    const mage = makeUnit(UnitType.EMBER_CULTIST, { x: 3, y: 5 });
     const sacrifice = makeUnit(UnitType.SPEARMAN, { x: 4, y: 5 });
     const explodeGhoul = makeUnit(UnitType.GHOUL, { x: 5, y: 4 }, Faction.PLAYER, [UnitTag.SUMMONED], {
       stats: { ...UNIT_DEFINITIONS.GHOUL, currentHp: 50 },

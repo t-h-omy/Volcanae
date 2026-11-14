@@ -2293,7 +2293,7 @@ function LeashLineLayer({ tileSize }: { tileSize: number }) {
         burst: true,
         tone: units[bp.mageId] ? getMagePath(units[bp.mageId]) : null,
       }));
-  }, [burstPairs, selectionPairs]);
+  }, [burstPairs, selectionPairs, units]);
 
   if (selectionPairs.length === 0 && effectiveBurstPairs.length === 0) return null;
 

@@ -1,7 +1,6 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { produce } from 'immer';
 import { MAGE_UNIT_TYPES, SPELL_DEFINITIONS, TECH_TREE, UNIT_DEFINITIONS } from '../gameConfig';
-import { MAP } from '../../config/map';
 import { getStatMods, unlockTech } from '../techSystem';
 import { canUnitCastSpell, castSpell, getCastableSpellIds } from '../spellSystem';
 import { generateInitialGameState } from '../mapGenerator';
@@ -48,7 +47,7 @@ const OWNED_SPELLS: Record<(typeof MAGE_TYPES)[number], SpellId[]> = {
   ],
 };
 
-function makeUnit(type: UnitType, position: Position, faction = Faction.PLAYER): Unit {
+function makeUnit(type: UnitType, position: Position, faction: Faction = Faction.PLAYER): Unit {
   const definition = UNIT_DEFINITIONS[type];
   return {
     id: `${type}-${position.x}-${position.y}`,
@@ -213,12 +212,13 @@ describe('Mage path definitions and Spell Reach', () => {
 
   it('extends Spell Reach to all Mage types for existing and future recruits', () => {
     const reach = TECH_TREE.find((node) => node.id === 'SPELL_REACH')!;
+    const rangeBonus = reach.textParams?.rangeBonus ?? 0;
     expect(reach.effects).toEqual(MAGE_TYPES.map((unitType) => ({
       type: 'UNIT_STAT_MOD',
       unitType,
       stat: 'attackRange',
       mode: 'add',
-      value: reach.textParams?.rangeBonus,
+      value: rangeBonus,
     })));
 
     const state = generateInitialGameState();
@@ -235,16 +235,16 @@ describe('Mage path definitions and Spell Reach', () => {
 
     for (const type of MAGE_TYPES) {
       const unit = Object.values(researched.units).find((candidate) => candidate.type === type)!;
-      expect(unit.stats.attackRange).toBe(UNIT_DEFINITIONS[type].attackRange + reach.textParams!.rangeBonus);
+      expect(unit.stats.attackRange).toBe(UNIT_DEFINITIONS[type].attackRange + rangeBonus);
       expect(getStatMods(researched, type)).toContainEqual({
         stat: 'attackRange',
         mode: 'add',
-        value: reach.textParams!.rangeBonus,
+        value: rangeBonus,
       });
     }
     expect(MAGE_TYPES.every((type) => UNIT_DEFINITIONS[type].attackRange === UNIT_DEFINITIONS.CRYSTAL_MAGE.attackRange)).toBe(true);
     expect(reach.textParams?.totalRange).toBe(
-      UNIT_DEFINITIONS.CRYSTAL_MAGE.attackRange + reach.textParams?.rangeBonus,
+      UNIT_DEFINITIONS.CRYSTAL_MAGE.attackRange + rangeBonus,
     );
   });
 });
