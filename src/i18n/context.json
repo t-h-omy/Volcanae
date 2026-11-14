@@ -36,10 +36,23 @@
       "it"
     ]
   },
-  "unit.MAGE.name": {
-    "sameAsSource": [
-      "fr"
-    ]
+  "unit.CRYSTAL_MAGE.name": {
+    "note": "The Mage unit that specializes in crystal spells."
+  },
+  "unit.CRYSTAL_MAGE.desc": {
+    "note": "Description of the Crystal Mage, including its shared range and spell budget."
+  },
+  "unit.NECROMANCER.name": {
+    "note": "The Mage unit that specializes in necromancy spells."
+  },
+  "unit.NECROMANCER.desc": {
+    "note": "Description of the Necromancer, including its shared range and spell budget."
+  },
+  "unit.EMBER_CULTIST.name": {
+    "note": "The Mage unit that specializes in ember spells."
+  },
+  "unit.EMBER_CULTIST.desc": {
+    "note": "Description of the Ember Cultist, including its shared range and spell budget."
   },
   "unit.BULLWARK.name": {
     "note": "Spelling is intentional; coined name. A heavily armored enemy defender.",
@@ -857,25 +870,28 @@
     "note": "Entry technology for the Crystal Mage specialization path."
   },
   "tech.CRYSTAL_MAGE.desc": {
-    "note": "Explains the shared Mage unlocks and opens the Crystal specialization path."
+    "note": "Names the Crystal Mage, unlocks its shared spells, and opens the Crystal specialization path."
   },
   "tech.NECROMANCER.name": {
     "note": "Entry technology for the Necromancer specialization path."
   },
   "tech.NECROMANCER.desc": {
-    "note": "Explains the shared Mage unlocks and opens the Necromancer specialization path."
+    "note": "Names the Necromancer, unlocks its shared spells, and opens the Necromancer specialization path."
   },
   "tech.EMBER_CULTIST.name": {
     "note": "Entry technology for the Ember specialization path."
   },
   "tech.EMBER_CULTIST.desc": {
-    "note": "Explains the shared Mage unlocks and opens the Ember specialization path."
+    "note": "Names the Ember Cultist, unlocks its shared spells, and opens the Ember specialization path."
   },
   "tech.ARCANE_STUDIES.name": {
     "note": "Entry technology for the Arcane Studies specialization path."
   },
   "tech.ARCANE_STUDIES.desc": {
-    "note": "Opens later research that improves all Mages."
+    "note": "Describes the Arcane Shield pool, its regeneration while a Crystal Chamber resonates, and that later research improves all Mages."
+  },
+  "tech.SPELL_REACH.desc": {
+    "note": "Increases the attack range of every Mage."
   },
   "hud.techTree.tab.SECULAR": {
     "note": "Tab label for the non-magic technology tree."

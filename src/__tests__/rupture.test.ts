@@ -33,10 +33,10 @@ function makeTile(x: number, y: number): Tile {
 }
 
 function makeMage(x: number, y: number): Unit {
-  const def = UNIT_DEFINITIONS[UnitType.MAGE];
+  const def = UNIT_DEFINITIONS[UnitType.CRYSTAL_MAGE];
   return {
     id: 'mage_1',
-    type: UnitType.MAGE,
+    type: UnitType.CRYSTAL_MAGE,
     faction: Faction.PLAYER,
     position: { x, y },
     stats: {

@@ -5,6 +5,7 @@
 
 import { create } from 'zustand';
 import type { Faction, UnitType } from './types';
+import type { MagicPath } from './types';
 
 // ============================================================================
 // TYPES
@@ -101,6 +102,7 @@ export type TileVfxVariant =
   | 'DEFENSE_IGNORED'
   | 'HEAL'
   | 'SPELL_IMPACT'
+  | 'SPELL_CASTER_PULSE'
   | 'SPELL_IMPACT_STUN'
   | 'SPELL_IMPACT_PORTAL_ENTER'
   | 'SPELL_IMPACT_PORTAL_EXIT'
@@ -124,6 +126,7 @@ export interface TileVfx {
   y: number;
   variant: TileVfxVariant;
   durationMs: number;
+  tone?: MagicPath;
 }
 
 export type LineVfxVariant =
@@ -140,6 +143,7 @@ export interface LineVfx {
   variant: LineVfxVariant;
   durationMs: number;
   delayMs?: number;
+  tone?: MagicPath;
 }
 
 interface CombatAnimationState {

@@ -76,7 +76,7 @@ beforeEach(() => {
   };
   const units = {
     [selectedId]: makeUnit(selectedId, UnitType.SWORDSMAN, origin.x, origin.y),
-    [mageId]: makeUnit(mageId, UnitType.MAGE, origin.x - 1, origin.y),
+    [mageId]: makeUnit(mageId, UnitType.CRYSTAL_MAGE, origin.x - 1, origin.y),
     taunter: makeUnit('taunter', UnitType.SWORDSMAN, origin.x + 1, origin.y, Faction.ENEMY, [UnitTag.TAUNT]),
     blocked: makeUnit('blocked', UnitType.SWORDSMAN, origin.x, origin.y + 1, Faction.ENEMY),
   };

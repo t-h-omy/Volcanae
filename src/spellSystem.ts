@@ -15,7 +15,7 @@ import type { Draft } from 'immer';
 import type { GameState, Position, Unit } from './types';
 import type { SpellId } from './types';
 import { Faction, UnitTag, BuildingType, TileType, TileStatus, UnitType } from './types';
-import { MAGE, BUILDING_DEFINITIONS, ABILITIES, MAP, UNIT_DEFINITIONS, XP } from './gameConfig';
+import { MAGE, BUILDING_DEFINITIONS, ABILITIES, MAP, UNIT_DEFINITIONS, XP, SPELL_DEFINITIONS } from './gameConfig';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { generateId } from './mapGenerator';
 import { useFloaterStore } from './floaterStore';
@@ -40,7 +40,7 @@ import { grantXp } from './levelSystem';
 import { clearInfestedOnCreditedKill, resolveInfestedDeath } from './infestedSystem';
 import type { GameEvent } from './gameEvents';
 import { castMagePortalPair, cleanupPortals, isPortalEndpoint, resolvePortalEntry } from './portalSystem';
-import { cannotBeHealed, isMech } from './unitTraits';
+import { cannotBeHealed, isMageUnit, isMech } from './unitTraits';
 
 /** Returns the effective spell range for a mage (its attack range). */
 export function getMageSpellRange(
@@ -55,6 +55,24 @@ export function isSpellUnlocked(
   spellId: SpellId,
 ): boolean {
   return state.unlockedSpells.includes(spellId);
+}
+
+/** True iff the spell is unlocked and this Mage's path owns it. */
+export function canUnitCastSpell(
+  state: GameState | Draft<GameState>,
+  unit: Unit,
+  spellId: SpellId,
+): boolean {
+  return isSpellUnlocked(state, spellId)
+    && SPELL_DEFINITIONS[spellId].casters.includes(unit.type);
+}
+
+/** Returns the unlocked spells owned by this Mage, preserving unlock order. */
+export function getCastableSpellIds(
+  state: GameState | Draft<GameState>,
+  unit: Unit,
+): SpellId[] {
+  return state.unlockedSpells.filter((spellId) => canUnitCastSpell(state, unit, spellId));
 }
 
 /** Returns the effective per-turn spell budget for Mages. */
@@ -100,7 +118,7 @@ export function canUnitCast(
   unit: Unit,
   state: GameState | Draft<GameState>,
 ): boolean {
-  if (unit.type !== UnitType.MAGE) return false;
+  if (!isMageUnit(unit)) return false;
   if ((unit.spellsCastThisTurn ?? 0) >= getMageCastBudget(state)) return false;
   if (unit.hasAttackedThisTurn) return false;
   if (unit.hasCapturedThisTurn) return false;
@@ -108,8 +126,8 @@ export function canUnitCast(
   if (unit.hasDestroyedThisTurn) return false;
   if (unit.hasConsumedGravestoneThisTurn) return false;
   // PREP semantics extended to spell-casting: cannot cast after moving.
-  // Mages carry PREP by default (UNIT_DEFINITIONS.MAGE.tags), so for a
-  // standard mage the move-then-cast path is closed. A non-PREP mage
+  // Mages carry PREP by default in each mage unit definition, so for a
+  // standard Mage the move-then-cast path is closed. A non-PREP Mage
   // (e.g. via a future tech) would be allowed to move and then cast.
   if (unit.hasMovedThisTurn && unit.tags.includes(UnitTag.PREP)) return false;
   return true;
@@ -450,7 +468,7 @@ export function getValidSpellTargets(
       for (const unit of Object.values(state.units)) {
         if (unit.faction !== Faction.PLAYER) continue;
         if (unit.id === mageId) continue;
-        if (unit.type === UnitType.MAGE) continue;
+        if (isMageUnit(unit)) continue;
         if (!isTileInSpellRange(mage, unit.position, range)) continue;
         targets.push({ ...unit.position });
       }
@@ -590,7 +608,7 @@ export function explainInvalidSpellTarget(
       if (!tappedUnit) return null;
       if (tappedUnit.faction !== Faction.PLAYER) return null;
       if (!isTileInSpellRange(mage, tappedUnit.position, range)) return null;
-      if (tappedUnit.type === UnitType.MAGE) {
+      if (isMageUnit(tappedUnit)) {
         return SPELL_TARGET_REASONS.EXPLODE_MAGE;
       }
       return null;
@@ -1324,7 +1342,7 @@ function handleExplode(
   if (!target) return false;
   if (target.faction !== Faction.PLAYER) return false;
   if (target.id === mage.id) return false;
-  if (target.type === UnitType.MAGE) return false;
+  if (isMageUnit(target)) return false;
 
   const dmg = Math.ceil(target.stats.currentHp * MAGE.EXPLODE_DAMAGE_PERCENT / 100);
 
@@ -1565,9 +1583,9 @@ export function castSpell(
   const mage = state.units[mageId];
   if (!mage) return false;
   if (mage.faction !== Faction.PLAYER) return false;
-  if (mage.type !== UnitType.MAGE) return false;
+  if (!isMageUnit(mage)) return false;
   if (!canUnitCast(mage, state)) return false;
-  if (!isSpellUnlocked(state, spellId)) return false;
+  if (!canUnitCastSpell(state, mage, spellId)) return false;
 
   // All spells cost MAGE.SPELL_CAST_CRYSTAL_COST arcane crystals
   if (state.arcaneCrystals < MAGE.SPELL_CAST_CRYSTAL_COST) return false;

@@ -416,7 +416,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     requires: ['ARCANE_AWAKENING'],
     cost: 2,
     effects: [
-      { type: 'UNLOCK_UNIT', unitType: UnitType.MAGE },
+      { type: 'UNLOCK_UNIT', unitType: UnitType.CRYSTAL_MAGE },
       { type: 'UNLOCK_SPELL', spellId: SpellId.TRANSPOSE },
       { type: 'UNLOCK_SPELL', spellId: SpellId.FROSTCRAFT },
     ],
@@ -426,7 +426,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     requires: ['ARCANE_AWAKENING'],
     cost: 2,
     effects: [
-      { type: 'UNLOCK_UNIT', unitType: UnitType.MAGE },
+      { type: 'UNLOCK_UNIT', unitType: UnitType.NECROMANCER },
       { type: 'UNLOCK_SPELL', spellId: SpellId.TRANSPOSE },
       { type: 'UNLOCK_SPELL', spellId: SpellId.FROSTCRAFT },
     ],
@@ -436,7 +436,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
     requires: ['ARCANE_AWAKENING'],
     cost: 2,
     effects: [
-      { type: 'UNLOCK_UNIT', unitType: UnitType.MAGE },
+      { type: 'UNLOCK_UNIT', unitType: UnitType.EMBER_CULTIST },
       { type: 'UNLOCK_SPELL', spellId: SpellId.TRANSPOSE },
       { type: 'UNLOCK_SPELL', spellId: SpellId.FROSTCRAFT },
     ],
@@ -445,7 +445,8 @@ export const TECH_TREE: TechNodeDefinition[] = [
     id: 'ARCANE_STUDIES',
     requires: ['ARCANE_AWAKENING'],
     cost: 2,
-    effects: [],
+    effects: [{ type: 'FLAG', flag: TechFlag.ARCANE_SHIELD }],
+    textParams: { shieldHp: MAGE.ARCANE_SHIELD_MAX_HP, regen: MAGE.ARCANE_SHIELD_REGEN },
   },
   // Crystal path: Khyrons are recruited from resonating Chambers.
   {
@@ -598,7 +599,6 @@ export const TECH_TREE: TechNodeDefinition[] = [
   //  cost: 7,
  //   effects: [
   //    { type: 'GRANT_UNIT_TAG', unitType: UnitType.SIEGE, tag: UnitTag.LEAVES_GRAVESTONE },
-  //    { type: 'GRANT_UNIT_TAG', unitType: UnitType.MAGE,  tag: UnitTag.LEAVES_GRAVESTONE },
   //  ],
 //  },
 
@@ -624,10 +624,12 @@ export const TECH_TREE: TechNodeDefinition[] = [
     requires: ['ARCANE_STUDIES'],
     cost: 4,
     effects: [
-      { type: 'UNIT_STAT_MOD', unitType: UnitType.MAGE, stat: 'attackRange', mode: 'add', value: MAGE.SPELL_RANGE_BONUS },
+      { type: 'UNIT_STAT_MOD', unitType: UnitType.CRYSTAL_MAGE, stat: 'attackRange', mode: 'add', value: MAGE.SPELL_RANGE_BONUS },
+      { type: 'UNIT_STAT_MOD', unitType: UnitType.NECROMANCER, stat: 'attackRange', mode: 'add', value: MAGE.SPELL_RANGE_BONUS },
+      { type: 'UNIT_STAT_MOD', unitType: UnitType.EMBER_CULTIST, stat: 'attackRange', mode: 'add', value: MAGE.SPELL_RANGE_BONUS },
     ],
   
-    textParams: { rangeBonus: MAGE.SPELL_RANGE_BONUS, totalRange: UNIT_DEFINITIONS.MAGE.attackRange + MAGE.SPELL_RANGE_BONUS },
+    textParams: { rangeBonus: MAGE.SPELL_RANGE_BONUS, totalRange: UNIT_DEFINITIONS.CRYSTAL_MAGE.attackRange + MAGE.SPELL_RANGE_BONUS },
   },
 
 ];

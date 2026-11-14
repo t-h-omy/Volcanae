@@ -183,7 +183,7 @@ describe('Corrupted Qork registration and targeting', () => {
   });
 
   it('targets only corrupted, in-range, empty tiles the Qork can legally occupy', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 10 });
+    const mage = makeUnit(UnitType.EMBER_CULTIST, { x: 5, y: 10 });
     const blocker = makeUnit(UnitType.GUARD, { x: 5, y: 11 });
     const state = makeState([mage, blocker]);
     const plains = { x: 6, y: 10 };
@@ -215,7 +215,7 @@ describe('Corrupted Qork registration and targeting', () => {
   });
 
   it('rejects a failed cast without cleansing corruption or spending crystals', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 10 });
+    const mage = makeUnit(UnitType.EMBER_CULTIST, { x: 5, y: 10 });
     const blocker = makeUnit(UnitType.GUARD, { x: 6, y: 10 });
     const state = makeState([mage, blocker]);
     const target = { x: 6, y: 10 };
@@ -231,7 +231,7 @@ describe('Corrupted Qork registration and targeting', () => {
   });
 
   it('provides a localized reason for corrupted tiles that cannot host a Qork', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 10 });
+    const mage = makeUnit(UnitType.EMBER_CULTIST, { x: 5, y: 10 });
     const blocker = makeUnit(UnitType.GUARD, { x: 6, y: 10 });
     const state = makeState([mage, blocker]);
     const target = { x: 6, y: 10 };
@@ -244,7 +244,7 @@ describe('Corrupted Qork registration and targeting', () => {
 
 describe('Corrupted Qork summoning and leash', () => {
   it('cleanses the exact tile, spends one crystal and cast, and creates a bound summoned Qork', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 10 });
+    const mage = makeUnit(UnitType.EMBER_CULTIST, { x: 5, y: 10 });
     const state = makeState([mage]);
     const target = { x: 6, y: 10 };
     setCorrupted(state, target);
@@ -274,7 +274,7 @@ describe('Corrupted Qork summoning and leash', () => {
   });
 
   it('allows a Mage to summon multiple Qorks over multiple casts', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 10 });
+    const mage = makeUnit(UnitType.EMBER_CULTIST, { x: 5, y: 10 });
     const state = makeState([mage]);
     const first = { x: 6, y: 10 };
     const second = { x: 4, y: 10 };
@@ -291,7 +291,7 @@ describe('Corrupted Qork summoning and leash', () => {
   });
 
   it('defects Qorks at the same range boundary and with the same changes as Ember Demons', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 3, y: 10 });
+    const mage = makeUnit(UnitType.EMBER_CULTIST, { x: 3, y: 10 });
     const qork = makeUnit(UnitType.CORRUPTED_QORK, { x: 5, y: 10 }, Faction.PLAYER, [
       UnitTag.SUMMONED,
       UnitTag.LEASHED,
@@ -322,7 +322,7 @@ describe('Corrupted Qork summoning and leash', () => {
   });
 
   it('defects all bound Qorks when the controlling Mage dies', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 3, y: 10 });
+    const mage = makeUnit(UnitType.EMBER_CULTIST, { x: 3, y: 10 });
     const qork = makeUnit(UnitType.CORRUPTED_QORK, { x: 4, y: 10 }, Faction.PLAYER, [
       UnitTag.SUMMONED,
       UnitTag.LEASHED,
@@ -344,7 +344,7 @@ describe('Corrupted Qork summoning and leash', () => {
   });
 
   it('includes Qorks in the shared Mage leash visualization query', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 3, y: 10 });
+    const mage = makeUnit(UnitType.EMBER_CULTIST, { x: 3, y: 10 });
     const qork = makeUnit(UnitType.CORRUPTED_QORK, { x: 4, y: 10 }, Faction.PLAYER, [
       UnitTag.SUMMONED,
       UnitTag.LEASHED,
@@ -660,7 +660,7 @@ describe('Corrupted Qork drain and death burst', () => {
     }
     expect(magePosition).not.toBeNull();
     expect(qorkPosition).not.toBeNull();
-    const mage = makeUnit(UnitType.MAGE, magePosition!);
+    const mage = makeUnit(UnitType.EMBER_CULTIST, magePosition!);
     const qork = makeUnit(UnitType.CORRUPTED_QORK, qorkPosition!, Faction.PLAYER, [
       UnitTag.SUMMONED,
       UnitTag.LEASHED,

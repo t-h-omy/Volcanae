@@ -28,6 +28,7 @@ import { tryBeginTunnel, processTunnelTurn } from './tunnelSystem';
 import { cleanupPortals, cleanupExpiredPortalsEndOfTurn, tryPlanPortalCast, castPortal, resolvePortalEntry, processPendingPortalTeleports, getPlayerFrontlineRow } from './portalSystem';
 import { cleanupRoostedUnits, getRoostedUnits } from './buildingRemoval';
 import { isUnitOnCorruptedTile } from './tileStatusSystem';
+import { isMageUnit } from './unitTraits';
 import { applyUnitDamage, getUnitDamageOutcome } from './unitDamage';
 import { clearInfestedOnCreditedKill, processInfestedFactionTurn, resolveInfestedDeath } from './infestedSystem';
 import { processCorruptedQorkDrain } from './corruptedQorkSystem';
@@ -554,7 +555,7 @@ function buildArmyProfile(units: Unit[]): ArmyProfile {
     if (isRanged) rangedCount++;
     if (isSiege) siegeCount++;
 
-    if (unit.type === UnitType.MAGE) mageCount++;
+    if (isMageUnit(unit)) mageCount++;
     if (unit.type === UnitType.GUARD) guardCount++;
     if (u.defense > ABILITIES.PUNCTURE_STUN_BASE_DEF_THRESHOLD) highDefCount++;
     if (unit.tags.includes(UnitTag.SUMMONED)) summonedCount++;

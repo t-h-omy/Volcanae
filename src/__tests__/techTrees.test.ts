@@ -69,25 +69,33 @@ describe('separate technology trees', () => {
     }
   });
 
-  it('starts with both roots and the Crystal Chamber, but no recruitable Mage', () => {
+  it('starts with both roots and the Crystal Chamber, but no recruitable path Mage', () => {
     const state = generateInitialGameState();
     expect(state.techNodes.CONSCRIPTION.unlocked).toBe(true);
     expect(state.techNodes.ARCANE_AWAKENING.unlocked).toBe(true);
     expect(state.unlockedBuildings).toContain(BuildingType.CRYSTAL_CHAMBER);
-    expect(state.unlockedUnits).not.toContain(UnitType.MAGE);
+    expect(state.unlockedUnits).not.toContain(UnitType.CRYSTAL_MAGE);
+    expect(state.unlockedUnits).not.toContain(UnitType.NECROMANCER);
+    expect(state.unlockedUnits).not.toContain(UnitType.EMBER_CULTIST);
   });
 
   it('unlocks shared Mage spells once and gates Spell Reach behind Arcane Studies', () => {
     const initial = generateInitialGameState();
     const withCrystals = { ...initial, arcaneCrystals: 10 };
     const first = produce(withCrystals, (draft) => unlockTech(draft, 'CRYSTAL_MAGE'));
-    expect(first.unlockedUnits).toContain(UnitType.MAGE);
+    expect(first.unlockedUnits).toContain(UnitType.CRYSTAL_MAGE);
+    expect(first.unlockedUnits).not.toContain(UnitType.NECROMANCER);
+    expect(first.unlockedUnits).not.toContain(UnitType.EMBER_CULTIST);
     expect(first.unlockedSpells).toEqual(expect.arrayContaining([SpellId.TRANSPOSE, SpellId.FROSTCRAFT]));
 
     const second = produce(first, (draft) => unlockTech(draft, 'NECROMANCER'));
-    expect(second.unlockedUnits.filter((unit) => unit === UnitType.MAGE)).toHaveLength(1);
+    expect(second.unlockedUnits).toContain(UnitType.NECROMANCER);
+    expect(second.unlockedUnits).not.toContain(UnitType.EMBER_CULTIST);
     expect(second.unlockedSpells.filter((spell) => spell === SpellId.TRANSPOSE)).toHaveLength(1);
     expect(second.unlockedSpells.filter((spell) => spell === SpellId.FROSTCRAFT)).toHaveLength(1);
+
+    const third = produce(second, (draft) => unlockTech(draft, 'EMBER_CULTIST'));
+    expect(third.unlockedUnits).toContain(UnitType.EMBER_CULTIST);
 
     const beforeStudies = getAvailableTechs(second);
     expect(beforeStudies).not.toContain('SPELL_REACH');

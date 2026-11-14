@@ -1,6 +1,7 @@
 import type { ActiveWaveTheme, GameState, Unit, WaveThemeEntry } from './types';
 import { BuildingType, Faction, UnitTag, UnitType } from './types';
 import { ABILITIES, AI_RECRUITMENT, ENEMY_WAVE_THEME, MAP, UNIT_DEFINITIONS } from './gameConfig';
+import { isMageUnit } from './unitTraits';
 
 type RandomSource = () => number;
 
@@ -176,7 +177,7 @@ function buildArmyProfile(units: Unit[]): ArmyProfile {
     if (isRanged) rangedCount++;
     if (isSiege) siegeCount++;
 
-    if (unit.type === UnitType.MAGE) mageCount++;
+    if (isMageUnit(unit)) mageCount++;
     if (unit.type === UnitType.GUARD) guardCount++;
     if (u.defense > ABILITIES.PUNCTURE_STUN_BASE_DEF_THRESHOLD) highDefCount++;
     if (unit.tags.includes(UnitTag.SUMMONED)) summonedCount++;
@@ -241,7 +242,7 @@ function countPlayerControlledZones(state: GameState): number {
 
 function computePlayerBacklineValue(state: GameState): number {
   const playerUnits = Object.values(state.units).filter((u) => u.faction === Faction.PLAYER);
-  const mageCount = playerUnits.filter((u) => u.type === UnitType.MAGE).length;
+  const mageCount = playerUnits.filter(isMageUnit).length;
   const archerCount = playerUnits.filter((u) => u.type === UnitType.ARCHER).length;
   const crystalChamberCount = Object.values(state.buildings).filter(
     (b) => b.faction === Faction.PLAYER && b.type === BuildingType.CRYSTAL_CHAMBER,

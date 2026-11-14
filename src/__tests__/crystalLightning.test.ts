@@ -229,7 +229,7 @@ describe('Crystal Lightning tech and target validation', () => {
   });
 
   it('accepts only player-owned Crystal Chambers in Mage range', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 5 });
+    const mage = makeUnit(UnitType.CRYSTAL_MAGE, { x: 5, y: 5 });
     const playerChamber = makeBuilding(BuildingType.CRYSTAL_CHAMBER, { x: 6, y: 5 });
     const enemyChamber = makeBuilding(BuildingType.CRYSTAL_CHAMBER, { x: 5, y: 6 }, Faction.ENEMY, 2);
     const otherBuilding = makeBuilding(BuildingType.WATCHTOWER, { x: 5, y: 4 });
@@ -242,7 +242,7 @@ describe('Crystal Lightning tech and target validation', () => {
 
   it('does not spend crystals or Mage action for an invalid target', () => {
     const chamber = makeBuilding(BuildingType.CRYSTAL_CHAMBER, { x: 6, y: 5 });
-    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 5 });
+    const mage = makeUnit(UnitType.CRYSTAL_MAGE, { x: 5, y: 5 });
     useGameStore.setState(createStoreScenario(chamber, mage));
 
     useGameStore.getState().castSpell({ x: 7, y: 5 });
@@ -256,7 +256,7 @@ describe('Crystal Lightning tech and target validation', () => {
 
   it('commits a valid cast to the queue without showing damage before the volley', () => {
     const chamber = makeBuilding(BuildingType.CRYSTAL_CHAMBER, { x: 6, y: 5 });
-    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 5 });
+    const mage = makeUnit(UnitType.CRYSTAL_MAGE, { x: 5, y: 5 });
     const enemy = makeUnit(UnitType.LAVA_GRUNT, { x: 6, y: 4 }, Faction.ENEMY);
     useGameStore.setState(createStoreScenario(chamber, mage, enemy));
 
@@ -274,7 +274,7 @@ describe('Crystal Lightning tech and target validation', () => {
 
 describe('Crystal Lightning volleys and chaining', () => {
   it('fires an inactive initial Chamber volley without chaining', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 6 });
+    const mage = makeUnit(UnitType.CRYSTAL_MAGE, { x: 5, y: 6 });
     const first = makeBuilding(BuildingType.CRYSTAL_CHAMBER, { x: 5, y: 5 }, Faction.PLAYER, 0);
     const next = makeBuilding(BuildingType.CRYSTAL_CHAMBER, { x: 7, y: 5 }, Faction.PLAYER, 2);
     const firstEnemy = makeUnit(UnitType.LAVA_GRUNT, { x: 5, y: 4 }, Faction.ENEMY);
@@ -290,7 +290,7 @@ describe('Crystal Lightning volleys and chaining', () => {
   });
 
   it('chains only through resonating player Chambers in visibility radius', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 4, y: 5 });
+    const mage = makeUnit(UnitType.CRYSTAL_MAGE, { x: 4, y: 5 });
     const first = makeBuilding(BuildingType.CRYSTAL_CHAMBER, { x: 5, y: 5 }, Faction.PLAYER, 2);
     const second = makeBuilding(BuildingType.CRYSTAL_CHAMBER, { x: 7, y: 5 }, Faction.PLAYER, 1);
     const inactive = makeBuilding(BuildingType.CRYSTAL_CHAMBER, { x: 5, y: 7 }, Faction.PLAYER, 0);
@@ -309,7 +309,7 @@ describe('Crystal Lightning volleys and chaining', () => {
   });
 
   it('recursively traverses a cyclic network and activates each Chamber only once', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 4, y: 5 });
+    const mage = makeUnit(UnitType.CRYSTAL_MAGE, { x: 4, y: 5 });
     const chambers = [
       makeBuilding(BuildingType.CRYSTAL_CHAMBER, { x: 5, y: 5 }, Faction.PLAYER, 2),
       makeBuilding(BuildingType.CRYSTAL_CHAMBER, { x: 7, y: 5 }, Faction.PLAYER, 2),
@@ -330,7 +330,7 @@ describe('Crystal Lightning volleys and chaining', () => {
   });
 
   it('allows one enemy to be hit once by each participating Chamber', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 6 });
+    const mage = makeUnit(UnitType.CRYSTAL_MAGE, { x: 5, y: 6 });
     const first = makeBuilding(BuildingType.CRYSTAL_CHAMBER, { x: 5, y: 5 }, Faction.PLAYER, 2);
     const second = makeBuilding(BuildingType.CRYSTAL_CHAMBER, { x: 7, y: 5 }, Faction.PLAYER, 1);
     const enemy = makeUnit(UnitType.LAVA_GRUNT, { x: 6, y: 4 }, Faction.ENEMY);
@@ -343,7 +343,7 @@ describe('Crystal Lightning volleys and chaining', () => {
   });
 
   it('ignores enemy buildings and groups all targets of a Chamber into one parallel volley', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 6 });
+    const mage = makeUnit(UnitType.CRYSTAL_MAGE, { x: 5, y: 6 });
     const chamber = makeBuilding(BuildingType.CRYSTAL_CHAMBER, { x: 5, y: 5 });
     const enemyA = makeUnit(UnitType.LAVA_GRUNT, { x: 4, y: 4 }, Faction.ENEMY);
     const enemyB = makeUnit(UnitType.LAVA_ARCHER, { x: 6, y: 4 }, Faction.ENEMY);
@@ -359,7 +359,7 @@ describe('Crystal Lightning volleys and chaining', () => {
   });
 
   it('uses the normal combat formula with 20 attack power and no second counterattack', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 6 });
+    const mage = makeUnit(UnitType.CRYSTAL_MAGE, { x: 5, y: 6 });
     const chamber = makeBuilding(BuildingType.CRYSTAL_CHAMBER, { x: 5, y: 5 });
     const enemy = makeUnit(UnitType.LAVA_GRUNT, { x: 5, y: 4 }, Faction.ENEMY);
     enemy.stats.defense = 20;
@@ -374,7 +374,7 @@ describe('Crystal Lightning volleys and chaining', () => {
   });
 
   it('credits kills and XP to the casting Mage and preserves Cave Monster rewards', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 6 });
+    const mage = makeUnit(UnitType.CRYSTAL_MAGE, { x: 5, y: 6 });
     const chamber = makeBuilding(BuildingType.CRYSTAL_CHAMBER, { x: 5, y: 5 });
     const grunt = makeUnit(UnitType.LAVA_GRUNT, { x: 4, y: 4 }, Faction.ENEMY);
     grunt.stats.currentHp = 1;
@@ -394,7 +394,7 @@ describe('Crystal Lightning volleys and chaining', () => {
   });
 
   it('orders each parallel enemy volley before its Chamber links and the next wave', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 4, y: 5 });
+    const mage = makeUnit(UnitType.CRYSTAL_MAGE, { x: 4, y: 5 });
     const first = makeBuilding(BuildingType.CRYSTAL_CHAMBER, { x: 5, y: 5 }, Faction.PLAYER, 2);
     const second = makeBuilding(BuildingType.CRYSTAL_CHAMBER, { x: 7, y: 5 }, Faction.PLAYER, 2);
     const third = makeBuilding(BuildingType.CRYSTAL_CHAMBER, { x: 8, y: 5 }, Faction.PLAYER, 1);

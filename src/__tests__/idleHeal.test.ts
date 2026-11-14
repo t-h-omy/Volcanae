@@ -235,7 +235,7 @@ describe('SP-24 Field Chirurgeon idle heal', () => {
     const captured = makeUnit('captured', UnitType.SWORDSMAN, { x: 7, y: 8 }, { hasCapturedThisTurn: true });
     captured.stats.currentHp = captured.stats.maxHp - 20;
 
-    const mage = makeUnit('mage', UnitType.MAGE, { x: 8, y: 8 }, { spellsCastThisTurn: 1 });
+    const mage = makeUnit('mage', UnitType.CRYSTAL_MAGE, { x: 8, y: 8 }, { spellsCastThisTurn: 1 });
     mage.stats.currentHp = mage.stats.maxHp - 20;
     const expectedIdleHp = idle.stats.maxHp - 5;
     const expectedCappedHp = capHeal.stats.maxHp;

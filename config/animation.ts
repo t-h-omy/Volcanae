@@ -150,6 +150,8 @@ export const ANIMATION = {
   CRYSTAL_LIGHTNING_POST_MS: 70,
   /** Duration of the mage spell-cast line from caster to target tile (ms) */
   SPELL_CAST_MS: 650,
+  /** Duration of the caster's path-colored wind-up pulse (ms) */
+  SPELL_CASTER_PULSE_MS: 500,
   /** Duration of the mage spell impact ring on the target tile (ms) */
   SPELL_IMPACT_MS: 650,
   /** Duration of the stun-applied burst (ms) — reuses SPELL_IMPACT plumbing */
@@ -184,4 +186,10 @@ export const ANIMATION = {
   INVALID_ACTION_VFX_MS: 250,
   /** Duration of the pierce connection line (ms) */
   PIERCE_LINE_MS: 320,
+  /** Duration of the Arcane Shield absorb, break and recharge effects (ms); also the cleanup timer. */
+  ARCANE_SHIELD_FX_DURATION_MS: 700,
+  /** Per-index delay when several Mages recharge their Arcane Shield in the same tick (ms) */
+  ARCANE_SHIELD_WAVE_STAGGER_MS: 120,
+  /** Number of shards in the Arcane Shield break burst */
+  ARCANE_SHIELD_SHARD_COUNT: 6,
 } as const;

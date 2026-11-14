@@ -55,7 +55,8 @@ import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLo
 import { canUnitHeal, getHealTargets, canUnitFieldwork, isHealSuppressedByCorruption, canUnitConsumeGravestone } from './unitActions';
 import { createFieldworkOutpost } from './constructionSystem';
 import { getTagsFromActiveSpecialists, isSpecialistEffectActive, getTagsFromActiveSpecialistsForSourceTag } from './specialistSystem';
-import { castSpell as castSpellLogic } from './spellSystem';
+import { canUnitCastSpell, castSpell as castSpellLogic } from './spellSystem';
+import { getMagePath } from './unitTraits';
 import { isTileWithinEdgeCircleRange, getTilesWithinEdgeCircleRange } from './rangeUtils';
 import { useShockwaveStore } from './shockwaveStore';
 import { processPendingPortalTeleports } from './portalSystem';
@@ -1975,6 +1976,8 @@ export const useGameStore = create<GameStore>()(
 
     startSpellCast: (mageId: string, spellId: SpellId) => {
       set((state) => {
+        const mage = state.units[mageId];
+        if (!mage || !canUnitCastSpell(state, mage, spellId)) return;
         state.pendingHealerId = null; // mutually exclusive with heal mode
         state.pendingBridgeBuilderId = null;
         state.pendingTrapSetterId = null;
@@ -1994,6 +1997,7 @@ export const useGameStore = create<GameStore>()(
     castSpell: (targetPosition: Position) => {
       let castSpellId: import('./types').SpellId | null = null;
       let magePosition: Position | null = null;
+      let magePath: ReturnType<typeof getMagePath> = null;
       const killedCaveMonsterIds: string[] = [];
       const portalEvents: GameEvent[] = [];
       let crystalLightningEvents: GameEvent[] | null = null;
@@ -2080,6 +2084,7 @@ export const useGameStore = create<GameStore>()(
         const mageAfter = state.units[mageId];
         if (mageAfter) {
           magePosition = { x: mageAfter.position.x, y: mageAfter.position.y };
+          magePath = getMagePath(mageAfter);
           // Casting is symmetric with attacking: only advance the Mage's cast count.
           // - canUnitMove and canUnitAttack are updated to treat
           //   the exhausted cast budget the same way they already treat
@@ -2175,6 +2180,7 @@ export const useGameStore = create<GameStore>()(
             toPx,
             variant: 'SPELL_CAST',
             durationMs: ANIMATION.SPELL_CAST_MS,
+            ...(magePath ? { tone: magePath } : {}),
           });
           store.addTileVfx({
             id: crypto.randomUUID(),
@@ -2182,6 +2188,15 @@ export const useGameStore = create<GameStore>()(
             y: targetPosition.y,
             variant: 'SPELL_IMPACT',
             durationMs: ANIMATION.SPELL_IMPACT_MS,
+            ...(magePath ? { tone: magePath } : {}),
+          });
+          store.addTileVfx({
+            id: crypto.randomUUID(),
+            x: capturedMagePosition.x,
+            y: capturedMagePosition.y,
+            variant: 'SPELL_CASTER_PULSE',
+            durationMs: ANIMATION.SPELL_CASTER_PULSE_MS,
+            ...(magePath ? { tone: magePath } : {}),
           });
         }
       }

@@ -43,7 +43,7 @@ import { getUnitConstructionUnlockTechId } from './techSystem';
 import { canCapture } from './captureSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { MAP, MAGE, ABILITIES } from './gameConfig';
-import { cannotBeHealed, cannotTrade, isMech } from './unitTraits';
+import { cannotBeHealed, cannotTrade, isMageUnit, isMech } from './unitTraits';
 import { canUnitCast, getMageCastBudget } from './spellSystem';
 import { isUnitOnCorruptedTile } from './tileStatusSystem';
 import { getBridgeAt } from './bridgeSystem';
@@ -63,7 +63,7 @@ function hasSpentMageCastBudget(
   unit: Unit,
   state?: GameState | Draft<GameState>,
 ): boolean {
-  if (unit.type !== UnitType.MAGE) return false;
+  if (!isMageUnit(unit)) return false;
   const budget = state ? getMageCastBudget(state) : MAGE.SPELLS_PER_TURN;
   return (unit.spellsCastThisTurn ?? 0) >= budget;
 }
@@ -106,7 +106,7 @@ export function isUnitDisplayExhausted(unit: Unit, state: GameState): boolean {
   const noAttackTargets = (() => {
     if (unit.faction !== Faction.PLAYER) return false;
     if (hasUnitActed(unit, state)) return false;
-    if (unit.type === UnitType.MAGE && canUnitCast(unit, state) && state.arcaneCrystals >= 1) return false;
+    if (isMageUnit(unit) && canUnitCast(unit, state) && state.arcaneCrystals >= 1) return false;
     if (
       canUnitSetTrap(unit, state) &&
       state.resources.wood >= ABILITIES.SCOUT_TRAP_WOOD_COST &&

@@ -195,7 +195,7 @@ describe('Part 8: AI recruitment scoring', () => {
    */
   it('recruits LANCER preferentially when player has Mage units', () => {
     const lair = makeLavaLair(5);
-    const playerUnits = Array.from({ length: 3 }, () => makePlayerUnit(UnitType.MAGE));
+    const playerUnits = Array.from({ length: 3 }, () => makePlayerUnit(UnitType.CRYSTAL_MAGE));
     const state = makeState(playerUnits, [lair], /* ember */ 10);
 
     const scores = computeRecruitmentScores(state, lair.id)!;
@@ -255,7 +255,7 @@ describe('Part 8: AI recruitment scoring', () => {
     const lair = makeLavaLair(5);
     const playerUnits = [
       ...Array.from({ length: 4 }, () => makePlayerUnit(UnitType.SPEARMAN)),
-      ...Array.from({ length: 2 }, () => makePlayerUnit(UnitType.MAGE)),
+      ...Array.from({ length: 2 }, () => makePlayerUnit(UnitType.CRYSTAL_MAGE)),
     ];
     // Enemy frontline unit that has NOT moved recently → triggers stagnation
     const enemyFrontline = makeEnemyUnit(UnitType.LAVA_GRUNT, 5, /* lastMovedTurn */ 0);

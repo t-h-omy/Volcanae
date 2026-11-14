@@ -35,7 +35,7 @@ describe('getNextDefaultSlotName', () => {
       });
       db.close();
 
-      expect(SAVE_VERSION).toBe(24);
+      expect(SAVE_VERSION).toBe(25);
       expect(isSlotCompatible({ id: 'old', name: 'Old', version: 23, savedAt: 0, turn: 1, difficulty: 'STANDARD' })).toBe(false);
       expect(isSlotCompatible({ id: 'new', name: 'New', version: 24, savedAt: 0, turn: 1, difficulty: 'STANDARD' })).toBe(true);
       expect(await loadSlot('old')).toBeNull();

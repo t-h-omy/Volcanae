@@ -19,7 +19,7 @@
 
 import type { Draft } from 'immer';
 import type { GameState, Portal, Position, Unit } from './types';
-import { Faction, TileType, UnitType } from './types';
+import { Faction, TileType } from './types';
 import { TileStatus } from './types';
 import {
   ABILITIES,
@@ -30,6 +30,7 @@ import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import type { GameEvent } from './gameEvents';
 import { canUnitOccupyTerrain } from './movementSystem';
 import type { TextRef } from './i18n/i18n';
+import { isMageUnit } from './unitTraits';
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -259,7 +260,7 @@ export function castMagePortalPair(
   events?: GameEvent[],
 ): boolean {
   const caster = state.units[casterId];
-  if (!caster || caster.type !== UnitType.MAGE || caster.faction !== Faction.PLAYER) return false;
+  if (!caster || !isMageUnit(caster) || caster.faction !== Faction.PLAYER) return false;
 
   const id = generatePortalId();
   const portal: Portal = {

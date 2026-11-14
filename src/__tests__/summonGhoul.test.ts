@@ -174,7 +174,7 @@ describe('Summon Ghoul', () => {
   });
 
   it('targets only empty player Gravestones in normal Mage range and summons a ready Ghoul', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 4, y: 5 });
+    const mage = makeUnit(UnitType.NECROMANCER, { x: 4, y: 5 });
     const grave = makeGravestone({ x: 5, y: 5 });
     const enemyGrave = makeGravestone({ x: 6, y: 5 }, Faction.ENEMY);
     const occupiedGrave = makeGravestone({ x: 5, y: 6 });
@@ -209,7 +209,7 @@ describe('Summon Ghoul', () => {
   });
 
   it('applies active SUMMONED-source specialist tags to the new Ghoul', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 4, y: 5 });
+    const mage = makeUnit(UnitType.NECROMANCER, { x: 4, y: 5 });
     const grave = makeGravestone({ x: 5, y: 5 });
     const state = makeState([mage], [grave]);
     state.specialists = createInitialSpecialists();
@@ -225,7 +225,7 @@ describe('Summon Ghoul', () => {
   });
 
   it('prevents recasting on an occupied Gravestone and excludes non-player Gravestones', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 4, y: 5 });
+    const mage = makeUnit(UnitType.EMBER_CULTIST, { x: 4, y: 5 });
     const grave = makeGravestone({ x: 5, y: 5 }, Faction.ENEMY);
     const occupant = makeUnit(UnitType.GHOUL, grave.position);
     const state = makeState([mage, occupant], [grave]);
@@ -434,7 +434,7 @@ describe('Summon Ghoul', () => {
     );
     expect(afterBurst.units[burstVictim.id]).toBeUndefined();
 
-    const mage = makeUnit(UnitType.MAGE, { x: 3, y: 5 });
+    const mage = makeUnit(UnitType.EMBER_CULTIST, { x: 3, y: 5 });
     const sacrifice = makeUnit(UnitType.SPEARMAN, { x: 4, y: 5 });
     const explodeGhoul = makeUnit(UnitType.GHOUL, { x: 5, y: 4 }, Faction.PLAYER, [UnitTag.SUMMONED], {
       stats: { ...UNIT_DEFINITIONS.GHOUL, currentHp: 50 },

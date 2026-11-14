@@ -69,26 +69,34 @@ Bridgebuilders can build across a canyon tile from or to an existing bridge when
 
 ## Tech Trees
 
-The tech overlay has separate **Secular** and **Arcane** trees. **Conscription** roots the Secular tree; **Arcane Awakening** roots the Arcane tree and provides the Crystal Chamber, which can be built from the start. The Arcane tree has four entry paths: **Crystal Mage**, **Necromancer**, and **Ember Cultist** each unlock the Mage, Transpose, and Frostcraft; **Arcane Studies** opens research that improves every Mage. Arcane base research costs depend on depth below Arcane Awakening: 2 crystals at depth one, 4 at depth two, 7 at depth three, and 10 at depth four. Ember is added to these base costs.
+The tech overlay has separate **Secular** and **Arcane** trees. **Conscription** roots the Secular tree; **Arcane Awakening** roots the Arcane tree and provides the Crystal Chamber, which can be built from the start. The Arcane tree has four entry paths: **Crystal Mage**, **Necromancer**, and **Ember Cultist** each unlock their own Mage, Transpose, and Frostcraft; **Arcane Studies** opens research that improves every Mage. Arcane base research costs depend on depth below Arcane Awakening: 2 crystals at depth one, 4 at depth two, 7 at depth three, and 10 at depth four. Ember is added to these base costs.
 
 ## Magic System
 
-Mages can be recruited from an active **Crystal Chamber** building after researching any of the three Mage paths. Each Mage can cast one spell per turn (before or after moving, but not after attacking), and the **Archmage** specialist raises that per-turn budget to two casts.
+Mages can be recruited from an active **Crystal Chamber** building after researching their path. The three Mage units share stats and recruitment limits, but each can cast only the spells of its path plus the common spells. Each Mage can cast one spell per turn (before or after moving, but not after attacking), and the **Archmage** specialist raises that per-turn budget to two casts.
 
-Spells are unlocked individually through the tech tree. Available spells include:
+**Arcane Studies** gives every Mage an **Arcane Shield** of 20 points. It absorbs damage before Stone Skin and HP, and regenerates 10 points at the start of your turn while any Crystal Chamber resonates. Heals never restore it, and lava, drowning and sacrifice still kill a shielded Mage.
+
+| Mage | Common spells | Path spells |
+|------|---------------|-------------|
+| Crystal Mage | Transpose, Frostcraft, Rupture | Taunt, Stone Skin, Crystal Lightning, Crystal Cave, Portal, Crystal Tower |
+| Necromancer | Transpose, Frostcraft, Rupture | Raise Skeleton, Summon Ghoul, Grave Trap |
+| Ember Cultist | Transpose, Frostcraft, Rupture | Brandmark Heal, Emberbind, Corrupted Qork, Explode, Lava Mold |
+
+Spells are unlocked individually through the tech tree. The selected Mage's spell panel lists only spells it owns and has unlocked. Available spells include:
 
 | Spell | Effect |
 |-------|--------|
-| 🔄 Transpose | Swap the Mage with a friendly unit |
+| 🔄 Transpose | Swap two units of the same faction within range of the Mage |
 | 🔥 Emberbind | Destroy a nearby Ember Nest, summoning a leashed Ember Demon |
 | 🐗 Corrupted Qork | Summon a ready ranged, leashed creature on an empty corrupted tile; it loses HP off corruption and explodes on death |
 | 🩸 Brandmark | Fully heal a friendly unit; the healed unit gains the BRANDMARKED tag, cannot be healed by Patch Up, and loses HP each turn, spawning a hostile Ember Demon on death |
 | 💀 Raise Skeleton | Animate a Gravestone as a Skeleton unit |
 | 🧟 Summon Ghoul | Summon a Ghoul from an empty player Gravestone |
 | 🦠 Lava Mold | Infect an enemy unit; Infested units take damage at faction-turn end and spread infection when they die |
-| ❄️ Frostcraft | Freeze a water tile, making it passable |
-| ☠️ Grave Trap | Place a trap that stuns the next unit to enter |
-| 💥 Explode | Deal area damage around a target tile |
+| ❄️ Frostcraft | Freeze a Plains, Forest, Mountain or Water tile. Units that end movement on Frozen slide one more tile; sliding into water, a canyon or lava is fatal. Frozen Water carries your units, enemies cannot enter it, and the ice lasts until lava or another tile status replaces it. |
+| ☠️ Grave Trap | Turn an empty Gravestone into a trap that stuns the next enemy to enter and nearby enemies in its area. |
+| 💥 Explode | Sacrifice a player unit to deal damage based on its current HP to each adjacent enemy. Units that leave a Gravestone on death still leave one. |
 | 💎 Crystal Tower | Sacrifice the Mage to erect a permanent Crystal Tower on its tile |
 | 🌀 Portal | Create a permanent bidirectional portal pair on the same row; units of any faction can enter either endpoint |
 | 🎯 Taunt | Mark a friendly unit so hostile units must attack it whenever it is a legal target in range |

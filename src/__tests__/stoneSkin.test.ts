@@ -210,7 +210,7 @@ describe('Stone Skin tech and spell', () => {
   });
 
   it('allows self, summoned, flying, and other non-Mech player units, then grants 50 Stone HP', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 5 });
+    const mage = makeUnit(UnitType.CRYSTAL_MAGE, { x: 5, y: 5 });
     const summoned = makeUnit(UnitType.EMBER_DEMON, { x: 6, y: 5 }, Faction.PLAYER, [UnitTag.SUMMONED]);
     const flyer = makeUnit(UnitType.GARGOYLE, { x: 5, y: 6 });
     const khyron = makeUnit(UnitType.CRYSTAL_KHYRON, { x: 6, y: 6 });
@@ -227,7 +227,7 @@ describe('Stone Skin tech and spell', () => {
   });
 
   it('rejects recasting on a unit with Stone Skin and returns localized feedback', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 5 });
+    const mage = makeUnit(UnitType.CRYSTAL_MAGE, { x: 5, y: 5 });
     const target = stoneSkinUnit(UnitType.SPEARMAN, { x: 6, y: 5 });
     const state = makeState([mage, target]);
     const reason = explainInvalidSpellTarget(state, mage.id, SpellId.STONE_SKIN, target.position);
@@ -328,7 +328,7 @@ describe('Stone Skin movement and saves', () => {
   });
 
   it('allows Transpose and KNOCKBACK to reposition a Stone Skin unit', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 5 });
+    const mage = makeUnit(UnitType.CRYSTAL_MAGE, { x: 5, y: 5 });
     const stoneUnit = stoneSkinUnit(UnitType.SPEARMAN, { x: 6, y: 5 });
     const ally = makeUnit(UnitType.GUARD, { x: 5, y: 6 });
     let state = makeState([mage, stoneUnit, ally]);

@@ -203,7 +203,7 @@ function makeState({
 
 describe('explainInvalidSpellTarget', () => {
   it('returns the transpose second-pick faction mismatch reason', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 5 });
+    const mage = makeUnit(UnitType.CRYSTAL_MAGE, { x: 5, y: 5 });
     const first = makeUnit(UnitType.GUARD, { x: 6, y: 5 });
     const enemy = makeUnit(UnitType.ARCHER, { x: 7, y: 5 }, Faction.ENEMY);
     const state = makeState({
@@ -216,7 +216,7 @@ describe('explainInvalidSpellTarget', () => {
   });
 
   it('returns the already-brandmarked reason', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 5 });
+    const mage = makeUnit(UnitType.EMBER_CULTIST, { x: 5, y: 5 });
     const target = makeUnit(UnitType.GUARD, { x: 6, y: 5 }, Faction.PLAYER, [UnitTag.BRANDMARKED]);
     const state = makeState({ units: [mage, target] });
 
@@ -225,7 +225,7 @@ describe('explainInvalidSpellTarget', () => {
   });
 
   it('returns the summoned-brandmark exclusion reason', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 5 });
+    const mage = makeUnit(UnitType.EMBER_CULTIST, { x: 5, y: 5 });
     const target = makeUnit(UnitType.GUARD, { x: 6, y: 5 }, Faction.PLAYER, [UnitTag.SUMMONED]);
     const state = makeState({ units: [mage, target] });
 
@@ -234,7 +234,7 @@ describe('explainInvalidSpellTarget', () => {
   });
 
   it('returns the self-brandmark exclusion reason', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 5 });
+    const mage = makeUnit(UnitType.EMBER_CULTIST, { x: 5, y: 5 });
     const state = makeState({ units: [mage] });
 
     expect(t(explainInvalidSpellTarget(state, mage.id, SpellId.BRANDMARK_HEAL, mage.position)!))
@@ -242,8 +242,8 @@ describe('explainInvalidSpellTarget', () => {
   });
 
   it('returns the explode-mage exclusion reason', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 5 });
-    const otherMage = makeUnit(UnitType.MAGE, { x: 6, y: 5 });
+    const mage = makeUnit(UnitType.EMBER_CULTIST, { x: 5, y: 5 });
+    const otherMage = makeUnit(UnitType.NECROMANCER, { x: 6, y: 5 });
     const state = makeState({ units: [mage, otherMage] });
 
     expect(t(explainInvalidSpellTarget(state, mage.id, SpellId.EXPLODE, otherMage.position)!))
@@ -251,7 +251,7 @@ describe('explainInvalidSpellTarget', () => {
   });
 
   it('returns the frostcraft terrain reason', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 5 });
+    const mage = makeUnit(UnitType.CRYSTAL_MAGE, { x: 5, y: 5 });
     const state = makeState({ units: [mage] });
     state.grid[5][6].terrainType = TileType.CANYON;
 
@@ -260,7 +260,7 @@ describe('explainInvalidSpellTarget', () => {
   });
 
   it('returns Occupied for an occupied embernest', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 5 });
+    const mage = makeUnit(UnitType.EMBER_CULTIST, { x: 5, y: 5 });
     const occupant = makeUnit(UnitType.GUARD, { x: 6, y: 5 });
     const embernest = makeBuilding(BuildingType.EMBERNEST, { x: 6, y: 5 });
     const state = makeState({ units: [mage, occupant], buildings: [embernest] });
@@ -270,7 +270,7 @@ describe('explainInvalidSpellTarget', () => {
   });
 
   it('returns Occupied for an occupied gravestone', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 5 });
+    const mage = makeUnit(UnitType.NECROMANCER, { x: 5, y: 5 });
     const occupant = makeUnit(UnitType.GUARD, { x: 6, y: 5 });
     const gravestone = makeBuilding(BuildingType.GRAVESTONE, { x: 6, y: 5 });
     const state = makeState({ units: [mage, occupant], buildings: [gravestone] });
@@ -280,7 +280,7 @@ describe('explainInvalidSpellTarget', () => {
   });
 
   it('returns Occupied for Grave Trap on an occupied gravestone', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 5 });
+    const mage = makeUnit(UnitType.NECROMANCER, { x: 5, y: 5 });
     const occupant = makeUnit(UnitType.GUARD, { x: 6, y: 5 });
     const gravestone = makeBuilding(BuildingType.GRAVESTONE, { x: 6, y: 5 });
     const state = makeState({ units: [mage, occupant], buildings: [gravestone] });
@@ -290,7 +290,7 @@ describe('explainInvalidSpellTarget', () => {
   });
 
   it('excludes occupied gravestones from Grave Trap targets and rejects the cast', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 5 });
+    const mage = makeUnit(UnitType.NECROMANCER, { x: 5, y: 5 });
     const occupant = makeUnit(UnitType.GUARD, { x: 6, y: 5 });
     const occupiedGravestone = makeBuilding(BuildingType.GRAVESTONE, { x: 6, y: 5 });
     const emptyGravestone = makeBuilding(BuildingType.GRAVESTONE, { x: 5, y: 6 });
@@ -322,7 +322,7 @@ describe('explainInvalidSpellTarget', () => {
   });
 
   it('returns null for Frostcraft on an already-frozen tile', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 5 });
+    const mage = makeUnit(UnitType.CRYSTAL_MAGE, { x: 5, y: 5 });
     const state = makeState({ units: [mage] });
     state.grid[5][6].terrainType = TileType.WATER;
     state.grid[5][6].status = TileStatus.FROZEN;
@@ -332,7 +332,7 @@ describe('explainInvalidSpellTarget', () => {
   });
 
   it('returns null for an out-of-range Brandmark tap', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 5 });
+    const mage = makeUnit(UnitType.EMBER_CULTIST, { x: 5, y: 5 });
     const target = makeUnit(UnitType.GUARD, { x: 5, y: 12 });
     const state = makeState({ units: [mage, target] });
 
@@ -341,7 +341,7 @@ describe('explainInvalidSpellTarget', () => {
   });
 
   it('returns null for an occupied Crystal Cave mountain tile', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 5 });
+    const mage = makeUnit(UnitType.CRYSTAL_MAGE, { x: 5, y: 5 });
     const occupant = makeUnit(UnitType.GUARD, { x: 6, y: 5 });
     const state = makeState({ units: [mage, occupant] });
     state.grid[5][6].terrainType = TileType.MOUNTAIN;
@@ -351,7 +351,7 @@ describe('explainInvalidSpellTarget', () => {
   });
 
   it('returns null for a transpose first-pick empty tile', () => {
-    const mage = makeUnit(UnitType.MAGE, { x: 5, y: 5 });
+    const mage = makeUnit(UnitType.CRYSTAL_MAGE, { x: 5, y: 5 });
     const state = makeState({ units: [mage] });
 
     expect(explainInvalidSpellTarget(state, mage.id, SpellId.TRANSPOSE, { x: 6, y: 5 }))

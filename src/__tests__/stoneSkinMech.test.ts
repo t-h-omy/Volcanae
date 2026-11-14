@@ -29,7 +29,7 @@ function unit(id: string, type: UnitType, x: number, extraTags: UnitTag[] = []):
 
 function fixture(type: UnitType, tags: UnitTag[] = []): { state: GameState; mage: Unit; target: Unit } {
   const state = generateInitialGameState();
-  const mage = unit('mage', UnitType.MAGE, 5);
+  const mage = unit('mage', UnitType.CRYSTAL_MAGE, 5);
   const target = unit('target', type, 6, tags);
   state.units = { [mage.id]: mage, [target.id]: target };
   state.buildings = {};

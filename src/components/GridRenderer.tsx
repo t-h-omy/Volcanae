@@ -19,7 +19,7 @@ import { getStrongholdEffectiveCap } from '../techSystem';
 import { computeRecruitmentBuildingUsage, canBuildingEverRecruit, getEffectiveHousingPopulationCap } from '../resourceSystem';
 import { ANIMATION } from '../../config/animation';
 import { UI } from '../../config/ui';
-import { RENDER } from '../../config/render';
+import { MAGIC_PATH_COLORS, RENDER } from '../../config/render';
 import { INPUT } from '../../config/input';
 import { getUnitTargetLevel, usesNonXpProgression } from '../levelSystem';
 import { useZoomStore } from '../zoomStore';
@@ -41,9 +41,10 @@ import {
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
 import { createResonanceLightningPaths, getResonanceOverviewZoom } from '../resonanceVfx';
 import { nextTileCycleTarget, tileSelectionState } from '../tileCycleHelper';
-import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, getTauntBlockedAttackTargetKeys, explainInvalidAttackTarget, canUnitConstruct, canUnitCapture, getHealTargets, getBridgeBuildTargets, explainInvalidHealTarget, explainInvalidBridgeTarget, canUnitSetTrap, getTrapPlacementTargets, explainInvalidTrapTarget, isUnitDisplayExhausted } from '../unitActions';
-import { getValidSpellTargets, explainInvalidSpellTarget, getTransposeTerrainBlockedTargets, getLeashedUnitsForMage } from '../spellSystem';
+import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, getTauntBlockedAttackTargetKeys, explainInvalidAttackTarget, canUnitConstruct, canUnitCapture, getHealTargets, getBridgeBuildTargets, explainInvalidHealTarget, explainInvalidBridgeTarget, canUnitSetTrap, getTrapPlacementTargets, explainInvalidTrapTarget, isUnitDisplayExhausted, canUnitCast } from '../unitActions';
+import { getValidSpellTargets, explainInvalidSpellTarget, getTransposeTerrainBlockedTargets, getLeashedUnitsForMage, getMageCastBudget } from '../spellSystem';
 import { explainBlockedMagePortalEntry } from '../portalSystem';
+import { getMagePath, isMageUnit } from '../unitTraits';
 import './GridRenderer.css';
 
 // ============================================================================
@@ -77,6 +78,12 @@ function useTileSize(): number {
 function posKey(x: number, y: number): string {
   return `${x},${y}`;
 }
+
+const MAGIC_PATH_CSS_VARS = Object.fromEntries(
+  Object.entries(MAGIC_PATH_COLORS).flatMap(([path, colors]) =>
+    Object.entries(colors).map(([shade, value]) => [`--path-${path.toLowerCase()}-${shade}`, value]),
+  ),
+) as React.CSSProperties;
 
 /** Returns set of "x,y" keys for tiles that are attackable by the selected player unit.
  *  Includes tiles with enemy units and tiles with enemy buildings (no unit on the tile). */
@@ -150,6 +157,7 @@ export default function GridRenderer() {
   const pendingHealerId = useGameStore((s) => s.pendingHealerId);
   const cancelHealMode = useGameStore((s) => s.cancelHealMode);
   const pendingSpellCast = useGameStore((s) => s.pendingSpellCast);
+  const spellCasterPath = pendingSpellCast ? getMagePath(units[pendingSpellCast.mageId]) : null;
   const pendingTransposeFirstUnitId = useGameStore((s) => s.pendingTransposeFirstUnitId);
   const pendingMagePortalFirstPos = useGameStore((s) => s.pendingMagePortalFirstPos);
   const cancelSpellCast = useGameStore((s) => s.cancelSpellCast);
@@ -636,7 +644,7 @@ export default function GridRenderer() {
   const leashSet = useMemo<Set<string>>(() => {
     const set = new Set<string>();
     if (!selectedUnit) return set;
-    if (selectedUnit.type === UnitType.MAGE) {
+    if (isMageUnit(selectedUnit)) {
       for (const leashedUnit of getLeashedUnitsForMage(units, selectedUnit.id)) {
         set.add(posKey(leashedUnit.position.x, leashedUnit.position.y));
           set.add(posKey(selectedUnit.position.x, selectedUnit.position.y));
@@ -657,7 +665,7 @@ export default function GridRenderer() {
     if (!selectedUnit) return set;
     let mage: typeof selectedUnit | undefined;
     let leashedUnits: Unit[] = [];
-    if (selectedUnit.type === UnitType.MAGE) {
+    if (isMageUnit(selectedUnit)) {
       mage = selectedUnit;
       leashedUnits = getLeashedUnitsForMage(units, selectedUnit.id);
     } else if (selectedUnit.tags.includes(UnitTag.LEASHED) && selectedUnit.controllerMageId) {
@@ -1054,6 +1062,7 @@ export default function GridRenderer() {
         className="grid-container"
         ref={containerRef}
         style={{
+          ...MAGIC_PATH_CSS_VARS,
           width: gridWidth,
           height: gridHeight,
           gridTemplateColumns: `repeat(${MAP.GRID_WIDTH}, ${tileSize}px)`,
@@ -1063,6 +1072,7 @@ export default function GridRenderer() {
           // origin, matching the offset arithmetic used throughout this component.
           transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`,
           transformOrigin: '0 0',
+          ...(spellCasterPath ? { '--spell-target-color': MAGIC_PATH_COLORS[spellCasterPath].primary } : {}),
         }}
       >
         {grid.map((row, y) =>
@@ -1618,6 +1628,16 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
   const showUnitImg = typeof unitSpritePath === 'string' && unitSpritePath !== '' && !unitSpriteError;
 
   const currentTurn = useGameStore((s) => s.turn);
+  const selectedUnitId = useGameStore((s) => s.selectedUnitId);
+  const isSelectedMage = selectedUnitId === unit.id && isMageUnit(unit);
+  const mageCanCast = useGameStore((s) => {
+    const liveUnit = s.units[unit.id] ?? unit;
+    return isMageUnit(liveUnit) && canUnitCast(liveUnit, s);
+  });
+  const mageCastBudgetSpent = useGameStore((s) =>
+    isMageUnit(unit) && (unit.spellsCastThisTurn ?? 0) >= getMageCastBudget(s)
+  );
+  const magePath = getMagePath(unit);
   const isStunned = unit.pinnedUntilTurn >= currentTurn;
   const isOnCorruptedTile = useGameStore(
     (s) => s.grid[unit.position.y]?.[unit.position.x]?.status === TileStatus.CORRUPTED
@@ -1679,6 +1699,51 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
   const stoneSkinHp = unit.stoneSkinHp ?? 0;
   const hasStoneSkin = unit.tags.includes(UnitTag.STONE_SKIN) && stoneSkinHp > 0;
   const stoneSkinHpPct = Math.min(100, (stoneSkinHp / MAGE.STONE_SKIN_HP) * 100);
+  const arcaneShieldHp = unit.arcaneShieldHp ?? 0;
+  const hasArcaneShield = arcaneShieldHp > 0 && unit.faction === Faction.PLAYER;
+  const arcaneShieldRatio = Math.min(1, arcaneShieldHp / MAGE.ARCANE_SHIELD_MAX_HP);
+  const showArcaneShieldBar =
+    hasArcaneShield && (arcaneShieldHp < MAGE.ARCANE_SHIELD_MAX_HP || unit.stats.currentHp < unit.stats.maxHp || hasDebuff || hasStoneSkin);
+  const [shieldFx, setShieldFx] = useState<'absorb' | 'break' | 'recharge' | null>(null);
+  const [shieldWaveDelayMs, setShieldWaveDelayMs] = useState(0);
+  const prevShieldRef = useRef(arcaneShieldHp);
+  useEffect(() => {
+    const prev = prevShieldRef.current;
+    prevShieldRef.current = arcaneShieldHp;
+    if (prev === arcaneShieldHp) return;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    let delay = 0;
+    let fx: 'absorb' | 'break' | 'recharge';
+    if (arcaneShieldHp > prev) {
+      fx = 'recharge';
+      const holders = Object.values(useGameStore.getState().units)
+        .filter((u) => u.faction === Faction.PLAYER && (u.arcaneShieldHp ?? 0) > 0)
+        .map((u) => u.id)
+        .sort();
+      delay = Math.max(0, holders.indexOf(unit.id)) * ANIMATION.ARCANE_SHIELD_WAVE_STAGGER_MS;
+      const gained = arcaneShieldHp - prev;
+      const { x, y } = unit.position;
+      timers.push(setTimeout(() => {
+        useFloaterStore.getState().addFloater({
+          value: gained,
+          label: `🛡️ ${t('floater.arcaneShieldGain', { amount: gained })}`,
+          x,
+          y,
+          isEnemy: false,
+          floaterType: 'revive',
+        });
+      }, delay));
+    } else {
+      fx = arcaneShieldHp > 0 ? 'absorb' : 'break';
+    }
+    timers.push(setTimeout(() => {
+      setShieldWaveDelayMs(delay);
+      setShieldFx(fx);
+    }, 0));
+    timers.push(setTimeout(() => setShieldFx(null), delay + ANIMATION.ARCANE_SHIELD_FX_DURATION_MS));
+    return () => timers.forEach(clearTimeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [arcaneShieldHp]);
 
   const tagIcons = unit.tags
     .filter((tag) => tag !== UnitTag.CORRUPTION_BOUND || hasCorruptionBoundDebuff)
@@ -1687,7 +1752,17 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
 
   return (
     <div
-      className={['tile-unit', animClass, isEmberling && 'emberling-unit', hasStoneSkin && 'unit--stone-skin'].filter(Boolean).join(' ')}
+      className={[
+        'tile-unit',
+        animClass,
+        isEmberling && 'emberling-unit',
+        hasStoneSkin && 'unit--stone-skin',
+        hasArcaneShield && 'unit--arcane-shield',
+        shieldFx && `unit--shield-fx-${shieldFx}`,
+        magePath && `unit--mage-${magePath.toLowerCase()}`,
+        isSelectedMage && mageCanCast && 'unit--mage-cast-ready',
+        magePath && mageCastBudgetSpent && 'unit--mage-cast-spent',
+      ].filter(Boolean).join(' ')}
       style={
         {
           ...animStyle,
@@ -1709,10 +1784,33 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
           '--xpgain-anim-duration': `${ANIMATION.XP_GAIN_ANIM_DURATION_MS}ms`,
           '--crystal-activate-duration': `${ANIMATION.CRYSTAL_ACTIVATE_VFX_DURATION_MS}ms`,
           '--defect-flash-color': RENDER.COLORS.LAVA,
+          '--arcane-shield-color': MAGIC_PATH_COLORS.ARCANE.primary,
+          '--arcane-shield-glow': MAGIC_PATH_COLORS.ARCANE.glow,
+          '--arcane-shield-ratio': arcaneShieldRatio,
+          '--arcane-shield-fx-duration': `${ANIMATION.ARCANE_SHIELD_FX_DURATION_MS}ms`,
+          '--arcane-shield-fx-delay': `${shieldWaveDelayMs}ms`,
           '--unit-hp-text-font-size': `${UI.UNIT_HP_TEXT_FONT_SIZE_PX}px`,
         } as React.CSSProperties
       }
     >
+      {hasArcaneShield && <div className="arcane-shield-dome" aria-hidden="true" />}
+      {shieldFx && (
+        <div className={`arcane-shield-fx arcane-shield-fx--${shieldFx}`} aria-hidden="true">
+          {shieldFx === 'break' &&
+            Array.from({ length: ANIMATION.ARCANE_SHIELD_SHARD_COUNT }, (_, i) => (
+              <span
+                key={i}
+                className="arcane-shield-shard"
+                style={{ '--shard-angle': `${(360 / ANIMATION.ARCANE_SHIELD_SHARD_COUNT) * i}deg` } as React.CSSProperties}
+              />
+            ))}
+        </div>
+      )}
+      {showArcaneShieldBar && (
+        <div className="arcane-shield-hp-bar-wrapper" title={t('hud.unitPanel.arcaneShield', { current: arcaneShieldHp, max: MAGE.ARCANE_SHIELD_MAX_HP })}>
+          <div className="arcane-shield-hp-bar-fill" style={{ width: `${arcaneShieldRatio * 100}%` }} />
+        </div>
+      )}
       {(unit.stats.currentHp < unit.stats.maxHp || hasDebuff || hasStoneSkin) && (
         <>
           {hasStoneSkin && (
@@ -2153,6 +2251,7 @@ interface LeashPair {
   demonPos: { x: number; y: number };
   warn: boolean;
   burst?: boolean;
+  tone?: ReturnType<typeof getMagePath>;
 }
 
 /** Renders a single leash SVG path group. Shared by selection-based and burst-VFX pairs. */
@@ -2180,7 +2279,9 @@ function LeashPathGroup({ pair, tileSize, index, filterId }: {
   const cp2y = my + (ly * 2) / 3 - py;
 
   const d = `M ${mx},${my} C ${cp1x},${cp1y} ${cp2x},${cp2y} ${dx},${dy}`;
-  const color = pair.warn || pair.burst ? '#ff3333' : '#ff8800';
+  const pathColors = pair.tone ? MAGIC_PATH_COLORS[pair.tone] : MAGIC_PATH_COLORS.EMBER;
+  const color = pair.warn || pair.burst ? RENDER.COLORS.LEASH_WARN : pathColors.primary;
+  const glowColor = pair.warn || pair.burst ? RENDER.COLORS.LEASH_WARN : pathColors.glow;
   let dashClass = 'leash-line-dash';
   if (pair.warn) dashClass += ' leash-line-warn-wiggle';
   else if (pair.burst) dashClass += ' leash-line-burst';
@@ -2190,7 +2291,7 @@ function LeashPathGroup({ pair, tileSize, index, filterId }: {
       {/* glow backdrop */}
       <path
         d={d}
-        stroke={color}
+        stroke={glowColor}
         strokeWidth={pair.burst ? 14 : 8}
         fill="none"
         strokeLinecap="round"
@@ -2230,7 +2331,7 @@ function LeashLineLayer({ tileSize }: { tileSize: number }) {
     let mage: typeof selectedUnit | undefined;
     let leashedUnits: (typeof selectedUnit)[] = [];
 
-    if (selectedUnit.type === UnitType.MAGE) {
+    if (isMageUnit(selectedUnit)) {
       mage = selectedUnit;
       leashedUnits = getLeashedUnitsForMage(units, selectedUnit.id);
     } else if (selectedUnit.tags.includes(UnitTag.LEASHED) && selectedUnit.controllerMageId) {
@@ -2245,7 +2346,7 @@ function LeashLineLayer({ tileSize }: { tileSize: number }) {
         leashedUnit.position.x, leashedUnit.position.y,
         mage.stats.attackRange,
       );
-      result.push({ magePos: mage.position, demonPos: leashedUnit.position, warn: !inRange });
+      result.push({ magePos: mage.position, demonPos: leashedUnit.position, warn: !inRange, tone: getMagePath(mage) });
     }
     return result;
   }, [selectedUnit, units]);
@@ -2255,8 +2356,14 @@ function LeashLineLayer({ tileSize }: { tileSize: number }) {
     const selKeys = new Set(selectionPairs.map((p) => `${p.demonPos.x},${p.demonPos.y}`));
     return burstPairs
       .filter((bp) => !selKeys.has(`${bp.demonPos.x},${bp.demonPos.y}`))
-      .map((bp) => ({ magePos: bp.magePos, demonPos: bp.demonPos, warn: false, burst: true }));
-  }, [burstPairs, selectionPairs]);
+      .map((bp) => ({
+        magePos: bp.magePos,
+        demonPos: bp.demonPos,
+        warn: false,
+        burst: true,
+        tone: units[bp.mageId] ? getMagePath(units[bp.mageId]) : null,
+      }));
+  }, [burstPairs, selectionPairs, units]);
 
   if (selectionPairs.length === 0 && effectiveBurstPairs.length === 0) return null;
 
@@ -2561,16 +2668,25 @@ function CleaveVfxLayer({ tileSize }: { tileSize: number }) {
 function TileVfxLayer({ tileSize }: { tileSize: number }) {
   const tileVfx = useCombatAnimationStore((s) => s.tileVfx);
   const removeTileVfx = useCombatAnimationStore((s) => s.removeTileVfx);
+  const grid = useGameStore((s) => s.grid);
+
+  useEffect(() => {
+    for (const vfx of tileVfx) {
+      if (!grid[vfx.y]?.[vfx.x]?.isRevealed) removeTileVfx(vfx.id);
+    }
+  }, [tileVfx, grid, removeTileVfx]);
+
   return (
     <div className="tile-vfx-layer">
-      {tileVfx.map((vfx: TileVfx) => {
+      {tileVfx.filter((vfx) => grid[vfx.y]?.[vfx.x]?.isRevealed).map((vfx: TileVfx) => {
         const isQorkDeathBurst = vfx.variant === 'QORK_DEATH_BURST';
         const footprintSize = isQorkDeathBurst ? tileSize * 3 : tileSize;
         const footprintOffset = isQorkDeathBurst ? tileSize : 0;
+        const toneClass = vfx.tone ? ` tile-vfx--tone-${vfx.tone.toLowerCase()}` : '';
         return (
           <div
             key={vfx.id}
-            className={`tile-vfx tile-vfx--${vfx.variant.toLowerCase().replace(/_/g, '-')}`}
+            className={`tile-vfx tile-vfx--${vfx.variant.toLowerCase().replace(/_/g, '-')}${toneClass}`}
             style={{
               left: vfx.x * tileSize - footprintOffset,
               top: vfx.y * tileSize - footprintOffset,
@@ -2602,6 +2718,7 @@ function LineVfxLayer({ tileSize }: { tileSize: number }) {
       style={{ width: MAP.GRID_WIDTH * tileSize, height: MAP.GRID_HEIGHT * tileSize }}
     >
       {lineVfx.map((vfx: LineVfx) => {
+        const toneClass = vfx.tone ? ` line-vfx--tone-${vfx.tone.toLowerCase()}` : '';
         const style = {
           '--line-vfx-duration': `${vfx.durationMs}ms`,
           '--line-vfx-delay': `${vfx.delayMs ?? 0}ms`,
@@ -2615,20 +2732,20 @@ function LineVfxLayer({ tileSize }: { tileSize: number }) {
           return (
             <g key={vfx.id} style={style}>
               <path
-                className="line-vfx line-vfx--resonance-wave"
+                className={`line-vfx line-vfx--resonance-wave${toneClass}`}
                 d={mainPath}
                 pathLength={1}
                 onAnimationEnd={() => removeLineVfx(vfx.id)}
               />
               <path
-                className="line-vfx line-vfx--resonance-core"
+                className={`line-vfx line-vfx--resonance-core${toneClass}`}
                 d={mainPath}
                 pathLength={1}
               />
               {branchPaths.map((path, index) => (
                 <path
                   key={`${vfx.id}-fork-${index}`}
-                  className="line-vfx line-vfx--resonance-branch"
+                  className={`line-vfx line-vfx--resonance-branch${toneClass}`}
                   d={path}
                   pathLength={1}
                 />
@@ -2639,7 +2756,7 @@ function LineVfxLayer({ tileSize }: { tileSize: number }) {
         return (
           <line
             key={vfx.id}
-            className={`line-vfx line-vfx--${vfx.variant.toLowerCase().replace(/_/g, '-')}`}
+            className={`line-vfx line-vfx--${vfx.variant.toLowerCase().replace(/_/g, '-')}${toneClass}`}
             x1={vfx.fromPx.x}
             y1={vfx.fromPx.y}
             x2={vfx.toPx.x}

@@ -3336,6 +3336,28 @@
   padding: 6px 8px;
 }
 
+.hud-root { display: contents; }
+
+.hud-spell-panel--crystal { --hud-mage-primary: var(--path-crystal-primary); --hud-mage-glow: var(--path-crystal-glow); }
+.hud-spell-panel--necro { --hud-mage-primary: var(--path-necro-primary); --hud-mage-glow: var(--path-necro-glow); }
+.hud-spell-panel--ember { --hud-mage-primary: var(--path-ember-primary); --hud-mage-glow: var(--path-ember-glow); }
+.hud-spell-panel[class*="hud-spell-panel--"] {
+  border-color: color-mix(in srgb, var(--hud-mage-primary) 72%, transparent);
+  box-shadow: 0 0 9px color-mix(in srgb, var(--hud-mage-glow) 28%, transparent);
+}
+.hud-spell-panel[class*="hud-spell-panel--"] .hud-panel-header {
+  border-left: 3px solid var(--hud-mage-primary);
+  padding-left: 6px;
+}
+.hud-spell-panel[class*="hud-spell-panel--"] .hud-spell-btn {
+  border-color: color-mix(in srgb, var(--hud-mage-primary) 78%, transparent);
+  box-shadow: 0 0 5px color-mix(in srgb, var(--hud-mage-glow) 24%, transparent);
+}
+
+.info-row-btn--mage-crystal { border-left: 4px solid var(--path-crystal-primary); }
+.info-row-btn--mage-necro { border-left: 4px solid var(--path-necro-primary); }
+.info-row-btn--mage-ember { border-left: 4px solid var(--path-ember-primary); }
+
 .hud-spell-options {
   display: flex;
   flex-wrap: wrap;

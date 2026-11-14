@@ -282,7 +282,7 @@ describe('display-only unit eligibility', () => {
     expect(canUnitPreviewConstruction(unit, state)).toBe(true);
   });
 
-  it.each([UnitType.SCOUT, UnitType.SIEGE, UnitType.MAGE, UnitType.RIDER])(
+  it.each([UnitType.SCOUT, UnitType.SIEGE, UnitType.CRYSTAL_MAGE, UnitType.RIDER])(
     'does not preview %s without a current tag or future grant', (type) => {
       const unit = makeUnit(type, { tags: [] });
       expect(canUnitPreviewConstruction(unit, makeState({}, unit))).toBe(false);
