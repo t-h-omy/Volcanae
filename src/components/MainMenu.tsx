@@ -6,6 +6,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useMenuStore } from '../menuStore';
+import { useBackDismiss } from '../useBackDismiss';
 import { useGameStore } from '../gameStore';
 import { useSoundOptionsStore } from '../soundOptionsStore';
 import { useHintOptionsStore } from '../hintOptionsStore';
@@ -880,12 +881,15 @@ export default function MainMenu({
   promptInstall: () => void;
 }) {
   const panel = useMenuStore((s) => s.panel);
+  const goPanel = useMenuStore((s) => s.goPanel);
   const navDir = useMenuStore((s) => s.navDir);
   const { t } = useText();
   const [hasSave, setHasSave] = useState(false);
   const [newestSlot, setNewestSlot] = useState<SaveSlotMeta | null>(null);
   const noIdb = !idbAvailable();
   const menuBgSrc = getBaseAssetUrl('assets/menu_bg.png');
+
+  useBackDismiss(() => goPanel('ROOT', 'back'), panel !== 'ROOT');
 
   // Play menu music.
   useMenuMusic();

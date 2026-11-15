@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.123.0 - Back gesture closes overlays
+
+The Android back gesture and browser back close the topmost open popup, panel, or menu page, while forced-choice overlays consume the gesture without action.
+
 ### v0.122.1 - Tech tree redesign
 
 Redesigned the tech tree with an opaque basalt background and lava glow, main-menu-style glass controls, a bottom dock with large tabs and a close button, polished nodes and curved edges, and subtle ambient effects.

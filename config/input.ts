@@ -9,4 +9,8 @@ export const INPUT = {
   SWIPE_FRICTION: 0.95,
   /** Minimum velocity (px/ms) below which inertia stops */
   SWIPE_MIN_VELOCITY: 0.01,
+  /** Delay before syncing the back guard, batching overlay registration churn */
+  BACK_GUARD_SYNC_DELAY_MS: 0,
+  /** history.state key marking the back guard entry */
+  BACK_GUARD_STATE_KEY: 'volcanaeBackGuard',
 } as const;

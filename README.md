@@ -59,6 +59,8 @@ The app is configured as a Progressive Web App with:
 - Background color: #000000 (black)
 - Service worker with generateSW strategy for offline support
 
+The Android back gesture and browser back close the topmost popup, panel, or menu page; forced choices ignore it.
+
 ## Scout Traps
 
 Scouts granted **Set Trap** by the Trapsmith specialist may move and then place a trap in the same turn. Setting a trap spends their action and prevents further movement. Trap selection highlights legal placement tiles in gold, including the Scout's own tile when valid, instead of showing movement previews. Triggering enemies take damage immediately on arrival; surviving non-Alert ground units are stunned and the trap is consumed.

@@ -6,6 +6,7 @@
 
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
+import { useBackDismiss } from '../useBackDismiss';
 import { useGameStore } from '../gameStore';
 import { useMenuStore } from '../menuStore';
 import { useAnimationStore } from '../animationStore';
@@ -345,6 +346,8 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
     }
   }, []);
 
+  useBackDismiss(onClose);
+
   return createPortal(
     <>
       <div className="hud-dev-overlay-backdrop" onClick={onClose}>
@@ -560,6 +563,8 @@ function DevStatsOverlay({ onClose }: { onClose: () => void }) {
     ...spawnBudgetRows,
   ];
 
+  useBackDismiss(onClose);
+
   return (
     <div className="hud-dev-overlay-backdrop" onClick={onClose}>
       <div className="hud-dev-overlay" onClick={(e) => e.stopPropagation()}>
@@ -601,6 +606,8 @@ function DevSpecPickerOverlay({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
+
+  useBackDismiss(onClose);
 
   return (
     <div className="hud-dev-overlay-backdrop" onClick={onClose}>
@@ -658,6 +665,8 @@ function DifficultyOverlay({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
+
+  useBackDismiss(onClose);
 
   return (
     <div className="hud-dev-overlay-backdrop" onClick={onClose}>
@@ -743,6 +752,8 @@ function OptionsOverlay({ onClose }: { onClose: () => void }) {
     setResetDone(true);
     setTimeout(() => setResetDone(false), 1500);
   }, [resetShowCounts]);
+
+  useBackDismiss(onClose);
 
   return createPortal(
     <div className="hud-dev-overlay-backdrop" onClick={onClose}>
@@ -912,6 +923,8 @@ function GameMenu() {
     setDifficultyOverlayOpen(false);
   }, [initNewGame]);
 
+  useBackDismiss(() => setOpen(false), open);
+
   // Close menu on Escape key
   useEffect(() => {
     if (!open) return;
@@ -1027,6 +1040,8 @@ function HintBanner() {
   const expanded = useHintStore((s) => s.expanded);
   const dismissActive = useHintStore((s) => s.dismissActive);
   const toggleExpanded = useHintStore((s) => s.toggleExpanded);
+
+  useBackDismiss(dismissActive, activeHintId !== null);
 
   if (!activeHintId) return null;
 
@@ -1197,6 +1212,8 @@ const POPUP_CLICK_GUARD_MS = 200;
 
 /** Reusable popup shell — backdrop + centered card, dismisses on outside tap */
 function Popup({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
+  useBackDismiss(onClose);
+
   // Capture mount time so we can ignore phantom clicks fired by the opening tap.
   // Popup is always unmounted/remounted when its parent conditionally renders it,
   // so useRef(Date.now()) reliably records the actual mount timestamp.
@@ -1718,6 +1735,8 @@ function BuildingInfoPopup({
 
 /* eslint-disable no-restricted-syntax */
 function AiScoreModal({ scores, onClose }: { scores: ScoredAction[]; onClose: () => void }) {
+  useBackDismiss(onClose);
+
   return (
     <div className="hud-modal-backdrop" onClick={onClose}>
       <div className="hud-modal hud-ai-score-modal" onClick={(e) => e.stopPropagation()}>
@@ -1752,6 +1771,8 @@ function RecruitScoreModal({
   scores: { type: UnitType; score: number }[];
   onClose: () => void;
 }) {
+  useBackDismiss(onClose);
+
   return (
     <div className="hud-modal-backdrop" onClick={onClose}>
       <div className="hud-modal hud-ai-score-modal" onClick={(e) => e.stopPropagation()}>
@@ -3915,6 +3936,8 @@ function GameOverOverlay() {
     await downloadSaveExport(activeSaveId);
   }, [activeSaveId]);
 
+  useBackDismiss(null);
+
   return (
     <div className="hud-overlay">
       <div className="hud-overlay-box">
@@ -3964,6 +3987,8 @@ function VictoryOverlay() {
     await downloadSaveExport(activeSaveId);
   }, [activeSaveId]);
 
+  useBackDismiss(null);
+
   return (
     <div className="hud-overlay">
       <div className="hud-overlay-box">
@@ -3995,6 +4020,8 @@ function VictoryOverlay() {
 
 function GameIntroPopup({ onDismiss }: { onDismiss: () => void }) {
   const { t, buildingName } = useText();
+  useBackDismiss(onDismiss);
+
   return (
     <div className="hud-intro-overlay">
       <div className="hud-intro-card">
@@ -4022,6 +4049,8 @@ function ZoneClearedPopup() {
   const zone = useZoneClearedStore((s) => s.zone);
   const dismiss = useZoneClearedStore((s) => s.dismiss);
 
+  useBackDismiss(dismiss, active);
+
   if (!active) return null;
 
   return (
@@ -4046,6 +4075,8 @@ function CaveScreamsPopup() {
   const tilePos = useCaveScreamsStore((s) => s.tilePos);
   const sealCave = useGameStore((s) => s.sealCave);
   const exploreCave = useGameStore((s) => s.exploreCave);
+
+  useBackDismiss(null, tilePos !== null);
 
   if (!tilePos) return null;
 
@@ -4161,6 +4192,11 @@ function MarketPanel() {
   const specialists = useGameStore((s) => s.specialists);
   const buildings = useGameStore((s) => s.buildings);
   const units = useGameStore((s) => s.units);
+
+  useBackDismiss(
+    pendingSpecialistSlot !== null ? cancelSpecialistSwap : closeMarket,
+    open,
+  );
 
   if (!open || !marketId || !unitId) return null;
   const market = buildings[marketId];
@@ -4350,6 +4386,11 @@ function CaveMonsterKillModal() {
   const closeExhausted = useSpecialistHireStore((s) => s.closeExhausted);
   const specialists = useGameStore((s) => s.specialists);
   const globalSpecialistStorage = useGameStore((s) => s.globalSpecialistStorage);
+
+  useBackDismiss(
+    mode === 'exhausted' ? closeExhausted : null,
+    mode !== null,
+  );
 
   // ID of the current specialist whose info popup is open (swap view only)
   const [infoSpecId, setInfoSpecId] = useState<string | null>(null);
@@ -4631,6 +4672,8 @@ function TechTreeOverlay({
     }
     setClosing(true);
   }, [onClose]);
+
+  useBackDismiss(selectedId ? () => setSelectedId(null) : requestClose, !closing);
 
   useEffect(() => {
     if (!closing) return;
