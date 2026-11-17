@@ -53,7 +53,7 @@ export const TERRAIN = {
    * Keys are zone numbers (1–5). Missing keys fall back to FORESTS_PER_ZONE_MIN/MAX.
    * Example: { 1: { min: 1, max: 2 }, 3: { min: 3, max: 5 } }
    */
-  FORESTS_PER_ZONE_OVERRIDES: { 1: { min: 3, max: 3 }, 4: { min: 3, max: 3 }  } as Record<number, { min: number; max: number }>,
+  FORESTS_PER_ZONE_OVERRIDES: { 1: { min: 3, max: 3 }, 3:{ min: 2, max:2 }  } as Record<number, { min: number; max: number }>,
   /** Minimum number of mountain tiles placed per zone (used if no zone-specific override is set) */
   MOUNTAINS_PER_ZONE_MIN: 2,
   /** Maximum number of mountain tiles placed per zone (used if no zone-specific override is set) */
@@ -63,7 +63,7 @@ export const TERRAIN = {
    * Keys are zone numbers (1–5). Missing keys fall back to MOUNTAINS_PER_ZONE_MIN/MAX.
    * Example: { 1: { min: 1, max: 2 }, 3: { min: 3, max: 5 } }
    */
-  MOUNTAINS_PER_ZONE_OVERRIDES: {} as Record<number, { min: number; max: number }>,
+  MOUNTAINS_PER_ZONE_OVERRIDES: {1: { min: 3, max: 3 }} as Record<number, { min: number; max: number }>,
   /** Minimum number of ruin tiles placed per zone (used if no zone-specific override is set) */
   RUINS_PER_ZONE_MIN: 7,
   /** Maximum number of ruin tiles placed per zone (used if no zone-specific override is set) */
@@ -73,9 +73,9 @@ export const TERRAIN = {
    * Keys are zone numbers (1–5). Missing keys fall back to RUINS_PER_ZONE_MIN/MAX.
    * Example: { 1: { min: 4, max: 5 }, 5: { min: 10, max: 12 } }
    */
-  RUINS_PER_ZONE_OVERRIDES: { 1: { min: 6, max: 6 }, 2: {min: 7, max: 7} } as Record<number, { min: number; max: number }>,
+  RUINS_PER_ZONE_OVERRIDES: { 1: { min: 6, max: 6 }, 2: {min: 8, max: 8} } as Record<number, { min: number; max: number }>,
   /** Minimum number of ruin tiles placed in the lava buffer rows */
-  RUINS_IN_LAVA_BUFFER_MIN: 3,
+  RUINS_IN_LAVA_BUFFER_MIN: 4,
   /** Maximum number of ruin tiles placed in the lava buffer rows */
   RUINS_IN_LAVA_BUFFER_MAX: 4,
   /**
