@@ -6,6 +6,7 @@
 
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
+import { BACK_PRIORITY } from '../backNavigation';
 import { useBackDismiss } from '../useBackDismiss';
 import { useGameStore } from '../gameStore';
 import { useMenuStore } from '../menuStore';
@@ -314,6 +315,11 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
     if (traceMenuOpen) void refreshTraceState();
   }, [refreshTraceState, turn, traceMenuOpen]);
 
+  const handleDevOptionsBack = useCallback(() => {
+    if (traceMenuOpen) setTraceMenuOpen(false);
+    else onClose();
+  }, [onClose, traceMenuOpen]);
+
   const handleClearCurrentTrace = useCallback(async () => {
     if (!activeSaveId) return;
     if (!window.confirm('Clear the AI trace for this save?')) return;
@@ -346,7 +352,7 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
     }
   }, []);
 
-  useBackDismiss(onClose);
+  useBackDismiss(handleDevOptionsBack, BACK_PRIORITY.DEV_OVERLAY);
 
   return createPortal(
     <>
@@ -563,7 +569,7 @@ function DevStatsOverlay({ onClose }: { onClose: () => void }) {
     ...spawnBudgetRows,
   ];
 
-  useBackDismiss(onClose);
+  useBackDismiss(onClose, BACK_PRIORITY.DEV_OVERLAY);
 
   return (
     <div className="hud-dev-overlay-backdrop" onClick={onClose}>
@@ -607,7 +613,7 @@ function DevSpecPickerOverlay({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  useBackDismiss(onClose);
+  useBackDismiss(onClose, BACK_PRIORITY.SPECIALIST_PICKER);
 
   return (
     <div className="hud-dev-overlay-backdrop" onClick={onClose}>
@@ -666,7 +672,7 @@ function DifficultyOverlay({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  useBackDismiss(onClose);
+  useBackDismiss(onClose, BACK_PRIORITY.DEV_OVERLAY);
 
   return (
     <div className="hud-dev-overlay-backdrop" onClick={onClose}>
@@ -753,7 +759,7 @@ function OptionsOverlay({ onClose }: { onClose: () => void }) {
     setTimeout(() => setResetDone(false), 1500);
   }, [resetShowCounts]);
 
-  useBackDismiss(onClose);
+  useBackDismiss(onClose, BACK_PRIORITY.DEV_OVERLAY);
 
   return createPortal(
     <div className="hud-dev-overlay-backdrop" onClick={onClose}>
@@ -923,7 +929,7 @@ function GameMenu() {
     setDifficultyOverlayOpen(false);
   }, [initNewGame]);
 
-  useBackDismiss(() => setOpen(false), open);
+  useBackDismiss(() => setOpen(false), BACK_PRIORITY.GAME_MENU, open);
 
   // Close menu on Escape key
   useEffect(() => {
@@ -1041,7 +1047,7 @@ function HintBanner() {
   const dismissActive = useHintStore((s) => s.dismissActive);
   const toggleExpanded = useHintStore((s) => s.toggleExpanded);
 
-  useBackDismiss(dismissActive, activeHintId !== null);
+  useBackDismiss(dismissActive, BACK_PRIORITY.HINT_BANNER, activeHintId !== null);
 
   if (!activeHintId) return null;
 
@@ -1212,7 +1218,7 @@ const POPUP_CLICK_GUARD_MS = 200;
 
 /** Reusable popup shell — backdrop + centered card, dismisses on outside tap */
 function Popup({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
-  useBackDismiss(onClose);
+  useBackDismiss(onClose, BACK_PRIORITY.INFO_POPUP);
 
   // Capture mount time so we can ignore phantom clicks fired by the opening tap.
   // Popup is always unmounted/remounted when its parent conditionally renders it,
@@ -1735,7 +1741,7 @@ function BuildingInfoPopup({
 
 /* eslint-disable no-restricted-syntax */
 function AiScoreModal({ scores, onClose }: { scores: ScoredAction[]; onClose: () => void }) {
-  useBackDismiss(onClose);
+  useBackDismiss(onClose, BACK_PRIORITY.HUD_MODAL);
 
   return (
     <div className="hud-modal-backdrop" onClick={onClose}>
@@ -1771,7 +1777,7 @@ function RecruitScoreModal({
   scores: { type: UnitType; score: number }[];
   onClose: () => void;
 }) {
-  useBackDismiss(onClose);
+  useBackDismiss(onClose, BACK_PRIORITY.HUD_MODAL);
 
   return (
     <div className="hud-modal-backdrop" onClick={onClose}>
@@ -3936,7 +3942,7 @@ function GameOverOverlay() {
     await downloadSaveExport(activeSaveId);
   }, [activeSaveId]);
 
-  useBackDismiss(null);
+  useBackDismiss(null, BACK_PRIORITY.END_GAME);
 
   return (
     <div className="hud-overlay">
@@ -3987,7 +3993,7 @@ function VictoryOverlay() {
     await downloadSaveExport(activeSaveId);
   }, [activeSaveId]);
 
-  useBackDismiss(null);
+  useBackDismiss(null, BACK_PRIORITY.END_GAME);
 
   return (
     <div className="hud-overlay">
@@ -4020,7 +4026,7 @@ function VictoryOverlay() {
 
 function GameIntroPopup({ onDismiss }: { onDismiss: () => void }) {
   const { t, buildingName } = useText();
-  useBackDismiss(onDismiss);
+  useBackDismiss(onDismiss, BACK_PRIORITY.GAME_INTRO);
 
   return (
     <div className="hud-intro-overlay">
@@ -4049,7 +4055,7 @@ function ZoneClearedPopup() {
   const zone = useZoneClearedStore((s) => s.zone);
   const dismiss = useZoneClearedStore((s) => s.dismiss);
 
-  useBackDismiss(dismiss, active);
+  useBackDismiss(dismiss, BACK_PRIORITY.ZONE_POPUP, active);
 
   if (!active) return null;
 
@@ -4076,7 +4082,7 @@ function CaveScreamsPopup() {
   const sealCave = useGameStore((s) => s.sealCave);
   const exploreCave = useGameStore((s) => s.exploreCave);
 
-  useBackDismiss(null, tilePos !== null);
+  useBackDismiss(null, BACK_PRIORITY.CAVE_POPUP, tilePos !== null);
 
   if (!tilePos) return null;
 
@@ -4195,6 +4201,7 @@ function MarketPanel() {
 
   useBackDismiss(
     pendingSpecialistSlot !== null ? cancelSpecialistSwap : closeMarket,
+    BACK_PRIORITY.MARKET_PANEL,
     open,
   );
 
@@ -4389,6 +4396,7 @@ function CaveMonsterKillModal() {
 
   useBackDismiss(
     mode === 'exhausted' ? closeExhausted : null,
+    BACK_PRIORITY.CAVE_MONSTER_MODAL,
     mode !== null,
   );
 
@@ -4673,7 +4681,7 @@ function TechTreeOverlay({
     setClosing(true);
   }, [onClose]);
 
-  useBackDismiss(selectedId ? () => setSelectedId(null) : requestClose, !closing);
+  useBackDismiss(selectedId ? () => setSelectedId(null) : requestClose, BACK_PRIORITY.TECH_TREE, !closing);
 
   useEffect(() => {
     if (!closing) return;

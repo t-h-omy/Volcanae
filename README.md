@@ -59,7 +59,7 @@ The app is configured as a Progressive Web App with:
 - Background color: #000000 (black)
 - Service worker with generateSW strategy for offline support
 
-The Android back gesture and browser back close the topmost popup, panel, or menu page; forced choices ignore it.
+The Android back gesture and browser Back close the visually topmost popup, panel, or menu page. Within a multi-page overlay, Back returns to the parent page before closing the overlay. Forced-choice overlays consume Back without action.
 
 ## Scout Traps
 

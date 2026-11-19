@@ -7,6 +7,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useMenuStore } from '../menuStore';
 import { useBackDismiss } from '../useBackDismiss';
+import { BACK_PRIORITY } from '../backNavigation';
 import { useGameStore } from '../gameStore';
 import { useSoundOptionsStore } from '../soundOptionsStore';
 import { useHintOptionsStore } from '../hintOptionsStore';
@@ -889,7 +890,7 @@ export default function MainMenu({
   const noIdb = !idbAvailable();
   const menuBgSrc = getBaseAssetUrl('assets/menu_bg.png');
 
-  useBackDismiss(() => goPanel('ROOT', 'back'), panel !== 'ROOT');
+  useBackDismiss(() => goPanel('ROOT', 'back'), BACK_PRIORITY.MAIN_MENU, panel !== 'ROOT');
 
   // Play menu music.
   useMenuMusic();

@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.123.1 - Back navigation fixes
+
+Back now follows the visible overlay stack, reconciles history guards after reload and Forward navigation, and returns from the AI Trace subpage to Dev Options before closing the overlay.
+
 ### v0.123.0 - Back gesture closes overlays
 
 The Android back gesture and browser back close the topmost open popup, panel, or menu page, while forced-choice overlays consume the gesture without action.
