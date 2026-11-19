@@ -44,4 +44,12 @@ describe('AI trace UI contracts', () => {
     expect(devOptions).toContain('if (traceMenuOpen) setTraceMenuOpen(false)');
     expect(devOptions).toContain('if (traceMenuOpen) void refreshTraceState()');
   });
+
+  it('returns to Dev Options before closing the overlay on Back from AI Trace', () => {
+    expect(devOptions).toContain(`const handleDevOptionsBack = useCallback(() => {
+    if (traceMenuOpen) setTraceMenuOpen(false);
+    else onClose();
+  }, [onClose, traceMenuOpen]);`);
+    expect(devOptions).toContain('useBackDismiss(handleDevOptionsBack, BACK_PRIORITY.DEV_OVERLAY)');
+  });
 });

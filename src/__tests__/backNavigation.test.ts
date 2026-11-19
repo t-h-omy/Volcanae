@@ -2,6 +2,7 @@ import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import HUD_TSX from '../components/HUD.tsx?raw';
 import MAIN_MENU_TSX from '../components/MainMenu.tsx?raw';
 import {
+  BACK_PRIORITY,
   __resetBackNavigationForTests,
   getBackNavigationState,
   registerBackEntry,
@@ -14,10 +15,18 @@ function createFakeAdapter() {
   const tasks: Array<() => void> = [];
   let onPop: (() => void) | null = null;
   const calls = { pushGuard: 0, back: 0 };
+  const historyStack = [false];
+  let historyIndex = 0;
 
   const adapter: BackHistoryAdapter = {
-    pushGuard: () => { calls.pushGuard += 1; },
+    pushGuard: () => {
+      calls.pushGuard += 1;
+      historyStack.splice(historyIndex + 1);
+      historyStack.push(true);
+      historyIndex += 1;
+    },
     back: () => { calls.back += 1; },
+    isGuardActive: () => historyStack[historyIndex] ?? false,
     listen: (listener) => {
       onPop = listener;
       return () => { onPop = null; };
@@ -33,8 +42,15 @@ function createFakeAdapter() {
     },
     pop() {
       if (!onPop) throw new Error('Back pop listener is not registered');
+      if (historyIndex > 0) historyIndex -= 1;
       onPop();
     },
+    forward() {
+      if (!onPop) throw new Error('Back pop listener is not registered');
+      if (historyIndex < historyStack.length - 1) historyIndex += 1;
+      onPop();
+    },
+    historyLength: () => historyStack.length,
   };
 }
 
@@ -51,7 +67,7 @@ describe('back navigation history guard', () => {
   });
 
   it('pushes a guard after an entry is registered', () => {
-    registerBackEntry({ current: () => {} });
+    registerBackEntry({ current: () => {} }, BACK_PRIORITY.HUD_MODAL);
 
     fake.flush();
 
@@ -61,8 +77,8 @@ describe('back navigation history guard', () => {
 
   it('dispatches a pop to only the topmost entry', () => {
     const calls: string[] = [];
-    registerBackEntry({ current: () => calls.push('bottom') });
-    registerBackEntry({ current: () => calls.push('top') });
+    registerBackEntry({ current: () => calls.push('bottom') }, BACK_PRIORITY.HUD_MODAL);
+    registerBackEntry({ current: () => calls.push('top') }, BACK_PRIORITY.HUD_MODAL);
     fake.flush();
 
     fake.pop();
@@ -71,8 +87,19 @@ describe('back navigation history guard', () => {
     expect(calls).toEqual(['top']);
   });
 
+  it('dispatches Back to the highest-priority entry, independent of registration order', () => {
+    const calls: string[] = [];
+    registerBackEntry({ current: () => calls.push('top') }, BACK_PRIORITY.GAME_INTRO);
+    registerBackEntry({ current: () => calls.push('bottom') }, BACK_PRIORITY.END_GAME);
+    fake.flush();
+
+    fake.pop();
+
+    expect(calls).toEqual(['top']);
+  });
+
   it('does not touch history when registration is canceled before syncing', () => {
-    const id = registerBackEntry({ current: () => {} });
+    const id = registerBackEntry({ current: () => {} }, BACK_PRIORITY.HUD_MODAL);
     unregisterBackEntry(id);
 
     fake.flush();
@@ -82,7 +109,7 @@ describe('back navigation history guard', () => {
 
   it('releases the guard and consumes its own release pop', () => {
     const calls: string[] = [];
-    const id = registerBackEntry({ current: () => calls.push('handler') });
+    const id = registerBackEntry({ current: () => calls.push('handler') }, BACK_PRIORITY.HUD_MODAL);
     fake.flush();
 
     unregisterBackEntry(id);
@@ -99,7 +126,7 @@ describe('back navigation history guard', () => {
   });
 
   it('consumes a pop from a blocking entry and restores the guard', () => {
-    registerBackEntry({ current: null });
+    registerBackEntry({ current: null }, BACK_PRIORITY.HUD_MODAL);
     fake.flush();
 
     fake.pop();
@@ -112,8 +139,8 @@ describe('back navigation history guard', () => {
   it('restores the guard when the top handler unregisters itself', () => {
     let topId = 0;
     const bottomHandler: { current: BackHandler } = { current: () => {} };
-    registerBackEntry(bottomHandler);
-    topId = registerBackEntry({ current: () => unregisterBackEntry(topId) });
+    registerBackEntry(bottomHandler, BACK_PRIORITY.HUD_MODAL);
+    topId = registerBackEntry({ current: () => unregisterBackEntry(topId) }, BACK_PRIORITY.HUD_MODAL);
     fake.flush();
 
     fake.pop();
@@ -124,12 +151,12 @@ describe('back navigation history guard', () => {
   });
 
   it('waits for a release pop before restoring a newly needed guard', () => {
-    const id = registerBackEntry({ current: () => {} });
+    const id = registerBackEntry({ current: () => {} }, BACK_PRIORITY.HUD_MODAL);
     fake.flush();
     unregisterBackEntry(id);
     fake.flush();
 
-    registerBackEntry({ current: () => {} });
+    registerBackEntry({ current: () => {} }, BACK_PRIORITY.HUD_MODAL);
     fake.flush();
     expect(fake.calls.pushGuard).toBe(1);
 
@@ -142,13 +169,46 @@ describe('back navigation history guard', () => {
 
   it('ignores a pop when no guard is active', () => {
     const calls: string[] = [];
-    registerBackEntry({ current: () => calls.push('handler') });
+    registerBackEntry({ current: () => calls.push('handler') }, BACK_PRIORITY.HUD_MODAL);
 
     fake.pop();
 
     expect(calls).toEqual([]);
     expect(getBackNavigationState().guardActive).toBe(false);
     fake.flush();
+  });
+
+  it('reuses a released guard revisited with Forward instead of pushing another', () => {
+    const firstId = registerBackEntry({ current: () => {} }, BACK_PRIORITY.HUD_MODAL);
+    fake.flush();
+    unregisterBackEntry(firstId);
+    fake.flush();
+    fake.pop();
+    fake.flush();
+
+    fake.forward();
+    fake.flush();
+    const secondId = registerBackEntry({ current: () => {} }, BACK_PRIORITY.HUD_MODAL);
+    fake.flush();
+    unregisterBackEntry(secondId);
+    fake.flush();
+
+    expect(fake.calls).toEqual({ pushGuard: 1, back: 2 });
+    expect(fake.historyLength()).toBe(2);
+  });
+
+  it('recognizes a guard already in browser history after reload', () => {
+    registerBackEntry({ current: () => {} }, BACK_PRIORITY.HUD_MODAL);
+    fake.flush();
+    __resetBackNavigationForTests(fake.adapter);
+
+    const secondId = registerBackEntry({ current: () => {} }, BACK_PRIORITY.HUD_MODAL);
+    fake.flush();
+    unregisterBackEntry(secondId);
+    fake.flush();
+    expect(fake.calls).toEqual({ pushGuard: 1, back: 1 });
+    expect(fake.historyLength()).toBe(2);
+    expect(fake.historyLength()).toBe(2);
   });
 
   it('wires all requested overlays and confines history events to the module', () => {
@@ -184,5 +244,6 @@ describe('back navigation history guard', () => {
     expect(MAIN_MENU_TSX).toContain("goPanel('ROOT', 'back')");
     expect(HUD_TSX).not.toMatch(/pushState|popstate/i);
     expect(MAIN_MENU_TSX).not.toMatch(/pushState|popstate/i);
+    expect(HUD_TSX).toContain('useBackDismiss(handleDevOptionsBack, BACK_PRIORITY.DEV_OVERLAY)');
   });
 });
