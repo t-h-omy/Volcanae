@@ -222,8 +222,12 @@ export const SpellId = {
   CRYSTAL_LIGHTNING: 'CRYSTAL_LIGHTNING',
   SUMMON_GHOUL: 'SUMMON_GHOUL',
   LAVA_MOLD: 'LAVA_MOLD',
+  GRAVE_MARK: 'GRAVE_MARK',
+  DEATHS_DOOR: 'DEATHS_DOOR',
+  EMBALM: 'EMBALM',
   PORTAL: 'PORTAL',
   CORRUPTED_QORK: 'CORRUPTED_QORK',
+  CRYSTALLIZE: 'CRYSTALLIZE',
 } as const;
 export type SpellId = (typeof SpellId)[keyof typeof SpellId];
 
@@ -262,6 +266,8 @@ export const TileStatus = {
    * Enemy units are unaffected by Corrupted tiles.
    */
   CORRUPTED: 'CORRUPTED',
+  /** Enemy units standing here lose their combat tags. */
+  CRYSTALLINE: 'CRYSTALLINE',
   FROZEN: 'FROZEN',
   BURNING: 'BURNING',
 } as const;
@@ -274,6 +280,7 @@ export type TileStatus = (typeof TileStatus)[keyof typeof TileStatus];
  */
 export const TerrainTag = {
   CORRUPTED: 'CORRUPTED',
+  CRYSTALLINE: 'CRYSTALLINE',
   FROZEN: 'FROZEN',
   BURNING: 'BURNING',
 } as const;
@@ -350,6 +357,12 @@ export const UnitTag = {
   NO_GRAVESTONE: 'NO_GRAVESTONE',
   /** Unit leaves a Gravestone on death (granted by Necromancer tech tree). */
   LEAVES_GRAVESTONE: 'LEAVES_GRAVESTONE',
+  /** Marked by Grave Mark; leaves a player Gravestone when it dies. */
+  GRAVE_MARKED: 'GRAVE_MARKED',
+  /** Protected from damaging HP loss until the configured expiry turn. */
+  DEATHLESS: 'DEATHLESS',
+  /** Permanently turned undead; loses Summoned restrictions and Build and Capture. */
+  EMBALMED: 'EMBALMED',
   // ── Combat modifier tags ──────
   /** On hit, deals AoE damage to enemy units adjacent to both attacker and defender. Ignores Phalanx defense. */
   CLEAVE: 'CLEAVE',
@@ -390,6 +403,8 @@ export const UnitTag = {
   // ── Tile-presence status tags (derived, not persisted) ───────────────────
   /** Unit is standing on a corrupted tile and its tag abilities are being suppressed. */
   CORRUPTED: 'CORRUPTED',
+  /** Unit is standing on a crystalline tile and its tag abilities are being suppressed. */
+  CRYSTALLINE: 'CRYSTALLINE',
   /** Scout that has researched the Bridgebuilder tech; can build a Bridge across a 1-tile canyon gap */
   BRIDGE_BUILDER: 'BRIDGE_BUILDER',
   // ── Specialist-scaffolded tags (SP-00) ──────────────────────────────────────
@@ -487,6 +502,8 @@ export interface Unit {
   position: Position;
   stats: UnitStats;
   tags: UnitTag[];
+  /** End-of-turn expiry for DEATHLESS protection. */
+  deathlessUntilTurn?: number;
   hasMovedThisTurn: boolean;
   hasAttackedThisTurn: boolean;
   hasConstructedThisTurn: boolean;

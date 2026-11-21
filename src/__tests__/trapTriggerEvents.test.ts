@@ -16,7 +16,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { produce } from 'immer';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { BuildingType, DestroyBehavior, Faction, TileType, UnitTag, UnitType } from '../types';
+import { BuildingType, DestroyBehavior, Faction, TileStatus, TileType, UnitTag, UnitType } from '../types';
 import type { Building, GameState, Tile, Unit } from '../types';
 import type { GameEvent } from '../gameEvents';
 import { ABILITIES, MAP, UNIT_DEFINITIONS } from '../gameConfig';
@@ -296,6 +296,21 @@ describe('checkGraveTrapTrigger (enemy path, events array)', () => {
 
     expect(events.filter((e) => e.type === 'STUN_APPLIED')).toHaveLength(0);
     expect(events.find((e) => e.type === 'TRAP_TRIGGERED')).toBeDefined();
+  });
+
+  it('Crystalline suppresses ALERT immunity to a Grave Trap', () => {
+    const alertUnit = makeEnemyUnit({ tags: [UnitTag.ALERT] });
+    const trap = makeGraveTrap(5, 5);
+    const state = makeState({ units: [alertUnit], buildings: [trap] });
+    state.grid[5][5].status = TileStatus.CRYSTALLINE;
+    const events: GameEvent[] = [];
+
+    const next = produce(state, (draft) => {
+      checkGraveTrapTrigger(draft, alertUnit.id, events);
+    });
+
+    expect(next.units[alertUnit.id]!.pinnedUntilTurn).toBeGreaterThan(0);
+    expect(events.some((event) => event.type === 'STUN_APPLIED')).toBe(true);
   });
 
   it('does not emit STUN_APPLIED for ALERT-tagged AOE units', () => {

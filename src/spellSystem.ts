@@ -15,20 +15,20 @@ import type { Draft } from 'immer';
 import type { GameState, Position, Unit } from './types';
 import type { SpellId } from './types';
 import { Faction, UnitTag, BuildingType, TileType, TileStatus, UnitType } from './types';
-import { MAGE, BUILDING_DEFINITIONS, ABILITIES, MAP, UNIT_DEFINITIONS, XP, SPELL_DEFINITIONS } from './gameConfig';
+import { MAGE, BUILDING_DEFINITIONS, ABILITIES, MAP, UNIT_DEFINITIONS, XP, SPELL_DEFINITIONS, CRYSTALLINE_OFFSETS } from './gameConfig';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { generateId } from './mapGenerator';
 import { useFloaterStore } from './floaterStore';
 import { useCombatAnimationStore } from './combatAnimationStore';
 import { isStatusAllowedOnTerrain, applyTileStatus, clearTileStatus } from './tileStatusSystem';
 import {
-  shouldLeaveGravestone,
-  createGravestoneAt,
+  tryLeaveGravestone,
   updateBerserkLatch,
   calculateCrystalLightningDamage,
 } from './combatSystem';
 import { applyTagStatEffects } from './techSystem';
-import { cleanupRoostedUnits } from './buildingRemoval';
+import { cleanupRoostedUnits, removeGravestone } from './buildingRemoval';
+import { syncOvercapacityTags } from './resourceSystem';
 import { getTagsFromActiveSpecialistsForSourceTag } from './specialistSystem';
 import { canUnitOccupyTerrain } from './movementSystem';
 import type { TextRef } from './i18n/i18n';
@@ -37,6 +37,7 @@ import { spellName } from './i18n/entityText';
 import { applyUnitDamage } from './unitDamage';
 import { getUnitDamageOutcome } from './unitDamage';
 import { grantXp } from './levelSystem';
+import { ANIMATION } from '../config/animation';
 import { clearInfestedOnCreditedKill, resolveInfestedDeath } from './infestedSystem';
 import type { GameEvent } from './gameEvents';
 import { castMagePortalPair, cleanupPortals, isPortalEndpoint, resolvePortalEntry } from './portalSystem';
@@ -155,6 +156,14 @@ const SPELL_TARGET_REASONS: Record<string, TextRef> = {
   BRANDMARK_ALREADY_BRANDMARKED: { key: 'reason.spell.brandmarkAlreadyBrandmarked' },
   TAUNT_ALREADY_TAUNTED: { key: 'reason.spell.tauntAlreadyTaunted' },
   INFESTED_ALREADY: { key: 'reason.spell.infestedAlready' },
+  GRAVE_MARK_ALREADY_MARKED: { key: 'reason.spell.graveMarkAlreadyMarked' },
+  DEATHS_DOOR_ALREADY: { key: 'reason.spell.deathsDoorAlready' },
+  DEATHS_DOOR_MAGE: { key: 'reason.spell.deathsDoorMage' },
+  DEATHS_DOOR_SUMMONED: { key: 'reason.spell.deathsDoorSummoned' },
+  DEATHS_DOOR_MECH: { key: 'reason.spell.deathsDoorMech' },
+  EMBALM_MAGE: { key: 'reason.spell.embalmMage' },
+  EMBALM_SUMMONED: { key: 'reason.spell.embalmSummoned' },
+  EMBALM_MECH: { key: 'reason.spell.embalmMech' },
   STONE_SKIN_ALREADY_ACTIVE: { key: 'reason.spell.stoneSkinAlreadyActive' },
   STONE_SKIN_MECH: { key: 'reason.spell.stoneSkinMech' },
   BRANDMARK_SUMMONED: { key: 'reason.spell.brandmarkSummoned' },
@@ -166,6 +175,7 @@ const SPELL_TARGET_REASONS: Record<string, TextRef> = {
   PORTAL_BLOCKED: { key: 'reason.spell.portalBlocked' },
   PORTAL_WRONG_ROW: { key: 'reason.spell.portalWrongRow' },
   CORRUPTED_QORK_SPAWN: { key: 'reason.spell.corruptedQorkSpawn' },
+  CRYSTALLIZE_TERRAIN: { key: 'reason.spell.crystallizeTerrain' },
 } as const;
 
 function isValidCorruptedQorkSpawnTile(
@@ -413,6 +423,45 @@ export function getValidSpellTargets(
         .map((unit) => ({ ...unit.position }));
     }
 
+    case 'GRAVE_MARK': {
+      return Object.values(state.units)
+        .filter((unit) =>
+          unit.faction === Faction.ENEMY
+          && !unit.tags.includes(UnitTag.GRAVE_MARKED)
+          && isTileInSpellRange(mage, unit.position, range))
+        .map((unit) => ({ ...unit.position }));
+    }
+
+    case 'DEATHS_DOOR': {
+      return Object.values(state.units)
+        .filter((unit) =>
+          unit.faction === Faction.PLAYER
+          && unit.id !== mage.id
+          && !isMageUnit(unit)
+          && !cannotBeHealed(unit)
+          && !unit.tags.includes(UnitTag.DEATHLESS)
+          && isTileInSpellRange(mage, unit.position, range))
+        .map((unit) => ({ ...unit.position }));
+    }
+
+    case 'EMBALM': {
+      return Object.values(state.units)
+        .filter((unit) =>
+          unit.faction === Faction.PLAYER
+          && unit.id !== mage.id
+          && !isMageUnit(unit)
+          && !cannotBeHealed(unit)
+          && isTileInSpellRange(mage, unit.position, range)
+          && state.grid[unit.position.y]?.[unit.position.x]?.buildingId !== null
+          && (() => {
+            const buildingId = state.grid[unit.position.y]?.[unit.position.x]?.buildingId;
+            const building = buildingId ? state.buildings[buildingId] : null;
+            return building?.type === BuildingType.GRAVESTONE
+              && building.faction === Faction.PLAYER;
+          })())
+        .map((unit) => ({ ...unit.position }));
+    }
+
     case 'RAISE_SKELETON': {
       const targets: Position[] = [];
       for (const building of Object.values(state.buildings)) {
@@ -456,6 +505,21 @@ export function getValidSpellTargets(
           if (!isStatusAllowedOnTerrain(tile.terrainType, TileStatus.FROZEN)) continue;
           if (tile.status === TileStatus.FROZEN) continue;
           if (tile.isLava) continue;
+          if (!isTileInSpellRange(mage, { x, y }, range)) continue;
+          targets.push({ x, y });
+        }
+      }
+      return targets;
+    }
+
+    case 'CRYSTALLIZE': {
+      const targets: Position[] = [];
+      for (let y = 0; y < state.grid.length; y++) {
+        for (let x = 0; x < state.grid[y].length; x++) {
+          const tile = state.grid[y][x];
+          if (!tile.isRevealed) continue;
+          if (tile.status === TileStatus.CRYSTALLINE || tile.isLava) continue;
+          if (!isStatusAllowedOnTerrain(tile.terrainType, TileStatus.CRYSTALLINE)) continue;
           if (!isTileInSpellRange(mage, { x, y }, range)) continue;
           targets.push({ x, y });
         }
@@ -518,6 +582,39 @@ export function explainInvalidSpellTarget(
       if (!isTransposeTerrainLegal(state, first, tappedUnit)) {
         return SPELL_TARGET_REASONS.TRANSPOSE_TERRAIN;
       }
+      return null;
+    }
+
+    case 'GRAVE_MARK': {
+      if (!tile.unitId) return null;
+      const target = state.units[tile.unitId];
+      if (!target || target.faction !== Faction.ENEMY) return null;
+      if (!isTileInSpellRange(mage, target.position, range)) return null;
+      return target.tags.includes(UnitTag.GRAVE_MARKED)
+        ? SPELL_TARGET_REASONS.GRAVE_MARK_ALREADY_MARKED
+        : null;
+    }
+
+    case 'DEATHS_DOOR': {
+      if (!tile.unitId) return null;
+      const target = state.units[tile.unitId];
+      if (!target || target.faction !== Faction.PLAYER) return null;
+      if (!isTileInSpellRange(mage, target.position, range)) return null;
+      if (target.tags.includes(UnitTag.DEATHLESS)) return SPELL_TARGET_REASONS.DEATHS_DOOR_ALREADY;
+      if (isMageUnit(target)) return SPELL_TARGET_REASONS.DEATHS_DOOR_MAGE;
+      if (isMech(target)) return SPELL_TARGET_REASONS.DEATHS_DOOR_MECH;
+      if (cannotBeHealed(target)) return SPELL_TARGET_REASONS.DEATHS_DOOR_SUMMONED;
+      return null;
+    }
+
+    case 'EMBALM': {
+      if (!tile.unitId) return null;
+      const target = state.units[tile.unitId];
+      if (!target || target.faction !== Faction.PLAYER) return null;
+      if (!isTileInSpellRange(mage, target.position, range)) return null;
+      if (isMageUnit(target)) return SPELL_TARGET_REASONS.EMBALM_MAGE;
+      if (isMech(target)) return SPELL_TARGET_REASONS.EMBALM_MECH;
+      if (cannotBeHealed(target)) return SPELL_TARGET_REASONS.EMBALM_SUMMONED;
       return null;
     }
 
@@ -624,6 +721,16 @@ export function explainInvalidSpellTarget(
       return null;
     }
 
+    case 'CRYSTALLIZE': {
+      if (!tile.isRevealed) return null;
+      if (!isTileInSpellRange(mage, pos, range)) return null;
+      if (tile.status === TileStatus.CRYSTALLINE) return null;
+      if (!isStatusAllowedOnTerrain(tile.terrainType, TileStatus.CRYSTALLINE) || tile.isLava) {
+        return SPELL_TARGET_REASONS.CRYSTALLIZE_TERRAIN;
+      }
+      return null;
+    }
+
     case 'EMBERBIND': {
       if (!tile.buildingId || !tile.unitId) return null;
       if (!isTileInSpellRange(mage, pos, range)) return null;
@@ -670,6 +777,43 @@ export function explainInvalidSpellTarget(
 }
 
 // ── Per-spell cast handlers ───────────────────────────────────────────────────
+
+/** Consumes the unit's player Gravestone and turns it permanently undead. */
+function handleEmbalm(
+  state: Draft<GameState>,
+  mage: Unit,
+  targetPosition: Position,
+): boolean {
+  const tile = state.grid[targetPosition.y]?.[targetPosition.x];
+  if (!tile?.buildingId) return false;
+  const grave = state.buildings[tile.buildingId];
+  if (!grave
+    || grave.type !== BuildingType.GRAVESTONE
+    || grave.faction !== Faction.PLAYER
+    || tile.unitId === null) return false;
+  const target = state.units[tile.unitId];
+  if (!target
+    || target.faction !== Faction.PLAYER
+    || target.id === mage.id
+    || isMageUnit(target)
+    || cannotBeHealed(target)) return false;
+
+  removeGravestone(state as unknown as GameState, grave.id);
+  if (!target.tags.includes(UnitTag.SUMMONED)) target.tags.push(UnitTag.SUMMONED);
+  if (!target.tags.includes(UnitTag.EMBALMED)) target.tags.push(UnitTag.EMBALMED);
+  for (const tag of getTagsFromActiveSpecialistsForSourceTag(state, UnitTag.SUMMONED)) {
+    if (!target.tags.includes(tag)) target.tags.push(tag);
+  }
+  syncOvercapacityTags(state);
+  useCombatAnimationStore.getState().addTileVfx({
+    id: crypto.randomUUID(),
+    x: targetPosition.x,
+    y: targetPosition.y,
+    variant: 'GRAVESTONE_CONSUMED',
+    durationMs: ANIMATION.GRAVESTONE_CONSUMED_MS,
+  });
+  return true;
+}
 
 /** Swaps two units' positions (Transpose). */
 function handleTranspose(
@@ -1328,6 +1472,22 @@ function handleFrostcraft(
   return true;
 }
 
+/** Applies Crystalline to the target and its four orthogonal neighbors. */
+function handleCrystallize(
+  state: Draft<GameState>,
+  targetPosition: Position,
+): boolean {
+  let applied = false;
+  for (const [dx, dy] of CRYSTALLINE_OFFSETS) {
+    const position = { x: targetPosition.x + dx, y: targetPosition.y + dy };
+    const tile = state.grid[position.y]?.[position.x];
+    if (!tile || tile.isLava) continue;
+    if (!isStatusAllowedOnTerrain(tile.terrainType, TileStatus.CRYSTALLINE)) continue;
+    if (applyTileStatus(state, position, TileStatus.CRYSTALLINE)) applied = true;
+  }
+  return applied;
+}
+
 /** Sacrifices a player unit and deals splash damage to adjacent enemies (Explode). */
 function handleExplode(
   state: Draft<GameState>,
@@ -1373,6 +1533,7 @@ function handleExplode(
     if (damageOutcome.died) {
       adjTile.unitId = null;
       delete state.units[adjUnit.id];
+      tryLeaveGravestone(state, adjUnit, { x: nx, y: ny });
       state.gameStats.unitsKilled += 1;
       clearInfestedOnCreditedKill(state, mage.id);
       resolveInfestedDeath(state, adjUnit);
@@ -1380,21 +1541,12 @@ function handleExplode(
   }
 
   // Handle sacrificed unit's death
-  const targetFaction = target.faction;
-  const targetType = target.type;
-  const targetTags = [...target.tags];
   tile.unitId = null;
   delete state.units[targetUnitId];
   state.gameStats.unitsLost += 1;
   resolveInfestedDeath(state, target);
 
-  // If the sacrificed unit qualifies, leave a Gravestone on their tile.
-  if (shouldLeaveGravestone(
-    { faction: targetFaction, tags: targetTags },
-    { defaultOn: false },
-  )) {
-    createGravestoneAt(state, targetPosition, targetType);
-  }
+  tryLeaveGravestone(state, target, targetPosition);
 
   // Tile flash (same duration as emberling explosion VFX)
   const flashKey = `${targetPosition.x},${targetPosition.y}`;
@@ -1495,6 +1647,7 @@ function handleCrystalLightning(
           const targetTile = state.grid[targetPositionSnapshot.y]?.[targetPositionSnapshot.x];
           if (targetTile?.unitId === target.id) targetTile.unitId = null;
           delete state.units[target.id];
+          tryLeaveGravestone(state, target, targetPositionSnapshot);
           state.gameStats.unitsKilled += 1;
           if (target.type === UnitType.EMBER_DEMON) {
             state.arcaneCrystals += MAGE.EMBER_DEMON_KILL_CRYSTAL_REWARD;
@@ -1638,6 +1791,31 @@ export function castSpell(
       success = true;
       break;
     }
+    case 'GRAVE_MARK': {
+      const targetId = state.grid[targetPosition.y]?.[targetPosition.x]?.unitId;
+      const target = targetId ? state.units[targetId] : undefined;
+      if (!target || target.faction !== Faction.ENEMY || target.tags.includes(UnitTag.GRAVE_MARKED)) return false;
+      target.tags.push(UnitTag.GRAVE_MARKED);
+      success = true;
+      break;
+    }
+    case 'DEATHS_DOOR': {
+      const targetId = state.grid[targetPosition.y]?.[targetPosition.x]?.unitId;
+      const target = targetId ? state.units[targetId] : undefined;
+      if (!target
+        || target.faction !== Faction.PLAYER
+        || target.id === mage.id
+        || isMageUnit(target)
+        || cannotBeHealed(target)
+        || target.tags.includes(UnitTag.DEATHLESS)) return false;
+      target.tags.push(UnitTag.DEATHLESS);
+      target.deathlessUntilTurn = state.turn + MAGE.DEATHS_DOOR_DURATION_TURNS;
+      success = true;
+      break;
+    }
+    case 'EMBALM':
+      success = handleEmbalm(state, mage, targetPosition);
+      break;
 
     case 'STONE_SKIN': {
       const targetId = state.grid[targetPosition.y]?.[targetPosition.x]?.unitId;
@@ -1673,6 +1851,8 @@ export function castSpell(
       success = handleGraveTrap(state, targetPosition); break;
     case 'FROSTCRAFT':
       success = handleFrostcraft(state, targetPosition); break;
+    case 'CRYSTALLIZE':
+      success = handleCrystallize(state, targetPosition); break;
     case 'EXPLODE':
       success = handleExplode(state, mage, targetPosition); break;
     case 'RUPTURE':

@@ -1,3 +1,9 @@
+// AI trace golden fixture.
+// Pins AI decisions and score terms, plus deterministic enemy-turn outcomes.
+// It deliberately does not pin tunable unit stats, building stats, or spawn-budget results.
+// To regenerate: run the aiTraceTerms snapshot test with deterministic randomness, then replace
+// the exported EXPECTED_* values with the current sanitized values and keep spawn fields removed.
+
 import type { GameState } from '../../types';
 import type { ScoredAction } from '../../enemySystem';
 
@@ -1923,7 +1929,7 @@ export const EXPECTED_ENEMY_TURN_FINAL_STATE: GameState = {
         },
         "isRevealed": true,
         "buildingId": "building_LAVALAIR_8",
-        "unitId": "enemy_unit_1790708367414_1",
+        "unitId": null,
         "isLava": false,
         "isLavaPreview": false,
         "isRuin": false,
@@ -11325,7 +11331,7 @@ export const EXPECTED_ENEMY_TURN_FINAL_STATE: GameState = {
       },
       "stats": {
         "maxHp": 120,
-        "currentHp": 92,
+        "currentHp": 93,
         "attack": 60,
         "defense": 55,
         "moveRange": 1,
@@ -11380,46 +11386,6 @@ export const EXPECTED_ENEMY_TURN_FINAL_STATE: GameState = {
       "hasDestroyedThisTurn": false,
       "hasCapturedThisTurn": false,
       "hasTradedThisTurn": false,
-      "hasUsedPostAttackMoveThisTurn": false,
-      "bloodlustAttackAvailable": false,
-      "xp": 0,
-      "level": 1,
-      "pinnedUntilTurn": 0,
-      "distractionDefPenalty": 0,
-      "lastMovedTurn": 0,
-      "spellsCastThisTurn": 0
-    },
-    "enemy_unit_1790708367414_1": {
-      "id": "enemy_unit_1790708367414_1",
-      "type": "LAVA_GRUNT",
-      "faction": "ENEMY",
-      "position": {
-        "x": 4,
-        "y": 12
-      },
-      "stats": {
-        "maxHp": null,
-        "currentHp": null,
-        "attack": null,
-        "defense": null,
-        "moveRange": 1,
-        "discoverRadius": 1,
-        "triggerRange": 3,
-        "movementActions": 1,
-        "attackRange": 1
-      },
-      "tags": [
-        "BUILDANDCAPTURE",
-        "CORRUPT",
-        "LAVA"
-      ],
-      "hasMovedThisTurn": false,
-      "hasAttackedThisTurn": false,
-      "hasConsumedGravestoneThisTurn": false,
-      "hasCapturedThisTurn": false,
-      "hasTradedThisTurn": false,
-      "hasConstructedThisTurn": false,
-      "hasDestroyedThisTurn": false,
       "hasUsedPostAttackMoveThisTurn": false,
       "bloodlustAttackAvailable": false,
       "xp": 0,
@@ -11500,7 +11466,7 @@ export const EXPECTED_ENEMY_TURN_FINAL_STATE: GameState = {
       "recruitmentQueue": null,
       "destroyBehavior": "RUIN",
       "resonanceTurnsRemaining": 0,
-      "spawnCooldownRemaining": 0,
+      "spawnCooldownRemaining": 99,
       "lastRecruitmentTurn": 0,
       "preventiveStrikeFiredThisTurn": false
     },
@@ -12073,7 +12039,7 @@ export const EXPECTED_ENEMY_TURN_FINAL_STATE: GameState = {
     "unitsKilled": 0,
     "unitsLost": 0,
     "damageDealt": 14,
-    "damageReceived": 62,
+    "damageReceived": 61,
     "unitsRecruited": 0,
     "buildingsConstructed": 0,
     "buildingsConverted": 0,
@@ -12085,30 +12051,10 @@ export const EXPECTED_ENEMY_TURN_FINAL_STATE: GameState = {
     "buildingsDestroyedByLava": 0
   },
   "seenHints": [],
-  "enemyUnitsSpawnedLastTurn": 1,
+  "enemyUnitsSpawnedLastTurn": 0,
   "difficulty": "NORMAL",
   "zoneLockoutUntilTurn": {},
   "spawnFreezeUntilTurn": 0,
-  "spawnAccumulator": 0,
-  "lastSpawnBudget": {
-    "base": 1.5,
-    "emberTerm": 0.3334,
-    "margin": -10,
-    "contactActive": true,
-    "ddaRelief": -3,
-    "budget": 1,
-    "accumulatorBefore": 0,
-    "spawnsNow": 1,
-    "accumulatorAfter": 0,
-    "spawnerWeights": [
-      {
-        "buildingId": "building_LAVALAIR_8",
-        "distance": 1,
-        "weight": 28.5,
-        "picked": true
-      }
-    ]
-  },
   "lavaFreezeUntilTurn": 0,
   "gameOverCause": null,
   "specialistSlotCap": 2,

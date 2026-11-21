@@ -7,7 +7,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { current, produce, type Draft } from 'immer';
 import { generateInitialGameState, generateId } from './mapGenerator';
-import { resolveAttack, resolveBuildingAttack, resolveAttackOnBuilding, resolveBuildingAttackOnBuilding, handleBrandmarkedUnitDeath, shouldLeaveGravestone, createGravestoneAt, findEmberDemonSpawnPos, spawnEnemyEmberDemon, detectBrandmarkSpawnPos, updateBerserkLatch } from './combatSystem';
+import { resolveAttack, resolveBuildingAttack, resolveAttackOnBuilding, resolveBuildingAttackOnBuilding, handleBrandmarkedUnitDeath, tryLeaveGravestone, findEmberDemonSpawnPos, spawnEnemyEmberDemon, detectBrandmarkSpawnPos, updateBerserkLatch } from './combatSystem';
 import { moveUnit as moveUnitLogic } from './movementSystem';
 import {
   initiateCapture as initiateCaptureLogic,
@@ -22,6 +22,7 @@ import {
   growHousePopulations,
   computeHomelessUnitIds,
   computeUntrainedUnitIds,
+  syncOvercapacityTags,
 } from './resourceSystem';
 import {
   constructBuilding as constructBuildingLogic,
@@ -38,12 +39,13 @@ import { checkGameConditions } from './gameConditions';
 import { useFloaterStore } from './floaterStore';
 import { useAnimationStore } from './animationStore';
 import { useCombatAnimationStore } from './combatAnimationStore';
+import { playGravestoneRise } from './unitPresentation';
 import { useCaveScreamsStore } from './caveScreamsStore';
 import { triggerSpellSfx } from './soundOptionsStore';
 import { Faction, GamePhase, BuildingType, TileType, TileStatus, Difficulty, DestroyBehavior, UnitType, UnitTag, TechFlag } from './types';
 import type { Building, GameState, Position, TechId, SpellId } from './types';
 import type { GameEvent } from './gameEvents';
-import { MAP, TERRAIN, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval, UNIT_DEFINITIONS, MAGE, GHOUL } from './gameConfig';
+import { MAP, TERRAIN, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval, UNIT_DEFINITIONS, MAGE, GHOUL, CRYSTALLINE_OFFSETS } from './gameConfig';
 import { RENDER } from '../config/render';
 import { ANIMATION } from '../config/animation';
 import { CAVE_SPECIALIST_ROB_REWARD_CRYSTALS } from '../config/specialists';
@@ -60,7 +62,7 @@ import { getMagePath } from './unitTraits';
 import { isTileWithinEdgeCircleRange, getTilesWithinEdgeCircleRange } from './rangeUtils';
 import { useShockwaveStore } from './shockwaveStore';
 import { processPendingPortalTeleports } from './portalSystem';
-import { cleanupRoostedUnits } from './buildingRemoval';
+import { cleanupRoostedUnits, removeGravestone } from './buildingRemoval';
 import { rollNextWaveTheme, applyThemeToFoggedUnits } from './waveThemeSystem';
 import { useMarketPanelStore } from './marketPanelStore';
 import { canUnitTrade } from './unitActions';
@@ -121,6 +123,44 @@ export function addDirectQorkDeathVfx(
       ? ANIMATION.CORRUPTION_APPLIED_VFX_MS
       : ANIMATION.CORRUPTION_FIZZLE_VFX_MS,
   });
+}
+
+/** Processes Deathless expiry in the end-of-player-turn tag-damage block. */
+export function processDeathlessExpiry(
+  state: Draft<GameState>,
+  events: GameEvent[],
+): void {
+  const deathlessDying: string[] = [];
+  for (const unit of Object.values(state.units)) {
+    if (unit.faction !== Faction.PLAYER) continue;
+    if (!unit.tags.includes(UnitTag.DEATHLESS)) continue;
+    if (state.turn >= (unit.deathlessUntilTurn ?? 0)) {
+      deathlessDying.push(unit.id);
+    }
+  }
+  for (const unitId of deathlessDying) {
+    const unit = state.units[unitId];
+    if (!unit) continue;
+    if (unit.tags.includes(UnitTag.BRANDMARKED)) {
+      resolveInfestedDeath(state, unit, events);
+      handleBrandmarkedUnitDeath(state, unit);
+      continue;
+    }
+    const tile = state.grid[unit.position.y]?.[unit.position.x];
+    if (tile?.unitId === unitId) tile.unitId = null;
+    const deathPos = { x: unit.position.x, y: unit.position.y };
+    const unitType = unit.type;
+    const unitTags = [...unit.tags];
+    delete state.units[unitId];
+    events.push({
+      type: 'UNIT_DEATH',
+      unitId,
+      position: deathPos,
+      faction: unit.faction,
+    });
+    resolveInfestedDeath(state, unit, events);
+    tryLeaveGravestone(state, { faction: unit.faction, tags: unitTags, type: unitType }, deathPos);
+  }
 }
 
 // ============================================================================
@@ -423,38 +463,6 @@ function tookNoActionThisTurn(unit: GameState['units'][string]): boolean {
  *   - a player building is captured/destroyed by an enemy (BUILDING_CAPTURE)
  *   - a player unit dies (UNIT_DEATH)
  */
-function syncOvercapacityTags(state: Draft<GameState>): void {
-  const targetHomelessIds = computeHomelessUnitIds(state);
-  const targetUntrainedIds = computeUntrainedUnitIds(state);
-  for (const unit of Object.values(state.units)) {
-    if (unit.faction !== Faction.PLAYER) continue;
-
-    const shouldBeHomeless = targetHomelessIds.has(unit.id);
-    const isHomeless = unit.tags.includes(UnitTag.HOMELESS);
-    if (shouldBeHomeless !== isHomeless) {
-      if (shouldBeHomeless) {
-        unit.tags.push(UnitTag.HOMELESS);
-        applyTagStatEffects(unit, UnitTag.HOMELESS);
-      } else {
-        unit.tags = unit.tags.filter((t) => t !== UnitTag.HOMELESS);
-        revokeTagStatEffects(unit, UnitTag.HOMELESS);
-      }
-    }
-
-    const shouldBeUntrained = targetUntrainedIds.has(unit.id);
-    const isUntrained = unit.tags.includes(UnitTag.UNTRAINED);
-    if (shouldBeUntrained !== isUntrained) {
-      if (shouldBeUntrained) {
-        unit.tags.push(UnitTag.UNTRAINED);
-        applyTagStatEffects(unit, UnitTag.UNTRAINED);
-      } else {
-        unit.tags = unit.tags.filter((t) => t !== UnitTag.UNTRAINED);
-        revokeTagStatEffects(unit, UnitTag.UNTRAINED);
-      }
-    }
-  }
-}
-
 // ============================================================================
 // STORE IMPLEMENTATION
 // ============================================================================
@@ -1620,9 +1628,7 @@ export const useGameStore = create<GameStore>()(
 
         const { x, y } = unit.position;
         const previousHp = unit.stats.currentHp;
-        cleanupRoostedUnits(state, graveId);
-        delete state.buildings[graveId];
-        tile.buildingId = null;
+        removeGravestone(state as Draft<GameState>, graveId);
         unit.hasConsumedGravestoneThisTurn = true;
 
         let gainedLevel: number | null = null;
@@ -1637,6 +1643,13 @@ export const useGameStore = create<GameStore>()(
 
       if (!result) return;
       const { x, y, healed, level } = result;
+      useCombatAnimationStore.getState().addTileVfx({
+        id: crypto.randomUUID(),
+        x,
+        y,
+        variant: 'GRAVESTONE_CONSUMED',
+        durationMs: ANIMATION.GRAVESTONE_CONSUMED_MS,
+      });
       if (healed > 0) {
         useFloaterStore.getState().addFloater({
           value: healed,
@@ -1998,12 +2011,14 @@ export const useGameStore = create<GameStore>()(
       let castSpellId: import('./types').SpellId | null = null;
       let magePosition: Position | null = null;
       let magePath: ReturnType<typeof getMagePath> = null;
+      let crystallineVfxPositions: Position[] = [];
       const killedCaveMonsterIds: string[] = [];
       const portalEvents: GameEvent[] = [];
       let crystalLightningEvents: GameEvent[] | null = null;
       let crystalLightningResolvedState: GameState | null = null;
       let createdLeashedUnit = false;
       let createdMagePortal = false;
+      const createdGravestoneIds: string[] = [];
       set((state) => {
         if (!state.pendingSpellCast) return;
         const { mageId, spellId } = state.pendingSpellCast;
@@ -2056,8 +2071,26 @@ export const useGameStore = create<GameStore>()(
             .map((unit) => unit.id),
         );
         const portalIdsBefore = new Set(Object.keys(state.portals));
+        const buildingIdsBefore = spellId === 'EXPLODE' ? new Set(Object.keys(state.buildings)) : null;
         const ok = castSpellLogic(state, mageId, spellId, targetPosition, portalEvents);
         if (!ok) return;
+        if (spellId === 'CRYSTALLIZE') {
+          crystallineVfxPositions = CRYSTALLINE_OFFSETS.flatMap(([dx, dy]) => {
+            const position = { x: targetPosition.x + dx, y: targetPosition.y + dy };
+            const tile = state.grid[position.y]?.[position.x];
+            return tile?.isRevealed && !tile.isLava && tile.status === TileStatus.CRYSTALLINE
+              ? [position]
+              : [];
+          });
+        }
+        if (buildingIdsBefore) {
+          for (const building of Object.values(state.buildings)) {
+            if (building.type === BuildingType.GRAVESTONE && !buildingIdsBefore.has(building.id) &&
+                state.grid[building.position.y]?.[building.position.x]?.isRevealed) {
+              createdGravestoneIds.push(building.id);
+            }
+          }
+        }
 
         const leashedUnitIdsAfter = new Set(
           Object.values(state.units)
@@ -2105,6 +2138,7 @@ export const useGameStore = create<GameStore>()(
         updateDiscovery(state);
         checkGameConditions(state);
       });
+      for (const id of createdGravestoneIds) playGravestoneRise(id);
       if (crystalLightningEvents !== null && crystalLightningResolvedState !== null) {
         useAnimationStore.getState().enqueue(crystalLightningEvents, crystalLightningResolvedState);
       }
@@ -2198,6 +2232,20 @@ export const useGameStore = create<GameStore>()(
             durationMs: ANIMATION.SPELL_CASTER_PULSE_MS,
             ...(magePath ? { tone: magePath } : {}),
           });
+          if (castSpellId === 'CRYSTALLIZE') {
+            for (const position of crystallineVfxPositions) {
+              const isCenter = position.x === targetPosition.x && position.y === targetPosition.y;
+              store.addTileVfx({
+                id: crypto.randomUUID(),
+                x: position.x,
+                y: position.y,
+                variant: 'CRYSTALLINE_APPLIED',
+                durationMs: ANIMATION.CRYSTALLINE_APPLIED_VFX_MS,
+                delayMs: isCenter ? 0 : ANIMATION.CRYSTALLINE_APPLIED_STAGGER_MS,
+                ...(magePath ? { tone: magePath } : {}),
+              });
+            }
+          }
         }
       }
     },
@@ -2513,12 +2561,13 @@ export const useGameStore = create<GameStore>()(
                   faction: unit.faction,
                 });
                 resolveInfestedDeath(draft, unit, tagDamageEvents);
-                if (shouldLeaveGravestone({ faction: Faction.PLAYER, tags: unitTags }, { defaultOn: false })) {
-                  createGravestoneAt(draft, deathPos, unitType);
-                }
+                tryLeaveGravestone(draft, { faction: unit.faction, tags: unitTags, type: unitType }, deathPos);
               }
             }
           }
+
+          // Death's Door expiry: player units on this turn's expiry lose Deathless protection.
+          processDeathlessExpiry(draft, tagDamageEvents);
 
           // ── Untrained sync ───────────────────────────────────────────────────
           // Capacity pools per building TYPE (not per building instance).
@@ -2818,6 +2867,7 @@ export const useGameStore = create<GameStore>()(
       }
       let emberLevelUpFired = false;
       const directQorkDeathPositions: Position[] = [];
+      let createdGravestoneId: string | null = null;
       set((state) => {
         switch (event.type) {
           case 'ENEMY_SPAWN': {
@@ -3057,11 +3107,13 @@ export const useGameStore = create<GameStore>()(
               if (shouldSpawnBrandmarkReplacement) {
                 spawnEnemyEmberDemon(state, event.brandmarkSpawnPosition!);
               }
-              if (!unitTags.includes(UnitTag.BRANDMARKED) && shouldLeaveGravestone(
-                { faction: unitFaction, tags: unitTags },
-                { defaultOn: false },
-              )) {
-                createGravestoneAt(state, deathPos, unitType);
+              if (!unitTags.includes(UnitTag.BRANDMARKED)) {
+                const graveId = tryLeaveGravestone(
+                  state,
+                  { faction: unitFaction, tags: unitTags, type: unitType },
+                  deathPos,
+                );
+                if (!options.silent && tile.isRevealed) createdGravestoneId = graveId;
               }
               // Re-sync overcapacity tags when a player unit dies (pool sizes change).
               if (unitFaction === Faction.PLAYER) {
@@ -3902,6 +3954,16 @@ export const useGameStore = create<GameStore>()(
             assertNever(event);
         }
       });
+      if (createdGravestoneId) {
+        playGravestoneRise(createdGravestoneId);
+        const grave = useGameStore.getState().buildings[createdGravestoneId];
+        const resolved = useAnimationStore.getState().resolvedState;
+        const resolvedId = grave && resolved?.grid[grave.position.y]?.[grave.position.x]?.buildingId;
+        if (resolvedId && resolvedId !== createdGravestoneId &&
+            resolved?.buildings[resolvedId]?.type === BuildingType.GRAVESTONE) {
+          playGravestoneRise(resolvedId);
+        }
+      }
       for (const position of directQorkDeathPositions) {
         addDirectQorkDeathVfx(useGameStore.getState(), position, true);
       }

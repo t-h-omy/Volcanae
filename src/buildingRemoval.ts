@@ -27,6 +27,20 @@ import type { Draft } from 'immer';
 import { Faction } from './types';
 import { resolveInfestedDeath } from './infestedSystem';
 
+/** Remove a Gravestone and clear its tile reference, including roost cleanup. */
+export function removeGravestone(
+  state: GameState,
+  buildingId: string,
+): boolean {
+  const building = state.buildings[buildingId];
+  if (!building) return false;
+  cleanupRoostedUnits(state, buildingId);
+  delete state.buildings[buildingId];
+  const tile = state.grid[building.position.y]?.[building.position.x];
+  if (tile?.buildingId === buildingId) tile.buildingId = null;
+  return true;
+}
+
 /** Minimal info needed to emit a UNIT_DEATH event for a removed roosted unit. */
 export interface RoostedUnitDeath {
   unitId: string;

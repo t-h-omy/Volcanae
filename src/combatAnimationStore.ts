@@ -61,6 +61,7 @@ export type SlideKillGhost = DeathGhostAppearance & (
 export type BuildingAnimationState =
   | 'CRYSTAL_ACTIVATE'
   | 'CRYSTAL_RECHARGE'
+  | 'GRAVESTONE_RISE'
   | 'SANCTUM_SHATTER'
   | { type: 'CRYSTAL_ACTIVATE' | 'CRYSTAL_RECHARGE'; durationMs: number };
 
@@ -112,9 +113,11 @@ export type TileVfxVariant =
   | 'SPELL_IMPACT_CAPTURE_ENEMY'
   | 'BURNING_DAMAGE'
   | 'CORRUPTION_APPLIED'
+  | 'CRYSTALLINE_APPLIED'
   | 'CORRUPTION_FIZZLE'
   | 'QORK_DEATH_BURST'
   | 'INFESTED_DEATH_BURST'
+  | 'GRAVESTONE_CONSUMED'
   | 'INVALID_ACTION'
   | 'RESONANCE_CHARGE';
 
@@ -126,6 +129,7 @@ export interface TileVfx {
   y: number;
   variant: TileVfxVariant;
   durationMs: number;
+  delayMs?: number;
   tone?: MagicPath;
 }
 

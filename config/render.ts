@@ -6,6 +6,8 @@
 
 import type { MagicPath } from '../src/types';
 
+export const UNIT_BACKGROUND_EFFECT_PRIORITY = ['DEATHLESS', 'MAGE_AURA', 'EMBALMED'] as const;
+
 export const MAGIC_PATH_COLORS: Record<MagicPath, { primary: string; glow: string; deep: string }> = {
   CRYSTAL: { primary: '#7FC1FF', glow: '#8DF8FF', deep: '#2F6FCC' },
   NECRO: { primary: '#B46CFF', glow: '#D9B3FF', deep: '#1A1024' },
@@ -58,6 +60,8 @@ export const RENDER = {
     LEVEL_UP_GLOW: 'gold',
     /** HP bar outline colour when the selected player unit has an active debuff */
     DEBUFF_BORDER: '#B04CFF',
+    /** Highlight color for suppressed tags on Corrupted tiles. */
+    CORRUPTION: '#dc3c3c',
     /** Warn and burst color for mage leash connections */
     LEASH_WARN: '#ff3333',
   },

@@ -23,7 +23,7 @@ import {
 import { applyTileStatus } from './tileStatusSystem';
 import { TileStatus } from './types';
 import type { GameEvent } from './gameEvents';
-import { updateBerserkLatch } from './combatSystem';
+import { tryLeaveGravestone, updateBerserkLatch } from './combatSystem';
 import { applyUnitDamage } from './unitDamage';
 import { resolveInfestedDeath } from './infestedSystem';
 
@@ -404,6 +404,7 @@ function _applyEmergenceDamage(
       const tile = state.grid[deathPos.y][deathPos.x];
       if (tile.unitId === target.id) tile.unitId = null;
       delete state.units[target.id];
+      tryLeaveGravestone(state, target, deathPos);
       state.gameStats.unitsLost += 1;
       events.push({
         type: 'UNIT_DEATH',

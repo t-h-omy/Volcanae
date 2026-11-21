@@ -85,6 +85,72 @@
   transition: opacity 0.2s;
 }
 
+.tile--gravestone-rise {
+  --gravestone-wisp-width: 20%;
+  --gravestone-wisp-height: 34%;
+  --gravestone-dust-width: 85%;
+  --gravestone-dust-height: 35%;
+}
+
+.tile--gravestone-rise .tile-building-img,
+.tile--gravestone-rise .tile-building {
+  animation: gravestoneRise var(--gravestone-rise-duration) ease-out both;
+}
+
+.tile--gravestone-rise::before,
+.tile--gravestone-rise::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0;
+}
+
+.tile--gravestone-rise::before {
+  top: 20%;
+  width: var(--gravestone-wisp-width);
+  height: var(--gravestone-wisp-height);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, var(--path-necro-glow), transparent 70%);
+  animation: gravestoneWisp var(--gravestone-rise-duration) ease-in both;
+}
+
+.tile--gravestone-rise::after {
+  bottom: 5%;
+  width: var(--gravestone-dust-width);
+  height: var(--gravestone-dust-height);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, var(--gravestone-dust-color), transparent 70%);
+  animation: gravestoneDust var(--gravestone-rise-duration) ease-out both;
+}
+
+@keyframes gravestoneRise {
+  0%, 28% { opacity: 0; transform: translate(-50%, 0); }
+  30% { opacity: 1; }
+  75%, 100% { opacity: 1; transform: translate(-50%, -50%); }
+}
+
+@keyframes gravestoneWisp {
+  0% { opacity: 0; transform: translate(-50%, -65%); }
+  12% { opacity: 0.8; }
+  30%, 100% { opacity: 0; transform: translate(-50%, 80%); }
+}
+
+@keyframes gravestoneDust {
+  0%, 28% { opacity: 0; transform: translateX(-50%) scale(0.35); }
+  40% { opacity: 0.7; }
+  100% { opacity: 0; transform: translateX(-50%) scale(1.4); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile-vfx--gravestone-consumed { animation-name: spellVfxReducedMotion; }
+  .tile--gravestone-rise .tile-building-img,
+  .tile--gravestone-rise .tile-building { animation: none; }
+  .tile--gravestone-rise::before,
+  .tile--gravestone-rise::after { animation: none; }
+}
+
 /* ── Unit Sprite Image ── */
 
 .unit-main-img {
@@ -96,6 +162,24 @@
 
 .unit--stone-skin .unit-main-img {
   filter: grayscale(0.85);
+}
+
+.unit--deathless .unit-main-img {
+  opacity: 0.72;
+}
+
+.tile-unit.unit--embalmed::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -5%;
+  width: 145%;
+  height: 38%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(74, 35, 92, 0.5), transparent 72%);
+  opacity: 0.4;
+  pointer-events: none;
 }
 
 /* ── Tile ── */
@@ -154,7 +238,29 @@
 .unit--mage-necro { --mage-path-primary: var(--path-necro-primary); --mage-path-glow: var(--path-necro-glow); }
 .unit--mage-ember { --mage-path-primary: var(--path-ember-primary); --mage-path-glow: var(--path-ember-glow); }
 
-.tile-unit[class*="unit--mage-"]::before {
+.tile-unit.unit--deathless::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -4%;
+  width: 150%;
+  height: 42%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, color-mix(in srgb, var(--deathless-glow) 68%, transparent), transparent 70%);
+  opacity: 0.36;
+  pointer-events: none;
+  animation: deathlessPulse var(--deathless-pulse-duration, 2800ms) ease-in-out infinite;
+}
+
+@keyframes deathlessPulse {
+  0%, 100% { opacity: 0.28; }
+  50% { opacity: 0.52; }
+}
+
+.tile-unit.unit--mage-crystal::before,
+.tile-unit.unit--mage-necro::before,
+.tile-unit.unit--mage-ember::before {
   content: '';
   position: absolute;
   left: 50%;
@@ -169,8 +275,12 @@
   animation: mageAuraBreath var(--mage-aura-pulse-duration, 2.8s) ease-in-out infinite;
 }
 
-.tile-unit[class*="unit--mage-"].unit--mage-cast-ready::before { opacity: 0.96; }
-.tile-unit[class*="unit--mage-"].unit--mage-cast-spent::before { opacity: 0.28; }
+.tile-unit.unit--mage-crystal.unit--mage-cast-ready::before,
+.tile-unit.unit--mage-necro.unit--mage-cast-ready::before,
+.tile-unit.unit--mage-ember.unit--mage-cast-ready::before { opacity: 0.96; }
+.tile-unit.unit--mage-crystal.unit--mage-cast-spent::before,
+.tile-unit.unit--mage-necro.unit--mage-cast-spent::before,
+.tile-unit.unit--mage-ember.unit--mage-cast-spent::before { opacity: 0.28; }
 
 @keyframes mageAuraBreath {
   0%, 100% { opacity: 0.55; }
@@ -1599,7 +1709,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tile-unit[class*="unit--mage-"]::before { animation: none; }
+  .tile-unit.unit--deathless::before { animation: none; }
+  .tile-unit.unit--mage-crystal::before,
+  .tile-unit.unit--mage-necro::before,
+  .tile-unit.unit--mage-ember::before { animation: none; }
   .tile--spell-target { animation: spellTargetReducedMotion var(--spell-target-duration, 1.1s) ease-in-out infinite; }
   .tile-vfx--spell-impact,
   .tile-vfx--spell-caster-pulse { animation-name: spellVfxReducedMotion; }
@@ -1925,6 +2038,55 @@
   animation: corruptionPulse var(--tile-vfx-duration, 500ms) ease-out forwards;
 }
 
+/* ── CRYSTALLINE_APPLIED — a crystal blooms outward from each cross tile ─ */
+
+.tile-vfx--crystalline-applied {
+  background:
+    radial-gradient(circle at 50% 50%,
+      transparent 0 16%,
+      color-mix(in srgb, var(--path-crystal-glow) 80%, transparent) 28%,
+      color-mix(in srgb, var(--path-crystal-primary) 48%, transparent) 48%,
+      transparent 72%);
+  clip-path: polygon(50% 4%, 63% 37%, 96% 50%, 63% 63%, 50% 96%, 37% 63%, 4% 50%, 37% 37%);
+  opacity: 0;
+  animation: crystallineApplied var(--tile-vfx-duration, 580ms) ease-out var(--tile-vfx-delay, 0ms) forwards;
+}
+
+@keyframes crystallineApplied {
+  0% { opacity: 0; transform: scale(0.18); }
+  32% { opacity: 0.9; transform: scale(1.05); }
+  100% { opacity: 0; transform: scale(1.34); }
+}
+
+@keyframes crystallineAppliedReduced {
+  0% { opacity: 0; }
+  45% { opacity: 0.55; }
+  100% { opacity: 0; }
+}
+
+.tile--crystalline-glint {
+  --crystalline-glint-color: var(--path-crystal-glow);
+  background: linear-gradient(115deg, transparent 38%, var(--crystalline-glint-color) 50%, transparent 62%);
+  opacity: 0;
+  animation: crystallineTileGlint var(--crystalline-glint-cycle, 6s) ease-in-out var(--crystalline-glint-delay, 0ms) infinite;
+}
+
+@keyframes crystallineTileGlint {
+  0%, 74%, 100% { opacity: 0; }
+  82% { opacity: 0.38; }
+  91% { opacity: 0.12; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile-vfx--crystalline-applied {
+    animation-name: crystallineAppliedReduced;
+  }
+
+  .tile--crystalline-glint {
+    animation: none;
+  }
+}
+
 @keyframes corruptionPulse {
   0%   { opacity: 0;    transform: scale(0.6); }
   35%  { opacity: 0.9;  transform: scale(1.0); }
@@ -1949,6 +2111,20 @@
   0% { opacity: 0; transform: scale(0.5) rotate(0deg); }
   35% { opacity: 0.95; transform: scale(1.05) rotate(20deg); }
   100% { opacity: 0; transform: scale(0.7) rotate(-25deg); }
+}
+
+.tile-vfx--gravestone-consumed {
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse at 50% 68%, rgba(90, 72, 68, 0.85) 0 18%, rgba(170, 150, 138, 0.55) 19%, transparent 48%);
+  transform-origin: 50% 70%;
+  animation: gravestoneConsumed var(--tile-vfx-duration, 800ms) ease-in forwards;
+}
+
+@keyframes gravestoneConsumed {
+  0% { opacity: 0.9; transform: translateY(-8%) scale(0.8); }
+  45% { opacity: 0.75; transform: translateY(18%) scale(1); }
+  100% { opacity: 0; transform: translateY(38%) scale(0.55); }
 }
 
 /* ── HEAL — soft green pulse with a brief upward shimmer ─────────────── */
@@ -2037,7 +2213,7 @@
 }
 
 .arcane-shield-dome,
-.arcane-shield-fx {
+.protective-layer-fx {
   position: absolute;
   inset: 4%;
   border-radius: 50%;
@@ -2061,22 +2237,29 @@
 }
 
 /* J11 absorb: dome flash and expanding ripple. */
-.unit--shield-fx-absorb .arcane-shield-dome {
+.unit--layer-fx-absorb .arcane-shield-dome {
   animation: arcaneShieldShimmer var(--arcane-shield-shimmer-duration) linear infinite,
-    arcaneShieldFlash var(--arcane-shield-fx-duration) ease-out;
+    arcaneShieldFlash var(--protective-layer-fx-duration) ease-out;
 }
-.arcane-shield-fx--absorb,
-.arcane-shield-fx--recharge {
-  border: 2px solid var(--arcane-shield-glow);
+.protective-layer-fx--absorb,
+.protective-layer-fx--stone.protective-layer-fx--recharge {
+  border: 2px solid var(--protective-layer-glow);
   opacity: 0;
-  animation: arcaneShieldRipple var(--arcane-shield-fx-duration) ease-out var(--arcane-shield-fx-delay, 0ms) both;
+  animation: arcaneShieldRipple var(--protective-layer-fx-duration) ease-out 0ms both;
 }
-.arcane-shield-fx--recharge {
+.protective-layer-fx--arcane.protective-layer-fx--recharge {
   inset: 0;
   border-radius: 0;
+  border: 0;
   border-width: 0 0 3px 0;
-  box-shadow: 0 2px 6px var(--arcane-shield-glow);
+  border-bottom: 3px solid var(--protective-layer-glow);
+  box-shadow: 0 2px 6px var(--protective-layer-glow);
+  opacity: 0;
   animation-name: arcaneShieldSweep;
+  animation-duration: var(--protective-layer-fx-duration);
+  animation-timing-function: ease-out;
+  animation-delay: var(--shield-fx-delay, 0ms);
+  animation-fill-mode: both;
 }
 
 @keyframes arcaneShieldFlash {
@@ -2094,18 +2277,18 @@
 }
 
 /* J12 break: shards burst outward and fade. */
-.arcane-shield-fx--break { inset: 0; }
-.arcane-shield-shard {
+.protective-layer-fx--break { inset: 0; }
+.protective-layer-shard {
   position: absolute;
   left: 50%;
   top: 50%;
   width: 4px;
   height: 8px;
   margin: -4px 0 0 -2px;
-  background: var(--arcane-shield-glow);
-  border: 1px solid var(--arcane-shield-color);
+  background: var(--protective-layer-glow);
+  border: 1px solid var(--protective-layer-color);
   opacity: 0;
-  animation: arcaneShieldShard var(--arcane-shield-fx-duration) ease-out both;
+  animation: arcaneShieldShard var(--protective-layer-fx-duration) ease-out both;
 }
 @keyframes arcaneShieldShard {
   0%   { opacity: 1; transform: rotate(var(--shard-angle)) translateY(0); }
@@ -2114,10 +2297,10 @@
 
 @media (prefers-reduced-motion: reduce) {
   .arcane-shield-dome { animation: none; }
-  .unit--shield-fx-absorb .arcane-shield-dome { animation: arcaneShieldFlashReduced var(--arcane-shield-fx-duration) ease-out; }
-  .arcane-shield-fx--absorb,
-  .arcane-shield-fx--recharge { animation-name: arcaneShieldFadeReduced; }
-  .arcane-shield-shard { animation-name: arcaneShieldFadeReduced; transform: rotate(var(--shard-angle)) translateY(-10px); }
+  .unit--layer-fx-absorb .arcane-shield-dome { animation: arcaneShieldFlashReduced var(--protective-layer-fx-duration) ease-out; }
+  .protective-layer-fx--absorb,
+  .protective-layer-fx--recharge { animation-name: arcaneShieldFadeReduced; }
+  .protective-layer-shard { animation-name: arcaneShieldFadeReduced; transform: rotate(var(--shard-angle)) translateY(-10px); }
   @keyframes arcaneShieldFlashReduced {
     0%   { opacity: 1; }
     100% { opacity: calc(0.25 + 0.5 * var(--arcane-shield-ratio, 1)); }
