@@ -219,12 +219,18 @@ describe('Blood Rush', () => {
     const movedMage = makeUnit('moved-mage', UnitType.CRYSTAL_MAGE, { x: 6, y: 5 }, [UnitTag.PREP]);
     movedMage.hasMovedThisTurn = true;
     movedMage.spellsCastThisTurn = MAGE.SPELLS_PER_TURN;
+    movedMage.concentrationCharges = 1;
+    movedMage.concentrationCastsThisTurn = 1;
+    movedMage.tags.push(UnitTag.CONCENTRATED);
     const otherMage = makeUnit('other-mage', UnitType.NECROMANCER, { x: 5, y: 4 });
     otherMage.spellsCastThisTurn = MAGE.SPELLS_PER_TURN;
     const state = makeState([caster, sacrifice, movedMage, otherMage]);
     const after = cast(state, sacrifice);
 
     expect(after.units[movedMage.id].spellsCastThisTurn).toBe(0);
+    expect(after.units[movedMage.id].concentrationCastsThisTurn).toBe(0);
+    expect(after.units[movedMage.id].concentrationCharges).toBe(1);
+    expect(after.units[movedMage.id].tags).toContain(UnitTag.CONCENTRATED);
     expect(after.units[movedMage.id].bloodRushCastReadyTurn).toBe(state.turn);
     expect(canUnitCast(after.units[movedMage.id], after)).toBe(true);
     expect(after.units[otherMage.id].spellsCastThisTurn).toBe(0);

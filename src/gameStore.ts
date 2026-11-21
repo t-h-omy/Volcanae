@@ -2557,8 +2557,9 @@ export const useGameStore = create<GameStore>()(
 
         // If game ended during enemy turn, enqueue events with that final state
         if (computedState.phase === GamePhase.GAME_OVER || computedState.phase === GamePhase.VICTORY) {
-          if (enemyEvents.length > 0) {
-            pendingEvents = enemyEvents;
+          const gameOverEvents = [...concentrationChargeEvents, ...enemyEvents];
+          if (gameOverEvents.length > 0) {
+            pendingEvents = gameOverEvents;
             pendingResolvedState = computedState;
             state.phase = GamePhase.ENEMY_TURN;
           } else {

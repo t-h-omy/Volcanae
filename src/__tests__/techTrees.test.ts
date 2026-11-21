@@ -54,6 +54,7 @@ describe('separate technology trees', () => {
       LAVA_MOLD: 'EXPLODE',
       BLOOD_RUSH: 'EXPLODE',
       SPELL_REACH: 'ARCANE_STUDIES',
+      CONCENTRATION: 'ARCANE_STUDIES',
     };
     for (const [id, parent] of Object.entries(parents)) expect(byId(id).requires).toEqual([parent]);
 

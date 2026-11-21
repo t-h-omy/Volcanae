@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.131.0 - Concentration
+
+Mages that take no action for a turn store a charge that pays for an additional spell cast. Concentrated Mages display a charge icon and a brighter aura.
+
 ### v0.130.0 - Amplification
 
 Every Mage can bind an allied unit to amplify its spell range until the next leash checkpoint. Amplified units show an antenna icon and a leash line, and linked creatures stay anchored through the carrier or the Mage.
