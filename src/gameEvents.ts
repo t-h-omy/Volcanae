@@ -7,6 +7,10 @@ import type { Faction, Position, BuildingType, Unit, Building, Portal } from './
 
 export type GameEvent =
   | {
+      type: 'CONCENTRATION_CHARGED';
+      units: Array<{ unitId: string; position: Position }>;
+    }
+  | {
       type: 'AMPLIFICATION_BROKEN';
       unitId: string;
       mageId: string;

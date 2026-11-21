@@ -86,6 +86,7 @@ export function getCastableSpellIds(
 /** Returns the effective per-turn spell budget for Mages. */
 export function getMageCastBudget(
   state: GameState | Draft<GameState>,
+  unit: Unit,
 ): number {
   let budget = MAGE.SPELLS_PER_TURN;
   const activeSpecialists = Array.isArray(state.globalSpecialistStorage)
@@ -100,7 +101,23 @@ export function getMageCastBudget(
       }
     }
   }
-  return budget;
+  return Math.min(
+    MAGE.MAX_CASTS_PER_TURN,
+    budget + (unit.concentrationCastsThisTurn ?? 0) + (unit.concentrationCharges ?? 0),
+  );
+}
+
+/** Registers one committed cast, spending a Concentration charge before base budget. */
+export function registerSpellCast(unit: Unit): void {
+  const charges = unit.concentrationCharges ?? 0;
+  if (charges > 0) {
+    unit.concentrationCharges = charges - 1;
+    unit.concentrationCastsThisTurn = (unit.concentrationCastsThisTurn ?? 0) + 1;
+  }
+  unit.spellsCastThisTurn = (unit.spellsCastThisTurn ?? 0) + 1;
+  unit.tags = unit.concentrationCharges
+    ? [...unit.tags.filter((tag) => tag !== UnitTag.CONCENTRATED), UnitTag.CONCENTRATED]
+    : unit.tags.filter((tag) => tag !== UnitTag.CONCENTRATED);
 }
 
 /**
@@ -128,7 +145,7 @@ export function canUnitCast(
   state: GameState | Draft<GameState>,
 ): boolean {
   if (!isMageUnit(unit)) return false;
-  if ((unit.spellsCastThisTurn ?? 0) >= getMageCastBudget(state)) return false;
+  if ((unit.spellsCastThisTurn ?? 0) >= getMageCastBudget(state, unit)) return false;
   if (unit.hasAttackedThisTurn) return false;
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasConstructedThisTurn) return false;

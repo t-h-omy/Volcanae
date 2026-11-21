@@ -258,6 +258,8 @@ export const TechFlag = {
   GRAVE_HARVEST: 'GRAVE_HARVEST',
   /** Arcane Studies: every player Mage carries an Arcane Shield pool. */
   ARCANE_SHIELD: 'ARCANE_SHIELD',
+  /** Arcane Studies: an idle Mage may store one additional spell cast. */
+  CONCENTRATION: 'CONCENTRATION',
 } as const;
 export type TechFlag = (typeof TechFlag)[keyof typeof TechFlag];
 
@@ -356,6 +358,8 @@ export const UnitTag = {
   MECH: 'MECH',
   /** Unit carries the Brandmark Heal mark; loses HP each turn; cannot be healed by Patch Up; on death becomes a hostile Ember Demon */
   BRANDMARKED: 'BRANDMARKED',
+  /** Mage has stored an additional spell cast through Concentration. */
+  CONCENTRATED: 'CONCENTRATED',
   /** Summoned unit that defects to the enemy faction if its controller mage is out of leash range or dead */
   LEASHED: 'LEASHED',
   /** Leaves no body on death. Cannot become a Gravestone. */
@@ -558,6 +562,10 @@ export interface Unit {
   infestedDeathEffectResolved?: boolean;
   /** Set on Mage units; number of spells cast this turn. Reset each turn. */
   spellsCastThisTurn?: number;
+  /** Stored Concentration spell charge. */
+  concentrationCharges?: number;
+  /** Current-turn casts paid from Concentration charges. */
+  concentrationCastsThisTurn?: number;
   /** Current-turn cast exception granted when Blood Rush restores casting after movement. */
   bloodRushCastReadyTurn?: number;
   /**

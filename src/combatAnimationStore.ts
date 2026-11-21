@@ -149,6 +149,7 @@ export interface LineVfx {
   durationMs: number;
   delayMs?: number;
   tone?: MagicPath;
+  concentrated?: boolean;
 }
 
 interface CombatAnimationState {

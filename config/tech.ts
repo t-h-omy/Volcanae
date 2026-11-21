@@ -448,6 +448,12 @@ export const TECH_TREE: TechNodeDefinition[] = [
     effects: [{ type: 'FLAG', flag: TechFlag.ARCANE_SHIELD }],
     textParams: { shieldHp: MAGE.ARCANE_SHIELD_MAX_HP, regen: MAGE.ARCANE_SHIELD_REGEN },
   },
+  {
+    id: 'CONCENTRATION',
+    requires: ['ARCANE_STUDIES'],
+    cost: 4,
+    effects: [{ type: 'FLAG', flag: TechFlag.CONCENTRATION }],
+  },
   // Crystal path: Khyrons are recruited from resonating Chambers.
   {
     id: 'CRYSTAL_KHYRON',

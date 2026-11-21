@@ -155,6 +155,8 @@ function eventPosition(event: GameEvent): Position {
       return event.position;
     case 'CAVE_MONSTER_RETREAT':
       return event.position;
+    case 'CONCENTRATION_CHARGED':
+      return event.units[0]?.position ?? useAnimationStore.getState().cameraTarget;
     case 'AMPLIFICATION_BROKEN':
       return event.unitPos;
     case 'LEASH_DEFECT':
@@ -288,6 +290,8 @@ function isEventVisible(event: GameEvent): boolean {
           useGameStore.getState().units[unitId]?.faction === Faction.PLAYER);
     case 'CAVE_MONSTER_RETREAT':
       return isTileRevealed(event.position);
+    case 'CONCENTRATION_CHARGED':
+      return event.units.some((unit) => isTileRevealed(unit.position));
     case 'AMPLIFICATION_BROKEN':
       return isTileRevealed(event.unitPos) || isTileRevealed(event.magePos);
     case 'LEASH_DEFECT':
@@ -921,6 +925,23 @@ export function useAnimationEngine(): void {
         const visible = isEventVisible(event);
         if (event.type === 'TILE_DAMAGE' && event.damageSource === 'TRAP') {
           resolvingScoutTrap = true;
+        }
+
+        if (event.type === 'CONCENTRATION_CHARGED') {
+          if (visible) {
+            const animationStore = useCombatAnimationStore.getState();
+            for (const unit of event.units) {
+              if (!isTileRevealed(unit.position)) continue;
+              animationStore.addTileVfx({
+                id: crypto.randomUUID(),
+                x: unit.position.x,
+                y: unit.position.y,
+                variant: 'RESONANCE_CHARGE',
+                durationMs: ANIMATION.CONCENTRATION_CHARGE_VFX_MS,
+              });
+            }
+          }
+          continue;
         }
 
         // Resolve resonance immediately, then present its selected graph edges by hop.

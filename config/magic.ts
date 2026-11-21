@@ -23,6 +23,10 @@ export const MAGE = {
   // ── Mage unit ────────────────────────────────────────────────────────
   /** Default number of spells a Mage can cast each turn */
   SPELLS_PER_TURN: 1,
+  /** Maximum number of Concentration charges stored by a Mage. */
+  CONCENTRATION_MAX_CHARGES: 1,
+  /** Hard cap on the number of spells a Mage may cast in one turn. */
+  MAX_CASTS_PER_TURN: 3,
   /** Default spell range (edge-circle range) before SPELL_REACH is researched */
   SPELL_RANGE_BASE: 2,
   /** Range bonus granted by the SPELL_REACH tech */

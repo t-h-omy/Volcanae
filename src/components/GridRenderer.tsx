@@ -1675,7 +1675,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
     return isMageUnit(liveUnit) && canUnitCast(liveUnit, s);
   });
   const mageCastBudgetSpent = useGameStore((s) =>
-    isMageUnit(unit) && (unit.spellsCastThisTurn ?? 0) >= getMageCastBudget(s)
+    isMageUnit(unit) && (unit.spellsCastThisTurn ?? 0) >= getMageCastBudget(s, unit)
   );
   const magePath = getMagePath(unit);
   const isStunned = unit.pinnedUntilTurn >= currentTurn;
@@ -1775,7 +1775,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
     ...(unit.tags.includes(UnitTag.EMBALMED) ? ['EMBALMED'] : []),
   ]);
   const mageAuraClass = backgroundEffect === 'MAGE_AURA' && magePath
-    ? `unit--mage-${magePath.toLowerCase()}`
+    ? `unit--mage-${magePath.toLowerCase()}${(unit.concentrationCharges ?? 0) > 0 ? ' unit--mage-concentrated' : ''}`
     : null;
 
   const tagIcons = unit.tags
@@ -2824,9 +2824,13 @@ function LineVfxLayer({ tileSize }: { tileSize: number }) {
     >
       {lineVfx.map((vfx: LineVfx) => {
         const toneClass = vfx.tone ? ` line-vfx--tone-${vfx.tone.toLowerCase()}` : '';
+        const concentrationClass = vfx.concentrated ? ' line-vfx--concentrated' : '';
         const style = {
           '--line-vfx-duration': `${vfx.durationMs}ms`,
           '--line-vfx-delay': `${vfx.delayMs ?? 0}ms`,
+          ...(vfx.concentrated
+            ? { '--concentrated-line-width': `${ANIMATION.CONCENTRATION_CAST_LINE_WIDTH}px` }
+            : {}),
         } as React.CSSProperties;
         if (vfx.variant === 'RESONANCE_WAVE') {
           const { mainPath, branchPaths } = createResonanceLightningPaths(
@@ -2861,7 +2865,7 @@ function LineVfxLayer({ tileSize }: { tileSize: number }) {
         return (
           <line
             key={vfx.id}
-            className={`line-vfx line-vfx--${vfx.variant.toLowerCase().replace(/_/g, '-')}${toneClass}`}
+            className={`line-vfx line-vfx--${vfx.variant.toLowerCase().replace(/_/g, '-')}${toneClass}${concentrationClass}`}
             x1={vfx.fromPx.x}
             y1={vfx.fromPx.y}
             x2={vfx.toPx.x}

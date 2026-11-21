@@ -57,8 +57,8 @@ import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLo
 import { canUnitHeal, getHealTargets, canUnitFieldwork, isHealSuppressedByCorruption, canUnitConsumeGravestone, getRemainingActions } from './unitActions';
 import { createFieldworkOutpost } from './constructionSystem';
 import { getTagsFromActiveSpecialists, isSpecialistEffectActive, getTagsFromActiveSpecialistsForSourceTag } from './specialistSystem';
-import { canUnitCastSpell, castSpell as castSpellLogic, sweepAmplifications, sweepLeashes } from './spellSystem';
-import { getMagePath } from './unitTraits';
+import { canUnitCastSpell, castSpell as castSpellLogic, sweepAmplifications, sweepLeashes, registerSpellCast } from './spellSystem';
+import { getMagePath, isMageUnit } from './unitTraits';
 import { isTileWithinEdgeCircleRange, getTilesWithinEdgeCircleRange } from './rangeUtils';
 import { useShockwaveStore } from './shockwaveStore';
 import { processPendingPortalTeleports } from './portalSystem';
@@ -2012,6 +2012,7 @@ export const useGameStore = create<GameStore>()(
       let magePosition: Position | null = null;
       let magePath: ReturnType<typeof getMagePath> = null;
       let amplificationCarrierPosition: Position | null = null;
+      let castPaidByConcentration = false;
       let crystallineVfxPositions: Position[] = [];
       const bloodRushRecipientPositions: Position[] = [];
       let bloodRushRestoredCast = false;
@@ -2034,7 +2035,10 @@ export const useGameStore = create<GameStore>()(
             committed = castSpellLogic(draft, mageId, spellId, targetPosition, events);
             if (!committed) return;
             const mage = draft.units[mageId];
-            if (mage) mage.spellsCastThisTurn = (mage.spellsCastThisTurn ?? 0) + 1;
+            if (mage) {
+              castPaidByConcentration = (mage.concentrationCharges ?? 0) > 0;
+              registerSpellCast(mage);
+            }
             draft.pendingSpellCast = null;
             draft.pendingTransposeFirstUnitId = null;
             draft.pendingMagePortalFirstPos = null;
@@ -2045,7 +2049,12 @@ export const useGameStore = create<GameStore>()(
 
           state.arcaneCrystals = resolvedState.arcaneCrystals;
           const mage = state.units[mageId];
-          if (mage) mage.spellsCastThisTurn = resolvedState.units[mageId]?.spellsCastThisTurn ?? mage.spellsCastThisTurn;
+          if (mage) {
+            mage.spellsCastThisTurn = resolvedState.units[mageId]?.spellsCastThisTurn ?? mage.spellsCastThisTurn;
+            mage.concentrationCharges = resolvedState.units[mageId]?.concentrationCharges ?? mage.concentrationCharges;
+            mage.concentrationCastsThisTurn = resolvedState.units[mageId]?.concentrationCastsThisTurn ?? mage.concentrationCastsThisTurn;
+            mage.tags = resolvedState.units[mageId]?.tags ?? mage.tags;
+          }
           state.pendingSpellCast = null;
           state.pendingTransposeFirstUnitId = null;
           state.pendingMagePortalFirstPos = null;
@@ -2152,7 +2161,8 @@ export const useGameStore = create<GameStore>()(
           //   stripped via a future tech.
           // Do NOT set hasMovedThisTurn or hasAttackedThisTurn here — that
           // would over-constrain the rules and break the symmetry.
-          mageAfter.spellsCastThisTurn = (mageAfter.spellsCastThisTurn ?? 0) + 1;
+          castPaidByConcentration = (mageAfter.concentrationCharges ?? 0) > 0;
+          registerSpellCast(mageAfter);
           if (
             castSpellId === 'BLOOD_RUSH'
             && bloodRushRestoredCast
@@ -2161,6 +2171,7 @@ export const useGameStore = create<GameStore>()(
             )
           ) {
             mageAfter.spellsCastThisTurn = 0;
+            mageAfter.concentrationCastsThisTurn = 0;
           }
         }
         state.pendingSpellCast = null;
@@ -2299,6 +2310,7 @@ export const useGameStore = create<GameStore>()(
               toPx: carrierPx,
               variant: 'SPELL_CAST',
               durationMs: ANIMATION.SPELL_CAST_MS,
+              ...(castPaidByConcentration ? { concentrated: true } : {}),
               ...(magePath ? { tone: magePath } : {}),
             });
             store.addLineVfx({
@@ -2308,6 +2320,7 @@ export const useGameStore = create<GameStore>()(
               variant: 'SPELL_CAST',
               durationMs: ANIMATION.SPELL_CAST_MS,
               delayMs: ANIMATION.AMPLIFICATION_LINE_DELAY_MS,
+              ...(castPaidByConcentration ? { concentrated: true } : {}),
               ...(magePath ? { tone: magePath } : {}),
             });
           } else {
@@ -2317,6 +2330,7 @@ export const useGameStore = create<GameStore>()(
               toPx,
               variant: 'SPELL_CAST',
               durationMs: ANIMATION.SPELL_CAST_MS,
+              ...(castPaidByConcentration ? { concentrated: true } : {}),
               ...(magePath ? { tone: magePath } : {}),
             });
           }
@@ -2468,6 +2482,7 @@ export const useGameStore = create<GameStore>()(
 
         // Phase 1.5: End-of-player-turn idle heal (spec_24) before enemy actions.
         const idleHealEvents: GameEvent[] = [];
+        const concentrationChargeEvents: GameEvent[] = [];
 
         // Get a plain (non-Proxy) snapshot of the current state so runEnemyTurn
         // can use produce() internally without nesting immer producers.
@@ -2477,6 +2492,23 @@ export const useGameStore = create<GameStore>()(
           processInfestedFactionTurn(draft, Faction.PLAYER, playerInfestedEvents);
           processCorruptedQorkDrain(draft, Faction.PLAYER, playerInfestedEvents);
         });
+        if (snapshot.techFlags.includes(TechFlag.CONCENTRATION)) {
+          snapshot = produce(snapshot, (draft) => {
+            const chargedUnits: Array<{ unitId: string; position: Position }> = [];
+            for (const unit of Object.values(draft.units)) {
+              if (unit.faction !== Faction.PLAYER || !isMageUnit(unit)) continue;
+              if (!tookNoActionThisTurn(unit)) continue;
+              const charges = unit.concentrationCharges ?? 0;
+              if (charges >= MAGE.CONCENTRATION_MAX_CHARGES) continue;
+              unit.concentrationCharges = charges + 1;
+              unit.tags = [...unit.tags.filter((tag) => tag !== UnitTag.CONCENTRATED), UnitTag.CONCENTRATED];
+              chargedUnits.push({ unitId: unit.id, position: { ...unit.position } });
+            }
+            if (chargedUnits.length > 0) {
+              concentrationChargeEvents.push({ type: 'CONCENTRATION_CHARGED', units: chargedUnits });
+            }
+          });
+        }
         if (isSpecialistEffectActive(snapshot, 'IDLE_HEAL')) {
           snapshot = produce(snapshot, (draft) => {
             for (const unit of Object.values(draft.units)) {
@@ -2551,7 +2583,14 @@ export const useGameStore = create<GameStore>()(
         );
 
         // Phase 4: Lava phase
-        const allEvents: GameEvent[] = [...resolveCaptureEvents, ...playerInfestedEvents, ...idleHealEvents, ...enemyEvents, ...tileStatusEvents];
+        const allEvents: GameEvent[] = [
+          ...resolveCaptureEvents,
+          ...playerInfestedEvents,
+          ...concentrationChargeEvents,
+          ...idleHealEvents,
+          ...enemyEvents,
+          ...tileStatusEvents,
+        ];
         computedState = produce(computedState, (draft) => {
           draft.turnsUntilLavaAdvance -= 1;
         });
@@ -2771,6 +2810,7 @@ export const useGameStore = create<GameStore>()(
               unit.hasMovedThisTurn = false;
               unit.hasAttackedThisTurn = false;
               unit.spellsCastThisTurn = 0;
+              unit.concentrationCastsThisTurn = 0;
               unit.hasCapturedThisTurn = false;
               unit.hasTradedThisTurn = false;
               unit.hasConstructedThisTurn = false;

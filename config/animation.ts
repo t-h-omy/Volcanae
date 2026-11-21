@@ -175,6 +175,10 @@ export const ANIMATION = {
   CRYSTAL_LIGHTNING_POST_MS: 70,
   /** Duration of the mage spell-cast line from caster to target tile (ms) */
   SPELL_CAST_MS: 650,
+  /** Duration of the Concentration charge received at end of turn. */
+  CONCENTRATION_CHARGE_VFX_MS: 700,
+  /** Delayed cast-line thickness multiplier for a spell paid by Concentration. */
+  CONCENTRATION_CAST_LINE_WIDTH: 11,
   /** Delay before the second segment of an Amplification cast line begins. */
   AMPLIFICATION_LINE_DELAY_MS: 180,
   /** Duration of the caster's path-colored wind-up pulse (ms) */

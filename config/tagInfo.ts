@@ -48,6 +48,7 @@ export const TAG_INFO: Record<UnitTag, { icon?: string; textParams?: { [name: st
   [UnitTag.SUMMONED]: {},
   [UnitTag.MECH]: {},
   [UnitTag.BRANDMARKED]: { icon: '🩸', textParams: { attackBonus: MAGE.BRANDMARK_ATTACK_BONUS, hpLossPerTurn: MAGE.BRANDMARK_HP_LOSS_PER_TURN } },
+  [UnitTag.CONCENTRATED]: { icon: '✨' },
   [UnitTag.LEASHED]: {},
   [UnitTag.NO_GRAVESTONE]: {},
   [UnitTag.LEAVES_GRAVESTONE]: {},
