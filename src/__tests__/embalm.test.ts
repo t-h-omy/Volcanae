@@ -22,7 +22,7 @@ import type { Building, GameState, Position, Unit } from '../types';
 
 let id = 0;
 
-function makeUnit(type: UnitType, position: Position, faction = Faction.PLAYER, tags: UnitTag[] = []): Unit {
+function makeUnit(type: UnitType, position: Position, faction: Faction = Faction.PLAYER, tags: UnitTag[] = []): Unit {
   const definition = UNIT_DEFINITIONS[type];
   return {
     id: `embalm-${++id}`,
@@ -49,7 +49,6 @@ function makeUnit(type: UnitType, position: Position, faction = Faction.PLAYER, 
     hasTradedThisTurn: false,
     hasUsedPostAttackMoveThisTurn: false,
     hasConsumedGravestoneThisTurn: false,
-    bloodlustAvailable: false,
     bloodlustAttackAvailable: false,
     spellsCastThisTurn: 0,
     xp: 0,
@@ -169,7 +168,6 @@ describe('Embalm', () => {
       UnitTag.EMBALMED,
       UnitTag.SUMMONED,
     ]);
-    const state = makeState([target]);
     expect(hasBuildAndCapture(target)).toBe(false);
     expect(canUnitCapture(target)).toBe(false);
     expect(canUnitConstruct(target)).toBe(false);
