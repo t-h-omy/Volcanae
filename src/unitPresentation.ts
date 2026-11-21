@@ -31,7 +31,9 @@ export function useProtectiveLayerFx(
   const [fx, setFx] = useState<LayerFx | null>(null);
   const [delay, setDelay] = useState(0);
 
-  callbackRef.current = onRecharge;
+  useEffect(() => {
+    callbackRef.current = onRecharge;
+  }, [onRecharge]);
 
   useEffect(() => {
     const previous = previousRef.current;
@@ -43,8 +45,10 @@ export function useProtectiveLayerFx(
     if (resolved === 'recharge' && callbackRef.current) {
       timers.push(setTimeout(() => callbackRef.current?.(value - previous), rechargeDelayMs));
     }
-    setDelay(rechargeDelayMs);
-    setFx(resolved);
+    timers.push(setTimeout(() => {
+      setDelay(rechargeDelayMs);
+      setFx(resolved);
+    }, 0));
     timers.push(setTimeout(() => setFx(null), rechargeDelayMs + ANIMATION.PROTECTIVE_LAYER_FX_DURATION_MS));
     return () => timers.forEach(clearTimeout);
   }, [value, rechargeDelayMs]);
