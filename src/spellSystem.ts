@@ -169,6 +169,8 @@ const SPELL_TARGET_REASONS: Record<string, TextRef> = {
   BRANDMARK_SUMMONED: { key: 'reason.spell.brandmarkSummoned' },
   BRANDMARK_MECH: { key: 'reason.spell.brandmarkMech' },
   BRANDMARK_SELF: { key: 'reason.spell.brandmarkSelf' },
+  BLOOD_FRENZY_MAGE: { key: 'reason.spell.bloodFrenzyMage' },
+  BLOOD_FRENZY_ALREADY_BERSERK: { key: 'reason.spell.bloodFrenzyAlreadyBerserk' },
   EXPLODE_MAGE: { key: 'reason.spell.explodeMage' },
   FROSTCRAFT_TERRAIN: { key: 'reason.spell.frostcraftTerrain' },
   OCCUPIED: { key: 'reason.spell.occupied' },
@@ -325,6 +327,19 @@ export function getValidSpellTargets(
         if (unit.id === mageId) continue;
         if (cannotBeHealed(unit)) continue;
         if (unit.tags.includes(UnitTag.BRANDMARKED)) continue; // already brandmarked
+        if (!isTileInSpellRange(mage, unit.position, range)) continue;
+        targets.push({ ...unit.position });
+      }
+      return targets;
+    }
+
+    case 'BLOOD_FRENZY': {
+      const targets: Position[] = [];
+      for (const unit of Object.values(state.units)) {
+        if (unit.faction !== Faction.PLAYER) continue;
+        if (unit.id === mageId) continue;
+        if (isMageUnit(unit)) continue;
+        if (unit.tags.includes(UnitTag.BERSERK)) continue;
         if (!isTileInSpellRange(mage, unit.position, range)) continue;
         targets.push({ ...unit.position });
       }
@@ -652,6 +667,19 @@ export function explainInvalidSpellTarget(
       }
       if (tappedUnit.id === mageId) {
         return SPELL_TARGET_REASONS.BRANDMARK_SELF;
+      }
+      return null;
+    }
+
+    case 'BLOOD_FRENZY': {
+      if (!tile.unitId) return null;
+      const tappedUnit = state.units[tile.unitId];
+      if (!tappedUnit) return null;
+      if (tappedUnit.faction !== Faction.PLAYER) return null;
+      if (!isTileInSpellRange(mage, tappedUnit.position, range)) return null;
+      if (isMageUnit(tappedUnit)) return SPELL_TARGET_REASONS.BLOOD_FRENZY_MAGE;
+      if (tappedUnit.tags.includes(UnitTag.BERSERK)) {
+        return SPELL_TARGET_REASONS.BLOOD_FRENZY_ALREADY_BERSERK;
       }
       return null;
     }
@@ -1035,6 +1063,40 @@ function handleCorruptedQork(
 }
 
 /** Fully heals a player unit and adds the BRANDMARKED tag (Brandmark Heal). */
+function handleBloodFrenzy(
+  state: Draft<GameState>,
+  mage: Unit,
+  targetPosition: Position,
+): boolean {
+  const tile = state.grid[targetPosition.y]?.[targetPosition.x];
+  if (!tile?.unitId) return false;
+  const target = state.units[tile.unitId];
+  if (!target) return false;
+  if (target.faction !== Faction.PLAYER) return false;
+  if (target.id === mage.id) return false;
+  if (isMageUnit(target)) return false;
+  if (target.tags.includes(UnitTag.BERSERK)) return false;
+
+  const oldMaxHp = target.stats.maxHp;
+  const newMaxHp = Math.ceil(oldMaxHp * MAGE.BLOOD_FRENZY_MAX_HP_MULTIPLIER);
+  target.stats.maxHp = newMaxHp;
+  target.stats.currentHp = Math.min(target.stats.currentHp, newMaxHp);
+  target.tags.push(UnitTag.BERSERK);
+  target.berserkActivated = true;
+  updateBerserkLatch(target);
+
+  const lostAmount = oldMaxHp - newMaxHp;
+  useFloaterStore.getState().addFloater({
+    value: lostAmount,
+    label: `💢 ${t('floater.maxHpLost', { amount: lostAmount })}`,
+    x: targetPosition.x,
+    y: targetPosition.y,
+    isEnemy: false,
+  });
+
+  return true;
+}
+
 function handleBrandmarkHeal(
   state: Draft<GameState>,
   mage: Unit,
@@ -1783,6 +1845,8 @@ export function castSpell(
       success = handleCorruptedQork(state, mage, targetPosition, outEvents); break;
     case 'BRANDMARK_HEAL':
       success = handleBrandmarkHeal(state, mage, targetPosition); break;
+    case 'BLOOD_FRENZY':
+      success = handleBloodFrenzy(state, mage, targetPosition); break;
     case 'TAUNT': {
       const targetId = state.grid[targetPosition.y]?.[targetPosition.x]?.unitId;
       const target = targetId ? state.units[targetId] : undefined;

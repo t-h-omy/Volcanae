@@ -253,6 +253,26 @@
   animation: deathlessPulse var(--deathless-pulse-duration, 2800ms) ease-in-out infinite;
 }
 
+.tile-unit.unit--berserk::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -4%;
+  width: 150%;
+  height: 42%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, color-mix(in srgb, var(--berserk-color) 68%, transparent), transparent 70%);
+  opacity: 0.36;
+  pointer-events: none;
+  animation: berserkPulse var(--berserk-pulse-duration, 2800ms) ease-in-out infinite;
+}
+
+@keyframes berserkPulse {
+  0%, 100% { opacity: 0.28; }
+  50% { opacity: 0.40; }
+}
+
 @keyframes deathlessPulse {
   0%, 100% { opacity: 0.28; }
   50% { opacity: 0.52; }
@@ -1710,6 +1730,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .tile-unit.unit--deathless::before { animation: none; }
+  .tile-unit.unit--berserk::before { animation: none; }
   .tile-unit.unit--mage-crystal::before,
   .tile-unit.unit--mage-necro::before,
   .tile-unit.unit--mage-ember::before { animation: none; }

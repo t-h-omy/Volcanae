@@ -6,6 +6,8 @@ import { MagicPath, SpellId, UnitType } from '../src/types';
 
 
 export const MAGE = {
+  /** Maximum HP multiplier applied by Blood Frenzy. */
+  BLOOD_FRENZY_MAX_HP_MULTIPLIER: 0.5,
   /** Structural tile adjacency used by Grave Trap's blast radius. */
   GRAVE_TRAP_ADJACENCY_RANGE: 1,
   /** Minimum HP retained by a target after Rupture. */
@@ -107,6 +109,12 @@ export interface SpellDefinition {
 }
 
 export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
+  [SpellId.BLOOD_FRENZY]: {
+    id: SpellId.BLOOD_FRENZY,
+    emoji: '💢',
+    casters: [UnitType.EMBER_CULTIST],
+    textParams: { maxHpMultiplier: MAGE.BLOOD_FRENZY_MAX_HP_MULTIPLIER },
+  },
   [SpellId.TRANSPOSE]: {
     id: SpellId.TRANSPOSE,
     emoji: '🔄',

@@ -485,6 +485,14 @@ export const TECH_TREE: TechNodeDefinition[] = [
 
   // ── Ember path ────────────────────────────────────────────────────────────
   {
+    id: 'BLOOD_FRENZY',
+    requires: ['BRANDMARK_HEAL'],
+    cost: 7,
+    effects: [
+      { type: 'UNLOCK_SPELL', spellId: SpellId.BLOOD_FRENZY },
+    ],
+  },
+  {
     id: 'EMBERBIND',
     requires: ['BRANDMARK_HEAL'],
     cost: 7,

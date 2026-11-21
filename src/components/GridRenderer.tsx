@@ -47,6 +47,7 @@ import { getValidSpellTargets, explainInvalidSpellTarget, getTransposeTerrainBlo
 import { explainBlockedMagePortalEntry } from '../portalSystem';
 import { getMagePath, isMageUnit } from '../unitTraits';
 import { resolveUnitBackgroundEffect, useProtectiveLayerFx } from '../unitPresentation';
+import { isBerserkActive } from '../combatSystem';
 import './GridRenderer.css';
 
 // ============================================================================
@@ -1651,6 +1652,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
   const previousDeathlessHpRef = useRef(unit.stats.currentHp);
   const hasDeathless = unit.tags.includes(UnitTag.DEATHLESS);
   const hasEmbalmed = unit.tags.includes(UnitTag.EMBALMED);
+  const hasActiveBerserk = unit.faction === Faction.PLAYER && isBerserkActive(unit);
   const isDeathlessFinalTurn =
     hasDeathless && currentTurn >= (unit.deathlessUntilTurn ?? Number.POSITIVE_INFINITY);
   useEffect(() => {
@@ -1773,6 +1775,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
 
   const backgroundEffect = resolveUnitBackgroundEffect([
     ...(hasDeathless ? ['DEATHLESS'] : []),
+    ...(hasActiveBerserk ? ['BERSERK'] : []),
     ...(magePath ? ['MAGE_AURA'] : []),
     ...(unit.tags.includes(UnitTag.EMBALMED) ? ['EMBALMED'] : []),
   ]);
@@ -1782,6 +1785,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
 
   const tagIcons = unit.tags
     .filter((tag) => tag !== UnitTag.CORRUPTION_BOUND || hasCorruptionBoundDebuff)
+    .filter((tag) => tag !== UnitTag.BERSERK || isBerserkActive(unit))
     .map((tag) => TAG_INFO[tag]?.icon)
     .filter((icon): icon is string => !!icon);
   if (suppressionDisplayTag && TAG_INFO[suppressionDisplayTag]?.icon) {
@@ -1797,6 +1801,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
         hasDeathless && 'unit--deathless',
         isDeathlessFinalTurn && 'unit--deathless-final-turn',
         hasEmbalmed && 'unit--embalmed',
+        hasActiveBerserk && 'unit--berserk',
         hasStoneSkin && 'unit--stone-skin',
         hasArcaneShield && 'unit--arcane-shield',
         shieldFx && `unit--layer-fx-${shieldFx}`,
@@ -1832,6 +1837,8 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
           '--deathless-pulse-duration': `${isDeathlessFinalTurn ? ANIMATION.DEATHLESS_FINAL_PULSE_CYCLE_MS : ANIMATION.DEATHLESS_PULSE_CYCLE_MS}ms`,
           '--deathless-color': MAGIC_PATH_COLORS.NECRO.primary,
           '--deathless-glow': MAGIC_PATH_COLORS.NECRO.glow,
+          '--berserk-pulse-duration': `${ANIMATION.BERSERK_PULSE_CYCLE_MS}ms`,
+          '--berserk-color': RENDER.COLORS.BERSERK,
           '--protective-layer-fx-duration': `${ANIMATION.PROTECTIVE_LAYER_FX_DURATION_MS}ms`,
           '--shield-fx-delay': `${shieldFxDelayMs}ms`,
           '--stone-skin-fx-delay': `${stoneSkinFxDelayMs}ms`,

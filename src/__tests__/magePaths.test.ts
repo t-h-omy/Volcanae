@@ -44,6 +44,7 @@ const OWNED_SPELLS: Record<(typeof MAGE_TYPES)[number], SpellId[]> = {
     SpellId.FROSTCRAFT,
     SpellId.RUPTURE,
     SpellId.BRANDMARK_HEAL,
+    SpellId.BLOOD_FRENZY,
     SpellId.EMBERBIND,
     SpellId.CORRUPTED_QORK,
     SpellId.EXPLODE,

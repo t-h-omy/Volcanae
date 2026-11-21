@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.128.0 - Blood Frenzy
+
+Ember Cultists can trade half of an allied unit's maximum HP for permanent Berserk. Active Berserk now displays a crimson map pulse and the Berserk icon on every eligible player unit.
+
 ### v0.127.0 - Embalm
 
 Necromancers can embalm a living own unit standing on a player Gravestone. The unit becomes permanently Summoned and Embalmed, losing population and Build and Capture use while keeping its level and other traits.

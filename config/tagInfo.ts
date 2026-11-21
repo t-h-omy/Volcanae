@@ -73,7 +73,7 @@ export const TAG_INFO: Record<UnitTag, { icon?: string; textParams?: { [name: st
   [UnitTag.BRIDGE_BUILDER]: { textParams: { woodCost: BUILDING_DEFINITIONS.BRIDGE.constructionCost.wood } },
   [UnitTag.KNOCKBACK]: {},
   [UnitTag.CINDERBORN]: { textParams: { rows: ABILITIES.CINDERBORN_ROWS, attackBonus: ABILITIES.CINDERBORN_ATTACK_BONUS } },
-  [UnitTag.BERSERK]: { textParams: { hpThresholdPct: ABILITIES.BERSERK_HP_THRESHOLD_PCT, attackPct: ABILITIES.BERSERK_ATTACK_PCT } },
+  [UnitTag.BERSERK]: { icon: '💢', textParams: { hpThresholdPct: ABILITIES.BERSERK_HP_THRESHOLD_PCT, attackPct: ABILITIES.BERSERK_ATTACK_PCT } },
   [UnitTag.RESONANCE]: { textParams: { healAmount: ABILITIES.RESONANCE_HEAL_AMOUNT, maxLevel: CRYSTAL_KHYRON.MAX_LEVEL } },
   [UnitTag.TAUNT]: { icon: '🎯' },
   [UnitTag.STONE_SKIN]: { icon: '🪨', textParams: { stoneHp: MAGE.STONE_SKIN_HP } },

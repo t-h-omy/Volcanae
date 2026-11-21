@@ -5,6 +5,8 @@
  */
 
 export const ANIMATION = {
+  /** Ambient Berserk pulse cycle. */
+  BERSERK_PULSE_CYCLE_MS: 2800,
   /** Ambient Deathless pulse cycle. */
   DEATHLESS_PULSE_CYCLE_MS: 2800,
   /** Final-turn Deathless pulse cycle, always at least two seconds. */

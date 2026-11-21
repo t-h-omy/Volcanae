@@ -87,7 +87,7 @@ Mages can be recruited from an active **Crystal Chamber** building after researc
 |------|---------------|-------------|
 | Crystal Mage | Transpose, Frostcraft, Rupture | Taunt, Stone Skin, Crystal Lightning, Crystal Cave, Crystallize, Portal, Crystal Tower |
 | Necromancer | Transpose, Frostcraft, Rupture | Raise Skeleton, Grave Mark, Death's Door, Embalm, Summon Ghoul, Grave Trap |
-| Ember Cultist | Transpose, Frostcraft, Rupture | Brandmark Heal, Emberbind, Corrupted Qork, Explode, Lava Mold |
+| Ember Cultist | Transpose, Frostcraft, Rupture | Brandmark Heal, Blood Frenzy, Emberbind, Corrupted Qork, Explode, Lava Mold |
 
 Spells are unlocked individually through the tech tree. The selected Mage's spell panel lists only spells it owns and has unlocked. Available spells include:
 
@@ -97,6 +97,7 @@ Spells are unlocked individually through the tech tree. The selected Mage's spel
 | 🔥 Emberbind | Destroy a nearby Ember Nest, summoning a leashed Ember Demon |
 | 🐗 Corrupted Qork | Summon a ready ranged, leashed creature on an empty corrupted tile; it loses HP off corruption and explodes on death |
 | 🩸 Brandmark | Fully heal a friendly unit; the healed unit gains the BRANDMARKED tag, cannot be healed by Patch Up, and loses HP each turn, spawning a hostile Ember Demon on death |
+| 💢 Blood Frenzy | Permanently halve an allied non-Mage unit's maximum HP and grant it permanent Berserk |
 | 💀 Raise Skeleton | Animate a Gravestone as a Skeleton unit |
 | 🪦 Grave Mark | Mark an enemy unit to leave an empty player Gravestone when it dies on a valid tile |
 | ⏳ Death's Door | Protect an own unit from lethal damage until the end of the next player turn, then it dies and leaves a Gravestone |
