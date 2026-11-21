@@ -6,10 +6,12 @@ import { generateInitialGameState } from '../mapGenerator';
 import { processTileStatusEndOfTurn } from '../tileStatusSystem';
 import { castSpell, explainInvalidSpellTarget, getValidSpellTargets } from '../spellSystem';
 import { resolveAttack, resolveBuildingAttack, tryLeaveGravestone } from '../combatSystem';
+import { useGameStore } from '../gameStore';
 import {
   BuildingType,
   DestroyBehavior,
   Faction,
+  GamePhase,
   SpellId,
   TileStatus,
   TileType,
@@ -116,6 +118,27 @@ function makeState(units: Unit[], buildings: Building[] = []): GameState {
 function gravestoneAt(state: GameState, position: Position): Building | undefined {
   const buildingId = state.grid[position.y][position.x].buildingId;
   return buildingId ? state.buildings[buildingId] : undefined;
+}
+
+function makeMarkedGraveState(position: Position, units: Unit[] = []): {
+  state: GameState;
+  graveId: string;
+} {
+  const enemy = makeUnit(
+    UnitType.LAVA_GRUNT,
+    position,
+    Faction.ENEMY,
+    [UnitTag.GRAVE_MARKED],
+  );
+  const state = makeState([...units, enemy]);
+  let graveId: string | null = null;
+  const result = produce(state, (draft) => {
+    draft.grid[position.y][position.x].unitId = null;
+    delete draft.units[enemy.id];
+    graveId = tryLeaveGravestone(draft, enemy, position);
+  });
+  if (!graveId) throw new Error('Expected marked enemy to leave a Gravestone');
+  return { state: result, graveId };
 }
 
 describe('Grave Mark', () => {
@@ -281,5 +304,48 @@ describe('Grave Mark', () => {
       expect(castSpell(draft, mage.id, SpellId.EXPLODE, sacrifice.position)).toBe(true);
     });
     expect(gravestoneAt(result, enemy.position)?.gravesUnitType).toBeNull();
+  });
+
+  it('lets marked-enemy Gravestones raise a Skeleton or summon a Ghoul, but not revive', () => {
+    const position = { x: 5, y: 5 };
+    const skeletonMage = makeUnit(UnitType.NECROMANCER, { x: 4, y: 5 }, Faction.PLAYER);
+    const skeletonState = makeMarkedGraveState(position, [skeletonMage]);
+    skeletonState.state.unlockedSpells = [SpellId.RAISE_SKELETON];
+    const raised = produce(skeletonState.state, (draft) => {
+      expect(castSpell(draft, skeletonMage.id, SpellId.RAISE_SKELETON, position)).toBe(true);
+    });
+    expect(raised.buildings[skeletonState.graveId]).toBeUndefined();
+    expect(Object.values(raised.units).some((unit) => unit.type === UnitType.SKELETON)).toBe(true);
+
+    const ghoulMage = makeUnit(UnitType.NECROMANCER, { x: 4, y: 5 }, Faction.PLAYER);
+    const ghoulState = makeMarkedGraveState(position, [ghoulMage]);
+    ghoulState.state.unlockedSpells = [SpellId.SUMMON_GHOUL];
+    const summoned = produce(ghoulState.state, (draft) => {
+      expect(castSpell(draft, ghoulMage.id, SpellId.SUMMON_GHOUL, position)).toBe(true);
+    });
+    expect(summoned.buildings[ghoulState.graveId]).toBeUndefined();
+    expect(Object.values(summoned.units).some((unit) => unit.type === UnitType.GHOUL)).toBe(true);
+
+    const reviver = makeUnit(UnitType.SWORDSMAN, { x: 4, y: 5 }, Faction.PLAYER);
+    const reviveState = makeMarkedGraveState(position, [reviver]);
+    useGameStore.setState(reviveState.state);
+    useGameStore.getState().reviveUnit(reviveState.graveId);
+    expect(useGameStore.getState().buildings[reviveState.graveId]?.gravesUnitType).toBeNull();
+    expect(useGameStore.getState().buildings[reviveState.graveId]).toBeDefined();
+  });
+
+  it('lets a Ghoul consume a marked-enemy Gravestone', () => {
+    const position = { x: 5, y: 5 };
+    const ghoul = makeUnit(UnitType.GHOUL, position, Faction.PLAYER);
+    const { state, graveId } = makeMarkedGraveState(position);
+    const occupied = produce(state, (draft) => {
+      draft.units[ghoul.id] = ghoul;
+      draft.grid[position.y][position.x].unitId = ghoul.id;
+      draft.phase = GamePhase.PLAYER_TURN;
+    });
+    useGameStore.setState(occupied);
+    useGameStore.getState().consumeGravestone(ghoul.id);
+    expect(useGameStore.getState().buildings[graveId]).toBeUndefined();
+    expect(useGameStore.getState().units[ghoul.id]?.level).toBe(2);
   });
 });

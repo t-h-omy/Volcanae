@@ -581,7 +581,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
   {
     id: 'GRAVE_MARK',
     requires: ['RAISE_SKELETON'],
-    cost: 7,
+    cost: ARCANE_RESEARCH_COST_BY_DEPTH[2],
     effects: [
       { type: 'UNLOCK_SPELL', spellId: SpellId.GRAVE_MARK },
     ],

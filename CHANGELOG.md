@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.125.0 - Grave Mark
+
+Necromancers can mark enemy units to leave an empty player Gravestone when they die on a valid tile. The resulting Gravestones can fuel Necromancer spells and Ghoul consumption, but cannot revive a unit.
+
 ### v0.124.0 - Crystalline and Crystallize
 
 Crystal Mages can crystallize a cross of terrain to suppress enemy combat tags. Tile suppression now displays faction-specific icons and tag feedback. Save version 26.
