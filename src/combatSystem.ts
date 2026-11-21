@@ -1409,7 +1409,7 @@ function resolveAttackInner(
     // PIN_DOWN: stun the defender with a configurable chance (prevents move + attack).
     // Suppressed on CORRUPTED tile. ALERT-tagged units are immune to stun.
     if (attacker.tags.includes(UnitTag.PIN_DOWN) && !attackerOnCorrupted && Math.random() < ABILITIES.PIN_DOWN_STUN_CHANCE) {
-      if (!isUnitTagSuppressed(state, defender, UnitTag.ALERT) && !defender.tags.includes(UnitTag.ALERT)) {
+      if (!defender.tags.includes(UnitTag.ALERT) || isUnitTagSuppressed(state, defender, UnitTag.ALERT)) {
         defender.pinnedUntilTurn = state.turn;
       } else {
         outEvents?.push({
@@ -1432,7 +1432,7 @@ function resolveAttackInner(
       !isUnitTagSuppressed(state, attacker, UnitTag.PUNCTURE) &&
       defender.stats.defense > ABILITIES.PUNCTURE_STUN_BASE_DEF_THRESHOLD
     ) {
-      if (!isUnitTagSuppressed(state, defender, UnitTag.ALERT) && !defender.tags.includes(UnitTag.ALERT)) {
+      if (!defender.tags.includes(UnitTag.ALERT) || isUnitTagSuppressed(state, defender, UnitTag.ALERT)) {
         defender.pinnedUntilTurn = state.turn + ABILITIES.PUNCTURE_STUN_DURATION - 1;
       } else {
         outEvents?.push({

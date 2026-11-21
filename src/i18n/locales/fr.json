@@ -939,5 +939,16 @@
   "spell.CORRUPTED_QORK.desc": "Invoquez un Qork corrompu sur une case corrompue vide à portée. La corruption de la case disparaît et le Qork reste lié au mage.",
   "spell.CORRUPTED_QORK.targetHint": "Sélectionnez une case corrompue vide à portée.",
   "reason.spell.corruptedQorkSpawn": "Le Qork corrompu a besoin d'une case vide où il peut se déplacer.",
-  "floater.arcaneShieldGain": "+{amount} bouclier"
+  "floater.arcaneShieldGain": "+{amount} bouclier",
+  "terrainTag.CRYSTALLINE.label": "Cristallin",
+  "terrainTag.CRYSTALLINE.desc": "Les unités ennemies sur cette case perdent leurs tags de combat : Fauchage, Rage, Percer, Perforation, Charge de lance, Brûlé, Alerte, Parade et Sang de fer. Les unités du joueur ne sont pas affectées.",
+  "tag.CRYSTALLINE.label": "Cristallin",
+  "tag.CRYSTALLINE.desc": "Se trouve sur une case cristalline. Les tags de combat sont supprimés jusqu'à ce que cette unité quitte la case.",
+  "hud.tagPopup.disabledByCrystalline": "Désactivé par une case cristalline",
+  "spell.CRYSTALLIZE.name": "Cristalliser",
+  "spell.CRYSTALLIZE.desc": "Crée une case cristalline et ses quatre voisines orthogonales. Les unités ennemies qui s'y trouvent perdent leurs tags de combat.",
+  "spell.CRYSTALLIZE.targetHint": "Choisissez une case révélée de plaine, forêt ou montagne à portée, qui n'est pas déjà cristalline.",
+  "tech.CRYSTALLIZE.name": "Cristallisation",
+  "tech.CRYSTALLIZE.desc": "Débloque le sort Cristalliser.",
+  "reason.spell.crystallizeTerrain": "Ce terrain ne peut pas être cristallisé"
 }

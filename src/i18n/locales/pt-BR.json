@@ -939,5 +939,16 @@
   "spell.CORRUPTED_QORK.desc": "Invoque um Qork corrompido em um terreno corrompido vazio ao alcance. A corrupção do terreno é removida e o Qork fica ligado ao Mago.",
   "spell.CORRUPTED_QORK.targetHint": "Selecione um terreno corrompido vazio ao alcance.",
   "reason.spell.corruptedQorkSpawn": "O Qork corrompido precisa de um terreno vazio que possa ocupar.",
-  "floater.arcaneShieldGain": "+{amount} escudo"
+  "floater.arcaneShieldGain": "+{amount} escudo",
+  "terrainTag.CRYSTALLINE.label": "Cristalino",
+  "terrainTag.CRYSTALLINE.desc": "As unidades inimigas nesta quadrícula perdem suas tags de combate: Talhar, Fúria, Perfurar, Perfuração, Carga de lança, Queima, Alerta, Bloq. e Sangueferro. As unidades do jogador não são afetadas.",
+  "tag.CRYSTALLINE.label": "Cristalino",
+  "tag.CRYSTALLINE.desc": "Está em uma quadrícula cristalina. As tags de combate ficam suprimidas até a unidade sair dela.",
+  "hud.tagPopup.disabledByCrystalline": "Desativado por uma quadrícula cristalina",
+  "spell.CRYSTALLIZE.name": "Cristalizar",
+  "spell.CRYSTALLIZE.desc": "Cria uma quadrícula cristalina e suas quatro vizinhas ortogonais. Unidades inimigas nelas perdem suas tags de combate.",
+  "spell.CRYSTALLIZE.targetHint": "Selecione uma quadrícula revelada de planície, floresta ou montanha ao alcance que ainda não seja cristalina.",
+  "tech.CRYSTALLIZE.name": "Cristalizar",
+  "tech.CRYSTALLIZE.desc": "Desbloqueia o feitiço Cristalizar.",
+  "reason.spell.crystallizeTerrain": "Não é possível cristalizar este terreno"
 }

@@ -939,5 +939,16 @@
   "spell.CORRUPTED_QORK.desc": "Invoca un Qork corrupto en una casilla corrupta vacía dentro del alcance. La corrupción de la casilla desaparece y el Qork queda vinculado al mago.",
   "spell.CORRUPTED_QORK.targetHint": "Selecciona una casilla corrupta vacía dentro del alcance.",
   "reason.spell.corruptedQorkSpawn": "El Qork corrupto necesita una casilla vacía que pueda ocupar.",
-  "floater.arcaneShieldGain": "+{amount} escudo"
+  "floater.arcaneShieldGain": "+{amount} escudo",
+  "terrainTag.CRYSTALLINE.label": "Cristalino",
+  "terrainTag.CRYSTALLINE.desc": "Las unidades enemigas en esta casilla pierden sus etiquetas de combate: Hender, Furia, Perforar, Punción, Carga de lanza, Quemar, Alerta, Bloqueo y Sangre férrea. Las unidades del jugador no se ven afectadas.",
+  "tag.CRYSTALLINE.label": "Cristalino",
+  "tag.CRYSTALLINE.desc": "Está en una casilla cristalina. Sus etiquetas de combate se suprimen hasta que salga de ella.",
+  "hud.tagPopup.disabledByCrystalline": "Desactivado por una casilla cristalina",
+  "spell.CRYSTALLIZE.name": "Cristalizar",
+  "spell.CRYSTALLIZE.desc": "Crea una casilla cristalina y sus cuatro vecinas ortogonales. Las unidades enemigas que estén allí pierden sus etiquetas de combate.",
+  "spell.CRYSTALLIZE.targetHint": "Elige una casilla revelada de llanura, bosque o montaña dentro del alcance que aún no sea cristalina.",
+  "tech.CRYSTALLIZE.name": "Cristalizar",
+  "tech.CRYSTALLIZE.desc": "Desbloquea el hechizo Cristalizar.",
+  "reason.spell.crystallizeTerrain": "No se puede cristalizar este terreno"
 }

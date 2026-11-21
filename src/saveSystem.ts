@@ -21,7 +21,7 @@ import { getTagsFromActiveSpecialists } from './specialistSystem';
 // ============================================================================
 
 /** Increment this whenever the serialized shape changes incompatibly. */
-export const SAVE_VERSION = 25;
+export const SAVE_VERSION = 26;
 
 // ============================================================================
 // TYPES
@@ -99,6 +99,9 @@ export function migrateState(parsed: { version: number; state: GameState }): Gam
     if (!parsed.state || typeof parsed.state !== 'object') return null;
 
     const s = parsed.state;
+    if (parsed.version === 25) {
+      // Migration from version 25 to 26 requires no serialized data changes.
+    }
     if (
       typeof s.turn !== 'number' ||
       typeof s.phase !== 'string' ||

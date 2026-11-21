@@ -939,5 +939,16 @@
   "spell.CORRUPTED_QORK.desc": "Summon a Corrupted Qork on an empty corrupted tile within range. The tile's corruption is removed and the Qork is leashed to the Mage.",
   "spell.CORRUPTED_QORK.targetHint": "Select an empty corrupted tile within range.",
   "reason.spell.corruptedQorkSpawn": "The Corrupted Qork needs an empty tile it can occupy.",
-  "floater.arcaneShieldGain": "+{amount} Shield"
+  "floater.arcaneShieldGain": "+{amount} Shield",
+  "terrainTag.CRYSTALLINE.label": "Crystalline",
+  "terrainTag.CRYSTALLINE.desc": "Enemy units on this tile lose their combat tags: Cleave, Rage, Pierce, Puncture, Lance Charge, Burn, Alert, Block and Ironblood. Player units are not affected.",
+  "tag.CRYSTALLINE.label": "Crystalline",
+  "tag.CRYSTALLINE.desc": "Standing on a Crystalline tile. Combat tags are suppressed until this unit moves off the Crystalline tile.",
+  "hud.tagPopup.disabledByCrystalline": "Disabled by a Crystalline tile",
+  "spell.CRYSTALLIZE.name": "Crystallize",
+  "spell.CRYSTALLIZE.desc": "Create a Crystalline tile and its four orthogonal neighbors. Enemy units standing on those tiles lose their combat tags.",
+  "spell.CRYSTALLIZE.targetHint": "Select a revealed Plains, Forest or Mountain tile in range that is not already Crystalline.",
+  "tech.CRYSTALLIZE.name": "Crystallize",
+  "tech.CRYSTALLIZE.desc": "Unlocks the Crystallize spell.",
+  "reason.spell.crystallizeTerrain": "Cannot crystallize this terrain"
 }

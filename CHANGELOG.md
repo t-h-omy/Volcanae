@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.124.0 - Crystalline and Crystallize
+
+Crystal Mages can crystallize a cross of terrain to suppress enemy combat tags. Tile suppression now displays faction-specific icons and tag feedback. Save version 26.
+
 ### v0.123.4 - Gravestone appearance
 
 New Gravestones rise through a brief wisp and dust effect after eligible deaths and Explode sacrifices.

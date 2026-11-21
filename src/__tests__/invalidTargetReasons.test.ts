@@ -259,6 +259,24 @@ describe('explainInvalidSpellTarget', () => {
       .toBe('Cannot freeze this terrain');
   });
 
+  it('lists only revealed, allowed Crystallize tiles and explains invalid terrain', () => {
+    const mage = makeUnit(UnitType.CRYSTAL_MAGE, { x: 5, y: 5 });
+    const state = makeState({ units: [mage] });
+    state.grid[5][6].terrainType = TileType.CANYON;
+    state.grid[5][4].isRevealed = false;
+    state.grid[6][5].status = TileStatus.CRYSTALLINE;
+
+    const targets = getValidSpellTargets(state, mage.id, SpellId.CRYSTALLIZE);
+    expect(targets).not.toContainEqual({ x: 6, y: 5 });
+    expect(targets).not.toContainEqual({ x: 4, y: 5 });
+    expect(targets).not.toContainEqual({ x: 5, y: 6 });
+    expect(targets).toContainEqual({ x: 5, y: 4 });
+    expect(t(explainInvalidSpellTarget(state, mage.id, SpellId.CRYSTALLIZE, { x: 6, y: 5 })!))
+      .toBe('Cannot crystallize this terrain');
+    expect(explainInvalidSpellTarget(state, mage.id, SpellId.CRYSTALLIZE, { x: 5, y: 6 }))
+      .toBeNull();
+  });
+
   it('returns Occupied for an occupied embernest', () => {
     const mage = makeUnit(UnitType.EMBER_CULTIST, { x: 5, y: 5 });
     const occupant = makeUnit(UnitType.GUARD, { x: 6, y: 5 });
@@ -356,6 +374,37 @@ describe('explainInvalidSpellTarget', () => {
 
     expect(explainInvalidSpellTarget(state, mage.id, SpellId.TRANSPOSE, { x: 6, y: 5 }))
       .toBeNull();
+  });
+});
+
+describe('Crystallize spell', () => {
+  it('applies the cross while preserving Frozen water and skipping lava and canyon', () => {
+    const mage = makeUnit(UnitType.CRYSTAL_MAGE, { x: 5, y: 3 });
+    const enemy = makeUnit(UnitType.LAVA_GRUNT, { x: 5, y: 4 }, Faction.ENEMY);
+    const state = makeState({ units: [mage, enemy] });
+    state.unlockedSpells = [SpellId.CRYSTALLIZE];
+    state.arcaneCrystals = 1;
+    state.grid[5][5].status = TileStatus.CORRUPTED;
+    state.grid[6][5].status = TileStatus.FROZEN;
+    state.grid[4][5].terrainType = TileType.WATER;
+    state.grid[4][5].status = TileStatus.FROZEN;
+    state.grid[5][6].terrainType = TileType.CANYON;
+    state.grid[5][6].status = TileStatus.CORRUPTED;
+    state.grid[5][4].isLava = true;
+    state.grid[5][4].status = TileStatus.CORRUPTED;
+
+    const next = produce(state, (draft) => {
+      expect(castSpell(draft, mage.id, SpellId.CRYSTALLIZE, { x: 5, y: 5 })).toBe(true);
+    });
+
+    expect(next.grid[5][5].status).toBe(TileStatus.CRYSTALLINE);
+    expect(next.grid[6][5].status).toBe(TileStatus.CRYSTALLINE);
+    expect(next.grid[4][5].status).toBe(TileStatus.FROZEN);
+    expect(next.units[enemy.id]).toBeDefined();
+    expect(next.grid[5][6].status).toBe(TileStatus.CORRUPTED);
+    expect(next.grid[5][4].status).toBe(TileStatus.CORRUPTED);
+    expect(next.grid[4][4].status).toBeNull();
+    expect(next.arcaneCrystals).toBe(0);
   });
 });
 

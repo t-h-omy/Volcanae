@@ -939,5 +939,16 @@
   "spell.CORRUPTED_QORK.desc": "Evoca un Qork corrotto su una casella corrotta vuota entro gittata. La corruzione della casella viene rimossa e il Qork resta vincolato al mago.",
   "spell.CORRUPTED_QORK.targetHint": "Seleziona una casella corrotta vuota entro gittata.",
   "reason.spell.corruptedQorkSpawn": "Il Qork corrotto ha bisogno di una casella vuota che possa occupare.",
-  "floater.arcaneShieldGain": "+{amount} scudo"
+  "floater.arcaneShieldGain": "+{amount} scudo",
+  "terrainTag.CRYSTALLINE.label": "Cristallino",
+  "terrainTag.CRYSTALLINE.desc": "Le unità nemiche su questa casella perdono i tag di combattimento: Fendere, Furia, Perforare, Pungere, Carica di lancia, Brucia, Allerta, Parata e Sangueferro. Le unità del giocatore non sono influenzate.",
+  "tag.CRYSTALLINE.label": "Cristallino",
+  "tag.CRYSTALLINE.desc": "Si trova su una casella cristallina. I tag di combattimento sono soppressi finché l'unità non lascia la casella.",
+  "hud.tagPopup.disabledByCrystalline": "Disattivato da una casella cristallina",
+  "spell.CRYSTALLIZE.name": "Cristallizza",
+  "spell.CRYSTALLIZE.desc": "Crea una casella cristallina e le sue quattro caselle ortogonali adiacenti. Le unità nemiche che vi si trovano perdono i tag di combattimento.",
+  "spell.CRYSTALLIZE.targetHint": "Seleziona una casella rivelata di pianura, foresta o montagna entro la portata che non sia già cristallina.",
+  "tech.CRYSTALLIZE.name": "Cristallizzazione",
+  "tech.CRYSTALLIZE.desc": "Sblocca l'incantesimo Cristallizza.",
+  "reason.spell.crystallizeTerrain": "Questo terreno non può essere cristallizzato"
 }

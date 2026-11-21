@@ -19,7 +19,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { produce } from 'immer';
-import { getRageAttackContext, resolveAttack } from '../combatSystem';
+import { getLanceChargeAttackBonus, getRageAttackContext, resolveAttack } from '../combatSystem';
 import { UnitType, Faction, UnitTag, TileType, TileStatus } from '../types';
 import type { GameState, Unit, Tile, Building, GameStats } from '../types';
 import type { GameEvent } from '../gameEvents';
@@ -621,5 +621,122 @@ describe('Change 6 – CLEAVE AoE damage', () => {
     const cleaveEvt = outEvents.find((e) => e.type === 'CLEAVE_DAMAGE');
     expect(cleaveEvt).toBeDefined();
     expect((cleaveEvt as { amount: number }).amount).toBe(EXPECTED_CLEAVE_DAMAGE);
+  });
+});
+
+describe('Crystalline combat-tag suppression', () => {
+  it('suppresses Reaper Rage and Cleave only while it stands on Crystalline', () => {
+    const reaper = makeEnemyUnit(UnitType.REAPER, 3, 5);
+    const primary = makePlayerUnit(UnitType.GUARD, 4, 5);
+    const cleaveTarget = makePlayerUnit(UnitType.GUARD, 4, 4);
+    const state = makeState([reaper, primary, cleaveTarget]);
+    expect(getRageAttackContext(state, reaper).rageBonus).toBeGreaterThan(0);
+
+    const normal = produce(state, (draft) => {
+      resolveAttack(draft, reaper.id, primary.id, true);
+    });
+    expect(cleaveTarget.stats.currentHp - normal.units[cleaveTarget.id]!.stats.currentHp).toBeGreaterThan(0);
+
+    const crystalReaper = { ...reaper, id: 'crystalline-reaper' };
+    const crystalPrimary = { ...primary, id: 'crystalline-primary' };
+    const crystalCleaveTarget = { ...cleaveTarget, id: 'crystalline-cleave-target' };
+    const crystallineState = makeState([crystalReaper, crystalPrimary, crystalCleaveTarget]);
+    crystallineState.grid[5][3].status = TileStatus.CRYSTALLINE;
+    expect(getRageAttackContext(crystallineState, crystalReaper).rageBonus).toBe(0);
+
+    const suppressed = produce(crystallineState, (draft) => {
+      resolveAttack(draft, crystalReaper.id, crystalPrimary.id, true);
+    });
+    expect(crystalCleaveTarget.stats.currentHp - suppressed.units[crystalCleaveTarget.id]!.stats.currentHp).toBe(0);
+  });
+
+  it('suppresses Lancer Pierce and Bullwark Lance Charge and Puncture on Crystalline', () => {
+    const lancer = makeEnemyUnit(UnitType.LANCER, 1, 5);
+    const front = makePlayerUnit(UnitType.GUARD, 4, 5);
+    const rear = makePlayerUnit(UnitType.GUARD, 5, 5);
+    const state = makeState([lancer, front, rear]);
+    const normal = produce(state, (draft) => {
+      resolveAttack(draft, lancer.id, front.id, true);
+    });
+    expect(rear.stats.currentHp - normal.units[rear.id]!.stats.currentHp).toBeGreaterThan(0);
+
+    const crystalLancer = { ...lancer, id: 'crystal-lancer' };
+    const crystalFront = { ...front, id: 'crystal-front' };
+    const crystalRear = { ...rear, id: 'crystal-rear' };
+    const crystallineState = makeState([crystalLancer, crystalFront, crystalRear]);
+    crystallineState.grid[5][1].status = TileStatus.CRYSTALLINE;
+    const suppressed = produce(crystallineState, (draft) => {
+      resolveAttack(draft, crystalLancer.id, crystalFront.id, true);
+    });
+    expect(crystalRear.stats.currentHp - suppressed.units[crystalRear.id]!.stats.currentHp).toBe(0);
+
+    const bullwark = makeEnemyUnit(UnitType.BULLWARK, 3, 5);
+    expect(getLanceChargeAttackBonus(makeState([bullwark]), bullwark)).toBeGreaterThan(0);
+    const crystalBullwark = { ...bullwark, id: 'crystal-bullwark' };
+    const crystalState = makeState([crystalBullwark]);
+    crystalState.grid[5][3].status = TileStatus.CRYSTALLINE;
+    expect(getLanceChargeAttackBonus(crystalState, crystalBullwark)).toBe(0);
+
+    const highDefenseTarget = makePlayerUnit(UnitType.GUARD, 4, 5, [], {
+      defense: ABILITIES.PUNCTURE_STUN_BASE_DEF_THRESHOLD + 1,
+    });
+    const normalBullwark = makeEnemyUnit(UnitType.BULLWARK, 3, 5);
+    const normalStun = produce(makeState([normalBullwark, highDefenseTarget]), (draft) => {
+      resolveAttack(draft, normalBullwark.id, highDefenseTarget.id, true);
+    });
+    expect(normalStun.units[highDefenseTarget.id]!.pinnedUntilTurn).toBeGreaterThan(0);
+
+    const crystalTarget = { ...highDefenseTarget, id: 'crystal-target' };
+    const crystalPuncture = { ...normalBullwark, id: 'crystal-puncture' };
+    const crystalPunctureState = makeState([crystalPuncture, crystalTarget]);
+    crystalPunctureState.grid[5][3].status = TileStatus.CRYSTALLINE;
+    const noPunctureStun = produce(crystalPunctureState, (draft) => {
+      resolveAttack(draft, crystalPuncture.id, crystalTarget.id, true);
+    });
+    expect(noPunctureStun.units[crystalTarget.id]!.pinnedUntilTurn).toBe(0);
+  });
+
+  it('suppresses Bullwark Block and Grimbeak Ironblood while standing on Crystalline', () => {
+    function bullwarkDamage(status: TileStatus | null): number {
+      const attacker = makePlayerUnit(UnitType.SWORDSMAN, 3, 5, [], { attack: 100 });
+      const defender = makeEnemyUnit(UnitType.BULLWARK, 4, 5);
+      const state = makeState([attacker, defender]);
+      state.grid[5][4].status = status;
+      const next = produce(state, (draft) => {
+        resolveAttack(draft, attacker.id, defender.id, true);
+      });
+      return defender.stats.currentHp - next.units[defender.id]!.stats.currentHp;
+    }
+
+    expect(bullwarkDamage(TileStatus.CRYSTALLINE)).toBeGreaterThan(bullwarkDamage(null));
+
+    function grimbeakDamage(status: TileStatus | null): number {
+      const attacker = makePlayerUnit(UnitType.SWORDSMAN, 3, 5, [UnitTag.SUMMONED], { attack: 100 });
+      const defender = makeEnemyUnit(UnitType.GRIMBEAK, 4, 5);
+      const state = makeState([attacker, defender]);
+      state.grid[5][4].status = status;
+      const next = produce(state, (draft) => {
+        resolveAttack(draft, attacker.id, defender.id, true);
+      });
+      return defender.stats.currentHp - next.units[defender.id]!.stats.currentHp;
+    }
+
+    expect(grimbeakDamage(TileStatus.CRYSTALLINE)).toBeGreaterThan(grimbeakDamage(null));
+  });
+
+  it('suppresses Kindler Burn while standing on Crystalline', () => {
+    function targetStatus(attackerStatus: TileStatus | null): TileStatus | null {
+      const kindler = makeEnemyUnit(UnitType.KINDLER, 1, 5);
+      const target = makePlayerUnit(UnitType.GUARD, 3, 5);
+      const state = makeState([kindler, target]);
+      state.grid[5][1].status = attackerStatus;
+      const next = produce(state, (draft) => {
+        resolveAttack(draft, kindler.id, target.id, true);
+      });
+      return next.grid[5][3].status;
+    }
+
+    expect(targetStatus(null)).toBe(TileStatus.BURNING);
+    expect(targetStatus(TileStatus.CRYSTALLINE)).toBeNull();
   });
 });

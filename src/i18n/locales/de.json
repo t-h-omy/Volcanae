@@ -939,5 +939,16 @@
   "spell.CORRUPTED_QORK.desc": "Beschwöre einen Verderbten Qork auf einem leeren, verderbten Feld in Reichweite. Die Verderbnis verschwindet, und der Qork bleibt an den Magier gebunden.",
   "spell.CORRUPTED_QORK.targetHint": "Wähle ein leeres, verderbtes Feld in Reichweite.",
   "reason.spell.corruptedQorkSpawn": "Der Verderbte Qork benötigt ein leeres Feld, das er betreten kann.",
-  "floater.arcaneShieldGain": "+{amount} Schild"
+  "floater.arcaneShieldGain": "+{amount} Schild",
+  "terrainTag.CRYSTALLINE.label": "Kristallin",
+  "terrainTag.CRYSTALLINE.desc": "Feindliche Einheiten auf diesem Feld verlieren ihre Kampfmerkmale: Spalten, Rage, Durchstoß, Durchstich, Lanzenangriff, Brand, Wachsam, Blocken und Eisenblut. Spielereinheiten sind nicht betroffen.",
+  "tag.CRYSTALLINE.label": "Kristallin",
+  "tag.CRYSTALLINE.desc": "Steht auf einem kristallinen Feld. Kampfmerkmale sind unterdrückt, bis diese Einheit das Feld verlässt.",
+  "hud.tagPopup.disabledByCrystalline": "Durch ein kristallines Feld deaktiviert",
+  "spell.CRYSTALLIZE.name": "Kristallisieren",
+  "spell.CRYSTALLIZE.desc": "Erzeugt ein kristallines Feld und seine vier orthogonalen Nachbarfelder. Feindliche Einheiten darauf verlieren ihre Kampfmerkmale.",
+  "spell.CRYSTALLIZE.targetHint": "Wähle ein aufgedecktes Feld aus Ebene, Wald oder Berg in Reichweite, das noch nicht kristallin ist.",
+  "tech.CRYSTALLIZE.name": "Kristallisieren",
+  "tech.CRYSTALLIZE.desc": "Schaltet den Zauber Kristallisieren frei.",
+  "reason.spell.crystallizeTerrain": "Dieses Gelände kann nicht kristallisiert werden"
 }

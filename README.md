@@ -73,6 +73,8 @@ Bridgebuilders can build across a canyon tile from or to an existing bridge when
 
 The tech overlay has separate **Secular** and **Arcane** trees. **Conscription** roots the Secular tree; **Arcane Awakening** roots the Arcane tree and provides the Crystal Chamber, which can be built from the start. The Arcane tree has four entry paths: **Crystal Mage**, **Necromancer**, and **Ember Cultist** each unlock their own Mage, Transpose, and Frostcraft; **Arcane Studies** opens research that improves every Mage. Arcane base research costs depend on depth below Arcane Awakening: 2 crystals at depth one, 4 at depth two, 7 at depth three, and 10 at depth four. Ember is added to these base costs.
 
+Corrupted tiles suppress selected abilities of player units, while Crystalline tiles suppress enemy combat tags. Crystallize creates a permanent cross of Crystalline tiles on Plains, Forest and Mountain terrain. Tile statuses replace one another.
+
 The tree tabs and close button sit in a dock at the bottom of the screen.
 
 ## Magic System
@@ -83,7 +85,7 @@ Mages can be recruited from an active **Crystal Chamber** building after researc
 
 | Mage | Common spells | Path spells |
 |------|---------------|-------------|
-| Crystal Mage | Transpose, Frostcraft, Rupture | Taunt, Stone Skin, Crystal Lightning, Crystal Cave, Portal, Crystal Tower |
+| Crystal Mage | Transpose, Frostcraft, Rupture | Taunt, Stone Skin, Crystal Lightning, Crystal Cave, Crystallize, Portal, Crystal Tower |
 | Necromancer | Transpose, Frostcraft, Rupture | Raise Skeleton, Summon Ghoul, Grave Trap |
 | Ember Cultist | Transpose, Frostcraft, Rupture | Brandmark Heal, Emberbind, Corrupted Qork, Explode, Lava Mold |
 
@@ -99,6 +101,7 @@ Spells are unlocked individually through the tech tree. The selected Mage's spel
 | 🧟 Summon Ghoul | Summon a Ghoul from an empty player Gravestone |
 | 🦠 Lava Mold | Infect an enemy unit; Infested units take damage at faction-turn end and spread infection when they die |
 | ❄️ Frostcraft | Freeze a Plains, Forest, Mountain or Water tile. Units that end movement on Frozen slide one more tile; sliding into water, a canyon or lava is fatal. Frozen Water carries your units, enemies cannot enter it, and the ice lasts until lava or another tile status replaces it. |
+| 🔷 Crystallize | Create a permanent Crystalline tile and its four orthogonal neighbors on allowed terrain. Enemy units standing there lose their combat tags. |
 | ☠️ Grave Trap | Turn an empty Gravestone into a trap that stuns the next enemy to enter and nearby enemies in its area. |
 | 💥 Explode | Sacrifice a player unit to deal damage based on its current HP to each adjacent enemy. Units that leave a Gravestone on death still leave one. |
 | 💎 Crystal Tower | Sacrifice the Mage to erect a permanent Crystal Tower on its tile |

@@ -24,6 +24,7 @@ const OWNED_SPELLS: Record<(typeof MAGE_TYPES)[number], SpellId[]> = {
     SpellId.STONE_SKIN,
     SpellId.CRYSTAL_LIGHTNING,
     SpellId.CRYSTAL_CAVE,
+    SpellId.CRYSTALLIZE,
     SpellId.PORTAL,
     SpellId.CRYSTAL_TOWER,
   ],
