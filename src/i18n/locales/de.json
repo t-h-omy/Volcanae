@@ -207,7 +207,7 @@
   "tag.GRAVE_MARKED.label": "Grabgezeichnet",
   "tag.GRAVE_MARKED.desc": "Von Grabmalzeichen markiert. Hinterlässt beim Tod einen Spieler-Grabstein, von dem diese Einheit nicht wiederbelebt werden kann.",
   "tag.DEATHLESS.label": "Todeslos",
-  "tag.DEATHLESS.desc": "Behält gegen Schaden mindestens {minimumHp} LP, bis der Schutz am Ende des Zuges abläuft.",
+  "tag.DEATHLESS.desc": "Behält gegen Schaden mindestens {minimumHp} LP, bis der Schutz am Ende der Runde abläuft.",
   "tag.LAVA.label": "Lava",
   "tag.LAVA.desc": "Einheit der Lavafraktion. Immun gegen Schaden durch brennende Felder. Bleibt auch nach einem Fraktionswechsel erhalten.",
   "tag.CLEAVE.label": "Spalten",

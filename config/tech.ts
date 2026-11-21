@@ -562,19 +562,19 @@ export const TECH_TREE: TechNodeDefinition[] = [
     ],
   },
   {
-    id: 'DEATHS_DOOR',
-    requires: ['NECROMANCER'],
-    cost: 4,
-    effects: [
-      { type: 'UNLOCK_SPELL', spellId: SpellId.DEATHS_DOOR },
-    ],
-  },
-  {
     id: 'SUMMON_GHOUL',
     requires: ['RAISE_SKELETON'],
     cost: 7,
     effects: [
       { type: 'UNLOCK_SPELL', spellId: SpellId.SUMMON_GHOUL },
+    ],
+  },
+  {
+    id: 'DEATHS_DOOR',
+    requires: ['NECROMANCER'],
+    cost: 4,
+    effects: [
+      { type: 'UNLOCK_SPELL', spellId: SpellId.DEATHS_DOOR },
     ],
   },
   // ── Necromancer path branch a: utility ──────────────────────────────────

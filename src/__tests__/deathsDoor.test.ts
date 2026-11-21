@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { produce } from 'immer';
-import { MAGE, UNIT_DEFINITIONS } from '../gameConfig';
+import { BUILDING_DEFINITIONS, MAGE, UNIT_DEFINITIONS } from '../gameConfig';
 import { generateInitialGameState } from '../mapGenerator';
 import { applyUnitDamage, getUnitDamageOutcome } from '../unitDamage';
 import { castSpell, explainInvalidSpellTarget, getValidSpellTargets } from '../spellSystem';
@@ -9,7 +9,6 @@ import { processTileStatusEndOfTurn } from '../tileStatusSystem';
 import { processDeathlessExpiry } from '../gameStore';
 import {
   BuildingType,
-  DestroyBehavior,
   Faction,
   GamePhase,
   SpellId,
@@ -56,6 +55,40 @@ function makeUnit(type: UnitType, position: Position, faction: Faction, tags: Un
     distractionDefPenalty: 0,
     lastMovedTurn: 0,
   };
+}
+
+function makeBuilding(type: BuildingType, position: Position): Building {
+  const definition = BUILDING_DEFINITIONS[type];
+  return {
+    id: `deaths-door-building-${++id}`,
+    type,
+    faction: Faction.PLAYER,
+    position: { ...position },
+    hp: definition.maxHp ?? 100,
+    maxHp: definition.maxHp ?? 100,
+    specialistSlot: null,
+    isDisabledForTurns: 0,
+    wasAttackedLastEnemyTurn: false,
+    captureProgress: 0,
+    isBeingCapturedBy: null,
+    discoverRadius: definition.discoverRadius,
+    turnCapturedByPlayer: null,
+    wasEnemyOwnedBeforeCapture: false,
+    combatStats: definition.combatStats ? { ...definition.combatStats } : null,
+    hasAttackedThisTurn: false,
+    tags: [],
+    consumesUnitOnCapture: false,
+    populationCount: 0,
+    populationCap: 0,
+    populationGrowthCounter: 0,
+    strongholdNobles: 0,
+    emberSpawnCounter: 0,
+    recruitmentQueue: null,
+    destroyBehavior: definition.destroyBehavior,
+    resonanceTurnsRemaining: 0,
+    spawnCooldownRemaining: 0,
+    lastRecruitmentTurn: 0,
+  } as Building;
 }
 
 function makeState(units: Unit[], buildings: Building[] = []): GameState {
@@ -157,18 +190,7 @@ describe("Death's Door", () => {
 
     const tower = makeUnit(UnitType.SWORDSMAN, { x: 5, y: 5 }, Faction.PLAYER, [UnitTag.DEATHLESS]);
     tower.stats.currentHp = MAGE.DEATHLESS_MINIMUM_HP + 1;
-    const towerBuilding = {
-      ...({
-        id: 'deathless-tower',
-        type: BuildingType.CRYSTAL_TOWER,
-        faction: Faction.PLAYER,
-        position: { x: 3, y: 5 },
-        hp: 100,
-        maxHp: 100,
-        combatStats: { attack: 100, attackRange: 3, defense: 0 },
-        tags: [],
-      } as Building),
-    };
+    const towerBuilding = makeBuilding(BuildingType.CRYSTAL_TOWER, { x: 3, y: 5 });
     const towerState = makeState([tower], [towerBuilding]);
     const towerResult = produce(towerState, (draft) => {
       resolveBuildingAttack(draft, towerBuilding.id, tower.id, true);
