@@ -43,7 +43,7 @@ import { getUnitConstructionUnlockTechId } from './techSystem';
 import { canCapture } from './captureSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { MAP, MAGE, ABILITIES } from './gameConfig';
-import { cannotBeHealed, cannotTrade, isMageUnit, isMech } from './unitTraits';
+import { cannotBeHealed, cannotTrade, hasBuildAndCapture, isMageUnit, isMech } from './unitTraits';
 import { canUnitCast, getMageCastBudget } from './spellSystem';
 import { isUnitOnCorruptedTile } from './tileStatusSystem';
 import { getBridgeAt } from './bridgeSystem';
@@ -452,7 +452,7 @@ export function canUnitCapture(unit: Unit): boolean {
   if (unit.hasDestroyedThisTurn) return false;
   if (unit.hasConsumedGravestoneThisTurn) return false;
   if (unit.hasTradedThisTurn) return false;
-  if (!unit.tags.includes(UnitTag.BUILDANDCAPTURE)) return false;
+  if (!hasBuildAndCapture(unit)) return false;
   return true;
 }
 
@@ -537,7 +537,7 @@ export function canUnitConstruct(unit: Unit): boolean {
   if (unit.hasDestroyedThisTurn) return false;
   if (unit.hasConsumedGravestoneThisTurn) return false;
   if (unit.hasTradedThisTurn) return false;
-  if (!unit.tags.includes(UnitTag.BUILDANDCAPTURE)) return false;
+  if (!hasBuildAndCapture(unit)) return false;
   return true;
 }
 
@@ -547,7 +547,7 @@ export function canUnitPreviewConstruction(
   state: GameState | Draft<GameState>,
 ): boolean {
   if (unit.faction !== Faction.PLAYER) return false;
-  const hasConstructionTag = unit.tags.includes(UnitTag.BUILDANDCAPTURE);
+  const hasConstructionTag = hasBuildAndCapture(unit);
   if (!hasConstructionTag && getUnitConstructionUnlockTechId(state, unit.type) === null) return false;
   const previewUnit = hasConstructionTag
     ? unit
@@ -562,7 +562,7 @@ export function getConstructionMenuUnlockTechId(
   unit: Unit,
   option: ConstructionMenuOption,
 ): TechId | null {
-  if (!unit.tags.includes(UnitTag.BUILDANDCAPTURE)) {
+  if (!hasBuildAndCapture(unit)) {
     const unitUnlockTechId = getUnitConstructionUnlockTechId(state, unit.type);
     if (unitUnlockTechId !== null) return unitUnlockTechId;
   }

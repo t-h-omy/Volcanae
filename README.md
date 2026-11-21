@@ -86,7 +86,7 @@ Mages can be recruited from an active **Crystal Chamber** building after researc
 | Mage | Common spells | Path spells |
 |------|---------------|-------------|
 | Crystal Mage | Transpose, Frostcraft, Rupture | Taunt, Stone Skin, Crystal Lightning, Crystal Cave, Crystallize, Portal, Crystal Tower |
-| Necromancer | Transpose, Frostcraft, Rupture | Raise Skeleton, Grave Mark, Death's Door, Summon Ghoul, Grave Trap |
+| Necromancer | Transpose, Frostcraft, Rupture | Raise Skeleton, Grave Mark, Death's Door, Embalm, Summon Ghoul, Grave Trap |
 | Ember Cultist | Transpose, Frostcraft, Rupture | Brandmark Heal, Emberbind, Corrupted Qork, Explode, Lava Mold |
 
 Spells are unlocked individually through the tech tree. The selected Mage's spell panel lists only spells it owns and has unlocked. Available spells include:
@@ -100,6 +100,7 @@ Spells are unlocked individually through the tech tree. The selected Mage's spel
 | 💀 Raise Skeleton | Animate a Gravestone as a Skeleton unit |
 | 🪦 Grave Mark | Mark an enemy unit to leave an empty player Gravestone when it dies on a valid tile |
 | ⏳ Death's Door | Protect an own unit from lethal damage until the end of the next player turn, then it dies and leaves a Gravestone |
+| ⚰️ Embalm | Turn an own unit on a player Gravestone into a permanent undead unit. It no longer needs population or can build, capture, heal or trade |
 | 🧟 Summon Ghoul | Summon a Ghoul from an empty player Gravestone |
 | 🦠 Lava Mold | Infect an enemy unit; Infested units take damage at faction-turn end and spread infection when they die |
 | ❄️ Frostcraft | Freeze a Plains, Forest, Mountain or Water tile. Units that end movement on Frozen slide one more tile; sliding into water, a canyon or lava is fatal. Frozen Water carries your units, enemies cannot enter it, and the ice lasts until lava or another tile status replaces it. |

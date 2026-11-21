@@ -594,6 +594,14 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'UNLOCK_SPELL', spellId: SpellId.GRAVE_MARK },
     ],
   },
+  {
+    id: 'EMBALM',
+    requires: ['GRAVE_MARK'],
+    cost: 10,
+    effects: [
+      { type: 'UNLOCK_SPELL', spellId: SpellId.EMBALM },
+    ],
+  },
  // {
   //  id: 'GRAVE_HARVEST',
   //  requires: ['GRAVE_TRAP'],

@@ -150,6 +150,11 @@ export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
     emoji: '⏳',
     casters: [UnitType.NECROMANCER],
   },
+  [SpellId.EMBALM]: {
+    id: SpellId.EMBALM,
+    emoji: '⚰️',
+    casters: [UnitType.NECROMANCER],
+  },
   [SpellId.FROSTCRAFT]: {
     id: SpellId.FROSTCRAFT,
     emoji: '❄️',

@@ -22,6 +22,7 @@ import {
   growHousePopulations,
   computeHomelessUnitIds,
   computeUntrainedUnitIds,
+  syncOvercapacityTags,
 } from './resourceSystem';
 import {
   constructBuilding as constructBuildingLogic,
@@ -61,7 +62,7 @@ import { getMagePath } from './unitTraits';
 import { isTileWithinEdgeCircleRange, getTilesWithinEdgeCircleRange } from './rangeUtils';
 import { useShockwaveStore } from './shockwaveStore';
 import { processPendingPortalTeleports } from './portalSystem';
-import { cleanupRoostedUnits } from './buildingRemoval';
+import { cleanupRoostedUnits, removeGravestone } from './buildingRemoval';
 import { rollNextWaveTheme, applyThemeToFoggedUnits } from './waveThemeSystem';
 import { useMarketPanelStore } from './marketPanelStore';
 import { canUnitTrade } from './unitActions';
@@ -462,38 +463,6 @@ function tookNoActionThisTurn(unit: GameState['units'][string]): boolean {
  *   - a player building is captured/destroyed by an enemy (BUILDING_CAPTURE)
  *   - a player unit dies (UNIT_DEATH)
  */
-function syncOvercapacityTags(state: Draft<GameState>): void {
-  const targetHomelessIds = computeHomelessUnitIds(state);
-  const targetUntrainedIds = computeUntrainedUnitIds(state);
-  for (const unit of Object.values(state.units)) {
-    if (unit.faction !== Faction.PLAYER) continue;
-
-    const shouldBeHomeless = targetHomelessIds.has(unit.id);
-    const isHomeless = unit.tags.includes(UnitTag.HOMELESS);
-    if (shouldBeHomeless !== isHomeless) {
-      if (shouldBeHomeless) {
-        unit.tags.push(UnitTag.HOMELESS);
-        applyTagStatEffects(unit, UnitTag.HOMELESS);
-      } else {
-        unit.tags = unit.tags.filter((t) => t !== UnitTag.HOMELESS);
-        revokeTagStatEffects(unit, UnitTag.HOMELESS);
-      }
-    }
-
-    const shouldBeUntrained = targetUntrainedIds.has(unit.id);
-    const isUntrained = unit.tags.includes(UnitTag.UNTRAINED);
-    if (shouldBeUntrained !== isUntrained) {
-      if (shouldBeUntrained) {
-        unit.tags.push(UnitTag.UNTRAINED);
-        applyTagStatEffects(unit, UnitTag.UNTRAINED);
-      } else {
-        unit.tags = unit.tags.filter((t) => t !== UnitTag.UNTRAINED);
-        revokeTagStatEffects(unit, UnitTag.UNTRAINED);
-      }
-    }
-  }
-}
-
 // ============================================================================
 // STORE IMPLEMENTATION
 // ============================================================================
@@ -1659,9 +1628,7 @@ export const useGameStore = create<GameStore>()(
 
         const { x, y } = unit.position;
         const previousHp = unit.stats.currentHp;
-        cleanupRoostedUnits(state, graveId);
-        delete state.buildings[graveId];
-        tile.buildingId = null;
+        removeGravestone(state as Draft<GameState>, graveId);
         unit.hasConsumedGravestoneThisTurn = true;
 
         let gainedLevel: number | null = null;
@@ -1676,6 +1643,13 @@ export const useGameStore = create<GameStore>()(
 
       if (!result) return;
       const { x, y, healed, level } = result;
+      useCombatAnimationStore.getState().addTileVfx({
+        id: crypto.randomUUID(),
+        x,
+        y,
+        variant: 'GRAVESTONE_CONSUMED',
+        durationMs: ANIMATION.GRAVESTONE_CONSUMED_MS,
+      });
       if (healed > 0) {
         useFloaterStore.getState().addFloater({
           value: healed,

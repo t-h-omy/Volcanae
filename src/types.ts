@@ -224,6 +224,7 @@ export const SpellId = {
   LAVA_MOLD: 'LAVA_MOLD',
   GRAVE_MARK: 'GRAVE_MARK',
   DEATHS_DOOR: 'DEATHS_DOOR',
+  EMBALM: 'EMBALM',
   PORTAL: 'PORTAL',
   CORRUPTED_QORK: 'CORRUPTED_QORK',
   CRYSTALLIZE: 'CRYSTALLIZE',
@@ -360,6 +361,8 @@ export const UnitTag = {
   GRAVE_MARKED: 'GRAVE_MARKED',
   /** Protected from damaging HP loss until the configured expiry turn. */
   DEATHLESS: 'DEATHLESS',
+  /** Permanently turned undead; loses Summoned restrictions and Build and Capture. */
+  EMBALMED: 'EMBALMED',
   // ── Combat modifier tags ──────
   /** On hit, deals AoE damage to enemy units adjacent to both attacker and defender. Ignores Phalanx defense. */
   CLEAVE: 'CLEAVE',

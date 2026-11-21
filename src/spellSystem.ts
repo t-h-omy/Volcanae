@@ -27,7 +27,8 @@ import {
   calculateCrystalLightningDamage,
 } from './combatSystem';
 import { applyTagStatEffects } from './techSystem';
-import { cleanupRoostedUnits } from './buildingRemoval';
+import { cleanupRoostedUnits, removeGravestone } from './buildingRemoval';
+import { syncOvercapacityTags } from './resourceSystem';
 import { getTagsFromActiveSpecialistsForSourceTag } from './specialistSystem';
 import { canUnitOccupyTerrain } from './movementSystem';
 import type { TextRef } from './i18n/i18n';
@@ -36,6 +37,7 @@ import { spellName } from './i18n/entityText';
 import { applyUnitDamage } from './unitDamage';
 import { getUnitDamageOutcome } from './unitDamage';
 import { grantXp } from './levelSystem';
+import { ANIMATION } from '../config/animation';
 import { clearInfestedOnCreditedKill, resolveInfestedDeath } from './infestedSystem';
 import type { GameEvent } from './gameEvents';
 import { castMagePortalPair, cleanupPortals, isPortalEndpoint, resolvePortalEntry } from './portalSystem';
@@ -159,6 +161,9 @@ const SPELL_TARGET_REASONS: Record<string, TextRef> = {
   DEATHS_DOOR_MAGE: { key: 'reason.spell.deathsDoorMage' },
   DEATHS_DOOR_SUMMONED: { key: 'reason.spell.deathsDoorSummoned' },
   DEATHS_DOOR_MECH: { key: 'reason.spell.deathsDoorMech' },
+  EMBALM_MAGE: { key: 'reason.spell.embalmMage' },
+  EMBALM_SUMMONED: { key: 'reason.spell.embalmSummoned' },
+  EMBALM_MECH: { key: 'reason.spell.embalmMech' },
   STONE_SKIN_ALREADY_ACTIVE: { key: 'reason.spell.stoneSkinAlreadyActive' },
   STONE_SKIN_MECH: { key: 'reason.spell.stoneSkinMech' },
   BRANDMARK_SUMMONED: { key: 'reason.spell.brandmarkSummoned' },
@@ -439,6 +444,24 @@ export function getValidSpellTargets(
         .map((unit) => ({ ...unit.position }));
     }
 
+    case 'EMBALM': {
+      return Object.values(state.units)
+        .filter((unit) =>
+          unit.faction === Faction.PLAYER
+          && unit.id !== mage.id
+          && !isMageUnit(unit)
+          && !cannotBeHealed(unit)
+          && isTileInSpellRange(mage, unit.position, range)
+          && state.grid[unit.position.y]?.[unit.position.x]?.buildingId !== null
+          && (() => {
+            const buildingId = state.grid[unit.position.y]?.[unit.position.x]?.buildingId;
+            const building = buildingId ? state.buildings[buildingId] : null;
+            return building?.type === BuildingType.GRAVESTONE
+              && building.faction === Faction.PLAYER;
+          })())
+        .map((unit) => ({ ...unit.position }));
+    }
+
     case 'RAISE_SKELETON': {
       const targets: Position[] = [];
       for (const building of Object.values(state.buildings)) {
@@ -581,6 +604,17 @@ export function explainInvalidSpellTarget(
       if (isMageUnit(target)) return SPELL_TARGET_REASONS.DEATHS_DOOR_MAGE;
       if (isMech(target)) return SPELL_TARGET_REASONS.DEATHS_DOOR_MECH;
       if (cannotBeHealed(target)) return SPELL_TARGET_REASONS.DEATHS_DOOR_SUMMONED;
+      return null;
+    }
+
+    case 'EMBALM': {
+      if (!tile.unitId) return null;
+      const target = state.units[tile.unitId];
+      if (!target || target.faction !== Faction.PLAYER) return null;
+      if (!isTileInSpellRange(mage, target.position, range)) return null;
+      if (isMageUnit(target)) return SPELL_TARGET_REASONS.EMBALM_MAGE;
+      if (isMech(target)) return SPELL_TARGET_REASONS.EMBALM_MECH;
+      if (cannotBeHealed(target)) return SPELL_TARGET_REASONS.EMBALM_SUMMONED;
       return null;
     }
 
@@ -743,6 +777,43 @@ export function explainInvalidSpellTarget(
 }
 
 // ── Per-spell cast handlers ───────────────────────────────────────────────────
+
+/** Consumes the unit's player Gravestone and turns it permanently undead. */
+function handleEmbalm(
+  state: Draft<GameState>,
+  mage: Unit,
+  targetPosition: Position,
+): boolean {
+  const tile = state.grid[targetPosition.y]?.[targetPosition.x];
+  if (!tile?.buildingId) return false;
+  const grave = state.buildings[tile.buildingId];
+  if (!grave
+    || grave.type !== BuildingType.GRAVESTONE
+    || grave.faction !== Faction.PLAYER
+    || tile.unitId === null) return false;
+  const target = state.units[tile.unitId];
+  if (!target
+    || target.faction !== Faction.PLAYER
+    || target.id === mage.id
+    || isMageUnit(target)
+    || cannotBeHealed(target)) return false;
+
+  removeGravestone(state as unknown as GameState, grave.id);
+  if (!target.tags.includes(UnitTag.SUMMONED)) target.tags.push(UnitTag.SUMMONED);
+  if (!target.tags.includes(UnitTag.EMBALMED)) target.tags.push(UnitTag.EMBALMED);
+  for (const tag of getTagsFromActiveSpecialistsForSourceTag(state, UnitTag.SUMMONED)) {
+    if (!target.tags.includes(tag)) target.tags.push(tag);
+  }
+  syncOvercapacityTags(state);
+  useCombatAnimationStore.getState().addTileVfx({
+    id: crypto.randomUUID(),
+    x: targetPosition.x,
+    y: targetPosition.y,
+    variant: 'GRAVESTONE_CONSUMED',
+    durationMs: ANIMATION.GRAVESTONE_CONSUMED_MS,
+  });
+  return true;
+}
 
 /** Swaps two units' positions (Transpose). */
 function handleTranspose(
@@ -1742,6 +1813,9 @@ export function castSpell(
       success = true;
       break;
     }
+    case 'EMBALM':
+      success = handleEmbalm(state, mage, targetPosition);
+      break;
 
     case 'STONE_SKIN': {
       const targetId = state.grid[targetPosition.y]?.[targetPosition.x]?.unitId;

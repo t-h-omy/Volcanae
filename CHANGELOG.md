@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.127.0 - Embalm
+
+Necromancers can embalm a living own unit standing on a player Gravestone. The unit becomes permanently Summoned and Embalmed, losing population and Build and Capture use while keeping its level and other traits.
+
 ### v0.126.0 - Death's Door
 
 Necromancers can place an own unit under Deathless protection, keeping it at 1 HP against damage for the next full player turn. The protection expires at end of turn and leaves a Gravestone on a valid tile unless the unit follows the Brandmark rule instead.

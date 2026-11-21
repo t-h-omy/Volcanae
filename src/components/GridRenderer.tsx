@@ -1650,6 +1650,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
   const currentTurn = useGameStore((s) => s.turn);
   const previousDeathlessHpRef = useRef(unit.stats.currentHp);
   const hasDeathless = unit.tags.includes(UnitTag.DEATHLESS);
+  const hasEmbalmed = unit.tags.includes(UnitTag.EMBALMED);
   const isDeathlessFinalTurn =
     hasDeathless && currentTurn >= (unit.deathlessUntilTurn ?? Number.POSITIVE_INFINITY);
   useEffect(() => {
@@ -1773,6 +1774,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
   const backgroundEffect = resolveUnitBackgroundEffect([
     ...(hasDeathless ? ['DEATHLESS'] : []),
     ...(magePath ? ['MAGE_AURA'] : []),
+    ...(unit.tags.includes(UnitTag.EMBALMED) ? ['EMBALMED'] : []),
   ]);
   const mageAuraClass = backgroundEffect === 'MAGE_AURA' && magePath
     ? `unit--mage-${magePath.toLowerCase()}`
@@ -1794,6 +1796,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
         isEmberling && 'emberling-unit',
         hasDeathless && 'unit--deathless',
         isDeathlessFinalTurn && 'unit--deathless-final-turn',
+        hasEmbalmed && 'unit--embalmed',
         hasStoneSkin && 'unit--stone-skin',
         hasArcaneShield && 'unit--arcane-shield',
         shieldFx && `unit--layer-fx-${shieldFx}`,

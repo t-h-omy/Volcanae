@@ -29,7 +29,7 @@ import { useHintOptionsStore } from '../hintOptionsStore';
 import { tryTriggerHint } from '../hintSystem';
 import { getSuppressedTagsForUnit, isUnitOnCorruptedTile } from '../tileStatusSystem';
 import { isCorruptionBoundDrainActive } from '../corruptedQorkSystem';
-import { getMagePath, isMageUnit } from '../unitTraits';
+import { getInactiveTagReason, getMagePath, isMageUnit } from '../unitTraits';
 import { getCastableSpellIds } from '../spellSystem';
 import {
   hasSpawnSpaceAt,
@@ -1241,16 +1241,23 @@ function Popup({ onClose, children }: { onClose: () => void; children: React.Rea
 }
 
 /** Tag info popup — shows label + description with an OK button */
-function TagPopup({ tag, disabledByCorruption, disabledByCrystalline, onClose }: { tag: UnitTag; disabledByCorruption?: boolean; disabledByCrystalline?: boolean; onClose: () => void }) {
+function TagPopup({ tag, inactiveReason, onClose }: {
+  tag: UnitTag;
+  inactiveReason?: 'CORRUPTED' | 'CRYSTALLINE' | 'EMBALMED' | null;
+  onClose: () => void;
+}) {
   const { tagLabel, tagDesc, t } = useText();
   return (
     <Popup onClose={onClose}>
       <div className="info-popup-header-name" style={{ marginBottom: 10 }}>{tagLabel(tag)}</div>
-      {disabledByCorruption && (
+      {inactiveReason === 'CORRUPTED' && (
         <p className="info-popup-corruption-notice">{t('hud.tagPopup.disabledByCorruption')}</p>
       )}
-      {disabledByCrystalline && (
+      {inactiveReason === 'CRYSTALLINE' && (
         <p className="info-popup-crystalline-notice">{t('hud.tagPopup.disabledByCrystalline')}</p>
+      )}
+      {inactiveReason === 'EMBALMED' && (
+        <p className="info-popup-corruption-notice">{t('hud.tagPopup.disabledByEmbalm')}</p>
       )}
       <p className="info-popup-desc" style={{ marginBottom: 16 }}>{tagDesc(tag)}</p>
       <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}><FitText text={t('common.ok')} /></button>
@@ -2198,7 +2205,13 @@ function UnitCombinedInfoPopup({ unit, onClose }: { unit: Unit; onClose: () => v
         <button className="info-popup-btn info-popup-btn--secondary" onClick={onClose}><FitText text={t('common.ok')} /></button>
       </Popup>
 
-      {tagPopup && <TagPopup tag={tagPopup} onClose={() => setTagPopup(null)} />}
+      {tagPopup && (
+        <TagPopup
+          tag={tagPopup}
+          inactiveReason={getInactiveTagReason(unit, tagPopup, getSuppressedTagsForUnit(gameState, unit))}
+          onClose={() => setTagPopup(null)}
+        />
+      )}
     </>
   );
 }
@@ -2261,10 +2274,6 @@ function SelectedUnitPanel({
   const visibleTags = unit.tags.filter((t) => !HIDDEN_UNIT_TAGS.has(t));
 
   const showAiScores = useDevOptionsStore((s) => s.showAiScores);
-  const isOnCorruptedTile = isPlayer && (() => {
-    const tile = gameState.grid[unit.position.y]?.[unit.position.x];
-    return tile?.status === TileStatus.CORRUPTED;
-  })();
   const suppressedTags = getSuppressedTagsForUnit(gameState, unit);
   const hasSuppressedTags = !!suppressedTags && unit.tags.some((tag) => suppressedTags.has(tag));
   const suppressionDisplayTag = hasSuppressedTags
@@ -2651,7 +2660,8 @@ function SelectedUnitPanel({
       {displayedTags.length > 0 && (
         <div className="hud-tag-pills">
           {displayedTags.map((tag) => {
-            const inactive = suppressedTags?.has(tag) ?? false;
+          const inactiveReason = getInactiveTagReason(unit, tag, suppressedTags);
+          const inactive = inactiveReason !== null;
             return (
             <InfoTagPill
               key={tag}
@@ -2928,8 +2938,7 @@ function SelectedUnitPanel({
       {tagPopup && (
         <TagPopup
           tag={tagPopup}
-          disabledByCorruption={isOnCorruptedTile && (suppressedTags?.has(tagPopup) ?? false)}
-          disabledByCrystalline={suppressionDisplayTag === UnitTag.CRYSTALLINE && (suppressedTags?.has(tagPopup) ?? false)}
+          inactiveReason={getInactiveTagReason(unit, tagPopup, suppressedTags)}
           onClose={() => {
             if (suppressedTags?.has(tagPopup)) setHighlightSuppressed(true);
             setTagPopup(null);

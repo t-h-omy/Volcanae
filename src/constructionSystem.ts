@@ -23,6 +23,7 @@ import { isSpecialistEffectActive } from './specialistSystem';
 import { getBuildingUnlockTechId } from './techSystem';
 import type { TechId } from './types';
 import { isPortalEndpoint } from './portalSystem';
+import { hasBuildAndCapture } from './unitTraits';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -333,7 +334,7 @@ export function canUnitConvertBuilding(
   if (unit.hasAttackedThisTurn) return false;
   if (unit.hasCapturedThisTurn) return false;
   if (unit.hasDestroyedThisTurn) return false;
-  if (!unit.tags.includes(UnitTag.BUILDANDCAPTURE)) return false;
+  if (!hasBuildAndCapture(unit)) return false;
 
   const tile = state.grid[unit.position.y]?.[unit.position.x];
   if (!tile || !tile.buildingId) return false;
@@ -433,7 +434,7 @@ export function canConstructAt(
   if (!unit) return false;
 
   // Must have BUILDANDCAPTURE tag
-  if (!unit.tags.includes(UnitTag.BUILDANDCAPTURE)) return false;
+  if (!hasBuildAndCapture(unit)) return false;
 
   // Must be on the exact same tile
   if (unit.position.x !== tilePos.x || unit.position.y !== tilePos.y) return false;
