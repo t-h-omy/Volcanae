@@ -155,6 +155,10 @@ const SPELL_TARGET_REASONS: Record<string, TextRef> = {
   TAUNT_ALREADY_TAUNTED: { key: 'reason.spell.tauntAlreadyTaunted' },
   INFESTED_ALREADY: { key: 'reason.spell.infestedAlready' },
   GRAVE_MARK_ALREADY_MARKED: { key: 'reason.spell.graveMarkAlreadyMarked' },
+  DEATHS_DOOR_ALREADY: { key: 'reason.spell.deathsDoorAlready' },
+  DEATHS_DOOR_MAGE: { key: 'reason.spell.deathsDoorMage' },
+  DEATHS_DOOR_SUMMONED: { key: 'reason.spell.deathsDoorSummoned' },
+  DEATHS_DOOR_MECH: { key: 'reason.spell.deathsDoorMech' },
   STONE_SKIN_ALREADY_ACTIVE: { key: 'reason.spell.stoneSkinAlreadyActive' },
   STONE_SKIN_MECH: { key: 'reason.spell.stoneSkinMech' },
   BRANDMARK_SUMMONED: { key: 'reason.spell.brandmarkSummoned' },
@@ -423,6 +427,18 @@ export function getValidSpellTargets(
         .map((unit) => ({ ...unit.position }));
     }
 
+    case 'DEATHS_DOOR': {
+      return Object.values(state.units)
+        .filter((unit) =>
+          unit.faction === Faction.PLAYER
+          && unit.id !== mage.id
+          && !isMageUnit(unit)
+          && !cannotBeHealed(unit)
+          && !unit.tags.includes(UnitTag.DEATHLESS)
+          && isTileInSpellRange(mage, unit.position, range))
+        .map((unit) => ({ ...unit.position }));
+    }
+
     case 'RAISE_SKELETON': {
       const targets: Position[] = [];
       for (const building of Object.values(state.buildings)) {
@@ -554,6 +570,18 @@ export function explainInvalidSpellTarget(
       return target.tags.includes(UnitTag.GRAVE_MARKED)
         ? SPELL_TARGET_REASONS.GRAVE_MARK_ALREADY_MARKED
         : null;
+    }
+
+    case 'DEATHS_DOOR': {
+      if (!tile.unitId) return null;
+      const target = state.units[tile.unitId];
+      if (!target || target.faction !== Faction.PLAYER) return null;
+      if (!isTileInSpellRange(mage, target.position, range)) return null;
+      if (target.tags.includes(UnitTag.DEATHLESS)) return SPELL_TARGET_REASONS.DEATHS_DOOR_ALREADY;
+      if (isMageUnit(target)) return SPELL_TARGET_REASONS.DEATHS_DOOR_MAGE;
+      if (isMech(target)) return SPELL_TARGET_REASONS.DEATHS_DOOR_MECH;
+      if (cannotBeHealed(target)) return SPELL_TARGET_REASONS.DEATHS_DOOR_SUMMONED;
+      return null;
     }
 
     case 'STONE_SKIN': {
@@ -1697,6 +1725,20 @@ export function castSpell(
       const target = targetId ? state.units[targetId] : undefined;
       if (!target || target.faction !== Faction.ENEMY || target.tags.includes(UnitTag.GRAVE_MARKED)) return false;
       target.tags.push(UnitTag.GRAVE_MARKED);
+      success = true;
+      break;
+    }
+    case 'DEATHS_DOOR': {
+      const targetId = state.grid[targetPosition.y]?.[targetPosition.x]?.unitId;
+      const target = targetId ? state.units[targetId] : undefined;
+      if (!target
+        || target.faction !== Faction.PLAYER
+        || target.id === mage.id
+        || isMageUnit(target)
+        || cannotBeHealed(target)
+        || target.tags.includes(UnitTag.DEATHLESS)) return false;
+      target.tags.push(UnitTag.DEATHLESS);
+      target.deathlessUntilTurn = state.turn + MAGE.DEATHS_DOOR_DURATION_TURNS;
       success = true;
       break;
     }

@@ -34,6 +34,7 @@ const OWNED_SPELLS: Record<(typeof MAGE_TYPES)[number], SpellId[]> = {
     SpellId.RUPTURE,
     SpellId.RAISE_SKELETON,
     SpellId.GRAVE_MARK,
+    SpellId.DEATHS_DOOR,
     SpellId.SUMMON_GHOUL,
     SpellId.GRAVE_TRAP,
   ],

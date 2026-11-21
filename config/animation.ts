@@ -5,6 +5,10 @@
  */
 
 export const ANIMATION = {
+  /** Ambient Deathless pulse cycle. */
+  DEATHLESS_PULSE_CYCLE_MS: 2800,
+  /** Final-turn Deathless pulse cycle, always at least two seconds. */
+  DEATHLESS_FINAL_PULSE_CYCLE_MS: 2000,
   /** Ambient Crystalline tile glint cycle. */
   CRYSTALLINE_GLINT_CYCLE_MS: 6000,
   /** Coordinate multipliers stagger Crystalline glints across neighboring tiles. */

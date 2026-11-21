@@ -562,6 +562,14 @@ export const TECH_TREE: TechNodeDefinition[] = [
     ],
   },
   {
+    id: 'DEATHS_DOOR',
+    requires: ['NECROMANCER'],
+    cost: 4,
+    effects: [
+      { type: 'UNLOCK_SPELL', spellId: SpellId.DEATHS_DOOR },
+    ],
+  },
+  {
     id: 'SUMMON_GHOUL',
     requires: ['RAISE_SKELETON'],
     cost: 7,

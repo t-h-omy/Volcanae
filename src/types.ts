@@ -223,6 +223,7 @@ export const SpellId = {
   SUMMON_GHOUL: 'SUMMON_GHOUL',
   LAVA_MOLD: 'LAVA_MOLD',
   GRAVE_MARK: 'GRAVE_MARK',
+  DEATHS_DOOR: 'DEATHS_DOOR',
   PORTAL: 'PORTAL',
   CORRUPTED_QORK: 'CORRUPTED_QORK',
   CRYSTALLIZE: 'CRYSTALLIZE',
@@ -357,6 +358,8 @@ export const UnitTag = {
   LEAVES_GRAVESTONE: 'LEAVES_GRAVESTONE',
   /** Marked by Grave Mark; leaves a player Gravestone when it dies. */
   GRAVE_MARKED: 'GRAVE_MARKED',
+  /** Protected from damaging HP loss until the configured expiry turn. */
+  DEATHLESS: 'DEATHLESS',
   // ── Combat modifier tags ──────
   /** On hit, deals AoE damage to enemy units adjacent to both attacker and defender. Ignores Phalanx defense. */
   CLEAVE: 'CLEAVE',
@@ -496,6 +499,8 @@ export interface Unit {
   position: Position;
   stats: UnitStats;
   tags: UnitTag[];
+  /** End-of-turn expiry for DEATHLESS protection. */
+  deathlessUntilTurn?: number;
   hasMovedThisTurn: boolean;
   hasAttackedThisTurn: boolean;
   hasConstructedThisTurn: boolean;

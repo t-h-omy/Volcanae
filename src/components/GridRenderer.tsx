@@ -1648,6 +1648,28 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
   const showUnitImg = typeof unitSpritePath === 'string' && unitSpritePath !== '' && !unitSpriteError;
 
   const currentTurn = useGameStore((s) => s.turn);
+  const previousDeathlessHpRef = useRef(unit.stats.currentHp);
+  const hasDeathless = unit.tags.includes(UnitTag.DEATHLESS);
+  const isDeathlessFinalTurn =
+    hasDeathless && currentTurn >= (unit.deathlessUntilTurn ?? Number.POSITIVE_INFINITY);
+  useEffect(() => {
+    const previousHp = previousDeathlessHpRef.current;
+    previousDeathlessHpRef.current = unit.stats.currentHp;
+    if (
+      hasDeathless
+      && previousHp > MAGE.DEATHLESS_MINIMUM_HP
+      && unit.stats.currentHp === MAGE.DEATHLESS_MINIMUM_HP
+    ) {
+      useFloaterStore.getState().addFloater({
+        value: 0,
+        label: `⏳ ${t('tag.DEATHLESS.label')}`,
+        x: unit.position.x,
+        y: unit.position.y,
+        isEnemy: false,
+        floaterType: 'revive',
+      });
+    }
+  }, [hasDeathless, unit.stats.currentHp, unit.position.x, unit.position.y, t]);
   const selectedUnitId = useGameStore((s) => s.selectedUnitId);
   const isSelectedMage = selectedUnitId === unit.id && isMageUnit(unit);
   const mageCanCast = useGameStore((s) => {
@@ -1748,7 +1770,10 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
   );
   const [stoneSkinFx, stoneSkinFxDelayMs] = useProtectiveLayerFx(stoneSkinHp);
 
-  const backgroundEffect = resolveUnitBackgroundEffect(magePath ? ['MAGE_AURA'] : []);
+  const backgroundEffect = resolveUnitBackgroundEffect([
+    ...(hasDeathless ? ['DEATHLESS'] : []),
+    ...(magePath ? ['MAGE_AURA'] : []),
+  ]);
   const mageAuraClass = backgroundEffect === 'MAGE_AURA' && magePath
     ? `unit--mage-${magePath.toLowerCase()}`
     : null;
@@ -1767,6 +1792,8 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
         'tile-unit',
         animClass,
         isEmberling && 'emberling-unit',
+        hasDeathless && 'unit--deathless',
+        isDeathlessFinalTurn && 'unit--deathless-final-turn',
         hasStoneSkin && 'unit--stone-skin',
         hasArcaneShield && 'unit--arcane-shield',
         shieldFx && `unit--layer-fx-${shieldFx}`,
@@ -1799,6 +1826,9 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
           '--arcane-shield-color': MAGIC_PATH_COLORS.ARCANE.primary,
           '--arcane-shield-glow': MAGIC_PATH_COLORS.ARCANE.glow,
           '--arcane-shield-ratio': arcaneShieldRatio,
+          '--deathless-pulse-duration': `${isDeathlessFinalTurn ? ANIMATION.DEATHLESS_FINAL_PULSE_CYCLE_MS : ANIMATION.DEATHLESS_PULSE_CYCLE_MS}ms`,
+          '--deathless-color': MAGIC_PATH_COLORS.NECRO.primary,
+          '--deathless-glow': MAGIC_PATH_COLORS.NECRO.glow,
           '--protective-layer-fx-duration': `${ANIMATION.PROTECTIVE_LAYER_FX_DURATION_MS}ms`,
           '--shield-fx-delay': `${shieldFxDelayMs}ms`,
           '--stone-skin-fx-delay': `${stoneSkinFxDelayMs}ms`,

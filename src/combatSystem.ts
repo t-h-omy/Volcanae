@@ -93,6 +93,7 @@ export function shouldLeaveGravestone(
   if (unit.faction !== Faction.PLAYER) return false;
   if (cannotBeHealed(unit)) return false;
   if (unit.tags.includes(UnitTag.NO_GRAVESTONE)) return false;
+  if (unit.tags.includes(UnitTag.DEATHLESS)) return true;
   if (options.defaultOn) return true;
   return unit.tags.includes(UnitTag.LEAVES_GRAVESTONE) || unit.tags.includes(UnitTag.REVIVABLE);
 }

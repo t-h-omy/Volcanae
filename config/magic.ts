@@ -47,6 +47,10 @@ export const MAGE = {
   GRAVE_TRAP_STUN_TURNS: 2,
   /** Percentage of the sacrificed unit's CURRENT HP dealt to each adjacent enemy by Explode */
   EXPLODE_DAMAGE_PERCENT: 50,
+  /** Player-turn count through which Death's Door protects a unit. */
+  DEATHS_DOOR_DURATION_TURNS: 1,
+  /** Minimum HP retained by a Deathless unit when damage would kill it. */
+  DEATHLESS_MINIMUM_HP: 1,
 
   // ── Crystal Tower reward ─────────────────────────────────────────────
   /** Crystals granted when an enemy unit is killed by a CRYSTAL_TOWER */
@@ -139,6 +143,11 @@ export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
   [SpellId.GRAVE_MARK]: {
     id: SpellId.GRAVE_MARK,
     emoji: '🪦',
+    casters: [UnitType.NECROMANCER],
+  },
+  [SpellId.DEATHS_DOOR]: {
+    id: SpellId.DEATHS_DOOR,
+    emoji: '⏳',
     casters: [UnitType.NECROMANCER],
   },
   [SpellId.FROSTCRAFT]: {

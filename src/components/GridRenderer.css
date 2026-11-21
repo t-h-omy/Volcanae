@@ -163,6 +163,10 @@
   filter: grayscale(0.85);
 }
 
+.unit--deathless .unit-main-img {
+  opacity: 0.72;
+}
+
 /* ── Tile ── */
 
 .grid-tile {
@@ -218,6 +222,26 @@
 .unit--mage-crystal { --mage-path-primary: var(--path-crystal-primary); --mage-path-glow: var(--path-crystal-glow); }
 .unit--mage-necro { --mage-path-primary: var(--path-necro-primary); --mage-path-glow: var(--path-necro-glow); }
 .unit--mage-ember { --mage-path-primary: var(--path-ember-primary); --mage-path-glow: var(--path-ember-glow); }
+
+.tile-unit.unit--deathless::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -4%;
+  width: 150%;
+  height: 42%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, color-mix(in srgb, var(--deathless-glow) 68%, transparent), transparent 70%);
+  opacity: 0.36;
+  pointer-events: none;
+  animation: deathlessPulse var(--deathless-pulse-duration, 2800ms) ease-in-out infinite;
+}
+
+@keyframes deathlessPulse {
+  0%, 100% { opacity: 0.28; }
+  50% { opacity: 0.52; }
+}
 
 .tile-unit.unit--mage-crystal::before,
 .tile-unit.unit--mage-necro::before,
@@ -1670,6 +1694,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .tile-unit.unit--deathless::before { animation: none; }
   .tile-unit.unit--mage-crystal::before,
   .tile-unit.unit--mage-necro::before,
   .tile-unit.unit--mage-ember::before { animation: none; }
