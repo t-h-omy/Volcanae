@@ -124,6 +124,44 @@ export function addDirectQorkDeathVfx(
   });
 }
 
+/** Processes Deathless expiry in the end-of-player-turn tag-damage block. */
+export function processDeathlessExpiry(
+  state: Draft<GameState>,
+  events: GameEvent[],
+): void {
+  const deathlessDying: string[] = [];
+  for (const unit of Object.values(state.units)) {
+    if (unit.faction !== Faction.PLAYER) continue;
+    if (!unit.tags.includes(UnitTag.DEATHLESS)) continue;
+    if (state.turn >= (unit.deathlessUntilTurn ?? 0)) {
+      deathlessDying.push(unit.id);
+    }
+  }
+  for (const unitId of deathlessDying) {
+    const unit = state.units[unitId];
+    if (!unit) continue;
+    if (unit.tags.includes(UnitTag.BRANDMARKED)) {
+      resolveInfestedDeath(state, unit, events);
+      handleBrandmarkedUnitDeath(state, unit);
+      continue;
+    }
+    const tile = state.grid[unit.position.y]?.[unit.position.x];
+    if (tile?.unitId === unitId) tile.unitId = null;
+    const deathPos = { x: unit.position.x, y: unit.position.y };
+    const unitType = unit.type;
+    const unitTags = [...unit.tags];
+    delete state.units[unitId];
+    events.push({
+      type: 'UNIT_DEATH',
+      unitId,
+      position: deathPos,
+      faction: unit.faction,
+    });
+    resolveInfestedDeath(state, unit, events);
+    tryLeaveGravestone(state, { faction: unit.faction, tags: unitTags, type: unitType }, deathPos);
+  }
+}
+
 // ============================================================================
 // STORE ACTIONS INTERFACE
 // ============================================================================
@@ -2555,37 +2593,7 @@ export const useGameStore = create<GameStore>()(
           }
 
           // Death's Door expiry: player units on this turn's expiry lose Deathless protection.
-          const deathlessDying: string[] = [];
-          for (const unit of Object.values(draft.units)) {
-            if (unit.faction !== Faction.PLAYER) continue;
-            if (!unit.tags.includes(UnitTag.DEATHLESS)) continue;
-            if (draft.turn >= (unit.deathlessUntilTurn ?? 0)) {
-              deathlessDying.push(unit.id);
-            }
-          }
-          for (const unitId of deathlessDying) {
-            const unit = draft.units[unitId];
-            if (!unit) continue;
-            if (unit.tags.includes(UnitTag.BRANDMARKED)) {
-              resolveInfestedDeath(draft, unit, tagDamageEvents);
-              handleBrandmarkedUnitDeath(draft, unit);
-              continue;
-            }
-            const tile = draft.grid[unit.position.y]?.[unit.position.x];
-            if (tile?.unitId === unitId) tile.unitId = null;
-            const deathPos = { x: unit.position.x, y: unit.position.y };
-            const unitType = unit.type;
-            const unitTags = [...unit.tags];
-            delete draft.units[unitId];
-            tagDamageEvents.push({
-              type: 'UNIT_DEATH',
-              unitId,
-              position: deathPos,
-              faction: unit.faction,
-            });
-            resolveInfestedDeath(draft, unit, tagDamageEvents);
-            tryLeaveGravestone(draft, { faction: unit.faction, tags: unitTags, type: unitType }, deathPos);
-          }
+          processDeathlessExpiry(draft, tagDamageEvents);
 
           // ── Untrained sync ───────────────────────────────────────────────────
           // Capacity pools per building TYPE (not per building instance).

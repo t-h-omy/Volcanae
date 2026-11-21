@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.126.0 - Death's Door
+
+Necromancers can place an own unit under Deathless protection, keeping it at 1 HP against damage for the next full player turn. The protection expires at end of turn and leaves a Gravestone on a valid tile unless the unit follows the Brandmark rule instead.
+
 ### v0.125.0 - Grave Mark
 
 Necromancers can mark enemy units to leave an empty player Gravestone when they die on a valid tile. The resulting Gravestones can fuel Necromancer spells and Ghoul consumption, but cannot revive a unit.
