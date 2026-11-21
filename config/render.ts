@@ -6,7 +6,7 @@
 
 import type { MagicPath } from '../src/types';
 
-export const UNIT_BACKGROUND_EFFECT_PRIORITY = ['DEATHLESS', 'MAGE_AURA', 'EMBALMED'] as const;
+export const UNIT_BACKGROUND_EFFECT_PRIORITY = ['DEATHLESS', 'BERSERK', 'MAGE_AURA', 'EMBALMED'] as const;
 
 export const MAGIC_PATH_COLORS: Record<MagicPath, { primary: string; glow: string; deep: string }> = {
   CRYSTAL: { primary: '#7FC1FF', glow: '#8DF8FF', deep: '#2F6FCC' },
@@ -26,6 +26,8 @@ export const RENDER = {
   UNIT_EXHAUSTED_FILTER: 'saturate(0.55) brightness(0.75)',
   /** Colors for tile rendering */
   COLORS: {
+    /** Crimson pulse for permanently active Berserk units. */
+    BERSERK: '#C8102E',
     UNREVEALED: '#d8d8d8',
     GRASS: '#4a8c3f',
     LAVA: '#e25822',

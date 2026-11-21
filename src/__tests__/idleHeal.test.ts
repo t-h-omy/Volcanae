@@ -10,6 +10,7 @@ import {
   Faction,
   GamePhase,
   TileType,
+  TechFlag,
   UnitType,
   UnitTag,
 } from '../types';
@@ -194,6 +195,79 @@ function makeState(units: Unit[]): GameState {
 describe('SP-24 Field Chirurgeon idle heal', () => {
   beforeEach(() => {
     useAnimationStore.getState().clear();
+  });
+
+  describe('MC-04 Concentration charge gain', () => {
+    beforeEach(() => {
+      useAnimationStore.getState().clear();
+    });
+
+    it('charges only idle Mages, keeps an existing charge, and emits one grouped event', () => {
+      const idle = makeUnit('idle-mage', UnitType.CRYSTAL_MAGE, { x: 2, y: 8 });
+      const casted = makeUnit('cast-mage', UnitType.NECROMANCER, { x: 3, y: 8 }, { spellsCastThisTurn: 1 });
+      const moved = makeUnit('moved-mage', UnitType.EMBER_CULTIST, { x: 4, y: 8 }, { hasMovedThisTurn: true });
+      const charged = makeUnit('charged-mage', UnitType.CRYSTAL_MAGE, { x: 5, y: 8 }, {
+        concentrationCharges: 1,
+        tags: [UnitTag.CONCENTRATED],
+      });
+      const state = makeState([idle, casted, moved, charged]);
+      state.techFlags = [TechFlag.CONCENTRATION];
+      useGameStore.setState(state);
+
+      useGameStore.getState().endPlayerTurn();
+
+      const resolved = useAnimationStore.getState().resolvedState!;
+      const chargedEvents = useAnimationStore.getState().eventQueue.filter((event) => event.type === 'CONCENTRATION_CHARGED');
+      expect(resolved.units[idle.id].concentrationCharges).toBe(1);
+      expect(resolved.units[idle.id].tags).toContain(UnitTag.CONCENTRATED);
+      expect(resolved.units[casted.id].concentrationCharges ?? 0).toBe(0);
+      expect(resolved.units[moved.id].concentrationCharges ?? 0).toBe(0);
+      expect(resolved.units[charged.id].concentrationCharges).toBe(1);
+      expect(chargedEvents).toEqual([{
+        type: 'CONCENTRATION_CHARGED',
+        units: [{ unitId: idle.id, position: idle.position }],
+      }]);
+    });
+
+    it('does not charge without the tech and an idle charged Mage keeps no more than one', () => {
+      const idle = makeUnit('idle-mage', UnitType.CRYSTAL_MAGE, { x: 2, y: 8 });
+      useGameStore.setState(makeState([idle]));
+      useGameStore.getState().endPlayerTurn();
+      const withoutTech = useAnimationStore.getState().resolvedState ?? useGameStore.getState();
+      expect(withoutTech.units[idle.id].concentrationCharges ?? 0).toBe(0);
+      expect(useAnimationStore.getState().eventQueue.some((event) => event.type === 'CONCENTRATION_CHARGED')).toBe(false);
+
+      useAnimationStore.getState().clear();
+      const alreadyCharged = makeUnit('charged-mage', UnitType.CRYSTAL_MAGE, { x: 2, y: 8 }, {
+        concentrationCharges: 1,
+        tags: [UnitTag.CONCENTRATED],
+      });
+      const withTech = makeState([alreadyCharged]);
+      withTech.techFlags = [TechFlag.CONCENTRATION];
+      useGameStore.setState(withTech);
+      useGameStore.getState().endPlayerTurn();
+      const resolved = useAnimationStore.getState().resolvedState ?? useGameStore.getState();
+      expect(resolved.units[alreadyCharged.id].concentrationCharges).toBe(1);
+      expect(useAnimationStore.getState().eventQueue.some((event) => event.type === 'CONCENTRATION_CHARGED')).toBe(false);
+    });
+
+    it('does not replenish a charge spent on a cast and resets charged casts after the turn', () => {
+      const mage = makeUnit('charged-mage', UnitType.CRYSTAL_MAGE, { x: 2, y: 8 }, {
+        spellsCastThisTurn: 1,
+        concentrationCharges: 0,
+        concentrationCastsThisTurn: 1,
+      });
+      const state = makeState([mage]);
+      state.techFlags = [TechFlag.CONCENTRATION];
+      useGameStore.setState(state);
+
+      useGameStore.getState().endPlayerTurn();
+
+      const resolved = useAnimationStore.getState().resolvedState ?? useGameStore.getState();
+      expect(resolved.units[mage.id].concentrationCharges).toBe(0);
+      expect(resolved.units[mage.id].concentrationCastsThisTurn).toBe(0);
+      expect(useAnimationStore.getState().eventQueue.some((event) => event.type === 'CONCENTRATION_CHARGED')).toBe(false);
+    });
   });
 
   it('does not regularly heal Mechs or other summoned units', () => {

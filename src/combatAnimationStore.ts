@@ -138,6 +138,7 @@ export type LineVfxVariant =
   | 'SPELL_CAST'
   | 'PIERCE_LINE'
   | 'CRYSTAL_LIGHTNING'
+  | 'BLOOD_RUSH'
   | 'RESONANCE_WAVE';
 
 export interface LineVfx {
@@ -148,6 +149,7 @@ export interface LineVfx {
   durationMs: number;
   delayMs?: number;
   tone?: MagicPath;
+  concentrated?: boolean;
 }
 
 interface CombatAnimationState {

@@ -7,6 +7,7 @@ import { useAnimationStore } from '../animationStore';
 import { useZoomStore } from '../zoomStore';
 import { useCombatAnimationStore } from '../combatAnimationStore';
 import { useGameStore } from '../gameStore';
+import { useFloaterStore } from '../floaterStore';
 import { useAnimationEngine } from '../useAnimationEngine';
 import { advanceLavaWithEvents } from '../lavaSystem';
 import { BuildingType, DestroyBehavior, Faction, TileType, UnitTag, UnitType } from '../types';
@@ -352,5 +353,67 @@ describe('Khyron resonance event presentation', () => {
     else expect(event).not.toHaveProperty('survivingKhyronIds');
     expect(newState.units.first.resonanceActive).toBe(hasChamber);
     expect(live.units.first.resonanceActive).toBe(false);
+  });
+
+  it('presents grouped Chamber Healing without panning or waiting', async () => {
+    const live = state();
+    const mage = live.units.first!;
+    mage.type = UnitType.CRYSTAL_MAGE;
+    mage.tags = [];
+    mage.stats.currentHp -= 10;
+    useGameStore.setState(live);
+    const setBuildingAnimation = vi.spyOn(useCombatAnimationStore.getState(), 'setBuildingAnimation');
+    const addTileVfx = vi.spyOn(useCombatAnimationStore.getState(), 'addTileVfx');
+    const floater = vi.spyOn(useFloaterStore.getState(), 'addFloater');
+    const event: GameEvent = {
+      type: 'CHAMBER_HEALING',
+      chambers: [{ buildingId: 'chamber', position: { x: 0, y: 0 } }],
+      heals: [{ unitId: mage.id, position: mage.position, amount: 10 }],
+    };
+
+    const { camera } = replay([event]);
+    await vi.runAllTimersAsync();
+
+    expect(camera).not.toHaveBeenCalled();
+    expect(setBuildingAnimation).toHaveBeenCalledWith(
+      'chamber',
+      { type: 'CRYSTAL_ACTIVATE', durationMs: ANIMATION.CHAMBER_HEALING_VFX_DURATION_MS },
+    );
+    expect(addTileVfx).toHaveBeenCalledWith(expect.objectContaining({
+      x: mage.position.x,
+      y: mage.position.y,
+      variant: 'HEAL',
+      durationMs: ANIMATION.HEAL_VFX_MS,
+    }));
+    expect(floater).toHaveBeenCalledWith(expect.objectContaining({
+      value: 10,
+      x: mage.position.x,
+      y: mage.position.y,
+      floaterType: 'heal',
+    }));
+    expect(useGameStore.getState().units[mage.id].stats.currentHp).toBe(mage.stats.maxHp);
+  });
+
+  it('applies hidden Chamber Healing without showing VFX', async () => {
+    const live = state(false);
+    const mage = live.units.first!;
+    mage.type = UnitType.CRYSTAL_MAGE;
+    mage.tags = [];
+    mage.stats.currentHp -= 10;
+    useGameStore.setState(live);
+    const setBuildingAnimation = vi.spyOn(useCombatAnimationStore.getState(), 'setBuildingAnimation');
+    const addTileVfx = vi.spyOn(useCombatAnimationStore.getState(), 'addTileVfx');
+    const { camera } = replay([{
+      type: 'CHAMBER_HEALING',
+      chambers: [{ buildingId: 'chamber', position: { x: 0, y: 0 } }],
+      heals: [{ unitId: mage.id, position: mage.position, amount: 10 }],
+    }]);
+
+    await vi.runAllTimersAsync();
+
+    expect(camera).not.toHaveBeenCalled();
+    expect(setBuildingAnimation).not.toHaveBeenCalled();
+    expect(addTileVfx).not.toHaveBeenCalled();
+    expect(useGameStore.getState().units[mage.id].stats.currentHp).toBe(mage.stats.maxHp);
   });
 });

@@ -114,6 +114,8 @@ function eventPosition(event: GameEvent): Position {
       return event.position;
     case 'UNIT_HEAL':
       return event.position;
+    case 'CHAMBER_HEALING':
+      return event.chambers[0]?.position ?? event.heals[0]?.position ?? useAnimationStore.getState().cameraTarget;
     case 'CLEAVE_DAMAGE':
       return event.position;
     case 'PIERCE_DAMAGE':
@@ -155,6 +157,10 @@ function eventPosition(event: GameEvent): Position {
       return event.position;
     case 'CAVE_MONSTER_RETREAT':
       return event.position;
+    case 'CONCENTRATION_CHARGED':
+      return event.units[0]?.position ?? useAnimationStore.getState().cameraTarget;
+    case 'AMPLIFICATION_BROKEN':
+      return event.unitPos;
     case 'LEASH_DEFECT':
       return event.demonPos;
     case 'UNIT_KNOCKBACK':
@@ -248,6 +254,9 @@ function isEventVisible(event: GameEvent): boolean {
       return isTileRevealed(event.position);
     case 'UNIT_HEAL':
       return true;
+    case 'CHAMBER_HEALING':
+      return event.chambers.some(({ position }) => isTileRevealed(position))
+        || event.heals.some(({ position }) => isTileRevealed(position));
     case 'CLEAVE_DAMAGE':
       return isTileRevealed(event.position);
     case 'PIERCE_DAMAGE':
@@ -286,6 +295,10 @@ function isEventVisible(event: GameEvent): boolean {
           useGameStore.getState().units[unitId]?.faction === Faction.PLAYER);
     case 'CAVE_MONSTER_RETREAT':
       return isTileRevealed(event.position);
+    case 'CONCENTRATION_CHARGED':
+      return event.units.some((unit) => isTileRevealed(unit.position));
+    case 'AMPLIFICATION_BROKEN':
+      return isTileRevealed(event.unitPos) || isTileRevealed(event.magePos);
     case 'LEASH_DEFECT':
       return isTileRevealed(event.demonPos) || isTileRevealed(event.magePos);
     case 'UNIT_KNOCKBACK':
@@ -919,6 +932,23 @@ export function useAnimationEngine(): void {
           resolvingScoutTrap = true;
         }
 
+        if (event.type === 'CONCENTRATION_CHARGED') {
+          if (visible) {
+            const animationStore = useCombatAnimationStore.getState();
+            for (const unit of event.units) {
+              if (!isTileRevealed(unit.position)) continue;
+              animationStore.addTileVfx({
+                id: crypto.randomUUID(),
+                x: unit.position.x,
+                y: unit.position.y,
+                variant: 'RESONANCE_CHARGE',
+                durationMs: ANIMATION.CONCENTRATION_CHARGE_VFX_MS,
+              });
+            }
+          }
+          continue;
+        }
+
         // Resolve resonance immediately, then present its selected graph edges by hop.
         if (event.type === 'RESONANCE_TRIGGERED') {
           const tileSize = getTileSize();
@@ -1263,6 +1293,36 @@ export function useAnimationEngine(): void {
             }
           });
 
+          continue;
+        }
+
+        if (event.type === 'CHAMBER_HEALING') {
+          const combatStore = useCombatAnimationStore.getState();
+          for (const chamber of event.chambers) {
+            if (!isTileRevealed(chamber.position)) continue;
+            const activation = {
+              type: 'CRYSTAL_ACTIVATE' as const,
+              durationMs: ANIMATION.CHAMBER_HEALING_VFX_DURATION_MS,
+            };
+            combatStore.setBuildingAnimation(chamber.buildingId, activation);
+            setTimeout(() => {
+              const store = useCombatAnimationStore.getState();
+              if (store.buildingAnimations.get(chamber.buildingId) === activation) {
+                store.setBuildingAnimation(chamber.buildingId, null);
+              }
+            }, activation.durationMs);
+          }
+          for (const heal of event.heals) {
+            if (!isTileRevealed(heal.position)) continue;
+            combatStore.addTileVfx({
+              id: crypto.randomUUID(),
+              x: heal.position.x,
+              y: heal.position.y,
+              variant: 'HEAL',
+              durationMs: ANIMATION.HEAL_VFX_MS,
+            });
+          }
+          useGameStore.getState().applyEvent(event);
           continue;
         }
 
@@ -1977,6 +2037,25 @@ export function useAnimationEngine(): void {
         }
 
         // ── Special handling for LEASH_DEFECT (demon defects during enemy turn) ──
+        if (event.type === 'AMPLIFICATION_BROKEN') {
+          if (visible) {
+            useAnimationStore.getState().setCameraTarget(event.unitPos);
+            await wait(ANIMATION.CAMERA_MOVE_DURATION_MS + ANIMATION.PRE_ACTION_IDLE_MS);
+            useGameStore.getState().applyEvent(event);
+            useCombatAnimationStore.getState().addLeashBurstPair({
+              mageId: event.mageId,
+              demonId: event.unitId,
+              magePos: event.magePos,
+              demonPos: event.unitPos,
+            });
+            await wait(ANIMATION.LEASH_BURST_VFX_DURATION_MS);
+            useCombatAnimationStore.getState().removeLeashBurstPair(event.unitId);
+          } else {
+            useGameStore.getState().applyEvent(event);
+          }
+          continue;
+        }
+
         if (event.type === 'LEASH_DEFECT') {
           if (visible) {
             const combatStore = useCombatAnimationStore.getState();

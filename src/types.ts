@@ -205,9 +205,12 @@ export type MagicPath = (typeof MagicPath)[keyof typeof MagicPath];
 
 /** Spell identifiers for the Mage spell system */
 export const SpellId = {
+  AMPLIFICATION: 'AMPLIFICATION',
   TRANSPOSE:      'TRANSPOSE',
   EMBERBIND:      'EMBERBIND',
   BRANDMARK_HEAL: 'BRANDMARK_HEAL',
+  BLOOD_RUSH: 'BLOOD_RUSH',
+  BLOOD_FRENZY: 'BLOOD_FRENZY',
   RAISE_SKELETON: 'RAISE_SKELETON',
   FROSTCRAFT:     'FROSTCRAFT',
   GRAVE_TRAP:     'GRAVE_TRAP',
@@ -255,6 +258,10 @@ export const TechFlag = {
   GRAVE_HARVEST: 'GRAVE_HARVEST',
   /** Arcane Studies: every player Mage carries an Arcane Shield pool. */
   ARCANE_SHIELD: 'ARCANE_SHIELD',
+  /** Arcane Studies: an idle Mage may store one additional spell cast. */
+  CONCENTRATION: 'CONCENTRATION',
+  /** Arcane Studies: resonating Crystal Chambers heal nearby player units. */
+  CHAMBER_HEALING: 'CHAMBER_HEALING',
 } as const;
 export type TechFlag = (typeof TechFlag)[keyof typeof TechFlag];
 
@@ -288,6 +295,8 @@ export type TerrainTag = (typeof TerrainTag)[keyof typeof TerrainTag];
 
 /** Tags that can be applied to units */
 export const UnitTag = {
+  /** Mage spell reach is linked through this unit. */
+  AMPLIFIED: 'AMPLIFIED',
   /** Unit has ranged attack capability */
   RANGED: 'RANGED',
   /** Unit cannot attack after moving (preparation required) */
@@ -351,6 +360,8 @@ export const UnitTag = {
   MECH: 'MECH',
   /** Unit carries the Brandmark Heal mark; loses HP each turn; cannot be healed by Patch Up; on death becomes a hostile Ember Demon */
   BRANDMARKED: 'BRANDMARKED',
+  /** Mage has stored an additional spell cast through Concentration. */
+  CONCENTRATED: 'CONCENTRATED',
   /** Summoned unit that defects to the enemy faction if its controller mage is out of leash range or dead */
   LEASHED: 'LEASHED',
   /** Leaves no body on death. Cannot become a Gravestone. */
@@ -545,12 +556,20 @@ export interface Unit {
    * `null` or `undefined` means no controller. Cleared on defection.
    */
   controllerMageId?: string | null;
+  /** Amplification link: Mage ID whose spell range is relayed through this unit. */
+  amplifierMageId?: string;
   /** Original Mage who started an Infested infection chain. */
   infestedByMageId?: string | null;
   /** Prevents deferred death/transform resolution from replaying an Infested burst. */
   infestedDeathEffectResolved?: boolean;
   /** Set on Mage units; number of spells cast this turn. Reset each turn. */
   spellsCastThisTurn?: number;
+  /** Stored Concentration spell charge. */
+  concentrationCharges?: number;
+  /** Current-turn casts paid from Concentration charges. */
+  concentrationCastsThisTurn?: number;
+  /** Current-turn cast exception granted when Blood Rush restores casting after movement. */
+  bloodRushCastReadyTurn?: number;
   /**
    * The turn number on which this unit was recruited/spawned.
    * 0 means it was not recruited this turn (or predates the field).

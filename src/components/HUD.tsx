@@ -2357,7 +2357,7 @@ function SelectedUnitPanel({
   const pendingSpellCast = useGameStore((s) => s.pendingSpellCast);
   const pendingTransposeFirstUnitId = useGameStore((s) => s.pendingTransposeFirstUnitId);
   const arcaneCrystals = useGameStore((s) => s.arcaneCrystals);
-  const mageCastBudget = isMage ? getMageCastBudget(gameState) : 0;
+  const mageCastBudget = isMage ? getMageCastBudget(gameState, unit) : 0;
   const mageCastsUsed = unit.spellsCastThisTurn ?? 0;
   const canCast = isMage && isPlayer && canUnitCast(unit, gameState) && arcaneCrystals >= 1;
   const isInSpellCastMode = pendingSpellCast?.mageId === unit.id;

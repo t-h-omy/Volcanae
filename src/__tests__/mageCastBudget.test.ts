@@ -2,11 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { produce } from 'immer';
 import { createInitialSpecialists } from '../specialistSystem';
 import { canUnitCast, canUnitMove } from '../unitActions';
-import { castSpell } from '../spellSystem';
+import { castSpell, getMageCastBudget, registerSpellCast } from '../spellSystem';
 import { SAVE_VERSION } from '../saveSystem';
-import { Faction, GamePhase, SpellId, TileType, UnitType } from '../types';
+import { Faction, GamePhase, SpellId, TechFlag, TileType, UnitTag, UnitType } from '../types';
 import type { GameState, Tile, Unit } from '../types';
-import { UNIT_DEFINITIONS } from '../gameConfig';
+import { MAGE, UNIT_DEFINITIONS } from '../gameConfig';
 
 function makeTile(x: number, y: number, terrainType: TileType = TileType.PLAINS): Tile {
   return {
@@ -117,7 +117,7 @@ function recordSuccessfulCast(state: GameState, target: { x: number; y: number }
   return produce(state, (draft) => {
     const mage = draft.units.mage_1;
     expect(castSpell(draft, mage.id, SpellId.FROSTCRAFT, target)).toBe(true);
-    mage.spellsCastThisTurn = (mage.spellsCastThisTurn ?? 0) + 1;
+    registerSpellCast(mage);
   });
 }
 
@@ -172,6 +172,62 @@ describe('mage cast budget', () => {
     expect(mage.spellsCastThisTurn).toBe(1);
     expect(canUnitMove(mage, afterFirstCast)).toBe(false);
     expect(canUnitCast(mage, afterFirstCast)).toBe(true);
+  });
+
+  it('spends a Concentration charge before the base cast budget', () => {
+    const state = makeState();
+    state.techFlags = [TechFlag.CONCENTRATION];
+    state.units.mage_1.concentrationCharges = 1;
+    state.units.mage_1.tags.push(UnitTag.CONCENTRATED);
+
+    const baseBudget = getMageCastBudget(state, { ...state.units.mage_1, concentrationCharges: 0 });
+    const expectedBudget = Math.min(
+      MAGE.MAX_CASTS_PER_TURN,
+      baseBudget + MAGE.CONCENTRATION_MAX_CHARGES,
+    );
+    expect(getMageCastBudget(state, state.units.mage_1)).toBe(expectedBudget);
+    const afterFirstCast = recordSuccessfulCast(state, { x: 2, y: 1 });
+    const mage = afterFirstCast.units.mage_1;
+
+    expect(mage.spellsCastThisTurn).toBe(1);
+    expect(mage.concentrationCharges).toBe(0);
+    expect(mage.concentrationCastsThisTurn).toBe(1);
+    expect(mage.tags).not.toContain(UnitTag.CONCENTRATED);
+    expect(getMageCastBudget(afterFirstCast, mage)).toBe(expectedBudget);
+    expect(canUnitCast(mage, afterFirstCast)).toBe(true);
+    expect(canUnitMove(mage, afterFirstCast)).toBe(false);
+  });
+
+  it('caps Archmage plus Concentration at the configured maximum', () => {
+    const state = makeState(['spec_06']);
+    state.techFlags = [TechFlag.CONCENTRATION];
+    state.units.mage_1.concentrationCharges = 1;
+    state.units.mage_1.tags.push(UnitTag.CONCENTRATED);
+
+    expect(getMageCastBudget(state, state.units.mage_1)).toBe(MAGE.MAX_CASTS_PER_TURN);
+
+    const targets = [{ x: 2, y: 1 }, { x: 3, y: 2 }, { x: 1, y: 2 }];
+    let afterCasts = state;
+    for (const target of targets.slice(0, MAGE.MAX_CASTS_PER_TURN)) {
+      afterCasts = recordSuccessfulCast(afterCasts, target);
+    }
+
+    expect(afterCasts.units.mage_1.spellsCastThisTurn).toBe(MAGE.MAX_CASTS_PER_TURN);
+    expect(getMageCastBudget(afterCasts, afterCasts.units.mage_1)).toBe(MAGE.MAX_CASTS_PER_TURN);
+    expect(canUnitCast(afterCasts.units.mage_1, afterCasts)).toBe(false);
+  });
+
+  it('treats missing Concentration fields as zero', () => {
+    const state = makeState(['spec_06']);
+
+    const noFieldsBudget = getMageCastBudget(state, state.units.mage_1);
+    const zeroFieldsBudget = getMageCastBudget(state, {
+      ...state.units.mage_1,
+      concentrationCharges: 0,
+      concentrationCastsThisTurn: 0,
+    });
+    expect(noFieldsBudget).toBe(zeroFieldsBudget);
+    expect(canUnitCast(state.units.mage_1, state)).toBe(noFieldsBudget > 0);
   });
 
   it('preserves spellsCastThisTurn across save round-trips', () => {

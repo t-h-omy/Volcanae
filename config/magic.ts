@@ -6,6 +6,8 @@ import { MagicPath, SpellId, UnitType } from '../src/types';
 
 
 export const MAGE = {
+  /** Maximum HP multiplier applied by Blood Frenzy. */
+  BLOOD_FRENZY_MAX_HP_MULTIPLIER: 0.5,
   /** Structural tile adjacency used by Grave Trap's blast radius. */
   GRAVE_TRAP_ADJACENCY_RANGE: 1,
   /** Minimum HP retained by a target after Rupture. */
@@ -21,6 +23,10 @@ export const MAGE = {
   // ── Mage unit ────────────────────────────────────────────────────────
   /** Default number of spells a Mage can cast each turn */
   SPELLS_PER_TURN: 1,
+  /** Maximum number of Concentration charges stored by a Mage. */
+  CONCENTRATION_MAX_CHARGES: 1,
+  /** Hard cap on the number of spells a Mage may cast in one turn. */
+  MAX_CASTS_PER_TURN: 3,
   /** Default spell range (edge-circle range) before SPELL_REACH is researched */
   SPELL_RANGE_BASE: 2,
   /** Range bonus granted by the SPELL_REACH tech */
@@ -107,6 +113,23 @@ export interface SpellDefinition {
 }
 
 export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
+  [SpellId.AMPLIFICATION]: {
+    id: SpellId.AMPLIFICATION,
+    emoji: '📡',
+    casters: MAGE_UNIT_TYPES,
+  },
+  [SpellId.BLOOD_RUSH]: {
+    id: SpellId.BLOOD_RUSH,
+    emoji: '🫀',
+    casters: [UnitType.EMBER_CULTIST],
+    textParams: {},
+  },
+  [SpellId.BLOOD_FRENZY]: {
+    id: SpellId.BLOOD_FRENZY,
+    emoji: '💢',
+    casters: [UnitType.EMBER_CULTIST],
+    textParams: { maxHpMultiplier: MAGE.BLOOD_FRENZY_MAX_HP_MULTIPLIER },
+  },
   [SpellId.TRANSPOSE]: {
     id: SpellId.TRANSPOSE,
     emoji: '🔄',

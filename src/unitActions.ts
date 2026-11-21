@@ -64,7 +64,12 @@ function hasSpentMageCastBudget(
   state?: GameState | Draft<GameState>,
 ): boolean {
   if (!isMageUnit(unit)) return false;
-  const budget = state ? getMageCastBudget(state) : MAGE.SPELLS_PER_TURN;
+  const budget = state
+    ? getMageCastBudget(state, unit)
+    : Math.min(
+      MAGE.MAX_CASTS_PER_TURN,
+      MAGE.SPELLS_PER_TURN + (unit.concentrationCastsThisTurn ?? 0) + (unit.concentrationCharges ?? 0),
+    );
   return (unit.spellsCastThisTurn ?? 0) >= budget;
 }
 
@@ -85,6 +90,20 @@ export function hasUnitActed(
     unit.hasConsumedGravestoneThisTurn ||
     hasSpentMageCastBudget(unit, state)
   );
+}
+
+export function getRemainingActions(
+  state: GameState | Draft<GameState>,
+  unit: Unit,
+): { move: boolean; attack: boolean; capture: boolean; construct: boolean; cast: boolean } {
+  const castBudget = getMageCastBudget(state, unit);
+  return {
+    move: !unit.hasMovedThisTurn,
+    attack: !unit.hasAttackedThisTurn && canUnitAttack(unit, state),
+    capture: hasBuildAndCapture(unit) && !unit.hasCapturedThisTurn,
+    construct: hasBuildAndCapture(unit) && !unit.hasConstructedThisTurn,
+    cast: isMageUnit(unit) && (unit.spellsCastThisTurn ?? 0) < castBudget,
+  };
 }
 
 export function isUnitDisplayExhausted(unit: Unit, state: GameState): boolean {

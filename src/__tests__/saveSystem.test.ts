@@ -36,7 +36,7 @@ describe('getNextDefaultSlotName', () => {
       });
       db.close();
 
-      expect(SAVE_VERSION).toBe(26);
+      expect(SAVE_VERSION).toBe(27);
       expect(isSlotCompatible({ id: 'old', name: 'Old', version: 23, savedAt: 0, turn: 1, difficulty: 'STANDARD' })).toBe(false);
       expect(isSlotCompatible({ id: 'new', name: 'New', version: 24, savedAt: 0, turn: 1, difficulty: 'STANDARD' })).toBe(true);
       expect(await loadSlot('old')).toBeNull();
@@ -45,7 +45,7 @@ describe('getNextDefaultSlotName', () => {
       expect(await importSlotFromFile(Object.assign(oldPayload, { name: 'old.json' }) as File)).toBeNull();
     });
 
-    it('loads a version 25 state at version 26 with Crystalline tile status intact', async () => {
+    it('loads a version 25 state at version 27 with Crystalline tile status intact', async () => {
       const state = generateInitialGameState();
       const tile = state.grid.flat().find((candidate) =>
         candidate.terrainType === TileType.PLAINS && !candidate.isLava,

@@ -7,6 +7,22 @@ import type { Faction, Position, BuildingType, Unit, Building, Portal } from './
 
 export type GameEvent =
   | {
+      type: 'CHAMBER_HEALING';
+      chambers: Array<{ buildingId: string; position: Position }>;
+      heals: Array<{ unitId: string; position: Position; amount: number }>;
+    }
+  | {
+      type: 'CONCENTRATION_CHARGED';
+      units: Array<{ unitId: string; position: Position }>;
+    }
+  | {
+      type: 'AMPLIFICATION_BROKEN';
+      unitId: string;
+      mageId: string;
+      unitPos: Position;
+      magePos: Position;
+    }
+  | {
       type: 'ENEMY_SPAWN';
       position: Position;
       unit: Unit;

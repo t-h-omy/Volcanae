@@ -22,7 +22,7 @@ import {
   isAttackableEnemyUnit,
   getTauntRestrictedAttackTargets,
 } from './unitActions';
-import { sweepLeashes } from './spellSystem';
+import { sweepLeashes, sweepAmplifications } from './spellSystem';
 import { checkGraveTrapTrigger, checkScoutTrapTrigger, resolveSlide } from './movementSystem';
 import { tryBeginTunnel, processTunnelTurn } from './tunnelSystem';
 import { cleanupPortals, cleanupExpiredPortalsEndOfTurn, tryPlanPortalCast, castPortal, resolvePortalEntry, processPendingPortalTeleports, getPlayerFrontlineRow } from './portalSystem';
@@ -4470,6 +4470,16 @@ export function runEnemyTurn(
       }
       // Sweep leashes after each enemy unit's turn to handle mage displacement
       // Pre-capture mage/demon positions before sweepLeashes mutates faction.
+      const amplificationBreaks = sweepAmplifications(draft);
+      for (const broken of amplificationBreaks) {
+        events.push({
+          type: 'AMPLIFICATION_BROKEN',
+          unitId: broken.unitId,
+          mageId: broken.mageId,
+          unitPos: broken.unitPos,
+          magePos: broken.magePos,
+        });
+      }
       const leashSnapshot = new Map<string, { mageId: string; demonPos: { x: number; y: number }; magePos: { x: number; y: number } }>();
       for (const u of Object.values(draft.units)) {
         if (!u.tags.includes(UnitTag.LEASHED) || u.faction !== Faction.PLAYER) continue;
@@ -4514,6 +4524,7 @@ export function runEnemyTurn(
         unit.hasMovedThisTurn = false;
         unit.hasAttackedThisTurn = false;
         unit.spellsCastThisTurn = 0;
+        if (unit.concentrationCastsThisTurn !== undefined) unit.concentrationCastsThisTurn = 0;
         unit.hasCapturedThisTurn = false;
         unit.hasTradedThisTurn = false;
         unit.hasConstructedThisTurn = false;

@@ -47,11 +47,15 @@ describe('separate technology trees', () => {
       GRAVE_TRAP: 'RAISE_SKELETON',
       GRAVE_WARRIORS: 'RAISE_SKELETON',
       BRANDMARK_HEAL: 'EMBER_CULTIST',
+      BLOOD_FRENZY: 'BRANDMARK_HEAL',
       EMBERBIND: 'BRANDMARK_HEAL',
       CORRUPTED_QORK: 'EMBERBIND',
       EXPLODE: 'EMBER_CULTIST',
       LAVA_MOLD: 'EXPLODE',
+      BLOOD_RUSH: 'EXPLODE',
       SPELL_REACH: 'ARCANE_STUDIES',
+      CONCENTRATION: 'ARCANE_STUDIES',
+      CHAMBER_HEALING: 'ARCANE_STUDIES',
     };
     for (const [id, parent] of Object.entries(parents)) expect(byId(id).requires).toEqual([parent]);
 

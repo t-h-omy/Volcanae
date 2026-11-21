@@ -43,10 +43,11 @@ import { isTileWithinEdgeCircleRange } from '../rangeUtils';
 import { createResonanceLightningPaths, getResonanceOverviewZoom } from '../resonanceVfx';
 import { nextTileCycleTarget, tileSelectionState } from '../tileCycleHelper';
 import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, getTauntBlockedAttackTargetKeys, explainInvalidAttackTarget, canUnitConstruct, canUnitCapture, getHealTargets, getBridgeBuildTargets, explainInvalidHealTarget, explainInvalidBridgeTarget, canUnitSetTrap, getTrapPlacementTargets, explainInvalidTrapTarget, isUnitDisplayExhausted, canUnitCast } from '../unitActions';
-import { getValidSpellTargets, explainInvalidSpellTarget, getTransposeTerrainBlockedTargets, getLeashedUnitsForMage, getMageCastBudget } from '../spellSystem';
+import { getValidSpellTargets, explainInvalidSpellTarget, getTransposeTerrainBlockedTargets, getLeashedUnitsForMage, getMageCastBudget, getAmplifiedUnitForMage, isLeashAnchored } from '../spellSystem';
 import { explainBlockedMagePortalEntry } from '../portalSystem';
 import { getMagePath, isMageUnit } from '../unitTraits';
 import { resolveUnitBackgroundEffect, useProtectiveLayerFx } from '../unitPresentation';
+import { isBerserkActive } from '../combatSystem';
 import './GridRenderer.css';
 
 // ============================================================================
@@ -676,12 +677,7 @@ export default function GridRenderer() {
     }
     if (!mage) return set;
     for (const leashedUnit of leashedUnits) {
-      const inRange = isTileWithinEdgeCircleRange(
-        mage.position.x, mage.position.y,
-        leashedUnit.position.x, leashedUnit.position.y,
-        mage.stats.attackRange,
-      );
-      if (!inRange) {
+      if (!isLeashAnchored(useGameStore.getState(), leashedUnit)) {
         set.add(posKey(leashedUnit.position.x, leashedUnit.position.y));
         set.add(posKey(mage.position.x, mage.position.y));
       }
@@ -1651,6 +1647,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
   const previousDeathlessHpRef = useRef(unit.stats.currentHp);
   const hasDeathless = unit.tags.includes(UnitTag.DEATHLESS);
   const hasEmbalmed = unit.tags.includes(UnitTag.EMBALMED);
+  const hasActiveBerserk = unit.faction === Faction.PLAYER && isBerserkActive(unit);
   const isDeathlessFinalTurn =
     hasDeathless && currentTurn >= (unit.deathlessUntilTurn ?? Number.POSITIVE_INFINITY);
   useEffect(() => {
@@ -1678,7 +1675,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
     return isMageUnit(liveUnit) && canUnitCast(liveUnit, s);
   });
   const mageCastBudgetSpent = useGameStore((s) =>
-    isMageUnit(unit) && (unit.spellsCastThisTurn ?? 0) >= getMageCastBudget(s)
+    isMageUnit(unit) && (unit.spellsCastThisTurn ?? 0) >= getMageCastBudget(s, unit)
   );
   const magePath = getMagePath(unit);
   const isStunned = unit.pinnedUntilTurn >= currentTurn;
@@ -1773,15 +1770,17 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
 
   const backgroundEffect = resolveUnitBackgroundEffect([
     ...(hasDeathless ? ['DEATHLESS'] : []),
+    ...(hasActiveBerserk ? ['BERSERK'] : []),
     ...(magePath ? ['MAGE_AURA'] : []),
     ...(unit.tags.includes(UnitTag.EMBALMED) ? ['EMBALMED'] : []),
   ]);
   const mageAuraClass = backgroundEffect === 'MAGE_AURA' && magePath
-    ? `unit--mage-${magePath.toLowerCase()}`
+    ? `unit--mage-${magePath.toLowerCase()}${(unit.concentrationCharges ?? 0) > 0 ? ' unit--mage-concentrated' : ''}`
     : null;
 
   const tagIcons = unit.tags
     .filter((tag) => tag !== UnitTag.CORRUPTION_BOUND || hasCorruptionBoundDebuff)
+    .filter((tag) => tag !== UnitTag.BERSERK || isBerserkActive(unit))
     .map((tag) => TAG_INFO[tag]?.icon)
     .filter((icon): icon is string => !!icon);
   if (suppressionDisplayTag && TAG_INFO[suppressionDisplayTag]?.icon) {
@@ -1797,6 +1796,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
         hasDeathless && 'unit--deathless',
         isDeathlessFinalTurn && 'unit--deathless-final-turn',
         hasEmbalmed && 'unit--embalmed',
+        hasActiveBerserk && 'unit--berserk',
         hasStoneSkin && 'unit--stone-skin',
         hasArcaneShield && 'unit--arcane-shield',
         shieldFx && `unit--layer-fx-${shieldFx}`,
@@ -1832,6 +1832,8 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
           '--deathless-pulse-duration': `${isDeathlessFinalTurn ? ANIMATION.DEATHLESS_FINAL_PULSE_CYCLE_MS : ANIMATION.DEATHLESS_PULSE_CYCLE_MS}ms`,
           '--deathless-color': MAGIC_PATH_COLORS.NECRO.primary,
           '--deathless-glow': MAGIC_PATH_COLORS.NECRO.glow,
+          '--berserk-pulse-duration': `${ANIMATION.BERSERK_PULSE_CYCLE_MS}ms`,
+          '--berserk-color': RENDER.COLORS.BERSERK,
           '--protective-layer-fx-duration': `${ANIMATION.PROTECTIVE_LAYER_FX_DURATION_MS}ms`,
           '--shield-fx-delay': `${shieldFxDelayMs}ms`,
           '--stone-skin-fx-delay': `${stoneSkinFxDelayMs}ms`,
@@ -2392,7 +2394,8 @@ function LeashPathGroup({ pair, tileSize, index, filterId }: {
  */
 function LeashLineLayer({ tileSize }: { tileSize: number }) {
   const selectedUnitId = useGameStore((s) => s.selectedUnitId);
-  const units = useGameStore((s) => s.units);
+  const state = useGameStore((s) => s);
+  const units = state.units;
   const selectedUnit = selectedUnitId ? units[selectedUnitId] : undefined;
   const burstPairs = useCombatAnimationStore((s) => s.leashBurstPairs);
 
@@ -2406,22 +2409,51 @@ function LeashLineLayer({ tileSize }: { tileSize: number }) {
     if (isMageUnit(selectedUnit)) {
       mage = selectedUnit;
       leashedUnits = getLeashedUnitsForMage(units, selectedUnit.id);
+      const amplifiedUnit = getAmplifiedUnitForMage(state, selectedUnit.id);
+      if (amplifiedUnit) {
+        result.push({
+          magePos: mage.position,
+          demonPos: amplifiedUnit.position,
+          warn: !isTileWithinEdgeCircleRange(
+            mage.position.x, mage.position.y,
+            amplifiedUnit.position.x,
+            amplifiedUnit.position.y,
+            mage.stats.attackRange,
+          ),
+          tone: getMagePath(mage),
+        });
+      }
     } else if (selectedUnit.tags.includes(UnitTag.LEASHED) && selectedUnit.controllerMageId) {
       mage = units[selectedUnit.controllerMageId];
       leashedUnits = [selectedUnit];
+    } else if (selectedUnit.tags.includes(UnitTag.AMPLIFIED) && selectedUnit.amplifierMageId) {
+      mage = units[selectedUnit.amplifierMageId];
+      if (mage) {
+        result.push({
+          magePos: mage.position,
+          demonPos: selectedUnit.position,
+          warn: !isTileWithinEdgeCircleRange(
+            mage.position.x, mage.position.y,
+            selectedUnit.position.x,
+            selectedUnit.position.y,
+            mage.stats.attackRange,
+          ),
+          tone: getMagePath(mage),
+        });
+      }
     }
 
     if (!mage) return result;
     for (const leashedUnit of leashedUnits) {
-      const inRange = isTileWithinEdgeCircleRange(
-        mage.position.x, mage.position.y,
-        leashedUnit.position.x, leashedUnit.position.y,
-        mage.stats.attackRange,
-      );
-      result.push({ magePos: mage.position, demonPos: leashedUnit.position, warn: !inRange, tone: getMagePath(mage) });
+      result.push({
+        magePos: mage.position,
+        demonPos: leashedUnit.position,
+        warn: !isLeashAnchored(state, leashedUnit),
+        tone: getMagePath(mage),
+      });
     }
     return result;
-  }, [selectedUnit, units]);
+  }, [selectedUnit, units, state]);
 
   // Build burst-VFX pairs, excluding any already shown by selection.
   const effectiveBurstPairs = useMemo<LeashPair[]>(() => {
@@ -2792,9 +2824,13 @@ function LineVfxLayer({ tileSize }: { tileSize: number }) {
     >
       {lineVfx.map((vfx: LineVfx) => {
         const toneClass = vfx.tone ? ` line-vfx--tone-${vfx.tone.toLowerCase()}` : '';
+        const concentrationClass = vfx.concentrated ? ' line-vfx--concentrated' : '';
         const style = {
           '--line-vfx-duration': `${vfx.durationMs}ms`,
           '--line-vfx-delay': `${vfx.delayMs ?? 0}ms`,
+          ...(vfx.concentrated
+            ? { '--concentrated-line-width': `${ANIMATION.CONCENTRATION_CAST_LINE_WIDTH}px` }
+            : {}),
         } as React.CSSProperties;
         if (vfx.variant === 'RESONANCE_WAVE') {
           const { mainPath, branchPaths } = createResonanceLightningPaths(
@@ -2829,7 +2865,7 @@ function LineVfxLayer({ tileSize }: { tileSize: number }) {
         return (
           <line
             key={vfx.id}
-            className={`line-vfx line-vfx--${vfx.variant.toLowerCase().replace(/_/g, '-')}${toneClass}`}
+            className={`line-vfx line-vfx--${vfx.variant.toLowerCase().replace(/_/g, '-')}${toneClass}${concentrationClass}`}
             x1={vfx.fromPx.x}
             y1={vfx.fromPx.y}
             x2={vfx.toPx.x}

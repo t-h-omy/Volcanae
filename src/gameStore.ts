@@ -54,11 +54,11 @@ import { useMenuStore } from './menuStore';
 import { canKhyronResonate } from './khyronSystem';
 import { getUnitTargetLevel, applyLevelUps, emitLevelUpEffects, canGrantXp } from './levelSystem';
 import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLogic, getGrantedTags, getRemovedTags, getStatMods, applyTagStatEffects, revokeTagStatEffects } from './techSystem';
-import { canUnitHeal, getHealTargets, canUnitFieldwork, isHealSuppressedByCorruption, canUnitConsumeGravestone } from './unitActions';
+import { canUnitHeal, getHealTargets, canUnitFieldwork, isHealSuppressedByCorruption, canUnitConsumeGravestone, getRemainingActions } from './unitActions';
 import { createFieldworkOutpost } from './constructionSystem';
 import { getTagsFromActiveSpecialists, isSpecialistEffectActive, getTagsFromActiveSpecialistsForSourceTag } from './specialistSystem';
-import { canUnitCastSpell, castSpell as castSpellLogic } from './spellSystem';
-import { getMagePath } from './unitTraits';
+import { canUnitCastSpell, castSpell as castSpellLogic, sweepAmplifications, sweepLeashes, registerSpellCast } from './spellSystem';
+import { getMagePath, isMageUnit } from './unitTraits';
 import { isTileWithinEdgeCircleRange, getTilesWithinEdgeCircleRange } from './rangeUtils';
 import { useShockwaveStore } from './shockwaveStore';
 import { processPendingPortalTeleports } from './portalSystem';
@@ -2011,7 +2011,11 @@ export const useGameStore = create<GameStore>()(
       let castSpellId: import('./types').SpellId | null = null;
       let magePosition: Position | null = null;
       let magePath: ReturnType<typeof getMagePath> = null;
+      let amplificationCarrierPosition: Position | null = null;
+      let castPaidByConcentration = false;
       let crystallineVfxPositions: Position[] = [];
+      const bloodRushRecipientPositions: Position[] = [];
+      let bloodRushRestoredCast = false;
       const killedCaveMonsterIds: string[] = [];
       const portalEvents: GameEvent[] = [];
       let crystalLightningEvents: GameEvent[] | null = null;
@@ -2031,7 +2035,10 @@ export const useGameStore = create<GameStore>()(
             committed = castSpellLogic(draft, mageId, spellId, targetPosition, events);
             if (!committed) return;
             const mage = draft.units[mageId];
-            if (mage) mage.spellsCastThisTurn = (mage.spellsCastThisTurn ?? 0) + 1;
+            if (mage) {
+              castPaidByConcentration = (mage.concentrationCharges ?? 0) > 0;
+              registerSpellCast(mage);
+            }
             draft.pendingSpellCast = null;
             draft.pendingTransposeFirstUnitId = null;
             draft.pendingMagePortalFirstPos = null;
@@ -2042,7 +2049,12 @@ export const useGameStore = create<GameStore>()(
 
           state.arcaneCrystals = resolvedState.arcaneCrystals;
           const mage = state.units[mageId];
-          if (mage) mage.spellsCastThisTurn = resolvedState.units[mageId]?.spellsCastThisTurn ?? mage.spellsCastThisTurn;
+          if (mage) {
+            mage.spellsCastThisTurn = resolvedState.units[mageId]?.spellsCastThisTurn ?? mage.spellsCastThisTurn;
+            mage.concentrationCharges = resolvedState.units[mageId]?.concentrationCharges ?? mage.concentrationCharges;
+            mage.concentrationCastsThisTurn = resolvedState.units[mageId]?.concentrationCastsThisTurn ?? mage.concentrationCastsThisTurn;
+            mage.tags = resolvedState.units[mageId]?.tags ?? mage.tags;
+          }
           state.pendingSpellCast = null;
           state.pendingTransposeFirstUnitId = null;
           state.pendingMagePortalFirstPos = null;
@@ -2071,8 +2083,22 @@ export const useGameStore = create<GameStore>()(
             .map((unit) => unit.id),
         );
         const portalIdsBefore = new Set(Object.keys(state.portals));
-        const buildingIdsBefore = spellId === 'EXPLODE' ? new Set(Object.keys(state.buildings)) : null;
-        const ok = castSpellLogic(state, mageId, spellId, targetPosition, portalEvents);
+        const buildingIdsBefore = spellId === 'EXPLODE' || spellId === 'BLOOD_RUSH'
+          ? new Set(Object.keys(state.buildings))
+          : null;
+        if (spellId === 'BLOOD_RUSH') {
+          const targetId = state.grid[targetPosition.y]?.[targetPosition.x]?.unitId;
+          const sacrifice = targetId ? state.units[targetId] : undefined;
+          bloodRushRestoredCast = !!sacrifice && getRemainingActions(state, sacrifice).cast;
+        }
+        const ok = castSpellLogic(
+          state,
+          mageId,
+          spellId,
+          targetPosition,
+          portalEvents,
+          bloodRushRecipientPositions,
+        );
         if (!ok) return;
         if (spellId === 'CRYSTALLIZE') {
           crystallineVfxPositions = CRYSTALLINE_OFFSETS.flatMap(([dx, dy]) => {
@@ -2118,6 +2144,12 @@ export const useGameStore = create<GameStore>()(
         if (mageAfter) {
           magePosition = { x: mageAfter.position.x, y: mageAfter.position.y };
           magePath = getMagePath(mageAfter);
+          const linkedCarrier = Object.values(state.units).find(
+            (unit) => unit.amplifierMageId === mageId,
+          );
+          amplificationCarrierPosition = spellId !== 'AMPLIFICATION' && linkedCarrier
+            ? { ...linkedCarrier.position }
+            : null;
           // Casting is symmetric with attacking: only advance the Mage's cast count.
           // - canUnitMove and canUnitAttack are updated to treat
           //   the exhausted cast budget the same way they already treat
@@ -2129,7 +2161,18 @@ export const useGameStore = create<GameStore>()(
           //   stripped via a future tech.
           // Do NOT set hasMovedThisTurn or hasAttackedThisTurn here — that
           // would over-constrain the rules and break the symmetry.
-          mageAfter.spellsCastThisTurn = (mageAfter.spellsCastThisTurn ?? 0) + 1;
+          castPaidByConcentration = (mageAfter.concentrationCharges ?? 0) > 0;
+          registerSpellCast(mageAfter);
+          if (
+            castSpellId === 'BLOOD_RUSH'
+            && bloodRushRestoredCast
+            && bloodRushRecipientPositions.some(
+              (position) => position.x === mageAfter.position.x && position.y === mageAfter.position.y,
+            )
+          ) {
+            mageAfter.spellsCastThisTurn = 0;
+            mageAfter.concentrationCastsThisTurn = 0;
+          }
         }
         state.pendingSpellCast = null;
         state.pendingTransposeFirstUnitId = null;
@@ -2190,12 +2233,60 @@ export const useGameStore = create<GameStore>()(
             finalScale: explosionFinalScale,
           });
         }
+        if (castSpellId === 'BLOOD_RUSH') {
+          const tileSize = typeof window !== 'undefined' && window.innerWidth <= RENDER.MOBILE_BREAKPOINT
+            ? RENDER.TILE_SIZE_MOBILE
+            : RENDER.TILE_SIZE_DESKTOP;
+          const explosionFinalScale = Math.round((1.5 * tileSize) / 3);
+          useShockwaveStore.getState().addShockwave({
+            id: crypto.randomUUID(),
+            cx: targetPosition.x * tileSize + tileSize / 2,
+            cy: targetPosition.y * tileSize + tileSize / 2,
+            durationMs: ANIMATION.EXPLOSION_SHOCKWAVE_MS,
+            finalScale: explosionFinalScale,
+            variant: 'ember',
+          });
+          const fromPx = {
+            x: targetPosition.x * tileSize + tileSize / 2,
+            y: targetPosition.y * tileSize + tileSize / 2,
+          };
+          const animationStore = useCombatAnimationStore.getState();
+          for (const [index, position] of bloodRushRecipientPositions.entries()) {
+            const delayMs = index * ANIMATION.BLOOD_RUSH_LINE_STAGGER_MS;
+            animationStore.addLineVfx({
+              id: crypto.randomUUID(),
+              fromPx,
+              toPx: {
+                x: position.x * tileSize + tileSize / 2,
+                y: position.y * tileSize + tileSize / 2,
+              },
+              variant: 'BLOOD_RUSH',
+              durationMs: ANIMATION.BLOOD_RUSH_LINE_MS,
+              delayMs,
+              ...(magePath ? { tone: magePath } : {}),
+            });
+            setTimeout(() => {
+              const tileKey = `${position.x},${position.y}`;
+              animationStore.addTileFlash(
+                position.x,
+                position.y,
+                ANIMATION.BLOOD_RUSH_RECIPIENT_FLASH_MS,
+                'ember',
+              );
+              setTimeout(
+                () => animationStore.removeTileFlash(tileKey),
+                ANIMATION.BLOOD_RUSH_RECIPIENT_FLASH_MS,
+              );
+            }, ANIMATION.BLOOD_RUSH_LINE_MS + delayMs);
+          }
+        }
         // SPELL_CAST line from mage to target tile + SPELL_IMPACT ring on target.
         // Mirrors the EXPLODE shockwave pattern above: tile-size lookup, then dispatch.
         // magePosition is captured from inside the immer callback — cast to silence
         // TypeScript's closure-assignment narrowing.
         const capturedMagePosition = magePosition as Position | null;
         if (capturedMagePosition !== null && castSpellId !== 'CRYSTAL_LIGHTNING') {
+          const capturedAmplificationCarrierPosition = amplificationCarrierPosition as Position | null;
           const tileSize = typeof window !== 'undefined' && window.innerWidth <= RENDER.MOBILE_BREAKPOINT
             ? RENDER.TILE_SIZE_MOBILE
             : RENDER.TILE_SIZE_DESKTOP;
@@ -2208,14 +2299,41 @@ export const useGameStore = create<GameStore>()(
             y: targetPosition.y * tileSize + tileSize / 2,
           };
           const store = useCombatAnimationStore.getState();
-          store.addLineVfx({
-            id: crypto.randomUUID(),
-            fromPx,
-            toPx,
-            variant: 'SPELL_CAST',
-            durationMs: ANIMATION.SPELL_CAST_MS,
-            ...(magePath ? { tone: magePath } : {}),
-          });
+          if (capturedAmplificationCarrierPosition !== null) {
+            const carrierPx = {
+              x: capturedAmplificationCarrierPosition.x * tileSize + tileSize / 2,
+              y: capturedAmplificationCarrierPosition.y * tileSize + tileSize / 2,
+            };
+            store.addLineVfx({
+              id: crypto.randomUUID(),
+              fromPx,
+              toPx: carrierPx,
+              variant: 'SPELL_CAST',
+              durationMs: ANIMATION.SPELL_CAST_MS,
+              ...(castPaidByConcentration ? { concentrated: true } : {}),
+              ...(magePath ? { tone: magePath } : {}),
+            });
+            store.addLineVfx({
+              id: crypto.randomUUID(),
+              fromPx: carrierPx,
+              toPx,
+              variant: 'SPELL_CAST',
+              durationMs: ANIMATION.SPELL_CAST_MS,
+              delayMs: ANIMATION.AMPLIFICATION_LINE_DELAY_MS,
+              ...(castPaidByConcentration ? { concentrated: true } : {}),
+              ...(magePath ? { tone: magePath } : {}),
+            });
+          } else {
+            store.addLineVfx({
+              id: crypto.randomUUID(),
+              fromPx,
+              toPx,
+              variant: 'SPELL_CAST',
+              durationMs: ANIMATION.SPELL_CAST_MS,
+              ...(castPaidByConcentration ? { concentrated: true } : {}),
+              ...(magePath ? { tone: magePath } : {}),
+            });
+          }
           store.addTileVfx({
             id: crypto.randomUUID(),
             x: targetPosition.x,
@@ -2226,8 +2344,8 @@ export const useGameStore = create<GameStore>()(
           });
           store.addTileVfx({
             id: crypto.randomUUID(),
-            x: capturedMagePosition.x,
-            y: capturedMagePosition.y,
+            x: capturedAmplificationCarrierPosition?.x ?? capturedMagePosition.x,
+            y: capturedAmplificationCarrierPosition?.y ?? capturedMagePosition.y,
             variant: 'SPELL_CASTER_PULSE',
             durationMs: ANIMATION.SPELL_CASTER_PULSE_MS,
             ...(magePath ? { tone: magePath } : {}),
@@ -2364,6 +2482,7 @@ export const useGameStore = create<GameStore>()(
 
         // Phase 1.5: End-of-player-turn idle heal (spec_24) before enemy actions.
         const idleHealEvents: GameEvent[] = [];
+        const concentrationChargeEvents: GameEvent[] = [];
 
         // Get a plain (non-Proxy) snapshot of the current state so runEnemyTurn
         // can use produce() internally without nesting immer producers.
@@ -2373,6 +2492,23 @@ export const useGameStore = create<GameStore>()(
           processInfestedFactionTurn(draft, Faction.PLAYER, playerInfestedEvents);
           processCorruptedQorkDrain(draft, Faction.PLAYER, playerInfestedEvents);
         });
+        if (snapshot.techFlags.includes(TechFlag.CONCENTRATION)) {
+          snapshot = produce(snapshot, (draft) => {
+            const chargedUnits: Array<{ unitId: string; position: Position }> = [];
+            for (const unit of Object.values(draft.units)) {
+              if (unit.faction !== Faction.PLAYER || !isMageUnit(unit)) continue;
+              if (!tookNoActionThisTurn(unit)) continue;
+              const charges = unit.concentrationCharges ?? 0;
+              if (charges >= MAGE.CONCENTRATION_MAX_CHARGES) continue;
+              unit.concentrationCharges = charges + 1;
+              unit.tags = [...unit.tags.filter((tag) => tag !== UnitTag.CONCENTRATED), UnitTag.CONCENTRATED];
+              chargedUnits.push({ unitId: unit.id, position: { ...unit.position } });
+            }
+            if (chargedUnits.length > 0) {
+              concentrationChargeEvents.push({ type: 'CONCENTRATION_CHARGED', units: chargedUnits });
+            }
+          });
+        }
         if (isSpecialistEffectActive(snapshot, 'IDLE_HEAL')) {
           snapshot = produce(snapshot, (draft) => {
             for (const unit of Object.values(draft.units)) {
@@ -2421,8 +2557,9 @@ export const useGameStore = create<GameStore>()(
 
         // If game ended during enemy turn, enqueue events with that final state
         if (computedState.phase === GamePhase.GAME_OVER || computedState.phase === GamePhase.VICTORY) {
-          if (enemyEvents.length > 0) {
-            pendingEvents = enemyEvents;
+          const gameOverEvents = [...concentrationChargeEvents, ...enemyEvents];
+          if (gameOverEvents.length > 0) {
+            pendingEvents = gameOverEvents;
             pendingResolvedState = computedState;
             state.phase = GamePhase.ENEMY_TURN;
           } else {
@@ -2447,7 +2584,14 @@ export const useGameStore = create<GameStore>()(
         );
 
         // Phase 4: Lava phase
-        const allEvents: GameEvent[] = [...resolveCaptureEvents, ...playerInfestedEvents, ...idleHealEvents, ...enemyEvents, ...tileStatusEvents];
+        const allEvents: GameEvent[] = [
+          ...resolveCaptureEvents,
+          ...playerInfestedEvents,
+          ...concentrationChargeEvents,
+          ...idleHealEvents,
+          ...enemyEvents,
+          ...tileStatusEvents,
+        ];
         computedState = produce(computedState, (draft) => {
           draft.turnsUntilLavaAdvance -= 1;
         });
@@ -2626,46 +2770,36 @@ export const useGameStore = create<GameStore>()(
           // Leash defection: any player-faction LEASHED unit defects if its
           // controlling Mage is dead or out of leash range.
           // The demon's mage/position is captured for the burst VFX BEFORE mutating.
+          const amplificationBreaks = sweepAmplifications(draft);
+          for (const broken of amplificationBreaks) {
+            leashDefectEvents.push({
+              type: 'AMPLIFICATION_BROKEN',
+              unitId: broken.unitId,
+              mageId: broken.mageId,
+              unitPos: broken.unitPos,
+              magePos: broken.magePos,
+            } as GameEvent);
+          }
+          const leashSnapshot = new Map<string, { mageId: string; demonPos: Position; magePos: Position }>();
           for (const unit of Object.values(draft.units)) {
-            if (!unit.tags.includes(UnitTag.LEASHED)) continue;
-            if (unit.faction !== Faction.PLAYER) continue;
-
+            if (!unit.tags.includes(UnitTag.LEASHED) || unit.faction !== Faction.PLAYER) continue;
             const mage = unit.controllerMageId ? draft.units[unit.controllerMageId] : null;
-            let defects = false;
-            if (!mage || mage.faction !== Faction.PLAYER) {
-              defects = true;
-            } else {
-              const inRange = isTileWithinEdgeCircleRange(
-                mage.position.x, mage.position.y,
-                unit.position.x, unit.position.y,
-                mage.stats.attackRange,
-              );
-              if (!inRange) defects = true;
-            }
-
-            if (defects) {
-              // Capture positions and IDs before mutating state.
-              const demonId = unit.id;
-              const demonPos = { x: unit.position.x, y: unit.position.y };
-              const mageId = unit.controllerMageId ?? '';
-              const magePos = mage ? { x: mage.position.x, y: mage.position.y } : demonPos;
-
-              unit.faction = Faction.ENEMY;
-              unit.controllerMageId = null;
-              unit.tags = unit.tags.filter((t) =>
-                t !== UnitTag.LEASHED && t !== UnitTag.SUMMONED
-              );
-
-              // Enqueue a LEASH_DEFECT event so the animation engine handles
-              // the burst VFX in the correct order within the enemy-turn queue.
-              leashDefectEvents.push({
-                type: 'LEASH_DEFECT',
-                demonId,
-                mageId,
-                demonPos,
-                magePos,
-              });
-            }
+            leashSnapshot.set(unit.id, {
+              mageId: unit.controllerMageId ?? '',
+              demonPos: { ...unit.position },
+              magePos: mage ? { ...mage.position } : { ...unit.position },
+            });
+          }
+          const defectedIds = sweepLeashes(draft);
+          for (const demonId of defectedIds) {
+            const snap = leashSnapshot.get(demonId);
+            if (snap) leashDefectEvents.push({
+              type: 'LEASH_DEFECT',
+              demonId,
+              mageId: snap.mageId,
+              demonPos: snap.demonPos,
+              magePos: snap.magePos,
+            });
           }
 
           // Reset all player units for new turn
@@ -2677,6 +2811,7 @@ export const useGameStore = create<GameStore>()(
               unit.hasMovedThisTurn = false;
               unit.hasAttackedThisTurn = false;
               unit.spellsCastThisTurn = 0;
+              if (unit.concentrationCastsThisTurn !== undefined) unit.concentrationCastsThisTurn = 0;
               unit.hasCapturedThisTurn = false;
               unit.hasTradedThisTurn = false;
               unit.hasConstructedThisTurn = false;
@@ -3666,6 +3801,25 @@ export const useGameStore = create<GameStore>()(
             break;
           }
 
+          case 'CHAMBER_HEALING': {
+            for (const heal of event.heals) {
+              const healedUnit = state.units[heal.unitId];
+              if (!healedUnit) continue;
+              healedUnit.stats.currentHp = Math.min(
+                healedUnit.stats.maxHp,
+                healedUnit.stats.currentHp + heal.amount,
+              );
+              useFloaterStore.getState().addFloater({
+                value: heal.amount,
+                x: heal.position.x,
+                y: heal.position.y,
+                isEnemy: false,
+                floaterType: 'heal',
+              });
+            }
+            break;
+          }
+
           case 'EMBER_LEVEL_UP': {
             // State was already mutated in enemySystem — this is presentation-only.
             if (event.source !== 'TURN_INTERVAL' && event.position) {
@@ -3823,6 +3977,28 @@ export const useGameStore = create<GameStore>()(
             // Note: tile corruption status flip is intentionally NOT mirrored here.
             // It happens at queue-end via setGameState(resolvedState). The dust hides
             // the sprite swap; the corruption colour change can settle a beat later.
+            break;
+          }
+
+          case 'AMPLIFICATION_BROKEN': {
+            const unit = state.units[event.unitId];
+            if (unit) {
+              unit.tags = unit.tags.filter((tag) => tag !== UnitTag.AMPLIFIED);
+              unit.amplifierMageId = undefined;
+            }
+            break;
+          }
+
+          case 'CONCENTRATION_CHARGED': {
+            for (const charged of event.units) {
+              const unit = state.units[charged.unitId];
+              if (!unit) continue;
+              unit.concentrationCharges = Math.min(
+                MAGE.CONCENTRATION_MAX_CHARGES,
+                (unit.concentrationCharges ?? 0) + 1,
+              );
+              unit.tags = [...unit.tags.filter((tag) => tag !== UnitTag.CONCENTRATED), UnitTag.CONCENTRATED];
+            }
             break;
           }
 

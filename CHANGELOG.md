@@ -1,5 +1,25 @@
 # Changelog
 
+### v0.132.0 - Chamber Healing
+
+Resonating Crystal Chambers heal nearby allied units after researching Chamber Healing. Summoned units, Mechs and Crystal Caves are unaffected.
+
+### v0.131.0 - Concentration
+
+Mages that take no action for a turn store a charge that pays for an additional spell cast. Concentrated Mages display a charge icon and a brighter aura.
+
+### v0.130.0 - Amplification
+
+Every Mage can bind an allied unit to amplify its spell range until the next leash checkpoint. Amplified units show an antenna icon and a leash line, and linked creatures stay anchored through the carrier or the Mage.
+
+### v0.129.0 - Blood Rush
+
+Ember Cultists can sacrifice an allied unit with unused actions to restore those actions to every allied neighbor. Blood Rush can also restore Mage casts and enables a Mage that has moved to cast again during the current turn.
+
+### v0.128.0 - Blood Frenzy
+
+Ember Cultists can trade half of an allied unit's maximum HP for permanent Berserk. Active Berserk now displays a crimson map pulse and the Berserk icon on every eligible player unit.
+
 ### v0.127.0 - Embalm
 
 Necromancers can embalm a living own unit standing on a player Gravestone. The unit becomes permanently Summoned and Embalmed, losing population and Build and Capture use while keeping its level and other traits.

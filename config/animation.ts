@@ -5,6 +5,14 @@
  */
 
 export const ANIMATION = {
+  /** Ambient Berserk pulse cycle. */
+  BERSERK_PULSE_CYCLE_MS: 2800,
+  /** Blood Rush transfer line duration. */
+  BLOOD_RUSH_LINE_MS: 420,
+  /** Delay between Blood Rush transfers to neighboring units. */
+  BLOOD_RUSH_LINE_STAGGER_MS: 110,
+  /** Blood Rush arrival flash duration. */
+  BLOOD_RUSH_RECIPIENT_FLASH_MS: 500,
   /** Ambient Deathless pulse cycle. */
   DEATHLESS_PULSE_CYCLE_MS: 2800,
   /** Final-turn Deathless pulse cycle, always at least two seconds. */
@@ -56,6 +64,8 @@ export const ANIMATION = {
   XP_GAIN_ANIM_DURATION_MS: 600,
   /** Crystal Chamber activation VFX duration (ms) */
   CRYSTAL_ACTIVATE_VFX_DURATION_MS: 1200,
+  /** Chamber Healing activation VFX duration (ms) */
+  CHAMBER_HEALING_VFX_DURATION_MS: 1200,
   /** Duration of the Gravestone appearance effect in milliseconds */
   GRAVESTONE_RISE_MS: 900,
   /** Duration of Gravestone consumption sinking and dust VFX. */
@@ -167,6 +177,12 @@ export const ANIMATION = {
   CRYSTAL_LIGHTNING_POST_MS: 70,
   /** Duration of the mage spell-cast line from caster to target tile (ms) */
   SPELL_CAST_MS: 650,
+  /** Duration of the Concentration charge received at end of turn. */
+  CONCENTRATION_CHARGE_VFX_MS: 700,
+  /** Delayed cast-line thickness multiplier for a spell paid by Concentration. */
+  CONCENTRATION_CAST_LINE_WIDTH: 11,
+  /** Delay before the second segment of an Amplification cast line begins. */
+  AMPLIFICATION_LINE_DELAY_MS: 180,
   /** Duration of the caster's path-colored wind-up pulse (ms) */
   SPELL_CASTER_PULSE_MS: 500,
   /** Duration of the mage spell impact ring on the target tile (ms) */

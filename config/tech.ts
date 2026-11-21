@@ -459,6 +459,18 @@ export const TECH_TREE: TechNodeDefinition[] = [
     textParams: { crystalCost: UNIT_DEFINITIONS.CRYSTAL_KHYRON.cost.crystals ?? 0 },
   },
   {
+    id: 'CONCENTRATION',
+    requires: ['ARCANE_STUDIES'],
+    cost: 4,
+    effects: [{ type: 'FLAG', flag: TechFlag.CONCENTRATION }],
+  },
+  {
+    id: 'CHAMBER_HEALING',
+    requires: ['ARCANE_STUDIES'],
+    cost: 4,
+    effects: [{ type: 'FLAG', flag: TechFlag.CHAMBER_HEALING }],
+  },
+  {
     id: 'CRYSTAL_LIGHTNING',
     requires: ['CRYSTAL_KHYRON'],
     cost: CRYSTAL_LIGHTNING_RESEARCH_COST,
@@ -484,6 +496,14 @@ export const TECH_TREE: TechNodeDefinition[] = [
   },
 
   // ── Ember path ────────────────────────────────────────────────────────────
+  {
+    id: 'BLOOD_FRENZY',
+    requires: ['BRANDMARK_HEAL'],
+    cost: 7,
+    effects: [
+      { type: 'UNLOCK_SPELL', spellId: SpellId.BLOOD_FRENZY },
+    ],
+  },
   {
     id: 'EMBERBIND',
     requires: ['BRANDMARK_HEAL'],
@@ -652,6 +672,14 @@ export const TECH_TREE: TechNodeDefinition[] = [
     ],
   },
   {
+    id: 'BLOOD_RUSH',
+    requires: ['EXPLODE'],
+    cost: 7,
+    effects: [
+      { type: 'UNLOCK_SPELL', spellId: SpellId.BLOOD_RUSH },
+    ],
+  },
+  {
     id: 'SPELL_REACH',
     requires: ['ARCANE_STUDIES'],
     cost: 4,
@@ -662,6 +690,14 @@ export const TECH_TREE: TechNodeDefinition[] = [
     ],
   
     textParams: { rangeBonus: MAGE.SPELL_RANGE_BONUS, totalRange: UNIT_DEFINITIONS.CRYSTAL_MAGE.attackRange + MAGE.SPELL_RANGE_BONUS },
+  },
+  {
+    id: 'AMPLIFICATION',
+    requires: ['SPELL_REACH'],
+    cost: 7,
+    effects: [
+      { type: 'UNLOCK_SPELL', spellId: SpellId.AMPLIFICATION },
+    ],
   },
 
 ];
