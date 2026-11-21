@@ -651,7 +651,7 @@ describe('Crystalline combat-tag suppression', () => {
   });
 
   it('suppresses Lancer Pierce and Bullwark Lance Charge and Puncture on Crystalline', () => {
-    const lancer = makeEnemyUnit(UnitType.LANCER, 1, 5);
+    const lancer = makeEnemyUnit(UnitType.LANCER, 3, 5);
     const front = makePlayerUnit(UnitType.GUARD, 4, 5);
     const rear = makePlayerUnit(UnitType.GUARD, 5, 5);
     const state = makeState([lancer, front, rear]);
@@ -664,7 +664,7 @@ describe('Crystalline combat-tag suppression', () => {
     const crystalFront = { ...front, id: 'crystal-front' };
     const crystalRear = { ...rear, id: 'crystal-rear' };
     const crystallineState = makeState([crystalLancer, crystalFront, crystalRear]);
-    crystallineState.grid[5][1].status = TileStatus.CRYSTALLINE;
+    crystallineState.grid[5][3].status = TileStatus.CRYSTALLINE;
     const suppressed = produce(crystallineState, (draft) => {
       resolveAttack(draft, crystalLancer.id, crystalFront.id, true);
     });
@@ -733,7 +733,7 @@ describe('Crystalline combat-tag suppression', () => {
       const next = produce(state, (draft) => {
         resolveAttack(draft, kindler.id, target.id, true);
       });
-      return next.grid[5][3].status;
+      return next.grid[5][3].status ?? null;
     }
 
     expect(targetStatus(null)).toBe(TileStatus.BURNING);

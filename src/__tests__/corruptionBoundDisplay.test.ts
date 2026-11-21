@@ -70,7 +70,9 @@ describe('Corruption-Bound display predicate', () => {
   it('uses the configured rose icon only for active player badge tags', () => {
     expect(TAG_INFO[UnitTag.CORRUPTION_BOUND]?.icon).toBe('🥀');
     expect(badge).toContain('unit.faction === Faction.PLAYER && isCorruptionBoundDrainActive(s, unit)');
-    expect(badge).toContain('(corruptionAffectsUnit ||\n      hasCorruptionBoundDebuff ||');
+    expect(badge).toContain('getSuppressedTagsForUnit(s, unit)');
+    expect(badge).toContain('hasSuppressedCombatTags');
+    expect(badge).toContain('UnitTag.CRYSTALLINE');
     expect(badge).toContain('.filter((tag) => tag !== UnitTag.CORRUPTION_BOUND || hasCorruptionBoundDebuff)');
     expect(badge).toContain('.map((tag) => TAG_INFO[tag]?.icon)');
     expect(badge).not.toContain('.filter((tag) => tag !== UnitTag.TAUNT)');
@@ -82,8 +84,8 @@ describe('Corruption-Bound display predicate', () => {
     expect(debuffCheck).toContain('UPGRADE_TRADEOFF_TAGS.has(tag)');
     expect(debuffCheck).toContain('TAG_STAT_EFFECTS[tag]');
     expect(debuffCheck).toContain('unit.pinnedUntilTurn > 0');
-    expect(debuffCheck).toContain('CORRUPTED_SUPPRESSED_TAGS.has(tag)');
-    expect(selectedPanel).toContain('isPlayer && unitHasDebuff(unit, isOnCorruptedTile, gameState)');
+    expect(debuffCheck).toContain('suppressedTags.has(tag)');
+    expect(selectedPanel).toContain('isPlayer && unitHasDebuff(unit, suppressedTags, gameState)');
   });
 });
 

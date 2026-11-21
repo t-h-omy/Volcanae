@@ -2377,7 +2377,7 @@ function SelectedUnitPanel({
     if (isInHealMode) {
       cancelHealMode();
     } else if (healSuppressedByCorruption) {
-      setHighlightCorrupted(true);
+      setHighlightSuppressed(true);
     } else if (healTargets.length > 0) {
       startHealMode(unit.id);
     }
