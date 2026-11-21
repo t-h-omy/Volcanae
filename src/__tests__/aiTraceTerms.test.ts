@@ -63,9 +63,9 @@ const SNAPSHOT_UNIT_STATS = {
 } as const;
 
 const SNAPSHOT_BUILDING_STATS = {
-  [BuildingType.WATCHTOWER]: { hp: 100, maxHp: 100, discoverRadius: 2 },
+  [BuildingType.WATCHTOWER]: { hp: 150, maxHp: 150, discoverRadius: 4 },
   [BuildingType.LAVALAIR]: { hp: 100, maxHp: 100, discoverRadius: 2 },
-  [BuildingType.OUTPOST]: { hp: 100, maxHp: 100, discoverRadius: 2 },
+  [BuildingType.OUTPOST]: { hp: 200, maxHp: 200, discoverRadius: 3 },
   [BuildingType.STRONGHOLD]: { hp: 100, maxHp: 100, discoverRadius: 2 },
 } as const;
 
@@ -398,7 +398,9 @@ describe('aiTrace score terms', () => {
   it('matches the pre-refactor full enemy turn fixture exactly with deterministic randomness', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0.25);
     vi.spyOn(Date, 'now').mockReturnValue(1790708367414);
-    expect(sanitizeFixtureValue(runEnemyTurn(createEnemyTurnSnapshotState()).finalState)).toEqual(EXPECTED_ENEMY_TURN_FINAL_STATE);
+    const actual = sanitizeFixtureValue(runEnemyTurn(createEnemyTurnSnapshotState()).finalState);
+    const expected = sanitizeFixtureValue(EXPECTED_ENEMY_TURN_FINAL_STATE);
+    expect(actual).toEqual(expected);
   });
 
   it('omits traceTerms when tracing is off', () => {

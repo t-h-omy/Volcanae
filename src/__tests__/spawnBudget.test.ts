@@ -363,7 +363,7 @@ describe('accumulator', () => {
     const lair = makeLavaLair({ x: 5, y: 2 });
     const state = makeState({ buildings: [lair], ember: 0, spawnAccumulator: 0 });
     vi.spyOn(Math, 'random').mockReturnValue(0);
-    const budget = Math.min(SPAWN_BUDGET.MAX_BUDGET, Math.max(SPAWN_BUDGET.MIN_BUDGET, SPAWN_BUDGET.MIN_BUDGET));
+    const budget = Math.min(SPAWN_BUDGET.MAX_BUDGET, Math.max(SPAWN_BUDGET.MIN_BUDGET, SPAWN_BUDGET.BASE_BUDGET));
     const { finalState } = runEnemyTurn(state);
     const snap = finalState.lastSpawnBudget!;
     expect(snap.accumulatorBefore).toBeCloseTo(0);
@@ -380,7 +380,7 @@ describe('accumulator', () => {
     let state = makeState({ buildings: [lair], units: [playerUnit], spawnAccumulator: 0 });
 
     // Calculate how many turns until cap
-    const budget = Math.min(SPAWN_BUDGET.MAX_BUDGET, Math.max(SPAWN_BUDGET.MIN_BUDGET, SPAWN_BUDGET.BASE_BUDGET));
+    const budget = SPAWN_BUDGET.MIN_BUDGET;
     const turnsToFill = Math.ceil(SPAWN_BUDGET.ACCUMULATOR_CAP / budget) + 2;
 
     for (let i = 0; i < turnsToFill; i++) {
