@@ -562,6 +562,7 @@
   "techFlag.HOLD_GROUND.desc": "Les unités sur vos bâtiments gagnent un bonus de défense.",
   "techFlag.GRAVE_HARVEST.desc": "Chaque pierre tombale vous appartenant a {chancePercent} % de chances de rapporter {crystalAmount} cristal par tour.",
   "techFlag.ARCANE_SHIELD.desc": "Un bouclier arcanique de {shieldHp} absorbe les dégâts avant les PV et regagne {regen} par tour tant qu'une chambre de cristal résonne.",
+  "techFlag.CONCENTRATION.desc": "Les mages qui n'effectuent aucune action stockent une charge qui leur permet de lancer un sort supplémentaire.",
   "recruit.notEnoughCrystals": "Pas assez de cristaux (requis : {need}, disponibles : {have}, manquants : {missing})",
   "recruit.notEnoughIron": "Pas assez de fer (requis : {need}, disponible : {have})",
   "recruit.notEnoughWood": "Pas assez de bois (requis : {need}, disponible : {have})",

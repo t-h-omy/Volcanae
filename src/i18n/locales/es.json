@@ -562,6 +562,7 @@
   "techFlag.HOLD_GROUND.desc": "Las unidades en edificios propios obtienen una bonificación de defensa.",
   "techFlag.GRAVE_HARVEST.desc": "Cada lápida propia tiene un {chancePercent}% de probabilidad por turno de conceder {crystalAmount} de cristal.",
   "techFlag.ARCANE_SHIELD.desc": "Un escudo arcano de {shieldHp} absorbe daño antes que los PV y regenera {regen} por turno mientras una cámara de cristal resuene.",
+  "techFlag.CONCENTRATION.desc": "Los magos que no realizan acciones guardan una carga que les permite lanzar un hechizo adicional.",
   "recruit.notEnoughCrystals": "No hay suficientes cristales (se necesitan {need}, hay {have}, faltan {missing})",
   "recruit.notEnoughIron": "No hay suficiente hierro (se necesitan {need}, hay {have})",
   "recruit.notEnoughWood": "No hay suficiente madera (se necesitan {need}, hay {have})",

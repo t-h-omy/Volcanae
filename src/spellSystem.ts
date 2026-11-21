@@ -1764,6 +1764,7 @@ function handleBloodRush(
     if (remaining.construct) recipient.hasConstructedThisTurn = false;
     if (remaining.cast) {
       recipient.spellsCastThisTurn = 0;
+      recipient.concentrationCastsThisTurn = 0;
       if (recipient.hasMovedThisTurn && recipient.tags.includes(UnitTag.PREP)) {
         recipient.bloodRushCastReadyTurn = state.turn;
       }

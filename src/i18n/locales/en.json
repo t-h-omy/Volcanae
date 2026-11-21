@@ -562,6 +562,7 @@
   "techFlag.HOLD_GROUND.desc": "Units on own buildings gain a defense bonus.",
   "techFlag.GRAVE_HARVEST.desc": "Each player-owned Gravestone has a {chancePercent}% chance per turn to grant {crystalAmount} crystal.",
   "techFlag.ARCANE_SHIELD.desc": "Arcane Shield of {shieldHp} absorbs damage before HP and regenerates {regen} per turn while a Crystal Chamber resonates.",
+  "techFlag.CONCENTRATION.desc": "Idle Mages store a charge that allows an additional spell cast.",
   "recruit.notEnoughCrystals": "Not enough crystals (need {need}, have {have}, missing {missing})",
   "recruit.notEnoughIron": "Not enough iron (need {need}, have {have})",
   "recruit.notEnoughWood": "Not enough wood (need {need}, have {have})",

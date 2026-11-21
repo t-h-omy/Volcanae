@@ -562,6 +562,7 @@
   "techFlag.HOLD_GROUND.desc": "Einheiten auf eigenen Gebäuden erhalten einen Verteidigungsbonus.",
   "techFlag.GRAVE_HARVEST.desc": "Jeder Grabstein im Besitz des Spielers hat pro Runde eine Chance von {chancePercent}%, {crystalAmount} Kristall zu gewähren.",
   "techFlag.ARCANE_SHIELD.desc": "Der Arkanschild mit {shieldHp} Punkten absorbiert Schaden vor den LP und regeneriert {regen} pro Runde, solange eine Kristallkammer resoniert.",
+  "techFlag.CONCENTRATION.desc": "Untätige Magier speichern eine Ladung, mit der sie einen zusätzlichen Zauber wirken können.",
   "recruit.notEnoughCrystals": "Nicht genug Kristalle (benötigt {need}, vorhanden {have}, fehlend {missing})",
   "recruit.notEnoughIron": "Nicht genug Eisen (benötigt {need}, vorhanden {have})",
   "recruit.notEnoughWood": "Nicht genug Holz (benötigt {need}, vorhanden {have})",

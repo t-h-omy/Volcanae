@@ -290,17 +290,17 @@
   transform: translateX(-50%);
   border-radius: 50%;
   background: radial-gradient(ellipse, color-mix(in srgb, var(--mage-path-glow) 68%, transparent), transparent 70%);
-  opacity: 0.62;
+  opacity: 0.28;
   pointer-events: none;
   animation: mageAuraBreath var(--mage-aura-pulse-duration, 2.8s) ease-in-out infinite;
 }
 
 .tile-unit.unit--mage-crystal.unit--mage-cast-ready::before,
 .tile-unit.unit--mage-necro.unit--mage-cast-ready::before,
-.tile-unit.unit--mage-ember.unit--mage-cast-ready::before { opacity: 0.96; }
+.tile-unit.unit--mage-ember.unit--mage-cast-ready::before { opacity: 0.38; }
 .tile-unit.unit--mage-crystal.unit--mage-cast-spent::before,
 .tile-unit.unit--mage-necro.unit--mage-cast-spent::before,
-.tile-unit.unit--mage-ember.unit--mage-cast-spent::before { opacity: 0.28; }
+.tile-unit.unit--mage-ember.unit--mage-cast-spent::before { opacity: 0.2; }
 
 .tile-unit.unit--mage-crystal.unit--mage-concentrated::before,
 .tile-unit.unit--mage-necro.unit--mage-concentrated::before,
@@ -309,13 +309,13 @@
 }
 
 @keyframes mageAuraConcentratedBreath {
-  0%, 100% { opacity: 0.78; }
-  50% { opacity: 0.98; }
+  0%, 100% { opacity: 0.34; }
+  50% { opacity: 0.4; }
 }
 
 @keyframes mageAuraBreath {
-  0%, 100% { opacity: 0.55; }
-  50% { opacity: 0.82; }
+  0%, 100% { opacity: 0.24; }
+  50% { opacity: 0.32; }
 }
 
 .unit-emoji {
@@ -1774,7 +1774,10 @@
   .tile-unit.unit--mage-ember::before { animation: none; }
   .tile-unit.unit--mage-crystal.unit--mage-concentrated::before,
   .tile-unit.unit--mage-necro.unit--mage-concentrated::before,
-  .tile-unit.unit--mage-ember.unit--mage-concentrated::before { animation: none; }
+  .tile-unit.unit--mage-ember.unit--mage-concentrated::before {
+    animation: none;
+    opacity: 0.38;
+  }
   .tile--spell-target { animation: spellTargetReducedMotion var(--spell-target-duration, 1.1s) ease-in-out infinite; }
   .tile-vfx--spell-impact,
   .tile-vfx--spell-caster-pulse { animation-name: spellVfxReducedMotion; }

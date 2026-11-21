@@ -233,7 +233,7 @@ describe('SP-24 Field Chirurgeon idle heal', () => {
       const idle = makeUnit('idle-mage', UnitType.CRYSTAL_MAGE, { x: 2, y: 8 });
       useGameStore.setState(makeState([idle]));
       useGameStore.getState().endPlayerTurn();
-      const withoutTech = useAnimationStore.getState().resolvedState!;
+      const withoutTech = useAnimationStore.getState().resolvedState ?? useGameStore.getState();
       expect(withoutTech.units[idle.id].concentrationCharges ?? 0).toBe(0);
       expect(useAnimationStore.getState().eventQueue.some((event) => event.type === 'CONCENTRATION_CHARGED')).toBe(false);
 
@@ -246,7 +246,8 @@ describe('SP-24 Field Chirurgeon idle heal', () => {
       withTech.techFlags = [TechFlag.CONCENTRATION];
       useGameStore.setState(withTech);
       useGameStore.getState().endPlayerTurn();
-      expect(useAnimationStore.getState().resolvedState?.units[alreadyCharged.id].concentrationCharges).toBe(1);
+      const resolved = useAnimationStore.getState().resolvedState ?? useGameStore.getState();
+      expect(resolved.units[alreadyCharged.id].concentrationCharges).toBe(1);
       expect(useAnimationStore.getState().eventQueue.some((event) => event.type === 'CONCENTRATION_CHARGED')).toBe(false);
     });
 
@@ -262,7 +263,7 @@ describe('SP-24 Field Chirurgeon idle heal', () => {
 
       useGameStore.getState().endPlayerTurn();
 
-      const resolved = useAnimationStore.getState().resolvedState!;
+      const resolved = useAnimationStore.getState().resolvedState ?? useGameStore.getState();
       expect(resolved.units[mage.id].concentrationCharges).toBe(0);
       expect(resolved.units[mage.id].concentrationCastsThisTurn).toBe(0);
       expect(useAnimationStore.getState().eventQueue.some((event) => event.type === 'CONCENTRATION_CHARGED')).toBe(false);

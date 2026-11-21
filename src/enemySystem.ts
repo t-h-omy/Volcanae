@@ -4524,7 +4524,7 @@ export function runEnemyTurn(
         unit.hasMovedThisTurn = false;
         unit.hasAttackedThisTurn = false;
         unit.spellsCastThisTurn = 0;
-        unit.concentrationCastsThisTurn = 0;
+        if (unit.concentrationCastsThisTurn !== undefined) unit.concentrationCastsThisTurn = 0;
         unit.hasCapturedThisTurn = false;
         unit.hasTradedThisTurn = false;
         unit.hasConstructedThisTurn = false;

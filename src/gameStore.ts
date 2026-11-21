@@ -2811,7 +2811,7 @@ export const useGameStore = create<GameStore>()(
               unit.hasMovedThisTurn = false;
               unit.hasAttackedThisTurn = false;
               unit.spellsCastThisTurn = 0;
-              unit.concentrationCastsThisTurn = 0;
+              if (unit.concentrationCastsThisTurn !== undefined) unit.concentrationCastsThisTurn = 0;
               unit.hasCapturedThisTurn = false;
               unit.hasTradedThisTurn = false;
               unit.hasConstructedThisTurn = false;
@@ -3966,6 +3966,19 @@ export const useGameStore = create<GameStore>()(
             if (unit) {
               unit.tags = unit.tags.filter((tag) => tag !== UnitTag.AMPLIFIED);
               unit.amplifierMageId = undefined;
+            }
+            break;
+          }
+
+          case 'CONCENTRATION_CHARGED': {
+            for (const charged of event.units) {
+              const unit = state.units[charged.unitId];
+              if (!unit) continue;
+              unit.concentrationCharges = Math.min(
+                MAGE.CONCENTRATION_MAX_CHARGES,
+                (unit.concentrationCharges ?? 0) + 1,
+              );
+              unit.tags = [...unit.tags.filter((tag) => tag !== UnitTag.CONCENTRATED), UnitTag.CONCENTRATED];
             }
             break;
           }

@@ -562,6 +562,7 @@
   "techFlag.HOLD_GROUND.desc": "Le unità sui tuoi edifici ottengono un bonus alla difesa.",
   "techFlag.GRAVE_HARVEST.desc": "Ogni Lapide di proprietà del giocatore ha il {chancePercent}% di probabilità per turno di fornire {crystalAmount} cristallo.",
   "techFlag.ARCANE_SHIELD.desc": "Uno scudo arcano di {shieldHp} assorbe i danni prima dei PS e rigenera {regen} per turno finché una camera di cristallo risuona.",
+  "techFlag.CONCENTRATION.desc": "I maghi che non compiono azioni conservano una carica che permette loro di lanciare un incantesimo aggiuntivo.",
   "recruit.notEnoughCrystals": "Cristalli insufficienti (necessari {need}, disponibili {have}, mancanti {missing})",
   "recruit.notEnoughIron": "Ferro insufficiente (necessario {need}, disponibile {have})",
   "recruit.notEnoughWood": "Legno insufficiente (necessario {need}, disponibile {have})",
