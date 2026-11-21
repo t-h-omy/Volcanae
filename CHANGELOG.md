@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.123.4 - Gravestone appearance
+
+New Gravestones rise through a brief wisp and dust effect after eligible deaths and Explode sacrifices.
+
 ### v0.123.3 - Protective layer presentation
 
 Protective layers now share absorb, recharge and break feedback, with Stone Skin appearing in stone color and Arcane Shield retaining its dome and recharge behavior. Unit background effects now resolve through a single priority channel.

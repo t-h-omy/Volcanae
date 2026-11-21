@@ -103,6 +103,8 @@ Spells are unlocked individually through the tech tree. The selected Mage's spel
 | 💥 Explode | Sacrifice a player unit to deal damage based on its current HP to each adjacent enemy. Units that leave a Gravestone on death still leave one. |
 | 💎 Crystal Tower | Sacrifice the Mage to erect a permanent Crystal Tower on its tile |
 | 🌀 Portal | Create a permanent bidirectional portal pair on the same row; units of any faction can enter either endpoint |
+
+New Gravestones appear with a brief wisp and dust effect. Loaded Gravestones do not replay the effect.
 | 🎯 Taunt | Mark a friendly unit so hostile units must attack it whenever it is a legal target in range |
 | 🪨 Stone Skin | Grant a friendly non-Mech unit a separate 50 HP pool that absorbs damage before normal HP and prevents voluntary movement while it remains |
 | ⚡ Crystal Lightning | Fire a 20-power lightning volley from a Crystal Chamber; resonating Chambers chain the spell to nearby active Chambers |

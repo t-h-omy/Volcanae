@@ -61,6 +61,7 @@ export type SlideKillGhost = DeathGhostAppearance & (
 export type BuildingAnimationState =
   | 'CRYSTAL_ACTIVATE'
   | 'CRYSTAL_RECHARGE'
+  | 'GRAVESTONE_RISE'
   | 'SANCTUM_SHATTER'
   | { type: 'CRYSTAL_ACTIVATE' | 'CRYSTAL_RECHARGE'; durationMs: number };
 

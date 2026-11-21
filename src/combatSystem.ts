@@ -103,10 +103,10 @@ export function createGravestoneAt(
   state: Draft<GameState>,
   position: { x: number; y: number },
   gravesUnitType: UnitType | null,
-): void {
-  if (isPortalEndpoint(state, position)) return;
+): string | null {
+  if (isPortalEndpoint(state, position)) return null;
   const tile = state.grid[position.y]?.[position.x];
-  if (!tile || !isValidGravestoneTile(tile)) return;
+  if (!tile || !isValidGravestoneTile(tile)) return null;
   const graveId = generateCombatBuildingId();
   state.buildings[graveId] = {
     id: graveId,
@@ -140,6 +140,7 @@ export function createGravestoneAt(
     gravesUnitType,
   };
   tile.buildingId = graveId;
+  return graveId;
 }
 
 /**

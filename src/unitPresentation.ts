@@ -1,6 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { ANIMATION } from '../config/animation';
 import { UNIT_BACKGROUND_EFFECT_PRIORITY } from '../config/render';
+import { useCombatAnimationStore } from './combatAnimationStore';
+
+export function playGravestoneRise(buildingId: string): void {
+  useCombatAnimationStore.getState().setBuildingAnimation(buildingId, 'GRAVESTONE_RISE');
+  setTimeout(() => {
+    const store = useCombatAnimationStore.getState();
+    if (store.buildingAnimations.get(buildingId) === 'GRAVESTONE_RISE') {
+      store.setBuildingAnimation(buildingId, null);
+    }
+  }, ANIMATION.GRAVESTONE_RISE_MS);
+}
 
 export type LayerFx = 'absorb' | 'break' | 'recharge';
 

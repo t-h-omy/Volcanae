@@ -85,6 +85,71 @@
   transition: opacity 0.2s;
 }
 
+.tile--gravestone-rise {
+  --gravestone-wisp-width: 20%;
+  --gravestone-wisp-height: 34%;
+  --gravestone-dust-width: 85%;
+  --gravestone-dust-height: 35%;
+}
+
+.tile--gravestone-rise .tile-building-img,
+.tile--gravestone-rise .tile-building {
+  animation: gravestoneRise var(--gravestone-rise-duration) ease-out both;
+}
+
+.tile--gravestone-rise::before,
+.tile--gravestone-rise::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0;
+}
+
+.tile--gravestone-rise::before {
+  top: 20%;
+  width: var(--gravestone-wisp-width);
+  height: var(--gravestone-wisp-height);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, var(--path-necro-glow), transparent 70%);
+  animation: gravestoneWisp var(--gravestone-rise-duration) ease-in both;
+}
+
+.tile--gravestone-rise::after {
+  bottom: 5%;
+  width: var(--gravestone-dust-width);
+  height: var(--gravestone-dust-height);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, var(--gravestone-dust-color), transparent 70%);
+  animation: gravestoneDust var(--gravestone-rise-duration) ease-out both;
+}
+
+@keyframes gravestoneRise {
+  0%, 28% { opacity: 0; transform: translate(-50%, 0); }
+  30% { opacity: 1; }
+  75%, 100% { opacity: 1; transform: translate(-50%, -50%); }
+}
+
+@keyframes gravestoneWisp {
+  0% { opacity: 0; transform: translate(-50%, -65%); }
+  12% { opacity: 0.8; }
+  30%, 100% { opacity: 0; transform: translate(-50%, 80%); }
+}
+
+@keyframes gravestoneDust {
+  0%, 28% { opacity: 0; transform: translateX(-50%) scale(0.35); }
+  40% { opacity: 0.7; }
+  100% { opacity: 0; transform: translateX(-50%) scale(1.4); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile--gravestone-rise .tile-building-img,
+  .tile--gravestone-rise .tile-building { animation: none; }
+  .tile--gravestone-rise::before,
+  .tile--gravestone-rise::after { animation: none; }
+}
+
 /* ── Unit Sprite Image ── */
 
 .unit-main-img {

@@ -1333,6 +1333,9 @@ function TileCellInner({
     const animation = building ? s.buildingAnimations.get(building.id) : undefined;
     return typeof animation === 'object' ? animation.durationMs : ANIMATION.RESONANCE_NODE_IMPACT_MS;
   });
+  const isGravestoneRising = useCombatAnimationStore((s) =>
+    !!building && showBuilding && tile.isRevealed && s.buildingAnimations.get(building.id) === 'GRAVESTONE_RISE',
+  );
 
   const tileFlashEntry = useCombatAnimationStore(
     (s) => s.tileFlashes.get(`${tile.position.x},${tile.position.y}`),
@@ -1379,6 +1382,7 @@ function TileCellInner({
         isResonating && 'tile--resonating',
         isCrystalActivating && 'tile--crystal-activating',
         isCrystalRecharging && 'tile--crystal-recharging',
+        isGravestoneRising && 'tile--gravestone-rise',
         isCrystalActivating && building?.type === BuildingType.CRYSTAL_CAVE && 'tile--crystal-cave',
         isLeashWarn ? 'tile--leash-warn' : isLeashed ? 'tile--leashed' : null,
       ].filter(Boolean).join(' ')}
@@ -1386,6 +1390,10 @@ function TileCellInner({
         width: tileSize,
         height: tileSize,
         ...(isCrystalActivating && { '--crystal-activate-duration': `${crystalActivationDuration}ms` }),
+        ...(isGravestoneRising && {
+          '--gravestone-rise-duration': `${ANIMATION.GRAVESTONE_RISE_MS}ms`,
+          '--gravestone-dust-color': RENDER.COLORS.STONE_SKIN,
+        }),
       } as React.CSSProperties}
       onClick={onClick}
     >

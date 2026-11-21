@@ -38,6 +38,7 @@ import { checkGameConditions } from './gameConditions';
 import { useFloaterStore } from './floaterStore';
 import { useAnimationStore } from './animationStore';
 import { useCombatAnimationStore } from './combatAnimationStore';
+import { playGravestoneRise } from './unitPresentation';
 import { useCaveScreamsStore } from './caveScreamsStore';
 import { triggerSpellSfx } from './soundOptionsStore';
 import { Faction, GamePhase, BuildingType, TileType, TileStatus, Difficulty, DestroyBehavior, UnitType, UnitTag, TechFlag } from './types';
@@ -2004,6 +2005,7 @@ export const useGameStore = create<GameStore>()(
       let crystalLightningResolvedState: GameState | null = null;
       let createdLeashedUnit = false;
       let createdMagePortal = false;
+      let createdGravestoneId: string | null = null;
       set((state) => {
         if (!state.pendingSpellCast) return;
         const { mageId, spellId } = state.pendingSpellCast;
@@ -2056,8 +2058,17 @@ export const useGameStore = create<GameStore>()(
             .map((unit) => unit.id),
         );
         const portalIdsBefore = new Set(Object.keys(state.portals));
+        const previousBuildingId = state.grid[targetPosition.y]?.[targetPosition.x]?.buildingId;
         const ok = castSpellLogic(state, mageId, spellId, targetPosition, portalEvents);
         if (!ok) return;
+        if (spellId === 'EXPLODE') {
+          const targetTile = state.grid[targetPosition.y]?.[targetPosition.x];
+          const buildingId = targetTile?.buildingId;
+          if (targetTile?.isRevealed && buildingId && buildingId !== previousBuildingId &&
+              state.buildings[buildingId]?.type === BuildingType.GRAVESTONE) {
+            createdGravestoneId = buildingId;
+          }
+        }
 
         const leashedUnitIdsAfter = new Set(
           Object.values(state.units)
@@ -2105,6 +2116,7 @@ export const useGameStore = create<GameStore>()(
         updateDiscovery(state);
         checkGameConditions(state);
       });
+      if (createdGravestoneId) playGravestoneRise(createdGravestoneId);
       if (crystalLightningEvents !== null && crystalLightningResolvedState !== null) {
         useAnimationStore.getState().enqueue(crystalLightningEvents, crystalLightningResolvedState);
       }
@@ -2818,6 +2830,7 @@ export const useGameStore = create<GameStore>()(
       }
       let emberLevelUpFired = false;
       const directQorkDeathPositions: Position[] = [];
+      let createdGravestoneId: string | null = null;
       set((state) => {
         switch (event.type) {
           case 'ENEMY_SPAWN': {
@@ -3061,7 +3074,8 @@ export const useGameStore = create<GameStore>()(
                 { faction: unitFaction, tags: unitTags },
                 { defaultOn: false },
               )) {
-                createGravestoneAt(state, deathPos, unitType);
+                const graveId = createGravestoneAt(state, deathPos, unitType);
+                if (!options.silent && tile.isRevealed) createdGravestoneId = graveId;
               }
               // Re-sync overcapacity tags when a player unit dies (pool sizes change).
               if (unitFaction === Faction.PLAYER) {
@@ -3902,6 +3916,16 @@ export const useGameStore = create<GameStore>()(
             assertNever(event);
         }
       });
+      if (createdGravestoneId) {
+        playGravestoneRise(createdGravestoneId);
+        const grave = useGameStore.getState().buildings[createdGravestoneId];
+        const resolved = useAnimationStore.getState().resolvedState;
+        const resolvedId = grave && resolved?.grid[grave.position.y]?.[grave.position.x]?.buildingId;
+        if (resolvedId && resolvedId !== createdGravestoneId &&
+            resolved?.buildings[resolvedId]?.type === BuildingType.GRAVESTONE) {
+          playGravestoneRise(resolvedId);
+        }
+      }
       for (const position of directQorkDeathPositions) {
         addDirectQorkDeathVfx(useGameStore.getState(), position, true);
       }

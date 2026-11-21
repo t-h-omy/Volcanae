@@ -43,6 +43,8 @@ export const ANIMATION = {
   XP_GAIN_ANIM_DURATION_MS: 600,
   /** Crystal Chamber activation VFX duration (ms) */
   CRYSTAL_ACTIVATE_VFX_DURATION_MS: 1200,
+  /** Duration of the Gravestone appearance effect in milliseconds */
+  GRAVESTONE_RISE_MS: 900,
   /** Brief charge at a resonance source before the wave releases. */
   RESONANCE_ORIGIN_CHARGE_MS: 420,
   /** Travel time for each tile of a resonance link. */
