@@ -13,7 +13,12 @@ import type { Draft } from 'immer';
 import { TileType, TileStatus, Faction, UnitTag } from './types';
 import type { GameState, Position, Unit } from './types';
 import type { GameEvent } from './gameEvents';
-import { TILE_STATUS_WHITELIST, BURNING_TILE_DAMAGE } from './gameConfig';
+import {
+  TILE_STATUS_WHITELIST,
+  BURNING_TILE_DAMAGE,
+  CORRUPTED_SUPPRESSED_TAGS,
+  CRYSTALLINE_SUPPRESSED_TAGS,
+} from './gameConfig';
 import { updateBerserkLatch } from './combatSystem';
 import { applyUnitDamage } from './unitDamage';
 import { resolveInfestedDeath } from './infestedSystem';
@@ -140,6 +145,30 @@ export function isUnitOnCorruptedTile(
   if (!unit || unit.faction !== Faction.PLAYER) return false;
   const tile = state.grid[unit.position.y]?.[unit.position.x];
   return tile?.status === TileStatus.CORRUPTED;
+}
+
+/** Returns the tag set disabled by the unit's current tile status, if any. */
+export function getSuppressedTagsForUnit(
+  state: GameState | Draft<GameState>,
+  unit: Unit | Draft<Unit>,
+): ReadonlySet<UnitTag> | null {
+  const tile = state.grid[unit.position.y]?.[unit.position.x];
+  if (unit.faction === Faction.PLAYER && tile?.status === TileStatus.CORRUPTED) {
+    return CORRUPTED_SUPPRESSED_TAGS;
+  }
+  if (unit.faction === Faction.ENEMY && tile?.status === TileStatus.CRYSTALLINE) {
+    return CRYSTALLINE_SUPPRESSED_TAGS;
+  }
+  return null;
+}
+
+/** Returns true when the given combat tag is suppressed for this unit. */
+export function isUnitTagSuppressed(
+  state: GameState | Draft<GameState>,
+  unit: Unit | Draft<Unit>,
+  tag: UnitTag,
+): boolean {
+  return getSuppressedTagsForUnit(state, unit)?.has(tag) ?? false;
 }
 
 // ============================================================================

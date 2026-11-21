@@ -1,5 +1,5 @@
 /**
- * Tile status whitelist, burning-tile damage, corruption-suppressed tags,
+ * Tile status whitelist, burning-tile damage, status-suppressed tags,
  * and parameters for localized terrain-tag tooltips.
  */
 
@@ -21,16 +21,16 @@ import { TileType, TileStatus, TerrainTag, UnitTag } from '../src/types';
  * targetable by Frostcraft).
  */
 export const TILE_STATUS_WHITELIST: Record<TileType, TileStatus[]> = {
-  /** All three statuses apply to PLAINS terrain. */
-  [TileType.PLAINS]: [TileStatus.CORRUPTED, TileStatus.FROZEN, TileStatus.BURNING],
+  /** All tile statuses apply to PLAINS terrain. */
+  [TileType.PLAINS]: [TileStatus.CORRUPTED, TileStatus.CRYSTALLINE, TileStatus.FROZEN, TileStatus.BURNING],
   /** WATER cannot BURN (water is non-combustible by design). CORRUPTED and FROZEN are valid. */
   [TileType.WATER]: [TileStatus.CORRUPTED, TileStatus.FROZEN],
   [TileType.CANYON]: [],
   [TileType.EMPTY]: [],
   /** CORRUPTED allowed (Magma Spyr). FROZEN allowed (WOODCUTTER resource building on FOREST must be targetable by Frostcraft). */
-  [TileType.FOREST]: [TileStatus.CORRUPTED, TileStatus.FROZEN],
+  [TileType.FOREST]: [TileStatus.CORRUPTED, TileStatus.CRYSTALLINE, TileStatus.FROZEN],
   /** CORRUPTED allowed (Magma Spyr). FROZEN allowed (MINE resource building on MOUNTAIN must be targetable by Frostcraft). */
-  [TileType.MOUNTAIN]: [TileStatus.CORRUPTED, TileStatus.FROZEN],
+  [TileType.MOUNTAIN]: [TileStatus.CORRUPTED, TileStatus.CRYSTALLINE, TileStatus.FROZEN],
 };
 
 /** Damage dealt to each non-LAVA, non-FLYING, non-CINDERBORN unit on a BURNING tile at end of turn. */
@@ -59,12 +59,26 @@ export const CORRUPTED_SUPPRESSED_TAGS = new Set<UnitTag>([
   UnitTag.PREVENTIVE_STRIKE,
 ]);
 
+/** Combat tags suppressed for an enemy unit standing on a CRYSTALLINE tile. */
+export const CRYSTALLINE_SUPPRESSED_TAGS = new Set<UnitTag>([
+  UnitTag.CLEAVE,
+  UnitTag.RAGE,
+  UnitTag.PIERCE,
+  UnitTag.PUNCTURE,
+  UnitTag.LANCE_CHARGE,
+  UnitTag.BURN,
+  UnitTag.ALERT,
+  UnitTag.BLOCK,
+  UnitTag.IRONBLOOD,
+]);
+
 
 /**
  * Text parameters for localized terrain-tag tooltips in the tile-info panel.
  */
 export const TERRAIN_TAG_INFO: Record<TerrainTag, { textParams?: { [name: string]: number } }> = {
   [TerrainTag.CORRUPTED]: {},
+  [TerrainTag.CRYSTALLINE]: {},
   [TerrainTag.FROZEN]: {},
   [TerrainTag.BURNING]: { textParams: { damage: BURNING_TILE_DAMAGE } },
 };

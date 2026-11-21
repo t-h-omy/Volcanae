@@ -66,6 +66,7 @@ export const TAG_INFO: Record<UnitTag, { icon?: string; textParams?: { [name: st
   [UnitTag.UNTRAINED]: { icon: '📉', textParams: { attackPenalty: TRAINING.UNTRAINED_ATK_PENALTY } },
   [UnitTag.FLYING]: { icon: '🕊️', textParams: { rangedDamageTakenPct: Math.round((ABILITIES.FLYING_RANGED_DAMAGE_TAKEN_MULTIPLIER - 1) * 100) } },
   [UnitTag.CORRUPTED]: { icon: '☠️' },
+  [UnitTag.CRYSTALLINE]: { icon: '🔷' },
   [UnitTag.BRIDGE_BUILDER]: { textParams: { woodCost: BUILDING_DEFINITIONS.BRIDGE.constructionCost.wood } },
   [UnitTag.KNOCKBACK]: {},
   [UnitTag.CINDERBORN]: { textParams: { rows: ABILITIES.CINDERBORN_ROWS, attackBonus: ABILITIES.CINDERBORN_ATTACK_BONUS } },

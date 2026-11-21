@@ -74,6 +74,15 @@ export const MAGE = {
   SPELL_CAST_CRYSTAL_COST: 1,
 } as const;
 
+/** Crystallize's fixed orthogonal cross, an intentional exception to edge-circle range. */
+export const CRYSTALLINE_OFFSETS = [
+  [0, 0],
+  [0, -1],
+  [1, 0],
+  [0, 1],
+  [-1, 0],
+] as const;
+
 export const MAGE_UNIT_TYPES: readonly UnitType[] = [
   UnitType.CRYSTAL_MAGE,
   UnitType.NECROMANCER,
@@ -131,6 +140,12 @@ export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
     id: SpellId.FROSTCRAFT,
     emoji: '❄️',
     casters: MAGE_UNIT_TYPES,
+  },
+  [SpellId.CRYSTALLIZE]: {
+    id: SpellId.CRYSTALLIZE,
+    emoji: '🔷',
+    casters: [UnitType.CRYSTAL_MAGE],
+    textParams: {},
   },
   [SpellId.GRAVE_TRAP]: {
     id: SpellId.GRAVE_TRAP,

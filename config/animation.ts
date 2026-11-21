@@ -5,6 +5,13 @@
  */
 
 export const ANIMATION = {
+  /** Ambient Crystalline tile glint cycle. */
+  CRYSTALLINE_GLINT_CYCLE_MS: 6000,
+  /** Coordinate multipliers stagger Crystalline glints across neighboring tiles. */
+  CRYSTALLINE_GLINT_X_OFFSET_MS: 1301,
+  CRYSTALLINE_GLINT_Y_OFFSET_MS: 2137,
+  /** Delay between the center and each arm of the Crystallize cast effect. */
+  CRYSTALLINE_APPLIED_STAGGER_MS: 120,
   /** Time for viewport to pan to a new target position */
   CAMERA_MOVE_DURATION_MS: 220,
   /** Pause after camera arrives, before action executes */

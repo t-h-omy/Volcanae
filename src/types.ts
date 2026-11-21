@@ -224,6 +224,7 @@ export const SpellId = {
   LAVA_MOLD: 'LAVA_MOLD',
   PORTAL: 'PORTAL',
   CORRUPTED_QORK: 'CORRUPTED_QORK',
+  CRYSTALLIZE: 'CRYSTALLIZE',
 } as const;
 export type SpellId = (typeof SpellId)[keyof typeof SpellId];
 
@@ -262,6 +263,8 @@ export const TileStatus = {
    * Enemy units are unaffected by Corrupted tiles.
    */
   CORRUPTED: 'CORRUPTED',
+  /** Enemy units standing here lose their combat tags. */
+  CRYSTALLINE: 'CRYSTALLINE',
   FROZEN: 'FROZEN',
   BURNING: 'BURNING',
 } as const;
@@ -274,6 +277,7 @@ export type TileStatus = (typeof TileStatus)[keyof typeof TileStatus];
  */
 export const TerrainTag = {
   CORRUPTED: 'CORRUPTED',
+  CRYSTALLINE: 'CRYSTALLINE',
   FROZEN: 'FROZEN',
   BURNING: 'BURNING',
 } as const;
@@ -390,6 +394,8 @@ export const UnitTag = {
   // ── Tile-presence status tags (derived, not persisted) ───────────────────
   /** Unit is standing on a corrupted tile and its tag abilities are being suppressed. */
   CORRUPTED: 'CORRUPTED',
+  /** Unit is standing on a crystalline tile and its tag abilities are being suppressed. */
+  CRYSTALLINE: 'CRYSTALLINE',
   /** Scout that has researched the Bridgebuilder tech; can build a Bridge across a 1-tile canyon gap */
   BRIDGE_BUILDER: 'BRIDGE_BUILDER',
   // ── Specialist-scaffolded tags (SP-00) ──────────────────────────────────────

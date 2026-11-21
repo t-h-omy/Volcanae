@@ -532,6 +532,14 @@ export const TECH_TREE: TechNodeDefinition[] = [
     ],
   },
   {
+    id: 'CRYSTALLIZE',
+    requires: ['CRYSTAL_MAGE'],
+    cost: ARCANE_RESEARCH_COST_BY_DEPTH[1],
+    effects: [
+      { type: 'UNLOCK_SPELL', spellId: SpellId.CRYSTALLIZE },
+    ],
+  },
+  {
     id: 'PORTAL',
     requires: ['CRYSTAL_CAVE'],
     cost: 7,
