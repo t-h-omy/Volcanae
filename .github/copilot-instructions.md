@@ -6,7 +6,7 @@
 4. **Grid orientation** per `src/GRID_ORIENTATION.md`: row 0 = north = enemy side, high y = south = player side, lava advances north.
 5. **Distances** use the edge-circle metrics from `src/rangeUtils.ts`, never Manhattan.
 6. **State:** Zustand with Immer. Never call store-external side effects (`tryTriggerHint` and similar) inside `produce` callbacks; mirror the existing event-collection pattern.
-7. **Tests:** every logic change gets Vitest coverage. `npm test`, `npm run lint` and `npm run build` must pass.
+7. **Tests:** every logic change gets Vitest coverage. `npm test`, `npm run lint` and `npm run build` must pass. Tests never pin tunable values from `config/` with literals. They derive expectations from the config constants or use test-local fixed inputs.
 8. **Localization:**
    - All player-facing text resolves through the i18n layer. Components use `useText()` from `src/i18n/useText.ts`. Non-component code uses `t()` and entity helpers from `src/i18n/i18n.ts` and `src/i18n/entityText.ts`. No player-visible string literals in components or logic modules.
    - Exempt (English only): DevOptionsOverlay, DevStatsOverlay, DevSpecPickerOverlay, AiScoreModal, RecruitScoreModal, AI trace export, AiTraceBadge, AiTraceExportControls.

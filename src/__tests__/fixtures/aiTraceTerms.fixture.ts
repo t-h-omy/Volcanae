@@ -1,3 +1,9 @@
+// AI trace golden fixture.
+// Pins AI decisions and score terms, plus deterministic enemy-turn outcomes.
+// It deliberately does not pin tunable unit stats, building stats, or spawn-budget results.
+// To regenerate: run the aiTraceTerms snapshot test with deterministic randomness, then replace
+// the exported EXPECTED_* values with the current sanitized values and keep spawn fields removed.
+
 import type { GameState } from '../../types';
 import type { ScoredAction } from '../../enemySystem';
 

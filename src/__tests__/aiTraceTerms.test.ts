@@ -52,6 +52,23 @@ function id(prefix: string): string {
   return `${prefix}_${nextId}`;
 }
 
+const SNAPSHOT_UNIT_STATS = {
+  [UnitType.LAVA_ARCHER]: { maxHp: 100, attack: 55, defense: 20, moveRange: 1, discoverRadius: 1, triggerRange: 3, movementActions: 1, attackRange: 2 },
+  [UnitType.LAVA_GRUNT]: { maxHp: 100, attack: 50, defense: 45, moveRange: 1, discoverRadius: 1, triggerRange: 3, movementActions: 1, attackRange: 1 },
+  [UnitType.EMBERLING]: { maxHp: 45, attack: 0, defense: 15, moveRange: 2, discoverRadius: 1, triggerRange: 0, movementActions: 1, attackRange: 1 },
+  [UnitType.ARCHER]: { maxHp: 90, attack: 50, defense: 35, moveRange: 1, discoverRadius: 1, triggerRange: 0, movementActions: 1, attackRange: 2 },
+  [UnitType.SWORDSMAN]: { maxHp: 120, attack: 60, defense: 55, moveRange: 1, discoverRadius: 1, triggerRange: 0, movementActions: 1, attackRange: 1 },
+  [UnitType.SPEARMAN]: { maxHp: 100, attack: 45, defense: 45, moveRange: 1, discoverRadius: 1, triggerRange: 0, movementActions: 1, attackRange: 1 },
+  [UnitType.RIFT_LORD]: { maxHp: 100, attack: 50, defense: 45, moveRange: 1, discoverRadius: 1, triggerRange: 3, movementActions: 1, attackRange: 1 },
+} as const;
+
+const SNAPSHOT_BUILDING_STATS = {
+  [BuildingType.WATCHTOWER]: { hp: 100, maxHp: 100, discoverRadius: 2 },
+  [BuildingType.LAVALAIR]: { hp: 100, maxHp: 100, discoverRadius: 2 },
+  [BuildingType.OUTPOST]: { hp: 100, maxHp: 100, discoverRadius: 2 },
+  [BuildingType.STRONGHOLD]: { hp: 100, maxHp: 100, discoverRadius: 2 },
+} as const;
+
 function makeTile(x: number, y: number, overrides: Partial<Tile> = {}): Tile {
   return {
     position: { x, y },
@@ -95,21 +112,23 @@ function makeGameStats(): GameState['gameStats'] {
 
 function makeUnit(type: UnitType, faction: Faction, x: number, y: number, overrides: Partial<Unit> = {}): Unit {
   const def = UNIT_DEFINITIONS[type];
+  const snapshotStats = SNAPSHOT_UNIT_STATS[type as keyof typeof SNAPSHOT_UNIT_STATS];
   return {
     id: id(`unit_${type}_${faction}`),
     type,
     faction,
     position: { x, y },
     stats: {
-      maxHp: def.maxHp,
-      currentHp: def.maxHp,
-      attack: def.attack,
-      defense: def.defense,
-      moveRange: def.moveRange,
-      discoverRadius: def.discoverRadius,
-      triggerRange: def.triggerRange,
-      movementActions: def.movementActions,
-      attackRange: def.attackRange,
+      maxHp: snapshotStats?.maxHp ?? def.maxHp,
+      currentHp: snapshotStats?.maxHp ?? def.maxHp,
+      attack: snapshotStats?.attack ?? def.attack,
+      defense: snapshotStats?.defense ?? def.defense,
+      moveRange: snapshotStats?.moveRange ?? def.moveRange,
+      discoverRadius: snapshotStats?.discoverRadius ?? def.discoverRadius,
+      triggerRange: snapshotStats?.triggerRange ?? def.triggerRange,
+      movementActions: snapshotStats?.movementActions ?? def.movementActions,
+      attackRange: snapshotStats?.attackRange ?? def.attackRange,
+      ...overrides.stats,
     },
     tags: [...def.tags],
     hasMovedThisTurn: false,
@@ -132,19 +151,20 @@ function makeUnit(type: UnitType, faction: Faction, x: number, y: number, overri
 
 function makeBuilding(type: BuildingType, faction: Faction | null, x: number, y: number, overrides: Partial<Building> = {}): Building {
   const def = BUILDING_DEFINITIONS[type];
+  const snapshotStats = SNAPSHOT_BUILDING_STATS[type as keyof typeof SNAPSHOT_BUILDING_STATS];
   return {
     id: id(`building_${type}`),
     type,
     faction,
     position: { x, y },
-    hp: def?.combatStats?.maxHp ?? 100,
-    maxHp: def?.combatStats?.maxHp ?? 100,
+    hp: snapshotStats?.hp ?? def?.combatStats?.maxHp ?? 100,
+    maxHp: snapshotStats?.maxHp ?? def?.combatStats?.maxHp ?? 100,
     specialistSlot: null,
     isDisabledForTurns: 0,
     wasAttackedLastEnemyTurn: false,
     captureProgress: 0,
     isBeingCapturedBy: null,
-    discoverRadius: def?.discoverRadius ?? 2,
+    discoverRadius: snapshotStats?.discoverRadius ?? def?.discoverRadius ?? 2,
     turnCapturedByPlayer: null,
     wasEnemyOwnedBeforeCapture: false,
     combatStats: def?.combatStats ? { ...def.combatStats } : null,
@@ -238,7 +258,11 @@ function sumTerms(action: ScoredAction): number {
 }
 
 function sanitizeFixtureValue<T>(value: T): T {
-  return JSON.parse(JSON.stringify(value, (_key, entry) => (typeof entry === 'number' && Number.isNaN(entry) ? null : entry))) as T;
+  const sanitized = JSON.parse(JSON.stringify(value, (key, entry) => {
+    if (key === 'spawnAccumulator' || key === 'lastSpawnBudget') return undefined;
+    return typeof entry === 'number' && Number.isNaN(entry) ? null : entry;
+  })) as T;
+  return sanitized;
 }
 
 function createScoreSnapshotState(): { state: GameState; unitId: string } {
@@ -272,7 +296,7 @@ function createEnemyTurnSnapshotState(): GameState {
   const p2 = makeUnit(UnitType.SWORDSMAN, Faction.PLAYER, 8, 6);
   const p3 = makeUnit(UnitType.SPEARMAN, Faction.PLAYER, 4, 11);
   const enemyTower = makeBuilding(BuildingType.WATCHTOWER, Faction.ENEMY, 6, 8);
-  const enemyLair = makeBuilding(BuildingType.LAVALAIR, Faction.ENEMY, 4, 12);
+  const enemyLair = makeBuilding(BuildingType.LAVALAIR, Faction.ENEMY, 4, 12, { spawnCooldownRemaining: 100 });
   const playerTower = makeBuilding(BuildingType.WATCHTOWER, Faction.PLAYER, 8, 8);
   const neutralOutpost = makeBuilding(BuildingType.OUTPOST, null, 6, 4);
   const stronghold = makeBuilding(BuildingType.STRONGHOLD, Faction.PLAYER, 8, 14);

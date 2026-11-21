@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.123.2 - Test fixture stabilization
+
+Tests now derive expectations from spawn and unit configuration and use fixed inputs for AI trace goldens, preventing tuned values from causing stale failures.
+
 ### v0.123.1 - Back navigation fixes
 
 Back now follows the visible overlay stack, reconciles history guards after reload and Forward navigation, and returns from the AI Trace subpage to Dev Options before closing the overlay.

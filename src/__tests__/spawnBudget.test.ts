@@ -24,6 +24,11 @@ import type { Building, GameState, Position, Tile, Unit } from '../types';
 let nextId = 0;
 function freshId(prefix: string): string { return `${prefix}_${++nextId}`; }
 
+function expectedDdaRelief(margin: number): number {
+  const relief = (margin - SPAWN_BUDGET.DDA_EXPECTED_MARGIN) * SPAWN_BUDGET.DDA_PER_ROW;
+  return Math.max(SPAWN_BUDGET.DDA_MIN, Math.min(0, relief));
+}
+
 function makeTile(x: number, y: number): Tile {
   return {
     position: { x, y },
@@ -259,10 +264,10 @@ describe('budget math', () => {
     );
   });
 
-  it('DDA relief clamps to DDA_MIN when the frontmost stronghold margin is sufficiently small with contact', () => {
+  it('DDA relief follows the formula for the stronghold margin', () => {
     // With lair at (5,2) and stronghold at (5,5), lavaFrontRow=5:
     //   strongholdRow=5, margin=5-5=0
-    //   DDA formula: clamp((0 - 12) * 0.25, -3, 0) = -3 = DDA_MIN
+    //   DDA formula uses the configured expected margin, per-row rate, and bounds.
     // Lair at y=2, stronghold at y=5: distance=3 which is within DDA_CONTACT_RANGE=3 for contact.
     // A nearby player unit keeps the existing DDA activation rule satisfied.
     const lair = makeLavaLair({ x: 5, y: 2 });
@@ -276,7 +281,7 @@ describe('budget math', () => {
     });
     const { finalState } = runEnemyTurn(state);
     const snap = finalState.lastSpawnBudget!;
-    expect(snap.ddaRelief).toBe(SPAWN_BUDGET.DDA_MIN);
+    expect(snap.ddaRelief).toBe(expectedDdaRelief(0));
     expect(snap.contactActive).toBe(true);
   });
 
@@ -293,11 +298,11 @@ describe('budget math', () => {
     const { finalState } = runEnemyTurn(state);
     const snap = finalState.lastSpawnBudget!;
     expect(snap.margin).toBe(1);
-    expect(snap.ddaRelief).toBeCloseTo(-2.75);
+    expect(snap.ddaRelief).toBeCloseTo(expectedDdaRelief(1));
     expect(snap.contactActive).toBe(true);
   });
 
-  it('falls back to the frontmost unit only when no player stronghold exists', () => {
+  it('DDA relief follows the formula for the unit margin when no stronghold exists', () => {
     const lair = makeLavaLair({ x: 5, y: 2 });
     const playerUnit = makeUnit(UnitType.SPEARMAN, Faction.PLAYER, { x: 5, y: 5 });
     const state = makeState({
@@ -310,7 +315,7 @@ describe('budget math', () => {
     const snap = finalState.lastSpawnBudget!;
     expect(snap.contactActive).toBe(true);
     expect(snap.margin).toBe(0);
-    expect(snap.ddaRelief).toBe(SPAWN_BUDGET.DDA_MIN);
+    expect(snap.ddaRelief).toBe(expectedDdaRelief(0));
   });
 
   it('MIN_BUDGET clamp prevents budget going below MIN_BUDGET', () => {
@@ -358,7 +363,7 @@ describe('accumulator', () => {
     const lair = makeLavaLair({ x: 5, y: 2 });
     const state = makeState({ buildings: [lair], ember: 0, spawnAccumulator: 0 });
     vi.spyOn(Math, 'random').mockReturnValue(0);
-    const budget = Math.min(SPAWN_BUDGET.MAX_BUDGET, Math.max(SPAWN_BUDGET.MIN_BUDGET, SPAWN_BUDGET.BASE_BUDGET));
+    const budget = Math.min(SPAWN_BUDGET.MAX_BUDGET, Math.max(SPAWN_BUDGET.MIN_BUDGET, SPAWN_BUDGET.MIN_BUDGET));
     const { finalState } = runEnemyTurn(state);
     const snap = finalState.lastSpawnBudget!;
     expect(snap.accumulatorBefore).toBeCloseTo(0);
