@@ -262,15 +262,6 @@ export function getTransposeTerrainBlockedTargets(
     .map((unit) => ({ ...unit.position }));
 }
 
-case 'GRAVE_MARK': {
-  return Object.values(state.units)
-    .filter((unit) =>
-      unit.faction === Faction.ENEMY
-      && !unit.tags.includes(UnitTag.GRAVE_MARKED)
-      && isTileInSpellRange(mage, unit.position, range))
-    .map((unit) => ({ ...unit.position }));
-}
-
 /** Returns the legal target tiles for a spell. Keep this rule set aligned with explainInvalidSpellTarget. */
 export function getValidSpellTargets(
   state: GameState | Draft<GameState>,
@@ -419,6 +410,15 @@ export function getValidSpellTargets(
         .filter((unit) =>
           unit.faction === Faction.ENEMY
           && !unit.tags.includes(UnitTag.INFESTED)
+          && isTileInSpellRange(mage, unit.position, range))
+        .map((unit) => ({ ...unit.position }));
+    }
+
+    case 'GRAVE_MARK': {
+      return Object.values(state.units)
+        .filter((unit) =>
+          unit.faction === Faction.ENEMY
+          && !unit.tags.includes(UnitTag.GRAVE_MARKED)
           && isTileInSpellRange(mage, unit.position, range))
         .map((unit) => ({ ...unit.position }));
     }

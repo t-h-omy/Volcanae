@@ -125,7 +125,7 @@ function makeMarkedGraveState(position: Position, units: Unit[] = []): {
   graveId: string;
 } {
   const enemy = makeUnit(
-    UnitType.LAVA_GRUNT,
+    UnitType.SWORDSMAN,
     position,
     Faction.ENEMY,
     [UnitTag.GRAVE_MARKED],
@@ -231,7 +231,9 @@ describe('Grave Mark', () => {
     );
     enemy.stats.currentHp = 1;
     const state = makeState([attacker, enemy]);
-    const result = produce(state, (draft) => resolveAttack(draft, attacker.id, enemy.id, true));
+    const result = produce(state, (draft) => {
+      resolveAttack(draft, attacker.id, enemy.id, true);
+    });
 
     expect(gravestoneAt(result, enemy.position)).toMatchObject({
       type: BuildingType.GRAVESTONE,
@@ -244,21 +246,23 @@ describe('Grave Mark', () => {
   it('leaves a Gravestone when a Crystal Tower kills a marked enemy', () => {
     const tower = makeBuilding(BuildingType.CRYSTAL_TOWER, { x: 3, y: 5 });
     const enemy = makeUnit(
-      UnitType.LAVA_GRUNT,
+      UnitType.SWORDSMAN,
       { x: 4, y: 5 },
       Faction.ENEMY,
       [UnitTag.GRAVE_MARKED],
     );
     enemy.stats.currentHp = 1;
     const state = makeState([enemy], [tower]);
-    const result = produce(state, (draft) => resolveBuildingAttack(draft, tower.id, enemy.id, true));
+    const result = produce(state, (draft) => {
+      resolveBuildingAttack(draft, tower.id, enemy.id, true);
+    });
     expect(gravestoneAt(result, enemy.position)?.gravesUnitType).toBeNull();
   });
 
   it('leaves a Gravestone when a marked enemy dies from Burning or an Infested tick', () => {
     for (const cause of ['burning', 'infested'] as const) {
       const tags = [UnitTag.GRAVE_MARKED, ...(cause === 'infested' ? [UnitTag.INFESTED] : [])];
-      const enemy = makeUnit(UnitType.LAVA_GRUNT, { x: 5, y: 5 }, Faction.ENEMY, tags);
+      const enemy = makeUnit(UnitType.SWORDSMAN, { x: 5, y: 5 }, Faction.ENEMY, tags);
       enemy.stats.currentHp = 1;
       const state = makeState([enemy]);
       if (cause === 'burning') state.grid[5][5].status = TileStatus.BURNING;
@@ -310,8 +314,10 @@ describe('Grave Mark', () => {
     const position = { x: 5, y: 5 };
     const skeletonMage = makeUnit(UnitType.NECROMANCER, { x: 4, y: 5 }, Faction.PLAYER);
     const skeletonState = makeMarkedGraveState(position, [skeletonMage]);
-    skeletonState.state.unlockedSpells = [SpellId.RAISE_SKELETON];
-    const raised = produce(skeletonState.state, (draft) => {
+    const skeletonReady = produce(skeletonState.state, (draft) => {
+      draft.unlockedSpells = [SpellId.RAISE_SKELETON];
+    });
+    const raised = produce(skeletonReady, (draft) => {
       expect(castSpell(draft, skeletonMage.id, SpellId.RAISE_SKELETON, position)).toBe(true);
     });
     expect(raised.buildings[skeletonState.graveId]).toBeUndefined();
@@ -319,8 +325,10 @@ describe('Grave Mark', () => {
 
     const ghoulMage = makeUnit(UnitType.NECROMANCER, { x: 4, y: 5 }, Faction.PLAYER);
     const ghoulState = makeMarkedGraveState(position, [ghoulMage]);
-    ghoulState.state.unlockedSpells = [SpellId.SUMMON_GHOUL];
-    const summoned = produce(ghoulState.state, (draft) => {
+    const ghoulReady = produce(ghoulState.state, (draft) => {
+      draft.unlockedSpells = [SpellId.SUMMON_GHOUL];
+    });
+    const summoned = produce(ghoulReady, (draft) => {
       expect(castSpell(draft, ghoulMage.id, SpellId.SUMMON_GHOUL, position)).toBe(true);
     });
     expect(summoned.buildings[ghoulState.graveId]).toBeUndefined();
