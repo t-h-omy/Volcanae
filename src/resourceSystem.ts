@@ -16,7 +16,7 @@ import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { expireKhyronResonance, healResonatingKhyrons, isAnyChamberResonating } from './khyronSystem';
 import { buildingNameRef, specialistNameRef, techNameRef } from './i18n/entityText';
 import { grantArcaneShield, regenerateArcaneShields } from './arcaneShieldSystem';
-import { isExcludedFromUnitLimit, isPopulationFree } from './unitTraits';
+import { cannotBeHealed, isExcludedFromUnitLimit, isPopulationFree } from './unitTraits';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -477,6 +477,18 @@ export function collectResources(state: Draft<GameState>, events?: GameEvent[]):
 
   // Read before the tick loop decrements counters so an N-turn Resonance yields N shield ticks.
   const chamberResonatedAtTickStart = isAnyChamberResonating(state);
+  const healingChambers = state.techFlags.includes(TechFlag.CHAMBER_HEALING)
+    ? Object.values(state.buildings)
+      .filter((building) =>
+        building.faction === Faction.PLAYER
+        && building.type === BuildingType.CRYSTAL_CHAMBER
+        && building.resonanceTurnsRemaining > 0,
+      )
+      .map((building) => ({
+        buildingId: building.id,
+        position: { ...building.position },
+      }))
+    : [];
 
   // Tick resonance for Crystal Chambers (grant crystals) and Crystal Caves (no crystals).
   for (const building of Object.values(state.buildings)) {
@@ -494,6 +506,53 @@ export function collectResources(state: Draft<GameState>, events?: GameEvent[]):
     building.resonanceTurnsRemaining -= 1;
     if (building.type === BuildingType.CRYSTAL_CHAMBER && building.resonanceTurnsRemaining <= 0) {
       building.resonanceCrystalBonus = false;
+    }
+  }
+
+  if (healingChambers.length > 0) {
+    const heals: Array<{ unitId: string; position: Position; amount: number }> = [];
+    for (const unit of Object.values(state.units)) {
+      if (unit.faction !== Faction.PLAYER || cannotBeHealed(unit)) continue;
+      if (unit.stats.currentHp >= unit.stats.maxHp) continue;
+      const inRange = healingChambers.some(({ position }) =>
+        isTileWithinEdgeCircleRange(
+          position.x,
+          position.y,
+          unit.position.x,
+          unit.position.y,
+          CRYSTAL_CHAMBER_CONFIG.CHAMBER_HEALING_RANGE,
+        ),
+      );
+      if (!inRange) continue;
+      const amount = Math.min(
+        CRYSTAL_CHAMBER_CONFIG.CHAMBER_HEALING_AMOUNT,
+        unit.stats.maxHp - unit.stats.currentHp,
+      );
+      if (amount <= 0) continue;
+      unit.stats.currentHp += amount;
+      heals.push({
+        unitId: unit.id,
+        position: { ...unit.position },
+        amount,
+      });
+    }
+    if (heals.length > 0) {
+      const affectedPositions = heals.map(({ position }) => position);
+      events?.push({
+        type: 'CHAMBER_HEALING',
+        chambers: healingChambers.filter(({ position }) =>
+          affectedPositions.some((unitPosition) =>
+            isTileWithinEdgeCircleRange(
+              position.x,
+              position.y,
+              unitPosition.x,
+              unitPosition.y,
+              CRYSTAL_CHAMBER_CONFIG.CHAMBER_HEALING_RANGE,
+            ),
+          ),
+        ),
+        heals,
+      });
     }
   }
 

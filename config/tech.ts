@@ -465,6 +465,12 @@ export const TECH_TREE: TechNodeDefinition[] = [
     effects: [{ type: 'FLAG', flag: TechFlag.CONCENTRATION }],
   },
   {
+    id: 'CHAMBER_HEALING',
+    requires: ['ARCANE_STUDIES'],
+    cost: 4,
+    effects: [{ type: 'FLAG', flag: TechFlag.CHAMBER_HEALING }],
+  },
+  {
     id: 'CRYSTAL_LIGHTNING',
     requires: ['CRYSTAL_KHYRON'],
     cost: CRYSTAL_LIGHTNING_RESEARCH_COST,

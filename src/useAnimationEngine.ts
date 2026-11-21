@@ -114,6 +114,8 @@ function eventPosition(event: GameEvent): Position {
       return event.position;
     case 'UNIT_HEAL':
       return event.position;
+    case 'CHAMBER_HEALING':
+      return event.chambers[0]?.position ?? event.heals[0]?.position ?? useAnimationStore.getState().cameraTarget;
     case 'CLEAVE_DAMAGE':
       return event.position;
     case 'PIERCE_DAMAGE':
@@ -252,6 +254,9 @@ function isEventVisible(event: GameEvent): boolean {
       return isTileRevealed(event.position);
     case 'UNIT_HEAL':
       return true;
+    case 'CHAMBER_HEALING':
+      return event.chambers.some(({ position }) => isTileRevealed(position))
+        || event.heals.some(({ position }) => isTileRevealed(position));
     case 'CLEAVE_DAMAGE':
       return isTileRevealed(event.position);
     case 'PIERCE_DAMAGE':
@@ -1852,6 +1857,29 @@ export function useAnimationEngine(): void {
           }
           useGameStore.getState().applyEvent(event);
           if (visible) await wait(ANIMATION.POST_ACTION_IDLE_MS);
+          continue;
+        }
+
+        if (event.type === 'CHAMBER_HEALING') {
+          const combatStore = useCombatAnimationStore.getState();
+          for (const chamber of event.chambers) {
+            if (!isTileRevealed(chamber.position)) continue;
+            combatStore.setBuildingAnimation(
+              chamber.buildingId,
+              { type: 'CRYSTAL_ACTIVATE', durationMs: ANIMATION.CRYSTAL_ACTIVATE_VFX_DURATION_MS },
+            );
+          }
+          for (const heal of event.heals) {
+            if (!isTileRevealed(heal.position)) continue;
+            combatStore.addTileVfx({
+              id: crypto.randomUUID(),
+              x: heal.position.x,
+              y: heal.position.y,
+              variant: 'HEAL',
+              durationMs: ANIMATION.HEAL_VFX_MS,
+            });
+          }
+          useGameStore.getState().applyEvent(event);
           continue;
         }
 

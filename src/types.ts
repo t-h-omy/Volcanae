@@ -260,6 +260,8 @@ export const TechFlag = {
   ARCANE_SHIELD: 'ARCANE_SHIELD',
   /** Arcane Studies: an idle Mage may store one additional spell cast. */
   CONCENTRATION: 'CONCENTRATION',
+  /** Arcane Studies: resonating Crystal Chambers heal nearby player units. */
+  CHAMBER_HEALING: 'CHAMBER_HEALING',
 } as const;
 export type TechFlag = (typeof TechFlag)[keyof typeof TechFlag];
 

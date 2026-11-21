@@ -71,7 +71,7 @@ Bridgebuilders can build across a canyon tile from or to an existing bridge when
 
 ## Tech Trees
 
-The tech overlay has separate **Secular** and **Arcane** trees. **Conscription** roots the Secular tree; **Arcane Awakening** roots the Arcane tree and provides the Crystal Chamber, which can be built from the start. The Arcane tree has four entry paths: **Crystal Mage**, **Necromancer**, and **Ember Cultist** each unlock their own Mage, Transpose, and Frostcraft; **Arcane Studies** opens research that improves every Mage, including **Concentration**. A Mage that takes no action for a turn stores one charge, which pays for an additional spell cast before its normal cast budget. Arcane base research costs depend on depth below Arcane Awakening: 2 crystals at depth one, 4 at depth two, 7 at depth three, and 10 at depth four. Ember is added to these base costs.
+The tech overlay has separate **Secular** and **Arcane** trees. **Conscription** roots the Secular tree; **Arcane Awakening** roots the Arcane tree and provides the Crystal Chamber, which can be built from the start. The Arcane tree has four entry paths: **Crystal Mage**, **Necromancer**, and **Ember Cultist** each unlock their own Mage, Transpose, and Frostcraft; **Arcane Studies** opens research that improves every Mage, including **Concentration** and **Chamber Healing**. A Mage that takes no action for a turn stores one charge, which pays for an additional spell cast before its normal cast budget. Resonating Crystal Chambers heal nearby allied units. Arcane base research costs depend on depth below Arcane Awakening: 2 crystals at depth one, 4 at depth two, 7 at depth three, and 10 at depth four. Ember is added to these base costs.
 
 Corrupted tiles suppress selected abilities of player units, while Crystalline tiles suppress enemy combat tags. Crystallize creates a permanent cross of Crystalline tiles on Plains, Forest and Mountain terrain. Tile statuses replace one another.
 
@@ -81,7 +81,7 @@ The tree tabs and close button sit in a dock at the bottom of the screen.
 
 Mages can be recruited from an active **Crystal Chamber** building after researching their path. The three Mage units share stats and recruitment limits, but each can cast only the spells of its path plus the common spells. Each Mage can cast one spell per turn (before or after moving, but not after attacking), and the **Archmage** specialist raises that per-turn budget to two casts. **Concentration** can add one stored charge to that budget, up to three casts in a turn.
 
-**Arcane Studies** gives every Mage an **Arcane Shield** of 20 points. It absorbs damage before Stone Skin and HP, and regenerates 10 points at the start of your turn while any Crystal Chamber resonates. Heals never restore it, and lava, drowning and sacrifice still kill a shielded Mage. Amplification lets every Mage bind an own unit and cast spells from that unit's tile for the rest of the turn.
+**Arcane Studies** gives every Mage an **Arcane Shield** of 20 points. It absorbs damage before Stone Skin and HP, and regenerates 10 points at the start of your turn while any Crystal Chamber resonates. **Chamber Healing** restores nearby player units when a Crystal Chamber resonates. Heals never restore Arcane Shield, and lava, drowning and sacrifice still kill a shielded Mage. Amplification lets every Mage bind an own unit and cast spells from that unit's tile for the rest of the turn.
 
 | Mage | Common spells | Path spells |
 |------|---------------|-------------|

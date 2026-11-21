@@ -3801,6 +3801,25 @@ export const useGameStore = create<GameStore>()(
             break;
           }
 
+          case 'CHAMBER_HEALING': {
+            for (const heal of event.heals) {
+              const healedUnit = state.units[heal.unitId];
+              if (!healedUnit) continue;
+              healedUnit.stats.currentHp = Math.min(
+                healedUnit.stats.maxHp,
+                healedUnit.stats.currentHp + heal.amount,
+              );
+              useFloaterStore.getState().addFloater({
+                value: heal.amount,
+                x: heal.position.x,
+                y: heal.position.y,
+                isEnemy: false,
+                floaterType: 'heal',
+              });
+            }
+            break;
+          }
+
           case 'EMBER_LEVEL_UP': {
             // State was already mutated in enemySystem — this is presentation-only.
             if (event.source !== 'TURN_INTERVAL' && event.position) {

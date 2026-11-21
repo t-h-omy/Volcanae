@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.132.0 - Chamber Healing
+
+Resonating Crystal Chambers heal nearby allied units after researching Chamber Healing. Summoned units, Mechs and Crystal Caves are unaffected.
+
 ### v0.131.0 - Concentration
 
 Mages that take no action for a turn store a charge that pays for an additional spell cast. Concentrated Mages display a charge icon and a brighter aura.

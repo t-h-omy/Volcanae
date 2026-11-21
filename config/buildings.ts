@@ -15,6 +15,10 @@ export const CRYSTAL_CHAMBER_CONFIG = {
   RESONANCE_DURATION: 3,
   /** Arcane crystals granted per resonating chamber per player turn */
   CRYSTALS_PER_CHAMBER_PER_TURN: 1,
+  /** Edge-circle range for Chamber Healing. */
+  CHAMBER_HEALING_RANGE: 1,
+  /** HP restored to each eligible unit by Chamber Healing. */
+  CHAMBER_HEALING_AMOUNT: 10,
   /** Max HP */
   MAX_HP: 100,
   /** Per-building unit limit (max live Mages per Crystal Chamber) */
