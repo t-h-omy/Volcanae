@@ -1998,6 +1998,55 @@
   animation: corruptionPulse var(--tile-vfx-duration, 500ms) ease-out forwards;
 }
 
+/* ── CRYSTALLINE_APPLIED — a crystal blooms outward from each cross tile ─ */
+
+.tile-vfx--crystalline-applied {
+  background:
+    radial-gradient(circle at 50% 50%,
+      transparent 0 16%,
+      color-mix(in srgb, var(--path-crystal-glow) 80%, transparent) 28%,
+      color-mix(in srgb, var(--path-crystal-primary) 48%, transparent) 48%,
+      transparent 72%);
+  clip-path: polygon(50% 4%, 63% 37%, 96% 50%, 63% 63%, 50% 96%, 37% 63%, 4% 50%, 37% 37%);
+  opacity: 0;
+  animation: crystallineApplied var(--tile-vfx-duration, 580ms) ease-out var(--tile-vfx-delay, 0ms) forwards;
+}
+
+@keyframes crystallineApplied {
+  0% { opacity: 0; transform: scale(0.18); }
+  32% { opacity: 0.9; transform: scale(1.05); }
+  100% { opacity: 0; transform: scale(1.34); }
+}
+
+@keyframes crystallineAppliedReduced {
+  0% { opacity: 0; }
+  45% { opacity: 0.55; }
+  100% { opacity: 0; }
+}
+
+.tile--crystalline-glint {
+  --crystalline-glint-color: var(--path-crystal-glow);
+  background: linear-gradient(115deg, transparent 38%, var(--crystalline-glint-color) 50%, transparent 62%);
+  opacity: 0;
+  animation: crystallineTileGlint var(--crystalline-glint-cycle, 6s) ease-in-out var(--crystalline-glint-delay, 0ms) infinite;
+}
+
+@keyframes crystallineTileGlint {
+  0%, 74%, 100% { opacity: 0; }
+  82% { opacity: 0.38; }
+  91% { opacity: 0.12; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile-vfx--crystalline-applied {
+    animation-name: crystallineAppliedReduced;
+  }
+
+  .tile--crystalline-glint {
+    animation: none;
+  }
+}
+
 @keyframes corruptionPulse {
   0%   { opacity: 0;    transform: scale(0.6); }
   35%  { opacity: 0.9;  transform: scale(1.0); }

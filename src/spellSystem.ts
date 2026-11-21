@@ -15,7 +15,7 @@ import type { Draft } from 'immer';
 import type { GameState, Position, Unit } from './types';
 import type { SpellId } from './types';
 import { Faction, UnitTag, BuildingType, TileType, TileStatus, UnitType } from './types';
-import { MAGE, BUILDING_DEFINITIONS, ABILITIES, MAP, UNIT_DEFINITIONS, XP, SPELL_DEFINITIONS } from './gameConfig';
+import { MAGE, BUILDING_DEFINITIONS, ABILITIES, MAP, UNIT_DEFINITIONS, XP, SPELL_DEFINITIONS, CRYSTALLINE_OFFSETS } from './gameConfig';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { generateId } from './mapGenerator';
 import { useFloaterStore } from './floaterStore';
@@ -166,6 +166,7 @@ const SPELL_TARGET_REASONS: Record<string, TextRef> = {
   PORTAL_BLOCKED: { key: 'reason.spell.portalBlocked' },
   PORTAL_WRONG_ROW: { key: 'reason.spell.portalWrongRow' },
   CORRUPTED_QORK_SPAWN: { key: 'reason.spell.corruptedQorkSpawn' },
+  CRYSTALLIZE_TERRAIN: { key: 'reason.spell.crystallizeTerrain' },
 } as const;
 
 function isValidCorruptedQorkSpawnTile(
@@ -463,6 +464,21 @@ export function getValidSpellTargets(
       return targets;
     }
 
+    case 'CRYSTALLIZE': {
+      const targets: Position[] = [];
+      for (let y = 0; y < state.grid.length; y++) {
+        for (let x = 0; x < state.grid[y].length; x++) {
+          const tile = state.grid[y][x];
+          if (!tile.isRevealed) continue;
+          if (tile.status === TileStatus.CRYSTALLINE || tile.isLava) continue;
+          if (!isStatusAllowedOnTerrain(tile.terrainType, TileStatus.CRYSTALLINE)) continue;
+          if (!isTileInSpellRange(mage, { x, y }, range)) continue;
+          targets.push({ x, y });
+        }
+      }
+      return targets;
+    }
+
     case 'EXPLODE': {
       const targets: Position[] = [];
       for (const unit of Object.values(state.units)) {
@@ -620,6 +636,16 @@ export function explainInvalidSpellTarget(
       if (tile.status === TileStatus.FROZEN) return null;
       if (!isStatusAllowedOnTerrain(tile.terrainType, TileStatus.FROZEN) || tile.isLava) {
         return SPELL_TARGET_REASONS.FROSTCRAFT_TERRAIN;
+      }
+      return null;
+    }
+
+    case 'CRYSTALLIZE': {
+      if (!tile.isRevealed) return null;
+      if (!isTileInSpellRange(mage, pos, range)) return null;
+      if (tile.status === TileStatus.CRYSTALLINE) return null;
+      if (!isStatusAllowedOnTerrain(tile.terrainType, TileStatus.CRYSTALLINE) || tile.isLava) {
+        return SPELL_TARGET_REASONS.CRYSTALLIZE_TERRAIN;
       }
       return null;
     }
@@ -1328,6 +1354,22 @@ function handleFrostcraft(
   return true;
 }
 
+/** Applies Crystalline to the target and its four orthogonal neighbors. */
+function handleCrystallize(
+  state: Draft<GameState>,
+  targetPosition: Position,
+): boolean {
+  let applied = false;
+  for (const [dx, dy] of CRYSTALLINE_OFFSETS) {
+    const position = { x: targetPosition.x + dx, y: targetPosition.y + dy };
+    const tile = state.grid[position.y]?.[position.x];
+    if (!tile || tile.isLava) continue;
+    if (!isStatusAllowedOnTerrain(tile.terrainType, TileStatus.CRYSTALLINE)) continue;
+    if (applyTileStatus(state, position, TileStatus.CRYSTALLINE)) applied = true;
+  }
+  return applied;
+}
+
 /** Sacrifices a player unit and deals splash damage to adjacent enemies (Explode). */
 function handleExplode(
   state: Draft<GameState>,
@@ -1673,6 +1715,8 @@ export function castSpell(
       success = handleGraveTrap(state, targetPosition); break;
     case 'FROSTCRAFT':
       success = handleFrostcraft(state, targetPosition); break;
+    case 'CRYSTALLIZE':
+      success = handleCrystallize(state, targetPosition); break;
     case 'EXPLODE':
       success = handleExplode(state, mage, targetPosition); break;
     case 'RUPTURE':

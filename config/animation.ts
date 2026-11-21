@@ -12,6 +12,8 @@ export const ANIMATION = {
   CRYSTALLINE_GLINT_Y_OFFSET_MS: 2137,
   /** Delay between the center and each arm of the Crystallize cast effect. */
   CRYSTALLINE_APPLIED_STAGGER_MS: 120,
+  /** Duration of each Crystallize tile burst. */
+  CRYSTALLINE_APPLIED_VFX_MS: 580,
   /** Time for viewport to pan to a new target position */
   CAMERA_MOVE_DURATION_MS: 220,
   /** Pause after camera arrives, before action executes */

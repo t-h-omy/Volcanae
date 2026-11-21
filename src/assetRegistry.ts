@@ -216,14 +216,20 @@ export const TILE_STATUS_SPRITE: Partial<Record<TileType, Partial<Record<TileSta
     [TS.FROZEN]:    '/sprites/tiles/terrain_grass_frozen_100px.png',
     [TS.BURNING]:   '/sprites/tiles/terrain_grass_burning_100px.png',
     [TS.CORRUPTED]: '/sprites/tiles/terrain_grass_corrupted_100px.png',
+    // Target art: terrain_grass_crystalline_100px.png
+    [TS.CRYSTALLINE]: '',
   }),
   [TT.FOREST]: withBase({
     [TS.FROZEN]:    '/sprites/tiles/terrain_grass_frozen_100px.png',
     [TS.CORRUPTED]: '/sprites/tiles/terrain_grass_corrupted_100px.png',
+    // Target art: terrain_forest_crystalline_100px.png
+    [TS.CRYSTALLINE]: '',
   }),
   [TT.MOUNTAIN]: withBase({
     [TS.FROZEN]:    '/sprites/tiles/terrain_grass_frozen_100px.png',
     [TS.CORRUPTED]: '/sprites/tiles/terrain_grass_corrupted_100px.png',
+    // Target art: terrain_mountain_crystalline_100px.png
+    [TS.CRYSTALLINE]: '',
   }),
   [TT.WATER]: withBase({
     [TS.FROZEN]:    '/sprites/tiles/terrain_water__frozen_100px.png',

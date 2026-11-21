@@ -60,6 +60,8 @@ export const RENDER = {
     LEVEL_UP_GLOW: 'gold',
     /** HP bar outline colour when the selected player unit has an active debuff */
     DEBUFF_BORDER: '#B04CFF',
+    /** Highlight color for suppressed tags on Corrupted tiles. */
+    CORRUPTION: '#dc3c3c',
     /** Warn and burst color for mage leash connections */
     LEASH_WARN: '#ff3333',
   },

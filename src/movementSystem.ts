@@ -17,6 +17,7 @@ import { updateBerserkLatch } from './combatSystem';
 import { applyUnitDamage } from './unitDamage';
 import { resolveInfestedDeath } from './infestedSystem';
 import { cleanupPortals, getMagePortalAtPosition, isMagePortalExitAvailable, resolvePortalEntry } from './portalSystem';
+import { isUnitTagSuppressed } from './tileStatusSystem';
 
 // ============================================================================
 // MOVEMENT CALCULATIONS
@@ -279,7 +280,7 @@ export function checkGraveTrapTrigger(
   const stunTurns = building.trapStunTurns ?? 1;
 
   // Stun the triggering unit (ALERT-tagged units are immune).
-  if (!unit.tags.includes(UnitTag.ALERT)) {
+  if (!isUnitTagSuppressed(state, unit, UnitTag.ALERT) && !unit.tags.includes(UnitTag.ALERT)) {
     unit.pinnedUntilTurn = state.turn + stunTurns - 1;
     if (events) {
       events.push({ type: 'STUN_APPLIED', unitId, position: { ...trapPos } });
@@ -305,7 +306,7 @@ export function checkGraveTrapTrigger(
     const adjUnit = state.units[adjTile.unitId];
     if (!adjUnit || adjUnit.faction === Faction.PLAYER) continue;
     // ALERT-tagged units are immune to stun.
-    if (adjUnit.tags.includes(UnitTag.ALERT)) continue;
+    if (!isUnitTagSuppressed(state, adjUnit, UnitTag.ALERT) && adjUnit.tags.includes(UnitTag.ALERT)) continue;
     adjUnit.pinnedUntilTurn = state.turn + stunTurns - 1;
     if (events) {
       events.push({ type: 'STUN_APPLIED', unitId: adjTile.unitId, position: { x: nx, y: ny } });
@@ -400,7 +401,7 @@ export function checkScoutTrapTrigger(
   }
 
   // Stun the triggering unit (ALERT-tagged units are immune to stun).
-  if (!unit.tags.includes(UnitTag.ALERT)) {
+  if (!isUnitTagSuppressed(state, unit, UnitTag.ALERT) && !unit.tags.includes(UnitTag.ALERT)) {
     unit.pinnedUntilTurn = state.turn + stunTurns - 1;
     if (events) {
       events.push({ type: 'STUN_APPLIED', unitId, position: { ...trapPos }, pinnedUntilTurn: unit.pinnedUntilTurn });

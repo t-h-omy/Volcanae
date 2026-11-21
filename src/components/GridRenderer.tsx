@@ -14,7 +14,7 @@ import type { Projectile, SlideKillGhost, CleaveVfx, TileVfx, LineVfx } from '..
 import { useShockwaveStore } from '../shockwaveStore';
 import { canCapture } from '../captureSystem';
 import { getConstructionOptionsForTile } from '../constructionSystem';
-import { MAP, MAGE, UNIT_DEFINITIONS, BUILDING_DEFINITIONS, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, CORRUPTED_SUPPRESSED_TAGS, RESOURCES } from '../gameConfig';
+import { MAP, MAGE, UNIT_DEFINITIONS, BUILDING_DEFINITIONS, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, RESOURCES } from '../gameConfig';
 import { getStrongholdEffectiveCap } from '../techSystem';
 import { computeRecruitmentBuildingUsage, canBuildingEverRecruit, getEffectiveHousingPopulationCap } from '../resourceSystem';
 import { ANIMATION } from '../../config/animation';
@@ -26,6 +26,7 @@ import { useZoomStore } from '../zoomStore';
 import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE, TILE_STATUS_SPRITE, RESOURCE_SPRITE, ENEMY_BUILDING_SPRITE, PLAYER_BUILDING_SPRITE, TERRAIN_RESOURCE_SPRITE, CRYSTAL_CHAMBER_ACTIVE_SPRITE, CRYSTAL_CAVE_ACTIVE_SPRITE, CRYSTAL_KHYRON_ACTIVE_SPRITE, ENEMY_UNIT_SPRITE, PLAYER_UNIT_SPRITE, TUNNEL_HOLE_SPRITE, TUNNEL_EARTHQUAKE_SPRITE, PORTAL_ENTRANCE_SPRITE, PORTAL_EXIT_SPRITE, MAGE_PORTAL_SPRITE, getBridgeSprite } from '../assetRegistry';
 import { isKhyronResonanceActive } from '../khyronSystem';
 import { isCorruptionBoundDrainActive } from '../corruptedQorkSystem';
+import { getSuppressedTagsForUnit } from '../tileStatusSystem';
 import MissingSprite from './MissingSprite';
 import {
   Faction,
@@ -1487,6 +1488,16 @@ function TileCellInner({
       {/* corrupted tile overlay — only shown as a CSS fallback when no dedicated status sprite exists */}
       {tile.status === TileStatus.CORRUPTED && tile.isRevealed && !tileStatusSpritePath && <div className="tile-overlay tile--corrupted" />}
 
+      {tile.status === TileStatus.CRYSTALLINE && tile.isRevealed && (
+        <div
+          className="tile-overlay tile--crystalline-glint"
+          style={{
+            '--crystalline-glint-cycle': `${ANIMATION.CRYSTALLINE_GLINT_CYCLE_MS}ms`,
+            '--crystalline-glint-delay': `${-((tile.position.x * ANIMATION.CRYSTALLINE_GLINT_X_OFFSET_MS + tile.position.y * ANIMATION.CRYSTALLINE_GLINT_Y_OFFSET_MS) % ANIMATION.CRYSTALLINE_GLINT_CYCLE_MS)}ms`,
+          } as React.CSSProperties}
+        />
+      )}
+
       {/* burning tile overlay — only shown as a CSS fallback when no dedicated status sprite exists */}
       {tile.status === TileStatus.BURNING && tile.isRevealed && !tileStatusSpritePath && <div className="tile-overlay tile--burning" />}
 
@@ -1648,20 +1659,18 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
   );
   const magePath = getMagePath(unit);
   const isStunned = unit.pinnedUntilTurn >= currentTurn;
-  const isOnCorruptedTile = useGameStore(
-    (s) => s.grid[unit.position.y]?.[unit.position.x]?.status === TileStatus.CORRUPTED
-  );
+  const suppressedTags = useGameStore((s) => getSuppressedTagsForUnit(s, unit));
+  const hasSuppressedCombatTags = !!suppressedTags && unit.tags.some((tag) => suppressedTags.has(tag));
+  const suppressionDisplayTag = hasSuppressedCombatTags
+    ? unit.faction === Faction.PLAYER ? UnitTag.CORRUPTED : UnitTag.CRYSTALLINE
+    : null;
   const hasCorruptionBoundDebuff = useGameStore(
     (s) => unit.faction === Faction.PLAYER && isCorruptionBoundDrainActive(s, unit)
   );
 
-  // Show debuff border (and hp bar) for player units with an active debuff.
-  // Corrupted tile only counts as a debuff if the unit actually has tags that corruption suppresses.
-  const corruptionAffectsUnit =
-    isOnCorruptedTile && unit.tags.some((tag) => CORRUPTED_SUPPRESSED_TAGS.has(tag));
   const hasDebuff =
-    unit.faction === Faction.PLAYER &&
-    (corruptionAffectsUnit ||
+    (unit.faction === Faction.PLAYER &&
+    (hasSuppressedCombatTags ||
       hasCorruptionBoundDebuff ||
       isStunned ||
       unit.tags.some((tag) => {
@@ -1670,7 +1679,8 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
         return effects?.some(
           (e) => (e.mode === 'add' && e.value < 0) || (e.mode === 'percent' && e.value < 0)
         );
-      }));
+      }))) ||
+    (unit.faction === Faction.ENEMY && hasSuppressedCombatTags);
 
   const isExhausted = useGameStore((s) => {
     const liveUnit = s.units[unit.id] ?? unit;
@@ -1747,6 +1757,9 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
     .filter((tag) => tag !== UnitTag.CORRUPTION_BOUND || hasCorruptionBoundDebuff)
     .map((tag) => TAG_INFO[tag]?.icon)
     .filter((icon): icon is string => !!icon);
+  if (suppressionDisplayTag && TAG_INFO[suppressionDisplayTag]?.icon) {
+    tagIcons.push(TAG_INFO[suppressionDisplayTag].icon!);
+  }
 
   return (
     <div
@@ -2719,6 +2732,7 @@ function TileVfxLayer({ tileSize }: { tileSize: number }) {
               width: footprintSize,
               height: footprintSize,
               '--tile-vfx-duration': `${vfx.durationMs}ms`,
+              '--tile-vfx-delay': `${vfx.delayMs ?? 0}ms`,
             } as React.CSSProperties}
             onAnimationEnd={() => removeTileVfx(vfx.id)}
           />

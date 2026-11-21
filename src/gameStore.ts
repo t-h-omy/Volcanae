@@ -44,7 +44,7 @@ import { triggerSpellSfx } from './soundOptionsStore';
 import { Faction, GamePhase, BuildingType, TileType, TileStatus, Difficulty, DestroyBehavior, UnitType, UnitTag, TechFlag } from './types';
 import type { Building, GameState, Position, TechId, SpellId } from './types';
 import type { GameEvent } from './gameEvents';
-import { MAP, TERRAIN, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval, UNIT_DEFINITIONS, MAGE, GHOUL } from './gameConfig';
+import { MAP, TERRAIN, POPULATION, BUILDING_DEFINITIONS, ENEMY, XP, ABILITIES, CRYSTAL_CHAMBER_CONFIG, SANCTUM_COLLAPSE, getLavaAdvanceInterval, UNIT_DEFINITIONS, MAGE, GHOUL, CRYSTALLINE_OFFSETS } from './gameConfig';
 import { RENDER } from '../config/render';
 import { ANIMATION } from '../config/animation';
 import { CAVE_SPECIALIST_ROB_REWARD_CRYSTALS } from '../config/specialists';
@@ -1999,6 +1999,7 @@ export const useGameStore = create<GameStore>()(
       let castSpellId: import('./types').SpellId | null = null;
       let magePosition: Position | null = null;
       let magePath: ReturnType<typeof getMagePath> = null;
+      let crystallineVfxPositions: Position[] = [];
       const killedCaveMonsterIds: string[] = [];
       const portalEvents: GameEvent[] = [];
       let crystalLightningEvents: GameEvent[] | null = null;
@@ -2061,6 +2062,15 @@ export const useGameStore = create<GameStore>()(
         const buildingIdsBefore = spellId === 'EXPLODE' ? new Set(Object.keys(state.buildings)) : null;
         const ok = castSpellLogic(state, mageId, spellId, targetPosition, portalEvents);
         if (!ok) return;
+        if (spellId === 'CRYSTALLIZE') {
+          crystallineVfxPositions = CRYSTALLINE_OFFSETS.flatMap(([dx, dy]) => {
+            const position = { x: targetPosition.x + dx, y: targetPosition.y + dy };
+            const tile = state.grid[position.y]?.[position.x];
+            return tile?.isRevealed && !tile.isLava && tile.status === TileStatus.CRYSTALLINE
+              ? [position]
+              : [];
+          });
+        }
         if (buildingIdsBefore) {
           for (const building of Object.values(state.buildings)) {
             if (building.type === BuildingType.GRAVESTONE && !buildingIdsBefore.has(building.id) &&
@@ -2210,6 +2220,20 @@ export const useGameStore = create<GameStore>()(
             durationMs: ANIMATION.SPELL_CASTER_PULSE_MS,
             ...(magePath ? { tone: magePath } : {}),
           });
+          if (castSpellId === 'CRYSTALLIZE') {
+            for (const position of crystallineVfxPositions) {
+              const isCenter = position.x === targetPosition.x && position.y === targetPosition.y;
+              store.addTileVfx({
+                id: crypto.randomUUID(),
+                x: position.x,
+                y: position.y,
+                variant: 'CRYSTALLINE_APPLIED',
+                durationMs: ANIMATION.CRYSTALLINE_APPLIED_VFX_MS,
+                delayMs: isCenter ? 0 : ANIMATION.CRYSTALLINE_APPLIED_STAGGER_MS,
+                ...(magePath ? { tone: magePath } : {}),
+              });
+            }
+          }
         }
       }
     },

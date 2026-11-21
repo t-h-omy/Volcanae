@@ -113,6 +113,7 @@ export type TileVfxVariant =
   | 'SPELL_IMPACT_CAPTURE_ENEMY'
   | 'BURNING_DAMAGE'
   | 'CORRUPTION_APPLIED'
+  | 'CRYSTALLINE_APPLIED'
   | 'CORRUPTION_FIZZLE'
   | 'QORK_DEATH_BURST'
   | 'INFESTED_DEATH_BURST'
@@ -127,6 +128,7 @@ export interface TileVfx {
   y: number;
   variant: TileVfxVariant;
   durationMs: number;
+  delayMs?: number;
   tone?: MagicPath;
 }
 
