@@ -2005,7 +2005,7 @@ export const useGameStore = create<GameStore>()(
       let crystalLightningResolvedState: GameState | null = null;
       let createdLeashedUnit = false;
       let createdMagePortal = false;
-      let createdGravestoneId: string | null = null;
+      const createdGravestoneIds: string[] = [];
       set((state) => {
         if (!state.pendingSpellCast) return;
         const { mageId, spellId } = state.pendingSpellCast;
@@ -2058,15 +2058,15 @@ export const useGameStore = create<GameStore>()(
             .map((unit) => unit.id),
         );
         const portalIdsBefore = new Set(Object.keys(state.portals));
-        const previousBuildingId = state.grid[targetPosition.y]?.[targetPosition.x]?.buildingId;
+        const buildingIdsBefore = spellId === 'EXPLODE' ? new Set(Object.keys(state.buildings)) : null;
         const ok = castSpellLogic(state, mageId, spellId, targetPosition, portalEvents);
         if (!ok) return;
-        if (spellId === 'EXPLODE') {
-          const targetTile = state.grid[targetPosition.y]?.[targetPosition.x];
-          const buildingId = targetTile?.buildingId;
-          if (targetTile?.isRevealed && buildingId && buildingId !== previousBuildingId &&
-              state.buildings[buildingId]?.type === BuildingType.GRAVESTONE) {
-            createdGravestoneId = buildingId;
+        if (buildingIdsBefore) {
+          for (const building of Object.values(state.buildings)) {
+            if (building.type === BuildingType.GRAVESTONE && !buildingIdsBefore.has(building.id) &&
+                state.grid[building.position.y]?.[building.position.x]?.isRevealed) {
+              createdGravestoneIds.push(building.id);
+            }
           }
         }
 
@@ -2116,7 +2116,7 @@ export const useGameStore = create<GameStore>()(
         updateDiscovery(state);
         checkGameConditions(state);
       });
-      if (createdGravestoneId) playGravestoneRise(createdGravestoneId);
+      for (const id of createdGravestoneIds) playGravestoneRise(id);
       if (crystalLightningEvents !== null && crystalLightningResolvedState !== null) {
         useAnimationStore.getState().enqueue(crystalLightningEvents, crystalLightningResolvedState);
       }

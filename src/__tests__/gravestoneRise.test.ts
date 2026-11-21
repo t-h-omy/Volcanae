@@ -68,7 +68,7 @@ describe('Gravestone appearance', () => {
     expect(invalid).toBeNull();
   });
 
-  it.each([false, true])('animates a death only when silent is %s', (silent) => {
+  it.each([false, true])('handles death presentation with silent set to %s', (silent) => {
     useGameStore.getState().applyEvent({ type: 'UNIT_DEATH', unitId, position, faction: Faction.PLAYER }, { silent });
     const id = useGameStore.getState().grid[position.y][position.x].buildingId!;
     expect(useGameStore.getState().buildings[id].type).toBe(BuildingType.GRAVESTONE);
@@ -76,6 +76,24 @@ describe('Gravestone appearance', () => {
       .toBe(silent ? undefined : 'GRAVESTONE_RISE');
     vi.advanceTimersByTime(ANIMATION.GRAVESTONE_RISE_MS);
     expect(useCombatAnimationStore.getState().buildingAnimations.has(id)).toBe(false);
+  });
+
+  it('does not animate a grave on a hidden tile', () => {
+    useGameStore.setState((draft) => {
+      draft.grid[position.y][position.x].isRevealed = false;
+    });
+    useGameStore.getState().applyEvent({ type: 'UNIT_DEATH', unitId, position, faction: Faction.PLAYER });
+    const id = useGameStore.getState().grid[position.y][position.x].buildingId!;
+    expect(useGameStore.getState().buildings[id]?.type).toBe(BuildingType.GRAVESTONE);
+    expect(useCombatAnimationStore.getState().buildingAnimations.has(id)).toBe(false);
+  });
+
+  it('does not clear a replacement animation when the rise timer expires', () => {
+    useGameStore.getState().applyEvent({ type: 'UNIT_DEATH', unitId, position, faction: Faction.PLAYER });
+    const id = useGameStore.getState().grid[position.y][position.x].buildingId!;
+    useCombatAnimationStore.getState().setBuildingAnimation(id, 'SANCTUM_SHATTER');
+    vi.advanceTimersByTime(ANIMATION.GRAVESTONE_RISE_MS);
+    expect(useCombatAnimationStore.getState().buildingAnimations.get(id)).toBe('SANCTUM_SHATTER');
   });
 
   it('keeps the effect on the resolved grave when its ID differs', () => {
@@ -117,5 +135,40 @@ describe('Gravestone appearance', () => {
     const id = useGameStore.getState().grid[position.y][position.x].buildingId!;
     expect(useGameStore.getState().buildings[id]?.type).toBe(BuildingType.GRAVESTONE);
     expect(useCombatAnimationStore.getState().buildingAnimations.get(id)).toBe('GRAVESTONE_RISE');
+  });
+
+  it('animates other Gravestones created by an Explode death chain', () => {
+    const state = useGameStore.getState();
+    const def = UNIT_DEFINITIONS[UnitType.EMBER_CULTIST];
+    const mage: Unit = {
+      ...state.units[unitId],
+      id: 'rise-test-mage',
+      type: UnitType.EMBER_CULTIST,
+      position: { x: position.x - 1, y: position.y },
+      tags: [...def.tags],
+      spellsCastThisTurn: 0,
+    };
+    const victim: Unit = {
+      ...state.units[unitId],
+      id: 'rise-test-victim',
+      position: { x: position.x + 1, y: position.y },
+      stats: { ...state.units[unitId].stats, currentHp: 1 },
+    };
+    useGameStore.setState((draft) => {
+      draft.units[unitId].type = UnitType.CORRUPTED_QORK;
+      draft.units[mage.id] = mage;
+      draft.units[victim.id] = victim;
+      draft.grid[mage.position.y][mage.position.x].unitId = mage.id;
+      draft.grid[victim.position.y][victim.position.x].unitId = victim.id;
+      draft.pendingSpellCast = { mageId: mage.id, spellId: SpellId.EXPLODE };
+      draft.unlockedSpells = [SpellId.EXPLODE];
+      draft.arcaneCrystals = 100;
+    });
+    useGameStore.getState().castSpell(position);
+    for (const pos of [position, victim.position]) {
+      const id = useGameStore.getState().grid[pos.y][pos.x].buildingId!;
+      expect(useGameStore.getState().buildings[id]?.type).toBe(BuildingType.GRAVESTONE);
+      expect(useCombatAnimationStore.getState().buildingAnimations.get(id)).toBe('GRAVESTONE_RISE');
+    }
   });
 });
