@@ -1703,6 +1703,7 @@ function handleBloodRush(
   tile.unitId = null;
   delete state.units[target.id];
   state.gameStats.unitsLost += 1;
+  resolveInfestedDeath(state, target);
   tryLeaveGravestone(state, target, targetPosition);
   return true;
 }

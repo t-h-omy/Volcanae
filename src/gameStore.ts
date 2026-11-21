@@ -2073,7 +2073,9 @@ export const useGameStore = create<GameStore>()(
             .map((unit) => unit.id),
         );
         const portalIdsBefore = new Set(Object.keys(state.portals));
-        const buildingIdsBefore = spellId === 'EXPLODE' ? new Set(Object.keys(state.buildings)) : null;
+        const buildingIdsBefore = spellId === 'EXPLODE' || spellId === 'BLOOD_RUSH'
+          ? new Set(Object.keys(state.buildings))
+          : null;
         if (spellId === 'BLOOD_RUSH') {
           const targetId = state.grid[targetPosition.y]?.[targetPosition.x]?.unitId;
           const sacrifice = targetId ? state.units[targetId] : undefined;

@@ -8,7 +8,7 @@ import { generateInitialGameState } from '../mapGenerator';
 import { useGameStore } from '../gameStore';
 import { useCombatAnimationStore } from '../combatAnimationStore';
 import { useShockwaveStore } from '../shockwaveStore';
-import { BuildingType, Faction, GamePhase, SpellId, UnitTag, UnitType } from '../types';
+import { BuildingType, Faction, GamePhase, SpellId, TileType, UnitTag, UnitType } from '../types';
 import type { GameState, Position, Unit } from '../types';
 
 function makeUnit(
@@ -62,6 +62,10 @@ function makeState(units: Unit[]): GameState {
     isRevealed: true,
     unitId: null,
     buildingId: null,
+    isLava: false,
+    isRuin: false,
+    isStrongholdRuin: false,
+    terrainType: TileType.PLAINS,
   })));
   for (const unit of units) state.grid[unit.position.y][unit.position.x].unitId = unit.id;
   state.unlockedSpells = [SpellId.BLOOD_RUSH];
@@ -154,7 +158,8 @@ describe('Blood Rush', () => {
     const enemy = makeUnit('enemy', UnitType.GUARD, { x: 4, y: 5 }, [], Faction.ENEMY);
     const outside = makeUnit('outside', UnitType.GUARD, { x: 7, y: 5 });
     const state = makeState([caster, sacrifice, ...neighbors, summoned, mech, enemy, outside]);
-    for (const unit of [caster, ...neighbors, summoned, mech, outside]) {
+    caster.hasMovedThisTurn = true;
+    for (const unit of [...neighbors, summoned, mech, outside]) {
       unit.hasMovedThisTurn = true;
       unit.hasAttackedThisTurn = true;
       unit.hasCapturedThisTurn = true;
@@ -169,13 +174,19 @@ describe('Blood Rush', () => {
     expect(after.gameStats.unitsLost).toBe(state.gameStats.unitsLost + 1);
     expect(after.units[caster.id]).toMatchObject({
       hasMovedThisTurn: false,
+      hasAttackedThisTurn: false,
+      hasCapturedThisTurn: false,
+      hasConstructedThisTurn: false,
+    });
+    expect(after.units[neighbors[0].id]).toMatchObject({
+      hasMovedThisTurn: false,
       hasAttackedThisTurn: true,
       hasCapturedThisTurn: true,
       hasConstructedThisTurn: true,
     });
     expect(after.units[summoned.id].hasMovedThisTurn).toBe(false);
     expect(after.units[mech.id].hasMovedThisTurn).toBe(false);
-    expect(after.units[enemy.id].hasMovedThisTurn).toBe(false);
+    expect(after.units[enemy.id].hasMovedThisTurn).toBe(true);
     expect(after.units[outside.id].hasMovedThisTurn).toBe(true);
     expect(recipientPositions).toHaveLength(7);
   });
@@ -227,6 +238,7 @@ describe('Blood Rush', () => {
       UnitTag.BRANDMARKED,
     ]);
     const state = makeState([caster, sacrifice]);
+    state.grid[5][5].terrainType = TileType.PLAINS;
     const after = cast(state, sacrifice);
     const graveId = after.grid[5][5].buildingId;
     expect(graveId).toBeTruthy();
@@ -238,7 +250,7 @@ describe('Blood Rush', () => {
   it('plays the Ember shockwave and staggered transfer lines with arrival flashes', () => {
     vi.useFakeTimers();
     const caster = makeUnit('caster', UnitType.EMBER_CULTIST, { x: 4, y: 4 });
-    const sacrifice = makeUnit('sacrifice', UnitType.GUARD, { x: 5, y: 5 });
+    const sacrifice = makeUnit('sacrifice', UnitType.GUARD, { x: 5, y: 5 }, [UnitTag.LEAVES_GRAVESTONE]);
     sacrifice.hasAttackedThisTurn = true;
     const first = makeUnit('first', UnitType.GUARD, { x: 5, y: 4 });
     const second = makeUnit('second', UnitType.GUARD, { x: 6, y: 5 });
@@ -252,10 +264,13 @@ describe('Blood Rush', () => {
 
     useGameStore.getState().castSpell(sacrifice.position);
 
+    const graveId = useGameStore.getState().grid[5][5].buildingId!;
+    expect(useCombatAnimationStore.getState().buildingAnimations.get(graveId)).toBe('GRAVESTONE_RISE');
     expect(useShockwaveStore.getState().shockwaves).toEqual([
       expect.objectContaining({ variant: 'ember' }),
     ]);
-    const lines = useCombatAnimationStore.getState().lineVfx;
+    const lines = useCombatAnimationStore.getState().lineVfx
+      .filter((line) => line.variant === 'BLOOD_RUSH');
     expect(lines).toHaveLength(3);
     expect(lines.map((line) => line.variant)).toEqual(['BLOOD_RUSH', 'BLOOD_RUSH', 'BLOOD_RUSH']);
     expect(lines.map((line) => line.delayMs)).toEqual([
@@ -265,7 +280,7 @@ describe('Blood Rush', () => {
     ]);
     expect(lines[0].fromPx).not.toEqual(lines[0].toPx);
 
-    vi.advanceTimersByTime(ANIMATION.BLOOD_RUSH_LINE_MS);
+    vi.advanceTimersByTime(ANIMATION.BLOOD_RUSH_LINE_MS + ANIMATION.BLOOD_RUSH_LINE_STAGGER_MS);
     expect(useCombatAnimationStore.getState().tileFlashes.get('5,4')).toMatchObject({
       durationMs: ANIMATION.BLOOD_RUSH_RECIPIENT_FLASH_MS,
       variant: 'ember',
