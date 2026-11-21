@@ -1300,10 +1300,17 @@ export function useAnimationEngine(): void {
           const combatStore = useCombatAnimationStore.getState();
           for (const chamber of event.chambers) {
             if (!isTileRevealed(chamber.position)) continue;
-            combatStore.setBuildingAnimation(
-              chamber.buildingId,
-              { type: 'CRYSTAL_ACTIVATE', durationMs: ANIMATION.CRYSTAL_ACTIVATE_VFX_DURATION_MS },
-            );
+            const activation = {
+              type: 'CRYSTAL_ACTIVATE' as const,
+              durationMs: ANIMATION.CRYSTAL_ACTIVATE_VFX_DURATION_MS,
+            };
+            combatStore.setBuildingAnimation(chamber.buildingId, activation);
+            setTimeout(() => {
+              const store = useCombatAnimationStore.getState();
+              if (store.buildingAnimations.get(chamber.buildingId) === activation) {
+                store.setBuildingAnimation(chamber.buildingId, null);
+              }
+            }, activation.durationMs);
           }
           for (const heal of event.heals) {
             if (!isTileRevealed(heal.position)) continue;
