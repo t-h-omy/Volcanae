@@ -997,5 +997,14 @@
   "spell.CRYSTALLIZE.targetHint": "Selecione uma quadrícula revelada de planície, floresta ou montanha ao alcance que ainda não seja cristalina.",
   "tech.CRYSTALLIZE.name": "Cristalizar",
   "tech.CRYSTALLIZE.desc": "Desbloqueia o feitiço Cristalizar.",
-  "reason.spell.crystallizeTerrain": "Não é possível cristalizar este terreno"
+  "reason.spell.crystallizeTerrain": "Não é possível cristalizar este terreno",
+  "spell.AMPLIFICATION.name": "Amplificação",
+  "spell.AMPLIFICATION.desc": "Vincula uma unidade aliada para retransmitir o alcance de magias do Mago.",
+  "spell.AMPLIFICATION.targetHint": "Escolha uma unidade aliada dentro do alcance do Mago.",
+  "tech.AMPLIFICATION.name": "Amplificação",
+  "tech.AMPLIFICATION.desc": "Desbloqueia Amplificação. Um Mago pode lançar através de uma unidade aliada vinculada.",
+  "tag.AMPLIFIED.label": "Amplificada",
+  "tag.AMPLIFIED.desc": "Esta unidade retransmite o alcance de magias do Mago vinculado.",
+  "reason.spell.amplificationSelf": "Não é possível amplificar o lançador",
+  "reason.spell.amplificationSummoned": "Unidades invocadas não podem ser ampliadas"
 }

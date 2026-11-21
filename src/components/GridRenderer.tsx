@@ -43,7 +43,7 @@ import { isTileWithinEdgeCircleRange } from '../rangeUtils';
 import { createResonanceLightningPaths, getResonanceOverviewZoom } from '../resonanceVfx';
 import { nextTileCycleTarget, tileSelectionState } from '../tileCycleHelper';
 import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, getTauntBlockedAttackTargetKeys, explainInvalidAttackTarget, canUnitConstruct, canUnitCapture, getHealTargets, getBridgeBuildTargets, explainInvalidHealTarget, explainInvalidBridgeTarget, canUnitSetTrap, getTrapPlacementTargets, explainInvalidTrapTarget, isUnitDisplayExhausted, canUnitCast } from '../unitActions';
-import { getValidSpellTargets, explainInvalidSpellTarget, getTransposeTerrainBlockedTargets, getLeashedUnitsForMage, getMageCastBudget } from '../spellSystem';
+import { getValidSpellTargets, explainInvalidSpellTarget, getTransposeTerrainBlockedTargets, getLeashedUnitsForMage, getMageCastBudget, getAmplifiedUnitForMage, isLeashAnchored } from '../spellSystem';
 import { explainBlockedMagePortalEntry } from '../portalSystem';
 import { getMagePath, isMageUnit } from '../unitTraits';
 import { resolveUnitBackgroundEffect, useProtectiveLayerFx } from '../unitPresentation';
@@ -677,12 +677,7 @@ export default function GridRenderer() {
     }
     if (!mage) return set;
     for (const leashedUnit of leashedUnits) {
-      const inRange = isTileWithinEdgeCircleRange(
-        mage.position.x, mage.position.y,
-        leashedUnit.position.x, leashedUnit.position.y,
-        mage.stats.attackRange,
-      );
-      if (!inRange) {
+      if (!isLeashAnchored(useGameStore.getState(), leashedUnit)) {
         set.add(posKey(leashedUnit.position.x, leashedUnit.position.y));
         set.add(posKey(mage.position.x, mage.position.y));
       }
@@ -2399,7 +2394,8 @@ function LeashPathGroup({ pair, tileSize, index, filterId }: {
  */
 function LeashLineLayer({ tileSize }: { tileSize: number }) {
   const selectedUnitId = useGameStore((s) => s.selectedUnitId);
-  const units = useGameStore((s) => s.units);
+  const state = useGameStore((s) => s);
+  const units = state.units;
   const selectedUnit = selectedUnitId ? units[selectedUnitId] : undefined;
   const burstPairs = useCombatAnimationStore((s) => s.leashBurstPairs);
 
@@ -2413,22 +2409,51 @@ function LeashLineLayer({ tileSize }: { tileSize: number }) {
     if (isMageUnit(selectedUnit)) {
       mage = selectedUnit;
       leashedUnits = getLeashedUnitsForMage(units, selectedUnit.id);
+      const amplifiedUnit = getAmplifiedUnitForMage(state, selectedUnit.id);
+      if (amplifiedUnit) {
+        result.push({
+          magePos: mage.position,
+          demonPos: amplifiedUnit.position,
+          warn: !isTileWithinEdgeCircleRange(
+            mage.position.x, mage.position.y,
+            amplifiedUnit.position.x,
+            amplifiedUnit.position.y,
+            mage.stats.attackRange,
+          ),
+          tone: getMagePath(mage),
+        });
+      }
     } else if (selectedUnit.tags.includes(UnitTag.LEASHED) && selectedUnit.controllerMageId) {
       mage = units[selectedUnit.controllerMageId];
       leashedUnits = [selectedUnit];
+    } else if (selectedUnit.tags.includes(UnitTag.AMPLIFIED) && selectedUnit.amplifierMageId) {
+      mage = units[selectedUnit.amplifierMageId];
+      if (mage) {
+        result.push({
+          magePos: mage.position,
+          demonPos: selectedUnit.position,
+          warn: !isTileWithinEdgeCircleRange(
+            mage.position.x, mage.position.y,
+            selectedUnit.position.x,
+            selectedUnit.position.y,
+            mage.stats.attackRange,
+          ),
+          tone: getMagePath(mage),
+        });
+      }
     }
 
     if (!mage) return result;
     for (const leashedUnit of leashedUnits) {
-      const inRange = isTileWithinEdgeCircleRange(
-        mage.position.x, mage.position.y,
-        leashedUnit.position.x, leashedUnit.position.y,
-        mage.stats.attackRange,
-      );
-      result.push({ magePos: mage.position, demonPos: leashedUnit.position, warn: !inRange, tone: getMagePath(mage) });
+      result.push({
+        magePos: mage.position,
+        demonPos: leashedUnit.position,
+        warn: !isLeashAnchored(state, leashedUnit),
+        tone: getMagePath(mage),
+      });
     }
     return result;
-  }, [selectedUnit, units]);
+  }, [selectedUnit, units, state]);
 
   // Build burst-VFX pairs, excluding any already shown by selection.
   const effectiveBurstPairs = useMemo<LeashPair[]>(() => {

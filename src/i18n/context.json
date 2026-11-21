@@ -1,4 +1,10 @@
 {
+  "spell.AMPLIFICATION.name": {
+    "sameAsSource": ["fr"]
+  },
+  "tech.AMPLIFICATION.name": {
+    "sameAsSource": ["fr"]
+  },
   "options.language": {
     "note": "Label of the language selector row in Options.",
     "maxLen": 11

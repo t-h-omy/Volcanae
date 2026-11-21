@@ -81,19 +81,20 @@ The tree tabs and close button sit in a dock at the bottom of the screen.
 
 Mages can be recruited from an active **Crystal Chamber** building after researching their path. The three Mage units share stats and recruitment limits, but each can cast only the spells of its path plus the common spells. Each Mage can cast one spell per turn (before or after moving, but not after attacking), and the **Archmage** specialist raises that per-turn budget to two casts.
 
-**Arcane Studies** gives every Mage an **Arcane Shield** of 20 points. It absorbs damage before Stone Skin and HP, and regenerates 10 points at the start of your turn while any Crystal Chamber resonates. Heals never restore it, and lava, drowning and sacrifice still kill a shielded Mage.
+**Arcane Studies** gives every Mage an **Arcane Shield** of 20 points. It absorbs damage before Stone Skin and HP, and regenerates 10 points at the start of your turn while any Crystal Chamber resonates. Heals never restore it, and lava, drowning and sacrifice still kill a shielded Mage. Amplification lets every Mage bind an own unit and cast spells from that unit's tile for the rest of the turn.
 
 | Mage | Common spells | Path spells |
 |------|---------------|-------------|
-| Crystal Mage | Transpose, Frostcraft, Rupture | Taunt, Stone Skin, Crystal Lightning, Crystal Cave, Crystallize, Portal, Crystal Tower |
-| Necromancer | Transpose, Frostcraft, Rupture | Raise Skeleton, Grave Mark, Death's Door, Embalm, Summon Ghoul, Grave Trap |
-| Ember Cultist | Transpose, Frostcraft, Rupture | Brandmark Heal, Blood Frenzy, Emberbind, Corrupted Qork, Explode, Lava Mold, Blood Rush |
+| Crystal Mage | Amplification, Transpose, Frostcraft, Rupture | Taunt, Stone Skin, Crystal Lightning, Crystal Cave, Crystallize, Portal, Crystal Tower |
+| Necromancer | Amplification, Transpose, Frostcraft, Rupture | Raise Skeleton, Grave Mark, Death's Door, Embalm, Summon Ghoul, Grave Trap |
+| Ember Cultist | Amplification, Transpose, Frostcraft, Rupture | Brandmark Heal, Blood Frenzy, Emberbind, Corrupted Qork, Explode, Lava Mold, Blood Rush |
 
 Spells are unlocked individually through the tech tree. The selected Mage's spell panel lists only spells it owns and has unlocked. Available spells include:
 
 | Spell | Effect |
 |-------|--------|
 | 🔄 Transpose | Swap two units of the same faction within range of the Mage |
+| 📡 Amplification | Bind an own unit to relay the Mage's spell range |
 | 🔥 Emberbind | Destroy a nearby Ember Nest, summoning a leashed Ember Demon |
 | 🐗 Corrupted Qork | Summon a ready ranged, leashed creature on an empty corrupted tile; it loses HP off corruption and explodes on death |
 | 🩸 Brandmark | Fully heal a friendly unit; the healed unit gains the BRANDMARKED tag, cannot be healed by Patch Up, and loses HP each turn, spawning a hostile Ember Demon on death |

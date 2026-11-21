@@ -17,6 +17,7 @@ const MAGE_TYPES = [
 
 const OWNED_SPELLS: Record<(typeof MAGE_TYPES)[number], SpellId[]> = {
   [UnitType.CRYSTAL_MAGE]: [
+    SpellId.AMPLIFICATION,
     SpellId.TRANSPOSE,
     SpellId.FROSTCRAFT,
     SpellId.RUPTURE,
@@ -29,6 +30,7 @@ const OWNED_SPELLS: Record<(typeof MAGE_TYPES)[number], SpellId[]> = {
     SpellId.CRYSTAL_TOWER,
   ],
   [UnitType.NECROMANCER]: [
+    SpellId.AMPLIFICATION,
     SpellId.TRANSPOSE,
     SpellId.FROSTCRAFT,
     SpellId.RUPTURE,
@@ -40,6 +42,7 @@ const OWNED_SPELLS: Record<(typeof MAGE_TYPES)[number], SpellId[]> = {
     SpellId.GRAVE_TRAP,
   ],
   [UnitType.EMBER_CULTIST]: [
+    SpellId.AMPLIFICATION,
     SpellId.TRANSPOSE,
     SpellId.FROSTCRAFT,
     SpellId.RUPTURE,
@@ -122,6 +125,7 @@ describe('Mage path spell ownership', () => {
     for (const type of MAGE_TYPES) {
       const caster = makeUnit(type, { x: 4, y: 4 });
       expect(isMageUnit(caster)).toBe(true);
+      expect(canUnitCastSpell(state, caster, SpellId.AMPLIFICATION)).toBe(true);
       expect(canUnitCastSpell(state, caster, SpellId.TRANSPOSE)).toBe(true);
       expect(canUnitCastSpell(state, caster, SpellId.FROSTCRAFT)).toBe(true);
       expect(canUnitCastSpell(state, caster, SpellId.RUPTURE)).toBe(true);

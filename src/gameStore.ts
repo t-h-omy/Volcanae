@@ -57,7 +57,7 @@ import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLo
 import { canUnitHeal, getHealTargets, canUnitFieldwork, isHealSuppressedByCorruption, canUnitConsumeGravestone, getRemainingActions } from './unitActions';
 import { createFieldworkOutpost } from './constructionSystem';
 import { getTagsFromActiveSpecialists, isSpecialistEffectActive, getTagsFromActiveSpecialistsForSourceTag } from './specialistSystem';
-import { canUnitCastSpell, castSpell as castSpellLogic } from './spellSystem';
+import { canUnitCastSpell, castSpell as castSpellLogic, sweepAmplifications, sweepLeashes } from './spellSystem';
 import { getMagePath } from './unitTraits';
 import { isTileWithinEdgeCircleRange, getTilesWithinEdgeCircleRange } from './rangeUtils';
 import { useShockwaveStore } from './shockwaveStore';
@@ -2011,6 +2011,7 @@ export const useGameStore = create<GameStore>()(
       let castSpellId: import('./types').SpellId | null = null;
       let magePosition: Position | null = null;
       let magePath: ReturnType<typeof getMagePath> = null;
+      let amplificationCarrierPosition: Position | null = null;
       let crystallineVfxPositions: Position[] = [];
       const bloodRushRecipientPositions: Position[] = [];
       let bloodRushRestoredCast = false;
@@ -2134,6 +2135,12 @@ export const useGameStore = create<GameStore>()(
         if (mageAfter) {
           magePosition = { x: mageAfter.position.x, y: mageAfter.position.y };
           magePath = getMagePath(mageAfter);
+          const linkedCarrier = Object.values(state.units).find(
+            (unit) => unit.amplifierMageId === mageId,
+          );
+          amplificationCarrierPosition = spellId !== 'AMPLIFICATION' && linkedCarrier
+            ? { ...linkedCarrier.position }
+            : null;
           // Casting is symmetric with attacking: only advance the Mage's cast count.
           // - canUnitMove and canUnitAttack are updated to treat
           //   the exhausted cast budget the same way they already treat
@@ -2268,6 +2275,7 @@ export const useGameStore = create<GameStore>()(
         // TypeScript's closure-assignment narrowing.
         const capturedMagePosition = magePosition as Position | null;
         if (capturedMagePosition !== null && castSpellId !== 'CRYSTAL_LIGHTNING') {
+          const capturedAmplificationCarrierPosition = amplificationCarrierPosition as Position | null;
           const tileSize = typeof window !== 'undefined' && window.innerWidth <= RENDER.MOBILE_BREAKPOINT
             ? RENDER.TILE_SIZE_MOBILE
             : RENDER.TILE_SIZE_DESKTOP;
@@ -2280,14 +2288,38 @@ export const useGameStore = create<GameStore>()(
             y: targetPosition.y * tileSize + tileSize / 2,
           };
           const store = useCombatAnimationStore.getState();
-          store.addLineVfx({
-            id: crypto.randomUUID(),
-            fromPx,
-            toPx,
-            variant: 'SPELL_CAST',
-            durationMs: ANIMATION.SPELL_CAST_MS,
-            ...(magePath ? { tone: magePath } : {}),
-          });
+          if (capturedAmplificationCarrierPosition !== null) {
+            const carrierPx = {
+              x: capturedAmplificationCarrierPosition.x * tileSize + tileSize / 2,
+              y: capturedAmplificationCarrierPosition.y * tileSize + tileSize / 2,
+            };
+            store.addLineVfx({
+              id: crypto.randomUUID(),
+              fromPx,
+              toPx: carrierPx,
+              variant: 'SPELL_CAST',
+              durationMs: ANIMATION.SPELL_CAST_MS,
+              ...(magePath ? { tone: magePath } : {}),
+            });
+            store.addLineVfx({
+              id: crypto.randomUUID(),
+              fromPx: carrierPx,
+              toPx,
+              variant: 'SPELL_CAST',
+              durationMs: ANIMATION.SPELL_CAST_MS,
+              delayMs: ANIMATION.AMPLIFICATION_LINE_DELAY_MS,
+              ...(magePath ? { tone: magePath } : {}),
+            });
+          } else {
+            store.addLineVfx({
+              id: crypto.randomUUID(),
+              fromPx,
+              toPx,
+              variant: 'SPELL_CAST',
+              durationMs: ANIMATION.SPELL_CAST_MS,
+              ...(magePath ? { tone: magePath } : {}),
+            });
+          }
           store.addTileVfx({
             id: crypto.randomUUID(),
             x: targetPosition.x,
@@ -2298,8 +2330,8 @@ export const useGameStore = create<GameStore>()(
           });
           store.addTileVfx({
             id: crypto.randomUUID(),
-            x: capturedMagePosition.x,
-            y: capturedMagePosition.y,
+            x: capturedAmplificationCarrierPosition?.x ?? capturedMagePosition.x,
+            y: capturedAmplificationCarrierPosition?.y ?? capturedMagePosition.y,
             variant: 'SPELL_CASTER_PULSE',
             durationMs: ANIMATION.SPELL_CASTER_PULSE_MS,
             ...(magePath ? { tone: magePath } : {}),
@@ -2698,46 +2730,36 @@ export const useGameStore = create<GameStore>()(
           // Leash defection: any player-faction LEASHED unit defects if its
           // controlling Mage is dead or out of leash range.
           // The demon's mage/position is captured for the burst VFX BEFORE mutating.
+          const amplificationBreaks = sweepAmplifications(draft);
+          for (const broken of amplificationBreaks) {
+            leashDefectEvents.push({
+              type: 'AMPLIFICATION_BROKEN',
+              unitId: broken.unitId,
+              mageId: broken.mageId,
+              unitPos: broken.unitPos,
+              magePos: broken.magePos,
+            } as GameEvent);
+          }
+          const leashSnapshot = new Map<string, { mageId: string; demonPos: Position; magePos: Position }>();
           for (const unit of Object.values(draft.units)) {
-            if (!unit.tags.includes(UnitTag.LEASHED)) continue;
-            if (unit.faction !== Faction.PLAYER) continue;
-
+            if (!unit.tags.includes(UnitTag.LEASHED) || unit.faction !== Faction.PLAYER) continue;
             const mage = unit.controllerMageId ? draft.units[unit.controllerMageId] : null;
-            let defects = false;
-            if (!mage || mage.faction !== Faction.PLAYER) {
-              defects = true;
-            } else {
-              const inRange = isTileWithinEdgeCircleRange(
-                mage.position.x, mage.position.y,
-                unit.position.x, unit.position.y,
-                mage.stats.attackRange,
-              );
-              if (!inRange) defects = true;
-            }
-
-            if (defects) {
-              // Capture positions and IDs before mutating state.
-              const demonId = unit.id;
-              const demonPos = { x: unit.position.x, y: unit.position.y };
-              const mageId = unit.controllerMageId ?? '';
-              const magePos = mage ? { x: mage.position.x, y: mage.position.y } : demonPos;
-
-              unit.faction = Faction.ENEMY;
-              unit.controllerMageId = null;
-              unit.tags = unit.tags.filter((t) =>
-                t !== UnitTag.LEASHED && t !== UnitTag.SUMMONED
-              );
-
-              // Enqueue a LEASH_DEFECT event so the animation engine handles
-              // the burst VFX in the correct order within the enemy-turn queue.
-              leashDefectEvents.push({
-                type: 'LEASH_DEFECT',
-                demonId,
-                mageId,
-                demonPos,
-                magePos,
-              });
-            }
+            leashSnapshot.set(unit.id, {
+              mageId: unit.controllerMageId ?? '',
+              demonPos: { ...unit.position },
+              magePos: mage ? { ...mage.position } : { ...unit.position },
+            });
+          }
+          const defectedIds = sweepLeashes(draft);
+          for (const demonId of defectedIds) {
+            const snap = leashSnapshot.get(demonId);
+            if (snap) leashDefectEvents.push({
+              type: 'LEASH_DEFECT',
+              demonId,
+              mageId: snap.mageId,
+              demonPos: snap.demonPos,
+              magePos: snap.magePos,
+            });
           }
 
           // Reset all player units for new turn
@@ -3895,6 +3917,15 @@ export const useGameStore = create<GameStore>()(
             // Note: tile corruption status flip is intentionally NOT mirrored here.
             // It happens at queue-end via setGameState(resolvedState). The dust hides
             // the sprite swap; the corruption colour change can settle a beat later.
+            break;
+          }
+
+          case 'AMPLIFICATION_BROKEN': {
+            const unit = state.units[event.unitId];
+            if (unit) {
+              unit.tags = unit.tags.filter((tag) => tag !== UnitTag.AMPLIFIED);
+              unit.amplifierMageId = undefined;
+            }
             break;
           }
 

@@ -997,5 +997,14 @@
   "spell.CRYSTALLIZE.targetHint": "Seleziona una casella rivelata di pianura, foresta o montagna entro la portata che non sia già cristallina.",
   "tech.CRYSTALLIZE.name": "Cristallizzazione",
   "tech.CRYSTALLIZE.desc": "Sblocca l'incantesimo Cristallizza.",
-  "reason.spell.crystallizeTerrain": "Questo terreno non può essere cristallizzato"
+  "reason.spell.crystallizeTerrain": "Questo terreno non può essere cristallizzato",
+  "spell.AMPLIFICATION.name": "Amplificazione",
+  "spell.AMPLIFICATION.desc": "Collega una unità propria per trasmettere la gittata degli incantesimi del Mago.",
+  "spell.AMPLIFICATION.targetHint": "Scegli una unità propria entro la gittata del Mago.",
+  "tech.AMPLIFICATION.name": "Amplificazione",
+  "tech.AMPLIFICATION.desc": "Sblocca Amplificazione. Un Mago può lanciare attraverso una unità alleata collegata.",
+  "tag.AMPLIFIED.label": "Amplificata",
+  "tag.AMPLIFIED.desc": "Questa unità trasmette la gittata degli incantesimi del Mago collegato.",
+  "reason.spell.amplificationSelf": "Non puoi amplificare il lanciatore",
+  "reason.spell.amplificationSummoned": "Le unità evocate non possono essere amplificate"
 }

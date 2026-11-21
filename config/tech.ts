@@ -679,6 +679,14 @@ export const TECH_TREE: TechNodeDefinition[] = [
   
     textParams: { rangeBonus: MAGE.SPELL_RANGE_BONUS, totalRange: UNIT_DEFINITIONS.CRYSTAL_MAGE.attackRange + MAGE.SPELL_RANGE_BONUS },
   },
+  {
+    id: 'AMPLIFICATION',
+    requires: ['SPELL_REACH'],
+    cost: 7,
+    effects: [
+      { type: 'UNLOCK_SPELL', spellId: SpellId.AMPLIFICATION },
+    ],
+  },
 
 ];
 

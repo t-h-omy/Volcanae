@@ -175,6 +175,8 @@ export const ANIMATION = {
   CRYSTAL_LIGHTNING_POST_MS: 70,
   /** Duration of the mage spell-cast line from caster to target tile (ms) */
   SPELL_CAST_MS: 650,
+  /** Delay before the second segment of an Amplification cast line begins. */
+  AMPLIFICATION_LINE_DELAY_MS: 180,
   /** Duration of the caster's path-colored wind-up pulse (ms) */
   SPELL_CASTER_PULSE_MS: 500,
   /** Duration of the mage spell impact ring on the target tile (ms) */

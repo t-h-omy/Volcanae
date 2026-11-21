@@ -997,5 +997,14 @@
   "spell.CRYSTALLIZE.targetHint": "Choisissez une case révélée de plaine, forêt ou montagne à portée, qui n'est pas déjà cristalline.",
   "tech.CRYSTALLIZE.name": "Cristallisation",
   "tech.CRYSTALLIZE.desc": "Débloque le sort Cristalliser.",
-  "reason.spell.crystallizeTerrain": "Ce terrain ne peut pas être cristallisé"
+  "reason.spell.crystallizeTerrain": "Ce terrain ne peut pas être cristallisé",
+  "spell.AMPLIFICATION.name": "Amplification",
+  "spell.AMPLIFICATION.desc": "Relie une unité alliée pour retransmettre la portée des sorts du Mage.",
+  "spell.AMPLIFICATION.targetHint": "Choisissez une unité alliée dans la portée du Mage.",
+  "tech.AMPLIFICATION.name": "Amplification",
+  "tech.AMPLIFICATION.desc": "Débloque Amplification. Un Mage peut lancer à travers une unité alliée reliée.",
+  "tag.AMPLIFIED.label": "Amplifiée",
+  "tag.AMPLIFIED.desc": "Cette unité retransmet la portée des sorts du Mage relié.",
+  "reason.spell.amplificationSelf": "Impossible d’amplifier le lanceur",
+  "reason.spell.amplificationSummoned": "Les unités invoquées ne peuvent pas être amplifiées"
 }

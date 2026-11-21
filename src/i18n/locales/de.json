@@ -997,5 +997,14 @@
   "spell.CRYSTALLIZE.targetHint": "Wähle ein aufgedecktes Feld aus Ebene, Wald oder Berg in Reichweite, das noch nicht kristallin ist.",
   "tech.CRYSTALLIZE.name": "Kristallisieren",
   "tech.CRYSTALLIZE.desc": "Schaltet den Zauber Kristallisieren frei.",
-  "reason.spell.crystallizeTerrain": "Dieses Gelände kann nicht kristallisiert werden"
+  "reason.spell.crystallizeTerrain": "Dieses Gelände kann nicht kristallisiert werden",
+  "spell.AMPLIFICATION.name": "Verstärkung",
+  "spell.AMPLIFICATION.desc": "Bindet eine eigene Einheit, um die Zauberreichweite des Magiers weiterzugeben.",
+  "spell.AMPLIFICATION.targetHint": "Wähle eine eigene Einheit innerhalb der Reichweite des Magiers.",
+  "tech.AMPLIFICATION.name": "Verstärkung",
+  "tech.AMPLIFICATION.desc": "Schaltet Verstärkung frei. Ein Magier kann über eine verbundene eigene Einheit wirken.",
+  "tag.AMPLIFIED.label": "Verstärkt",
+  "tag.AMPLIFIED.desc": "Diese Einheit gibt die Zauberreichweite des verbundenen Magiers weiter.",
+  "reason.spell.amplificationSelf": "Der Wirker kann nicht verstärkt werden",
+  "reason.spell.amplificationSummoned": "Beschworene Einheiten können nicht verstärkt werden"
 }

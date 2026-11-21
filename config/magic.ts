@@ -109,6 +109,11 @@ export interface SpellDefinition {
 }
 
 export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
+  [SpellId.AMPLIFICATION]: {
+    id: SpellId.AMPLIFICATION,
+    emoji: '📡',
+    casters: MAGE_UNIT_TYPES,
+  },
   [SpellId.BLOOD_RUSH]: {
     id: SpellId.BLOOD_RUSH,
     emoji: '🫀',

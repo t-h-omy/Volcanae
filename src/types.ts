@@ -205,6 +205,7 @@ export type MagicPath = (typeof MagicPath)[keyof typeof MagicPath];
 
 /** Spell identifiers for the Mage spell system */
 export const SpellId = {
+  AMPLIFICATION: 'AMPLIFICATION',
   TRANSPOSE:      'TRANSPOSE',
   EMBERBIND:      'EMBERBIND',
   BRANDMARK_HEAL: 'BRANDMARK_HEAL',
@@ -290,6 +291,8 @@ export type TerrainTag = (typeof TerrainTag)[keyof typeof TerrainTag];
 
 /** Tags that can be applied to units */
 export const UnitTag = {
+  /** Mage spell reach is linked through this unit. */
+  AMPLIFIED: 'AMPLIFIED',
   /** Unit has ranged attack capability */
   RANGED: 'RANGED',
   /** Unit cannot attack after moving (preparation required) */
@@ -547,6 +550,8 @@ export interface Unit {
    * `null` or `undefined` means no controller. Cleared on defection.
    */
   controllerMageId?: string | null;
+  /** Amplification link: Mage ID whose spell range is relayed through this unit. */
+  amplifierMageId?: string;
   /** Original Mage who started an Infested infection chain. */
   infestedByMageId?: string | null;
   /** Prevents deferred death/transform resolution from replaying an Infested burst. */

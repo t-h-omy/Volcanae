@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.130.0 - Amplification
+
+Every Mage can bind an allied unit to amplify its spell range until the next leash checkpoint. Amplified units show an antenna icon and a leash line, and linked creatures stay anchored through the carrier or the Mage.
+
 ### v0.129.0 - Blood Rush
 
 Ember Cultists can sacrifice an allied unit with unused actions to restore those actions to every allied neighbor. Blood Rush can also restore Mage casts and enables a Mage that has moved to cast again during the current turn.

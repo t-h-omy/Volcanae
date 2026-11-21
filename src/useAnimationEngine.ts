@@ -155,6 +155,8 @@ function eventPosition(event: GameEvent): Position {
       return event.position;
     case 'CAVE_MONSTER_RETREAT':
       return event.position;
+    case 'AMPLIFICATION_BROKEN':
+      return event.unitPos;
     case 'LEASH_DEFECT':
       return event.demonPos;
     case 'UNIT_KNOCKBACK':
@@ -286,6 +288,8 @@ function isEventVisible(event: GameEvent): boolean {
           useGameStore.getState().units[unitId]?.faction === Faction.PLAYER);
     case 'CAVE_MONSTER_RETREAT':
       return isTileRevealed(event.position);
+    case 'AMPLIFICATION_BROKEN':
+      return isTileRevealed(event.unitPos) || isTileRevealed(event.magePos);
     case 'LEASH_DEFECT':
       return isTileRevealed(event.demonPos) || isTileRevealed(event.magePos);
     case 'UNIT_KNOCKBACK':
@@ -1977,6 +1981,25 @@ export function useAnimationEngine(): void {
         }
 
         // ── Special handling for LEASH_DEFECT (demon defects during enemy turn) ──
+        if (event.type === 'AMPLIFICATION_BROKEN') {
+          if (visible) {
+            useAnimationStore.getState().setCameraTarget(event.unitPos);
+            await wait(ANIMATION.CAMERA_MOVE_DURATION_MS + ANIMATION.PRE_ACTION_IDLE_MS);
+            useGameStore.getState().applyEvent(event);
+            useCombatAnimationStore.getState().addLeashBurstPair({
+              mageId: event.mageId,
+              demonId: event.unitId,
+              magePos: event.magePos,
+              demonPos: event.unitPos,
+            });
+            await wait(ANIMATION.LEASH_BURST_VFX_DURATION_MS);
+            useCombatAnimationStore.getState().removeLeashBurstPair(event.unitId);
+          } else {
+            useGameStore.getState().applyEvent(event);
+          }
+          continue;
+        }
+
         if (event.type === 'LEASH_DEFECT') {
           if (visible) {
             const combatStore = useCombatAnimationStore.getState();

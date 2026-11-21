@@ -18,6 +18,7 @@ import { CORRUPTED_QORK, CRYSTAL_KHYRON } from './units';
  * Numeric text values are exposed only as textParams for localized ICU messages.
  */
 export const TAG_INFO: Record<UnitTag, { icon?: string; textParams?: { [name: string]: number } }> = {
+  [UnitTag.AMPLIFIED]: { icon: '📡' },
   [UnitTag.RANGED]: {},
   [UnitTag.PREP]: {},
   [UnitTag.BUILDANDCAPTURE]: {},

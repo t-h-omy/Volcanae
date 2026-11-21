@@ -997,5 +997,14 @@
   "spell.CRYSTALLIZE.targetHint": "Select a revealed Plains, Forest or Mountain tile in range that is not already Crystalline.",
   "tech.CRYSTALLIZE.name": "Crystallize",
   "tech.CRYSTALLIZE.desc": "Unlocks the Crystallize spell.",
-  "reason.spell.crystallizeTerrain": "Cannot crystallize this terrain"
+  "reason.spell.crystallizeTerrain": "Cannot crystallize this terrain",
+  "spell.AMPLIFICATION.name": "Amplification",
+  "spell.AMPLIFICATION.desc": "Bind an own unit to relay the Mage's spell range.",
+  "spell.AMPLIFICATION.targetHint": "Choose an own unit within the Mage's range.",
+  "tech.AMPLIFICATION.name": "Amplification",
+  "tech.AMPLIFICATION.desc": "Unlocks Amplification. A Mage can cast through a linked own unit.",
+  "tag.AMPLIFIED.label": "Amplified",
+  "tag.AMPLIFIED.desc": "This unit relays the linked Mage's spell range.",
+  "reason.spell.amplificationSelf": "Cannot amplify the caster",
+  "reason.spell.amplificationSummoned": "Summoned units cannot be amplified"
 }

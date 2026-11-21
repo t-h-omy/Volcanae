@@ -7,6 +7,13 @@ import type { Faction, Position, BuildingType, Unit, Building, Portal } from './
 
 export type GameEvent =
   | {
+      type: 'AMPLIFICATION_BROKEN';
+      unitId: string;
+      mageId: string;
+      unitPos: Position;
+      magePos: Position;
+    }
+  | {
       type: 'ENEMY_SPAWN';
       position: Position;
       unit: Unit;
