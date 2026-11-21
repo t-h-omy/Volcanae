@@ -45,6 +45,7 @@ import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, getTaunt
 import { getValidSpellTargets, explainInvalidSpellTarget, getTransposeTerrainBlockedTargets, getLeashedUnitsForMage, getMageCastBudget } from '../spellSystem';
 import { explainBlockedMagePortalEntry } from '../portalSystem';
 import { getMagePath, isMageUnit } from '../unitTraits';
+import { resolveUnitBackgroundEffect, useProtectiveLayerFx } from '../unitPresentation';
 import './GridRenderer.css';
 
 // ============================================================================
@@ -1704,46 +1705,35 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
   const arcaneShieldRatio = Math.min(1, arcaneShieldHp / MAGE.ARCANE_SHIELD_MAX_HP);
   const showArcaneShieldBar =
     hasArcaneShield && (arcaneShieldHp < MAGE.ARCANE_SHIELD_MAX_HP || unit.stats.currentHp < unit.stats.maxHp || hasDebuff || hasStoneSkin);
-  const [shieldFx, setShieldFx] = useState<'absorb' | 'break' | 'recharge' | null>(null);
-  const [shieldWaveDelayMs, setShieldWaveDelayMs] = useState(0);
-  const prevShieldRef = useRef(arcaneShieldHp);
-  useEffect(() => {
-    const prev = prevShieldRef.current;
-    prevShieldRef.current = arcaneShieldHp;
-    if (prev === arcaneShieldHp) return;
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    let delay = 0;
-    let fx: 'absorb' | 'break' | 'recharge';
-    if (arcaneShieldHp > prev) {
-      fx = 'recharge';
-      const holders = Object.values(useGameStore.getState().units)
-        .filter((u) => u.faction === Faction.PLAYER && (u.arcaneShieldHp ?? 0) > 0)
-        .map((u) => u.id)
-        .sort();
-      delay = Math.max(0, holders.indexOf(unit.id)) * ANIMATION.ARCANE_SHIELD_WAVE_STAGGER_MS;
-      const gained = arcaneShieldHp - prev;
+  const holders = Object.values(useGameStore.getState().units)
+    .filter((candidate) => candidate.faction === Faction.PLAYER && (candidate.arcaneShieldHp ?? 0) > 0)
+    .map((candidate) => candidate.id)
+    .sort();
+  const shieldWaveDelayMs =
+    arcaneShieldHp > 0
+      ? Math.max(0, holders.indexOf(unit.id)) * ANIMATION.ARCANE_SHIELD_WAVE_STAGGER_MS
+      : 0;
+  const [shieldFx, shieldFxDelayMs] = useProtectiveLayerFx(
+    arcaneShieldHp,
+    shieldWaveDelayMs,
+    (gained) => {
       const { x, y } = unit.position;
-      timers.push(setTimeout(() => {
-        useFloaterStore.getState().addFloater({
-          value: gained,
-          label: `🛡️ ${t('floater.arcaneShieldGain', { amount: gained })}`,
-          x,
-          y,
-          isEnemy: false,
-          floaterType: 'revive',
-        });
-      }, delay));
-    } else {
-      fx = arcaneShieldHp > 0 ? 'absorb' : 'break';
-    }
-    timers.push(setTimeout(() => {
-      setShieldWaveDelayMs(delay);
-      setShieldFx(fx);
-    }, 0));
-    timers.push(setTimeout(() => setShieldFx(null), delay + ANIMATION.ARCANE_SHIELD_FX_DURATION_MS));
-    return () => timers.forEach(clearTimeout);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [arcaneShieldHp]);
+      useFloaterStore.getState().addFloater({
+        value: gained,
+        label: `🛡️ ${t('floater.arcaneShieldGain', { amount: gained })}`,
+        x,
+        y,
+        isEnemy: false,
+        floaterType: 'revive',
+      });
+    },
+  );
+  const [stoneSkinFx, stoneSkinFxDelayMs] = useProtectiveLayerFx(stoneSkinHp);
+
+  const backgroundEffect = resolveUnitBackgroundEffect(magePath ? ['MAGE_AURA'] : []);
+  const mageAuraClass = backgroundEffect === 'MAGE_AURA' && magePath
+    ? `unit--mage-${magePath.toLowerCase()}`
+    : null;
 
   const tagIcons = unit.tags
     .filter((tag) => tag !== UnitTag.CORRUPTION_BOUND || hasCorruptionBoundDebuff)
@@ -1758,8 +1748,9 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
         isEmberling && 'emberling-unit',
         hasStoneSkin && 'unit--stone-skin',
         hasArcaneShield && 'unit--arcane-shield',
-        shieldFx && `unit--shield-fx-${shieldFx}`,
-        magePath && `unit--mage-${magePath.toLowerCase()}`,
+        shieldFx && `unit--layer-fx-${shieldFx}`,
+        stoneSkinFx && `unit--layer-fx-${stoneSkinFx}`,
+        mageAuraClass,
         isSelectedMage && mageCanCast && 'unit--mage-cast-ready',
         magePath && mageCastBudgetSpent && 'unit--mage-cast-spent',
       ].filter(Boolean).join(' ')}
@@ -1787,21 +1778,48 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
           '--arcane-shield-color': MAGIC_PATH_COLORS.ARCANE.primary,
           '--arcane-shield-glow': MAGIC_PATH_COLORS.ARCANE.glow,
           '--arcane-shield-ratio': arcaneShieldRatio,
-          '--arcane-shield-fx-duration': `${ANIMATION.ARCANE_SHIELD_FX_DURATION_MS}ms`,
-          '--arcane-shield-fx-delay': `${shieldWaveDelayMs}ms`,
+          '--protective-layer-fx-duration': `${ANIMATION.PROTECTIVE_LAYER_FX_DURATION_MS}ms`,
+          '--shield-fx-delay': `${shieldFxDelayMs}ms`,
+          '--stone-skin-fx-delay': `${stoneSkinFxDelayMs}ms`,
           '--unit-hp-text-font-size': `${UI.UNIT_HP_TEXT_FONT_SIZE_PX}px`,
         } as React.CSSProperties
       }
     >
       {hasArcaneShield && <div className="arcane-shield-dome" aria-hidden="true" />}
       {shieldFx && (
-        <div className={`arcane-shield-fx arcane-shield-fx--${shieldFx}`} aria-hidden="true">
+        <div
+          className={`protective-layer-fx protective-layer-fx--arcane protective-layer-fx--${shieldFx}`}
+          style={{
+            '--protective-layer-color': MAGIC_PATH_COLORS.ARCANE.primary,
+            '--protective-layer-glow': MAGIC_PATH_COLORS.ARCANE.glow,
+          } as React.CSSProperties}
+          aria-hidden="true"
+        >
           {shieldFx === 'break' &&
-            Array.from({ length: ANIMATION.ARCANE_SHIELD_SHARD_COUNT }, (_, i) => (
+            Array.from({ length: ANIMATION.PROTECTIVE_LAYER_SHARD_COUNT }, (_, i) => (
               <span
                 key={i}
-                className="arcane-shield-shard"
-                style={{ '--shard-angle': `${(360 / ANIMATION.ARCANE_SHIELD_SHARD_COUNT) * i}deg` } as React.CSSProperties}
+                className="protective-layer-shard"
+                style={{ '--shard-angle': `${(360 / ANIMATION.PROTECTIVE_LAYER_SHARD_COUNT) * i}deg` } as React.CSSProperties}
+              />
+            ))}
+        </div>
+      )}
+      {stoneSkinFx && (
+        <div
+          className={`protective-layer-fx protective-layer-fx--stone protective-layer-fx--${stoneSkinFx}`}
+          style={{
+            '--protective-layer-color': RENDER.COLORS.STONE_SKIN,
+            '--protective-layer-glow': RENDER.COLORS.STONE_SKIN,
+          } as React.CSSProperties}
+          aria-hidden="true"
+        >
+          {stoneSkinFx === 'break' &&
+            Array.from({ length: ANIMATION.PROTECTIVE_LAYER_SHARD_COUNT }, (_, i) => (
+              <span
+                key={i}
+                className="protective-layer-shard"
+                style={{ '--shard-angle': `${(360 / ANIMATION.PROTECTIVE_LAYER_SHARD_COUNT) * i}deg` } as React.CSSProperties}
               />
             ))}
         </div>

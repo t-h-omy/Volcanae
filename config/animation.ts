@@ -186,12 +186,12 @@ export const ANIMATION = {
   INVALID_ACTION_VFX_MS: 250,
   /** Duration of the pierce connection line (ms) */
   PIERCE_LINE_MS: 320,
-  /** Duration of the Arcane Shield absorb, break and recharge effects (ms); also the cleanup timer. */
-  ARCANE_SHIELD_FX_DURATION_MS: 700,
+  /** Duration of protective-layer absorb, break and recharge effects (ms); also the cleanup timer. */
+  PROTECTIVE_LAYER_FX_DURATION_MS: 700,
   /** Per-index delay when several Mages recharge their Arcane Shield in the same tick (ms) */
   ARCANE_SHIELD_WAVE_STAGGER_MS: 120,
-  /** Number of shards in the Arcane Shield break burst */
-  ARCANE_SHIELD_SHARD_COUNT: 6,
+  /** Number of shards in a protective-layer break burst */
+  PROTECTIVE_LAYER_SHARD_COUNT: 6,
   /** Duration of the tech tree overlay entrance (ms). */
   TECH_TREE_ENTER_MS: 240,
   /** Duration of the tech tree overlay exit (ms). */

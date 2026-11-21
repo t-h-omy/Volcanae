@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.123.3 - Protective layer presentation
+
+Protective layers now share absorb, recharge and break feedback, with Stone Skin appearing in stone color and Arcane Shield retaining its dome and recharge behavior. Unit background effects now resolve through a single priority channel.
+
 ### v0.123.2 - Test fixture stabilization
 
 Tests now derive expectations from spawn and unit configuration and use fixed inputs for AI trace goldens, preventing tuned values from causing stale failures.

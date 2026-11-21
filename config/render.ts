@@ -6,6 +6,8 @@
 
 import type { MagicPath } from '../src/types';
 
+export const UNIT_BACKGROUND_EFFECT_PRIORITY = ['MAGE_AURA'] as const;
+
 export const MAGIC_PATH_COLORS: Record<MagicPath, { primary: string; glow: string; deep: string }> = {
   CRYSTAL: { primary: '#7FC1FF', glow: '#8DF8FF', deep: '#2F6FCC' },
   NECRO: { primary: '#B46CFF', glow: '#D9B3FF', deep: '#1A1024' },

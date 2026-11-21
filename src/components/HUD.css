@@ -2566,30 +2566,6 @@
   100% { opacity: 0; }
 }
 
-/* ── Tech Toast ── */
-
-@keyframes tech-toast-in {
-  from { transform: translateY(20px); opacity: 0; }
-  to   { transform: translateY(0); opacity: 1; }
-}
-
-.tech-toast {
-  position: fixed;
-  bottom: 80px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 500;
-  padding: 10px 20px;
-  border-radius: 8px;
-  background: rgba(52, 152, 219, 0.3);
-  border: 1px solid rgba(52, 152, 219, 0.5);
-  color: #3498db;
-  font-size: 14px;
-  font-weight: 600;
-  pointer-events: none;
-  animation: tech-toast-in 0.3s ease;
-}
-
 /* ── Info Popup system ── */
 
 @keyframes infoPopIn {
