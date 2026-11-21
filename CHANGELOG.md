@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.129.0 - Blood Rush
+
+Ember Cultists can sacrifice an allied unit with unused actions to restore those actions to every allied neighbor. Blood Rush can also restore Mage casts and enables a Mage that has moved to cast again during the current turn.
+
 ### v0.128.0 - Blood Frenzy
 
 Ember Cultists can trade half of an allied unit's maximum HP for permanent Berserk. Active Berserk now displays a crimson map pulse and the Berserk icon on every eligible player unit.

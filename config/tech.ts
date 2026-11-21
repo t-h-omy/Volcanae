@@ -660,6 +660,14 @@ export const TECH_TREE: TechNodeDefinition[] = [
     ],
   },
   {
+    id: 'BLOOD_RUSH',
+    requires: ['EXPLODE'],
+    cost: 7,
+    effects: [
+      { type: 'UNLOCK_SPELL', spellId: SpellId.BLOOD_RUSH },
+    ],
+  },
+  {
     id: 'SPELL_REACH',
     requires: ['ARCANE_STUDIES'],
     cost: 4,

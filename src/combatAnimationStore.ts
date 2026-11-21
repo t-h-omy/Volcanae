@@ -138,6 +138,7 @@ export type LineVfxVariant =
   | 'SPELL_CAST'
   | 'PIERCE_LINE'
   | 'CRYSTAL_LIGHTNING'
+  | 'BLOOD_RUSH'
   | 'RESONANCE_WAVE';
 
 export interface LineVfx {

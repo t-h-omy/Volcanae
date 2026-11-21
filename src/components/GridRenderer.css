@@ -1097,6 +1097,7 @@
 .shockwave-layer {
   position: absolute;
   inset: 0;
+  --shockwave-reduced-motion-duration: 1ms;
   pointer-events: none;
   z-index: 12;
 }
@@ -1139,6 +1140,16 @@
   box-shadow: 0 0 0 2px rgba(80, 180, 255, 0.55);
 }
 
+.shockwave-ring--ember {
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--path-ember-primary) 95%, transparent),
+    0 0 12px 4px color-mix(in srgb, var(--path-ember-glow) 68%, transparent);
+}
+
+.shockwave-ring--ember::after {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--path-ember-primary) 60%, transparent);
+}
+
 .shockwave-ring--crystal-cave {
   border-radius: 34%;
   box-shadow:
@@ -1165,6 +1176,15 @@
     transparent               80%
   );
   animation: tileClearFlash var(--tile-clear-flash-duration, 500ms) ease-out forwards;
+}
+
+.tile-clear-flash-overlay--ember {
+  background: radial-gradient(
+    ellipse at center,
+    color-mix(in srgb, var(--path-ember-glow) 88%, transparent) 0%,
+    color-mix(in srgb, var(--path-ember-primary) 70%, transparent) 45%,
+    transparent 80%
+  );
 }
 
 /* Crystal Chamber destroyed by lava — light-blue variant */
@@ -1705,7 +1725,8 @@
 
 /* ── SPELL_CAST — clean blue line with gold dash highlight ─────────────── */
 
-.line-vfx--spell-cast {
+.line-vfx--spell-cast,
+.line-vfx--blood-rush {
   fill: none;
   stroke: var(--vfx-tone-primary, #2F6FCC);
   stroke-width: 7;
@@ -1737,7 +1758,10 @@
   .tile--spell-target { animation: spellTargetReducedMotion var(--spell-target-duration, 1.1s) ease-in-out infinite; }
   .tile-vfx--spell-impact,
   .tile-vfx--spell-caster-pulse { animation-name: spellVfxReducedMotion; }
-  .line-vfx--spell-cast { animation-name: spellCastReducedMotion; }
+  .line-vfx--spell-cast,
+  .line-vfx--blood-rush { animation-name: spellCastReducedMotion; }
+  .shockwave-ring--ember,
+  .shockwave-ring--ember::after { animation-duration: var(--shockwave-reduced-motion-duration); }
 
   @keyframes spellTargetReducedMotion {
     0%, 100% { opacity: 0.72; }

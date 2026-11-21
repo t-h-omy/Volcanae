@@ -7,6 +7,12 @@
 export const ANIMATION = {
   /** Ambient Berserk pulse cycle. */
   BERSERK_PULSE_CYCLE_MS: 2800,
+  /** Blood Rush transfer line duration. */
+  BLOOD_RUSH_LINE_MS: 420,
+  /** Delay between Blood Rush transfers to neighboring units. */
+  BLOOD_RUSH_LINE_STAGGER_MS: 110,
+  /** Blood Rush arrival flash duration. */
+  BLOOD_RUSH_RECIPIENT_FLASH_MS: 500,
   /** Ambient Deathless pulse cycle. */
   DEATHLESS_PULSE_CYCLE_MS: 2800,
   /** Final-turn Deathless pulse cycle, always at least two seconds. */

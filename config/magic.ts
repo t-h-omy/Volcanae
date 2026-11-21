@@ -109,6 +109,12 @@ export interface SpellDefinition {
 }
 
 export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
+  [SpellId.BLOOD_RUSH]: {
+    id: SpellId.BLOOD_RUSH,
+    emoji: '🫀',
+    casters: [UnitType.EMBER_CULTIST],
+    textParams: {},
+  },
   [SpellId.BLOOD_FRENZY]: {
     id: SpellId.BLOOD_FRENZY,
     emoji: '💢',

@@ -52,6 +52,7 @@ describe('separate technology trees', () => {
       CORRUPTED_QORK: 'EMBERBIND',
       EXPLODE: 'EMBER_CULTIST',
       LAVA_MOLD: 'EXPLODE',
+      BLOOD_RUSH: 'EXPLODE',
       SPELL_REACH: 'ARCANE_STUDIES',
     };
     for (const [id, parent] of Object.entries(parents)) expect(byId(id).requires).toEqual([parent]);

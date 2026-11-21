@@ -54,7 +54,7 @@ import { useMenuStore } from './menuStore';
 import { canKhyronResonate } from './khyronSystem';
 import { getUnitTargetLevel, applyLevelUps, emitLevelUpEffects, canGrantXp } from './levelSystem';
 import { unlockTech as unlockTechLogic, getAvailableTechs as getAvailableTechsLogic, getGrantedTags, getRemovedTags, getStatMods, applyTagStatEffects, revokeTagStatEffects } from './techSystem';
-import { canUnitHeal, getHealTargets, canUnitFieldwork, isHealSuppressedByCorruption, canUnitConsumeGravestone } from './unitActions';
+import { canUnitHeal, getHealTargets, canUnitFieldwork, isHealSuppressedByCorruption, canUnitConsumeGravestone, getRemainingActions } from './unitActions';
 import { createFieldworkOutpost } from './constructionSystem';
 import { getTagsFromActiveSpecialists, isSpecialistEffectActive, getTagsFromActiveSpecialistsForSourceTag } from './specialistSystem';
 import { canUnitCastSpell, castSpell as castSpellLogic } from './spellSystem';
@@ -2012,6 +2012,8 @@ export const useGameStore = create<GameStore>()(
       let magePosition: Position | null = null;
       let magePath: ReturnType<typeof getMagePath> = null;
       let crystallineVfxPositions: Position[] = [];
+      const bloodRushRecipientPositions: Position[] = [];
+      let bloodRushRestoredCast = false;
       const killedCaveMonsterIds: string[] = [];
       const portalEvents: GameEvent[] = [];
       let crystalLightningEvents: GameEvent[] | null = null;
@@ -2072,7 +2074,19 @@ export const useGameStore = create<GameStore>()(
         );
         const portalIdsBefore = new Set(Object.keys(state.portals));
         const buildingIdsBefore = spellId === 'EXPLODE' ? new Set(Object.keys(state.buildings)) : null;
-        const ok = castSpellLogic(state, mageId, spellId, targetPosition, portalEvents);
+        if (spellId === 'BLOOD_RUSH') {
+          const targetId = state.grid[targetPosition.y]?.[targetPosition.x]?.unitId;
+          const sacrifice = targetId ? state.units[targetId] : undefined;
+          bloodRushRestoredCast = !!sacrifice && getRemainingActions(state, sacrifice).cast;
+        }
+        const ok = castSpellLogic(
+          state,
+          mageId,
+          spellId,
+          targetPosition,
+          portalEvents,
+          bloodRushRecipientPositions,
+        );
         if (!ok) return;
         if (spellId === 'CRYSTALLIZE') {
           crystallineVfxPositions = CRYSTALLINE_OFFSETS.flatMap(([dx, dy]) => {
@@ -2130,6 +2144,15 @@ export const useGameStore = create<GameStore>()(
           // Do NOT set hasMovedThisTurn or hasAttackedThisTurn here — that
           // would over-constrain the rules and break the symmetry.
           mageAfter.spellsCastThisTurn = (mageAfter.spellsCastThisTurn ?? 0) + 1;
+          if (
+            castSpellId === 'BLOOD_RUSH'
+            && bloodRushRestoredCast
+            && bloodRushRecipientPositions.some(
+              (position) => position.x === mageAfter.position.x && position.y === mageAfter.position.y,
+            )
+          ) {
+            mageAfter.spellsCastThisTurn = 0;
+          }
         }
         state.pendingSpellCast = null;
         state.pendingTransposeFirstUnitId = null;
@@ -2189,6 +2212,53 @@ export const useGameStore = create<GameStore>()(
             durationMs: ANIMATION.EXPLOSION_SHOCKWAVE_MS,
             finalScale: explosionFinalScale,
           });
+        }
+        if (castSpellId === 'BLOOD_RUSH') {
+          const tileSize = typeof window !== 'undefined' && window.innerWidth <= RENDER.MOBILE_BREAKPOINT
+            ? RENDER.TILE_SIZE_MOBILE
+            : RENDER.TILE_SIZE_DESKTOP;
+          const explosionFinalScale = Math.round((1.5 * tileSize) / 3);
+          useShockwaveStore.getState().addShockwave({
+            id: crypto.randomUUID(),
+            cx: targetPosition.x * tileSize + tileSize / 2,
+            cy: targetPosition.y * tileSize + tileSize / 2,
+            durationMs: ANIMATION.EXPLOSION_SHOCKWAVE_MS,
+            finalScale: explosionFinalScale,
+            variant: 'ember',
+          });
+          const fromPx = {
+            x: targetPosition.x * tileSize + tileSize / 2,
+            y: targetPosition.y * tileSize + tileSize / 2,
+          };
+          const animationStore = useCombatAnimationStore.getState();
+          for (const [index, position] of bloodRushRecipientPositions.entries()) {
+            const delayMs = index * ANIMATION.BLOOD_RUSH_LINE_STAGGER_MS;
+            animationStore.addLineVfx({
+              id: crypto.randomUUID(),
+              fromPx,
+              toPx: {
+                x: position.x * tileSize + tileSize / 2,
+                y: position.y * tileSize + tileSize / 2,
+              },
+              variant: 'BLOOD_RUSH',
+              durationMs: ANIMATION.BLOOD_RUSH_LINE_MS,
+              delayMs,
+              ...(magePath ? { tone: magePath } : {}),
+            });
+            setTimeout(() => {
+              const tileKey = `${position.x},${position.y}`;
+              animationStore.addTileFlash(
+                position.x,
+                position.y,
+                ANIMATION.BLOOD_RUSH_RECIPIENT_FLASH_MS,
+                'ember',
+              );
+              setTimeout(
+                () => animationStore.removeTileFlash(tileKey),
+                ANIMATION.BLOOD_RUSH_RECIPIENT_FLASH_MS,
+              );
+            }, ANIMATION.BLOOD_RUSH_LINE_MS + delayMs);
+          }
         }
         // SPELL_CAST line from mage to target tile + SPELL_IMPACT ring on target.
         // Mirrors the EXPLODE shockwave pattern above: tile-size lookup, then dispatch.

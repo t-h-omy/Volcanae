@@ -208,6 +208,7 @@ export const SpellId = {
   TRANSPOSE:      'TRANSPOSE',
   EMBERBIND:      'EMBERBIND',
   BRANDMARK_HEAL: 'BRANDMARK_HEAL',
+  BLOOD_RUSH: 'BLOOD_RUSH',
   BLOOD_FRENZY: 'BLOOD_FRENZY',
   RAISE_SKELETON: 'RAISE_SKELETON',
   FROSTCRAFT:     'FROSTCRAFT',
@@ -552,6 +553,8 @@ export interface Unit {
   infestedDeathEffectResolved?: boolean;
   /** Set on Mage units; number of spells cast this turn. Reset each turn. */
   spellsCastThisTurn?: number;
+  /** Current-turn cast exception granted when Blood Rush restores casting after movement. */
+  bloodRushCastReadyTurn?: number;
   /**
    * The turn number on which this unit was recruited/spawned.
    * 0 means it was not recruited this turn (or predates the field).

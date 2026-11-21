@@ -49,6 +49,7 @@ const OWNED_SPELLS: Record<(typeof MAGE_TYPES)[number], SpellId[]> = {
     SpellId.CORRUPTED_QORK,
     SpellId.EXPLODE,
     SpellId.LAVA_MOLD,
+    SpellId.BLOOD_RUSH,
   ],
 };
 

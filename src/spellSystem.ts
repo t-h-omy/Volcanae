@@ -42,6 +42,13 @@ import { clearInfestedOnCreditedKill, resolveInfestedDeath } from './infestedSys
 import type { GameEvent } from './gameEvents';
 import { castMagePortalPair, cleanupPortals, isPortalEndpoint, resolvePortalEntry } from './portalSystem';
 import { cannotBeHealed, isMageUnit, isMech } from './unitTraits';
+import { getRemainingActions } from './unitActions';
+
+const BLOOD_RUSH_ADJACENT_OFFSETS: readonly [number, number][] = [
+  [-1, -1], [0, -1], [1, -1],
+  [-1, 0], [1, 0],
+  [-1, 1], [0, 1], [1, 1],
+];
 
 /** Returns the effective spell range for a mage (its attack range). */
 export function getMageSpellRange(
@@ -104,11 +111,12 @@ export function getMageCastBudget(
  *   - spent spell budget / hasAttackedThisTurn / hasCapturedThisTurn /
  *     hasConstructedThisTurn / hasDestroyedThisTurn: unit is spent on
  *     non-move actions
- *   - hasMovedThisTurn AND PREP tag: cannot cast after moving
+ *   - hasMovedThisTurn AND PREP tag: cannot cast after moving, except for a
+ *     cast action restored by Blood Rush during the current turn
  *
  * Note the deliberate asymmetry with the move flag: a unit that has only
- * MOVED (no other action) can still cast UNLESS it carries PREP. This is
- * exactly the same shape as canUnitAttack's PREP rule.
+ * MOVED (no other action) can still cast UNLESS it carries PREP or Blood Rush
+ * restored its cast action during the current turn.
  *
  * Note that canUnitCast does NOT, on its own, prevent moving after casting.
  * That symmetry is enforced inside canUnitMove and canUnitAttack, which
@@ -130,7 +138,11 @@ export function canUnitCast(
   // Mages carry PREP by default in each mage unit definition, so for a
   // standard Mage the move-then-cast path is closed. A non-PREP Mage
   // (e.g. via a future tech) would be allowed to move and then cast.
-  if (unit.hasMovedThisTurn && unit.tags.includes(UnitTag.PREP)) return false;
+  if (
+    unit.hasMovedThisTurn
+    && unit.tags.includes(UnitTag.PREP)
+    && unit.bloodRushCastReadyTurn !== state.turn
+  ) return false;
   return true;
 }
 
@@ -171,6 +183,10 @@ const SPELL_TARGET_REASONS: Record<string, TextRef> = {
   BRANDMARK_SELF: { key: 'reason.spell.brandmarkSelf' },
   BLOOD_FRENZY_MAGE: { key: 'reason.spell.bloodFrenzyMage' },
   BLOOD_FRENZY_ALREADY_BERSERK: { key: 'reason.spell.bloodFrenzyAlreadyBerserk' },
+  BLOOD_RUSH_SELF: { key: 'reason.spell.bloodRushSelf' },
+  BLOOD_RUSH_SUMMONED: { key: 'reason.spell.bloodRushSummoned' },
+  BLOOD_RUSH_MECH: { key: 'reason.spell.bloodRushMech' },
+  BLOOD_RUSH_NO_ACTION: { key: 'reason.spell.bloodRushNoAction' },
   EXPLODE_MAGE: { key: 'reason.spell.explodeMage' },
   FROSTCRAFT_TERRAIN: { key: 'reason.spell.frostcraftTerrain' },
   OCCUPIED: { key: 'reason.spell.occupied' },
@@ -554,6 +570,18 @@ export function getValidSpellTargets(
       return targets;
     }
 
+    case 'BLOOD_RUSH': {
+      const targets: Position[] = [];
+      for (const unit of Object.values(state.units)) {
+        if (unit.faction !== Faction.PLAYER) continue;
+        if (unit.id === mageId || cannotBeHealed(unit)) continue;
+        if (!isTileInSpellRange(mage, unit.position, range)) continue;
+        if (!Object.values(getRemainingActions(state, unit)).some(Boolean)) continue;
+        targets.push({ ...unit.position });
+      }
+      return targets;
+    }
+
     case 'RUPTURE': {
       const targets: Position[] = [];
       for (const unit of Object.values(state.units)) {
@@ -735,6 +763,20 @@ export function explainInvalidSpellTarget(
       if (!isTileInSpellRange(mage, tappedUnit.position, range)) return null;
       if (isMageUnit(tappedUnit)) {
         return SPELL_TARGET_REASONS.EXPLODE_MAGE;
+      }
+      return null;
+    }
+
+    case 'BLOOD_RUSH': {
+      if (!tile.unitId) return null;
+      const tappedUnit = state.units[tile.unitId];
+      if (!tappedUnit || tappedUnit.faction !== Faction.PLAYER) return null;
+      if (!isTileInSpellRange(mage, tappedUnit.position, range)) return null;
+      if (tappedUnit.id === mageId) return SPELL_TARGET_REASONS.BLOOD_RUSH_SELF;
+      if (tappedUnit.tags.includes(UnitTag.SUMMONED)) return SPELL_TARGET_REASONS.BLOOD_RUSH_SUMMONED;
+      if (isMech(tappedUnit)) return SPELL_TARGET_REASONS.BLOOD_RUSH_MECH;
+      if (!Object.values(getRemainingActions(state, tappedUnit)).some(Boolean)) {
+        return SPELL_TARGET_REASONS.BLOOD_RUSH_NO_ACTION;
       }
       return null;
     }
@@ -1618,6 +1660,53 @@ function handleExplode(
   return true;
 }
 
+function handleBloodRush(
+  state: Draft<GameState>,
+  mageId: string,
+  targetPosition: Position,
+  outRecipients?: Position[],
+): boolean {
+  const tile = state.grid[targetPosition.y]?.[targetPosition.x];
+  if (!tile?.unitId) return false;
+  const target = state.units[tile.unitId];
+  if (!target || target.faction !== Faction.PLAYER || target.id === mageId) return false;
+  if (cannotBeHealed(target)) return false;
+  const remaining = getRemainingActions(state, target);
+  if (!Object.values(remaining).some(Boolean)) return false;
+
+  const recipients: Unit[] = [];
+  for (const [dx, dy] of BLOOD_RUSH_ADJACENT_OFFSETS) {
+    const x = targetPosition.x + dx;
+    const y = targetPosition.y + dy;
+    if (x < 0 || y < 0 || x >= MAP.GRID_WIDTH || y >= MAP.GRID_HEIGHT) continue;
+    const recipientTile = state.grid[y][x];
+    if (!recipientTile.unitId) continue;
+    const recipient = state.units[recipientTile.unitId];
+    if (!recipient || recipient.faction !== Faction.PLAYER) continue;
+    recipients.push(recipient);
+    if (recipientTile.isRevealed) outRecipients?.push({ x, y });
+  }
+
+  for (const recipient of recipients) {
+    if (remaining.move) recipient.hasMovedThisTurn = false;
+    if (remaining.attack) recipient.hasAttackedThisTurn = false;
+    if (remaining.capture) recipient.hasCapturedThisTurn = false;
+    if (remaining.construct) recipient.hasConstructedThisTurn = false;
+    if (remaining.cast) {
+      recipient.spellsCastThisTurn = 0;
+      if (recipient.hasMovedThisTurn && recipient.tags.includes(UnitTag.PREP)) {
+        recipient.bloodRushCastReadyTurn = state.turn;
+      }
+    }
+  }
+
+  tile.unitId = null;
+  delete state.units[target.id];
+  state.gameStats.unitsLost += 1;
+  tryLeaveGravestone(state, target, targetPosition);
+  return true;
+}
+
 /** Deals a percentage of the target's current HP as damage (Rupture). Cannot kill. */
 function handleRupture(
   state: Draft<GameState>,
@@ -1794,6 +1883,7 @@ export function castSpell(
   spellId: SpellId,
   targetPosition: Position,
   outEvents?: GameEvent[],
+  outBloodRushRecipients?: Position[],
 ): boolean {
   const mage = state.units[mageId];
   if (!mage) return false;
@@ -1919,6 +2009,8 @@ export function castSpell(
       success = handleCrystallize(state, targetPosition); break;
     case 'EXPLODE':
       success = handleExplode(state, mage, targetPosition); break;
+    case 'BLOOD_RUSH':
+      success = handleBloodRush(state, mage.id, targetPosition, outBloodRushRecipients); break;
     case 'RUPTURE':
       success = handleRupture(state, targetPosition); break;
     default:

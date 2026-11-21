@@ -34,6 +34,7 @@
 
 import type { GameState } from './types';
 import type { Draft } from 'immer';
+import type { Draft } from 'immer';
 import { Faction, GamePhase, UnitTag, BuildingType, UnitType, TileType, TileStatus } from './types';
 import type { Unit, Building, Tile, TechId } from './types';
 import { getReachableTiles } from './movementSystem';
@@ -85,6 +86,20 @@ export function hasUnitActed(
     unit.hasConsumedGravestoneThisTurn ||
     hasSpentMageCastBudget(unit, state)
   );
+}
+
+export function getRemainingActions(
+  state: GameState | Draft<GameState>,
+  unit: Unit,
+): { move: boolean; attack: boolean; capture: boolean; construct: boolean; cast: boolean } {
+  const castBudget = getMageCastBudget(state);
+  return {
+    move: !unit.hasMovedThisTurn,
+    attack: !unit.hasAttackedThisTurn && canUnitAttack(unit, state),
+    capture: hasBuildAndCapture(unit) && !unit.hasCapturedThisTurn,
+    construct: hasBuildAndCapture(unit) && !unit.hasConstructedThisTurn,
+    cast: isMageUnit(unit) && (unit.spellsCastThisTurn ?? 0) < castBudget,
+  };
 }
 
 export function isUnitDisplayExhausted(unit: Unit, state: GameState): boolean {
