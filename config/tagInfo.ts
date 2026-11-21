@@ -50,6 +50,7 @@ export const TAG_INFO: Record<UnitTag, { icon?: string; textParams?: { [name: st
   [UnitTag.LEASHED]: {},
   [UnitTag.NO_GRAVESTONE]: {},
   [UnitTag.LEAVES_GRAVESTONE]: {},
+  [UnitTag.GRAVE_MARKED]: { icon: '🪦' },
   [UnitTag.LAVA]: {},
   [UnitTag.CLEAVE]: { textParams: { damagePercent: ABILITIES.CLEAVE_DAMAGE_MULTIPLIER * 100 } },
   [UnitTag.PIERCE]: { textParams: { primaryDamagePercent: ABILITIES.PIERCE_PRIMARY_DAMAGE_MULTIPLIER * 100, secondaryDamagePercent: ABILITIES.PIERCE_SECONDARY_DAMAGE_MULTIPLIER * 100 } },

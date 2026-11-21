@@ -7,7 +7,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { current, produce, type Draft } from 'immer';
 import { generateInitialGameState, generateId } from './mapGenerator';
-import { resolveAttack, resolveBuildingAttack, resolveAttackOnBuilding, resolveBuildingAttackOnBuilding, handleBrandmarkedUnitDeath, shouldLeaveGravestone, createGravestoneAt, findEmberDemonSpawnPos, spawnEnemyEmberDemon, detectBrandmarkSpawnPos, updateBerserkLatch } from './combatSystem';
+import { resolveAttack, resolveBuildingAttack, resolveAttackOnBuilding, resolveBuildingAttackOnBuilding, handleBrandmarkedUnitDeath, tryLeaveGravestone, findEmberDemonSpawnPos, spawnEnemyEmberDemon, detectBrandmarkSpawnPos, updateBerserkLatch } from './combatSystem';
 import { moveUnit as moveUnitLogic } from './movementSystem';
 import {
   initiateCapture as initiateCaptureLogic,
@@ -2549,9 +2549,7 @@ export const useGameStore = create<GameStore>()(
                   faction: unit.faction,
                 });
                 resolveInfestedDeath(draft, unit, tagDamageEvents);
-                if (shouldLeaveGravestone({ faction: Faction.PLAYER, tags: unitTags }, { defaultOn: false })) {
-                  createGravestoneAt(draft, deathPos, unitType);
-                }
+                tryLeaveGravestone(draft, { faction: unit.faction, tags: unitTags, type: unitType }, deathPos);
               }
             }
           }
@@ -3094,11 +3092,12 @@ export const useGameStore = create<GameStore>()(
               if (shouldSpawnBrandmarkReplacement) {
                 spawnEnemyEmberDemon(state, event.brandmarkSpawnPosition!);
               }
-              if (!unitTags.includes(UnitTag.BRANDMARKED) && shouldLeaveGravestone(
-                { faction: unitFaction, tags: unitTags },
-                { defaultOn: false },
-              )) {
-                const graveId = createGravestoneAt(state, deathPos, unitType);
+              if (!unitTags.includes(UnitTag.BRANDMARKED)) {
+                const graveId = tryLeaveGravestone(
+                  state,
+                  { faction: unitFaction, tags: unitTags, type: unitType },
+                  deathPos,
+                );
                 if (!options.silent && tile.isRevealed) createdGravestoneId = graveId;
               }
               // Re-sync overcapacity tags when a player unit dies (pool sizes change).

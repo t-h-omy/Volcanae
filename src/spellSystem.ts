@@ -22,8 +22,7 @@ import { useFloaterStore } from './floaterStore';
 import { useCombatAnimationStore } from './combatAnimationStore';
 import { isStatusAllowedOnTerrain, applyTileStatus, clearTileStatus } from './tileStatusSystem';
 import {
-  shouldLeaveGravestone,
-  createGravestoneAt,
+  tryLeaveGravestone,
   updateBerserkLatch,
   calculateCrystalLightningDamage,
 } from './combatSystem';
@@ -155,6 +154,7 @@ const SPELL_TARGET_REASONS: Record<string, TextRef> = {
   BRANDMARK_ALREADY_BRANDMARKED: { key: 'reason.spell.brandmarkAlreadyBrandmarked' },
   TAUNT_ALREADY_TAUNTED: { key: 'reason.spell.tauntAlreadyTaunted' },
   INFESTED_ALREADY: { key: 'reason.spell.infestedAlready' },
+  GRAVE_MARK_ALREADY_MARKED: { key: 'reason.spell.graveMarkAlreadyMarked' },
   STONE_SKIN_ALREADY_ACTIVE: { key: 'reason.spell.stoneSkinAlreadyActive' },
   STONE_SKIN_MECH: { key: 'reason.spell.stoneSkinMech' },
   BRANDMARK_SUMMONED: { key: 'reason.spell.brandmarkSummoned' },
@@ -259,6 +259,15 @@ export function getTransposeTerrainBlockedTargets(
   if (!result) return [];
   return result.candidates
     .filter((unit) => !isTransposeTerrainLegal(state, result.first, unit))
+    .map((unit) => ({ ...unit.position }));
+}
+
+case 'GRAVE_MARK': {
+  return Object.values(state.units)
+    .filter((unit) =>
+      unit.faction === Faction.ENEMY
+      && !unit.tags.includes(UnitTag.GRAVE_MARKED)
+      && isTileInSpellRange(mage, unit.position, range))
     .map((unit) => ({ ...unit.position }));
 }
 
@@ -535,6 +544,16 @@ export function explainInvalidSpellTarget(
         return SPELL_TARGET_REASONS.TRANSPOSE_TERRAIN;
       }
       return null;
+    }
+
+    case 'GRAVE_MARK': {
+      if (!tile.unitId) return null;
+      const target = state.units[tile.unitId];
+      if (!target || target.faction !== Faction.ENEMY) return null;
+      if (!isTileInSpellRange(mage, target.position, range)) return null;
+      return target.tags.includes(UnitTag.GRAVE_MARKED)
+        ? SPELL_TARGET_REASONS.GRAVE_MARK_ALREADY_MARKED
+        : null;
     }
 
     case 'STONE_SKIN': {
@@ -1415,6 +1434,7 @@ function handleExplode(
     if (damageOutcome.died) {
       adjTile.unitId = null;
       delete state.units[adjUnit.id];
+      tryLeaveGravestone(state, adjUnit, { x: nx, y: ny });
       state.gameStats.unitsKilled += 1;
       clearInfestedOnCreditedKill(state, mage.id);
       resolveInfestedDeath(state, adjUnit);
@@ -1422,21 +1442,12 @@ function handleExplode(
   }
 
   // Handle sacrificed unit's death
-  const targetFaction = target.faction;
-  const targetType = target.type;
-  const targetTags = [...target.tags];
   tile.unitId = null;
   delete state.units[targetUnitId];
   state.gameStats.unitsLost += 1;
   resolveInfestedDeath(state, target);
 
-  // If the sacrificed unit qualifies, leave a Gravestone on their tile.
-  if (shouldLeaveGravestone(
-    { faction: targetFaction, tags: targetTags },
-    { defaultOn: false },
-  )) {
-    createGravestoneAt(state, targetPosition, targetType);
-  }
+  tryLeaveGravestone(state, target, targetPosition);
 
   // Tile flash (same duration as emberling explosion VFX)
   const flashKey = `${targetPosition.x},${targetPosition.y}`;
@@ -1537,6 +1548,7 @@ function handleCrystalLightning(
           const targetTile = state.grid[targetPositionSnapshot.y]?.[targetPositionSnapshot.x];
           if (targetTile?.unitId === target.id) targetTile.unitId = null;
           delete state.units[target.id];
+          tryLeaveGravestone(state, target, targetPositionSnapshot);
           state.gameStats.unitsKilled += 1;
           if (target.type === UnitType.EMBER_DEMON) {
             state.arcaneCrystals += MAGE.EMBER_DEMON_KILL_CRYSTAL_REWARD;
@@ -1677,6 +1689,14 @@ export function castSpell(
       const target = targetId ? state.units[targetId] : undefined;
       if (!target || target.faction !== Faction.PLAYER || target.tags.includes(UnitTag.TAUNT)) return false;
       target.tags.push(UnitTag.TAUNT);
+      success = true;
+      break;
+    }
+    case 'GRAVE_MARK': {
+      const targetId = state.grid[targetPosition.y]?.[targetPosition.x]?.unitId;
+      const target = targetId ? state.units[targetId] : undefined;
+      if (!target || target.faction !== Faction.ENEMY || target.tags.includes(UnitTag.GRAVE_MARKED)) return false;
+      target.tags.push(UnitTag.GRAVE_MARKED);
       success = true;
       break;
     }

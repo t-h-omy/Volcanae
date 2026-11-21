@@ -136,6 +136,11 @@ export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
     casters: [UnitType.EMBER_CULTIST],
     textParams: { damage: MAGE.INFESTED_HP_LOSS_PER_TURN },
   },
+  [SpellId.GRAVE_MARK]: {
+    id: SpellId.GRAVE_MARK,
+    emoji: '🪦',
+    casters: [UnitType.NECROMANCER],
+  },
   [SpellId.FROSTCRAFT]: {
     id: SpellId.FROSTCRAFT,
     emoji: '❄️',

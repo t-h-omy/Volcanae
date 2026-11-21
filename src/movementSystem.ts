@@ -13,7 +13,7 @@ import { t } from './i18n/i18n';
 import { cleanupRoostedUnits } from './buildingRemoval';
 import { getBridgeAt, canTraverseEdge } from './bridgeSystem';
 import type { GameEvent } from './gameEvents';
-import { updateBerserkLatch } from './combatSystem';
+import { tryLeaveGravestone, updateBerserkLatch } from './combatSystem';
 import { applyUnitDamage } from './unitDamage';
 import { resolveInfestedDeath } from './infestedSystem';
 import { cleanupPortals, getMagePortalAtPosition, isMagePortalExitAvailable, resolvePortalEntry } from './portalSystem';
@@ -391,6 +391,7 @@ export function checkScoutTrapTrigger(
     tile.unitId = null;
     state.gameStats.unitsKilled += 1;
     delete state.units[unitId];
+    tryLeaveGravestone(state, unit, trapPos);
     events?.push({ type: 'UNIT_DEATH', unitId, position: { ...trapPos }, faction: unit.faction });
     resolveInfestedDeath(state, unit, events);
     cleanupRoostedUnits(state, trapBuildingId);

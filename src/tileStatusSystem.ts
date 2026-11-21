@@ -19,7 +19,7 @@ import {
   CORRUPTED_SUPPRESSED_TAGS,
   CRYSTALLINE_SUPPRESSED_TAGS,
 } from './gameConfig';
-import { updateBerserkLatch } from './combatSystem';
+import { tryLeaveGravestone, updateBerserkLatch } from './combatSystem';
 import { applyUnitDamage } from './unitDamage';
 import { resolveInfestedDeath } from './infestedSystem';
 import { cleanupPortals } from './portalSystem';
@@ -242,6 +242,7 @@ export function processTileStatusEndOfTurn(
       state.gameStats.unitsLost += 1;
     }
     delete state.units[unitId];
+    tryLeaveGravestone(state, unit, position);
 
     if (events) {
       events.push({

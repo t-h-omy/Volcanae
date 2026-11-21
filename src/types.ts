@@ -222,6 +222,7 @@ export const SpellId = {
   CRYSTAL_LIGHTNING: 'CRYSTAL_LIGHTNING',
   SUMMON_GHOUL: 'SUMMON_GHOUL',
   LAVA_MOLD: 'LAVA_MOLD',
+  GRAVE_MARK: 'GRAVE_MARK',
   PORTAL: 'PORTAL',
   CORRUPTED_QORK: 'CORRUPTED_QORK',
   CRYSTALLIZE: 'CRYSTALLIZE',
@@ -354,6 +355,8 @@ export const UnitTag = {
   NO_GRAVESTONE: 'NO_GRAVESTONE',
   /** Unit leaves a Gravestone on death (granted by Necromancer tech tree). */
   LEAVES_GRAVESTONE: 'LEAVES_GRAVESTONE',
+  /** Marked by Grave Mark; leaves a player Gravestone when it dies. */
+  GRAVE_MARKED: 'GRAVE_MARKED',
   // ── Combat modifier tags ──────
   /** On hit, deals AoE damage to enemy units adjacent to both attacker and defender. Ignores Phalanx defense. */
   CLEAVE: 'CLEAVE',

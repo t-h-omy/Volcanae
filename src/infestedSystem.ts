@@ -7,7 +7,7 @@ import { applyUnitDamage, getUnitDamageOutcome } from './unitDamage';
 import { canGrantXp, grantXp } from './levelSystem';
 import { recordKhyronKill } from './khyronSystem';
 import { applyTileStatus, isStatusAllowedOnTerrain } from './tileStatusSystem';
-import { createGravestoneAt, shouldLeaveGravestone } from './combatSystem';
+import { tryLeaveGravestone } from './combatSystem';
 
 type InfestedDeathSnapshot = Pick<Unit, 'id' | 'faction' | 'type' | 'position' | 'tags' | 'stats' | 'infestedByMageId' | 'infestedDeathEffectResolved'>;
 interface DeathResolutionContext {
@@ -118,6 +118,7 @@ function resolveDeath(
         } else {
           tile.unitId = null;
           delete state.units[target.id];
+          tryLeaveGravestone(state, target, { x, y });
           creditBurstKill(state, snapshot, sourceMageId);
         }
         deathsFromBurst.push(snapshot);
@@ -204,10 +205,8 @@ function resolveQorkDeathBurst(
       } else {
         if (targetTile) targetTile.unitId = null;
         delete state.units[target.id];
+        tryLeaveGravestone(state, target, { x, y });
         if (target.faction === Faction.PLAYER) {
-          if (shouldLeaveGravestone(target, { defaultOn: false })) {
-            createGravestoneAt(state, { x, y }, target.type);
-          }
           state.gameStats.unitsLost += 1;
         } else if (deceased.faction === Faction.PLAYER) {
           state.gameStats.unitsKilled += 1;
@@ -335,6 +334,7 @@ export function processInfestedFactionTurn(
     const tile = state.grid[position.y]?.[position.x];
     if (tile?.unitId === unitId) tile.unitId = null;
     delete state.units[unitId];
+    tryLeaveGravestone(state, deceased, position);
     creditBurstKill(state, deceased, deceased.infestedByMageId ?? null);
     events.push({
       type: 'UNIT_DEATH',

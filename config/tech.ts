@@ -578,6 +578,14 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'UNLOCK_SPELL', spellId: SpellId.GRAVE_TRAP },
     ],
   },
+  {
+    id: 'GRAVE_MARK',
+    requires: ['RAISE_SKELETON'],
+    cost: 7,
+    effects: [
+      { type: 'UNLOCK_SPELL', spellId: SpellId.GRAVE_MARK },
+    ],
+  },
  // {
   //  id: 'GRAVE_HARVEST',
   //  requires: ['GRAVE_TRAP'],

@@ -4,7 +4,7 @@ import { CORRUPTED_QORK } from './gameConfig';
 import { Faction, TileStatus, UnitTag } from './types';
 import type { GameEvent } from './gameEvents';
 import { applyUnitDamage } from './unitDamage';
-import { createGravestoneAt, shouldLeaveGravestone } from './combatSystem';
+import { tryLeaveGravestone } from './combatSystem';
 import { resolveInfestedDeath } from './infestedSystem';
 
 function snapshotUnit(unit: Unit | Draft<Unit>): Unit {
@@ -61,10 +61,8 @@ export function processCorruptedQorkDrain(
     } else {
       if (tile?.unitId === unitId) tile.unitId = null;
       delete state.units[unitId];
+      tryLeaveGravestone(state, unit, position);
       if (unit.faction === Faction.PLAYER) {
-        if (shouldLeaveGravestone(unit, { defaultOn: false })) {
-          createGravestoneAt(state, position, unit.type);
-        }
         state.gameStats.unitsLost += 1;
       }
     }

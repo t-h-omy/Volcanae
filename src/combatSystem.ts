@@ -89,6 +89,7 @@ export function shouldLeaveGravestone(
   unit: Pick<Unit, 'faction' | 'tags'>,
   options: { defaultOn: boolean },
 ): boolean {
+  if (unit.tags.includes(UnitTag.GRAVE_MARKED)) return true;
   if (unit.faction !== Faction.PLAYER) return false;
   if (cannotBeHealed(unit)) return false;
   if (unit.tags.includes(UnitTag.NO_GRAVESTONE)) return false;
@@ -141,6 +142,20 @@ export function createGravestoneAt(
   };
   tile.buildingId = graveId;
   return graveId;
+}
+
+/** Creates the eligible player's Gravestone, or a marked enemy's player Gravestone. */
+export function tryLeaveGravestone(
+  state: Draft<GameState>,
+  deceased: Pick<Unit, 'faction' | 'tags' | 'type'>,
+  position: { x: number; y: number },
+): string | null {
+  if (!shouldLeaveGravestone(deceased, { defaultOn: false })) return null;
+  return createGravestoneAt(
+    state,
+    position,
+    deceased.faction === Faction.PLAYER ? deceased.type : null,
+  );
 }
 
 /**
@@ -965,12 +980,10 @@ function removeUnresolvedCombatDeaths(
     delete state.units[deceased.id];
     if (deceased.faction === Faction.PLAYER) {
       state.gameStats.unitsLost += 1;
-      if (shouldLeaveGravestone(deceased, { defaultOn: false })) {
-        createGravestoneAt(state, position, deceased.type);
-      }
     } else if (sourceFaction === Faction.PLAYER && !preexistingDeadIds.has(deceased.id)) {
       state.gameStats.unitsKilled += 1;
     }
+    tryLeaveGravestone(state, deceased, position);
     if (deceased.type === UnitType.CAVE_MONSTER) {
       state.activeCaveEncounters = state.activeCaveEncounters.filter(
         (encounter) => encounter.monsterId !== deceased.id,
@@ -1263,12 +1276,7 @@ function resolveAttackInner(
       else if (defenderFaction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
       // When a player unit with the right conditions dies from a counter-attack,
       // leave a Gravestone on their tile.
-      if (shouldLeaveGravestone(
-        { faction: attackerFaction, tags: attackerTags },
-        { defaultOn: false },
-      )) {
-        createGravestoneAt(state, attackerPos, attackerType);
-      }
+      tryLeaveGravestone(state, { faction: attackerFaction, tags: attackerTags, type: attackerType }, attackerPos);
     }
     creditedKillIds.add(defenderId);
     primaryDeathEffects.push(attacker);
@@ -1336,12 +1344,7 @@ function resolveAttackInner(
     // Summoned and NO_GRAVESTONE units never leave gravestones.
     // BRANDMARKED units are handled separately above (deferred via pendingBrandmarkTransforms).
     if (!defenderTags.includes(UnitTag.BRANDMARKED)) {
-      if (shouldLeaveGravestone(
-        { faction: defenderFaction, tags: defenderTags },
-        { defaultOn: false },
-      )) {
-        createGravestoneAt(state, defenderPosition, defenderType);
-      }
+      tryLeaveGravestone(state, { faction: defenderFaction, tags: defenderTags, type: defenderType }, defenderPosition);
       cleanupPortals(state);
     }
 
@@ -1560,6 +1563,7 @@ function resolveAttackInner(
           splashTile.unitId = null;
           recordKhyronKill(state, attackerId, splashTarget.faction, splashTarget.tags, splashTarget.stats.attackRange);
           delete state.units[splashTargetId];
+          tryLeaveGravestone(state, splashTarget, { x: nx, y: ny });
           grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
           state.gameStats.unitsKilled += 1;
           outEvents?.push({
@@ -1631,9 +1635,7 @@ function resolveAttackInner(
               delete state.units[cleaveTargetId];
               if (cleaveTarget.faction === Faction.PLAYER) state.gameStats.unitsLost += 1;
               else if (attacker.faction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
-              if (shouldLeaveGravestone(cleaveTarget, { defaultOn: false })) {
-                createGravestoneAt(state, { x: cx, y: cy }, cleaveTarget.type);
-              }
+              tryLeaveGravestone(state, cleaveTarget, { x: cx, y: cy });
               cleanupPortals(state);
             }
             creditedKillIds.add(attackerId);
@@ -1712,9 +1714,7 @@ function resolveAttackInner(
                   delete state.units[rearUnitId];
                   if (rearUnit.faction === Faction.PLAYER) state.gameStats.unitsLost += 1;
                   else if (attacker.faction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
-                  if (shouldLeaveGravestone(rearUnit, { defaultOn: false })) {
-                    createGravestoneAt(state, behindPos, rearUnit.type);
-                  }
+                  tryLeaveGravestone(state, rearUnit, behindPos);
                   cleanupPortals(state);
                 }
                 grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
@@ -2055,12 +2055,7 @@ export function resolveBuildingAttack(
     // When a player unit with the right conditions dies, leave a Gravestone on their tile.
     // BRANDMARKED units are handled separately above (deferred via pendingBrandmarkTransforms).
     if (!defenderTags.includes(UnitTag.BRANDMARKED)) {
-      if (shouldLeaveGravestone(
-        { faction: defenderFaction, tags: defenderTags },
-        { defaultOn: false },
-      )) {
-        createGravestoneAt(state, defenderPos, defenderType);
-      }
+      tryLeaveGravestone(state, { faction: defenderFaction, tags: defenderTags, type: defenderType }, defenderPos);
     }
   } else {
     updateBerserkLatch(defender);
@@ -2291,12 +2286,7 @@ function resolveAttackOnBuildingInner(
       // created when the unit carries an explicit tag (REVIVABLE from Deathmender, or
       // LEAVES_GRAVESTONE from the Necromancer tech tree) — ordinary units do not leave
       // gravestones just because they died.
-      if (shouldLeaveGravestone(
-        { faction: attackerFaction, tags: attackerTags },
-        { defaultOn: false },
-      )) {
-        createGravestoneAt(state, attackerPos, attackerType);
-      }
+      tryLeaveGravestone(state, { faction: attackerFaction, tags: attackerTags, type: attackerType }, attackerPos);
     }
     resolveInfestedDeath(state, attacker);
   } else {
@@ -2463,6 +2453,7 @@ function resolveAttackOnBuildingInner(
           splashTile.unitId = null;
           recordKhyronKill(state, attackerId, splashTarget.faction, splashTarget.tags, splashTarget.stats.attackRange);
           delete state.units[splashTargetId];
+          tryLeaveGravestone(state, splashTarget, { x: nx, y: ny });
           grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
           state.gameStats.unitsKilled += 1;
           outEvents?.push({
@@ -2523,6 +2514,7 @@ function resolveAttackOnBuildingInner(
             cleaveTile.unitId = null;
             recordKhyronKill(state, attackerId, cleaveTarget.faction, cleaveTarget.tags, cleaveTarget.stats.attackRange);
             delete state.units[cleaveTargetId];
+            tryLeaveGravestone(state, cleaveTarget, { x: cx, y: cy });
             if (cleaveTarget.faction === Faction.PLAYER) state.gameStats.unitsLost += 1;
             else if (attacker.faction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
             grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
@@ -2600,6 +2592,7 @@ function resolveAttackOnBuildingInner(
               } else {
                 behindTile.unitId = null;
                 delete state.units[rearUnitId];
+                tryLeaveGravestone(state, rearUnit, behindPos);
                 if (rearUnit.faction === Faction.PLAYER) state.gameStats.unitsLost += 1;
                 else if (attacker.faction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
               }

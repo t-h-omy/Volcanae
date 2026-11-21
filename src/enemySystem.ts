@@ -8,7 +8,7 @@ import type { Draft } from 'immer';
 import { current, produce } from 'immer';
 import { Faction, UnitType, UnitTag, BuildingType, TileType, TileStatus } from './types';
 import { UNIT_DEFINITIONS, MAP, TERRAIN, AI_SCORING, AI_RECRUITMENT, XP, DIFFICULTY_MULTIPLIER, SANCTUM_COLLAPSE, ABILITIES, SPAWN_BUDGET, AI_TRACE } from './gameConfig';
-import { resolveAttack, calculateCombat, resolveBuildingAttack, buildingToCombatant, calculateCombatFromStats, unitToCombatant, resolveAttackOnBuilding, detectBrandmarkSpawnPos, updateBerserkLatch } from './combatSystem';
+import { resolveAttack, calculateCombat, resolveBuildingAttack, buildingToCombatant, calculateCombatFromStats, unitToCombatant, resolveAttackOnBuilding, detectBrandmarkSpawnPos, updateBerserkLatch, tryLeaveGravestone } from './combatSystem';
 import { isTileWithinEdgeCircleRange, edgeCircleDistance } from './rangeUtils';
 import { initiateCapture, canCapture, isBuildingCapturable } from './captureSystem';
 import { corruptTerrain, processMagmaSpyrAttacks, processEmberNestSpawns } from './corruptionSystem';
@@ -1331,6 +1331,7 @@ function triggerPreventiveStrike(
         defenderTile.unitId = null;
       }
       delete state.units[defenderId];
+      tryLeaveGravestone(state, enemyUnit, defenderPos);
       state.gameStats.unitsKilled += 1;
       // Grant XP to the siege unit for the kill
       grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
@@ -1461,6 +1462,7 @@ function triggerGarrisonOverwatch(
         defTile.unitId = null;
       }
       delete state.units[defenderId];
+      tryLeaveGravestone(state, enemyUnit, defenderPos);
       state.gameStats.unitsKilled += 1;
       // If the killed unit was a cave monster, remove its encounter entry
       if (defenderType === UnitType.CAVE_MONSTER) {
@@ -1989,6 +1991,7 @@ export function resolveExplosion(
     unitTile.unitId = null;
   }
   delete state.units[unitId];
+  tryLeaveGravestone(state, unit, unitPos);
 
   // Emit death event for the exploding unit
   events.push({
@@ -3060,6 +3063,7 @@ function destroyUnit(state: Draft<GameState>, unitId: string, events?: GameEvent
     tile.unitId = null;
   }
   delete state.units[unitId];
+  tryLeaveGravestone(state, unit, unit.position);
   resolveInfestedDeath(state, unit, events);
 }
 
