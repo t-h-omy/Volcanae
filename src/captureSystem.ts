@@ -13,6 +13,7 @@ import { grantXp } from './levelSystem';
 import { grantArcaneCrystals } from './techSystem';
 import { cleanupRoostedUnits } from './buildingRemoval';
 import { resolveInfestedDeath } from './infestedSystem';
+import { hasBuildAndCapture } from './unitTraits';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -147,7 +148,7 @@ export function canCapture(
   }
 
   // Unit does not have BUILDANDCAPTURE tag
-  if (!unit.tags.includes(UnitTag.BUILDANDCAPTURE)) {
+  if (!hasBuildAndCapture(unit)) {
     return false;
   }
 

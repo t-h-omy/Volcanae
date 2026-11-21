@@ -73,6 +73,8 @@ Bridgebuilders can build across a canyon tile from or to an existing bridge when
 
 The tech overlay has separate **Secular** and **Arcane** trees. **Conscription** roots the Secular tree; **Arcane Awakening** roots the Arcane tree and provides the Crystal Chamber, which can be built from the start. The Arcane tree has four entry paths: **Crystal Mage**, **Necromancer**, and **Ember Cultist** each unlock their own Mage, Transpose, and Frostcraft; **Arcane Studies** opens research that improves every Mage. Arcane base research costs depend on depth below Arcane Awakening: 2 crystals at depth one, 4 at depth two, 7 at depth three, and 10 at depth four. Ember is added to these base costs.
 
+Corrupted tiles suppress selected abilities of player units, while Crystalline tiles suppress enemy combat tags. Crystallize creates a permanent cross of Crystalline tiles on Plains, Forest and Mountain terrain. Tile statuses replace one another.
+
 The tree tabs and close button sit in a dock at the bottom of the screen.
 
 ## Magic System
@@ -83,8 +85,8 @@ Mages can be recruited from an active **Crystal Chamber** building after researc
 
 | Mage | Common spells | Path spells |
 |------|---------------|-------------|
-| Crystal Mage | Transpose, Frostcraft, Rupture | Taunt, Stone Skin, Crystal Lightning, Crystal Cave, Portal, Crystal Tower |
-| Necromancer | Transpose, Frostcraft, Rupture | Raise Skeleton, Summon Ghoul, Grave Trap |
+| Crystal Mage | Transpose, Frostcraft, Rupture | Taunt, Stone Skin, Crystal Lightning, Crystal Cave, Crystallize, Portal, Crystal Tower |
+| Necromancer | Transpose, Frostcraft, Rupture | Raise Skeleton, Grave Mark, Death's Door, Embalm, Summon Ghoul, Grave Trap |
 | Ember Cultist | Transpose, Frostcraft, Rupture | Brandmark Heal, Emberbind, Corrupted Qork, Explode, Lava Mold |
 
 Spells are unlocked individually through the tech tree. The selected Mage's spell panel lists only spells it owns and has unlocked. Available spells include:
@@ -96,13 +98,19 @@ Spells are unlocked individually through the tech tree. The selected Mage's spel
 | 🐗 Corrupted Qork | Summon a ready ranged, leashed creature on an empty corrupted tile; it loses HP off corruption and explodes on death |
 | 🩸 Brandmark | Fully heal a friendly unit; the healed unit gains the BRANDMARKED tag, cannot be healed by Patch Up, and loses HP each turn, spawning a hostile Ember Demon on death |
 | 💀 Raise Skeleton | Animate a Gravestone as a Skeleton unit |
+| 🪦 Grave Mark | Mark an enemy unit to leave an empty player Gravestone when it dies on a valid tile |
+| ⏳ Death's Door | Protect an own unit from lethal damage until the end of the next player turn, then it dies and leaves a Gravestone |
+| ⚰️ Embalm | Turn an own unit on a player Gravestone into a permanent undead unit. It no longer needs population or can build, capture, heal or trade |
 | 🧟 Summon Ghoul | Summon a Ghoul from an empty player Gravestone |
 | 🦠 Lava Mold | Infect an enemy unit; Infested units take damage at faction-turn end and spread infection when they die |
 | ❄️ Frostcraft | Freeze a Plains, Forest, Mountain or Water tile. Units that end movement on Frozen slide one more tile; sliding into water, a canyon or lava is fatal. Frozen Water carries your units, enemies cannot enter it, and the ice lasts until lava or another tile status replaces it. |
+| 🔷 Crystallize | Create a permanent Crystalline tile and its four orthogonal neighbors on allowed terrain. Enemy units standing there lose their combat tags. |
 | ☠️ Grave Trap | Turn an empty Gravestone into a trap that stuns the next enemy to enter and nearby enemies in its area. |
 | 💥 Explode | Sacrifice a player unit to deal damage based on its current HP to each adjacent enemy. Units that leave a Gravestone on death still leave one. |
 | 💎 Crystal Tower | Sacrifice the Mage to erect a permanent Crystal Tower on its tile |
 | 🌀 Portal | Create a permanent bidirectional portal pair on the same row; units of any faction can enter either endpoint |
+
+New Gravestones appear with a brief wisp and dust effect. Loaded Gravestones do not replay the effect.
 | 🎯 Taunt | Mark a friendly unit so hostile units must attack it whenever it is a legal target in range |
 | 🪨 Stone Skin | Grant a friendly non-Mech unit a separate 50 HP pool that absorbs damage before normal HP and prevents voluntary movement while it remains |
 | ⚡ Crystal Lightning | Fire a 20-power lightning volley from a Crystal Chamber; resonating Chambers chain the spell to nearby active Chambers |
@@ -112,6 +120,8 @@ Resonance is a spatial wave from a Crystal Chamber consumed by lava, or from a u
 The **Crystal Khyron** tech (child of Crystal Mage) unlocks a population-free Mech recruitable from a resonating Crystal Chamber for 3 Arcane Crystals, sharing the Chamber's recruitment limit with Mages. During active **Resonance**, its first eligible enemy kill, destroyed enemy building, or neutralized enemy Watchtower banks one persistent level, and each later Resonance can bank one more up to level 3. Capturing buildings does not count. Earned levels survive resonance expiration, later turns, and saves. One **Level Up** confirmation applies every banked level, the standard maximum-HP bonuses, a full HP restore, and the union of the defeated sources' transferable tags: Cleave, Pierce, Rage, Alert, Ironblood, Block, Puncture, Burn, Build & Capture, and Ranged. Inheriting Ranged also raises attack range to the defeated unit or building's range when higher. Khyrons never gain XP, cannot be healed or traded at a Market, and leave no Gravestone; their explicit Resonance self-heal remains available and triggers camera feedback when HP is restored. The unit panel shows remaining Resonance turns while active.
 
 The **Summon Ghoul** tech unlocks a Ghoul spell after Raise Skeleton. A Ghoul has 30 base attack and can consume a Gravestone after moving. Each level adds one movement range, up to level 3, and each kill heals it for 50% of the defeated unit's remaining HP. It never gains XP.
+
+The **Grave Mark** tech unlocks a spell after Raise Skeleton. A marked enemy leaves a player Gravestone with no unit to revive when it dies on a valid tile.
 
 The **Lava Mold** tech unlocks a spell after Explode. Infested units take damage at the end of their faction's turn; when they die, nearby surviving units of either faction become Infested.
 

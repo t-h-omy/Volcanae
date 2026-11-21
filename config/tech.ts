@@ -532,6 +532,14 @@ export const TECH_TREE: TechNodeDefinition[] = [
     ],
   },
   {
+    id: 'CRYSTALLIZE',
+    requires: ['CRYSTAL_MAGE'],
+    cost: ARCANE_RESEARCH_COST_BY_DEPTH[1],
+    effects: [
+      { type: 'UNLOCK_SPELL', spellId: SpellId.CRYSTALLIZE },
+    ],
+  },
+  {
     id: 'PORTAL',
     requires: ['CRYSTAL_CAVE'],
     cost: 7,
@@ -561,6 +569,14 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'UNLOCK_SPELL', spellId: SpellId.SUMMON_GHOUL },
     ],
   },
+  {
+    id: 'DEATHS_DOOR',
+    requires: ['NECROMANCER'],
+    cost: 4,
+    effects: [
+      { type: 'UNLOCK_SPELL', spellId: SpellId.DEATHS_DOOR },
+    ],
+  },
   // ── Necromancer path branch a: utility ──────────────────────────────────
   {
     id: 'GRAVE_TRAP',
@@ -568,6 +584,22 @@ export const TECH_TREE: TechNodeDefinition[] = [
     cost: 7,
     effects: [
       { type: 'UNLOCK_SPELL', spellId: SpellId.GRAVE_TRAP },
+    ],
+  },
+  {
+    id: 'GRAVE_MARK',
+    requires: ['RAISE_SKELETON'],
+    cost: ARCANE_RESEARCH_COST_BY_DEPTH[2],
+    effects: [
+      { type: 'UNLOCK_SPELL', spellId: SpellId.GRAVE_MARK },
+    ],
+  },
+  {
+    id: 'EMBALM',
+    requires: ['GRAVE_MARK'],
+    cost: 10,
+    effects: [
+      { type: 'UNLOCK_SPELL', spellId: SpellId.EMBALM },
     ],
   },
  // {

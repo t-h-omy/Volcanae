@@ -14,7 +14,7 @@ import type { Projectile, SlideKillGhost, CleaveVfx, TileVfx, LineVfx } from '..
 import { useShockwaveStore } from '../shockwaveStore';
 import { canCapture } from '../captureSystem';
 import { getConstructionOptionsForTile } from '../constructionSystem';
-import { MAP, MAGE, UNIT_DEFINITIONS, BUILDING_DEFINITIONS, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, CORRUPTED_SUPPRESSED_TAGS, RESOURCES } from '../gameConfig';
+import { MAP, MAGE, UNIT_DEFINITIONS, BUILDING_DEFINITIONS, TAG_INFO, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, RESOURCES } from '../gameConfig';
 import { getStrongholdEffectiveCap } from '../techSystem';
 import { computeRecruitmentBuildingUsage, canBuildingEverRecruit, getEffectiveHousingPopulationCap } from '../resourceSystem';
 import { ANIMATION } from '../../config/animation';
@@ -26,6 +26,7 @@ import { useZoomStore } from '../zoomStore';
 import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE, TILE_STATUS_SPRITE, RESOURCE_SPRITE, ENEMY_BUILDING_SPRITE, PLAYER_BUILDING_SPRITE, TERRAIN_RESOURCE_SPRITE, CRYSTAL_CHAMBER_ACTIVE_SPRITE, CRYSTAL_CAVE_ACTIVE_SPRITE, CRYSTAL_KHYRON_ACTIVE_SPRITE, ENEMY_UNIT_SPRITE, PLAYER_UNIT_SPRITE, TUNNEL_HOLE_SPRITE, TUNNEL_EARTHQUAKE_SPRITE, PORTAL_ENTRANCE_SPRITE, PORTAL_EXIT_SPRITE, MAGE_PORTAL_SPRITE, getBridgeSprite } from '../assetRegistry';
 import { isKhyronResonanceActive } from '../khyronSystem';
 import { isCorruptionBoundDrainActive } from '../corruptedQorkSystem';
+import { getSuppressedTagsForUnit } from '../tileStatusSystem';
 import MissingSprite from './MissingSprite';
 import {
   Faction,
@@ -45,6 +46,7 @@ import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, getTaunt
 import { getValidSpellTargets, explainInvalidSpellTarget, getTransposeTerrainBlockedTargets, getLeashedUnitsForMage, getMageCastBudget } from '../spellSystem';
 import { explainBlockedMagePortalEntry } from '../portalSystem';
 import { getMagePath, isMageUnit } from '../unitTraits';
+import { resolveUnitBackgroundEffect, useProtectiveLayerFx } from '../unitPresentation';
 import './GridRenderer.css';
 
 // ============================================================================
@@ -1332,6 +1334,9 @@ function TileCellInner({
     const animation = building ? s.buildingAnimations.get(building.id) : undefined;
     return typeof animation === 'object' ? animation.durationMs : ANIMATION.RESONANCE_NODE_IMPACT_MS;
   });
+  const isGravestoneRising = useCombatAnimationStore((s) =>
+    !!building && showBuilding && tile.isRevealed && s.buildingAnimations.get(building.id) === 'GRAVESTONE_RISE',
+  );
 
   const tileFlashEntry = useCombatAnimationStore(
     (s) => s.tileFlashes.get(`${tile.position.x},${tile.position.y}`),
@@ -1378,6 +1383,7 @@ function TileCellInner({
         isResonating && 'tile--resonating',
         isCrystalActivating && 'tile--crystal-activating',
         isCrystalRecharging && 'tile--crystal-recharging',
+        isGravestoneRising && 'tile--gravestone-rise',
         isCrystalActivating && building?.type === BuildingType.CRYSTAL_CAVE && 'tile--crystal-cave',
         isLeashWarn ? 'tile--leash-warn' : isLeashed ? 'tile--leashed' : null,
       ].filter(Boolean).join(' ')}
@@ -1385,6 +1391,10 @@ function TileCellInner({
         width: tileSize,
         height: tileSize,
         ...(isCrystalActivating && { '--crystal-activate-duration': `${crystalActivationDuration}ms` }),
+        ...(isGravestoneRising && {
+          '--gravestone-rise-duration': `${ANIMATION.GRAVESTONE_RISE_MS}ms`,
+          '--gravestone-dust-color': RENDER.COLORS.STONE_SKIN,
+        }),
       } as React.CSSProperties}
       onClick={onClick}
     >
@@ -1477,6 +1487,16 @@ function TileCellInner({
 
       {/* corrupted tile overlay — only shown as a CSS fallback when no dedicated status sprite exists */}
       {tile.status === TileStatus.CORRUPTED && tile.isRevealed && !tileStatusSpritePath && <div className="tile-overlay tile--corrupted" />}
+
+      {tile.status === TileStatus.CRYSTALLINE && tile.isRevealed && (
+        <div
+          className="tile-overlay tile--crystalline-glint"
+          style={{
+            '--crystalline-glint-cycle': `${ANIMATION.CRYSTALLINE_GLINT_CYCLE_MS}ms`,
+            '--crystalline-glint-delay': `${-((tile.position.x * ANIMATION.CRYSTALLINE_GLINT_X_OFFSET_MS + tile.position.y * ANIMATION.CRYSTALLINE_GLINT_Y_OFFSET_MS) % ANIMATION.CRYSTALLINE_GLINT_CYCLE_MS)}ms`,
+          } as React.CSSProperties}
+        />
+      )}
 
       {/* burning tile overlay — only shown as a CSS fallback when no dedicated status sprite exists */}
       {tile.status === TileStatus.BURNING && tile.isRevealed && !tileStatusSpritePath && <div className="tile-overlay tile--burning" />}
@@ -1628,6 +1648,29 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
   const showUnitImg = typeof unitSpritePath === 'string' && unitSpritePath !== '' && !unitSpriteError;
 
   const currentTurn = useGameStore((s) => s.turn);
+  const previousDeathlessHpRef = useRef(unit.stats.currentHp);
+  const hasDeathless = unit.tags.includes(UnitTag.DEATHLESS);
+  const hasEmbalmed = unit.tags.includes(UnitTag.EMBALMED);
+  const isDeathlessFinalTurn =
+    hasDeathless && currentTurn >= (unit.deathlessUntilTurn ?? Number.POSITIVE_INFINITY);
+  useEffect(() => {
+    const previousHp = previousDeathlessHpRef.current;
+    previousDeathlessHpRef.current = unit.stats.currentHp;
+    if (
+      hasDeathless
+      && previousHp > MAGE.DEATHLESS_MINIMUM_HP
+      && unit.stats.currentHp === MAGE.DEATHLESS_MINIMUM_HP
+    ) {
+      useFloaterStore.getState().addFloater({
+        value: 0,
+        label: `⏳ ${t('tag.DEATHLESS.label')}`,
+        x: unit.position.x,
+        y: unit.position.y,
+        isEnemy: false,
+        floaterType: 'revive',
+      });
+    }
+  }, [hasDeathless, unit.stats.currentHp, unit.position.x, unit.position.y, t]);
   const selectedUnitId = useGameStore((s) => s.selectedUnitId);
   const isSelectedMage = selectedUnitId === unit.id && isMageUnit(unit);
   const mageCanCast = useGameStore((s) => {
@@ -1639,20 +1682,18 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
   );
   const magePath = getMagePath(unit);
   const isStunned = unit.pinnedUntilTurn >= currentTurn;
-  const isOnCorruptedTile = useGameStore(
-    (s) => s.grid[unit.position.y]?.[unit.position.x]?.status === TileStatus.CORRUPTED
-  );
+  const suppressedTags = useGameStore((s) => getSuppressedTagsForUnit(s, unit));
+  const hasSuppressedCombatTags = !!suppressedTags && unit.tags.some((tag) => suppressedTags.has(tag));
+  const suppressionDisplayTag = hasSuppressedCombatTags
+    ? unit.faction === Faction.PLAYER ? UnitTag.CORRUPTED : UnitTag.CRYSTALLINE
+    : null;
   const hasCorruptionBoundDebuff = useGameStore(
     (s) => unit.faction === Faction.PLAYER && isCorruptionBoundDrainActive(s, unit)
   );
 
-  // Show debuff border (and hp bar) for player units with an active debuff.
-  // Corrupted tile only counts as a debuff if the unit actually has tags that corruption suppresses.
-  const corruptionAffectsUnit =
-    isOnCorruptedTile && unit.tags.some((tag) => CORRUPTED_SUPPRESSED_TAGS.has(tag));
   const hasDebuff =
-    unit.faction === Faction.PLAYER &&
-    (corruptionAffectsUnit ||
+    (unit.faction === Faction.PLAYER &&
+    (hasSuppressedCombatTags ||
       hasCorruptionBoundDebuff ||
       isStunned ||
       unit.tags.some((tag) => {
@@ -1661,7 +1702,8 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
         return effects?.some(
           (e) => (e.mode === 'add' && e.value < 0) || (e.mode === 'percent' && e.value < 0)
         );
-      }));
+      }))) ||
+    (unit.faction === Faction.ENEMY && hasSuppressedCombatTags);
 
   const isExhausted = useGameStore((s) => {
     const liveUnit = s.units[unit.id] ?? unit;
@@ -1704,51 +1746,47 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
   const arcaneShieldRatio = Math.min(1, arcaneShieldHp / MAGE.ARCANE_SHIELD_MAX_HP);
   const showArcaneShieldBar =
     hasArcaneShield && (arcaneShieldHp < MAGE.ARCANE_SHIELD_MAX_HP || unit.stats.currentHp < unit.stats.maxHp || hasDebuff || hasStoneSkin);
-  const [shieldFx, setShieldFx] = useState<'absorb' | 'break' | 'recharge' | null>(null);
-  const [shieldWaveDelayMs, setShieldWaveDelayMs] = useState(0);
-  const prevShieldRef = useRef(arcaneShieldHp);
-  useEffect(() => {
-    const prev = prevShieldRef.current;
-    prevShieldRef.current = arcaneShieldHp;
-    if (prev === arcaneShieldHp) return;
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    let delay = 0;
-    let fx: 'absorb' | 'break' | 'recharge';
-    if (arcaneShieldHp > prev) {
-      fx = 'recharge';
-      const holders = Object.values(useGameStore.getState().units)
-        .filter((u) => u.faction === Faction.PLAYER && (u.arcaneShieldHp ?? 0) > 0)
-        .map((u) => u.id)
-        .sort();
-      delay = Math.max(0, holders.indexOf(unit.id)) * ANIMATION.ARCANE_SHIELD_WAVE_STAGGER_MS;
-      const gained = arcaneShieldHp - prev;
+  const holders = Object.values(useGameStore.getState().units)
+    .filter((candidate) => candidate.faction === Faction.PLAYER && (candidate.arcaneShieldHp ?? 0) > 0)
+    .map((candidate) => candidate.id)
+    .sort();
+  const shieldWaveDelayMs =
+    arcaneShieldHp > 0
+      ? Math.max(0, holders.indexOf(unit.id)) * ANIMATION.ARCANE_SHIELD_WAVE_STAGGER_MS
+      : 0;
+  const [shieldFx, shieldFxDelayMs] = useProtectiveLayerFx(
+    arcaneShieldHp,
+    shieldWaveDelayMs,
+    (gained) => {
       const { x, y } = unit.position;
-      timers.push(setTimeout(() => {
-        useFloaterStore.getState().addFloater({
-          value: gained,
-          label: `🛡️ ${t('floater.arcaneShieldGain', { amount: gained })}`,
-          x,
-          y,
-          isEnemy: false,
-          floaterType: 'revive',
-        });
-      }, delay));
-    } else {
-      fx = arcaneShieldHp > 0 ? 'absorb' : 'break';
-    }
-    timers.push(setTimeout(() => {
-      setShieldWaveDelayMs(delay);
-      setShieldFx(fx);
-    }, 0));
-    timers.push(setTimeout(() => setShieldFx(null), delay + ANIMATION.ARCANE_SHIELD_FX_DURATION_MS));
-    return () => timers.forEach(clearTimeout);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [arcaneShieldHp]);
+      useFloaterStore.getState().addFloater({
+        value: gained,
+        label: `🛡️ ${t('floater.arcaneShieldGain', { amount: gained })}`,
+        x,
+        y,
+        isEnemy: false,
+        floaterType: 'revive',
+      });
+    },
+  );
+  const [stoneSkinFx, stoneSkinFxDelayMs] = useProtectiveLayerFx(stoneSkinHp);
+
+  const backgroundEffect = resolveUnitBackgroundEffect([
+    ...(hasDeathless ? ['DEATHLESS'] : []),
+    ...(magePath ? ['MAGE_AURA'] : []),
+    ...(unit.tags.includes(UnitTag.EMBALMED) ? ['EMBALMED'] : []),
+  ]);
+  const mageAuraClass = backgroundEffect === 'MAGE_AURA' && magePath
+    ? `unit--mage-${magePath.toLowerCase()}`
+    : null;
 
   const tagIcons = unit.tags
     .filter((tag) => tag !== UnitTag.CORRUPTION_BOUND || hasCorruptionBoundDebuff)
     .map((tag) => TAG_INFO[tag]?.icon)
     .filter((icon): icon is string => !!icon);
+  if (suppressionDisplayTag && TAG_INFO[suppressionDisplayTag]?.icon) {
+    tagIcons.push(TAG_INFO[suppressionDisplayTag].icon!);
+  }
 
   return (
     <div
@@ -1756,10 +1794,14 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
         'tile-unit',
         animClass,
         isEmberling && 'emberling-unit',
+        hasDeathless && 'unit--deathless',
+        isDeathlessFinalTurn && 'unit--deathless-final-turn',
+        hasEmbalmed && 'unit--embalmed',
         hasStoneSkin && 'unit--stone-skin',
         hasArcaneShield && 'unit--arcane-shield',
-        shieldFx && `unit--shield-fx-${shieldFx}`,
-        magePath && `unit--mage-${magePath.toLowerCase()}`,
+        shieldFx && `unit--layer-fx-${shieldFx}`,
+        stoneSkinFx && `unit--layer-fx-${stoneSkinFx}`,
+        mageAuraClass,
         isSelectedMage && mageCanCast && 'unit--mage-cast-ready',
         magePath && mageCastBudgetSpent && 'unit--mage-cast-spent',
       ].filter(Boolean).join(' ')}
@@ -1787,21 +1829,51 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
           '--arcane-shield-color': MAGIC_PATH_COLORS.ARCANE.primary,
           '--arcane-shield-glow': MAGIC_PATH_COLORS.ARCANE.glow,
           '--arcane-shield-ratio': arcaneShieldRatio,
-          '--arcane-shield-fx-duration': `${ANIMATION.ARCANE_SHIELD_FX_DURATION_MS}ms`,
-          '--arcane-shield-fx-delay': `${shieldWaveDelayMs}ms`,
+          '--deathless-pulse-duration': `${isDeathlessFinalTurn ? ANIMATION.DEATHLESS_FINAL_PULSE_CYCLE_MS : ANIMATION.DEATHLESS_PULSE_CYCLE_MS}ms`,
+          '--deathless-color': MAGIC_PATH_COLORS.NECRO.primary,
+          '--deathless-glow': MAGIC_PATH_COLORS.NECRO.glow,
+          '--protective-layer-fx-duration': `${ANIMATION.PROTECTIVE_LAYER_FX_DURATION_MS}ms`,
+          '--shield-fx-delay': `${shieldFxDelayMs}ms`,
+          '--stone-skin-fx-delay': `${stoneSkinFxDelayMs}ms`,
           '--unit-hp-text-font-size': `${UI.UNIT_HP_TEXT_FONT_SIZE_PX}px`,
         } as React.CSSProperties
       }
     >
       {hasArcaneShield && <div className="arcane-shield-dome" aria-hidden="true" />}
       {shieldFx && (
-        <div className={`arcane-shield-fx arcane-shield-fx--${shieldFx}`} aria-hidden="true">
+        <div
+          className={`protective-layer-fx protective-layer-fx--arcane protective-layer-fx--${shieldFx}`}
+          style={{
+            '--protective-layer-color': MAGIC_PATH_COLORS.ARCANE.primary,
+            '--protective-layer-glow': MAGIC_PATH_COLORS.ARCANE.glow,
+          } as React.CSSProperties}
+          aria-hidden="true"
+        >
           {shieldFx === 'break' &&
-            Array.from({ length: ANIMATION.ARCANE_SHIELD_SHARD_COUNT }, (_, i) => (
+            Array.from({ length: ANIMATION.PROTECTIVE_LAYER_SHARD_COUNT }, (_, i) => (
               <span
                 key={i}
-                className="arcane-shield-shard"
-                style={{ '--shard-angle': `${(360 / ANIMATION.ARCANE_SHIELD_SHARD_COUNT) * i}deg` } as React.CSSProperties}
+                className="protective-layer-shard"
+                style={{ '--shard-angle': `${(360 / ANIMATION.PROTECTIVE_LAYER_SHARD_COUNT) * i}deg` } as React.CSSProperties}
+              />
+            ))}
+        </div>
+      )}
+      {stoneSkinFx && (
+        <div
+          className={`protective-layer-fx protective-layer-fx--stone protective-layer-fx--${stoneSkinFx}`}
+          style={{
+            '--protective-layer-color': RENDER.COLORS.STONE_SKIN,
+            '--protective-layer-glow': RENDER.COLORS.STONE_SKIN,
+          } as React.CSSProperties}
+          aria-hidden="true"
+        >
+          {stoneSkinFx === 'break' &&
+            Array.from({ length: ANIMATION.PROTECTIVE_LAYER_SHARD_COUNT }, (_, i) => (
+              <span
+                key={i}
+                className="protective-layer-shard"
+                style={{ '--shard-angle': `${(360 / ANIMATION.PROTECTIVE_LAYER_SHARD_COUNT) * i}deg` } as React.CSSProperties}
               />
             ))}
         </div>
@@ -2693,6 +2765,7 @@ function TileVfxLayer({ tileSize }: { tileSize: number }) {
               width: footprintSize,
               height: footprintSize,
               '--tile-vfx-duration': `${vfx.durationMs}ms`,
+              '--tile-vfx-delay': `${vfx.delayMs ?? 0}ms`,
             } as React.CSSProperties}
             onAnimationEnd={() => removeTileVfx(vfx.id)}
           />

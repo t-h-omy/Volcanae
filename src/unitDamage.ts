@@ -1,5 +1,6 @@
 import type { Unit } from './types';
 import { UnitTag } from './types';
+import { MAGE } from '../config/magic';
 
 export interface UnitDamageOutcome {
   currentHp: number;
@@ -10,6 +11,7 @@ export interface UnitDamageOutcome {
   stoneSkinHp: number;
   hasStoneSkin: boolean;
   died: boolean;
+  deathPrevented: boolean;
 }
 
 export function getUnitDamageOutcome(unit: Unit, damage: number): UnitDamageOutcome {
@@ -21,8 +23,13 @@ export function getUnitDamageOutcome(unit: Unit, damage: number): UnitDamageOutc
   const stoneSkinHp = hasStoneSkin ? Math.max(0, unit.stoneSkinHp ?? 0) : 0;
   const absorbedDamage = Math.min(stoneSkinHp, afterShield);
   const remainingStoneSkinHp = stoneSkinHp - absorbedDamage;
-  const currentHp = Math.max(0, unit.stats.currentHp - (afterShield - absorbedDamage));
+  const rawCurrentHp = unit.stats.currentHp - (afterShield - absorbedDamage);
+  const deathless = unit.tags.includes(UnitTag.DEATHLESS);
+  const currentHp = deathless
+    ? Math.max(MAGE.DEATHLESS_MINIMUM_HP, rawCurrentHp)
+    : Math.max(0, rawCurrentHp);
   const stillHasStoneSkin = hasStoneSkin && remainingStoneSkinHp > 0;
+  const deathPrevented = deathless && rawCurrentHp < MAGE.DEATHLESS_MINIMUM_HP;
 
   return {
     currentHp,
@@ -31,6 +38,7 @@ export function getUnitDamageOutcome(unit: Unit, damage: number): UnitDamageOutc
     stoneSkinHp: stillHasStoneSkin ? remainingStoneSkinHp : 0,
     hasStoneSkin: stillHasStoneSkin,
     died: currentHp <= 0,
+    deathPrevented,
   };
 }
 

@@ -235,8 +235,8 @@ describe('Arcane Shield save', () => {
     expect(migrated?.units[mage.id].arcaneShieldHp).toBe(MAGE.ARCANE_SHIELD_MAX_HP);
   });
 
-  it('version 25 round-trips arcaneShieldHp', () => {
-    expect(SAVE_VERSION).toBe(25);
+  it('version 26 round-trips arcaneShieldHp', () => {
+    expect(SAVE_VERSION).toBe(26);
     const mage = makeUnit(UnitType.CRYSTAL_MAGE, Faction.PLAYER, { arcaneShieldHp: 7 });
     const raw = withUnits(baseState(), mage);
     const migrated = migrateState({ version: 25, state: JSON.parse(JSON.stringify(raw)) });

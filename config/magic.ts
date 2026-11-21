@@ -47,6 +47,10 @@ export const MAGE = {
   GRAVE_TRAP_STUN_TURNS: 2,
   /** Percentage of the sacrificed unit's CURRENT HP dealt to each adjacent enemy by Explode */
   EXPLODE_DAMAGE_PERCENT: 50,
+  /** Player-turn count through which Death's Door protects a unit. */
+  DEATHS_DOOR_DURATION_TURNS: 1,
+  /** Minimum HP retained by a Deathless unit when damage would kill it. */
+  DEATHLESS_MINIMUM_HP: 1,
 
   // ── Crystal Tower reward ─────────────────────────────────────────────
   /** Crystals granted when an enemy unit is killed by a CRYSTAL_TOWER */
@@ -73,6 +77,15 @@ export const MAGE = {
   /** Crystals consumed per spell cast (applies to all Mage spells) */
   SPELL_CAST_CRYSTAL_COST: 1,
 } as const;
+
+/** Crystallize's fixed orthogonal cross, an intentional exception to edge-circle range. */
+export const CRYSTALLINE_OFFSETS = [
+  [0, 0],
+  [0, -1],
+  [1, 0],
+  [0, 1],
+  [-1, 0],
+] as const;
 
 export const MAGE_UNIT_TYPES: readonly UnitType[] = [
   UnitType.CRYSTAL_MAGE,
@@ -127,10 +140,31 @@ export const SPELL_DEFINITIONS: Record<SpellId, SpellDefinition> = {
     casters: [UnitType.EMBER_CULTIST],
     textParams: { damage: MAGE.INFESTED_HP_LOSS_PER_TURN },
   },
+  [SpellId.GRAVE_MARK]: {
+    id: SpellId.GRAVE_MARK,
+    emoji: '🪦',
+    casters: [UnitType.NECROMANCER],
+  },
+  [SpellId.DEATHS_DOOR]: {
+    id: SpellId.DEATHS_DOOR,
+    emoji: '⏳',
+    casters: [UnitType.NECROMANCER],
+  },
+  [SpellId.EMBALM]: {
+    id: SpellId.EMBALM,
+    emoji: '⚰️',
+    casters: [UnitType.NECROMANCER],
+  },
   [SpellId.FROSTCRAFT]: {
     id: SpellId.FROSTCRAFT,
     emoji: '❄️',
     casters: MAGE_UNIT_TYPES,
+  },
+  [SpellId.CRYSTALLIZE]: {
+    id: SpellId.CRYSTALLIZE,
+    emoji: '🔷',
+    casters: [UnitType.CRYSTAL_MAGE],
+    textParams: {},
   },
   [SpellId.GRAVE_TRAP]: {
     id: SpellId.GRAVE_TRAP,

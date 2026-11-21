@@ -10,7 +10,7 @@ import type { GameEvent } from './gameEvents';
 import { Faction, BuildingType, UnitType, UnitTag, ResourceType, TechFlag } from './types';
 import { RESOURCES, ABILITIES, UNIT_DEFINITIONS, POPULATION, CRYSTAL_CHAMBER_CONFIG, BUILDING_DEFINITIONS, TECH_TREE, MAGE, MAGE_UNIT_TYPES } from './gameConfig';
 import type { UnitCost } from './gameConfig';
-import { getGrantedTags, getStatMods, getBuildingProductionMods, getFlatIncomeMods, grantArcaneCrystals, getStrongholdEffectiveCap, getRemovedTags, getCostMods } from './techSystem';
+import { getGrantedTags, getStatMods, getBuildingProductionMods, getFlatIncomeMods, grantArcaneCrystals, getStrongholdEffectiveCap, getRemovedTags, getCostMods, applyTagStatEffects, revokeTagStatEffects } from './techSystem';
 import { getTagsFromActiveSpecialists, isSpecialistEffectActive, getTagsFromActiveSpecialistsForSourceTag, getActiveEffectParams } from './specialistSystem';
 import { isTileWithinEdgeCircleRange } from './rangeUtils';
 import { expireKhyronResonance, healResonatingKhyrons, isAnyChamberResonating } from './khyronSystem';
@@ -29,6 +29,39 @@ import { isExcludedFromUnitLimit, isPopulationFree } from './unitTraits';
 let resourceSystemIdCounter = 0;
 function generateUnitId(): string {
   return `unit_recruited_${Date.now()}_${++resourceSystemIdCounter}`;
+}
+
+/** Reconcile HOMELESS and UNTRAINED tags with current population and recruitment capacity. */
+export function syncOvercapacityTags(state: Draft<GameState>): void {
+  const targetHomelessIds = computeHomelessUnitIds(state);
+  const targetUntrainedIds = computeUntrainedUnitIds(state);
+  for (const unit of Object.values(state.units)) {
+    if (unit.faction !== Faction.PLAYER) continue;
+
+    const shouldBeHomeless = targetHomelessIds.has(unit.id);
+    const isHomeless = unit.tags.includes(UnitTag.HOMELESS);
+    if (shouldBeHomeless !== isHomeless) {
+      if (shouldBeHomeless) {
+        unit.tags.push(UnitTag.HOMELESS);
+        applyTagStatEffects(unit, UnitTag.HOMELESS);
+      } else {
+        unit.tags = unit.tags.filter((tag) => tag !== UnitTag.HOMELESS);
+        revokeTagStatEffects(unit, UnitTag.HOMELESS);
+      }
+    }
+
+    const shouldBeUntrained = targetUntrainedIds.has(unit.id);
+    const isUntrained = unit.tags.includes(UnitTag.UNTRAINED);
+    if (shouldBeUntrained !== isUntrained) {
+      if (shouldBeUntrained) {
+        unit.tags.push(UnitTag.UNTRAINED);
+        applyTagStatEffects(unit, UnitTag.UNTRAINED);
+      } else {
+        unit.tags = unit.tags.filter((tag) => tag !== UnitTag.UNTRAINED);
+        revokeTagStatEffects(unit, UnitTag.UNTRAINED);
+      }
+    }
+  }
 }
 
 /**

@@ -19,7 +19,7 @@ import {
   applyPendingAssimilations,
 } from './khyronSystem';
 import { generateId } from './mapGenerator';
-import { isUnitOnCorruptedTile, applyTileStatus } from './tileStatusSystem';
+import { isUnitOnCorruptedTile, isUnitTagSuppressed, applyTileStatus } from './tileStatusSystem';
 import { cleanupRoostedUnits } from './buildingRemoval';
 import { getBridgeAt } from './bridgeSystem';
 import { resolveSlide } from './movementSystem';
@@ -89,9 +89,11 @@ export function shouldLeaveGravestone(
   unit: Pick<Unit, 'faction' | 'tags'>,
   options: { defaultOn: boolean },
 ): boolean {
+  if (unit.tags.includes(UnitTag.GRAVE_MARKED)) return true;
   if (unit.faction !== Faction.PLAYER) return false;
   if (cannotBeHealed(unit)) return false;
   if (unit.tags.includes(UnitTag.NO_GRAVESTONE)) return false;
+  if (unit.tags.includes(UnitTag.DEATHLESS)) return true;
   if (options.defaultOn) return true;
   return unit.tags.includes(UnitTag.LEAVES_GRAVESTONE) || unit.tags.includes(UnitTag.REVIVABLE);
 }
@@ -103,10 +105,10 @@ export function createGravestoneAt(
   state: Draft<GameState>,
   position: { x: number; y: number },
   gravesUnitType: UnitType | null,
-): void {
-  if (isPortalEndpoint(state, position)) return;
+): string | null {
+  if (isPortalEndpoint(state, position)) return null;
   const tile = state.grid[position.y]?.[position.x];
-  if (!tile || !isValidGravestoneTile(tile)) return;
+  if (!tile || !isValidGravestoneTile(tile)) return null;
   const graveId = generateCombatBuildingId();
   state.buildings[graveId] = {
     id: graveId,
@@ -140,6 +142,21 @@ export function createGravestoneAt(
     gravesUnitType,
   };
   tile.buildingId = graveId;
+  return graveId;
+}
+
+/** Creates the eligible player's Gravestone, or a marked enemy's player Gravestone. */
+export function tryLeaveGravestone(
+  state: Draft<GameState>,
+  deceased: Pick<Unit, 'faction' | 'tags' | 'type'>,
+  position: { x: number; y: number },
+): string | null {
+  if (!shouldLeaveGravestone(deceased, { defaultOn: false })) return null;
+  return createGravestoneAt(
+    state,
+    position,
+    deceased.faction === Faction.PLAYER ? deceased.type : null,
+  );
 }
 
 /**
@@ -480,7 +497,7 @@ export function getBatteryAttackBonus(state: GameState | Draft<GameState>, unit:
 /** Returns the Lance Charge attack bonus while the unit has not moved and is not corrupted. */
 export function getLanceChargeAttackBonus(state: GameState | Draft<GameState>, unit: Unit): number {
   if (!unit.tags.includes(UnitTag.LANCE_CHARGE) || unit.hasMovedThisTurn) return 0;
-  if (isUnitOnCorruptedTile(state, unit.id)) return 0;
+  if (isUnitTagSuppressed(state, unit, UnitTag.LANCE_CHARGE)) return 0;
   return ABILITIES.LANCE_CHARGE_ATTACK_BONUS;
 }
 
@@ -510,7 +527,7 @@ export function getRageAttackContext(
   unit: Unit,
 ): { rageBonus: number; rageAdjacentCount: number } {
   if (!unit.tags.includes(UnitTag.RAGE)) return { rageBonus: 0, rageAdjacentCount: 0 };
-  if (isUnitOnCorruptedTile(state, unit.id)) return { rageBonus: 0, rageAdjacentCount: 0 };
+  if (isUnitTagSuppressed(state, unit, UnitTag.RAGE)) return { rageBonus: 0, rageAdjacentCount: 0 };
 
   let rageAdjacentCount = 0;
   for (const otherId of Object.keys(state.units)) {
@@ -964,12 +981,10 @@ function removeUnresolvedCombatDeaths(
     delete state.units[deceased.id];
     if (deceased.faction === Faction.PLAYER) {
       state.gameStats.unitsLost += 1;
-      if (shouldLeaveGravestone(deceased, { defaultOn: false })) {
-        createGravestoneAt(state, position, deceased.type);
-      }
     } else if (sourceFaction === Faction.PLAYER && !preexistingDeadIds.has(deceased.id)) {
       state.gameStats.unitsKilled += 1;
     }
+    tryLeaveGravestone(state, deceased, position);
     if (deceased.type === UnitType.CAVE_MONSTER) {
       state.activeCaveEncounters = state.activeCaveEncounters.filter(
         (encounter) => encounter.monsterId !== deceased.id,
@@ -1082,7 +1097,7 @@ function resolveAttackInner(
 
   // RAGE: attacker gains +ATK per adjacent enemy unit, capped at ABILITIES.RAGE_MAX_ADJACENT_COUNT.
   // Suppressed on CORRUPTED tile.
-  if (attacker.tags.includes(UnitTag.RAGE) && !attackerOnCorrupted) {
+  if (attacker.tags.includes(UnitTag.RAGE) && !isUnitTagSuppressed(state, attacker, UnitTag.RAGE)) {
     attackerCombatant.attack += getRageAttackContext(state, attacker).rageBonus;
   }
 
@@ -1092,7 +1107,7 @@ function resolveAttackInner(
   // PUNCTURE: bypass all defensive bonuses — reset defender's effective defense to
   // the raw base stat, ignoring PHALANX, HOLD_GROUND, and any other bonuses added above.
   // Suppressed on CORRUPTED tile.
-  if (attacker.tags.includes(UnitTag.PUNCTURE) && !attackerOnCorrupted) {
+  if (attacker.tags.includes(UnitTag.PUNCTURE) && !isUnitTagSuppressed(state, attacker, UnitTag.PUNCTURE)) {
     const bonusPresent = defenderCombatant.defense > defender.stats.defense;
     defenderCombatant.defense = defender.stats.defense;
     if (bonusPresent) {
@@ -1130,19 +1145,19 @@ function resolveAttackInner(
   // reduce damage to the primary defender by ABILITIES.PIERCE_PRIMARY_DAMAGE_MULTIPLIER.
   // Suppressed on CORRUPTED tile.
   const fullPrimaryDamage = combatResult.defenderHpLost;
-  if (attacker.tags.includes(UnitTag.PIERCE) && !attackerOnCorrupted) {
+  if (attacker.tags.includes(UnitTag.PIERCE) && !isUnitTagSuppressed(state, attacker, UnitTag.PIERCE)) {
     combatResult.defenderHpLost = Math.floor(combatResult.defenderHpLost * ABILITIES.PIERCE_PRIMARY_DAMAGE_MULTIPLIER);
   }
 
   // BLOCK: defender takes halved damage from melee attackers (attackRange === 1).
   // NOT suppressed on corrupted tiles — defensive self-property.
-  if (defender.tags.includes(UnitTag.BLOCK) && attacker.stats.attackRange === 1) {
+  if (defender.tags.includes(UnitTag.BLOCK) && !isUnitTagSuppressed(state, defender, UnitTag.BLOCK) && attacker.stats.attackRange === 1) {
     combatResult.defenderHpLost = Math.floor(combatResult.defenderHpLost * ABILITIES.BLOCK_MELEE_DAMAGE_MULTIPLIER);
   }
 
   // IRONBLOOD: defender takes reduced damage from SUMMONED attackers.
   // NOT suppressed on corrupted tiles — defensive self-property.
-  if (defender.tags.includes(UnitTag.IRONBLOOD) && attacker.tags.includes(UnitTag.SUMMONED)) {
+  if (defender.tags.includes(UnitTag.IRONBLOOD) && !isUnitTagSuppressed(state, defender, UnitTag.IRONBLOOD) && attacker.tags.includes(UnitTag.SUMMONED)) {
     combatResult.defenderHpLost = Math.floor(combatResult.defenderHpLost * ABILITIES.IRONBLOOD_SUMMONED_DAMAGE_MULTIPLIER);
   }
 
@@ -1262,12 +1277,7 @@ function resolveAttackInner(
       else if (defenderFaction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
       // When a player unit with the right conditions dies from a counter-attack,
       // leave a Gravestone on their tile.
-      if (shouldLeaveGravestone(
-        { faction: attackerFaction, tags: attackerTags },
-        { defaultOn: false },
-      )) {
-        createGravestoneAt(state, attackerPos, attackerType);
-      }
+      tryLeaveGravestone(state, { faction: attackerFaction, tags: attackerTags, type: attackerType }, attackerPos);
     }
     creditedKillIds.add(defenderId);
     primaryDeathEffects.push(attacker);
@@ -1335,12 +1345,7 @@ function resolveAttackInner(
     // Summoned and NO_GRAVESTONE units never leave gravestones.
     // BRANDMARKED units are handled separately above (deferred via pendingBrandmarkTransforms).
     if (!defenderTags.includes(UnitTag.BRANDMARKED)) {
-      if (shouldLeaveGravestone(
-        { faction: defenderFaction, tags: defenderTags },
-        { defaultOn: false },
-      )) {
-        createGravestoneAt(state, defenderPosition, defenderType);
-      }
+      tryLeaveGravestone(state, { faction: defenderFaction, tags: defenderTags, type: defenderType }, defenderPosition);
       cleanupPortals(state);
     }
 
@@ -1408,7 +1413,7 @@ function resolveAttackInner(
     // PIN_DOWN: stun the defender with a configurable chance (prevents move + attack).
     // Suppressed on CORRUPTED tile. ALERT-tagged units are immune to stun.
     if (attacker.tags.includes(UnitTag.PIN_DOWN) && !attackerOnCorrupted && Math.random() < ABILITIES.PIN_DOWN_STUN_CHANCE) {
-      if (!defender.tags.includes(UnitTag.ALERT)) {
+      if (!defender.tags.includes(UnitTag.ALERT) || isUnitTagSuppressed(state, defender, UnitTag.ALERT)) {
         defender.pinnedUntilTurn = state.turn;
       } else {
         outEvents?.push({
@@ -1428,10 +1433,10 @@ function resolveAttackInner(
     // Suppressed on CORRUPTED tile.
     if (
       attacker.tags.includes(UnitTag.PUNCTURE) &&
-      !attackerOnCorrupted &&
+      !isUnitTagSuppressed(state, attacker, UnitTag.PUNCTURE) &&
       defender.stats.defense > ABILITIES.PUNCTURE_STUN_BASE_DEF_THRESHOLD
     ) {
-      if (!defender.tags.includes(UnitTag.ALERT)) {
+      if (!defender.tags.includes(UnitTag.ALERT) || isUnitTagSuppressed(state, defender, UnitTag.ALERT)) {
         defender.pinnedUntilTurn = state.turn + ABILITIES.PUNCTURE_STUN_DURATION - 1;
       } else {
         outEvents?.push({
@@ -1559,6 +1564,7 @@ function resolveAttackInner(
           splashTile.unitId = null;
           recordKhyronKill(state, attackerId, splashTarget.faction, splashTarget.tags, splashTarget.stats.attackRange);
           delete state.units[splashTargetId];
+          tryLeaveGravestone(state, splashTarget, { x: nx, y: ny });
           grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
           state.gameStats.unitsKilled += 1;
           outEvents?.push({
@@ -1582,7 +1588,7 @@ function resolveAttackInner(
     // CLEAVE uses primary damage directly on tiles adjacent to both combatants.
     if (
       attackerDead ||
-      attackerOnCorrupted ||
+      isUnitTagSuppressed(state, attacker, UnitTag.CLEAVE) ||
       !attacker.tags.includes(UnitTag.CLEAVE) ||
       combatResult.defenderHpLost <= 0
     ) return;
@@ -1630,9 +1636,7 @@ function resolveAttackInner(
               delete state.units[cleaveTargetId];
               if (cleaveTarget.faction === Faction.PLAYER) state.gameStats.unitsLost += 1;
               else if (attacker.faction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
-              if (shouldLeaveGravestone(cleaveTarget, { defaultOn: false })) {
-                createGravestoneAt(state, { x: cx, y: cy }, cleaveTarget.type);
-              }
+              tryLeaveGravestone(state, cleaveTarget, { x: cx, y: cy });
               cleanupPortals(state);
             }
             creditedKillIds.add(attackerId);
@@ -1662,7 +1666,7 @@ function resolveAttackInner(
 
   function resolvePierceImpact(): void {
     // PIERCE uses pre-reduction primary damage, with no second defense reduction.
-    if (attackerDead || attackerOnCorrupted || !attacker.tags.includes(UnitTag.PIERCE)) return;
+    if (attackerDead || isUnitTagSuppressed(state, attacker, UnitTag.PIERCE) || !attacker.tags.includes(UnitTag.PIERCE)) return;
     const pierceEvents: GameEvent[] | undefined = outEvents ? [] : undefined;
     if (pierceEvents) secondaryImpactEventGroups.push(pierceEvents);
     const dx = defenderPosition.x - attackerPosition.x;
@@ -1711,9 +1715,7 @@ function resolveAttackInner(
                   delete state.units[rearUnitId];
                   if (rearUnit.faction === Faction.PLAYER) state.gameStats.unitsLost += 1;
                   else if (attacker.faction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
-                  if (shouldLeaveGravestone(rearUnit, { defaultOn: false })) {
-                    createGravestoneAt(state, behindPos, rearUnit.type);
-                  }
+                  tryLeaveGravestone(state, rearUnit, behindPos);
                   cleanupPortals(state);
                 }
                 grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
@@ -1819,7 +1821,7 @@ function resolveAttackInner(
   // applyTileStatus enforces the whitelist, so non-combustible terrain (WATER, CANYON, etc.)
   // will not receive BURNING. It also clears any existing status first (e.g. FROZEN).
   // Suppressed on CORRUPTED tile.
-  if (!attackerDead && attacker.tags.includes(UnitTag.BURN) && !attackerOnCorrupted) {
+  if (!attackerDead && attacker.tags.includes(UnitTag.BURN) && !isUnitTagSuppressed(state, attacker, UnitTag.BURN)) {
     applyTileStatus(state, defenderPosition, TileStatus.BURNING);
   }
   for (const killerId of creditedKillIds) clearInfestedOnCreditedKill(state, killerId);
@@ -2054,12 +2056,7 @@ export function resolveBuildingAttack(
     // When a player unit with the right conditions dies, leave a Gravestone on their tile.
     // BRANDMARKED units are handled separately above (deferred via pendingBrandmarkTransforms).
     if (!defenderTags.includes(UnitTag.BRANDMARKED)) {
-      if (shouldLeaveGravestone(
-        { faction: defenderFaction, tags: defenderTags },
-        { defaultOn: false },
-      )) {
-        createGravestoneAt(state, defenderPos, defenderType);
-      }
+      tryLeaveGravestone(state, { faction: defenderFaction, tags: defenderTags, type: defenderType }, defenderPos);
     }
   } else {
     updateBerserkLatch(defender);
@@ -2154,7 +2151,7 @@ function resolveAttackOnBuildingInner(
 
   // RAGE: attacker gains +ATK per adjacent enemy unit, capped at ABILITIES.RAGE_MAX_ADJACENT_COUNT.
   // Suppressed on CORRUPTED tile.
-  if (attacker.tags.includes(UnitTag.RAGE) && !attackerOnCorrupted) {
+  if (attacker.tags.includes(UnitTag.RAGE) && !isUnitTagSuppressed(state, attacker, UnitTag.RAGE)) {
     attackerCombatant.attack += getRageAttackContext(state, attacker).rageBonus;
   }
 
@@ -2178,7 +2175,7 @@ function resolveAttackOnBuildingInner(
   // PUNCTURE: bypass building defense — treat building.combatStats.defense as 0 for damage
   // computation only. Suppressed on CORRUPTED tile.
   // NOTE: buildings do not have pinnedUntilTurn, so the stun side-effect is intentionally omitted.
-  if (attacker.tags.includes(UnitTag.PUNCTURE) && !attackerOnCorrupted) {
+  if (attacker.tags.includes(UnitTag.PUNCTURE) && !isUnitTagSuppressed(state, attacker, UnitTag.PUNCTURE)) {
     defenderStats.defense = 0;
   }
 
@@ -2217,7 +2214,7 @@ function resolveAttackOnBuildingInner(
   // PIERCE: reduce primary building damage by ABILITIES.PIERCE_PRIMARY_DAMAGE_MULTIPLIER;
   // the full (pre-multiplier) damage is stored in fullPrimaryDamage for the secondary target.
   // Suppressed on CORRUPTED tile.
-  if (attacker.tags.includes(UnitTag.PIERCE) && !attackerOnCorrupted) {
+  if (attacker.tags.includes(UnitTag.PIERCE) && !isUnitTagSuppressed(state, attacker, UnitTag.PIERCE)) {
     combatResult.defenderHpLost = Math.floor(combatResult.defenderHpLost * ABILITIES.PIERCE_PRIMARY_DAMAGE_MULTIPLIER);
   }
 
@@ -2290,12 +2287,7 @@ function resolveAttackOnBuildingInner(
       // created when the unit carries an explicit tag (REVIVABLE from Deathmender, or
       // LEAVES_GRAVESTONE from the Necromancer tech tree) — ordinary units do not leave
       // gravestones just because they died.
-      if (shouldLeaveGravestone(
-        { faction: attackerFaction, tags: attackerTags },
-        { defaultOn: false },
-      )) {
-        createGravestoneAt(state, attackerPos, attackerType);
-      }
+      tryLeaveGravestone(state, { faction: attackerFaction, tags: attackerTags, type: attackerType }, attackerPos);
     }
     resolveInfestedDeath(state, attacker);
   } else {
@@ -2462,6 +2454,7 @@ function resolveAttackOnBuildingInner(
           splashTile.unitId = null;
           recordKhyronKill(state, attackerId, splashTarget.faction, splashTarget.tags, splashTarget.stats.attackRange);
           delete state.units[splashTargetId];
+          tryLeaveGravestone(state, splashTarget, { x: nx, y: ny });
           grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
           state.gameStats.unitsKilled += 1;
           outEvents?.push({
@@ -2485,7 +2478,7 @@ function resolveAttackOnBuildingInner(
   // Ignores PHALANX bonus (uses raw defense). Suppressed on CORRUPTED tile.
   if (
     !attackerDead &&
-    !attackerOnCorrupted &&
+    !isUnitTagSuppressed(state, attacker, UnitTag.CLEAVE) &&
     attacker.tags.includes(UnitTag.CLEAVE) &&
     combatResult.defenderHpLost > 0
   ) {
@@ -2522,6 +2515,7 @@ function resolveAttackOnBuildingInner(
             cleaveTile.unitId = null;
             recordKhyronKill(state, attackerId, cleaveTarget.faction, cleaveTarget.tags, cleaveTarget.stats.attackRange);
             delete state.units[cleaveTargetId];
+            tryLeaveGravestone(state, cleaveTarget, { x: cx, y: cy });
             if (cleaveTarget.faction === Faction.PLAYER) state.gameStats.unitsLost += 1;
             else if (attacker.faction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
             grantXp(state, attackerId, XP.KILL_UNIT, suppressFloaters);
@@ -2599,6 +2593,7 @@ function resolveAttackOnBuildingInner(
               } else {
                 behindTile.unitId = null;
                 delete state.units[rearUnitId];
+                tryLeaveGravestone(state, rearUnit, behindPos);
                 if (rearUnit.faction === Faction.PLAYER) state.gameStats.unitsLost += 1;
                 else if (attacker.faction === Faction.PLAYER) state.gameStats.unitsKilled += 1;
               }

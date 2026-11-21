@@ -1,5 +1,33 @@
 # Changelog
 
+### v0.127.0 - Embalm
+
+Necromancers can embalm a living own unit standing on a player Gravestone. The unit becomes permanently Summoned and Embalmed, losing population and Build and Capture use while keeping its level and other traits.
+
+### v0.126.0 - Death's Door
+
+Necromancers can place an own unit under Deathless protection, keeping it at 1 HP against damage for the next full player turn. The protection expires at end of turn and leaves a Gravestone on a valid tile unless the unit follows the Brandmark rule instead.
+
+### v0.125.0 - Grave Mark
+
+Necromancers can mark enemy units to leave an empty player Gravestone when they die on a valid tile. The resulting Gravestones can fuel Necromancer spells and Ghoul consumption, but cannot revive a unit.
+
+### v0.124.0 - Crystalline and Crystallize
+
+Crystal Mages can crystallize a cross of terrain to suppress enemy combat tags. Tile suppression now displays faction-specific icons and tag feedback. Save version 26.
+
+### v0.123.4 - Gravestone appearance
+
+New Gravestones rise through a brief wisp and dust effect after eligible deaths and Explode sacrifices.
+
+### v0.123.3 - Protective layer presentation
+
+Protective layers now share absorb, recharge and break feedback, with Stone Skin appearing in stone color and Arcane Shield retaining its dome and recharge behavior. Unit background effects now resolve through a single priority channel.
+
+### v0.123.2 - Test fixture stabilization
+
+Tests now derive expectations from spawn and unit configuration and use fixed inputs for AI trace goldens, preventing tuned values from causing stale failures.
+
 ### v0.123.1 - Back navigation fixes
 
 Back now follows the visible overlay stack, reconciles history guards after reload and Forward navigation, and returns from the AI Trace subpage to Dev Options before closing the overlay.

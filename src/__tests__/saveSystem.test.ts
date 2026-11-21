@@ -13,6 +13,7 @@ import {
 } from '../saveSystem';
 import { SAVE } from '../gameConfig';
 import { useLocaleStore } from '../i18n/localeStore';
+import { TileStatus, TileType } from '../types';
 
 beforeEach(() => {
   globalThis.indexedDB = new IDBFactory();
@@ -23,7 +24,7 @@ describe('getNextDefaultSlotName', () => {
     expect(getNextDefaultSlotName([])).toBe('Campaign 1');
   });
 
-  describe('save version 24 compatibility', () => {
+  describe('save version compatibility', () => {
     it('rejects version 23 loads and imports while marking version 24 compatible', async () => {
       const state = generateInitialGameState();
       const db = await openSaveDb();
@@ -35,13 +36,32 @@ describe('getNextDefaultSlotName', () => {
       });
       db.close();
 
-      expect(SAVE_VERSION).toBe(25);
+      expect(SAVE_VERSION).toBe(26);
       expect(isSlotCompatible({ id: 'old', name: 'Old', version: 23, savedAt: 0, turn: 1, difficulty: 'STANDARD' })).toBe(false);
       expect(isSlotCompatible({ id: 'new', name: 'New', version: 24, savedAt: 0, turn: 1, difficulty: 'STANDARD' })).toBe(true);
       expect(await loadSlot('old')).toBeNull();
 
       const oldPayload = new Blob([JSON.stringify({ version: 23, state })], { type: 'application/json' });
       expect(await importSlotFromFile(Object.assign(oldPayload, { name: 'old.json' }) as File)).toBeNull();
+    });
+
+    it('loads a version 25 state at version 26 with Crystalline tile status intact', async () => {
+      const state = generateInitialGameState();
+      const tile = state.grid.flat().find((candidate) =>
+        candidate.terrainType === TileType.PLAINS && !candidate.isLava,
+      )!;
+      tile.status = TileStatus.CRYSTALLINE;
+      const db = await openSaveDb();
+      await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(SAVE.STORE_DATA, 'readwrite');
+        tx.objectStore(SAVE.STORE_DATA).put({ id: 'legacy25', version: 25, state });
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+      db.close();
+
+      const loaded = await loadSlot('legacy25');
+      expect(loaded?.grid[tile.position.y][tile.position.x].status).toBe(TileStatus.CRYSTALLINE);
     });
 
     it('round-trips a version 24 state', async () => {

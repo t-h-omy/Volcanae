@@ -2,6 +2,7 @@ import { UnitTag, type UnitType } from './types';
 import type { Unit } from './types';
 import { MAGE_PATH_BY_UNIT_TYPE, MAGE_UNIT_TYPES } from '../config/magic';
 import type { MagicPath } from './types';
+import { CORRUPTED_SUPPRESSED_TAGS, CRYSTALLINE_SUPPRESSED_TAGS } from './gameConfig';
 
 type TaggedUnit = Pick<Unit, 'tags'>;
 
@@ -31,4 +32,26 @@ export function cannotTrade(unit: TaggedUnit): boolean {
 
 export function isMech(unit: TaggedUnit): boolean {
   return unit.tags.includes(UnitTag.MECH);
+}
+
+export function hasBuildAndCapture(unit: TaggedUnit): boolean {
+  return unit.tags.includes(UnitTag.BUILDANDCAPTURE)
+    && !unit.tags.includes(UnitTag.EMBALMED);
+}
+
+export type InactiveTagReason = 'CORRUPTED' | 'CRYSTALLINE' | 'EMBALMED' | null;
+
+export function getInactiveTagReason(
+  unit: TaggedUnit,
+  tag: UnitTag,
+  suppressedTags?: ReadonlySet<UnitTag> | null,
+): InactiveTagReason {
+  if (tag === UnitTag.BUILDANDCAPTURE && unit.tags.includes(UnitTag.EMBALMED)) {
+    return 'EMBALMED';
+  }
+  if (suppressedTags?.has(tag)) {
+    if (suppressedTags === CORRUPTED_SUPPRESSED_TAGS) return 'CORRUPTED';
+    if (suppressedTags === CRYSTALLINE_SUPPRESSED_TAGS) return 'CRYSTALLINE';
+  }
+  return null;
 }

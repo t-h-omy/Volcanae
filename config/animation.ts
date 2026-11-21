@@ -5,6 +5,19 @@
  */
 
 export const ANIMATION = {
+  /** Ambient Deathless pulse cycle. */
+  DEATHLESS_PULSE_CYCLE_MS: 2800,
+  /** Final-turn Deathless pulse cycle, always at least two seconds. */
+  DEATHLESS_FINAL_PULSE_CYCLE_MS: 2000,
+  /** Ambient Crystalline tile glint cycle. */
+  CRYSTALLINE_GLINT_CYCLE_MS: 6000,
+  /** Coordinate multipliers stagger Crystalline glints across neighboring tiles. */
+  CRYSTALLINE_GLINT_X_OFFSET_MS: 1301,
+  CRYSTALLINE_GLINT_Y_OFFSET_MS: 2137,
+  /** Delay between the center and each arm of the Crystallize cast effect. */
+  CRYSTALLINE_APPLIED_STAGGER_MS: 120,
+  /** Duration of each Crystallize tile burst. */
+  CRYSTALLINE_APPLIED_VFX_MS: 580,
   /** Time for viewport to pan to a new target position */
   CAMERA_MOVE_DURATION_MS: 220,
   /** Pause after camera arrives, before action executes */
@@ -43,6 +56,10 @@ export const ANIMATION = {
   XP_GAIN_ANIM_DURATION_MS: 600,
   /** Crystal Chamber activation VFX duration (ms) */
   CRYSTAL_ACTIVATE_VFX_DURATION_MS: 1200,
+  /** Duration of the Gravestone appearance effect in milliseconds */
+  GRAVESTONE_RISE_MS: 900,
+  /** Duration of Gravestone consumption sinking and dust VFX. */
+  GRAVESTONE_CONSUMED_MS: 800,
   /** Brief charge at a resonance source before the wave releases. */
   RESONANCE_ORIGIN_CHARGE_MS: 420,
   /** Travel time for each tile of a resonance link. */
@@ -186,12 +203,12 @@ export const ANIMATION = {
   INVALID_ACTION_VFX_MS: 250,
   /** Duration of the pierce connection line (ms) */
   PIERCE_LINE_MS: 320,
-  /** Duration of the Arcane Shield absorb, break and recharge effects (ms); also the cleanup timer. */
-  ARCANE_SHIELD_FX_DURATION_MS: 700,
+  /** Duration of protective-layer absorb, break and recharge effects (ms); also the cleanup timer. */
+  PROTECTIVE_LAYER_FX_DURATION_MS: 700,
   /** Per-index delay when several Mages recharge their Arcane Shield in the same tick (ms) */
   ARCANE_SHIELD_WAVE_STAGGER_MS: 120,
-  /** Number of shards in the Arcane Shield break burst */
-  ARCANE_SHIELD_SHARD_COUNT: 6,
+  /** Number of shards in a protective-layer break burst */
+  PROTECTIVE_LAYER_SHARD_COUNT: 6,
   /** Duration of the tech tree overlay entrance (ms). */
   TECH_TREE_ENTER_MS: 240,
   /** Duration of the tech tree overlay exit (ms). */
