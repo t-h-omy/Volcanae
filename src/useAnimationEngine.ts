@@ -1302,7 +1302,7 @@ export function useAnimationEngine(): void {
             if (!isTileRevealed(chamber.position)) continue;
             const activation = {
               type: 'CRYSTAL_ACTIVATE' as const,
-              durationMs: ANIMATION.CRYSTAL_ACTIVATE_VFX_DURATION_MS,
+              durationMs: ANIMATION.CHAMBER_HEALING_VFX_DURATION_MS,
             };
             combatStore.setBuildingAnimation(chamber.buildingId, activation);
             setTimeout(() => {

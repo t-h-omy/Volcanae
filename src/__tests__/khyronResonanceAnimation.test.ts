@@ -377,7 +377,7 @@ describe('Khyron resonance event presentation', () => {
     expect(camera).not.toHaveBeenCalled();
     expect(setBuildingAnimation).toHaveBeenCalledWith(
       'chamber',
-      { type: 'CRYSTAL_ACTIVATE', durationMs: ANIMATION.CRYSTAL_ACTIVATE_VFX_DURATION_MS },
+      { type: 'CRYSTAL_ACTIVATE', durationMs: ANIMATION.CHAMBER_HEALING_VFX_DURATION_MS },
     );
     expect(addTileVfx).toHaveBeenCalledWith(expect.objectContaining({
       x: mage.position.x,

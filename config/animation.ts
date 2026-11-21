@@ -64,6 +64,8 @@ export const ANIMATION = {
   XP_GAIN_ANIM_DURATION_MS: 600,
   /** Crystal Chamber activation VFX duration (ms) */
   CRYSTAL_ACTIVATE_VFX_DURATION_MS: 1200,
+  /** Chamber Healing activation VFX duration (ms) */
+  CHAMBER_HEALING_VFX_DURATION_MS: 1200,
   /** Duration of the Gravestone appearance effect in milliseconds */
   GRAVESTONE_RISE_MS: 900,
   /** Duration of Gravestone consumption sinking and dust VFX. */
