@@ -11,6 +11,7 @@ import './TerrainTuningPanel.css';
 
 const EXPORT_TAB = 'export';
 
+/* eslint-disable no-restricted-syntax */
 function getTileGroup(tile: Tile | undefined): string | null {
   if (!tile) return null;
   if (tile.status === TileStatus.FROZEN) return 'status.frozen';
@@ -22,6 +23,15 @@ function getTileGroup(tile: Tile | undefined): string | null {
   if (tile.terrainType === TileType.CANYON) return 'terrain.canyon';
   if (tile.terrainType === TileType.WATER) return 'terrain.water';
   return 'terrain.plains';
+}
+
+function getGroupValues(path: string, look: ReturnType<typeof getTerrainLook>): Record<string, number> {
+  if (path === 'objects') return look.objects as unknown as Record<string, number>;
+  const [section, group] = path.split('.');
+  if (section === 'terrain') {
+    return look.terrain[group as keyof typeof look.terrain] as unknown as Record<string, number>;
+  }
+  return look.status[group as keyof typeof look.status] as unknown as Record<string, number>;
 }
 
 export default function TerrainTuningPanel() {
@@ -58,6 +68,7 @@ export default function TerrainTuningPanel() {
 
   const activeGroup = TERRAIN_TUNING_SCHEMA.find((group) => group.path === activeTab);
   const look = getTerrainLook();
+  const groupValues = activeGroup ? getGroupValues(activeTab, look) : null;
 
   const handleCopy = async () => {
     try {
@@ -94,9 +105,7 @@ export default function TerrainTuningPanel() {
           <>
             <div className="terrain-tuning-rows">
               {activeGroup.params.map(([key, label, min, max]) => {
-                const value = activeTab === 'objects'
-                  ? look.objects[key as keyof typeof look.objects]
-                  : (look as unknown as Record<string, Record<string, number>>)[activeTab.split('.')[0]][activeTab.split('.')[1]][key];
+                const value = groupValues?.[key] ?? 0;
                 return (
                   <label className="terrain-tuning-row" key={key}>
                     <span className="terrain-tuning-label">{label}</span>
@@ -182,3 +191,4 @@ export default function TerrainTuningPanel() {
     document.body,
   );
 }
+/* eslint-enable no-restricted-syntax */

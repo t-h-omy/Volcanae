@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type RefObject } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
 import { getLavaAdvanceInterval } from '../gameConfig';
 import { TERRAIN_RENDER } from '../../config/terrain';
 import { MAP } from '../../config/map';
@@ -20,6 +20,7 @@ interface RenderOptions {
   quality: typeof GraphicsQuality.HIGH | typeof GraphicsQuality.SAVER | typeof GraphicsQuality.BASIC;
   gridLines: typeof GridLineMode[keyof typeof GridLineMode];
   look: ReturnType<typeof getTerrainLook>;
+  revision: number;
 }
 
 export default function TerrainCanvas({ viewportRef, containerRef }: TerrainCanvasProps) {
@@ -34,17 +35,18 @@ export default function TerrainCanvas({ viewportRef, containerRef }: TerrainCanv
   const lavaFrontRow = useGameStore((state) => state.lavaFrontRow);
   const difficulty = useGameStore((state) => state.difficulty);
   const revision = useTerrainTuningStore((state) => state.revision);
-  const look = useMemo(() => getTerrainLook(), [revision]);
+  const look = getTerrainLook();
   const optionsRef = useRef<RenderOptions>({
     quality,
     gridLines,
     look,
+    revision,
   });
 
   useEffect(() => {
-    optionsRef.current = { quality, gridLines, look };
+    optionsRef.current = { quality, gridLines, look, revision };
     forceDrawRef.current = true;
-  }, [quality, gridLines, look]);
+  }, [quality, gridLines, look, revision]);
 
   useEffect(() => {
     mapRef.current = encodeTerrainMap(
@@ -153,6 +155,7 @@ export default function TerrainCanvas({ viewportRef, containerRef }: TerrainCanv
             mapVersionRef.current,
             options.gridLines,
             options.quality,
+            options.revision,
             reducedMotion,
           ].join('|');
           const changed = forceDrawRef.current || signature !== lastSignature || options.look !== lastLook;
