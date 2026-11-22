@@ -54,20 +54,21 @@ describe('encodeTerrainMap', () => {
     const grid = makeGrid();
     grid[0][0].isRevealed = false;
     for (let y = 10; y <= 12; y++) grid[y][0].isLavaPreview = true;
-    grid[13][0].isLava = true;
+    grid[14][0].isLava = true;
     grid[14][0].isLavaPreview = true;
+    grid[15][0].isLavaPreview = false;
     const data = encodeTerrainMap(grid, 13, 3);
     const middle = Math.round(TERRAIN_RENDER.HEAT_LEVEL_MAX * (1 + TERRAIN_RENDER.PREVIEW_HEAT_MIN) / 2);
     const minimum = Math.round(TERRAIN_RENDER.HEAT_LEVEL_MAX * TERRAIN_RENDER.PREVIEW_HEAT_MIN);
 
     expect(channel(data, 0, 0, 2)).toBe(255);
-    expect([10, 11, 12].map((y) => channel(data, 0, y, 1) >> 4)).toEqual([
+    expect([12, 11, 10].map((y) => channel(data, 0, y, 1) >> 4)).toEqual([
       TERRAIN_RENDER.HEAT_LEVEL_MAX,
       middle,
       minimum,
     ]);
     expect(channel(data, 0, 14, 1) >> 4).toBe(0);
-    expect(channel(data, 0, 1, 1) >> 4).toBe(0);
+    expect(channel(data, 0, 15, 1) >> 4).toBe(0);
   });
 
   it('reuses an output buffer of the required size', () => {
@@ -75,6 +76,10 @@ describe('encodeTerrainMap', () => {
     const out = new Uint8Array(MAP.GRID_WIDTH * MAP.GRID_HEIGHT * 4);
 
     expect(encodeTerrainMap(grid, 0, 0, out)).toBe(out);
-    expect(encodeTerrainMap(grid, 0, 0, new Uint8Array(1))).not.toHaveLength(1);
+    expect(encodeTerrainMap(grid, 0, 0, new Uint8Array(1))).toHaveLength(expectedLength());
   });
 });
+
+function expectedLength(): number {
+  return MAP.GRID_WIDTH * MAP.GRID_HEIGHT * 4;
+}

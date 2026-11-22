@@ -860,11 +860,11 @@ function OptionsOverlay({ onClose }: { onClose: () => void }) {
           <div className="hud-options-language-row">
             <span className="hud-options-hints-label">{t('options.display.gridLines')}</span>
             <div className="hud-options-language-buttons">
-              {[
+              {([
                 [GridLineMode.OFF, 'common.off'],
                 [GridLineMode.FINE, 'options.display.gridFine'],
                 [GridLineMode.BOLD, 'options.display.gridBold'],
-              ].map(([mode, label]) => (
+              ] as const).map(([mode, label]) => (
                 <button
                   key={mode}
                   className={`hud-options-language-btn${gridLines === mode ? ' hud-options-language-btn--active' : ''}`}

@@ -827,11 +827,11 @@ function OptionsPanel({
             <div className="mm-language-row">
               <span className="mm-field-label">{t('options.display.gridLines')}</span>
               <div className="mm-language-buttons">
-                {[
+                {([
                   [GridLineMode.OFF, 'common.off'],
                   [GridLineMode.FINE, 'options.display.gridFine'],
                   [GridLineMode.BOLD, 'options.display.gridBold'],
-                ].map(([mode, label]) => (
+                ] as const).map(([mode, label]) => (
                   <button
                     key={mode}
                     className={`mm-language-btn${gridLines === mode ? ' mm-language-btn--active' : ''}`}

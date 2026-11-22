@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const memoryStorage = (() => {
   const values = new Map<string, string>();
@@ -16,6 +16,10 @@ async function loadStore() {
 }
 
 describe('graphicsOptionsStore', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   beforeEach(() => {
     vi.stubGlobal('localStorage', memoryStorage);
     memoryStorage.clear();
