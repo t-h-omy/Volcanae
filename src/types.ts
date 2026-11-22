@@ -151,6 +151,11 @@ export const Difficulty = {
 } as const;
 export type Difficulty = (typeof Difficulty)[keyof typeof Difficulty];
 
+export const GraphicsQuality = { HIGH: 'HIGH', SAVER: 'SAVER', BASIC: 'BASIC' } as const;
+export type GraphicsQuality = (typeof GraphicsQuality)[keyof typeof GraphicsQuality];
+export const GridLineMode = { OFF: 'OFF', FINE: 'FINE', BOLD: 'BOLD' } as const;
+export type GridLineMode = (typeof GridLineMode)[keyof typeof GridLineMode];
+
 /** Game phases representing different states of the game loop */
 export const GamePhase = {
   PLAYER_TURN: 'PLAYER_TURN',
