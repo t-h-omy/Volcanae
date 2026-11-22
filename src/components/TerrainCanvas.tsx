@@ -24,7 +24,7 @@ interface RenderOptions {
 export default function TerrainCanvas({ viewportRef, containerRef }: TerrainCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<TerrainRenderer | null>(null);
-  const mapRef = useRef(new Uint8Array(MAP.GRID_WIDTH * MAP.GRID_HEIGHT * 4));
+  const mapRef = useRef<Uint8Array<ArrayBufferLike>>(new Uint8Array(MAP.GRID_WIDTH * MAP.GRID_HEIGHT * 4));
   const mapVersionRef = useRef(0);
   const forceDrawRef = useRef(true);
   const quality = useGraphicsOptionsStore((state) => state.quality);
@@ -32,12 +32,17 @@ export default function TerrainCanvas({ viewportRef, containerRef }: TerrainCanv
   const grid = useGameStore((state) => state.grid);
   const lavaFrontRow = useGameStore((state) => state.lavaFrontRow);
   const difficulty = useGameStore((state) => state.difficulty);
+  const look = getTerrainLook();
   const optionsRef = useRef<RenderOptions>({
     quality,
     gridLines,
-    look: getTerrainLook(),
+    look,
   });
-  optionsRef.current = { quality, gridLines, look: getTerrainLook() };
+
+  useEffect(() => {
+    optionsRef.current = { quality, gridLines, look };
+    forceDrawRef.current = true;
+  }, [quality, gridLines, look]);
 
   useEffect(() => {
     mapRef.current = encodeTerrainMap(
