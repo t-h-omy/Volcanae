@@ -13,6 +13,7 @@ import { useMenuStore } from '../menuStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
 import { useSoundOptionsStore } from '../soundOptionsStore';
+import { useTerrainTuningStore } from '../terrain/terrainTuningStore';
 import { isReducedMotion, useGraphicsOptionsStore, useReducedMotion } from '../graphicsOptionsStore';
 import { usesNonXpProgression } from '../levelSystem';
 import { getKhyronResonanceTurnsRemaining, isKhyronResonanceActive } from '../khyronSystem';
@@ -109,6 +110,7 @@ import { AiTraceBadge } from './AiTraceBadge';
 import { AiTraceExportControls } from './AiTraceExportControls';
 import { useText } from '../i18n/useText';
 import './HUD.css';
+import TerrainTuningPanel from './TerrainTuningPanel';
 
 const MAGIC_PATH_CSS_VARS = Object.fromEntries(
   Object.entries(MAGIC_PATH_COLORS).flatMap(([path, colors]) =>
@@ -263,6 +265,7 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
   const debugApplyTileStatus = useGameStore((s) => s.debugApplyTileStatus);
   const debugClearTileStatus = useGameStore((s) => s.debugClearTileStatus);
   const selectedTilePos = useGameStore((s) => s.selectedTilePos);
+  const openTerrainTuning = useTerrainTuningStore((s) => s.openPanel);
   const showSwap = useSpecialistHireStore((s) => s.showSwap);
   const locale = useLocaleStore((s) => s.locale);
   const setLocale = useLocaleStore((s) => s.setLocale);
@@ -410,6 +413,7 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
               />
             </label>
             <button className="hud-dev-action-btn" onClick={() => setTraceMenuOpen(true)}>📼 AI Trace</button>
+            <button className="hud-dev-action-btn" onClick={() => { openTerrainTuning(); onClose(); }}>🎨 Terrain tuning</button>
               </>
             )}
             {traceMenuOpen && (
@@ -5346,6 +5350,7 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
         showTechBadge={showTechBadge}
       />
       <AiTraceBadge />
+      <TerrainTuningPanel />
       <BottomBar onOpenTechTreeAt={openTechTreeAt} />
       {showTechTree && (
         <TechTreeOverlay

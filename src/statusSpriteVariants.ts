@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getTerrainLook } from './terrain/terrainLook';
 import { TERRAIN_STATUS_INDEX } from './terrain/terrainMapEncoding';
+import { useTerrainTuningStore } from './terrain/terrainTuningStore';
 import { TileStatus, type TileStatus as TileStatusType } from './types';
 
 const finishedVariants = new Map<string, string>();
@@ -141,6 +142,7 @@ export function useStatusSprite(
   path: string | undefined,
   status: TileStatusType | null | undefined,
 ): string | undefined {
+  const revision = useTerrainTuningStore((state) => state.revision);
   const keyName = status ? STATUS_KEY[status] : undefined;
   const strength = keyName ? getTerrainLook().objects[keyName] : 0;
   const statusIndex = status ? TERRAIN_STATUS_INDEX[status] : 0;
@@ -156,7 +158,7 @@ export function useStatusSprite(
       if (active) setVariant({ key: variantKey, path: result });
     });
     return () => { active = false; };
-  }, [path, statusIndex, strength, variantKey]);
+  }, [path, statusIndex, strength, variantKey, revision]);
 
   return variantKey && variant?.key === variantKey ? variant.path : path;
 }

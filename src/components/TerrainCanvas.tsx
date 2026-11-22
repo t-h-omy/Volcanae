@@ -1,4 +1,4 @@
-import { useEffect, useRef, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, type RefObject } from 'react';
 import { getLavaAdvanceInterval } from '../gameConfig';
 import { TERRAIN_RENDER } from '../../config/terrain';
 import { MAP } from '../../config/map';
@@ -8,6 +8,7 @@ import { GridLineMode, GraphicsQuality } from '../types';
 import { encodeTerrainMap } from '../terrain/terrainMapEncoding';
 import { useTerrainRenderStore } from '../terrain/terrainRenderStore';
 import { getTerrainLook } from '../terrain/terrainLook';
+import { useTerrainTuningStore } from '../terrain/terrainTuningStore';
 import { createTerrainRenderer, type TerrainRenderer } from '../terrain/terrainRenderer';
 
 interface TerrainCanvasProps {
@@ -32,7 +33,8 @@ export default function TerrainCanvas({ viewportRef, containerRef }: TerrainCanv
   const grid = useGameStore((state) => state.grid);
   const lavaFrontRow = useGameStore((state) => state.lavaFrontRow);
   const difficulty = useGameStore((state) => state.difficulty);
-  const look = getTerrainLook();
+  const revision = useTerrainTuningStore((state) => state.revision);
+  const look = useMemo(() => getTerrainLook(), [revision]);
   const optionsRef = useRef<RenderOptions>({
     quality,
     gridLines,

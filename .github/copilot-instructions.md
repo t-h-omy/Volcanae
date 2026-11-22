@@ -1,7 +1,7 @@
 # Copilot instructions for Volcanae
 
 1. **Anchor discipline.** Verify every file, symbol and line referenced in a prompt against the current source before editing. Line numbers are hints from v0.114.8; symbol names are authoritative. If a symbol is missing or behaves differently than described, stop that task and report it in the PR description instead of guessing.
-2. **No raw numeric literals for tunables.** Every gameplay tunable lives as a named constant in the matching `config/` module. Gameplay modules are consumed through `src/gameConfig.ts`; presentation modules (`ui.ts`, `render.ts`, `animation.ts`, `input.ts`, `hints.ts`, `i18n.ts`) are imported directly from `config/`.
+2. **No raw numeric literals for tunables.** Every gameplay tunable lives as a named constant in the matching `config/` module. Gameplay modules are consumed through `src/gameConfig.ts`; presentation modules (`ui.ts`, `render.ts`, `animation.ts`, `input.ts`, `hints.ts`, `i18n.ts`, `terrain.ts`) are imported directly from `config/`.
 3. **No em dashes (U+2014) or semicolons** in newly written player-facing text, comments and docs. Code syntax is not affected, and existing text is not rewritten.
 4. **Grid orientation** per `src/GRID_ORIENTATION.md`: row 0 = north = enemy side, high y = south = player side, lava advances north.
 5. **Distances** use the edge-circle metrics from `src/rangeUtils.ts`, never Manhattan.
@@ -9,7 +9,7 @@
 7. **Tests:** every logic change gets Vitest coverage. `npm test`, `npm run lint` and `npm run build` must pass. Tests never pin tunable values from `config/` with literals. They derive expectations from the config constants or use test-local fixed inputs.
 8. **Localization:**
    - All player-facing text resolves through the i18n layer. Components use `useText()` from `src/i18n/useText.ts`. Non-component code uses `t()` and entity helpers from `src/i18n/i18n.ts` and `src/i18n/entityText.ts`. No player-visible string literals in components or logic modules.
-   - Exempt (English only): DevOptionsOverlay, DevStatsOverlay, DevSpecPickerOverlay, AiScoreModal, RecruitScoreModal, AI trace export, AiTraceBadge, AiTraceExportControls.
+   - Exempt (English only): DevOptionsOverlay, DevStatsOverlay, DevSpecPickerOverlay, AiScoreModal, RecruitScoreModal, AI trace export, AiTraceBadge, AiTraceExportControls, TerrainTuningPanel.
    - English source text lives in `src/i18n/locales/en.json` as ICU MessageFormat. Keys follow `domain.ID.field`. One key per complete sentence or label, one key per context. Never concatenate translated fragments into sentences; entity names inserted into sentences sit in label position ("Build another: {building}").
    - Numbers in text appear only as ICU parameters whose values come from named constants (`textParams` on config definitions). This restates the DESCRIPTION AUTHORING RULE.
    - Logic modules return `TextRef` (`{ key, params? }`), never display strings. Floater and popup labels in ephemeral stores may resolve with `t()` at emission.

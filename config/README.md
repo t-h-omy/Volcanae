@@ -25,7 +25,7 @@ Game configuration for Volcanae (gameplay and presentation), split into domain m
 | `input.ts` | Touch and pointer interaction constants. |
 | `hints.ts` | Hint IDs, hint texts, hint system constants. |
 | `i18n.ts` | Supported locale metadata and localization thresholds. |
-| `terrain.ts` | Terrain layer look per terrain and status, render quality, grid lines, lava preview heat. |
+| `terrain.ts` | Terrain layer look per terrain and status, render quality, grid lines, lava preview heat, and dev tuning schema. |
 
 ## Rules
 

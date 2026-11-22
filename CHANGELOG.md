@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.134.2 - Terrain tuning panel
+
+Added a developer terrain tuning panel with live local overrides and JSON import and export.
+
 ### v0.134.1 - Status on objects
 
 Forest, mountain, building and ruin sprites now receive a static status treatment while standing on frozen, burning, corrupted or crystalline tiles.
