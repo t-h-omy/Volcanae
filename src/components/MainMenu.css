@@ -80,9 +80,7 @@
   100% { transform: translateY(-90px) scale(1.05); opacity: 0; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  * { animation: none !important; }
-}
+:root.reduce-motion * { animation: none !important; }
 
 /* ── Stage ─────────────────────────────────────────────────────────────────── */
 .mm-stage {

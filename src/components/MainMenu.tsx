@@ -11,6 +11,7 @@ import { BACK_PRIORITY } from '../backNavigation';
 import { useGameStore } from '../gameStore';
 import { useSoundOptionsStore } from '../soundOptionsStore';
 import { useHintOptionsStore } from '../hintOptionsStore';
+import { useGraphicsOptionsStore, useReducedMotion } from '../graphicsOptionsStore';
 import {
   listSlots,
   slotCount,
@@ -27,7 +28,8 @@ import {
 } from '../saveSystem';
 import type { SaveSlotMeta } from '../saveSystem';
 import { SAVE } from '../gameConfig';
-import { Difficulty } from '../types';
+import { Difficulty, GraphicsQuality, GridLineMode } from '../types';
+import { useTerrainRenderStore } from '../terrain/terrainRenderStore';
 import { useText } from '../i18n/useText';
 import { useLocaleStore } from '../i18n/localeStore';
 import { LOCALE_ENDONYMS, RELEASE_LOCALES } from '../../config/i18n';
@@ -737,6 +739,13 @@ function OptionsPanel({
   const muted = useSoundOptionsStore((s) => s.muted);
   const setVolume = useSoundOptionsStore((s) => s.setVolume);
   const setMuted = useSoundOptionsStore((s) => s.setMuted);
+  const reduceMotion = useReducedMotion();
+  const setReduceMotion = useGraphicsOptionsStore((s) => s.setReduceMotion);
+  const gridLines = useGraphicsOptionsStore((s) => s.gridLines);
+  const setGridLines = useGraphicsOptionsStore((s) => s.setGridLines);
+  const quality = useGraphicsOptionsStore((s) => s.quality);
+  const setQuality = useGraphicsOptionsStore((s) => s.setQuality);
+  const webglStatus = useTerrainRenderStore((s) => s.webglStatus);
   const [persisted, setPersisted] = useState<boolean | null>(null);
   const [usage, setUsage] = useState<{ usage: number; quota: number } | null>(null);
 
@@ -802,6 +811,69 @@ function OptionsPanel({
           <div>
             <div className="mm-field-label">{t('menu.options.hints')}</div>
             <HintsControls showReset />
+          </div>
+
+          <div className="mm-options-divider" />
+
+          <div>
+            <div className="mm-field-label">{t('options.display.title')}</div>
+            <div className="mm-language-row">
+              <span className="mm-field-label">{t('options.display.graphics')}</span>
+              <div className="mm-language-buttons">
+                {([
+                  [GraphicsQuality.HIGH, 'options.display.graphicsHigh'],
+                  [GraphicsQuality.SAVER, 'options.display.graphicsSaver'],
+                  [GraphicsQuality.BASIC, 'options.display.graphicsBasic'],
+                ] as const).map(([mode, label]) => {
+                  const unavailable = webglStatus === 'unavailable';
+                  const active = unavailable ? mode === GraphicsQuality.BASIC : quality === mode;
+                  return (
+                    <button
+                      key={mode}
+                      className={`mm-language-btn${active ? ' mm-language-btn--active' : ''}`}
+                      aria-pressed={active}
+                      disabled={unavailable && mode !== GraphicsQuality.BASIC}
+                      onClick={() => setQuality(mode)}
+                    >
+                      {t(label)}
+                    </button>
+                  );
+                })}
+              </div>
+              {webglStatus === 'unavailable' && (
+                <span className="mm-storage-usage">{t('options.display.graphicsUnavailable')}</span>
+              )}
+            </div>
+            <div className="mm-hints-row">
+              <span className="mm-hints-label">{t('options.display.reduceMotion')}</span>
+              <button
+                className={`mm-hints-toggle${reduceMotion ? ' mm-hints-toggle--on' : ''}`}
+                onClick={() => setReduceMotion(!reduceMotion)}
+                aria-pressed={reduceMotion}
+                aria-label={t('options.display.reduceMotion')}
+              >
+                {t(reduceMotion ? 'common.on' : 'common.off')}
+              </button>
+            </div>
+            <div className="mm-language-row">
+              <span className="mm-field-label">{t('options.display.gridLines')}</span>
+              <div className="mm-language-buttons">
+                {([
+                  [GridLineMode.OFF, 'common.off'],
+                  [GridLineMode.FINE, 'options.display.gridFine'],
+                  [GridLineMode.BOLD, 'options.display.gridBold'],
+                ] as const).map(([mode, label]) => (
+                  <button
+                    key={mode}
+                    className={`mm-language-btn${gridLines === mode ? ' mm-language-btn--active' : ''}`}
+                    aria-pressed={gridLines === mode}
+                    onClick={() => setGridLines(mode as GridLineMode)}
+                  >
+                    {t(label)}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           <div className="mm-options-divider" />

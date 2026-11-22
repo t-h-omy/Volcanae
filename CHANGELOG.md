@@ -1,5 +1,21 @@
 # Changelog
 
+### v0.134.2 - Terrain tuning panel
+
+Added a developer terrain tuning panel with live local overrides and JSON import and export.
+
+### v0.134.1 - Status on objects
+
+Forest, mountain, building and ruin sprites now receive a static status treatment while standing on frozen, burning, corrupted or crystalline tiles.
+
+### v0.134.0 - Animated terrain
+
+Added a procedural WebGL terrain layer with animated terrain details, tile statuses, lava previews and grid lines. Graphics options now include high quality, battery saver and a basic PNG fallback.
+
+### v0.133.0 - Display options and mage sprites
+
+Added reduce-motion and grid-line display options, made grid lines stay visible across zoom levels, and wired the path-specific Mage sprites.
+
 ### v0.132.0 - Chamber Healing
 
 Resonating Crystal Chambers heal nearby allied units after researching Chamber Healing. Summoned units, Mechs and Crystal Caves are unaffected.

@@ -2488,57 +2488,38 @@
   transform: scale(0.94);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .tech-overlay,
-  .tech-overlay--closing,
-  .tech-ambient::after,
-  .tech-path-aura,
-  .tech-node--affordable,
-  .tech-tree-tab-dot {
-    animation: none;
-  }
-
-  .tech-mote,
-  .tech-edge-flow {
-    display: none;
-  }
-
-  .tech-tree-tab-indicator {
-    transition: none;
-  }
-
-  .tech-canvas--enter-left,
-  .tech-canvas--enter-right {
-    animation: tech-canvas-fade var(--tech-tab-enter-ms) ease-out both;
-  }
-
-  .tech-node--researching {
-    animation: tech-research-fade var(--tech-research-pop-ms) ease-out;
-  }
-
-  .tech-node--researching::after {
-    animation: tech-ring-fade var(--tech-ring-expand-ms) ease-out both;
-  }
-
-  .tech-edge--researching {
-    animation: none;
-    stroke-dasharray: none;
-    stroke-dashoffset: 0;
-  }
-
-  .tech-node--revealed {
-    animation: tech-reveal-fade var(--tech-reveal-pulse-ms) ease-out both;
-    animation-delay: calc(var(--reveal-index) * var(--tech-reveal-stagger-ms));
-  }
-
-  .tech-node--focus-highlight {
-    animation: tech-reveal-fade 1s ease-in-out 3;
-  }
-
-  .tech-path-flash {
-    animation: tech-flash-fade var(--tech-path-flash-ms) ease-out both;
-  }
+:root.reduce-motion .tech-overlay,
+:root.reduce-motion .tech-overlay--closing,
+:root.reduce-motion .tech-ambient::after,
+:root.reduce-motion .tech-path-aura,
+:root.reduce-motion .tech-node--affordable,
+:root.reduce-motion .tech-tree-tab-dot {
+  animation: none;
 }
+
+:root.reduce-motion .tech-mote,
+:root.reduce-motion .tech-edge-flow { display: none; }
+
+:root.reduce-motion .tech-tree-tab-indicator { transition: none; }
+
+:root.reduce-motion .tech-canvas--enter-left,
+:root.reduce-motion .tech-canvas--enter-right {
+  animation: tech-canvas-fade var(--tech-tab-enter-ms) ease-out both;
+}
+
+:root.reduce-motion .tech-node--researching { animation: tech-research-fade var(--tech-research-pop-ms) ease-out; }
+:root.reduce-motion .tech-node--researching::after { animation: tech-ring-fade var(--tech-ring-expand-ms) ease-out both; }
+:root.reduce-motion .tech-edge--researching {
+  animation: none;
+  stroke-dasharray: none;
+  stroke-dashoffset: 0;
+}
+:root.reduce-motion .tech-node--revealed {
+  animation: tech-reveal-fade var(--tech-reveal-pulse-ms) ease-out both;
+  animation-delay: calc(var(--reveal-index) * var(--tech-reveal-stagger-ms));
+}
+:root.reduce-motion .tech-node--focus-highlight { animation: tech-reveal-fade 1s ease-in-out 3; }
+:root.reduce-motion .tech-path-flash { animation: tech-flash-fade var(--tech-path-flash-ms) ease-out both; }
 
 @keyframes tech-canvas-fade {
   from { opacity: 0; }
@@ -2738,11 +2719,9 @@
   margin: 0 0 10px;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .info-popup-tag-pill--highlight {
-    animation: none;
-    outline: 2px solid var(--tag-suppression-color, #dc3c3c);
-  }
+:root.reduce-motion .info-popup-tag-pill--highlight {
+  animation: none;
+  outline: 2px solid var(--tag-suppression-color, #dc3c3c);
 }
 
 .info-popup-tag-pill-i {

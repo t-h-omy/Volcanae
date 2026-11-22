@@ -19,6 +19,7 @@ import { RENDER } from '../../config/render';
 import { ANIMATION } from '../../config/animation';
 import { INPUT } from '../../config/input';
 import { HINTS } from '../../config/hints';
+import { TERRAIN_LOOK, TERRAIN_RENDER } from '../../config/terrain';
 
 describe('gameConfig structure', () => {
   it('exposes merged ABILITIES constants as numbers', () => {
@@ -74,5 +75,7 @@ describe('gameConfig structure', () => {
     expect(typeof ANIMATION).toBe('object');
     expect(typeof INPUT).toBe('object');
     expect(typeof HINTS.GLOBAL_MAX_SHOWS).toBe('number');
+    expect(typeof TERRAIN_LOOK).toBe('object');
+    expect(typeof TERRAIN_RENDER).toBe('object');
   });
 });

@@ -13,6 +13,8 @@ import { useMenuStore } from '../menuStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
 import { useSoundOptionsStore } from '../soundOptionsStore';
+import { useTerrainTuningStore } from '../terrain/terrainTuningStore';
+import { isReducedMotion, useGraphicsOptionsStore, useReducedMotion } from '../graphicsOptionsStore';
 import { usesNonXpProgression } from '../levelSystem';
 import { getKhyronResonanceTurnsRemaining, isKhyronResonanceActive } from '../khyronSystem';
 import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, computeResearchCost, SPELL_DEFINITIONS, MAGE, CORRUPTED_SUPPRESSED_TAGS, CRYSTAL_CAVE_CONFIG, CRYSTAL_CHAMBER_CONFIG, MARKET, SPECIALIST_DEFINITIONS, CONDITIONAL_ACTIVE_TAGS, getTechTreeId, getTechMagicPath, TECH_PATH_BY_ENTRY_NODE } from '../gameConfig';
@@ -70,6 +72,8 @@ import {
   TechEffectType,
   TechFlag,
   Difficulty,
+  GraphicsQuality,
+  GridLineMode,
   SpellId,
   TechTreeId,
   MagicPath,
@@ -98,6 +102,7 @@ import { getAttackDisplayModifiers } from '../unitStatDisplay';
 import { useEmberDisplayStore } from '../emberDisplayStore';
 import { LOCALE_ENDONYMS, PSEUDO_LOCALE, RELEASE_LOCALES, SUPPORTED_LOCALES } from '../../config/i18n';
 import { useLocaleStore, type ActiveLocale } from '../i18n/localeStore';
+import { useTerrainRenderStore } from '../terrain/terrainRenderStore';
 import { deleteRun, listSealedRuns, readMeta as readAiTraceMeta } from '../aiTraceStore';
 import { exportAiTrace, formatAiTraceBytes } from '../aiTraceExportClient';
 import type { AiTraceMeta } from '../aiTrace';
@@ -105,6 +110,7 @@ import { AiTraceBadge } from './AiTraceBadge';
 import { AiTraceExportControls } from './AiTraceExportControls';
 import { useText } from '../i18n/useText';
 import './HUD.css';
+import TerrainTuningPanel from './TerrainTuningPanel';
 
 const MAGIC_PATH_CSS_VARS = Object.fromEntries(
   Object.entries(MAGIC_PATH_COLORS).flatMap(([path, colors]) =>
@@ -259,6 +265,7 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
   const debugApplyTileStatus = useGameStore((s) => s.debugApplyTileStatus);
   const debugClearTileStatus = useGameStore((s) => s.debugClearTileStatus);
   const selectedTilePos = useGameStore((s) => s.selectedTilePos);
+  const openTerrainTuning = useTerrainTuningStore((s) => s.openPanel);
   const showSwap = useSpecialistHireStore((s) => s.showSwap);
   const locale = useLocaleStore((s) => s.locale);
   const setLocale = useLocaleStore((s) => s.setLocale);
@@ -406,6 +413,7 @@ function DevOptionsOverlay({ onClose }: { onClose: () => void }) {
               />
             </label>
             <button className="hud-dev-action-btn" onClick={() => setTraceMenuOpen(true)}>📼 AI Trace</button>
+            <button className="hud-dev-action-btn" onClick={() => { openTerrainTuning(); onClose(); }}>🎨 Terrain tuning</button>
               </>
             )}
             {traceMenuOpen && (
@@ -715,6 +723,13 @@ function OptionsOverlay({ onClose }: { onClose: () => void }) {
   const muted = useSoundOptionsStore((s) => s.muted);
   const setVolume = useSoundOptionsStore((s) => s.setVolume);
   const setMuted = useSoundOptionsStore((s) => s.setMuted);
+  const reduceMotion = useReducedMotion();
+  const setReduceMotion = useGraphicsOptionsStore((s) => s.setReduceMotion);
+  const gridLines = useGraphicsOptionsStore((s) => s.gridLines);
+  const setGridLines = useGraphicsOptionsStore((s) => s.setGridLines);
+  const quality = useGraphicsOptionsStore((s) => s.quality);
+  const setQuality = useGraphicsOptionsStore((s) => s.setQuality);
+  const webglStatus = useTerrainRenderStore((s) => s.webglStatus);
   const phase = useGameStore((s) => s.phase);
   const hintsEnabled = useHintOptionsStore((s) => s.hintsEnabled);
   const setHintsEnabled = useHintOptionsStore((s) => s.setHintsEnabled);
@@ -837,6 +852,65 @@ function OptionsOverlay({ onClose }: { onClose: () => void }) {
             >
               <FitText text={t(resetDone ? 'common.done' : 'common.reset')} />
             </button>
+          </div>
+          <hr className="hud-options-separator" />
+          <div className="hud-dev-overlay-section-title">{t('options.display.title')}</div>
+          <div className="hud-options-language-row">
+            <span className="hud-options-hints-label">{t('options.display.graphics')}</span>
+            <div className="hud-options-language-buttons">
+              {([
+                [GraphicsQuality.HIGH, 'options.display.graphicsHigh'],
+                [GraphicsQuality.SAVER, 'options.display.graphicsSaver'],
+                [GraphicsQuality.BASIC, 'options.display.graphicsBasic'],
+              ] as const).map(([mode, label]) => {
+                const unavailable = webglStatus === 'unavailable';
+                const active = unavailable ? mode === GraphicsQuality.BASIC : quality === mode;
+                return (
+                  <button
+                    key={mode}
+                    className={`hud-options-language-btn${active ? ' hud-options-language-btn--active' : ''}`}
+                    aria-pressed={active}
+                    disabled={unavailable && mode !== GraphicsQuality.BASIC}
+                    onClick={() => setQuality(mode)}
+                  >
+                    <FitText text={t(label)} />
+                  </button>
+                );
+              })}
+            </div>
+            {webglStatus === 'unavailable' && (
+              <span className="hud-options-hints-label">{t('options.display.graphicsUnavailable')}</span>
+            )}
+          </div>
+          <div className="hud-options-hints-row">
+            <span className="hud-options-hints-label">{t('options.display.reduceMotion')}</span>
+            <button
+              className={`hud-options-hints-toggle${reduceMotion ? ' hud-options-hints-toggle--on' : ''}`}
+              onClick={() => setReduceMotion(!reduceMotion)}
+              aria-pressed={reduceMotion}
+              aria-label={t('options.display.reduceMotion')}
+            >
+              {t(reduceMotion ? 'common.on' : 'common.off')}
+            </button>
+          </div>
+          <div className="hud-options-language-row">
+            <span className="hud-options-hints-label">{t('options.display.gridLines')}</span>
+            <div className="hud-options-language-buttons">
+              {([
+                [GridLineMode.OFF, 'common.off'],
+                [GridLineMode.FINE, 'options.display.gridFine'],
+                [GridLineMode.BOLD, 'options.display.gridBold'],
+              ] as const).map(([mode, label]) => (
+                <button
+                  key={mode}
+                  className={`hud-options-language-btn${gridLines === mode ? ' hud-options-language-btn--active' : ''}`}
+                  aria-pressed={gridLines === mode}
+                  onClick={() => setGridLines(mode as GridLineMode)}
+                >
+                  <FitText text={t(label)} />
+                </button>
+              ))}
+            </div>
           </div>
           <hr className="hud-options-separator" />
           <button
@@ -4701,7 +4775,7 @@ function TechTreeOverlay({
   const requestClose = useCallback(() => {
     if (closingRef.current) return;
     closingRef.current = true;
-    if (window.matchMedia(ANIMATION.REDUCED_MOTION_MEDIA_QUERY).matches) {
+    if (isReducedMotion()) {
       onClose();
       return;
     }
@@ -5276,6 +5350,7 @@ export default function HUD({ showTurnPopup }: { showTurnPopup?: boolean }) {
         showTechBadge={showTechBadge}
       />
       <AiTraceBadge />
+      <TerrainTuningPanel />
       <BottomBar onOpenTechTreeAt={openTechTreeAt} />
       {showTechTree && (
         <TechTreeOverlay

@@ -45,9 +45,9 @@ export const UNIT_SPRITE: Partial<Record<UnitType, string>> = withBase({
   SIEGE:       '/sprites/units/Catapult_100px.png',
   SCOUT:       '/sprites/units/Scout_100px.png',
   GUARD:       '/sprites/units/Guard_100px.png',
-  CRYSTAL_MAGE: '', // Target art: CrystalMage_100px.png
-  NECROMANCER: '', // Target art: Necromancer_100px.png
-  EMBER_CULTIST: '', // Target art: EmberCultist_100px.png
+  CRYSTAL_MAGE: '/sprites/units/Mage_Crystal_100px.png',
+  NECROMANCER: '/sprites/units/Mage_Necromancer_100px.png',
+  EMBER_CULTIST: '/sprites/units/Mage_Ember_Cultist_100px.png',
   EMBER_DEMON: '/sprites/units/Ember_Demon_Player_100px.png',
   SKELETON:    '/sprites/units/Skeleton_100px.png',
   CORRUPTED_QORK: '/sprites/units/qork_100px.png',
@@ -216,19 +216,17 @@ export const TILE_STATUS_SPRITE: Partial<Record<TileType, Partial<Record<TileSta
     [TS.FROZEN]:    '/sprites/tiles/terrain_grass_frozen_100px.png',
     [TS.BURNING]:   '/sprites/tiles/terrain_grass_burning_100px.png',
     [TS.CORRUPTED]: '/sprites/tiles/terrain_grass_corrupted_100px.png',
-    // Target art: terrain_grass_crystalline_100px.png
+    // Target art: terrain_grass_crystalline_100px.png (shared by PLAINS, FOREST, MOUNTAIN)
     [TS.CRYSTALLINE]: '',
   }),
   [TT.FOREST]: withBase({
     [TS.FROZEN]:    '/sprites/tiles/terrain_grass_frozen_100px.png',
     [TS.CORRUPTED]: '/sprites/tiles/terrain_grass_corrupted_100px.png',
-    // Target art: terrain_forest_crystalline_100px.png
     [TS.CRYSTALLINE]: '',
   }),
   [TT.MOUNTAIN]: withBase({
     [TS.FROZEN]:    '/sprites/tiles/terrain_grass_frozen_100px.png',
     [TS.CORRUPTED]: '/sprites/tiles/terrain_grass_corrupted_100px.png',
-    // Target art: terrain_mountain_crystalline_100px.png
     [TS.CRYSTALLINE]: '',
   }),
   [TT.WATER]: withBase({
