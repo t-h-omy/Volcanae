@@ -1,0 +1,1 @@
+if('serviceWorker' in navigator) {window.addEventListener('load', () => {navigator.serviceWorker.register('/Volcanae/previews/copilot-tr-01-terrain-foundation-display-options/sw.js', { scope: '/Volcanae/previews/copilot-tr-01-terrain-foundation-display-options/' })})}
