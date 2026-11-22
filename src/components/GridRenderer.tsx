@@ -26,6 +26,7 @@ import { getUnitTargetLevel, usesNonXpProgression } from '../levelSystem';
 import { useZoomStore } from '../zoomStore';
 import { useGraphicsOptionsStore } from '../graphicsOptionsStore';
 import { useTerrainRenderMode } from '../terrain/terrainRenderStore';
+import { useStatusSprite } from '../statusSpriteVariants';
 import TerrainCanvas from './TerrainCanvas';
 import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE, TILE_STATUS_SPRITE, RESOURCE_SPRITE, ENEMY_BUILDING_SPRITE, PLAYER_BUILDING_SPRITE, TERRAIN_RESOURCE_SPRITE, CRYSTAL_CHAMBER_ACTIVE_SPRITE, CRYSTAL_CAVE_ACTIVE_SPRITE, CRYSTAL_KHYRON_ACTIVE_SPRITE, ENEMY_UNIT_SPRITE, PLAYER_UNIT_SPRITE, TUNNEL_HOLE_SPRITE, TUNNEL_EARTHQUAKE_SPRITE, PORTAL_ENTRANCE_SPRITE, PORTAL_EXIT_SPRITE, MAGE_PORTAL_SPRITE, getBridgeSprite } from '../assetRegistry';
 import { isKhyronResonanceActive } from '../khyronSystem';
@@ -1296,6 +1297,9 @@ function TileCellInner({
     : undefined;
   const [terrainResSpriteError, setTerrainResSpriteError] = useState(false);
   const showTerrainResource = typeof terrainResourcePath === 'string' && terrainResourcePath !== '' && !terrainResSpriteError;
+  const objectStatus = tile.isRevealed && !tile.isLava ? tile.status ?? null : null;
+  const statusTerrainResourcePath = useStatusSprite(terrainResourcePath, objectStatus);
+  const statusRuinSpritePath = useStatusSprite(ruinSpritePath, objectStatus);
 
   // Shared style for full-tile overlay images (terrain resource, ruin, etc.)
   const fullTileOverlayStyle: React.CSSProperties = {
@@ -1381,6 +1385,7 @@ function TileCellInner({
               ? CRYSTAL_CHAMBER_ACTIVE_SPRITE
               : BUILDING_SPRITE[building.type]
     : undefined;
+  const statusBuildingSpritePath = useStatusSprite(buildingSpritePath, objectStatus);
   const [buildingSpriteError, setBuildingSpriteError] = useState(false);
   const [prevBuildingSpritePath, setPrevBuildingSpritePath] = useState(buildingSpritePath);
   if (buildingSpritePath !== prevBuildingSpritePath) {
@@ -1459,7 +1464,7 @@ function TileCellInner({
         <>
           <div className={tile.terrainType === TileType.FOREST ? 'forest-contact-shadow' : 'building-contact-shadow'} />
           <img
-            src={terrainResourcePath}
+            src={statusTerrainResourcePath}
             alt=""
             onError={() => setTerrainResSpriteError(true)}
             style={fullTileOverlayStyle}
@@ -1473,7 +1478,7 @@ function TileCellInner({
         <>
           <div className="building-contact-shadow" />
           <img
-            src={ruinSpritePath}
+            src={statusRuinSpritePath}
             alt=""
             onError={() => setRuinSpriteError(true)}
             style={fullTileOverlayStyle}
@@ -1565,7 +1570,7 @@ function TileCellInner({
           <div className="building-contact-shadow" />
           {typeof buildingSpritePath === 'string' && buildingSpritePath !== '' && !buildingSpriteError ? (
             <img
-              src={buildingSpritePath}
+              src={statusBuildingSpritePath}
               className="tile-building-img"
               width={buildingIconSize}
               height={buildingIconSize}

@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.134.1 - Status on objects
+
+Forest, mountain, building and ruin sprites now receive a static status treatment while standing on frozen, burning, corrupted or crystalline tiles.
+
 ### v0.134.0 - Animated terrain
 
 Added a procedural WebGL terrain layer with animated terrain details, tile statuses, lava previews and grid lines. Graphics options now include high quality, battery saver and a basic PNG fallback.

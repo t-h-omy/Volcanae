@@ -18,6 +18,8 @@ Display options let you reduce motion independently of your system setting and c
 
 The map uses animated procedural terrain for plains, canyons, water, lava, fog and tile statuses when WebGL2 is available. Choose High or Battery saver for animated terrain, or Basic for the original PNG terrain rendering. Devices without WebGL2 automatically use the PNG rendering.
 
+Tile statuses also tint forest, mountain, building and ruin sprites on affected tiles.
+
 ## Features
 
 - ⚡ Vite for lightning-fast development
