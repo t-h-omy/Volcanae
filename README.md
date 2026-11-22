@@ -16,6 +16,8 @@ To toggle hints on or off, use the "Show hints" option in the New Campaign panel
 
 Display options let you reduce motion independently of your system setting and choose Off, Fine, or Bold grid lines. Reduce motion follows your system preference until you change it.
 
+The map uses animated procedural terrain for plains, canyons, water, lava, fog and tile statuses when WebGL2 is available. Choose High or Battery saver for animated terrain, or Basic for the original PNG terrain rendering. Devices without WebGL2 automatically use the PNG rendering.
+
 ## Features
 
 - ⚡ Vite for lightning-fast development

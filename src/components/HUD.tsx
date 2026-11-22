@@ -71,6 +71,7 @@ import {
   TechEffectType,
   TechFlag,
   Difficulty,
+  GraphicsQuality,
   GridLineMode,
   SpellId,
   TechTreeId,
@@ -100,6 +101,7 @@ import { getAttackDisplayModifiers } from '../unitStatDisplay';
 import { useEmberDisplayStore } from '../emberDisplayStore';
 import { LOCALE_ENDONYMS, PSEUDO_LOCALE, RELEASE_LOCALES, SUPPORTED_LOCALES } from '../../config/i18n';
 import { useLocaleStore, type ActiveLocale } from '../i18n/localeStore';
+import { useTerrainRenderStore } from '../terrain/terrainRenderStore';
 import { deleteRun, listSealedRuns, readMeta as readAiTraceMeta } from '../aiTraceStore';
 import { exportAiTrace, formatAiTraceBytes } from '../aiTraceExportClient';
 import type { AiTraceMeta } from '../aiTrace';
@@ -721,6 +723,9 @@ function OptionsOverlay({ onClose }: { onClose: () => void }) {
   const setReduceMotion = useGraphicsOptionsStore((s) => s.setReduceMotion);
   const gridLines = useGraphicsOptionsStore((s) => s.gridLines);
   const setGridLines = useGraphicsOptionsStore((s) => s.setGridLines);
+  const quality = useGraphicsOptionsStore((s) => s.quality);
+  const setQuality = useGraphicsOptionsStore((s) => s.setQuality);
+  const webglStatus = useTerrainRenderStore((s) => s.webglStatus);
   const phase = useGameStore((s) => s.phase);
   const hintsEnabled = useHintOptionsStore((s) => s.hintsEnabled);
   const setHintsEnabled = useHintOptionsStore((s) => s.setHintsEnabled);
@@ -846,6 +851,33 @@ function OptionsOverlay({ onClose }: { onClose: () => void }) {
           </div>
           <hr className="hud-options-separator" />
           <div className="hud-dev-overlay-section-title">{t('options.display.title')}</div>
+          <div className="hud-options-language-row">
+            <span className="hud-options-hints-label">{t('options.display.graphics')}</span>
+            <div className="hud-options-language-buttons">
+              {([
+                [GraphicsQuality.HIGH, 'options.display.graphicsHigh'],
+                [GraphicsQuality.SAVER, 'options.display.graphicsSaver'],
+                [GraphicsQuality.BASIC, 'options.display.graphicsBasic'],
+              ] as const).map(([mode, label]) => {
+                const unavailable = webglStatus === 'unavailable';
+                const active = unavailable ? mode === GraphicsQuality.BASIC : quality === mode;
+                return (
+                  <button
+                    key={mode}
+                    className={`hud-options-language-btn${active ? ' hud-options-language-btn--active' : ''}`}
+                    aria-pressed={active}
+                    disabled={unavailable && mode !== GraphicsQuality.BASIC}
+                    onClick={() => setQuality(mode)}
+                  >
+                    <FitText text={t(label)} />
+                  </button>
+                );
+              })}
+            </div>
+            {webglStatus === 'unavailable' && (
+              <span className="hud-options-hints-label">{t('options.display.graphicsUnavailable')}</span>
+            )}
+          </div>
           <div className="hud-options-hints-row">
             <span className="hud-options-hints-label">{t('options.display.reduceMotion')}</span>
             <button

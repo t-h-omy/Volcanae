@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.134.0 - Animated terrain
+
+Added a procedural WebGL terrain layer with animated terrain details, tile statuses, lava previews and grid lines. Graphics options now include high quality, battery saver and a basic PNG fallback.
+
 ### v0.133.0 - Display options and mage sprites
 
 Added reduce-motion and grid-line display options, made grid lines stay visible across zoom levels, and wired the path-specific Mage sprites.

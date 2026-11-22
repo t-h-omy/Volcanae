@@ -28,7 +28,8 @@ import {
 } from '../saveSystem';
 import type { SaveSlotMeta } from '../saveSystem';
 import { SAVE } from '../gameConfig';
-import { Difficulty, GridLineMode } from '../types';
+import { Difficulty, GraphicsQuality, GridLineMode } from '../types';
+import { useTerrainRenderStore } from '../terrain/terrainRenderStore';
 import { useText } from '../i18n/useText';
 import { useLocaleStore } from '../i18n/localeStore';
 import { LOCALE_ENDONYMS, RELEASE_LOCALES } from '../../config/i18n';
@@ -742,6 +743,9 @@ function OptionsPanel({
   const setReduceMotion = useGraphicsOptionsStore((s) => s.setReduceMotion);
   const gridLines = useGraphicsOptionsStore((s) => s.gridLines);
   const setGridLines = useGraphicsOptionsStore((s) => s.setGridLines);
+  const quality = useGraphicsOptionsStore((s) => s.quality);
+  const setQuality = useGraphicsOptionsStore((s) => s.setQuality);
+  const webglStatus = useTerrainRenderStore((s) => s.webglStatus);
   const [persisted, setPersisted] = useState<boolean | null>(null);
   const [usage, setUsage] = useState<{ usage: number; quota: number } | null>(null);
 
@@ -813,6 +817,33 @@ function OptionsPanel({
 
           <div>
             <div className="mm-field-label">{t('options.display.title')}</div>
+            <div className="mm-language-row">
+              <span className="mm-field-label">{t('options.display.graphics')}</span>
+              <div className="mm-language-buttons">
+                {([
+                  [GraphicsQuality.HIGH, 'options.display.graphicsHigh'],
+                  [GraphicsQuality.SAVER, 'options.display.graphicsSaver'],
+                  [GraphicsQuality.BASIC, 'options.display.graphicsBasic'],
+                ] as const).map(([mode, label]) => {
+                  const unavailable = webglStatus === 'unavailable';
+                  const active = unavailable ? mode === GraphicsQuality.BASIC : quality === mode;
+                  return (
+                    <button
+                      key={mode}
+                      className={`mm-language-btn${active ? ' mm-language-btn--active' : ''}`}
+                      aria-pressed={active}
+                      disabled={unavailable && mode !== GraphicsQuality.BASIC}
+                      onClick={() => setQuality(mode)}
+                    >
+                      {t(label)}
+                    </button>
+                  );
+                })}
+              </div>
+              {webglStatus === 'unavailable' && (
+                <span className="mm-storage-usage">{t('options.display.graphicsUnavailable')}</span>
+              )}
+            </div>
             <div className="mm-hints-row">
               <span className="mm-hints-label">{t('options.display.reduceMotion')}</span>
               <button

@@ -25,6 +25,8 @@ import { TERRAIN_RENDER } from '../../config/terrain';
 import { getUnitTargetLevel, usesNonXpProgression } from '../levelSystem';
 import { useZoomStore } from '../zoomStore';
 import { useGraphicsOptionsStore } from '../graphicsOptionsStore';
+import { useTerrainRenderMode } from '../terrain/terrainRenderStore';
+import TerrainCanvas from './TerrainCanvas';
 import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE, TILE_STATUS_SPRITE, RESOURCE_SPRITE, ENEMY_BUILDING_SPRITE, PLAYER_BUILDING_SPRITE, TERRAIN_RESOURCE_SPRITE, CRYSTAL_CHAMBER_ACTIVE_SPRITE, CRYSTAL_CAVE_ACTIVE_SPRITE, CRYSTAL_KHYRON_ACTIVE_SPRITE, ENEMY_UNIT_SPRITE, PLAYER_UNIT_SPRITE, TUNNEL_HOLE_SPRITE, TUNNEL_EARTHQUAKE_SPRITE, PORTAL_ENTRANCE_SPRITE, PORTAL_EXIT_SPRITE, MAGE_PORTAL_SPRITE, getBridgeSprite } from '../assetRegistry';
 import { isKhyronResonanceActive } from '../khyronSystem';
 import { isCorruptionBoundDrainActive } from '../corruptedQorkSystem';
@@ -85,10 +87,10 @@ function posKey(x: number, y: number): string {
   return `${x},${y}`;
 }
 
-function getGridLineStyle(gridLines: GridLineMode, zoom: number): React.CSSProperties {
+function getGridLineStyle(gridLines: GridLineMode, zoom: number, terrainShader: boolean): React.CSSProperties {
   const alpha = gridLines === GridLineMode.OFF ? 0 : TERRAIN_RENDER.GRID_ALPHA_DOM[gridLines];
   return {
-    '--grid-line-width': gridLines === GridLineMode.OFF
+    '--grid-line-width': terrainShader || gridLines === GridLineMode.OFF
       ? '0px'
       : `${TERRAIN_RENDER.GRID_LINE_SCREEN_PX / zoom}px`,
     '--grid-line-color': `rgba(0, 0, 0, ${alpha})`,
@@ -153,6 +155,7 @@ function getBuildingAttackableTileKeys(
 export default function GridRenderer() {
   const { t } = useText();
   const gridLines = useGraphicsOptionsStore((state) => state.gridLines);
+  const terrainMode = useTerrainRenderMode();
   // ── Store selectors ──
   const grid = useGameStore((s) => s.grid);
   const units = useGameStore((s) => s.units);
@@ -1070,6 +1073,7 @@ export default function GridRenderer() {
       onTouchEnd={onTouchEnd}
       onTouchCancel={onTouchEnd}
     >
+      {terrainMode === 'shader' && <TerrainCanvas viewportRef={viewportRef} containerRef={containerRef} />}
       <div
         className="grid-container"
         ref={containerRef}
@@ -1084,7 +1088,7 @@ export default function GridRenderer() {
           // origin, matching the offset arithmetic used throughout this component.
           transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`,
           transformOrigin: '0 0',
-          ...getGridLineStyle(gridLines, zoom),
+          ...getGridLineStyle(gridLines, zoom, terrainMode === 'shader'),
           ...(spellCasterPath ? { '--spell-target-color': MAGIC_PATH_COLORS[spellCasterPath].primary } : {}),
         }}
       >
@@ -1237,6 +1241,7 @@ function TileCellInner({
   isMagePortal,
 }: TileCellProps) {
   const buildingIconSize = tileSize;
+  const terrainShader = useTerrainRenderMode() === 'shader';
 
   // ── Tile sprite path ──
   // Ruin tiles use the underlying terrain as their base; the ruin graphic is
@@ -1410,7 +1415,7 @@ function TileCellInner({
       onClick={onClick}
     >
       {/* tile sprite or missing-sprite placeholder */}
-      {showTileImg ? (
+      {!terrainShader && (showTileImg ? (
         <img
           src={tileSpritePath}
           alt=""
@@ -1444,10 +1449,10 @@ function TileCellInner({
         <div style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
           <MissingSprite size={tileSize} />
         </div>
-      )}
+      ))}
 
       {/* lava-preview overlay */}
-      {overlay && <div className="tile-overlay" style={{ backgroundColor: overlay }} />}
+      {!terrainShader && overlay && <div className="tile-overlay" style={{ backgroundColor: overlay }} />}
 
       {/* terrain resource overlay (forest / mountain on top of grass) */}
       {showTerrainResource && (
@@ -1497,9 +1502,9 @@ function TileCellInner({
       {isSlidePreview && <div className="tile-overlay tile--slide-preview" />}
 
       {/* corrupted tile overlay — only shown as a CSS fallback when no dedicated status sprite exists */}
-      {tile.status === TileStatus.CORRUPTED && tile.isRevealed && !tileStatusSpritePath && <div className="tile-overlay tile--corrupted" />}
+      {!terrainShader && tile.status === TileStatus.CORRUPTED && tile.isRevealed && !tileStatusSpritePath && <div className="tile-overlay tile--corrupted" />}
 
-      {tile.status === TileStatus.CRYSTALLINE && tile.isRevealed && (
+      {!terrainShader && tile.status === TileStatus.CRYSTALLINE && tile.isRevealed && (
         <div
           className="tile-overlay tile--crystalline-glint"
           style={{
@@ -1510,7 +1515,7 @@ function TileCellInner({
       )}
 
       {/* burning tile overlay — only shown as a CSS fallback when no dedicated status sprite exists */}
-      {tile.status === TileStatus.BURNING && tile.isRevealed && !tileStatusSpritePath && <div className="tile-overlay tile--burning" />}
+      {!terrainShader && tile.status === TileStatus.BURNING && tile.isRevealed && !tileStatusSpritePath && <div className="tile-overlay tile--burning" />}
 
       {/* tunnel hole overlay — shown while a TUNNEL unit is DIGGING_IN or UNDERGROUND */}
       {isTunnelHole && tile.isRevealed && (
