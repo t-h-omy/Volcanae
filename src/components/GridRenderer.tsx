@@ -21,8 +21,10 @@ import { ANIMATION } from '../../config/animation';
 import { UI } from '../../config/ui';
 import { MAGIC_PATH_COLORS, RENDER } from '../../config/render';
 import { INPUT } from '../../config/input';
+import { TERRAIN_RENDER } from '../../config/terrain';
 import { getUnitTargetLevel, usesNonXpProgression } from '../levelSystem';
 import { useZoomStore } from '../zoomStore';
+import { useGraphicsOptionsStore } from '../graphicsOptionsStore';
 import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE, TILE_STATUS_SPRITE, RESOURCE_SPRITE, ENEMY_BUILDING_SPRITE, PLAYER_BUILDING_SPRITE, TERRAIN_RESOURCE_SPRITE, CRYSTAL_CHAMBER_ACTIVE_SPRITE, CRYSTAL_CAVE_ACTIVE_SPRITE, CRYSTAL_KHYRON_ACTIVE_SPRITE, ENEMY_UNIT_SPRITE, PLAYER_UNIT_SPRITE, TUNNEL_HOLE_SPRITE, TUNNEL_EARTHQUAKE_SPRITE, PORTAL_ENTRANCE_SPRITE, PORTAL_EXIT_SPRITE, MAGE_PORTAL_SPRITE, getBridgeSprite } from '../assetRegistry';
 import { isKhyronResonanceActive } from '../khyronSystem';
 import { isCorruptionBoundDrainActive } from '../corruptedQorkSystem';
@@ -35,6 +37,7 @@ import {
   BuildingType,
   TileType,
   TileStatus,
+  GridLineMode,
   type Tile,
   type Unit,
   type Building,
@@ -80,6 +83,16 @@ function useTileSize(): number {
 
 function posKey(x: number, y: number): string {
   return `${x},${y}`;
+}
+
+function getGridLineStyle(gridLines: GridLineMode, zoom: number): React.CSSProperties {
+  const alpha = gridLines === GridLineMode.OFF ? 0 : TERRAIN_RENDER.GRID_ALPHA_DOM[gridLines];
+  return {
+    '--grid-line-width': gridLines === GridLineMode.OFF
+      ? '0px'
+      : `${TERRAIN_RENDER.GRID_LINE_SCREEN_PX / zoom}px`,
+    '--grid-line-color': `rgba(0, 0, 0, ${alpha})`,
+  } as React.CSSProperties;
 }
 
 const MAGIC_PATH_CSS_VARS = Object.fromEntries(
@@ -139,6 +152,7 @@ function getBuildingAttackableTileKeys(
 
 export default function GridRenderer() {
   const { t } = useText();
+  const gridLines = useGraphicsOptionsStore((state) => state.gridLines);
   // ── Store selectors ──
   const grid = useGameStore((s) => s.grid);
   const units = useGameStore((s) => s.units);
@@ -1070,6 +1084,7 @@ export default function GridRenderer() {
           // origin, matching the offset arithmetic used throughout this component.
           transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`,
           transformOrigin: '0 0',
+          ...getGridLineStyle(gridLines, zoom),
           ...(spellCasterPath ? { '--spell-target-color': MAGIC_PATH_COLORS[spellCasterPath].primary } : {}),
         }}
       >

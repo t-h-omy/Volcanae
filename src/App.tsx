@@ -11,6 +11,7 @@ import HUD from './components/HUD'
 import FlyToHudLayer from './components/FlyToHudLayer'
 import MainMenu from './components/MainMenu'
 import { useText } from './i18n/useText'
+import { useReduceMotionClass } from './graphicsOptionsStore'
 import './App.css'
 
 function isAppInstalled(): boolean {
@@ -122,6 +123,7 @@ function Game({ canInstall, promptInstall }: { canInstall: boolean; promptInstal
 }
 
 function App() {
+  useReduceMotionClass();
   const screen = useMenuStore((s) => s.screen);
   const { canInstall, isInstalled, promptInstall } = useA2HS();
 

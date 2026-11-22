@@ -13,6 +13,7 @@ import { useMenuStore } from '../menuStore';
 import { useAnimationStore } from '../animationStore';
 import { useDevOptionsStore } from '../devOptionsStore';
 import { useSoundOptionsStore } from '../soundOptionsStore';
+import { isReducedMotion, useGraphicsOptionsStore, useReducedMotion } from '../graphicsOptionsStore';
 import { usesNonXpProgression } from '../levelSystem';
 import { getKhyronResonanceTurnsRemaining, isKhyronResonanceActive } from '../khyronSystem';
 import { UNIT_DEFINITIONS, BUILDING_DEFINITIONS, RESOURCES, POPULATION, XP, TECH_TREE, ABILITIES, DIFFICULTY_MULTIPLIER, getLavaAdvanceInterval, TAG_STAT_EFFECTS, UPGRADE_TRADEOFF_TAGS, computeResearchCost, SPELL_DEFINITIONS, MAGE, CORRUPTED_SUPPRESSED_TAGS, CRYSTAL_CAVE_CONFIG, CRYSTAL_CHAMBER_CONFIG, MARKET, SPECIALIST_DEFINITIONS, CONDITIONAL_ACTIVE_TAGS, getTechTreeId, getTechMagicPath, TECH_PATH_BY_ENTRY_NODE } from '../gameConfig';
@@ -70,6 +71,7 @@ import {
   TechEffectType,
   TechFlag,
   Difficulty,
+  GridLineMode,
   SpellId,
   TechTreeId,
   MagicPath,
@@ -715,6 +717,10 @@ function OptionsOverlay({ onClose }: { onClose: () => void }) {
   const muted = useSoundOptionsStore((s) => s.muted);
   const setVolume = useSoundOptionsStore((s) => s.setVolume);
   const setMuted = useSoundOptionsStore((s) => s.setMuted);
+  const reduceMotion = useReducedMotion();
+  const setReduceMotion = useGraphicsOptionsStore((s) => s.setReduceMotion);
+  const gridLines = useGraphicsOptionsStore((s) => s.gridLines);
+  const setGridLines = useGraphicsOptionsStore((s) => s.setGridLines);
   const phase = useGameStore((s) => s.phase);
   const hintsEnabled = useHintOptionsStore((s) => s.hintsEnabled);
   const setHintsEnabled = useHintOptionsStore((s) => s.setHintsEnabled);
@@ -837,6 +843,38 @@ function OptionsOverlay({ onClose }: { onClose: () => void }) {
             >
               <FitText text={t(resetDone ? 'common.done' : 'common.reset')} />
             </button>
+          </div>
+          <hr className="hud-options-separator" />
+          <div className="hud-dev-overlay-section-title">{t('options.display.title')}</div>
+          <div className="hud-options-hints-row">
+            <span className="hud-options-hints-label">{t('options.display.reduceMotion')}</span>
+            <button
+              className={`hud-options-hints-toggle${reduceMotion ? ' hud-options-hints-toggle--on' : ''}`}
+              onClick={() => setReduceMotion(!reduceMotion)}
+              aria-pressed={reduceMotion}
+              aria-label={t('options.display.reduceMotion')}
+            >
+              {t(reduceMotion ? 'common.on' : 'common.off')}
+            </button>
+          </div>
+          <div className="hud-options-language-row">
+            <span className="hud-options-hints-label">{t('options.display.gridLines')}</span>
+            <div className="hud-options-language-buttons">
+              {[
+                [GridLineMode.OFF, 'common.off'],
+                [GridLineMode.FINE, 'options.display.gridFine'],
+                [GridLineMode.BOLD, 'options.display.gridBold'],
+              ].map(([mode, label]) => (
+                <button
+                  key={mode}
+                  className={`hud-options-language-btn${gridLines === mode ? ' hud-options-language-btn--active' : ''}`}
+                  aria-pressed={gridLines === mode}
+                  onClick={() => setGridLines(mode as GridLineMode)}
+                >
+                  <FitText text={t(label)} />
+                </button>
+              ))}
+            </div>
           </div>
           <hr className="hud-options-separator" />
           <button
@@ -4701,7 +4739,7 @@ function TechTreeOverlay({
   const requestClose = useCallback(() => {
     if (closingRef.current) return;
     closingRef.current = true;
-    if (window.matchMedia(ANIMATION.REDUCED_MOTION_MEDIA_QUERY).matches) {
+    if (isReducedMotion()) {
       onClose();
       return;
     }
