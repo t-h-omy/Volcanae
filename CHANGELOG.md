@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.133.0 - Display options and mage sprites
+
+Added reduce-motion and grid-line display options, made grid lines stay visible across zoom levels, and wired the path-specific Mage sprites.
+
 ### v0.132.0 - Chamber Healing
 
 Resonating Crystal Chambers heal nearby allied units after researching Chamber Healing. Summoned units, Mechs and Crystal Caves are unaffected.
