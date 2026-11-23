@@ -19,13 +19,29 @@
   will-change: transform;
 }
 
-.terrain-canvas {
+.terrain-canvas,
+.terrain-fog-canvas {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   display: block;
   pointer-events: none;
+}
+
+.tile-fog-lift {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 20;
+  animation: tileFogLift var(--fog-lift-duration) linear forwards;
+}
+
+@keyframes tileFogLift {
+  from { opacity: 1; }
+  to { opacity: 0; }
 }
 
 /* ── Missing Sprite Placeholder ── */

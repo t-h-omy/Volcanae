@@ -22,6 +22,12 @@ export const ANIMATION = {
   /** Coordinate multipliers stagger Crystalline glints across neighboring tiles. */
   CRYSTALLINE_GLINT_X_OFFSET_MS: 1301,
   CRYSTALLINE_GLINT_Y_OFFSET_MS: 2137,
+  /** Duration of the cloud retreat on one revealed tile (shader mode) and of the fog tile fade (PNG mode). */
+  FOG_LIFT_MS: 450,
+  /** Delay between the lift of one row of newly revealed tiles and the next deeper row. */
+  FOG_LIFT_ROW_STAGGER_MS: 360,
+  /** Deeper rows than this lift together with this row. */
+  FOG_LIFT_MAX_DEPTH: 4,
   /** Delay between the center and each arm of the Crystallize cast effect. */
   CRYSTALLINE_APPLIED_STAGGER_MS: 120,
   /** Duration of each Crystallize tile burst. */

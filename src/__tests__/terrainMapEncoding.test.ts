@@ -78,6 +78,17 @@ describe('encodeTerrainMap', () => {
     expect(encodeTerrainMap(grid, 0, 0, out)).toBe(out);
     expect(encodeTerrainMap(grid, 0, 0, new Uint8Array(1))).toHaveLength(expectedLength());
   });
+
+  it('uses supplied fog values only for revealed tiles', () => {
+    const grid = makeGrid();
+    grid[0][1].isRevealed = false;
+    const fog = new Map([[0, 128], [1, 64]]);
+    const data = encodeTerrainMap(grid, 0, 0, undefined, { fog });
+
+    expect(channel(data, 0, 0, 2)).toBe(128);
+    expect(channel(data, 1, 0, 2)).toBe(255);
+    expect(channel(data, 2, 0, 2)).toBe(0);
+  });
 });
 
 function expectedLength(): number {

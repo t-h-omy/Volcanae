@@ -1,6 +1,6 @@
 import { MAP } from '../../config/map';
-import { TERRAIN_RENDER } from '../../config/terrain';
 import { TileStatus, TileType, type Tile } from '../types';
+import { TERRAIN_RENDER } from '../../config/terrain';
 
 export const TERRAIN_STATUS_INDEX: Record<TileStatus, number> = {
   FROZEN: 1,
@@ -22,6 +22,7 @@ export function encodeTerrainMap(
   lavaFrontRow: number,
   previewRows: number,
   out?: Uint8Array,
+  options?: { fog?: ReadonlyMap<number, number> },
 ): Uint8Array {
   const expectedLength = MAP.GRID_WIDTH * MAP.GRID_HEIGHT * TEXEL_BYTES;
   const encoded = out?.length === expectedLength ? out : new Uint8Array(expectedLength);
@@ -56,7 +57,9 @@ export function encodeTerrainMap(
 
       encoded[offset] = level;
       encoded[offset + 1] = status + 16 * heat;
-      encoded[offset + 2] = tile.isRevealed ? 0 : 255;
+      encoded[offset + 2] = tile.isRevealed
+        ? options?.fog?.get(y * MAP.GRID_WIDTH + x) ?? 0
+        : 255;
       encoded[offset + 3] = ((x * 73856093) ^ (y * 19349663)) & 255;
     }
   }

@@ -2,6 +2,7 @@ import { MAP } from '../../config/map';
 import type { TerrainLook } from '../../config/terrain';
 import {
   TERRAIN_FRAGMENT_SHADER,
+  TERRAIN_FOG_FRAGMENT_SHADER,
   TERRAIN_UNIFORM_NAMES,
   TERRAIN_VERTEX_SHADER,
   type TerrainUniformName,
@@ -18,6 +19,7 @@ export interface TerrainRenderFrame {
   animate: boolean;
   look: TerrainLook;
   gridAlpha: number;
+  fogSplit: boolean;
 }
 
 export interface TerrainRenderer {
@@ -39,12 +41,19 @@ function compileShader(gl: WebGL2RenderingContext, type: number, source: string)
   return shader;
 }
 
-export function createTerrainRenderer(canvas: HTMLCanvasElement): TerrainRenderer | null {
+export function createTerrainRenderer(
+  canvas: HTMLCanvasElement,
+  variant: 'terrain' | 'fog' = 'terrain',
+): TerrainRenderer | null {
   const gl = canvas.getContext('webgl2', { alpha: true, premultipliedAlpha: true, antialias: false });
   if (!gl) return null;
 
   const vertexShader = compileShader(gl, gl.VERTEX_SHADER, TERRAIN_VERTEX_SHADER);
-  const fragmentShader = compileShader(gl, gl.FRAGMENT_SHADER, TERRAIN_FRAGMENT_SHADER);
+  const fragmentShader = compileShader(
+    gl,
+    gl.FRAGMENT_SHADER,
+    variant === 'fog' ? TERRAIN_FOG_FRAGMENT_SHADER : TERRAIN_FRAGMENT_SHADER,
+  );
   if (!vertexShader || !fragmentShader) {
     if (vertexShader) gl.deleteShader(vertexShader);
     if (fragmentShader) gl.deleteShader(fragmentShader);
@@ -146,6 +155,7 @@ export function createTerrainRenderer(canvas: HTMLCanvasElement): TerrainRendere
       gl.uniform3fv(locations.get('uCry') ?? null, packed.cry);
       gl.uniform1f(locations.get('uHeat') ?? null, packed.heat);
       gl.uniform2f(locations.get('uPrevEdge') ?? null, packed.prevEdge[0], packed.prevEdge[1]);
+      gl.uniform1f(locations.get('uFogSplit') ?? null, frame.fogSplit ? 1 : 0);
       gl.uniform1f(locations.get('uGridA') ?? null, frame.gridAlpha);
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT);

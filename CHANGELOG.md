@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.134.6 - Retreating fog
+
+Clouds now retreat across newly revealed tiles, and PNG fog tiles fade away as their terrain is uncovered.
+
 ### v0.134.5 - Lava preview edge
 
 The lava preview band now has a tunable soft, irregular outer edge that blends into the surrounding terrain.

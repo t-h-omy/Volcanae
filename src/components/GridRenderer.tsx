@@ -238,6 +238,7 @@ export default function GridRenderer() {
   const tileSize = useTileSize();
   const viewportRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const fogCanvasRef = useRef<HTMLCanvasElement>(null);
   const [viewportWidth, setViewportWidth] = useState<number | null>(null);
   const overviewZoom = resonanceOverview && viewportWidth !== null && viewportWidth > 0
     ? getResonanceOverviewZoom(viewportWidth, tileSize, userZoom)
@@ -1078,7 +1079,9 @@ export default function GridRenderer() {
       onTouchEnd={onTouchEnd}
       onTouchCancel={onTouchEnd}
     >
-      {terrainMode === 'shader' && <TerrainCanvas viewportRef={viewportRef} containerRef={containerRef} />}
+      {terrainMode === 'shader' && (
+        <TerrainCanvas viewportRef={viewportRef} containerRef={containerRef} fogCanvasRef={fogCanvasRef} />
+      )}
       <div
         className="grid-container"
         ref={containerRef}
@@ -1166,6 +1169,7 @@ export default function GridRenderer() {
         <TileVfxLayer tileSize={tileSize} />
         <LineVfxLayer tileSize={tileSize} />
       </div>
+      {terrainMode === 'shader' && <canvas ref={fogCanvasRef} className="terrain-fog-canvas" aria-hidden="true" />}
       <div className="zoom-controls">
         <button disabled={resonanceOverview} onClick={() => handleZoomButton(-RENDER.ZOOM_STEP)}>−</button>
         <button disabled={resonanceOverview} onClick={() => handleZoomButton(+RENDER.ZOOM_STEP)}>+</button>
@@ -1245,6 +1249,13 @@ function TileCellInner({
 }: TileCellProps) {
   const buildingIconSize = tileSize;
   const terrainShader = useTerrainRenderMode() === 'shader';
+  const [fogFading, setFogFading] = useState(false);
+  const wasRevealedRef = useRef(tile.isRevealed);
+
+  useEffect(() => {
+    if (!wasRevealedRef.current && tile.isRevealed && !terrainShader) setFogFading(true);
+    wasRevealedRef.current = tile.isRevealed;
+  }, [tile.isRevealed, terrainShader]);
 
   // ── Tile sprite path ──
   // Ruin tiles use the underlying terrain as their base; the ruin graphic is
@@ -1413,6 +1424,7 @@ function TileCellInner({
       style={{
         width: tileSize,
         height: tileSize,
+        '--fog-lift-duration': `${ANIMATION.FOG_LIFT_MS}ms`,
         ...(isCrystalActivating && { '--crystal-activate-duration': `${crystalActivationDuration}ms` }),
         ...(isGravestoneRising && {
           '--gravestone-rise-duration': `${ANIMATION.GRAVESTONE_RISE_MS}ms`,
@@ -1637,6 +1649,14 @@ function TileCellInner({
           <div className="unit-contact-shadow" />
           <UnitBadge unit={unit} tileSize={tileSize} />
         </>
+      )}
+      {fogFading && (
+        <img
+          src={TILE_SPRITE['unrevealed']}
+          alt=""
+          className="tile-fog-lift"
+          onAnimationEnd={() => setFogFading(false)}
+        />
       )}
     </div>
   );
