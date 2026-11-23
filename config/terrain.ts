@@ -6,7 +6,7 @@ export const TERRAIN_LOOK = {
     plains: { blend: 0.27, noise: 0.22, patchContrast: 0.5, tufts: 0.5 },
     canyon: { blend: 0.25, noise: 0.22, wallHeight: 0.275, detail: 1 },
     water: { blend: 0.25, noise: 0.22, foam: 0.7, waves: 0.7 },
-    lava: { blend: 0.25, noise: 0.22, crust: 0.5, glow: 0.5, previewHeat: 0.7, previewBlend: 0.25, previewNoise: 0.22 },
+    lava: { blend: 0.25, noise: 0.22, crust: 0.5, glow: 0.5, previewHeat: 0.7, previewBlend: 0.5, previewNoise: 0.4 },
     fog: { blend: 0.25, noise: 0.22, shadow: 0.5, contrast: 0.6 },
   },
   status: {
