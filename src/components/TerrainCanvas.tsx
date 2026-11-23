@@ -107,7 +107,7 @@ export default function TerrainCanvas({ viewportRef, containerRef }: TerrainCanv
       lost = true;
       if (restoreTimer !== null) clearTimeout(restoreTimer);
       restoreTimer = setTimeout(
-        () => useTerrainRenderStore.getState().markWebglUnavailable(),
+        () => useTerrainRenderStore.getState().markWebglLost(),
         TERRAIN_RENDER.CONTEXT_RESTORE_TIMEOUT_MS,
       );
     };
@@ -117,7 +117,7 @@ export default function TerrainCanvas({ viewportRef, containerRef }: TerrainCanv
       rendererRef.current?.dispose();
       rendererRef.current = createTerrainRenderer(canvas);
       if (!rendererRef.current) {
-        useTerrainRenderStore.getState().markWebglUnavailable();
+        useTerrainRenderStore.getState().markWebglLost();
         return;
       }
       rendererRef.current.setMap(mapRef.current);

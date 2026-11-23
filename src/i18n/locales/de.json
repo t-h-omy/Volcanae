@@ -20,6 +20,7 @@
   "options.display.graphicsSaver": "Sparsam",
   "options.display.graphicsBasic": "Einfach",
   "options.display.graphicsUnavailable": "Animiertes Terrain ist auf diesem Gerät nicht verfügbar.",
+  "options.display.graphicsLost": "Animiertes Terrain wurde nach einem Grafikfehler abgeschaltet. Starte das Spiel neu, um es wieder einzuschalten.",
   "options.display.reduceMotion": "Bewegung reduzieren",
   "options.display.gridLines": "Gitterlinien",
   "options.display.gridFine": "Fein",

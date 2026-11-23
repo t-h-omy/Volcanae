@@ -863,14 +863,14 @@ function OptionsOverlay({ onClose }: { onClose: () => void }) {
                 [GraphicsQuality.SAVER, 'options.display.graphicsSaver'],
                 [GraphicsQuality.BASIC, 'options.display.graphicsBasic'],
               ] as const).map(([mode, label]) => {
-                const unavailable = webglStatus === 'unavailable';
-                const active = unavailable ? mode === GraphicsQuality.BASIC : quality === mode;
+                const graphicsUnavailable = webglStatus !== 'ready';
+                const active = graphicsUnavailable ? mode === GraphicsQuality.BASIC : quality === mode;
                 return (
                   <button
                     key={mode}
                     className={`hud-options-language-btn${active ? ' hud-options-language-btn--active' : ''}`}
                     aria-pressed={active}
-                    disabled={unavailable && mode !== GraphicsQuality.BASIC}
+                    disabled={graphicsUnavailable && mode !== GraphicsQuality.BASIC}
                     onClick={() => setQuality(mode)}
                   >
                     <FitText text={t(label)} />
@@ -878,8 +878,10 @@ function OptionsOverlay({ onClose }: { onClose: () => void }) {
                 );
               })}
             </div>
-            {webglStatus === 'unavailable' && (
-              <span className="hud-options-hints-label">{t('options.display.graphicsUnavailable')}</span>
+            {webglStatus !== 'ready' && (
+              <span className="hud-options-hints-label">
+                {t(webglStatus === 'lost' ? 'options.display.graphicsLost' : 'options.display.graphicsUnavailable')}
+              </span>
             )}
           </div>
           <div className="hud-options-hints-row">

@@ -10,6 +10,9 @@ describe('resolveTerrainRenderMode', () => {
     [GraphicsQuality.HIGH, 'unavailable', 'png'],
     [GraphicsQuality.SAVER, 'unavailable', 'png'],
     [GraphicsQuality.BASIC, 'unavailable', 'png'],
+    [GraphicsQuality.HIGH, 'lost', 'png'],
+    [GraphicsQuality.SAVER, 'lost', 'png'],
+    [GraphicsQuality.BASIC, 'lost', 'png'],
   ] as const)('resolves %s quality with %s WebGL to %s', (quality, status, expected) => {
     expect(resolveTerrainRenderMode(quality, status)).toBe(expected);
   });
