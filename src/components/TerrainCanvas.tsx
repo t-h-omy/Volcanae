@@ -10,6 +10,7 @@ import { useTerrainRenderStore } from '../terrain/terrainRenderStore';
 import { getTerrainLook } from '../terrain/terrainLook';
 import { useTerrainTuningStore } from '../terrain/terrainTuningStore';
 import { createTerrainRenderer, type TerrainRenderer } from '../terrain/terrainRenderer';
+import { addCameraFrameListener } from '../cameraRig';
 
 interface TerrainCanvasProps {
   viewportRef: RefObject<HTMLDivElement | null>;
@@ -95,7 +96,6 @@ export default function TerrainCanvas({ viewportRef, containerRef }: TerrainCanv
     rendererRef.current = initialRenderer;
     initialRenderer.setMap(mapRef.current);
 
-    let frameId = 0;
     let lastDrawAt = 0;
     let lastSignature = '';
     let lastLook: RenderOptions['look'] | null = null;
@@ -187,12 +187,11 @@ export default function TerrainCanvas({ viewportRef, containerRef }: TerrainCanv
           }
         }
       }
-      frameId = requestAnimationFrame(drawFrame);
     };
-    frameId = requestAnimationFrame(drawFrame);
+    const removeCameraFrameListener = addCameraFrameListener(drawFrame, { continuous: true });
 
     return () => {
-      cancelAnimationFrame(frameId);
+      removeCameraFrameListener();
       canvas.removeEventListener('webglcontextlost', onContextLost);
       canvas.removeEventListener('webglcontextrestored', onContextRestored);
       document.removeEventListener('visibilitychange', onVisibilityChange);

@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.134.4 - Camera rig
+
+Camera motion now shares a JavaScript frame loop with terrain rendering so the terrain canvas and grid stay aligned during camera moves.
+
 ### v0.134.3 - Terrain review fixes
 
 Crystalline terrain now uses the crystalline grass sprite in PNG mode, finished status variants appear immediately, and graphics options explain when WebGL is unavailable or lost.

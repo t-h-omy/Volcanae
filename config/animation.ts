@@ -28,6 +28,8 @@ export const ANIMATION = {
   CRYSTALLINE_APPLIED_VFX_MS: 580,
   /** Time for viewport to pan to a new target position */
   CAMERA_MOVE_DURATION_MS: 220,
+  /** Easing of camera moves, equal to CSS ease-in-out (cubic-bezier control points x1, y1, x2, y2). */
+  CAMERA_EASE_BEZIER: [0.42, 0, 0.58, 1],
   /** Pause after camera arrives, before action executes */
   PRE_ACTION_IDLE_MS: 80,
   /** Pause after action resolves, before moving to next event */

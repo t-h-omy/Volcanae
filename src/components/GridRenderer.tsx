@@ -3,7 +3,7 @@
  * sprite-based tile/unit/building rendering, HP bars, zoom, and click interaction.
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useGameStore } from '../gameStore';
 import { useFloaterStore } from '../floaterStore';
 import type { TextRef } from '../i18n/i18n';
@@ -48,6 +48,7 @@ import {
 import { isTileWithinEdgeCircleRange } from '../rangeUtils';
 import { createResonanceLightningPaths, getResonanceOverviewZoom } from '../resonanceVfx';
 import { nextTileCycleTarget, tileSelectionState } from '../tileCycleHelper';
+import { attachCameraContainer, setCameraTarget } from '../cameraRig';
 import { canUnitMove, getMovableTiles, canUnitAttack, getAttackTargets, getTauntBlockedAttackTargetKeys, explainInvalidAttackTarget, canUnitConstruct, canUnitCapture, getHealTargets, getBridgeBuildTargets, explainInvalidHealTarget, explainInvalidBridgeTarget, canUnitSetTrap, getTrapPlacementTargets, explainInvalidTrapTarget, isUnitDisplayExhausted, canUnitCast } from '../unitActions';
 import { getValidSpellTargets, explainInvalidSpellTarget, getTransposeTerrainBlockedTargets, getLeashedUnitsForMage, getMageCastBudget, getAmplifiedUnitForMage, isLeashAnchored } from '../spellSystem';
 import { explainBlockedMagePortalEntry } from '../portalSystem';
@@ -283,10 +284,23 @@ export default function GridRenderer() {
 
   // Offset the inner container; we store actual scroll position internally
   const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const instantCameraRef = useRef(false);
 
   // Keep a ref to the latest offset so it can be read synchronously in effects
   const offsetRef = useRef(offset);
   offsetRef.current = offset;
+
+  useLayoutEffect(() => {
+    attachCameraContainer(containerRef.current);
+    return () => attachCameraContainer(null);
+  }, []);
+
+  useLayoutEffect(() => {
+    setCameraTarget(
+      { x: offset.x, y: offset.y, zoom },
+      { animate: !instantCameraRef.current, durationMs: cameraMoveDurationMs },
+    );
+  }, [offset.x, offset.y, zoom, cameraMoveDurationMs]);
 
   // Helper: zoom to a new value and adjust offset so the given focal point (in viewport px)
   // stays fixed on screen. Call this for wheel and button zooming.
@@ -336,13 +350,6 @@ export default function GridRenderer() {
     }
   }, [isAnimating]);
 
-  // Keep the CSS transition in sync with the current animation's camera pacing.
-  useEffect(() => {
-    if (containerRef.current) {
-      containerRef.current.style.setProperty('--camera-move-duration', `${cameraMoveDurationMs}ms`);
-    }
-  }, [cameraMoveDurationMs]);
-
   // When camera target changes, update offset to center viewport on target.
   // Manual zoom keeps its focal point; only the temporary overview re-centres.
   useEffect(() => {
@@ -389,8 +396,8 @@ export default function GridRenderer() {
           }
           // Cancel any active pan drag — we're switching to pinch
           dragState.current.isDragActive = false;
-          // Suppress CSS transition during pinch
-          if (containerRef.current) containerRef.current.classList.add('no-transition');
+          // Keep the camera rig's gesture updates instant during pinch.
+          instantCameraRef.current = true;
           // Cancel any ongoing inertia
           if (inertiaRaf.current !== null) {
             cancelAnimationFrame(inertiaRaf.current);
@@ -412,8 +419,8 @@ export default function GridRenderer() {
         inertiaRaf.current = null;
       }
 
-      // Suppress the CSS transition while the user is panning manually
-      if (containerRef.current) containerRef.current.classList.add('no-transition');
+      // Keep the camera rig's gesture updates instant while panning manually.
+      instantCameraRef.current = true;
 
       dragState.current = {
         isDragging: false,
@@ -515,8 +522,7 @@ export default function GridRenderer() {
       ps.pointers.delete(e.pointerId);
       if (ps.active) {
         ps.active = false;
-        // Restore CSS transition once pinch gesture ends
-        if (containerRef.current) containerRef.current.classList.remove('no-transition');
+        instantCameraRef.current = false;
         return;
       }
     }
@@ -532,8 +538,7 @@ export default function GridRenderer() {
 
     // Start inertia scroll for touch swipes
     if (e.pointerType === 'touch' && ds.isDragging) {
-      // Keep no-transition active during inertia to prevent CSS transitions from
-      // stacking on every setOffset call. Remove it only when inertia has ended.
+      // Keep camera updates instant during inertia and resume tweening afterward.
       let vx = ds.velocityX;
       let vy = ds.velocityY;
       let lastTime = performance.now();
@@ -557,15 +562,14 @@ export default function GridRenderer() {
           inertiaRaf.current = requestAnimationFrame(inertiaFrame);
         } else {
           inertiaRaf.current = null;
-          // Restore the CSS transition now that inertia has fully ended
-          if (containerRef.current) containerRef.current.classList.remove('no-transition');
+          instantCameraRef.current = false;
         }
       };
 
       inertiaRaf.current = requestAnimationFrame(inertiaFrame);
     } else {
-      // Non-touch drag (RMB) or touch tap without drag: restore CSS transition immediately
-      if (containerRef.current) containerRef.current.classList.remove('no-transition');
+      // Non-touch drag (RMB) or touch tap without drag ends instant camera updates.
+      instantCameraRef.current = false;
     }
   }, []);
 
@@ -1084,10 +1088,8 @@ export default function GridRenderer() {
           height: gridHeight,
           gridTemplateColumns: `repeat(${MAP.GRID_WIDTH}, ${tileSize}px)`,
           gridTemplateRows: `repeat(${MAP.GRID_HEIGHT}, ${tileSize}px)`,
-          // Zoom is applied as a CSS scale (GPU-composited, no layout recalculation).
-          // transform-origin is set to 0 0 so the scale is anchored at the container
-          // origin, matching the offset arithmetic used throughout this component.
-          transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoom})`,
+          // Transform origin is set to 0 0 so the scale is anchored at the
+          // container origin, matching the offset arithmetic used throughout.
           transformOrigin: '0 0',
           ...getGridLineStyle(gridLines, zoom, terrainMode === 'shader'),
           ...(spellCasterPath ? { '--spell-target-color': MAGIC_PATH_COLORS[spellCasterPath].primary } : {}),
