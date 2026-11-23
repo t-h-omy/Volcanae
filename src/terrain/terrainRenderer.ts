@@ -145,6 +145,7 @@ export function createTerrainRenderer(canvas: HTMLCanvasElement): TerrainRendere
       gl.uniform3fv(locations.get('uCor') ?? null, packed.cor);
       gl.uniform3fv(locations.get('uCry') ?? null, packed.cry);
       gl.uniform1f(locations.get('uHeat') ?? null, packed.heat);
+      gl.uniform2f(locations.get('uPrevEdge') ?? null, packed.prevEdge[0], packed.prevEdge[1]);
       gl.uniform1f(locations.get('uGridA') ?? null, frame.gridAlpha);
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT);

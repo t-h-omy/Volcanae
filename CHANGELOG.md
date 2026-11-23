@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.134.5 - Lava preview edge
+
+The lava preview band now has a tunable soft, irregular outer edge that blends into the surrounding terrain.
+
 ### v0.134.4 - Camera rig
 
 Camera motion now shares a JavaScript frame loop with terrain rendering so the terrain canvas and grid stay aligned during camera moves.

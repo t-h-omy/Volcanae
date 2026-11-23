@@ -76,5 +76,9 @@ describe('packTerrainUniforms', () => {
       TERRAIN_LOOK.status.crystalline.strength,
     ]);
     expect(packed.heat).toBe(TERRAIN_LOOK.terrain.lava.previewHeat);
+    expect(packed.prevEdge).toEqual([
+      TERRAIN_LOOK.terrain.lava.previewBlend,
+      TERRAIN_LOOK.terrain.lava.previewNoise,
+    ]);
   });
 });

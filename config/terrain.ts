@@ -6,7 +6,7 @@ export const TERRAIN_LOOK = {
     plains: { blend: 0.27, noise: 0.22, patchContrast: 0.5, tufts: 0.5 },
     canyon: { blend: 0.25, noise: 0.22, wallHeight: 0.275, detail: 1 },
     water: { blend: 0.25, noise: 0.22, foam: 0.7, waves: 0.7 },
-    lava: { blend: 0.25, noise: 0.22, crust: 0.5, glow: 0.5, previewHeat: 0.7 },
+    lava: { blend: 0.25, noise: 0.22, crust: 0.5, glow: 0.5, previewHeat: 0.7, previewBlend: 0.25, previewNoise: 0.22 },
     fog: { blend: 0.25, noise: 0.22, shadow: 0.5, contrast: 0.6 },
   },
   status: {
@@ -27,7 +27,7 @@ export const TERRAIN_TUNING_SCHEMA = [
   { path: 'terrain.plains', label: 'Plains', params: [['blend', 'Edge blend', 0, 0.4], ['noise', 'Edge noise', 0, 0.3], ['patchContrast', 'Patch contrast', 0, 1], ['tufts', 'Grass tufts', 0, 1]] },
   { path: 'terrain.canyon', label: 'Canyon', params: [['blend', 'Edge blend', 0, 0.4], ['noise', 'Edge noise', 0, 0.3], ['wallHeight', 'Wall height', 0, 1], ['detail', 'Cracks and pebbles', 0, 1]] },
   { path: 'terrain.water', label: 'Water', params: [['blend', 'Edge blend', 0, 0.4], ['noise', 'Edge noise', 0, 0.3], ['foam', 'Foam', 0, 1], ['waves', 'Waves', 0, 1]] },
-  { path: 'terrain.lava', label: 'Lava', params: [['blend', 'Edge blend', 0, 0.4], ['noise', 'Edge noise', 0, 0.3], ['crust', 'Crust', 0, 1], ['glow', 'Glow', 0, 1], ['previewHeat', 'Preview heat', 0, 1]] },
+  { path: 'terrain.lava', label: 'Lava', params: [['blend', 'Edge blend', 0, 0.4], ['noise', 'Edge noise', 0, 0.3], ['crust', 'Crust', 0, 1], ['glow', 'Glow', 0, 1], ['previewHeat', 'Preview heat', 0, 1], ['previewBlend', 'Preview edge blend', 0.06, 0.4], ['previewNoise', 'Preview edge noise', 0, 0.3]] },
   { path: 'terrain.fog', label: 'Fog', params: [['blend', 'Edge blend', 0, 0.4], ['noise', 'Edge noise', 0, 0.3], ['shadow', 'Cloud shadow', 0, 1], ['contrast', 'Cloud contrast', 0, 1]] },
   { path: 'status.frozen', label: 'Frozen', params: [['blend', 'Edge blend', 0, 0.4], ['noise', 'Edge noise', 0, 0.3], ['frostLayer', 'Frost layer', 0, 1], ['cracks', 'Cracks', 0, 1], ['glare', 'Ice glare', 0, 1]] },
   { path: 'status.burning', label: 'Burning', params: [['blend', 'Edge blend', 0, 0.4], ['noise', 'Edge noise', 0, 0.3], ['char', 'Char', 0, 1], ['scorch', 'Scorch', 0, 1], ['fire', 'Embers and fire', 0, 1]] },
