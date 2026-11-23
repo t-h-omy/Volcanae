@@ -90,6 +90,16 @@ export function getStatusVariantKey(path: string, statusIndex: number, k: number
   return `${path}|${statusIndex}|${k}`;
 }
 
+export function pickStatusSprite(
+  path: string | undefined,
+  variantKey: string | null,
+  cached: string | undefined,
+  pending: { key: string; path: string } | null,
+): string | undefined {
+  if (cached) return cached;
+  return variantKey && pending?.key === variantKey ? pending.path : path;
+}
+
 export function generateStatusVariant(path: string, statusIndex: number, k: number): Promise<string> {
   const key = getStatusVariantKey(path, statusIndex, k);
   const cached = finishedVariants.get(key);
@@ -150,15 +160,16 @@ export function useStatusSprite(
     ? getStatusVariantKey(path, statusIndex, strength)
     : null;
   const [variant, setVariant] = useState<{ key: string; path: string } | null>(null);
+  const cached = variantKey ? finishedVariants.get(variantKey) : undefined;
 
   useEffect(() => {
-    if (!path || !statusIndex || strength <= 0 || !variantKey) return;
+    if (!path || !statusIndex || strength <= 0 || !variantKey || cached) return;
     let active = true;
     void generateStatusVariant(path, statusIndex, strength).then((result) => {
       if (active) setVariant({ key: variantKey, path: result });
     });
     return () => { active = false; };
-  }, [path, statusIndex, strength, variantKey, revision]);
+  }, [path, statusIndex, strength, variantKey, revision, cached]);
 
-  return variantKey && variant?.key === variantKey ? variant.path : path;
+  return pickStatusSprite(path, variantKey, cached, variant);
 }

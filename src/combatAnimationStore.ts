@@ -112,6 +112,7 @@ export type TileVfxVariant =
   | 'SPELL_IMPACT_CAPTURE_PLAYER'
   | 'SPELL_IMPACT_CAPTURE_ENEMY'
   | 'BURNING_DAMAGE'
+  | 'ENGULF'
   | 'CORRUPTION_APPLIED'
   | 'CRYSTALLINE_APPLIED'
   | 'CORRUPTION_FIZZLE'
@@ -131,6 +132,7 @@ export interface TileVfx {
   durationMs: number;
   delayMs?: number;
   tone?: MagicPath;
+  maskSrc?: string;
 }
 
 export type LineVfxVariant =

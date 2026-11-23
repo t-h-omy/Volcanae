@@ -22,3 +22,7 @@
     - Autocam pans to every visible queued event through `eventPosition` and `isEventVisible`; recurring passive effects on many units use one grouped event.
     - Readability: unit statuses use `TAG_INFO[tag].icon`, one background effect at a time through `UNIT_BACKGROUND_EFFECT_PRIORITY`, and one sprite treatment at a time. Cycles last at least 2 seconds and change only opacity and color, with background opacity at most 0.4 and no `filter` on the unit container.
     - JS timings live in `config/animation.ts`, CSS-only timings and sizes use component custom properties, colors use tokens, input stays enabled, VFX appear only on revealed tiles, and reduced motion is honored.
+11. **Terrain and display rules:**
+    - Art data: the GLSL strings in `src/terrain/terrainShader.ts` and the pixel recipe in `src/statusSpriteVariants.ts` keep their color and shape constants inline. Everything tuned per terrain, status or object comes from `config/terrain.ts`. Shader changes are delivered by the developer, never written by the agent.
+    - Reduced motion is the root class `reduce-motion` on `<html>`. CSS uses `:root.reduce-motion` selectors, JS uses `isReducedMotion()`. No `prefers-reduced-motion` media blocks.
+    - Every dismissible overlay, popup or panel registers with `useBackDismiss(handler, priority, active)` and a `BACK_PRIORITY` entry. Forced-choice overlays pass a `null` handler.

@@ -20,6 +20,7 @@
   "options.display.graphicsSaver": "Economia de bateria",
   "options.display.graphicsBasic": "Básico",
   "options.display.graphicsUnavailable": "O terreno animado não está disponível neste dispositivo.",
+  "options.display.graphicsLost": "O terreno animado foi desativado após um erro gráfico. Reinicie o jogo para ativá-lo novamente.",
   "options.display.reduceMotion": "Reduzir movimento",
   "options.display.gridLines": "Linhas da grade",
   "options.display.gridFine": "Finas",

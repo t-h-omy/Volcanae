@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyStatusToPixels, getStatusVariantKey } from '../statusSpriteVariants';
+import { applyStatusToPixels, getStatusVariantKey, pickStatusSprite } from '../statusSpriteVariants';
 
 function rgbaPixels(colors: number[][]): Uint8ClampedArray {
   return new Uint8ClampedArray(colors.flat());
@@ -55,5 +55,12 @@ describe('applyStatusToPixels', () => {
   it('keys variants by sprite, status and strength', () => {
     expect(getStatusVariantKey('/sprite.png', 1, 0.4)).not.toBe(getStatusVariantKey('/sprite.png', 2, 0.4));
     expect(getStatusVariantKey('/sprite.png', 1, 0.4)).not.toBe(getStatusVariantKey('/sprite.png', 1, 0.5));
+  });
+
+  it('prefers a cached variant over the pending variant and source path', () => {
+    expect(pickStatusSprite('/sprite.png', 'variant-key', 'data:image/png;base64,cached', {
+      key: 'variant-key',
+      path: 'data:image/png;base64,pending',
+    })).toBe('data:image/png;base64,cached');
   });
 });

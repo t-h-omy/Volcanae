@@ -78,6 +78,33 @@ describe('encodeTerrainMap', () => {
     expect(encodeTerrainMap(grid, 0, 0, out)).toBe(out);
     expect(encodeTerrainMap(grid, 0, 0, new Uint8Array(1))).toHaveLength(expectedLength());
   });
+
+  it('uses supplied fog values only for revealed tiles', () => {
+    const grid = makeGrid();
+    grid[0][1].isRevealed = false;
+    const fog = new Map([[0, 128], [1, 64]]);
+    const data = encodeTerrainMap(grid, 0, 0, undefined, { fog });
+
+    expect(channel(data, 0, 0, 2)).toBe(128);
+    expect(channel(data, 1, 0, 2)).toBe(255);
+    expect(channel(data, 2, 0, 2)).toBe(0);
+  });
+
+  it('encodes the incoming lava flow row at the farthest preview heat level', () => {
+    const grid = makeGrid();
+    const flowRow = 20;
+    grid[flowRow - 3][1].isLava = true;
+    const data = encodeTerrainMap(grid, 15, 3, undefined, { lavaFlowRow: flowRow });
+    const flowPreviewRow = flowRow - 3;
+    const expectedHeat = Math.round(TERRAIN_RENDER.HEAT_LEVEL_MAX * TERRAIN_RENDER.PREVIEW_HEAT_MIN);
+
+    expect(channel(data, 0, flowPreviewRow, 0)).toBe(18);
+    expect(channel(data, 0, flowPreviewRow, 1) >> 4).toBe(expectedHeat);
+    expect(channel(data, 1, flowPreviewRow, 0)).toBe(3);
+    expect(channel(data, 1, flowPreviewRow, 1) >> 4).toBe(0);
+    expect(channel(data, 0, flowPreviewRow - 1, 0)).toBe(2);
+    expect(channel(data, 0, flowPreviewRow - 1, 1) >> 4).toBe(0);
+  });
 });
 
 function expectedLength(): number {

@@ -1,5 +1,25 @@
 # Changelog
 
+### v0.134.7 - Lava flow
+
+Lava advances as a flowing front, then engulfs buildings and units in fire before they disappear beneath it.
+
+### v0.134.6 - Retreating fog
+
+Clouds now retreat across newly revealed tiles, and PNG fog tiles fade away as their terrain is uncovered.
+
+### v0.134.5 - Lava preview edge
+
+The lava preview band now has a tunable soft, irregular outer edge that blends into the surrounding terrain.
+
+### v0.134.4 - Camera rig
+
+Camera motion now shares a JavaScript frame loop with terrain rendering so the terrain canvas and grid stay aligned during camera moves.
+
+### v0.134.3 - Terrain review fixes
+
+Crystalline terrain now uses the crystalline grass sprite in PNG mode, finished status variants appear immediately, and graphics options explain when WebGL is unavailable or lost.
+
 ### v0.134.2 - Terrain tuning panel
 
 Added a developer terrain tuning panel with live local overrides and JSON import and export.

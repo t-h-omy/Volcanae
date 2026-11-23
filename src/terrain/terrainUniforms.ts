@@ -24,6 +24,7 @@ export interface PackedTerrainUniforms {
   cor: [number, number, number];
   cry: [number, number, number];
   heat: number;
+  prevEdge: [number, number];
 }
 
 export function packTerrainUniforms(look: TerrainLook): PackedTerrainUniforms {
@@ -65,5 +66,6 @@ export function packTerrainUniforms(look: TerrainLook): PackedTerrainUniforms {
     cor: [look.status.corrupted.ash, look.status.corrupted.veins, look.status.corrupted.glow],
     cry: [look.status.crystalline.density, look.status.crystalline.size, look.status.crystalline.strength],
     heat: look.terrain.lava.previewHeat,
+    prevEdge: [look.terrain.lava.previewBlend, look.terrain.lava.previewNoise],
   };
 }

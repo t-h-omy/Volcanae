@@ -9,6 +9,7 @@ import { useFloaterStore } from '../floaterStore';
 import { useGameStore } from '../gameStore';
 import { useAnimationEngine } from '../useAnimationEngine';
 import { advanceLavaWithEvents } from '../lavaSystem';
+import { getLavaAdvanceHoldMs } from '../lavaPresentation';
 import { buildingName } from '../i18n/entityText';
 import { t } from '../i18n/i18n';
 import { BuildingType, DestroyBehavior, Faction, TileType, UnitType } from '../types';
@@ -197,7 +198,7 @@ describe('lost-roost death presentation', () => {
     expect(newState.buildings.cave).toBeUndefined();
     expect(newState.units.drake).toBeUndefined();
     const { floater, animation, camera } = replay(events);
-    await vi.advanceTimersByTimeAsync(arrival + ANIMATION.LAVA_ADVANCE_PAUSE_MS);
+    await vi.advanceTimersByTimeAsync(arrival + getLavaAdvanceHoldMs({ reducedMotion: false, hasVictims: true }));
     expect(useGameStore.getState().buildings.cave).toBeUndefined();
     expect(useGameStore.getState().units.drake).toBeDefined();
     expect(floater).not.toHaveBeenCalled();

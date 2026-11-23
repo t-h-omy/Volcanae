@@ -2,12 +2,13 @@ import { create } from 'zustand';
 import { useGraphicsOptionsStore } from '../graphicsOptionsStore';
 import { GraphicsQuality, type GraphicsQuality as GraphicsQualityType } from '../types';
 
-export type WebglStatus = 'ready' | 'unavailable';
+export type WebglStatus = 'ready' | 'unavailable' | 'lost';
 export type TerrainRenderMode = 'shader' | 'png';
 
 interface TerrainRenderState {
   webglStatus: WebglStatus;
   markWebglUnavailable: () => void;
+  markWebglLost: () => void;
 }
 
 function probeWebgl(): WebglStatus {
@@ -22,10 +23,11 @@ function probeWebgl(): WebglStatus {
 export const useTerrainRenderStore = create<TerrainRenderState>()((set) => ({
   webglStatus: probeWebgl(),
   markWebglUnavailable: () => set({ webglStatus: 'unavailable' }),
+  markWebglLost: () => set({ webglStatus: 'lost' }),
 }));
 
 export function resolveTerrainRenderMode(quality: GraphicsQualityType, status: WebglStatus): TerrainRenderMode {
-  return quality === GraphicsQuality.BASIC || status === 'unavailable' ? 'png' : 'shader';
+  return quality === GraphicsQuality.BASIC || status !== 'ready' ? 'png' : 'shader';
 }
 
 export function useTerrainRenderMode(): TerrainRenderMode {

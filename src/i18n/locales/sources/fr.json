@@ -20,6 +20,7 @@
   "options.display.graphicsSaver": "Battery saver",
   "options.display.graphicsBasic": "Basic",
   "options.display.graphicsUnavailable": "Animated terrain is not available on this device.",
+  "options.display.graphicsLost": "Animated terrain was turned off after a graphics error. Restart the game to turn it on again.",
   "options.display.reduceMotion": "Reduce motion",
   "options.display.gridLines": "Grid lines",
   "options.display.gridFine": "Fine",

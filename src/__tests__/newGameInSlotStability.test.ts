@@ -5,7 +5,7 @@ import { useGameStore } from '../gameStore';
 import { useMenuStore } from '../menuStore';
 import { Difficulty, GamePhase } from '../types';
 
-describe('repro new game black', () => {
+describe('newGameInSlot stability', () => {
   beforeEach(() => {
     globalThis.indexedDB = new IDBFactory();
     useMenuStore.setState({ screen: 'MENU', panel: 'NEW', navDir: 'forward', activeSaveId: null });

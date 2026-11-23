@@ -16,8 +16,9 @@
  * - All sprites: **transparent background** PNG
  */
 
-import type { UnitType, BuildingType, TileType, TileStatus } from './types';
+import type { Building, UnitType, BuildingType, TileType, TileStatus } from './types';
 import { TileType as TT, TileStatus as TS } from './types';
+import { BuildingType as BT, Faction } from './types';
 
 /**
  * Prepend the Vite public base URL to every non-empty sprite path in a map.
@@ -216,18 +217,17 @@ export const TILE_STATUS_SPRITE: Partial<Record<TileType, Partial<Record<TileSta
     [TS.FROZEN]:    '/sprites/tiles/terrain_grass_frozen_100px.png',
     [TS.BURNING]:   '/sprites/tiles/terrain_grass_burning_100px.png',
     [TS.CORRUPTED]: '/sprites/tiles/terrain_grass_corrupted_100px.png',
-    // Target art: terrain_grass_crystalline_100px.png (shared by PLAINS, FOREST, MOUNTAIN)
-    [TS.CRYSTALLINE]: '',
+    [TS.CRYSTALLINE]: '/sprites/tiles/terrain_grass_crystalline_100px.png',
   }),
   [TT.FOREST]: withBase({
     [TS.FROZEN]:    '/sprites/tiles/terrain_grass_frozen_100px.png',
     [TS.CORRUPTED]: '/sprites/tiles/terrain_grass_corrupted_100px.png',
-    [TS.CRYSTALLINE]: '',
+    [TS.CRYSTALLINE]: '/sprites/tiles/terrain_grass_crystalline_100px.png',
   }),
   [TT.MOUNTAIN]: withBase({
     [TS.FROZEN]:    '/sprites/tiles/terrain_grass_frozen_100px.png',
     [TS.CORRUPTED]: '/sprites/tiles/terrain_grass_corrupted_100px.png',
-    [TS.CRYSTALLINE]: '',
+    [TS.CRYSTALLINE]: '/sprites/tiles/terrain_grass_crystalline_100px.png',
   }),
   [TT.WATER]: withBase({
     [TS.FROZEN]:    '/sprites/tiles/terrain_water__frozen_100px.png',
@@ -274,3 +274,20 @@ export const PORTAL_EXIT_SPRITE = withBase({ portal_exit: '/sprites/buildings/po
 export const MAGE_PORTAL_SPRITE = withBase({
   mage_portal: '/sprites/units/portal_player_100px.png',
 }).mage_portal ?? '';
+
+export function getBuildingSpritePath(building: Building): string | undefined {
+  if (building.type === BT.BRIDGE) return getBridgeSprite(building.bridgeOrientation);
+  if (building.faction === Faction.ENEMY && ENEMY_BUILDING_SPRITE[building.type]) {
+    return ENEMY_BUILDING_SPRITE[building.type];
+  }
+  if (building.faction === Faction.PLAYER && PLAYER_BUILDING_SPRITE[building.type]) {
+    return PLAYER_BUILDING_SPRITE[building.type];
+  }
+  if (building.faction === null && RESOURCE_SPRITE[building.type]) {
+    return RESOURCE_SPRITE[building.type];
+  }
+  const isResonating = (building.resonanceTurnsRemaining ?? 0) > 0;
+  if (isResonating && building.type === BT.CRYSTAL_CAVE) return CRYSTAL_CAVE_ACTIVE_SPRITE;
+  if (isResonating && building.type === BT.CRYSTAL_CHAMBER) return CRYSTAL_CHAMBER_ACTIVE_SPRITE;
+  return BUILDING_SPRITE[building.type];
+}

@@ -825,14 +825,14 @@ function OptionsPanel({
                   [GraphicsQuality.SAVER, 'options.display.graphicsSaver'],
                   [GraphicsQuality.BASIC, 'options.display.graphicsBasic'],
                 ] as const).map(([mode, label]) => {
-                  const unavailable = webglStatus === 'unavailable';
-                  const active = unavailable ? mode === GraphicsQuality.BASIC : quality === mode;
+                  const graphicsUnavailable = webglStatus !== 'ready';
+                  const active = graphicsUnavailable ? mode === GraphicsQuality.BASIC : quality === mode;
                   return (
                     <button
                       key={mode}
                       className={`mm-language-btn${active ? ' mm-language-btn--active' : ''}`}
                       aria-pressed={active}
-                      disabled={unavailable && mode !== GraphicsQuality.BASIC}
+                      disabled={graphicsUnavailable && mode !== GraphicsQuality.BASIC}
                       onClick={() => setQuality(mode)}
                     >
                       {t(label)}
@@ -840,8 +840,10 @@ function OptionsPanel({
                   );
                 })}
               </div>
-              {webglStatus === 'unavailable' && (
-                <span className="mm-storage-usage">{t('options.display.graphicsUnavailable')}</span>
+              {webglStatus !== 'ready' && (
+                <span className="mm-storage-usage">
+                  {t(webglStatus === 'lost' ? 'options.display.graphicsLost' : 'options.display.graphicsUnavailable')}
+                </span>
               )}
             </div>
             <div className="mm-hints-row">

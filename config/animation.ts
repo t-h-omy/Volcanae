@@ -22,18 +22,34 @@ export const ANIMATION = {
   /** Coordinate multipliers stagger Crystalline glints across neighboring tiles. */
   CRYSTALLINE_GLINT_X_OFFSET_MS: 1301,
   CRYSTALLINE_GLINT_Y_OFFSET_MS: 2137,
+  /** Duration of the cloud retreat on one revealed tile (shader mode) and of the fog tile fade (PNG mode). */
+  FOG_LIFT_MS: 450,
+  /** Delay between the lift of one row of newly revealed tiles and the next deeper row. */
+  FOG_LIFT_ROW_STAGGER_MS: 360,
+  /** Deeper rows than this lift together with this row. */
+  FOG_LIFT_MAX_DEPTH: 4,
   /** Delay between the center and each arm of the Crystallize cast effect. */
   CRYSTALLINE_APPLIED_STAGGER_MS: 120,
   /** Duration of each Crystallize tile burst. */
   CRYSTALLINE_APPLIED_VFX_MS: 580,
   /** Time for viewport to pan to a new target position */
   CAMERA_MOVE_DURATION_MS: 220,
+  /** Easing of camera moves, equal to CSS ease-in-out (cubic-bezier control points x1, y1, x2, y2). */
+  CAMERA_EASE_BEZIER: [0.42, 0, 0.58, 1],
   /** Pause after camera arrives, before action executes */
   PRE_ACTION_IDLE_MS: 80,
   /** Pause after action resolves, before moving to next event */
   POST_ACTION_IDLE_MS: 250,
-  /** Longer pause for lava advance — more dramatic weight */
-  LAVA_ADVANCE_PAUSE_MS: 700,
+  /** Duration of the moving lava front. */
+  LAVA_FLOW_MS: 900,
+  /** Duration of the fire engulfing objects and units on the lava row. */
+  LAVA_ENGULF_MS: 700,
+  /** Duration of the fire silhouette sinking and going out. */
+  LAVA_BURNOUT_MS: 500,
+  /** Number of flame tongues in the lava engulf effect. */
+  LAVA_ENGULF_FLAME_COUNT: 3,
+  /** Delay between flame tongues in the lava engulf effect. */
+  LAVA_ENGULF_FLAME_STAGGER_MS: 180,
   /** Pause after a unit spawns before moving to next event */
   SPAWN_PAUSE_MS: 300,
   /** Melee lunge out + snap back total duration (ms) */
