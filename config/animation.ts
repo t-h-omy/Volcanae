@@ -40,8 +40,16 @@ export const ANIMATION = {
   PRE_ACTION_IDLE_MS: 80,
   /** Pause after action resolves, before moving to next event */
   POST_ACTION_IDLE_MS: 250,
-  /** Longer pause for lava advance — more dramatic weight */
-  LAVA_ADVANCE_PAUSE_MS: 700,
+  /** Duration of the moving lava front. */
+  LAVA_FLOW_MS: 900,
+  /** Duration of the fire engulfing objects and units on the lava row. */
+  LAVA_ENGULF_MS: 700,
+  /** Duration of the fire silhouette sinking and going out. */
+  LAVA_BURNOUT_MS: 500,
+  /** Number of flame tongues in the lava engulf effect. */
+  LAVA_ENGULF_FLAME_COUNT: 3,
+  /** Delay between flame tongues in the lava engulf effect. */
+  LAVA_ENGULF_FLAME_STAGGER_MS: 180,
   /** Pause after a unit spawns before moving to next event */
   SPAWN_PAUSE_MS: 300,
   /** Melee lunge out + snap back total duration (ms) */

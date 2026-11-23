@@ -22,7 +22,7 @@ export function encodeTerrainMap(
   lavaFrontRow: number,
   previewRows: number,
   out?: Uint8Array,
-  options?: { fog?: ReadonlyMap<number, number> },
+  options?: { fog?: ReadonlyMap<number, number>; lavaFlowRow?: number },
 ): Uint8Array {
   const expectedLength = MAP.GRID_WIDTH * MAP.GRID_HEIGHT * TEXEL_BYTES;
   const encoded = out?.length === expectedLength ? out : new Uint8Array(expectedLength);
@@ -39,10 +39,14 @@ export function encodeTerrainMap(
         ? TERRAIN_LEVEL.WATER
         : TERRAIN_LEVEL.OTHER;
       const status = tile.isLava || !tile.status ? 0 : TERRAIN_STATUS_INDEX[tile.status];
+      const flowPreviewRow = options?.lavaFlowRow === undefined
+        ? -1
+        : options.lavaFlowRow - previewRows;
+      const isFlowPreview = !tile.isLava && y === flowPreviewRow;
       let heat = 0;
 
-      if (tile.isLavaPreview && !tile.isLava) {
-        const rank = lavaFrontRow - y;
+      if ((tile.isLavaPreview && !tile.isLava) || isFlowPreview) {
+        const rank = isFlowPreview ? previewRows : lavaFrontRow - y;
         heat = Math.min(
           TERRAIN_RENDER.HEAT_LEVEL_MAX,
           Math.max(
@@ -55,7 +59,7 @@ export function encodeTerrainMap(
         );
       }
 
-      encoded[offset] = level;
+      encoded[offset] = level + (isFlowPreview ? 16 : 0);
       encoded[offset + 1] = status + 16 * heat;
       encoded[offset + 2] = tile.isRevealed
         ? options?.fog?.get(y * MAP.GRID_WIDTH + x) ?? 0
