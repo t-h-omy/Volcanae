@@ -26,6 +26,9 @@ import { selectPortalUsedCameraEndpoint } from './portalAnimation';
 import { useEmberDisplayStore } from './emberDisplayStore';
 import { canKhyronResonate } from './khyronSystem';
 import { edgeCircleDistance } from './rangeUtils';
+import { isReducedMotion } from './graphicsOptionsStore';
+import { useTerrainTransitionStore } from './terrain/terrainTransitionStore';
+import { collectLavaVictims, getLavaAdvanceHoldMs } from './lavaPresentation';
 
 export function applyCaveSpecialistReward(drawn: string, outcome: CaveSpecialistRewardOutcome): void {
   const game = useGameStore.getState();
@@ -318,7 +321,6 @@ function isEventVisible(event: GameEvent): boolean {
  * Returns the post-action pause duration for each event type.
  */
 function postActionDuration(event: GameEvent): number {
-  if (event.type === 'LAVA_ADVANCE') return ANIMATION.LAVA_ADVANCE_PAUSE_MS;
   if (event.type === 'ENEMY_SPAWN') return ANIMATION.SPAWN_PAUSE_MS;
   if (event.type === 'CRYSTAL_LIGHTNING_ENEMY_VOLLEY' || event.type === 'CRYSTAL_LIGHTNING_CHAMBER_VOLLEY') {
     return ANIMATION.CRYSTAL_LIGHTNING_POST_MS;
@@ -1148,7 +1150,7 @@ export function useAnimationEngine(): void {
           continue;
         }
 
-        // ── Special handling for LAVA_ADVANCE (camera focus + optional crystal VFX) ──
+        // ── Special handling for LAVA_ADVANCE ──
         if (event.type === 'LAVA_ADVANCE') {
           // Focus on a consumed Crystal Chamber when present; otherwise centre on the new lava row.
           const destroyedChamberPositions = event.destroyedChamberPositions ??
@@ -1159,9 +1161,45 @@ export function useAnimationEngine(): void {
           useAnimationStore.getState().setCameraTarget(focusPos);
           await wait(ANIMATION.CAMERA_MOVE_DURATION_MS + ANIMATION.PRE_ACTION_IDLE_MS);
 
-          // Apply lava state change first so lava visually advances before crystal VFX
+          const victims = collectLavaVictims(useGameStore.getState(), event);
+          const reduced = isReducedMotion();
+          const hasVictims = victims.tiles.length > 0;
+          const { startLavaFlow, setLavaPhase, endLavaFlow } = useTerrainTransitionStore.getState();
+          startLavaFlow(event.newLavaRow, reduced ? 0 : ANIMATION.LAVA_FLOW_MS);
+          for (const tile of victims.tiles) {
+            useCombatAnimationStore.getState().addTileVfx({
+              id: crypto.randomUUID(),
+              x: tile.x,
+              y: tile.y,
+              variant: 'BURNING_DAMAGE',
+              durationMs: ANIMATION.BURNING_DAMAGE_VFX_MS,
+            });
+          }
+          if (!reduced) await wait(ANIMATION.LAVA_FLOW_MS);
+
+          setLavaPhase('engulf');
+          for (const object of victims.objects) {
+            useCombatAnimationStore.getState().addTileVfx({
+              id: crypto.randomUUID(),
+              x: object.x,
+              y: object.y,
+              variant: 'ENGULF',
+              maskSrc: object.maskSrc,
+              durationMs: ANIMATION.LAVA_ENGULF_MS + ANIMATION.LAVA_BURNOUT_MS,
+            });
+          }
+          for (const unitId of victims.unitIds) {
+            useCombatAnimationStore.getState().setUnitAnimation(unitId, { type: 'DYING' });
+          }
+          const holdMs = getLavaAdvanceHoldMs({ reducedMotion: reduced, hasVictims });
+          const engulfMs = holdMs - (reduced ? 0 : ANIMATION.LAVA_FLOW_MS);
+          if (hasVictims && engulfMs > 0) await wait(engulfMs);
+
+          for (const unitId of victims.unitIds) {
+            useCombatAnimationStore.getState().setUnitAnimation(unitId, null);
+          }
           useGameStore.getState().applyEvent(event);
-          await wait(ANIMATION.LAVA_ADVANCE_PAUSE_MS);
+          endLavaFlow();
 
           if (destroyedChamberPositions.length > 0) {
             const tileSize = getTileSize();

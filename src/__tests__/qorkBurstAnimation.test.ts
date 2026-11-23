@@ -755,14 +755,14 @@ describe('Qork burst presentation', () => {
     },
   );
 
-  it('reaches a lava Qork burst but never starts its DYING animation', async () => {
+  it('plays lava DYING while preserving the Qork death burst', async () => {
     useGameStore.setState({ lavaFrontRow: 2 });
     const { animation, vfx } = replay([
       { type: 'LAVA_ADVANCE', newLavaRow: 1, destroyedUnitIds: ['qork'], destroyedBuildingIds: [] },
       death('qork'), burst('qork'),
     ]);
     await vi.runAllTimersAsync();
-    expect(animation.mock.calls.filter(([id, value]) => id === 'qork' && value?.type === 'DYING')).toHaveLength(0);
+    expect(animation.mock.calls.filter(([id, value]) => id === 'qork' && value?.type === 'DYING')).toHaveLength(1);
     expect(vfx.mock.calls.filter(([value]) => value.variant === 'QORK_DEATH_BURST')).toHaveLength(1);
     expect(useGameStore.getState().units.qork).toBeUndefined();
   });

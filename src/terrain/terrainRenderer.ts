@@ -20,6 +20,7 @@ export interface TerrainRenderFrame {
   look: TerrainLook;
   gridAlpha: number;
   fogSplit: boolean;
+  lavaFlow: [number, number];
 }
 
 export interface TerrainRenderer {
@@ -156,6 +157,7 @@ export function createTerrainRenderer(
       gl.uniform1f(locations.get('uHeat') ?? null, packed.heat);
       gl.uniform2f(locations.get('uPrevEdge') ?? null, packed.prevEdge[0], packed.prevEdge[1]);
       gl.uniform1f(locations.get('uFogSplit') ?? null, frame.fogSplit ? 1 : 0);
+      gl.uniform2f(locations.get('uLavaFlow') ?? null, frame.lavaFlow[0], frame.lavaFlow[1]);
       gl.uniform1f(locations.get('uGridA') ?? null, frame.gridAlpha);
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT);

@@ -29,6 +29,7 @@ function fixture(): GameState {
   grid[4][5].isRuin = true;
   grid[4][6].isStrongholdRuin = true;
   grid[4][7].isRevealed = false;
+  grid[4][8].isRevealed = false;
   grid[4][8].unitId = 'hidden';
   grid[3][0].unitId = 'other-row';
   return {

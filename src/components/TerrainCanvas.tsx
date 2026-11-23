@@ -12,6 +12,7 @@ import { getTerrainLook } from '../terrain/terrainLook';
 import { useTerrainTuningStore } from '../terrain/terrainTuningStore';
 import { createTerrainRenderer, type TerrainRenderer } from '../terrain/terrainRenderer';
 import { addCameraFrameListener } from '../cameraRig';
+import { getLavaFlowProgress, useTerrainTransitionStore } from '../terrain/terrainTransitionStore';
 
 interface TerrainCanvasProps {
   viewportRef: RefObject<HTMLDivElement | null>;
@@ -30,6 +31,7 @@ export default function TerrainCanvas({ viewportRef, containerRef, fogCanvasRef 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<TerrainRenderer | null>(null);
   const fogRendererRef = useRef<TerrainRenderer | null>(null);
+  const lavaFlowRef = useRef(useTerrainTransitionStore.getState().lavaFlow);
   const mapRef = useRef<Uint8Array<ArrayBufferLike>>(new Uint8Array(MAP.GRID_WIDTH * MAP.GRID_HEIGHT * 4));
   const mapVersionRef = useRef(0);
   const forceDrawRef = useRef(true);
@@ -40,6 +42,7 @@ export default function TerrainCanvas({ viewportRef, containerRef, fogCanvasRef 
   const grid = useGameStore((state) => state.grid);
   const lavaFrontRow = useGameStore((state) => state.lavaFrontRow);
   const difficulty = useGameStore((state) => state.difficulty);
+  const lavaFlow = useTerrainTransitionStore((state) => state.lavaFlow);
   const revision = useTerrainTuningStore((state) => state.revision);
   const look = getTerrainLook();
   const optionsRef = useRef<RenderOptions>({
@@ -48,6 +51,11 @@ export default function TerrainCanvas({ viewportRef, containerRef, fogCanvasRef 
     look,
     revision,
   });
+
+  useEffect(() => {
+    lavaFlowRef.current = lavaFlow;
+    forceDrawRef.current = true;
+  }, [lavaFlow]);
 
   useEffect(() => {
     optionsRef.current = { quality, gridLines, look, revision };
@@ -80,13 +88,13 @@ export default function TerrainCanvas({ viewportRef, containerRef, fogCanvasRef 
       lavaFrontRow,
       getLavaAdvanceInterval(difficulty),
       mapRef.current,
-      { fog },
+      { fog, lavaFlowRow: lavaFlow?.row },
     );
     mapVersionRef.current++;
     rendererRef.current?.setMap(mapRef.current);
     fogRendererRef.current?.setMap(mapRef.current);
     forceDrawRef.current = true;
-  }, [grid, lavaFrontRow, difficulty]);
+  }, [grid, lavaFrontRow, difficulty, lavaFlow?.row]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -230,12 +238,17 @@ export default function TerrainCanvas({ viewportRef, containerRef, fogCanvasRef 
             options.revision,
             reducedMotion,
           ].join('|');
-          const changed = forceDrawRef.current || signature !== lastSignature || options.look !== lastLook;
+          const currentFlow = lavaFlowRef.current;
+          const flowActive = !!currentFlow && !reducedMotion;
+          const changed = forceDrawRef.current || signature !== lastSignature || options.look !== lastLook || flowActive;
           const fps = options.quality === GraphicsQuality.SAVER
             ? TERRAIN_RENDER.QUALITY.SAVER.ANIM_FPS
             : TERRAIN_RENDER.QUALITY.HIGH.ANIM_FPS;
           const interval = 1000 / fps;
           if (changed || (!reducedMotion && now - lastDrawAt >= interval)) {
+            const lavaFlowUniform: [number, number] = flowActive
+              ? [currentFlow.row, Math.max(getLavaFlowProgress(currentFlow, now), 1e-4)]
+              : [0, 0];
             const frame = {
               widthPx: canvas.width,
               heightPx: canvas.height,
@@ -252,6 +265,7 @@ export default function TerrainCanvas({ viewportRef, containerRef, fogCanvasRef 
                 ? 0
                 : TERRAIN_RENDER.GRID_ALPHA_SHADER[options.gridLines],
               fogSplit: true,
+              lavaFlow: lavaFlowUniform,
             };
             rendererRef.current.render(frame);
             fogRendererRef.current.render(frame);

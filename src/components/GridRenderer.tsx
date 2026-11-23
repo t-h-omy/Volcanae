@@ -24,11 +24,12 @@ import { INPUT } from '../../config/input';
 import { TERRAIN_RENDER } from '../../config/terrain';
 import { getUnitTargetLevel, usesNonXpProgression } from '../levelSystem';
 import { useZoomStore } from '../zoomStore';
-import { useGraphicsOptionsStore } from '../graphicsOptionsStore';
+import { isReducedMotion, useGraphicsOptionsStore } from '../graphicsOptionsStore';
 import { useTerrainRenderMode } from '../terrain/terrainRenderStore';
+import { useTerrainTransitionStore } from '../terrain/terrainTransitionStore';
 import { useStatusSprite } from '../statusSpriteVariants';
 import TerrainCanvas from './TerrainCanvas';
-import { UNIT_SPRITE, BUILDING_SPRITE, TILE_SPRITE, TILE_STATUS_SPRITE, RESOURCE_SPRITE, ENEMY_BUILDING_SPRITE, PLAYER_BUILDING_SPRITE, TERRAIN_RESOURCE_SPRITE, CRYSTAL_CHAMBER_ACTIVE_SPRITE, CRYSTAL_CAVE_ACTIVE_SPRITE, CRYSTAL_KHYRON_ACTIVE_SPRITE, ENEMY_UNIT_SPRITE, PLAYER_UNIT_SPRITE, TUNNEL_HOLE_SPRITE, TUNNEL_EARTHQUAKE_SPRITE, PORTAL_ENTRANCE_SPRITE, PORTAL_EXIT_SPRITE, MAGE_PORTAL_SPRITE, getBridgeSprite } from '../assetRegistry';
+import { UNIT_SPRITE, TILE_SPRITE, TILE_STATUS_SPRITE, TERRAIN_RESOURCE_SPRITE, CRYSTAL_KHYRON_ACTIVE_SPRITE, ENEMY_UNIT_SPRITE, PLAYER_UNIT_SPRITE, TUNNEL_HOLE_SPRITE, TUNNEL_EARTHQUAKE_SPRITE, PORTAL_ENTRANCE_SPRITE, PORTAL_EXIT_SPRITE, MAGE_PORTAL_SPRITE, getBuildingSpritePath } from '../assetRegistry';
 import { isKhyronResonanceActive } from '../khyronSystem';
 import { isCorruptionBoundDrainActive } from '../corruptedQorkSystem';
 import { getSuppressedTagsForUnit } from '../tileStatusSystem';
@@ -1249,6 +1250,7 @@ function TileCellInner({
 }: TileCellProps) {
   const buildingIconSize = tileSize;
   const terrainShader = useTerrainRenderMode() === 'shader';
+  const lavaBurning = useTerrainTransitionStore((state) => state.lavaFlow?.row === tile.position.y);
   const [fogFading, setFogFading] = useState(false);
   const wasRevealedRef = useRef(tile.isRevealed);
 
@@ -1313,7 +1315,9 @@ function TileCellInner({
     : undefined;
   const [terrainResSpriteError, setTerrainResSpriteError] = useState(false);
   const showTerrainResource = typeof terrainResourcePath === 'string' && terrainResourcePath !== '' && !terrainResSpriteError;
-  const objectStatus = tile.isRevealed && !tile.isLava ? tile.status ?? null : null;
+  const objectStatus = tile.isRevealed && !tile.isLava
+    ? lavaBurning ? TileStatus.BURNING : tile.status ?? null
+    : null;
   const statusTerrainResourcePath = useStatusSprite(terrainResourcePath, objectStatus);
   const statusRuinSpritePath = useStatusSprite(ruinSpritePath, objectStatus);
 
@@ -1386,21 +1390,7 @@ function TileCellInner({
   // - Active (resonating) Crystal Caves use CRYSTAL_CAVE_ACTIVE_SPRITE.
   // - Bridges use the sprite matching their orientation.
   // - All other buildings use BUILDING_SPRITE directly.
-  const buildingSpritePath = building
-    ? building.type === BuildingType.BRIDGE
-      ? getBridgeSprite(building.bridgeOrientation)
-      : building.faction === Faction.ENEMY && ENEMY_BUILDING_SPRITE[building.type]
-      ? ENEMY_BUILDING_SPRITE[building.type]
-      : building.faction === Faction.PLAYER && PLAYER_BUILDING_SPRITE[building.type]
-        ? PLAYER_BUILDING_SPRITE[building.type]
-        : building.faction === null && RESOURCE_SPRITE[building.type]
-          ? RESOURCE_SPRITE[building.type]
-          : isResonating && building.type === BuildingType.CRYSTAL_CAVE
-            ? CRYSTAL_CAVE_ACTIVE_SPRITE
-            : isResonating
-              ? CRYSTAL_CHAMBER_ACTIVE_SPRITE
-              : BUILDING_SPRITE[building.type]
-    : undefined;
+  const buildingSpritePath = building ? getBuildingSpritePath(building) : undefined;
   const statusBuildingSpritePath = useStatusSprite(buildingSpritePath, objectStatus);
   const [buildingSpriteError, setBuildingSpriteError] = useState(false);
   const [prevBuildingSpritePath, setPrevBuildingSpritePath] = useState(buildingSpritePath);
@@ -1671,9 +1661,54 @@ const TileCell = React.memo(TileCellInner);
 // UNIT BADGE
 // ============================================================================
 
+function useLavaDrainHp(currentHp: number, drain: { startedAt: number; durationMs: number } | null): number {
+  const [displayedHp, setDisplayedHp] = useState<{ startedAt: number; hp: number } | null>(null);
+  const reducedMotion = isReducedMotion();
+  const startedAt = drain?.startedAt;
+  const durationMs = drain?.durationMs;
+
+  useEffect(() => {
+    if (startedAt === undefined || durationMs === undefined || reducedMotion || durationMs <= 0) return;
+    let frame = 0;
+    const update = (now: number) => {
+      const progress = Math.max(0, Math.min(1, (now - startedAt) / durationMs));
+      const nextHp = Math.ceil(currentHp * (1 - progress));
+      setDisplayedHp((previous) =>
+        previous?.startedAt === startedAt && previous.hp === nextHp
+          ? previous
+          : { startedAt, hp: nextHp }
+      );
+      if (nextHp > 0) frame = requestAnimationFrame(update);
+    };
+    frame = requestAnimationFrame(update);
+    return () => cancelAnimationFrame(frame);
+  }, [currentHp, durationMs, reducedMotion, startedAt]);
+
+  if (startedAt === undefined || durationMs === undefined) return currentHp;
+  if (reducedMotion || durationMs <= 0) return 0;
+  return Math.min(currentHp, displayedHp?.startedAt === startedAt ? displayedHp.hp : currentHp);
+}
+
 function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
   const { formatNumber, t } = useText();
-  const hpPct = (unit.stats.currentHp / unit.stats.maxHp) * 100;
+  const drain = useTerrainTransitionStore((state) =>
+    state.lavaFlow?.row === unit.position.y ? state.lavaFlow : null
+  );
+  const displayedHp = useLavaDrainHp(unit.stats.currentHp, drain);
+  const isLavaDraining = drain !== null;
+  const [drainVisualStartedAt, setDrainVisualStartedAt] = useState<number | null>(null);
+  const reducedMotion = isReducedMotion();
+  const drainStartedAt = drain?.startedAt;
+  const drainDurationMs = drain?.durationMs;
+  useEffect(() => {
+    if (drainStartedAt === undefined || drainDurationMs === undefined || reducedMotion || drainDurationMs <= 0) return;
+    const frame = requestAnimationFrame(() => setDrainVisualStartedAt(drainStartedAt));
+    return () => cancelAnimationFrame(frame);
+  }, [drainStartedAt, drainDurationMs, reducedMotion]);
+  const showDrainFill = isLavaDraining && (
+    reducedMotion || (drainDurationMs ?? 0) <= 0 || drainVisualStartedAt === drainStartedAt
+  );
+  const hpPct = (displayedHp / unit.stats.maxHp) * 100;
   const unitEmojiSize = tileSize;
 
   // Unit sprite selection — faction-specific overrides take priority over UNIT_SPRITE.
@@ -1791,8 +1826,13 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
   const arcaneShieldHp = unit.arcaneShieldHp ?? 0;
   const hasArcaneShield = arcaneShieldHp > 0 && unit.faction === Faction.PLAYER;
   const arcaneShieldRatio = Math.min(1, arcaneShieldHp / MAGE.ARCANE_SHIELD_MAX_HP);
-  const showArcaneShieldBar =
-    hasArcaneShield && (arcaneShieldHp < MAGE.ARCANE_SHIELD_MAX_HP || unit.stats.currentHp < unit.stats.maxHp || hasDebuff || hasStoneSkin);
+  const showArcaneShieldBar = hasArcaneShield && (
+    arcaneShieldHp < MAGE.ARCANE_SHIELD_MAX_HP ||
+    unit.stats.currentHp < unit.stats.maxHp ||
+    hasDebuff ||
+    hasStoneSkin ||
+    isLavaDraining
+  );
   const holders = Object.values(useGameStore.getState().units)
     .filter((candidate) => candidate.faction === Faction.PLAYER && (candidate.arcaneShieldHp ?? 0) > 0)
     .map((candidate) => candidate.id)
@@ -1888,6 +1928,7 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
           '--shield-fx-delay': `${shieldFxDelayMs}ms`,
           '--stone-skin-fx-delay': `${stoneSkinFxDelayMs}ms`,
           '--unit-hp-text-font-size': `${UI.UNIT_HP_TEXT_FONT_SIZE_PX}px`,
+          '--lava-drain-duration': drain ? `${drain.durationMs}ms` : undefined,
         } as React.CSSProperties
       }
     >
@@ -1932,10 +1973,13 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
       )}
       {showArcaneShieldBar && (
         <div className="arcane-shield-hp-bar-wrapper" title={t('hud.unitPanel.arcaneShield', { current: arcaneShieldHp, max: MAGE.ARCANE_SHIELD_MAX_HP })}>
-          <div className="arcane-shield-hp-bar-fill" style={{ width: `${arcaneShieldRatio * 100}%` }} />
+          <div
+            className={`arcane-shield-hp-bar-fill${isLavaDraining ? ' bar--lava-drain' : ''}`}
+            style={showDrainFill ? undefined : { width: `${arcaneShieldRatio * 100}%` }}
+          />
         </div>
       )}
-      {(unit.stats.currentHp < unit.stats.maxHp || hasDebuff || hasStoneSkin) && (
+      {(unit.stats.currentHp < unit.stats.maxHp || hasDebuff || hasStoneSkin || isLavaDraining) && (
         <>
           {hasStoneSkin && (
             <div
@@ -1943,7 +1987,10 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
               title={t('tag.STONE_SKIN.label')}
               style={{ '--color-stone-skin': RENDER.COLORS.STONE_SKIN } as React.CSSProperties}
             >
-              <div className="stone-skin-hp-bar-fill" style={{ width: `${stoneSkinHpPct}%` }} />
+              <div
+                className={`stone-skin-hp-bar-fill${showDrainFill ? ' bar--lava-drain' : ''}`}
+                style={showDrainFill ? undefined : { width: `${stoneSkinHpPct}%` }}
+              />
             </div>
           )}
           <div
@@ -1956,10 +2003,13 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
               } as React.CSSProperties
             }
           >
-            <div className="hp-bar-fill" style={{ width: `${hpPct}%` }} />
+            <div
+              className={`hp-bar-fill${showDrainFill ? ' bar--lava-drain' : ''}`}
+              style={showDrainFill ? undefined : { width: `${hpPct}%` }}
+            />
           </div>
-          {unit.stats.currentHp < unit.stats.maxHp && (
-            <span className="unit-hp-text">{unit.stats.currentHp}</span>
+          {(displayedHp < unit.stats.maxHp || isLavaDraining) && (
+            <span className="unit-hp-text">{displayedHp}</span>
           )}
         </>
       )}
@@ -2834,9 +2884,15 @@ function TileVfxLayer({ tileSize }: { tileSize: number }) {
     <div className="tile-vfx-layer">
       {tileVfx.filter((vfx) => grid[vfx.y]?.[vfx.x]?.isRevealed).map((vfx: TileVfx) => {
         const isQorkDeathBurst = vfx.variant === 'QORK_DEATH_BURST';
+        const isEngulf = vfx.variant === 'ENGULF';
         const footprintSize = isQorkDeathBurst ? tileSize * 3 : tileSize;
         const footprintOffset = isQorkDeathBurst ? tileSize : 0;
         const toneClass = vfx.tone ? ` tile-vfx--tone-${vfx.tone.toLowerCase()}` : '';
+        const removeAfterAnimation = (event: React.AnimationEvent<HTMLDivElement>) => {
+          if (!isEngulf || event.animationName === 'engulfBurnout' || event.animationName === 'engulfBurnoutReduced') {
+            removeTileVfx(vfx.id);
+          }
+        };
         return (
           <div
             key={vfx.id}
@@ -2848,9 +2904,35 @@ function TileVfxLayer({ tileSize }: { tileSize: number }) {
               height: footprintSize,
               '--tile-vfx-duration': `${vfx.durationMs}ms`,
               '--tile-vfx-delay': `${vfx.delayMs ?? 0}ms`,
+              '--engulf-ms': `${ANIMATION.LAVA_ENGULF_MS}ms`,
+              '--burnout-ms': `${ANIMATION.LAVA_BURNOUT_MS}ms`,
             } as React.CSSProperties}
-            onAnimationEnd={() => removeTileVfx(vfx.id)}
-          />
+            onAnimationEnd={isEngulf ? undefined : removeAfterAnimation}
+          >
+            {isEngulf && (
+              <>
+                <div
+                  className={`engulf-fire${vfx.maskSrc ? ' engulf-fire--masked' : ''}`}
+                  style={vfx.maskSrc ? {
+                    maskImage: `url("${vfx.maskSrc}")`,
+                    WebkitMaskImage: `url("${vfx.maskSrc}")`,
+                  } : undefined}
+                  onAnimationEnd={removeAfterAnimation}
+                />
+                <div className="engulf-flames" aria-hidden="true">
+                  {Array.from({ length: ANIMATION.LAVA_ENGULF_FLAME_COUNT }, (_, index) => (
+                    <span
+                      key={index}
+                      style={{
+                        '--flame-delay': `${index * ANIMATION.LAVA_ENGULF_FLAME_STAGGER_MS}ms`,
+                        '--flame-position': `${(index + 1) * 100 / (ANIMATION.LAVA_ENGULF_FLAME_COUNT + 1)}%`,
+                      } as React.CSSProperties}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
         );
       })}
     </div>

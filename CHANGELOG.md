@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.134.7 - Lava flow
+
+Lava advances as a flowing front, then engulfs buildings and units in fire before they disappear beneath it.
+
 ### v0.134.6 - Retreating fog
 
 Clouds now retreat across newly revealed tiles, and PNG fog tiles fade away as their terrain is uncovered.
