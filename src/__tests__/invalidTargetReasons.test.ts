@@ -445,7 +445,7 @@ describe('explainInvalidBridgeTarget', () => {
     state.grid[5][6].terrainType = TileType.WATER;
 
     expect(t(explainInvalidBridgeTarget(state, builder.id, { x: 6, y: 5 })!))
-      .toBe('Bridge needs accessible entry and exit tile');
+      .toBe('Bridge must be on an adjacent canyon tile with no conflicting Bridges');
   });
 
   it('returns null for a plains tile', () => {

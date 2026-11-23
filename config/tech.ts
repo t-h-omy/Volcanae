@@ -237,7 +237,7 @@ export const TECH_TREE: TechNodeDefinition[] = [
       { type: 'UNLOCK_BUILDING', buildingType: BuildingType.BRIDGE },
     ],
   
-    textParams: { woodCost: BUILDING_DEFINITIONS.BRIDGE.constructionCost.wood, gapTiles: ABILITIES.BRIDGEBUILDER_GAP_TILES },
+    textParams: { woodCost: BUILDING_DEFINITIONS.BRIDGE.constructionCost.wood },
   },
 
   // ── Branch 5: Stronghold Development ──

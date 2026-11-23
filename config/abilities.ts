@@ -25,8 +25,6 @@ export const ABILITIES = {
   ADJACENCY_RANGE: 1,
   /** Iron cost surcharge for Swordsman recruitment. */
   SWORDSMAN_RECRUIT_IRON_COST: 2,
-  /** Canyon width bridged by the Bridgebuilder research. */
-  BRIDGEBUILDER_GAP_TILES: 1,
   /** Specialist slots opened by the Master Recruiter research. */
   MASTER_RECRUITER_SLOT_COUNT: 3,
   /** Total movement actions available to a Hit and Run Rider. */

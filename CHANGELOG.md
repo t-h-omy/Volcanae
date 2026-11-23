@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.134.9 - Bridge extensions
+
+Bridgebuilders can now start and extend bridges without a walkable tile at the far end, allowing spans across wider canyons.
+
 ### v0.134.8 - Scout trap artwork
 
 Scout traps now use the newly added trap sprite.

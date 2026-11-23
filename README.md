@@ -75,7 +75,7 @@ Scouts granted **Set Trap** by the Trapsmith specialist may move and then place 
 
 ## Bridges
 
-Bridgebuilders can build across a canyon tile from or to an existing bridge when its orientation matches the new span. Other adjacent bridges still block placement. Bridges remain neutral and cannot be captured by any faction, just like Markets.
+Bridgebuilders can build on an adjacent canyon tile even without a walkable tile beyond it, then extend the span with aligned bridges across wider canyons. Other adjacent bridges still block placement. Bridges remain neutral and cannot be captured by any faction, just like Markets.
 
 ## Tech Trees
 

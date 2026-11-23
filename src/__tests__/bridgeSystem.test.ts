@@ -336,7 +336,50 @@ describe('getBridgeBuildTargets', () => {
     expect(ns[0].pos).toMatchObject({ x: 5, y: 5 });
   });
 
-  it('rejects when far tile is another canyon (2-wide canyon)', () => {
+  it.each([
+    ['EW', 1, 0],
+    ['EW', -1, 0],
+    ['NS', 0, 1],
+    ['NS', 0, -1],
+  ] as const)('builds a %s span in direction (%i, %i) across consecutive canyon tiles', (orientation, dx, dy) => {
+    const scout = makeUnit({ position: { x: 5 - dx, y: 5 - dy }, tags: [UnitTag.BRIDGE_BUILDER] });
+    const cost = BUILDING_DEFINITIONS.BRIDGE.constructionCost;
+    const state = makeState({
+      units: [scout],
+      tileOverrides: {
+        '5,5': { terrainType: TileType.CANYON },
+        [`${5 + dx},${5 + dy}`]: { terrainType: TileType.CANYON },
+        [`${5 + 2 * dx},${5 + 2 * dy}`]: { terrainType: TileType.CANYON },
+      },
+      unlockedBuildings: [BuildingType.BRIDGE],
+      resources: { wood: 3 * cost.wood, iron: 3 * cost.iron },
+    });
+
+    useGameStore.setState(state);
+    for (let i = 0; i < 3; i++) {
+      const current = useGameStore.getState();
+      const unit = current.units[scout.id];
+      const target = { x: 5 + i * dx, y: 5 + i * dy };
+      expect(getBridgeBuildTargets(unit, current)).toContainEqual({ pos: target, orientation });
+      current.buildBridge(scout.id, target);
+      const built = useGameStore.getState();
+      expect(getBridgeAt(built, target.x, target.y)?.bridgeOrientation).toBe(orientation);
+      expect(built.units[scout.id].hasConstructedThisTurn).toBe(true);
+      expect(canTraverseEdge(built, unit.position.x, unit.position.y, target.x, target.y, false)).toBe(true);
+      expect(getReachableTiles(built, scout.id).some((p) => p.x === target.x && p.y === target.y)).toBe(true);
+      if (i < 2) {
+        useGameStore.setState(produce(built, (draft) => {
+          draft.grid[unit.position.y][unit.position.x].unitId = null;
+          draft.grid[target.y][target.x].unitId = scout.id;
+          draft.units[scout.id].position = target;
+          draft.units[scout.id].hasConstructedThisTurn = false;
+          draft.turn += 1;
+        }));
+      }
+    }
+  });
+
+  it('accepts when the far tile is another canyon', () => {
     const scout = makeUnit({ position: { x: 4, y: 5 }, tags: [UnitTag.BRIDGE_BUILDER] });
     const state = makeState({
       units: [scout],
@@ -348,7 +391,7 @@ describe('getBridgeBuildTargets', () => {
     });
 
     const targets = getBridgeBuildTargets(scout, state);
-    expect(targets.filter((t) => t.pos.x === 5 && t.pos.y === 5)).toHaveLength(0);
+    expect(targets).toContainEqual({ pos: { x: 5, y: 5 }, orientation: 'EW' });
   });
 
   it.each([
@@ -407,7 +450,7 @@ describe('getBridgeBuildTargets', () => {
     expect(getBridgeBuildTargets(scout, state).some((t) => t.pos.x === 5 && t.pos.y === 5)).toBe(false);
   });
 
-  it('rejects when far tile is water', () => {
+  it('accepts when far tile is water', () => {
     const scout = makeUnit({ position: { x: 4, y: 5 }, tags: [UnitTag.BRIDGE_BUILDER] });
     const state = makeState({
       units: [scout],
@@ -418,7 +461,18 @@ describe('getBridgeBuildTargets', () => {
       unlockedBuildings: [BuildingType.BRIDGE],
     });
     const targets = getBridgeBuildTargets(scout, state);
-    expect(targets.filter((t) => t.pos.x === 5 && t.pos.y === 5)).toHaveLength(0);
+    expect(targets).toContainEqual({ pos: { x: 5, y: 5 }, orientation: 'EW' });
+  });
+
+  it('accepts a canyon at the edge of the map', () => {
+    const x = MAP.GRID_WIDTH - 1;
+    const scout = makeUnit({ position: { x: x - 1, y: 5 }, tags: [UnitTag.BRIDGE_BUILDER] });
+    const state = makeState({
+      units: [scout],
+      tileOverrides: { [`${x},5`]: { terrainType: TileType.CANYON } },
+      unlockedBuildings: [BuildingType.BRIDGE],
+    });
+    expect(getBridgeBuildTargets(scout, state)).toContainEqual({ pos: { x, y: 5 }, orientation: 'EW' });
   });
 
   it('accepts when far tile is frozen water and buildBridge succeeds', () => {
