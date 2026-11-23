@@ -34,7 +34,7 @@
 
 import type { GameState } from './types';
 import type { Draft } from 'immer';
-import { Faction, GamePhase, UnitTag, BuildingType, UnitType, TileType, TileStatus } from './types';
+import { Faction, GamePhase, UnitTag, BuildingType, UnitType, TileType } from './types';
 import type { Unit, Building, Tile, TechId } from './types';
 import { getReachableTiles } from './movementSystem';
 import { getConstructionOptionsForTile, getConstructionMenuOptionsForTile } from './constructionSystem';
