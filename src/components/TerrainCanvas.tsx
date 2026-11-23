@@ -116,7 +116,7 @@ export default function TerrainCanvas({ viewportRef, containerRef, fogCanvasRef 
     const observer = new ResizeObserver(resize);
     observer.observe(viewport);
     return () => observer.disconnect();
-  }, [quality, viewportRef]);
+  }, [fogCanvasRef, quality, viewportRef]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -187,11 +187,18 @@ export default function TerrainCanvas({ viewportRef, containerRef, fogCanvasRef 
 
     const drawFrame = (now: number) => {
       let updatedFog = false;
-      for (const [index, startMs] of liftStartsRef.current) {
-        const value = fogValueAt(startMs, now);
-        mapRef.current[index * 4 + 2] = value;
+      const reducedMotion = isReducedMotion();
+      if (reducedMotion && liftStartsRef.current.size > 0) {
+        for (const index of liftStartsRef.current.keys()) mapRef.current[index * 4 + 2] = 0;
+        liftStartsRef.current.clear();
         updatedFog = true;
-        if (value === 0) liftStartsRef.current.delete(index);
+      } else {
+        for (const [index, startMs] of liftStartsRef.current) {
+          const value = fogValueAt(startMs, now);
+          mapRef.current[index * 4 + 2] = value;
+          updatedFog = true;
+          if (value === 0) liftStartsRef.current.delete(index);
+        }
       }
       if (updatedFog) {
         mapVersionRef.current++;
@@ -207,7 +214,6 @@ export default function TerrainCanvas({ viewportRef, containerRef, fogCanvasRef 
           const containerRect = container.getBoundingClientRect();
           const options = optionsRef.current;
           const dpr = canvas.width / Math.max(1, viewport.clientWidth);
-          const reducedMotion = isReducedMotion();
           const signature = [
             containerRect.left,
             containerRect.top,

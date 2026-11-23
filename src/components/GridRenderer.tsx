@@ -1253,8 +1253,11 @@ function TileCellInner({
   const wasRevealedRef = useRef(tile.isRevealed);
 
   useEffect(() => {
-    if (!wasRevealedRef.current && tile.isRevealed && !terrainShader) setFogFading(true);
+    const wasRevealed = wasRevealedRef.current;
     wasRevealedRef.current = tile.isRevealed;
+    if (wasRevealed || !tile.isRevealed || terrainShader) return;
+    const frameId = requestAnimationFrame(() => setFogFading(true));
+    return () => cancelAnimationFrame(frameId);
   }, [tile.isRevealed, terrainShader]);
 
   // ── Tile sprite path ──
