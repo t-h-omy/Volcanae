@@ -2041,18 +2041,23 @@
   --engulf-core: #FFD27A;
   --engulf-primary: #FF6A2A;
   --engulf-shadow: #B83A14;
-  inset: 0;
+  --engulf-radius: 38%;
+  --engulf-background-size: 180%;
+  --engulf-flame-radius: 50% 50% 28% 28%;
+  --engulf-flame-width: 24%;
+  --engulf-flame-height: 60%;
+  --engulf-flame-bottom: 8%;
   overflow: visible;
 }
 
 .engulf-fire {
   position: absolute;
   inset: 0;
-  border-radius: 38%;
+  border-radius: var(--engulf-radius);
   background:
     radial-gradient(ellipse at 50% 20%, var(--engulf-core) 0%, transparent 42%),
     radial-gradient(ellipse at 50% 65%, var(--engulf-primary) 0%, var(--engulf-shadow) 68%, transparent 100%);
-  background-size: 180% 180%;
+  background-size: var(--engulf-background-size) var(--engulf-background-size);
   background-position: 50% 100%;
   opacity: 0.7;
   animation:
@@ -2093,11 +2098,11 @@
 
 .engulf-flames span {
   position: absolute;
-  bottom: 8%;
+  bottom: var(--engulf-flame-bottom);
   left: var(--flame-position);
-  width: 24%;
-  height: 60%;
-  border-radius: 50% 50% 28% 28%;
+  width: var(--engulf-flame-width);
+  height: var(--engulf-flame-height);
+  border-radius: var(--engulf-flame-radius);
   transform-origin: 50% 100%;
   background: linear-gradient(0deg, var(--engulf-shadow), var(--engulf-primary) 55%, var(--engulf-core));
   animation: engulfFlameRise var(--engulf-ms) ease-in var(--flame-delay) infinite;

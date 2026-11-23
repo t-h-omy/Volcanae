@@ -28,6 +28,7 @@ function fixture(): GameState {
   grid[4][4].buildingId = 'cave';
   grid[4][5].isRuin = true;
   grid[4][6].isStrongholdRuin = true;
+  grid[4][6].buildingId = 'missing-sprite';
   grid[4][7].isRevealed = false;
   grid[4][8].isRevealed = false;
   grid[4][8].unitId = 'hidden';
@@ -45,6 +46,10 @@ function fixture(): GameState {
       cave: {
         id: 'cave', type: BuildingType.CRYSTAL_CAVE, faction: Faction.PLAYER,
         position: { x: 4, y: 4 }, resonanceTurnsRemaining: 2,
+      },
+      'missing-sprite': {
+        id: 'missing-sprite', type: 'UNKNOWN' as BuildingType, faction: Faction.PLAYER,
+        position: { x: 9, y: 4 },
       },
     },
   } as unknown as GameState;
@@ -65,6 +70,7 @@ describe('collectLavaVictims', () => {
       { x: 3, y: 4, maskSrc: TERRAIN_RESOURCE_SPRITE[TileType.FOREST] },
       { x: 4, y: 4, maskSrc: expect.stringContaining('/sprites/buildings/crystal_cave_active_100px.png') },
       { x: 5, y: 4, maskSrc: TILE_SPRITE.ruin },
+      { x: 6, y: 4, maskSrc: '' },
       { x: 6, y: 4, maskSrc: TILE_SPRITE.strongholdRuin },
     ]);
     expect(victims.tiles).toEqual([

@@ -46,7 +46,7 @@ export function collectLavaVictims(
     if (!tile.isRevealed) continue;
     const building = tile.buildingId ? state.buildings[tile.buildingId] : undefined;
     const resourcePath = !building ? TERRAIN_RESOURCE_SPRITE[tile.terrainType] : undefined;
-    if (building || resourcePath) {
+    if (building || resourcePath !== undefined) {
       objects.push({ x, y: event.newLavaRow, maskSrc: building ? getBuildingSpritePath(building) ?? '' : resourcePath ?? '' });
       addTile(x, event.newLavaRow);
     }
