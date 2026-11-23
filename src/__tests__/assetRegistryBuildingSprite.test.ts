@@ -17,6 +17,10 @@ function building(type: BuildingType, faction: Faction | null, fields: Partial<B
 }
 
 describe('getBuildingSpritePath', () => {
+  it('uses the uploaded sprite for scout traps', () => {
+    expect(BUILDING_SPRITE[BuildingType.SCOUT_TRAP]).toBe('/sprites/buildings/trap_100px.png');
+  });
+
   it('preserves bridge orientation and faction-specific overrides', () => {
     expect(getBuildingSpritePath(building(BuildingType.BRIDGE, Faction.PLAYER, { bridgeOrientation: 'EW' }))).toBe(getBridgeSprite('EW'));
     expect(getBuildingSpritePath(building(BuildingType.BRIDGE, Faction.ENEMY, { bridgeOrientation: 'NS' }))).toBe(getBridgeSprite('NS'));

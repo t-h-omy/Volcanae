@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.134.8 - Scout trap artwork
+
+Scout traps now use the newly added trap sprite.
+
 ### v0.134.7 - Lava flow
 
 Lava advances as a flowing front, then engulfs buildings and units in fire before they disappear beneath it.
