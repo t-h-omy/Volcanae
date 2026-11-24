@@ -28,7 +28,12 @@ import { canKhyronResonate } from './khyronSystem';
 import { edgeCircleDistance } from './rangeUtils';
 import { isReducedMotion } from './graphicsOptionsStore';
 import { useTerrainTransitionStore } from './terrain/terrainTransitionStore';
-import { collectLavaVictims, getLavaAdvanceHoldMs } from './lavaPresentation';
+import {
+  collectLavaVictims,
+  getChamberHealingFocus,
+  getLavaAdvanceHoldMs,
+  shouldHoldOverviewAfterLava,
+} from './lavaPresentation';
 
 export function applyCaveSpecialistReward(drawn: string, outcome: CaveSpecialistRewardOutcome): void {
   const game = useGameStore.getState();
@@ -118,7 +123,11 @@ function eventPosition(event: GameEvent): Position {
     case 'UNIT_HEAL':
       return event.position;
     case 'CHAMBER_HEALING':
-      return event.chambers[0]?.position ?? event.heals[0]?.position ?? useAnimationStore.getState().cameraTarget;
+      return getChamberHealingFocus(
+        event,
+        isTileRevealed,
+        useAnimationStore.getState().cameraTarget,
+      );
     case 'CLEAVE_DAMAGE':
       return event.position;
     case 'PIERCE_DAMAGE':
@@ -864,6 +873,11 @@ export function useAnimationEngine(): void {
       const presentedKhyronIds = new Set<string>();
       const deferredDeaths = new Map<string, DeathEvent>();
       const deferredAdvances = new Map<string, { attackerId: string; position: Position }>();
+      const panToEvent = async (event: GameEvent) => {
+        useAnimationStore.getState().setCameraTarget(eventPosition(event));
+        await wait(ANIMATION.CAMERA_MOVE_DURATION_MS);
+        await wait(ANIMATION.PRE_ACTION_IDLE_MS);
+      };
       const applyDeath = (event: DeathEvent, visible: boolean) => {
         if (hasQueuedQorkBurst(event.unitId)) {
           deferredDeaths.set(event.unitId, event);
@@ -1158,8 +1172,12 @@ export function useAnimationEngine(): void {
           const focusPos = destroyedChamberPositions[0]
             ?? { x: Math.floor(MAP.GRID_WIDTH / 2), y: event.newLavaRow };
           tryTriggerHint('H06_LAVA_ADVANCE');
-          useAnimationStore.getState().setCameraTarget(focusPos);
-          await wait(ANIMATION.CAMERA_MOVE_DURATION_MS + ANIMATION.PRE_ACTION_IDLE_MS);
+          useAnimationStore.getState().setResonanceOverview(true);
+          useAnimationStore.getState().setCameraTarget(
+            focusPos,
+            ANIMATION.RESONANCE_CAMERA_MOVE_DURATION_MS,
+          );
+          await wait(ANIMATION.RESONANCE_CAMERA_MOVE_DURATION_MS + ANIMATION.PRE_ACTION_IDLE_MS);
 
           const victims = collectLavaVictims(useGameStore.getState(), event);
           const reduced = isReducedMotion();
@@ -1221,6 +1239,13 @@ export function useAnimationEngine(): void {
               });
             }
             await wait(ANIMATION.ZONE_CLEARED_SANCTUM_SHATTER_MS);
+          }
+
+          if (!shouldHoldOverviewAfterLava(
+            useAnimationStore.getState().eventQueue,
+            isEventVisible,
+          )) {
+            useAnimationStore.getState().setResonanceOverview(false);
           }
 
           continue;
@@ -1335,6 +1360,7 @@ export function useAnimationEngine(): void {
         }
 
         if (event.type === 'CHAMBER_HEALING') {
+          if (visible && !resolvingScoutTrap) await panToEvent(event);
           const combatStore = useCombatAnimationStore.getState();
           for (const chamber of event.chambers) {
             if (!isTileRevealed(chamber.position)) continue;
@@ -1361,16 +1387,12 @@ export function useAnimationEngine(): void {
             });
           }
           useGameStore.getState().applyEvent(event);
+          if (visible && !resolvingScoutTrap) await wait(ANIMATION.POST_ACTION_IDLE_MS);
           continue;
         }
 
         if (visible && !resolvingScoutTrap) {
-          // 1. Move camera to event position
-          useAnimationStore.getState().setCameraTarget(eventPosition(event));
-          await wait(ANIMATION.CAMERA_MOVE_DURATION_MS);
-
-          // 2. Pre-action idle
-          await wait(ANIMATION.PRE_ACTION_IDLE_MS);
+          await panToEvent(event);
         }
 
         if (event.type === 'CRYSTAL_LIGHTNING_ENEMY_VOLLEY') {

@@ -108,7 +108,7 @@ export const ANIMATION = {
   RESONANCE_NODE_IMPACT_DEPTH_REDUCTION_MS: 15,
   /** Stagger between same-depth resonance branches. */
   RESONANCE_BRANCH_STAGGER_MS: 55,
-  /** Camera pan duration while following a resonance wave. */
+  /** Duration for every resonance overview zoom move, including opening, tracking, and closing. */
   RESONANCE_CAMERA_MOVE_DURATION_MS: 520,
   /** Camera pan threshold for tracking the resonance wavefront, in tiles. */
   RESONANCE_CAMERA_TRACK_DISTANCE_TILES: 2,

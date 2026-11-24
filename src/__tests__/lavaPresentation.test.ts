@@ -2,9 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { ANIMATION } from '../../config/animation';
 import { MAP } from '../../config/map';
 import { TERRAIN_RESOURCE_SPRITE, TILE_SPRITE } from '../assetRegistry';
-import { collectLavaVictims, getLavaAdvanceHoldMs } from '../lavaPresentation';
+import {
+  collectLavaVictims,
+  getChamberHealingFocus,
+  getLavaAdvanceHoldMs,
+  shouldHoldOverviewAfterLava,
+} from '../lavaPresentation';
 import { BuildingType, Faction, TileType } from '../types';
-import type { GameState, Tile } from '../types';
+import type { GameState, Position, Tile } from '../types';
 import type { GameEvent } from '../gameEvents';
 
 function fixture(): GameState {
@@ -62,6 +67,15 @@ const event: Extract<GameEvent, { type: 'LAVA_ADVANCE' }> = {
   destroyedBuildingIds: ['cave'],
 };
 
+function resonanceEvent(): Extract<GameEvent, { type: 'RESONANCE_TRIGGERED' }> {
+  return {
+    type: 'RESONANCE_TRIGGERED',
+    sources: [],
+    reachedNodes: [],
+    resonanceDuration: 0,
+  };
+}
+
 describe('collectLavaVictims', () => {
   it('collects revealed row units and object silhouettes, excluding tunnel and hidden victims', () => {
     const victims = collectLavaVictims(fixture(), event);
@@ -83,5 +97,71 @@ describe('collectLavaVictims', () => {
     expect(getLavaAdvanceHoldMs({ reducedMotion: false, hasVictims: true })).toBe(ANIMATION.LAVA_FLOW_MS + victims);
     expect(getLavaAdvanceHoldMs({ reducedMotion: true, hasVictims: true })).toBe(victims);
     expect(getLavaAdvanceHoldMs({ reducedMotion: false, hasVictims: false })).toBe(ANIMATION.LAVA_FLOW_MS);
+  });
+});
+
+describe('lava advance camera helpers', () => {
+  it('holds the overview for the next visible resonance', () => {
+    const resonance = resonanceEvent();
+    const visible = () => true;
+
+    expect(shouldHoldOverviewAfterLava([resonance], visible)).toBe(true);
+    expect(shouldHoldOverviewAfterLava([
+      { type: 'PORTAL_CLOSED', portalId: 'portal', entrancePos: { x: 0, y: 0 }, exitPos: { x: 1, y: 0 } },
+      resonance,
+    ], visible)).toBe(true);
+  });
+
+  it('does not hold the overview when the next event is not a visible resonance', () => {
+    const resonance = resonanceEvent();
+    const visible = () => true;
+
+    expect(shouldHoldOverviewAfterLava([], visible)).toBe(false);
+    expect(shouldHoldOverviewAfterLava([
+      { type: 'UNIT_HEAL', unitId: 'unit', position: { x: 0, y: 0 }, amount: 1 },
+      resonance,
+    ], visible)).toBe(false);
+    expect(shouldHoldOverviewAfterLava([resonance], () => false)).toBe(false);
+  });
+});
+
+describe('Chamber Healing camera focus', () => {
+  const fallback: Position = { x: 9, y: 8 };
+  const event: Extract<GameEvent, { type: 'CHAMBER_HEALING' }> = {
+    type: 'CHAMBER_HEALING',
+    chambers: [
+      { buildingId: 'hidden-chamber', position: { x: 0, y: 0 } },
+      { buildingId: 'revealed-chamber', position: { x: 4, y: 4 } },
+    ],
+    heals: [
+      { unitId: 'first', position: { x: 1, y: 2 }, amount: 1 },
+      { unitId: 'second', position: { x: 3, y: 4 }, amount: 1 },
+      { unitId: 'hidden', position: { x: 20, y: 20 }, amount: 1 },
+    ],
+  };
+
+  it('rounds the centroid of revealed heals', () => {
+    expect(getChamberHealingFocus(event, ({ x, y }) => x !== 20 && y !== 20, fallback))
+      .toEqual({ x: 2, y: 3 });
+  });
+
+  it('uses the single revealed heal position', () => {
+    expect(getChamberHealingFocus(
+      { ...event, heals: [event.heals[1]] },
+      ({ x, y }) => x === 3 && y === 4,
+      fallback,
+    )).toEqual({ x: 3, y: 4 });
+  });
+
+  it('falls back to the first revealed chamber when no heal is revealed', () => {
+    expect(getChamberHealingFocus(
+      { ...event, heals: [] },
+      ({ x, y }) => x === 4 && y === 4,
+      fallback,
+    )).toEqual({ x: 4, y: 4 });
+  });
+
+  it('uses the current camera target when nothing is revealed', () => {
+    expect(getChamberHealingFocus(event, () => false, fallback)).toBe(fallback);
   });
 });
