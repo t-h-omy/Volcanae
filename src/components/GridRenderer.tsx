@@ -27,6 +27,7 @@ import { useZoomStore } from '../zoomStore';
 import { isReducedMotion, useGraphicsOptionsStore } from '../graphicsOptionsStore';
 import { useTerrainRenderMode } from '../terrain/terrainRenderStore';
 import { useTerrainTransitionStore } from '../terrain/terrainTransitionStore';
+import { isFogFree } from '../terrain/fogLift';
 import { useStatusSprite } from '../statusSpriteVariants';
 import TerrainCanvas from './TerrainCanvas';
 import { UNIT_SPRITE, TILE_SPRITE, TILE_STATUS_SPRITE, TERRAIN_RESOURCE_SPRITE, CRYSTAL_KHYRON_ACTIVE_SPRITE, ENEMY_UNIT_SPRITE, PLAYER_UNIT_SPRITE, TUNNEL_HOLE_SPRITE, TUNNEL_EARTHQUAKE_SPRITE, PORTAL_ENTRANCE_SPRITE, PORTAL_EXIT_SPRITE, MAGE_PORTAL_SPRITE, getBuildingSpritePath } from '../assetRegistry';
@@ -1251,16 +1252,17 @@ function TileCellInner({
   const buildingIconSize = tileSize;
   const terrainShader = useTerrainRenderMode() === 'shader';
   const lavaBurning = useTerrainTransitionStore((state) => state.lavaFlow?.row === tile.position.y);
+  const fogFree = isFogFree(tile, tile.position.y, lavaBurning ? tile.position.y : undefined);
   const [fogFading, setFogFading] = useState(false);
-  const wasRevealedRef = useRef(tile.isRevealed);
+  const wasFogFreeRef = useRef(fogFree);
 
   useEffect(() => {
-    const wasRevealed = wasRevealedRef.current;
-    wasRevealedRef.current = tile.isRevealed;
-    if (wasRevealed || !tile.isRevealed || terrainShader) return;
+    const wasFogFree = wasFogFreeRef.current;
+    wasFogFreeRef.current = fogFree;
+    if (wasFogFree || !fogFree || terrainShader) return;
     const frameId = requestAnimationFrame(() => setFogFading(true));
     return () => cancelAnimationFrame(frameId);
-  }, [tile.isRevealed, terrainShader]);
+  }, [fogFree, terrainShader]);
 
   // ── Tile sprite path ──
   // Ruin tiles use the underlying terrain as their base; the ruin graphic is
@@ -1273,7 +1275,7 @@ function TileCellInner({
       : undefined;
   const tileSpritePath: string | undefined = tile.isLava
     ? TILE_SPRITE['lava']
-    : !tile.isRevealed
+    : !fogFree
       ? TILE_SPRITE['unrevealed']
       : (tileStatusSpritePath ?? TILE_SPRITE[tile.terrainType]);
 
@@ -1919,6 +1921,9 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
           '--arcane-shield-color': MAGIC_PATH_COLORS.ARCANE.primary,
           '--arcane-shield-glow': MAGIC_PATH_COLORS.ARCANE.glow,
           '--arcane-shield-ratio': arcaneShieldRatio,
+          '--unit-sprite-size': `${unitEmojiSize}px`,
+          '--unit-position-x': unit.position.x,
+          '--unit-position-y': unit.position.y,
           '--deathless-pulse-duration': `${isDeathlessFinalTurn ? ANIMATION.DEATHLESS_FINAL_PULSE_CYCLE_MS : ANIMATION.DEATHLESS_PULSE_CYCLE_MS}ms`,
           '--deathless-color': MAGIC_PATH_COLORS.NECRO.primary,
           '--deathless-glow': MAGIC_PATH_COLORS.NECRO.glow,
@@ -1932,45 +1937,6 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
         } as React.CSSProperties
       }
     >
-      {hasArcaneShield && <div className="arcane-shield-dome" aria-hidden="true" />}
-      {shieldFx && (
-        <div
-          className={`protective-layer-fx protective-layer-fx--arcane protective-layer-fx--${shieldFx}`}
-          style={{
-            '--protective-layer-color': MAGIC_PATH_COLORS.ARCANE.primary,
-            '--protective-layer-glow': MAGIC_PATH_COLORS.ARCANE.glow,
-          } as React.CSSProperties}
-          aria-hidden="true"
-        >
-          {shieldFx === 'break' &&
-            Array.from({ length: ANIMATION.PROTECTIVE_LAYER_SHARD_COUNT }, (_, i) => (
-              <span
-                key={i}
-                className="protective-layer-shard"
-                style={{ '--shard-angle': `${(360 / ANIMATION.PROTECTIVE_LAYER_SHARD_COUNT) * i}deg` } as React.CSSProperties}
-              />
-            ))}
-        </div>
-      )}
-      {stoneSkinFx && (
-        <div
-          className={`protective-layer-fx protective-layer-fx--stone protective-layer-fx--${stoneSkinFx}`}
-          style={{
-            '--protective-layer-color': RENDER.COLORS.STONE_SKIN,
-            '--protective-layer-glow': RENDER.COLORS.STONE_SKIN,
-          } as React.CSSProperties}
-          aria-hidden="true"
-        >
-          {stoneSkinFx === 'break' &&
-            Array.from({ length: ANIMATION.PROTECTIVE_LAYER_SHARD_COUNT }, (_, i) => (
-              <span
-                key={i}
-                className="protective-layer-shard"
-                style={{ '--shard-angle': `${(360 / ANIMATION.PROTECTIVE_LAYER_SHARD_COUNT) * i}deg` } as React.CSSProperties}
-              />
-            ))}
-        </div>
-      )}
       {showArcaneShieldBar && (
         <div className="arcane-shield-hp-bar-wrapper" title={t('hud.unitPanel.arcaneShield', { current: arcaneShieldHp, max: MAGE.ARCANE_SHIELD_MAX_HP })}>
           <div
@@ -2016,18 +1982,59 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
       {!usesNonXpProgression(unit.type) && UNIT_DEFINITIONS[unit.type]?.levelUp?.length > 0 && (
         <span className="unit-xp-text">{t('grid.unitXp', { xp: formatNumber(unit.xp) })}</span>
       )}
-      {showUnitImg ? (
-        <img
-          src={unitSpritePath}
-          className="unit-main-img"
-          width={unitEmojiSize}
-          height={unitEmojiSize}
-          alt=""
-          onError={() => setUnitSpriteError(true)}
-        />
-      ) : (
-        <MissingSprite size={unitEmojiSize} />
-      )}
+      <span className="unit-sprite-anchor">
+        {showUnitImg ? (
+          <img
+            src={unitSpritePath}
+            className="unit-main-img"
+            width={unitEmojiSize}
+            height={unitEmojiSize}
+            alt=""
+            onError={() => setUnitSpriteError(true)}
+          />
+        ) : (
+          <MissingSprite size={unitEmojiSize} />
+        )}
+        {hasArcaneShield && <div className="arcane-shield-dome" aria-hidden="true" />}
+        {shieldFx && (
+          <div
+            className={`protective-layer-fx protective-layer-fx--arcane protective-layer-fx--${shieldFx}`}
+            style={{
+              '--protective-layer-color': MAGIC_PATH_COLORS.ARCANE.primary,
+              '--protective-layer-glow': MAGIC_PATH_COLORS.ARCANE.glow,
+            } as React.CSSProperties}
+            aria-hidden="true"
+          >
+            {shieldFx === 'break' &&
+              Array.from({ length: ANIMATION.PROTECTIVE_LAYER_SHARD_COUNT }, (_, i) => (
+                <span
+                  key={i}
+                  className="protective-layer-shard"
+                  style={{ '--shard-angle': `${(360 / ANIMATION.PROTECTIVE_LAYER_SHARD_COUNT) * i}deg` } as React.CSSProperties}
+                />
+              ))}
+          </div>
+        )}
+        {stoneSkinFx && (
+          <div
+            className={`protective-layer-fx protective-layer-fx--stone protective-layer-fx--${stoneSkinFx}`}
+            style={{
+              '--protective-layer-color': RENDER.COLORS.STONE_SKIN,
+              '--protective-layer-glow': RENDER.COLORS.STONE_SKIN,
+            } as React.CSSProperties}
+            aria-hidden="true"
+          >
+            {stoneSkinFx === 'break' &&
+              Array.from({ length: ANIMATION.PROTECTIVE_LAYER_SHARD_COUNT }, (_, i) => (
+                <span
+                  key={i}
+                  className="protective-layer-shard"
+                  style={{ '--shard-angle': `${(360 / ANIMATION.PROTECTIVE_LAYER_SHARD_COUNT) * i}deg` } as React.CSSProperties}
+                />
+              ))}
+          </div>
+        )}
+      </span>
       {isEmberling && (
         <span className="emberling-hover-explosion" style={{ fontSize: `${Math.floor(unitEmojiSize * 0.5)}px` }}>
           💥
@@ -2906,6 +2913,8 @@ function TileVfxLayer({ tileSize }: { tileSize: number }) {
               '--tile-vfx-delay': `${vfx.delayMs ?? 0}ms`,
               '--engulf-ms': `${ANIMATION.LAVA_ENGULF_MS}ms`,
               '--burnout-ms': `${ANIMATION.LAVA_BURNOUT_MS}ms`,
+              '--engulf-size': `${tileSize}px`,
+              '--engulf-spark-count': ANIMATION.LAVA_ENGULF_SPARK_COUNT,
             } as React.CSSProperties}
             onAnimationEnd={isEngulf ? undefined : removeAfterAnimation}
           >
@@ -2918,14 +2927,19 @@ function TileVfxLayer({ tileSize }: { tileSize: number }) {
                     WebkitMaskImage: `url("${vfx.maskSrc}")`,
                   } : undefined}
                   onAnimationEnd={removeAfterAnimation}
-                />
-                <div className="engulf-flames" aria-hidden="true">
-                  {Array.from({ length: ANIMATION.LAVA_ENGULF_FLAME_COUNT }, (_, index) => (
+                >
+                  <div className="engulf-char" />
+                  <div className="engulf-fire-shadow" />
+                  <div className="engulf-fire-primary" />
+                  <div className="engulf-fire-core" />
+                </div>
+                <div className="engulf-sparks" aria-hidden="true">
+                  {Array.from({ length: ANIMATION.LAVA_ENGULF_SPARK_COUNT }, (_, index) => (
                     <span
                       key={index}
                       style={{
-                        '--flame-delay': `${index * ANIMATION.LAVA_ENGULF_FLAME_STAGGER_MS}ms`,
-                        '--flame-position': `${(index + 1) * 100 / (ANIMATION.LAVA_ENGULF_FLAME_COUNT + 1)}%`,
+                        '--spark-delay': `${index * ANIMATION.LAVA_ENGULF_SPARK_STAGGER_MS}ms`,
+                        '--spark-index': index,
                       } as React.CSSProperties}
                     />
                   ))}

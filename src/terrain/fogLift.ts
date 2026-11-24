@@ -1,6 +1,9 @@
 import { ANIMATION } from '../../config/animation';
 import { MAP } from '../../config/map';
+import { cubicBezierEase } from '../cameraMotion';
 import type { Tile } from '../types';
+
+const fogLiftEase = cubicBezierEase(...ANIMATION.FOG_LIFT_EASE_BEZIER);
 
 const NEIGHBORS = [
   [-1, -1], [0, -1], [1, -1],
@@ -8,11 +11,16 @@ const NEIGHBORS = [
   [-1, 1], [0, 1], [1, 1],
 ] as const;
 
+export function isFogFree(tile: Tile, y: number, lavaFlowRow?: number): boolean {
+  return tile.isRevealed || tile.isLava || y === lavaFlowRow;
+}
+
 export function planFogLift(
   prevRevealed: Uint8Array | null,
   grid: Tile[][],
   nowMs: number,
   lifting: ReadonlyMap<number, number>,
+  lavaFlowRow?: number,
 ): Map<number, number> {
   if (!prevRevealed) return new Map();
 
@@ -23,7 +31,7 @@ export function planFogLift(
   for (let y = 0; y < MAP.GRID_HEIGHT; y++) {
     for (let x = 0; x < MAP.GRID_WIDTH; x++) {
       const index = y * MAP.GRID_WIDTH + x;
-      if (grid[y][x].isRevealed && !prevRevealed[index]) newlyRevealed[index] = 1;
+      if (isFogFree(grid[y][x], y, lavaFlowRow) && !prevRevealed[index]) newlyRevealed[index] = 1;
     }
   }
 
@@ -65,15 +73,19 @@ export function planFogLift(
 
 export function fogValueAt(startMs: number, nowMs: number): number {
   const progress = Math.min(1, Math.max(0, (nowMs - startMs) / ANIMATION.FOG_LIFT_MS));
-  return Math.round(255 * (1 - progress));
+  return Math.round(255 * (1 - fogLiftEase(progress)));
 }
 
-export function snapshotRevealed(grid: Tile[][], out?: Uint8Array): Uint8Array {
+export function snapshotRevealed(
+  grid: Tile[][],
+  out?: Uint8Array,
+  lavaFlowRow?: number,
+): Uint8Array {
   const length = MAP.GRID_WIDTH * MAP.GRID_HEIGHT;
   const snapshot = out?.length === length ? out : new Uint8Array(length);
   for (let y = 0; y < MAP.GRID_HEIGHT; y++) {
     for (let x = 0; x < MAP.GRID_WIDTH; x++) {
-      snapshot[y * MAP.GRID_WIDTH + x] = grid[y][x].isRevealed ? 1 : 0;
+      snapshot[y * MAP.GRID_WIDTH + x] = isFogFree(grid[y][x], y, lavaFlowRow) ? 1 : 0;
     }
   }
   return snapshot;

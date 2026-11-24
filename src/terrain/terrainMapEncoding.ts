@@ -1,6 +1,7 @@
 import { MAP } from '../../config/map';
 import { TileStatus, TileType, type Tile } from '../types';
 import { TERRAIN_RENDER } from '../../config/terrain';
+import { isFogFree } from './fogLift';
 
 export const TERRAIN_STATUS_INDEX: Record<TileStatus, number> = {
   FROZEN: 1,
@@ -61,7 +62,7 @@ export function encodeTerrainMap(
 
       encoded[offset] = level + (isFlowPreview ? 16 : 0);
       encoded[offset + 1] = status + 16 * heat;
-      encoded[offset + 2] = tile.isRevealed
+      encoded[offset + 2] = isFogFree(tile, y, options?.lavaFlowRow)
         ? options?.fog?.get(y * MAP.GRID_WIDTH + x) ?? 0
         : 255;
       encoded[offset + 3] = ((x * 73856093) ^ (y * 19349663)) & 255;

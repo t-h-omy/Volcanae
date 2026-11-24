@@ -1,7 +1,38 @@
 import { ANIMATION } from '../config/animation';
 import type { GameEvent } from './gameEvents';
-import type { GameState } from './types';
+import type { GameState, Position } from './types';
 import { getBuildingSpritePath, TERRAIN_RESOURCE_SPRITE, TILE_SPRITE } from './assetRegistry';
+
+type ChamberHealingEvent = Extract<GameEvent, { type: 'CHAMBER_HEALING' }>;
+
+export function getChamberHealingFocus(
+  event: ChamberHealingEvent,
+  isTileRevealed: (position: Position) => boolean,
+  fallback: Position,
+): Position {
+  const revealedHeals = event.heals.filter((heal) => isTileRevealed(heal.position));
+  if (revealedHeals.length > 0) {
+    return {
+      x: Math.round(revealedHeals.reduce((sum, heal) => sum + heal.position.x, 0) / revealedHeals.length),
+      y: Math.round(revealedHeals.reduce((sum, heal) => sum + heal.position.y, 0) / revealedHeals.length),
+    };
+  }
+  return event.chambers.find(({ position }) => isTileRevealed(position))?.position ?? fallback;
+}
+
+export function shouldHoldOverviewAfterLava(
+  queue: readonly GameEvent[],
+  isVisible: (event: GameEvent) => boolean,
+): boolean {
+  const portalEvents = new Set<GameEvent['type']>([
+    'PORTAL_CREATED',
+    'PORTAL_USED',
+    'PORTAL_CLOSED',
+    'PORTAL_BLOCKED',
+  ]);
+  const nextEvent = queue.find((event) => !portalEvents.has(event.type));
+  return nextEvent?.type === 'RESONANCE_TRIGGERED' && isVisible(nextEvent);
+}
 
 export interface LavaVictims {
   unitIds: string[];

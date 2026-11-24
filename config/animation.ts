@@ -22,6 +22,14 @@ export const ANIMATION = {
   /** Coordinate multipliers stagger Crystalline glints across neighboring tiles. */
   CRYSTALLINE_GLINT_X_OFFSET_MS: 1301,
   CRYSTALLINE_GLINT_Y_OFFSET_MS: 2137,
+  /** Cubic Bezier easing for the shader fog retreat. */
+  FOG_LIFT_EASE_BEZIER: [0.3, 0, 0.2, 1],
+  /**
+   * At the row stagger, the next row starts at FOG_LIFT_ROW_STAGGER_MS / FOG_LIFT_MS
+   * of the previous row's lift. The shader front reaches 1.7 tiles, so it must cross
+   * the tile border by then to keep the cloud edge joined. With this ease,
+   * ease(0.8) * 1.7 is above 1.22.
+   */
   /** Duration of the cloud retreat on one revealed tile (shader mode) and of the fog tile fade (PNG mode). */
   FOG_LIFT_MS: 450,
   /** Delay between the lift of one row of newly revealed tiles and the next deeper row. */
@@ -46,10 +54,10 @@ export const ANIMATION = {
   LAVA_ENGULF_MS: 700,
   /** Duration of the fire silhouette sinking and going out. */
   LAVA_BURNOUT_MS: 500,
-  /** Number of flame tongues in the lava engulf effect. */
-  LAVA_ENGULF_FLAME_COUNT: 3,
-  /** Delay between flame tongues in the lava engulf effect. */
-  LAVA_ENGULF_FLAME_STAGGER_MS: 180,
+  /** Number of sparks in the lava engulf effect. */
+  LAVA_ENGULF_SPARK_COUNT: 5,
+  /** Delay between sparks in the lava engulf effect. */
+  LAVA_ENGULF_SPARK_STAGGER_MS: 180,
   /** Pause after a unit spawns before moving to next event */
   SPAWN_PAUSE_MS: 300,
   /** Melee lunge out + snap back total duration (ms) */
@@ -100,7 +108,7 @@ export const ANIMATION = {
   RESONANCE_NODE_IMPACT_DEPTH_REDUCTION_MS: 15,
   /** Stagger between same-depth resonance branches. */
   RESONANCE_BRANCH_STAGGER_MS: 55,
-  /** Camera pan duration while following a resonance wave. */
+  /** Duration for every resonance overview zoom move, including opening, tracking, and closing. */
   RESONANCE_CAMERA_MOVE_DURATION_MS: 520,
   /** Camera pan threshold for tracking the resonance wavefront, in tiles. */
   RESONANCE_CAMERA_TRACK_DISTANCE_TILES: 2,

@@ -1,5 +1,21 @@
 # Changelog
 
+### v0.134.12 - Shield and gravestone polish
+
+Arcane Shields now form calm circles around unit sprites, and gravestones settle in place with a rising wisp and a ground-level dust ring.
+
+### v0.134.11 - Lava fire
+
+Objects consumed by lava now blacken beneath flat, silhouette-masked flame fronts with small rising sparks.
+
+### v0.134.10 - Lava and healing camera
+
+Lava advances use the resonance overview zoom, and Chamber Healing pans to the healed units.
+
+### v0.134.9 - Fog and lava
+
+Clouds no longer cover lava, and fog retreat is smoother.
+
 ### v0.134.8 - Scout trap artwork
 
 Scout traps now use the newly added trap sprite.

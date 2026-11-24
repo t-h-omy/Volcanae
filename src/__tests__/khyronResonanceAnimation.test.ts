@@ -155,6 +155,21 @@ describe('Khyron resonance event presentation', () => {
     expect(useZoomStore.getState().zoom).toBe(1.15);
   });
 
+  it('keeps one overview open across lava advance and its queued resonance', async () => {
+    const live = state();
+    live.lavaFrontRow = 1;
+    const { events } = advanceLavaWithEvents(live);
+    expect(events[0]?.type).toBe('LAVA_ADVANCE');
+    expect(events.some((event) => event.type === 'RESONANCE_TRIGGERED')).toBe(true);
+    useGameStore.setState(live);
+    const setOverview = vi.spyOn(useAnimationStore.getState(), 'setResonanceOverview');
+
+    replay(events);
+    await vi.runAllTimersAsync();
+
+    expect(setOverview.mock.calls).toEqual([[true], [true], [false]]);
+  });
+
   it('clears the temporary overview when the animation engine unmounts', () => {
     useZoomStore.getState().setZoom(0.75);
     replay([resonance()]);
@@ -355,7 +370,7 @@ describe('Khyron resonance event presentation', () => {
     expect(live.units.first.resonanceActive).toBe(false);
   });
 
-  it('presents grouped Chamber Healing without panning or waiting', async () => {
+  it('pans to grouped Chamber Healing before showing its VFX', async () => {
     const live = state();
     const mage = live.units.first!;
     mage.type = UnitType.CRYSTAL_MAGE;
@@ -374,7 +389,7 @@ describe('Khyron resonance event presentation', () => {
     const { camera } = replay([event]);
     await vi.runAllTimersAsync();
 
-    expect(camera).not.toHaveBeenCalled();
+    expect(camera).toHaveBeenCalledWith(mage.position);
     expect(setBuildingAnimation).toHaveBeenCalledWith(
       'chamber',
       { type: 'CRYSTAL_ACTIVATE', durationMs: ANIMATION.CHAMBER_HEALING_VFX_DURATION_MS },
@@ -385,6 +400,7 @@ describe('Khyron resonance event presentation', () => {
       variant: 'HEAL',
       durationMs: ANIMATION.HEAL_VFX_MS,
     }));
+    expect(camera.mock.invocationCallOrder[0]).toBeLessThan(addTileVfx.mock.invocationCallOrder[0]);
     expect(floater).toHaveBeenCalledWith(expect.objectContaining({
       value: 10,
       x: mage.position.x,

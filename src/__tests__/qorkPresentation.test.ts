@@ -310,6 +310,39 @@ describe('Qork presentation identity and direct fallback', () => {
   });
 });
 
+describe('ENGULF presentation', () => {
+  it('configures a positive integer spark count without obsolete flame settings', () => {
+    expect(Number.isInteger(ANIMATION.LAVA_ENGULF_SPARK_COUNT)).toBe(true);
+    expect(ANIMATION.LAVA_ENGULF_SPARK_COUNT).toBeGreaterThan(0);
+    expect(ANIMATION).not.toHaveProperty('LAVA_ENGULF_FLAME_COUNT');
+    expect(ANIMATION).not.toHaveProperty('LAVA_ENGULF_FLAME_STAGGER_MS');
+  });
+
+  it('renders silhouette-masked char, three flat fire layers, and configured sparks', () => {
+    const maskSrc = '/sprites/buildings/crystal_cave_active_100px.png';
+    useCombatAnimationStore.getState().addTileVfx({
+      id: 'engulf-object',
+      x: origin.x,
+      y: origin.y,
+      variant: 'ENGULF',
+      maskSrc,
+      durationMs: ANIMATION.LAVA_ENGULF_MS + ANIMATION.LAVA_BURNOUT_MS,
+    });
+
+    const markup = renderToStaticMarkup(createElement(GridRenderer));
+
+    expect(markup).toContain('class="engulf-fire engulf-fire--masked"');
+    expect(markup).toContain(`mask-image:url(&quot;${maskSrc}&quot;)`);
+    expect(markup).toContain('<div class="engulf-char"></div>');
+    for (const layer of ['shadow', 'primary', 'core']) {
+      expect(markup).toContain(`<div class="engulf-fire-${layer}"></div>`);
+    }
+    const sparks = markup.match(/<div class="engulf-sparks"[^>]*>(.*?)<\/div>/)?.[1];
+    expect(sparks?.match(/<span /g)).toHaveLength(ANIMATION.LAVA_ENGULF_SPARK_COUNT);
+    expect(markup).not.toContain('engulf-flames');
+  });
+});
+
 describe('Qork dying-in-place ghost', () => {
   const ghost: SlideKillGhost = {
     id: qorkId,
@@ -320,6 +353,25 @@ describe('Qork dying-in-place ghost', () => {
     variant: 'dying-in-place',
     phase: 'dying',
   };
+
+  it('anchors the Arcane Shield to the unit sprite below its bars', () => {
+    useGameStore.setState((state) => {
+      state.units[qorkId].faction = Faction.PLAYER;
+      state.units[qorkId].arcaneShieldHp = 1;
+      state.units[qorkId].stats.currentHp -= 1;
+    });
+
+    const markup = renderToStaticMarkup(createElement(GridRenderer));
+    const anchorStart = markup.indexOf('<span class="unit-sprite-anchor">');
+    const anchorEnd = markup.indexOf('</span>', anchorStart);
+    const dome = markup.indexOf('class="arcane-shield-dome"', anchorStart);
+
+    expect(anchorStart).toBeGreaterThan(-1);
+    expect(dome).toBeGreaterThan(anchorStart);
+    expect(dome).toBeLessThan(anchorEnd);
+    expect(markup.slice(anchorStart, anchorEnd)).toContain('class="unit-main-img"');
+    expect(markup).toContain('--unit-sprite-size:');
+  });
 
   it('renders a flashing ghost on an occupied tile without slide displacement', () => {
     useCombatAnimationStore.getState().addSlideKillGhost(ghost);

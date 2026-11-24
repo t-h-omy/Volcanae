@@ -134,6 +134,9 @@ describe('Gravestone appearance', () => {
     useGameStore.getState().castSpell(position);
     const id = useGameStore.getState().grid[position.y][position.x].buildingId!;
     expect(useGameStore.getState().buildings[id]?.type).toBe(BuildingType.GRAVESTONE);
+    expect(useGameStore.getState().units[unitId]).toBeUndefined();
+    expect(useCombatAnimationStore.getState().unitAnimations.has(unitId)).toBe(false);
+    expect(useCombatAnimationStore.getState().slideKillGhosts.has(unitId)).toBe(false);
     expect(useCombatAnimationStore.getState().buildingAnimations.get(id)).toBe('GRAVESTONE_RISE');
   });
 
