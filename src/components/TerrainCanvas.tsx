@@ -6,7 +6,7 @@ import { useGameStore } from '../gameStore';
 import { useGraphicsOptionsStore, isReducedMotion } from '../graphicsOptionsStore';
 import { GridLineMode, GraphicsQuality } from '../types';
 import { encodeTerrainMap } from '../terrain/terrainMapEncoding';
-import { fogValueAt, planFogLift, snapshotRevealed } from '../terrain/fogLift';
+import { fogValueAt, isFogFree, planFogLift, snapshotRevealed } from '../terrain/fogLift';
 import { useTerrainRenderStore } from '../terrain/terrainRenderStore';
 import { getTerrainLook } from '../terrain/terrainLook';
 import { useTerrainTuningStore } from '../terrain/terrainTuningStore';
@@ -68,16 +68,27 @@ export default function TerrainCanvas({ viewportRef, containerRef, fogCanvasRef 
     if (isReducedMotion()) {
       lifting.clear();
     } else {
-      for (const [index, startMs] of planFogLift(prevRevealedRef.current, grid, nowMs, lifting)) {
+      for (const [index, startMs] of planFogLift(
+        prevRevealedRef.current,
+        grid,
+        nowMs,
+        lifting,
+        lavaFlow?.row,
+      )) {
         lifting.set(index, startMs);
       }
     }
-    prevRevealedRef.current = snapshotRevealed(grid, prevRevealedRef.current ?? undefined);
+    prevRevealedRef.current = snapshotRevealed(
+      grid,
+      prevRevealedRef.current ?? undefined,
+      lavaFlow?.row,
+    );
     const fog = new Map<number, number>();
     for (const [index, startMs] of lifting) {
       const x = index % MAP.GRID_WIDTH;
       const y = Math.floor(index / MAP.GRID_WIDTH);
-      if (!grid[y]?.[x]?.isRevealed) {
+      const tile = grid[y]?.[x];
+      if (!tile || !isFogFree(tile, y, lavaFlow?.row)) {
         lifting.delete(index);
         continue;
       }

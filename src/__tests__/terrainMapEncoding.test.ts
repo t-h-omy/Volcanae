@@ -90,6 +90,25 @@ describe('encodeTerrainMap', () => {
     expect(channel(data, 2, 0, 2)).toBe(0);
   });
 
+  it('encodes unrevealed lava and the incoming flow row as fog-free', () => {
+    const grid = makeGrid();
+    const flowRow = 4;
+    grid[0][0].isRevealed = false;
+    grid[0][0].isLava = true;
+    grid[flowRow][0].isRevealed = false;
+    grid[flowRow + 1][0].isRevealed = false;
+    const fog = new Map([
+      [0, 128],
+      [flowRow * MAP.GRID_WIDTH, 64],
+    ]);
+
+    const data = encodeTerrainMap(grid, 0, 0, undefined, { fog, lavaFlowRow: flowRow });
+
+    expect(channel(data, 0, 0, 2)).toBe(128);
+    expect(channel(data, 0, flowRow, 2)).toBe(64);
+    expect(channel(data, 0, flowRow + 1, 2)).toBe(255);
+  });
+
   it('encodes the incoming lava flow row at the farthest preview heat level', () => {
     const grid = makeGrid();
     const flowRow = 20;

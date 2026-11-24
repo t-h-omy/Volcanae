@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.134.9 - Fog and lava
+
+Clouds no longer cover lava, and fog retreat is smoother.
+
 ### v0.134.8 - Scout trap artwork
 
 Scout traps now use the newly added trap sprite.

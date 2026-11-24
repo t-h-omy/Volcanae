@@ -22,6 +22,14 @@ export const ANIMATION = {
   /** Coordinate multipliers stagger Crystalline glints across neighboring tiles. */
   CRYSTALLINE_GLINT_X_OFFSET_MS: 1301,
   CRYSTALLINE_GLINT_Y_OFFSET_MS: 2137,
+  /** Cubic Bezier easing for the shader fog retreat. */
+  FOG_LIFT_EASE_BEZIER: [0.3, 0, 0.2, 1],
+  /**
+   * At the row stagger, the next row starts at FOG_LIFT_ROW_STAGGER_MS / FOG_LIFT_MS
+   * of the previous row's lift. The shader front reaches 1.7 tiles, so it must cross
+   * the tile border by then to keep the cloud edge joined. With this ease,
+   * ease(0.8) * 1.7 is above 1.22.
+   */
   /** Duration of the cloud retreat on one revealed tile (shader mode) and of the fog tile fade (PNG mode). */
   FOG_LIFT_MS: 450,
   /** Delay between the lift of one row of newly revealed tiles and the next deeper row. */

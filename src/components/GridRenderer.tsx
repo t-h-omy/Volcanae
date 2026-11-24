@@ -27,6 +27,7 @@ import { useZoomStore } from '../zoomStore';
 import { isReducedMotion, useGraphicsOptionsStore } from '../graphicsOptionsStore';
 import { useTerrainRenderMode } from '../terrain/terrainRenderStore';
 import { useTerrainTransitionStore } from '../terrain/terrainTransitionStore';
+import { isFogFree } from '../terrain/fogLift';
 import { useStatusSprite } from '../statusSpriteVariants';
 import TerrainCanvas from './TerrainCanvas';
 import { UNIT_SPRITE, TILE_SPRITE, TILE_STATUS_SPRITE, TERRAIN_RESOURCE_SPRITE, CRYSTAL_KHYRON_ACTIVE_SPRITE, ENEMY_UNIT_SPRITE, PLAYER_UNIT_SPRITE, TUNNEL_HOLE_SPRITE, TUNNEL_EARTHQUAKE_SPRITE, PORTAL_ENTRANCE_SPRITE, PORTAL_EXIT_SPRITE, MAGE_PORTAL_SPRITE, getBuildingSpritePath } from '../assetRegistry';
@@ -1251,16 +1252,17 @@ function TileCellInner({
   const buildingIconSize = tileSize;
   const terrainShader = useTerrainRenderMode() === 'shader';
   const lavaBurning = useTerrainTransitionStore((state) => state.lavaFlow?.row === tile.position.y);
+  const fogFree = isFogFree(tile, tile.position.y, lavaBurning ? tile.position.y : undefined);
   const [fogFading, setFogFading] = useState(false);
-  const wasRevealedRef = useRef(tile.isRevealed);
+  const wasFogFreeRef = useRef(fogFree);
 
   useEffect(() => {
-    const wasRevealed = wasRevealedRef.current;
-    wasRevealedRef.current = tile.isRevealed;
-    if (wasRevealed || !tile.isRevealed || terrainShader) return;
+    const wasFogFree = wasFogFreeRef.current;
+    wasFogFreeRef.current = fogFree;
+    if (wasFogFree || !fogFree || terrainShader) return;
     const frameId = requestAnimationFrame(() => setFogFading(true));
     return () => cancelAnimationFrame(frameId);
-  }, [tile.isRevealed, terrainShader]);
+  }, [fogFree, terrainShader]);
 
   // ── Tile sprite path ──
   // Ruin tiles use the underlying terrain as their base; the ruin graphic is
@@ -1273,7 +1275,7 @@ function TileCellInner({
       : undefined;
   const tileSpritePath: string | undefined = tile.isLava
     ? TILE_SPRITE['lava']
-    : !tile.isRevealed
+    : !fogFree
       ? TILE_SPRITE['unrevealed']
       : (tileStatusSpritePath ?? TILE_SPRITE[tile.terrainType]);
 
