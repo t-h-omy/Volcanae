@@ -1171,13 +1171,13 @@ export function useAnimationEngine(): void {
             (event.destroyedChamberPosition ? [event.destroyedChamberPosition] : []);
           const focusPos = destroyedChamberPositions[0]
             ?? { x: Math.floor(MAP.GRID_WIDTH / 2), y: event.newLavaRow };
-          tryTriggerHint('H06_LAVA_ADVANCE');
           useAnimationStore.getState().setResonanceOverview(true);
           useAnimationStore.getState().setCameraTarget(
             focusPos,
             ANIMATION.RESONANCE_CAMERA_MOVE_DURATION_MS,
           );
           await wait(ANIMATION.RESONANCE_CAMERA_MOVE_DURATION_MS + ANIMATION.PRE_ACTION_IDLE_MS);
+          tryTriggerHint('H06_LAVA_ADVANCE');
 
           const victims = collectLavaVictims(useGameStore.getState(), event);
           const reduced = isReducedMotion();

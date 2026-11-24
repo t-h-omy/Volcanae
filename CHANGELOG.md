@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.134.10 - Lava and healing camera
+
+Lava advances use the resonance overview zoom, and Chamber Healing pans to the healed units.
+
 ### v0.134.9 - Fog and lava
 
 Clouds no longer cover lava, and fog retreat is smoother.
