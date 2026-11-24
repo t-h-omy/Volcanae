@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.134.12 - Shield and gravestone polish
+
+Arcane Shields now form calm circles around unit sprites, and gravestones settle in place with a rising wisp and a ground-level dust ring.
+
 ### v0.134.11 - Lava fire
 
 Objects consumed by lava now blacken beneath flat, silhouette-masked flame fronts with small rising sparks.

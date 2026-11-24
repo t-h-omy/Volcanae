@@ -354,6 +354,25 @@ describe('Qork dying-in-place ghost', () => {
     phase: 'dying',
   };
 
+  it('anchors the Arcane Shield to the unit sprite below its bars', () => {
+    useGameStore.setState((state) => {
+      state.units[qorkId].faction = Faction.PLAYER;
+      state.units[qorkId].arcaneShieldHp = 1;
+      state.units[qorkId].stats.currentHp -= 1;
+    });
+
+    const markup = renderToStaticMarkup(createElement(GridRenderer));
+    const anchorStart = markup.indexOf('<span class="unit-sprite-anchor">');
+    const anchorEnd = markup.indexOf('</span>', anchorStart);
+    const dome = markup.indexOf('class="arcane-shield-dome"', anchorStart);
+
+    expect(anchorStart).toBeGreaterThan(-1);
+    expect(dome).toBeGreaterThan(anchorStart);
+    expect(dome).toBeLessThan(anchorEnd);
+    expect(markup.slice(anchorStart, anchorEnd)).toContain('class="unit-main-img"');
+    expect(markup).toContain('--unit-sprite-size:');
+  });
+
   it('renders a flashing ghost on an occupied tile without slide displacement', () => {
     useCombatAnimationStore.getState().addSlideKillGhost(ghost);
     useGameStore.setState((state) => {

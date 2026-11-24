@@ -1921,6 +1921,9 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
           '--arcane-shield-color': MAGIC_PATH_COLORS.ARCANE.primary,
           '--arcane-shield-glow': MAGIC_PATH_COLORS.ARCANE.glow,
           '--arcane-shield-ratio': arcaneShieldRatio,
+          '--unit-sprite-size': `${unitEmojiSize}px`,
+          '--unit-position-x': unit.position.x,
+          '--unit-position-y': unit.position.y,
           '--deathless-pulse-duration': `${isDeathlessFinalTurn ? ANIMATION.DEATHLESS_FINAL_PULSE_CYCLE_MS : ANIMATION.DEATHLESS_PULSE_CYCLE_MS}ms`,
           '--deathless-color': MAGIC_PATH_COLORS.NECRO.primary,
           '--deathless-glow': MAGIC_PATH_COLORS.NECRO.glow,
@@ -1934,45 +1937,6 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
         } as React.CSSProperties
       }
     >
-      {hasArcaneShield && <div className="arcane-shield-dome" aria-hidden="true" />}
-      {shieldFx && (
-        <div
-          className={`protective-layer-fx protective-layer-fx--arcane protective-layer-fx--${shieldFx}`}
-          style={{
-            '--protective-layer-color': MAGIC_PATH_COLORS.ARCANE.primary,
-            '--protective-layer-glow': MAGIC_PATH_COLORS.ARCANE.glow,
-          } as React.CSSProperties}
-          aria-hidden="true"
-        >
-          {shieldFx === 'break' &&
-            Array.from({ length: ANIMATION.PROTECTIVE_LAYER_SHARD_COUNT }, (_, i) => (
-              <span
-                key={i}
-                className="protective-layer-shard"
-                style={{ '--shard-angle': `${(360 / ANIMATION.PROTECTIVE_LAYER_SHARD_COUNT) * i}deg` } as React.CSSProperties}
-              />
-            ))}
-        </div>
-      )}
-      {stoneSkinFx && (
-        <div
-          className={`protective-layer-fx protective-layer-fx--stone protective-layer-fx--${stoneSkinFx}`}
-          style={{
-            '--protective-layer-color': RENDER.COLORS.STONE_SKIN,
-            '--protective-layer-glow': RENDER.COLORS.STONE_SKIN,
-          } as React.CSSProperties}
-          aria-hidden="true"
-        >
-          {stoneSkinFx === 'break' &&
-            Array.from({ length: ANIMATION.PROTECTIVE_LAYER_SHARD_COUNT }, (_, i) => (
-              <span
-                key={i}
-                className="protective-layer-shard"
-                style={{ '--shard-angle': `${(360 / ANIMATION.PROTECTIVE_LAYER_SHARD_COUNT) * i}deg` } as React.CSSProperties}
-              />
-            ))}
-        </div>
-      )}
       {showArcaneShieldBar && (
         <div className="arcane-shield-hp-bar-wrapper" title={t('hud.unitPanel.arcaneShield', { current: arcaneShieldHp, max: MAGE.ARCANE_SHIELD_MAX_HP })}>
           <div
@@ -2018,18 +1982,59 @@ function UnitBadge({ unit, tileSize }: { unit: Unit; tileSize: number }) {
       {!usesNonXpProgression(unit.type) && UNIT_DEFINITIONS[unit.type]?.levelUp?.length > 0 && (
         <span className="unit-xp-text">{t('grid.unitXp', { xp: formatNumber(unit.xp) })}</span>
       )}
-      {showUnitImg ? (
-        <img
-          src={unitSpritePath}
-          className="unit-main-img"
-          width={unitEmojiSize}
-          height={unitEmojiSize}
-          alt=""
-          onError={() => setUnitSpriteError(true)}
-        />
-      ) : (
-        <MissingSprite size={unitEmojiSize} />
-      )}
+      <span className="unit-sprite-anchor">
+        {showUnitImg ? (
+          <img
+            src={unitSpritePath}
+            className="unit-main-img"
+            width={unitEmojiSize}
+            height={unitEmojiSize}
+            alt=""
+            onError={() => setUnitSpriteError(true)}
+          />
+        ) : (
+          <MissingSprite size={unitEmojiSize} />
+        )}
+        {hasArcaneShield && <div className="arcane-shield-dome" aria-hidden="true" />}
+        {shieldFx && (
+          <div
+            className={`protective-layer-fx protective-layer-fx--arcane protective-layer-fx--${shieldFx}`}
+            style={{
+              '--protective-layer-color': MAGIC_PATH_COLORS.ARCANE.primary,
+              '--protective-layer-glow': MAGIC_PATH_COLORS.ARCANE.glow,
+            } as React.CSSProperties}
+            aria-hidden="true"
+          >
+            {shieldFx === 'break' &&
+              Array.from({ length: ANIMATION.PROTECTIVE_LAYER_SHARD_COUNT }, (_, i) => (
+                <span
+                  key={i}
+                  className="protective-layer-shard"
+                  style={{ '--shard-angle': `${(360 / ANIMATION.PROTECTIVE_LAYER_SHARD_COUNT) * i}deg` } as React.CSSProperties}
+                />
+              ))}
+          </div>
+        )}
+        {stoneSkinFx && (
+          <div
+            className={`protective-layer-fx protective-layer-fx--stone protective-layer-fx--${stoneSkinFx}`}
+            style={{
+              '--protective-layer-color': RENDER.COLORS.STONE_SKIN,
+              '--protective-layer-glow': RENDER.COLORS.STONE_SKIN,
+            } as React.CSSProperties}
+            aria-hidden="true"
+          >
+            {stoneSkinFx === 'break' &&
+              Array.from({ length: ANIMATION.PROTECTIVE_LAYER_SHARD_COUNT }, (_, i) => (
+                <span
+                  key={i}
+                  className="protective-layer-shard"
+                  style={{ '--shard-angle': `${(360 / ANIMATION.PROTECTIVE_LAYER_SHARD_COUNT) * i}deg` } as React.CSSProperties}
+                />
+              ))}
+          </div>
+        )}
+      </span>
       {isEmberling && (
         <span className="emberling-hover-explosion" style={{ fontSize: `${Math.floor(unitEmojiSize * 0.5)}px` }}>
           💥
