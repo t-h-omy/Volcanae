@@ -2908,6 +2908,8 @@ function TileVfxLayer({ tileSize }: { tileSize: number }) {
               '--tile-vfx-delay': `${vfx.delayMs ?? 0}ms`,
               '--engulf-ms': `${ANIMATION.LAVA_ENGULF_MS}ms`,
               '--burnout-ms': `${ANIMATION.LAVA_BURNOUT_MS}ms`,
+              '--engulf-size': `${tileSize}px`,
+              '--engulf-spark-count': ANIMATION.LAVA_ENGULF_SPARK_COUNT,
             } as React.CSSProperties}
             onAnimationEnd={isEngulf ? undefined : removeAfterAnimation}
           >
@@ -2920,14 +2922,19 @@ function TileVfxLayer({ tileSize }: { tileSize: number }) {
                     WebkitMaskImage: `url("${vfx.maskSrc}")`,
                   } : undefined}
                   onAnimationEnd={removeAfterAnimation}
-                />
-                <div className="engulf-flames" aria-hidden="true">
-                  {Array.from({ length: ANIMATION.LAVA_ENGULF_FLAME_COUNT }, (_, index) => (
+                >
+                  <div className="engulf-char" />
+                  <div className="engulf-fire-shadow" />
+                  <div className="engulf-fire-primary" />
+                  <div className="engulf-fire-core" />
+                </div>
+                <div className="engulf-sparks" aria-hidden="true">
+                  {Array.from({ length: ANIMATION.LAVA_ENGULF_SPARK_COUNT }, (_, index) => (
                     <span
                       key={index}
                       style={{
-                        '--flame-delay': `${index * ANIMATION.LAVA_ENGULF_FLAME_STAGGER_MS}ms`,
-                        '--flame-position': `${(index + 1) * 100 / (ANIMATION.LAVA_ENGULF_FLAME_COUNT + 1)}%`,
+                        '--spark-delay': `${index * ANIMATION.LAVA_ENGULF_SPARK_STAGGER_MS}ms`,
+                        '--spark-index': index,
                       } as React.CSSProperties}
                     />
                   ))}

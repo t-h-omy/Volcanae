@@ -2035,103 +2035,167 @@
   100% { opacity: 0;    transform: translateY(-25%) scale(0.9, 1.1); }
 }
 
-/* ── ENGULF — masked fire grows over a victim, then sinks away ─────── */
+/* ENGULF: nested masks keep char and flat flame fronts inside the sprite. */
 
 .tile-vfx--engulf {
   --engulf-core: #FFD27A;
   --engulf-primary: #FF6A2A;
   --engulf-shadow: #B83A14;
-  --engulf-radius: 38%;
-  --engulf-background-size: 180%;
-  --engulf-flame-radius: 50% 50% 28% 28%;
-  --engulf-flame-width: 24%;
-  --engulf-flame-height: 60%;
-  --engulf-flame-bottom: 8%;
-  overflow: visible;
+  --engulf-char: #2A1208;
+  --engulf-char-opacity: 0.55;
+  --engulf-shadow-tongue-height: calc(var(--engulf-size) * 0.48);
+  --engulf-primary-tongue-height: calc(var(--engulf-size) * 0.36);
+  --engulf-core-tongue-height: calc(var(--engulf-size) * 0.24);
+  --engulf-shadow-tongue-width: 100%;
+  --engulf-primary-tongue-width: 90%;
+  --engulf-core-tongue-width: 80%;
+  --engulf-shadow-front-top: calc(var(--engulf-size) * -0.12);
+  --engulf-primary-front-top: 0px;
+  --engulf-core-front-top: calc(var(--engulf-size) * 0.16);
+  --engulf-shadow-period: 900ms;
+  --engulf-primary-period: 1100ms;
+  --engulf-core-period: 700ms;
+  --engulf-sway: calc(var(--engulf-size) * 0.035);
+  --engulf-spark-size: 4%;
+  --engulf-spark-bottom: 8%;
+  --engulf-spark-rise: calc(var(--engulf-size) * -0.33);
+  --engulf-spark-drift: calc(var(--engulf-size) * 0.06);
+  --engulf-spark-period: 400ms;
+  overflow: hidden;
 }
 
 .engulf-fire {
   position: absolute;
   inset: 0;
-  border-radius: var(--engulf-radius);
-  background:
-    radial-gradient(ellipse at 50% 20%, var(--engulf-core) 0%, transparent 42%),
-    radial-gradient(ellipse at 50% 65%, var(--engulf-primary) 0%, var(--engulf-shadow) 68%, transparent 100%);
-  background-size: var(--engulf-background-size) var(--engulf-background-size);
-  background-position: 50% 100%;
-  opacity: 0.7;
-  animation:
-    engulfFlicker var(--engulf-ms) ease-in-out infinite,
-    engulfGrow var(--engulf-ms) ease-in forwards,
-    engulfBurnout var(--burnout-ms) ease-out var(--engulf-ms) forwards;
+  overflow: hidden;
+  animation: engulfBurnout var(--burnout-ms) ease-out var(--engulf-ms) forwards;
 }
 
 .engulf-fire--masked {
-  border-radius: 0;
   mask-size: 100% 100%;
   mask-repeat: no-repeat;
   -webkit-mask-size: 100% 100%;
   -webkit-mask-repeat: no-repeat;
 }
 
-@keyframes engulfFlicker {
-  0%, 100% { background-position: 50% 100%; }
-  50% { background-position: 50% 0%; }
+.engulf-char {
+  position: absolute;
+  inset: 0;
+  background: var(--engulf-char);
+  mix-blend-mode: multiply;
+  animation: engulfChar var(--engulf-ms) ease-in forwards;
 }
 
-@keyframes engulfGrow {
-  from { clip-path: inset(100% 0 0 0); opacity: 0.7; }
-  to { clip-path: inset(0); opacity: 1; }
+@keyframes engulfChar {
+  from { opacity: 0; }
+  to { opacity: var(--engulf-char-opacity); }
+}
+
+.engulf-fire-shadow,
+.engulf-fire-primary,
+.engulf-fire-core {
+  position: absolute;
+  inset: 0;
+  mask-image: var(--tongue-mask);
+  mask-repeat: repeat-x;
+  mask-size: var(--tongue-width) calc(var(--tongue-height) * 4);
+  mask-position: 0 var(--engulf-size);
+  -webkit-mask-image: var(--tongue-mask);
+  -webkit-mask-repeat: repeat-x;
+  -webkit-mask-size: var(--tongue-width) calc(var(--tongue-height) * 4);
+  -webkit-mask-position: 0 var(--engulf-size);
+  animation:
+    engulfFrontGrow var(--engulf-ms) ease-in forwards,
+    engulfFrontOut var(--burnout-ms) ease-out var(--engulf-ms) forwards,
+    engulfSway var(--tongue-period) ease-in-out infinite;
+}
+
+.engulf-fire-shadow {
+  --tongue-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 200' preserveAspectRatio='none'%3E%3Cpath fill='white' d='M0 50 Q9 48 13 22 L16 0 Q18 32 29 50 Q41 48 46 19 L50 3 Q54 36 63 50 Q77 49 81 22 L84 0 Q87 35 100 50 V200 H0Z'/%3E%3C/svg%3E");
+  --tongue-height: var(--engulf-shadow-tongue-height);
+  --tongue-width: var(--engulf-shadow-tongue-width);
+  --front-top: var(--engulf-shadow-front-top);
+  --tongue-period: var(--engulf-shadow-period);
+  background: var(--engulf-shadow);
+}
+
+.engulf-fire-primary {
+  --tongue-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 200' preserveAspectRatio='none'%3E%3Cpath fill='white' d='M0 50 Q16 47 21 18 L25 0 Q27 33 37 50 Q49 48 54 24 L58 4 Q61 34 72 50 Q88 45 90 18 L93 0 Q95 38 100 50 V200 H0Z'/%3E%3C/svg%3E");
+  --tongue-height: var(--engulf-primary-tongue-height);
+  --tongue-width: var(--engulf-primary-tongue-width);
+  --front-top: var(--engulf-primary-front-top);
+  --tongue-period: var(--engulf-primary-period);
+  background: var(--engulf-primary);
+}
+
+.engulf-fire-core {
+  --tongue-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 200' preserveAspectRatio='none'%3E%3Cpath fill='white' d='M0 50 Q4 45 7 20 L10 0 Q12 34 22 50 Q32 47 37 22 L42 3 Q44 36 56 50 Q66 45 72 19 L76 0 Q79 37 91 50 H100 V200 H0Z'/%3E%3C/svg%3E");
+  --tongue-height: var(--engulf-core-tongue-height);
+  --tongue-width: var(--engulf-core-tongue-width);
+  --front-top: var(--engulf-core-front-top);
+  --tongue-period: var(--engulf-core-period);
+  background: var(--engulf-core);
+}
+
+@keyframes engulfFrontGrow {
+  from { mask-position-y: var(--engulf-size); -webkit-mask-position-y: var(--engulf-size); }
+  to { mask-position-y: var(--front-top); -webkit-mask-position-y: var(--front-top); }
+}
+
+@keyframes engulfFrontOut {
+  from { mask-position-y: var(--front-top); -webkit-mask-position-y: var(--front-top); }
+  to { mask-position-y: var(--engulf-size); -webkit-mask-position-y: var(--engulf-size); }
+}
+
+@keyframes engulfSway {
+  0%, 100% { mask-position-x: 0; -webkit-mask-position-x: 0; }
+  50% { mask-position-x: var(--engulf-sway); -webkit-mask-position-x: var(--engulf-sway); }
 }
 
 @keyframes engulfBurnout {
-  from { clip-path: inset(0); opacity: 1; }
-  to { clip-path: inset(100% 0 0 0); opacity: 0; }
-}
-
-.engulf-flames {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  animation: engulfFlamesOut var(--burnout-ms) ease-out var(--engulf-ms) forwards;
-}
-
-.engulf-flames span {
-  position: absolute;
-  bottom: var(--engulf-flame-bottom);
-  left: var(--flame-position);
-  width: var(--engulf-flame-width);
-  height: var(--engulf-flame-height);
-  border-radius: var(--engulf-flame-radius);
-  transform-origin: 50% 100%;
-  background: linear-gradient(0deg, var(--engulf-shadow), var(--engulf-primary) 55%, var(--engulf-core));
-  animation: engulfFlameRise var(--engulf-ms) ease-in var(--flame-delay) infinite;
-}
-
-@keyframes engulfFlameRise {
-  0% { opacity: 0; transform: translateY(14%) scale(0.55, 0.75); }
-  25% { opacity: 0.95; }
-  100% { opacity: 0.35; transform: translateY(-45%) scale(0.8, 1.15); }
-}
-
-@keyframes engulfFlamesOut {
+  from { opacity: 1; }
   to { opacity: 0; }
 }
 
+.engulf-sparks {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.engulf-sparks span {
+  --spark-position: calc((var(--spark-index) + 1) * 100% / (var(--engulf-spark-count) + 1));
+  position: absolute;
+  bottom: var(--engulf-spark-bottom);
+  left: var(--spark-position);
+  width: var(--engulf-spark-size);
+  height: var(--engulf-spark-size);
+  background: var(--engulf-core);
+  opacity: 0;
+  animation: engulfSparkRise var(--engulf-spark-period) ease-out var(--spark-delay) both;
+}
+
+@keyframes engulfSparkRise {
+  0% { opacity: 0; transform: translate(0, 0); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--engulf-spark-drift), var(--engulf-spark-rise)); }
+}
+
 :root.reduce-motion .engulf-fire {
-  animation:
-    engulfGrowReduced var(--engulf-ms) ease-in forwards,
-    engulfBurnoutReduced var(--burnout-ms) ease-out var(--engulf-ms) forwards;
-  clip-path: none;
+  animation: engulfBurnoutReduced var(--burnout-ms) ease-out var(--engulf-ms) forwards;
 }
 
-:root.reduce-motion .engulf-flames {
+:root.reduce-motion .engulf-fire-shadow,
+:root.reduce-motion .engulf-fire-primary,
+:root.reduce-motion .engulf-fire-core {
+  animation: none;
+  mask-position: 0 var(--front-top);
+  -webkit-mask-position: 0 var(--front-top);
+}
+
+:root.reduce-motion .engulf-sparks {
   display: none;
-}
-
-@keyframes engulfGrowReduced {
-  from { opacity: 0.7; }
-  to { opacity: 1; }
 }
 
 @keyframes engulfBurnoutReduced {

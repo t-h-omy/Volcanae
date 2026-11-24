@@ -54,10 +54,10 @@ export const ANIMATION = {
   LAVA_ENGULF_MS: 700,
   /** Duration of the fire silhouette sinking and going out. */
   LAVA_BURNOUT_MS: 500,
-  /** Number of flame tongues in the lava engulf effect. */
-  LAVA_ENGULF_FLAME_COUNT: 3,
-  /** Delay between flame tongues in the lava engulf effect. */
-  LAVA_ENGULF_FLAME_STAGGER_MS: 180,
+  /** Number of sparks in the lava engulf effect. */
+  LAVA_ENGULF_SPARK_COUNT: 5,
+  /** Delay between sparks in the lava engulf effect. */
+  LAVA_ENGULF_SPARK_STAGGER_MS: 180,
   /** Pause after a unit spawns before moving to next event */
   SPAWN_PAUSE_MS: 300,
   /** Melee lunge out + snap back total duration (ms) */

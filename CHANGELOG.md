@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.134.11 - Lava fire
+
+Objects consumed by lava now blacken beneath flat, silhouette-masked flame fronts with small rising sparks.
+
 ### v0.134.10 - Lava and healing camera
 
 Lava advances use the resonance overview zoom, and Chamber Healing pans to the healed units.
