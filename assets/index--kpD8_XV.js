@@ -154,7 +154,8 @@ float fogField(vec2 p){
       d = min(d, (i != 0 && j != 0) ? length(a) : a.x + a.y);
     }
     float lift = 1.0 - own;
-    e = min(e, d - lift * 1.25 + (fbm(p * 2.2 + 57.0) - 0.5) * 2.0 * uTP[4].y);
+    // reach 1.7 > sqrt(2) + max noise, so the carve has removed the whole tile when lift reaches 1 (no leftover pop)
+    e = min(e, d - lift * 1.7 + (fbm(p * 2.2 + 57.0) - 0.5) * 2.0 * uTP[4].y);
   }
   return e;
 }
