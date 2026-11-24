@@ -2183,7 +2183,11 @@
 }
 
 :root.reduce-motion .engulf-fire {
-  animation: engulfBurnoutReduced var(--burnout-ms) ease-out var(--engulf-ms) forwards;
+  animation: engulfBurnoutReduced var(--burnout-ms) ease-out var(--engulf-ms) forwards !important;
+}
+
+:root.reduce-motion .engulf-char {
+  animation: engulfChar var(--engulf-ms) ease-in forwards !important;
 }
 
 :root.reduce-motion .engulf-fire-shadow,
