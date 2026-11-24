@@ -89,6 +89,7 @@ function replay(events: GameEvent[]) {
 }
 
 const arrival = ANIMATION.CAMERA_MOVE_DURATION_MS + ANIMATION.PRE_ACTION_IDLE_MS;
+const lavaArrival = ANIMATION.RESONANCE_CAMERA_MOVE_DURATION_MS + ANIMATION.PRE_ACTION_IDLE_MS;
 const dying = ANIMATION.DIE_FLASH_DURATION_MS + ANIMATION.DIE_FADE_DURATION_MS;
 const hold = Math.max(dying, ANIMATION.ROOST_LOST_FLOATER_HOLD_MS);
 
@@ -198,7 +199,7 @@ describe('lost-roost death presentation', () => {
     expect(newState.buildings.cave).toBeUndefined();
     expect(newState.units.drake).toBeUndefined();
     const { floater, animation, camera } = replay(events);
-    await vi.advanceTimersByTimeAsync(arrival + getLavaAdvanceHoldMs({ reducedMotion: false, hasVictims: true }));
+    await vi.advanceTimersByTimeAsync(lavaArrival + getLavaAdvanceHoldMs({ reducedMotion: false, hasVictims: true }));
     expect(useGameStore.getState().buildings.cave).toBeUndefined();
     expect(useGameStore.getState().units.drake).toBeDefined();
     expect(floater).not.toHaveBeenCalled();
