@@ -162,16 +162,19 @@ describe('overcapacity tag synchronization at store boundaries', () => {
     expect(useGameStore.getState().units['swordsman-0'].stats.attack)
       .toBe(UNIT_DEFINITIONS.SWORDSMAN.attack - TRAINING.UNTRAINED_ATK_PENALTY);
 
-    const extraTags = makeState(1);
-    const unit = extraTags.units['swordsman-0'];
-    for (const tag of [UnitTag.UNTRAINED, UnitTag.HOMELESS]) {
-      unit.tags.push(tag);
-      applyTagStatEffects(unit, tag);
+    const extraTags = makeState(trainingLimit);
+    for (const unit of Object.values(extraTags.units)) {
+      for (const tag of [UnitTag.UNTRAINED, UnitTag.HOMELESS]) {
+        unit.tags.push(tag);
+        applyTagStatEffects(unit, tag);
+      }
     }
     useGameStore.getState().setGameState(extraTags);
-    expectTrained(useGameStore.getState(), [unit.id]);
-    expect(useGameStore.getState().units[unit.id].tags).not.toContain(UnitTag.HOMELESS);
-    expect(useGameStore.getState().units[unit.id].stats.defense).toBe(UNIT_DEFINITIONS.SWORDSMAN.defense);
+    expectTrained(useGameStore.getState(), Object.keys(extraTags.units));
+    for (const unit of Object.values(useGameStore.getState().units)) {
+      expect(unit.tags).not.toContain(UnitTag.HOMELESS);
+      expect(unit.stats.defense).toBe(UNIT_DEFINITIONS.SWORDSMAN.defense);
+    }
   });
 
   it('immediately restores trained stats when fieldwork consumes a counted unit', () => {
