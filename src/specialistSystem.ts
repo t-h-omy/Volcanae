@@ -411,7 +411,6 @@ export function applySpecialistEffects(state: Draft<GameState>): void {
           if (!isSpecialistEffectActive(state, 'FORTIFIED_GARRISON')) {
             setFortifiedGarrisonState(state, false);
           }
-
         }
       } else if (effect.type === 'GRANT_UNIT_TAG_ALL') {
         if (!isDormant) {
