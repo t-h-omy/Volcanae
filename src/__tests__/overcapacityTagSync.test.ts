@@ -147,12 +147,18 @@ describe('overcapacity tag synchronization at store boundaries', () => {
     useGameStore.getState().setGameState(animation.resolvedState!);
 
     expect(useGameStore.getState().units[attacker.id]).toBeUndefined();
+    expect(Object.values(useGameStore.getState().units).filter((unit) =>
+      unit.faction === Faction.PLAYER,
+    )).toHaveLength(trainingLimit);
     expectTrained(useGameStore.getState(), survivors);
   });
 
   it('repairs stale loaded tags and stats in both directions without applying effects twice', () => {
     const missingTags = makeState();
     useGameStore.getState().setGameState(missingTags);
+    expect(Object.values(useGameStore.getState().units).filter((unit) =>
+      unit.faction === Faction.PLAYER,
+    )).toHaveLength(trainingLimit + 1);
     for (const unit of Object.values(useGameStore.getState().units)) {
       expect(unit.tags).toContain(UnitTag.UNTRAINED);
       expect(unit.stats.attack).toBe(UNIT_DEFINITIONS.SWORDSMAN.attack - TRAINING.UNTRAINED_ATK_PENALTY);
