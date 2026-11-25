@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MAP, UNIT_DEFINITIONS } from '../gameConfig';
 import { constructBuilding } from '../constructionSystem';
+import { initiateCapture } from '../captureSystem';
 import { createInitialSpecialists } from '../specialistSystem';
 import { BuildingType, Faction, TileType, UnitTag, UnitType } from '../types';
 import type { GameState, GameStats, Tile, Unit } from '../types';
@@ -158,6 +159,39 @@ describe('SP-21 Pathfinder (spec_21) — STRONGHOLD_ZONE_REVEAL', () => {
   // Zone 3: endRow = 76 - 6 - 1 - (3-1)*7 = 69 - 14 = 55; startRow = 49
   const builderX = 4;
   const builderY = 52; // middle of zone 3
+
+  it.each([
+    { status: 'active', owned: true, dormant: false, revealed: true },
+    { status: 'absent', owned: false, dormant: false, revealed: false },
+    { status: 'dormant', owned: true, dormant: true, revealed: false },
+  ])('reveals only the captured Stronghold zone when Pathfinder is $status', ({ owned, dormant, revealed }) => {
+    const state = produce(makeState(builderX, builderY), (draft) => {
+      constructBuilding(draft, 'builder', { x: builderX, y: builderY }, BuildingType.STRONGHOLD);
+      const buildingId = draft.grid[builderY][builderX].buildingId!;
+      draft.buildings[buildingId].faction = Faction.ENEMY;
+      draft.units.builder.hasConstructedThisTurn = false;
+      draft.units.builder.hasMovedThisTurn = false;
+      for (const row of draft.grid) {
+        for (const tile of row) tile.isRevealed = false;
+      }
+      if (owned) draft.globalSpecialistStorage = ['spec_21'];
+      draft.specialists.spec_21.dormant = dormant;
+    });
+    const buildingId = state.grid[builderY][builderX].buildingId!;
+    expect(buildingId).toBeTruthy();
+
+    const nextState = produce(state, (draft) => {
+      initiateCapture(draft, 'builder', buildingId, true);
+    });
+
+    expect(nextState.buildings[buildingId].faction).toBe(Faction.PLAYER);
+    const [startRow, endRow] = zoneRowRange(builderY);
+    for (const [y, row] of nextState.grid.entries()) {
+      for (const tile of row) {
+        expect(tile.isRevealed).toBe(revealed && y >= startRow && y <= endRow);
+      }
+    }
+  });
 
   it('reveals every tile in the stronghold\'s zone when STRONGHOLD_ZONE_REVEAL is active', () => {
     const state = makeState(builderX, builderY);

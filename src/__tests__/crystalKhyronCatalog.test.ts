@@ -1,7 +1,7 @@
 import IntlMessageFormat from 'intl-messageformat';
 import { describe, expect, it } from 'vitest';
 import { SUPPORTED_LOCALES } from '../../config/i18n';
-import { TAG_INFO, TECH_TREE, UNIT_DEFINITIONS } from '../gameConfig';
+import { CRYSTAL_KHYRON, TAG_INFO, TECH_TREE, UNIT_DEFINITIONS } from '../gameConfig';
 import { UnitTag, UnitType } from '../types';
 
 type Catalog = Record<string, string>;
@@ -11,12 +11,10 @@ const sources = import.meta.glob<Catalog>('../i18n/locales/sources/*.json', { ea
 const englishMessages = {
   'unit.CRYSTAL_KHYRON.desc': 'Resonates whenever your Crystal Chambers resonate. While resonating it heals {healAmount} HP each turn, and its first enemy kill or destroyed enemy building earns a Level Up that copies useful tags from the defeated enemy. Up to level {maxLevel}.',
   'tech.CRYSTAL_KHYRON.desc': 'Unlocks the Crystal Khyron, a Mech you recruit from a resonating Crystal Chamber for {crystalCost, plural, one {# Arcane Crystal} other {# Arcane Crystals}}. It resonates with your Chambers and levels up when killing while resonating.',
-  'tag.RESONANCE.desc': "Active while your Crystal Chambers resonate. Heals {healAmount} HP at the start of each turn. The first enemy kill or destroyed enemy building in each Resonance earns a Level Up, up to level {maxLevel}. Tap Level Up to apply it and copy the defeated enemy's transferable tags: Cleave, Pierce, Rage, Alert, Ironblood, Block, Puncture, Burn, Build & Capture, Ranged. Ranged also raises attack range to the defeated enemy's range.",
+  'tag.RESONANCE.desc': "Active while your Crystal Chambers resonate. Heals {healAmount} HP at the start of each turn. The first enemy kill or destroyed enemy building in each Resonance earns a Level Up, up to level {maxLevel}. Tap Level Up to apply it and copy the defeated enemy's transferable tags: Cleave, Pierce, Rage, Alert, Ironblood, Block, Puncture, Build & Capture, Ranged, Elite, Lance Charge. Ranged also raises attack range to the defeated enemy's range.",
   'hud.unitPanel.resonating': 'Resonating: {turns, plural, one {# turn} other {# turns}} remaining',
 };
-const transferableTags = [
-  'CLEAVE', 'PIERCE', 'RAGE', 'ALERT', 'IRONBLOOD', 'BLOCK', 'PUNCTURE', 'BURN', 'BUILDANDCAPTURE', 'RANGED',
-];
+const transferableTags = CRYSTAL_KHYRON.TRANSFERABLE_TAGS;
 
 describe('Crystal Khyron localization', () => {
   it('keeps the requested English messages and every translated source snapshot synchronized', () => {
