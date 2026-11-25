@@ -23,6 +23,7 @@ import {
   computeHomelessUnitIds,
   computeUntrainedUnitIds,
   syncOvercapacityTags,
+  areOvercapacityTagsInSync,
 } from './resourceSystem';
 import {
   constructBuilding as constructBuildingLogic,
@@ -456,19 +457,26 @@ function tookNoActionThisTurn(unit: GameState['units'][string]): boolean {
 }
 
 /**
- * Re-computes the HOMELESS and UNTRAINED tags for all player units and
- * applies/revokes them (with stat effects) as needed.
- * Call after any event that may change population or recruitment capacity:
- *   - a player building goes neutral (BUILDING_ATTACK)
- *   - a player building is captured/destroyed by an enemy (BUILDING_CAPTURE)
- *   - a player unit dies (UNIT_DEATH)
+ * The commit wrapper reconciles HOMELESS and UNTRAINED tags for all player
+ * units after every store update, applying or revoking stat effects as needed.
  */
 // ============================================================================
 // STORE IMPLEMENTATION
 // ============================================================================
 
 export const useGameStore = create<GameStore>()(
-  immer((set) => ({
+  immer((rawSet, get) => {
+    // Single commit point for derived overcapacity tags. Reconcile in a second
+    // rawSet so frozen produce() results assigned by the recipe are re-drafted.
+    const set = (recipe: (state: Draft<GameStore>) => void): void => {
+      rawSet(recipe);
+      if (!areOvercapacityTagsInSync(get())) {
+        rawSet((state) => {
+          syncOvercapacityTags(state);
+        });
+      }
+    };
+    return ({
     // Initial state - will be overwritten by initGame()
     ...createInitialState(),
 
@@ -1217,7 +1225,6 @@ export const useGameStore = create<GameStore>()(
     constructBuilding: (unitId: string, tilePos: Position, buildingType: BuildingType) => {
       set((state) => {
         constructBuildingLogic(state, unitId, tilePos, buildingType);
-        syncOvercapacityTags(state);
         updateDiscovery(state);
         checkGameConditions(state);
       });
@@ -1229,7 +1236,6 @@ export const useGameStore = create<GameStore>()(
     convertBuilding: (unitId: string, newBuildingType: BuildingType) => {
       set((state) => {
         convertBuildingLogic(state, unitId, newBuildingType);
-        syncOvercapacityTags(state);
         updateDiscovery(state);
         checkGameConditions(state);
       });
@@ -3250,10 +3256,6 @@ export const useGameStore = create<GameStore>()(
                 );
                 if (!options.silent && tile.isRevealed) createdGravestoneId = graveId;
               }
-              // Re-sync overcapacity tags when a player unit dies (pool sizes change).
-              if (unitFaction === Faction.PLAYER) {
-                syncOvercapacityTags(state);
-              }
             }
             break;
           }
@@ -3287,8 +3289,6 @@ export const useGameStore = create<GameStore>()(
             // Apply damage to building and defender
             const building = state.buildings[event.buildingId];
             const defender = state.units[event.defenderId];
-            // Capture building faction before HP changes to detect player→neutral transitions.
-            const buildingFactionBefore = building?.faction ?? null;
 
             if (defender && event.defenderHpLost > 0) {
               applyUnitDamage(defender, event.defenderHpLost);
@@ -3365,11 +3365,6 @@ export const useGameStore = create<GameStore>()(
               const { x, y } = event.tileCorruptedPosition;
               const corruptedTile = state.grid[y]?.[x];
               if (corruptedTile) corruptedTile.status = TileStatus.CORRUPTED;
-            }
-            // Re-sync overcapacity tags if a player building went neutral
-            // (population/recruitment capacity may have dropped).
-            if (buildingFactionBefore === Faction.PLAYER && building && building.faction === null) {
-              syncOvercapacityTags(state);
             }
             break;
           }
@@ -3569,10 +3564,6 @@ export const useGameStore = create<GameStore>()(
                 captureTile.isRuin = true;
               }
               // DestroyBehavior.NONE / RESOURCE: no ruin — terrain is restored naturally
-              // Re-sync overcapacity tags — an enemy just captured/destroyed a player building.
-              if (event.newFaction === Faction.ENEMY) {
-                syncOvercapacityTags(state);
-              }
             }
             // XP floater for the capturing unit.
             if (event.xpGained) {
@@ -4628,5 +4619,6 @@ export const useGameStore = create<GameStore>()(
         market.lastFreeRestockTurn = state.turn;
       });
     },
-  }))
+  });
+  })
 );

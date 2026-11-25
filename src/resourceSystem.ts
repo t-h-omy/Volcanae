@@ -31,7 +31,10 @@ function generateUnitId(): string {
   return `unit_recruited_${Date.now()}_${++resourceSystemIdCounter}`;
 }
 
-/** Reconcile HOMELESS and UNTRAINED tags with current population and recruitment capacity. */
+/**
+ * Reconcile HOMELESS and UNTRAINED tags with current population and recruitment capacity.
+ * Called by the store commit wrapper and logic modules needing synced tags in pure computations.
+ */
 export function syncOvercapacityTags(state: Draft<GameState>): void {
   const targetHomelessIds = computeHomelessUnitIds(state);
   const targetUntrainedIds = computeUntrainedUnitIds(state);
@@ -62,6 +65,18 @@ export function syncOvercapacityTags(state: Draft<GameState>): void {
       }
     }
   }
+}
+
+/** True when every player unit's HOMELESS and UNTRAINED tags match the computed sets. */
+export function areOvercapacityTagsInSync(state: GameState): boolean {
+  const homeless = computeHomelessUnitIds(state);
+  const untrained = computeUntrainedUnitIds(state);
+  for (const unit of Object.values(state.units)) {
+    if (unit.faction !== Faction.PLAYER) continue;
+    if (homeless.has(unit.id) !== unit.tags.includes(UnitTag.HOMELESS)) return false;
+    if (untrained.has(unit.id) !== unit.tags.includes(UnitTag.UNTRAINED)) return false;
+  }
+  return true;
 }
 
 /**

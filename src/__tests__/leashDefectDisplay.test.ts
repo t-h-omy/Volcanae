@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { generateInitialGameState } from '../mapGenerator';
 import { useGameStore } from '../gameStore';
 import { useAnimationStore } from '../animationStore';
+import { applyTagStatEffects } from '../techSystem';
+import { UnitType } from '../types';
 import { Faction, UnitTag } from '../types';
 import type { GameEvent } from '../gameEvents';
 
@@ -17,7 +19,14 @@ function buildLeashDefectEvent(demonId: string): Extract<GameEvent, { type: 'LEA
 
 describe('LEASH_DEFECT live display replay', () => {
   beforeEach(() => {
-    useGameStore.setState(generateInitialGameState());
+    const initial = generateInitialGameState();
+    for (const unit of Object.values(initial.units)) {
+      if (unit.faction === Faction.PLAYER && unit.type === UnitType.SPEARMAN) {
+        unit.tags.push(UnitTag.UNTRAINED);
+        applyTagStatEffects(unit, UnitTag.UNTRAINED);
+      }
+    }
+    useGameStore.setState(initial);
     useAnimationStore.setState({
       eventQueue: [],
       resolvedState: null,

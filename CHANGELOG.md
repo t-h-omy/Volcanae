@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.134.13 - Untrained and Homeless update instantly
+
+Untrained and Homeless tags were only refreshed at end of turn or at a few hand-picked events, and animated actions could overwrite the refresh. They are now reconciled after every state update.
+
 ### v0.134.12 - Shield and gravestone polish
 
 Arcane Shields now form calm circles around unit sprites, and gravestones settle in place with a rising wisp and a ground-level dust ring.
