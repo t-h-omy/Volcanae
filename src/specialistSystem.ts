@@ -11,10 +11,10 @@
  * - Zero-upkeep specialists are never dormant.
  */
 
-import type { GameState, Specialist, Unit } from './types';
+import type { GameState, Position, Specialist, Unit } from './types';
 import type { Draft } from 'immer';
 import { Faction, BuildingType, UnitTag, UnitType, SpellId } from './types';
-import { ABILITIES, SPECIALIST_DEFINITIONS, UNIT_DEFINITIONS } from './gameConfig';
+import { ABILITIES, MAP, SPECIALIST_DEFINITIONS, UNIT_DEFINITIONS } from './gameConfig';
 import { applyTagStatEffects, getGrantedTags, revokeTagStatEffects } from './techSystem';
 
 // ============================================================================
@@ -308,7 +308,7 @@ export function applyEffectsForSpecialist(
         state.unlockedSpells.push(SpellId.RUPTURE);
       }
     } else if (effect.type === 'STRONGHOLD_ZONE_REVEAL') {
-      // Eager one-shot: the actual reveal is triggered in the construction/capture hook (SP-15).
+      // Eager one-shot: the reveal runs in constructBuilding and initiateCapture.
       // No per-apply mutation needed here.
     } else if (effect.type === 'MAGE_CAST_BUDGET_MOD') {
       // No eager mutation: the budget is read from active specialists on demand.
@@ -411,6 +411,7 @@ export function applySpecialistEffects(state: Draft<GameState>): void {
           if (!isSpecialistEffectActive(state, 'FORTIFIED_GARRISON')) {
             setFortifiedGarrisonState(state, false);
           }
+
         }
       } else if (effect.type === 'GRANT_UNIT_TAG_ALL') {
         if (!isDormant) {
@@ -451,6 +452,19 @@ export function applySpecialistEffects(state: Draft<GameState>): void {
       } else if (effect.type === 'POP_DOUBLING_DOCTRINE') {
         // Derived: all effects read from isSpecialistEffectActive at point-of-use.
       }
+    }
+  }
+}
+
+/** SP-21 Pathfinder: reveals every tile of the zone that contains the position. */
+export function revealStrongholdZone(state: Draft<GameState>, position: Position): void {
+  const zoneIndex = Math.floor((MAP.GRID_HEIGHT - MAP.LAVA_BUFFER_ROWS - 1 - position.y) / MAP.ZONE_HEIGHT);
+  const endRow = MAP.GRID_HEIGHT - MAP.LAVA_BUFFER_ROWS - 1 - zoneIndex * MAP.ZONE_HEIGHT;
+  const startRow = endRow - MAP.ZONE_HEIGHT + 1;
+  for (let y = startRow; y <= endRow; y++) {
+    for (let x = 0; x < MAP.GRID_WIDTH; x++) {
+      const tile = state.grid[y]?.[x];
+      if (tile) tile.isRevealed = true;
     }
   }
 }

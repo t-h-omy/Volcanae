@@ -14,6 +14,7 @@ import { grantArcaneCrystals } from './techSystem';
 import { cleanupRoostedUnits } from './buildingRemoval';
 import { resolveInfestedDeath } from './infestedSystem';
 import { hasBuildAndCapture } from './unitTraits';
+import { isSpecialistEffectActive, revealStrongholdZone } from './specialistSystem';
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -227,6 +228,8 @@ export function initiateCapture(
       updateZonesUnlocked(state);
       increaseEmberOnStrongholdCapture(state, building.position, events);
       grantArcaneCrystals(state, TECH.CRYSTALS_ON_ZONE_STRONGHOLD);
+      // SP-21 Pathfinder: capturing a Stronghold reveals its zone, like building one
+      if (isSpecialistEffectActive(state, 'STRONGHOLD_ZONE_REVEAL')) revealStrongholdZone(state, building.position);
     }
     if (
       building.type === BuildingType.WATCHTOWER &&
