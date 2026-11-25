@@ -16,7 +16,8 @@
  *   G = status (low nibble: 0 none, 1 frozen, 2 burning, 3 corrupted, 4 crystalline)
  *       + 16 * lava preview heat level (0 none, 15 = row lava takes next)
  *   B = fog: 255 = not revealed, 0 = revealed. Values in between mark a tile whose cloud is retreating
- *       (255 at the start of the lift, 0 at its end). Only the fog pass and the split shadow read them.
+ *       (0 at its end). With uFogLift set, a lift starts at 254, so 255 always means fog at rest. Only the fog
+ *       pass and the split shadow read the values in between.
  *   A = per-tile phase used to desynchronize animations
  *
  * Uniforms:
@@ -36,6 +37,8 @@
  *   uPrevEdge   lava preview band edge: x blend (at least 0.06), y edge noise. 0, 0 = straight edge
  *   uLavaFlow   x row being consumed, y flow progress 0..1. y = 0: no flow
  *   uFogSplit   0 = the terrain pass draws the clouds, 1 = the fog pass draws them and the terrain pass only their shadow
+ *   uFogLift    cloud retreat: x edge billow, y drift in tiles, z share of the lift over which the cloud thins out,
+ *               w billow speed. 0, 0, 0, 0 = carve retreat of v0.134.9 (lift starts at 255)
  *
  * Every uniform added after the first version defaults to 0 and then reproduces the first version's look.
  */
@@ -61,6 +64,8 @@ uniform vec3 uFrz, uBrn, uCor, uCry;
 // lava preview band edge (x blend, y noise), lava flow (x row, y progress), fog split (0 or 1)
 uniform vec2 uPrevEdge, uLavaFlow;
 uniform float uFogSplit;
+// fog lift: x edge billow, y drift in tiles, z thinning share of the lift, w billow speed. All 0 = carve retreat of v0.134.9
+uniform vec4 uFogLift;
 out vec4 outColor;
 
 const vec2 LDIR = vec2(-0.7071, -0.7071);          // toward the light, north-west
@@ -191,6 +196,87 @@ float fogField(vec2 p){
     // reach 1.7 > sqrt(2) + max noise, so the carve has removed the whole tile when lift reaches 1 (no leftover pop)
     e = min(e, d - lift * 1.7 + (fbm(p * 2.2 + 57.0) - 0.5) * 2.0 * uTP[4].y);
   }
+  return e;
+}
+// Fog lift (uFogLift not 0). B values: 255 = fog at rest, 0 = revealed, 1..254 = lifting (254 = waiting for its
+// start). The retreat is one continuous field: G interpolates every tile's remaining cloud (rest fog 1, lifting tiles
+// their value, revealed 0) between tile centers, so the cloud edge moves away from the revealed side across tile
+// borders without straight cuts. While a tile lifts its edge billows and drifts toward the remaining fog, and its cloud
+// thins out over the last share of the lift. L (lifting tiles only) caps the lifting cloud, so nothing is left when a
+// lift ends. Fog at rest keeps the v0.134.9 rule: its noisy edge lies inside the fog tiles.
+float liftG(vec4 c){ return c.b > 0.998 ? 1.0 : c.b; }
+bool isLifting(float b){ return b > 0.002 && b < 0.998; }
+// x: remaining cloud G, y: weight of lifting tiles, z: their weighted value. G starts with the edge blend of the fog
+// at rest and widens to a linear blend between tile centers while the lift runs, so the front can wander.
+vec3 gatherLift(vec2 p, bool anyFog){
+  vec2 q = p - 0.5; vec2 fi = floor(q); vec2 f = q - fi; ivec2 i = ivec2(fi);
+  vec4 c[4];
+  vec4 wl = bw(f);
+  float lw = 0.0, lv = 0.0;
+  for (int k = 0; k < 4; k++) {
+    c[k] = cellAt(i + ivec2(k & 1, k >> 1));
+    if (isLifting(c[k].b)) { lw += wl[k]; lv += wl[k] * c[k].b; }
+  }
+  float lift = lw > 1e-4 ? lv / lw : 1.0;
+  float blend = anyFog ? uTP[4].x : mix(uTP[4].x, 0.5, smoothstep(1.0, 0.8, lift));
+  vec4 w = bw(vec2(remapB(f.x, blend), remapB(f.y, blend)));
+  float g = 0.0;
+  for (int k = 0; k < 4; k++) g += w[k] * (anyFog ? step(0.002, c[k].b) : liftG(c[k]));
+  return vec3(g, lw, lift);
+}
+float gatherRestBin(vec2 p){
+  vec2 q = p - 0.5; vec2 fi = floor(q); vec2 f = q - fi; ivec2 i = ivec2(fi);
+  vec4 w = bw(vec2(remapB(f.x, uTP[4].x), remapB(f.y, uTP[4].x)));
+  float r = 0.0;
+  for (int k = 0; k < 4; k++) r += w[k] * step(0.998, cellAt(i + ivec2(k & 1, k >> 1)).b);
+  return r;
+}
+// edge value (> 0 inside the cloud) and coverage of the clouds of the fog pass
+float fogFieldLift(vec2 p, out float cover){
+  ivec2 ci = ivec2(floor(p));
+  float own = cellAt(ci).b;
+  cover = 0.0;
+  bool near = false;
+  for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) if (isLifting(cellAt(ci + ivec2(i, j)).b)) near = true;
+  // at rest a cloud never reaches into a revealed tile. A retreating cloud may billow over the border while it lifts
+  if (own < 0.002 && !near) return -1.0;
+  float off = 0.75 * uTP[4].y + 0.04;
+  float n0 = (fbm(p * 1.4 + 31.0) - 0.5) * 2.0 * uTP[4].y;
+  float eRest = own > 0.998 ? gatherRestBin(p) + n0 - 0.5 - off : -1.0;
+  cover = aas(eRest, 0.02);
+  if (!near) return eRest;
+  bool still = uAnim < 0.5;
+  vec3 gl = gatherLift(p, still);
+  float lift = gl.z;
+  float eLift;
+  float thin;
+  if (still) {
+    // reduced motion: the cloud keeps its shape and only fades
+    eLift = gl.x + n0 - 0.5 - off;
+    thin = lift;
+  } else {
+    float prog = 1.0 - lift;
+    vec2 h = vec2(0.06, 0.0);
+    vec2 grad = vec2(gatherLift(p + h.xy, false).x - gl.x, gatherLift(p + h.yx, false).x - gl.x);
+    vec2 dir = dot(grad, grad) > 1e-8 ? normalize(grad) : vec2(0.0);
+    vec2 pd = p - dir * uFogLift.y * prog;
+    float t = uTime * uFogLift.w;
+    // billow: large slow lobes plus finer fraying, strongest in the middle of the lift
+    float bill = (fbm(pd * 1.1 + vec2(t * 0.5, -t * 0.4) + 57.0) - 0.5)
+      + 0.5 * (fbm(pd * 2.6 - vec2(t * 0.8, t * 0.6) + 11.0) - 0.5);
+    float amp = uFogLift.x * 8.0 * lift * prog;
+    eLift = gl.x + (fbm(pd * 1.4 + 31.0) - 0.5) * 2.0 * uTP[4].y - 0.5 - off + clamp(bill * amp, -1.0, off);
+    thin = smoothstep(0.0, max(uFogLift.z, 1e-3), lift);
+  }
+  // nothing of the lifting cloud is left when its lift ends
+  eLift = min(eLift, lift * 3.0 - 0.05);
+  cover = max(cover, aas(eLift, 0.02) * thin);
+  return max(eRest, eLift);
+}
+float fogCloud(vec2 p, out float cover){
+  if (dot(uFogLift, vec4(1.0)) > 0.0) return fogFieldLift(p, cover);
+  float e = fogField(p);
+  cover = aas(e, 0.02);
   return e;
 }
 float gridLine(vec2 p){
@@ -480,9 +566,9 @@ void main(){
   vec2 p = (css - uOff) / uScale;
   PX = 1.0 / (uScale * uDpr);
   bool inside = p.x >= 0.0 && p.y >= 0.0 && p.x < uGrid.x && p.y < uGrid.y;
-  float fe = inside ? fogField(p) : -1.0;
-  if (fe < -0.05) { outColor = vec4(0.0); return; }
-  float a = aas(fe, 0.02);
+  float a = 0.0;
+  float fe = inside ? fogCloud(p, a) : -1.0;
+  if (a <= 0.0) { outColor = vec4(0.0); return; }
   vec3 c = cloudColor(p, uTime * uAnim, fe);
   if (uGridA > 0.0) c = mix(c, vec3(0.0), gridLine(p) * uGridA);
   outColor = vec4(c * a, a);
@@ -692,7 +778,9 @@ void main(){
     if (fogA > 0.0) col = mix(col, cloudColor(p, t, fe), fogA);
   } else {
     // the clouds are drawn by the fog pass above the grid, only their shadow falls on the terrain
-    col *= 1.0 - 0.64 * uTP[4].z * aas(fogField(fso), 0.03);
+    float fsc = 0.0;
+    fogCloud(fso, fsc);
+    col *= 1.0 - 0.64 * uTP[4].z * fsc;
   }
 
   // grid lines: one device pixel wide at every zoom level
@@ -708,7 +796,7 @@ export const TERRAIN_FOG_FRAGMENT_SHADER = TERRAIN_FRAGMENT_SHADER.replace('#ver
 export const TERRAIN_UNIFORM_NAMES = [
   'uMap', 'uRes', 'uOff', 'uScale', 'uDpr', 'uGrid', 'uTime', 'uAnim',
   'uTP', 'uSE', 'uFrz', 'uBrn', 'uCor', 'uCry', 'uHeat', 'uGridA',
-  'uPrevEdge', 'uLavaFlow', 'uFogSplit',
+  'uPrevEdge', 'uLavaFlow', 'uFogSplit', 'uFogLift',
 ] as const;
 
 export type TerrainUniformName = (typeof TERRAIN_UNIFORM_NAMES)[number];
