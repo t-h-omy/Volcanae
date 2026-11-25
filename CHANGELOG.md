@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.134.14 - Ingame texts match the rules
+
+Hints and descriptions for Untrained, Death's Door, corruption, Burning, Khyron Resonance, leashes, Patch Up, Outposts, Brandmark and crystals now describe the actual rules.
+
 ### v0.134.13 - Untrained and Homeless update instantly
 
 Untrained and Homeless tags were only refreshed at end of turn or at a few hand-picked events, and animated actions could overwrite the refresh. They are now reconciled after every state update.
