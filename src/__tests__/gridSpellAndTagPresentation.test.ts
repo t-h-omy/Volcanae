@@ -80,11 +80,28 @@ beforeEach(() => {
     taunter: makeUnit('taunter', UnitType.SWORDSMAN, origin.x + 1, origin.y, Faction.ENEMY, [UnitTag.TAUNT]),
     blocked: makeUnit('blocked', UnitType.SWORDSMAN, origin.x, origin.y + 1, Faction.ENEMY),
   };
+  const baseBuilding = Object.values(initial.buildings).find((building) =>
+    building.type === BuildingType.STRONGHOLD && building.faction === Faction.PLAYER,
+  )!;
+  const buildings = Object.fromEntries([
+    BuildingType.STRONGHOLD, BuildingType.BARRACKS, BuildingType.CRYSTAL_CHAMBER,
+  ].map((type, x) => {
+    const definition = BUILDING_DEFINITIONS[type];
+    const building = {
+      ...baseBuilding, id: `grid-support-${type}`, type,
+      position: { x, y: 0 },
+      hp: definition.maxHp!, maxHp: definition.maxHp!,
+      combatStats: definition.combatStats ? { ...definition.combatStats } : null,
+    };
+    return [building.id, building];
+  }));
   const grid = initial.grid.map((row, y) => row.map((tile, x) => ({
     ...tile,
     isRevealed: true,
     unitId: Object.values(units).find((unit) => unit.position.x === x && unit.position.y === y)?.id ?? null,
-    buildingId: null,
+    buildingId: Object.values(buildings).find((building) =>
+      building.position.x === x && building.position.y === y,
+    )?.id ?? null,
     terrainType: TileType.PLAINS,
     isLava: false,
     isLavaPreview: false,
@@ -93,7 +110,7 @@ beforeEach(() => {
     status: null,
   })));
   useGameStore.setState({
-    ...initial, turn: 1, grid, units, buildings: {},
+    ...initial, turn: 1, grid, units, buildings,
     selectedUnitId: selectedId, selectedBuildingId: null,
     pendingSpellCast: null, pendingTrapSetterId: null,
     unlockedSpells: [SpellId.TAUNT], arcaneCrystals: 10,

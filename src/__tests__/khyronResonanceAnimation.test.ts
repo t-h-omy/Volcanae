@@ -10,6 +10,7 @@ import { useGameStore } from '../gameStore';
 import { useFloaterStore } from '../floaterStore';
 import { useAnimationEngine } from '../useAnimationEngine';
 import { advanceLavaWithEvents } from '../lavaSystem';
+import { applyTagStatEffects } from '../techSystem';
 import { BuildingType, DestroyBehavior, Faction, TileType, UnitTag, UnitType } from '../types';
 import type { Building, GameState, Position, Unit } from '../types';
 import type { GameEvent } from '../gameEvents';
@@ -27,7 +28,7 @@ function Harness() {
 
 function unit(id: string, x: number, overrides: Partial<Unit> = {}): Unit {
   const def = UNIT_DEFINITIONS[UnitType.CRYSTAL_KHYRON];
-  return {
+  const result: Unit = {
     id, type: UnitType.CRYSTAL_KHYRON, faction: Faction.PLAYER,
     position: { x, y: 1 },
     stats: {
@@ -36,13 +37,15 @@ function unit(id: string, x: number, overrides: Partial<Unit> = {}): Unit {
       triggerRange: def.triggerRange ?? 0, movementActions: def.movementActions ?? 1,
       attackRange: def.attackRange,
     },
-    tags: [], resonanceActive: false,
+    tags: [UnitTag.UNTRAINED], resonanceActive: false,
     hasMovedThisTurn: false, hasAttackedThisTurn: false, hasCapturedThisTurn: false,
     hasTradedThisTurn: false, hasConstructedThisTurn: false, hasDestroyedThisTurn: false,
     hasUsedPostAttackMoveThisTurn: false, bloodlustAttackAvailable: false,
     xp: 0, level: 1, pinnedUntilTurn: 0, distractionDefPenalty: 0, lastMovedTurn: 0,
     ...overrides,
   };
+  if (result.tags.includes(UnitTag.UNTRAINED)) applyTagStatEffects(result, UnitTag.UNTRAINED);
+  return result;
 }
 
 function building(id: string, type: BuildingType, position: Position): Building {
@@ -339,7 +342,7 @@ describe('Khyron resonance event presentation', () => {
     for (const id of ['missing', 'dead', 'enemy', 'other', 'first', 'first']) {
       useGameStore.getState().activateCrystalKhyron(id);
     }
-    expect(useGameStore.getState().units.first.tags).toEqual([UnitTag.RESONANCE]);
+    expect(useGameStore.getState().units.first.tags).toEqual([UnitTag.UNTRAINED, UnitTag.RESONANCE]);
     expect(useGameStore.getState().units.first.resonanceActive).toBe(true);
     expect(useGameStore.getState().units.second.resonanceActive).toBe(false);
   });
