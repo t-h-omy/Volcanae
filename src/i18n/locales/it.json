@@ -505,7 +505,7 @@
   "specialist.spec_20.name": "Consacrato",
   "specialist.spec_20.desc": "I tuoi arcieri ottengono il tag Berserk: sotto il {hpThresholdPct}% di PV, guadagnano +{attackPct}% ATT. Una volta attivato, resta attivo anche se recuperano PV.",
   "specialist.spec_21.name": "Esploratore",
-  "specialist.spec_21.desc": "Catturare una roccaforte nemica rivela subito l'intera zona a cui appartiene.",
+  "specialist.spec_21.desc": "Catturare o costruire una roccaforte rivela subito l'intera zona a cui appartiene.",
   "specialist.spec_22.name": "La Franta",
   "specialist.spec_22.desc": "I tuoi maghi sbloccano Frattura: infligge danni pari al {damagePercent}% dei PV attuali del bersaglio per {crystalCost} cristallo.",
   "specialist.spec_23.name": "La Matriarca",

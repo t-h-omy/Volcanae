@@ -505,7 +505,7 @@
   "specialist.spec_20.name": "Deathsworn",
   "specialist.spec_20.desc": "Your Archers gain the Berserk tag: when HP drops below {hpThresholdPct}%, they gain +{attackPct}% ATK. Once triggered, it stays active even if HP recovers.",
   "specialist.spec_21.name": "Pathfinder",
-  "specialist.spec_21.desc": "Capturing an enemy Stronghold immediately reveals the full zone it belongs to.",
+  "specialist.spec_21.desc": "Capturing or building a Stronghold immediately reveals the full zone it belongs to.",
   "specialist.spec_22.name": "The Sundered",
   "specialist.spec_22.desc": "Your Mages unlock the Rupture spell: deals {damagePercent}% of the target's current HP as damage for {crystalCost} crystal.",
   "specialist.spec_23.name": "The Matriarch",

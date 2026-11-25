@@ -505,7 +505,7 @@
   "specialist.spec_20.name": "Juramentado",
   "specialist.spec_20.desc": "Tus arqueros obtienen la etiqueta Berserker: al bajar de {hpThresholdPct}% de PV, ganan +{attackPct}% de ATQ. Una vez activado, el efecto persiste aunque recuperen PV.",
   "specialist.spec_21.name": "Explorador",
-  "specialist.spec_21.desc": "Capturar una fortaleza enemiga revela al instante toda la zona a la que pertenece.",
+  "specialist.spec_21.desc": "Capturar o construir una fortaleza revela al instante toda la zona a la que pertenece.",
   "specialist.spec_22.name": "La Quebrada",
   "specialist.spec_22.desc": "Tus magos desbloquean Ruptura: inflige un daño equivalente al {damagePercent}% de los PV actuales del objetivo por {crystalCost} de cristal.",
   "specialist.spec_23.name": "La Matriarca",

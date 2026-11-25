@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.134.15 - Pathfinder reveals on capture
+
+Pathfinder now also reveals a Stronghold's zone when the Stronghold is captured, as its description promised.
+
 ### v0.134.14 - Ingame texts match the rules
 
 Hints and descriptions for Untrained, Death's Door, corruption, Burning, Khyron Resonance, leashes, Patch Up, Outposts, Brandmark and crystals now describe the actual rules.

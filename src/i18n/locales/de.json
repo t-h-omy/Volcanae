@@ -505,7 +505,7 @@
   "specialist.spec_20.name": "Todgeweihter",
   "specialist.spec_20.desc": "Deine Bogenschützen erhalten das Merkmal „Berserker“: Sinken ihre LP unter {hpThresholdPct}%, erhalten sie +{attackPct}% ATK. Der Effekt bleibt nach Auslösung auch bei wiederhergestellten LP bestehen.",
   "specialist.spec_21.name": "Wegfinder",
-  "specialist.spec_21.desc": "Eroberst du eine feindliche Festung, wird sofort die gesamte Zone aufgedeckt, zu der sie gehört.",
+  "specialist.spec_21.desc": "Eroberst oder errichtest du eine Festung, wird sofort die gesamte Zone aufgedeckt, zu der sie gehört.",
   "specialist.spec_22.name": "Der Zerrissene",
   "specialist.spec_22.desc": "Deine Magier schalten den Zauber Aufbrechen frei: Er verursacht für {crystalCost} Kristall Schaden in Höhe von {damagePercent}% der aktuellen LP des Ziels.",
   "specialist.spec_23.name": "Die Matriarchin",

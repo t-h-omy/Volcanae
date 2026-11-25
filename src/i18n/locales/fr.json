@@ -505,7 +505,7 @@
   "specialist.spec_20.name": "Lié à la mort",
   "specialist.spec_20.desc": "Vos archers gagnent le tag Furieux : sous {hpThresholdPct} % de PV, ils obtiennent +{attackPct} % ATQ. Une fois activé, l'effet persiste même si leurs PV remontent.",
   "specialist.spec_21.name": "Éclaireur",
-  "specialist.spec_21.desc": "Capturer une forteresse ennemie révèle immédiatement toute la zone à laquelle elle appartient.",
+  "specialist.spec_21.desc": "Capturer ou bâtir une forteresse révèle immédiatement toute la zone à laquelle elle appartient.",
   "specialist.spec_22.name": "La Brisée",
   "specialist.spec_22.desc": "Vos mages débloquent le sort Rupture : il inflige {damagePercent} % des PV actuels de la cible en dégâts pour {crystalCost} cristaux.",
   "specialist.spec_23.name": "La Matriarche",
