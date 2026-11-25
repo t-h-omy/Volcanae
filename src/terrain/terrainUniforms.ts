@@ -25,6 +25,7 @@ export interface PackedTerrainUniforms {
   cry: [number, number, number];
   heat: number;
   prevEdge: [number, number];
+  fogLift: [number, number, number, number];
 }
 
 export function packTerrainUniforms(look: TerrainLook): PackedTerrainUniforms {
@@ -67,5 +68,6 @@ export function packTerrainUniforms(look: TerrainLook): PackedTerrainUniforms {
     cry: [look.status.crystalline.density, look.status.crystalline.size, look.status.crystalline.strength],
     heat: look.terrain.lava.previewHeat,
     prevEdge: [look.terrain.lava.previewBlend, look.terrain.lava.previewNoise],
+    fogLift: [look.terrain.fog.liftBillow, look.terrain.fog.liftDrift, look.terrain.fog.liftThin, look.terrain.fog.liftBillowSpeed],
   };
 }

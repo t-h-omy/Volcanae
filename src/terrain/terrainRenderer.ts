@@ -158,6 +158,7 @@ export function createTerrainRenderer(
       gl.uniform2f(locations.get('uPrevEdge') ?? null, packed.prevEdge[0], packed.prevEdge[1]);
       gl.uniform1f(locations.get('uFogSplit') ?? null, frame.fogSplit ? 1 : 0);
       gl.uniform2f(locations.get('uLavaFlow') ?? null, frame.lavaFlow[0], frame.lavaFlow[1]);
+      gl.uniform4f(locations.get('uFogLift') ?? null, packed.fogLift[0], packed.fogLift[1], packed.fogLift[2], packed.fogLift[3]);
       gl.uniform1f(locations.get('uGridA') ?? null, frame.gridAlpha);
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT);
