@@ -80,5 +80,11 @@ describe('packTerrainUniforms', () => {
       TERRAIN_LOOK.terrain.lava.previewBlend,
       TERRAIN_LOOK.terrain.lava.previewNoise,
     ]);
+    expect(packed.fogLift).toEqual([
+      TERRAIN_LOOK.terrain.fog.liftBillow,
+      TERRAIN_LOOK.terrain.fog.liftDrift,
+      TERRAIN_LOOK.terrain.fog.liftThin,
+      TERRAIN_LOOK.terrain.fog.liftBillowSpeed,
+    ]);
   });
 });
