@@ -1,5 +1,6 @@
 import { ANIMATION } from '../../config/animation';
 import { MAP } from '../../config/map';
+import { TERRAIN_RENDER } from '../../config/terrain';
 import { cubicBezierEase } from '../cameraMotion';
 import type { Tile } from '../types';
 
@@ -15,18 +16,22 @@ export function isFogFree(tile: Tile, y: number, lavaFlowRow?: number): boolean 
   return tile.isRevealed || tile.isLava || y === lavaFlowRow;
 }
 
+/**
+ * Plans delays after the first drawn frame, spreading from revealed or lifting tiles.
+ * Isolated groups start at the tile closest to their centroid.
+ */
 export function planFogLift(
   prevRevealed: Uint8Array | null,
   grid: Tile[][],
-  nowMs: number,
-  lifting: ReadonlyMap<number, number>,
+  lifting: ReadonlySet<number>,
+  staggerMs: number,
   lavaFlowRow?: number,
 ): Map<number, number> {
   if (!prevRevealed) return new Map();
 
-  const newlyRevealed = new Uint8Array(MAP.GRID_WIDTH * MAP.GRID_HEIGHT);
-  const depths = new Uint8Array(newlyRevealed.length);
-  const queue: number[] = [];
+  const size = MAP.GRID_WIDTH * MAP.GRID_HEIGHT;
+  const newlyRevealed = new Uint8Array(size);
+  const depths = new Uint8Array(size);
 
   for (let y = 0; y < MAP.GRID_HEIGHT; y++) {
     for (let x = 0; x < MAP.GRID_WIDTH; x++) {
@@ -35,45 +40,94 @@ export function planFogLift(
     }
   }
 
-  const addNeighbors = (index: number, depth: number) => {
+  const forNeighbors = (index: number, visit: (neighbor: number) => void) => {
     const x = index % MAP.GRID_WIDTH;
     const y = Math.floor(index / MAP.GRID_WIDTH);
     for (const [dx, dy] of NEIGHBORS) {
       const nx = x + dx;
       const ny = y + dy;
       if (nx < 0 || nx >= MAP.GRID_WIDTH || ny < 0 || ny >= MAP.GRID_HEIGHT) continue;
-      const neighbor = ny * MAP.GRID_WIDTH + nx;
-      if (!newlyRevealed[neighbor] || depths[neighbor] !== 0) continue;
-      depths[neighbor] = depth;
-      queue.push(neighbor);
+      visit(ny * MAP.GRID_WIDTH + nx);
     }
   };
 
-  for (let index = 0; index < newlyRevealed.length; index++) {
-    if ((prevRevealed[index] || lifting.has(index)) && index < MAP.GRID_WIDTH * MAP.GRID_HEIGHT) {
-      addNeighbors(index, 1);
+  const spread = (queue: number[]) => {
+    for (let cursor = 0; cursor < queue.length; cursor++) {
+      const index = queue[cursor];
+      const depth = Math.min(depths[index] + 1, ANIMATION.FOG_LIFT_MAX_DEPTH);
+      forNeighbors(index, (neighbor) => {
+        if (!newlyRevealed[neighbor] || depths[neighbor] !== 0) return;
+        depths[neighbor] = depth;
+        queue.push(neighbor);
+      });
     }
+  };
+
+  const queue: number[] = [];
+  for (let index = 0; index < size; index++) {
+    if (!prevRevealed[index] && !lifting.has(index)) continue;
+    forNeighbors(index, (neighbor) => {
+      if (!newlyRevealed[neighbor] || depths[neighbor] !== 0) return;
+      depths[neighbor] = 1;
+      queue.push(neighbor);
+    });
+  }
+  spread(queue);
+
+  const grouped = new Uint8Array(size);
+  for (let index = 0; index < size; index++) {
+    if (!newlyRevealed[index] || depths[index] !== 0 || grouped[index]) continue;
+    const group = [index];
+    grouped[index] = 1;
+    for (let cursor = 0; cursor < group.length; cursor++) {
+      forNeighbors(group[cursor], (neighbor) => {
+        if (!newlyRevealed[neighbor] || depths[neighbor] !== 0 || grouped[neighbor]) return;
+        grouped[neighbor] = 1;
+        group.push(neighbor);
+      });
+    }
+    let cx = 0;
+    let cy = 0;
+    for (const member of group) {
+      cx += member % MAP.GRID_WIDTH;
+      cy += Math.floor(member / MAP.GRID_WIDTH);
+    }
+    cx /= group.length;
+    cy /= group.length;
+    let seed = group[0];
+    let best = Infinity;
+    for (const member of group) {
+      const dx = member % MAP.GRID_WIDTH - cx;
+      const dy = Math.floor(member / MAP.GRID_WIDTH) - cy;
+      const distance = dx * dx + dy * dy;
+      if (distance < best || (distance === best && member < seed)) {
+        best = distance;
+        seed = member;
+      }
+    }
+    depths[seed] = 1;
+    spread([seed]);
   }
 
-  for (let cursor = 0; cursor < queue.length; cursor++) {
-    const index = queue[cursor];
-    const depth = depths[index];
-    addNeighbors(index, Math.min(depth + 1, ANIMATION.FOG_LIFT_MAX_DEPTH));
+  const delays = new Map<number, number>();
+  for (let index = 0; index < size; index++) {
+    if (depths[index] > 0) delays.set(index, (depths[index] - 1) * staggerMs);
   }
-
-  const starts = new Map<number, number>();
-  for (let index = 0; index < depths.length; index++) {
-    const depth = depths[index];
-    if (depth > 0) {
-      starts.set(index, nowMs + (depth - 1) * ANIMATION.FOG_LIFT_ROW_STAGGER_MS);
-    }
-  }
-  return starts;
+  return delays;
 }
 
-export function fogValueAt(startMs: number, nowMs: number): number {
-  const progress = Math.min(1, Math.max(0, (nowMs - startMs) / ANIMATION.FOG_LIFT_MS));
-  return Math.round(255 * (1 - fogLiftEase(progress)));
+/** Moves planned lifts to absolute start times on the frame that first draws them. */
+export function activatePendingLifts(pending: Map<number, number>, starts: Map<number, number>, nowMs: number): void {
+  for (const [index, delayMs] of pending) {
+    if (!starts.has(index)) starts.set(index, nowMs + delayMs);
+  }
+  pending.clear();
+}
+
+/** Fog value of a lifting tile, always below the fog-at-rest value. */
+export function fogValueAt(startMs: number, nowMs: number, liftMs: number): number {
+  const progress = Math.min(1, Math.max(0, (nowMs - startMs) / Math.max(1, liftMs)));
+  return Math.round(TERRAIN_RENDER.FOG_LIFT_START_VALUE * (1 - fogLiftEase(progress)));
 }
 
 export function snapshotRevealed(

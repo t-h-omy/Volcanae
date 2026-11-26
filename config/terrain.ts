@@ -7,7 +7,7 @@ export const TERRAIN_LOOK = {
     canyon: { blend: 0.25, noise: 0.22, wallHeight: 0.275, detail: 1 },
     water: { blend: 0.25, noise: 0.22, foam: 0.7, waves: 0.7 },
     lava: { blend: 0.25, noise: 0.22, crust: 0.5, glow: 0.5, previewHeat: 0.7, previewBlend: 0.5, previewNoise: 0.4 },
-    fog: { blend: 0.25, noise: 0.22, shadow: 0.5, contrast: 0.6 },
+    fog: { blend: 0.25, noise: 0.22, shadow: 0.5, contrast: 0.6, liftMs: 900, liftStaggerMs: 300, liftBillow: 0.3, liftDrift: 0.35, liftThin: 0.33, liftBillowSpeed: 0.6 },
   },
   status: {
     frozen: { blend: 0.4, noise: 0.3, frostLayer: 0.875, cracks: 0.675, glare: 0.775 },
@@ -28,7 +28,7 @@ export const TERRAIN_TUNING_SCHEMA = [
   { path: 'terrain.canyon', label: 'Canyon', params: [['blend', 'Edge blend', 0, 0.4], ['noise', 'Edge noise', 0, 0.3], ['wallHeight', 'Wall height', 0, 1], ['detail', 'Cracks and pebbles', 0, 1]] },
   { path: 'terrain.water', label: 'Water', params: [['blend', 'Edge blend', 0, 0.4], ['noise', 'Edge noise', 0, 0.3], ['foam', 'Foam', 0, 1], ['waves', 'Waves', 0, 1]] },
   { path: 'terrain.lava', label: 'Lava', params: [['blend', 'Edge blend', 0, 0.4], ['noise', 'Edge noise', 0, 0.3], ['crust', 'Crust', 0, 1], ['glow', 'Glow', 0, 1], ['previewHeat', 'Preview heat', 0, 1], ['previewBlend', 'Preview edge blend', 0.06, 0.4], ['previewNoise', 'Preview edge noise', 0, 0.3]] },
-  { path: 'terrain.fog', label: 'Fog', params: [['blend', 'Edge blend', 0, 0.4], ['noise', 'Edge noise', 0, 0.3], ['shadow', 'Cloud shadow', 0, 1], ['contrast', 'Cloud contrast', 0, 1]] },
+  { path: 'terrain.fog', label: 'Fog', params: [['blend', 'Edge blend', 0, 0.4], ['noise', 'Edge noise', 0, 0.3], ['shadow', 'Cloud shadow', 0, 1], ['contrast', 'Cloud contrast', 0, 1], ['liftMs', 'Lift duration (ms)', 200, 2000], ['liftStaggerMs', 'Lift stagger (ms)', 0, 1000], ['liftBillow', 'Lift billow', 0, 0.6], ['liftDrift', 'Lift drift', 0, 1], ['liftThin', 'Lift thinning share', 0.05, 1], ['liftBillowSpeed', 'Lift billow speed', 0, 2]] },
   { path: 'status.frozen', label: 'Frozen', params: [['blend', 'Edge blend', 0, 0.4], ['noise', 'Edge noise', 0, 0.3], ['frostLayer', 'Frost layer', 0, 1], ['cracks', 'Cracks', 0, 1], ['glare', 'Ice glare', 0, 1]] },
   { path: 'status.burning', label: 'Burning', params: [['blend', 'Edge blend', 0, 0.4], ['noise', 'Edge noise', 0, 0.3], ['char', 'Char', 0, 1], ['scorch', 'Scorch', 0, 1], ['fire', 'Embers and fire', 0, 1]] },
   { path: 'status.corrupted', label: 'Corrupted', params: [['blend', 'Edge blend', 0, 0.4], ['noise', 'Edge noise', 0, 0.3], ['ash', 'Ash tone', 0, 1], ['veins', 'Veins', 0, 1], ['glow', 'Magic glow', 0, 1]] },
@@ -57,6 +57,10 @@ export const TERRAIN_RENDER = {
   CONTEXT_RESTORE_TIMEOUT_MS: 3000,
   /** Shader time wraps after this many seconds to keep float precision. */
   TIME_WRAP_S: 3600,
+  /** Fog value (B byte) of a lifting tile at its start, below the 255 of fog at rest. */
+  FOG_LIFT_START_VALUE: 254,
+  /** Both canvases redraw every frame for this long after the last lift ends. */
+  FOG_LIFT_REDRAW_TAIL_MS: 500,
 } as const satisfies {
   QUALITY: Record<Exclude<GraphicsQuality, 'BASIC'>, { MAX_DPR: number; ANIM_FPS: number }>;
   GRID_ALPHA_SHADER: Record<Exclude<GridLineMode, 'OFF'>, number>;
@@ -66,4 +70,6 @@ export const TERRAIN_RENDER = {
   HEAT_LEVEL_MAX: number;
   CONTEXT_RESTORE_TIMEOUT_MS: number;
   TIME_WRAP_S: number;
+  FOG_LIFT_START_VALUE: number;
+  FOG_LIFT_REDRAW_TAIL_MS: number;
 };

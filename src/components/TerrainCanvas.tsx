@@ -6,7 +6,7 @@ import { useGameStore } from '../gameStore';
 import { useGraphicsOptionsStore, isReducedMotion } from '../graphicsOptionsStore';
 import { GridLineMode, GraphicsQuality } from '../types';
 import { encodeTerrainMap } from '../terrain/terrainMapEncoding';
-import { fogValueAt, isFogFree, planFogLift, snapshotRevealed } from '../terrain/fogLift';
+import { activatePendingLifts, fogValueAt, isFogFree, planFogLift, snapshotRevealed } from '../terrain/fogLift';
 import { useTerrainRenderStore } from '../terrain/terrainRenderStore';
 import { getTerrainLook } from '../terrain/terrainLook';
 import { useTerrainTuningStore } from '../terrain/terrainTuningStore';
@@ -37,6 +37,8 @@ export default function TerrainCanvas({ viewportRef, containerRef, fogCanvasRef 
   const forceDrawRef = useRef(true);
   const prevRevealedRef = useRef<Uint8Array | null>(null);
   const liftStartsRef = useRef(new Map<number, number>());
+  const pendingLiftsRef = useRef(new Map<number, number>());
+  const redrawTailUntilRef = useRef(0);
   const quality = useGraphicsOptionsStore((state) => state.quality);
   const gridLines = useGraphicsOptionsStore((state) => state.gridLines);
   const grid = useGameStore((state) => state.grid);
@@ -64,19 +66,14 @@ export default function TerrainCanvas({ viewportRef, containerRef, fogCanvasRef 
 
   useEffect(() => {
     const nowMs = performance.now();
+    const fogLook = getTerrainLook().terrain.fog;
     const lifting = liftStartsRef.current;
-    if (isReducedMotion()) {
-      lifting.clear();
-    } else {
-      for (const [index, startMs] of planFogLift(
-        prevRevealedRef.current,
-        grid,
-        nowMs,
-        lifting,
-        lavaFlow?.row,
-      )) {
-        lifting.set(index, startMs);
-      }
+    const pending = pendingLiftsRef.current;
+    const sources = new Set<number>([...lifting.keys(), ...pending.keys()]);
+    for (const [index, delayMs] of planFogLift(
+      prevRevealedRef.current, grid, sources, fogLook.liftStaggerMs, lavaFlow?.row,
+    )) {
+      if (!lifting.has(index) && !pending.has(index)) pending.set(index, delayMs);
     }
     prevRevealedRef.current = snapshotRevealed(
       grid,
@@ -84,6 +81,16 @@ export default function TerrainCanvas({ viewportRef, containerRef, fogCanvasRef 
       lavaFlow?.row,
     );
     const fog = new Map<number, number>();
+    for (const index of pending.keys()) {
+      const x = index % MAP.GRID_WIDTH;
+      const y = Math.floor(index / MAP.GRID_WIDTH);
+      const tile = grid[y]?.[x];
+      if (!tile || !isFogFree(tile, y, lavaFlow?.row)) {
+        pending.delete(index);
+        continue;
+      }
+      fog.set(index, TERRAIN_RENDER.FOG_LIFT_START_VALUE);
+    }
     for (const [index, startMs] of lifting) {
       const x = index % MAP.GRID_WIDTH;
       const y = Math.floor(index / MAP.GRID_WIDTH);
@@ -92,7 +99,7 @@ export default function TerrainCanvas({ viewportRef, containerRef, fogCanvasRef 
         lifting.delete(index);
         continue;
       }
-      fog.set(index, fogValueAt(startMs, nowMs));
+      fog.set(index, fogValueAt(startMs, nowMs, fogLook.liftMs));
     }
     mapRef.current = encodeTerrainMap(
       grid,
@@ -205,30 +212,30 @@ export default function TerrainCanvas({ viewportRef, containerRef, fogCanvasRef 
     document.addEventListener('visibilitychange', onVisibilityChange);
 
     const drawFrame = (now: number) => {
-      let updatedFog = false;
       const reducedMotion = isReducedMotion();
-      if (reducedMotion && liftStartsRef.current.size > 0) {
-        for (const index of liftStartsRef.current.keys()) mapRef.current[index * 4 + 2] = 0;
-        liftStartsRef.current.clear();
-        updatedFog = true;
-      } else {
-        for (const [index, startMs] of liftStartsRef.current) {
-          const value = fogValueAt(startMs, now);
-          mapRef.current[index * 4 + 2] = value;
-          updatedFog = true;
-          if (value === 0) liftStartsRef.current.delete(index);
-        }
-      }
-      if (updatedFog) {
-        mapVersionRef.current++;
-        rendererRef.current?.setMap(mapRef.current);
-        fogRendererRef.current?.setMap(mapRef.current);
-        forceDrawRef.current = true;
-      }
       if (!document.hidden && lostCanvases.size === 0 && rendererRef.current && fogRendererRef.current) {
         const viewport = viewportRef.current;
         const container = containerRef.current;
         if (viewport && container) {
+          let updatedFog = false;
+          const liftMs = optionsRef.current.look.terrain.fog.liftMs;
+          activatePendingLifts(pendingLiftsRef.current, liftStartsRef.current, now);
+          const wasLifting = liftStartsRef.current.size > 0;
+          for (const [index, startMs] of liftStartsRef.current) {
+            const value = fogValueAt(startMs, now, liftMs);
+            mapRef.current[index * 4 + 2] = value;
+            updatedFog = true;
+            if (value === 0) liftStartsRef.current.delete(index);
+          }
+          if (wasLifting && liftStartsRef.current.size === 0) {
+            redrawTailUntilRef.current = now + TERRAIN_RENDER.FOG_LIFT_REDRAW_TAIL_MS;
+          }
+          if (updatedFog) {
+            mapVersionRef.current++;
+            rendererRef.current.setMap(mapRef.current);
+            fogRendererRef.current.setMap(mapRef.current);
+            forceDrawRef.current = true;
+          }
           const viewportRect = viewport.getBoundingClientRect();
           const containerRect = container.getBoundingClientRect();
           const options = optionsRef.current;
@@ -251,7 +258,7 @@ export default function TerrainCanvas({ viewportRef, containerRef, fogCanvasRef 
           ].join('|');
           const currentFlow = lavaFlowRef.current;
           const flowActive = !!currentFlow && !reducedMotion;
-          const changed = forceDrawRef.current || signature !== lastSignature || options.look !== lastLook || flowActive;
+          const changed = forceDrawRef.current || signature !== lastSignature || options.look !== lastLook || flowActive || now < redrawTailUntilRef.current;
           const fps = options.quality === GraphicsQuality.SAVER
             ? TERRAIN_RENDER.QUALITY.SAVER.ANIM_FPS
             : TERRAIN_RENDER.QUALITY.HIGH.ANIM_FPS;

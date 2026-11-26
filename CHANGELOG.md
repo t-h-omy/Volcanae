@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.134.16 - Fog pulls back
+
+Revealed clouds now pull back as one billowing front and thin out. Isolated reveals open from their center, reduced motion fades the clouds, and the animation always plays in full.
+
 ### v0.134.15 - Pathfinder reveals on capture
 
 Pathfinder now also reveals a Stronghold's zone when the Stronghold is captured, as its description promised.

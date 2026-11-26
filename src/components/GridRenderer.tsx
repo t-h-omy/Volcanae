@@ -28,6 +28,7 @@ import { isReducedMotion, useGraphicsOptionsStore } from '../graphicsOptionsStor
 import { useTerrainRenderMode } from '../terrain/terrainRenderStore';
 import { useTerrainTransitionStore } from '../terrain/terrainTransitionStore';
 import { isFogFree } from '../terrain/fogLift';
+import { getTerrainLook } from '../terrain/terrainLook';
 import { useStatusSprite } from '../statusSpriteVariants';
 import TerrainCanvas from './TerrainCanvas';
 import { UNIT_SPRITE, TILE_SPRITE, TILE_STATUS_SPRITE, TERRAIN_RESOURCE_SPRITE, CRYSTAL_KHYRON_ACTIVE_SPRITE, ENEMY_UNIT_SPRITE, PLAYER_UNIT_SPRITE, TUNNEL_HOLE_SPRITE, TUNNEL_EARTHQUAKE_SPRITE, PORTAL_ENTRANCE_SPRITE, PORTAL_EXIT_SPRITE, MAGE_PORTAL_SPRITE, getBuildingSpritePath } from '../assetRegistry';
@@ -1419,7 +1420,7 @@ function TileCellInner({
       style={{
         width: tileSize,
         height: tileSize,
-        '--fog-lift-duration': `${ANIMATION.FOG_LIFT_MS}ms`,
+        '--fog-lift-duration': `${getTerrainLook().terrain.fog.liftMs}ms`,
         ...(isCrystalActivating && { '--crystal-activate-duration': `${crystalActivationDuration}ms` }),
         ...(isGravestoneRising && {
           '--gravestone-rise-duration': `${ANIMATION.GRAVESTONE_RISE_MS}ms`,
