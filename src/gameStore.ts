@@ -259,9 +259,11 @@ interface GameActions {
   activateCrystalCave: (caveId: string) => void;
   activateCrystalKhyron: (unitId: string) => void;
   /** Replace the entire game state (used by animation engine to apply resolved state) */
-  setGameState: (newState: GameState) => void;
+  setGameState: (newState: GameState, options?: { deferAutosave?: boolean }) => void;
   /** Manually save the current game state to the active IDB slot */
   saveGame: () => void;
+  /** Phase-gated autosave of the live store, used by the animation engine after queue-end mutations */
+  autosaveGame: () => void;
   /** Load the saved game state (no-op; use loadIntoGame instead) */
   loadGame: () => void;
   /** No-op (legacy); slots are managed via deleteSlot from saveSystem */
@@ -413,6 +415,25 @@ function getSerializableGameStateSnapshot(): GameState {
   return Object.fromEntries(
     Object.entries(fullStore).filter(([, value]) => typeof value !== 'function'),
   ) as GameState;
+}
+
+function autosaveLiveGameState(): void {
+  const stateForSave = getSerializableGameStateSnapshot();
+  // Autosave when transitioning to the player's turn, or when the game ends
+  // so that the overlay is shown on reload rather than rewinding to the last turn.
+  if (
+    stateForSave.phase !== GamePhase.PLAYER_TURN &&
+    stateForSave.phase !== GamePhase.GAME_OVER &&
+    stateForSave.phase !== GamePhase.VICTORY
+  ) {
+    return;
+  }
+  const activeSaveId = useMenuStore.getState().activeSaveId;
+  if (!activeSaveId) return;
+  getSlotMeta(activeSaveId).then((meta) => {
+    const slotName = meta?.name ?? stateForSave.turn.toString();
+    saveSlot({ id: activeSaveId, name: slotName, state: stateForSave }).catch(() => undefined);
+  }).catch(() => undefined);
 }
 
 // ============================================================================
@@ -4193,7 +4214,7 @@ export const useGameStore = create<GameStore>()(
       });
     },
 
-    setGameState: (newState: GameState) => {
+    setGameState: (newState: GameState, options?: { deferAutosave?: boolean }) => {
       set((state) => {
         const incomingSeenHints = Array.isArray(newState.seenHints) ? newState.seenHints : [];
         const currentSeenHints = Array.isArray(state.seenHints) ? state.seenHints : [];
@@ -4201,22 +4222,7 @@ export const useGameStore = create<GameStore>()(
         Object.assign(state, { ...newState, seenHints: mergedSeenHints });
       });
       flushDeferredHints();
-      const stateForSave = getSerializableGameStateSnapshot();
-      // Autosave when transitioning to the player's turn, or when the game ends
-      // so that the overlay is shown on reload rather than rewinding to the last turn.
-      if (
-        stateForSave.phase === GamePhase.PLAYER_TURN ||
-        stateForSave.phase === GamePhase.GAME_OVER ||
-        stateForSave.phase === GamePhase.VICTORY
-      ) {
-        const activeSaveId = useMenuStore.getState().activeSaveId;
-        if (activeSaveId) {
-          getSlotMeta(activeSaveId).then((meta) => {
-            const slotName = meta?.name ?? stateForSave.turn.toString();
-            saveSlot({ id: activeSaveId, name: slotName, state: stateForSave }).catch(() => undefined);
-          }).catch(() => undefined);
-        }
-      }
+      if (!options?.deferAutosave) autosaveLiveGameState();
     },
 
     saveGame: () => {
@@ -4235,6 +4241,10 @@ export const useGameStore = create<GameStore>()(
           saveSlot({ id: activeSaveId, name: slotName, state: stateSnapshot }).catch(() => undefined);
         }).catch(() => undefined);
       }
+    },
+
+    autosaveGame: () => {
+      autosaveLiveGameState();
     },
 
     loadGame: () => {
