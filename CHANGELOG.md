@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.134.17 - Cave reward autosave
+
+Specialists, replacements and robbed crystals from Cave Monster rewards are now part of the autosave written after the fight, so they survive closing the game in the same turn. Finalized Brandmark transformations are saved at the same moment.
+
 ### v0.134.16 - Fog pulls back
 
 Revealed clouds now pull back as one billowing front and thin out. Isolated reveals open from their center, reduced motion fades the clouds, and the animation always plays in full.

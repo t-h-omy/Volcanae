@@ -50,6 +50,34 @@ export function applyCaveSpecialistReward(drawn: string, outcome: CaveSpecialist
   }
 }
 
+export type CaveRewardRecord = { drawn: string; outcome: CaveSpecialistRewardOutcome };
+
+/**
+ * Applies the resolved state at queue end, then every queue-end store mutation,
+ * then writes exactly one autosave of the live store.
+ * Every store mutation that must survive setGameState(resolvedState) belongs in
+ * finishQueueResolution before the autosave.
+ */
+export function finishQueueResolution(
+  resolvedState: GameState | null,
+  caveRewards: readonly CaveRewardRecord[],
+): void {
+  if (resolvedState) {
+    useGameStore.getState().setGameState(resolvedState, { deferAutosave: true });
+  }
+  // Finalize any pending Brandmark transforms (deferred demon spawn + unit removal).
+  // Idempotent: no-ops on empty queue. Must run after setGameState so the
+  // resolved pendingBrandmarkTransforms list is in the live store.
+  useGameStore.getState().finalizeBrandmarkTransforms();
+  if (!resolvedState) return;
+  // Reapply rewards after setGameState(resolvedState) so the final snapshot
+  // does not overwrite decisions made during the blocking modal.
+  for (const { drawn, outcome } of caveRewards) {
+    applyCaveSpecialistReward(drawn, outcome);
+  }
+  useGameStore.getState().autosaveGame();
+}
+
 // ============================================================================
 // HELPERS
 // ============================================================================
@@ -865,9 +893,8 @@ export function useAnimationEngine(): void {
     let alive = true;
 
     async function processQueue() {
-      // Reapply rewards after setGameState(resolvedState) so the final snapshot
-      // does not overwrite decisions made during the blocking modal.
-      const caveRewards: { drawn: string; outcome: CaveSpecialistRewardOutcome }[] = [];
+      // Cave rewards chosen during the queue, reapplied in finishQueueResolution.
+      const caveRewards: CaveRewardRecord[] = [];
       // Resolve Scout Trap effects as one arrival sequence without extra camera pauses.
       let resolvingScoutTrap = false;
       const presentedKhyronIds = new Set<string>();
@@ -2295,19 +2322,7 @@ export function useAnimationEngine(): void {
       // animations were still in flight); writing stale resolved state from a
       // previous game would corrupt the freshly-started game.
       if (alive) {
-        const resolvedState = useAnimationStore.getState().resolvedState;
-        if (resolvedState) {
-          useGameStore.getState().setGameState(resolvedState);
-        }
-        // Finalize any pending Brandmark transforms (deferred demon spawn + unit removal).
-        // Idempotent: no-ops on empty queue. Must run after setGameState so the
-        // resolved pendingBrandmarkTransforms list is in the live store.
-        useGameStore.getState().finalizeBrandmarkTransforms();
-        if (resolvedState) {
-          for (const { drawn, outcome } of caveRewards) {
-            applyCaveSpecialistReward(drawn, outcome);
-          }
-        }
+        finishQueueResolution(useAnimationStore.getState().resolvedState, caveRewards);
       }
       useAnimationStore.getState().setIsAnimating(false);
       useAnimationStore.getState().finishProcessing();
